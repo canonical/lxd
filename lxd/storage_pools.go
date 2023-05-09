@@ -141,14 +141,16 @@ var storagePoolCmd = APIEndpoint{
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	recursion := util.IsRecursionRequest(r)
 
-	poolNames, err := d.db.Cluster.GetStoragePoolNames()
+	poolNames, err := s.DB.Cluster.GetStoragePoolNames()
 	if err != nil && !response.IsNotFoundError(err) {
 		return response.SmartError(err)
 	}
 
-	clustered, err := cluster.Enabled(d.db.Node)
+	clustered, err := cluster.Enabled(s.DB.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -159,13 +161,13 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s", version.APIVersion, poolName))
 		} else {
-			pool, err := storagePools.LoadByName(d.State(), poolName)
+			pool, err := storagePools.LoadByName(s, poolName)
 			if err != nil {
 				return response.SmartError(err)
 			}
 
 			// Get all users of the storage pool.
-			poolUsedBy, err := storagePools.UsedBy(r.Context(), d.State(), pool, false, false)
+			poolUsedBy, err := storagePools.UsedBy(r.Context(), s, pool, false, false)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -238,6 +240,8 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	storagePoolCreateLock.Lock()
 	defer storagePoolCreateLock.Unlock()
 
@@ -282,17 +286,17 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		// This is an internal request which triggers the actual
 		// creation of the pool across all nodes, after they have been
 		// previously defined.
-		err = storagePoolValidate(d.State(), req.Name, req.Driver, req.Config)
+		err = storagePoolValidate(s, req.Name, req.Driver, req.Config)
 		if err != nil {
 			return response.BadRequest(err)
 		}
 
-		poolID, err := d.db.Cluster.GetStoragePoolID(req.Name)
+		poolID, err := s.DB.Cluster.GetStoragePoolID(req.Name)
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		_, err = storagePoolCreateLocal(d.State(), poolID, req, clientType)
+		_, err = storagePoolCreateLocal(s, poolID, req, clientType)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -309,12 +313,12 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		err = storagePoolValidate(d.State(), req.Name, req.Driver, req.Config)
+		err = storagePoolValidate(s, req.Name, req.Driver, req.Config)
 		if err != nil {
 			return response.BadRequest(err)
 		}
 
-		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.CreatePendingStoragePool(ctx, targetNode, req.Name, req.Driver, req.Config)
 		})
 		if err != nil {
@@ -329,13 +333,13 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Load existing pool if exists, if not don't fail.
-	_, pool, _, err := d.db.Cluster.GetStoragePoolInAnyState(req.Name)
+	_, pool, _, err := s.DB.Cluster.GetStoragePoolInAnyState(req.Name)
 	if err != nil && !response.IsNotFoundError(err) {
 		return response.InternalError(err)
 	}
 
 	// Check if we're clustered.
-	count, err := cluster.Count(d.State())
+	count, err := cluster.Count(s)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -343,19 +347,19 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	// No targetNode was specified and we're clustered or there is an existing partially created single node
 	// pool, either way finalize the config in the db and actually create the pool on all nodes in the cluster.
 	if count > 1 || (pool != nil && pool.Status != api.StoragePoolStatusCreated) {
-		err = storagePoolsPostCluster(d.State(), pool, req, clientType)
+		err = storagePoolsPostCluster(s, pool, req, clientType)
 		if err != nil {
 			return response.InternalError(err)
 		}
 	} else {
 		// Create new single node storage pool.
-		err = storagePoolCreateGlobal(d.State(), req, clientType)
+		err = storagePoolCreateGlobal(s, req, clientType)
 		if err != nil {
 			return response.SmartError(err)
 		}
 	}
 
-	d.State().Events.SendLifecycle(project.Default, lc)
+	s.Events.SendLifecycle(project.Default, lc)
 
 	return resp
 }
@@ -581,7 +585,7 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clustered, err := cluster.Enabled(d.db.Node)
+	clustered, err := cluster.Enabled(s.DB.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -686,7 +690,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	targetNode := queryParam(r, "target")
-	clustered, err := cluster.Enabled(d.db.Node)
+	clustered, err := cluster.Enabled(s.DB.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -897,12 +901,14 @@ func doStoragePoolUpdate(s *state.State, pool storagePools.Pool, req api.Storage
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	poolName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	pool, err := storagePools.LoadByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -922,7 +928,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Get the cluster notifier
-		notifier, err = cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAll)
+		notifier, err = cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -933,7 +939,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	if !clusterNotification || !pool.Driver().Info().Remote {
 		var removeImgFingerprints []string
 
-		err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Get all the volumes using the storage pool on this server.
 			// Only image volumes should remain now.
 			volumes, err := tx.GetStoragePoolVolumes(ctx, pool.ID(), true)
@@ -989,13 +995,13 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = dbStoragePoolDeleteAndUpdateCache(d.State(), pool.Name())
+	err = dbStoragePoolDeleteAndUpdateCache(s, pool.Name())
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(project.Default, lifecycle.StoragePoolDeleted.Event(pool.Name(), requestor, nil))
+	s.Events.SendLifecycle(project.Default, lifecycle.StoragePoolDeleted.Event(pool.Name(), requestor, nil))
 
 	return response.EmptySyncResponse
 }

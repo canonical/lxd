@@ -148,8 +148,10 @@ var storagePoolBucketKeyCmd = APIEndpoint{
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	requestProjectName := projectParam(r)
-	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, requestProjectName)
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, requestProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -159,7 +161,7 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	pool, err := storagePools.LoadByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
 	}
@@ -173,7 +175,7 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 
 	var dbBuckets []*db.StorageBucket
 
-	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		poolID := pool.ID()
 		filters := []db.StorageBucketFilter{{
 			PoolID:  &poolID,
@@ -504,7 +506,7 @@ func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	pool, err := storagePools.LoadByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
 	}
@@ -526,7 +528,7 @@ func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 		memberSpecific := targetMember != ""
 
 		var bucket *db.StorageBucket
-		err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			bucket, err = tx.GetStoragePoolBucket(ctx, pool.ID(), bucketProjectName, memberSpecific, bucketName)
 			return err
 		})
@@ -716,7 +718,9 @@ func storagePoolBucketDelete(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
-	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
+	s := d.State()
+
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -726,7 +730,7 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	pool, err := storagePools.LoadByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
 	}
@@ -745,7 +749,7 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 
 	var dbBucket *db.StorageBucket
 	var dbBucketKeys []*db.StorageBucketKey
-	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbBucket, err = tx.GetStoragePoolBucket(ctx, pool.ID(), bucketProjectName, memberSpecific, bucketName)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage bucket: %w", err)

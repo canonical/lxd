@@ -438,7 +438,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		for _, dbVol := range dbVolumes {
 			vol := &dbVol.StorageVolume
 
-			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), requestProjectName, poolName, dbVol)
+			volumeUsedBy, err := storagePoolVolumeUsedByGet(s, requestProjectName, poolName, dbVol)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -805,7 +805,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	poolID, err := d.db.Cluster.GetStoragePoolID(poolName)
+	poolID, err := s.DB.Cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1058,9 +1058,9 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
 	var targetPoolID int64
 	if req.Pool != "" {
-		targetPoolID, err = d.db.Cluster.GetStoragePoolID(req.Pool)
+		targetPoolID, err = s.DB.Cluster.GetStoragePoolID(req.Pool)
 	} else {
-		targetPoolID, err = d.db.Cluster.GetStoragePoolID(srcPoolName)
+		targetPoolID, err = s.DB.Cluster.GetStoragePoolID(srcPoolName)
 	}
 
 	if err != nil {
@@ -1078,7 +1078,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if the daemon itself is using it.
-	used, err := storagePools.VolumeUsedByDaemon(d.State(), srcPoolName, volumeName)
+	used, err := storagePools.VolumeUsedByDaemon(s, srcPoolName, volumeName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1102,7 +1102,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		// Check if the user provided an incorrect target query parameter and return a helpful error message.
 		_, volumeNotFound := api.StatusErrorMatch(err, http.StatusNotFound)
 		targetIsSet := r.URL.Query().Get("target") != ""
-		serverIsClustered, _ := lxdCluster.Enabled(d.db.Node)
+		serverIsClustered, _ := lxdCluster.Enabled(s.DB.Node)
 
 		if serverIsClustered && targetIsSet && volumeNotFound {
 			return response.NotFound(fmt.Errorf("Storage volume not found on this cluster member"))
@@ -1113,7 +1113,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 
 	// Check if a running instance is using it.
 	err = storagePools.VolumeUsedByInstanceDevices(s, srcPoolName, projectName, &dbVolume.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
-		inst, err := instance.Load(d.State(), dbInst, project)
+		inst, err := instance.Load(s, dbInst, project)
 		if err != nil {
 			return err
 		}
@@ -1373,7 +1373,7 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the ID of the storage pool the storage volume is supposed to be attached to.
-	poolID, err := d.db.Cluster.GetStoragePoolID(poolName)
+	poolID, err := s.DB.Cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1548,7 +1548,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 	} else if volumeType == db.StoragePoolVolumeTypeContainer || volumeType == db.StoragePoolVolumeTypeVM {
-		inst, err := instance.LoadByProjectAndName(d.State(), projectName, dbVolume.Name)
+		inst, err := instance.LoadByProjectAndName(s, projectName, dbVolume.Name)
 		if err != nil {
 			return response.SmartError(err)
 		}

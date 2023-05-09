@@ -69,6 +69,8 @@ var storagePoolVolumeTypeStateCmd = APIEndpoint{
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the pool the storage volume is supposed to be attached to.
 	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
 	if err != nil {
@@ -99,13 +101,13 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 	}
 
 	// Get the storage project name.
-	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), volumeType)
+	projectName, err := project.StorageVolumeProject(s.DB.Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Load the storage pool.
-	pool, err := storagePools.LoadByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -119,7 +121,7 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 			return response.SmartError(err)
 		}
 	} else {
-		resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, volumeName, instancetype.Any)
+		resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, volumeName, instancetype.Any)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -129,7 +131,7 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 		}
 
 		// Instance volumes.
-		inst, err := instance.LoadByProjectAndName(d.State(), projectName, volumeName)
+		inst, err := instance.LoadByProjectAndName(s, projectName, volumeName)
 		if err != nil {
 			return response.SmartError(err)
 		}
