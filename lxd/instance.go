@@ -645,7 +645,7 @@ func autoCreateAndPruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.
 				return pruneExpiredInstanceSnapshots(ctx, s, expiredSnapshotInstances)
 			}
 
-			op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.SnapshotsExpire, nil, nil, opRun, nil, nil, nil)
+			op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.SnapshotsExpire, nil, nil, opRun, nil, nil, nil)
 			if err != nil {
 				logger.Error("Failed to start expired instance snapshots operation", logger.Ctx{"err": err})
 				return

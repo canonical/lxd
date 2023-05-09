@@ -66,6 +66,8 @@ import (
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -82,7 +84,7 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -92,13 +94,13 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Load the container
-	c, err := instance.LoadByProjectAndName(d.State(), projectName, name)
+	c, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Start the storage if needed
-	pool, err := storagePools.LoadByInstance(d.State(), c)
+	pool, err := storagePools.LoadByInstance(s, c)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -136,7 +138,7 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceMetadataRetrieved.Event(c, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.InstanceMetadataRetrieved.Event(c, request.CreateRequestor(r), nil))
 
 	return response.SyncResponseETag(true, metadata, metadata)
 }
@@ -176,6 +178,8 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -192,7 +196,7 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to an instance on a different node.
-	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -202,13 +206,13 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Load the instance.
-	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)
+	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Start the storage if needed.
-	pool, err := storagePools.LoadByInstance(d.State(), inst)
+	pool, err := storagePools.LoadByInstance(s, inst)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -256,7 +260,7 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Update the file.
-	return doInstanceMetadataUpdate(d.State(), inst, metadata, r)
+	return doInstanceMetadataUpdate(s, inst, metadata, r)
 }
 
 // swagger:operation PUT /1.0/instances/{name}/metadata instances instance_metadata_put
@@ -294,6 +298,8 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -310,7 +316,7 @@ func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to an instance on a different node.
-	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -327,13 +333,13 @@ func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Load the instance.
-	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)
+	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Start the storage if needed.
-	pool, err := storagePools.LoadByInstance(d.State(), inst)
+	pool, err := storagePools.LoadByInstance(s, inst)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -345,7 +351,7 @@ func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 
 	defer func() { _ = storagePools.InstanceUnmount(pool, inst, nil) }()
 
-	return doInstanceMetadataUpdate(d.State(), inst, metadata, r)
+	return doInstanceMetadataUpdate(s, inst, metadata, r)
 }
 
 func doInstanceMetadataUpdate(s *state.State, inst instance.Instance, metadata api.ImageMetadata, r *http.Request) response.Response {
@@ -416,6 +422,8 @@ func doInstanceMetadataUpdate(s *state.State, inst instance.Instance, metadata a
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -432,7 +440,7 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -442,13 +450,13 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	}
 
 	// Load the container
-	c, err := instance.LoadByProjectAndName(d.State(), projectName, name)
+	c, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Start the storage if needed
-	pool, err := storagePools.LoadByInstance(d.State(), c)
+	pool, err := storagePools.LoadByInstance(s, c)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -524,7 +532,7 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	files[0].Filename = templateName
 	files[0].Cleanup = func() { _ = os.Remove(tempfile.Name()) }
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateRetrieved.Event(c, request.CreateRequestor(r), logger.Ctx{"path": templateName}))
+	s.Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateRetrieved.Event(c, request.CreateRequestor(r), logger.Ctx{"path": templateName}))
 
 	return response.FileResponse(r, files, nil)
 }
@@ -566,6 +574,8 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -582,7 +592,7 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -592,13 +602,13 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 	}
 
 	// Load the container
-	c, err := instance.LoadByProjectAndName(d.State(), projectName, name)
+	c, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Start the storage if needed
-	pool, err := storagePools.LoadByInstance(d.State(), c)
+	pool, err := storagePools.LoadByInstance(s, c)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -645,7 +655,7 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 		return response.InternalError(err)
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateCreated.Event(c, request.CreateRequestor(r), logger.Ctx{"path": templateName}))
+	s.Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateCreated.Event(c, request.CreateRequestor(r), logger.Ctx{"path": templateName}))
 
 	return response.EmptySyncResponse
 }
@@ -682,6 +692,8 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -699,7 +711,7 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -709,13 +721,13 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 	}
 
 	// Load the container
-	c, err := instance.LoadByProjectAndName(d.State(), projectName, name)
+	c, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Start the storage if needed
-	pool, err := storagePools.LoadByInstance(d.State(), c)
+	pool, err := storagePools.LoadByInstance(s, c)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -748,7 +760,7 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 		return response.InternalError(err)
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateDeleted.Event(c, request.CreateRequestor(r), logger.Ctx{"path": templateName}))
+	s.Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateDeleted.Event(c, request.CreateRequestor(r), logger.Ctx{"path": templateName}))
 
 	return response.EmptySyncResponse
 }
