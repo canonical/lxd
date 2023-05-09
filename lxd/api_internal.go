@@ -179,7 +179,7 @@ func internalCreateWarning(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Invalid entity type"))
 	}
 
-	err = d.db.Cluster.UpsertWarning(req.Location, req.Project, req.EntityTypeCode, req.EntityID, warningtype.Type(req.TypeCode), req.Message)
+	err = d.State().DB.Cluster.UpsertWarning(req.Location, req.Project, req.EntityTypeCode, req.EntityID, warningtype.Type(req.TypeCode), req.Message)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to create warning: %w", err))
 	}
@@ -219,7 +219,7 @@ func internalRefreshImage(d *Daemon, r *http.Request) response.Response {
 
 func internalWaitReady(d *Daemon, r *http.Request) response.Response {
 	// Check that we're not shutting down.
-	isClosing := d.shutdownCtx.Err() != nil
+	isClosing := d.State().ShutdownCtx.Err() != nil
 	if isClosing {
 		return response.Unavailable(fmt.Errorf("LXD daemon is shutting down"))
 	}
@@ -235,7 +235,7 @@ func internalShutdown(d *Daemon, r *http.Request) response.Response {
 	force := queryParam(r, "force")
 	logger.Info("Asked to shutdown by API", logger.Ctx{"force": force})
 
-	if d.shutdownCtx.Err() != nil {
+	if d.State().ShutdownCtx.Err() != nil {
 		return response.SmartError(fmt.Errorf("Shutdown already in progress"))
 	}
 
@@ -414,6 +414,8 @@ type internalSQLResult struct {
 
 // Perform a database dump.
 func internalSQLGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	database := r.FormValue("database")
 
 	if !shared.StringInSlice(database, []string{"local", "global"}) {
@@ -428,9 +430,9 @@ func internalSQLGet(d *Daemon, r *http.Request) response.Response {
 
 	var db *sql.DB
 	if database == "global" {
-		db = d.db.Cluster.DB()
+		db = s.DB.Cluster.DB()
 	} else {
-		db = d.db.Node.DB()
+		db = s.DB.Node.DB()
 	}
 
 	tx, err := db.BeginTx(r.Context(), nil)
@@ -450,6 +452,8 @@ func internalSQLGet(d *Daemon, r *http.Request) response.Response {
 
 // Execute queries.
 func internalSQLPost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	req := &internalSQLQuery{}
 	// Parse the request.
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -467,9 +471,9 @@ func internalSQLPost(d *Daemon, r *http.Request) response.Response {
 
 	var db *sql.DB
 	if req.Database == "global" {
-		db = d.db.Cluster.DB()
+		db = s.DB.Cluster.DB()
 	} else {
-		db = d.db.Node.DB()
+		db = s.DB.Node.DB()
 	}
 
 	batch := internalSQLBatch{}
