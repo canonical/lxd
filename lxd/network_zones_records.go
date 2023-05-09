@@ -129,7 +129,9 @@ var networkZoneRecordCmd = APIEndpoint{
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func networkZoneRecordsGet(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkZoneProject(d.State().DB.Cluster, projectParam(r))
+	s := d.State()
+
+	projectName, _, err := project.NetworkZoneProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -142,7 +144,7 @@ func networkZoneRecordsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the network zone.
-	netzone, err := zone.LoadByNameAndProject(d.State(), projectName, zoneName)
+	netzone, err := zone.LoadByNameAndProject(s, projectName, zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -203,7 +205,9 @@ func networkZoneRecordsGet(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func networkZoneRecordsPost(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkZoneProject(d.State().DB.Cluster, projectParam(r))
+	s := d.State()
+
+	projectName, _, err := project.NetworkZoneProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -214,7 +218,7 @@ func networkZoneRecordsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the network zone.
-	netzone, err := zone.LoadByNameAndProject(d.State(), projectName, zoneName)
+	netzone, err := zone.LoadByNameAndProject(s, projectName, zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -233,7 +237,7 @@ func networkZoneRecordsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	lc := lifecycle.NetworkZoneRecordCreated.Event(netzone, req.Name, request.CreateRequestor(r), nil)
-	d.State().Events.SendLifecycle(projectName, lc)
+	s.Events.SendLifecycle(projectName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
@@ -263,7 +267,9 @@ func networkZoneRecordsPost(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkZoneProject(d.State().DB.Cluster, projectParam(r))
+	s := d.State()
+
+	projectName, _, err := project.NetworkZoneProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -279,7 +285,7 @@ func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the network zone.
-	netzone, err := zone.LoadByNameAndProject(d.State(), projectName, zoneName)
+	netzone, err := zone.LoadByNameAndProject(s, projectName, zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -290,7 +296,7 @@ func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkZoneRecordDeleted.Event(netzone, recordName, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.NetworkZoneRecordDeleted.Event(netzone, recordName, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
@@ -336,7 +342,9 @@ func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func networkZoneRecordGet(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkZoneProject(d.State().DB.Cluster, projectParam(r))
+	s := d.State()
+
+	projectName, _, err := project.NetworkZoneProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -352,7 +360,7 @@ func networkZoneRecordGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the network zone.
-	netzone, err := zone.LoadByNameAndProject(d.State(), projectName, zoneName)
+	netzone, err := zone.LoadByNameAndProject(s, projectName, zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -436,7 +444,9 @@ func networkZoneRecordGet(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkZoneProject(d.State().DB.Cluster, projectParam(r))
+	s := d.State()
+
+	projectName, _, err := project.NetworkZoneProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -452,7 +462,7 @@ func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the network zone.
-	netzone, err := zone.LoadByNameAndProject(d.State(), projectName, zoneName)
+	netzone, err := zone.LoadByNameAndProject(s, projectName, zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -493,7 +503,7 @@ func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkZoneRecordUpdated.Event(netzone, recordName, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.NetworkZoneRecordUpdated.Event(netzone, recordName, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
