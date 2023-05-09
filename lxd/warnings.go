@@ -170,7 +170,7 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 	projectName := queryParam(r, "project")
 
 	var warnings []api.Warning
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filters := []cluster.WarningFilter{}
 		if projectName != "" {
 			filter := cluster.WarningFilter{Project: &projectName}
@@ -255,7 +255,7 @@ func warningGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var resp api.Warning
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbWarning, err := cluster.GetWarning(ctx, tx.Tx(), id)
 		if err != nil {
 			return err
@@ -336,6 +336,8 @@ func warningPatch(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func warningPut(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	id, err := url.PathUnescape(mux.Vars(r)["id"])
 	if err != nil {
 		return response.SmartError(err)
@@ -359,7 +361,7 @@ func warningPut(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(fmt.Errorf(`Status may only be set to "acknowledge" or "new"`))
 	}
 
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		err := tx.UpdateWarningStatus(id, status)
 		if err != nil {
 			return err
@@ -372,9 +374,9 @@ func warningPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if status == warningtype.StatusAcknowledged {
-		d.State().Events.SendLifecycle(project.Default, lifecycle.WarningAcknowledged.Event(id, request.CreateRequestor(r), nil))
+		s.Events.SendLifecycle(project.Default, lifecycle.WarningAcknowledged.Event(id, request.CreateRequestor(r), nil))
 	} else {
-		d.State().Events.SendLifecycle(project.Default, lifecycle.WarningReset.Event(id, request.CreateRequestor(r), nil))
+		s.Events.SendLifecycle(project.Default, lifecycle.WarningReset.Event(id, request.CreateRequestor(r), nil))
 	}
 
 	return response.EmptySyncResponse
@@ -395,12 +397,14 @@ func warningPut(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func warningDelete(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	id, err := url.PathUnescape(mux.Vars(r)["id"])
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		err := cluster.DeleteWarning(ctx, tx.Tx(), id)
 		if err != nil {
 			return err
@@ -412,18 +416,20 @@ func warningDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	d.State().Events.SendLifecycle(project.Default, lifecycle.WarningDeleted.Event(id, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(project.Default, lifecycle.WarningDeleted.Event(id, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
 
 func pruneResolvedWarningsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
+		s := d.State()
+
 		opRun := func(op *operations.Operation) error {
-			return pruneResolvedWarnings(ctx, d.State())
+			return pruneResolvedWarnings(ctx, s)
 		}
 
-		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.WarningsPruneResolved, nil, nil, opRun, nil, nil, nil)
+		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.WarningsPruneResolved, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start prune resolved warnings operation", logger.Ctx{"err": err})
 			return
