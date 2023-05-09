@@ -111,7 +111,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		//       that the user really wants to move the container even
 		//       if we can't know for sure that it's indeed not
 		//       running?
-		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			p, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
 			if err != nil {
 				return fmt.Errorf("Failed loading project: %w", err)
@@ -289,7 +289,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 		if targetNode != "" {
 			// Check if instance has backups.
-			backups, err := d.db.Cluster.GetInstanceBackups(projectName, name)
+			backups, err := s.DB.Cluster.GetInstanceBackups(projectName, name)
 			if err != nil {
 				err = fmt.Errorf("Failed to fetch instance's backups: %w", err)
 				return response.SmartError(err)
@@ -360,7 +360,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check that the name isn't already in use.
-	id, _ := d.db.Cluster.GetInstanceID(projectName, req.Name)
+	id, _ := s.DB.Cluster.GetInstanceID(projectName, req.Name)
 	if id > 0 {
 		return response.Conflict(fmt.Errorf("Name %q already in use", req.Name))
 	}

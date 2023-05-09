@@ -122,6 +122,8 @@ import (
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -138,7 +140,7 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, cname, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, cname, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -152,7 +154,7 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 	resultMap := []*api.InstanceSnapshot{}
 
 	if !recursion {
-		snaps, err := d.db.Cluster.GetInstanceSnapshotsNames(projectName, cname)
+		snaps, err := s.DB.Cluster.GetInstanceSnapshotsNames(projectName, cname)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -168,7 +170,7 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 	} else {
-		c, err := instance.LoadByProjectAndName(d.State(), projectName, cname)
+		c, err := instance.LoadByProjectAndName(s, projectName, cname)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -179,7 +181,7 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, snap := range snaps {
-			render, _, err := snap.Render(storagePools.RenderSnapshotUsage(d.State(), snap))
+			render, _, err := snap.Render(storagePools.RenderSnapshotUsage(s, snap))
 			if err != nil {
 				continue
 			}
@@ -228,6 +230,8 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -243,7 +247,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid instance name"))
 	}
 
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := cluster.GetProject(context.Background(), tx.Tx(), projectName)
 		if err != nil {
 			return err
@@ -266,7 +270,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -281,7 +285,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	 * 2. copy the database info over
 	 * 3. copy over the rootfs
 	 */
-	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)
+	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -293,7 +297,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if req.Name == "" {
-		req.Name, err = instance.NextSnapshotName(d.State(), inst, "snap%d")
+		req.Name, err = instance.NextSnapshotName(s, inst, "snap%d")
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -327,7 +331,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, operationtype.SnapshotCreate, resources, nil, snapshot, nil, nil, r)
+	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.SnapshotCreate, resources, nil, snapshot, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -336,6 +340,8 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 }
 
 func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -352,7 +358,7 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, containerName, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, containerName, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -366,22 +372,22 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	inst, err := instance.LoadByProjectAndName(d.State(), projectName, containerName+shared.SnapshotDelimiter+snapshotName)
+	inst, err := instance.LoadByProjectAndName(s, projectName, containerName+shared.SnapshotDelimiter+snapshotName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	switch r.Method {
 	case "GET":
-		return snapshotGet(d.State(), inst, snapshotName)
+		return snapshotGet(s, inst, snapshotName)
 	case "POST":
-		return snapshotPost(d.State(), r, inst, containerName)
+		return snapshotPost(s, r, inst, containerName)
 	case "DELETE":
-		return snapshotDelete(d.State(), r, inst, snapshotName)
+		return snapshotDelete(s, r, inst, snapshotName)
 	case "PUT":
-		return snapshotPut(d.State(), r, inst, snapshotName)
+		return snapshotPut(s, r, inst, snapshotName)
 	case "PATCH":
-		return snapshotPatch(d.State(), r, inst, snapshotName)
+		return snapshotPatch(s, r, inst, snapshotName)
 	default:
 		return response.NotFound(fmt.Errorf("Method %q not found", r.Method))
 	}
