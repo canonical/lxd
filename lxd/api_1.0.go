@@ -233,7 +233,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	clustered, err := cluster.Enabled(d.db.Node)
+	clustered, err := cluster.Enabled(s.DB.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -251,7 +251,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		serverName = hostname
 	}
 
-	certificate := string(d.endpoints.NetworkPublicKey())
+	certificate := string(s.Endpoints.NetworkPublicKey())
 	var certificateFingerprint string
 	if certificate != "" {
 		certificateFingerprint, err = shared.CertFingerprintStr(certificate)
@@ -262,7 +262,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 	architectures := []string{}
 
-	for _, architecture := range d.os.Architectures {
+	for _, architecture := range s.OS.Architectures {
 		architectureName, err := osarch.ArchitectureName(architecture)
 		if err != nil {
 			return response.InternalError(err)
@@ -281,11 +281,11 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		Architectures:          architectures,
 		Certificate:            certificate,
 		CertificateFingerprint: certificateFingerprint,
-		Kernel:                 d.os.Uname.Sysname,
-		KernelArchitecture:     d.os.Uname.Machine,
-		KernelVersion:          d.os.Uname.Release,
-		OSName:                 d.os.ReleaseInfo["NAME"],
-		OSVersion:              d.os.ReleaseInfo["VERSION_ID"],
+		Kernel:                 s.OS.Uname.Sysname,
+		KernelArchitecture:     s.OS.Uname.Machine,
+		KernelVersion:          s.OS.Uname.Release,
+		OSName:                 s.OS.ReleaseInfo["NAME"],
+		OSVersion:              s.OS.ReleaseInfo["VERSION_ID"],
 		Project:                projectName,
 		Server:                 "lxd",
 		ServerPid:              os.Getpid(),
@@ -293,17 +293,17 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		ServerClustered:        clustered,
 		ServerEventMode:        string(cluster.ServerEventMode()),
 		ServerName:             serverName,
-		Firewall:               d.firewall.String(),
+		Firewall:               s.Firewall.String(),
 	}
 
 	env.KernelFeatures = map[string]string{
-		"netnsid_getifaddrs":        fmt.Sprintf("%v", d.os.NetnsGetifaddrs),
-		"uevent_injection":          fmt.Sprintf("%v", d.os.UeventInjection),
-		"unpriv_fscaps":             fmt.Sprintf("%v", d.os.VFS3Fscaps),
-		"seccomp_listener":          fmt.Sprintf("%v", d.os.SeccompListener),
-		"seccomp_listener_continue": fmt.Sprintf("%v", d.os.SeccompListenerContinue),
-		"shiftfs":                   fmt.Sprintf("%v", d.os.Shiftfs),
-		"idmapped_mounts":           fmt.Sprintf("%v", d.os.IdmappedMounts),
+		"netnsid_getifaddrs":        fmt.Sprintf("%v", s.OS.NetnsGetifaddrs),
+		"uevent_injection":          fmt.Sprintf("%v", s.OS.UeventInjection),
+		"unpriv_fscaps":             fmt.Sprintf("%v", s.OS.VFS3Fscaps),
+		"seccomp_listener":          fmt.Sprintf("%v", s.OS.SeccompListener),
+		"seccomp_listener_continue": fmt.Sprintf("%v", s.OS.SeccompListenerContinue),
+		"shiftfs":                   fmt.Sprintf("%v", s.OS.Shiftfs),
+		"idmapped_mounts":           fmt.Sprintf("%v", s.OS.IdmappedMounts),
 	}
 
 	drivers := instanceDrivers.DriverStatuses()
@@ -327,9 +327,9 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	if d.os.LXCFeatures != nil {
+	if s.OS.LXCFeatures != nil {
 		env.LXCFeatures = map[string]string{}
-		for k, v := range d.os.LXCFeatures {
+		for k, v := range s.OS.LXCFeatures {
 			env.LXCFeatures[k] = fmt.Sprintf("%v", v)
 		}
 	}
@@ -428,7 +428,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 
 		// Get the current (updated) config.
 		var config *clusterConfig.Config
-		err := d.db.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 			config, err = clusterConfig.Load(ctx, tx)
 			return err
@@ -443,7 +443,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		d.globalConfigMu.Unlock()
 
 		// Run any update triggers.
-		err = doApi10UpdateTriggers(d, nil, changed, d.localConfig, config)
+		err = doApi10UpdateTriggers(d, nil, changed, s.LocalConfig, config)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -547,14 +547,14 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		}
 	}
 
-	clustered, err := cluster.Enabled(d.db.Node)
+	clustered, err := cluster.Enabled(s.DB.Node)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to check for cluster state: %w", err))
 	}
 
 	nodeChanged := map[string]string{}
 	var newNodeConfig *node.Config
-	err = d.db.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
+	err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
 		newNodeConfig, err = node.ConfigLoad(ctx, tx)
 		if err != nil {
@@ -634,7 +634,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	// Then deal with cluster wide configuration
 	var clusterChanged map[string]string
 	var newClusterConfig *clusterConfig.Config
-	err = d.db.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		newClusterConfig, err = clusterConfig.Load(ctx, tx)
 		if err != nil {
@@ -659,7 +659,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	}
 
 	// Notify the other nodes about changes
-	notifier, err := cluster.NewNotifier(s, d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAlive)
+	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -713,7 +713,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	for key := range clusterChanged {
 		switch key {
 		case "core.https_trusted_proxy":
-			d.endpoints.NetworkUpdateTrustedProxy(clusterChanged[key])
+			s.Endpoints.NetworkUpdateTrustedProxy(clusterChanged[key])
 		case "core.proxy_http":
 			fallthrough
 		case "core.proxy_https":
@@ -733,7 +733,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		case "candid.api.url":
 			candidChanged = true
 		case "cluster.images_minimal_replica":
-			err := autoSyncImages(d.shutdownCtx, s)
+			err := autoSyncImages(s.ShutdownCtx, s)
 			if err != nil {
 				logger.Warn("Could not auto-sync images", logger.Ctx{"err": err})
 			}
@@ -744,7 +744,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		case "images.auto_update_interval":
 			fallthrough
 		case "images.remote_cache_expiry":
-			if !d.os.MockMode {
+			if !s.OS.MockMode {
 				d.taskPruneImages.Reset()
 			}
 
@@ -787,27 +787,27 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 
 	value, ok := nodeChanged["core.https_address"]
 	if ok {
-		err := d.endpoints.NetworkUpdateAddress(value)
+		err := s.Endpoints.NetworkUpdateAddress(value)
 		if err != nil {
 			return err
 		}
 
-		d.endpoints.NetworkUpdateTrustedProxy(clusterConfig.HTTPSTrustedProxy())
+		s.Endpoints.NetworkUpdateTrustedProxy(clusterConfig.HTTPSTrustedProxy())
 	}
 
 	value, ok = nodeChanged["cluster.https_address"]
 	if ok {
-		err := d.endpoints.ClusterUpdateAddress(value)
+		err := s.Endpoints.ClusterUpdateAddress(value)
 		if err != nil {
 			return err
 		}
 
-		d.endpoints.NetworkUpdateTrustedProxy(clusterConfig.HTTPSTrustedProxy())
+		s.Endpoints.NetworkUpdateTrustedProxy(clusterConfig.HTTPSTrustedProxy())
 	}
 
 	value, ok = nodeChanged["core.debug_address"]
 	if ok {
-		err := d.endpoints.PprofUpdateAddress(value)
+		err := s.Endpoints.PprofUpdateAddress(value)
 		if err != nil {
 			return err
 		}
@@ -815,7 +815,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 
 	value, ok = nodeChanged["core.metrics_address"]
 	if ok {
-		err := d.endpoints.MetricsUpdateAddress(value, d.endpoints.NetworkCert())
+		err := s.Endpoints.MetricsUpdateAddress(value, s.Endpoints.NetworkCert())
 		if err != nil {
 			return err
 		}
