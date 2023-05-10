@@ -1,7 +1,7 @@
 # System call interception
 
 LXD supports intercepting some specific system calls from unprivileged
-containers and if they're considered to be safe, will executed with
+containers. If they're considered to be safe, it executes them with
 elevated privileges on the host.
 
 Doing so comes with a performance impact for the syscall in question and
@@ -108,7 +108,7 @@ The `setxattr` system call is used to set extended attributes on files.
 
 The attributes which are handled by this currently are:
 
-- trusted.overlay.opaque (overlayfs directory whiteout)
+- `trusted.overlay.opaque` (overlayfs directory whiteout)
 
 Note that because the mediation must happen on a number of character
 strings, there is no easy way at present to only intercept the few

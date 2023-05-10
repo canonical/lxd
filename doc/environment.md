@@ -1,11 +1,11 @@
 # Environment variables
 
-- doesn't work for snap users
-
-## Introduction
-
 The LXD client and daemon respect some environment variables to adapt to
 the user's environment and to turn some advanced features on and off.
+
+```{note}
+These environment variables are not available if you use the LXD snap.
+```
 
 ## Common
 
