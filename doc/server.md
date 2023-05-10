@@ -14,6 +14,13 @@ The following options are available:
 - {ref}`server-options-loki`
 - {ref}`server-options-misc`
 
+See {ref}`server-configure` for instructions on how to set the configuration options.
+
+```{note}
+Options marked with a `global` scope in the following tables are immediately applied to all cluster members.
+Options with a `local` scope must be set on a per-member basis.
+```
+
 (server-options-core)=
 ## Core configuration
 
