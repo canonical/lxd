@@ -124,6 +124,7 @@ sudo -E PATH=${PATH} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} $(go env GOPATH)/bin/lxd
 If `newuidmap/newgidmap` tools are present on your system and `/etc/subuid`, `etc/subgid` exist, they must be configured to allow the root user a contiguous range of at least 10M UID/GID.
 ```
 
+(installing-upgrade)=
 ## Upgrade LXD
 
 After upgrading LXD to a newer version, LXD might need to update its database to a new schema.

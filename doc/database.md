@@ -1,39 +1,27 @@
 ---
-relatedlinks: https://github.com/canonical/dqlite
+relatedlinks: https://dqlite.io/, https://github.com/canonical/dqlite
 ---
 
 # About the LXD database
 
-## Introduction
+LXD uses a distributed database to store the server configuration and state, which allows for quicker queries than if the configuration was stored inside each instance's directory (as it is done by LXC, for example).
 
-So first of all, why a database?
+To understand the advantages, consider a query against the configuration of all instances, like "what instances are using `br0`?".
+To answer that question without a database, you would have to iterate through every single instance, load and parse its configuration, and then check which network devices are defined in there.
+With a database, you can run a simple query on the database to retrieve this information.
 
-Rather than keeping the configuration and state within each instance's
-directory as is traditionally done by LXC, LXD has an internal database
-which stores all of that information. This allows very quick queries
-against all instances configuration.
+## Dqlite
 
-An example is the rather obvious question "what instances are using `br0`?".
-To answer that question without a database, LXD would have to iterate
-through every single instance, load and parse its configuration and
-then look at what network devices are defined in there.
+In a LXD cluster, all members of the cluster must share the same database state.
+Therefore, LXD uses [Dqlite](https://dqlite.io/), a distributed version of SQLite.
+Dqlite  provides replication, fault-tolerance, and automatic failover without the need of external database processes.
 
-While that may be quick with a few instance, imagine how many
-file system access would be required for 2000 instances. Instead with a
-database, it's only a matter of accessing the already cached database
-with a pretty simple query.
+When using LXD as a single machine and not as a cluster, the Dqlite database effectively behaves like a regular SQLite database.
 
-## Database engine
+## File location
 
-Since LXD supports clustering, and all members of the cluster must share the
-same database state, the database engine is based on a [distributed
-version](https://github.com/canonical/dqlite) of SQLite, which provides
-replication, fault-tolerance and automatic failover without the need of external
-database processes. We refer to this database as the "global" LXD database.
+The database files are stored in the `database` sub-directory of your LXD data directory (thus `/var/snap/lxd/common/lxd/database/` if you use the snap, or `/var/lib/lxd/database/` otherwise).
 
-Even when using LXD as single non-clustered node, the global database will still
-be used, although in that case it effectively behaves like a regular SQLite
-database.
-
-Backups of the global database directory and of the local database file are made
-before upgrades.
+Upgrading LXD to a newer version might require updating the database schema.
+In this case, LXD automatically stores a backup of the database and then runs the update.
+See {ref}`installing-upgrade` for more information.

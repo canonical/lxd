@@ -119,6 +119,7 @@ LTS
 LV
 LVM
 LXC
+LXC's
 LXCFS
 LXD
 LXD's
@@ -221,6 +222,7 @@ stdout
 STP
 struct
 structs
+subcommand
 subcommands
 subitem
 subnet
