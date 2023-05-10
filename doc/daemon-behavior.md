@@ -1,3 +1,4 @@
+(daemon-behavior)=
 # Daemon behavior
 
 ## Introduction
