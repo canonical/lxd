@@ -21,7 +21,8 @@ LXD provides a superset of the features that LXC supports, and it is easier to u
 Therefore, if you are unsure which of the tools to use, you should go for LXD.
 LXC should be seen as an alternative for experienced users that want to run Linux containers on distributions that don't support LXD.
 
-## The LXD daemon
+(lxd-daemon)=
+## LXD daemon
 
 The central part of LXD is its daemon.
 It runs persistently in the background, manages the instances, and handles all requests.

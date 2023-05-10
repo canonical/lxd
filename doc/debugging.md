@@ -82,7 +82,7 @@ After that, opening [`https://127.0.0.1:8443/1.0`](https://127.0.0.1:8443/1.0) s
 
 ## Debug the LXD database
 
-The files of the global database are stored under the `./database/global`
+The files of the global {ref}`database <database>` are stored under the `./database/global`
 sub-directory of your LXD data directory (e.g. `/var/lib/lxd/database/global` or
 `/var/snap/lxd/common/lxd/database/global` for snap users).
 

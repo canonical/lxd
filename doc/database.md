@@ -2,6 +2,7 @@
 relatedlinks: https://dqlite.io/, https://github.com/canonical/dqlite
 ---
 
+(database)=
 # About the LXD database
 
 LXD uses a distributed database to store the server configuration and state, which allows for quicker queries than if the configuration was stored inside each instance's directory (as it is done by LXC, for example).
