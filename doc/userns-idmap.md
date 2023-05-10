@@ -1,7 +1,5 @@
 # Idmaps for user namespace
 
-## Introduction
-
 LXD runs safe containers. This is achieved mostly through the use of
 user namespaces which make it possible to run containers unprivileged,
 greatly limiting the attack surface.
