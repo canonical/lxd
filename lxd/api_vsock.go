@@ -9,12 +9,11 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 )
 
-func authenticateAgentCert(d *Daemon, r *http.Request) (bool, instance.Instance, error) {
-	s := d.State()
-
+func authenticateAgentCert(s *state.State, r *http.Request) (bool, instance.Instance, error) {
 	var vsockID int
 	trusted := false
 

@@ -525,7 +525,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r)
 	s.Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, requestor, nil))
 
-	return projectChange(d, project, req)
+	return projectChange(s, project, req)
 }
 
 // swagger:operation PATCH /1.0/projects/{name} projects project_patch
@@ -646,13 +646,11 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r)
 	s.Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, requestor, nil))
 
-	return projectChange(d, project, req)
+	return projectChange(s, project, req)
 }
 
 // Common logic between PUT and PATCH.
-func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response.Response {
-	s := d.State()
-
+func projectChange(s *state.State, project *api.Project, req api.ProjectPut) response.Response {
 	// Make a list of config keys that have changed.
 	configChanged := []string{}
 	for key := range project.Config {
@@ -711,7 +709,7 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 	}
 
 	// Update the database entry.
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		err := projecthelpers.AllowProjectUpdate(tx, project.Name, req.Config, configChanged)
 		if err != nil {
 			return err

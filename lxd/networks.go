@@ -212,7 +212,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, networkName))
 		} else {
-			net, err := doNetworkGet(d, r, clustered, projectName, reqProject.Config, networkName)
+			net, err := doNetworkGet(d.State(), r, clustered, projectName, reqProject.Config, networkName)
 			if err != nil {
 				continue
 			}
@@ -354,7 +354,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 
 		// This is an internal request which triggers the actual creation of the network across all nodes
 		// after they have been previously defined.
-		err = doNetworksCreate(d, n, clientType)
+		err = doNetworksCreate(d.State(), n, clientType)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -430,7 +430,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		err = networksPostCluster(d, projectName, netInfo, req, clientType, netType)
+		err = networksPostCluster(d.State(), projectName, netInfo, req, clientType, netType)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -465,7 +465,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
 
-	err = doNetworksCreate(d, n, clientType)
+	err = doNetworksCreate(d.State(), n, clientType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -500,7 +500,7 @@ func networkPartiallyCreated(netInfo *api.Network) bool {
 // networksPostCluster checks that there is a pending network in the database and then attempts to setup the
 // network on each node. If all nodes are successfully setup then the network's state is set to created.
 // Accepts an optional existing network record, which will exist when performing subsequent re-create attempts.
-func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, req api.NetworksPost, clientType clusterRequest.ClientType, netType network.Type) error {
+func networksPostCluster(s *state.State, projectName string, netInfo *api.Network, req api.NetworksPost, clientType clusterRequest.ClientType, netType network.Type) error {
 	// Check that no node-specific config key has been supplied in request.
 	for key := range req.Config {
 		if shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
@@ -523,7 +523,7 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 
 	// Check that the network is properly defined, get the node-specific configs and merge with global config.
 	var nodeConfigs map[string]map[string]string
-	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Check if any global config exists already, if so we should not create global config again.
 		if netInfo != nil && networkPartiallyCreated(netInfo) {
 			if len(req.Config) > 0 {
@@ -570,20 +570,20 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 	}
 
 	// Create notifier for other nodes to create the network.
-	notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAll)
+	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
 	if err != nil {
 		return err
 	}
 
 	// Load the network from the database for the local member.
-	n, err := network.LoadByName(d.State(), projectName, req.Name)
+	n, err := network.LoadByName(s, projectName, req.Name)
 	if err != nil {
 		return fmt.Errorf("Failed loading network: %w", err)
 	}
 
 	netConfig := n.Config()
 
-	err = doNetworksCreate(d, n, clientType)
+	err = doNetworksCreate(s, n, clientType)
 	if err != nil {
 		return err
 	}
@@ -638,7 +638,7 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 	}
 
 	// Mark network global status as networkCreated now that all nodes have succeeded.
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.NetworkCreated(projectName, req.Name)
 	})
 	if err != nil {
@@ -652,7 +652,7 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 
 // Create the network on the system. The clusterNotification flag is used to indicate whether creation request
 // is coming from a cluster notification (and if so we should not delete the database record on error).
-func doNetworksCreate(d *Daemon, n network.Network, clientType clusterRequest.ClientType) error {
+func doNetworksCreate(s *state.State, n network.Network, clientType clusterRequest.ClientType) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -691,7 +691,7 @@ func doNetworksCreate(d *Daemon, n network.Network, clientType clusterRequest.Cl
 	}
 
 	// Mark local as status as networkCreated.
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.NetworkNodeCreated(n.ID())
 	})
 	if err != nil {
@@ -778,7 +778,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		allNodes = true
 	}
 
-	n, err := doNetworkGet(d, r, allNodes, projectName, reqProject.Config, networkName)
+	n, err := doNetworkGet(s, r, allNodes, projectName, reqProject.Config, networkName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -791,14 +791,14 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 // doNetworkGet returns information about the specified network.
 // If the network being requested is a managed network and allNodes is true then node specific config is removed.
 // Otherwise if allNodes is false then the network's local status is returned.
-func doNetworkGet(d *Daemon, r *http.Request, allNodes bool, projectName string, reqProjectConfig map[string]string, networkName string) (api.Network, error) {
+func doNetworkGet(s *state.State, r *http.Request, allNodes bool, projectName string, reqProjectConfig map[string]string, networkName string) (api.Network, error) {
 	// Ignore veth pairs (for performance reasons).
 	if strings.HasPrefix(networkName, "veth") {
 		return api.Network{}, api.StatusErrorf(http.StatusNotFound, "Network not found")
 	}
 
 	// Get some information.
-	n, err := network.LoadByName(d.State(), projectName, networkName)
+	n, err := network.LoadByName(s, projectName, networkName)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return api.Network{}, fmt.Errorf("Failed loading network: %w", err)
 	}
@@ -870,7 +870,7 @@ func doNetworkGet(d *Daemon, r *http.Request, allNodes bool, projectName string,
 			networkID = n.ID()
 		}
 
-		usedBy, err := network.UsedBy(d.State(), projectName, networkID, apiNet.Name, apiNet.Type, false)
+		usedBy, err := network.UsedBy(s, projectName, networkID, apiNet.Name, apiNet.Type, false)
 		if err != nil {
 			return api.Network{}, err
 		}
@@ -1254,7 +1254,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	response := doNetworkUpdate(d, projectName, n, req, targetNode, clientType, r.Method, clustered)
+	response := doNetworkUpdate(projectName, n, req, targetNode, clientType, r.Method, clustered)
 
 	requestor := request.CreateRequestor(r)
 	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkUpdated.Event(n, requestor, nil))
@@ -1307,7 +1307,7 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 
 // doNetworkUpdate loads the current local network config, merges with the requested network config, validates
 // and applies the changes. Will also notify other cluster nodes of non-node specific config if needed.
-func doNetworkUpdate(d *Daemon, projectName string, n network.Network, req api.NetworkPut, targetNode string, clientType clusterRequest.ClientType, httpMethod string, clustered bool) response.Response {
+func doNetworkUpdate(projectName string, n network.Network, req api.NetworkPut, targetNode string, clientType clusterRequest.ClientType, httpMethod string, clustered bool) response.Response {
 	if req.Config == nil {
 		req.Config = map[string]string{}
 	}
