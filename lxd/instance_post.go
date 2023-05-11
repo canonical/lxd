@@ -189,7 +189,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	// and we'll either forward the request or load the container.
 	if targetNode == "" || !sourceNodeOffline {
 		// Handle requests targeted to a container on a different node.
-		resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
+		resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -252,7 +252,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		if req.Pool != "" {
 			// Setup the instance move operation.
 			run := func(op *operations.Operation) error {
-				return instancePostPoolMigration(d, inst, req.Name, req.InstanceOnly, req.Pool, req.Live, req.AllowInconsistent, op)
+				return instancePostPoolMigration(s, inst, req.Name, req.InstanceOnly, req.Pool, req.Live, req.AllowInconsistent, op)
 			}
 
 			resources := map[string][]string{}
@@ -274,7 +274,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 			// Setup the instance move operation.
 			run := func(op *operations.Operation) error {
-				return instancePostProjectMigration(d, inst, req.Name, req.Project, req.InstanceOnly, req.Live, req.AllowInconsistent, op)
+				return instancePostProjectMigration(s, inst, req.Name, req.Project, req.InstanceOnly, req.Live, req.AllowInconsistent, op)
 			}
 
 			resources := map[string][]string{}
@@ -385,7 +385,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 }
 
 // Move an instance to another pool.
-func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string, instanceOnly bool, newPool string, stateful bool, allowInconsistent bool, op *operations.Operation) error {
+func instancePostPoolMigration(s *state.State, inst instance.Instance, newName string, instanceOnly bool, newPool string, stateful bool, allowInconsistent bool, op *operations.Operation) error {
 	if inst.IsSnapshot() {
 		return fmt.Errorf("Instance snapshots cannot be moved between pools")
 	}
@@ -447,7 +447,7 @@ func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string
 	}
 
 	// Copy instance to new target instance.
-	targetInst, err := instanceCreateAsCopy(d.State(), instanceCreateAsCopyOpts{
+	targetInst, err := instanceCreateAsCopy(s, instanceCreateAsCopyOpts{
 		sourceInstance:       inst,
 		targetInstance:       args,
 		instanceOnly:         instanceOnly,
@@ -483,7 +483,7 @@ func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string
 }
 
 // Move an instance to another project.
-func instancePostProjectMigration(d *Daemon, inst instance.Instance, newName string, newProject string, instanceOnly bool, stateful bool, allowInconsistent bool, op *operations.Operation) error {
+func instancePostProjectMigration(s *state.State, inst instance.Instance, newName string, newProject string, instanceOnly bool, stateful bool, allowInconsistent bool, op *operations.Operation) error {
 	localConfig := inst.LocalConfig()
 
 	statefulStart := false
@@ -525,7 +525,7 @@ func instancePostProjectMigration(d *Daemon, inst instance.Instance, newName str
 	}
 
 	// Copy instance to new target instance.
-	targetInst, err := instanceCreateAsCopy(d.State(), instanceCreateAsCopyOpts{
+	targetInst, err := instanceCreateAsCopy(s, instanceCreateAsCopyOpts{
 		sourceInstance:       inst,
 		targetInstance:       args,
 		instanceOnly:         instanceOnly,

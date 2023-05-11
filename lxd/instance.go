@@ -31,12 +31,12 @@ import (
 // Helper functions
 
 // instanceCreateAsEmpty creates an empty instance.
-func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, error) {
+func instanceCreateAsEmpty(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
 	// Create the instance record.
-	inst, instOp, cleanup, err := instance.CreateInternal(d.State(), args, true)
+	inst, instOp, cleanup, err := instance.CreateInternal(s, args, true)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating instance record: %w", err)
 	}
@@ -44,7 +44,7 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 	revert.Add(cleanup)
 	defer instOp.Done(err)
 
-	pool, err := storagePools.LoadByInstance(d.State(), inst)
+	pool, err := storagePools.LoadByInstance(s, inst)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
@@ -84,11 +84,9 @@ func instanceImageTransfer(s *state.State, r *http.Request, projectName string, 
 }
 
 // instanceCreateFromImage creates an instance from a rootfs image.
-func instanceCreateFromImage(d *Daemon, r *http.Request, img *api.Image, args db.InstanceArgs, op *operations.Operation) (instance.Instance, error) {
+func instanceCreateFromImage(s *state.State, r *http.Request, img *api.Image, args db.InstanceArgs, op *operations.Operation) (instance.Instance, error) {
 	revert := revert.New()
 	defer revert.Fail()
-
-	s := d.State()
 
 	// Validate the type of the image matches the type of the instance.
 	imgType, err := instancetype.New(img.Type)
@@ -122,7 +120,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, img *api.Image, args db
 		}
 
 		// As the image record already exists in the project, just add the node ID to the image.
-		err = d.db.Cluster.AddImageToLocalNode(args.Project, img.Fingerprint)
+		err = s.DB.Cluster.AddImageToLocalNode(args.Project, img.Fingerprint)
 		if err != nil {
 			unlock()
 			return nil, fmt.Errorf("Failed adding transferred image %q record to local cluster member: %w", img.Fingerprint, err)
@@ -155,7 +153,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, img *api.Image, args db
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)
 	}
 
-	pool, err := storagePools.LoadByInstance(d.State(), inst)
+	pool, err := storagePools.LoadByInstance(s, inst)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
@@ -416,7 +414,7 @@ func instanceLoadNodeProjectAll(ctx context.Context, s *state.State, project str
 	return instances, nil
 }
 
-func autoCreateInstanceSnapshots(ctx context.Context, d *Daemon, instances []instance.Instance) error {
+func autoCreateInstanceSnapshots(ctx context.Context, s *state.State, instances []instance.Instance) error {
 	// Make the snapshots.
 	for _, inst := range instances {
 		if ctx.Err() != nil {
@@ -425,7 +423,7 @@ func autoCreateInstanceSnapshots(ctx context.Context, d *Daemon, instances []ins
 
 		l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 
-		snapshotName, err := instance.NextSnapshotName(d.State(), inst, "snap%d")
+		snapshotName, err := instance.NextSnapshotName(s, inst, "snap%d")
 		if err != nil {
 			l.Error("Error retrieving next snapshot name", logger.Ctx{"err": err})
 			return err
@@ -449,7 +447,7 @@ func autoCreateInstanceSnapshots(ctx context.Context, d *Daemon, instances []ins
 
 var instSnapshotsPruneRunning = sync.Map{}
 
-func pruneExpiredInstanceSnapshots(ctx context.Context, d *Daemon, snapshots []instance.Instance) error {
+func pruneExpiredInstanceSnapshots(ctx context.Context, s *state.State, snapshots []instance.Instance) error {
 	// Find snapshots to delete
 	for _, snapshot := range snapshots {
 		_, loaded := instSnapshotsPruneRunning.LoadOrStore(snapshot.ID(), struct{}{})
@@ -551,7 +549,7 @@ func autoCreateAndPruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.
 
 		if len(instances) > 0 {
 			opRun := func(op *operations.Operation) error {
-				return autoCreateInstanceSnapshots(ctx, d, instances)
+				return autoCreateInstanceSnapshots(ctx, s, instances)
 			}
 
 			op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.SnapshotCreate, nil, nil, opRun, nil, nil, nil)
@@ -644,7 +642,7 @@ func autoCreateAndPruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.
 
 		if len(expiredSnapshotInstances) > 0 {
 			opRun := func(op *operations.Operation) error {
-				return pruneExpiredInstanceSnapshots(ctx, d, expiredSnapshotInstances)
+				return pruneExpiredInstanceSnapshots(ctx, s, expiredSnapshotInstances)
 			}
 
 			op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.SnapshotsExpire, nil, nil, opRun, nil, nil, nil)

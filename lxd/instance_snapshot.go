@@ -138,7 +138,7 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, cname, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, cname, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -266,7 +266,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -352,7 +352,7 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, containerName, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, containerName, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -375,13 +375,13 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 	case "GET":
 		return snapshotGet(d.State(), inst, snapshotName)
 	case "POST":
-		return snapshotPost(d, r, inst, containerName)
+		return snapshotPost(d.State(), r, inst, containerName)
 	case "DELETE":
 		return snapshotDelete(d.State(), r, inst, snapshotName)
 	case "PUT":
-		return snapshotPut(d, r, inst, snapshotName)
+		return snapshotPut(d.State(), r, inst, snapshotName)
 	case "PATCH":
-		return snapshotPatch(d, r, inst, snapshotName)
+		return snapshotPatch(d.State(), r, inst, snapshotName)
 	default:
 		return response.NotFound(fmt.Errorf("Method %q not found", r.Method))
 	}
@@ -419,9 +419,9 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func snapshotPatch(d *Daemon, r *http.Request, snapInst instance.Instance, name string) response.Response {
+func snapshotPatch(s *state.State, r *http.Request, snapInst instance.Instance, name string) response.Response {
 	// Only expires_at is currently editable, so PATCH is equivalent to PUT.
-	return snapshotPut(d, r, snapInst, name)
+	return snapshotPut(s, r, snapInst, name)
 }
 
 // swagger:operation PUT /1.0/instances/{name}/snapshots/{snapshot} instances instance_snapshot_put
@@ -456,7 +456,7 @@ func snapshotPatch(d *Daemon, r *http.Request, snapInst instance.Instance, name 
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func snapshotPut(d *Daemon, r *http.Request, snapInst instance.Instance, name string) response.Response {
+func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance, name string) response.Response {
 	// Validate the ETag
 	etag := []any{snapInst.ExpiryDate()}
 	err := util.EtagCheck(r, etag)
@@ -525,7 +525,7 @@ func snapshotPut(d *Daemon, r *http.Request, snapInst instance.Instance, name st
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), snapInst.Project().Name, operations.OperationClassTask, opType, resources, nil, do, nil, nil, r)
+	op, err := operations.OperationCreate(s, snapInst.Project().Name, operations.OperationClassTask, opType, resources, nil, do, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -621,7 +621,7 @@ func snapshotGet(s *state.State, snapInst instance.Instance, name string) respon
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, containerName string) response.Response {
+func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance, containerName string) response.Response {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return response.InternalError(err)
@@ -676,12 +676,12 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 		}
 
 		run := func(op *operations.Operation) error {
-			return ws.Do(d.State(), op)
+			return ws.Do(s, op)
 		}
 
 		if req.Target != nil {
 			// Push mode.
-			op, err := operations.OperationCreate(d.State(), snapInst.Project().Name, operations.OperationClassTask, operationtype.SnapshotTransfer, resources, nil, run, nil, nil, r)
+			op, err := operations.OperationCreate(s, snapInst.Project().Name, operations.OperationClassTask, operationtype.SnapshotTransfer, resources, nil, run, nil, nil, r)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -690,7 +690,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 		}
 
 		// Pull mode.
-		op, err := operations.OperationCreate(d.State(), snapInst.Project().Name, operations.OperationClassWebsocket, operationtype.SnapshotTransfer, resources, ws.Metadata(), run, nil, ws.Connect, r)
+		op, err := operations.OperationCreate(s, snapInst.Project().Name, operations.OperationClassWebsocket, operationtype.SnapshotTransfer, resources, ws.Metadata(), run, nil, ws.Connect, r)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -712,7 +712,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 	fullName := containerName + shared.SnapshotDelimiter + newName
 
 	// Check that the name isn't already in use
-	id, _ := d.db.Cluster.GetInstanceSnapshotID(snapInst.Project().Name, containerName, newName)
+	id, _ := s.DB.Cluster.GetInstanceSnapshotID(snapInst.Project().Name, containerName, newName)
 	if id > 0 {
 		return response.Conflict(fmt.Errorf("Name '%s' already in use", fullName))
 	}
@@ -728,7 +728,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), snapInst.Project().Name, operations.OperationClassTask, operationtype.SnapshotRename, resources, nil, rename, nil, nil, r)
+	op, err := operations.OperationCreate(s, snapInst.Project().Name, operations.OperationClassTask, operationtype.SnapshotRename, resources, nil, rename, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}

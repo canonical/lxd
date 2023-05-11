@@ -159,7 +159,7 @@ func restServer(d *Daemon) *http.Server {
 
 func hoistReqVM(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		trusted, inst, err := authenticateAgentCert(d, r)
+		trusted, inst, err := authenticateAgentCert(d.State(), r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
