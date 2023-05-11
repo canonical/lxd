@@ -823,11 +823,18 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		}
 	}
 
+	// Pass allowUnsafeResize as true when resizing block backed filesystem volumes because we want to allow
+	// the filesystem to be shrunk as small as possible without needing the safety checks that would prevent
+	// leaving the filesystem in an inconsistent state if the resize couldn't be completed. This is because if
+	// the resize fails we will delete the volume anyway so don't have to worry about it being inconsistent.
+	var allowUnsafeResize bool
+	if d.isBlockBacked(vol) && vol.contentType == ContentTypeFS {
+		allowUnsafeResize = true
+	}
+
 	// Resize volume to the size specified. Only uses volume "size" property and does not use pool/defaults
 	// to give the caller more control over the size being used.
-	// Pass allowUnsafeResize as true because if the resize fails we will delete the volume anyway so don't
-	// have to worry about it being left in an inconsistent state.
-	err = d.SetVolumeQuota(vol, vol.config["size"], true, op)
+	err = d.SetVolumeQuota(vol, vol.config["size"], allowUnsafeResize, op)
 	if err != nil {
 		return err
 	}
