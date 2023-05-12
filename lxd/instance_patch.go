@@ -58,6 +58,8 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 	// Don't mess with instance while in setup mode.
 	<-d.waitReady.Done()
 
+	s := d.State()
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -76,7 +78,7 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -85,7 +87,7 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	c, err := instance.LoadByProjectAndName(d.State(), projectName, name)
+	c, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -175,7 +177,7 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 
 	// Check project limits.
 	apiProfiles := make([]api.Profile, 0, len(req.Profiles))
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		profiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), projectName, req.Profiles)
 		if err != nil {
 			return err

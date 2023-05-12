@@ -42,6 +42,8 @@ import (
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instanceSFTPHandler(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	projectName := projectParam(r)
 	instName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -64,13 +66,12 @@ func instanceSFTPHandler(d *Daemon, r *http.Request) response.Response {
 
 	resp := &sftpServeResponse{
 		req:         r,
-		d:           d,
 		projectName: projectName,
 		instName:    instName,
 	}
 
 	// Forward the request if the instance is remote.
-	client, err := cluster.ConnectIfInstanceIsRemote(d.db.Cluster, projectName, instName, d.endpoints.NetworkCert(), d.serverCert(), r, instanceType)
+	client, err := cluster.ConnectIfInstanceIsRemote(s.DB.Cluster, projectName, instName, s.Endpoints.NetworkCert(), s.ServerCert(), r, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -81,7 +82,7 @@ func instanceSFTPHandler(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 	} else {
-		inst, err := instance.LoadByProjectAndName(d.State(), projectName, instName)
+		inst, err := instance.LoadByProjectAndName(s, projectName, instName)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -97,7 +98,6 @@ func instanceSFTPHandler(d *Daemon, r *http.Request) response.Response {
 
 type sftpServeResponse struct {
 	req         *http.Request
-	d           *Daemon
 	projectName string
 	instName    string
 	instConn    net.Conn
