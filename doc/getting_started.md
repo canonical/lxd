@@ -12,6 +12,7 @@ In addition to the documentation in this section, see the [Getting Started guide
 requirements
 Install LXD <installing>
 Initialize LXD <howto/initialize>
+Access the UI <howto/access_ui>
 Frequently asked <faq>
 contributing
 support
