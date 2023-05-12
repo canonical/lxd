@@ -1121,6 +1121,45 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
+			return nil
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Non-admins are able to delete only their own certificate.
+		if !rbac.UserIsAdmin(r) {
+			if r.TLS == nil {
+				response.Forbidden(fmt.Errorf("Cannot delete certificate"))
+			}
+
+			certBlock, _ := pem.Decode([]byte(certInfo.Certificate))
+
+			cert, err := x509.ParseCertificate(certBlock.Bytes)
+			if err != nil {
+				// This should not happen
+				return response.InternalError(err)
+			}
+
+			trustedCerts := map[string]x509.Certificate{
+				certInfo.Name: *cert,
+			}
+
+			trusted := false
+			for _, i := range r.TLS.PeerCertificates {
+				trusted, _ = util.CheckTrustState(*i, trustedCerts, s.Endpoints.NetworkCert(), false)
+
+				if trusted {
+					break
+				}
+			}
+
+			if !trusted {
+				return response.Forbidden(fmt.Errorf("Certificate cannot be deleted"))
+			}
+		}
+
+		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Perform the delete with the expanded fingerprint.
 			return dbCluster.DeleteCertificate(ctx, tx.Tx(), certInfo.Fingerprint)
 		})

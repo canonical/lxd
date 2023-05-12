@@ -77,6 +77,12 @@ test_pki() {
     # This should succeed as is the same as the test above but with an incorrect password rather than no password.
     lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password=bar
     lxc_remote config trust ls pki-lxd: | grep lxd-client
+
+    # Try removing the fingerprint.
+    # This should succeed as the admin can delete all certificates.
+    fingerprint="$(lxc_remote config trust ls pki-lxd: --format csv | cut -d, -f4)"
+    lxc_remote config trust rm pki-lxd:"${fingerprint}"
+
     lxc_remote remote remove pki-lxd
 
     # Replace the client certificate with a revoked certificate in the CRL.
