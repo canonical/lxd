@@ -146,7 +146,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 		var certResponses []api.Certificate
 		var baseCerts []dbCluster.Certificate
 		var err error
-		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			baseCerts, err = dbCluster.GetCertificates(ctx, tx.Tx())
 			if err != nil {
 				return err
@@ -185,6 +185,8 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 }
 
 func updateCertificateCache(d *Daemon) {
+	s := d.State()
+
 	logger.Debug("Refreshing trusted certificate cache")
 
 	newCerts := map[dbCluster.CertificateType]map[string]x509.Certificate{}
@@ -194,7 +196,7 @@ func updateCertificateCache(d *Daemon) {
 	var dbCerts []dbCluster.Certificate
 	var localCerts []dbCluster.Certificate
 	var err error
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbCerts, err = dbCluster.GetCertificates(ctx, tx.Tx())
 		if err != nil {
 			return err
@@ -245,7 +247,7 @@ func updateCertificateCache(d *Daemon) {
 	}
 
 	// Write out the server certs to the local database to allow the cluster to restart.
-	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+	err = s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		return tx.ReplaceCertificates(localCerts)
 	})
 	if err != nil {
@@ -269,7 +271,7 @@ func updateCertificateCacheFromLocal(d *Daemon) error {
 	var dbCerts []dbCluster.Certificate
 	var err error
 
-	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+	err = d.State().DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		dbCerts, err = tx.GetCertificates(ctx)
 		return err
 	})
@@ -637,7 +639,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 		// Generate fingerprint of network certificate so joining member can automatically trust the correct
 		// certificate when it is presented during the join process.
-		fingerprint, err := shared.CertFingerprintStr(string(d.endpoints.NetworkPublicKey()))
+		fingerprint, err := shared.CertFingerprintStr(string(s.Endpoints.NetworkPublicKey()))
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -654,7 +656,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// If tokens should expire, add the expiry date to the op's metadata.
-		expiry := d.globalConfig.RemoteTokenExpiry()
+		expiry := s.GlobalConfig.RemoteTokenExpiry()
 
 		if expiry != "" {
 			expiresAt, err := shared.GetExpiry(time.Now(), expiry)
@@ -711,7 +713,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !isClusterNotification(r) {
-		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Check if we already have the certificate.
 			existingCert, _ := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 			if existingCert != nil {
@@ -735,7 +737,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Notify other nodes about the new certificate.
-		notifier, err := cluster.NewNotifier(s, d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAlive)
+		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -757,7 +759,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Reload the cache.
-	updateCertificateCache(d)
+	s.UpdateCertificateCache()
 
 	lc := lifecycle.CertificateCreated.Event(fingerprint, request.CreateRequestor(r), nil)
 	s.Events.SendLifecycle(project.Default, lc)
@@ -806,7 +808,7 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var cert *api.Certificate
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbCertInfo, err := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if err != nil {
 			return err
@@ -859,7 +861,7 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 
 	// Get current database record.
 	var apiEntry *api.Certificate
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		oldEntry, err := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if err != nil {
 			return err
@@ -928,7 +930,7 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 
 	// Get current database record.
 	var apiEntry *api.Certificate
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		oldEntry, err := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if err != nil {
 			return err
@@ -1076,7 +1078,7 @@ func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificateP
 	}
 
 	// Reload the cache.
-	updateCertificateCache(d)
+	s.UpdateCertificateCache()
 
 	s.Events.SendLifecycle(project.Default, lifecycle.CertificateUpdated.Event(dbInfo.Fingerprint, request.CreateRequestor(r), nil))
 
@@ -1127,7 +1129,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Notify other nodes about the new certificate.
-		notifier, err := cluster.NewNotifier(s, d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAlive)
+		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1141,7 +1143,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Reload the cache.
-	updateCertificateCache(d)
+	s.UpdateCertificateCache()
 
 	s.Events.SendLifecycle(project.Default, lifecycle.CertificateDeleted.Event(fingerprint, request.CreateRequestor(r), nil))
 

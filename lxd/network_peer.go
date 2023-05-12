@@ -129,7 +129,9 @@ var networkPeerCmd = APIEndpoint{
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func networkPeersGet(d *Daemon, r *http.Request) response.Response {
-	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	s := d.State()
+
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -139,7 +141,7 @@ func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(d.State(), projectName, networkName)
+	n, err := network.LoadByName(s, projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -154,7 +156,7 @@ func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if util.IsRecursionRequest(r) {
-		records, err := d.State().DB.Cluster.GetNetworkPeers(n.ID())
+		records, err := s.DB.Cluster.GetNetworkPeers(n.ID())
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed loading network peers: %w", err))
 		}
@@ -168,7 +170,7 @@ func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 		return response.SyncResponse(true, peers)
 	}
 
-	peerNames, err := d.State().DB.Cluster.GetNetworkPeerNames(n.ID())
+	peerNames, err := s.DB.Cluster.GetNetworkPeerNames(n.ID())
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network peers: %w", err))
 	}

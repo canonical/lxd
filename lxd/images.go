@@ -971,7 +971,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	// Possibly set a quota on the amount of disk space this project is
 	// allowed to use.
 	var budget int64
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		budget, err = projectutils.GetImageSpaceBudget(tx, projectName)
 		return err
 	})
@@ -1103,7 +1103,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			req.Aliases = aliases.([]api.ImageAlias)
 		}
 
-		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			imgID, _, err := tx.GetImageByFingerprintPrefix(ctx, info.Fingerprint, dbCluster.ImageFilter{Project: &projectName})
 			if err != nil {
 				return fmt.Errorf("Fetch image %q: %w", info.Fingerprint, err)
@@ -1541,7 +1541,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var result any
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		result, err = doImagesGet(ctx, tx, util.IsRecursionRequest(r), projectName, public, clauses)
 		if err != nil {
 			return err
@@ -2430,6 +2430,8 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imageDelete(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	projectName := projectParam(r)
 
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
@@ -2439,7 +2441,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Use the fingerprint we received in a LIKE query and use the full
 	// fingerprint we receive from the database in all further queries.
-	imgID, imgInfo, err := d.db.Cluster.GetImage(fingerprint, dbCluster.ImageFilter{Project: &projectName})
+	imgID, imgInfo, err := s.DB.Cluster.GetImage(fingerprint, dbCluster.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2452,7 +2454,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 
 		// Check image still exists and another request hasn't removed it since we resolved the image
 		// fingerprint above.
-		exist, err := d.db.Cluster.ImageExists(projectName, imgInfo.Fingerprint)
+		exist, err := s.DB.Cluster.ImageExists(projectName, imgInfo.Fingerprint)
 		if err != nil {
 			return err
 		}
@@ -2466,13 +2468,13 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 			// referenced by other projects. In that case we don't want to
 			// physically delete it just yet, but just to remove the
 			// relevant database entry.
-			referenced, err := d.db.Cluster.ImageIsReferencedByOtherProjects(projectName, imgInfo.Fingerprint)
+			referenced, err := s.DB.Cluster.ImageIsReferencedByOtherProjects(projectName, imgInfo.Fingerprint)
 			if err != nil {
 				return err
 			}
 
 			if referenced {
-				err := d.db.Cluster.DeleteImage(imgID)
+				err := s.DB.Cluster.DeleteImage(imgID)
 				if err != nil {
 					return fmt.Errorf("Error deleting image info from the database: %w", err)
 				}
@@ -2481,7 +2483,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Notify the other nodes about the removed image so they can remove it from disk too.
-			notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAll)
+			notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
 			if err != nil {
 				return err
 			}
@@ -2505,18 +2507,18 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Delete the pool volumes.
-		poolIDs, err := d.db.Cluster.GetPoolsWithImage(imgInfo.Fingerprint)
+		poolIDs, err := s.DB.Cluster.GetPoolsWithImage(imgInfo.Fingerprint)
 		if err != nil {
 			return err
 		}
 
-		poolNames, err := d.db.Cluster.GetPoolNamesFromIDs(poolIDs)
+		poolNames, err := s.DB.Cluster.GetPoolNamesFromIDs(poolIDs)
 		if err != nil {
 			return err
 		}
 
 		for _, poolName := range poolNames {
-			pool, err := storagePools.LoadByName(d.State(), poolName)
+			pool, err := storagePools.LoadByName(s, poolName)
 			if err != nil {
 				return fmt.Errorf("Error loading storage pool %q to delete image %q: %w", poolName, imgInfo.Fingerprint, err)
 			}
@@ -2532,7 +2534,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 
 		// Remove the database entry.
 		if !isClusterNotification(r) {
-			err = d.db.Cluster.DeleteImage(imgID)
+			err = s.DB.Cluster.DeleteImage(imgID)
 			if err != nil {
 				return fmt.Errorf("Error deleting image info from the database: %w", err)
 			}
@@ -2541,7 +2543,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		// Remove main image file from disk.
 		imageDeleteFromDisk(imgInfo.Fingerprint)
 
-		d.State().Events.SendLifecycle(projectName, lifecycle.ImageDeleted.Event(imgInfo.Fingerprint, projectName, op.Requestor(), nil))
+		s.Events.SendLifecycle(projectName, lifecycle.ImageDeleted.Event(imgInfo.Fingerprint, projectName, op.Requestor(), nil))
 
 		return nil
 	}
@@ -2549,7 +2551,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]string{}
 	resources["images"] = []string{imgInfo.Fingerprint}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, operationtype.ImageDelete, resources, nil, do, nil, nil, r)
+	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.ImageDelete, resources, nil, do, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -2721,6 +2723,8 @@ func imageValidSecret(s *state.State, r *http.Request, projectName string, finge
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imageGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	projectName := projectParam(r)
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
 	if err != nil {
@@ -2731,7 +2735,7 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 	secret := r.FormValue("secret")
 
 	var info *api.Image
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		info, err = doImageGet(ctx, tx, projectName, fingerprint, false)
 		if err != nil {
 			return err
@@ -2743,7 +2747,7 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	op, err := imageValidSecret(d.State(), r, projectName, info.Fingerprint, secret)
+	op, err := imageValidSecret(s, r, projectName, info.Fingerprint, secret)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2791,6 +2795,8 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imagePut(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get current value
 	projectName := projectParam(r)
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
@@ -2798,7 +2804,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	id, info, err := d.db.Cluster.GetImage(fingerprint, dbCluster.ImageFilter{Project: &projectName})
+	id, info, err := s.DB.Cluster.GetImage(fingerprint, dbCluster.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2828,7 +2834,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 
 	profileIds := make([]int64, len(req.Profiles))
 	for i, profile := range req.Profiles {
-		profileID, _, err := d.db.Cluster.GetProfile(projectName, profile)
+		profileID, _, err := s.DB.Cluster.GetProfile(projectName, profile)
 		if response.IsNotFoundError(err) {
 			return response.BadRequest(fmt.Errorf("Profile '%s' doesn't exist", profile))
 		} else if err != nil {
@@ -2838,13 +2844,13 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 		profileIds[i] = profileID
 	}
 
-	err = d.db.Cluster.UpdateImage(id, info.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, req.Properties, projectName, profileIds)
+	err = s.DB.Cluster.UpdateImage(id, info.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, req.Properties, projectName, profileIds)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(projectName, lifecycle.ImageUpdated.Event(info.Fingerprint, projectName, requestor, nil))
+	s.Events.SendLifecycle(projectName, lifecycle.ImageUpdated.Event(info.Fingerprint, projectName, requestor, nil))
 
 	return response.EmptySyncResponse
 }
@@ -2884,6 +2890,8 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imagePatch(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get current value
 	projectName := projectParam(r)
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
@@ -2891,7 +2899,7 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	id, info, err := d.db.Cluster.GetImage(fingerprint, dbCluster.ImageFilter{Project: &projectName})
+	id, info, err := s.DB.Cluster.GetImage(fingerprint, dbCluster.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2948,13 +2956,13 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 		info.Properties = properties
 	}
 
-	err = d.db.Cluster.UpdateImage(id, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, "", nil)
+	err = s.DB.Cluster.UpdateImage(id, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, "", nil)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(projectName, lifecycle.ImageUpdated.Event(info.Fingerprint, projectName, requestor, nil))
+	s.Events.SendLifecycle(projectName, lifecycle.ImageUpdated.Event(info.Fingerprint, projectName, requestor, nil))
 
 	return response.EmptySyncResponse
 }
@@ -2992,6 +3000,8 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	projectName := projectParam(r)
 	req := api.ImageAliasesPost{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -3003,7 +3013,7 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("name and target are required"))
 	}
 
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// This is just to see if the alias name already exists.
 		_, _, err = tx.GetImageAlias(ctx, projectName, req.Name, true)
 		if !response.IsNotFoundError(err) {
@@ -3032,7 +3042,7 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 
 	requestor := request.CreateRequestor(r)
 	lc := lifecycle.ImageAliasCreated.Event(req.Name, projectName, requestor, logger.Ctx{"target": req.Target})
-	d.State().Events.SendLifecycle(projectName, lc)
+	s.Events.SendLifecycle(projectName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
@@ -3136,7 +3146,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 	var err error
 	var responseStr []string
 	var responseMap []api.ImageAliasesEntry
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		names, err := tx.GetImageAliases(ctx, projectName)
 		if err != nil {
 			return err
@@ -3266,7 +3276,7 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	public := d.checkTrustedClient(r) != nil || allowProjectPermission("images", "view")(d, r) != response.EmptySyncResponse
 
 	var alias api.ImageAliasesEntry
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		_, alias, err = tx.GetImageAlias(ctx, projectName, name, !public)
 
 		return err
@@ -3303,13 +3313,15 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	projectName := projectParam(r)
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		_, _, err = tx.GetImageAlias(ctx, projectName, name, true)
 		if err != nil {
 			return err
@@ -3327,7 +3339,7 @@ func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(projectName, lifecycle.ImageAliasDeleted.Event(name, projectName, requestor, nil))
+	s.Events.SendLifecycle(projectName, lifecycle.ImageAliasDeleted.Event(name, projectName, requestor, nil))
 
 	return response.EmptySyncResponse
 }
@@ -3367,6 +3379,8 @@ func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imageAliasPut(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get current value
 	projectName := projectParam(r)
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
@@ -3385,7 +3399,7 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var imgAlias api.ImageAliasesEntry
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var imgAliasID int
 
 		imgAliasID, imgAlias, err = tx.GetImageAlias(ctx, projectName, name, true)
@@ -3416,7 +3430,7 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(projectName, lifecycle.ImageAliasUpdated.Event(imgAlias.Name, projectName, requestor, logger.Ctx{"target": req.Target}))
+	s.Events.SendLifecycle(projectName, lifecycle.ImageAliasUpdated.Event(imgAlias.Name, projectName, requestor, logger.Ctx{"target": req.Target}))
 
 	return response.EmptySyncResponse
 }
@@ -3456,6 +3470,8 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get current value
 	projectName := projectParam(r)
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
@@ -3470,7 +3486,7 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var imgAlias api.ImageAliasesEntry
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var imgAliasID int
 		imgAliasID, imgAlias, err = tx.GetImageAlias(ctx, projectName, name, true)
 		if err != nil {
@@ -3503,7 +3519,7 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 			imgAlias.Description = description
 		}
 
-		imageID, _, err := d.db.Cluster.GetImage(imgAlias.Target, dbCluster.ImageFilter{Project: &projectName})
+		imageID, _, err := s.DB.Cluster.GetImage(imgAlias.Target, dbCluster.ImageFilter{Project: &projectName})
 		if err != nil {
 			return err
 		}
@@ -3520,7 +3536,7 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(projectName, lifecycle.ImageAliasUpdated.Event(imgAlias.Name, projectName, requestor, logger.Ctx{"target": imgAlias.Target}))
+	s.Events.SendLifecycle(projectName, lifecycle.ImageAliasUpdated.Event(imgAlias.Name, projectName, requestor, logger.Ctx{"target": imgAlias.Target}))
 
 	return response.EmptySyncResponse
 }
@@ -3558,6 +3574,8 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imageAliasPost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	projectName := projectParam(r)
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -3570,7 +3588,7 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// This is just to see if the alias name already exists.
 		_, _, err := tx.GetImageAlias(ctx, projectName, req.Name, true)
 		if !response.IsNotFoundError(err) {
@@ -3586,7 +3604,7 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		err = d.db.Cluster.RenameImageAlias(imgAliasID, req.Name)
+		err = s.DB.Cluster.RenameImageAlias(imgAliasID, req.Name)
 		if err != nil {
 			return err
 		}
@@ -3599,7 +3617,7 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 
 	requestor := request.CreateRequestor(r)
 	lc := lifecycle.ImageAliasRenamed.Event(req.Name, projectName, requestor, logger.Ctx{"old_name": name})
-	d.State().Events.SendLifecycle(projectName, lc)
+	s.Events.SendLifecycle(projectName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
@@ -3659,6 +3677,8 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imageExport(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	projectName := projectParam(r)
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
 	if err != nil {
@@ -3671,7 +3691,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	var imgInfo *api.Image
 	if r.RemoteAddr == "@devlxd" {
 		// /dev/lxd API requires exact match
-		_, imgInfo, err = d.db.Cluster.GetImage(fingerprint, dbCluster.ImageFilter{Project: &projectName})
+		_, imgInfo, err = s.DB.Cluster.GetImage(fingerprint, dbCluster.ImageFilter{Project: &projectName})
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -3680,12 +3700,12 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 			return response.NotFound(fmt.Errorf("Image %q not found", fingerprint))
 		}
 	} else {
-		_, imgInfo, err = d.db.Cluster.GetImage(fingerprint, dbCluster.ImageFilter{Project: &projectName})
+		_, imgInfo, err = s.DB.Cluster.GetImage(fingerprint, dbCluster.ImageFilter{Project: &projectName})
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		op, err := imageValidSecret(d.State(), r, projectName, imgInfo.Fingerprint, secret)
+		op, err := imageValidSecret(s, r, projectName, imgInfo.Fingerprint, secret)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -3696,14 +3716,14 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if the image is only available on another node.
-	address, err := d.db.Cluster.LocateImage(imgInfo.Fingerprint)
+	address, err := s.DB.Cluster.LocateImage(imgInfo.Fingerprint)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	if address != "" {
 		// Forward the request to the other node
-		client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, false)
+		client, err := cluster.Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -3755,7 +3775,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	files[0].Filename = filename
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(imgInfo.Fingerprint, projectName, requestor, nil))
+	s.Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(imgInfo.Fingerprint, projectName, requestor, nil))
 
 	return response.FileResponse(r, files, nil)
 }
@@ -3789,6 +3809,8 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imageExportPost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	projectName := projectParam(r)
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
 	if err != nil {
@@ -3796,7 +3818,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if the image exists
-	_, _, err = d.db.Cluster.GetImage(fingerprint, dbCluster.ImageFilter{Project: &projectName})
+	_, _, err = s.DB.Cluster.GetImage(fingerprint, dbCluster.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3812,8 +3834,8 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 	args := &lxd.ConnectionArgs{
 		TLSServerCert: req.Certificate,
 		UserAgent:     version.UserAgent,
-		Proxy:         d.proxy,
-		CachePath:     d.os.CacheDir,
+		Proxy:         s.Proxy,
+		CachePath:     s.OS.CacheDir,
 		CacheExpiry:   time.Hour,
 	}
 
@@ -3891,12 +3913,12 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed operation %q: %q", opWaitAPI.Status, opWaitAPI.Err)
 		}
 
-		d.State().Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(fingerprint, projectName, op.Requestor(), logger.Ctx{"target": req.Target}))
+		s.Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(fingerprint, projectName, op.Requestor(), logger.Ctx{"target": req.Target}))
 
 		return nil
 	}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, operationtype.ImageDownload, nil, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.ImageDownload, nil, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -3935,7 +3957,7 @@ func imageSecret(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	_, imgInfo, err := d.db.Cluster.GetImage(fingerprint, dbCluster.ImageFilter{Project: &projectName})
+	_, imgInfo, err := d.State().DB.Cluster.GetImage(fingerprint, dbCluster.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -4040,41 +4062,41 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imageRefresh(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	projectName := projectParam(r)
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	imageID, imageInfo, err := d.db.Cluster.GetImage(fingerprint, dbCluster.ImageFilter{Project: &projectName})
+	imageID, imageInfo, err := s.DB.Cluster.GetImage(fingerprint, dbCluster.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Begin background operation
 	run := func(op *operations.Operation) error {
-		s := d.State()
-
-		nodes, err := d.db.Cluster.GetNodesWithImageAndAutoUpdate(fingerprint, true)
+		nodes, err := s.DB.Cluster.GetNodesWithImageAndAutoUpdate(fingerprint, true)
 		if err != nil {
 			return fmt.Errorf("Error getting cluster members for refreshing image %q in project %q: %w", fingerprint, projectName, err)
 		}
 
-		newImage, err := autoUpdateImage(d.shutdownCtx, s, op, imageID, imageInfo, projectName, true)
+		newImage, err := autoUpdateImage(s.ShutdownCtx, s, op, imageID, imageInfo, projectName, true)
 		if err != nil {
 			return fmt.Errorf("Failed to update image %q in project %q: %w", fingerprint, projectName, err)
 		}
 
 		if newImage != nil {
 			if len(nodes) > 1 {
-				err := distributeImage(d.shutdownCtx, s, nodes, fingerprint, newImage)
+				err := distributeImage(s.ShutdownCtx, s, nodes, fingerprint, newImage)
 				if err != nil {
 					return fmt.Errorf("Failed to distribute new image %q: %w", newImage.Fingerprint, err)
 				}
 			}
 
 			// Remove the database entry for the image after distributing to cluster members.
-			err = d.db.Cluster.DeleteImage(imageID)
+			err = s.DB.Cluster.DeleteImage(imageID)
 			if err != nil {
 				logger.Error("Error deleting old image from database", logger.Ctx{"err": err, "fingerprint": fingerprint, "ID": imageID})
 			}
@@ -4083,7 +4105,7 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 		return err
 	}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, operationtype.ImageRefresh, nil, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.ImageRefresh, nil, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -4093,9 +4115,11 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 
 func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
+		s := d.State()
+
 		// In order to only have one task operation executed per image when syncing the images
 		// across the cluster, only leader node can launch the task, no others.
-		localClusterAddress := d.State().LocalConfig.ClusterAddress()
+		localClusterAddress := s.LocalConfig.ClusterAddress()
 
 		leader, err := d.gateway.LeaderAddress()
 		if err != nil {
@@ -4113,10 +4137,10 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		opRun := func(op *operations.Operation) error {
-			return autoSyncImages(ctx, d.State())
+			return autoSyncImages(ctx, s)
 		}
 
-		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.ImagesSynchronize, nil, nil, opRun, nil, nil, nil)
+		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ImagesSynchronize, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start image synchronization operation", logger.Ctx{"err": err})
 			return

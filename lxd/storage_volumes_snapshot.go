@@ -343,6 +343,8 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the pool the storage volume is supposed to be attached to.
 	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
 	if err != nil {
@@ -374,19 +376,19 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), volumeType)
+	projectName, err := project.StorageVolumeProject(s.DB.Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
-	poolID, err := d.db.Cluster.GetStoragePoolID(poolName)
+	poolID, err := s.DB.Cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Get the names of all storage volume snapshots of a given volume.
-	volumes, err := d.db.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(projectName, volumeName, volumeType, poolID)
+	volumes, err := s.DB.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(projectName, volumeName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -401,7 +403,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s", version.APIVersion, poolName, volumeTypeName, volumeName, snapshotName))
 		} else {
 			var vol *db.StorageVolume
-			err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 				vol, err = tx.GetStoragePoolVolume(ctx, poolID, projectName, volumeType, volume.Name, true)
 				return err
 			})
@@ -409,7 +411,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 				return response.SmartError(err)
 			}
 
-			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), projectName, poolName, vol)
+			volumeUsedBy, err := storagePoolVolumeUsedByGet(s, projectName, poolName, vol)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -666,7 +668,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Get the snapshot.
-	poolID, _, _, err := d.db.Cluster.GetStoragePool(poolName)
+	poolID, _, _, err := s.DB.Cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -789,7 +791,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Get the snapshot.
-	poolID, _, _, err := d.db.Cluster.GetStoragePool(poolName)
+	poolID, _, _, err := s.DB.Cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -917,7 +919,7 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Get the snapshot.
-	poolID, _, _, err := d.db.Cluster.GetStoragePool(poolName)
+	poolID, _, _, err := s.DB.Cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1097,9 +1099,11 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 }
 
 func pruneExpireCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
+	s := d.State()
+
 	f := func(ctx context.Context) {
 		// Get the list of expired custom volume snapshots.
-		expiredSnapshots, err := d.db.Cluster.GetExpiredStorageVolumeSnapshots()
+		expiredSnapshots, err := s.DB.Cluster.GetExpiredStorageVolumeSnapshots()
 		if err != nil {
 			logger.Error("Unable to retrieve the list of expired custom volume snapshots", logger.Ctx{"err": err})
 			return
@@ -1110,10 +1114,10 @@ func pruneExpireCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) 
 		}
 
 		opRun := func(op *operations.Operation) error {
-			return pruneExpiredCustomVolumeSnapshots(ctx, d.State(), expiredSnapshots)
+			return pruneExpiredCustomVolumeSnapshots(ctx, s, expiredSnapshots)
 		}
 
-		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.CustomVolumeSnapshotsExpire, nil, nil, opRun, nil, nil, nil)
+		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.CustomVolumeSnapshotsExpire, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start expired custom volume snapshots operation", logger.Ctx{"err": err})
 			return
@@ -1196,7 +1200,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				return fmt.Errorf("Failed getting volumes for auto custom volume snapshot task: %w", err)
 			}
 
-			localNodeID := d.db.Cluster.GetNodeID()
+			localNodeID := s.DB.Cluster.GetNodeID()
 			for _, v := range allVolumes {
 				schedule, ok := v.Config["snapshots.schedule"]
 				if !ok || schedule == "" {
@@ -1234,7 +1238,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			// Get list of cluster members.
 			var memberCount int
 			var onlineNodeIDs []int64
-			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				// Get all the members.
 				members, err := tx.GetNodes(ctx)
 				if err != nil {
@@ -1278,7 +1282,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 						}
 
 						// Don't snapshot, if we're not the chosen one.
-						if d.db.Cluster.GetNodeID() != selectedNodeID {
+						if s.DB.Cluster.GetNodeID() != selectedNodeID {
 							continue
 						}
 					}
