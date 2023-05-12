@@ -18,6 +18,7 @@ To publish an image from a snapshot, enter the following command:
     lxc publish <instance_name>/<snapshot_name> [<remote>:]
 
 In both cases, you can specify an alias for the new image with the `--alias` flag, set an expiration date with `--expire` and make the image publicly available with `--public`.
+If an image with the same name already exists, add the `--reuse` flag to overwrite it.
 See `lxc publish --help` for a full list of available flags.
 
 The publishing process can take quite a while because it generates a tarball from the instance or snapshot and then compresses it.
