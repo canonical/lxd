@@ -147,6 +147,12 @@ Key                 | Type       | Required | Default | Description
 `network.nat`       | bool       | no       | `true`  | Whether to generate records for NAT-ed subnets
 `user.*`            | *          | no       | -       | User-provided free-form key/value pairs
 
+```{note}
+When generating the TSIG key using `tsig-keygen`, the key name should follow the format `<zone_name>_<peer_name>.`.
+For example, if your zone name is `lxd.example.net` and peer name is `bind9`, then the key name should be `lxd.example.net_bind9.`.
+If this format is not followed, zone transfer may fail.
+```
+
 ## Add a network zone to a network
 
 To add a zone to a network, set the corresponding configuration option in the network configuration:
