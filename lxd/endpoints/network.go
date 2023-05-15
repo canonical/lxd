@@ -146,30 +146,27 @@ func (e *Endpoints) NetworkUpdateCert(cert *shared.CertInfo) {
 	}
 }
 
-// NetworkUpdateTrustedProxy updates the https trusted proxy used by the network
-// endpoint.
+// NetworkUpdateTrustedProxy updates the https trusted proxy used by the network endpoint.
 func (e *Endpoints) NetworkUpdateTrustedProxy(trustedProxy string) {
 	var proxies []net.IP
-	for _, p := range strings.Split(trustedProxy, ",") {
-		p = strings.ToLower(strings.TrimSpace(p))
-		if len(p) == 0 {
+	for _, p := range shared.SplitNTrimSpace(trustedProxy, ",", -1, true) {
+		proxyIP := net.ParseIP(p)
+		if proxyIP == nil {
 			continue
 		}
 
-		proxyIP := net.ParseIP(p)
 		proxies = append(proxies, proxyIP)
 	}
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	listener, ok := e.listeners[network]
-	if ok && listener != nil {
-		listener.(*listeners.FancyTLSListener).TrustedProxy(proxies)
-	}
 
-	// Update the cluster listener too, if enabled.
-	listener, ok = e.listeners[cluster]
-	if ok && listener != nil {
+	for _, kind := range []kind{network, cluster} {
+		listener, ok := e.listeners[kind]
+		if !ok || listener == nil {
+			continue
+		}
+
 		listener.(*listeners.FancyTLSListener).TrustedProxy(proxies)
 	}
 
