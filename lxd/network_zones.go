@@ -27,7 +27,7 @@ var networkZonesCmd = APIEndpoint{
 }
 
 var networkZoneCmd = APIEndpoint{
-	Path: "network-zones/{name}",
+	Path: "network-zones/{zone}",
 
 	Delete: APIEndpointAction{Handler: networkZoneDelete, AccessHandler: allowProjectPermission("networks", "manage-networks")},
 	Get:    APIEndpointAction{Handler: networkZoneGet, AccessHandler: allowProjectPermission("networks", "view")},
@@ -240,7 +240,7 @@ func networkZonesPost(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
 
-// swagger:operation DELETE /1.0/network-zones/{name} network-zones network_zone_delete
+// swagger:operation DELETE /1.0/network-zones/{zone} network-zones network_zone_delete
 //
 //	Delete the network zone
 //
@@ -272,7 +272,7 @@ func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	zoneName, err := url.PathUnescape(mux.Vars(r)["name"])
+	zoneName, err := url.PathUnescape(mux.Vars(r)["zone"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -292,7 +292,7 @@ func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-// swagger:operation GET /1.0/network-zones/{name} network-zones network_zone_get
+// swagger:operation GET /1.0/network-zones/{zone} network-zones network_zone_get
 //
 //	Get the network zone
 //
@@ -340,7 +340,7 @@ func networkZoneGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	zoneName, err := url.PathUnescape(mux.Vars(r)["name"])
+	zoneName, err := url.PathUnescape(mux.Vars(r)["zone"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -359,7 +359,7 @@ func networkZoneGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, info, netzone.Etag())
 }
 
-// swagger:operation PATCH /1.0/network-zones/{name} network-zones network_zone_patch
+// swagger:operation PATCH /1.0/network-zones/{zone} network-zones network_zone_patch
 //
 //  Partially update the network zone
 //
@@ -394,7 +394,7 @@ func networkZoneGet(d *Daemon, r *http.Request) response.Response {
 //    "500":
 //      $ref: "#/responses/InternalServerError"
 
-// swagger:operation PUT /1.0/network-zones/{name} network-zones network_zone_put
+// swagger:operation PUT /1.0/network-zones/{zone} network-zones network_zone_put
 //
 //	Update the network zone
 //
@@ -436,7 +436,7 @@ func networkZonePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	zoneName, err := url.PathUnescape(mux.Vars(r)["name"])
+	zoneName, err := url.PathUnescape(mux.Vars(r)["zone"])
 	if err != nil {
 		return response.SmartError(err)
 	}
