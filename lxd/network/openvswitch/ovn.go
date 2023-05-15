@@ -1152,6 +1152,8 @@ func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort,
 		}
 	}
 
+	args = append(args, "--", "set", "logical_switch_port", string(portName), fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitch, switchName))
+
 	_, err := o.nbctl(args...)
 	if err != nil {
 		return err
