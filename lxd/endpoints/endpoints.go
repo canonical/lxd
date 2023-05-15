@@ -60,11 +60,6 @@ type Config struct {
 	// It can be updated after the endpoints are up using PprofUpdateAddress().
 	DebugAddress string
 
-	// MetricsAddress sets the address for the metrics endpoint.
-	//
-	// It can be updated after the endpoints are up using MetricsUpdateAddress().
-	MetricsAddress string
-
 	// HTTP server handling requests for the LXD metrics API.
 	MetricsServer *http.Server
 
@@ -307,23 +302,22 @@ func (e *Endpoints) up(config *Config) error {
 		e.serve(pprof)
 	}
 
-	if config.MetricsAddress != "" {
-		e.listeners[metrics], err = metricsCreateListener(config.MetricsAddress, e.cert)
-		if err != nil {
-			return err
-		}
-
-		e.serve(metrics)
+	for kind := range e.listeners {
+		e.serve(kind)
 	}
 
-	if e.listeners[vmvsock] != nil {
-		e.serve(vmvsock)
+	return nil
+}
+
+// UpMetrics brings up metrics listener on specified address.
+func (e *Endpoints) UpMetrics(listenAddress string) error {
+	var err error
+	e.listeners[metrics], err = metricsCreateListener(listenAddress, e.cert)
+	if err != nil {
+		return fmt.Errorf("Failed starting metrics listener: %w", err)
 	}
 
-	e.serve(devlxd)
-
-	e.serve(local)
-	e.serve(network)
+	e.serve(metrics)
 
 	return nil
 }

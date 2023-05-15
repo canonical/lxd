@@ -1029,7 +1029,6 @@ func (d *Daemon) init() error {
 	localHTTPAddress := d.localConfig.HTTPSAddress()
 	localClusterAddress := d.localConfig.ClusterAddress()
 	debugAddress := d.localConfig.DebugAddress()
-	metricsAddress := d.localConfig.MetricsAddress()
 
 	if os.Getenv("LISTEN_PID") != "" {
 		d.systemdSocketActivated = true
@@ -1046,7 +1045,6 @@ func (d *Daemon) init() error {
 		NetworkAddress:       localHTTPAddress,
 		ClusterAddress:       localClusterAddress,
 		DebugAddress:         debugAddress,
-		MetricsAddress:       metricsAddress,
 		MetricsServer:        metricsServer(d),
 		VsockServer:          vSockServer(d),
 		VsockSupport:         false,
