@@ -1331,6 +1331,15 @@ func (d *Daemon) init() error {
 		return err
 	}
 
+	// Setup tertiary listeners that may use managed network addresses and must be started after networks.
+	metricsAddress := d.localConfig.MetricsAddress()
+	if metricsAddress != "" {
+		err = d.endpoints.UpMetrics(metricsAddress)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Apply all patches that need to be run after networks are initialised.
 	err = patchesApply(d, patchPostNetworks)
 	if err != nil {
