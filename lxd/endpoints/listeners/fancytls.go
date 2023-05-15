@@ -12,8 +12,8 @@ import (
 )
 
 // FancyTLSListener is a variation of the standard tls.Listener that supports
-// atomically swapping the underlying TLS configuration. Requests served before
-// the swap will continue using the old configuration.
+// atomically swapping the underlying TLS configuration and proxy protocol wrapping.
+// Requests served before the swap will continue using the old configuration.
 type FancyTLSListener struct {
 	net.Listener
 	mu           sync.RWMutex
