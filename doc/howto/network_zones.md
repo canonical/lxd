@@ -148,9 +148,9 @@ Key                 | Type       | Required | Default | Description
 `user.*`            | *          | no       | -       | User-provided free-form key/value pairs
 
 ```{note}
-When generating the TSIG key using `tsig-keygen`, the key name should follow the format `<zone_name>_<peer_name>.`.
-For example, if your zone name is `lxd.example.net` and peer name is `bind9`, then the key name should be `lxd.example.net_bind9.`.
-If this format is not followed, zone transfer may fail.
+When generating the TSIG key using `tsig-keygen`, the key name must follow the format `<zone_name>_<peer_name>.`.
+For example, if your zone name is `lxd.example.net` and the peer name is `bind9`, then the key name must be `lxd.example.net_bind9.`.
+If this format is not followed, zone transfer might fail.
 ```
 
 ## Add a network zone to a network
