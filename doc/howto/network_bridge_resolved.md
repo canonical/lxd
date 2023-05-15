@@ -35,15 +35,17 @@ DNS domain
 
   If this option is not set, the default domain name is `lxd`.
 
-  When specifying the DNS domain, prefix the domain name with `~`.
-  The `~` tells `resolved` to use the respective name server to look up only this domain.
-
-  Depending on which shell you use, you might need to include the DNS domain in quotes to prevent the `~` from being expanded.
-
 Use the following commands to configure `resolved`:
 
     resolvectl dns <network_bridge> <dns_address>
-    resolvectl domain <network_bridge> <dns_domain>
+    resolvectl domain <network_bridge> ~<dns_domain>
+
+```{note}
+When configuring `resolved` with the DNS domain name, you should prefix the name with `~`.
+The `~` tells `resolved` to use the respective name server to look up only this domain.
+
+Depending on which shell you use, you might need to include the DNS domain in quotes to prevent the `~` from being expanded.
+```
 
 For example:
 
@@ -54,7 +56,7 @@ For example:
 Alternatively, you can use the `systemd-resolve` command.
 This command has been deprecated in newer releases of `systemd`, but it is still provided for backwards compatibility.
 
-    systemd-resolve --interface <network_bridge> --set-domain <dns_domain> --set-dns <dns_address>
+    systemd-resolve --interface <network_bridge> --set-domain ~<dns_domain> --set-dns <dns_address>
 ```
 
 The `resolved` configuration persists as long as the bridge exists.
