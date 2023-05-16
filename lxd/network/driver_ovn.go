@@ -3422,10 +3422,11 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 				return "", nil, fmt.Errorf("Could not find DHCPv6 options for instance port for subnet %q", dhcpv6Subnet.String())
 			}
 
-			// If port isn't going to have fully dynamic IPs allocated by OVN, and instead only static IPv4
-			// addresses have been added, then add an EUI64 static IPv6 address so that the switch port has an
-			// IPv6 address that will be used to generate a DNS record. This works around a limitation in OVN
-			// that prevents us requesting dynamic IPv6 address allocation when static IPv4 allocation is used.
+			// If port isn't going to have fully dynamic IPs allocated by OVN, and instead only static
+			// IPv4 addresses have been added, then add an EUI64 static IPv6 address so that the switch
+			// port has an IPv6 address that will be used to generate a DNS record. This works around a
+			// limitation in OVN that prevents us requesting dynamic IPv6 address allocation when
+			// static IPv4 allocation is used.
 			if len(staticIPs) > 0 {
 				hasIPv6 := false
 				for _, ip := range staticIPs {
