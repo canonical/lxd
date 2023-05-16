@@ -71,6 +71,7 @@ type OVNInstanceNICSetupOpts struct {
 	DeviceConfig deviceConfig.Device
 	UplinkConfig map[string]string
 	DNSName      string
+	LastStateIPs []net.IP
 }
 
 // OVNInstanceNICStopOpts options for stopping an OVN Instance NIC.
