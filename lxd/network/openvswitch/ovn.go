@@ -1255,17 +1255,7 @@ func (o *OVN) LogicalSwitchPortOptionsSet(portName OVNSwitchPort, options map[st
 
 // LogicalSwitchPortSetDNS sets up the switch port DNS records for the DNS name.
 // Returns the DNS record UUID, IPv4 and IPv6 addresses used for DNS records.
-func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPort, dnsName string, dnsIPv4 net.IP, dnsIPv6 net.IP) (OVNDNSUUID, error) {
-	// Create a list of IPs for the DNS record.
-	dnsIPs := make([]string, 0, 2)
-	if dnsIPv4 != nil {
-		dnsIPs = append(dnsIPs, dnsIPv4.String())
-	}
-
-	if dnsIPv6 != nil {
-		dnsIPs = append(dnsIPs, dnsIPv6.String())
-	}
-
+func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPort, dnsName string, dnsIPs []net.IP) (OVNDNSUUID, error) {
 	// Check if existing DNS record exists for switch port.
 	dnsUUID, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "dns",
 		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitchPort, portName),
@@ -1281,7 +1271,16 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 
 	// Only include DNS name record if IPs supplied.
 	if len(dnsIPs) > 0 {
-		cmdArgs = append(cmdArgs, fmt.Sprintf(`records={"%s"="%s"}`, strings.ToLower(dnsName), strings.Join(dnsIPs, " ")))
+		var dnsIPsStr strings.Builder
+		for i, dnsIP := range dnsIPs {
+			if i > 0 {
+				dnsIPsStr.WriteString(" ")
+			}
+
+			dnsIPsStr.WriteString(dnsIP.String())
+		}
+
+		cmdArgs = append(cmdArgs, fmt.Sprintf(`records={"%s"="%s"}`, strings.ToLower(dnsName), dnsIPsStr.String()))
 	}
 
 	dnsUUID = strings.TrimSpace(dnsUUID)
