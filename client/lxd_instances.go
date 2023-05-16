@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/tcp"
 	"github.com/lxc/lxd/shared/units"
+	"github.com/lxc/lxd/shared/ws"
 )
 
 // Instance handling functions.
@@ -1066,8 +1067,8 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 
 				// And attach stdin and stdout to it
 				go func() {
-					shared.WebsocketSendStream(conn, args.Stdin, -1)
-					<-shared.WebsocketRecvStream(args.Stdout, conn)
+					ws.MirrorRead(context.Background(), conn, args.Stdin)
+					<-ws.MirrorWrite(context.Background(), conn, args.Stdout)
 					_ = conn.Close()
 
 					if args.DataDone != nil {
@@ -1081,7 +1082,7 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 			}
 		} else {
 			// Handle non-interactive sessions
-			dones := map[int]chan bool{}
+			dones := make(map[int]chan struct{})
 			conns := []*websocket.Conn{}
 
 			// Handle stdin
@@ -1092,7 +1093,7 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 				}
 
 				conns = append(conns, conn)
-				dones[0] = shared.WebsocketSendStream(conn, args.Stdin, -1)
+				dones[0] = ws.MirrorRead(context.Background(), conn, args.Stdin)
 			}
 
 			// Handle stdout
@@ -1103,7 +1104,7 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 				}
 
 				conns = append(conns, conn)
-				dones[1] = shared.WebsocketRecvStream(args.Stdout, conn)
+				dones[1] = ws.MirrorWrite(context.Background(), conn, args.Stdout)
 			}
 
 			// Handle stderr
@@ -1114,7 +1115,7 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 				}
 
 				conns = append(conns, conn)
-				dones[2] = shared.WebsocketRecvStream(args.Stderr, conn)
+				dones[2] = ws.MirrorWrite(context.Background(), conn, args.Stderr)
 			}
 
 			// Wait for everything to be done
@@ -2237,8 +2238,8 @@ func (r *ProtocolLXD) ConsoleInstance(instanceName string, console api.InstanceC
 
 	// And attach stdin and stdout to it
 	go func() {
-		shared.WebsocketSendStream(conn, args.Terminal, -1)
-		<-shared.WebsocketRecvStream(args.Terminal, conn)
+		ws.MirrorRead(context.Background(), conn, args.Terminal)
+		<-ws.MirrorWrite(context.Background(), conn, args.Terminal)
 		_ = conn.Close()
 	}()
 
@@ -2324,8 +2325,9 @@ func (r *ProtocolLXD) ConsoleInstanceDynamic(instanceName string, console api.In
 		}
 
 		// Attach reader/writer.
-		shared.WebsocketSendStream(conn, rwc, -1)
-		<-shared.WebsocketRecvStream(rwc, conn)
+		readDone, writeDone := ws.Mirror(context.Background(), conn, rwc)
+		<-readDone
+		<-writeDone
 		_ = conn.Close()
 
 		return nil
@@ -2625,7 +2627,7 @@ func (r *ProtocolLXD) proxyMigration(targetOp *operation, targetSecrets map[stri
 	}
 
 	proxies[api.SecretNameControl] = &proxy{
-		done:       shared.WebsocketProxy(sourceConn, targetConn),
+		done:       ws.Proxy(sourceConn, targetConn),
 		sourceConn: sourceConn,
 		targetConn: targetConn,
 	}
@@ -2650,7 +2652,7 @@ func (r *ProtocolLXD) proxyMigration(targetOp *operation, targetSecrets map[stri
 		proxies[name] = &proxy{
 			sourceConn: sourceConn,
 			targetConn: targetConn,
-			done:       shared.WebsocketProxy(sourceConn, targetConn),
+			done:       ws.Proxy(sourceConn, targetConn),
 		}
 	}
 
