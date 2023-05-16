@@ -40,7 +40,7 @@ var storagePoolsCmd = APIEndpoint{
 }
 
 var storagePoolCmd = APIEndpoint{
-	Path: "storage-pools/{name}",
+	Path: "storage-pools/{poolName}",
 
 	Delete: APIEndpointAction{Handler: storagePoolDelete},
 	Get:    APIEndpointAction{Handler: storagePoolGet, AccessHandler: allowAuthenticated},
@@ -526,7 +526,7 @@ func storagePoolsPostCluster(s *state.State, pool *api.StoragePool, req api.Stor
 	return nil
 }
 
-// swagger:operation GET /1.0/storage-pools/{name} storage storage_pool_get
+// swagger:operation GET /1.0/storage-pools/{poolName} storage storage_pool_get
 //
 //	Get the storage pool
 //
@@ -580,7 +580,7 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["name"])
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -630,7 +630,7 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, &poolAPI, etag)
 }
 
-// swagger:operation PUT /1.0/storage-pools/{name} storage storage_pool_put
+// swagger:operation PUT /1.0/storage-pools/{poolName} storage storage_pool_put
 //
 //	Update the storage pool
 //
@@ -678,7 +678,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["name"])
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -764,7 +764,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 	return response
 }
 
-// swagger:operation PATCH /1.0/storage-pools/{name} storage storage_pool_patch
+// swagger:operation PATCH /1.0/storage-pools/{poolName} storage storage_pool_patch
 //
 //	Partially update the storage pool
 //
@@ -876,7 +876,7 @@ func doStoragePoolUpdate(s *state.State, pool storagePools.Pool, req api.Storage
 	return response.EmptySyncResponse
 }
 
-// swagger:operation DELETE /1.0/storage-pools/{name} storage storage_pools_delete
+// swagger:operation DELETE /1.0/storage-pools/{poolName} storage storage_pools_delete
 //
 //	Delete the storage pool
 //
@@ -903,7 +903,7 @@ func doStoragePoolUpdate(s *state.State, pool storagePools.Pool, req api.Storage
 func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["name"])
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
