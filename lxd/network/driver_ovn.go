@@ -3244,15 +3244,15 @@ func (n *ovn) hasDHCPv4Reservation(dhcpReservations []shared.IPRange, ip net.IP)
 
 // InstanceDevicePortStart sets up an instance device port to the internal logical switch.
 // Accepts a list of ACLs being removed from the NIC device (if called as part of a NIC update).
-// Returns the logical switch port name.
-func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, error) {
+// Returns the logical switch port name and a list of IPs that were allocated to the port for DNS.
+func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, []net.IP, error) {
 	if opts.InstanceUUID == "" {
-		return "", fmt.Errorf("Instance UUID is required")
+		return "", nil, fmt.Errorf("Instance UUID is required")
 	}
 
 	mac, err := net.ParseMAC(opts.DeviceConfig["hwaddr"])
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	staticIPs := []net.IP{}
@@ -3263,7 +3263,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 		ip := net.ParseIP(opts.DeviceConfig[key])
 		if ip == nil {
-			return "", fmt.Errorf("Invalid %s value %q", key, opts.DeviceConfig[key])
+			return "", nil, fmt.Errorf("Invalid %s value %q", key, opts.DeviceConfig[key])
 		}
 
 		staticIPs = append(staticIPs, ip)
@@ -3271,7 +3271,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 	internalRoutes, externalRoutes, err := n.instanceDevicePortRoutesParse(opts.DeviceConfig)
 	if err != nil {
-		return "", fmt.Errorf("Failed parsing NIC device routes: %w", err)
+		return "", nil, fmt.Errorf("Failed parsing NIC device routes: %w", err)
 	}
 
 	revert := revert.New()
@@ -3279,26 +3279,25 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 	client, err := openvswitch.NewOVN(n.state)
 	if err != nil {
-		return "", fmt.Errorf("Failed to get OVN client: %w", err)
+		return "", nil, fmt.Errorf("Failed to get OVN client: %w", err)
 	}
 
 	dhcpv4Subnet := n.DHCPv4Subnet()
 	dhcpv6Subnet := n.DHCPv6Subnet()
 	var dhcpV4ID, dhcpv6ID openvswitch.OVNDHCPOptionsUUID
 
-	// Get DHCP options IDs.
 	if dhcpv4Subnet != nil || dhcpv6Subnet != nil {
 		// Find existing DHCP options set for IPv4 and IPv6 and update them instead of adding sets.
 		existingOpts, err := client.LogicalSwitchDHCPOptionsGet(n.getIntSwitchName())
 		if err != nil {
-			return "", fmt.Errorf("Failed getting existing DHCP settings for internal switch: %w", err)
+			return "", nil, fmt.Errorf("Failed getting existing DHCP settings for internal switch: %w", err)
 		}
 
 		if dhcpv4Subnet != nil {
 			for _, existingOpt := range existingOpts {
 				if existingOpt.CIDR.String() == dhcpv4Subnet.String() {
 					if dhcpV4ID != "" {
-						return "", fmt.Errorf("Multiple matching DHCP option sets found for switch %q and subnet %q", n.getIntSwitchName(), dhcpv4Subnet.String())
+						return "", nil, fmt.Errorf("Multiple matching DHCP option sets found for switch %q and subnet %q", n.getIntSwitchName(), dhcpv4Subnet.String())
 					}
 
 					dhcpV4ID = existingOpt.UUID
@@ -3306,7 +3305,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 			}
 
 			if dhcpV4ID == "" {
-				return "", fmt.Errorf("Could not find DHCPv4 options for instance port for subnet %q", dhcpv4Subnet.String())
+				return "", nil, fmt.Errorf("Could not find DHCPv4 options for instance port for subnet %q", dhcpv4Subnet.String())
 			}
 		}
 
@@ -3314,7 +3313,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 			for _, existingOpt := range existingOpts {
 				if existingOpt.CIDR.String() == dhcpv6Subnet.String() {
 					if dhcpv6ID != "" {
-						return "", fmt.Errorf("Multiple matching DHCP option sets found for switch %q and subnet %q", n.getIntSwitchName(), dhcpv6Subnet.String())
+						return "", nil, fmt.Errorf("Multiple matching DHCP option sets found for switch %q and subnet %q", n.getIntSwitchName(), dhcpv6Subnet.String())
 					}
 
 					dhcpv6ID = existingOpt.UUID
@@ -3322,7 +3321,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 			}
 
 			if dhcpv6ID == "" {
-				return "", fmt.Errorf("Could not find DHCPv6 options for instance port for subnet %q", dhcpv6Subnet.String())
+				return "", nil, fmt.Errorf("Could not find DHCPv6 options for instance port for subnet %q", dhcpv6Subnet.String())
 			}
 
 			// If port isn't going to have fully dynamic IPs allocated by OVN, and instead only static IPv4
@@ -3341,7 +3340,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 				if !hasIPv6 {
 					eui64IP, err := eui64.ParseMAC(dhcpv6Subnet.IP, mac)
 					if err != nil {
-						return "", fmt.Errorf("Failed generating EUI64 for instance port %q: %w", mac.String(), err)
+						return "", nil, fmt.Errorf("Failed generating EUI64 for instance port %q: %w", mac.String(), err)
 					}
 
 					// Add EUI64 to list of static IPs for instance port.
@@ -3359,7 +3358,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		nestedPortParentName = n.getInstanceDevicePortName(opts.InstanceUUID, opts.DeviceConfig["nested"])
 		nestedPortVLANInt64, err := strconv.ParseUint(opts.DeviceConfig["vlan"], 10, 16)
 		if err != nil {
-			return "", fmt.Errorf("Invalid VLAN ID %q: %w", opts.DeviceConfig["vlan"], err)
+			return "", nil, fmt.Errorf("Invalid VLAN ID %q: %w", opts.DeviceConfig["vlan"], err)
 		}
 
 		nestedPortVLAN = uint16(nestedPortVLANInt64)
@@ -3379,7 +3378,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		Location:     n.state.ServerName,
 	}, true)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	revert.Add(func() { _ = client.LogicalSwitchPortDelete(instancePortName) })
@@ -3416,7 +3415,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		for i := 0; i < 5; i++ {
 			dynamicIPs, err = client.LogicalSwitchPortDynamicIPs(instancePortName)
 			if err != nil {
-				return "", err
+				return "", nil, err
 			}
 
 			if len(dynamicIPs) > 0 {
@@ -3433,14 +3432,14 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 		// Check, after considering all dynamic IPs, whether we have got the required ones.
 		if (dnsIPv4 == nil && dhcpv4Subnet != nil) || (dnsIPv6 == nil && dhcpv6Subnet != nil) {
-			return "", fmt.Errorf("Insufficient dynamic addresses allocated")
+			return "", nil, fmt.Errorf("Insufficient dynamic addresses allocated")
 		}
 	}
 
 	dnsName := fmt.Sprintf("%s.%s", opts.DNSName, n.getDomainName())
 	dnsUUID, err := client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, dnsName, dnsIPs)
 	if err != nil {
-		return "", fmt.Errorf("Failed setting DNS for %q: %w", dnsName, err)
+		return "", nil, fmt.Errorf("Failed setting DNS for %q: %w", dnsName, err)
 	}
 
 	revert.Add(func() { _ = client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), dnsUUID, false) })
@@ -3452,14 +3451,14 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	if opts.DeviceConfig["ipv4.address"] != "" && dnsIPv4 != nil {
 		dhcpReservations, err := client.LogicalSwitchDHCPv4RevervationsGet(n.getIntSwitchName())
 		if err != nil {
-			return "", fmt.Errorf("Failed getting DHCPv4 reservations: %w", err)
+			return "", nil, fmt.Errorf("Failed getting DHCPv4 reservations: %w", err)
 		}
 
 		if !n.hasDHCPv4Reservation(dhcpReservations, dnsIPv4) {
 			dhcpReservations = append(dhcpReservations, shared.IPRange{Start: dnsIPv4})
 			err = client.LogicalSwitchDHCPv4RevervationsSet(n.getIntSwitchName(), dhcpReservations)
 			if err != nil {
-				return "", fmt.Errorf("Failed adding DHCPv4 reservation for %q: %w", dnsIPv4.String(), err)
+				return "", nil, fmt.Errorf("Failed adding DHCPv4 reservation for %q: %w", dnsIPv4.String(), err)
 			}
 		}
 	}
@@ -3485,7 +3484,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 			err = client.LogicalRouterDNATSNATAdd(n.getRouterName(), ip, ip, true, true)
 			if err != nil {
-				return "", err
+				return "", nil, err
 			}
 
 			revert.Add(func() { _ = client.LogicalRouterDNATSNATDelete(n.getRouterName(), ip) })
@@ -3502,7 +3501,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		}
 
 		if targetIP == nil {
-			return "", fmt.Errorf("Cannot add static route for %q as target IP is not set", internalRoute.String())
+			return "", nil, fmt.Errorf("Cannot add static route for %q as target IP is not set", internalRoute.String())
 		}
 
 		routes = append(routes, openvswitch.OVNRouterRoute{
@@ -3520,7 +3519,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		}
 
 		if targetIP == nil {
-			return "", fmt.Errorf("Cannot add static route for %q as target IP is not set", externalRoute.String())
+			return "", nil, fmt.Errorf("Cannot add static route for %q as target IP is not set", externalRoute.String())
 		}
 
 		routes = append(routes, openvswitch.OVNRouterRoute{
@@ -3546,7 +3545,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 				return nil
 			})
 			if err != nil {
-				return "", err
+				return "", nil, err
 			}
 		}
 	}
@@ -3555,7 +3554,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		// Add routes to local router.
 		err = client.LogicalRouterRouteAdd(n.getRouterName(), true, routes...)
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
 
 		routePrefixes := make([]net.IPNet, 0, len(routes))
@@ -3568,7 +3567,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		// Add routes to internal switch's address set for ACL usage.
 		err = client.AddressSetAdd(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), routePrefixes...)
 		if err != nil {
-			return "", fmt.Errorf("Failed adding switch address set entries: %w", err)
+			return "", nil, fmt.Errorf("Failed adding switch address set entries: %w", err)
 		}
 
 		revert.Add(func() {
@@ -3577,12 +3576,12 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 		routerIntPortIPv4, _, err := n.parseRouterIntPortIPv4Net()
 		if err != nil {
-			return "", fmt.Errorf("Failed parsing local router's peering port IPv4 Net: %w", err)
+			return "", nil, fmt.Errorf("Failed parsing local router's peering port IPv4 Net: %w", err)
 		}
 
 		routerIntPortIPv6, _, err := n.parseRouterIntPortIPv6Net()
 		if err != nil {
-			return "", fmt.Errorf("Failed parsing local router's peering port IPv6 Net: %w", err)
+			return "", nil, fmt.Errorf("Failed parsing local router's peering port IPv6 Net: %w", err)
 		}
 
 		// Add routes to peer routers, and security policies for each peer port on local router.
@@ -3617,7 +3616,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 			return nil
 		})
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
 	}
 
@@ -3638,7 +3637,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	// Get logical port UUID.
 	portUUID, err := client.LogicalSwitchPortUUID(instancePortName)
 	if err != nil || portUUID == "" {
-		return "", fmt.Errorf("Failed getting logical port UUID for security ACL removal: %w", err)
+		return "", nil, fmt.Errorf("Failed getting logical port UUID for security ACL removal: %w", err)
 	}
 
 	// Add NIC port to network port group (this includes the port in the @internal subject for ACL rules).
@@ -3649,7 +3648,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		// Get map of ACL names to DB IDs (used for generating OVN port group names).
 		aclNameIDs, err := n.state.DB.Cluster.GetNetworkACLIDsByNames(n.Project())
 		if err != nil {
-			return "", fmt.Errorf("Failed getting network ACL IDs for security ACL setup: %w", err)
+			return "", nil, fmt.Errorf("Failed getting network ACL IDs for security ACL setup: %w", err)
 		}
 
 		// Add port to ACLs requested.
@@ -3661,7 +3660,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 			cleanup, err := acl.OVNEnsureACLs(n.state, n.logger, client, n.Project(), aclNameIDs, aclNets, nicACLNames, false)
 			if err != nil {
-				return "", fmt.Errorf("Failed ensuring security ACLs are configured in OVN for instance: %w", err)
+				return "", nil, fmt.Errorf("Failed ensuring security ACLs are configured in OVN for instance: %w", err)
 			}
 
 			revert.Add(cleanup)
@@ -3669,7 +3668,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 			for _, aclName := range nicACLNames {
 				aclID, found := aclNameIDs[aclName]
 				if !found {
-					return "", fmt.Errorf("Cannot find security ACL ID for %q", aclName)
+					return "", nil, fmt.Errorf("Cannot find security ACL ID for %q", aclName)
 				}
 
 				// Add NIC port to ACL port group.
@@ -3689,7 +3688,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 			aclID, found := aclNameIDs[aclName]
 			if !found {
-				return "", fmt.Errorf("Cannot find security ACL ID for %q", aclName)
+				return "", nil, fmt.Errorf("Cannot find security ACL ID for %q", aclName)
 			}
 
 			// Remove NIC port from ACL port group.
@@ -3705,7 +3704,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	n.logger.Debug("Applying instance NIC port group member change sets")
 	err = client.PortGroupMemberChange(addChangeSet, removeChangeSet)
 	if err != nil {
-		return "", fmt.Errorf("Failed applying OVN port group member change sets for instance NIC: %w", err)
+		return "", nil, fmt.Errorf("Failed applying OVN port group member change sets for instance NIC: %w", err)
 	}
 
 	// Set the automatic default ACL rule for the port.
@@ -3716,21 +3715,21 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		logPrefix := fmt.Sprintf("%s-%s", opts.InstanceUUID, opts.DeviceName)
 		err = acl.OVNApplyInstanceNICDefaultRules(client, acl.OVNIntSwitchPortGroupName(n.ID()), logPrefix, instancePortName, ingressAction, ingressLogged, egressAction, egressLogged)
 		if err != nil {
-			return "", fmt.Errorf("Failed applying OVN default ACL rules for instance NIC: %w", err)
+			return "", nil, fmt.Errorf("Failed applying OVN default ACL rules for instance NIC: %w", err)
 		}
 
 		n.logger.Debug("Set NIC default rule", logger.Ctx{"port": instancePortName, "ingressAction": ingressAction, "ingressLogged": ingressLogged, "egressAction": egressAction, "egressLogged": egressLogged})
 	} else {
 		err = client.PortGroupPortClearACLRules(acl.OVNIntSwitchPortGroupName(n.ID()), instancePortName)
 		if err != nil {
-			return "", fmt.Errorf("Failed clearing OVN default ACL rules for instance NIC: %w", err)
+			return "", nil, fmt.Errorf("Failed clearing OVN default ACL rules for instance NIC: %w", err)
 		}
 
 		n.logger.Debug("Cleared NIC default rule", logger.Ctx{"port": instancePortName})
 	}
 
 	revert.Success()
-	return instancePortName, nil
+	return instancePortName, dnsIPs, nil
 }
 
 // instanceDeviceACLDefaults returns the action and logging mode to use for the specified direction's default rule.
@@ -4204,7 +4203,7 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 
 					// Re-add logical switch port to apply the l2proxy DNAT_AND_SNAT rules.
 					n.logger.Debug("Re-adding instance OVN NIC port to apply ingress mode changes", logger.Ctx{"project": inst.Project, "instance": inst.Name, "device": devName})
-					_, err = n.InstanceDevicePortStart(&OVNInstanceNICSetupOpts{
+					_, _, err = n.InstanceDevicePortStart(&OVNInstanceNICSetupOpts{
 						InstanceUUID: instanceUUID,
 						DNSName:      inst.Name,
 						DeviceName:   devName,
