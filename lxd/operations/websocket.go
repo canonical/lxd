@@ -8,6 +8,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/ws"
 )
 
 type operationWebSocket struct {
@@ -58,7 +59,7 @@ func (r *forwardedOperationWebSocket) Render(w http.ResponseWriter) error {
 	}
 
 	// Start proxying between sockets.
-	<-shared.WebsocketProxy(r.source, target)
+	<-ws.Proxy(r.source, target)
 
 	// Make sure both sides are closed.
 	_ = r.source.Close()
