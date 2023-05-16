@@ -1258,28 +1258,6 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, poolName str
 	return operations.OperationResponse(op)
 }
 
-// storageGetVolumeNameFromURL retrieves the volume name from the URL name segment.
-func storageGetVolumeNameFromURL(r *http.Request) (string, error) {
-	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return "", err
-	}
-
-	fields := strings.Split(volumeName, "/")
-
-	if len(fields) == 3 && fields[1] == "snapshots" {
-		// Handle volume snapshots.
-		return fmt.Sprintf("%s%s%s", fields[0], shared.SnapshotDelimiter, fields[2]), nil
-	} else if len(fields) > 1 {
-		return fmt.Sprintf("%s%s%s", fields[0], shared.SnapshotDelimiter, fields[1]), nil
-	} else if len(fields) > 0 {
-		// Handle volume.
-		return fields[0], nil
-	}
-
-	return "", fmt.Errorf("Invalid storage volume %q", volumeName)
-}
-
 // swagger:operation GET /1.0/storage-pools/{name}/volumes/{type}/{volume} storage storage_pool_volume_type_get
 //
 //	Get the storage volume
@@ -1334,9 +1312,9 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the name of the storage volume.
-	volumeName, err := storageGetVolumeNameFromURL(r)
+	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
-		return response.BadRequest(err)
+		return response.SmartError(err)
 	}
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
@@ -1449,9 +1427,9 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the name of the storage volume.
-	volumeName, err := storageGetVolumeNameFromURL(r)
+	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
-		return response.BadRequest(err)
+		return response.SmartError(err)
 	}
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
