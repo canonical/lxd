@@ -37,7 +37,7 @@ type ovnNet interface {
 
 	InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, externalRoutes []*net.IPNet) error
 	InstanceDevicePortAdd(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error
-	InstanceDevicePortStart(opts *network.OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, error)
+	InstanceDevicePortStart(opts *network.OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, []net.IP, error)
 	InstanceDevicePortStop(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *network.OVNInstanceNICStopOpts) error
 	InstanceDevicePortRemove(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error
 	InstanceDevicePortDynamicIPs(instanceUUID string, deviceName string) ([]net.IP, error)
@@ -539,7 +539,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	networkVethFillFromVolatile(d.config, saveData)
 
 	// Add new OVN logical switch port for instance.
-	logicalPortName, err := d.network.InstanceDevicePortStart(&network.OVNInstanceNICSetupOpts{
+	logicalPortName, _, err := d.network.InstanceDevicePortStart(&network.OVNInstanceNICSetupOpts{
 		InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
 		DNSName:      d.inst.Name(),
 		DeviceName:   d.name,
@@ -707,7 +707,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 			}
 
 			// Update OVN logical switch port for instance.
-			_, err = d.network.InstanceDevicePortStart(&network.OVNInstanceNICSetupOpts{
+			_, _, err = d.network.InstanceDevicePortStart(&network.OVNInstanceNICSetupOpts{
 				InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
 				DNSName:      d.inst.Name(),
 				DeviceName:   d.name,
