@@ -3310,9 +3310,17 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, deviceName string, devi
 	if deviceConfig["ipv4.address"] != "" {
 		ip := net.ParseIP(deviceConfig["ipv4.address"])
 		if ip != nil {
-			err = n.instanceDevicePortDHCPv4ReservationAdd(client, ip)
+			dhcpReservations, err := client.LogicalSwitchDHCPv4RevervationsGet(n.getIntSwitchName())
 			if err != nil {
-				return err
+				return fmt.Errorf("Failed getting DHCPv4 reservations: %w", err)
+			}
+
+			if !n.hasDHCPv4Reservation(dhcpReservations, ip) {
+				dhcpReservations = append(dhcpReservations, shared.IPRange{Start: ip})
+				err = client.LogicalSwitchDHCPv4RevervationsSet(n.getIntSwitchName(), dhcpReservations)
+				if err != nil {
+					return fmt.Errorf("Failed adding DHCPv4 reservation for %q: %w", ip.String(), err)
+				}
 			}
 		}
 	}
@@ -3321,31 +3329,15 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, deviceName string, devi
 	return nil
 }
 
-// instanceDevicePortDHCPv4ReservationAdd adds DHCPv4 reservation if not already present.
-func (n *ovn) instanceDevicePortDHCPv4ReservationAdd(client *openvswitch.OVN, ip net.IP) error {
-	dhcpReservations, err := client.LogicalSwitchDHCPv4RevervationsGet(n.getIntSwitchName())
-	if err != nil {
-		return fmt.Errorf("Failed getting DHCPv4 reservations: %w", err)
-	}
-
-	found := false
+// hasDHCPv4Reservation returns whether IP is in the supplied reservation list.
+func (n *ovn) hasDHCPv4Reservation(dhcpReservations []shared.IPRange, ip net.IP) bool {
 	for _, dhcpReservation := range dhcpReservations {
 		if dhcpReservation.Start.Equal(ip) && dhcpReservation.End == nil {
-			found = true
-			break
+			return true
 		}
 	}
 
-	if !found {
-		dhcpReservations = append(dhcpReservations, shared.IPRange{Start: ip})
-
-		err = client.LogicalSwitchDHCPv4RevervationsSet(n.getIntSwitchName(), dhcpReservations)
-		if err != nil {
-			return fmt.Errorf("Failed adding DHCPv4 reservation for %q: %w", ip.String(), err)
-		}
-	}
-
-	return nil
+	return false
 }
 
 // InstanceDevicePortStart sets up an instance device port to the internal logical switch.
@@ -3552,10 +3544,21 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	revert.Add(func() { _ = client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), dnsUUID, false) })
 
 	// If NIC has static IPv4 address then ensure a DHCPv4 reservation exists.
+	// Do this at start time as well as add time in case an instance was copied (causing a duplicate address
+	// conflict at add time) which is later resolved by deleting the original instance, meaning LXD needs to
+	// add a reservation when the copied instance next starts.
 	if opts.DeviceConfig["ipv4.address"] != "" && dnsIPv4 != nil {
-		err = n.instanceDevicePortDHCPv4ReservationAdd(client, dnsIPv4)
+		dhcpReservations, err := client.LogicalSwitchDHCPv4RevervationsGet(n.getIntSwitchName())
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("Failed getting DHCPv4 reservations: %w", err)
+		}
+
+		if !n.hasDHCPv4Reservation(dhcpReservations, dnsIPv4) {
+			dhcpReservations = append(dhcpReservations, shared.IPRange{Start: dnsIPv4})
+			err = client.LogicalSwitchDHCPv4RevervationsSet(n.getIntSwitchName(), dhcpReservations)
+			if err != nil {
+				return "", fmt.Errorf("Failed adding DHCPv4 reservation for %q: %w", dnsIPv4.String(), err)
+			}
 		}
 	}
 
