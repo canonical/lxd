@@ -28,6 +28,7 @@ const (
 	InstanceStart
 	InstanceStop
 	InstanceRestart
+	InstanceRebuild
 	CommandExec
 	SnapshotCreate
 	SnapshotRename
@@ -111,6 +112,8 @@ func (t Type) Description() string {
 		return "Stopping instance"
 	case InstanceRestart:
 		return "Restarting instance"
+	case InstanceRebuild:
+		return "Rebuilding instance"
 	case CommandExec:
 		return "Executing command"
 	case SnapshotCreate:
@@ -244,6 +247,8 @@ func (t Type) Permission() string {
 		return "manage-containers"
 	case InstanceDelete:
 		return "manage-containers"
+	case InstanceRebuild:
+		return "operate-containers"
 	case SnapshotRestore:
 		return "manage-containers"
 
