@@ -167,6 +167,16 @@ type InstancePut struct {
 	Description string `json:"description" yaml:"description"`
 }
 
+// InstanceRebuildPost indicates how to rebuild an instance.
+//
+// swagger:model
+//
+// API extension: instances_rebuild.
+type InstanceRebuildPost struct {
+	// Rebuild source
+	Source InstanceSource `json:"source" yaml:"source"`
+}
+
 // Instance represents a LXD instance.
 //
 // swagger:model
