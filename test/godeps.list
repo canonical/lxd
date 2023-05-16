@@ -12,6 +12,7 @@ github.com/lxc/lxd/shared/logger
 github.com/lxc/lxd/shared/simplestreams
 github.com/lxc/lxd/shared/tcp
 github.com/lxc/lxd/shared/units
+github.com/lxc/lxd/shared/ws
 github.com/pkg/sftp
 github.com/zitadel/oidc/v2/pkg/client/rp
 github.com/zitadel/oidc/v2/pkg/http
