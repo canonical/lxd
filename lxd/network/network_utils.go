@@ -1091,6 +1091,16 @@ func InterfaceExists(nic string) bool {
 	return false
 }
 
+// IPInSlice returns true if slice has IP element.
+func IPInSlice(key net.IP, list []net.IP) bool {
+	for _, entry := range list {
+		if entry.Equal(key) {
+			return true
+		}
+	}
+	return false
+}
+
 // SubnetContains returns true if outerSubnet contains innerSubnet.
 func SubnetContains(outerSubnet *net.IPNet, innerSubnet *net.IPNet) bool {
 	if outerSubnet == nil || innerSubnet == nil {
