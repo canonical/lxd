@@ -10210,7 +10210,7 @@ paths:
             summary: Add a network zone
             tags:
                 - network-zones
-    /1.0/network-zones/{name}:
+    /1.0/network-zones/{zone}:
         delete:
             description: Removes the network zone.
             operationId: network_zone_delete
