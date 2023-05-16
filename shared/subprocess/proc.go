@@ -41,6 +41,10 @@ type Process struct {
 }
 
 func (p *Process) hasApparmor() bool {
+	if shared.IsFalse(os.Getenv("LXD_SECURITY_APPARMOR")) {
+		return false
+	}
+
 	_, err := exec.LookPath("aa-exec")
 	if err != nil {
 		return false
