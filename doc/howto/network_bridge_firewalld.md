@@ -93,6 +93,7 @@ For example:
     :end-before: <!-- Include end warning -->
 ```
 
+(network-lxd-docker)=
 ## Prevent issues with LXD and Docker
 
 Running LXD and Docker on the same host can cause connectivity issues.

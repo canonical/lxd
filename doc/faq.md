@@ -3,6 +3,14 @@
 The following sections give answers to frequently asked questions.
 They explain how to resolve common issues and point you to more detailed information.
 
+## Why do my instances not have network access?
+
+Most likely, your firewall blocks network access for your instances.
+See {ref}`network-bridge-firewall` for more information about the problem and how to fix it.
+
+Another frequent reason for connectivity issues is running LXD and Docker on the same host.
+See {ref}`network-lxd-docker` for instructions on how to fix such issues.
+
 ## How to enable the LXD server for remote access?
 
 By default, the LXD server is not accessible from the network, because it only listens on a local Unix socket.
