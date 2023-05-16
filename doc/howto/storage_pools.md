@@ -215,6 +215,10 @@ To show detailed information about a specific pool, use the following command:
 
     lxc storage show <pool_name>
 
+To see usage information for a specific pool, run the following command:
+
+    lxc storage info <pool_name>
+
 (storage-resize-pool)=
 ## Resize a storage pool
 
