@@ -446,6 +446,7 @@ Key                                         | Type      | Description
 `volatile.<name>.last_state.created`        | string    | Whether the network device physical device was created (`true` or `false`)
 `volatile.<name>.last_state.mtu`            | string    | Network device original MTU used when moving a physical device into an instance
 `volatile.<name>.last_state.hwaddr`         | string    | Network device original MAC used when moving a physical device into an instance
+`volatile.<name>.last_state.ip_addresses`   | string    | Network device comma-separated list of last used IP addresses
 `volatile.<name>.last_state.vdpa.name`      | string    | VDPA device name used when moving a VDPA device file descriptor into an instance
 `volatile.<name>.last_state.vf.id`          | string    | SR-IOV virtual function ID used when moving a VF into an instance
 `volatile.<name>.last_state.vf.hwaddr`      | string    | SR-IOV virtual function original MAC used when moving a VF into an instance
