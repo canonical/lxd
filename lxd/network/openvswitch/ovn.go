@@ -763,7 +763,7 @@ func (o *OVN) LogicalSwitchDHCPv4RevervationsSet(switchName OVNSwitch, reservedI
 
 // LogicalSwitchDHCPv4RevervationsGet gets the DHCPv4 IP reservations.
 func (o *OVN) LogicalSwitchDHCPv4RevervationsGet(switchName OVNSwitch) ([]shared.IPRange, error) {
-	excludeIPsRaw, err := o.nbctl("get", "logical_switch", string(switchName), "other_config:exclude_ips")
+	excludeIPsRaw, err := o.nbctl("--if-exists", "get", "logical_switch", string(switchName), "other_config:exclude_ips")
 	if err != nil {
 		return nil, err
 	}
@@ -771,7 +771,7 @@ func (o *OVN) LogicalSwitchDHCPv4RevervationsGet(switchName OVNSwitch) ([]shared
 	excludeIPsRaw = strings.TrimSpace(excludeIPsRaw)
 
 	// Check if no dynamic IPs set.
-	if excludeIPsRaw == "[]" {
+	if excludeIPsRaw == "" || excludeIPsRaw == "[]" {
 		return []shared.IPRange{}, nil
 	}
 
@@ -1085,6 +1085,39 @@ func (o *OVN) LogicalSwitchPorts(switchName OVNSwitch) (map[OVNSwitchPort]OVNSwi
 	return ports, nil
 }
 
+// LogicalSwitchPortIPs returns a list of IPs associated to each port connected to switch.
+func (o *OVN) LogicalSwitchPortIPs(switchName OVNSwitch) (map[OVNSwitchPort][]net.IP, error) {
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=name,addresses,dynamic_addresses", "find", "logical_switch_port",
+		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitch, switchName),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	lines := shared.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
+	portIPs := make(map[OVNSwitchPort][]net.IP, len(lines))
+
+	for _, line := range lines {
+		fields := shared.SplitNTrimSpace(line, ",", -1, true)
+		portName := OVNSwitchPort(fields[0])
+		var ips []net.IP
+
+		// Parse all IPs mentioned in addresses and dynamic_addresses fields.
+		for i := 1; i < len(fields); i++ {
+			for _, address := range shared.SplitNTrimSpace(fields[i], " ", -1, true) {
+				ip := net.ParseIP(address)
+				if ip != nil {
+					ips = append(ips, ip)
+				}
+			}
+		}
+
+		portIPs[portName] = ips
+	}
+
+	return portIPs, nil
+}
+
 // LogicalSwitchPortUUID returns the logical switch port UUID or empty string if port doesn't exist.
 func (o *OVN) LogicalSwitchPortUUID(portName OVNSwitchPort) (OVNSwitchPortUUID, error) {
 	portInfo, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,name", "find", "logical_switch_port",
@@ -1151,6 +1184,8 @@ func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort,
 			args = append(args, "--", "set", "logical_switch_port", string(portName), fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDLocation, opts.Location))
 		}
 	}
+
+	args = append(args, "--", "set", "logical_switch_port", string(portName), fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitch, switchName))
 
 	_, err := o.nbctl(args...)
 	if err != nil {
@@ -1220,17 +1255,7 @@ func (o *OVN) LogicalSwitchPortOptionsSet(portName OVNSwitchPort, options map[st
 
 // LogicalSwitchPortSetDNS sets up the switch port DNS records for the DNS name.
 // Returns the DNS record UUID, IPv4 and IPv6 addresses used for DNS records.
-func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPort, dnsName string, dnsIPv4 net.IP, dnsIPv6 net.IP) (OVNDNSUUID, error) {
-	// Create a list of IPs for the DNS record.
-	dnsIPs := make([]string, 0, 2)
-	if dnsIPv4 != nil {
-		dnsIPs = append(dnsIPs, dnsIPv4.String())
-	}
-
-	if dnsIPv6 != nil {
-		dnsIPs = append(dnsIPs, dnsIPv6.String())
-	}
-
+func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPort, dnsName string, dnsIPs []net.IP) (OVNDNSUUID, error) {
 	// Check if existing DNS record exists for switch port.
 	dnsUUID, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "dns",
 		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitchPort, portName),
@@ -1246,7 +1271,16 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 
 	// Only include DNS name record if IPs supplied.
 	if len(dnsIPs) > 0 {
-		cmdArgs = append(cmdArgs, fmt.Sprintf(`records={"%s"="%s"}`, strings.ToLower(dnsName), strings.Join(dnsIPs, " ")))
+		var dnsIPsStr strings.Builder
+		for i, dnsIP := range dnsIPs {
+			if i > 0 {
+				dnsIPsStr.WriteString(" ")
+			}
+
+			dnsIPsStr.WriteString(dnsIP.String())
+		}
+
+		cmdArgs = append(cmdArgs, fmt.Sprintf(`records={"%s"="%s"}`, strings.ToLower(dnsName), dnsIPsStr.String()))
 	}
 
 	dnsUUID = strings.TrimSpace(dnsUUID)
