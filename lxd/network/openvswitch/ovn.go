@@ -763,7 +763,7 @@ func (o *OVN) LogicalSwitchDHCPv4RevervationsSet(switchName OVNSwitch, reservedI
 
 // LogicalSwitchDHCPv4RevervationsGet gets the DHCPv4 IP reservations.
 func (o *OVN) LogicalSwitchDHCPv4RevervationsGet(switchName OVNSwitch) ([]shared.IPRange, error) {
-	excludeIPsRaw, err := o.nbctl("get", "logical_switch", string(switchName), "other_config:exclude_ips")
+	excludeIPsRaw, err := o.nbctl("--if-exists", "get", "logical_switch", string(switchName), "other_config:exclude_ips")
 	if err != nil {
 		return nil, err
 	}
@@ -771,7 +771,7 @@ func (o *OVN) LogicalSwitchDHCPv4RevervationsGet(switchName OVNSwitch) ([]shared
 	excludeIPsRaw = strings.TrimSpace(excludeIPsRaw)
 
 	// Check if no dynamic IPs set.
-	if excludeIPsRaw == "[]" {
+	if excludeIPsRaw == "" || excludeIPsRaw == "[]" {
 		return []shared.IPRange{}, nil
 	}
 
