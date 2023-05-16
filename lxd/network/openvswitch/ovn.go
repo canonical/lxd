@@ -1085,6 +1085,39 @@ func (o *OVN) LogicalSwitchPorts(switchName OVNSwitch) (map[OVNSwitchPort]OVNSwi
 	return ports, nil
 }
 
+// LogicalSwitchPortIPs returns a list of IPs associated to each port connected to switch.
+func (o *OVN) LogicalSwitchPortIPs(switchName OVNSwitch) (map[OVNSwitchPort][]net.IP, error) {
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=name,addresses,dynamic_addresses", "find", "logical_switch_port",
+		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitch, switchName),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	lines := shared.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
+	portIPs := make(map[OVNSwitchPort][]net.IP, len(lines))
+
+	for _, line := range lines {
+		fields := shared.SplitNTrimSpace(line, ",", -1, true)
+		portName := OVNSwitchPort(fields[0])
+		var ips []net.IP
+
+		// Parse all IPs mentioned in addresses and dynamic_addresses fields.
+		for i := 1; i < len(fields); i++ {
+			for _, address := range shared.SplitNTrimSpace(fields[i], " ", -1, true) {
+				ip := net.ParseIP(address)
+				if ip != nil {
+					ips = append(ips, ip)
+				}
+			}
+		}
+
+		portIPs[portName] = ips
+	}
+
+	return portIPs, nil
+}
+
 // LogicalSwitchPortUUID returns the logical switch port UUID or empty string if port doesn't exist.
 func (o *OVN) LogicalSwitchPortUUID(portName OVNSwitchPort) (OVNSwitchPortUUID, error) {
 	portInfo, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,name", "find", "logical_switch_port",
