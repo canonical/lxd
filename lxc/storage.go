@@ -463,53 +463,65 @@ func (c *cmdStorageInfo) Run(cmd *cobra.Command, args []string) error {
 	spaceusedstring := i18n.G("space used")
 
 	// Initialize the usedby map
-	poolusedby[usedbystring] = map[string][]string{}
+	poolusedby[usedbystring] = make(map[string][]string)
 
-	/* Build up the usedby map
-	/1.0/{instances,images,profiles}/storagepoolname and
-	/1.0/storage-pools/<poolname>/<type>/<volname>
-	remove the /1.0/ and build the map based on the resources name as key
-	and resources details as value */
+	// Build up the usedby map
 	for _, v := range pool.UsedBy {
 		u, err := url.Parse(v)
 		if err != nil {
 			continue
 		}
 
-		fields := strings.Split(u.Path[5:], "/")
-		bytype := fields[0]
-		bywhat := fields[1]
+		fields := strings.Split(strings.TrimPrefix(u.Path, "/1.0/"), "/")
+		fieldsLen := len(fields)
 
-		if bytype == "storage-pools" {
-			bytype = "volumes"
-			bywhat = fields[4]
-		}
+		entityType := "unrecognized"
+		entityName := u.Path
 
-		var info string
+		if fieldsLen > 1 {
+			entityType = fields[0]
+			entityName = fields[1]
 
-		// Show info regarding the project and target if present.
-		values := u.Query()
+			if fields[0] == "storage-pools" && fieldsLen > 3 {
+				entityType = fields[2]
+				entityName = fields[3]
 
-		proj := values.Get("project")
-		target := values.Get("target")
-
-		if proj != "" {
-			info = fmt.Sprintf("project %q", proj)
-		}
-
-		if target != "" {
-			if info == "" {
-				info = fmt.Sprintf("target %q", target)
-			} else {
-				info = fmt.Sprintf("%s, target %q", info, target)
+				if entityType == "volumes" && fieldsLen > 4 {
+					entityName = fields[4]
+				}
 			}
 		}
 
-		if info != "" {
-			bywhat = fmt.Sprintf("%s (%s)", bywhat, info)
+		var sb strings.Builder
+		var attribs []string
+		sb.WriteString(entityName)
+
+		// Show info regarding the project and location if present.
+		values := u.Query()
+		projectName := values.Get("project")
+		if projectName != "" {
+			attribs = append(attribs, fmt.Sprintf("project %q", projectName))
 		}
 
-		poolusedby[usedbystring][bytype] = append(poolusedby[usedbystring][bytype], bywhat)
+		locationName := values.Get("target")
+		if locationName != "" {
+			attribs = append(attribs, fmt.Sprintf("location %q", locationName))
+		}
+
+		if len(attribs) > 0 {
+			sb.WriteString(" (")
+			for i, attrib := range attribs {
+				if i > 0 {
+					sb.WriteString(", ")
+				}
+
+				sb.WriteString(attrib)
+			}
+
+			sb.WriteString(")")
+		}
+
+		poolusedby[usedbystring][entityType] = append(poolusedby[usedbystring][entityType], sb.String())
 	}
 
 	// Initialize the info map
