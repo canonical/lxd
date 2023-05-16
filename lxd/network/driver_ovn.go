@@ -3200,7 +3200,7 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, deviceName string, devi
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
 
-	dnsUUID, err := client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, "", nil, nil)
+	dnsUUID, err := client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, "", nil)
 	if err != nil {
 		return fmt.Errorf("Failed adding DNS record: %w", err)
 	}
@@ -3393,9 +3393,10 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 	// Add DNS records for port's IPs, and retrieve the IP addresses used.
 	var dnsIPv4, dnsIPv6 net.IP
+	dnsIPs := make([]net.IP, 0, 2)
 
 	// checkAndStoreIP checks if the supplied IP is valid and can be used for a missing DNS IP.
-	// If the found IP is needed, stores into the relevant dnsIPv{X} variable.
+	// If the found IP is needed, stores into the relevant dnsIPv{X} variable and into dnsIPs slice.
 	checkAndStoreIP := func(ip net.IP) {
 		if ip != nil {
 			isV4 := ip.To4() != nil
@@ -3404,6 +3405,8 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 			} else if dnsIPv6 == nil && !isV4 {
 				dnsIPv6 = ip
 			}
+
+			dnsIPs = append(dnsIPs, ip)
 		}
 	}
 
@@ -3442,7 +3445,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	}
 
 	dnsName := fmt.Sprintf("%s.%s", opts.DNSName, n.getDomainName())
-	dnsUUID, err := client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, dnsName, dnsIPv4, dnsIPv6)
+	dnsUUID, err := client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, dnsName, dnsIPs)
 	if err != nil {
 		return "", fmt.Errorf("Failed setting DNS for %q: %w", dnsName, err)
 	}
