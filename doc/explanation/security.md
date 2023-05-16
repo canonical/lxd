@@ -60,6 +60,7 @@ See {ref}`authentication` for details.
 In a production setup, you should set `core.https_address` to the single address where the server should be available (rather than any address on the host).
 In addition, you should set firewall rules to allow access to the LXD port only from authorized hosts/subnets.
 
+(container-security)=
 ## Container security
 
 LXD containers can use a wide range of features for security.
