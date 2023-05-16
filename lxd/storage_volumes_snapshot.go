@@ -32,14 +32,14 @@ import (
 )
 
 var storagePoolVolumeSnapshotsTypeCmd = APIEndpoint{
-	Path: "storage-pools/{pool}/volumes/{type}/{name}/snapshots",
+	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots",
 
 	Get:  APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypeGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
 	Post: APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypePost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
 var storagePoolVolumeSnapshotTypeCmd = APIEndpoint{
-	Path: "storage-pools/{pool}/volumes/{type}/{name}/snapshots/{snapshotName}",
+	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName}",
 
 	Delete: APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeDelete, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
 	Get:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
@@ -48,7 +48,7 @@ var storagePoolVolumeSnapshotTypeCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePut, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
-// swagger:operation POST /1.0/storage-pools/{name}/volumes/{type}/{volume}/snapshots storage storage_pool_volumes_type_snapshots_post
+// swagger:operation POST /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots storage storage_pool_volumes_type_snapshots_post
 //
 //	Create a storage volume snapshot
 //
@@ -89,7 +89,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	s := d.State()
 
 	// Get the name of the pool.
-	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -101,7 +101,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Get the name of the volume.
-	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -240,7 +240,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	return operations.OperationResponse(op)
 }
 
-// swagger:operation GET /1.0/storage-pools/{name}/volumes/{type}/{volume}/snapshots storage storage_pool_volumes_type_snapshots_get
+// swagger:operation GET /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots storage storage_pool_volumes_type_snapshots_get
 //
 //  Get the storage volume snapshots
 //
@@ -294,7 +294,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 //    "500":
 //      $ref: "#/responses/InternalServerError"
 
-// swagger:operation GET /1.0/storage-pools/{name}/volumes/{type}/{volume}/snapshots?recursion=1 storage storage_pool_volumes_type_snapshots_get_recursion1
+// swagger:operation GET /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots?recursion=1 storage storage_pool_volumes_type_snapshots_get_recursion1
 //
 //	Get the storage volume snapshots
 //
@@ -346,7 +346,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 	s := d.State()
 
 	// Get the name of the pool the storage volume is supposed to be attached to.
-	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -360,7 +360,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Get the name of the volume type.
-	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -440,7 +440,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 	return response.SyncResponse(true, resultMap)
 }
 
-// swagger:operation POST /1.0/storage-pools/{name}/volumes/{type}/{volume}/snapshots/{snapshot} storage storage_pool_volumes_type_snapshot_post
+// swagger:operation POST /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName} storage storage_pool_volumes_type_snapshot_post
 //
 //	Rename a storage volume snapshot
 //
@@ -481,7 +481,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	s := d.State()
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -493,7 +493,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Get the name of the storage volume.
-	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -570,7 +570,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	return operations.OperationResponse(op)
 }
 
-// swagger:operation GET /1.0/storage-pools/{name}/volumes/{type}/{volume}/snapshots/{snapshot} storage storage_pool_volumes_type_snapshot_get
+// swagger:operation GET /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName} storage storage_pool_volumes_type_snapshot_get
 //
 //	Get the storage volume snapshot
 //
@@ -620,7 +620,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 
 	// Get the name of the storage pool the volume is supposed to be
 	// attached to.
-	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -632,7 +632,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Get the name of the storage volume.
-	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -699,7 +699,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	return response.SyncResponseETag(true, &snapshot, etag)
 }
 
-// swagger:operation PUT /1.0/storage-pools/{name}/volumes/{type}/{volume}/snapshots/{snapshot} storage storage_pool_volumes_type_snapshot_put
+// swagger:operation PUT /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName} storage storage_pool_volumes_type_snapshot_put
 //
 //	Update the storage volume snapshot
 //
@@ -743,7 +743,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 
 	// Get the name of the storage pool the volume is supposed to be
 	// attached to.
-	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -755,7 +755,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Get the name of the storage volume.
-	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -827,7 +827,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	return doStoragePoolVolumeSnapshotUpdate(s, r, poolName, projectName, dbVolume.Name, volumeType, req)
 }
 
-// swagger:operation PATCH /1.0/storage-pools/{name}/volumes/{type}/{volume}/snapshots/{snapshot} storage storage_pool_volumes_type_snapshot_patch
+// swagger:operation PATCH /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName} storage storage_pool_volumes_type_snapshot_patch
 //
 //	Partially update the storage volume snapshot
 //
@@ -871,7 +871,7 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 
 	// Get the name of the storage pool the volume is supposed to be
 	// attached to.
-	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -883,7 +883,7 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Get the name of the storage volume.
-	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -991,7 +991,7 @@ func doStoragePoolVolumeSnapshotUpdate(s *state.State, r *http.Request, poolName
 	return response.EmptySyncResponse
 }
 
-// swagger:operation DELETE /1.0/storage-pools/{name}/volumes/{type}/{volume}/snapshots/{snapshot} storage storage_pool_volumes_type_snapshot_delete
+// swagger:operation DELETE /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName} storage storage_pool_volumes_type_snapshot_delete
 //
 //	Delete a storage volume snapshot
 //
@@ -1026,7 +1026,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	s := d.State()
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1038,7 +1038,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	}
 
 	// Get the name of the storage volume.
-	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
 	if err != nil {
 		return response.SmartError(err)
 	}

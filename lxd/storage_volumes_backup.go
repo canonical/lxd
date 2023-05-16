@@ -28,14 +28,14 @@ import (
 )
 
 var storagePoolVolumeTypeCustomBackupsCmd = APIEndpoint{
-	Path: "storage-pools/{pool}/volumes/{type}/{name}/backups",
+	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/backups",
 
 	Get:  APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupsGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
 	Post: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupsPost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
 var storagePoolVolumeTypeCustomBackupCmd = APIEndpoint{
-	Path: "storage-pools/{pool}/volumes/{type}/{name}/backups/{backupName}",
+	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName}",
 
 	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
 	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupPost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
@@ -43,12 +43,12 @@ var storagePoolVolumeTypeCustomBackupCmd = APIEndpoint{
 }
 
 var storagePoolVolumeTypeCustomBackupExportCmd = APIEndpoint{
-	Path: "storage-pools/{pool}/volumes/{type}/{name}/backups/{backupName}/export",
+	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName}/export",
 
 	Get: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupExportGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
 }
 
-// swagger:operation GET /1.0/storage-pools/{name}/volumes/{type}/{volume}/backups storage storage_pool_volumes_type_backups_get
+// swagger:operation GET /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/backups storage storage_pool_volumes_type_backups_get
 //
 //  Get the storage volume backups
 //
@@ -102,7 +102,7 @@ var storagePoolVolumeTypeCustomBackupExportCmd = APIEndpoint{
 //    "500":
 //      $ref: "#/responses/InternalServerError"
 
-// swagger:operation GET /1.0/storage-pools/{name}/volumes/{type}/{volume}/backups?recursion=1 storage storage_pool_volumes_type_backups_get_recursion1
+// swagger:operation GET /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/backups?recursion=1 storage storage_pool_volumes_type_backups_get_recursion1
 //
 //	Get the storage volume backups
 //
@@ -159,13 +159,13 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 	}
 
 	// Get the name of the storage volume.
-	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -232,7 +232,7 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 	return response.SyncResponse(true, resultMap)
 }
 
-// swagger:operation POST /1.0/storage-pools/{name}/volumes/{type}/{volume}/backups storage storage_pool_volumes_type_backups_post
+// swagger:operation POST /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/backups storage storage_pool_volumes_type_backups_post
 //
 //	Create a storage volume backup
 //
@@ -273,13 +273,13 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 	s := d.State()
 
 	// Get the name of the storage volume.
-	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -436,7 +436,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 	return operations.OperationResponse(op)
 }
 
-// swagger:operation GET /1.0/storage-pools/{name}/volumes/{type}/{volume}/backups/{backup} storage storage_pool_volumes_type_backup_get
+// swagger:operation GET /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName} storage storage_pool_volumes_type_backup_get
 //
 //	Get the storage volume backup
 //
@@ -485,13 +485,13 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 	s := d.State()
 
 	// Get the name of the storage volume.
-	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -544,7 +544,7 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 	return response.SyncResponse(true, backup.Render())
 }
 
-// swagger:operation POST /1.0/storage-pools/{name}/volumes/{type}/{volume}/backups/{backup} storage storage_pool_volumes_type_backup_post
+// swagger:operation POST /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName} storage storage_pool_volumes_type_backup_post
 //
 //	Rename a storage volume backup
 //
@@ -585,13 +585,13 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 	s := d.State()
 
 	// Get the name of the storage volume.
-	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -676,7 +676,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 	return operations.OperationResponse(op)
 }
 
-// swagger:operation DELETE /1.0/storage-pools/{name}/volumes/{type}/{volume}/backups/{backup} storage storage_pool_volumes_type_backup_delete
+// swagger:operation DELETE /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName} storage storage_pool_volumes_type_backup_delete
 //
 //	Delete a storage volume backup
 //
@@ -711,13 +711,13 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 	s := d.State()
 
 	// Get the name of the storage volume.
-	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -789,7 +789,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 	return operations.OperationResponse(op)
 }
 
-// swagger:operation GET /1.0/storage-pools/{name}/volumes/{type}/{volume}/backups/{backup}/export storage storage_pool_volumes_type_backup_export_get
+// swagger:operation GET /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName}/export storage storage_pool_volumes_type_backup_export_get
 //
 //	Get the raw backup file
 //
@@ -820,13 +820,13 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 	s := d.State()
 
 	// Get the name of the storage volume.
-	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
