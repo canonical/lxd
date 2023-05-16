@@ -538,17 +538,44 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, saveData)
 
+	v := d.volatileGet()
+
+	// Retrieve any last state IPs from volatile and pass them to OVN driver for potential use with sticky
+	// DHCPv4 allocations.
+	var lastStateIPs []net.IP
+	for _, ipStr := range shared.SplitNTrimSpace(v["last_state.ip_addresses"], ",", -1, true) {
+		lastStateIP := net.ParseIP(ipStr)
+		if lastStateIP != nil {
+			lastStateIPs = append(lastStateIPs, lastStateIP)
+		}
+	}
+
 	// Add new OVN logical switch port for instance.
-	logicalPortName, _, err := d.network.InstanceDevicePortStart(&network.OVNInstanceNICSetupOpts{
+	logicalPortName, dnsIPs, err := d.network.InstanceDevicePortStart(&network.OVNInstanceNICSetupOpts{
 		InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
 		DNSName:      d.inst.Name(),
 		DeviceName:   d.name,
 		DeviceConfig: d.config,
 		UplinkConfig: uplink.Config,
+		LastStateIPs: lastStateIPs, // Pass in volatile last state IPs for use with sticky DHCPv4 hint.
 	}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed setting up OVN port: %w", err)
 	}
+
+	// Record switch port DNS IPs to volatile so they can be used as sticky DHCPv4 hint in the future in order
+	// to allocate the same IPs on next start if they are still available/appropriate.
+	// This volatile key will not be removed when instance stops.
+	var dnsIPsStr strings.Builder
+	for i, dnsIP := range dnsIPs {
+		if i > 0 {
+			dnsIPsStr.WriteString(",")
+		}
+
+		dnsIPsStr.WriteString(dnsIP.String())
+	}
+
+	saveData["last_state.ip_addresses"] = dnsIPsStr.String()
 
 	revert.Add(func() {
 		_ = d.network.InstanceDevicePortStop("", &network.OVNInstanceNICStopOpts{
