@@ -3380,6 +3380,14 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		return "", nil, fmt.Errorf("Failed to get OVN client: %w", err)
 	}
 
+	// Get existing DHCPv4 static reservations.
+	// This is used for both checking sticky DHCPv4 allocation availability and for ensuring static DHCP
+	// reservations exist.
+	dhcpReservations, err := client.LogicalSwitchDHCPv4RevervationsGet(n.getIntSwitchName())
+	if err != nil {
+		return "", nil, fmt.Errorf("Failed getting DHCPv4 reservations: %w", err)
+	}
+
 	dhcpv4Subnet := n.DHCPv4Subnet()
 	dhcpv6Subnet := n.DHCPv6Subnet()
 	var dhcpV4ID, dhcpv6ID openvswitch.OVNDHCPOptionsUUID
@@ -3404,6 +3412,43 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 			if dhcpV4ID == "" {
 				return "", nil, fmt.Errorf("Could not find DHCPv4 options for instance port for subnet %q", dhcpv4Subnet.String())
+			}
+
+			// If using dynamic IPv4, look for previously used sticky IPs from the NIC's last state.
+			var dhcpV4StickyIP net.IP
+			if opts.DeviceConfig["ipv4.address"] == "" {
+				for _, ip := range opts.LastStateIPs {
+					if ip.To4() != nil && SubnetContainsIP(dhcpv4Subnet, ip) {
+						dhcpV4StickyIP = ip
+						break
+					}
+				}
+			}
+
+			// If a previously used IP has been found and its not one of the static IPs, then check if
+			// the IP is available for use and if not then we can request this port use it statically.
+			if dhcpV4StickyIP != nil && !IPInSlice(dhcpV4StickyIP, staticIPs) {
+				// If the sticky IP isn't statically reserved, lets check its not used dynamically
+				// on any active port.
+				if !n.hasDHCPv4Reservation(dhcpReservations, dhcpV4StickyIP) {
+					existingPortIPs, err := client.LogicalSwitchPortIPs(n.getIntSwitchName())
+					if err != nil {
+						return "", nil, fmt.Errorf("Failed getting existing switch port IPs: %w", err)
+					}
+
+					found := false
+					for _, ips := range existingPortIPs {
+						if IPInSlice(dhcpV4StickyIP, ips) {
+							found = true
+							break // IP is in use with another port, so cannot use it.
+						}
+					}
+
+					// If IP is not in use then request OVN use previously used IP for port.
+					if !found {
+						staticIPs = append(staticIPs, dhcpV4StickyIP)
+					}
+				}
 			}
 		}
 
@@ -3548,11 +3593,6 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	// conflict at add time) which is later resolved by deleting the original instance, meaning LXD needs to
 	// add a reservation when the copied instance next starts.
 	if opts.DeviceConfig["ipv4.address"] != "" && dnsIPv4 != nil {
-		dhcpReservations, err := client.LogicalSwitchDHCPv4RevervationsGet(n.getIntSwitchName())
-		if err != nil {
-			return "", nil, fmt.Errorf("Failed getting DHCPv4 reservations: %w", err)
-		}
-
 		if !n.hasDHCPv4Reservation(dhcpReservations, dnsIPv4) {
 			dhcpReservations = append(dhcpReservations, shared.IPRange{Start: dnsIPv4})
 			err = client.LogicalSwitchDHCPv4RevervationsSet(n.getIntSwitchName(), dhcpReservations)
