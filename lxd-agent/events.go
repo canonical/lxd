@@ -8,8 +8,8 @@ import (
 
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/ws"
 )
 
 var eventsCmd = APIEndpoint{
@@ -44,7 +44,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	// If the client has not requested a websocket connection then fallback to long polling event stream mode.
 	if r.Header.Get("Upgrade") == "websocket" {
 		// Upgrade the connection to websocket
-		conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+		conn, err := ws.Upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			return err
 		}
