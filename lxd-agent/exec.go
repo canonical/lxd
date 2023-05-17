@@ -189,7 +189,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 
 	for fd, fdSecret := range s.fds {
 		if secret == fdSecret {
-			conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+			conn, err := ws.Upgrader.Upgrade(w, r, nil)
 			if err != nil {
 				return err
 			}
