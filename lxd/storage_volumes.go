@@ -1016,9 +1016,24 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 
 	targetProjectName := projectName
 	if req.Project != "" {
-		targetProjectName = req.Project
+		targetProjectName, err = project.StorageVolumeProject(s.DB.Cluster, req.Project, db.StoragePoolVolumeTypeCustom)
+		if err != nil {
+			return response.SmartError(err)
+		}
 
-		// Check is user has access to target project
+		// Check whether the effective storage project differs from the requested target project.
+		// If they do it means that the requested target project doesn't have features.storage.volumes
+		// and this means that the volume would effectively be moved into the default project, and so we
+		// require the user explicitly indicates this by targeting it directly.
+		if targetProjectName != req.Project {
+			return response.BadRequest(fmt.Errorf("Target project does not have features.storage.volumes enabled"))
+		}
+
+		if projectName == targetProjectName {
+			return response.BadRequest(fmt.Errorf("Project and target project are the same"))
+		}
+
+		// Check if user has access to effective storage target project
 		if !rbac.UserHasPermission(r, targetProjectName, "manage-storage-volumes") {
 			return response.Forbidden(nil)
 		}
