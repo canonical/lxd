@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,6 +27,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/ws"
 )
 
 type consoleWs struct {
@@ -162,7 +164,14 @@ func (s *consoleWs) connectVGA(op *operations.Operation, r *http.Request, w http
 
 		// Mirror the console and websocket.
 		go func() {
-			shared.WebsocketConsoleMirror(conn, console, console)
+			defer logger.Debug("Finished mirroring websocket to console")
+
+			logger.Debug("Started mirroring websocket")
+			readDone, writeDone := ws.Mirror(context.Background(), conn, console)
+
+			<-readDone
+			logger.Debugf("Finished mirroring console to websocket")
+			<-writeDone
 		}()
 
 		s.connsLock.Lock()
