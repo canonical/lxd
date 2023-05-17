@@ -29,6 +29,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
+	"github.com/lxc/lxd/shared/ws"
 )
 
 type hoistFunc func(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request)
@@ -139,7 +140,7 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 
 	// If the client has not requested a websocket connection then fallback to long polling event stream mode.
 	if r.Header.Get("Upgrade") == "websocket" {
-		conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+		conn, err := ws.Upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
 		}

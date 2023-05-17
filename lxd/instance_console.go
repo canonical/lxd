@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,6 +27,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/ws"
 )
 
 type consoleWs struct {
@@ -92,7 +94,7 @@ func (s *consoleWs) connectConsole(op *operations.Operation, r *http.Request, w 
 
 	for fd, fdSecret := range s.fds {
 		if secret == fdSecret {
-			conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+			conn, err := ws.Upgrader.Upgrade(w, r, nil)
 			if err != nil {
 				return err
 			}
@@ -136,7 +138,7 @@ func (s *consoleWs) connectVGA(op *operations.Operation, r *http.Request, w http
 			continue
 		}
 
-		conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+		conn, err := ws.Upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			return err
 		}
@@ -162,7 +164,14 @@ func (s *consoleWs) connectVGA(op *operations.Operation, r *http.Request, w http
 
 		// Mirror the console and websocket.
 		go func() {
-			shared.WebsocketConsoleMirror(conn, console, console)
+			defer logger.Debug("Finished mirroring websocket to console")
+
+			logger.Debug("Started mirroring websocket")
+			readDone, writeDone := ws.Mirror(context.Background(), conn, console)
+
+			<-readDone
+			logger.Debugf("Finished mirroring console to websocket")
+			<-writeDone
 		}()
 
 		s.connsLock.Lock()
@@ -268,16 +277,16 @@ func (s *consoleWs) doConsole(op *operations.Operation) error {
 	// Mirror the console and websocket.
 	mirrorDoneCh := make(chan struct{})
 	go func() {
-		defer logger.Debugf("Finished mirroring websocket to console")
+		defer logger.Debug("Finished mirroring websocket to console")
 		s.connsLock.Lock()
 		conn := s.conns[0]
 		s.connsLock.Unlock()
 
-		logger.Debugf("Started mirroring websocket")
-		readDone, writeDone := shared.WebsocketConsoleMirror(conn, console, console)
+		logger.Debug("Started mirroring websocket")
+		readDone, writeDone := ws.Mirror(context.Background(), conn, console)
 
 		<-readDone
-		logger.Debugf("Finished mirroring console to websocket")
+		logger.Debug("Finished mirroring console to websocket")
 		<-writeDone
 		close(mirrorDoneCh)
 	}()
