@@ -170,7 +170,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		err = os.Rename(shared.HostPathFollow(targetName), name+ext)
+		err = os.Rename(shared.HostPathFollow(targetName), shared.HostPathFollow(name+ext))
 		if err != nil {
 			return fmt.Errorf("Failed to rename export file: %w", err)
 		}
