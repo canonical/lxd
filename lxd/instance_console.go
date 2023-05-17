@@ -277,16 +277,16 @@ func (s *consoleWs) doConsole(op *operations.Operation) error {
 	// Mirror the console and websocket.
 	mirrorDoneCh := make(chan struct{})
 	go func() {
-		defer logger.Debugf("Finished mirroring websocket to console")
+		defer logger.Debug("Finished mirroring websocket to console")
 		s.connsLock.Lock()
 		conn := s.conns[0]
 		s.connsLock.Unlock()
 
-		logger.Debugf("Started mirroring websocket")
+		logger.Debug("Started mirroring websocket")
 		readDone, writeDone := ws.Mirror(context.Background(), conn, console)
 
 		<-readDone
-		logger.Debugf("Finished mirroring console to websocket")
+		logger.Debug("Finished mirroring console to websocket")
 		<-writeDone
 		close(mirrorDoneCh)
 	}()
