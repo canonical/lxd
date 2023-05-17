@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -271,11 +270,6 @@ func WebsocketMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser, Re
 	go WriteFunc(conn, w, writeDone)
 
 	return readDone, writeDone
-}
-
-var WebsocketUpgrader = websocket.Upgrader{
-	CheckOrigin:      func(r *http.Request) bool { return true },
-	HandshakeTimeout: time.Second * 5,
 }
 
 // AllocatePort asks the kernel for a free open port that is ready to use.
