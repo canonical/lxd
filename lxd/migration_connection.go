@@ -91,7 +91,7 @@ func (c *migrationConn) AcceptIncoming(r *http.Request, w http.ResponseWriter) e
 	}
 
 	var err error
-	c.conn, err = shared.WebsocketUpgrader.Upgrade(w, r, nil)
+	c.conn, err = ws.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return fmt.Errorf("Failed upgrading incoming request to websocket: %w", err)
 	}

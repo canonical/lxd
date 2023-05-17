@@ -7,7 +7,6 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ws"
 )
 
@@ -53,7 +52,7 @@ func ForwardedOperationWebSocket(req *http.Request, id string, source *websocket
 
 func (r *forwardedOperationWebSocket) Render(w http.ResponseWriter) error {
 	// Upgrade target connection to websocket.
-	target, err := shared.WebsocketUpgrader.Upgrade(w, r.req, nil)
+	target, err := ws.Upgrader.Upgrade(w, r.req, nil)
 	if err != nil {
 		return err
 	}
