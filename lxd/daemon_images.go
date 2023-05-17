@@ -187,7 +187,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 			// We need to insert the database entry for this project, including the node ID entry.
 			err = s.DB.Cluster.CreateImage(args.ProjectName, imgInfo.Fingerprint, imgInfo.Filename, imgInfo.Size, args.Public, imgInfo.AutoUpdate, imgInfo.Architecture, imgInfo.CreatedAt, imgInfo.ExpiresAt, imgInfo.Properties, imgInfo.Type, nil)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("Failed creating image record for project: %w", err)
 			}
 
 			// Mark the image as "cached" if downloading for an instance.
@@ -510,7 +510,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 	// Create the database entry
 	err = s.DB.Cluster.CreateImage(args.ProjectName, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed creating image record: %w", err)
 	}
 
 	// Image is in the DB now, don't wipe on-disk files on failure
