@@ -238,11 +238,14 @@ func (c *cmdProjectEdit) helpTemplate() string {
 ### A project consists of a set of features and a description.
 ###
 ### An example would look like:
-### name: my-project
-### features:
-###   images: True
-###   profiles: True
+### config:
+###   features.images: "true"
+###   features.networks: "true"
+###   features.networks.zones: "true"
+###   features.profiles: "true"
+###   features.storage.volumes: "true"
 ### description: My own project
+### name: my-project
 ###
 ### Note that the name is shown but cannot be changed`)
 }
