@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/linux"
+	"github.com/lxc/lxd/shared/ws"
 )
 
 // Send an rsync stream of a path over a websocket.
@@ -30,7 +31,7 @@ func rsyncSend(ctx context.Context, conn *websocket.Conn, path string, rsyncArgs
 		defer func() { _ = dataSocket.Close() }()
 	}
 
-	readDone, writeDone := shared.WebsocketMirror(conn, dataSocket, io.ReadCloser(dataSocket), nil, nil)
+	readDone, writeDone := ws.Mirror(context.Background(), conn, dataSocket)
 
 	output, err := io.ReadAll(stderr)
 	if err != nil {
