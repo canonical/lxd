@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/ws"
 )
 
 var eventTypes = []string{api.EventTypeLogging, api.EventTypeOperation, api.EventTypeLifecycle}
@@ -85,7 +86,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 	l := logger.AddContext(logger.Log, logger.Ctx{"remote": r.RemoteAddr})
 
 	// Upgrade the connection to websocket
-	conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+	conn, err := ws.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		l.Warn("Failed upgrading event connection", logger.Ctx{"err": err})
 		return nil
