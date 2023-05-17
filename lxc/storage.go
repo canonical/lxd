@@ -482,6 +482,10 @@ func (c *cmdStorageInfo) Run(cmd *cobra.Command, args []string) error {
 			entityType = fields[0]
 			entityName = fields[1]
 
+			if fields[fieldsLen-2] == "snapshots" {
+				continue // Skip snapshots as the parent entity will be included once in the list.
+			}
+
 			if fields[0] == "storage-pools" && fieldsLen > 3 {
 				entityType = fields[2]
 				entityName = fields[3]
