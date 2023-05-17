@@ -94,7 +94,7 @@ func (s *consoleWs) connectConsole(op *operations.Operation, r *http.Request, w 
 
 	for fd, fdSecret := range s.fds {
 		if secret == fdSecret {
-			conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+			conn, err := ws.Upgrader.Upgrade(w, r, nil)
 			if err != nil {
 				return err
 			}
@@ -138,7 +138,7 @@ func (s *consoleWs) connectVGA(op *operations.Operation, r *http.Request, w http
 			continue
 		}
 
-		conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+		conn, err := ws.Upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			return err
 		}
