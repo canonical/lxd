@@ -6,15 +6,10 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"strings"
 	"time"
-
-	"github.com/gorilla/websocket"
-
-	"github.com/lxc/lxd/shared/logger"
 )
 
 // connectErrorPrefix used as prefix to error returned from RFC3493Dialer.
@@ -175,101 +170,6 @@ func GetTLSConfigMem(tlsClientCert string, tlsClientKey string, tlsClientCA stri
 
 func IsLoopback(iface *net.Interface) bool {
 	return int(iface.Flags&net.FlagLoopback) > 0
-}
-
-func defaultReader(conn *websocket.Conn, r io.ReadCloser, readDone chan<- bool) {
-	/* For now, we don't need to adjust buffer sizes in
-	* WebsocketMirror, since it's used for interactive things like
-	* exec.
-	 */
-	in := ReaderToChannel(r, -1)
-	for {
-		buf, ok := <-in
-		if !ok {
-			_ = r.Close()
-			logger.Debug("Sending write barrier")
-			_ = conn.WriteMessage(websocket.TextMessage, []byte{})
-			readDone <- true
-			return
-		}
-
-		err := conn.WriteMessage(websocket.BinaryMessage, buf)
-		if err != nil {
-			logger.Debug("Got err writing", logger.Ctx{"err": err})
-			break
-		}
-	}
-	closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-	_ = conn.WriteMessage(websocket.CloseMessage, closeMsg)
-	readDone <- true
-	_ = r.Close()
-}
-
-func DefaultWriter(conn *websocket.Conn, w io.WriteCloser, writeDone chan<- bool) {
-	for {
-		mt, r, err := conn.NextReader()
-		if err != nil {
-			logger.Debug("DefaultWriter got error getting next reader", logger.Ctx{"err": err})
-			break
-		}
-
-		if mt == websocket.CloseMessage {
-			logger.Debug("DefaultWriter got close message for reader")
-			break
-		}
-
-		if mt == websocket.TextMessage {
-			logger.Debug("DefaultWriter got message barrier, resetting stream")
-			break
-		}
-
-		buf, err := io.ReadAll(r)
-		if err != nil {
-			logger.Debug("DefaultWriter got error writing to writer", logger.Ctx{"err": err})
-			break
-		}
-
-		i, err := w.Write(buf)
-		if i != len(buf) {
-			logger.Debug("DefaultWriter didn't write all of buf")
-			break
-		}
-
-		if err != nil {
-			logger.Debug("DefaultWriter error writing buf", logger.Ctx{"err": err})
-			break
-		}
-	}
-	writeDone <- true
-	_ = w.Close()
-}
-
-// WebsocketMirror allows mirroring a reader to a websocket and taking the
-// result and writing it to a writer. This function allows for multiple
-// mirrorings and correctly negotiates stream endings. However, it means any
-// websocket.Conns passed to it are live when it returns, and must be closed
-// explicitly.
-type WebSocketMirrorReader func(conn *websocket.Conn, r io.ReadCloser, readDone chan<- bool)
-type WebSocketMirrorWriter func(conn *websocket.Conn, w io.WriteCloser, writeDone chan<- bool)
-
-func WebsocketMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser, Reader WebSocketMirrorReader, Writer WebSocketMirrorWriter) (chan bool, chan bool) {
-	readDone := make(chan bool, 1)
-	writeDone := make(chan bool, 1)
-
-	ReadFunc := Reader
-	if ReadFunc == nil {
-		ReadFunc = defaultReader
-	}
-
-	WriteFunc := Writer
-	if WriteFunc == nil {
-		WriteFunc = DefaultWriter
-	}
-
-	go ReadFunc(conn, r, readDone)
-	go WriteFunc(conn, w, writeDone)
-
-	return readDone, writeDone
 }
 
 // AllocatePort asks the kernel for a free open port that is ready to use.
