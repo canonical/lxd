@@ -73,6 +73,7 @@ import (
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/termios"
 	"github.com/canonical/lxd/shared/units"
+	"github.com/canonical/lxd/shared/ws"
 )
 
 // Helper functions.
@@ -5347,7 +5348,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 							return os.ErrPermission
 						}
 
-						c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+						c, err := ws.Upgrader.Upgrade(w, r, nil)
 						if err != nil {
 							return err
 						}
