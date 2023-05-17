@@ -283,7 +283,7 @@ func (s *consoleWs) doConsole(op *operations.Operation) error {
 		s.connsLock.Unlock()
 
 		logger.Debugf("Started mirroring websocket")
-		readDone, writeDone := shared.WebsocketConsoleMirror(conn, console, console)
+		readDone, writeDone := ws.Mirror(context.Background(), conn, console)
 
 		<-readDone
 		logger.Debugf("Finished mirroring console to websocket")
