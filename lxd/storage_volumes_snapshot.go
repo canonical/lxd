@@ -1102,19 +1102,94 @@ func pruneExpireCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) 
 	s := d.State()
 
 	f := func(ctx context.Context) {
-		// Get the list of expired custom volume snapshots.
-		expiredSnapshots, err := s.DB.Cluster.GetExpiredStorageVolumeSnapshots()
+		var snapshots, remoteSnapshots []db.StorageVolumeArgs
+		var memberCount int
+		var onlineMemberIDs []int64
+
+		err := s.DB.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+			// Get the list of expired custom volume snapshots for this member (or remote).
+			expiredSnapshots, err := tx.GetExpiredStorageVolumeSnapshots(ctx, true)
+			if err != nil {
+				return fmt.Errorf("Failed getting expired custom volume snapshots: %w", err)
+			}
+
+			for _, v := range expiredSnapshots {
+				if v.NodeID < 0 {
+					// Keep a separate list of remote volumes in order to select a member to
+					// perform the snapshot expiry on later.
+					remoteSnapshots = append(remoteSnapshots, v)
+				} else {
+					logger.Debug("Scheduling local custom volume snapshot expiry", logger.Ctx{"volName": v.Name, "project": v.ProjectName, "pool": v.PoolName})
+					snapshots = append(snapshots, v) // Always include local volumes.
+				}
+			}
+
+			if len(remoteSnapshots) > 0 {
+				// Get list of cluster members.
+				members, err := tx.GetNodes(ctx)
+				if err != nil {
+					return fmt.Errorf("Failed getting cluster members: %w", err)
+				}
+
+				memberCount = len(members)
+
+				// Filter to online members.
+				for _, member := range members {
+					if member.IsOffline(s.GlobalConfig.OfflineThreshold()) {
+						continue
+					}
+
+					onlineMemberIDs = append(onlineMemberIDs, member.ID)
+				}
+
+				return nil
+			}
+
+			return nil
+		})
 		if err != nil {
-			logger.Error("Unable to retrieve the list of expired custom volume snapshots", logger.Ctx{"err": err})
+			logger.Error("Failed getting expired custom volume snapshot info", logger.Ctx{"err": err})
 			return
 		}
 
-		if len(expiredSnapshots) == 0 {
+		if len(remoteSnapshots) > 0 {
+			// Skip expiring remote custom volume snapshots if there are no online members, as we can't
+			// be sure that the cluster isn't partitioned and we may end up attempting to expire
+			// snapshot on multiple members.
+			if memberCount > 1 && len(onlineMemberIDs) <= 0 {
+				logger.Error("Skipping remote volumes for expire custom volume snapshot task due to no online members")
+			} else {
+				localMemberID := s.DB.Cluster.GetNodeID()
+
+				for _, v := range remoteSnapshots {
+					// If there are multiple cluster members, a stable random member is chosen
+					// to perform the snapshot expiry. This avoids expiring the snapshot on
+					// every member and spreads the load across the online cluster members.
+					if memberCount > 1 {
+						selectedMemberID, err := util.GetStableRandomInt64FromList(int64(v.ID), onlineMemberIDs)
+						if err != nil {
+							logger.Error("Failed scheduling remote expire custom volume snapshot task", logger.Ctx{"volName": v.Name, "project": v.ProjectName, "pool": v.PoolName, "err": err})
+							continue
+						}
+
+						// Don't snapshot, if we're not the chosen one.
+						if localMemberID != selectedMemberID {
+							continue
+						}
+					}
+
+					logger.Debug("Scheduling remote custom volume snapshot expiry", logger.Ctx{"volName": v.Name, "project": v.ProjectName, "pool": v.PoolName})
+					snapshots = append(snapshots, v)
+				}
+			}
+		}
+
+		if len(snapshots) == 0 {
 			return
 		}
 
 		opRun := func(op *operations.Operation) error {
-			return pruneExpiredCustomVolumeSnapshots(ctx, s, expiredSnapshots)
+			return pruneExpiredCustomVolumeSnapshots(ctx, s, snapshots)
 		}
 
 		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.CustomVolumeSnapshotsExpire, nil, nil, opRun, nil, nil, nil)
@@ -1126,7 +1201,7 @@ func pruneExpireCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) 
 		logger.Info("Pruning expired custom volume snapshots")
 		err = op.Start()
 		if err != nil {
-			logger.Error("Failed to expire backups", logger.Ctx{"err": err})
+			logger.Error("Failed expiring custom volume snapshots", logger.Ctx{"err": err})
 		}
 
 		_, _ = op.Wait(ctx)
