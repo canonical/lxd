@@ -86,6 +86,9 @@ func (m *Monitor) start() error {
 	}
 
 	go func() {
+		logger.Debug("QMP monitor started", logger.Ctx{"path": m.path})
+		defer logger.Debug("QMP monitor stopped", logger.Ctx{"path": m.path})
+
 		// Initial read from the ringbuffer.
 		go checkBuffer()
 
