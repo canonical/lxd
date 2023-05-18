@@ -416,7 +416,11 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 				target = "reboot"
 			}
 
-			d.logger.Debug("Instance stopped", logger.Ctx{"target": target, "reason": data["reason"]})
+			if entry == qmp.EventVMShutdownReasonDisconnect {
+				d.logger.Warn("Instance stopped", logger.Ctx{"target": target, "reason": data["reason"]})
+			} else {
+				d.logger.Debug("Instance stopped", logger.Ctx{"target": target, "reason": data["reason"]})
+			}
 
 			err = d.onStop(target)
 			if err != nil {
