@@ -94,14 +94,49 @@ For example:
 ```
 
 (network-lxd-docker)=
-## Prevent issues with LXD and Docker
+## Prevent connectivity issues with LXD and Docker
 
 Running LXD and Docker on the same host can cause connectivity issues.
-A common reason for these issues is that Docker sets the FORWARD policy to `drop`, which prevents LXD from forwarding traffic and thus causes the instances to lose network connectivity.
+A common reason for these issues is that Docker sets the global FORWARD policy to `drop`, which prevents LXD from forwarding traffic and thus causes the instances to lose network connectivity.
 See [Docker on a router](https://docs.docker.com/network/iptables/#docker-on-a-router) for detailed information.
 
-The easiest way to prevent such issues is to uninstall Docker from the system that runs LXD.
-If that is not an option, use the following commands to explicitly allow network traffic from your network bridge to your external network interface and the returning traffic:
+The easiest way to prevent such issues is to uninstall Docker from the system that runs LXD and restart the system.
+You can run Docker inside a LXD container or virtual machine instead.
+See [Running Docker inside of a LXD container](https://www.youtube.com/watch?v=_fCSSEyiGro) for detailed information.
 
-    iptables -I DOCKER-USER -i <network_bridge> -o <external_interface> -j ACCEPT
+If that is not an option, then enabling IPv4 forwarding before the Docker service starts will cause Docker to not modify the global FORWARD policy.
+LXD bridge networks enable this setting normally, however if LXD starts after Docker then Docker will have already modified the global FORWARD policy.
+To enable IPv4 forwarding before Docker starts ensure the following `sysctl` setting is enabled:
+
+    net.ipv4.conf.all.forwarding=1
+
+```{important}
+You need to persist this setting across host reboots.
+```
+
+One way of persisting this setting across host reboots is to add a file to `/etc/sysctl.d/` directory using the following commands:
+
+    echo "net.ipv4.conf.all.forwarding=1" > /etc/sysctl.d/99-forwarding.conf
+    systemctl restart systemd-sysctl
+
+```{warning}
+Enabling IPv4 forwarding can cause your Docker container ports to be reachable from any machine on your local network.
+Depending on your environment this may be undesirable.
+See [local network container access issue](https://github.com/moby/moby/issues/14041) for more information.
+```
+
+If you do not want the Docker container ports to be potentially reachable from any machine on your local network then there is a more complex solution provided by Docker.
+Use the following commands to explicitly allow egress network traffic flows from your LXD managed bridge interface:
+
+    iptables -I DOCKER-USER -i <network_bridge> -j ACCEPT
     iptables -I DOCKER-USER -o <network_bridge> -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+For example if your LXD managed bridge is called `lxdbr0` then you can allow egress traffic to flow using the following commands:
+
+    iptables -I DOCKER-USER -i lxdbr0 -j ACCEPT
+    iptables -I DOCKER-USER -o lxdbr0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+```{important}
+You need to persist these rules across host reboots.
+Due to the different ways that firewall rules are persistently configured on different Linux distributions this is left as an exercise for the reader.
+```
