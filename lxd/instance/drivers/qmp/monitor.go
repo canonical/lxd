@@ -19,8 +19,11 @@ var monitorsLock sync.Mutex
 // RingbufSize is the size of the agent serial ringbuffer in bytes.
 var RingbufSize = 16
 
-// AgentStatusStarted is the event sent once the lxd-agent has started.
-var AgentStatusStarted = "LXD-AGENT-STARTED"
+// EventAgentStarted is the event sent once the lxd-agent has started.
+var EventAgentStarted = "LXD-AGENT-STARTED"
+
+// EventVMShutdown is the event sent when VM guest shuts down.
+var EventVMShutdown = "SHUTDOWN"
 
 // Monitor represents a QMP monitor.
 type Monitor struct {
@@ -64,7 +67,7 @@ func (m *Monitor) start() error {
 			m.agentStartedMu.Lock()
 			if status == "STARTED" {
 				if !m.agentStarted && m.eventHandler != nil {
-					go m.eventHandler(AgentStatusStarted, nil)
+					go m.eventHandler(EventAgentStarted, nil)
 				}
 
 				m.agentStarted = true
