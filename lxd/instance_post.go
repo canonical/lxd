@@ -267,7 +267,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 		// Server-side project migration.
 		if req.Project != "" {
-			// Check is user has access to target project
+			// Check if user has access to target project
 			if !rbac.UserHasPermission(r, req.Project, "manage-containers") {
 				return response.Forbidden(nil)
 			}
