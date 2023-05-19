@@ -1254,7 +1254,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 
 		// Get projects.
 		var volumes, remoteVolumes []db.StorageVolumeArgs
-		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := s.DB.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 			projs, err := dbCluster.GetProjects(ctx, tx.Tx())
 			if err != nil {
