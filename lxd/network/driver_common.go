@@ -93,7 +93,7 @@ type common struct {
 
 // init initialise internal variables.
 func (n *common) init(state *state.State, id int64, projectName string, netInfo *api.Network, netNodes map[int64]db.NetworkNode) {
-	n.logger = logger.AddContext(logger.Log, logger.Ctx{"project": projectName, "driver": netInfo.Type, "network": netInfo.Name})
+	n.logger = logger.AddContext(logger.Ctx{"project": projectName, "driver": netInfo.Type, "network": netInfo.Name})
 	n.id = id
 	n.project = projectName
 	n.name = netInfo.Name

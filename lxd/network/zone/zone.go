@@ -40,7 +40,7 @@ func (d *zone) init(state *state.State, id int64, projectName string, info *api.
 		d.info = info
 	}
 
-	d.logger = logger.AddContext(logger.Log, logger.Ctx{"project": projectName, "networkzone": d.info.Name})
+	d.logger = logger.AddContext(logger.Ctx{"project": projectName, "networkzone": d.info.Name})
 	d.id = id
 	d.projectName = projectName
 	d.state = state

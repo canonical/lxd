@@ -421,7 +421,7 @@ func autoCreateInstanceSnapshots(ctx context.Context, s *state.State, instances 
 			return ctx.Err()
 		}
 
-		l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+		l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 
 		snapshotName, err := instance.NextSnapshotName(s, inst, "snap%d")
 		if err != nil {
