@@ -137,7 +137,7 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter) error {
 	}
 
 	ctx, cancel := context.WithCancel(r.req.Context())
-	l := logger.AddContext(logger.Log, logger.Ctx{
+	l := logger.AddContext(logger.Ctx{
 		"project":  r.projectName,
 		"instance": r.instName,
 		"local":    remoteConn.LocalAddr(),

@@ -221,7 +221,7 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 
 	var debugLogger logger.Logger
 	if debug {
-		debugLogger = logger.AddContext(logger.Log, logger.Ctx{"http_code": code})
+		debugLogger = logger.AddContext(logger.Ctx{"http_code": code})
 	}
 
 	return util.WriteJSON(w, resp, debugLogger)
@@ -340,7 +340,7 @@ func (r *errorResponse) Render(w http.ResponseWriter) error {
 	}
 
 	if debug {
-		debugLogger := logger.AddContext(logger.Log, logger.Ctx{"http_code": r.code})
+		debugLogger := logger.AddContext(logger.Ctx{"http_code": r.code})
 		util.DebugJSON("Error Response", captured, debugLogger)
 	}
 
