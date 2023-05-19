@@ -1568,11 +1568,8 @@ func (d *Daemon) init() error {
 		// Take snapshot of instances and remove expired ones (minutely check of configurable cron expression)
 		d.tasks.Add(autoCreateAndPruneExpiredInstanceSnapshotsTask(d))
 
-		// Remove expired custom volume snapshots (minutely)
-		d.tasks.Add(pruneExpireCustomVolumeSnapshotsTask(d))
-
-		// Take snapshot of custom volumes (minutely check of configurable cron expression)
-		d.tasks.Add(autoCreateCustomVolumeSnapshotsTask(d))
+		// Prune expired custom volume snapshots and take snapshots of custom volumes (minutely check of configurable cron expression)
+		d.tasks.Add(pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(d))
 
 		// Remove resolved warnings (daily)
 		d.tasks.Add(pruneResolvedWarningsTask(d))
