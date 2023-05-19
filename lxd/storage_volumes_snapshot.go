@@ -1331,22 +1331,27 @@ func pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, t
 var customVolSnapshotsPruneRunning = sync.Map{}
 
 func pruneExpiredCustomVolumeSnapshots(ctx context.Context, s *state.State, expiredSnapshots []db.StorageVolumeArgs) error {
-	for _, snapshot := range expiredSnapshots {
-		_, loaded := customVolSnapshotsPruneRunning.LoadOrStore(snapshot.ID, struct{}{})
+	for _, v := range expiredSnapshots {
+		err := ctx.Err()
+		if err != nil {
+			return err // Stop if context is cancelled.
+		}
+
+		_, loaded := customVolSnapshotsPruneRunning.LoadOrStore(v.ID, struct{}{})
 		if loaded {
 			continue // Deletion of this snapshot is already running, skip.
 		}
 
-		pool, err := storagePools.LoadByName(s, snapshot.PoolName)
+		pool, err := storagePools.LoadByName(s, v.PoolName)
 		if err != nil {
-			customVolSnapshotsPruneRunning.Delete(snapshot.ID)
-			return fmt.Errorf("Failed to get pool %q: %w", snapshot.PoolName, err)
+			customVolSnapshotsPruneRunning.Delete(v.ID)
+			return fmt.Errorf("Error loading pool for volume snapshot %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}
 
-		err = pool.DeleteCustomVolumeSnapshot(snapshot.ProjectName, snapshot.Name, nil)
-		customVolSnapshotsPruneRunning.Delete(snapshot.ID)
+		err = pool.DeleteCustomVolumeSnapshot(v.ProjectName, v.Name, nil)
+		customVolSnapshotsPruneRunning.Delete(v.ID)
 		if err != nil {
-			return fmt.Errorf("Error deleting custom volume snapshot %q in project %q: %w", snapshot.Name, snapshot.PoolName, err)
+			return fmt.Errorf("Error deleting custom volume snapshot %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}
 	}
 
