@@ -4371,10 +4371,16 @@ func autoHealClusterTask(d *Daemon) (task.Func, task.Schedule) {
 	s := d.State()
 
 	f := func(ctx context.Context) {
+		healingThreshold := s.GlobalConfig.ClusterHealingThreshold()
+
+		if healingThreshold == 0 {
+			return // Skip healing if it's disabled.
+		}
+
 		leader, err := d.gateway.LeaderAddress()
 		if err != nil {
 			if errors.Is(err, cluster.ErrNodeIsNotClustered) {
-				return // No error if not clustered.
+				return // Skip healing if not clustered.
 			}
 
 			logger.Error("Failed to get leader cluster member address", logger.Ctx{"err": err})
@@ -4382,12 +4388,42 @@ func autoHealClusterTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		if s.LocalConfig.ClusterAddress() != leader {
-			logger.Debug("Skipping heal cluster task since we're not leader")
-			return
+			return // Skip healing if not cluster leader.
+		}
+
+		var offlineMembers []db.NodeInfo
+		{
+			var members []db.NodeInfo
+			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				members, err = tx.GetNodes(ctx)
+				if err != nil {
+					return fmt.Errorf("Failed getting cluster members: %w", err)
+				}
+
+				return nil
+			})
+			if err != nil {
+				logger.Error("Failed healing cluster instances", logger.Ctx{"err": err})
+				return
+			}
+
+			for _, member := range members {
+				// Ignore members which have been evacuated, and those which haven't exceeded the
+				// healing offline trigger threshold.
+				if member.State == db.ClusterMemberStateEvacuated || !member.IsOffline(healingThreshold) {
+					continue
+				}
+
+				offlineMembers = append(offlineMembers, member)
+			}
+		}
+
+		if len(offlineMembers) == 0 {
+			return // Skip healing if there are no cluster members to evacuate.
 		}
 
 		opRun := func(op *operations.Operation) error {
-			return autoHealCluster(ctx, s)
+			return autoHealCluster(ctx, s, offlineMembers)
 		}
 
 		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ClusterHeal, nil, nil, opRun, nil, nil, nil)
@@ -4408,45 +4444,7 @@ func autoHealClusterTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, task.Every(time.Minute)
 }
 
-func autoHealCluster(ctx context.Context, s *state.State) error {
-	healingThreshold := s.GlobalConfig.ClusterHealingThreshold()
-
-	// Skip healing if it's disabled.
-	if healingThreshold == 0 {
-		return nil
-	}
-
-	var members []db.NodeInfo
-	var err error
-
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		members, err = tx.GetNodes(ctx)
-		if err != nil {
-			return fmt.Errorf("Failed getting cluster members: %w", err)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("Failed healing cluster instances: %w", err)
-	}
-
-	var offlineMembers []db.NodeInfo
-
-	for _, member := range members {
-		// Ignore members which have been evacuated, and those which haven't exceeded the healing threshold.
-		if member.State == db.ClusterMemberStateEvacuated || !member.IsOffline(healingThreshold) {
-			continue
-		}
-
-		offlineMembers = append(offlineMembers, member)
-	}
-
-	// Skip healing if there are no members to evacuate.
-	if len(offlineMembers) == 0 {
-		return nil
-	}
-
+func autoHealCluster(ctx context.Context, s *state.State, offlineMembers []db.NodeInfo) error {
 	logger.Info("Healing cluster instances")
 
 	dest, err := cluster.Connect(s.LocalConfig.ClusterAddress(), s.Endpoints.NetworkCert(), s.ServerCert(), nil, true)
