@@ -47,7 +47,7 @@ func (r *operationResponse) Render(w http.ResponseWriter) error {
 
 	var debugLogger logger.Logger
 	if debug {
-		debugLogger = logger.AddContext(logger.Log, logger.Ctx{"http_code": code})
+		debugLogger = logger.AddContext(logger.Ctx{"http_code": code})
 	}
 
 	return util.WriteJSON(w, body, debugLogger)
@@ -100,7 +100,7 @@ func (r *forwardedOperationResponse) Render(w http.ResponseWriter) error {
 
 	var debugLogger logger.Logger
 	if debug {
-		debugLogger = logger.AddContext(logger.Log, logger.Ctx{"http_code": code})
+		debugLogger = logger.AddContext(logger.Ctx{"http_code": code})
 	}
 
 	return util.WriteJSON(w, body, debugLogger)

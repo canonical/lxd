@@ -594,7 +594,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			}
 
 			r.Body = shared.BytesReadCloser{Buf: newBody}
-			util.DebugJSON("API Request", captured, logger.AddContext(logger.Log, logCtx))
+			util.DebugJSON("API Request", captured, logger.AddContext(logCtx))
 		}
 
 		// Actually process the request

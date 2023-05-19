@@ -1731,7 +1731,7 @@ func (s *Server) HandleSchedSetschedulerSyscall(c Instance, siov *Iovec) int {
 
 // HandleSysinfoSyscall handles sysinfo syscalls.
 func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
-	l := logger.AddContext(logger.Log, logger.Ctx{
+	l := logger.AddContext(logger.Ctx{
 		"container":             c.Name(),
 		"project":               c.Project().Name,
 		"syscall_number":        siov.req.data.nr,

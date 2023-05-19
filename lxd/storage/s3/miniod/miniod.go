@@ -217,7 +217,7 @@ func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, e
 		"--address", minioProc.url.Host,
 	}
 
-	l := logger.AddContext(logger.Log, logger.Ctx{"bucketName": bucketName, "bucketPath": bucketPath, "listenPort": listenPort})
+	l := logger.AddContext(logger.Ctx{"bucketName": bucketName, "bucketPath": bucketPath, "listenPort": listenPort})
 
 	// Launch minio process in background.
 	go func() {
