@@ -34,7 +34,7 @@ import (
 
 // Create a new backup.
 func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.Instance, op *operations.Operation) error {
-	l := logger.AddContext(logger.Log, logger.Ctx{"project": sourceInst.Project().Name, "instance": sourceInst.Name(), "name": args.Name})
+	l := logger.AddContext(logger.Ctx{"project": sourceInst.Project().Name, "instance": sourceInst.Name(), "name": args.Name})
 	l.Debug("Instance backup started")
 	defer l.Debug("Instance backup finished")
 
@@ -355,7 +355,7 @@ func pruneExpiredContainerBackups(ctx context.Context, s *state.State) error {
 }
 
 func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, projectName string, poolName string, volumeName string) error {
-	l := logger.AddContext(logger.Log, logger.Ctx{"project": projectName, "storage_volume": volumeName, "name": args.Name})
+	l := logger.AddContext(logger.Ctx{"project": projectName, "storage_volume": volumeName, "name": args.Name})
 	l.Debug("Volume backup started")
 	defer l.Debug("Volume backup finished")
 

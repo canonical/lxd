@@ -2931,7 +2931,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 
 	if req.Action == "evacuate" {
 		stopFunc := func(inst instance.Instance) error {
-			l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+			l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 
 			// Get the shutdown timeout for the instance.
 			timeout := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
@@ -3191,7 +3191,7 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 
 	for _, inst := range opts.instances {
 		instProject := inst.Project()
-		l := logger.AddContext(logger.Log, logger.Ctx{"project": instProject.Name, "instance": inst.Name()})
+		l := logger.AddContext(logger.Ctx{"project": instProject.Name, "instance": inst.Name()})
 
 		// Check if migratable.
 		migrate, live := inst.CanMigrate()
@@ -3365,7 +3365,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 		// Migrate back the remote instances.
 		for _, inst := range instances {
-			l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+			l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 
 			// Check if live-migratable.
 			_, live := inst.CanMigrate()

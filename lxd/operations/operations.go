@@ -146,7 +146,7 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 	op.resources = opResources
 	op.finished = cancel.New(context.Background())
 	op.state = s
-	op.logger = logger.AddContext(logger.Log, logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
+	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 
 	if s != nil {
 		op.SetEventServer(s.Events)

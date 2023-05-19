@@ -75,7 +75,7 @@ func NewTemporary(state *state.State, info *api.StoragePool) (Pool, error) {
 		pool := mockBackend{}
 		pool.name = info.Name
 		pool.state = state
-		pool.logger = logger.AddContext(logger.Log, logger.Ctx{"driver": "mock", "pool": pool.name})
+		pool.logger = logger.AddContext(logger.Ctx{"driver": "mock", "pool": pool.name})
 		driver, err := drivers.Load(state, "mock", "", nil, pool.logger, nil, nil)
 		if err != nil {
 			return nil, err
@@ -93,7 +93,7 @@ func NewTemporary(state *state.State, info *api.StoragePool) (Pool, error) {
 		info.Config = map[string]string{}
 	}
 
-	logger := logger.AddContext(logger.Log, logger.Ctx{"driver": info.Driver, "pool": info.Name})
+	logger := logger.AddContext(logger.Ctx{"driver": info.Driver, "pool": info.Name})
 
 	// Load the storage driver.
 	driver, err := drivers.Load(state, info.Driver, info.Name, info.Config, logger, volIDFuncMake(state, poolID), commonRules())
@@ -116,7 +116,7 @@ func NewTemporary(state *state.State, info *api.StoragePool) (Pool, error) {
 
 // LoadByType loads a network by driver type.
 func LoadByType(state *state.State, driverType string) (Type, error) {
-	logger := logger.AddContext(logger.Log, logger.Ctx{"driver": driverType})
+	logger := logger.AddContext(logger.Ctx{"driver": driverType})
 
 	driver, err := drivers.Load(state, driverType, "", nil, logger, nil, commonRules())
 	if err != nil {
@@ -141,7 +141,7 @@ func LoadByRecord(s *state.State, poolID int64, poolInfo api.StoragePool, poolMe
 		poolInfo.Config = map[string]string{}
 	}
 
-	logger := logger.AddContext(logger.Log, logger.Ctx{"driver": poolInfo.Driver, "pool": poolInfo.Name})
+	logger := logger.AddContext(logger.Ctx{"driver": poolInfo.Driver, "pool": poolInfo.Name})
 
 	// Load the storage driver.
 	driver, err := drivers.Load(s, poolInfo.Driver, poolInfo.Name, poolInfo.Config, logger, volIDFuncMake(s, poolID), commonRules())
@@ -170,7 +170,7 @@ func LoadByName(s *state.State, name string) (Pool, error) {
 		pool := mockBackend{}
 		pool.name = name
 		pool.state = s
-		pool.logger = logger.AddContext(logger.Log, logger.Ctx{"driver": "mock", "pool": pool.name})
+		pool.logger = logger.AddContext(logger.Ctx{"driver": "mock", "pool": pool.name})
 		driver, err := drivers.Load(s, "mock", "", nil, pool.logger, nil, nil)
 		if err != nil {
 			return nil, err
