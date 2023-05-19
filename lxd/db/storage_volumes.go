@@ -18,17 +18,33 @@ import (
 )
 
 // GetStoragePoolVolumesWithType return a list of all volumes of the given type.
-func (c *ClusterTx) GetStoragePoolVolumesWithType(ctx context.Context, volumeType int) ([]StorageVolumeArgs, error) {
-	stmt := `
-SELECT storage_volumes.id, storage_volumes.name, storage_volumes.description, storage_pools.name, projects.name, IFNULL(storage_volumes.node_id, -1)
+// If memberSpecific is true, then the search is restricted to volumes that belong to this member or belong to
+// all members.
+func (c *ClusterTx) GetStoragePoolVolumesWithType(ctx context.Context, volumeType int, memberSpecific bool) ([]StorageVolumeArgs, error) {
+	var q strings.Builder
+	q.WriteString(`
+SELECT
+	storage_volumes.id,
+	storage_volumes.name,
+	storage_volumes.description,
+	storage_pools.name,
+	projects.name,
+	IFNULL(storage_volumes.node_id, -1)
 FROM storage_volumes
 JOIN storage_pools ON storage_pools.id = storage_volumes.storage_pool_id
 JOIN projects ON projects.id = storage_volumes.project_id
 WHERE storage_volumes.type = ?
-`
+`)
+
+	args := []any{volumeType}
+
+	if memberSpecific {
+		q.WriteString("AND (storage_volumes.node_id = ? OR storage_volumes.node_id IS NULL) ")
+		args = append(args, c.nodeID)
+	}
 
 	result := []StorageVolumeArgs{}
-	err := query.Scan(ctx, c.Tx(), stmt, func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		entry := StorageVolumeArgs{}
 
 		err := scan(&entry.ID, &entry.Name, &entry.Description, &entry.PoolName, &entry.ProjectName, &entry.NodeID)
@@ -38,7 +54,7 @@ WHERE storage_volumes.type = ?
 
 		result = append(result, entry)
 		return nil
-	}, volumeType)
+	}, args...)
 	if err != nil {
 		return nil, err
 	}
