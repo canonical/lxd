@@ -1289,8 +1289,12 @@ func pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, t
 		// Handle snapshot auto creation.
 		if len(volumes) > 0 {
 			opRun := func(op *operations.Operation) error {
-				autoCreateCustomVolumeSnapshots(ctx, s, volumes)
-				return nil
+				err := autoCreateCustomVolumeSnapshots(ctx, s, volumes)
+				if err != nil {
+					logger.Error("Failed scheduled custom volume snapshots", logger.Ctx{"err": err})
+				}
+
+				return err
 			}
 
 			op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.VolumeSnapshotCreate, nil, nil, opRun, nil, nil, nil)
@@ -1349,46 +1353,36 @@ func pruneExpiredCustomVolumeSnapshots(ctx context.Context, s *state.State, expi
 	return nil
 }
 
-func autoCreateCustomVolumeSnapshots(ctx context.Context, s *state.State, volumes []db.StorageVolumeArgs) {
+func autoCreateCustomVolumeSnapshots(ctx context.Context, s *state.State, volumes []db.StorageVolumeArgs) error {
 	// Make the snapshots sequentially.
 	for _, v := range volumes {
-		// Run snapshot process in a go routine then collect the result, to allow context cancellation.
-		ch := make(chan struct{})
-		go func() {
-			snapshotName, err := volumeDetermineNextSnapshotName(s, v, "snap%d")
-			if err != nil {
-				logger.Error("Error retrieving next snapshot name", logger.Ctx{"err": err, "volume": v})
-				ch <- struct{}{}
-				return
-			}
+		err := ctx.Err()
+		if err != nil {
+			return err // Stop if context is cancelled.
+		}
 
-			expiry, err := shared.GetExpiry(time.Now(), v.Config["snapshots.expiry"])
-			if err != nil {
-				logger.Error("Error getting expiry date", logger.Ctx{"err": err, "volume": v})
-				ch <- struct{}{}
-				return
-			}
+		snapshotName, err := volumeDetermineNextSnapshotName(s, v, "snap%d")
+		if err != nil {
+			return fmt.Errorf("Error retrieving next snapshot name for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
+		}
 
-			pool, err := storagePools.LoadByName(s, v.PoolName)
-			if err != nil {
-				logger.Error("Error retrieving pool", logger.Ctx{"err": err, "pool": v.PoolName})
-				ch <- struct{}{}
-				return
-			}
+		expiry, err := shared.GetExpiry(time.Now(), v.Config["snapshots.expiry"])
+		if err != nil {
+			return fmt.Errorf("Error getting snapshot expiry for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
+		}
 
-			err = pool.CreateCustomVolumeSnapshot(v.ProjectName, v.Name, snapshotName, expiry, nil)
-			if err != nil {
-				logger.Error("Error creating volume snapshot", logger.Ctx{"err": err, "volume": v})
-			}
+		pool, err := storagePools.LoadByName(s, v.PoolName)
+		if err != nil {
+			return fmt.Errorf("Error loading pool for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
+		}
 
-			ch <- struct{}{}
-		}()
-		select {
-		case <-ctx.Done():
-			return
-		case <-ch:
+		err = pool.CreateCustomVolumeSnapshot(v.ProjectName, v.Name, snapshotName, expiry, nil)
+		if err != nil {
+			return fmt.Errorf("Error creating snapshot for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}
 	}
+
+	return nil
 }
 
 func volumeDetermineNextSnapshotName(s *state.State, volume db.StorageVolumeArgs, defaultPattern string) (string, error) {
