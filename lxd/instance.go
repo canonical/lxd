@@ -417,8 +417,9 @@ func instanceLoadNodeProjectAll(ctx context.Context, s *state.State, project str
 func autoCreateInstanceSnapshots(ctx context.Context, s *state.State, instances []instance.Instance) error {
 	// Make the snapshots.
 	for _, inst := range instances {
-		if ctx.Err() != nil {
-			return ctx.Err()
+		err := ctx.Err()
+		if err != nil {
+			return err
 		}
 
 		l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
@@ -450,12 +451,17 @@ var instSnapshotsPruneRunning = sync.Map{}
 func pruneExpiredInstanceSnapshots(ctx context.Context, s *state.State, snapshots []instance.Instance) error {
 	// Find snapshots to delete
 	for _, snapshot := range snapshots {
+		err := ctx.Err()
+		if err != nil {
+			return err
+		}
+
 		_, loaded := instSnapshotsPruneRunning.LoadOrStore(snapshot.ID(), struct{}{})
 		if loaded {
 			continue // Deletion of this snapshot is already running, skip.
 		}
 
-		err := snapshot.Delete(true)
+		err = snapshot.Delete(true)
 		instSnapshotsPruneRunning.Delete(snapshot.ID())
 		if err != nil {
 			return fmt.Errorf("Failed to delete expired instance snapshot %q in project %q: %w", snapshot.Name(), snapshot.Project().Name, err)
