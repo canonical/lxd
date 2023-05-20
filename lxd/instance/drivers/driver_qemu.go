@@ -376,7 +376,7 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 	state := d.state
 
 	return func(event string, data map[string]any) {
-		if !shared.StringInSlice(event, []string{"SHUTDOWN", "RESET", qmp.AgentStatusStarted}) {
+		if !shared.StringInSlice(event, []string{qmp.EventVMShutdown, qmp.EventAgentStarted}) {
 			return // Don't bother loading the instance from DB if we aren't going to handle the event.
 		}
 
@@ -402,21 +402,25 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 
 		d = inst.(*qemu)
 
-		if event == qmp.AgentStatusStarted {
+		if event == qmp.EventAgentStarted {
 			d.logger.Debug("Instance agent started")
 			err := d.advertiseVsockAddress()
 			if err != nil {
 				d.logger.Warn("Failed to advertise vsock address to instance agent", logger.Ctx{"err": err})
 				return
 			}
-		} else if event == "SHUTDOWN" {
+		} else if event == qmp.EventVMShutdown {
 			target := "stop"
 			entry, ok := data["reason"]
 			if ok && entry == "guest-reset" {
 				target = "reboot"
 			}
 
-			d.logger.Debug("Instance stopped", logger.Ctx{"target": target, "reason": data["reason"]})
+			if entry == qmp.EventVMShutdownReasonDisconnect {
+				d.logger.Warn("Instance stopped", logger.Ctx{"target": target, "reason": data["reason"]})
+			} else {
+				d.logger.Debug("Instance stopped", logger.Ctx{"target": target, "reason": data["reason"]})
+			}
 
 			err = d.onStop(target)
 			if err != nil {
