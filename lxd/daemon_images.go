@@ -49,7 +49,7 @@ type ImageDownloadArgs struct {
 
 // imageOperationLock acquires a lock for operating on an image and returns the unlock function.
 func imageOperationLock(fingerprint string) locking.UnlockFunc {
-	l := logger.AddContext(logger.Log, logger.Ctx{"fingerprint": fingerprint})
+	l := logger.AddContext(logger.Ctx{"fingerprint": fingerprint})
 	l.Debug("Acquiring lock for image")
 	defer l.Debug("Lock acquired for image")
 

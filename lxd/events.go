@@ -83,7 +83,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 		return api.StatusErrorf(http.StatusForbidden, "Forbidden")
 	}
 
-	l := logger.AddContext(logger.Log, logger.Ctx{"remote": r.RemoteAddr})
+	l := logger.AddContext(logger.Ctx{"remote": r.RemoteAddr})
 
 	// Upgrade the connection to websocket
 	conn, err := ws.Upgrader.Upgrade(w, r, nil)
