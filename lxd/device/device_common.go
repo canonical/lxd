@@ -34,7 +34,7 @@ func (d *deviceCommon) init(inst instance.Instance, state *state.State, name str
 		logCtx["instance"] = inst.Name()
 	}
 
-	d.logger = logger.AddContext(logger.Log, logCtx)
+	d.logger = logger.AddContext(logCtx)
 	d.inst = inst
 	d.name = name
 	d.config = conf

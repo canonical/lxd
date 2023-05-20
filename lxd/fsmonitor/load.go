@@ -12,7 +12,7 @@ import (
 // New creates a new FSMonitor instance.
 func New(ctx context.Context, path string) (FSMonitor, error) {
 	startMonitor := func(driverName string) (drivers.Driver, logger.Logger, error) {
-		logger := logger.AddContext(logger.Log, logger.Ctx{"driver": driverName})
+		logger := logger.AddContext(logger.Ctx{"driver": driverName})
 
 		driver, err := drivers.Load(ctx, logger, driverName, path)
 		if err != nil {

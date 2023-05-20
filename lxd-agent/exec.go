@@ -366,7 +366,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		return finisher(exitStatus, err)
 	}
 
-	l := logger.AddContext(logger.Log, logger.Ctx{"PID": cmd.Process.Pid, "interactive": s.interactive})
+	l := logger.AddContext(logger.Ctx{"PID": cmd.Process.Pid, "interactive": s.interactive})
 	l.Debug("Instance process started")
 
 	wgEOF.Add(1)

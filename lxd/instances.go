@@ -254,7 +254,7 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 			continue
 		}
 
-		instLogger := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+		instLogger := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 
 		// Try to start the instance.
 		var attempt = 0

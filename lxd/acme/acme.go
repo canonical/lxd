@@ -42,7 +42,7 @@ func certificateNeedsUpdate(domain string, cert *x509.Certificate) bool {
 func UpdateCertificate(s *state.State, provider HTTP01Provider, clustered bool, domain string, email string, caURL string, force bool) (*certificate.Resource, error) {
 	clusterCertFilename := shared.VarPath(ClusterCertFilename)
 
-	l := logger.AddContext(logger.Log, logger.Ctx{"domain": domain, "caURL": caURL})
+	l := logger.AddContext(logger.Ctx{"domain": domain, "caURL": caURL})
 
 	// If clusterCertFilename exists, it means that a previously issued certificate couldn't be
 	// distributed to all cluster members and was therefore kept back. In this case, don't issue
