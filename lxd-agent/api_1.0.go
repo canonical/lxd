@@ -47,7 +47,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		AuthMethods:   []string{"tls"},
 	}
 
-	uname, err := shared.Uname()
+	kernelName, kernelArch, kernalVersion, err := kernelInfo()
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -58,9 +58,9 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	}
 
 	env := api.ServerEnvironment{
-		Kernel:             uname.Sysname,
-		KernelArchitecture: uname.Machine,
-		KernelVersion:      uname.Release,
+		Kernel:             kernelName,
+		KernelArchitecture: kernelArch,
+		KernelVersion:      kernalVersion,
 		Server:             "lxd-agent",
 		ServerPid:          os.Getpid(),
 		ServerVersion:      version.Version,
