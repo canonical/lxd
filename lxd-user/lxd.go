@@ -9,7 +9,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -47,7 +47,7 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 		return fmt.Errorf("Failed to get server info: %w", err)
 	}
 
-	availableBackends := util.AvailableStorageDrivers(info.Environment.StorageSupportedDrivers, util.PoolTypeLocal)
+	availableBackends := filesystem.AvailableStorageDrivers(info.Environment.StorageSupportedDrivers, filesystem.PoolTypeLocal)
 
 	// Load the default profile.
 	profile, profileEtag, err := client.GetProfile("default")
