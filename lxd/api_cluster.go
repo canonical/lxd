@@ -1822,9 +1822,15 @@ func clusterValidateConfig(config map[string]string) error {
 func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	memberName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	// Forward request.
+	resp := forwardedResponseToNode(s, r, memberName)
+	if resp != nil {
+		return resp
 	}
 
 	req := api.ClusterMemberPost{}
@@ -1836,14 +1842,19 @@ func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return tx.RenameNode(ctx, name, req.ServerName)
+		return tx.RenameNode(ctx, memberName, req.ServerName)
 	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
+	// Update local server name.
+	d.globalConfigMu.Lock()
+	d.serverName = req.ServerName
+	d.globalConfigMu.Unlock()
+
 	requestor := request.CreateRequestor(r)
-	s.Events.SendLifecycle(projectParam(r), lifecycle.ClusterMemberRenamed.Event(req.ServerName, requestor, logger.Ctx{"old_name": name}))
+	s.Events.SendLifecycle(projectParam(r), lifecycle.ClusterMemberRenamed.Event(req.ServerName, requestor, logger.Ctx{"old_name": memberName}))
 
 	return response.EmptySyncResponse
 }
