@@ -4408,7 +4408,7 @@ func autoHealClusterTask(d *Daemon) (task.Func, task.Schedule) {
 		var offlineMembers []db.NodeInfo
 		{
 			var members []db.NodeInfo
-			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 				members, err = tx.GetNodes(ctx)
 				if err != nil {
 					return fmt.Errorf("Failed getting cluster members: %w", err)
