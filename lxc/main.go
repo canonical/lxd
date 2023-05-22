@@ -204,6 +204,10 @@ For help with any of those, simply call them with --help.`))
 	queryCmd := cmdQuery{global: &globalCmd}
 	app.AddCommand(queryCmd.Command())
 
+	// rebuild sub-command
+	rebuildCmd := cmdRebuild{global: &globalCmd}
+	app.AddCommand(rebuildCmd.Command())
+
 	// rename sub-command
 	renameCmd := cmdRename{global: &globalCmd}
 	app.AddCommand(renameCmd.Command())
