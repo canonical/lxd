@@ -4437,7 +4437,13 @@ func autoHealClusterTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		opRun := func(op *operations.Operation) error {
-			return autoHealCluster(ctx, s, offlineMembers)
+			err := autoHealCluster(ctx, s, offlineMembers)
+			if err != nil {
+				logger.Error("Failed healing cluster instances", logger.Ctx{"err": err})
+				return err
+			}
+
+			return nil
 		}
 
 		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ClusterHeal, nil, nil, opRun, nil, nil, nil)
