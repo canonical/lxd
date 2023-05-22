@@ -11,3 +11,7 @@ import (
 func OpenPty(uid, gid int64) (*os.File, *os.File, error) {
 	return nil, nil, fmt.Errorf("Not implemented")
 }
+
+func SetSize(fd int, width int, height int) (err error) {
+	return fmt.Errorf("Not implemented")
+}
