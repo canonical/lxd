@@ -8,6 +8,7 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/project"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -19,7 +20,7 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 		return nil, fmt.Errorf("The requested backend '%s' isn't supported by lxd init", c.flagStorageBackend)
 	}
 
-	if c.flagStorageBackend != "" && !shared.StringInSlice(c.flagStorageBackend, util.AvailableStorageDrivers(server.Environment.StorageSupportedDrivers, util.PoolTypeAny)) {
+	if c.flagStorageBackend != "" && !shared.StringInSlice(c.flagStorageBackend, filesystem.AvailableStorageDrivers(server.Environment.StorageSupportedDrivers, filesystem.PoolTypeAny)) {
 		return nil, fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools)", c.flagStorageBackend)
 	}
 
