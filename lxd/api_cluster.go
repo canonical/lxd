@@ -3055,6 +3055,7 @@ func internalClusterHeal(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		dest = dest.UseProject(inst.Project().Name)
 		dest = dest.UseTarget(targetMemberInfo.Name)
 
 		migrateOp, err := dest.MigrateInstance(inst.Name(), req)
