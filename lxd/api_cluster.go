@@ -3068,6 +3068,21 @@ func internalClusterHeal(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		if !startInstance || live {
+			return nil
+		}
+
+		// Start it back up on target.
+		startOp, err := dest.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "start"}, "")
+		if err != nil {
+			return err
+		}
+
+		err = startOp.Wait()
+		if err != nil {
+			return err
+		}
+
 		return nil
 	}
 
