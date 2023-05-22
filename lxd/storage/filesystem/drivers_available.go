@@ -1,7 +1,6 @@
-package util
+package filesystem
 
 import (
-	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -20,7 +19,7 @@ const PoolTypeRemote PoolType = "remote"
 
 // AvailableStorageDrivers returns a list of storage drivers that are available.
 func AvailableStorageDrivers(supportedDrivers []api.ServerStorageDriverInfo, poolType PoolType) []string {
-	backingFs, err := filesystem.Detect(shared.VarPath())
+	backingFs, err := Detect(shared.VarPath())
 	if err != nil {
 		backingFs = "dir"
 	}
