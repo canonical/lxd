@@ -4473,9 +4473,10 @@ func autoHealCluster(ctx context.Context, s *state.State, offlineMembers []db.No
 	}
 
 	for _, member := range offlineMembers {
+		logger.Info("Healing cluster member instances", logger.Ctx{"member": member.Name})
 		_, _, err = dest.RawQuery("POST", fmt.Sprintf("/internal/cluster/heal/%s", member.Name), nil, "")
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed evacuating cluster member %q: %w", member.Name, err)
 		}
 	}
 
