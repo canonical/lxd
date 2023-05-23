@@ -905,7 +905,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Allow forwarding.
-		if n.config["bridge.mode"] == "fan" || n.config["ipv4.routing"] == "" || shared.IsTrue(n.config["ipv4.routing"]) {
+		if n.config["bridge.mode"] == "fan" || shared.IsTrueOrEmpty(n.config["ipv4.routing"]) {
 			err = util.SysctlSet("net/ipv4/ip_forward", "1")
 			if err != nil {
 				return err
@@ -1140,7 +1140,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Allow forwarding.
-		if n.config["ipv6.routing"] == "" || shared.IsTrue(n.config["ipv6.routing"]) {
+		if shared.IsTrueOrEmpty(n.config["ipv6.routing"]) {
 			// Get a list of proc entries.
 			entries, err := os.ReadDir("/proc/sys/net/ipv6/conf/")
 			if err != nil {
