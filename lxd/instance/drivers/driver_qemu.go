@@ -778,7 +778,11 @@ func (d *qemu) killQemuProcess(pid int) error {
 	// the parent of the process, and we have still sent the kill signal as per the function's description.
 	_, err = proc.Wait()
 	if err != nil {
-		d.logger.Warn("Failed to collect VM process exit status", logger.Ctx{"pid": pid})
+		if strings.Contains(err.Error(), "no child processes") {
+			return nil
+		}
+
+		d.logger.Warn("Failed to collect VM process exit status", logger.Ctx{"pid": pid, "err": err})
 	}
 
 	return nil
