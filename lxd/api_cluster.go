@@ -3055,6 +3055,7 @@ func internalClusterHeal(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		dest = dest.UseProject(inst.Project().Name)
 		dest = dest.UseTarget(targetMemberInfo.Name)
 
 		migrateOp, err := dest.MigrateInstance(inst.Name(), req)
@@ -3063,6 +3064,21 @@ func internalClusterHeal(d *Daemon, r *http.Request) response.Response {
 		}
 
 		err = migrateOp.Wait()
+		if err != nil {
+			return err
+		}
+
+		if !startInstance || live {
+			return nil
+		}
+
+		// Start it back up on target.
+		startOp, err := dest.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "start"}, "")
+		if err != nil {
+			return err
+		}
+
+		err = startOp.Wait()
 		if err != nil {
 			return err
 		}
@@ -4379,11 +4395,9 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, gateway *c
 }
 
 func autoHealClusterTask(d *Daemon) (task.Func, task.Schedule) {
-	s := d.State()
-
 	f := func(ctx context.Context) {
+		s := d.State()
 		healingThreshold := s.GlobalConfig.ClusterHealingThreshold()
-
 		if healingThreshold == 0 {
 			return // Skip healing if it's disabled.
 		}
@@ -4405,7 +4419,7 @@ func autoHealClusterTask(d *Daemon) (task.Func, task.Schedule) {
 		var offlineMembers []db.NodeInfo
 		{
 			var members []db.NodeInfo
-			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 				members, err = tx.GetNodes(ctx)
 				if err != nil {
 					return fmt.Errorf("Failed getting cluster members: %w", err)
@@ -4434,7 +4448,13 @@ func autoHealClusterTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		opRun := func(op *operations.Operation) error {
-			return autoHealCluster(ctx, s, offlineMembers)
+			err := autoHealCluster(ctx, s, offlineMembers)
+			if err != nil {
+				logger.Error("Failed healing cluster instances", logger.Ctx{"err": err})
+				return err
+			}
+
+			return nil
 		}
 
 		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ClusterHeal, nil, nil, opRun, nil, nil, nil)
@@ -4464,9 +4484,10 @@ func autoHealCluster(ctx context.Context, s *state.State, offlineMembers []db.No
 	}
 
 	for _, member := range offlineMembers {
+		logger.Info("Healing cluster member instances", logger.Ctx{"member": member.Name})
 		_, _, err = dest.RawQuery("POST", fmt.Sprintf("/internal/cluster/heal/%s", member.Name), nil, "")
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed evacuating cluster member %q: %w", member.Name, err)
 		}
 	}
 
