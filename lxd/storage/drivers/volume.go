@@ -393,6 +393,10 @@ func (v Volume) NewVMBlockFilesystemVolume() Volume {
 	// Copy volume config so modifications don't affect original volume.
 	newConf := make(map[string]string, len(v.config))
 	for k, v := range v.config {
+		if k == "zfs.block_mode" {
+			continue // VM filesystem volumes never use ZFS block mode.
+		}
+
 		newConf[k] = v
 	}
 
