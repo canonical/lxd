@@ -3703,20 +3703,10 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 		return queueCount
 	}
 
-	// Detect MACVTAP interface types and figure out which tap device is being used.
-	// This is so we can open a file handle to the tap device and pass it to the qemu process.
-	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/macvtap", nicName)) {
-		content, err := os.ReadFile(fmt.Sprintf("/sys/class/net/%s/ifindex", nicName))
-		if err != nil {
-			return nil, fmt.Errorf("Error getting tap device ifindex: %w", err)
-		}
-
-		ifindex, err := strconv.Atoi(strings.TrimSpace(string(content)))
-		if err != nil {
-			return nil, fmt.Errorf("Error parsing tap device ifindex: %w", err)
-		}
-
-		monHook = func(m *qmp.Monitor) error {
+	// tapMonHook is a helper function used as the monitor hook for macvtap and tap interfaces to open
+	// multi-queue file handles to both the interface device and the vhost-net device and pass them to QEMU.
+	tapMonHook := func(deviceFile func() (*os.File, error)) func(m *qmp.Monitor) error {
+		return func(m *qmp.Monitor) error {
 			reverter := revert.New()
 			defer reverter.Fail()
 
@@ -3731,9 +3721,9 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 			fds := make([]string, 0, queueCount)
 			vhostfds := make([]string, 0, queueCount)
 			for i := 0; i < queueCount; i++ {
-				devFile, err := os.OpenFile(fmt.Sprintf("/dev/tap%d", ifindex), os.O_RDWR, 0)
+				devFile, err := deviceFile()
 				if err != nil {
-					return fmt.Errorf("Error opening netdev file %q: %w", devFile.Name(), err)
+					return fmt.Errorf("Error opening netdev file for queue %d: %w", i, err)
 				}
 
 				defer func() { _ = devFile.Close() }() // Close file after device has been added.
@@ -3741,7 +3731,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 				devFDName := fmt.Sprintf("%s.%d", devFile.Name(), i)
 				err = m.SendFile(devFDName, devFile)
 				if err != nil {
-					return fmt.Errorf("Failed to send %q file descriptor: %w", devFDName, err)
+					return fmt.Errorf("Failed to send %q file descriptor for queue %d: %w", devFDName, i, err)
 				}
 
 				reverter.Add(func() { _ = m.CloseFile(devFDName) })
@@ -3751,7 +3741,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 				// Open a vhost-net file handle for each device file handle. For CPU offloading.
 				vhostFile, err := os.OpenFile("/dev/vhost-net", os.O_RDWR, 0)
 				if err != nil {
-					return fmt.Errorf("Error opening netdev file %q: %w", vhostFile.Name(), err)
+					return fmt.Errorf("Error opening vhost-net file %q for queue %d: %w", vhostFile.Name(), i, err)
 				}
 
 				defer func() { _ = vhostFile.Close() }() // Close file after device has been added.
@@ -3759,7 +3749,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 				vhostFDName := fmt.Sprintf("%s.%d", vhostFile.Name(), i)
 				err = m.SendFile(vhostFDName, vhostFile)
 				if err != nil {
-					return fmt.Errorf("Failed to send %q file descriptor: %w", vhostFDName, err)
+					return fmt.Errorf("Failed to send %q file descriptor for queue %d: %w", vhostFDName, i, err)
 				}
 
 				reverter.Add(func() { _ = m.CloseFile(vhostFDName) })
@@ -3793,53 +3783,59 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 			reverter.Success()
 			return nil
 		}
-	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/tun_flags", nicName)) {
-		monHook = func(m *qmp.Monitor) error {
-			cpus, err := m.QueryCPUs()
-			if err != nil {
-				return fmt.Errorf("Failed getting CPU list for NIC queues")
-			}
+	}
 
-			// Detect TAP (via TUN driver) device.
-			qemuNetDev := map[string]any{
-				"id":         fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName),
-				"type":       "tap",
-				"vhost":      false, // This is selectively enabled based on QEMU version later.
-				"script":     "no",
-				"downscript": "no",
-				"ifname":     nicName,
-			}
-
-			// vhost-net network accelerator is causing asserts since QEMU 7.2.
-			// Until previous behaviour is restored or we figure out how to pass the veth device using
-			// file descriptors we will just disable the vhost-net accelerator.
-			qemuVer, _ := d.version()
-			vhostMaxVer, _ := version.NewDottedVersion("7.2")
-			if qemuVer != nil && qemuVer.Compare(vhostMaxVer) < 0 {
-				qemuNetDev["vhost"] = true
-			}
-
-			queueCount := configureQueues(len(cpus))
-			if queueCount > 0 {
-				qemuNetDev["queues"] = queueCount
-			}
-
-			if shared.StringInSlice(busName, []string{"pcie", "pci"}) {
-				qemuDev["driver"] = "virtio-net-pci"
-			} else if busName == "ccw" {
-				qemuDev["driver"] = "virtio-net-ccw"
-			}
-
-			qemuDev["netdev"] = qemuNetDev["id"].(string)
-			qemuDev["mac"] = devHwaddr
-
-			err = m.AddNIC(qemuNetDev, qemuDev)
-			if err != nil {
-				return fmt.Errorf("Failed setting up device %q: %w", devName, err)
-			}
-
-			return nil
+	// Detect MACVTAP interface types and figure out which tap device is being used.
+	// This is so we can open a file handle to the tap device and pass it to the qemu process.
+	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/macvtap", nicName)) {
+		content, err := os.ReadFile(fmt.Sprintf("/sys/class/net/%s/ifindex", nicName))
+		if err != nil {
+			return nil, fmt.Errorf("Error getting tap device ifindex: %w", err)
 		}
+
+		ifindex, err := strconv.Atoi(strings.TrimSpace(string(content)))
+		if err != nil {
+			return nil, fmt.Errorf("Error parsing tap device ifindex: %w", err)
+		}
+
+		devFile := func() (*os.File, error) {
+			return os.OpenFile(fmt.Sprintf("/dev/tap%d", ifindex), os.O_RDWR, 0)
+		}
+
+		monHook = tapMonHook(devFile)
+	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/tun_flags", nicName)) {
+		// Detect TAP interface and use IOCTL TUNSETIFF on /dev/net/tun to get the file handle to it.
+		// This is so we can open a file handle to the tap device and pass it to the qemu process.
+		devFile := func() (*os.File, error) {
+			revert := revert.New()
+			defer revert.Fail()
+
+			f, err := os.OpenFile("/dev/net/tun", os.O_RDWR, 0)
+			if err != nil {
+				return nil, err
+			}
+
+			revert.Add(func() { _ = f.Close() })
+
+			ifr, err := unix.NewIfreq(nicName)
+			if err != nil {
+				return nil, fmt.Errorf("Error creating new ifreq for %q: %w", nicName, err)
+			}
+
+			// These settings need to match those set by the LXD device that created the interface.
+			ifr.SetUint16(unix.IFF_TAP | unix.IFF_NO_PI | unix.IFF_MULTI_QUEUE)
+
+			// Sets the file handle to point to the requested NIC interface.
+			err = unix.IoctlIfreq(int(f.Fd()), unix.TUNSETIFF, ifr)
+			if err != nil {
+				return nil, fmt.Errorf("Error getting TAP file handle for %q: %w", nicName, err)
+			}
+
+			revert.Success()
+			return f, nil
+		}
+
+		monHook = tapMonHook(devFile)
 	} else if shared.PathExists(vhostVDPAPath) {
 		monHook = func(m *qmp.Monitor) error {
 			reverter := revert.New()
