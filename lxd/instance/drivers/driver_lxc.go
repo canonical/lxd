@@ -937,7 +937,7 @@ func (d *lxc) initLXC(config bool) error {
 	}
 
 	// Setup devlxd
-	if d.expandedConfig["security.devlxd"] == "" || shared.IsTrue(d.expandedConfig["security.devlxd"]) {
+	if shared.IsTrueOrEmpty(d.expandedConfig["security.devlxd"]) {
 		err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s dev/lxd none bind,create=dir 0 0", shared.VarPath("devlxd")))
 		if err != nil {
 			return err
@@ -1116,7 +1116,7 @@ func (d *lxc) initLXC(config bool) error {
 					return err
 				}
 			} else {
-				if d.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) && (memorySwap == "" || shared.IsTrue(memorySwap)) {
+				if d.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) && shared.IsTrueOrEmpty(memorySwap) {
 					err = cg.SetMemoryLimit(valueInt)
 					if err != nil {
 						return err
@@ -4306,7 +4306,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 					return err
 				}
 			} else if key == "security.devlxd" {
-				if value == "" || shared.IsTrue(value) {
+				if shared.IsTrueOrEmpty(value) {
 					err = d.insertMount(shared.VarPath("devlxd"), "/dev/lxd", "none", unix.MS_BIND, idmap.IdmapStorageNone)
 					if err != nil {
 						return err
@@ -4461,7 +4461,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 						return err
 					}
 				} else {
-					if d.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) && (memorySwap == "" || shared.IsTrue(memorySwap)) {
+					if d.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) && shared.IsTrueOrEmpty(memorySwap) {
 						err = cg.SetMemoryLimit(memoryInt)
 						if err != nil {
 							revertMemory()

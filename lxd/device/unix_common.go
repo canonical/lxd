@@ -35,11 +35,7 @@ type unixCommon struct {
 // isRequired indicates whether the device config requires this device to start OK.
 func (d *unixCommon) isRequired() bool {
 	// Defaults to required.
-	if d.config["required"] == "" || shared.IsTrue(d.config["required"]) {
-		return true
-	}
-
-	return false
+	return shared.IsTrueOrEmpty(d.config["required"])
 }
 
 // validateConfig checks the supplied config for correctness.
