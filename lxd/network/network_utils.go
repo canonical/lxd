@@ -878,7 +878,7 @@ func usesIPv4Firewall(netConfig map[string]string) bool {
 		return false
 	}
 
-	if netConfig["ipv4.firewall"] == "" || shared.IsTrue(netConfig["ipv4.firewall"]) {
+	if shared.IsTrueOrEmpty(netConfig["ipv4.firewall"]) {
 		return true
 	}
 
@@ -895,7 +895,7 @@ func usesIPv6Firewall(netConfig map[string]string) bool {
 		return false
 	}
 
-	if netConfig["ipv6.firewall"] == "" || shared.IsTrue(netConfig["ipv6.firewall"]) {
+	if shared.IsTrueOrEmpty(netConfig["ipv6.firewall"]) {
 		return true
 	}
 
