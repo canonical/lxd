@@ -1570,6 +1570,10 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		return err
 	}
 
+	// Don't allow the monitor to trigger a disconnection shutdown event until cleanly started so that the
+	// onStop hook isn't triggered prematurely (as this function's reverter will clean up on failure to start).
+	monitor.SetOnDisconnectEvent(false)
+
 	// Get the list of PIDs from the VM.
 	pids, err := monitor.GetCPUs()
 	if err != nil {
@@ -1698,6 +1702,9 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStarted.Event(d, nil))
 	}
 
+	// The VM started cleanly so now enable the unexpected disconnection event to ensure the onStop hook is
+	// run if QMP unexpectedly disconnects.
+	monitor.SetOnDisconnectEvent(true)
 	op.Done(nil)
 	return nil
 }
