@@ -2254,7 +2254,7 @@ func (n *bridge) updateForkdnsServersFile(addresses []string) error {
 func (n *bridge) hasIPv4Firewall() bool {
 	// IPv4 firewall is only enabled if there is a bridge ipv4.address or fan mode, and ipv4.firewall enabled.
 	// When using fan bridge.mode, there can be an empty ipv4.address, so we assume it is active.
-	if (n.config["bridge.mode"] == "fan" || !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"})) && (n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"])) {
+	if (n.config["bridge.mode"] == "fan" || !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"})) && shared.IsTrueOrEmpty(n.config["ipv4.firewall"]) {
 		return true
 	}
 
@@ -2264,7 +2264,7 @@ func (n *bridge) hasIPv4Firewall() bool {
 // hasIPv6Firewall indicates whether the network has IPv6 firewall enabled.
 func (n *bridge) hasIPv6Firewall() bool {
 	// IPv6 firewall is only enabled if there is a bridge ipv6.address and ipv6.firewall enabled.
-	if !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) && (n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"])) {
+	if !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) && shared.IsTrueOrEmpty(n.config["ipv6.firewall"]) {
 		return true
 	}
 
@@ -2274,21 +2274,13 @@ func (n *bridge) hasIPv6Firewall() bool {
 // hasDHCPv4 indicates whether the network has DHCPv4 enabled.
 // An empty ipv4.dhcp setting indicates enabled by default.
 func (n *bridge) hasDHCPv4() bool {
-	if n.config["ipv4.dhcp"] == "" || shared.IsTrue(n.config["ipv4.dhcp"]) {
-		return true
-	}
-
-	return false
+	return shared.IsTrueOrEmpty(n.config["ipv4.dhcp"])
 }
 
 // hasDHCPv6 indicates whether the network has DHCPv6 enabled.
 // An empty ipv6.dhcp setting indicates enabled by default.
 func (n *bridge) hasDHCPv6() bool {
-	if n.config["ipv6.dhcp"] == "" || shared.IsTrue(n.config["ipv6.dhcp"]) {
-		return true
-	}
-
-	return false
+	return shared.IsTrueOrEmpty(n.config["ipv6.dhcp"])
 }
 
 // DHCPv4Subnet returns the DHCPv4 subnet (if DHCP is enabled on network).
