@@ -417,8 +417,9 @@ func instanceLoadNodeProjectAll(ctx context.Context, s *state.State, project str
 func autoCreateInstanceSnapshots(ctx context.Context, s *state.State, instances []instance.Instance) error {
 	// Make the snapshots.
 	for _, inst := range instances {
-		if ctx.Err() != nil {
-			return ctx.Err()
+		err := ctx.Err()
+		if err != nil {
+			return err
 		}
 
 		l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
@@ -450,12 +451,17 @@ var instSnapshotsPruneRunning = sync.Map{}
 func pruneExpiredInstanceSnapshots(ctx context.Context, s *state.State, snapshots []instance.Instance) error {
 	// Find snapshots to delete
 	for _, snapshot := range snapshots {
+		err := ctx.Err()
+		if err != nil {
+			return err
+		}
+
 		_, loaded := instSnapshotsPruneRunning.LoadOrStore(snapshot.ID(), struct{}{})
 		if loaded {
 			continue // Deletion of this snapshot is already running, skip.
 		}
 
-		err := snapshot.Delete(true)
+		err = snapshot.Delete(true)
 		instSnapshotsPruneRunning.Delete(snapshot.ID())
 		if err != nil {
 			return fmt.Errorf("Failed to delete expired instance snapshot %q in project %q: %w", snapshot.Name(), snapshot.Project().Name, err)
@@ -467,199 +473,175 @@ func pruneExpiredInstanceSnapshots(ctx context.Context, s *state.State, snapshot
 	return nil
 }
 
-func autoCreateAndPruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
+func pruneExpiredAndAutoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	// `f` creates new scheduled instance snapshots and then, prune the expired ones
 	f := func(ctx context.Context) {
 		s := d.State()
+		var instances, expiredSnapshotInstances []instance.Instance
 
-		var instanceArgs map[int]db.InstanceArgs
-		projects := make(map[string]*api.Project)
-
-		// Get eligible instances.
+		// Get list of expired instance snapshots for this local member.
 		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			// Get all projects.
-			allProjects, err := dbCluster.GetProjects(context.Background(), tx.Tx())
-			if err != nil {
-				return fmt.Errorf("Failed loading projects: %w", err)
-			}
-
-			dbInstances := []dbCluster.Instance{}
-
-			// Filter projects that aren't allowed to have snapshots.
-			for _, dbProject := range allProjects {
-				p, err := dbProject.ToAPI(context.Background(), tx.Tx())
-				if err != nil {
-					return err
-				}
-
-				err = project.AllowSnapshotCreation(p)
-				if err != nil {
-					continue
-				}
-
-				projects[p.Name] = p
-
-				// Get instances.
-				filter := dbCluster.InstanceFilter{Project: &p.Name}
-				entries, err := tx.GetLocalInstancesInProject(ctx, filter)
-				if err != nil {
-					return err
-				}
-
-				dbInstances = append(dbInstances, entries...)
-			}
-
-			instanceArgs, err = tx.InstancesToInstanceArgs(ctx, true, dbInstances...)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
-		if err != nil {
-			return
-		}
-
-		// Figure out which need snapshotting (if any).
-		instances := make([]instance.Instance, 0)
-		for _, instArg := range instanceArgs {
-			inst, err := instance.Load(s, instArg, *projects[instArg.Project])
-			if err != nil {
-				logger.Error("Failed loading instance for snapshot task", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
-				continue
-			}
-
-			schedule, ok := inst.ExpandedConfig()["snapshots.schedule"]
-			if !ok || schedule == "" {
-				continue
-			}
-
-			// Check if snapshot is scheduled.
-			if !snapshotIsScheduledNow(schedule, int64(inst.ID())) {
-				continue
-			}
-
-			// Check if the instance is running.
-			if shared.IsFalseOrEmpty(inst.ExpandedConfig()["snapshots.schedule.stopped"]) && !inst.IsRunning() {
-				continue
-			}
-
-			instances = append(instances, inst)
-		}
-
-		if len(instances) > 0 {
-			opRun := func(op *operations.Operation) error {
-				return autoCreateInstanceSnapshots(ctx, s, instances)
-			}
-
-			op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.SnapshotCreate, nil, nil, opRun, nil, nil, nil)
-			if err != nil {
-				logger.Error("Failed to start create snapshot operation", logger.Ctx{"err": err})
-				return
-			}
-
-			logger.Info("Creating scheduled instance snapshots")
-
-			err = op.Start()
-			if err != nil {
-				logger.Error("Failed creating scheduled instance snapshots", logger.Ctx{"err": err})
-			}
-
-			_, _ = op.Wait(ctx)
-			logger.Info("Done creating scheduled instance snapshots")
-		}
-
-		// Once the new instance snapshots have been created, prune the expired ones.
-		var expiredSnapshotInstances []instance.Instance
-
-		// Load local expired snapshots.
-		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			snapshots, err := tx.GetLocalExpiredInstanceSnapshots(ctx)
-			if err != nil {
-				return err
-			}
-
-			if len(snapshots) == 0 {
-				return nil
-			}
-
-			expiredSnapshots := make([]dbCluster.Instance, 0, len(snapshots))
-			instances := make(map[string]*dbCluster.Instance, 0)
-
-			for _, snapshot := range snapshots {
-				instanceKey := snapshot.Project + "/" + snapshot.Instance
-				instance, ok := instances[instanceKey]
-				if !ok {
-					instance, err = dbCluster.GetInstance(ctx, tx.Tx(), snapshot.Project, snapshot.Instance)
-					if err != nil {
-						return err
-					}
-
-					instances[instanceKey] = instance
-				}
-
-				expiredSnapshots = append(expiredSnapshots, snapshot.ToInstance(instance.Name, instance.Node, instance.Type, instance.Architecture))
-			}
-
-			snapshotArgs, err := tx.InstancesToInstanceArgs(ctx, true, expiredSnapshots...)
+			expiredSnaps, err := tx.GetLocalExpiredInstanceSnapshots(ctx)
 			if err != nil {
 				return fmt.Errorf("Failed loading expired instance snapshots: %w", err)
 			}
 
-			projects := make(map[string]*api.Project)
+			if len(expiredSnaps) > 0 {
+				expiredSnapshots := make([]dbCluster.Instance, 0, len(expiredSnaps))
+				parents := make(map[string]*dbCluster.Instance, 0)
 
-			expiredSnapshotInstances = make([]instance.Instance, 0)
-			for _, snapshotArg := range snapshotArgs {
-				// Load project if not already loaded.
-				p, found := projects[snapshotArg.Project]
-				if !found {
-					dbProject, err := dbCluster.GetProject(context.Background(), tx.Tx(), snapshotArg.Project)
-					if err != nil {
-						return err
+				// Enrich expired snapshot list with info from parent (opportunistically loading
+				// the parent info from the DB if not already loaded).
+				for _, snapshot := range expiredSnaps {
+					parentInstanceKey := snapshot.Project + "/" + snapshot.Instance
+					parent, ok := parents[parentInstanceKey]
+					if !ok {
+						parent, err = dbCluster.GetInstance(ctx, tx.Tx(), snapshot.Project, snapshot.Instance)
+						if err != nil {
+							return fmt.Errorf("Failed loading instance %q (project %q): %w", snapshot.Instance, snapshot.Project, err)
+						}
+
+						parents[parentInstanceKey] = parent
 					}
 
-					p, err = dbProject.ToAPI(ctx, tx.Tx())
-					if err != nil {
-						return err
-					}
+					expiredSnapshots = append(expiredSnapshots, snapshot.ToInstance(parent.Name, parent.Node, parent.Type, parent.Architecture))
 				}
 
-				inst, err := instance.Load(s, snapshotArg, *p)
+				// Load expired snapshot configs.
+				snapshotArgs, err := tx.InstancesToInstanceArgs(ctx, true, expiredSnapshots...)
 				if err != nil {
-					logger.Error("Failed loading instance for snapshot prune task", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
-					continue
+					return fmt.Errorf("Failed loading expired instance snapshots info: %w", err)
 				}
 
-				expiredSnapshotInstances = append(expiredSnapshotInstances, inst)
+				projects := make(map[string]*api.Project)
+
+				expiredSnapshotInstances = make([]instance.Instance, 0)
+				for _, snapshotArg := range snapshotArgs {
+					// Load project if not already loaded.
+					p, found := projects[snapshotArg.Project]
+					if !found {
+						dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), snapshotArg.Project)
+						if err != nil {
+							return fmt.Errorf("Failed loading project %q: %w", snapshotArg.Project, err)
+						}
+
+						p, err = dbProject.ToAPI(ctx, tx.Tx())
+						if err != nil {
+							return fmt.Errorf("Failed loading project %q config: %w", snapshotArg.Project, err)
+						}
+
+						projects[snapshotArg.Project] = p
+					}
+
+					inst, err := instance.Load(s, snapshotArg, *p)
+					if err != nil {
+						return fmt.Errorf("Failed loading instance snapshot %q (project %q) for prune task: %w", snapshotArg.Name, snapshotArg.Project, err)
+					}
+
+					logger.Debug("Scheduling instance snapshot expiry", logger.Ctx{"instance": inst.Name(), "project": inst.Project().Name})
+					expiredSnapshotInstances = append(expiredSnapshotInstances, inst)
+				}
 			}
 
 			return nil
 		})
 		if err != nil {
-			logger.Error("Failed getting expired instance snapshots", logger.Ctx{"err": err})
+			logger.Error("Failed getting instance snapshot expiry info", logger.Ctx{"err": err})
 			return
 		}
 
+		// Get list of instances on the local member that are due to have snaphots creating.
+		filter := dbCluster.InstanceFilter{Node: &s.ServerName}
+		err = s.DB.Cluster.InstanceList(ctx, func(dbInst db.InstanceArgs, p api.Project) error {
+			err = project.AllowSnapshotCreation(&p)
+			if err != nil {
+				return nil
+			}
+
+			inst, err := instance.Load(s, dbInst, p)
+			if err != nil {
+				return fmt.Errorf("Failed loading instance %q (project %q) for snapshot task: %w", dbInst.Name, dbInst.Project, err)
+			}
+
+			// Check if instance has snapshot schedule enabled.
+			schedule, ok := inst.ExpandedConfig()["snapshots.schedule"]
+			if !ok || schedule == "" {
+				return nil
+			}
+
+			// Check if snapshot is scheduled.
+			if !snapshotIsScheduledNow(schedule, int64(inst.ID())) {
+				return nil
+			}
+
+			// If snapshot should only be taken if instance is running, check if running.
+			if shared.IsFalseOrEmpty(inst.ExpandedConfig()["snapshots.schedule.stopped"]) && !inst.IsRunning() {
+				return nil
+			}
+
+			logger.Debug("Scheduling auto instance snapshot", logger.Ctx{"instance": inst.Name(), "project": inst.Project().Name})
+			instances = append(instances, inst)
+
+			return nil
+		}, filter)
+		if err != nil {
+			logger.Error("Failed getting instance snapshot schedule info", logger.Ctx{"err": err})
+			return
+		}
+
+		// Handle snapshot expiry first before creating new ones to reduce the chances of running out of
+		// disk space.
 		if len(expiredSnapshotInstances) > 0 {
 			opRun := func(op *operations.Operation) error {
-				return pruneExpiredInstanceSnapshots(ctx, s, expiredSnapshotInstances)
+				err := pruneExpiredInstanceSnapshots(ctx, s, expiredSnapshotInstances)
+				if err != nil {
+					logger.Error("Failed pruning instance snapshots", logger.Ctx{"err": err})
+				}
+
+				return err
 			}
 
 			op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.SnapshotsExpire, nil, nil, opRun, nil, nil, nil)
 			if err != nil {
-				logger.Error("Failed to start expired instance snapshots operation", logger.Ctx{"err": err})
-				return
+				logger.Error("Failed to create instance snapshots expiry operation", logger.Ctx{"err": err})
+			} else {
+				logger.Info("Pruning expired instance snapshots")
+
+				err = op.Start()
+				if err != nil {
+					logger.Error("Failed to start instance snapshots expiry operation", logger.Ctx{"err": err})
+				} else {
+					_, _ = op.Wait(ctx)
+					logger.Info("Done pruning expired instance snapshots")
+				}
+			}
+		}
+
+		// Handle snapshot auto creation.
+		if len(instances) > 0 {
+			opRun := func(op *operations.Operation) error {
+				err := autoCreateInstanceSnapshots(ctx, s, instances)
+				if err != nil {
+					logger.Error("Failed scheduled instance snapshots", logger.Ctx{"err": err})
+				}
+
+				return err
 			}
 
-			logger.Info("Pruning expired instance snapshots")
-
-			err = op.Start()
+			op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.SnapshotCreate, nil, nil, opRun, nil, nil, nil)
 			if err != nil {
-				logger.Error("Failed to remove expired instance snapshots", logger.Ctx{"err": err})
-			}
+				logger.Error("Failed to create auto instance snapshot operation", logger.Ctx{"err": err})
+			} else {
+				logger.Info("Creating scheduled instance snapshots")
 
-			_, _ = op.Wait(ctx)
-			logger.Info("Done pruning expired instance snapshots")
+				err = op.Start()
+				if err != nil {
+					logger.Error("Failed to start auto instance snapshot operation", logger.Ctx{"err": err})
+				} else {
+					_, _ = op.Wait(ctx)
+					logger.Info("Done creating scheduled instance snapshots")
+				}
+			}
 		}
 	}
 
