@@ -778,7 +778,11 @@ func (d *qemu) killQemuProcess(pid int) error {
 	// the parent of the process, and we have still sent the kill signal as per the function's description.
 	_, err = proc.Wait()
 	if err != nil {
-		d.logger.Warn("Failed to collect VM process exit status", logger.Ctx{"pid": pid})
+		if strings.Contains(err.Error(), "no child processes") {
+			return nil
+		}
+
+		d.logger.Warn("Failed to collect VM process exit status", logger.Ctx{"pid": pid, "err": err})
 	}
 
 	return nil
@@ -1566,6 +1570,10 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		return err
 	}
 
+	// Don't allow the monitor to trigger a disconnection shutdown event until cleanly started so that the
+	// onStop hook isn't triggered prematurely (as this function's reverter will clean up on failure to start).
+	monitor.SetOnDisconnectEvent(false)
+
 	// Get the list of PIDs from the VM.
 	pids, err := monitor.GetCPUs()
 	if err != nil {
@@ -1694,6 +1702,9 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStarted.Event(d, nil))
 	}
 
+	// The VM started cleanly so now enable the unexpected disconnection event to ensure the onStop hook is
+	// run if QMP unexpectedly disconnects.
+	monitor.SetOnDisconnectEvent(true)
 	op.Done(nil)
 	return nil
 }
