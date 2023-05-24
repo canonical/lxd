@@ -16,10 +16,16 @@ For example:
 
     lxc cluster group create gpu
 
-To assign a cluster member to a specific group, use the `lxc cluster group assign` command.
-For example:
+To assign a cluster member to one or more groups, use the `lxc cluster group assign` command.
+This command removes the specified cluster member from all the cluster groups it currently is a member of and then adds it to the specified group or groups.
+
+For example, to assign `server1` to only the `gpu` group, use the following command:
 
     lxc cluster group assign server1 gpu
+
+To assign `server1` to the `gpu` group and also keep it in the `default` group, use the following command:
+
+    lxc cluster group assign server1 default,gpu
 
 ## Launch an instance on a cluster group member
 
