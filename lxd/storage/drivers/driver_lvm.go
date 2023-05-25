@@ -163,10 +163,18 @@ func (d *lvm) Create() error {
 			return err
 		}
 
+		if pvExists {
+			return fmt.Errorf("A physical volume already exists for %q", pvName)
+		}
+
 		// Check if the volume group already exists.
 		vgExists, vgTags, err = d.volumeGroupExists(d.config["lvm.vg_name"])
 		if err != nil {
 			return err
+		}
+
+		if vgExists {
+			return fmt.Errorf("A volume group already exists called %q", d.config["lvm.vg_name"])
 		}
 	} else if filepath.IsAbs(d.config["source"]) {
 		// We are using an existing physical device.
