@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-05-17 13:11+0100\n"
+"POT-Creation-Date: 2023-05-25 14:42-0400\n"
 "PO-Revision-Date: 2022-03-10 15:08+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Punjabi <https://hosted.weblate.org/projects/linux-containers/"
@@ -1011,8 +1011,8 @@ msgstr ""
 #: lxc/network_load_balancer.go:493 lxc/network_load_balancer.go:636
 #: lxc/network_load_balancer.go:712 lxc/network_load_balancer.go:776
 #: lxc/network_load_balancer.go:877 lxc/network_load_balancer.go:939
-#: lxc/storage.go:100 lxc/storage.go:346 lxc/storage.go:407 lxc/storage.go:654
-#: lxc/storage.go:726 lxc/storage.go:809 lxc/storage_bucket.go:86
+#: lxc/storage.go:100 lxc/storage.go:346 lxc/storage.go:407 lxc/storage.go:658
+#: lxc/storage.go:730 lxc/storage.go:813 lxc/storage_bucket.go:86
 #: lxc/storage_bucket.go:186 lxc/storage_bucket.go:249
 #: lxc/storage_bucket.go:378 lxc/storage_bucket.go:523
 #: lxc/storage_bucket.go:599 lxc/storage_bucket.go:663
@@ -1367,7 +1367,7 @@ msgstr ""
 #: lxc/network_acl.go:149 lxc/network_forward.go:146
 #: lxc/network_load_balancer.go:149 lxc/network_peer.go:141
 #: lxc/network_zone.go:140 lxc/network_zone.go:704 lxc/operation.go:164
-#: lxc/profile.go:634 lxc/project.go:493 lxc/storage.go:631
+#: lxc/profile.go:634 lxc/project.go:493 lxc/storage.go:635
 #: lxc/storage_bucket.go:496 lxc/storage_bucket.go:791
 #: lxc/storage_volume.go:1467
 msgid "DESCRIPTION"
@@ -1377,7 +1377,7 @@ msgstr ""
 msgid "DISK USAGE"
 msgstr ""
 
-#: lxc/storage.go:624
+#: lxc/storage.go:628
 msgid "DRIVER"
 msgstr ""
 
@@ -1558,8 +1558,8 @@ msgstr ""
 #: lxc/remote.go:753 lxc/remote.go:825 lxc/remote.go:880 lxc/remote.go:918
 #: lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:34
 #: lxc/storage.go:97 lxc/storage.go:171 lxc/storage.go:221 lxc/storage.go:343
-#: lxc/storage.go:403 lxc/storage.go:571 lxc/storage.go:648 lxc/storage.go:722
-#: lxc/storage.go:806 lxc/storage_bucket.go:30 lxc/storage_bucket.go:84
+#: lxc/storage.go:403 lxc/storage.go:575 lxc/storage.go:652 lxc/storage.go:726
+#: lxc/storage.go:810 lxc/storage_bucket.go:30 lxc/storage_bucket.go:84
 #: lxc/storage_bucket.go:184 lxc/storage_bucket.go:245
 #: lxc/storage_bucket.go:376 lxc/storage_bucket.go:442
 #: lxc/storage_bucket.go:517 lxc/storage_bucket.go:594
@@ -2174,7 +2174,7 @@ msgstr ""
 #: lxc/network_forward.go:90 lxc/network_load_balancer.go:94
 #: lxc/network_peer.go:85 lxc/network_zone.go:89 lxc/network_zone.go:654
 #: lxc/operation.go:107 lxc/profile.go:593 lxc/project.go:400
-#: lxc/project.go:769 lxc/remote.go:669 lxc/storage.go:573
+#: lxc/project.go:769 lxc/remote.go:669 lxc/storage.go:577
 #: lxc/storage_bucket.go:443 lxc/storage_bucket.go:734
 #: lxc/storage_volume.go:1378 lxc/warning.go:94
 msgid "Format (csv|json|table|yaml|compact)"
@@ -2774,7 +2774,7 @@ msgstr ""
 msgid "List available networks"
 msgstr ""
 
-#: lxc/storage.go:570 lxc/storage.go:571
+#: lxc/storage.go:574 lxc/storage.go:575
 msgid "List available storage pools"
 msgstr ""
 
@@ -3412,7 +3412,7 @@ msgid "Missing peer name"
 msgstr ""
 
 #: lxc/storage.go:195 lxc/storage.go:265 lxc/storage.go:368 lxc/storage.go:429
-#: lxc/storage.go:677 lxc/storage.go:754 lxc/storage_bucket.go:108
+#: lxc/storage.go:681 lxc/storage.go:758 lxc/storage_bucket.go:108
 #: lxc/storage_bucket.go:208 lxc/storage_bucket.go:284
 #: lxc/storage_bucket.go:400 lxc/storage_bucket.go:466
 #: lxc/storage_bucket.go:545 lxc/storage_bucket.go:621
@@ -3554,7 +3554,7 @@ msgstr ""
 #: lxc/config_trust.go:410 lxc/config_trust.go:515 lxc/list.go:566
 #: lxc/network.go:964 lxc/network_acl.go:148 lxc/network_peer.go:140
 #: lxc/network_zone.go:139 lxc/network_zone.go:703 lxc/profile.go:633
-#: lxc/project.go:486 lxc/remote.go:730 lxc/storage.go:623
+#: lxc/project.go:486 lxc/remote.go:730 lxc/storage.go:627
 #: lxc/storage_bucket.go:495 lxc/storage_bucket.go:790
 #: lxc/storage_volume.go:1466
 msgid "NAME"
@@ -4407,7 +4407,7 @@ msgstr ""
 msgid "SNAPSHOTS"
 msgstr ""
 
-#: lxc/storage.go:628
+#: lxc/storage.go:632
 msgid "SOURCE"
 msgstr ""
 
@@ -4426,7 +4426,7 @@ msgid "SSH client disconnected %q"
 msgstr ""
 
 #: lxc/cluster.go:190 lxc/list.go:571 lxc/network.go:971
-#: lxc/network_peer.go:143 lxc/storage.go:633
+#: lxc/network_peer.go:143 lxc/storage.go:637
 msgid "STATE"
 msgstr ""
 
@@ -4656,11 +4656,11 @@ msgid ""
 "    lxc storage bucket set [<remote>:]<pool> <bucket> <key> <value>"
 msgstr ""
 
-#: lxc/storage.go:647
+#: lxc/storage.go:651
 msgid "Set storage pool configuration keys"
 msgstr ""
 
-#: lxc/storage.go:648
+#: lxc/storage.go:652
 msgid ""
 "Set storage pool configuration keys\n"
 "\n"
@@ -4810,7 +4810,7 @@ msgstr ""
 msgid "Show storage bucket key configurations"
 msgstr ""
 
-#: lxc/storage.go:721 lxc/storage.go:722
+#: lxc/storage.go:725 lxc/storage.go:726
 msgid "Show storage pool configurations and resources"
 msgstr ""
 
@@ -4838,7 +4838,7 @@ msgstr ""
 msgid "Show the resources available to the server"
 msgstr ""
 
-#: lxc/storage.go:725
+#: lxc/storage.go:729
 msgid "Show the resources available to the storage pool"
 msgstr ""
 
@@ -5309,7 +5309,7 @@ msgid "USAGE"
 msgstr ""
 
 #: lxc/network.go:970 lxc/network_acl.go:150 lxc/network_zone.go:141
-#: lxc/profile.go:635 lxc/project.go:494 lxc/storage.go:632
+#: lxc/profile.go:635 lxc/project.go:494 lxc/storage.go:636
 #: lxc/storage_volume.go:1469
 msgid "USED BY"
 msgstr ""
@@ -5440,7 +5440,7 @@ msgstr ""
 msgid "Unset storage bucket configuration keys"
 msgstr ""
 
-#: lxc/storage.go:805 lxc/storage.go:806
+#: lxc/storage.go:809 lxc/storage.go:810
 msgid "Unset storage pool configuration keys"
 msgstr ""
 
@@ -5601,7 +5601,7 @@ msgstr ""
 #: lxc/config_trust.go:348 lxc/config_trust.go:431 lxc/monitor.go:31
 #: lxc/network.go:893 lxc/network_acl.go:92 lxc/network_zone.go:83
 #: lxc/operation.go:102 lxc/profile.go:586 lxc/project.go:395
-#: lxc/storage.go:568 lxc/version.go:20 lxc/warning.go:69
+#: lxc/storage.go:572 lxc/version.go:20 lxc/warning.go:69
 msgid "[<remote>:]"
 msgstr ""
 
@@ -5957,7 +5957,7 @@ msgstr ""
 msgid "[<remote>:]<operation>"
 msgstr ""
 
-#: lxc/storage.go:168 lxc/storage.go:219 lxc/storage.go:401 lxc/storage.go:720
+#: lxc/storage.go:168 lxc/storage.go:219 lxc/storage.go:401 lxc/storage.go:724
 #: lxc/storage_bucket.go:438
 msgid "[<remote>:]<pool>"
 msgstr ""
@@ -5989,11 +5989,11 @@ msgstr ""
 msgid "[<remote>:]<pool> <driver> [key=value...]"
 msgstr ""
 
-#: lxc/storage.go:341 lxc/storage.go:804
+#: lxc/storage.go:341 lxc/storage.go:808
 msgid "[<remote>:]<pool> <key>"
 msgstr ""
 
-#: lxc/storage.go:646
+#: lxc/storage.go:650
 msgid "[<remote>:]<pool> <key> <value>"
 msgstr ""
 
