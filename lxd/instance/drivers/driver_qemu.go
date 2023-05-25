@@ -553,7 +553,7 @@ func (d *qemu) configVirtiofsdPaths() (string, string) {
 // pidWait waits for the QEMU process to exit. Does this in a way that doesn't require the LXD process to be a
 // parent of the QEMU process (in order to allow for LXD to be restarted after the VM was started).
 // Returns true if process stopped, false if timeout was exceeded.
-func (d *qemu) pidWait(timeout time.Duration, op *operationlock.InstanceOperation) bool {
+func (d *qemu) pidWait(timeout time.Duration) bool {
 	waitUntil := time.Now().Add(timeout)
 	for {
 		pid, _ := d.pid()
@@ -589,7 +589,7 @@ func (d *qemu) onStop(target string) error {
 	// Wait up to 5 minutes to allow for flushing any pending data to disk.
 	d.logger.Debug("Waiting for VM process to finish")
 	waitTimeout := time.Minute * 5
-	if d.pidWait(waitTimeout, op) {
+	if d.pidWait(waitTimeout) {
 		d.logger.Debug("VM process finished")
 	} else {
 		// Log a warning, but continue clean up as best we can.
@@ -4299,9 +4299,6 @@ func (d *qemu) Stop(stateful bool) error {
 
 	// Handle stateful stop.
 	if stateful {
-		// Keep resetting the timer for the next 10 minutes.
-		go d.pidWait(10*time.Minute, op)
-
 		// Dump the state.
 		err := d.saveState(monitor)
 		if err != nil {
