@@ -196,10 +196,12 @@ func (d *lvm) logicalVolumeExists(volDevPath string) (bool, error) {
 	return true, nil
 }
 
-// createDefaultThinPool creates the default thinpool as 100% the free size of the volume group.
+// createDefaultThinPool creates the default thinpool in the pool's volume group.
+// If thinpoolSizeBytes >0 will manually set the thinpool volume size. Otherwise it will use 100% of the free space
+// in the volume group.
 // If pool lvm.thinpool_metadata_size setting >0 will manually set metadata size for the thinpool, otherwise LVM
 // will pick an appropriate size.
-func (d *lvm) createDefaultThinPool(lvmVersion, thinPoolName string) error {
+func (d *lvm) createDefaultThinPool(lvmVersion, thinPoolName string, thinpoolSizeBytes int64) error {
 	isRecent, err := d.lvmVersionIsAtLeast(lvmVersion, "2.02.99")
 	if err != nil {
 		return fmt.Errorf("Error checking LVM version: %w", err)
@@ -222,7 +224,9 @@ func (d *lvm) createDefaultThinPool(lvmVersion, thinPoolName string) error {
 		args = append(args, "--poolmetadatasize", fmt.Sprintf("%db", thinpoolMetadataSizeBytes))
 	}
 
-	if isRecent {
+	if thinpoolSizeBytes > 0 {
+		args = append(args, "--size", fmt.Sprintf("%db", thinpoolSizeBytes))
+	} else if isRecent {
 		args = append(args, "--extents", "100%FREE")
 	} else {
 		args = append(args, "--size", "1G")
@@ -249,7 +253,7 @@ func (d *lvm) createDefaultThinPool(lvmVersion, thinPoolName string) error {
 		return fmt.Errorf("Error creating LVM thin pool named %q: %w", thinPoolName, err)
 	}
 
-	if !isRecent {
+	if !isRecent && thinpoolSizeBytes <= 0 {
 		// Grow it to the maximum VG size (two step process required by old LVM).
 		_, err = shared.TryRunCommand("lvextend", "--alloc", "anywhere", "-l", "100%FREE", lvmThinPool)
 		if err != nil {
