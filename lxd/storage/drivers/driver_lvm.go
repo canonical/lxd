@@ -328,7 +328,7 @@ func (d *lvm) Create() error {
 
 	// Create thin pool if needed.
 	if d.usesThinpool() && !thinPoolExists {
-		err = d.createDefaultThinPool(d.Info().Version, d.config["lvm.vg_name"], d.thinpoolName(), d.config["lvm.thinpool_metadata_size"])
+		err = d.createDefaultThinPool(d.Info().Version, d.thinpoolName())
 		if err != nil {
 			return err
 		}
