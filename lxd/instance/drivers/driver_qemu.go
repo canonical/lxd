@@ -629,6 +629,8 @@ func (d *qemu) onStop(target string) error {
 	// Log and emit lifecycle if not user triggered.
 	if op.GetInstanceInitiated() {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(d, nil))
+	} else {
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(d, nil))
 	}
 
 	// Reboot the instance.
@@ -697,6 +699,10 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 		return err
 	}
 
+	// Indicate to the onStop hook that if the VM stops it was due to a clean shutdown because the VM responded
+	// to the powerdown request.
+	op.SetInstanceInitiated(true)
+
 	// Send the system_powerdown command.
 	err = monitor.Powerdown()
 	if err != nil {
@@ -727,9 +733,6 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 		}
 
 		return errPrefix
-	} else if op.Action() == "stop" {
-		// If instance stopped, send lifecycle event (even if there has been an error cleaning up).
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(d, nil))
 	}
 
 	// Now handle errors from shutdown sequence and return to caller if wasn't completed cleanly.
@@ -4342,9 +4345,6 @@ func (d *qemu) Stop(stateful bool) error {
 		}
 
 		return errPrefix
-	} else if op.Action() == "stop" {
-		// If instance stopped, send lifecycle event (even if there has been an error cleaning up).
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(d, nil))
 	}
 
 	// Now handle errors from stop sequence and return to caller if wasn't completed cleanly.
