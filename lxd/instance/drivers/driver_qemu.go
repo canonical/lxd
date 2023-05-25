@@ -553,7 +553,7 @@ func (d *qemu) configVirtiofsdPaths() (string, string) {
 // pidWait waits for the QEMU process to exit. Does this in a way that doesn't require the LXD process to be a
 // parent of the QEMU process (in order to allow for LXD to be restarted after the VM was started).
 // Returns true if process stopped, false if timeout was exceeded.
-func (d *qemu) pidWait(timeout time.Duration, op *operationlock.InstanceOperation) bool {
+func (d *qemu) pidWait(timeout time.Duration) bool {
 	waitUntil := time.Now().Add(timeout)
 	for {
 		pid, _ := d.pid()
@@ -589,7 +589,7 @@ func (d *qemu) onStop(target string) error {
 	// Wait up to 5 minutes to allow for flushing any pending data to disk.
 	d.logger.Debug("Waiting for VM process to finish")
 	waitTimeout := time.Minute * 5
-	if d.pidWait(waitTimeout, op) {
+	if d.pidWait(waitTimeout) {
 		d.logger.Debug("VM process finished")
 	} else {
 		// Log a warning, but continue clean up as best we can.
@@ -629,6 +629,8 @@ func (d *qemu) onStop(target string) error {
 	// Log and emit lifecycle if not user triggered.
 	if op.GetInstanceInitiated() {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(d, nil))
+	} else {
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(d, nil))
 	}
 
 	// Reboot the instance.
@@ -697,6 +699,10 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 		return err
 	}
 
+	// Indicate to the onStop hook that if the VM stops it was due to a clean shutdown because the VM responded
+	// to the powerdown request.
+	op.SetInstanceInitiated(true)
+
 	// Send the system_powerdown command.
 	err = monitor.Powerdown()
 	if err != nil {
@@ -727,9 +733,6 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 		}
 
 		return errPrefix
-	} else if op.Action() == "stop" {
-		// If instance stopped, send lifecycle event (even if there has been an error cleaning up).
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(d, nil))
 	}
 
 	// Now handle errors from shutdown sequence and return to caller if wasn't completed cleanly.
@@ -4214,8 +4217,7 @@ func (d *qemu) pid() (int, error) {
 	return pid, nil
 }
 
-// forceStop kills the QEMU prorcess if running, performs normal device & operation cleanup and sends stop
-// lifecycle event.
+// forceStop kills the QEMU prorcess if running.
 func (d *qemu) forceStop() error {
 	pid, _ := d.pid()
 	if pid > 0 {
@@ -4223,14 +4225,6 @@ func (d *qemu) forceStop() error {
 		if err != nil {
 			return fmt.Errorf("Failed to stop VM process %d: %w", pid, err)
 		}
-
-		// Wait for QEMU process to exit and perform device cleanup.
-		err = d.onStop("stop")
-		if err != nil {
-			return err
-		}
-
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(d, nil))
 	}
 
 	return nil
@@ -4271,36 +4265,33 @@ func (d *qemu) Stop(stateful bool) error {
 	// Connect to the monitor.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
+		d.logger.Warn("Failed connecting to monitor, forcing stop", logger.Ctx{"err": err})
+
 		// If we fail to connect, it's most likely because the VM is already off, but it could also be
 		// because the qemu process is not responding, check if process still exists and kill it if needed.
 		err = d.forceStop()
-		op.Done(err)
-		return err
-	}
-
-	// Get the wait channel.
-	chDisconnect, err := monitor.Wait()
-	if err != nil {
-		if err == qmp.ErrMonitorDisconnect {
-			// If we fail to wait, it's most likely because the VM is already off, but it could also be
-			// because the qemu process is not responding, check if process still exists and kill it if
-			// needed.
-			err = d.forceStop()
+		if err != nil {
 			op.Done(err)
 			return err
 		}
 
-		op.Done(err)
-		return err
+		// Wait for QEMU process to exit and perform device cleanup.
+		err = d.onStop("stop")
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(d, nil))
+
+		op.Done(nil)
+		return nil
 	}
 
 	// Handle stateful stop.
 	if stateful {
-		// Keep resetting the timer for the next 10 minutes.
-		go d.pidWait(10*time.Minute, op)
-
 		// Dump the state.
-		err := d.saveState(monitor)
+		err = d.saveState(monitor)
 		if err != nil {
 			op.Done(err)
 			return err
@@ -4314,20 +4305,45 @@ func (d *qemu) Stop(stateful bool) error {
 		}
 	}
 
-	// Send the quit command.
-	err = monitor.Quit()
+	// Get the wait channel.
+	chDisconnect, err := monitor.Wait()
 	if err != nil {
-		if err == qmp.ErrMonitorDisconnect {
-			op.Done(nil)
-			return nil
+		d.logger.Warn("Failed getting monitor disconnection channel, forcing stop", logger.Ctx{"err": err})
+		err = d.forceStop()
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+	} else {
+		// Request the VM stop immediately.
+		err = monitor.Quit()
+		if err != nil {
+			d.logger.Warn("Failed sending monitor quit command, forcing stop", logger.Ctx{"err": err})
+			err = d.forceStop()
+			if err != nil {
+				op.Done(err)
+				return err
+			}
 		}
 
-		op.Done(err)
-		return err
-	}
+		// Wait for QEMU to exit (can take a while if pending I/O).
+		// As this is a forceful stop of the VM we don't wait as long as during a clean shutdown because
+		// the QEMU process may be not responding correctly.
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+		defer cancel()
 
-	// Wait for QEMU to exit (can take a while if pending I/O).
-	<-chDisconnect
+		select {
+		case <-chDisconnect:
+		case <-ctx.Done():
+			d.logger.Warn("Timed out waiting for monitor to disconnect, forcing stop")
+
+			err = d.forceStop()
+			if err != nil {
+				op.Done(err)
+				return err
+			}
+		}
+	}
 
 	// Wait for operation lock to be Done. This is normally completed by onStop which picks up the same
 	// operation lock and then marks it as Done after the instance stops and the devices have been cleaned up.
@@ -4342,9 +4358,6 @@ func (d *qemu) Stop(stateful bool) error {
 		}
 
 		return errPrefix
-	} else if op.Action() == "stop" {
-		// If instance stopped, send lifecycle event (even if there has been an error cleaning up).
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(d, nil))
 	}
 
 	// Now handle errors from stop sequence and return to caller if wasn't completed cleanly.
