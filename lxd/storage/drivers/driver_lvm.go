@@ -180,8 +180,10 @@ func (d *lvm) Create() error {
 		// We are using an existing physical device.
 		srcPath := shared.HostPath(d.config["source"])
 
-		// Size is ignored as the physical device is a fixed size.
-		d.config["size"] = ""
+		// Size is invalid as the physical device is already sized.
+		if d.config["size"] != "" && !d.usesThinpool() {
+			return fmt.Errorf("Cannot specify size when using an existing physical device for non-thin pool")
+		}
 
 		if d.config["lvm.vg_name"] == "" {
 			d.config["lvm.vg_name"] = d.name
@@ -223,8 +225,10 @@ func (d *lvm) Create() error {
 		// We are using an existing volume group, so physical must exist already.
 		pvExists = true
 
-		// Size is ignored as the existing device is a fixed size.
-		d.config["size"] = ""
+		// Size is invalid as the volume group is already sized.
+		if d.config["size"] != "" && !d.usesThinpool() {
+			return fmt.Errorf("Cannot specify size when using an existing volume group for non-thin pool")
+		}
 
 		if d.config["lvm.vg_name"] != "" && d.config["lvm.vg_name"] != d.config["source"] {
 			return fmt.Errorf("Invalid combination of source and lvm.vg_name properties")
