@@ -327,17 +327,21 @@ func (d *lvm) Create() error {
 	}
 
 	// Create thin pool if needed.
-	if d.usesThinpool() && !thinPoolExists {
-		err = d.createDefaultThinPool(d.Info().Version, d.thinpoolName())
-		if err != nil {
-			return err
+	if d.usesThinpool() {
+		if !thinPoolExists {
+			err = d.createDefaultThinPool(d.Info().Version, d.thinpoolName())
+			if err != nil {
+				return err
+			}
+
+			d.logger.Debug("Thin pool created", logger.Ctx{"vg_name": d.config["lvm.vg_name"], "thinpool_name": d.thinpoolName()})
+
+			revert.Add(func() {
+				_ = d.removeLogicalVolume(d.lvmDevPath(d.config["lvm.vg_name"], "", "", d.thinpoolName()))
+			})
+		} else if d.config["size"] != "" {
+			return fmt.Errorf("Cannot specify size when using an existing thin pool")
 		}
-
-		d.logger.Debug("Thin pool created", logger.Ctx{"vg_name": d.config["lvm.vg_name"], "thinpool_name": d.thinpoolName()})
-
-		revert.Add(func() {
-			_ = d.removeLogicalVolume(d.lvmDevPath(d.config["lvm.vg_name"], "", "", d.thinpoolName()))
-		})
 	}
 
 	// Mark the volume group with the lvmVgPoolMarker tag to indicate it is now in use by LXD.
