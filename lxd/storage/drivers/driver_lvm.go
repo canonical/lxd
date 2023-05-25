@@ -115,7 +115,11 @@ func (d *lvm) Create() error {
 		d.config["lvm.thinpool_name"] = lvmThinpoolDefaultName
 	}
 
+	var usingLoopFile bool
+
 	if d.config["source"] == "" || d.config["source"] == defaultSource {
+		usingLoopFile = true
+
 		// We are using a LXD internal loopback file.
 		d.config["source"] = defaultSource
 		if d.config["lvm.vg_name"] == "" {
@@ -163,17 +167,27 @@ func (d *lvm) Create() error {
 			return err
 		}
 
+		if pvExists {
+			return fmt.Errorf("A physical volume already exists for %q", pvName)
+		}
+
 		// Check if the volume group already exists.
 		vgExists, vgTags, err = d.volumeGroupExists(d.config["lvm.vg_name"])
 		if err != nil {
 			return err
 		}
+
+		if vgExists {
+			return fmt.Errorf("A volume group already exists called %q", d.config["lvm.vg_name"])
+		}
 	} else if filepath.IsAbs(d.config["source"]) {
 		// We are using an existing physical device.
 		srcPath := shared.HostPath(d.config["source"])
 
-		// Size is ignored as the physical device is a fixed size.
-		d.config["size"] = ""
+		// Size is invalid as the physical device is already sized.
+		if d.config["size"] != "" && !d.usesThinpool() {
+			return fmt.Errorf("Cannot specify size when using an existing physical device for non-thin pool")
+		}
 
 		if d.config["lvm.vg_name"] == "" {
 			d.config["lvm.vg_name"] = d.name
@@ -215,8 +229,10 @@ func (d *lvm) Create() error {
 		// We are using an existing volume group, so physical must exist already.
 		pvExists = true
 
-		// Size is ignored as the existing device is a fixed size.
-		d.config["size"] = ""
+		// Size is invalid as the volume group is already sized.
+		if d.config["size"] != "" && !d.usesThinpool() {
+			return fmt.Errorf("Cannot specify size when using an existing volume group for non-thin pool")
+		}
 
 		if d.config["lvm.vg_name"] != "" && d.config["lvm.vg_name"] != d.config["source"] {
 			return fmt.Errorf("Invalid combination of source and lvm.vg_name properties")
@@ -315,17 +331,31 @@ func (d *lvm) Create() error {
 	}
 
 	// Create thin pool if needed.
-	if d.usesThinpool() && !thinPoolExists {
-		err = d.createDefaultThinPool(d.Info().Version, d.config["lvm.vg_name"], d.thinpoolName(), d.config["lvm.thinpool_metadata_size"])
-		if err != nil {
-			return err
+	if d.usesThinpool() {
+		if !thinPoolExists {
+			var thinpoolSizeBytes int64
+
+			// If not using loop file then the size setting controls the size of the thinpool volume.
+			if !usingLoopFile {
+				thinpoolSizeBytes, err = d.roundedSizeBytesString(d.config["size"])
+				if err != nil {
+					return fmt.Errorf("Invalid size: %w", err)
+				}
+			}
+
+			err = d.createDefaultThinPool(d.Info().Version, d.thinpoolName(), thinpoolSizeBytes)
+			if err != nil {
+				return err
+			}
+
+			d.logger.Debug("Thin pool created", logger.Ctx{"vg_name": d.config["lvm.vg_name"], "thinpool_name": d.thinpoolName()})
+
+			revert.Add(func() {
+				_ = d.removeLogicalVolume(d.lvmDevPath(d.config["lvm.vg_name"], "", "", d.thinpoolName()))
+			})
+		} else if d.config["size"] != "" {
+			return fmt.Errorf("Cannot specify size when using an existing thin pool")
 		}
-
-		d.logger.Debug("Thin pool created", logger.Ctx{"vg_name": d.config["lvm.vg_name"], "thinpool_name": d.thinpoolName()})
-
-		revert.Add(func() {
-			_ = d.removeLogicalVolume(d.lvmDevPath(d.config["lvm.vg_name"], "", "", d.thinpoolName()))
-		})
 	}
 
 	// Mark the volume group with the lvmVgPoolMarker tag to indicate it is now in use by LXD.
