@@ -115,7 +115,11 @@ func (d *lvm) Create() error {
 		d.config["lvm.thinpool_name"] = lvmThinpoolDefaultName
 	}
 
+	var usingLoopFile bool
+
 	if d.config["source"] == "" || d.config["source"] == defaultSource {
+		usingLoopFile = true
+
 		// We are using a LXD internal loopback file.
 		d.config["source"] = defaultSource
 		if d.config["lvm.vg_name"] == "" {
@@ -329,7 +333,17 @@ func (d *lvm) Create() error {
 	// Create thin pool if needed.
 	if d.usesThinpool() {
 		if !thinPoolExists {
-			err = d.createDefaultThinPool(d.Info().Version, d.thinpoolName())
+			var thinpoolSizeBytes int64
+
+			// If not using loop file then the size setting controls the size of the thinpool volume.
+			if !usingLoopFile {
+				thinpoolSizeBytes, err = d.roundedSizeBytesString(d.config["size"])
+				if err != nil {
+					return fmt.Errorf("Invalid size: %w", err)
+				}
+			}
+
+			err = d.createDefaultThinPool(d.Info().Version, d.thinpoolName(), thinpoolSizeBytes)
 			if err != nil {
 				return err
 			}
