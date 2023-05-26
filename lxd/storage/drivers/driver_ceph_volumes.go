@@ -1331,6 +1331,7 @@ func (d *ceph) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mi
 
 	// Handle simple rsync and block_and_rsync through generic.
 	if volSrcArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volSrcArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
+		// TODO this should take a temporary snapshot.
 		// Before doing a generic volume migration, we need to ensure volume (or snap volume parent) is
 		// activated to avoid issues activating the snapshot volume device.
 		parent, _, _ := api.GetParentAndSnapshotName(vol.Name())
