@@ -792,26 +792,25 @@ func OperationLockName(operationName string, poolName string, volType VolumeType
 	return fmt.Sprintf("%s/%s/%s/%s/%s", operationName, poolName, volType, contentType, volName)
 }
 
-// loopFileSizeDefault returns the size in Gigabytes to use as the default size for a pool loop file.
+// loopFileSizeDefault returns the size in GiB to use as the default size for a pool loop file.
 // This is based on the size of the filesystem of LXD's VarPath().
 func loopFileSizeDefault() (uint64, error) {
 	st := unix.Statfs_t{}
 	err := unix.Statfs(shared.VarPath(), &st)
 	if err != nil {
-		return 0, fmt.Errorf("Couldn't statfs %q: %w", shared.VarPath(), err)
+		return 0, fmt.Errorf("Failed getting free space of %q: %w", shared.VarPath(), err)
 	}
 
-	/* choose 5 GiB < x < 30GiB, where x is 20% of the disk size */
-	defaultSize := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
-	if defaultSize > 30 {
-		defaultSize = 30
+	gibAvailable := uint64(st.Frsize) * st.Bavail / (1024 * 1024 * 1024)
+	if gibAvailable > 30 {
+		return 30, nil // Default to no more than 30GiB.
+	} else if gibAvailable > 5 {
+		return gibAvailable / 5, nil // Use 20% of free space otherwise.
+	} else if gibAvailable == 5 {
+		return gibAvailable, nil // Need at least 5GiB free.
 	}
 
-	if defaultSize < 5 {
-		defaultSize = 5
-	}
-
-	return defaultSize, nil
+	return 0, fmt.Errorf("Insufficient free space to create default sized 5GiB pool")
 }
 
 // loopFileSetup sets up a loop device for the provided sourcePath.
