@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-05-25 14:42-0400\n"
+"POT-Creation-Date: 2023-05-26 08:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -93,6 +93,33 @@ msgid ""
 "### ephemeral: false\n"
 "###\n"
 "### Note that the name is shown but cannot be changed"
+msgstr ""
+
+#: lxc/deployment.go:438
+msgid ""
+"### This is a YAML representation of the deployment.\n"
+"### Any line starting with a '# will be ignored.\n"
+"###\n"
+"### A deployment a description and configuration items.\n"
+"###\n"
+"### An example would look like:\n"
+"### name: allow-all-inbound\n"
+"### description: test desc\n"
+"### egress: []\n"
+"### ingress:\n"
+"### - action: allow\n"
+"###   state: enabled\n"
+"###   protocol: \"\"\n"
+"###   source: \"\"\n"
+"###   source_port: \"\"\n"
+"###   destination: \"\"\n"
+"###   destination_port: \"\"\n"
+"###   icmp_type: \"\"\n"
+"###   icmp_code: \"\"\n"
+"### config:\n"
+"###  user.foo: bah\n"
+"###\n"
+"### Note that only the description and configuration keys can be changed."
 msgstr ""
 
 #: lxc/image.go:379
@@ -740,9 +767,10 @@ msgstr ""
 msgid "Bad device override syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 
-#: lxc/network.go:330 lxc/network_acl.go:369 lxc/network_forward.go:285
-#: lxc/network_load_balancer.go:287 lxc/network_peer.go:281
-#: lxc/network_zone.go:312 lxc/network_zone.go:871 lxc/storage_bucket.go:137
+#: lxc/deployment.go:314 lxc/network.go:330 lxc/network_acl.go:369
+#: lxc/network_forward.go:285 lxc/network_load_balancer.go:287
+#: lxc/network_peer.go:281 lxc/network_zone.go:312 lxc/network_zone.go:871
+#: lxc/storage_bucket.go:137
 #, c-format
 msgid "Bad key/value pair: %s"
 msgstr ""
@@ -1077,12 +1105,13 @@ msgstr ""
 
 #: lxc/cluster.go:732 lxc/cluster_group.go:327 lxc/config.go:263
 #: lxc/config.go:338 lxc/config_metadata.go:147 lxc/config_trust.go:315
-#: lxc/image.go:457 lxc/network.go:683 lxc/network_acl.go:582
-#: lxc/network_forward.go:597 lxc/network_load_balancer.go:600
-#: lxc/network_peer.go:573 lxc/network_zone.go:513 lxc/network_zone.go:1067
-#: lxc/profile.go:508 lxc/project.go:316 lxc/storage.go:311
-#: lxc/storage_bucket.go:344 lxc/storage_bucket.go:1056
-#: lxc/storage_volume.go:985 lxc/storage_volume.go:1017
+#: lxc/deployment.go:528 lxc/image.go:457 lxc/network.go:683
+#: lxc/network_acl.go:582 lxc/network_forward.go:597
+#: lxc/network_load_balancer.go:600 lxc/network_peer.go:573
+#: lxc/network_zone.go:513 lxc/network_zone.go:1067 lxc/profile.go:508
+#: lxc/project.go:316 lxc/storage.go:311 lxc/storage_bucket.go:344
+#: lxc/storage_bucket.go:1056 lxc/storage_volume.go:985
+#: lxc/storage_volume.go:1017
 #, c-format
 msgid "Config parsing error: %s"
 msgstr ""
@@ -1296,6 +1325,10 @@ msgstr ""
 msgid "Create new network ACLs"
 msgstr ""
 
+#: lxc/deployment.go:258 lxc/deployment.go:259
+msgid "Create new network deployments"
+msgstr ""
+
 #: lxc/network_forward.go:231 lxc/network_forward.go:232
 msgid "Create new network forwards"
 msgstr ""
@@ -1359,8 +1392,8 @@ msgstr ""
 msgid "DEFAULT TARGET ADDRESS"
 msgstr ""
 
-#: lxc/cluster.go:189 lxc/cluster_group.go:423 lxc/image.go:1059
-#: lxc/image_alias.go:238 lxc/list.go:558 lxc/network.go:969
+#: lxc/cluster.go:189 lxc/cluster_group.go:423 lxc/deployment.go:140
+#: lxc/image.go:1059 lxc/image_alias.go:238 lxc/list.go:558 lxc/network.go:969
 #: lxc/network_acl.go:149 lxc/network_forward.go:146
 #: lxc/network_load_balancer.go:149 lxc/network_peer.go:141
 #: lxc/network_zone.go:140 lxc/network_zone.go:704 lxc/operation.go:164
@@ -1430,6 +1463,10 @@ msgstr ""
 msgid "Delete network ACLs"
 msgstr ""
 
+#: lxc/deployment.go:609 lxc/deployment.go:610
+msgid "Delete network deployments"
+msgstr ""
+
 #: lxc/network_forward.go:629 lxc/network_forward.go:630
 msgid "Delete network forwards"
 msgstr ""
@@ -1478,6 +1515,16 @@ msgstr ""
 msgid "Delete warning"
 msgstr ""
 
+#: lxc/deployment.go:642
+#, c-format
+msgid "Deployment %s deleted"
+msgstr ""
+
+#: lxc/deployment.go:593
+#, c-format
+msgid "Deployment %s renamed to %s"
+msgstr ""
+
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:71 lxc/action.go:92
 #: lxc/alias.go:22 lxc/alias.go:57 lxc/alias.go:103 lxc/alias.go:148
 #: lxc/alias.go:199 lxc/cluster.go:30 lxc/cluster.go:123 lxc/cluster.go:207
@@ -1501,63 +1548,66 @@ msgstr ""
 #: lxc/config_trust.go:88 lxc/config_trust.go:237 lxc/config_trust.go:351
 #: lxc/config_trust.go:433 lxc/config_trust.go:535 lxc/config_trust.go:581
 #: lxc/config_trust.go:652 lxc/console.go:36 lxc/copy.go:41 lxc/delete.go:31
-#: lxc/exec.go:41 lxc/export.go:32 lxc/file.go:79 lxc/file.go:119
-#: lxc/file.go:168 lxc/file.go:238 lxc/file.go:460 lxc/file.go:968
-#: lxc/image.go:38 lxc/image.go:146 lxc/image.go:313 lxc/image.go:364
-#: lxc/image.go:491 lxc/image.go:652 lxc/image.go:885 lxc/image.go:1020
-#: lxc/image.go:1339 lxc/image.go:1419 lxc/image.go:1478 lxc/image.go:1530
-#: lxc/image.go:1586 lxc/image_alias.go:25 lxc/image_alias.go:61
-#: lxc/image_alias.go:108 lxc/image_alias.go:153 lxc/image_alias.go:256
-#: lxc/import.go:29 lxc/info.go:34 lxc/init.go:41 lxc/launch.go:25
-#: lxc/list.go:50 lxc/main.go:79 lxc/manpage.go:22 lxc/monitor.go:33
-#: lxc/move.go:37 lxc/network.go:33 lxc/network.go:132 lxc/network.go:217
-#: lxc/network.go:290 lxc/network.go:369 lxc/network.go:419 lxc/network.go:504
-#: lxc/network.go:589 lxc/network.go:715 lxc/network.go:773 lxc/network.go:896
-#: lxc/network.go:989 lxc/network.go:1060 lxc/network.go:1110
-#: lxc/network.go:1180 lxc/network.go:1242 lxc/network_acl.go:30
-#: lxc/network_acl.go:95 lxc/network_acl.go:166 lxc/network_acl.go:219
-#: lxc/network_acl.go:265 lxc/network_acl.go:314 lxc/network_acl.go:397
-#: lxc/network_acl.go:457 lxc/network_acl.go:484 lxc/network_acl.go:615
-#: lxc/network_acl.go:664 lxc/network_acl.go:713 lxc/network_acl.go:728
-#: lxc/network_acl.go:849 lxc/network_forward.go:30 lxc/network_forward.go:87
-#: lxc/network_forward.go:168 lxc/network_forward.go:232
-#: lxc/network_forward.go:328 lxc/network_forward.go:383
-#: lxc/network_forward.go:461 lxc/network_forward.go:488
-#: lxc/network_forward.go:630 lxc/network_forward.go:692
-#: lxc/network_forward.go:707 lxc/network_forward.go:772
-#: lxc/network_load_balancer.go:30 lxc/network_load_balancer.go:91
-#: lxc/network_load_balancer.go:170 lxc/network_load_balancer.go:234
-#: lxc/network_load_balancer.go:330 lxc/network_load_balancer.go:385
-#: lxc/network_load_balancer.go:463 lxc/network_load_balancer.go:490
-#: lxc/network_load_balancer.go:633 lxc/network_load_balancer.go:694
-#: lxc/network_load_balancer.go:709 lxc/network_load_balancer.go:773
-#: lxc/network_load_balancer.go:859 lxc/network_load_balancer.go:874
-#: lxc/network_load_balancer.go:935 lxc/network_peer.go:29
-#: lxc/network_peer.go:82 lxc/network_peer.go:159 lxc/network_peer.go:216
-#: lxc/network_peer.go:330 lxc/network_peer.go:385 lxc/network_peer.go:454
-#: lxc/network_peer.go:481 lxc/network_peer.go:606 lxc/network_zone.go:29
-#: lxc/network_zone.go:86 lxc/network_zone.go:157 lxc/network_zone.go:210
-#: lxc/network_zone.go:259 lxc/network_zone.go:340 lxc/network_zone.go:400
-#: lxc/network_zone.go:427 lxc/network_zone.go:546 lxc/network_zone.go:594
-#: lxc/network_zone.go:651 lxc/network_zone.go:721 lxc/network_zone.go:771
-#: lxc/network_zone.go:819 lxc/network_zone.go:899 lxc/network_zone.go:955
-#: lxc/network_zone.go:982 lxc/network_zone.go:1100 lxc/network_zone.go:1149
-#: lxc/network_zone.go:1164 lxc/network_zone.go:1210 lxc/operation.go:24
-#: lxc/operation.go:56 lxc/operation.go:105 lxc/operation.go:185
-#: lxc/profile.go:29 lxc/profile.go:104 lxc/profile.go:167 lxc/profile.go:249
-#: lxc/profile.go:310 lxc/profile.go:364 lxc/profile.go:414 lxc/profile.go:540
-#: lxc/profile.go:589 lxc/profile.go:650 lxc/profile.go:726 lxc/profile.go:776
-#: lxc/profile.go:835 lxc/profile.go:889 lxc/project.go:30 lxc/project.go:94
-#: lxc/project.go:159 lxc/project.go:222 lxc/project.go:348 lxc/project.go:398
-#: lxc/project.go:511 lxc/project.go:566 lxc/project.go:626 lxc/project.go:655
-#: lxc/project.go:708 lxc/project.go:767 lxc/publish.go:33 lxc/query.go:34
-#: lxc/remote.go:34 lxc/remote.go:89 lxc/remote.go:629 lxc/remote.go:665
-#: lxc/remote.go:753 lxc/remote.go:825 lxc/remote.go:880 lxc/remote.go:918
-#: lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:34
-#: lxc/storage.go:97 lxc/storage.go:171 lxc/storage.go:221 lxc/storage.go:343
-#: lxc/storage.go:403 lxc/storage.go:575 lxc/storage.go:652 lxc/storage.go:726
-#: lxc/storage.go:810 lxc/storage_bucket.go:30 lxc/storage_bucket.go:84
-#: lxc/storage_bucket.go:184 lxc/storage_bucket.go:245
+#: lxc/deployment.go:29 lxc/deployment.go:86 lxc/deployment.go:157
+#: lxc/deployment.go:210 lxc/deployment.go:259 lxc/deployment.go:342
+#: lxc/deployment.go:402 lxc/deployment.go:429 lxc/deployment.go:561
+#: lxc/deployment.go:610 lxc/exec.go:41 lxc/export.go:32 lxc/file.go:79
+#: lxc/file.go:119 lxc/file.go:168 lxc/file.go:238 lxc/file.go:460
+#: lxc/file.go:968 lxc/image.go:38 lxc/image.go:146 lxc/image.go:313
+#: lxc/image.go:364 lxc/image.go:491 lxc/image.go:652 lxc/image.go:885
+#: lxc/image.go:1020 lxc/image.go:1339 lxc/image.go:1419 lxc/image.go:1478
+#: lxc/image.go:1530 lxc/image.go:1586 lxc/image_alias.go:25
+#: lxc/image_alias.go:61 lxc/image_alias.go:108 lxc/image_alias.go:153
+#: lxc/image_alias.go:256 lxc/import.go:29 lxc/info.go:34 lxc/init.go:41
+#: lxc/launch.go:25 lxc/list.go:50 lxc/main.go:79 lxc/manpage.go:22
+#: lxc/monitor.go:33 lxc/move.go:37 lxc/network.go:33 lxc/network.go:132
+#: lxc/network.go:217 lxc/network.go:290 lxc/network.go:369 lxc/network.go:419
+#: lxc/network.go:504 lxc/network.go:589 lxc/network.go:715 lxc/network.go:773
+#: lxc/network.go:896 lxc/network.go:989 lxc/network.go:1060
+#: lxc/network.go:1110 lxc/network.go:1180 lxc/network.go:1242
+#: lxc/network_acl.go:30 lxc/network_acl.go:95 lxc/network_acl.go:166
+#: lxc/network_acl.go:219 lxc/network_acl.go:265 lxc/network_acl.go:314
+#: lxc/network_acl.go:397 lxc/network_acl.go:457 lxc/network_acl.go:484
+#: lxc/network_acl.go:615 lxc/network_acl.go:664 lxc/network_acl.go:713
+#: lxc/network_acl.go:728 lxc/network_acl.go:849 lxc/network_forward.go:30
+#: lxc/network_forward.go:87 lxc/network_forward.go:168
+#: lxc/network_forward.go:232 lxc/network_forward.go:328
+#: lxc/network_forward.go:383 lxc/network_forward.go:461
+#: lxc/network_forward.go:488 lxc/network_forward.go:630
+#: lxc/network_forward.go:692 lxc/network_forward.go:707
+#: lxc/network_forward.go:772 lxc/network_load_balancer.go:30
+#: lxc/network_load_balancer.go:91 lxc/network_load_balancer.go:170
+#: lxc/network_load_balancer.go:234 lxc/network_load_balancer.go:330
+#: lxc/network_load_balancer.go:385 lxc/network_load_balancer.go:463
+#: lxc/network_load_balancer.go:490 lxc/network_load_balancer.go:633
+#: lxc/network_load_balancer.go:694 lxc/network_load_balancer.go:709
+#: lxc/network_load_balancer.go:773 lxc/network_load_balancer.go:859
+#: lxc/network_load_balancer.go:874 lxc/network_load_balancer.go:935
+#: lxc/network_peer.go:29 lxc/network_peer.go:82 lxc/network_peer.go:159
+#: lxc/network_peer.go:216 lxc/network_peer.go:330 lxc/network_peer.go:385
+#: lxc/network_peer.go:454 lxc/network_peer.go:481 lxc/network_peer.go:606
+#: lxc/network_zone.go:29 lxc/network_zone.go:86 lxc/network_zone.go:157
+#: lxc/network_zone.go:210 lxc/network_zone.go:259 lxc/network_zone.go:340
+#: lxc/network_zone.go:400 lxc/network_zone.go:427 lxc/network_zone.go:546
+#: lxc/network_zone.go:594 lxc/network_zone.go:651 lxc/network_zone.go:721
+#: lxc/network_zone.go:771 lxc/network_zone.go:819 lxc/network_zone.go:899
+#: lxc/network_zone.go:955 lxc/network_zone.go:982 lxc/network_zone.go:1100
+#: lxc/network_zone.go:1149 lxc/network_zone.go:1164 lxc/network_zone.go:1210
+#: lxc/operation.go:24 lxc/operation.go:56 lxc/operation.go:105
+#: lxc/operation.go:185 lxc/profile.go:29 lxc/profile.go:104 lxc/profile.go:167
+#: lxc/profile.go:249 lxc/profile.go:310 lxc/profile.go:364 lxc/profile.go:414
+#: lxc/profile.go:540 lxc/profile.go:589 lxc/profile.go:650 lxc/profile.go:726
+#: lxc/profile.go:776 lxc/profile.go:835 lxc/profile.go:889 lxc/project.go:30
+#: lxc/project.go:94 lxc/project.go:159 lxc/project.go:222 lxc/project.go:348
+#: lxc/project.go:398 lxc/project.go:511 lxc/project.go:566 lxc/project.go:626
+#: lxc/project.go:655 lxc/project.go:708 lxc/project.go:767 lxc/publish.go:33
+#: lxc/query.go:34 lxc/remote.go:34 lxc/remote.go:89 lxc/remote.go:629
+#: lxc/remote.go:665 lxc/remote.go:753 lxc/remote.go:825 lxc/remote.go:880
+#: lxc/remote.go:918 lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:28
+#: lxc/storage.go:34 lxc/storage.go:97 lxc/storage.go:171 lxc/storage.go:221
+#: lxc/storage.go:343 lxc/storage.go:403 lxc/storage.go:575 lxc/storage.go:652
+#: lxc/storage.go:726 lxc/storage.go:810 lxc/storage_bucket.go:30
+#: lxc/storage_bucket.go:84 lxc/storage_bucket.go:184 lxc/storage_bucket.go:245
 #: lxc/storage_bucket.go:376 lxc/storage_bucket.go:442
 #: lxc/storage_bucket.go:517 lxc/storage_bucket.go:594
 #: lxc/storage_bucket.go:661 lxc/storage_bucket.go:692
@@ -1740,6 +1790,10 @@ msgstr ""
 
 #: lxc/cluster.go:650 lxc/cluster.go:651
 msgid "Edit cluster member configurations as YAML"
+msgstr ""
+
+#: lxc/deployment.go:428 lxc/deployment.go:429
+msgid "Edit deployment configurations as YAML"
 msgstr ""
 
 #: lxc/file.go:167 lxc/file.go:168
@@ -2102,8 +2156,8 @@ msgstr ""
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr ""
 
-#: lxc/network.go:927 lxc/network_acl.go:125 lxc/network_zone.go:116
-#: lxc/operation.go:134
+#: lxc/deployment.go:116 lxc/network.go:927 lxc/network_acl.go:125
+#: lxc/network_zone.go:116 lxc/operation.go:134
 msgid "Filtering isn't supported yet"
 msgstr ""
 
@@ -2166,13 +2220,13 @@ msgstr ""
 
 #: lxc/alias.go:105 lxc/cluster.go:125 lxc/cluster.go:843
 #: lxc/cluster_group.go:370 lxc/config_template.go:243 lxc/config_trust.go:353
-#: lxc/config_trust.go:435 lxc/image.go:1046 lxc/image_alias.go:158
-#: lxc/list.go:134 lxc/network.go:900 lxc/network.go:991 lxc/network_acl.go:98
-#: lxc/network_forward.go:90 lxc/network_load_balancer.go:94
-#: lxc/network_peer.go:85 lxc/network_zone.go:89 lxc/network_zone.go:654
-#: lxc/operation.go:107 lxc/profile.go:593 lxc/project.go:400
-#: lxc/project.go:769 lxc/remote.go:669 lxc/storage.go:577
-#: lxc/storage_bucket.go:443 lxc/storage_bucket.go:734
+#: lxc/config_trust.go:435 lxc/deployment.go:89 lxc/image.go:1046
+#: lxc/image_alias.go:158 lxc/list.go:134 lxc/network.go:900 lxc/network.go:991
+#: lxc/network_acl.go:98 lxc/network_forward.go:90
+#: lxc/network_load_balancer.go:94 lxc/network_peer.go:85
+#: lxc/network_zone.go:89 lxc/network_zone.go:654 lxc/operation.go:107
+#: lxc/profile.go:593 lxc/project.go:400 lxc/project.go:769 lxc/remote.go:669
+#: lxc/storage.go:577 lxc/storage_bucket.go:443 lxc/storage_bucket.go:734
 #: lxc/storage_volume.go:1378 lxc/warning.go:94
 msgid "Format (csv|json|table|yaml|compact)"
 msgstr ""
@@ -2259,6 +2313,10 @@ msgstr ""
 
 #: lxc/network.go:714 lxc/network.go:715
 msgid "Get values for network configuration keys"
+msgstr ""
+
+#: lxc/deployment.go:209 lxc/deployment.go:210
+msgid "Get values for network deployment configuration keys"
 msgstr ""
 
 #: lxc/network_forward.go:327 lxc/network_forward.go:328
@@ -2392,7 +2450,7 @@ msgstr ""
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 
-#: lxc/main.go:383
+#: lxc/main.go:387
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -2609,7 +2667,7 @@ msgstr ""
 msgid "Invalid new snapshot name, parent volume must be the same as source"
 msgstr ""
 
-#: lxc/main.go:480
+#: lxc/main.go:484
 msgid "Invalid number of arguments"
 msgstr ""
 
@@ -2733,6 +2791,10 @@ msgstr ""
 
 #: lxc/warning.go:95
 msgid "List all warnings"
+msgstr ""
+
+#: lxc/deployment.go:85 lxc/deployment.go:86
+msgid "List available deployments"
 msgstr ""
 
 #: lxc/network_acl.go:95
@@ -3103,6 +3165,10 @@ msgstr ""
 msgid "Manage command aliases"
 msgstr ""
 
+#: lxc/deployment.go:28 lxc/deployment.go:29
+msgid "Manage deployments"
+msgstr ""
+
 #: lxc/config_device.go:23 lxc/config_device.go:24
 msgid "Manage devices"
 msgstr ""
@@ -3334,6 +3400,11 @@ msgstr ""
 msgid "Missing cluster member name"
 msgstr ""
 
+#: lxc/deployment.go:179 lxc/deployment.go:232 lxc/deployment.go:369
+#: lxc/deployment.go:480 lxc/deployment.go:583 lxc/deployment.go:632
+msgid "Missing deployment name"
+msgstr ""
+
 #: lxc/config_metadata.go:103 lxc/config_metadata.go:204
 #: lxc/config_template.go:92 lxc/config_template.go:135
 #: lxc/config_template.go:177 lxc/config_template.go:266
@@ -3370,6 +3441,10 @@ msgstr ""
 #: lxc/network_acl.go:637 lxc/network_acl.go:686 lxc/network_acl.go:806
 #: lxc/network_acl.go:873
 msgid "Missing network ACL name"
+msgstr ""
+
+#: lxc/deployment.go:282
+msgid "Missing network deployment name"
 msgstr ""
 
 #: lxc/network.go:156 lxc/network.go:241 lxc/network.go:393 lxc/network.go:443
@@ -3548,10 +3623,10 @@ msgid "Must supply instance name for: "
 msgstr ""
 
 #: lxc/cluster.go:184 lxc/cluster.go:926 lxc/cluster_group.go:422
-#: lxc/config_trust.go:410 lxc/config_trust.go:515 lxc/list.go:566
-#: lxc/network.go:964 lxc/network_acl.go:148 lxc/network_peer.go:140
-#: lxc/network_zone.go:139 lxc/network_zone.go:703 lxc/profile.go:633
-#: lxc/project.go:486 lxc/remote.go:730 lxc/storage.go:627
+#: lxc/config_trust.go:410 lxc/config_trust.go:515 lxc/deployment.go:139
+#: lxc/list.go:566 lxc/network.go:964 lxc/network_acl.go:148
+#: lxc/network_peer.go:140 lxc/network_zone.go:139 lxc/network_zone.go:703
+#: lxc/profile.go:633 lxc/project.go:486 lxc/remote.go:730 lxc/storage.go:627
 #: lxc/storage_bucket.go:495 lxc/storage_bucket.go:790
 #: lxc/storage_volume.go:1466
 msgid "NAME"
@@ -3659,6 +3734,11 @@ msgstr ""
 #: lxc/network_zone.go:578
 #, c-format
 msgid "Network Zone %s deleted"
+msgstr ""
+
+#: lxc/deployment.go:326
+#, c-format
+msgid "Network deployment %s created"
 msgstr ""
 
 #: lxc/network_forward.go:312
@@ -3891,7 +3971,7 @@ msgstr ""
 msgid "Partitions:"
 msgstr ""
 
-#: lxc/main.go:346
+#: lxc/main.go:350
 #, c-format
 msgid "Password for %s: "
 msgstr ""
@@ -3935,8 +4015,8 @@ msgstr ""
 
 #: lxc/cluster.go:733 lxc/cluster_group.go:328 lxc/config.go:264
 #: lxc/config.go:339 lxc/config_metadata.go:148 lxc/config_template.go:207
-#: lxc/config_trust.go:316 lxc/image.go:458 lxc/network.go:684
-#: lxc/network_acl.go:583 lxc/network_forward.go:598
+#: lxc/config_trust.go:316 lxc/deployment.go:529 lxc/image.go:458
+#: lxc/network.go:684 lxc/network_acl.go:583 lxc/network_forward.go:598
 #: lxc/network_load_balancer.go:601 lxc/network_peer.go:574
 #: lxc/network_zone.go:514 lxc/network_zone.go:1068 lxc/profile.go:509
 #: lxc/project.go:317 lxc/storage.go:312 lxc/storage_bucket.go:345
@@ -4274,6 +4354,10 @@ msgstr ""
 msgid "Rename aliases"
 msgstr ""
 
+#: lxc/deployment.go:560 lxc/deployment.go:561
+msgid "Rename deployments"
+msgstr ""
+
 #: lxc/rename.go:20 lxc/rename.go:21
 msgid "Rename instances and snapshots"
 msgstr ""
@@ -4491,6 +4575,19 @@ msgstr ""
 
 #: lxc/file.go:977
 msgid "Set authentication user when using SSH SFTP listener"
+msgstr ""
+
+#: lxc/deployment.go:341
+msgid "Set deployment configuration keys"
+msgstr ""
+
+#: lxc/deployment.go:342
+msgid ""
+"Set deployment configuration keys\n"
+"\n"
+"For backward compatibility, a single configuration key may still be set "
+"with:\n"
+"    lxc network set [<remote>:]<deployment> <key> <value>"
 msgstr ""
 
 #: lxc/config_device.go:545
@@ -4715,6 +4812,10 @@ msgstr ""
 msgid "Show content of instance file templates"
 msgstr ""
 
+#: lxc/deployment.go:156 lxc/deployment.go:157
+msgid "Show deployment configurations"
+msgstr ""
+
 #: lxc/cluster.go:206 lxc/cluster.go:207
 msgid "Show details of a cluster member"
 msgstr ""
@@ -4747,7 +4848,7 @@ msgstr ""
 msgid "Show instance or server information"
 msgstr ""
 
-#: lxc/main.go:258 lxc/main.go:259
+#: lxc/main.go:262 lxc/main.go:263
 msgid "Show less common commands"
 msgstr ""
 
@@ -5163,7 +5264,7 @@ msgstr ""
 msgid "This LXD server is not available on the network"
 msgstr ""
 
-#: lxc/main.go:280
+#: lxc/main.go:284
 msgid ""
 "This client hasn't been configured to use a remote LXD server yet.\n"
 "As your platform can't run native Linux instances, you must connect to a "
@@ -5199,7 +5300,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
-#: lxc/main.go:388
+#: lxc/main.go:392
 msgid ""
 "To start your first container, try: lxc launch ubuntu:22.04\n"
 "Or for a virtual machine: lxc launch ubuntu:22.04 --vm"
@@ -5305,9 +5406,9 @@ msgstr ""
 msgid "USAGE"
 msgstr ""
 
-#: lxc/network.go:970 lxc/network_acl.go:150 lxc/network_zone.go:141
-#: lxc/profile.go:635 lxc/project.go:494 lxc/storage.go:636
-#: lxc/storage_volume.go:1469
+#: lxc/deployment.go:141 lxc/network.go:970 lxc/network_acl.go:150
+#: lxc/network_zone.go:141 lxc/profile.go:635 lxc/project.go:494
+#: lxc/storage.go:636 lxc/storage_volume.go:1469
 msgid "USED BY"
 msgstr ""
 
@@ -5371,6 +5472,10 @@ msgstr ""
 
 #: lxc/move.go:61
 msgid "Unset all profiles on the target instance"
+msgstr ""
+
+#: lxc/deployment.go:401 lxc/deployment.go:402
+msgid "Unset deployment configuration keys"
 msgstr ""
 
 #: lxc/config_device.go:740 lxc/config_device.go:741
@@ -5595,10 +5700,10 @@ msgid "[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"
 msgstr ""
 
 #: lxc/cluster.go:120 lxc/cluster.go:840 lxc/cluster_group.go:365
-#: lxc/config_trust.go:348 lxc/config_trust.go:431 lxc/monitor.go:31
-#: lxc/network.go:893 lxc/network_acl.go:92 lxc/network_zone.go:83
-#: lxc/operation.go:102 lxc/profile.go:586 lxc/project.go:395
-#: lxc/storage.go:572 lxc/version.go:20 lxc/warning.go:69
+#: lxc/config_trust.go:348 lxc/config_trust.go:431 lxc/deployment.go:83
+#: lxc/monitor.go:31 lxc/network.go:893 lxc/network_acl.go:92
+#: lxc/network_zone.go:83 lxc/operation.go:102 lxc/profile.go:586
+#: lxc/project.go:395 lxc/storage.go:572 lxc/version.go:20 lxc/warning.go:69
 msgid "[<remote>:]"
 msgstr ""
 
@@ -5685,6 +5790,26 @@ msgstr ""
 
 #: lxc/cluster.go:649
 msgid "[<remote>:]<cluster member>"
+msgstr ""
+
+#: lxc/deployment.go:155 lxc/deployment.go:427 lxc/deployment.go:607
+msgid "[<remote>:]<deployment>"
+msgstr ""
+
+#: lxc/deployment.go:208 lxc/deployment.go:400
+msgid "[<remote>:]<deployment> <key>"
+msgstr ""
+
+#: lxc/deployment.go:340
+msgid "[<remote>:]<deployment> <key>=<value>..."
+msgstr ""
+
+#: lxc/deployment.go:558
+msgid "[<remote>:]<deployment> <new-name>"
+msgstr ""
+
+#: lxc/deployment.go:257
+msgid "[<remote>:]<deployment> [key=value...]"
 msgstr ""
 
 #: lxc/config_trust.go:235 lxc/config_trust.go:532 lxc/config_trust.go:650
