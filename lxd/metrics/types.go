@@ -255,7 +255,7 @@ var MetricHeaders = map[MetricType]string{
 	MemoryDirtyBytes:            "# HELP lxd_memory_Dirty_bytes The amount of memory waiting to get written back to the disk.",
 	MemoryHugePagesFreeBytes:    "# HELP lxd_memory_HugepagesFree_bytes The amount of free memory for hugetlb.",
 	MemoryHugePagesTotalBytes:   "# HELP lxd_memory_HugepagesTotal_bytes The amount of used memory for hugetlb.",
-	MemoryInactiveAnonBytes:     "# HELP lxd_memory_Inactive_anon_bytes The amount of file-backed memory on inactive LRU list.",
+	MemoryInactiveAnonBytes:     "# HELP lxd_memory_Inactive_anon_bytes The amount of anonymous memory on inactive LRU list.",
 	MemoryInactiveFileBytes:     "# HELP lxd_memory_Inactive_file_bytes The amount of file-backed memory on inactive LRU list.",
 	MemoryInactiveBytes:         "# HELP lxd_memory_Inactive_bytes The amount of memory on inactive LRU list.",
 	MemoryMappedBytes:           "# HELP lxd_memory_Mapped_bytes The amount of mapped memory.",
