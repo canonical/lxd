@@ -78,6 +78,7 @@ type Instance interface {
 	Start(stateful bool) error
 	Stop(stateful bool) error
 	Restart(timeout time.Duration) error
+	Rebuild(img *api.Image, op *operations.Operation) error
 	Unfreeze() error
 	RegisterDevices()
 
