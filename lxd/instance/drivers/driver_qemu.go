@@ -3731,6 +3731,10 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 
 			queueCount := configureQueues(len(cpus))
 
+			// Enable vhost_net offloading if available.
+			info := DriverStatuses()[instancetype.VM].Info
+			_, vhostNetEnabled := info.Features["vhost_net"]
+
 			// Open the device once for each queue and pass to QEMU.
 			fds := make([]string, 0, queueCount)
 			vhostfds := make([]string, 0, queueCount)
@@ -3752,29 +3756,31 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 
 				fds = append(fds, devFDName)
 
-				// Open a vhost-net file handle for each device file handle. For CPU offloading.
-				vhostFile, err := os.OpenFile("/dev/vhost-net", os.O_RDWR, 0)
-				if err != nil {
-					return fmt.Errorf("Error opening vhost-net file %q for queue %d: %w", vhostFile.Name(), i, err)
+				if vhostNetEnabled {
+					// Open a vhost-net file handle for each device file handle.
+					vhostFile, err := os.OpenFile("/dev/vhost-net", os.O_RDWR, 0)
+					if err != nil {
+						return fmt.Errorf("Error opening /dev/vhost-net for queue %d: %w", i, err)
+					}
+
+					defer func() { _ = vhostFile.Close() }() // Close file after device has been added.
+
+					vhostFDName := fmt.Sprintf("%s.%d", vhostFile.Name(), i)
+					err = m.SendFile(vhostFDName, vhostFile)
+					if err != nil {
+						return fmt.Errorf("Failed to send %q file descriptor for queue %d: %w", vhostFDName, i, err)
+					}
+
+					reverter.Add(func() { _ = m.CloseFile(vhostFDName) })
+
+					vhostfds = append(vhostfds, vhostFDName)
 				}
-
-				defer func() { _ = vhostFile.Close() }() // Close file after device has been added.
-
-				vhostFDName := fmt.Sprintf("%s.%d", vhostFile.Name(), i)
-				err = m.SendFile(vhostFDName, vhostFile)
-				if err != nil {
-					return fmt.Errorf("Failed to send %q file descriptor for queue %d: %w", vhostFDName, i, err)
-				}
-
-				reverter.Add(func() { _ = m.CloseFile(vhostFDName) })
-
-				vhostfds = append(vhostfds, vhostFDName)
 			}
 
 			qemuNetDev := map[string]any{
 				"id":    fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName),
 				"type":  "tap",
-				"vhost": true,
+				"vhost": vhostNetEnabled,
 			}
 
 			if shared.StringInSlice(busName, []string{"pcie", "pci"}) {
@@ -3784,7 +3790,10 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 			}
 
 			qemuNetDev["fds"] = strings.Join(fds, ":")
-			qemuNetDev["vhostfds"] = strings.Join(vhostfds, ":")
+
+			if len(vhostfds) > 0 {
+				qemuNetDev["vhostfds"] = strings.Join(vhostfds, ":")
+			}
 
 			qemuDev["netdev"] = qemuNetDev["id"].(string)
 			qemuDev["mac"] = devHwaddr
@@ -7853,6 +7862,12 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 				}
 			}
 		}
+	}
+
+	// Check if vhost-net accelerator (for NIC CPU offloading) is available.
+	_ = util.LoadModule("vhost_net")
+	if shared.PathExists("/dev/vhost-net") {
+		features["vhost_net"] = struct{}{}
 	}
 
 	return features, nil
