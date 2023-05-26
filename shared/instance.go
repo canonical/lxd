@@ -123,6 +123,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 
 	// Caller is responsible for full validation of any raw.* value.
 	"raw.apparmor": validate.IsAny,
+	"raw.idmap":    validate.IsAny,
 
 	"security.devlxd":            validate.Optional(validate.IsBool),
 	"security.protection.delete": validate.Optional(validate.IsBool),
@@ -141,18 +142,10 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	"volatile.base_image":             validate.IsAny,
 	"volatile.cloud-init.instance-id": validate.Optional(validate.IsUUID),
 	"volatile.evacuate.origin":        validate.IsAny,
-	"volatile.last_state.idmap":       validate.IsAny,
 	"volatile.last_state.power":       validate.IsAny,
-	"volatile.idmap.base":             validate.IsAny,
-	"volatile.idmap.current":          validate.IsAny,
-	"volatile.idmap.next":             validate.IsAny,
 	"volatile.apply_quota":            validate.IsAny,
 	"volatile.uuid":                   validate.Optional(validate.IsUUID),
-	"volatile.vsock_id":               validate.Optional(validate.IsInt64),
 	"volatile.uuid.generation":        validate.Optional(validate.IsUUID),
-
-	// Caller is responsible for full validation of any raw.* value.
-	"raw.idmap": validate.IsAny,
 }
 
 // InstanceConfigKeysContainer is a map of config key to validator. (keys applying to containers only).
@@ -243,6 +236,11 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	"security.syscalls.intercept.sched_setscheduler": validate.Optional(validate.IsBool),
 	"security.syscalls.intercept.setxattr":           validate.Optional(validate.IsBool),
 	"security.syscalls.whitelist":                    validate.IsAny,
+
+	"volatile.last_state.idmap": validate.IsAny,
+	"volatile.idmap.base":       validate.IsAny,
+	"volatile.idmap.current":    validate.IsAny,
+	"volatile.idmap.next":       validate.IsAny,
 }
 
 // InstanceConfigKeysVM is a map of config key to validator. (keys applying to VM only).
@@ -261,6 +259,7 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	"agent.nic_config": validate.Optional(validate.IsBool),
 
 	"volatile.apply_nvram": validate.Optional(validate.IsBool),
+	"volatile.vsock_id":    validate.Optional(validate.IsInt64),
 }
 
 // ConfigKeyChecker returns a function that will check whether or not
