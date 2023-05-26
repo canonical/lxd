@@ -214,7 +214,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	} else {
 		instOp, err = inst.LockExclusive()
 		if err != nil {
-			return nil, fmt.Errorf("Failed getting exclusive access to instance: %w", err)
+			return nil, fmt.Errorf("Failed getting exclusive access to target instance: %w", err)
 		}
 	}
 
