@@ -1502,15 +1502,18 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
-
-		// Use in-memory pipe pair to simulate a connection between the sender and receiver.
-		aEnd, bEnd := memorypipe.NewPipePair(ctx)
+		defer cancel()
 
 		// Run sender and receiver in separate go routines to prevent deadlocks.
-		aEndErrCh := make(chan error, 1)
-		bEndErrCh := make(chan error, 1)
-		go func() {
-			err := srcPool.MigrateInstance(src, aEnd, &migration.VolumeSourceArgs{
+		g, ctx := errgroup.WithContext(ctx)
+
+		// Use in-memory pipe pair to simulate a connection between the sender and receiver.
+		// Use context from error group so that if either side fails the pipes are closed.
+		aEnd, bEnd := memorypipe.NewPipePair(ctx)
+
+		// Start each side of the migration concurrently and collect any errors.
+		g.Go(func() error {
+			return srcPool.MigrateInstance(src, aEnd, &migration.VolumeSourceArgs{
 				IndexHeaderVersion: migration.IndexHeaderVersion,
 				Name:               src.Name(),
 				Snapshots:          snapshotNames,
@@ -1521,16 +1524,10 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 				Info:               &migration.Info{Config: srcConfig},
 				VolumeOnly:         !snapshots,
 			}, op)
+		})
 
-			if err != nil {
-				cancel()
-			}
-
-			aEndErrCh <- err
-		}()
-
-		go func() {
-			err := b.CreateInstanceFromMigration(inst, bEnd, migration.VolumeTargetArgs{
+		g.Go(func() error {
+			return b.CreateInstanceFromMigration(inst, bEnd, migration.VolumeTargetArgs{
 				IndexHeaderVersion: migration.IndexHeaderVersion,
 				Name:               inst.Name(),
 				Snapshots:          snapshotNames,
@@ -1539,30 +1536,11 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 				TrackProgress:      false, // Do not use a progress tracker on receiver.
 				VolumeOnly:         !snapshots,
 			}, op)
+		})
 
-			if err != nil {
-				cancel()
-			}
-
-			bEndErrCh <- err
-		}()
-
-		// Capture errors from the sender and receiver from their result channels.
-		errs := []error{}
-		aEndErr := <-aEndErrCh
-		if aEndErr != nil {
-			errs = append(errs, aEndErr)
-		}
-
-		bEndErr := <-bEndErrCh
-		if bEndErr != nil {
-			errs = append(errs, bEndErr)
-		}
-
-		cancel()
-
-		if len(errs) > 0 {
-			return fmt.Errorf("Create instance volume from copy failed: %v", errs)
+		err = g.Wait()
+		if err != nil {
+			return fmt.Errorf("Create instance volume from copy failed: %w", err)
 		}
 	}
 
