@@ -2262,11 +2262,6 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 	l.Debug("MigrateInstance started")
 	defer l.Debug("MigrateInstance finished")
 
-	// rsync+dd can't handle running source VMs consistently.
-	if !args.AllowInconsistent && inst.IsRunning() && args.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
-		return fmt.Errorf(`Cannot migrate running virtual machines consistently using negotiated transfer mechanism. Either stop the instance or use "allow inconsistent" mode`)
-	}
-
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
 		return err
@@ -2318,9 +2313,17 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 		}
 	}
 
-	// Freeze the instance if not already frozen/stopped when the underlying driver doesn't support cheap
-	// snapshots and allowInconsistent is not enabled.
-	if !inst.IsSnapshot() && b.driver.Info().RunningCopyFreeze && inst.IsRunning() && !inst.IsFrozen() && !args.AllowInconsistent {
+	// Detect if source pool driver doesn't support cheap temporary snapshots that allow consistent copy when
+	// running, or if the negotiated protocol is VM non-optimized, meaning a complete raw copy of the active
+	// volume is being sent.
+	// TODO this can be relaxed in the future if the storage drivers that have RunningCopyFreeze=false make
+	// temporary snapshots for block volumes too. But for now this is not the case and we must detect when a
+	// generic migration transfer protocol has been negotiated between source and target pools.
+	runningCopyFreeze := b.driver.Info().RunningCopyFreeze || args.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC
+
+	// Freeze the instance if not already frozen/stopped, allowInconsistent is not enabled and when its not
+	// possible to make a consistent copy with the instance running.
+	if !inst.IsSnapshot() && runningCopyFreeze && inst.IsRunning() && !inst.IsFrozen() && !args.AllowInconsistent {
 		b.logger.Info("Freezing instance for consistent migration transfer")
 		err = inst.Freeze()
 		if err != nil {
