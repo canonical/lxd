@@ -80,4 +80,4 @@ Various configuration files are stored in that directory, for example:
 Many switches do not allow MAC address changes, and will either drop traffic with an incorrect MAC or disable the port totally.
 If you can ping a LXD instance from the host, but are not able to ping it from a different host, this could be the cause.
 
-The way to diagnose this problem is to run a `tcpdump` on the uplink (`eth1` in the example from the previous question), and you will see either ``ARP Who has `xx.xx.xx.xx` tell `yy.yy.yy.yy` ``, with you sending responses but them not getting acknowledged, or ICMP packets going in and out successfully, but never being received by the other host.
+The way to diagnose this problem is to run a `tcpdump` on the uplink and you will see either ``ARP Who has `xx.xx.xx.xx` tell `yy.yy.yy.yy` ``, with you sending responses but them not getting acknowledged, or ICMP packets going in and out successfully, but never being received by the other host.
