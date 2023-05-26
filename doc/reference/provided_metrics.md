@@ -46,7 +46,7 @@ The following instance metrics are provided:
 * - `lxd_memory_HugepagesTotal_bytes`
   - Amount of used memory for `hugetlb`
 * - `lxd_memory_Inactive_anon_bytes`
-  - Amount of file-backed memory on inactive LRU list
+  - Amount of anonymous memory on inactive LRU list
 * - `lxd_memory_Inactive_bytes`
   - Amount of memory on inactive LRU list
 * - `lxd_memory_Inactive_file_bytes`
