@@ -18,6 +18,7 @@ import (
 
 	"github.com/minio/madmin-go"
 	"github.com/minio/minio-go/v7"
+	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -925,10 +926,6 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		return fmt.Errorf("Instance types must match")
 	}
 
-	if src.Type() == instancetype.VM && src.IsRunning() {
-		return fmt.Errorf("Unable to perform VM live migration: %w", drivers.ErrNotSupported)
-	}
-
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
 		return err
@@ -940,6 +937,11 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	srcPool, err := LoadByInstance(b.state, src)
 	if err != nil {
 		return err
+	}
+
+	srcPoolBackend, ok := srcPool.(*lxdBackend)
+	if !ok {
+		return fmt.Errorf("Source pool is not a lxdBackend")
 	}
 
 	// Check source volume exists, and get its config.
@@ -974,7 +976,8 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	defer revert.Fail()
 
 	// Some driver backing stores require that running instances be frozen during copy.
-	if !src.IsSnapshot() && b.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() && !allowInconsistent {
+	if !src.IsSnapshot() && srcPoolBackend.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() && !allowInconsistent {
+		b.logger.Info("Freezing instance for consistent copy")
 		err = src.Freeze()
 		if err != nil {
 			return err
@@ -1054,15 +1057,18 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
-
-		// Use in-memory pipe pair to simulate a connection between the sender and receiver.
-		aEnd, bEnd := memorypipe.NewPipePair(ctx)
+		defer cancel()
 
 		// Run sender and receiver in separate go routines to prevent deadlocks.
-		aEndErrCh := make(chan error, 1)
-		bEndErrCh := make(chan error, 1)
-		go func() {
-			err := srcPool.MigrateInstance(src, aEnd, &migration.VolumeSourceArgs{
+		g, ctx := errgroup.WithContext(ctx)
+
+		// Use in-memory pipe pair to simulate a connection between the sender and receiver.
+		// Use context from error group so that if either side fails the pipes are closed.
+		aEnd, bEnd := memorypipe.NewPipePair(ctx)
+
+		// Start each side of the migration concurrently and collect any errors.
+		g.Go(func() error {
+			return srcPool.MigrateInstance(src, aEnd, &migration.VolumeSourceArgs{
 				IndexHeaderVersion: migration.IndexHeaderVersion,
 				Name:               src.Name(),
 				Snapshots:          snapshotNames,
@@ -1072,16 +1078,10 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 				VolumeOnly:         !snapshots,
 				Info:               &migration.Info{Config: srcConfig},
 			}, op)
+		})
 
-			if err != nil {
-				cancel()
-			}
-
-			aEndErrCh <- err
-		}()
-
-		go func() {
-			err := b.CreateInstanceFromMigration(inst, bEnd, migration.VolumeTargetArgs{
+		g.Go(func() error {
+			return b.CreateInstanceFromMigration(inst, bEnd, migration.VolumeTargetArgs{
 				IndexHeaderVersion: migration.IndexHeaderVersion,
 				Name:               inst.Name(),
 				Snapshots:          snapshotNames,
@@ -1090,30 +1090,11 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 				TrackProgress:      false,         // Do not use a progress tracker on receiver.
 				VolumeOnly:         !snapshots,
 			}, op)
+		})
 
-			if err != nil {
-				cancel()
-			}
-
-			bEndErrCh <- err
-		}()
-
-		// Capture errors from the sender and receiver from their result channels.
-		errs := []error{}
-		aEndErr := <-aEndErrCh
-		if aEndErr != nil {
-			errs = append(errs, aEndErr)
-		}
-
-		bEndErr := <-bEndErrCh
-		if bEndErr != nil {
-			errs = append(errs, bEndErr)
-		}
-
-		cancel()
-
-		if len(errs) > 0 {
-			return fmt.Errorf("Create instance volume from copy failed: %v", errs)
+		err = g.Wait()
+		if err != nil {
+			return fmt.Errorf("Create instance volume from copy failed: %w", err)
 		}
 	}
 
@@ -1442,6 +1423,11 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		return err
 	}
 
+	srcPoolBackend, ok := srcPool.(*lxdBackend)
+	if !ok {
+		return fmt.Errorf("Source pool is not a lxdBackend")
+	}
+
 	// Check source volume exists, and get its config.
 	srcConfig, err := srcPool.GenerateInstanceBackupConfig(src, snapshots, op)
 	if err != nil {
@@ -1484,6 +1470,20 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Some driver backing stores require that running instances be frozen during copy.
+	if !src.IsSnapshot() && srcPoolBackend.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() && !allowInconsistent {
+		b.logger.Info("Freezing instance for consistent refresh")
+		err = src.Freeze()
+		if err != nil {
+			return err
+		}
+
+		defer func() { _ = src.Unfreeze() }()
+
+		// Attempt to sync the filesystem.
+		_ = filesystem.SyncFS(src.RootfsPath())
+	}
+
 	if b.Name() == srcPool.Name() {
 		l.Debug("RefreshInstance same-pool mode detected")
 
@@ -1523,15 +1523,18 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
-
-		// Use in-memory pipe pair to simulate a connection between the sender and receiver.
-		aEnd, bEnd := memorypipe.NewPipePair(ctx)
+		defer cancel()
 
 		// Run sender and receiver in separate go routines to prevent deadlocks.
-		aEndErrCh := make(chan error, 1)
-		bEndErrCh := make(chan error, 1)
-		go func() {
-			err := srcPool.MigrateInstance(src, aEnd, &migration.VolumeSourceArgs{
+		g, ctx := errgroup.WithContext(ctx)
+
+		// Use in-memory pipe pair to simulate a connection between the sender and receiver.
+		// Use context from error group so that if either side fails the pipes are closed.
+		aEnd, bEnd := memorypipe.NewPipePair(ctx)
+
+		// Start each side of the migration concurrently and collect any errors.
+		g.Go(func() error {
+			return srcPool.MigrateInstance(src, aEnd, &migration.VolumeSourceArgs{
 				IndexHeaderVersion: migration.IndexHeaderVersion,
 				Name:               src.Name(),
 				Snapshots:          snapshotNames,
@@ -1542,16 +1545,10 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 				Info:               &migration.Info{Config: srcConfig},
 				VolumeOnly:         !snapshots,
 			}, op)
+		})
 
-			if err != nil {
-				cancel()
-			}
-
-			aEndErrCh <- err
-		}()
-
-		go func() {
-			err := b.CreateInstanceFromMigration(inst, bEnd, migration.VolumeTargetArgs{
+		g.Go(func() error {
+			return b.CreateInstanceFromMigration(inst, bEnd, migration.VolumeTargetArgs{
 				IndexHeaderVersion: migration.IndexHeaderVersion,
 				Name:               inst.Name(),
 				Snapshots:          snapshotNames,
@@ -1560,30 +1557,11 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 				TrackProgress:      false, // Do not use a progress tracker on receiver.
 				VolumeOnly:         !snapshots,
 			}, op)
+		})
 
-			if err != nil {
-				cancel()
-			}
-
-			bEndErrCh <- err
-		}()
-
-		// Capture errors from the sender and receiver from their result channels.
-		errs := []error{}
-		aEndErr := <-aEndErrCh
-		if aEndErr != nil {
-			errs = append(errs, aEndErr)
-		}
-
-		bEndErr := <-bEndErrCh
-		if bEndErr != nil {
-			errs = append(errs, bEndErr)
-		}
-
-		cancel()
-
-		if len(errs) > 0 {
-			return fmt.Errorf("Create instance volume from copy failed: %v", errs)
+		err = g.Wait()
+		if err != nil {
+			return fmt.Errorf("Create instance volume from copy failed: %w", err)
 		}
 	}
 
@@ -2284,11 +2262,6 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 	l.Debug("MigrateInstance started")
 	defer l.Debug("MigrateInstance finished")
 
-	// rsync+dd can't handle running source VMs consistently.
-	if !args.AllowInconsistent && inst.IsRunning() && args.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
-		return fmt.Errorf(`Cannot migrate running virtual machines consistently using negotiated transfer mechanism. Either stop the instance or use "allow inconsistent" mode`)
-	}
-
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
 		return err
@@ -2340,9 +2313,17 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 		}
 	}
 
-	// Freeze the instance if not already frozen/stopped when the underlying driver doesn't support cheap
-	// snapshots and allowInconsistent is not enabled.
-	if !inst.IsSnapshot() && b.driver.Info().RunningCopyFreeze && inst.IsRunning() && !inst.IsFrozen() && !args.AllowInconsistent {
+	// Detect if source pool driver doesn't support cheap temporary snapshots that allow consistent copy when
+	// running, or if the negotiated protocol is VM non-optimized, meaning a complete raw copy of the active
+	// volume is being sent.
+	// TODO this can be relaxed in the future if the storage drivers that have RunningCopyFreeze=false make
+	// temporary snapshots for block volumes too. But for now this is not the case and we must detect when a
+	// generic migration transfer protocol has been negotiated between source and target pools.
+	runningCopyFreeze := b.driver.Info().RunningCopyFreeze || args.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC
+
+	// Freeze the instance if not already frozen/stopped, allowInconsistent is not enabled and when its not
+	// possible to make a consistent copy with the instance running.
+	if !inst.IsSnapshot() && runningCopyFreeze && inst.IsRunning() && !inst.IsFrozen() && !args.AllowInconsistent {
 		b.logger.Info("Freezing instance for consistent migration transfer")
 		err = inst.Freeze()
 		if err != nil {
