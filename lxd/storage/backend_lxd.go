@@ -943,6 +943,11 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		return err
 	}
 
+	srcPoolBackend, ok := srcPool.(*lxdBackend)
+	if !ok {
+		return fmt.Errorf("Source pool is not a lxdBackend")
+	}
+
 	// Check source volume exists, and get its config.
 	srcConfig, err := srcPool.GenerateInstanceBackupConfig(src, snapshots, op)
 	if err != nil {
@@ -975,7 +980,8 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	defer revert.Fail()
 
 	// Some driver backing stores require that running instances be frozen during copy.
-	if !src.IsSnapshot() && b.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() && !allowInconsistent {
+	if !src.IsSnapshot() && srcPoolBackend.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() && !allowInconsistent {
+		b.logger.Info("Freezing instance for consistent copy")
 		err = src.Freeze()
 		if err != nil {
 			return err
