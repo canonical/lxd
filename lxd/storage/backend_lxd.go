@@ -1423,6 +1423,11 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		return err
 	}
 
+	srcPoolBackend, ok := srcPool.(*lxdBackend)
+	if !ok {
+		return fmt.Errorf("Source pool is not a lxdBackend")
+	}
+
 	// Check source volume exists, and get its config.
 	srcConfig, err := srcPool.GenerateInstanceBackupConfig(src, snapshots, op)
 	if err != nil {
@@ -1464,6 +1469,20 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 
 	revert := revert.New()
 	defer revert.Fail()
+
+	// Some driver backing stores require that running instances be frozen during copy.
+	if !src.IsSnapshot() && srcPoolBackend.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() && !allowInconsistent {
+		b.logger.Info("Freezing instance for consistent refresh")
+		err = src.Freeze()
+		if err != nil {
+			return err
+		}
+
+		defer func() { _ = src.Unfreeze() }()
+
+		// Attempt to sync the filesystem.
+		_ = filesystem.SyncFS(src.RootfsPath())
+	}
 
 	if b.Name() == srcPool.Name() {
 		l.Debug("RefreshInstance same-pool mode detected")
