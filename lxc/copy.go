@@ -362,6 +362,13 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		// Ensure we don't change the target's volatile.idmap.next value.
 		writable.Config["volatile.idmap.next"] = inst.Config["volatile.idmap.next"]
 
+		// Ensure we don't change the target's root disk pool.
+		srcRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(writable.Devices)
+		destRootDiskDeviceKey, destRootDiskDevice, _ := shared.GetRootDiskDevice(inst.Devices)
+		if srcRootDiskDeviceKey != "" && srcRootDiskDeviceKey == destRootDiskDeviceKey {
+			writable.Devices[destRootDiskDeviceKey]["pool"] = destRootDiskDevice["pool"]
+		}
+
 		op, err := dest.UpdateInstance(destName, writable, etag)
 		if err != nil {
 			return err
