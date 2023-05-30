@@ -1,10 +1,18 @@
 # REST API
 
-## Introduction
+```{youtube} https://www.youtube.com/watch?v=YvGbvspXObI
+```
 
-All the communications between LXD and its clients happen using a
-RESTful API over HTTP which is then encapsulated over either SSL for
-remote operations or a Unix socket for local operations.
+All communication between LXD and its clients happens using a RESTful API over HTTP.
+This API is encapsulated over either SSL (for remote operations) or a Unix socket (for local operations).
+
+See {ref}`authentication` for information about how to access the API remotely.
+
+```{tip}
+- For examples on how the API is used, run any command of the LXD client (`lxc`) with the `--debug` flag.
+The debug information displays the API calls and the return values.
+- For quickly querying the API, the LXD client provides a `lxc query` command.
+```
 
 ## API versioning
 
@@ -226,14 +234,12 @@ won't work and PUT needs to be used instead.
 
 ## Instances, containers and virtual-machines
 
-This documentation will always show paths such as `/1.0/instances/...`.
-Those are fairly new, introduced with LXD 3.19 when virtual-machine support.
-
-Older releases that only supported containers will instead use the exact same API at `/1.0/containers/...`.
+The documentation shows paths such as `/1.0/instances/...`, which were introduced with LXD 3.19.
+Older releases that supported only containers and not virtual machines supply the exact same API at `/1.0/containers/...`.
 
 For backward compatibility reasons, LXD does still expose and support
 that `/1.0/containers` API, though for the sake of brevity, we decided
-not to double-document everything below.
+not to double-document everything.
 
 An additional endpoint at `/1.0/virtual-machines` is also present and
 much like `/1.0/containers` will only show you instances of that type.
