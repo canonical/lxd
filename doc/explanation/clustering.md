@@ -79,6 +79,8 @@ You can tweak the amount of seconds after which a non-responding member is consi
 The default value is 20 seconds.
 The minimum value is 10 seconds.
 
+To automatically {ref}`evacuate <cluster-evacuate>` instances from an offline member, set the [`cluster.healing_threshold`](server-options-cluster) configuration to a non-zero value.
+
 See {ref}`cluster-recover` for more information.
 
 #### Failure domains
