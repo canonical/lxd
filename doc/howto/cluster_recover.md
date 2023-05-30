@@ -3,7 +3,7 @@
 
 It might happen that one or several members of your cluster go offline or become unreachable.
 In that case, no operations are possible on this member, and neither are operations that require a state change across all members.
-See {ref}`clustering-offline-members` for more information.
+See {ref}`clustering-offline-members` and {ref}`cluster-automatic-evacuation` for more information.
 
 If you can bring the offline cluster members back or delete them from the cluster, operation resumes as normal.
 If this is not possible, there are a few ways to recover the cluster, depending on the scenario that caused the failure.
@@ -18,7 +18,7 @@ Run `lxd cluster --help` for an overview of all available commands.
 
 ## Recover from quorum loss
 
-Every LXD cluster has a specific number of members (configured through [`cluster.max_voters`](server)) that serve as voting members of the distributed database.
+Every LXD cluster has a specific number of members (configured through [`cluster.max_voters`](server-options-cluster)) that serve as voting members of the distributed database.
 If you permanently lose a majority of these cluster members (for example, you have a three-member cluster and you lose two members), the cluster loses quorum and becomes unavailable.
 However, if at least one database member survives, it is possible to recover the cluster.
 
