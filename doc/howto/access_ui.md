@@ -1,10 +1,10 @@
 (access-ui)=
 # How to access the LXD web UI
 
-```{important}
-Currently, the LXD web UI is included only in the `latest/edge` channel of the LXD snap.
+```{note}
+Starting with LXD 5.14, the LXD web UI is available as part of the LXD snap.
 
-You should never run the edge version of LXD in a production environment.
+See the [LXD-UI GitHub repository](https://github.com/canonical/lxd-ui) for the source code.
 ```
 
 ![Graphical console of an instance in the LXD web UI](../images/ui_console.png)
@@ -16,6 +16,11 @@ The LXD web UI provides you with a graphical interface to manage your LXD server
 It is currently in an early stage and does not provide full functionality yet, but eventually, it will be an alternative to the LXD command-line client.
 
 Complete the following steps to access the LXD web UI:
+
+1. Enable the UI in the snap:
+
+       snap set lxd ui.enable=true
+       snap restart --reload lxd
 
 1. Make sure that your LXD server is {ref}`exposed to the network <server-expose>`.
    You can expose the server during {ref}`initialization <initialize>`, or afterwards by setting the [`core.https_address`](server-options-core) server configuration option.
