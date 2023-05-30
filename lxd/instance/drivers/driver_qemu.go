@@ -598,7 +598,7 @@ func (d *qemu) onStop(target string) error {
 
 	// Record power state.
 	err = d.VolatileSet(map[string]string{
-		"volatile.last_state.power": "STOPPED",
+		"volatile.last_state.power": instance.PowerStateStopped,
 		"volatile.last_state.ready": "false",
 	})
 	if err != nil {

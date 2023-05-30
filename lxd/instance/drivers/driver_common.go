@@ -1038,13 +1038,13 @@ func (d *common) recordLastState() error {
 	var err error
 
 	// Record power state.
-	d.localConfig["volatile.last_state.power"] = "RUNNING"
-	d.expandedConfig["volatile.last_state.power"] = "RUNNING"
+	d.localConfig["volatile.last_state.power"] = instance.PowerStateRunning
+	d.expandedConfig["volatile.last_state.power"] = instance.PowerStateRunning
 
 	// Database updates
 	return d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Record power state.
-		err = tx.UpdateInstancePowerState(d.id, "RUNNING")
+		err = tx.UpdateInstancePowerState(d.id, instance.PowerStateRunning)
 		if err != nil {
 			err = fmt.Errorf("Error updating instance power state: %w", err)
 			return err
