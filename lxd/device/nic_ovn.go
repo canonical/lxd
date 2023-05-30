@@ -49,6 +49,11 @@ type nicOVN struct {
 	network ovnNet // Populated in validateConfig().
 }
 
+// CanHotPlug returns whether the device can be managed whilst the instance is running.
+func (d *nicOVN) CanHotPlug() bool {
+	return true
+}
+
 // CanMigrate returns whether the device can be migrated to any other cluster member.
 func (d *nicOVN) CanMigrate() bool {
 	return true
