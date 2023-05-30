@@ -227,6 +227,16 @@ func (slice instanceAutostartList) Swap(i, j int) {
 
 var instancesStartMu sync.Mutex
 
+// instanceShouldAutoStart returns whether the instance should be auto-started.
+// Returns true if boot.autostart is enabled or boot.autostart is not set and instance was previously running.
+func instanceShouldAutoStart(inst instance.Instance) bool {
+	config := inst.ExpandedConfig()
+	autoStart := config["boot.autostart"]
+	lastState := config["volatile.last_state.power"]
+
+	return shared.IsTrue(autoStart) || (autoStart == "" && lastState == instance.PowerStateRunning)
+}
+
 func instancesStart(s *state.State, instances []instance.Instance) {
 	instancesStartMu.Lock()
 	defer instancesStartMu.Unlock()
@@ -237,15 +247,7 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 
 	// Start the instances
 	for _, inst := range instances {
-		// Get the instance config.
-		config := inst.ExpandedConfig()
-		lastState := config["volatile.last_state.power"]
-		autoStart := config["boot.autostart"]
-		autoStartDelay := config["boot.autostart.delay"]
-
-		// Only restart instances configured to auto-start or that were previously running.
-		start := shared.IsTrue(autoStart) || (autoStart == "" && lastState == "RUNNING")
-		if !start {
+		if !instanceShouldAutoStart(inst) {
 			continue
 		}
 
@@ -253,6 +255,10 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 		if inst.IsRunning() {
 			continue
 		}
+
+		// Get the instance config.
+		config := inst.ExpandedConfig()
+		autoStartDelay := config["boot.autostart.delay"]
 
 		instLogger := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 
@@ -430,7 +436,7 @@ func instancesShutdown(s *state.State, instances []instance.Instance) {
 					// If DB was available then the instance shutdown process will have set
 					// the last power state to STOPPED, so set that back to RUNNING so that
 					// when LXD restarts the instance will be started again.
-					_ = inst.VolatileSet(map[string]string{"volatile.last_state.power": "RUNNING"})
+					_ = inst.VolatileSet(map[string]string{"volatile.last_state.power": instance.PowerStateRunning})
 				}
 
 				wg.Done()
