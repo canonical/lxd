@@ -2964,7 +2964,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Mark the instance as RUNNING in volatile so its state can be properly restored.
-			err = inst.VolatileSet(map[string]string{"volatile.last_state.power": "RUNNING"})
+			err = inst.VolatileSet(map[string]string{"volatile.last_state.power": instance.PowerStateRunning})
 			if err != nil {
 				l.Warn("Failed to set instance state to RUNNING", logger.Ctx{"err": err})
 			}
@@ -3371,7 +3371,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 		// Restart the local instances.
 		for _, inst := range localInstances {
 			// Don't start instances which were stopped by the user.
-			if inst.LocalConfig()["volatile.last_state.power"] != "RUNNING" {
+			if inst.LocalConfig()["volatile.last_state.power"] != instance.PowerStateRunning {
 				continue
 			}
 
