@@ -51,6 +51,12 @@ const TemplateTriggerCopy TemplateTrigger = "copy"
 // TemplateTriggerRename for when an instance is renamed.
 const TemplateTriggerRename TemplateTrigger = "rename"
 
+// PowerStateRunning represents the power state stored when an instance is running.
+const PowerStateRunning = "RUNNING"
+
+// PowerStateStopped represents the power state stored when an instance is stopped.
+const PowerStateStopped = "STOPPED"
+
 // ConfigReader is used to read instance config.
 type ConfigReader interface {
 	Project() api.Project
