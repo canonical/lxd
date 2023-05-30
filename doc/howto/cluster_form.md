@@ -113,7 +113,7 @@ Basically, the initialization process consists of the following steps:
 
        lxc cluster add <new_member_name>
 
-   This command returns a single-use join token that is valid for a configurable time (see [`cluster.join_token_expiry`](server)).
+   This command returns a single-use join token that is valid for a configurable time (see [`cluster.join_token_expiry`](server-options-cluster)).
    Enter this token when `lxd init` prompts you for the join token.
 
    The join token contains the addresses of the existing online members, as well as a single-use secret and the fingerprint of the cluster certificate.
