@@ -3293,7 +3293,8 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 			_ = inst.VolatileSet(map[string]string{"volatile.evacuate.origin": opts.srcMemberName})
 		}
 
-		err = opts.migrateInstance(opts.s, opts.r, inst, targetMemberInfo, live, isRunning, metadata, opts.op)
+		start := isRunning || instanceShouldAutoStart(inst)
+		err = opts.migrateInstance(opts.s, opts.r, inst, targetMemberInfo, live, start, metadata, opts.op)
 		if err != nil {
 			return err
 		}
