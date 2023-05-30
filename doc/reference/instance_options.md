@@ -130,7 +130,14 @@ You can specify either which CPUs or how many CPUs are visible and available to 
 - If you specify a number (for example, `4`) of CPUs, LXD will do dynamic load-balancing of all instances that aren't pinned to specific CPUs, trying to spread the load on the machine.
   Instances are re-balanced every time an instance starts or stops, as well as whenever a CPU is added to the system.
 
+##### CPU limits for virtual machines
+
 ```{note}
+LXD supports live-updating the `limits.cpu` option.
+However, for virtual machines, this only means that the respective CPUs are hotplugged.
+Depending on the guest operating system, you might need to either restart the instance or complete some manual actions to bring the new CPUs online.
+```
+
 LXD virtual machines default to having just one vCPU allocated, which shows up as matching the host CPU vendor and type, but has a single core and no threads.
 
 When `limits.cpu` is set to a single integer, LXD allocates multiple vCPUs and exposes them to the guest as full cores.
@@ -147,7 +154,6 @@ The NUMA layout is similarly replicated and in this scenario, the guest would mo
 In such an environment with multiple NUMA nodes, the memory is similarly divided across NUMA nodes and be pinned accordingly on the host and then exposed to the guest.
 
 All this allows for very high performance operations in the guest as the guest scheduler can properly reason about sockets, cores and threads as well as consider NUMA topology when sharing memory or moving processes across NUMA nodes.
-```
 
 (instance-options-limits-cpu-container)=
 #### Allowance and priority (container only)
