@@ -248,6 +248,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 
 	req.Config = configMap
 	req.Ephemeral = c.flagEphemeral
+	req.Description = stdinData.Description
 
 	if !c.flagNoProfiles && len(profiles) == 0 {
 		if len(stdinData.Profiles) > 0 {
