@@ -3,7 +3,7 @@
 
 It might happen that one or several members of your cluster go offline or become unreachable.
 In that case, no operations are possible on this member, and neither are operations that require a state change across all members.
-See {ref}`clustering-offline-members` for more information.
+See {ref}`clustering-offline-members` and {ref}`cluster-automatic-evacuation` for more information.
 
 If you can bring the offline cluster members back or delete them from the cluster, operation resumes as normal.
 If this is not possible, there are a few ways to recover the cluster, depending on the scenario that caused the failure.

@@ -65,6 +65,7 @@ You can add or remove only those roles that are not assigned automatically by LX
 
 To edit all properties of a cluster member, including the member-specific configuration, the member roles, the failure domain and the cluster groups, use the `lxc cluster edit` command.
 
+(cluster-evacuate)=
 ## Evacuate and restore cluster members
 
 There are scenarios where you might need to empty a given cluster member of all its instances (for example, for routine maintenance like applying system updates that require a reboot, or to perform hardware changes).
@@ -78,6 +79,13 @@ Instances are shut down cleanly, respecting the `boot.host_shutdown_timeout` con
 
 When the evacuated server is available again, use the `lxc cluster restore` command to move the server back into a normal running state.
 This command also moves the evacuated instances back from the servers that were temporarily holding them.
+
+(cluster-automatic-evacuation)=
+### Automatic evacuation
+
+If you set the [`cluster.healing_threshold`](server-options-cluster) configuration to a non-zero value, instances are automatically evacuated if a cluster member goes offline.
+
+When the evacuated server is available again, you must manually restore it.
 
 (cluster-manage-delete-members)=
 ## Delete cluster members
