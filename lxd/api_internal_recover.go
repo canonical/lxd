@@ -401,10 +401,12 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 				}
 
 				// Import custom volume and any snapshots.
-				err = pool.ImportCustomVolume(customStorageProjectName, poolVol, nil)
+				cleanup, err := pool.ImportCustomVolume(customStorageProjectName, poolVol, nil)
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Failed importing custom volume %q in project %q: %w", poolVol.Volume.Name, projectName, err))
 				}
+
+				revert.Add(cleanup)
 			}
 
 			// Recover unknown instance volumes.
@@ -450,10 +452,12 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 				}
 
 				// Recreate instance mount path and symlinks (must come after snapshot recovery).
-				err = pool.ImportInstance(inst, poolVol, nil)
+				cleanup, err = pool.ImportInstance(inst, poolVol, nil)
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Failed importing instance %q in project %q: %w", poolVol.Container.Name, projectName, err))
 				}
+
+				revert.Add(cleanup)
 
 				// Reinitialise the instance's root disk quota even if no size specified (allows the storage driver the
 				// opportunity to reinitialise the quota based on the new storage volume's DB ID).
