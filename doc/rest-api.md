@@ -4,7 +4,7 @@
 ```
 
 All communication between LXD and its clients happens using a RESTful API over HTTP.
-This API is encapsulated over either SSL (for remote operations) or a Unix socket (for local operations).
+This API is encapsulated over either TLS (for remote operations) or a Unix socket (for local operations).
 
 See {ref}`authentication` for information about how to access the API remotely.
 
