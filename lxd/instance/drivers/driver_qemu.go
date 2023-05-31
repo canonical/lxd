@@ -4258,6 +4258,7 @@ func (d *qemu) Stop(stateful bool) error {
 
 	// Must be run prior to creating the operation lock.
 	// Allow to proceed if statusCode is Error or Frozen as we may need to forcefully kill the QEMU process.
+	// Also Stop() is called from migrateSendLive in some cases, and instance status will be Frozen then.
 	statusCode := d.statusCode()
 	if !d.isRunningStatusCode(statusCode) && statusCode != api.Error && statusCode != api.Frozen {
 		return ErrInstanceIsStopped
