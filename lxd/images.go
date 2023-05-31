@@ -2053,9 +2053,16 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 				continue
 			}
 		} else {
-			err = s.DB.Cluster.UpdateImageLastUseDate(projectName, hash, info.LastUsedAt)
+			err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+				err = tx.UpdateImageLastUseDate(ctx, projectName, hash, info.LastUsedAt)
+				if err != nil {
+					logger.Error("Error setting last use date", logger.Ctx{"err": err, "fingerprint": hash})
+					return err
+				}
+
+				return nil
+			})
 			if err != nil {
-				logger.Error("Error setting last use date", logger.Ctx{"err": err, "fingerprint": hash})
 				continue
 			}
 		}
