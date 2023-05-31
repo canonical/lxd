@@ -32,7 +32,7 @@ import (
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/daemon"
 	"github.com/canonical/lxd/lxd/db"
-	clusterDB "github.com/canonical/lxd/lxd/db/cluster"
+	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/dns"
 	"github.com/canonical/lxd/lxd/endpoints"
@@ -255,7 +255,7 @@ func (d *Daemon) checkTrustedClient(r *http.Request) error {
 }
 
 // getTrustedCertificates returns trusted certificates key on DB type and fingerprint.
-func (d *Daemon) getTrustedCertificates() map[clusterDB.CertificateType]map[string]x509.Certificate {
+func (d *Daemon) getTrustedCertificates() map[dbCluster.CertificateType]map[string]x509.Certificate {
 	d.clientCerts.Lock.Lock()
 	defer d.clientCerts.Lock.Unlock()
 
@@ -275,7 +275,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 	// Allow internal cluster traffic by checking against the trusted certfificates.
 	if r.TLS != nil {
 		for _, i := range r.TLS.PeerCertificates {
-			trusted, fingerprint := util.CheckTrustState(*i, trustedCerts[clusterDB.CertificateTypeServer], d.endpoints.NetworkCert(), false)
+			trusted, fingerprint := util.CheckTrustState(*i, trustedCerts[dbCluster.CertificateTypeServer], d.endpoints.NetworkCert(), false)
 			if trusted {
 				return true, fingerprint, "cluster", nil
 			}
@@ -337,7 +337,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 	// Validate metrics certificates.
 	if r.URL.Path == "/1.0/metrics" {
 		for _, i := range r.TLS.PeerCertificates {
-			trusted, username := util.CheckTrustState(*i, trustedCerts[clusterDB.CertificateTypeMetrics], d.endpoints.NetworkCert(), trustCACertificates)
+			trusted, username := util.CheckTrustState(*i, trustedCerts[dbCluster.CertificateTypeMetrics], d.endpoints.NetworkCert(), trustCACertificates)
 			if trusted {
 				return true, username, "tls", nil
 			}
@@ -345,7 +345,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 	}
 
 	for _, i := range r.TLS.PeerCertificates {
-		trusted, username := util.CheckTrustState(*i, trustedCerts[clusterDB.CertificateTypeClient], d.endpoints.NetworkCert(), trustCACertificates)
+		trusted, username := util.CheckTrustState(*i, trustedCerts[dbCluster.CertificateTypeClient], d.endpoints.NetworkCert(), trustCACertificates)
 		if trusted {
 			return true, username, "tls", nil
 		}
@@ -706,7 +706,7 @@ func (d *Daemon) Init() error {
 }
 
 func (d *Daemon) init() error {
-	var dbWarnings []clusterDB.Warning
+	var dbWarnings []dbCluster.Warning
 
 	// Setup logger
 	events.LoggingServer = d.events
@@ -965,7 +965,7 @@ func (d *Daemon) init() error {
 	}
 
 	// Detect if clustered, but not yet upgraded to per-server client certificates.
-	if clustered && len(d.clientCerts.Certificates[clusterDB.CertificateTypeServer]) < 1 {
+	if clustered && len(d.clientCerts.Certificates[dbCluster.CertificateTypeServer]) < 1 {
 		// If the cluster has not yet upgraded to per-server client certificates (by running patch
 		// patchClusteringServerCertTrust) then temporarily use the network (cluster) certificate as client
 		// certificate, and cause us to trust it for use as client certificate from the other members.
@@ -1721,7 +1721,7 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 		var result map[int64]string
 		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
-			result, err = clusterDB.GetProjectIDsToNames(ctx, tx.Tx())
+			result, err = dbCluster.GetProjectIDsToNames(ctx, tx.Tx())
 			return err
 		})
 
