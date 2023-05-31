@@ -17,7 +17,7 @@ var locksMutex sync.Mutex
 // UnlockFunc unlocks the lock.
 type UnlockFunc func()
 
-// Lock creates a lock for a specific storage volume to allow activities that require exclusive access to occur.
+// Lock creates a named lock to allow activities that require exclusive access to occur.
 // Will block until the lock is established or the context is cancelled.
 // On successfully acquiring the lock, it returns an unlock function which needs to be called to unlock the lock.
 // If the context is canceled then nil will be returned.
