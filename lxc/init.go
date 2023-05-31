@@ -329,45 +329,19 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 	var opInfo api.Operation
 	if !c.flagEmpty {
 		// Get the image server and image info
-		iremote, image = c.guessImage(conf, d, remote, iremote, image)
-		var imgRemote lxd.ImageServer
-		var imgInfo *api.Image
-
-		// Connect to the image server
-		if iremote == remote {
-			imgRemote = d
-		} else {
-			imgRemote, err = conf.GetImageServer(iremote)
-			if err != nil {
-				return nil, "", err
-			}
-		}
+		iremote, image = guessImage(conf, d, remote, iremote, image)
 
 		// Deal with the default image
 		if image == "" {
 			image = "default"
 		}
 
-		// Optimisation for simplestreams
-		if conf.Remotes[iremote].Protocol == "simplestreams" {
-			imgInfo = &api.Image{}
-			imgInfo.Fingerprint = image
-			imgInfo.Public = true
-			req.Source.Alias = image
-		} else {
-			// Attempt to resolve an image alias
-			alias, _, err := imgRemote.GetImageAlias(image)
-			if err == nil {
-				req.Source.Alias = image
-				image = alias.Target
-			}
+		imgRemote, imgInfo, err := getImgInfo(d, conf, iremote, remote, image, &req.Source)
+		if err != nil {
+			return nil, "", err
+		}
 
-			// Get the image info
-			imgInfo, _, err = imgRemote.GetImage(image)
-			if err != nil {
-				return nil, "", err
-			}
-
+		if conf.Remotes[iremote].Protocol != "simplestreams" {
 			if imgInfo.Type != "virtual-machine" && c.flagVM {
 				return nil, "", fmt.Errorf(i18n.G("Asked for a VM but image is of type container"))
 			}
@@ -443,36 +417,6 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 	c.checkNetwork(d, name)
 
 	return d, name, nil
-}
-
-func (c *cmdInit) guessImage(conf *config.Config, d lxd.InstanceServer, remote string, iremote string, image string) (string, string) {
-	if remote != iremote {
-		return iremote, image
-	}
-
-	fields := strings.SplitN(image, "/", 2)
-	_, ok := conf.Remotes[fields[0]]
-	if !ok {
-		return iremote, image
-	}
-
-	_, _, err := d.GetImageAlias(image)
-	if err == nil {
-		return iremote, image
-	}
-
-	_, _, err = d.GetImage(image)
-	if err == nil {
-		return iremote, image
-	}
-
-	if len(fields) == 1 {
-		fmt.Fprintf(os.Stderr, i18n.G("The local image '%s' couldn't be found, trying '%s:' instead.")+"\n", image, fields[0])
-		return fields[0], "default"
-	}
-
-	fmt.Fprintf(os.Stderr, i18n.G("The local image '%s' couldn't be found, trying '%s:%s' instead.")+"\n", image, fields[0], fields[1])
-	return fields[0], fields[1]
 }
 
 func (c *cmdInit) checkNetwork(d lxd.InstanceServer, name string) {
