@@ -6018,20 +6018,20 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 // and symlinks are restored as needed to make it operational with LXD. Used during the recovery import stage.
 // If the instance exists on the local cluster member then the local mount status is restored as needed.
 // If the optional poolVol argument is provided then it is used to create the storage volume database records.
-func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfig.Config, op *operations.Operation) error {
+func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfig.Config, op *operations.Operation) (revert.Hook, error) {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 	l.Debug("ImportInstance started")
 	defer l.Debug("ImportInstance finished")
 
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
 	snapshots, err := b.state.DB.Cluster.GetInstanceSnapshotsNames(inst.Project().Name, inst.Name())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	contentType := InstanceContentType(inst)
@@ -6061,7 +6061,7 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 		// Validate config and create database entry for recovered storage volume.
 		err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), "", volType, false, volumeConfig, creationDate, time.Time{}, contentType, false, true)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, inst.Name(), volType) })
@@ -6081,7 +6081,7 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 				// Validate config and create database entry for recovered storage volume.
 				err = VolumeDBCreate(b, inst.Project().Name, fullSnapName, poolVolSnap.Description, volType, true, snapVolumeConfig, poolVolSnap.CreatedAt, time.Time{}, contentType, false, true)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, fullSnapName, volType) })
@@ -6100,7 +6100,7 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 				// Use parent volume config.
 				err = VolumeDBCreate(b, inst.Project().Name, fullSnapName, "", volType, true, volumeConfig, time.Time{}, time.Time{}, contentType, false, true)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, fullSnapName, volType) })
@@ -6113,12 +6113,12 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 	vol := b.GetVolume(volType, contentType, volStorageName, volumeConfig)
 	err = b.applyInstanceRootDiskOverrides(inst, &vol)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = vol.EnsureMountPath()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Only attempt to restore mount status on instance's local cluster member.
@@ -6133,7 +6133,7 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 			if !vol.MountInUse() {
 				_, err = b.MountInstance(inst, op)
 				if err != nil {
-					return fmt.Errorf("Failed mounting instance: %w", err)
+					return nil, fmt.Errorf("Failed mounting instance: %w", err)
 				}
 			}
 		} else {
@@ -6141,7 +6141,7 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 			// import.
 			err = b.UnmountInstance(inst, op)
 			if err != nil {
-				return fmt.Errorf("Failed unmounting instance: %w", err)
+				return nil, fmt.Errorf("Failed unmounting instance: %w", err)
 			}
 		}
 	}
@@ -6149,7 +6149,7 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 	// Create symlink.
 	err = b.ensureInstanceSymlink(inst.Type(), inst.Project().Name, inst.Name(), vol.MountPath())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	revert.Add(func() {
@@ -6166,23 +6166,24 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 
 			snapVol, err := vol.NewSnapshot(snapOnlyName)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			err = snapVol.EnsureMountPath()
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 
 		err = b.ensureInstanceSnapshotSymlink(inst.Type(), inst.Project().Name, inst.Name())
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
+	cleanup := revert.Clone().Fail
 	revert.Success()
-	return nil
+	return cleanup, err
 }
 
 func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
