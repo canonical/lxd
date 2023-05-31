@@ -15,7 +15,7 @@ zfs_configure() {
 
   echo "==> Configuring ZFS backend in ${LXD_DIR}"
 
-  lxc storage create "lxdtest-$(basename "${LXD_DIR}")" zfs size=100GB
+  lxc storage create "lxdtest-$(basename "${LXD_DIR}")" zfs size=1GB
   lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
 }
 
