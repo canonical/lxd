@@ -214,6 +214,8 @@ func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operat
 		return err
 	}
 
+	revert.Add(func() { _ = b.driver.Delete(op) })
+
 	// Mount the storage pool.
 	ourMount, err := b.driver.Mount()
 	if err != nil {
