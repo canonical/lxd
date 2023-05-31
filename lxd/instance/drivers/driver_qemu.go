@@ -7201,15 +7201,18 @@ func (d *qemu) statusCode() api.StatusCode {
 		return api.Error
 	}
 
-	if status == "running" {
+	switch status {
+	case "prelaunch", "running":
+		if status == "running" && shared.IsTrue(d.LocalConfig()["volatile.last_state.ready"]) {
+			return api.Ready
+		}
+
 		return api.Running
-	} else if status == "paused" || status == "postmigrate" {
+	case "inmigrate", "postmigrate", "finish-migrate", "save-vm", "suspended", "paused":
 		return api.Frozen
-	} else if status == "internal-error" || status == "io-error" {
+	default:
 		return api.Error
 	}
-
-	return api.Stopped
 }
 
 // State returns the instance's state code.
