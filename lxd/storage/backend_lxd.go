@@ -4353,9 +4353,9 @@ func (b *lxdBackend) UnmountCustomVolume(projectName, volName string, op *operat
 // ImportCustomVolume takes an existing custom volume on the storage backend and ensures that the DB records,
 // volume directories and symlinks are restored as needed to make it operational with LXD.
 // Used during the recovery import stage.
-func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfig.Config, op *operations.Operation) error {
+func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfig.Config, op *operations.Operation) (revert.Hook, error) {
 	if poolVol.Volume == nil {
-		return fmt.Errorf("Invalid pool volume config supplied")
+		return nil, fmt.Errorf("Invalid pool volume config supplied")
 	}
 
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volName": poolVol.Volume.Name})
@@ -4374,7 +4374,7 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfi
 	// Validate config and create database entry for restored storage volume.
 	err := VolumeDBCreate(b, projectName, poolVol.Volume.Name, poolVol.Volume.Description, drivers.VolumeTypeCustom, false, volumeConfig, time.Time{}, drivers.ContentType(poolVol.Volume.ContentType), false, true)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	revert.Add(func() { _ = VolumeDBDelete(b, projectName, poolVol.Volume.Name, drivers.VolumeTypeCustom) })
@@ -4393,7 +4393,7 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfi
 		// Validate config and create database entry for restored storage volume.
 		err = VolumeDBCreate(b, projectName, fullSnapName, poolVolSnap.Description, drivers.VolumeTypeCustom, true, snapVolumeConfig, time.Time{}, drivers.ContentType(poolVolSnap.ContentType), false, true)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		revert.Add(func() { _ = VolumeDBDelete(b, projectName, fullSnapName, drivers.VolumeTypeCustom) })
@@ -4406,7 +4406,7 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfi
 	// Create the mount path if needed.
 	err = vol.EnsureMountPath()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Create snapshot mount paths and snapshot parent directory if needed.
@@ -4415,17 +4415,18 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfi
 
 		snapVol, err := vol.NewSnapshot(poolVolSnap.Name)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		err = snapVol.EnsureMountPath()
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
+	cleanup := revert.Clone().Fail
 	revert.Success()
-	return nil
+	return cleanup, err
 }
 
 // CreateCustomVolumeSnapshot creates a snapshot of a custom volume.
