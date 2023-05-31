@@ -52,6 +52,17 @@ var instanceCmd = APIEndpoint{
 	Patch:  APIEndpointAction{Handler: instancePatch, AccessHandler: allowProjectPermission("containers", "manage-containers")},
 }
 
+var instanceRebuildCmd = APIEndpoint{
+	Name: "instanceRebuild",
+	Path: "instances/{name}/rebuild",
+	Aliases: []APIEndpointAlias{
+		{Name: "containerRebuild", Path: "containers/{name}/rebuild"},
+		{Name: "vmRebuild", Path: "virtual-machines/{name}/rebuild"},
+	},
+
+	Post: APIEndpointAction{Handler: instanceRebuildPost, AccessHandler: allowProjectPermission("containers", "manage-containers")},
+}
+
 var instanceStateCmd = APIEndpoint{
 	Name: "instanceState",
 	Path: "instances/{name}/state",

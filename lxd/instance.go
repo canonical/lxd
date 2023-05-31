@@ -181,6 +181,39 @@ func instanceCreateFromImage(s *state.State, r *http.Request, img *api.Image, ar
 	return nil
 }
 
+func instanceRebuildFromImage(s *state.State, r *http.Request, inst instance.Instance, img *api.Image, op *operations.Operation) error {
+	// Validate the type of the image matches the type of the instance.
+	imgType, err := instancetype.New(img.Type)
+	if err != nil {
+		return err
+	}
+
+	if imgType != inst.Type() {
+		return fmt.Errorf("Requested image's type %q doesn't match instance type %q", imgType, inst.Type())
+	}
+
+	err = ensureImageIsLocallyAvailable(s, r, img, inst.Project().Name, inst.Type())
+	if err != nil {
+		return err
+	}
+
+	err = inst.Rebuild(img, op)
+	if err != nil {
+		return fmt.Errorf("Failed rebuilding instance from image: %w", err)
+	}
+
+	return nil
+}
+
+func instanceRebuildFromEmpty(s *state.State, inst instance.Instance, op *operations.Operation) error {
+	err := inst.Rebuild(nil, op) // Rebuild as empty.
+	if err != nil {
+		return fmt.Errorf("Failed rebuilding as an empty instance: %w", err)
+	}
+
+	return nil
+}
+
 // instanceCreateAsCopyOpts options for copying an instance.
 type instanceCreateAsCopyOpts struct {
 	sourceInstance       instance.Instance // Source instance.
