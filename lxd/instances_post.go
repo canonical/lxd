@@ -94,36 +94,10 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 				return err
 			}
 		} else if img != nil {
-			// Check if the image is available locally or it's on another member.
-			// Ensure we are the only ones operating on this image. Otherwise another instance created
-			// at the same time may also arrive at the conclusion that the image doesn't exist on this
-			// cluster member and then think it needs to download the image and store the record in the
-			// database as well, which will lead to duplicate record errors.
-			unlock := imageOperationLock(img.Fingerprint)
-
-			memberAddress, err := s.DB.Cluster.LocateImage(img.Fingerprint)
+			err := ensureImageIsLocallyAvailable(s, r, img, args.Project, args.Type)
 			if err != nil {
-				unlock()
-				return fmt.Errorf("Failed locating image %q: %w", img.Fingerprint, err)
+				return err
 			}
-
-			if memberAddress != "" {
-				// The image is available from another node, let's try to import it.
-				err = instanceImageTransfer(s, r, args.Project, img.Fingerprint, memberAddress)
-				if err != nil {
-					unlock()
-					return fmt.Errorf("Failed transferring image %q from %q: %w", img.Fingerprint, memberAddress, err)
-				}
-
-				// As the image record already exists in the project, just add the node ID to the image.
-				err = s.DB.Cluster.AddImageToLocalNode(args.Project, img.Fingerprint)
-				if err != nil {
-					unlock()
-					return fmt.Errorf("Failed adding transferred image %q record to local cluster member: %w", img.Fingerprint, err)
-				}
-			}
-
-			unlock() // Image is available locally.
 		} else {
 			return fmt.Errorf("Image not provided for instance creation")
 		}
