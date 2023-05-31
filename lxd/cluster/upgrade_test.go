@@ -18,7 +18,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
-	clusterDB "github.com/lxc/lxd/lxd/db/cluster"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -158,7 +158,7 @@ func TestUpgradeMembersWithoutRole(t *testing.T) {
 	gateway := newGateway(t, state.DB.Node, serverCert, state)
 	defer func() { _ = gateway.Shutdown() }()
 
-	trustedCerts := func() map[clusterDB.CertificateType]map[string]x509.Certificate {
+	trustedCerts := func() map[dbCluster.CertificateType]map[string]x509.Certificate {
 		return nil
 	}
 

@@ -17,7 +17,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
-	clusterDB "github.com/lxc/lxd/lxd/db/cluster"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 )
@@ -37,7 +37,7 @@ func TestGateway_Single(t *testing.T) {
 	gateway := newGateway(t, node, cert, s)
 	defer func() { _ = gateway.Shutdown() }()
 
-	trustedCerts := func() map[clusterDB.CertificateType]map[string]x509.Certificate {
+	trustedCerts := func() map[dbCluster.CertificateType]map[string]x509.Certificate {
 		return nil
 	}
 
@@ -101,7 +101,7 @@ func TestGateway_SingleWithNetworkAddress(t *testing.T) {
 	gateway := newGateway(t, node, cert, s)
 	defer func() { _ = gateway.Shutdown() }()
 
-	trustedCerts := func() map[clusterDB.CertificateType]map[string]x509.Certificate {
+	trustedCerts := func() map[dbCluster.CertificateType]map[string]x509.Certificate {
 		return nil
 	}
 
@@ -146,7 +146,7 @@ func TestGateway_NetworkAuth(t *testing.T) {
 	gateway := newGateway(t, node, cert, s)
 	defer func() { _ = gateway.Shutdown() }()
 
-	trustedCerts := func() map[clusterDB.CertificateType]map[string]x509.Certificate {
+	trustedCerts := func() map[dbCluster.CertificateType]map[string]x509.Certificate {
 		return nil
 	}
 
