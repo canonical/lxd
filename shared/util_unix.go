@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build !windows && !linux
 
 package shared
 
@@ -10,6 +10,32 @@ import (
 
 	"golang.org/x/sys/unix"
 )
+
+// Uname returns Utsname as strings.
+func Uname() (*Utsname, error) {
+	/*
+	 * Based on: https://groups.google.com/forum/#!topic/golang-nuts/Jel8Bb-YwX8
+	 * there is really no better way to do this, which is
+	 * unfortunate. Also, we ditch the more accepted CharsToString
+	 * version in that thread, since it doesn't seem as portable,
+	 * viz. github issue #206.
+	 */
+
+	uname := unix.Utsname{}
+	err := unix.Uname(&uname)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Utsname{
+		Sysname:    intArrayToString(uname.Sysname),
+		Nodename:   intArrayToString(uname.Nodename),
+		Release:    intArrayToString(uname.Release),
+		Version:    intArrayToString(uname.Version),
+		Machine:    intArrayToString(uname.Machine),
+		Domainname: "(none)", // emulate Linux
+	}, nil
+}
 
 func GetOwnerMode(fInfo os.FileInfo) (os.FileMode, int, int) {
 	mode := fInfo.Mode()

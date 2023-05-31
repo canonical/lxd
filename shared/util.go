@@ -42,6 +42,16 @@ const HTTPSMetricsDefaultPort = 9100
 // HTTPSStorageBucketsDefaultPort the default port for the storage buckets listener.
 const HTTPSStorageBucketsDefaultPort = 9000
 
+// Utsname returns the same info as unix.Utsname, as strings.
+type Utsname struct {
+	Sysname    string
+	Nodename   string
+	Release    string
+	Version    string
+	Machine    string
+	Domainname string
+}
+
 // URLEncode encodes a path and query parameters to a URL.
 func URLEncode(path string, query map[string]string) (string, error) {
 	u, err := url.Parse(path)
@@ -1359,4 +1369,32 @@ func JoinTokenDecode(input string) (*api.ClusterMemberJoinToken, error) {
 	}
 
 	return &j, nil
+}
+
+func intArrayToString(arr any) string {
+	slice := reflect.ValueOf(arr)
+	s := ""
+	for i := 0; i < slice.Len(); i++ {
+		val := slice.Index(i)
+		valInt := int64(-1)
+
+		switch val.Kind() {
+		case reflect.Int:
+		case reflect.Int8:
+			valInt = int64(val.Int())
+		case reflect.Uint:
+		case reflect.Uint8:
+			valInt = int64(val.Uint())
+		default:
+			continue
+		}
+
+		if valInt == 0 {
+			break
+		}
+
+		s += string(byte(valInt))
+	}
+
+	return s
 }
