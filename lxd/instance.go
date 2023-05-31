@@ -633,3 +633,36 @@ func pruneExpiredAndAutoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.
 
 	return f, schedule
 }
+
+// getSourceImageFromInstanceSource returns the image to use for an instance source.
+func getSourceImageFromInstanceSource(ctx context.Context, s *state.State, tx *db.ClusterTx, project string, source api.InstanceSource, imageRef *string, instType string) (*api.Image, error) {
+	// Resolve the image.
+	sourceImageRefUpdate, err := instance.ResolveImage(ctx, tx, project, source)
+	if err != nil {
+		return nil, err
+	}
+
+	*imageRef = sourceImageRefUpdate
+	sourceImageHash := *imageRef
+
+	// If a remote server is being used, check whether we have a cached image for the alias.
+	// If so then use the cached image fingerprint for loading the cache image profiles.
+	// As its possible for a remote cached image to have its profiles modified after download.
+	if source.Server != "" {
+		for _, architecture := range s.OS.Architectures {
+			cachedFingerprint, err := tx.GetCachedImageSourceFingerprint(ctx, source.Server, source.Protocol, *imageRef, instType, architecture)
+			if err == nil && cachedFingerprint != sourceImageHash {
+				sourceImageHash = cachedFingerprint
+				break
+			}
+		}
+	}
+
+	// Check if image has an entry in the database.
+	_, sourceImage, err := tx.GetImageByFingerprintPrefix(ctx, sourceImageHash, dbCluster.ImageFilter{Project: &project})
+	if err != nil {
+		return nil, err
+	}
+
+	return sourceImage, nil
+}

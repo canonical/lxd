@@ -991,29 +991,9 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 		case "image":
-			// Resolve the image.
-			sourceImageRef, err = instance.ResolveImage(ctx, tx, targetProject.Name, req.Source)
-			if err != nil {
-				return err
-			}
-
-			sourceImageHash := sourceImageRef
-
-			// If a remote server is being used, check whether we have a cached image for the alias.
-			// If so then use the cached image fingerprint for loading the cache image profiles.
-			// As its possible for a remote cached image to have its profiles modified after download.
-			if req.Source.Server != "" {
-				for _, architecture := range s.OS.Architectures {
-					cachedFingerprint, err := tx.GetCachedImageSourceFingerprint(ctx, req.Source.Server, req.Source.Protocol, sourceImageRef, string(req.Type), architecture)
-					if err == nil && cachedFingerprint != sourceImageHash {
-						sourceImageHash = cachedFingerprint
-						break
-					}
-				}
-			}
-
-			// Check if image has an entry in the database (but don't fail if not found).
-			_, sourceImage, err = tx.GetImageByFingerprintPrefix(ctx, sourceImageHash, dbCluster.ImageFilter{Project: &targetProject.Name})
+			// Check if the image has an entry in the database but fail only if the error
+			// is different than the image not being found.
+			sourceImage, err = getSourceImageFromInstanceSource(ctx, s, tx, targetProject.Name, req.Source, &sourceImageRef, string(req.Type))
 			if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 				return err
 			}
