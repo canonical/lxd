@@ -11,6 +11,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -108,6 +109,9 @@ func (d *btrfs) Create() error {
 	// Store the provided source as we are likely to be mangling it.
 	d.config["volatile.initial_source"] = d.config["source"]
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	loopPath := loopFilePath(d.name)
 	if d.config["source"] == "" || d.config["source"] == loopPath {
 		// Create a loop based pool.
@@ -133,6 +137,8 @@ func (d *btrfs) Create() error {
 		if err != nil {
 			return fmt.Errorf("Failed to create the sparse file: %w", err)
 		}
+
+		revert.Add(func() { _ = os.Remove(d.config["source"]) })
 
 		// Format the file.
 		_, err = makeFSType(d.config["source"], "btrfs", &mkfsOptions{Label: d.name})
@@ -225,6 +231,7 @@ func (d *btrfs) Create() error {
 		return fmt.Errorf(`Invalid "source" property`)
 	}
 
+	revert.Success()
 	return nil
 }
 
