@@ -160,8 +160,8 @@ func (b *mockBackend) ListUnknownVolumes(op *operations.Operation) (map[string][
 	return nil, nil
 }
 
-func (b *mockBackend) ImportInstance(inst instance.Instance, poolVol *backupConfig.Config, op *operations.Operation) error {
-	return nil
+func (b *mockBackend) ImportInstance(inst instance.Instance, poolVol *backupConfig.Config, op *operations.Operation) (revert.Hook, error) {
+	return nil, nil
 }
 
 func (b *mockBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error {
@@ -316,8 +316,8 @@ func (b *mockBackend) UnmountCustomVolume(projectName string, volName string, op
 	return true, nil
 }
 
-func (b *mockBackend) ImportCustomVolume(projectName string, poolVol *backupConfig.Config, op *operations.Operation) error {
-	return nil
+func (b *mockBackend) ImportCustomVolume(projectName string, poolVol *backupConfig.Config, op *operations.Operation) (revert.Hook, error) {
+	return nil, nil
 }
 
 func (b *mockBackend) CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, expiryDate time.Time, op *operations.Operation) error {
