@@ -851,7 +851,7 @@ func instancePostClusteringMigrateWithCeph(s *state.State, r *http.Request, srcP
 			srcInstName = srcInst.Name()
 		}
 
-		err = srcPool.ImportInstance(srcInst, nil, nil)
+		_, err = srcPool.ImportInstance(srcInst, nil, nil)
 		if err != nil {
 			return fmt.Errorf("Failed creating mount point of instance on target node: %w", err)
 		}
