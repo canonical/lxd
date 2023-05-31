@@ -158,7 +158,7 @@ func (op *InstanceOperation) Action() Action {
 	return op.action
 }
 
-// ActionMatch returns true if operations' action matches on of the matchActions.
+// ActionMatch returns true if operation's action matches one of the matchActions.
 func (op *InstanceOperation) ActionMatch(matchActions ...Action) bool {
 	for _, matchAction := range matchActions {
 		if op.action == matchAction {
