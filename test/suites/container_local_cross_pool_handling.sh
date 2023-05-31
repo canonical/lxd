@@ -18,21 +18,21 @@ test_container_local_cross_pool_handling() {
     lxc network create "${brName}"
 
     if storage_backend_available "btrfs"; then
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-btrfs" btrfs size=100GB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-btrfs" btrfs size=1GiB
     fi
 
     if storage_backend_available "ceph"; then
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-ceph" ceph volume.size=25MB ceph.osd.pg_num=16
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-ceph" ceph volume.size=25MiB ceph.osd.pg_num=16
     fi
 
     lxc storage create "lxdtest-$(basename "${LXD_DIR}")-dir" dir
 
     if storage_backend_available "lvm"; then
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-lvm" lvm volume.size=25MB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-lvm" lvm volume.size=25MiB
     fi
 
     if storage_backend_available "zfs"; then
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-zfs" zfs size=100GB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-zfs" zfs size=1GiB
     fi
 
     for driver in "btrfs" "ceph" "dir" "lvm" "zfs"; do
@@ -40,15 +40,15 @@ test_container_local_cross_pool_handling() {
         pool_opts=
 
         if [ "$driver" = "btrfs" ] || [ "$driver" = "zfs" ]; then
-          pool_opts="size=100GB"
+          pool_opts="size=1GiB"
         fi
 
         if [ "$driver" = "ceph" ]; then
-          pool_opts="volume.size=25MB ceph.osd.pg_num=16"
+          pool_opts="volume.size=25MiB ceph.osd.pg_num=16"
         fi
 
         if [ "$driver" = "lvm" ]; then
-          pool_opts="volume.size=25MB"
+          pool_opts="volume.size=25MiB"
         fi
 
         if [ -n "${pool_opts}" ]; then
