@@ -600,7 +600,7 @@ WHERE images.fingerprint = ?
 	}
 
 	if len(addresses) == 0 {
-		return "", fmt.Errorf("Image not available on any online node")
+		return "", fmt.Errorf("Image not available on any online member")
 	}
 
 	for _, address := range addresses {
