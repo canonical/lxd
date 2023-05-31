@@ -492,3 +492,51 @@ func (r *ProtocolLXD) getUnderlyingHTTPTransport() (*http.Transport, error) {
 		return nil, fmt.Errorf("Unexpected http.Transport type, %T", r)
 	}
 }
+
+// getSourceImageConnectionInfo returns the connection information for the source image.
+// The returned `info` is nil if the source image is local. In this process, the `instSrc`
+// is also updated with the minimal source fields.
+func (r *ProtocolLXD) getSourceImageConnectionInfo(source ImageServer, image api.Image, instSrc *api.InstanceSource) (info *ConnectionInfo, err error) {
+	// Set the minimal source fields
+	instSrc.Type = "image"
+
+	// Optimization for the local image case
+	if r.isSameServer(source) {
+		// Always use fingerprints for local case
+		instSrc.Fingerprint = image.Fingerprint
+		instSrc.Alias = ""
+		return nil, nil
+	}
+
+	// Minimal source fields for remote image
+	instSrc.Mode = "pull"
+
+	// If we have an alias and the image is public, use that
+	if instSrc.Alias != "" && image.Public {
+		instSrc.Fingerprint = ""
+	} else {
+		instSrc.Fingerprint = image.Fingerprint
+		instSrc.Alias = ""
+	}
+
+	// Get source server connection information
+	info, err = source.GetConnectionInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	instSrc.Protocol = info.Protocol
+	instSrc.Certificate = info.Certificate
+
+	// Generate secret token if needed
+	if !image.Public {
+		secret, err := source.GetImageSecret(image.Fingerprint)
+		if err != nil {
+			return nil, err
+		}
+
+		instSrc.Secret = secret
+	}
+
+	return info, nil
+}
