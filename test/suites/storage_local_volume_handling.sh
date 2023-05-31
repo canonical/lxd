@@ -16,11 +16,11 @@ test_storage_local_volume_handling() {
     LXD_DIR="${LXD_STORAGE_DIR}"
 
     if storage_backend_available "btrfs"; then
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-btrfs" btrfs size=100GB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-btrfs" btrfs size=1GiB
     fi
 
     if storage_backend_available "ceph"; then
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-ceph" ceph volume.size=25MB ceph.osd.pg_num=16
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-ceph" ceph volume.size=25MiB ceph.osd.pg_num=16
       if [ -n "${LXD_CEPH_CEPHFS:-}" ]; then
         lxc storage create "lxdtest-$(basename "${LXD_DIR}")-cephfs" cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")-cephfs"
       fi
@@ -29,11 +29,11 @@ test_storage_local_volume_handling() {
     lxc storage create "lxdtest-$(basename "${LXD_DIR}")-dir" dir
 
     if storage_backend_available "lvm"; then
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-lvm" lvm volume.size=25MB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-lvm" lvm volume.size=25MiB
     fi
 
     if storage_backend_available "zfs"; then
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-zfs" zfs size=100GB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-zfs" zfs size=1GiB
     fi
 
     # Test all combinations of our storage drivers
@@ -42,15 +42,15 @@ test_storage_local_volume_handling() {
     pool_opts=
 
     if [ "$driver" = "btrfs" ] || [ "$driver" = "zfs" ]; then
-      pool_opts="size=100GB"
+      pool_opts="size=1GiB"
     fi
 
     if [ "$driver" = "ceph" ]; then
-      pool_opts="volume.size=25MB ceph.osd.pg_num=16"
+      pool_opts="volume.size=25MiB ceph.osd.pg_num=16"
     fi
 
     if [ "$driver" = "lvm" ]; then
-      pool_opts="volume.size=25MB"
+      pool_opts="volume.size=25MiB"
     fi
 
     if [ -n "${pool_opts}" ]; then

@@ -17,7 +17,7 @@ test_storage_driver_ceph() {
     LXD_DIR="${LXD_STORAGE_DIR}"
 
     # shellcheck disable=SC1009
-    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" ceph volume.size=25MB ceph.osd.pg_num=16
+    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" ceph volume.size=25MiB ceph.osd.pg_num=16
 
     # Set default storage pool for image import.
     lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")-pool1"
@@ -29,7 +29,7 @@ test_storage_driver_ceph() {
     ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool create "lxdtest-$(basename "${LXD_DIR}")-existing-osd-pool" 1
 
     # Let LXD use an already existing osd pool.
-    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool2" ceph source="lxdtest-$(basename "${LXD_DIR}")-existing-osd-pool" volume.size=25MB ceph.osd.pg_num=16
+    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool2" ceph source="lxdtest-$(basename "${LXD_DIR}")-existing-osd-pool" volume.size=25MiB ceph.osd.pg_num=16
 
     # Test that no invalid ceph storage pool configuration keys can be set.
     ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-ceph-pool-config" ceph lvm.thinpool_name=bla || false
@@ -37,7 +37,7 @@ test_storage_driver_ceph() {
     ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-ceph-pool-config" ceph lvm.vg_name=bla || false
 
     # Test that all valid ceph storage pool configuration keys can be set.
-    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-ceph-pool-config" ceph volume.block.filesystem=ext4 volume.block.mount_options=discard volume.size=2GB ceph.rbd.clone_copy=true ceph.osd.pg_num=16
+    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-ceph-pool-config" ceph volume.block.filesystem=ext4 volume.block.mount_options=discard volume.size=25MiB ceph.rbd.clone_copy=true ceph.osd.pg_num=16
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-ceph-pool-config"
 
     # Muck around with some containers on various pools.
