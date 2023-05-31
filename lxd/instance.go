@@ -148,9 +148,16 @@ func instanceCreateFromImage(s *state.State, r *http.Request, img *api.Image, ar
 	revert.Add(cleanup)
 	defer instOp.Done(nil)
 
-	err = s.DB.Cluster.UpdateImageLastUseDate(args.Project, img.Fingerprint, time.Now().UTC())
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = tx.UpdateImageLastUseDate(ctx, args.Project, img.Fingerprint, time.Now().UTC())
+		if err != nil {
+			return fmt.Errorf("Error updating image last use date: %w", err)
+		}
+
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("Error updating image last use date: %s", err)
+		return nil, err
 	}
 
 	pool, err := storagePools.LoadByInstance(s, inst)
