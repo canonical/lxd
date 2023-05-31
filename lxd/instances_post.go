@@ -37,6 +37,45 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
+func ensureDownloadedImageFitWithinBudget(s *state.State, r *http.Request, op *operations.Operation, p api.Project, img *api.Image, imgAlias string, source api.InstanceSource, imgType string) (*api.Image, error) {
+	var autoUpdate bool
+	var err error
+	if p.Config["images.auto_update_cached"] != "" {
+		autoUpdate = shared.IsTrue(p.Config["images.auto_update_cached"])
+	} else {
+		autoUpdate = s.GlobalConfig.ImagesAutoUpdateCached()
+	}
+
+	var budget int64
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		budget, err = project.GetImageSpaceBudget(tx, p.Name)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	imgDownloaded, err := ImageDownload(r, s, op, &ImageDownloadArgs{
+		Server:       source.Server,
+		Protocol:     source.Protocol,
+		Certificate:  source.Certificate,
+		Secret:       source.Secret,
+		Alias:        imgAlias,
+		SetCached:    true,
+		Type:         imgType,
+		AutoUpdate:   autoUpdate,
+		Public:       false,
+		PreferCached: true,
+		ProjectName:  p.Name,
+		Budget:       budget,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return imgDownloaded, nil
+}
+
 func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []api.Profile, img *api.Image, imgAlias string, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
@@ -60,36 +99,7 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 		}
 
 		if req.Source.Server != "" {
-			var autoUpdate bool
-			if p.Config["images.auto_update_cached"] != "" {
-				autoUpdate = shared.IsTrue(p.Config["images.auto_update_cached"])
-			} else {
-				autoUpdate = s.GlobalConfig.ImagesAutoUpdateCached()
-			}
-
-			var budget int64
-			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				budget, err = project.GetImageSpaceBudget(tx, p.Name)
-				return err
-			})
-			if err != nil {
-				return err
-			}
-
-			img, err = ImageDownload(r, s, op, &ImageDownloadArgs{
-				Server:       req.Source.Server,
-				Protocol:     req.Source.Protocol,
-				Certificate:  req.Source.Certificate,
-				Secret:       req.Source.Secret,
-				Alias:        imgAlias,
-				SetCached:    true,
-				Type:         string(req.Type),
-				AutoUpdate:   autoUpdate,
-				Public:       false,
-				PreferCached: true,
-				ProjectName:  p.Name,
-				Budget:       budget,
-			})
+			img, err = ensureDownloadedImageFitWithinBudget(s, r, op, p, img, imgAlias, req.Source, string(req.Type))
 			if err != nil {
 				return err
 			}
