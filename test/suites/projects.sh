@@ -685,7 +685,7 @@ test_projects_limits() {
   # Can't set the project's disk limit because not all volumes have
   # the "size" config defined.
   pool1="lxdtest1-$(basename "${LXD_DIR}")"
-  lxc storage create "${pool1}" lvm
+  lxc storage create "${pool1}" lvm size=1GiB
   lxc storage volume create "${pool1}" v1
   ! lxc project set p1 limits.disk 1GB || false
   lxc storage volume delete "${pool1}" v1
