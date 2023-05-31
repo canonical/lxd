@@ -98,37 +98,6 @@ func instanceCreateFromImage(s *state.State, r *http.Request, img *api.Image, ar
 		return nil, fmt.Errorf("Requested image's type %q doesn't match instance type %q", imgType, args.Type)
 	}
 
-	// Check if the image is available locally or it's on another member.
-	// Ensure we are the only ones operating on this image. Otherwise another instance created at the same
-	// time may also arrive at the conclusion that the image doesn't exist on this cluster member and then
-	// think it needs to download the image and store the record in the database as well, which will lead to
-	// duplicate record errors.
-	unlock := imageOperationLock(img.Fingerprint)
-
-	nodeAddress, err := s.DB.Cluster.LocateImage(img.Fingerprint)
-	if err != nil {
-		unlock()
-		return nil, fmt.Errorf("Locate image %q in the cluster: %w", img.Fingerprint, err)
-	}
-
-	if nodeAddress != "" {
-		// The image is available from another node, let's try to import it.
-		err = instanceImageTransfer(s, r, args.Project, img.Fingerprint, nodeAddress)
-		if err != nil {
-			unlock()
-			return nil, fmt.Errorf("Failed transferring image %q from %q: %w", img.Fingerprint, nodeAddress, err)
-		}
-
-		// As the image record already exists in the project, just add the node ID to the image.
-		err = s.DB.Cluster.AddImageToLocalNode(args.Project, img.Fingerprint)
-		if err != nil {
-			unlock()
-			return nil, fmt.Errorf("Failed adding transferred image %q record to local cluster member: %w", img.Fingerprint, err)
-		}
-	}
-
-	unlock() // Image is available locally.
-
 	// Set the "image.*" keys.
 	if img.Properties != nil {
 		for k, v := range img.Properties {
