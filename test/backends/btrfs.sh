@@ -13,7 +13,7 @@ btrfs_configure() {
 
   LXD_DIR=$1
 
-  lxc storage create "lxdtest-$(basename "${LXD_DIR}")" btrfs size=100GB
+  lxc storage create "lxdtest-$(basename "${LXD_DIR}")" btrfs size=1GB
   lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
 
   echo "==> Configuring btrfs backend in ${LXD_DIR}"
