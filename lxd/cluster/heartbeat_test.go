@@ -15,7 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
-	clusterDB "github.com/lxc/lxd/lxd/db/cluster"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -214,7 +214,7 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 	mux := http.NewServeMux()
 	server := newServer(serverCert, mux)
 
-	trustedCerts := func() map[clusterDB.CertificateType]map[string]x509.Certificate {
+	trustedCerts := func() map[dbCluster.CertificateType]map[string]x509.Certificate {
 		return nil
 	}
 
