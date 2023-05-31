@@ -1646,7 +1646,19 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// This ensures that if the guest initiates a reboot that the SHUTDOWN event is generated instead with the
 	// reason set to "guest-reset" so that the event handler returned from getMonitorEventHandler() can restart
 	// the guest instead.
-	err = monitor.SetAction(map[string]string{"reboot": "shutdown"})
+	actions := map[string]string{
+		"shutdown": "poweroff",
+		"reboot":   "shutdown", // Don't reset on reboot. Let LXD handle reboots.
+		"panic":    "shutdown", // Don't pause of panic. Let LXD cleanup.
+	}
+
+	qemuVer71, _ := version.NewDottedVersion("7.1")
+	qemuVer, _ := d.version()
+	if qemuVer != nil && qemuVer.Compare(qemuVer71) >= 0 {
+		actions["panic"] = "exit-failure" // Shutdown VM and exit with nonzero status. Let LXD cleanup.
+	}
+
+	err = monitor.SetAction(actions)
 	if err != nil {
 		op.Done(err)
 		return fmt.Errorf("Failed setting reboot action: %w", err)
