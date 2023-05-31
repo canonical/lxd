@@ -34,8 +34,6 @@ func NewInternalListener(ctx context.Context, server *Server) *InternalListener 
 func (l *InternalListener) startListener() {
 	var err error
 
-	// Create a listener if necessary. This avoids having a listener around if there are no
-	// handlers.
 	l.listenerCtx, l.listenerCancel = context.WithCancel(l.ctx)
 	aEnd, bEnd := memorypipe.NewPipePair(l.listenerCtx)
 	listenerConnection := NewSimpleListenerConnection(aEnd)
@@ -93,6 +91,7 @@ func (l *InternalListener) AddHandler(name string, handler EventHandler) {
 	l.handlers[name] = handler
 
 	if l.listener == nil {
+		// Create a listener if necessary. This avoids having a listener around if there are no handlers.
 		l.startListener()
 	}
 }
