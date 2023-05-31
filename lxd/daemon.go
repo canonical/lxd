@@ -1273,6 +1273,12 @@ func (d *Daemon) init() error {
 	maasMachine := d.localConfig.MAASMachine()
 
 	err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Delete any left over operations for this member from the global database.
+		err := dbCluster.DeleteOperations(ctx, tx.Tx(), tx.GetNodeID())
+		if err != nil {
+			logger.Error("Failed cleaning up operations")
+		}
+
 		config, err := clusterConfig.Load(ctx, tx)
 		if err != nil {
 			return err
