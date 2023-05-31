@@ -17,7 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
-	clusterDB "github.com/lxc/lxd/lxd/db/cluster"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -130,7 +130,7 @@ func TestBootstrap(t *testing.T) {
 	// The cluster certificate is in place.
 	assert.True(t, shared.PathExists(filepath.Join(state.OS.VarDir, "cluster.crt")))
 
-	trustedCerts := func() map[clusterDB.CertificateType]map[string]x509.Certificate {
+	trustedCerts := func() map[dbCluster.CertificateType]map[string]x509.Certificate {
 		return nil
 	}
 
@@ -288,9 +288,9 @@ func TestJoin(t *testing.T) {
 	altServerCert := shared.TestingAltKeyPair()
 	trustedAltServerCert, _ := x509.ParseCertificate(altServerCert.KeyPair().Certificate[0])
 
-	trustedCerts := func() map[clusterDB.CertificateType]map[string]x509.Certificate {
-		return map[clusterDB.CertificateType]map[string]x509.Certificate{
-			clusterDB.CertificateTypeServer: {
+	trustedCerts := func() map[dbCluster.CertificateType]map[string]x509.Certificate {
+		return map[dbCluster.CertificateType]map[string]x509.Certificate{
+			dbCluster.CertificateTypeServer: {
 				altServerCert.Fingerprint(): *trustedAltServerCert,
 			},
 		}
@@ -329,7 +329,7 @@ func TestJoin(t *testing.T) {
 	require.NoError(t, err)
 
 	// PreparedStmts is a global variable and will be overwritten by the OpenCluster call below, so save it here.
-	targetStmts := clusterDB.PreparedStmts
+	targetStmts := dbCluster.PreparedStmts
 
 	targetF := &membershipFixtures{t: t, state: targetState}
 	targetF.ClusterAddress(targetAddress)
@@ -384,19 +384,19 @@ func TestJoin(t *testing.T) {
 	require.NoError(t, err)
 
 	// Save the other instance of PreparedStmts here.
-	sourceStmts := clusterDB.PreparedStmts
+	sourceStmts := dbCluster.PreparedStmts
 
 	f := &membershipFixtures{t: t, state: state}
 	f.ClusterAddress(address)
 
 	// Accept the joining node.
-	clusterDB.PreparedStmts = targetStmts
+	dbCluster.PreparedStmts = targetStmts
 	raftNodes, err := cluster.Accept(
 		targetState, targetGateway, "rusp", address, cluster.SchemaVersion, len(version.APIExtensions), osarch.ARCH_64BIT_INTEL_X86)
 	require.NoError(t, err)
 
 	// Actually join the cluster.
-	clusterDB.PreparedStmts = sourceStmts
+	dbCluster.PreparedStmts = sourceStmts
 	err = cluster.Join(state, gateway, targetCert, altServerCert, "rusp", raftNodes)
 	require.NoError(t, err)
 
@@ -421,7 +421,7 @@ func TestJoin(t *testing.T) {
 	leaving, err := cluster.Leave(state, targetGateway, "rusp", false /* force */)
 	require.NoError(t, err)
 	assert.Equal(t, address, leaving)
-	clusterDB.PreparedStmts = targetStmts
+	dbCluster.PreparedStmts = targetStmts
 	err = cluster.Purge(targetState.DB.Cluster, "rusp")
 	require.NoError(t, err)
 
