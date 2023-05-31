@@ -1272,7 +1272,7 @@ func (d *Daemon) init() error {
 	maasAPIKey := ""
 	maasMachine := d.localConfig.MAASMachine()
 
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		config, err := clusterConfig.Load(ctx, tx)
 		if err != nil {
 			return err
@@ -1288,6 +1288,7 @@ func (d *Daemon) init() error {
 		d.serverName = serverName
 		d.globalConfig = config
 		d.globalConfigMu.Unlock()
+
 		return nil
 	})
 	if err != nil {
