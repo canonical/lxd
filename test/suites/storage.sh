@@ -152,8 +152,8 @@ test_storage() {
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config" btrfs rsync.bwlimit=1024
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config"
 
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config" btrfs btrfs.mount_options="rw,strictatime,nospace_cache,user_subvol_rm_allowed"
-      lxc storage set "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config" btrfs.mount_options "rw,relatime,space_cache,user_subvol_rm_allowed"
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config" btrfs btrfs.mount_options="rw,strictatime,user_subvol_rm_allowed"
+      lxc storage set "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config" btrfs.mount_options "rw,relatime,user_subvol_rm_allowed"
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config"
     fi
 
