@@ -674,10 +674,10 @@ test_clustering_storage() {
   # Define storage pools on the two nodes
   driver_config=""
   if [ "${poolDriver}" = "btrfs" ]; then
-      driver_config="size=20GB"
+      driver_config="size=1GiB"
   fi
   if [ "${poolDriver}" = "zfs" ]; then
-      driver_config="size=20GB"
+      driver_config="size=1GiB"
   fi
   if [ "${poolDriver}" = "ceph" ]; then
       driver_config="source=lxdtest-$(basename "${TEST_DIR}")-pool1"
@@ -725,9 +725,9 @@ test_clustering_storage() {
 
   # Create the storage pool
   if [ "${poolDriver}" = "lvm" ]; then
-      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" volume.size=25MB
+      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" volume.size=25MiB
   elif [ "${poolDriver}" = "ceph" ]; then
-      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" volume.size=25MB ceph.osd.pg_num=16
+      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" volume.size=25MiB ceph.osd.pg_num=16
   else
       LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}"
   fi
@@ -956,10 +956,10 @@ test_clustering_storage_single_node() {
   # Create a pending storage pool on the node.
   driver_config=""
   if [ "${poolDriver}" = "btrfs" ]; then
-      driver_config="size=20GB"
+      driver_config="size=1GiB"
   fi
   if [ "${poolDriver}" = "zfs" ]; then
-      driver_config="size=20GB"
+      driver_config="size=1GiB"
   fi
   if [ "${poolDriver}" = "ceph" ]; then
       driver_config="source=lxdtest-$(basename "${TEST_DIR}")-pool1"

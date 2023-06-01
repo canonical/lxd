@@ -40,7 +40,7 @@ func TestLocateImage(t *testing.T) {
 
 	address, err = cluster.LocateImage("abc")
 	require.Equal(t, "", address)
-	require.EqualError(t, err, "Image not available on any online node")
+	require.EqualError(t, err, "Image not available on any online member")
 }
 
 func TestImageExists(t *testing.T) {

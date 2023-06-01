@@ -151,20 +151,21 @@ EOF
     if [ "${driver}" = "btrfs" ]; then
       cat >> "${LXD_DIR}/preseed.yaml" <<EOF
   config:
-    size: 100GB
+    size: 1GiB
 EOF
     fi
     if [ "${driver}" = "zfs" ]; then
       cat >> "${LXD_DIR}/preseed.yaml" <<EOF
   config:
-    size: 100GB
+    size: 1GiB
     zfs.pool_name: lxdtest-$(basename "${TEST_DIR}")-${ns}
 EOF
     fi
     if [ "${driver}" = "lvm" ]; then
       cat >> "${LXD_DIR}/preseed.yaml" <<EOF
   config:
-    volume.size: 25MB
+    volume.size: 25MiB
+    size: 1GiB
     lvm.vg_name: lxdtest-$(basename "${TEST_DIR}")-${ns}
 EOF
     fi
@@ -172,7 +173,7 @@ EOF
       cat >> "${LXD_DIR}/preseed.yaml" <<EOF
   config:
     source: lxdtest-$(basename "${TEST_DIR}")
-    volume.size: 25GB
+    volume.size: 25MiB
     ceph.osd.pg_num: 16
 EOF
     fi
@@ -257,6 +258,10 @@ EOF
     name: data
     key: zfs.pool_name
     value: lxdtest-$(basename "${TEST_DIR}")-${ns}
+  - entity: storage-pool
+    name: data
+    key: size
+    value: 1GiB
 EOF
       fi
       if [ "${driver}" = "lvm" ]; then
@@ -265,6 +270,18 @@ EOF
     name: data
     key: lvm.vg_name
     value: lxdtest-$(basename "${TEST_DIR}")-${ns}
+  - entity: storage-pool
+    name: data
+    key: size
+    value: 1GiB
+EOF
+      fi
+      if [ "${driver}" = "btrfs" ]; then
+        cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+  - entity: storage-pool
+    name: data
+    key: size
+    value: 1GiB
 EOF
       fi
     fi
