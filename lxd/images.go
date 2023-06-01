@@ -2221,7 +2221,7 @@ func pruneLeftoverImages(s *state.State) {
 
 	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ImagesPruneLeftover, nil, nil, opRun, nil, nil, nil)
 	if err != nil {
-		logger.Error("Failed to start image leftover cleanup operation", logger.Ctx{"err": err})
+		logger.Error("Failed creating leftover image clean up operation", logger.Ctx{"err": err})
 		return
 	}
 
@@ -2230,15 +2230,20 @@ func pruneLeftoverImages(s *state.State) {
 	defer imageTaskMu.Unlock()
 	logger.Debug("Acquired image task lock")
 
-	logger.Info("Pruning leftover image files")
+	logger.Info("Cleaning up leftover image files")
 	err = op.Start()
 	if err != nil {
-		logger.Error("Failed to prune leftover image files", logger.Ctx{"err": err})
+		logger.Error("Failed starting leftover image clean up operation", logger.Ctx{"err": err})
 		return
 	}
 
-	_, _ = op.Wait(s.ShutdownCtx)
-	logger.Infof("Done pruning leftover image files")
+	err = op.Wait(s.ShutdownCtx)
+	if err != nil {
+		logger.Error("Failed cleaning up leftover image files", logger.Ctx{"err": err})
+		return
+	}
+
+	logger.Infof("Done cleaning up leftover image files")
 }
 
 func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Operation) error {
