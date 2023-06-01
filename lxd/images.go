@@ -2138,7 +2138,7 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 
 		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ImagesExpire, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start expired image operation", logger.Ctx{"err": err})
+			logger.Error("Failed creating expired image prune operation", logger.Ctx{"err": err})
 			return
 		}
 
@@ -2150,10 +2150,16 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		logger.Info("Pruning expired images")
 		err = op.Start()
 		if err != nil {
-			logger.Error("Failed to expire images", logger.Ctx{"err": err})
+			logger.Error("Failed starting expired image prune operation", logger.Ctx{"err": err})
+			return
 		}
 
-		_, _ = op.Wait(ctx)
+		err = op.Wait(ctx)
+		if err != nil {
+			logger.Error("Failed expiring images", logger.Ctx{"err": err})
+			return
+		}
+
 		logger.Info("Done pruning expired images")
 	}
 
