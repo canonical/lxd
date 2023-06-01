@@ -1646,7 +1646,19 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// This ensures that if the guest initiates a reboot that the SHUTDOWN event is generated instead with the
 	// reason set to "guest-reset" so that the event handler returned from getMonitorEventHandler() can restart
 	// the guest instead.
-	err = monitor.SetAction(map[string]string{"reboot": "shutdown"})
+	actions := map[string]string{
+		"shutdown": "poweroff",
+		"reboot":   "shutdown", // Don't reset on reboot. Let LXD handle reboots.
+		"panic":    "shutdown", // Don't pause of panic. Let LXD cleanup.
+	}
+
+	qemuVer71, _ := version.NewDottedVersion("7.1")
+	qemuVer, _ := d.version()
+	if qemuVer != nil && qemuVer.Compare(qemuVer71) >= 0 {
+		actions["panic"] = "exit-failure" // Shutdown VM and exit with nonzero status. Let LXD cleanup.
+	}
+
+	err = monitor.SetAction(actions)
 	if err != nil {
 		op.Done(err)
 		return fmt.Errorf("Failed setting reboot action: %w", err)
@@ -4246,6 +4258,7 @@ func (d *qemu) Stop(stateful bool) error {
 
 	// Must be run prior to creating the operation lock.
 	// Allow to proceed if statusCode is Error or Frozen as we may need to forcefully kill the QEMU process.
+	// Also Stop() is called from migrateSendLive in some cases, and instance status will be Frozen then.
 	statusCode := d.statusCode()
 	if !d.isRunningStatusCode(statusCode) && statusCode != api.Error && statusCode != api.Frozen {
 		return ErrInstanceIsStopped
@@ -7371,19 +7384,18 @@ func (d *qemu) statusCode() api.StatusCode {
 		return api.Error
 	}
 
-	if status == "running" {
-		if shared.IsTrue(d.LocalConfig()["volatile.last_state.ready"]) {
+	switch status {
+	case "prelaunch", "running":
+		if status == "running" && shared.IsTrue(d.LocalConfig()["volatile.last_state.ready"]) {
 			return api.Ready
 		}
 
 		return api.Running
-	} else if status == "paused" || status == "postmigrate" {
+	case "inmigrate", "postmigrate", "finish-migrate", "save-vm", "suspended", "paused":
 		return api.Frozen
-	} else if status == "internal-error" || status == "io-error" {
+	default:
 		return api.Error
 	}
-
-	return api.Stopped
 }
 
 // State returns the instance's state code.
