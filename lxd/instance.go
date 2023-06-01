@@ -569,26 +569,25 @@ func pruneExpiredAndAutoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.
 		// disk space.
 		if len(expiredSnapshotInstances) > 0 {
 			opRun := func(op *operations.Operation) error {
-				err := pruneExpiredInstanceSnapshots(ctx, s, expiredSnapshotInstances)
-				if err != nil {
-					logger.Error("Failed pruning instance snapshots", logger.Ctx{"err": err})
-				}
-
-				return err
+				return pruneExpiredInstanceSnapshots(ctx, s, expiredSnapshotInstances)
 			}
 
 			op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.SnapshotsExpire, nil, nil, opRun, nil, nil, nil)
 			if err != nil {
-				logger.Error("Failed to create instance snapshots expiry operation", logger.Ctx{"err": err})
+				logger.Error("Failed creating instance snapshots expiry operation", logger.Ctx{"err": err})
 			} else {
 				logger.Info("Pruning expired instance snapshots")
 
 				err = op.Start()
 				if err != nil {
-					logger.Error("Failed to start instance snapshots expiry operation", logger.Ctx{"err": err})
+					logger.Error("Failed starting instance snapshots expiry operation", logger.Ctx{"err": err})
 				} else {
-					_, _ = op.Wait(ctx)
-					logger.Info("Done pruning expired instance snapshots")
+					err = op.Wait(ctx)
+					if err != nil {
+						logger.Error("Failed pruning instance snapshots", logger.Ctx{"err": err})
+					} else {
+						logger.Info("Done pruning expired instance snapshots")
+					}
 				}
 			}
 		}
@@ -596,26 +595,25 @@ func pruneExpiredAndAutoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.
 		// Handle snapshot auto creation.
 		if len(instances) > 0 {
 			opRun := func(op *operations.Operation) error {
-				err := autoCreateInstanceSnapshots(ctx, s, instances)
-				if err != nil {
-					logger.Error("Failed scheduled instance snapshots", logger.Ctx{"err": err})
-				}
-
-				return err
+				return autoCreateInstanceSnapshots(ctx, s, instances)
 			}
 
 			op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.SnapshotCreate, nil, nil, opRun, nil, nil, nil)
 			if err != nil {
-				logger.Error("Failed to create auto instance snapshot operation", logger.Ctx{"err": err})
+				logger.Error("Failed creating scheduled instance snapshot operation", logger.Ctx{"err": err})
 			} else {
 				logger.Info("Creating scheduled instance snapshots")
 
 				err = op.Start()
 				if err != nil {
-					logger.Error("Failed to start auto instance snapshot operation", logger.Ctx{"err": err})
+					logger.Error("Failed starting scheduled instance snapshot operation", logger.Ctx{"err": err})
 				} else {
-					_, _ = op.Wait(ctx)
-					logger.Info("Done creating scheduled instance snapshots")
+					err = op.Wait(ctx)
+					if err != nil {
+						logger.Error("Failed scheduled instance snapshots", logger.Ctx{"err": err})
+					} else {
+						logger.Info("Done creating scheduled instance snapshots")
+					}
 				}
 			}
 		}
