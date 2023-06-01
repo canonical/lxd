@@ -152,8 +152,8 @@ test_storage() {
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config" btrfs rsync.bwlimit=1024
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config"
 
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config" btrfs btrfs.mount_options="rw,strictatime,nospace_cache,user_subvol_rm_allowed"
-      lxc storage set "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config" btrfs.mount_options "rw,relatime,space_cache,user_subvol_rm_allowed"
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config" btrfs btrfs.mount_options="rw,strictatime,user_subvol_rm_allowed"
+      lxc storage set "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config" btrfs.mount_options "rw,relatime,user_subvol_rm_allowed"
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config"
     fi
 
@@ -172,7 +172,7 @@ test_storage() {
     ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-dir-pool-config" dir lvm.thinpool_name=bla || false
     ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-dir-pool-config" dir lvm.use_thinpool=false || false
     ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-dir-pool-config" dir lvm.vg_name=bla || false
-    ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-dir-pool-config" dir size=10GB || false
+    ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-dir-pool-config" dir size=1GiB || false
     ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-dir-pool-config" dir volume.block.filesystem=ext4 || false
     ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-dir-pool-config" dir volume.block.mount_options=discard || false
     ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-dir-pool-config" dir volume.zfs.remove_snapshots=true || false
@@ -187,13 +187,13 @@ test_storage() {
       # Create lvm pool.
       configure_loop_device loop_file_3 loop_device_3
       # shellcheck disable=SC2154
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool6" lvm source="${loop_device_3}" volume.size=25MB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool6" lvm source="${loop_device_3}" volume.size=25MiB
 
       configure_loop_device loop_file_5 loop_device_5
       # shellcheck disable=SC2154
       # Should fail if vg does not exist, since we have no way of knowing where
       # to create the vg without a block device path set.
-      ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool10" lvm source=test_vg_1 volume.size=25MB || false
+      ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool10" lvm source=test_vg_1 volume.size=25MiB || false
       # shellcheck disable=SC2154
       deconfigure_loop_device "${loop_file_5}" "${loop_device_5}"
 
@@ -202,23 +202,23 @@ test_storage() {
       pvcreate "${loop_device_6}"
       vgcreate "lxdtest-$(basename "${LXD_DIR}")-pool11-test_vg_2" "${loop_device_6}"
       # Reuse existing volume group "test_vg_2" on existing physical volume.
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool11" lvm source="lxdtest-$(basename "${LXD_DIR}")-pool11-test_vg_2" volume.size=25MB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool11" lvm source="lxdtest-$(basename "${LXD_DIR}")-pool11-test_vg_2" volume.size=25MiB
 
       configure_loop_device loop_file_7 loop_device_7
       # shellcheck disable=SC2154
       pvcreate "${loop_device_7}"
       vgcreate "lxdtest-$(basename "${LXD_DIR}")-pool12-test_vg_3" "${loop_device_7}"
       # Reuse existing volume group "test_vg_3" on existing physical volume.
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool12" lvm source="lxdtest-$(basename "${LXD_DIR}")-pool12-test_vg_3" volume.size=25MB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool12" lvm source="lxdtest-$(basename "${LXD_DIR}")-pool12-test_vg_3" volume.size=25MiB
 
       configure_loop_device loop_file_8 loop_device_8
       # shellcheck disable=SC2154
       # Create new volume group "test_vg_4".
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool13" lvm source="${loop_device_8}" lvm.vg_name="lxdtest-$(basename "${LXD_DIR}")-pool13-test_vg_4" volume.size=25MB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool13" lvm source="${loop_device_8}" lvm.vg_name="lxdtest-$(basename "${LXD_DIR}")-pool13-test_vg_4" volume.size=25MiB
 
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool14" lvm volume.size=25MB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool14" lvm volume.size=25MiB
 
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" lvm lvm.use_thinpool=false volume.size=25MB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" lvm lvm.use_thinpool=false volume.size=25MiB
 
       # Test that no invalid lvm storage pool configuration keys can be set.
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config" lvm volume.zfs.remove_snapshots=true || false
@@ -230,10 +230,10 @@ test_storage() {
       # Test that all valid lvm storage pool configuration keys can be set.
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool16" lvm lvm.thinpool_name="lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config"
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool17" lvm lvm.vg_name="lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config"
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool18" lvm size=10GB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool18" lvm size=1GiB
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool19" lvm volume.block.filesystem=ext4
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool20" lvm volume.block.mount_options=discard
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool21" lvm volume.size=2GB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool21" lvm volume.size=25MiB
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool22" lvm lvm.use_thinpool=true
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool23" lvm lvm.use_thinpool=true lvm.thinpool_name="lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config"
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool24" lvm rsync.bwlimit=1024
@@ -386,10 +386,10 @@ test_storage() {
       lxc launch testimage c12pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
       lxc list -c b c12pool6 | grep "lxdtest-$(basename "${LXD_DIR}")-pool6"
       # grow lv
-      lxc config device set c12pool6 root size 30MB
+      lxc config device set c12pool6 root size 30MiB
       lxc restart c12pool6 --force
       # shrink lv
-      lxc config device set c12pool6 root size 25MB
+      lxc config device set c12pool6 root size 25MiB
       lxc restart c12pool6 --force
 
       lxc init testimage c10pool11 -s "lxdtest-$(basename "${LXD_DIR}")-pool11"
@@ -759,31 +759,20 @@ test_storage() {
     fi
   )
 
-  # Test applying quota (expected size ranges are in KB and have an allowable range to account for allocation variations).
-  QUOTA1="10GB"
-  rootMinKB1="9456000"
-  rootMaxKB1="9999999"
+  # Test applying quota (expected size ranges are in KiB and have an allowable range to account for allocation variations).
+  QUOTA1="20MiB"
+  rootMinKiB1="13800"
+  rootMaxKiB1="23000"
 
-  QUOTA2="11GB"
-  rootMinKB2="10402000"
-  rootMaxKB2="10744999"
-
-  if [ "$lxd_backend" = "lvm" ]; then
-    QUOTA1="20MB"
-    rootMinKB1="13800"
-    rootMaxKB1="20000"
-
-    # Increase quota enough to require a new 4MB LVM extent.
-    QUOTA2="25MB"
-    rootMinKB2="18900"
-    rootMaxKB2="23000"
-  fi
+  QUOTA2="25MiB"
+  rootMinKiB2="18900"
+  rootMaxKiB2="28000"
 
   if [ "$lxd_backend" != "dir" ]; then
     lxc launch testimage quota1
-    rootOrigSizeKB=$(lxc exec quota1 -- df -P / | tail -n1 | awk '{print $2}')
-    rootOrigMinSizeKB=$((rootOrigSizeKB-2000))
-    rootOrigMaxSizeKB=$((rootOrigSizeKB+2000))
+    rootOrigSizeKiB=$(lxc exec quota1 -- df -P / | tail -n1 | awk '{print $2}')
+    rootOrigMinSizeKiB=$((rootOrigSizeKiB-2000))
+    rootOrigMaxSizeKiB=$((rootOrigSizeKiB+2000))
 
     lxc profile device set default root size "${QUOTA1}"
     lxc stop -f quota1
@@ -791,8 +780,8 @@ test_storage() {
 
     # BTRFS quota isn't accessible with the df tool.
     if [ "$lxd_backend" != "btrfs" ]; then
-    rootSizeKB=$(lxc exec quota1 -- df -P / | tail -n1 | awk '{print $2}')
-      if [ "$rootSizeKB" -gt "$rootMaxKB1" ] || [ "$rootSizeKB" -lt "$rootMinKB1" ] ; then
+    rootSizeKiB=$(lxc exec quota1 -- df -P / | tail -n1 | awk '{print $2}')
+      if [ "$rootSizeKiB" -gt "$rootMaxKiB1" ] || [ "$rootSizeKiB" -lt "$rootMinKiB1" ] ; then
         echo "root size not within quota range"
         false
       fi
@@ -813,8 +802,8 @@ test_storage() {
     lxc stop -f quota2
     lxc start quota2
     if [ "$lxd_backend" != "btrfs" ]; then
-      rootSizeKB=$(lxc exec quota2 -- df -P / | tail -n1 | awk '{print $2}')
-      if [ "$rootSizeKB" -gt "$rootMaxKB2" ] || [ "$rootSizeKB" -lt "$rootMinKB2" ] ; then
+      rootSizeKiB=$(lxc exec quota2 -- df -P / | tail -n1 | awk '{print $2}')
+      if [ "$rootSizeKiB" -gt "$rootMaxKiB2" ] || [ "$rootSizeKiB" -lt "$rootMinKiB2" ] ; then
         echo "root size not within quota range"
         false
       fi
@@ -827,8 +816,8 @@ test_storage() {
 
     # Only ZFS supports hot quota changes (LVM requires a reboot).
     if [ "$lxd_backend" = "zfs" ]; then
-      rootSizeKB=$(lxc exec quota1 -- df -P / | tail -n1 | awk '{print $2}')
-      if [ "$rootSizeKB" -gt "$rootOrigMaxSizeKB" ] || [ "$rootSizeKB" -lt "$rootOrigMinSizeKB" ] ; then
+      rootSizeKiB=$(lxc exec quota1 -- df -P / | tail -n1 | awk '{print $2}')
+      if [ "$rootSizeKiB" -gt "$rootOrigMaxSizeKiB" ] || [ "$rootSizeKiB" -lt "$rootOrigMinSizeKiB" ] ; then
         echo "original root size not restored"
         false
       fi
@@ -837,8 +826,8 @@ test_storage() {
     lxc stop -f quota1
     lxc start quota1
     if [ "$lxd_backend" = "zfs" ]; then
-      rootSizeKB=$(lxc exec quota1 -- df -P / | tail -n1 | awk '{print $2}')
-      if [ "$rootSizeKB" -gt "$rootOrigMaxSizeKB" ] || [ "$rootSizeKB" -lt "$rootOrigMinSizeKB" ] ; then
+      rootSizeKiB=$(lxc exec quota1 -- df -P / | tail -n1 | awk '{print $2}')
+      if [ "$rootSizeKiB" -gt "$rootOrigMaxSizeKiB" ] || [ "$rootSizeKiB" -lt "$rootOrigMinSizeKiB" ] ; then
         echo "original root size not restored"
         false
       fi
