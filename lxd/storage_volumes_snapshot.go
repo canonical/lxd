@@ -1263,25 +1263,24 @@ func pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, t
 		// disk space.
 		if len(expiredSnapshots) > 0 {
 			opRun := func(op *operations.Operation) error {
-				err := pruneExpiredCustomVolumeSnapshots(ctx, s, expiredSnapshots)
-				if err != nil {
-					logger.Error("Failed pruning expired custom volume snapshots", logger.Ctx{"err": err})
-				}
-
-				return err
+				return pruneExpiredCustomVolumeSnapshots(ctx, s, expiredSnapshots)
 			}
 
 			op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.CustomVolumeSnapshotsExpire, nil, nil, opRun, nil, nil, nil)
 			if err != nil {
-				logger.Error("Failed to start expired custom volume snapshots operation", logger.Ctx{"err": err})
+				logger.Error("Failed creating expired custom volume snapshots prune operation", logger.Ctx{"err": err})
 			} else {
 				logger.Info("Pruning expired custom volume snapshots")
 				err = op.Start()
 				if err != nil {
-					logger.Error("Failed expiring custom volume snapshots", logger.Ctx{"err": err})
+					logger.Error("Failed starting expired custom volume snapshots prune operation", logger.Ctx{"err": err})
 				} else {
-					_, _ = op.Wait(ctx)
-					logger.Info("Done pruning expired custom volume snapshots")
+					err = op.Wait(ctx)
+					if err != nil {
+						logger.Error("Failed pruning expired custom volume snapshots", logger.Ctx{"err": err})
+					} else {
+						logger.Info("Done pruning expired custom volume snapshots")
+					}
 				}
 			}
 		}
@@ -1289,25 +1288,24 @@ func pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, t
 		// Handle snapshot auto creation.
 		if len(volumes) > 0 {
 			opRun := func(op *operations.Operation) error {
-				err := autoCreateCustomVolumeSnapshots(ctx, s, volumes)
-				if err != nil {
-					logger.Error("Failed scheduled custom volume snapshots", logger.Ctx{"err": err})
-				}
-
-				return err
+				return autoCreateCustomVolumeSnapshots(ctx, s, volumes)
 			}
 
 			op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.VolumeSnapshotCreate, nil, nil, opRun, nil, nil, nil)
 			if err != nil {
-				logger.Error("Failed to start create volume snapshot operation", logger.Ctx{"err": err})
+				logger.Error("Failed creating scheduled volume snapshot operation", logger.Ctx{"err": err})
 			} else {
 				logger.Info("Creating scheduled volume snapshots")
 				err = op.Start()
 				if err != nil {
-					logger.Error("Failed to create scheduled volume snapshots", logger.Ctx{"err": err})
+					logger.Error("Failed starting scheduled volume snapshot operation", logger.Ctx{"err": err})
 				} else {
-					_, _ = op.Wait(ctx)
-					logger.Info("Done creating scheduled volume snapshots")
+					err = op.Wait(ctx)
+					if err != nil {
+						logger.Error("Failed scheduled custom volume snapshots", logger.Ctx{"err": err})
+					} else {
+						logger.Info("Done creating scheduled volume snapshots")
+					}
 				}
 			}
 		}
