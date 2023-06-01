@@ -707,7 +707,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 			return fmt.Errorf("Instance move to destination failed: %w", err)
 		}
 
-		_, err = srcOp.Wait(context.Background())
+		err = srcOp.Wait(context.Background())
 		if err != nil {
 			return fmt.Errorf("Instance move to destination failed on source: %w", err)
 		}
