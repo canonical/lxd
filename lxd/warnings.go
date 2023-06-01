@@ -431,17 +431,23 @@ func pruneResolvedWarningsTask(d *Daemon) (task.Func, task.Schedule) {
 
 		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.WarningsPruneResolved, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start prune resolved warnings operation", logger.Ctx{"err": err})
+			logger.Error("Failed creating prune resolved warnings operation", logger.Ctx{"err": err})
 			return
 		}
 
 		logger.Info("Pruning resolved warnings")
 		err = op.Start()
 		if err != nil {
-			logger.Error("Failed to prune resolved warnings", logger.Ctx{"err": err})
+			logger.Error("Failed starting prune resolved warnings operation", logger.Ctx{"err": err})
+			return
 		}
 
-		_, _ = op.Wait(ctx)
+		err = op.Wait(ctx)
+		if err != nil {
+			logger.Error("Failed pruning resolved warnings", logger.Ctx{"err": err})
+			return
+		}
+
 		logger.Info("Done pruning resolved warnings")
 	}
 
