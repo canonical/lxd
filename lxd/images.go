@@ -4128,7 +4128,7 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 
 		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ImagesSynchronize, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start image synchronization operation", logger.Ctx{"err": err})
+			logger.Error("Failed creating image synchronization operation", logger.Ctx{"err": err})
 			return
 		}
 
@@ -4140,11 +4140,16 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		logger.Info("Synchronizing images across the cluster")
 		err = op.Start()
 		if err != nil {
-			logger.Error("Failed to synchronize images", logger.Ctx{"err": err})
+			logger.Error("Failed starting image synchronization operation", logger.Ctx{"err": err})
 			return
 		}
 
-		_, _ = op.Wait(ctx)
+		err = op.Wait(ctx)
+		if err != nil {
+			logger.Error("Failed synchronizing images", logger.Ctx{"err": err})
+			return
+		}
+
 		logger.Info("Done synchronizing images across the cluster")
 	}
 
