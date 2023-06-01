@@ -1097,17 +1097,21 @@ func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 
 		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.RemoveOrphanedOperations, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start remove orphaned operations operation", logger.Ctx{"err": err})
+			logger.Error("Failed creating remove orphaned operations operation", logger.Ctx{"err": err})
 			return
 		}
 
 		err = op.Start()
 		if err != nil {
-			logger.Error("Failed to remove orphaned operations", logger.Ctx{"err": err})
+			logger.Error("Failed starting remove orphaned operations operation", logger.Ctx{"err": err})
 			return
 		}
 
-		_, _ = op.Wait(ctx)
+		err = op.Wait(ctx)
+		if err != nil {
+			logger.Error("Failed removing orphaned operations", logger.Ctx{"err": err})
+			return
+		}
 	}
 
 	return f, task.Hourly()
