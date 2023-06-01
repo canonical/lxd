@@ -1,3 +1,7 @@
+---
+diataxisCategory: howto
+---
+
 # Debugging
 
 For information on debugging instance issues, see {ref}`instances-troubleshoot`.

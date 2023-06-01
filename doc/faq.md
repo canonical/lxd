@@ -1,3 +1,7 @@
+---
+diataxisCategory: howto
+---
+
 # Frequently asked questions
 
 The following sections give answers to frequently asked questions.

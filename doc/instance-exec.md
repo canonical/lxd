@@ -1,3 +1,7 @@
+---
+diataxisCategory: howto
+---
+
 (run-commands)=
 # How to run commands in an instance
 

@@ -1,3 +1,7 @@
+---
+diataxisCategory: explanation
+---
+
 (migration)=
 # Migration
 

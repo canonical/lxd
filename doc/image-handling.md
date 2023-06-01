@@ -1,3 +1,7 @@
+---
+diataxisCategory: explanation
+---
+
 (about-images)=
 # About images
 

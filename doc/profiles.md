@@ -1,3 +1,7 @@
+---
+diataxisCategory: howto
+---
+
 (profiles)=
 # How to use profiles
 

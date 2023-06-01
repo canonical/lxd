@@ -1,3 +1,7 @@
+---
+diataxisCategory: reference
+---
+
 # System call interception
 
 LXD supports intercepting some specific system calls from unprivileged

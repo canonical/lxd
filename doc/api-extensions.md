@@ -1,3 +1,7 @@
+---
+diataxisCategory: reference
+---
+
 # API extensions
 
 The changes below were introduced to the LXD API after the 1.0 API was finalized.

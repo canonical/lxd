@@ -1,3 +1,7 @@
+---
+diataxisCategory: reference
+---
+
 # Container runtime environment
 
 LXD attempts to present a consistent environment to the container it runs.

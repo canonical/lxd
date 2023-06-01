@@ -1,3 +1,7 @@
+---
+diataxisCategory: reference
+---
+
 # Remotes
 
 ## Introduction
