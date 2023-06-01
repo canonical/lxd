@@ -300,17 +300,23 @@ func pruneExpiredContainerBackupsTask(d *Daemon) (task.Func, task.Schedule) {
 
 		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.BackupsExpire, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start expired instance backups operation", logger.Ctx{"err": err})
+			logger.Error("Failed creating expired instance backups operation", logger.Ctx{"err": err})
 			return
 		}
 
 		logger.Info("Pruning expired instance backups")
 		err = op.Start()
 		if err != nil {
-			logger.Error("Failed to expire instance backups", logger.Ctx{"err": err})
+			logger.Error("Failed starting expired instance backups operation", logger.Ctx{"err": err})
+			return
 		}
 
-		_, _ = op.Wait(ctx)
+		err = op.Wait(ctx)
+		if err != nil {
+			logger.Error("Failed pruning expired instance backups", logger.Ctx{"err": err})
+			return
+		}
+
 		logger.Info("Done pruning expired instance backups")
 	}
 
