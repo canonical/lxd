@@ -887,9 +887,9 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 
 		defer cancel()
 
-		_, err = op.Wait(ctx)
+		err = op.Wait(ctx)
 		if err != nil {
-			return response.InternalError(err)
+			return response.SmartError(err)
 		}
 
 		_, body, err := op.Render()
