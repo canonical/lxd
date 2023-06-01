@@ -1566,7 +1566,7 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 
 		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ImagesUpdate, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start image update operation", logger.Ctx{"err": err})
+			logger.Error("Failed creating image update operation", logger.Ctx{"err": err})
 			return
 		}
 
@@ -1578,10 +1578,16 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		logger.Info("Updating images")
 		err = op.Start()
 		if err != nil {
-			logger.Error("Failed to update images", logger.Ctx{"err": err})
+			logger.Error("Failed starting image update operation", logger.Ctx{"err": err})
+			return
 		}
 
-		_, _ = op.Wait(ctx)
+		err = op.Wait(ctx)
+		if err != nil {
+			logger.Error("Failed updating images", logger.Ctx{"err": err})
+			return
+		}
+
 		logger.Info("Done updating images")
 	}
 
