@@ -151,7 +151,7 @@ func autoRenewCertificate(ctx context.Context, d *Daemon, force bool) error {
 
 	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.RenewServerCertificate, nil, nil, opRun, nil, nil, nil)
 	if err != nil {
-		logger.Error("Failed to start renew server certificate operation", logger.Ctx{"err": err})
+		logger.Error("Failed creating renew server certificate operation", logger.Ctx{"err": err})
 		return err
 	}
 
@@ -159,10 +159,16 @@ func autoRenewCertificate(ctx context.Context, d *Daemon, force bool) error {
 
 	err = op.Start()
 	if err != nil {
-		logger.Error("Failed to renew server certificate", logger.Ctx{"err": err})
+		logger.Error("Failed starting renew server certificate operation", logger.Ctx{"err": err})
+		return err
 	}
 
-	_, _ = op.Wait(ctx)
+	err = op.Wait(ctx)
+	if err != nil {
+		logger.Error("Failed server certificate renewal", logger.Ctx{"err": err})
+		return err
+	}
+
 	logger.Info("Done automatic server certificate renewal check")
 
 	return nil
