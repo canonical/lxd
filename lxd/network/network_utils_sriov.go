@@ -301,7 +301,7 @@ func SRIOVSwitchdevEnabled(deviceName string) bool {
 }
 
 // SRIOVFindRepresentorPort finds the associated representor port name for a switchdev VF ID.
-func SRIOVFindRepresentorPort(nicEntries []fs.DirEntry, pfSwitchID string, vfID int) string {
+func SRIOVFindRepresentorPort(nicEntries []fs.DirEntry, pfSwitchID string, pfID int, vfID int) string {
 	for _, nic := range nicEntries {
 		nicSwitchID, err := os.ReadFile(filepath.Join(sysClassNet, nic.Name(), "phys_switch_id"))
 		if err != nil {
@@ -318,13 +318,13 @@ func SRIOVFindRepresentorPort(nicEntries []fs.DirEntry, pfSwitchID string, vfID 
 			continue // Skip interfaces with no physical port name.
 		}
 
-		var pfID, nicVFID int
-		_, err = fmt.Sscanf(string(physPortName), "pf%dvf%d", &pfID, &nicVFID)
+		var nicPFID, nicVFID int
+		_, err = fmt.Sscanf(string(physPortName), "pf%dvf%d", &nicPFID, &nicVFID)
 		if err != nil {
 			continue // Skip non-VF interfaces.
 		}
 
-		if nicVFID == vfID {
+		if nicPFID == pfID && nicVFID == vfID {
 			return nic.Name() // We have a match.
 		}
 	}
@@ -364,6 +364,12 @@ func SRIOVFindFreeVFAndRepresentor(state *state.State, ovsBridgeName string) (st
 			continue
 		}
 
+		var pfID int
+		_, err = fmt.Sscanf(string(physPortName), "p%d", &pfID)
+		if err != nil {
+			continue // Skip non-PF interfaces.
+		}
+
 		// Check if switchdev is enabled on physical port.
 		if !SRIOVSwitchdevEnabled(port) {
 			continue
@@ -380,8 +386,9 @@ func SRIOVFindFreeVFAndRepresentor(state *state.State, ovsBridgeName string) (st
 		}
 
 		// Track down the representor port. The number of representor ports depends on the number of enabled VFs.
-		// All representor ports have the same phys_switch_id as the PF.
-		representorPort := SRIOVFindRepresentorPort(nics, string(physSwitchID), vfID)
+		// All representor ports have the same phys_switch_id as a PF connected to the same switch, and there may be
+		// multiple PFs on one switch.
+		representorPort := SRIOVFindRepresentorPort(nics, string(physSwitchID), pfID, vfID)
 		if representorPort != "" {
 			return port, representorPort, vfName, vfID, nil
 		}
