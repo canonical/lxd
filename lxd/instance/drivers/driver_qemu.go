@@ -808,9 +808,6 @@ func (d *qemu) restoreStateHandle(ctx context.Context, monitor *qmp.Monitor, f *
 
 // restoreState restores VM state from state file or from migration source if d.migrationReceiveStateful set.
 func (d *qemu) restoreState(monitor *qmp.Monitor) error {
-	stateCtx, stateCtxDone := context.WithCancel(context.Background())
-	defer stateCtxDone()
-
 	if d.migrationReceiveStateful != nil {
 		stateConn := d.migrationReceiveStateful[api.SecretNameState]
 		if stateConn == nil {
@@ -858,17 +855,17 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 			return err
 		}
 
-		defer func() {
+		go func() {
+			_, err := io.Copy(pipeWrite, stateConn)
+			if err != nil {
+				d.logger.Warn("Failed reading from state connection", logger.Ctx{"err": err})
+			}
+
 			_ = pipeRead.Close()
 			_ = pipeWrite.Close()
 		}()
 
-		go func() {
-			_, _ = io.Copy(pipeWrite, stateConn)
-			stateCtxDone()
-		}()
-
-		err = d.restoreStateHandle(stateCtx, monitor, pipeRead)
+		err = d.restoreStateHandle(context.Background(), monitor, pipeRead)
 		if err != nil {
 			return fmt.Errorf("Failed restoring checkpoint from source: %w", err)
 		}
@@ -898,17 +895,17 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 			return err
 		}
 
-		defer func() {
+		go func() {
+			_, err := io.Copy(pipeWrite, uncompressedState)
+			if err != nil {
+				d.logger.Warn("Failed reading from state file", logger.Ctx{"path": statePath, "err": err})
+			}
+
 			_ = pipeRead.Close()
 			_ = pipeWrite.Close()
 		}()
 
-		go func() {
-			_, _ = io.Copy(pipeWrite, uncompressedState)
-			stateCtxDone()
-		}()
-
-		err = d.restoreStateHandle(stateCtx, monitor, pipeRead)
+		err = d.restoreStateHandle(context.Background(), monitor, pipeRead)
 		if err != nil {
 			return fmt.Errorf("Failed restoring state from %q: %w", stateFile.Name(), err)
 		}
