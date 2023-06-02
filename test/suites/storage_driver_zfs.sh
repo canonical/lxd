@@ -2,6 +2,73 @@ test_storage_driver_zfs() {
   do_storage_driver_zfs ext4
   do_storage_driver_zfs xfs
   do_storage_driver_zfs btrfs
+
+  do_zfs_cross_pool_copy
+}
+
+do_zfs_cross_pool_copy() {
+  # shellcheck disable=2039,3043
+  local LXD_STORAGE_DIR lxd_backend
+
+  lxd_backend=$(storage_backend "$LXD_DIR")
+  if [ "$lxd_backend" != "zfs" ]; then
+    return
+  fi
+
+  LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
+  chmod +x "${LXD_STORAGE_DIR}"
+  spawn_lxd "${LXD_STORAGE_DIR}" false
+
+  # Import image into default storage pool.
+  ensure_import_testimage
+
+  lxc storage create lxdtest-"$(basename "${LXD_DIR}")"-dir dir
+
+  lxc init testimage c1 -s lxdtest-"$(basename "${LXD_DIR}")"-dir
+  lxc copy c1 c2 -s lxdtest-"$(basename "${LXD_DIR}")"
+
+  # Check created zfs volume
+  [ "$(zfs get -H -o value type lxdtest-"$(basename "${LXD_DIR}")/containers/c2")" = "filesystem" ]
+
+  # Turn on block mode
+  lxc storage set lxdtest-"$(basename "${LXD_DIR}")" volume.zfs.block_mode true
+
+  lxc copy c1 c3 -s lxdtest-"$(basename "${LXD_DIR}")"
+
+  # Check created zfs volume
+  [ "$(zfs get -H -o value type lxdtest-"$(basename "${LXD_DIR}")/containers/c3")" = "volume" ]
+
+  # Turn off block mode
+  lxc storage unset lxdtest-"$(basename "${LXD_DIR}")" volume.zfs.block_mode
+
+  lxc storage create lxdtest-"$(basename "${LXD_DIR}")"-zfs zfs
+
+  lxc init testimage c4 -s lxdtest-"$(basename "${LXD_DIR}")"-zfs
+  lxc copy c4 c5 -s lxdtest-"$(basename "${LXD_DIR}")"
+
+  # Check created zfs volume
+  [ "$(zfs get -H -o value type lxdtest-"$(basename "${LXD_DIR}")/containers/c5")" = "filesystem" ]
+
+  # Turn on block mode
+  lxc storage set lxdtest-"$(basename "${LXD_DIR}")" volume.zfs.block_mode true
+
+  # Although block mode is turned on on the target storage pool, c6 will be created as a dataset.
+  # That is because of optimized transfer which doesn't change the volume type.
+  lxc copy c4 c6 -s lxdtest-"$(basename "${LXD_DIR}")"
+
+  # Check created zfs volume
+  [ "$(zfs get -H -o value type lxdtest-"$(basename "${LXD_DIR}")/containers/c6")" = "filesystem" ]
+
+  # Turn off block mode
+  lxc storage unset lxdtest-"$(basename "${LXD_DIR}")" volume.zfs.block_mode
+
+  # Clean up
+  lxc rm -f c1 c2 c3 c4 c5 c6
+  lxc storage rm lxdtest-"$(basename "${LXD_DIR}")"-dir
+  lxc storage rm lxdtest-"$(basename "${LXD_DIR}")"-zfs
+
+  # shellcheck disable=SC2031
+  kill_lxd "${LXD_STORAGE_DIR}"
 }
 
 do_storage_driver_zfs() {
