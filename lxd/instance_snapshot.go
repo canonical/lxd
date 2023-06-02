@@ -348,7 +348,7 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := projectParam(r)
-	containerName, err := url.PathUnescape(mux.Vars(r)["name"])
+	instName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -358,7 +358,7 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, containerName, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, instName, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -372,22 +372,22 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	inst, err := instance.LoadByProjectAndName(s, projectName, containerName+shared.SnapshotDelimiter+snapshotName)
+	snapInst, err := instance.LoadByProjectAndName(s, projectName, instName+shared.SnapshotDelimiter+snapshotName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	switch r.Method {
 	case "GET":
-		return snapshotGet(s, inst, snapshotName)
+		return snapshotGet(s, snapInst)
 	case "POST":
-		return snapshotPost(s, r, inst, containerName)
+		return snapshotPost(s, r, snapInst)
 	case "DELETE":
-		return snapshotDelete(s, r, inst, snapshotName)
+		return snapshotDelete(s, r, snapInst)
 	case "PUT":
-		return snapshotPut(s, r, inst, snapshotName)
+		return snapshotPut(s, r, snapInst)
 	case "PATCH":
-		return snapshotPatch(s, r, inst, snapshotName)
+		return snapshotPatch(s, r, snapInst)
 	default:
 		return response.NotFound(fmt.Errorf("Method %q not found", r.Method))
 	}
@@ -425,9 +425,9 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func snapshotPatch(s *state.State, r *http.Request, snapInst instance.Instance, name string) response.Response {
+func snapshotPatch(s *state.State, r *http.Request, snapInst instance.Instance) response.Response {
 	// Only expires_at is currently editable, so PATCH is equivalent to PUT.
-	return snapshotPut(s, r, snapInst, name)
+	return snapshotPut(s, r, snapInst)
 }
 
 // swagger:operation PUT /1.0/instances/{name}/snapshots/{snapshot} instances instance_snapshot_put
@@ -462,7 +462,7 @@ func snapshotPatch(s *state.State, r *http.Request, snapInst instance.Instance, 
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance, name string) response.Response {
+func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance) response.Response {
 	// Validate the ETag
 	etag := []any{snapInst.ExpiryDate()}
 	err := util.EtagCheck(r, etag)
@@ -524,8 +524,10 @@ func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance, na
 
 	opType := operationtype.SnapshotUpdate
 
+	parentName, _, _ := api.GetParentAndSnapshotName(snapInst.Name())
+
 	resources := map[string][]string{}
-	resources["instances"] = []string{name}
+	resources["instances"] = []string{parentName}
 
 	if snapInst.Type() == instancetype.Container {
 		resources["containers"] = resources["instances"]
@@ -579,7 +581,7 @@ func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance, na
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func snapshotGet(s *state.State, snapInst instance.Instance, name string) response.Response {
+func snapshotGet(s *state.State, snapInst instance.Instance) response.Response {
 	render, _, err := snapInst.Render(storagePools.RenderSnapshotUsage(s, snapInst))
 	if err != nil {
 		return response.SmartError(err)
@@ -627,7 +629,7 @@ func snapshotGet(s *state.State, snapInst instance.Instance, name string) respon
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance, containerName string) response.Response {
+func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) response.Response {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return response.InternalError(err)
@@ -640,6 +642,8 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance, c
 	if err != nil {
 		return response.BadRequest(err)
 	}
+
+	parentName, _, _ := api.GetParentAndSnapshotName(snapInst.Name())
 
 	migration, err := raw.GetBool("migration")
 	if err == nil && migration {
@@ -663,9 +667,8 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance, c
 		}
 
 		if reqNew.Live {
-			sourceName, _, _ := api.GetParentAndSnapshotName(containerName)
-			if sourceName != reqNew.Name {
-				return response.BadRequest(fmt.Errorf("Instance name cannot be changed during stateful copy (%q to %q)", sourceName, reqNew.Name))
+			if parentName != reqNew.Name {
+				return response.BadRequest(fmt.Errorf("Instance name cannot be changed during stateful copy (%q to %q)", parentName, reqNew.Name))
 			}
 		}
 
@@ -675,7 +678,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance, c
 		}
 
 		resources := map[string][]string{}
-		resources["instances"] = []string{containerName}
+		resources["instances"] = []string{parentName}
 
 		if snapInst.Type() == instancetype.Container {
 			resources["containers"] = resources["instances"]
@@ -715,10 +718,10 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance, c
 		return response.BadRequest(fmt.Errorf("Invalid snapshot name: %w", err))
 	}
 
-	fullName := containerName + shared.SnapshotDelimiter + newName
+	fullName := parentName + shared.SnapshotDelimiter + newName
 
 	// Check that the name isn't already in use
-	id, _ := s.DB.Cluster.GetInstanceSnapshotID(snapInst.Project().Name, containerName, newName)
+	id, _ := s.DB.Cluster.GetInstanceSnapshotID(snapInst.Project().Name, parentName, newName)
 	if id > 0 {
 		return response.Conflict(fmt.Errorf("Name '%s' already in use", fullName))
 	}
@@ -728,7 +731,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance, c
 	}
 
 	resources := map[string][]string{}
-	resources["instances"] = []string{containerName}
+	resources["instances"] = []string{parentName}
 
 	if snapInst.Type() == instancetype.Container {
 		resources["containers"] = resources["instances"]
@@ -768,13 +771,15 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance, c
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func snapshotDelete(s *state.State, r *http.Request, snapInst instance.Instance, name string) response.Response {
+func snapshotDelete(s *state.State, r *http.Request, snapInst instance.Instance) response.Response {
 	remove := func(op *operations.Operation) error {
 		return snapInst.Delete(false)
 	}
 
+	parentName, _, _ := api.GetParentAndSnapshotName(snapInst.Name())
+
 	resources := map[string][]string{}
-	resources["instances"] = []string{snapInst.Name()}
+	resources["instances"] = []string{parentName}
 
 	if snapInst.Type() == instancetype.Container {
 		resources["containers"] = resources["instances"]
