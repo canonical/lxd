@@ -1649,13 +1649,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	actions := map[string]string{
 		"shutdown": "poweroff",
 		"reboot":   "shutdown", // Don't reset on reboot. Let LXD handle reboots.
-		"panic":    "shutdown", // Don't pause of panic. Let LXD cleanup.
-	}
-
-	qemuVer71, _ := version.NewDottedVersion("7.1")
-	qemuVer, _ := d.version()
-	if qemuVer != nil && qemuVer.Compare(qemuVer71) >= 0 {
-		actions["panic"] = "exit-failure" // Shutdown VM and exit with nonzero status. Let LXD cleanup.
+		"panic":    "pause",    // Pause on panics to allow investigation.
 	}
 
 	err = monitor.SetAction(actions)
