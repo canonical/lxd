@@ -322,7 +322,7 @@ func (d *zfs) Create() error {
 		}
 
 		if len(datasets) > 0 {
-			return fmt.Errorf(`Provided ZFS pool (or dataset) isn't empty, run "sudo zfs list %s" to see existing entries`, d.config["zfs.pool_name"])
+			return fmt.Errorf(`Provided ZFS pool (or dataset) isn't empty, run "sudo zfs list -r %s" to see existing entries`, d.config["zfs.pool_name"])
 		}
 	}
 
