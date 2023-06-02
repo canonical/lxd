@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-05-25 14:42-0400\n"
+"POT-Creation-Date: 2023-06-02 15:29+0200\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -923,7 +923,7 @@ msgstr ""
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
-#: lxc/init.go:371
+#: lxc/init.go:346
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
@@ -1019,7 +1019,7 @@ msgstr "Image copiée avec succès !"
 msgid "Backups:"
 msgstr ""
 
-#: lxc/utils.go:96
+#: lxc/utils.go:97
 #, c-format
 msgid "Bad device override syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
@@ -1142,7 +1142,7 @@ msgstr ""
 msgid "Can't pull a directory without --recursive"
 msgstr "impossible de récupérer un répertoire sans --recursive"
 
-#: lxc/utils.go:209 lxc/utils.go:229
+#: lxc/utils.go:210 lxc/utils.go:230
 #, fuzzy, c-format
 msgid "Can't read from stdin: %w"
 msgstr "Impossible de lire depuis stdin : %s"
@@ -1183,7 +1183,7 @@ msgstr ""
 msgid "Candid domain to use"
 msgstr ""
 
-#: lxc/init.go:314
+#: lxc/init.go:315
 #, c-format
 msgid ""
 "Cannot override config for device %q: Device not found in profile devices"
@@ -1979,7 +1979,7 @@ msgstr "Périphérique %s retiré de %s"
 msgid "Device %s removed from %s"
 msgstr "Périphérique %s retiré de %s"
 
-#: lxc/utils.go:52 lxc/utils.go:76
+#: lxc/utils.go:53 lxc/utils.go:77
 #, fuzzy, c-format
 msgid "Device already exists: %s"
 msgstr "le serveur distant %s existe déjà"
@@ -2011,7 +2011,7 @@ msgstr ""
 msgid "Device: %s"
 msgstr "Serveur distant : %s"
 
-#: lxc/init.go:431
+#: lxc/init.go:406
 #, fuzzy
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr "pas d'image, conteneur ou instantané affecté sur ce serveur"
@@ -2382,12 +2382,12 @@ msgstr ""
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
 
-#: lxc/utils.go:266
+#: lxc/utils.go:267
 #, fuzzy, c-format
 msgid "Failed checking instance exists \"%s:%s\": %w"
 msgstr "Profil à appliquer au nouveau conteneur"
 
-#: lxc/utils.go:258
+#: lxc/utils.go:259
 #, fuzzy, c-format
 msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
 msgstr "Profil à appliquer au nouveau conteneur"
@@ -2417,7 +2417,7 @@ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 msgid "Failed getting peer's status: %w"
 msgstr ""
 
-#: lxc/init.go:293
+#: lxc/init.go:294
 #, c-format
 msgid "Failed loading profile %q for device override: %w"
 msgstr ""
@@ -2462,7 +2462,7 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Failed to create %q: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
-#: lxc/utils.go:184
+#: lxc/utils.go:185
 #, fuzzy, c-format
 msgid "Failed to create alias %s: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
@@ -2477,7 +2477,7 @@ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 msgid "Failed to find project: %w"
 msgstr "Échec lors de la génération de 'lxc.1': %v"
 
-#: lxc/copy.go:410
+#: lxc/copy.go:413
 #, fuzzy
 msgid "Failed to get the new instance name"
 msgstr "Profil à appliquer au nouveau conteneur"
@@ -2487,12 +2487,12 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Failed to listen for connection: %w"
 msgstr "Échec lors de la génération de 'lxc.1': %v"
 
-#: lxc/copy.go:363
+#: lxc/copy.go:359
 #, fuzzy, c-format
 msgid "Failed to refresh target instance '%s': %v"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
-#: lxc/utils.go:173
+#: lxc/utils.go:174
 #, fuzzy, c-format
 msgid "Failed to remove alias %s: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
@@ -2958,7 +2958,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr "Le nom du conteneur est obligatoire"
 
-#: lxc/copy.go:416 lxc/init.go:438
+#: lxc/copy.go:419 lxc/init.go:413
 #, fuzzy, c-format
 msgid "Instance name is: %s"
 msgstr "Le nom du conteneur est : %s"
@@ -2967,7 +2967,7 @@ msgstr "Le nom du conteneur est : %s"
 msgid "Instance path cannot be used in SSH SFTP listener mode"
 msgstr ""
 
-#: lxc/publish.go:346
+#: lxc/publish.go:347
 #, fuzzy, c-format
 msgid "Instance published with fingerprint: %s"
 msgstr "Conteneur publié avec l'empreinte : %s"
@@ -3020,7 +3020,7 @@ msgstr "Le nom du conteneur est : %s"
 msgid "Invalid instance path: %q"
 msgstr "Le nom du conteneur est : %s"
 
-#: lxc/utils.go:223
+#: lxc/utils.go:224
 #, fuzzy, c-format
 msgid "Invalid key=value configuration: %s"
 msgstr "Clé de configuration invalide"
@@ -3781,8 +3781,8 @@ msgstr "Copie de l'image : %s"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect "
-"\"custom\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect \"custom"
+"\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:33 lxc/remote.go:34
@@ -4682,7 +4682,7 @@ msgstr "Public : %s"
 msgid "Publish instances as images"
 msgstr "Création du conteneur"
 
-#: lxc/publish.go:290
+#: lxc/publish.go:253
 #, fuzzy, c-format
 msgid "Publishing instance: %s"
 msgstr "Ignorer l'état du conteneur (seulement pour start)"
@@ -4748,7 +4748,7 @@ msgstr "Copie de l'image : %s"
 msgid "Refresh images"
 msgstr "Récupération de l'image : %s"
 
-#: lxc/copy.go:376
+#: lxc/copy.go:379
 #, fuzzy, c-format
 msgid "Refreshing instance: %s"
 msgstr "Ignorer l'état du conteneur (seulement pour start)"
@@ -5028,7 +5028,7 @@ msgstr ""
 msgid "Retrieve the instance's console log"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
-#: lxc/init.go:385
+#: lxc/init.go:360
 #, c-format
 msgid "Retrieving image: %s"
 msgstr "Récupération de l'image : %s"
@@ -5836,7 +5836,7 @@ msgstr ""
 "Le conteneur est en cours d'exécution. Utiliser --force pour qu'il soit "
 "arrêté et redémarré."
 
-#: lxc/init.go:489
+#: lxc/init.go:434
 #, fuzzy
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
@@ -5847,14 +5847,14 @@ msgstr ""
 msgid "The key %q does not exist on cluster member %q"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/init.go:473
+#: lxc/utils.go:347
 #, fuzzy, c-format
-msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
+msgid "The local image '%q' couldn't be found, trying '%q:%q' instead."
 msgstr "L'image locale '%s' n'a pas été trouvée, essayer '%s:' à la place."
 
-#: lxc/init.go:469
-#, c-format
-msgid "The local image '%s' couldn't be found, trying '%s:' instead."
+#: lxc/utils.go:343
+#, fuzzy, c-format
+msgid "The local image '%q' couldn't be found, trying '%q:' instead."
 msgstr "L'image locale '%s' n'a pas été trouvée, essayer '%s:' à la place."
 
 #: lxc/config_device.go:397
@@ -5917,12 +5917,12 @@ msgstr "Temps d'attente du conteneur avant de le tuer"
 msgid "Timestamps:"
 msgstr "Horodatage :"
 
-#: lxc/init.go:491
+#: lxc/init.go:436
 #, fuzzy
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr "Pour attacher un réseau à un conteneur, utiliser : lxc network attach"
 
-#: lxc/init.go:490
+#: lxc/init.go:435
 msgid "To create a new network, use: lxc network create"
 msgstr "Pour créer un réseau, utiliser : lxc network create"
 
@@ -5983,7 +5983,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr "Transfert de l'image : %s"
 
-#: lxc/copy.go:341 lxc/move.go:308
+#: lxc/copy.go:337 lxc/move.go:308
 #, fuzzy, c-format
 msgid "Transferring instance: %s"
 msgstr "Transfert de l'image : %s"
@@ -7972,8 +7972,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called "
-"\"data\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called \"data"
+"\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:453
