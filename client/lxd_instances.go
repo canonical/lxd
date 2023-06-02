@@ -562,15 +562,13 @@ func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op
 
 // CreateInstanceFromImage is a convenience function to make it easier to create a instance from an existing image.
 func (r *ProtocolLXD) CreateInstanceFromImage(source ImageServer, image api.Image, req api.InstancesPost) (RemoteOperation, error) {
-	// Set the minimal source fields
-	req.Source.Type = "image"
+	info, err := r.getSourceImageConnectionInfo(source, image, &req.Source)
+	if err != nil {
+		return nil, err
+	}
 
-	// Optimization for the local image case
-	if r.isSameServer(source) {
-		// Always use fingerprints for local case
-		req.Source.Fingerprint = image.Fingerprint
-		req.Source.Alias = ""
-
+	// If the source server is the same as the target server, create the instance directly.
+	if info == nil {
 		op, err := r.CreateInstance(req)
 		if err != nil {
 			return nil, err
@@ -588,36 +586,6 @@ func (r *ProtocolLXD) CreateInstanceFromImage(source ImageServer, image api.Imag
 		}()
 
 		return &rop, nil
-	}
-
-	// Minimal source fields for remote image
-	req.Source.Mode = "pull"
-
-	// If we have an alias and the image is public, use that
-	if req.Source.Alias != "" && image.Public {
-		req.Source.Fingerprint = ""
-	} else {
-		req.Source.Fingerprint = image.Fingerprint
-		req.Source.Alias = ""
-	}
-
-	// Get source server connection information
-	info, err := source.GetConnectionInfo()
-	if err != nil {
-		return nil, err
-	}
-
-	req.Source.Protocol = info.Protocol
-	req.Source.Certificate = info.Certificate
-
-	// Generate secret token if needed
-	if !image.Public {
-		secret, err := source.GetImageSecret(image.Fingerprint)
-		if err != nil {
-			return nil, err
-		}
-
-		req.Source.Secret = secret
 	}
 
 	return r.tryCreateInstance(req, info.Addresses, nil)

@@ -83,6 +83,37 @@ func instanceImageTransfer(s *state.State, r *http.Request, projectName string, 
 	return nil
 }
 
+func ensureImageIsLocallyAvailable(s *state.State, r *http.Request, img *api.Image, projectName string, instanceType instancetype.Type) error {
+	// Check if the image is available locally or it's on another member.
+	// Ensure we are the only ones operating on this image. Otherwise another instance created at the same
+	// time may also arrive at the conclusion that the image doesn't exist on this cluster member and then
+	// think it needs to download the image and store the record in the database as well, which will lead to
+	// duplicate record errors.
+	unlock := imageOperationLock(img.Fingerprint)
+	defer unlock()
+
+	memberAddress, err := s.DB.Cluster.LocateImage(img.Fingerprint)
+	if err != nil {
+		return fmt.Errorf("Failed locating image %q: %w", img.Fingerprint, err)
+	}
+
+	if memberAddress != "" {
+		// The image is available from another node, let's try to import it.
+		err = instanceImageTransfer(s, r, projectName, img.Fingerprint, memberAddress)
+		if err != nil {
+			return fmt.Errorf("Failed transferring image %q from %q: %w", img.Fingerprint, memberAddress, err)
+		}
+
+		// As the image record already exists in the project, just add the node ID to the image.
+		err = s.DB.Cluster.AddImageToLocalNode(projectName, img.Fingerprint)
+		if err != nil {
+			return fmt.Errorf("Failed adding transferred image %q record to local cluster member: %w", img.Fingerprint, err)
+		}
+	}
+
+	return nil
+}
+
 // instanceCreateFromImage creates an instance from a rootfs image.
 func instanceCreateFromImage(s *state.State, r *http.Request, img *api.Image, args db.InstanceArgs, op *operations.Operation) (instance.Instance, error) {
 	revert := revert.New()
@@ -632,4 +663,37 @@ func pruneExpiredAndAutoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.
 	}
 
 	return f, schedule
+}
+
+// getSourceImageFromInstanceSource returns the image to use for an instance source.
+func getSourceImageFromInstanceSource(ctx context.Context, s *state.State, tx *db.ClusterTx, project string, source api.InstanceSource, imageRef *string, instType string) (*api.Image, error) {
+	// Resolve the image.
+	sourceImageRefUpdate, err := instance.ResolveImage(ctx, tx, project, source)
+	if err != nil {
+		return nil, err
+	}
+
+	*imageRef = sourceImageRefUpdate
+	sourceImageHash := *imageRef
+
+	// If a remote server is being used, check whether we have a cached image for the alias.
+	// If so then use the cached image fingerprint for loading the cache image profiles.
+	// As its possible for a remote cached image to have its profiles modified after download.
+	if source.Server != "" {
+		for _, architecture := range s.OS.Architectures {
+			cachedFingerprint, err := tx.GetCachedImageSourceFingerprint(ctx, source.Server, source.Protocol, *imageRef, instType, architecture)
+			if err == nil && cachedFingerprint != sourceImageHash {
+				sourceImageHash = cachedFingerprint
+				break
+			}
+		}
+	}
+
+	// Check if image has an entry in the database.
+	_, sourceImage, err := tx.GetImageByFingerprintPrefix(ctx, sourceImageHash, dbCluster.ImageFilter{Project: &project})
+	if err != nil {
+		return nil, err
+	}
+
+	return sourceImage, nil
 }

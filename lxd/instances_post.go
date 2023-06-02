@@ -37,6 +37,45 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
+func ensureDownloadedImageFitWithinBudget(s *state.State, r *http.Request, op *operations.Operation, p api.Project, img *api.Image, imgAlias string, source api.InstanceSource, imgType string) (*api.Image, error) {
+	var autoUpdate bool
+	var err error
+	if p.Config["images.auto_update_cached"] != "" {
+		autoUpdate = shared.IsTrue(p.Config["images.auto_update_cached"])
+	} else {
+		autoUpdate = s.GlobalConfig.ImagesAutoUpdateCached()
+	}
+
+	var budget int64
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		budget, err = project.GetImageSpaceBudget(tx, p.Name)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	imgDownloaded, err := ImageDownload(r, s, op, &ImageDownloadArgs{
+		Server:       source.Server,
+		Protocol:     source.Protocol,
+		Certificate:  source.Certificate,
+		Secret:       source.Secret,
+		Alias:        imgAlias,
+		SetCached:    true,
+		Type:         imgType,
+		AutoUpdate:   autoUpdate,
+		Public:       false,
+		PreferCached: true,
+		ProjectName:  p.Name,
+		Budget:       budget,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return imgDownloaded, nil
+}
+
 func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []api.Profile, img *api.Image, imgAlias string, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
@@ -60,70 +99,15 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 		}
 
 		if req.Source.Server != "" {
-			var autoUpdate bool
-			if p.Config["images.auto_update_cached"] != "" {
-				autoUpdate = shared.IsTrue(p.Config["images.auto_update_cached"])
-			} else {
-				autoUpdate = s.GlobalConfig.ImagesAutoUpdateCached()
-			}
-
-			var budget int64
-			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				budget, err = project.GetImageSpaceBudget(tx, p.Name)
-				return err
-			})
-			if err != nil {
-				return err
-			}
-
-			img, err = ImageDownload(r, s, op, &ImageDownloadArgs{
-				Server:       req.Source.Server,
-				Protocol:     req.Source.Protocol,
-				Certificate:  req.Source.Certificate,
-				Secret:       req.Source.Secret,
-				Alias:        imgAlias,
-				SetCached:    true,
-				Type:         string(req.Type),
-				AutoUpdate:   autoUpdate,
-				Public:       false,
-				PreferCached: true,
-				ProjectName:  p.Name,
-				Budget:       budget,
-			})
+			img, err = ensureDownloadedImageFitWithinBudget(s, r, op, p, img, imgAlias, req.Source, string(req.Type))
 			if err != nil {
 				return err
 			}
 		} else if img != nil {
-			// Check if the image is available locally or it's on another member.
-			// Ensure we are the only ones operating on this image. Otherwise another instance created
-			// at the same time may also arrive at the conclusion that the image doesn't exist on this
-			// cluster member and then think it needs to download the image and store the record in the
-			// database as well, which will lead to duplicate record errors.
-			unlock := imageOperationLock(img.Fingerprint)
-
-			memberAddress, err := s.DB.Cluster.LocateImage(img.Fingerprint)
+			err := ensureImageIsLocallyAvailable(s, r, img, args.Project, args.Type)
 			if err != nil {
-				unlock()
-				return fmt.Errorf("Failed locating image %q: %w", img.Fingerprint, err)
+				return err
 			}
-
-			if memberAddress != "" {
-				// The image is available from another node, let's try to import it.
-				err = instanceImageTransfer(s, r, args.Project, img.Fingerprint, memberAddress)
-				if err != nil {
-					unlock()
-					return fmt.Errorf("Failed transferring image %q from %q: %w", img.Fingerprint, memberAddress, err)
-				}
-
-				// As the image record already exists in the project, just add the node ID to the image.
-				err = s.DB.Cluster.AddImageToLocalNode(args.Project, img.Fingerprint)
-				if err != nil {
-					unlock()
-					return fmt.Errorf("Failed adding transferred image %q record to local cluster member: %w", img.Fingerprint, err)
-				}
-			}
-
-			unlock() // Image is available locally.
 		} else {
 			return fmt.Errorf("Image not provided for instance creation")
 		}
@@ -991,29 +975,9 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 		case "image":
-			// Resolve the image.
-			sourceImageRef, err = instance.ResolveImage(ctx, tx, targetProject.Name, req.Source)
-			if err != nil {
-				return err
-			}
-
-			sourceImageHash := sourceImageRef
-
-			// If a remote server is being used, check whether we have a cached image for the alias.
-			// If so then use the cached image fingerprint for loading the cache image profiles.
-			// As its possible for a remote cached image to have its profiles modified after download.
-			if req.Source.Server != "" {
-				for _, architecture := range s.OS.Architectures {
-					cachedFingerprint, err := tx.GetCachedImageSourceFingerprint(ctx, req.Source.Server, req.Source.Protocol, sourceImageRef, string(req.Type), architecture)
-					if err == nil && cachedFingerprint != sourceImageHash {
-						sourceImageHash = cachedFingerprint
-						break
-					}
-				}
-			}
-
-			// Check if image has an entry in the database (but don't fail if not found).
-			_, sourceImage, err = tx.GetImageByFingerprintPrefix(ctx, sourceImageHash, dbCluster.ImageFilter{Project: &targetProject.Name})
+			// Check if the image has an entry in the database but fail only if the error
+			// is different than the image not being found.
+			sourceImage, err = getSourceImageFromInstanceSource(ctx, s, tx, targetProject.Name, req.Source, &sourceImageRef, string(req.Type))
 			if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 				return err
 			}
