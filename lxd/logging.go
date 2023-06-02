@@ -27,17 +27,23 @@ func expireLogsTask(state *state.State) (task.Func, task.Schedule) {
 
 		op, err := operations.OperationCreate(state, "", operations.OperationClassTask, operationtype.LogsExpire, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start log expiry operation", logger.Ctx{"err": err})
+			logger.Error("Failed creating log files expiry operation", logger.Ctx{"err": err})
 			return
 		}
 
 		logger.Info("Expiring log files")
 		err = op.Start()
 		if err != nil {
-			logger.Error("Failed to expire logs", logger.Ctx{"err": err})
+			logger.Error("Failed starting log files expiry operation", logger.Ctx{"err": err})
+			return
 		}
 
-		_, _ = op.Wait(ctx)
+		err = op.Wait(ctx)
+		if err != nil {
+			logger.Error("Failed expiring log files", logger.Ctx{"err": err})
+			return
+		}
+
 		logger.Info("Done expiring log files")
 	}
 

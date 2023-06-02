@@ -68,45 +68,32 @@ func instanceLoadCache() error {
 }
 
 func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
-	// This is basically a check of whether we're on Go >= 1.8 and
-	// http.Request has cancellation support. If that's the case, it will
-	// be used internally by instanceRefreshTypes to terminate gracefully,
-	// otherwise we'll wrap instanceRefreshTypes in a goroutine and force
-	// returning in case the context expires.
-	_, hasCancellationSupport := any(&http.Request{}).(util.ContextAwareRequest)
 	f := func(ctx context.Context) {
 		s := d.State()
 
 		opRun := func(op *operations.Operation) error {
-			if hasCancellationSupport {
-				return instanceRefreshTypes(ctx, s)
-			}
-
-			ch := make(chan error)
-			go func() {
-				ch <- instanceRefreshTypes(ctx, s)
-			}()
-			select {
-			case <-ctx.Done():
-				return nil
-			case err := <-ch:
-				return err
-			}
+			return instanceRefreshTypes(ctx, s)
 		}
 
 		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.InstanceTypesUpdate, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start instance types update operation", logger.Ctx{"err": err})
+			logger.Error("Failed creating instance types update operation", logger.Ctx{"err": err})
 			return
 		}
 
 		logger.Info("Updating instance types")
 		err = op.Start()
 		if err != nil {
-			logger.Error("Failed to update instance types", logger.Ctx{"err": err})
+			logger.Error("Failed starting instance types update operation", logger.Ctx{"err": err})
+			return
 		}
 
-		_, _ = op.Wait(ctx)
+		err = op.Wait(ctx)
+		if err != nil {
+			logger.Error("Failed updating instance types", logger.Ctx{"err": err})
+			return
+		}
+
 		logger.Info("Done updating instance types")
 	}
 

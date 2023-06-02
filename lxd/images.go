@@ -1566,7 +1566,7 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 
 		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ImagesUpdate, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start image update operation", logger.Ctx{"err": err})
+			logger.Error("Failed creating image update operation", logger.Ctx{"err": err})
 			return
 		}
 
@@ -1578,10 +1578,16 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		logger.Info("Updating images")
 		err = op.Start()
 		if err != nil {
-			logger.Error("Failed to update images", logger.Ctx{"err": err})
+			logger.Error("Failed starting image update operation", logger.Ctx{"err": err})
+			return
 		}
 
-		_, _ = op.Wait(ctx)
+		err = op.Wait(ctx)
+		if err != nil {
+			logger.Error("Failed updating images", logger.Ctx{"err": err})
+			return
+		}
+
 		logger.Info("Done updating images")
 	}
 
@@ -2132,7 +2138,7 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 
 		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ImagesExpire, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start expired image operation", logger.Ctx{"err": err})
+			logger.Error("Failed creating expired image prune operation", logger.Ctx{"err": err})
 			return
 		}
 
@@ -2144,10 +2150,16 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		logger.Info("Pruning expired images")
 		err = op.Start()
 		if err != nil {
-			logger.Error("Failed to expire images", logger.Ctx{"err": err})
+			logger.Error("Failed starting expired image prune operation", logger.Ctx{"err": err})
+			return
 		}
 
-		_, _ = op.Wait(ctx)
+		err = op.Wait(ctx)
+		if err != nil {
+			logger.Error("Failed expiring images", logger.Ctx{"err": err})
+			return
+		}
+
 		logger.Info("Done pruning expired images")
 	}
 
@@ -2244,7 +2256,7 @@ func pruneLeftoverImages(s *state.State) {
 
 	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ImagesPruneLeftover, nil, nil, opRun, nil, nil, nil)
 	if err != nil {
-		logger.Error("Failed to start image leftover cleanup operation", logger.Ctx{"err": err})
+		logger.Error("Failed creating leftover image clean up operation", logger.Ctx{"err": err})
 		return
 	}
 
@@ -2253,15 +2265,20 @@ func pruneLeftoverImages(s *state.State) {
 	defer imageTaskMu.Unlock()
 	logger.Debug("Acquired image task lock")
 
-	logger.Info("Pruning leftover image files")
+	logger.Info("Cleaning up leftover image files")
 	err = op.Start()
 	if err != nil {
-		logger.Error("Failed to prune leftover image files", logger.Ctx{"err": err})
+		logger.Error("Failed starting leftover image clean up operation", logger.Ctx{"err": err})
 		return
 	}
 
-	_, _ = op.Wait(s.ShutdownCtx)
-	logger.Infof("Done pruning leftover image files")
+	err = op.Wait(s.ShutdownCtx)
+	if err != nil {
+		logger.Error("Failed cleaning up leftover image files", logger.Ctx{"err": err})
+		return
+	}
+
+	logger.Infof("Done cleaning up leftover image files")
 }
 
 func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Operation) error {
@@ -4149,7 +4166,7 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 
 		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ImagesSynchronize, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start image synchronization operation", logger.Ctx{"err": err})
+			logger.Error("Failed creating image synchronization operation", logger.Ctx{"err": err})
 			return
 		}
 
@@ -4161,11 +4178,16 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		logger.Info("Synchronizing images across the cluster")
 		err = op.Start()
 		if err != nil {
-			logger.Error("Failed to synchronize images", logger.Ctx{"err": err})
+			logger.Error("Failed starting image synchronization operation", logger.Ctx{"err": err})
 			return
 		}
 
-		_, _ = op.Wait(ctx)
+		err = op.Wait(ctx)
+		if err != nil {
+			logger.Error("Failed synchronizing images", logger.Ctx{"err": err})
+			return
+		}
+
 		logger.Info("Done synchronizing images across the cluster")
 	}
 

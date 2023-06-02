@@ -508,13 +508,13 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 }
 
 // Wait for the operation to be done.
-// Returns true if operation completed or false if context was cancelled.
-func (op *Operation) Wait(ctx context.Context) (bool, error) {
+// Returns non-nil error if operation failed or context was cancelled.
+func (op *Operation) Wait(ctx context.Context) error {
 	select {
 	case <-op.finished.Done():
-		return true, nil
+		return op.err
 	case <-ctx.Done():
-		return false, nil
+		return ctx.Err()
 	}
 }
 

@@ -11,7 +11,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func autoRemoveExpiredTokens(ctx context.Context, s *state.State) error {
+func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 	expiredTokenOps := make([]*operations.Operation, 0)
 
 	for _, op := range operations.Clone() {
@@ -29,7 +29,7 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) error {
 	}
 
 	if len(expiredTokenOps) == 0 {
-		return nil
+		return
 	}
 
 	opRun := func(op *operations.Operation) error {
@@ -45,28 +45,30 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) error {
 
 	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.RemoveExpiredTokens, nil, nil, opRun, nil, nil, nil)
 	if err != nil {
-		logger.Error("Failed to start remove expired tokens operation", logger.Ctx{"err": err})
-		return err
+		logger.Error("Failed creating remove expired tokens operation", logger.Ctx{"err": err})
+		return
 	}
 
 	logger.Info("Removing expired tokens")
 
 	err = op.Start()
 	if err != nil {
-		logger.Error("Failed to remove expired tokens", logger.Ctx{"err": err})
-		return err
+		logger.Error("Failed starting remove expired tokens operation", logger.Ctx{"err": err})
+		return
 	}
 
-	_, _ = op.Wait(ctx)
+	err = op.Wait(ctx)
+	if err != nil {
+		logger.Error("Failed removing expired tokens", logger.Ctx{"err": err})
+		return
+	}
 
 	logger.Debug("Done removing expired tokens")
-
-	return nil
 }
 
 func autoRemoveExpiredTokensTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		_ = autoRemoveExpiredTokens(ctx, d.State())
+		autoRemoveExpiredTokens(ctx, d.State())
 	}
 
 	return f, task.Every(time.Minute)
