@@ -339,7 +339,7 @@ func SRIOVGetSwitchAndPFID(parentDev string) (string, int, error) {
 	}
 
 	// Check the port is a physical port and not an existing representor port connected to the bridge
-	// but beloning to a physical device. This avoids trying to find a free VF repeatedly for the same
+	// but belonging to a physical device. This avoids trying to find a free VF repeatedly for the same
 	// PF by mistakenly considering an existing representor ported connected to the bridge as a PF.
 	if strings.HasPrefix(string(physPortName), "pf") || !strings.HasPrefix(string(physPortName), "p") {
 		return "", -1, fmt.Errorf("Not a physical port: %s", string(physPortName))
