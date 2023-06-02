@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -779,23 +778,12 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 }
 
 func (d *nicOVN) findRepresentorPort(volatile map[string]string) (string, error) {
+	physSwitchID, pfID, err := network.SRIOVGetSwitchAndPFID(volatile["last_state.vf.parent"])
+	if err != nil {
+		return "", fmt.Errorf("Failed finding physical parent switch and PF ID to release representor port: %w", err)
+	}
+
 	sysClassNet := "/sys/class/net"
-	physSwitchID, err := os.ReadFile(filepath.Join(sysClassNet, volatile["last_state.vf.parent"], "phys_switch_id"))
-	if err != nil {
-		return "", fmt.Errorf("Failed finding physical parent switch ID to release representor port: %w", err)
-	}
-
-	physPortName, err := os.ReadFile(filepath.Join(sysClassNet, volatile["last_state.vf.parent"], "phys_port_name"))
-	if err != nil {
-		return "", fmt.Errorf("Failed finding physical parent PF ID to release representor port: %w", err)
-	}
-
-	var pfID int
-	_, err = fmt.Sscanf(string(physPortName), "p%d", &pfID)
-	if err != nil {
-		return "", fmt.Errorf("Failed finding physical parent PF ID to release representor port: %w", err)
-	}
-
 	nics, err := os.ReadDir(sysClassNet)
 	if err != nil {
 		return "", fmt.Errorf("Failed reading NICs directory %q: %w", sysClassNet, err)
