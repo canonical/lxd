@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-05-25 14:42-0400\n"
+"POT-Creation-Date: 2023-06-02 15:29+0200\n"
 "PO-Revision-Date: 2022-03-10 15:08+0000\n"
 "Last-Translator: Renato dos Santos <renato.santos@wplex.com.br>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -910,7 +910,7 @@ msgstr ""
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
-#: lxc/init.go:371
+#: lxc/init.go:346
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
@@ -1006,7 +1006,7 @@ msgstr "Backup exportado com sucesso!"
 msgid "Backups:"
 msgstr ""
 
-#: lxc/utils.go:96
+#: lxc/utils.go:97
 #, fuzzy, c-format
 msgid "Bad device override syntax, expecting <device>,<key>=<value>: %s"
 msgstr "Erro de sintaxe, esperado <dispositivo>,<chave>=<valor>: %s"
@@ -1127,7 +1127,7 @@ msgstr "Não pode fornecer um nome para a imagem de destino"
 msgid "Can't pull a directory without --recursive"
 msgstr "Não pode pegar um diretório sem --recursive"
 
-#: lxc/utils.go:209 lxc/utils.go:229
+#: lxc/utils.go:210 lxc/utils.go:230
 #, fuzzy, c-format
 msgid "Can't read from stdin: %w"
 msgstr "Não é possível ler stdin: %s"
@@ -1166,7 +1166,7 @@ msgstr "Não é possível remover chave '%s', não está atualmente definido"
 msgid "Candid domain to use"
 msgstr ""
 
-#: lxc/init.go:314
+#: lxc/init.go:315
 #, c-format
 msgid ""
 "Cannot override config for device %q: Device not found in profile devices"
@@ -1934,7 +1934,7 @@ msgstr "Dispositivo %s sobreposto em %s"
 msgid "Device %s removed from %s"
 msgstr "Dispositivo %s removido de %s"
 
-#: lxc/utils.go:52 lxc/utils.go:76
+#: lxc/utils.go:53 lxc/utils.go:77
 #, c-format
 msgid "Device already exists: %s"
 msgstr "O dispositivo já existe: %s"
@@ -1966,7 +1966,7 @@ msgstr ""
 msgid "Device: %s"
 msgstr "Em cache: %s"
 
-#: lxc/init.go:431
+#: lxc/init.go:406
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr ""
 
@@ -2309,12 +2309,12 @@ msgstr ""
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
 
-#: lxc/utils.go:266
+#: lxc/utils.go:267
 #, fuzzy, c-format
 msgid "Failed checking instance exists \"%s:%s\": %w"
 msgstr "Nome de membro do cluster"
 
-#: lxc/utils.go:258
+#: lxc/utils.go:259
 #, fuzzy, c-format
 msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
 msgstr "Nome de membro do cluster"
@@ -2344,7 +2344,7 @@ msgstr "Aceitar certificado"
 msgid "Failed getting peer's status: %w"
 msgstr ""
 
-#: lxc/init.go:293
+#: lxc/init.go:294
 #, c-format
 msgid "Failed loading profile %q for device override: %w"
 msgstr ""
@@ -2388,7 +2388,7 @@ msgstr "Nome de membro do cluster"
 msgid "Failed to create %q: %w"
 msgstr ""
 
-#: lxc/utils.go:184
+#: lxc/utils.go:185
 #, fuzzy, c-format
 msgid "Failed to create alias %s: %w"
 msgstr "Aceitar certificado"
@@ -2403,7 +2403,7 @@ msgstr "Aceitar certificado"
 msgid "Failed to find project: %w"
 msgstr ""
 
-#: lxc/copy.go:410
+#: lxc/copy.go:413
 msgid "Failed to get the new instance name"
 msgstr ""
 
@@ -2412,12 +2412,12 @@ msgstr ""
 msgid "Failed to listen for connection: %w"
 msgstr "Aceitar certificado"
 
-#: lxc/copy.go:363
+#: lxc/copy.go:359
 #, c-format
 msgid "Failed to refresh target instance '%s': %v"
 msgstr ""
 
-#: lxc/utils.go:173
+#: lxc/utils.go:174
 #, fuzzy, c-format
 msgid "Failed to remove alias %s: %w"
 msgstr "Aceitar certificado"
@@ -2863,7 +2863,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:416 lxc/init.go:438
+#: lxc/copy.go:419 lxc/init.go:413
 #, c-format
 msgid "Instance name is: %s"
 msgstr ""
@@ -2872,7 +2872,7 @@ msgstr ""
 msgid "Instance path cannot be used in SSH SFTP listener mode"
 msgstr ""
 
-#: lxc/publish.go:346
+#: lxc/publish.go:347
 #, fuzzy, c-format
 msgid "Instance published with fingerprint: %s"
 msgstr "Certificado fingerprint: %s"
@@ -2925,7 +2925,7 @@ msgstr "Editar arquivos no container"
 msgid "Invalid instance path: %q"
 msgstr "Editar arquivos no container"
 
-#: lxc/utils.go:223
+#: lxc/utils.go:224
 #, fuzzy, c-format
 msgid "Invalid key=value configuration: %s"
 msgstr "par de chave=valor inválido %s"
@@ -3608,8 +3608,8 @@ msgstr ""
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect "
-"\"custom\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect \"custom"
+"\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:33 lxc/remote.go:34
@@ -4470,7 +4470,7 @@ msgstr ""
 msgid "Publish instances as images"
 msgstr ""
 
-#: lxc/publish.go:290
+#: lxc/publish.go:253
 #, fuzzy, c-format
 msgid "Publishing instance: %s"
 msgstr "Editar arquivos no container"
@@ -4531,7 +4531,7 @@ msgstr ""
 msgid "Refresh images"
 msgstr ""
 
-#: lxc/copy.go:376
+#: lxc/copy.go:379
 #, fuzzy, c-format
 msgid "Refreshing instance: %s"
 msgstr "Editar arquivos no container"
@@ -4790,7 +4790,7 @@ msgstr ""
 msgid "Retrieve the instance's console log"
 msgstr ""
 
-#: lxc/init.go:385
+#: lxc/init.go:360
 #, c-format
 msgid "Retrieving image: %s"
 msgstr ""
@@ -5569,7 +5569,7 @@ msgid ""
 "restarted"
 msgstr ""
 
-#: lxc/init.go:489
+#: lxc/init.go:434
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
 
@@ -5578,14 +5578,14 @@ msgstr ""
 msgid "The key %q does not exist on cluster member %q"
 msgstr "Nome de membro do cluster"
 
-#: lxc/init.go:473
+#: lxc/utils.go:347
 #, c-format
-msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
+msgid "The local image '%q' couldn't be found, trying '%q:%q' instead."
 msgstr ""
 
-#: lxc/init.go:469
+#: lxc/utils.go:343
 #, c-format
-msgid "The local image '%s' couldn't be found, trying '%s:' instead."
+msgid "The local image '%q' couldn't be found, trying '%q:' instead."
 msgstr ""
 
 #: lxc/config_device.go:397
@@ -5646,11 +5646,11 @@ msgstr ""
 msgid "Timestamps:"
 msgstr ""
 
-#: lxc/init.go:491
+#: lxc/init.go:436
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr ""
 
-#: lxc/init.go:490
+#: lxc/init.go:435
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
@@ -5709,7 +5709,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/copy.go:341 lxc/move.go:308
+#: lxc/copy.go:337 lxc/move.go:308
 #, fuzzy, c-format
 msgid "Transferring instance: %s"
 msgstr "Editar arquivos no container"
@@ -7031,8 +7031,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called "
-"\"data\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called \"data"
+"\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:453
@@ -7101,19 +7101,19 @@ msgstr "sim"
 #~ msgid "[<remote>:] <token>"
 #~ msgstr "Criar perfis"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Failed to validate \"%s:%s\": %w"
 #~ msgstr "Aceitar certificado"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "par de chave=valor inválido %s"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "Nome de membro do cluster"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Aceitar certificado"
 
@@ -7129,7 +7129,7 @@ msgstr "sim"
 #~ msgid "Manage network zone record entriess"
 #~ msgstr "Criar novas redes"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Client %s join token: %s"
 #~ msgstr "Versão do cliente: %s\n"
 
@@ -7155,7 +7155,6 @@ msgstr "sim"
 #~ msgid "Client certificate stored at server:"
 #~ msgstr "Certificado do cliente armazenado no servidor: "
 
-#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "Não é possível ler stdin: %s"
 
@@ -7163,7 +7162,7 @@ msgstr "sim"
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "Nome de membro do cluster"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "Nome de membro do cluster"
 
@@ -7244,10 +7243,9 @@ msgstr "sim"
 #~ "###\n"
 #~ "### Note que o nome é exibido, porém não pode ser alterado."
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Admin password for %s:"
 #~ msgstr "Senha de administrador para %s: "
 
-#, c-format
 #~ msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 #~ msgstr "Erro de sintaxe, esperado <dispositivo>,<chave>=<valor>: %s"
