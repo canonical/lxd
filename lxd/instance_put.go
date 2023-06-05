@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // swagger:operation PUT /1.0/instances/{name} instances instance_put
@@ -169,8 +170,8 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		opType = operationtype.SnapshotRestore
 	}
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{name}
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
 
 	if inst.Type() == instancetype.Container {
 		resources["containers"] = resources["instances"]

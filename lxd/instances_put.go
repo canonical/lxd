@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 func coalesceErrors(local bool, errors map[string]error) error {
@@ -256,8 +257,11 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		return coalesceErrors(true, failures)
 	}
 
-	resources := map[string][]string{}
-	resources["instances"] = names
+	resources := map[string][]api.URL{}
+	for _, instName := range names {
+		resources["instances"] = append(resources["instances"], *api.NewURL().Path(version.APIVersion, "instances", instName))
+	}
+
 	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, opType, resources, nil, do, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
