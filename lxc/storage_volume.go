@@ -1272,7 +1272,7 @@ func (c *cmdStorageVolumeInfo) Run(cmd *cobra.Command, args []string) error {
 			snapData = append(snapData, row)
 		}
 
-		sort.Sort(utils.ByName(snapData))
+		sort.Sort(utils.SortColumnsNaturally(snapData))
 		snapHeader := []string{
 			i18n.G("Name"),
 			i18n.G("Description"),

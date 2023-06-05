@@ -142,7 +142,7 @@ func (c *cmdNetworkACLList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, details)
 	}
 
-	sort.Sort(utils.ByName(data))
+	sort.Sort(utils.SortColumnsNaturally(data))
 
 	header := []string{
 		i18n.G("NAME"),
