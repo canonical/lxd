@@ -534,7 +534,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		// crafted disk image. Since cloud tenants are not to be trusted, ensure QEMU is limits to 1 GB
 		// address space and 2 seconds CPU time, which ought to be more than enough for real world images.
 		cmd := []string{"prlimit", "--cpu=2", "--as=1000000000", "qemu-img", "info", "-f", "qcow2", "--output=json", imgPath}
-		imgJSON, err := apparmor.QemuImg(sysOS, cmd, imgPath, "")
+		imgJSON, err := apparmor.QemuImg(sysOS, cmd, imgPath, dstPath)
 		if err != nil {
 			return -1, fmt.Errorf("Failed reading image info %q: %w", imgPath, err)
 		}
