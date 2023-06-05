@@ -889,8 +889,8 @@ func doVolumeMigration(s *state.State, r *http.Request, requestProjectName strin
 		return response.InternalError(err)
 	}
 
-	resources := map[string][]string{}
-	resources["storage_volumes"] = []string{fmt.Sprintf("%s/volumes/custom/%s", poolName, req.Name)}
+	resources := map[string][]api.URL{}
+	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", "custom", req.Name)}
 
 	run := func(op *operations.Operation) error {
 		// And finally run the migration.
@@ -1159,8 +1159,8 @@ func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, req
 		return response.InternalError(err)
 	}
 
-	resources := map[string][]string{}
-	resources["storage_volumes"] = []string{fmt.Sprintf("%s/volumes/custom/%s", poolName, volumeName)}
+	resources := map[string][]api.URL{}
+	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", "custom", volumeName)}
 
 	run := func(op *operations.Operation) error {
 		return ws.DoStorage(state, projectName, poolName, volumeName, op)
@@ -1992,8 +1992,8 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 		return nil
 	}
 
-	resources := map[string][]string{}
-	resources["storage_volumes"] = []string{bInfo.Name}
+	resources := map[string][]api.URL{}
+	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", bInfo.Pool, "volumes", string(bInfo.Type), bInfo.Name)}
 
 	op, err := operations.OperationCreate(s, requestProjectName, operations.OperationClassTask, operationtype.CustomVolumeBackupRestore, resources, nil, run, nil, nil, r)
 	if err != nil {

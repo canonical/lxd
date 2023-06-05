@@ -663,8 +663,8 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		ws.instance = inst
 		ws.req = post
 
-		resources := map[string][]string{}
-		resources["instances"] = []string{ws.instance.Name()}
+		resources := map[string][]api.URL{}
+		resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", ws.instance.Name())}
 
 		if ws.instance.Type() == instancetype.Container {
 			resources["containers"] = resources["instances"]
@@ -739,8 +739,8 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{name}
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
 
 	if inst.Type() == instancetype.Container {
 		resources["containers"] = resources["instances"]
