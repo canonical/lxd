@@ -335,14 +335,14 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{name}
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
 
 	if inst.Type() == instancetype.Container {
 		resources["containers"] = resources["instances"]
 	}
 
-	resources["backups"] = []string{req.Name}
+	resources["backups"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name, "backups", req.Name)}
 
 	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask,
 		operationtype.BackupCreate, resources, nil, backup, nil, nil, r)
@@ -528,9 +528,11 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{name}
-	resources["containers"] = resources["instances"]
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
+	if instanceType == instancetype.Container {
+		resources["containers"] = resources["instances"]
+	}
 
 	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask,
 		operationtype.BackupRename, resources, nil, rename, nil, nil, r)
@@ -615,8 +617,11 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	resources := map[string][]string{}
-	resources["container"] = []string{name}
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
+	if instanceType == instancetype.Container {
+		resources["containers"] = resources["instances"]
+	}
 
 	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask,
 		operationtype.BackupRemove, resources, nil, remove, nil, nil, r)

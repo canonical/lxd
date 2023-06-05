@@ -324,8 +324,9 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		return inst.Snapshot(req.Name, expiry, req.Stateful)
 	}
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{name}
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
+	resources["instances_snapshots"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name, "snapshots", req.Name)}
 
 	if inst.Type() == instancetype.Container {
 		resources["containers"] = resources["instances"]
@@ -523,11 +524,11 @@ func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance) re
 	}
 
 	opType := operationtype.SnapshotUpdate
+	parentName, snapName, _ := api.GetParentAndSnapshotName(snapInst.Name())
 
-	parentName, _, _ := api.GetParentAndSnapshotName(snapInst.Name())
-
-	resources := map[string][]string{}
-	resources["instances"] = []string{parentName}
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", parentName)}
+	resources["instances_snapshots"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName)}
 
 	if snapInst.Type() == instancetype.Container {
 		resources["containers"] = resources["instances"]
@@ -643,7 +644,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 		return response.BadRequest(err)
 	}
 
-	parentName, _, _ := api.GetParentAndSnapshotName(snapInst.Name())
+	parentName, snapName, _ := api.GetParentAndSnapshotName(snapInst.Name())
 
 	migration, err := raw.GetBool("migration")
 	if err == nil && migration {
@@ -677,8 +678,9 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 			return response.SmartError(err)
 		}
 
-		resources := map[string][]string{}
-		resources["instances"] = []string{parentName}
+		resources := map[string][]api.URL{}
+		resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", parentName)}
+		resources["instances_snapshots"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName)}
 
 		if snapInst.Type() == instancetype.Container {
 			resources["containers"] = resources["instances"]
@@ -730,8 +732,9 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 		return snapInst.Rename(fullName, false)
 	}
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{parentName}
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", parentName)}
+	resources["instances_snapshots"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName)}
 
 	if snapInst.Type() == instancetype.Container {
 		resources["containers"] = resources["instances"]
@@ -776,10 +779,11 @@ func snapshotDelete(s *state.State, r *http.Request, snapInst instance.Instance)
 		return snapInst.Delete(false)
 	}
 
-	parentName, _, _ := api.GetParentAndSnapshotName(snapInst.Name())
+	parentName, snapName, _ := api.GetParentAndSnapshotName(snapInst.Name())
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{parentName}
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", parentName)}
+	resources["instances_snapshots"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName)}
 
 	if snapInst.Type() == instancetype.Container {
 		resources["containers"] = resources["instances"]

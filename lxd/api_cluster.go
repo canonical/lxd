@@ -371,8 +371,8 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 		return nil
 	}
 
-	resources := map[string][]string{}
-	resources["cluster"] = []string{}
+	resources := map[string][]api.URL{}
+	resources["cluster"] = []api.URL{}
 
 	// If there's no cluster.https_address set, but core.https_address is,
 	// let's default to it.
@@ -799,8 +799,8 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		return nil
 	}
 
-	resources := map[string][]string{}
-	resources["cluster"] = []string{}
+	resources := map[string][]api.URL{}
+	resources["cluster"] = []api.URL{}
 
 	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ClusterJoin, resources, nil, run, nil, nil, r)
 	if err != nil {
@@ -1364,8 +1364,8 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 		"expiresAt":   expiry,
 	}
 
-	resources := map[string][]string{}
-	resources["cluster"] = []string{}
+	resources := map[string][]api.URL{}
+	resources["cluster"] = []api.URL{}
 
 	op, err := operations.OperationCreate(s, project.Default, operations.OperationClassToken, operationtype.ClusterJoinToken, resources, meta, nil, nil, nil, r)
 	if err != nil {

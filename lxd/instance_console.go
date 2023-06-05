@@ -27,6 +27,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 	"github.com/canonical/lxd/shared/ws"
 )
 
@@ -505,8 +506,8 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	ws.height = post.Height
 	ws.protocol = post.Type
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{ws.instance.Name()}
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", ws.instance.Name())}
 
 	if inst.Type() == instancetype.Container {
 		resources["containers"] = resources["instances"]
