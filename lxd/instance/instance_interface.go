@@ -142,6 +142,7 @@ type Instance interface {
 
 	// Paths.
 	Path() string
+	ExecOutputPath() string
 	RootfsPath() string
 	TemplatesPath() string
 	StatePath() string
