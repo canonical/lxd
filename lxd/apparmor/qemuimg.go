@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -64,6 +65,7 @@ func (nwc *nullWriteCloser) Close() error {
 func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (string, error) {
 	//It is assumed that command starts with a program which sets resource limits, like prlimit or nice
 	allowedCmds := []string{"qemu-img", cmd[0]}
+	profileName := getProfileName(imgPath, dstPath)
 
 	allowedCmdPaths := []string{}
 	for _, c := range allowedCmds {
@@ -94,8 +96,8 @@ func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (strin
 	}
 
 	defer func() {
-		_ = qemuImgUnload(sysOS, imgPath)
-		_ = qemuImgDelete(sysOS, imgPath)
+		_ = qemuImgUnload(sysOS, profileName)
+		_ = qemuImgDelete(sysOS, profileName)
 	}()
 
 	var buffer bytes.Buffer
@@ -105,7 +107,7 @@ func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (strin
 		return "", fmt.Errorf("Failed creating qemu-img subprocess: %w", err)
 	}
 
-	p.SetApparmor(qemuImgProfileName(imgPath))
+	p.SetApparmor(profileName)
 
 	err = p.Start(context.Background())
 	if err != nil {
@@ -122,8 +124,9 @@ func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (strin
 
 // qemuImgProfileLoad ensures that the qemu-img's policy is loaded into the kernel.
 func qemuImgProfileLoad(sysOS *sys.OS, imgPath string, dstPath string, allowedCmdPaths []string) error {
-	profile := filepath.Join(aaPath, "profiles", qemuImgProfileFilename(imgPath))
-	content, err := os.ReadFile(profile)
+	profileName := getProfileName(imgPath, dstPath)
+	profilePath := filepath.Join(aaPath, "profiles", profileName)
+	content, err := os.ReadFile(profilePath)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -134,13 +137,13 @@ func qemuImgProfileLoad(sysOS *sys.OS, imgPath string, dstPath string, allowedCm
 	}
 
 	if string(content) != string(updated) {
-		err = os.WriteFile(profile, []byte(updated), 0600)
+		err = os.WriteFile(profilePath, []byte(updated), 0600)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = loadProfile(sysOS, qemuImgProfileFilename(imgPath))
+	err = loadProfile(sysOS, profileName)
 	if err != nil {
 		return err
 	}
@@ -150,8 +153,8 @@ func qemuImgProfileLoad(sysOS *sys.OS, imgPath string, dstPath string, allowedCm
 
 // qemuImgUnload ensures that the qemu-img's policy namespace is unloaded to free kernel memory.
 // This does not delete the policy from disk or cache.
-func qemuImgUnload(sysOS *sys.OS, imgPath string) error {
-	err := unloadProfile(sysOS, qemuImgProfileName(imgPath), qemuImgProfileFilename(imgPath))
+func qemuImgUnload(sysOS *sys.OS, profileName string) error {
+	err := unloadProfile(sysOS, profileName, profileName)
 	if err != nil {
 		return err
 	}
@@ -160,8 +163,8 @@ func qemuImgUnload(sysOS *sys.OS, imgPath string) error {
 }
 
 // qemuImgDelete removes the profile from cache/disk.
-func qemuImgDelete(sysOS *sys.OS, imgPath string) error {
-	return deleteProfile(sysOS, qemuImgProfileName(imgPath), qemuImgProfileFilename(imgPath))
+func qemuImgDelete(sysOS *sys.OS, profileName string) error {
+	return deleteProfile(sysOS, profileName, profileName)
 }
 
 // qemuImgProfile generates the AppArmor profile template from the given destination path.
@@ -169,7 +172,7 @@ func qemuImgProfile(imgPath string, dstPath string, allowedCmdPaths []string) (s
 	// Render the profile.
 	var sb *strings.Builder = &strings.Builder{}
 	err := qemuImgProfileTpl.Execute(sb, map[string]any{
-		"name":            qemuImgProfileName(imgPath),
+		"name":            getProfileName(imgPath, dstPath),
 		"pathToImg":       imgPath,
 		"dstPath":         dstPath,
 		"allowedCmdPaths": allowedCmdPaths,
@@ -183,17 +186,8 @@ func qemuImgProfile(imgPath string, dstPath string, allowedCmdPaths []string) (s
 	return sb.String(), nil
 }
 
-// qemuImgProfileName returns the AppArmor profile name.
-func qemuImgProfileName(outputPath string) string {
-	return getProfileName(outputPath)
-}
-
-// qemuImgProfileFilename returns the name of the on-disk profile name.
-func qemuImgProfileFilename(outputPath string) string {
-	return getProfileName(outputPath)
-}
-
-func getProfileName(outputPath string) string {
-	name := strings.Replace(strings.Trim(outputPath, "/"), "/", "-", -1)
+// getProfileName returns the path of the on-disk profile name.
+func getProfileName(imgPath string, dstPath string) string {
+	name := strings.Replace(strings.Trim(path.Join(imgPath, dstPath), "/"), "/", "-", -1)
 	return profileName("qemu-img", name)
 }
