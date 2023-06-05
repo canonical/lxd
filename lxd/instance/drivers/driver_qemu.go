@@ -3848,8 +3848,9 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 				return nil, fmt.Errorf("Error creating new ifreq for %q: %w", nicName, err)
 			}
 
-			// These settings need to match those set by the LXD device that created the interface.
-			ifr.SetUint16(unix.IFF_TAP | unix.IFF_NO_PI | unix.IFF_MULTI_QUEUE)
+			// These settings need to be compatible with what the LXD device created the interface with
+			// and what QEMU is expecting.
+			ifr.SetUint16(unix.IFF_TAP | unix.IFF_NO_PI | unix.IFF_ONE_QUEUE | unix.IFF_MULTI_QUEUE | unix.IFF_VNET_HDR)
 
 			// Sets the file handle to point to the requested NIC interface.
 			err = unix.IoctlIfreq(int(f.Fd()), unix.TUNSETIFF, ifr)
@@ -7868,7 +7869,6 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 	}
 
 	// Check if vhost-net accelerator (for NIC CPU offloading) is available.
-	_ = util.LoadModule("vhost_net")
 	if shared.PathExists("/dev/vhost-net") {
 		features["vhost_net"] = struct{}{}
 	}
