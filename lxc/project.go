@@ -480,7 +480,7 @@ func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, []string{name, images, profiles, storageVolumes, storageBuckets, networks, networkZones, project.Description, strUsedBy})
 	}
 
-	sort.Sort(utils.ByName(data))
+	sort.Sort(utils.SortColumnsNaturally(data))
 
 	header := []string{
 		i18n.G("NAME"),
@@ -821,7 +821,7 @@ func (c *cmdProjectInfo) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, []string{strings.ToUpper(k), limit, usage})
 	}
 
-	sort.Sort(utils.ByName(data))
+	sort.Sort(utils.SortColumnsNaturally(data))
 
 	header := []string{
 		i18n.G("RESOURCE"),
