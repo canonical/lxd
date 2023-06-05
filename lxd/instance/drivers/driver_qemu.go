@@ -7869,7 +7869,6 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 	}
 
 	// Check if vhost-net accelerator (for NIC CPU offloading) is available.
-	_ = util.LoadModule("vhost_net")
 	if shared.PathExists("/dev/vhost-net") {
 		features["vhost_net"] = struct{}{}
 	}
