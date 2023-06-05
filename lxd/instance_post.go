@@ -25,6 +25,7 @@ import (
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // swagger:operation POST /1.0/instances/{name} instances instance_post
@@ -255,8 +256,8 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return instancePostPoolMigration(s, inst, req.Name, req.InstanceOnly, req.Pool, req.Live, req.AllowInconsistent, op)
 			}
 
-			resources := map[string][]string{}
-			resources["instances"] = []string{name}
+			resources := map[string][]api.URL{}
+			resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
 			op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil, r)
 			if err != nil {
 				return response.InternalError(err)
@@ -277,8 +278,8 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return instancePostProjectMigration(s, inst, req.Name, req.Project, req.InstanceOnly, req.Live, req.AllowInconsistent, op)
 			}
 
-			resources := map[string][]string{}
-			resources["instances"] = []string{name}
+			resources := map[string][]api.URL{}
+			resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
 			op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil, r)
 			if err != nil {
 				return response.InternalError(err)
@@ -303,8 +304,8 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return migrateInstance(s, r, inst, targetNode, req, op)
 			}
 
-			resources := map[string][]string{}
-			resources["instances"] = []string{name}
+			resources := map[string][]api.URL{}
+			resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
 
 			if inst.Type() == instancetype.Container {
 				resources["containers"] = resources["instances"]
@@ -324,8 +325,8 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			return response.InternalError(err)
 		}
 
-		resources := map[string][]string{}
-		resources["instances"] = []string{name}
+		resources := map[string][]api.URL{}
+		resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
 
 		if inst.Type() == instancetype.Container {
 			resources["containers"] = resources["instances"]
@@ -369,8 +370,8 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return inst.Rename(req.Name, true)
 	}
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{name}
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
 
 	if inst.Type() == instancetype.Container {
 		resources["containers"] = resources["instances"]
@@ -597,8 +598,8 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 
 		dest = dest.UseTarget(newMember.Name).UseProject(projectName)
 
-		resources := map[string][]string{}
-		resources["instances"] = []string{srcInstName}
+		resources := map[string][]api.URL{}
+		resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", srcInstName)}
 
 		srcInstRunning := srcInst.IsRunning()
 		live := stateful && srcInstRunning
