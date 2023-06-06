@@ -38,7 +38,7 @@ GPU devices of type `physical` have the following device options:
 Key         | Type      | Default           | Description
 :--         | :--       | :--               | :--
 `gid`       | int       | `0`               | GID of the device owner in the instance (container only)
-`id`        | string    | -                 | The card ID of the GPU device
+`id`        | string    | -                 | The DRM card ID of the GPU device
 `mode`      | int       | `0660`            | Mode of the device in the instance (container only)
 `pci`       | string    | -                 | The PCI address of the GPU device
 `productid` | string    | -                 | The product ID of the GPU device
@@ -62,7 +62,7 @@ GPU devices of type `mdev` have the following device options:
 
 Key         | Type      | Default           | Description
 :--         | :--       | :--               | :--
-`id`        | string    | -                 | The card ID of the GPU device
+`id`        | string    | -                 | The DRM card ID of the GPU device
 `mdev`      | string    | -                 | The `mdev` profile to use (required - for example, `i915-GVTg_V5_4`)
 `pci`       | string    | -                 | The PCI address of the GPU device
 `productid` | string    | -                 | The product ID of the GPU device
@@ -85,7 +85,7 @@ GPU devices of type `mig` have the following device options:
 
 Key         | Type      | Default           | Description
 :--         | :--       | :--               | :--
-`id`        | string    | -                 | The card ID of the GPU device
+`id`        | string    | -                 | The DRM card ID of the GPU device
 `mig.ci`    | int       | -                 | Existing MIG compute instance ID
 `mig.gi`    | int       | -                 | Existing MIG GPU instance ID
 `mig.uuid`  | string    | -                 | Existing MIG device UUID (`MIG-` prefix can be omitted)
@@ -111,7 +111,7 @@ GPU devices of type `sriov` have the following device options:
 
 Key         | Type      | Default           | Description
 :--         | :--       | :--               | :--
-`id`         | string   | -                 | The card ID of the parent GPU device
+`id`         | string   | -                 | The DRM card ID of the parent GPU device
 `pci`        | string   | -                 | The PCI address of the parent GPU device
 `productid`  | string   | -                 | The product ID of the parent GPU device
 `vendorid`   | string   | -                 | The vendor ID of the parent GPU device
