@@ -44,7 +44,7 @@ func (d *gpuSRIOV) validateConfig(instConf instance.ConfigReader) error {
 	if d.config["pci"] != "" {
 		for _, field := range []string{"id", "productid", "vendorid"} {
 			if d.config[field] != "" {
-				return fmt.Errorf(`Cannot use %q when when "pci" is set`, field)
+				return fmt.Errorf(`Cannot use %q when "pci" is set`, field)
 			}
 		}
 
@@ -54,7 +54,7 @@ func (d *gpuSRIOV) validateConfig(instConf instance.ConfigReader) error {
 	if d.config["id"] != "" {
 		for _, field := range []string{"pci", "productid", "vendorid"} {
 			if d.config[field] != "" {
-				return fmt.Errorf(`Cannot use %q when when "id" is set`, field)
+				return fmt.Errorf(`Cannot use %q when "id" is set`, field)
 			}
 		}
 	}
