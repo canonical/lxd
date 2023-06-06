@@ -65,7 +65,6 @@ func (nwc *nullWriteCloser) Close() error {
 func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (string, error) {
 	//It is assumed that command starts with a program which sets resource limits, like prlimit or nice
 	allowedCmds := []string{"qemu-img", cmd[0]}
-	profileName := getProfileName(imgPath, dstPath)
 
 	allowedCmdPaths := []string{}
 	for _, c := range allowedCmds {
@@ -90,7 +89,7 @@ func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (strin
 		}
 	}
 
-	err = qemuImgProfileLoad(sysOS, imgPath, dstPath, allowedCmdPaths)
+	profileName, err := qemuImgProfileLoad(sysOS, imgPath, dstPath, allowedCmdPaths)
 	if err != nil {
 		return "", fmt.Errorf("Failed to load qemu-img profile: %w", err)
 	}
@@ -123,32 +122,33 @@ func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (strin
 }
 
 // qemuImgProfileLoad ensures that the qemu-img's policy is loaded into the kernel.
-func qemuImgProfileLoad(sysOS *sys.OS, imgPath string, dstPath string, allowedCmdPaths []string) error {
-	profileName := getProfileName(imgPath, dstPath)
+func qemuImgProfileLoad(sysOS *sys.OS, imgPath string, dstPath string, allowedCmdPaths []string) (string, error) {
+	name := fmt.Sprintf("<%s>_<%s>", strings.ReplaceAll(strings.Trim(imgPath, "/"), "/", "-"), strings.ReplaceAll(strings.Trim(dstPath, "/"), "/", "-"))
+	profileName := profileName("qemu-img", name)
 	profilePath := filepath.Join(aaPath, "profiles", profileName)
 	content, err := os.ReadFile(profilePath)
 	if err != nil && !os.IsNotExist(err) {
-		return err
+		return "", err
 	}
 
 	updated, err := qemuImgProfile(profileName, imgPath, dstPath, allowedCmdPaths)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if string(content) != string(updated) {
 		err = os.WriteFile(profilePath, []byte(updated), 0600)
 		if err != nil {
-			return err
+			return "", err
 		}
 	}
 
 	err = loadProfile(sysOS, profileName)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return profileName, nil
 }
 
 // qemuImgUnload ensures that the qemu-img's policy namespace is unloaded to free kernel memory.
