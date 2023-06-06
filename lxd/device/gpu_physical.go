@@ -112,7 +112,7 @@ func (d *gpuPhysical) startContainer() (*deviceConfig.RunConfig, error) {
 
 	for _, gpu := range gpus.Cards {
 		// Skip any cards that are not selected.
-		if !gpuSelected(d, gpu) {
+		if !gpuSelected(d.Config(), gpu) {
 			continue
 		}
 
@@ -219,7 +219,7 @@ func (d *gpuPhysical) startVM() (*deviceConfig.RunConfig, error) {
 
 	for _, gpu := range gpus.Cards {
 		// Skip any cards that are not selected.
-		if !gpuSelected(d, gpu) {
+		if !gpuSelected(d.Config(), gpu) {
 			continue
 		}
 
