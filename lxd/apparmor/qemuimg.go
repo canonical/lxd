@@ -149,22 +149,6 @@ func qemuImgProfileLoad(sysOS *sys.OS, imgPath string, dstPath string, allowedCm
 	return profileName, nil
 }
 
-// qemuImgUnload ensures that the qemu-img's policy namespace is unloaded to free kernel memory.
-// This does not delete the policy from disk or cache.
-func qemuImgUnload(sysOS *sys.OS, profileName string) error {
-	err := unloadProfile(sysOS, profileName, profileName)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// qemuImgDelete removes the profile from cache/disk.
-func qemuImgDelete(sysOS *sys.OS, profileName string) error {
-	return deleteProfile(sysOS, profileName, profileName)
-}
-
 // qemuImgProfile generates the AppArmor profile template from the given destination path.
 func qemuImgProfile(profileName string, imgPath string, dstPath string, allowedCmdPaths []string) (string, error) {
 	// Render the profile.
