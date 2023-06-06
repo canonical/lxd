@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -65,7 +64,6 @@ func (nwc *nullWriteCloser) Close() error {
 func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (string, error) {
 	//It is assumed that command starts with a program which sets resource limits, like prlimit or nice
 	allowedCmds := []string{"qemu-img", cmd[0]}
-	profileName := getProfileName(imgPath, dstPath)
 
 	allowedCmdPaths := []string{}
 	for _, c := range allowedCmds {
@@ -90,14 +88,13 @@ func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (strin
 		}
 	}
 
-	err = qemuImgProfileLoad(sysOS, imgPath, dstPath, allowedCmdPaths)
+	profileName, err := qemuImgProfileLoad(sysOS, imgPath, dstPath, allowedCmdPaths)
 	if err != nil {
 		return "", fmt.Errorf("Failed to load qemu-img profile: %w", err)
 	}
 
 	defer func() {
-		_ = qemuImgUnload(sysOS, profileName)
-		_ = qemuImgDelete(sysOS, profileName)
+		_ = deleteProfile(sysOS, profileName, profileName)
 	}()
 
 	var buffer bytes.Buffer
@@ -123,56 +120,41 @@ func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (strin
 }
 
 // qemuImgProfileLoad ensures that the qemu-img's policy is loaded into the kernel.
-func qemuImgProfileLoad(sysOS *sys.OS, imgPath string, dstPath string, allowedCmdPaths []string) error {
-	profileName := getProfileName(imgPath, dstPath)
+func qemuImgProfileLoad(sysOS *sys.OS, imgPath string, dstPath string, allowedCmdPaths []string) (string, error) {
+	name := fmt.Sprintf("<%s>_<%s>", strings.ReplaceAll(strings.Trim(imgPath, "/"), "/", "-"), strings.ReplaceAll(strings.Trim(dstPath, "/"), "/", "-"))
+	profileName := profileName("qemu-img", name)
 	profilePath := filepath.Join(aaPath, "profiles", profileName)
 	content, err := os.ReadFile(profilePath)
 	if err != nil && !os.IsNotExist(err) {
-		return err
+		return "", err
 	}
 
-	updated, err := qemuImgProfile(imgPath, dstPath, allowedCmdPaths)
+	updated, err := qemuImgProfile(profileName, imgPath, dstPath, allowedCmdPaths)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if string(content) != string(updated) {
 		err = os.WriteFile(profilePath, []byte(updated), 0600)
 		if err != nil {
-			return err
+			return "", err
 		}
 	}
 
 	err = loadProfile(sysOS, profileName)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
-}
-
-// qemuImgUnload ensures that the qemu-img's policy namespace is unloaded to free kernel memory.
-// This does not delete the policy from disk or cache.
-func qemuImgUnload(sysOS *sys.OS, profileName string) error {
-	err := unloadProfile(sysOS, profileName, profileName)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// qemuImgDelete removes the profile from cache/disk.
-func qemuImgDelete(sysOS *sys.OS, profileName string) error {
-	return deleteProfile(sysOS, profileName, profileName)
+	return profileName, nil
 }
 
 // qemuImgProfile generates the AppArmor profile template from the given destination path.
-func qemuImgProfile(imgPath string, dstPath string, allowedCmdPaths []string) (string, error) {
+func qemuImgProfile(profileName string, imgPath string, dstPath string, allowedCmdPaths []string) (string, error) {
 	// Render the profile.
 	var sb *strings.Builder = &strings.Builder{}
 	err := qemuImgProfileTpl.Execute(sb, map[string]any{
-		"name":            getProfileName(imgPath, dstPath),
+		"name":            profileName,
 		"pathToImg":       imgPath,
 		"dstPath":         dstPath,
 		"allowedCmdPaths": allowedCmdPaths,
@@ -184,10 +166,4 @@ func qemuImgProfile(imgPath string, dstPath string, allowedCmdPaths []string) (s
 	}
 
 	return sb.String(), nil
-}
-
-// getProfileName returns the path of the on-disk profile name.
-func getProfileName(imgPath string, dstPath string) string {
-	name := strings.Replace(strings.Trim(path.Join(imgPath, dstPath), "/"), "/", "-", -1)
-	return profileName("qemu-img", name)
 }
