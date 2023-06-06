@@ -3,6 +3,7 @@ package device
 import (
 	"fmt"
 
+	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/validate"
 )
@@ -69,9 +70,9 @@ func gpuValidationRules(requiredFields []string, optionalFields []string) map[st
 
 // Check if the device matches the given GPU card.
 // It matches based on vendorid, pci, productid or id setting of the device.
-func gpuSelected(dev *gpuPhysical, gpu api.ResourcesGPUCard) bool {
-	return !((dev.config["vendorid"] != "" && gpu.VendorID != dev.config["vendorid"]) ||
-		(dev.config["pci"] != "" && gpu.PCIAddress != dev.config["pci"]) ||
-		(dev.config["productid"] != "" && gpu.ProductID != dev.config["productid"]) ||
-		(dev.config["id"] != "" && (gpu.DRM == nil || fmt.Sprintf("%d", gpu.DRM.ID) != dev.config["id"])))
+func gpuSelected(device config.Device, gpu api.ResourcesGPUCard) bool {
+	return !((device["vendorid"] != "" && gpu.VendorID != device["vendorid"]) ||
+		(device["pci"] != "" && gpu.PCIAddress != device["pci"]) ||
+		(device["productid"] != "" && gpu.ProductID != device["productid"]) ||
+		(device["id"] != "" && (gpu.DRM == nil || fmt.Sprintf("%d", gpu.DRM.ID) != device["id"])))
 }
