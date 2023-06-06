@@ -94,8 +94,7 @@ func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (strin
 	}
 
 	defer func() {
-		_ = qemuImgUnload(sysOS, profileName)
-		_ = qemuImgDelete(sysOS, profileName)
+		_ = deleteProfile(sysOS, profileName, profileName)
 	}()
 
 	var buffer bytes.Buffer
