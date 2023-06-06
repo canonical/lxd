@@ -473,7 +473,7 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 		for key, value := range resources {
 			var values []string
 			for _, c := range value {
-				values = append(values, c.String())
+				values = append(values, c.Project(op.Project()).String())
 			}
 
 			tmpResources[key] = values
