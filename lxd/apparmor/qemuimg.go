@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -184,10 +183,4 @@ func qemuImgProfile(profileName string, imgPath string, dstPath string, allowedC
 	}
 
 	return sb.String(), nil
-}
-
-// getProfileName returns the path of the on-disk profile name.
-func getProfileName(imgPath string, dstPath string) string {
-	name := strings.Replace(strings.Trim(path.Join(imgPath, dstPath), "/"), "/", "-", -1)
-	return profileName("qemu-img", name)
 }
