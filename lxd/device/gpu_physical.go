@@ -111,7 +111,7 @@ func (d *gpuPhysical) startContainer() (*deviceConfig.RunConfig, error) {
 	found := false
 
 	for _, gpu := range gpus.Cards {
-		// Skip any cards that are not selected
+		// Skip any cards that are not selected.
 		if !gpuSelected(d, gpu) {
 			continue
 		}
@@ -119,7 +119,7 @@ func (d *gpuPhysical) startContainer() (*deviceConfig.RunConfig, error) {
 		// We found a match.
 		found = true
 
-		// Setup DRM unix-char devices if present and matches id criteria (or if id not specified).
+		// Setup DRM unix-char devices if present.
 		if gpu.DRM.CardName != "" && gpu.DRM.CardDevice != "" && shared.PathExists(filepath.Join(gpuDRIDevPath, gpu.DRM.CardName)) {
 			path := filepath.Join(gpuDRIDevPath, gpu.DRM.CardName)
 			major, minor, err := d.deviceNumStringToUint32(gpu.DRM.CardDevice)
@@ -218,11 +218,8 @@ func (d *gpuPhysical) startVM() (*deviceConfig.RunConfig, error) {
 	var pciAddress string
 
 	for _, gpu := range gpus.Cards {
-		// Skip any cards that don't match the vendorid, pci, productid or DRM ID settings (if specified).
-		if (d.config["vendorid"] != "" && gpu.VendorID != d.config["vendorid"]) ||
-			(d.config["pci"] != "" && gpu.PCIAddress != d.config["pci"]) ||
-			(d.config["productid"] != "" && gpu.ProductID != d.config["productid"]) ||
-			(d.config["id"] != "" && (gpu.DRM == nil || fmt.Sprintf("%d", gpu.DRM.ID) != d.config["id"])) {
+		// Skip any cards that are not selected.
+		if !gpuSelected(d, gpu) {
 			continue
 		}
 
