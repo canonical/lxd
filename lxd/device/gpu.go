@@ -68,7 +68,7 @@ func gpuValidationRules(requiredFields []string, optionalFields []string) map[st
 }
 
 // Check if the device matches the given GPU card.
-// It matches based on vendorid, pci, productid or id settings of the device.
+// It matches based on vendorid, pci, productid or id setting of the device.
 func gpuSelected(dev *gpuPhysical, gpu api.ResourcesGPUCard) bool {
 	return !((dev.config["vendorid"] != "" && gpu.VendorID != dev.config["vendorid"]) ||
 		(dev.config["pci"] != "" && gpu.PCIAddress != dev.config["pci"]) ||
