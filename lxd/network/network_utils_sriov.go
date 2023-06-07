@@ -301,7 +301,7 @@ func SRIOVSwitchdevEnabled(deviceName string) bool {
 }
 
 // SRIOVFindRepresentorPort finds the associated representor port name for a switchdev VF ID.
-func SRIOVFindRepresentorPort(nicEntries []fs.DirEntry, pfSwitchID string, vfID int) string {
+func SRIOVFindRepresentorPort(nicEntries []fs.DirEntry, pfSwitchID string, pfID int, vfID int) string {
 	for _, nic := range nicEntries {
 		nicSwitchID, err := os.ReadFile(filepath.Join(sysClassNet, nic.Name(), "phys_switch_id"))
 		if err != nil {
@@ -318,18 +318,50 @@ func SRIOVFindRepresentorPort(nicEntries []fs.DirEntry, pfSwitchID string, vfID 
 			continue // Skip interfaces with no physical port name.
 		}
 
-		var pfID, nicVFID int
-		_, err = fmt.Sscanf(string(physPortName), "pf%dvf%d", &pfID, &nicVFID)
+		var nicPFID, nicVFID int
+		_, err = fmt.Sscanf(string(physPortName), "pf%dvf%d", &nicPFID, &nicVFID)
 		if err != nil {
 			continue // Skip non-VF interfaces.
 		}
 
-		if nicVFID == vfID {
+		if nicPFID == pfID && nicVFID == vfID {
 			return nic.Name() // We have a match.
 		}
 	}
 
 	return ""
+}
+
+func SRIOVGetSwitchAndPFID(parentDev string) (string, int, error) {
+	physPortName, err := os.ReadFile(filepath.Join(sysClassNet, parentDev, "phys_port_name"))
+	if err != nil {
+		return "", -1, err // Skip non-physical ports.
+	}
+
+	// Check the port is a physical port and not an existing representor port connected to the bridge
+	// but belonging to a physical device. This avoids trying to find a free VF repeatedly for the same
+	// PF by mistakenly considering an existing representor ported connected to the bridge as a PF.
+	if strings.HasPrefix(string(physPortName), "pf") || !strings.HasPrefix(string(physPortName), "p") {
+		return "", -1, fmt.Errorf("Not a physical port: %s", string(physPortName))
+	}
+
+	var pfID int
+	_, err = fmt.Sscanf(string(physPortName), "p%d", &pfID)
+	if err != nil {
+		return "", -1, fmt.Errorf("Not a PF: %s.", string(physPortName)) // Skip non-PF interfaces.
+	}
+
+	// Check if switchdev is enabled on physical port.
+	if !SRIOVSwitchdevEnabled(parentDev) {
+		return "", -1, fmt.Errorf("Not a switchdev capable device: %s", parentDev)
+	}
+
+	physSwitchID, err := os.ReadFile(filepath.Join(sysClassNet, parentDev, "phys_switch_id"))
+	if err != nil {
+		return "", -1, fmt.Errorf("Unable to get phys_switch_id: %w", err)
+	}
+
+	return string(physSwitchID), pfID, nil
 }
 
 // SRIOVFindFreeVFAndRepresentor tries to find a free SR-IOV virtual function of a PF connected to an OVS bridge.
@@ -352,24 +384,7 @@ func SRIOVFindFreeVFAndRepresentor(state *state.State, ovsBridgeName string) (st
 
 	// Iterate through the list of ports and identify the PFs by trying to locate a VF (virtual function).
 	for _, port := range ports {
-		physPortName, err := os.ReadFile(filepath.Join(sysClassNet, port, "phys_port_name"))
-		if err != nil {
-			continue // Skip non-physical ports connected to bridge.
-		}
-
-		// Check the port is a physical port and not an existing representor port connected to the bridge
-		// but beloning to a physical device. This avoids trying to find a free VF repeatedly for the same
-		// PF by mistakenly considering an existing representor ported connected to the bridge as a PF.
-		if strings.HasPrefix(string(physPortName), "pf") || !strings.HasPrefix(string(physPortName), "p") {
-			continue
-		}
-
-		// Check if switchdev is enabled on physical port.
-		if !SRIOVSwitchdevEnabled(port) {
-			continue
-		}
-
-		physSwitchID, err := os.ReadFile(filepath.Join(sysClassNet, port, "phys_switch_id"))
+		physSwitchID, pfID, err := SRIOVGetSwitchAndPFID(port)
 		if err != nil {
 			continue
 		}
@@ -380,8 +395,9 @@ func SRIOVFindFreeVFAndRepresentor(state *state.State, ovsBridgeName string) (st
 		}
 
 		// Track down the representor port. The number of representor ports depends on the number of enabled VFs.
-		// All representor ports have the same phys_switch_id as the PF.
-		representorPort := SRIOVFindRepresentorPort(nics, string(physSwitchID), vfID)
+		// All representor ports have the same phys_switch_id as a PF connected to the same switch, and there may be
+		// multiple PFs on one switch.
+		representorPort := SRIOVFindRepresentorPort(nics, string(physSwitchID), pfID, vfID)
 		if representorPort != "" {
 			return port, representorPort, vfName, vfID, nil
 		}
