@@ -445,11 +445,6 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 
 	for _, entry := range r.files {
 		var rd io.Reader
-
-		if entry.Cleanup != nil {
-			defer entry.Cleanup()
-		}
-
 		if entry.File != nil {
 			rd = entry.File
 		} else {
@@ -471,6 +466,10 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 		_, err = io.Copy(fw, rd)
 		if err != nil {
 			return err
+		}
+
+		if entry.Cleanup != nil {
+			entry.Cleanup()
 		}
 	}
 
