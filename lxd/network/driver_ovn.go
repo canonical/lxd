@@ -1394,6 +1394,9 @@ func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
 		return fmt.Errorf("Failed to bring up uplink interface %q: %w", uplinkHostName, err)
 	}
 
+	// Attempt to learn uplink MAC.
+	n.pingOVNRouter()
+
 	revert.Success()
 	return nil
 }
