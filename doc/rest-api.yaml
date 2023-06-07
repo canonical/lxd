@@ -9060,6 +9060,108 @@ paths:
             summary: Get the log file
             tags:
                 - instances
+    /1.0/instances/{name}/logs/exec-output:
+        get:
+            description: Returns a list of exec record-output files (URLs).
+            operationId: instance_exec-outputs_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of endpoints
+                                example: |-
+                                    [
+                                      "/1.0/instances/foo/logs/exec-output/exec_d0a89537-0617-4ed6-a79b-c2e88a970965.stdout",
+                                      "/1.0/instances/foo/logs/exec-output/exec_d0a89537-0617-4ed6-a79b-c2e88a970965.stderr",
+                                    ]
+                                items:
+                                    type: string
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the exec record-output files
+            tags:
+                - instances
+    /1.0/instances/{name}/logs/exec-output/{filename}:
+        delete:
+            description: Removes the exec record-output file.
+            operationId: instance_exec-output_delete
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Delete the exec record-output file
+            tags:
+                - instances
+        get:
+            description: Gets the exec-output file.
+            operationId: instance_exec-output_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+                - application/octet-stream
+            responses:
+                "200":
+                    description: Raw file
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the exec-output log file
+            tags:
+                - instances
     /1.0/instances/{name}/metadata:
         get:
             description: Gets the image metadata for the instance.
