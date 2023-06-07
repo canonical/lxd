@@ -92,6 +92,16 @@ func ParseCpuset(cpu string) ([]int64, error) {
 	return cpus, nil
 }
 
+// ParseNumaNodeSet parses a `limits.cpu.nodes` into a list of NUMA node ids.
+func ParseNumaNodeSet(numaNodeSet string) ([]int64, error) {
+	nodes, err := parseRangedListToInt64Slice(numaNodeSet)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid NUMA node set value %q: %w", numaNodeSet, err)
+	}
+
+	return nodes, nil
+}
+
 func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 	caches := []api.ResourcesCPUCache{}
 
