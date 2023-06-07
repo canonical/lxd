@@ -546,7 +546,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 
 		err = json.Unmarshal([]byte(imgJSON), &imgInfo)
 		if err != nil {
-			return -1, err
+			return -1, fmt.Errorf("Failed unmarshalling image info %q: %w (%q)", imgPath, err, imgJSON)
 		}
 
 		// Belt and braces qcow2 check.
