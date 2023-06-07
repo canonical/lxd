@@ -574,9 +574,7 @@ func instanceExecOutputGet(d *Daemon, r *http.Request) response.Response {
 	ent := response.FileResponseEntry{
 		Path:     filepath.Join(inst.ExecOutputPath(), file),
 		Filename: file,
-		Cleanup: func() {
-			cleanup.Fail()
-		},
+		Cleanup:  cleanup.Fail,
 	}
 
 	s.Events.SendLifecycle(projectName, lifecycle.InstanceLogRetrieved.Event(file, inst, request.CreateRequestor(r), nil))
