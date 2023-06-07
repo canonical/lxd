@@ -350,17 +350,9 @@ type qemuGpuOpts struct {
 }
 
 func qemuGPU(opts *qemuGpuOpts) []cfgSection {
-	var pciName string
-
-	if opts.architecture == osarch.ARCH_64BIT_INTEL_X86 {
-		pciName = "virtio-vga"
-	} else {
-		pciName = "virtio-gpu-pci"
-	}
-
 	entriesOpts := qemuDevEntriesOpts{
 		dev:     opts.dev,
-		pciName: pciName,
+		pciName: "virtio-gpu-pci",
 		ccwName: "virtio-gpu-ccw",
 	}
 
