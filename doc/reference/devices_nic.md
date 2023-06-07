@@ -8,8 +8,7 @@
 ```{note}
 The `nic` device type is supported for both containers and VMs.
 
-Most NICs support hotplugging for both containers and VMs.
-See the description for each NIC type for exceptions.
+NICs support hotplugging for both containers and VMs (with the exception of the `ipvlan` NIC type).
 ```
 
 Network devices, also referred to as *Network Interface Controllers* or *NICs*, supply a connection to a network.
@@ -181,8 +180,7 @@ Key                     | Type    | Default           | Managed | Description
 ### `nictype`: `ovn`
 
 ```{note}
-- You can select this NIC type only through the `network` option (see {ref}`network-ovn` for information about the managed `ovn` network).
-- This NIC type supports hotplugging only for containers, not for VMs.
+You can select this NIC type only through the `network` option (see {ref}`network-ovn` for information about the managed `ovn` network).
 ```
 
 An `ovn` NIC uses an existing OVN network and creates a virtual device pair to connect the instance to it.
