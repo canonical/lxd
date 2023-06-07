@@ -401,6 +401,10 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 		var mt time.Time
 		var sz int64
 
+		if r.files[0].Cleanup != nil {
+			defer r.files[0].Cleanup()
+		}
+
 		if r.files[0].File != nil {
 			rs = r.files[0].File
 			mt = r.files[0].FileModified
@@ -429,10 +433,6 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 
 		http.ServeContent(w, r.req, r.files[0].Filename, mt, rs)
 
-		if r.files[0].Cleanup != nil {
-			r.files[0].Cleanup()
-		}
-
 		return nil
 	}
 
@@ -445,6 +445,11 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 
 	for _, entry := range r.files {
 		var rd io.Reader
+
+		if entry.Cleanup != nil {
+			defer entry.Cleanup()
+		}
+
 		if entry.File != nil {
 			rd = entry.File
 		} else {
@@ -466,10 +471,6 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 		_, err = io.Copy(fw, rd)
 		if err != nil {
 			return err
-		}
-
-		if entry.Cleanup != nil {
-			entry.Cleanup()
 		}
 	}
 
