@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -779,12 +778,12 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 }
 
 func (d *nicOVN) findRepresentorPort(volatile map[string]string) (string, error) {
-	sysClassNet := "/sys/class/net"
-	physSwitchID, err := os.ReadFile(filepath.Join(sysClassNet, volatile["last_state.vf.parent"], "phys_switch_id"))
+	physSwitchID, pfID, err := network.SRIOVGetSwitchAndPFID(volatile["last_state.vf.parent"])
 	if err != nil {
-		return "", fmt.Errorf("Failed finding physical parent switch ID to release representor port: %w", err)
+		return "", fmt.Errorf("Failed finding physical parent switch and PF ID to release representor port: %w", err)
 	}
 
+	sysClassNet := "/sys/class/net"
 	nics, err := os.ReadDir(sysClassNet)
 	if err != nil {
 		return "", fmt.Errorf("Failed reading NICs directory %q: %w", sysClassNet, err)
@@ -796,7 +795,7 @@ func (d *nicOVN) findRepresentorPort(volatile map[string]string) (string, error)
 	}
 
 	// Track down the representor port to remove it from the integration bridge.
-	representorPort := network.SRIOVFindRepresentorPort(nics, string(physSwitchID), vfID)
+	representorPort := network.SRIOVFindRepresentorPort(nics, string(physSwitchID), pfID, vfID)
 	if representorPort == "" {
 		return "", fmt.Errorf("Failed finding representor")
 	}
