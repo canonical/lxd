@@ -634,6 +634,17 @@ func StringInSlice(key string, list []string) bool {
 	return false
 }
 
+// StringPrefixInSlice returns true if any element in the list has the given prefix.
+func StringPrefixInSlice(key string, list []string) bool {
+	for _, entry := range list {
+		if strings.HasPrefix(entry, key) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // RemoveElementsFromStringSlice returns a slice equivalent to removing the given elements from the given list.
 // Elements not present in the list are ignored.
 func RemoveElementsFromStringSlice(list []string, elements ...string) []string {
