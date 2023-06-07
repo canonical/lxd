@@ -385,6 +385,11 @@ func (d *common) Path() string {
 	return storagePools.InstancePath(d.dbType, d.project.Name, d.name, d.isSnapshot)
 }
 
+// ExecOutputPath returns the instance's exec output path.
+func (d *common) ExecOutputPath() string {
+	return filepath.Join(d.Path(), "exec-output")
+}
+
 // RootfsPath returns the instance's rootfs path.
 func (d *common) RootfsPath() string {
 	return filepath.Join(d.Path(), "rootfs")
