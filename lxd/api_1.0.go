@@ -57,6 +57,8 @@ var api10 = []APIEndpoint{
 	instanceConsoleCmd,
 	instanceExecCmd,
 	instanceFileCmd,
+	instanceExecOutputCmd,
+	instanceExecOutputsCmd,
 	instanceLogCmd,
 	instanceLogsCmd,
 	instanceMetadataCmd,
