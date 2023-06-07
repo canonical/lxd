@@ -260,7 +260,10 @@ func (op *Operation) done() {
 		}
 
 		err := removeDBOperation(op)
-		if err != nil {
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			// Operations can be deleted from the database before the operation clean up go routine has
+			// run in cases where the project that the operation(s) are associated to is deleted first.
+			// So don't log warning if operation not found.
 			op.logger.Warn("Failed to delete operation", logger.Ctx{"status": op.status, "err": err})
 		}
 	}()
