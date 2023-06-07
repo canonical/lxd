@@ -1330,9 +1330,12 @@ func (n *ovn) pingOVNRouterIPv6() {
 		// By pinging the OVN router's external IP this will trigger an NDP request from the uplink bridge
 		// which will cause the OVN router to learn its MAC address.
 		go func() {
+			var err error
+
 			// Try several attempts as it can take a few seconds for the network to come up.
 			for i := 0; i < 5; i++ {
-				if pingIP(routerExtPortIPv6) {
+				err = pingIP(context.TODO(), routerExtPortIPv6)
+				if err == nil {
 					n.logger.Debug("OVN router external IPv6 address reachable", logger.Ctx{"ip": routerExtPortIPv6.String()})
 					return
 				}
@@ -1342,7 +1345,7 @@ func (n *ovn) pingOVNRouterIPv6() {
 
 			// We would expect this on a chassis node that isn't the active router gateway, it doesn't
 			// always indicate a problem.
-			n.logger.Debug("OVN router external IPv6 address unreachable", logger.Ctx{"ip": routerExtPortIPv6.String()})
+			n.logger.Debug("OVN router external IPv6 address unreachable", logger.Ctx{"ip": routerExtPortIPv6.String(), "err": err})
 		}()
 	}
 }

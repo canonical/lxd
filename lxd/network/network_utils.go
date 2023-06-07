@@ -709,7 +709,7 @@ func pingSubnet(subnet *net.IPNet) bool {
 	ping := func(ip net.IP) {
 		defer wgChecks.Done()
 
-		if pingIP(context.TODO(), ip) == nil {
+		if pingIP(context.TODO(), ip) != nil {
 			return
 		}
 
