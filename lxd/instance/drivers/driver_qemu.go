@@ -7878,14 +7878,11 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 		features["vhost_net"] = struct{}{}
 	}
 
-	vsockID, err := vsock.ContextID()
-	if err != nil || vsockID > 2147483647 {
-		// Fallback to the default ID for a host system if we're getting
-		// an error or are getting a clearly invalid value.
-		vsockID = 2
+	// Check if vhos-vsock is available
+	err = util.LoadModule("vhost_vsock")
+	if err != nil {
+		features["vhost_vsock"] = struct{}{}
 	}
-
-	features["vsockID"] = vsockID
 
 	return features, nil
 }
