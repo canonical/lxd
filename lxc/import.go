@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/lxc/utils"
 	"github.com/canonical/lxd/shared"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/i18n"
@@ -91,7 +90,7 @@ func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	progress := utils.ProgressRenderer{
+	progress := cli.ProgressRenderer{
 		Format: i18n.G("Importing instance: %s"),
 		Quiet:  c.global.flagQuiet,
 	}
@@ -116,7 +115,7 @@ func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Wait for operation to finish.
-	err = utils.CancelableWait(op, &progress)
+	err = cli.CancelableWait(op, &progress)
 	if err != nil {
 		progress.Done("")
 		return err

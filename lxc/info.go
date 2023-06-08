@@ -11,7 +11,6 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxc/config"
-	"github.com/canonical/lxd/lxc/utils"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -632,7 +631,7 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 			i18n.G("Stateful"),
 		}
 
-		_ = utils.RenderTable(utils.TableFormatTable, snapHeader, snapData, inst.Snapshots)
+		_ = cli.RenderTable(cli.TableFormatTable, snapHeader, snapData, inst.Snapshots)
 	}
 
 	// List backups
@@ -684,7 +683,7 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 			i18n.G("Optimized Storage"),
 		}
 
-		_ = utils.RenderTable(utils.TableFormatTable, backupHeader, backupData, inst.Backups)
+		_ = cli.RenderTable(cli.TableFormatTable, backupHeader, backupData, inst.Backups)
 	}
 
 	if showLog {

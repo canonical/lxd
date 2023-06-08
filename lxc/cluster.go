@@ -11,7 +11,6 @@ import (
 	"github.com/spf13/cobra"
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/canonical/lxd/lxc/utils"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -174,7 +173,7 @@ func (c *cmdClusterList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, line)
 	}
 
-	sort.Sort(utils.SortColumnsNaturally(data))
+	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
 		i18n.G("NAME"),
@@ -187,7 +186,7 @@ func (c *cmdClusterList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("MESSAGE"),
 	}
 
-	return utils.RenderTable(c.flagFormat, header, data, members)
+	return cli.RenderTable(c.flagFormat, header, data, members)
 }
 
 // Show.
@@ -867,7 +866,7 @@ func (c *cmdClusterListTokens) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, line)
 	}
 
-	sort.Sort(utils.SortColumnsNaturally(data))
+	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
 		i18n.G("NAME"),
@@ -875,7 +874,7 @@ func (c *cmdClusterListTokens) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("EXPIRES AT"),
 	}
 
-	return utils.RenderTable(c.flagFormat, header, data, displayTokens)
+	return cli.RenderTable(c.flagFormat, header, data, displayTokens)
 }
 
 // Revoke Tokens.
@@ -1152,7 +1151,7 @@ func (c *cmdClusterEvacuateAction) Run(cmd *cobra.Command, args []string) error 
 		format = i18n.G("Evacuating cluster member: %s")
 	}
 
-	progress := utils.ProgressRenderer{
+	progress := cli.ProgressRenderer{
 		Format: format,
 		Quiet:  c.global.flagQuiet,
 	}

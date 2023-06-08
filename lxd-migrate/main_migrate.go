@@ -18,7 +18,6 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/lxc/utils"
 	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -572,7 +571,7 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 		_, _ = server.DeleteInstance(config.InstanceArgs.Name)
 	})
 
-	progress := utils.ProgressRenderer{Format: "Transferring instance: %s"}
+	progress := cli.ProgressRenderer{Format: "Transferring instance: %s"}
 	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
 		progress.Done("")

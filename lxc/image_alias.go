@@ -7,7 +7,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/canonical/lxd/lxc/utils"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/i18n"
@@ -229,7 +228,7 @@ func (c *cmdImageAliasList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, []string{alias.Name, alias.Target[0:12], strings.ToUpper(alias.Type), alias.Description})
 	}
 
-	sort.Sort(utils.StringList(data))
+	sort.Sort(cli.StringList(data))
 
 	header := []string{
 		i18n.G("ALIAS"),
@@ -238,7 +237,7 @@ func (c *cmdImageAliasList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("DESCRIPTION"),
 	}
 
-	return utils.RenderTable(c.flagFormat, header, data, aliases)
+	return cli.RenderTable(c.flagFormat, header, data, aliases)
 }
 
 // Rename.

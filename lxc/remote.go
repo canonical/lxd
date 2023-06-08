@@ -16,7 +16,6 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxc/config"
-	"github.com/canonical/lxd/lxc/utils"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -720,7 +719,7 @@ func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, []string{strName, rc.Addr, rc.Protocol, rc.AuthType, strPublic, strStatic, strGlobal})
 	}
 
-	sort.Sort(utils.SortColumnsNaturally(data))
+	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
 		i18n.G("NAME"),
@@ -732,7 +731,7 @@ func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("GLOBAL"),
 	}
 
-	return utils.RenderTable(c.flagFormat, header, data, conf.Remotes)
+	return cli.RenderTable(c.flagFormat, header, data, conf.Remotes)
 }
 
 // Rename.

@@ -13,7 +13,6 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxc/config"
-	"github.com/canonical/lxd/lxc/utils"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -437,14 +436,14 @@ func (c *cmdList) showInstances(instances []api.InstanceFull, filters []string, 
 		data = append(data, col)
 	}
 
-	sort.Sort(utils.SortColumnsNaturally(data))
+	sort.Sort(cli.SortColumnsNaturally(data))
 
 	headers := []string{}
 	for _, column := range columns {
 		headers = append(headers, column.Name)
 	}
 
-	return utils.RenderTable(c.flagFormat, headers, data, instancesFiltered)
+	return cli.RenderTable(c.flagFormat, headers, data, instancesFiltered)
 }
 
 func (c *cmdList) Run(cmd *cobra.Command, args []string) error {

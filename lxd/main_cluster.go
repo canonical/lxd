@@ -15,13 +15,13 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/lxc/utils"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
+	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/termios"
 )
 
@@ -363,7 +363,7 @@ func (c *cmdClusterListDatabase) Run(cmd *cobra.Command, args []string) error {
 		data[i] = []string{address}
 	}
 
-	_ = utils.RenderTable(utils.TableFormatTable, columns, data, nil)
+	_ = cli.RenderTable(cli.TableFormatTable, columns, data, nil)
 
 	return nil
 }

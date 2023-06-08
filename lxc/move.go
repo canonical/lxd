@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/lxc/config"
-	"github.com/canonical/lxd/lxc/utils"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -304,7 +303,7 @@ func moveClusterInstance(conf *config.Config, sourceResource string, destResourc
 	}
 
 	// Watch the background operation
-	progress := utils.ProgressRenderer{
+	progress := cli.ProgressRenderer{
 		Format: i18n.G("Transferring instance: %s"),
 		Quiet:  quiet,
 	}
@@ -315,7 +314,7 @@ func moveClusterInstance(conf *config.Config, sourceResource string, destResourc
 		return err
 	}
 	// Wait for the move to complete
-	err = utils.CancelableWait(op, &progress)
+	err = cli.CancelableWait(op, &progress)
 	if err != nil {
 		progress.Done("")
 		return err

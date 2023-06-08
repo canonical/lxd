@@ -8,7 +8,6 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxc/config"
-	"github.com/canonical/lxd/lxc/utils"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -333,7 +332,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 	}
 
 	// Watch the background operation
-	progress := utils.ProgressRenderer{
+	progress := cli.ProgressRenderer{
 		Format: i18n.G("Transferring instance: %s"),
 		Quiet:  c.global.flagQuiet,
 	}
@@ -345,7 +344,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 	}
 
 	// Wait for the copy to complete
-	err = utils.CancelableWait(op, &progress)
+	err = cli.CancelableWait(op, &progress)
 	if err != nil {
 		progress.Done("")
 		return err
@@ -377,7 +376,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		}
 
 		// Watch the background operation
-		progress := utils.ProgressRenderer{
+		progress := cli.ProgressRenderer{
 			Format: i18n.G("Refreshing instance: %s"),
 			Quiet:  c.global.flagQuiet,
 		}
@@ -389,7 +388,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		}
 
 		// Wait for the copy to complete
-		err = utils.CancelableWait(op, &progress)
+		err = cli.CancelableWait(op, &progress)
 		if err != nil {
 			progress.Done("")
 			return err

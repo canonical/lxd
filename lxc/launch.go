@@ -5,7 +5,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/canonical/lxd/lxc/utils"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/i18n"
@@ -89,7 +88,7 @@ func (c *cmdLaunch) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	progress := utils.ProgressRenderer{
+	progress := cli.ProgressRenderer{
 		Quiet: c.global.flagQuiet,
 	}
 
@@ -100,7 +99,7 @@ func (c *cmdLaunch) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Wait for operation to finish
-	err = utils.CancelableWait(op, &progress)
+	err = cli.CancelableWait(op, &progress)
 	if err != nil {
 		progress.Done("")
 		prettyName := name

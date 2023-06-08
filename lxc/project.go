@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
-	"github.com/canonical/lxd/lxc/utils"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -469,7 +468,7 @@ func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, []string{name, images, profiles, storageVolumes, networks, project.Description, strUsedBy})
 	}
 
-	sort.Sort(utils.SortColumnsNaturally(data))
+	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
 		i18n.G("NAME"),
@@ -481,7 +480,7 @@ func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("USED BY"),
 	}
 
-	return utils.RenderTable(c.flagFormat, header, data, projects)
+	return cli.RenderTable(c.flagFormat, header, data, projects)
 }
 
 // Rename.
@@ -808,7 +807,7 @@ func (c *cmdProjectInfo) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, []string{strings.ToUpper(k), limit, usage})
 	}
 
-	sort.Sort(utils.SortColumnsNaturally(data))
+	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
 		i18n.G("RESOURCE"),
@@ -816,5 +815,5 @@ func (c *cmdProjectInfo) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("USAGE"),
 	}
 
-	return utils.RenderTable(c.flagFormat, header, data, projectState)
+	return cli.RenderTable(c.flagFormat, header, data, projectState)
 }

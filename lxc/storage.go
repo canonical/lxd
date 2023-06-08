@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
-	"github.com/canonical/lxd/lxc/utils"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -617,7 +616,7 @@ func (c *cmdStorageList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, details)
 	}
 
-	sort.Sort(utils.SortColumnsNaturally(data))
+	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
 		i18n.G("NAME"),
@@ -632,7 +631,7 @@ func (c *cmdStorageList) Run(cmd *cobra.Command, args []string) error {
 	header = append(header, i18n.G("USED BY"))
 	header = append(header, i18n.G("STATE"))
 
-	return utils.RenderTable(c.flagFormat, header, data, pools)
+	return cli.RenderTable(c.flagFormat, header, data, pools)
 }
 
 // Set.
