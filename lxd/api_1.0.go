@@ -369,6 +369,9 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 	fullSrv := api.Server{ServerUntrusted: srv}
 	fullSrv.Environment = env
+	requestor := request.CreateRequestor(r)
+	fullSrv.AuthUserName = requestor.Username
+	fullSrv.AuthUserMethod = requestor.Protocol
 
 	if rbac.UserIsAdmin(r) {
 		fullSrv.Config, err = daemonConfigRender(s)
