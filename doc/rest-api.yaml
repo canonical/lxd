@@ -5101,6 +5101,18 @@ definitions:
                 readOnly: true
                 type: array
                 x-go-name: AuthMethods
+            auth_user_method:
+                description: The current user login method as seen by LXD
+                example: unix
+                readOnly: true
+                type: string
+                x-go-name: AuthUserMethod
+            auth_user_name:
+                description: The current user username as seen by LXD
+                example: uid=201105
+                readOnly: true
+                type: string
+                x-go-name: AuthUserName
             config:
                 additionalProperties: {}
                 description: Server configuration map (refer to doc/server.md)
