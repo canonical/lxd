@@ -372,6 +372,7 @@ The following instance options control the {ref}`security` policies of the insta
 
 Key                                             | Type      | Default           | Live update   | Condition                 | Description
 :--                                             | :---      | :------           | :----------   | :----------               | :----------
+`security.csm`                                  | bool      | `false`           | no            | virtual machine           | Controls whether to use a firmware that supports UEFI-incompatible operating systems
 `security.devlxd`                               | bool      | `true`            | no            | -                         | Controls the presence of `/dev/lxd` in the instance
 `security.devlxd.images`                        | bool      | `false`           | no            | container                 | Controls the availability of the `/1.0/images` API over `devlxd`
 `security.idmap.base`                           | integer   | -                 | no            | unprivileged container    | The base host ID to use for the allocation (overrides auto-detection)
