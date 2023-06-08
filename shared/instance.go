@@ -256,6 +256,7 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	"raw.qemu.conf": validate.IsAny,
 
 	"security.agent.metrics":    validate.Optional(validate.IsBool),
+	"security.csm":              validate.Optional(validate.IsBool),
 	"security.secureboot":       validate.Optional(validate.IsBool),
 	"security.sev":              validate.Optional(validate.IsBool),
 	"security.sev.policy.es":    validate.Optional(validate.IsBool),
