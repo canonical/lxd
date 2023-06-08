@@ -2238,3 +2238,8 @@ This introduces:
 
 * `auth_user_name`
 * `auth_user_method`
+
+## `security_csm`
+Introduce a new `security.csm` configuration key to control the use of
+`CSM` (Compatibility Support Module) to allow legacy operating systems to
+be run in LXD VMs.

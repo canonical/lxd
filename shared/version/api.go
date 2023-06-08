@@ -373,6 +373,7 @@ var APIExtensions = []string{
 	"cluster_healing",
 	"instances_state_total",
 	"auth_user",
+	"security_csm",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
