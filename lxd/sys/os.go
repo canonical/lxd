@@ -181,18 +181,6 @@ func (s *OS) Init() ([]cluster.Warning, error) {
 	cgroup.Init()
 	s.CGInfo = cgroup.GetInfo()
 
-	// Fill in the VsockID.
-	_ = util.LoadModule("vhost_vsock")
-
-	vsockID, err := vsock.ContextID()
-	if err != nil || vsockID > 2147483647 {
-		// Fallback to the default ID for a host system if we're getting
-		// an error or are getting a clearly invalid value.
-		vsockID = 2
-	}
-
-	s.VsockID = vsockID
-
 	// Fill in the OS release info.
 	osInfo, err := osarch.GetLSBRelease()
 	if err != nil {
