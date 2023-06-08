@@ -2897,7 +2897,16 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		cfg = append(cfg, qemuUSB(&usbOpts)...)
 	}
 
-	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
+	if shared.IsTrue(d.expandedConfig["security.csm"]) {
+		// Allocate a regular entry to keep things aligned normally (avoid NICs getting a different name).
+		_, _, _ = bus.allocate(busFunctionGroupNone)
+
+		// Allocate a direct entry so the SCSI controller can be seen by seabios.
+		devBus, devAddr, multi = bus.allocateDirect()
+	} else {
+		devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
+	}
+
 	scsiOpts := qemuDevOpts{
 		busName:       bus.name,
 		devBus:        devBus,
