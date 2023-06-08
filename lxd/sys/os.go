@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mdlayher/vsock"
-
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
@@ -94,9 +92,6 @@ type OS struct {
 
 	// LXC features
 	LXCFeatures map[string]bool
-
-	// VM features
-	VsockID uint32
 
 	// OS info
 	ReleaseInfo   map[string]string
