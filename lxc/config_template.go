@@ -9,7 +9,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
@@ -278,13 +277,13 @@ func (c *cmdConfigTemplateList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, []string{template})
 	}
 
-	sort.Sort(utils.SortColumnsNaturally(data))
+	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
 		i18n.G("FILENAME"),
 	}
 
-	return utils.RenderTable(c.flagFormat, header, data, templates)
+	return cli.RenderTable(c.flagFormat, header, data, templates)
 }
 
 // Show.

@@ -12,9 +12,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/osarch"
 )
@@ -462,7 +462,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 			return err
 		}
 
-		progress := utils.ProgressRenderer{Format: "Transferring container: %s"}
+		progress := cli.ProgressRenderer{Format: "Transferring container: %s"}
 		_, err = op.AddHandler(progress.UpdateOp)
 		if err != nil {
 			progress.Done("")

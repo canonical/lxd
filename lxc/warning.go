@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
@@ -154,7 +153,7 @@ func (c *cmdWarningList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, row)
 	}
 
-	sort.Sort(utils.StringList(data))
+	sort.Sort(cli.StringList(data))
 
 	rawData := make([]*api.Warning, len(warnings))
 	for i := range warnings {
@@ -166,7 +165,7 @@ func (c *cmdWarningList) Run(cmd *cobra.Command, args []string) error {
 		headers = append(headers, column.Name)
 	}
 
-	return utils.RenderTable(c.flagFormat, headers, data, rawData)
+	return cli.RenderTable(c.flagFormat, headers, data, rawData)
 }
 
 func (c *cmdWarningList) countColumnData(warning api.Warning) string {

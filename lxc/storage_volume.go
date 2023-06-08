@@ -13,7 +13,6 @@ import (
 	"gopkg.in/yaml.v2"
 
 	lxd "github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -479,7 +478,7 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Register progress handler
-	progress := utils.ProgressRenderer{
+	progress := cli.ProgressRenderer{
 		Format: opMsg,
 		Quiet:  c.global.flagQuiet,
 	}
@@ -491,7 +490,7 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Wait for operation to finish
-	err = utils.CancelableWait(op, &progress)
+	err = cli.CancelableWait(op, &progress)
 	if err != nil {
 		progress.Done("")
 		return err
@@ -1272,14 +1271,14 @@ func (c *cmdStorageVolumeInfo) Run(cmd *cobra.Command, args []string) error {
 			snapData = append(snapData, row)
 		}
 
-		sort.Sort(utils.SortColumnsNaturally(snapData))
+		sort.Sort(cli.SortColumnsNaturally(snapData))
 		snapHeader := []string{
 			i18n.G("Name"),
 			i18n.G("Description"),
 			i18n.G("Expires at"),
 		}
 
-		_ = utils.RenderTable(utils.TableFormatTable, snapHeader, snapData, volSnapshots)
+		_ = cli.RenderTable(cli.TableFormatTable, snapHeader, snapData, volSnapshots)
 	}
 
 	// List backups
@@ -1331,7 +1330,7 @@ func (c *cmdStorageVolumeInfo) Run(cmd *cobra.Command, args []string) error {
 			i18n.G("Optimized Storage"),
 		}
 
-		_ = utils.RenderTable(utils.TableFormatTable, backupHeader, backupData, volBackups)
+		_ = cli.RenderTable(cli.TableFormatTable, backupHeader, backupData, volBackups)
 	}
 
 	return nil
@@ -1444,7 +1443,7 @@ func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(columns) >= 2 {
-		sort.Sort(utils.ByNameAndType(data))
+		sort.Sort(cli.ByNameAndType(data))
 	}
 
 	rawData := make([]*api.StorageVolume, len(volumes))
@@ -1457,7 +1456,7 @@ func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 		headers = append(headers, column.Name)
 	}
 
-	return utils.RenderTable(c.flagFormat, headers, data, rawData)
+	return cli.RenderTable(c.flagFormat, headers, data, rawData)
 }
 
 func (c *cmdStorageVolumeList) parseColumns(clustered bool) ([]volumeColumn, error) {
@@ -2155,7 +2154,7 @@ func (c *cmdStorageVolumeExport) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Watch the background operation
-	progress := utils.ProgressRenderer{
+	progress := cli.ProgressRenderer{
 		Format: i18n.G("Backing up storage volume: %s"),
 		Quiet:  c.global.flagQuiet,
 	}
@@ -2167,7 +2166,7 @@ func (c *cmdStorageVolumeExport) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Wait until backup is done
-	err = utils.CancelableWait(op, &progress)
+	err = cli.CancelableWait(op, &progress)
 	if err != nil {
 		progress.Done("")
 		return err
@@ -2207,7 +2206,7 @@ func (c *cmdStorageVolumeExport) Run(cmd *cobra.Command, args []string) error {
 	defer func() { _ = target.Close() }()
 
 	// Prepare the download request
-	progress = utils.ProgressRenderer{
+	progress = cli.ProgressRenderer{
 		Format: i18n.G("Exporting the backup: %s"),
 		Quiet:  c.global.flagQuiet,
 	}
@@ -2293,7 +2292,7 @@ func (c *cmdStorageVolumeImport) Run(cmd *cobra.Command, args []string) error {
 		volName = args[2]
 	}
 
-	progress := utils.ProgressRenderer{
+	progress := cli.ProgressRenderer{
 		Format: i18n.G("Importing custom volume: %s"),
 		Quiet:  c.global.flagQuiet,
 	}
@@ -2317,7 +2316,7 @@ func (c *cmdStorageVolumeImport) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Wait for operation to finish.
-	err = utils.CancelableWait(op, &progress)
+	err = cli.CancelableWait(op, &progress)
 	if err != nil {
 		progress.Done("")
 		return err

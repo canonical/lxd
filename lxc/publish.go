@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -249,7 +248,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Watch the background operation
-	progress := utils.ProgressRenderer{
+	progress := cli.ProgressRenderer{
 		Format: i18n.G("Publishing instance: %s"),
 		Quiet:  c.global.flagQuiet,
 	}
@@ -261,7 +260,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Wait for the copy to complete
-	err = utils.CancelableWait(op, &progress)
+	err = cli.CancelableWait(op, &progress)
 	if err != nil {
 		progress.Done("")
 		return err

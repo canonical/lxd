@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -142,7 +141,7 @@ func (c *cmdNetworkLoadBalancerList) Run(cmd *cobra.Command, args []string) erro
 		data = append(data, details)
 	}
 
-	sort.Sort(utils.SortColumnsNaturally(data))
+	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
 		i18n.G("LISTEN ADDRESS"),
@@ -154,7 +153,7 @@ func (c *cmdNetworkLoadBalancerList) Run(cmd *cobra.Command, args []string) erro
 		header = append(header, i18n.G("LOCATION"))
 	}
 
-	return utils.RenderTable(c.flagFormat, header, data, loadBalancers)
+	return cli.RenderTable(c.flagFormat, header, data, loadBalancers)
 }
 
 // Show.
