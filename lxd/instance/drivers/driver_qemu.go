@@ -7318,7 +7318,14 @@ func (d *qemu) vsockID() int {
 	// We then add the VM's own instance id (1 or higher) to give us a
 	// unique, non-clashing context ID for our guest.
 
-	return int(d.state.OS.VsockID) + 1 + d.id
+	vsockID, err := vsock.ContextID()
+	if err != nil || vsockID > 2147483647 {
+		// Fallback to the default ID for a host system if we're getting
+		// an error or are getting a clearly invalid value.
+		vsockID = 2
+	}
+
+	return int(vsockID) + 1 + d.id
 }
 
 // InitPID returns the instance's current process ID.
