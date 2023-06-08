@@ -11,7 +11,6 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
-	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
@@ -356,7 +355,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 		}
 
 		// Watch the background operation
-		progress := utils.ProgressRenderer{
+		progress := cli.ProgressRenderer{
 			Format: i18n.G("Retrieving image: %s"),
 			Quiet:  c.global.flagQuiet,
 		}
@@ -367,7 +366,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 			return nil, "", err
 		}
 
-		err = utils.CancelableWait(op, &progress)
+		err = cli.CancelableWait(op, &progress)
 		if err != nil {
 			progress.Done("")
 			return nil, "", err
