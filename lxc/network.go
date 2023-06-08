@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -958,7 +957,7 @@ func (c *cmdNetworkList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, details)
 	}
 
-	sort.Sort(utils.SortColumnsNaturally(data))
+	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
 		i18n.G("NAME"),
@@ -971,7 +970,7 @@ func (c *cmdNetworkList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("STATE"),
 	}
 
-	return utils.RenderTable(c.flagFormat, header, data, networks)
+	return cli.RenderTable(c.flagFormat, header, data, networks)
 }
 
 // List leases.
@@ -1030,7 +1029,7 @@ func (c *cmdNetworkListLeases) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, entry)
 	}
 
-	sort.Sort(utils.SortColumnsNaturally(data))
+	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
 		i18n.G("HOSTNAME"),
@@ -1043,7 +1042,7 @@ func (c *cmdNetworkListLeases) Run(cmd *cobra.Command, args []string) error {
 		header = append(header, i18n.G("LOCATION"))
 	}
 
-	return utils.RenderTable(c.flagFormat, header, data, leases)
+	return cli.RenderTable(c.flagFormat, header, data, leases)
 }
 
 // Rename.
