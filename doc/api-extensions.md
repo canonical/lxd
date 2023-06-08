@@ -2043,3 +2043,6 @@ This adds support for performing VM QEMU to QEMU live migration for both shared 
 non-shared storage pools.
 
 This also adds the `CRIUType_VM_QEMU` value of `3` for the migration `CRIUType` `protobuf` field.
+
+## `auth_user`
+Add current user details to the main API endpoint.

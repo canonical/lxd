@@ -345,6 +345,7 @@ var APIExtensions = []string{
 	"disk_io_cache",
 	"storage_pool_loop_resize",
 	"migration_vm_live",
+	"auth_user",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
