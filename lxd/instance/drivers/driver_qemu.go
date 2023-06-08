@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/kballard/go-shellquote"
 	"io"
 	"io/fs"
 	"net"
@@ -28,15 +29,6 @@ import (
 
 	"github.com/flosch/pongo2"
 	"github.com/gorilla/websocket"
-	"github.com/kballard/go-shellquote"
-	"github.com/mdlayher/vsock"
-	"github.com/pborman/uuid"
-	"github.com/pkg/sftp"
-	"golang.org/x/sync/errgroup"
-	"golang.org/x/sys/unix"
-	"google.golang.org/protobuf/proto"
-	"gopkg.in/yaml.v2"
-
 	"github.com/lxc/lxd/client"
 	agentAPI "github.com/lxc/lxd/lxd-agent/api"
 	"github.com/lxc/lxd/lxd/apparmor"
@@ -75,6 +67,12 @@ import (
 	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/version"
+	"github.com/mdlayher/vsock"
+	"github.com/pborman/uuid"
+	"github.com/pkg/sftp"
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/sys/unix"
+	"google.golang.org/protobuf/proto"
 )
 
 // QEMUDefaultCPUCores defines the default number of cores a VM will get if no limit specified.
@@ -7872,6 +7870,15 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 	if shared.PathExists("/dev/vhost-net") {
 		features["vhost_net"] = struct{}{}
 	}
+
+	vsockID, err := vsock.ContextID()
+	if err != nil || vsockID > 2147483647 {
+		// Fallback to the default ID for a host system if we're getting
+		// an error or are getting a clearly invalid value.
+		vsockID = 2
+	}
+
+	features["vsockID"] = vsockID
 
 	return features, nil
 }
