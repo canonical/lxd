@@ -101,6 +101,32 @@ const qemuBlockDevIDPrefix = "lxd_"
 // qemuMigrationNBDExportName is the name of the disk device export by the migration NBD server.
 const qemuMigrationNBDExportName = "lxd_root"
 
+// OVMF firmwares.
+type ovmfFirmware struct {
+	code string
+	vars string
+}
+
+var ovmfGenericFirmwares = []ovmfFirmware{
+	{code: "OVMF_CODE.4MB.fd", vars: "OVMF_VARS.4MB.fd"},
+	{code: "OVMF_CODE.2MB.fd", vars: "OVMF_VARS.2MB.fd"},
+	{code: "OVMF_CODE.fd", vars: "OVMF_VARS.fd"},
+	{code: "OVMF_CODE.fd", vars: "qemu.nvram"},
+}
+
+var ovmfSecurebootFirmwares = []ovmfFirmware{
+	{code: "OVMF_CODE.4MB.fd", vars: "OVMF_VARS.4MB.ms.fd"},
+	{code: "OVMF_CODE.2MB.fd", vars: "OVMF_VARS.2MB.ms.fd"},
+	{code: "OVMF_CODE.fd", vars: "OVMF_VARS.ms.fd"},
+	{code: "OVMF_CODE.fd", vars: "qemu.nvram"},
+}
+
+var ovmfCSMFirmwares = []ovmfFirmware{
+	{code: "OVMF_CODE.4MB.CSM.fd", vars: "OVMF_VARS.4MB.CSM.fd"},
+	{code: "OVMF_CODE.2MB.CSM.fd", vars: "OVMF_VARS.2MB.CSM.fd"},
+	{code: "OVMF_CODE.CSM.fd", vars: "OVMF_VARS.CSM.fd"},
+}
+
 // qemuSparseUSBPorts is the amount of sparse USB ports for VMs.
 // 4 are reserved, and the other 4 can be used for any USB device.
 const qemuSparseUSBPorts = 8
@@ -1058,6 +1084,11 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		return fmt.Errorf("The image used by this instance is incompatible with secureboot. Please set security.secureboot=false on the instance")
 	}
 
+	// Ensure secureboot is turned off when CSM is on
+	if shared.IsTrue(d.expandedConfig["security.csm"]) && shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
+		return fmt.Errorf("Secure boot can't be enabled while CSM is turned on. Please set security.secureboot=false on the instance")
+	}
+
 	// Setup a new operation if needed.
 	if op == nil {
 		op, err = operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStart, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
@@ -1886,30 +1917,59 @@ func (d *qemu) setupNvram() error {
 
 	defer func() { _ = d.unmount() }()
 
-	srcOvmfFile := filepath.Join(d.ovmfPath(), "OVMF_VARS.fd")
-	if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
-		srcOvmfFile = filepath.Join(d.ovmfPath(), "OVMF_VARS.ms.fd")
+	// Cleanup existing variables.
+	for _, firmwares := range [][]ovmfFirmware{ovmfGenericFirmwares, ovmfSecurebootFirmwares, ovmfCSMFirmwares} {
+		for _, firmware := range firmwares {
+			err := os.Remove(filepath.Join(d.Path(), firmware.vars))
+			if err != nil && !os.IsNotExist(err) {
+				return err
+			}
+		}
 	}
 
-	missingEFIFirmwareErr := fmt.Errorf("Required EFI firmware settings file missing %q", srcOvmfFile)
-
-	if !shared.PathExists(srcOvmfFile) {
-		return missingEFIFirmwareErr
+	// Determine expected firmware.
+	firmwares := ovmfGenericFirmwares
+	if shared.IsTrue(d.expandedConfig["security.csm"]) {
+		firmwares = ovmfCSMFirmwares
+	} else if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
+		firmwares = ovmfSecurebootFirmwares
 	}
 
-	srcOvmfFile, err = filepath.EvalSymlinks(srcOvmfFile)
-	if err != nil {
-		return fmt.Errorf("Failed resolving EFI firmware symlink %q: %w", srcOvmfFile, err)
+	// Find the template file.
+	var ovmfVarsPath string
+	var ovmfVarsName string
+	for _, firmware := range firmwares {
+		varsPath := filepath.Join(d.ovmfPath(), firmware.vars)
+		varsPath, err = filepath.EvalSymlinks(varsPath)
+		if err != nil {
+			continue
+		}
+
+		if shared.PathExists(varsPath) {
+			ovmfVarsPath = varsPath
+			ovmfVarsName = firmware.vars
+			break
+		}
 	}
 
-	if !shared.PathExists(srcOvmfFile) {
-		return missingEFIFirmwareErr
+	if ovmfVarsPath == "" {
+		return fmt.Errorf("Couldn't find one of the required UEFI firmware files: %+v", firmwares)
 	}
 
-	_ = os.Remove(d.nvramPath())
-	err = shared.FileCopy(srcOvmfFile, d.nvramPath())
+	// Copy the template.
+	err = shared.FileCopy(ovmfVarsPath, filepath.Join(d.Path(), ovmfVarsName))
 	if err != nil {
 		return err
+	}
+
+	// Generate a symlink if needed.
+	// This is so qemu.nvram can always be assumed to be the OVMF vars file.
+	// The real file name is then used to determine what firmware must be selected.
+	if !shared.PathExists(d.nvramPath()) {
+		err = os.Symlink(ovmfVarsName, d.nvramPath())
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -2793,8 +2853,28 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			return "", nil, fmt.Errorf("Failed opening NVRAM file: %w", err)
 		}
 
+		// Determine expected firmware.
+		firmwares := ovmfGenericFirmwares
+		if shared.IsTrue(d.expandedConfig["security.csm"]) {
+			firmwares = ovmfCSMFirmwares
+		} else if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
+			firmwares = ovmfSecurebootFirmwares
+		}
+
+		var ovmfCode string
+		for _, firmware := range firmwares {
+			if shared.PathExists(filepath.Join(d.Path(), firmware.vars)) {
+				ovmfCode = firmware.code
+				break
+			}
+		}
+
+		if ovmfCode == "" {
+			return "", nil, fmt.Errorf("Unable to locate matching firmware: %+v", firmwares)
+		}
+
 		driveFirmwareOpts := qemuDriveFirmwareOpts{
-			roPath:    filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
+			roPath:    filepath.Join(d.ovmfPath(), ovmfCode),
 			nvramPath: fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, nvRAMFile)),
 		}
 
@@ -2897,7 +2977,16 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		cfg = append(cfg, qemuUSB(&usbOpts)...)
 	}
 
-	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
+	if shared.IsTrue(d.expandedConfig["security.csm"]) {
+		// Allocate a regular entry to keep things aligned normally (avoid NICs getting a different name).
+		_, _, _ = bus.allocate(busFunctionGroupNone)
+
+		// Allocate a direct entry so the SCSI controller can be seen by seabios.
+		devBus, devAddr, multi = bus.allocateDirect()
+	} else {
+		devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
+	}
+
 	scsiOpts := qemuDevOpts{
 		busName:       bus.name,
 		devBus:        devBus,
@@ -2962,7 +3051,16 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		cfg = append(cfg, qemuDriveConfig(&driveConfigVirtioOpts)...)
 	}
 
-	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
+	if shared.IsTrue(d.expandedConfig["security.csm"]) {
+		// Allocate a regular entry to keep things aligned normally (avoid NICs getting a different name).
+		_, _, _ = bus.allocate(busFunctionGroupNone)
+
+		// Allocate a direct entry so the GPU can be seen by seabios.
+		devBus, devAddr, multi = bus.allocateDirect()
+	} else {
+		devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
+	}
+
 	gpuOpts := qemuGpuOpts{
 		dev: qemuDevOpts{
 			busName:       bus.name,
@@ -4986,8 +5084,9 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			"cluster.evacuate",
 			"limits.memory",
 			"security.agent.metrics",
-			"security.secureboot",
+			"security.csm",
 			"security.devlxd",
+			"security.secureboot",
 		}
 
 		isLiveUpdatable := func(key string) bool {
@@ -5072,6 +5171,9 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 						return fmt.Errorf("Failed updating memory limit: %w", err)
 					}
 				}
+			} else if key == "security.csm" {
+				// Defer rebuilding nvram until next start.
+				d.localConfig["volatile.apply_nvram"] = "true"
 			} else if key == "security.secureboot" {
 				// Defer rebuilding nvram until next start.
 				d.localConfig["volatile.apply_nvram"] = "true"
@@ -5100,7 +5202,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
-	if d.architectureSupportsUEFI(d.architecture) && shared.StringInSlice("security.secureboot", changedConfig) {
+	if d.architectureSupportsUEFI(d.architecture) && (shared.StringInSlice("security.secureboot", changedConfig) || shared.StringInSlice("security.csm", changedConfig)) {
 		// Re-generate the NVRAM.
 		err = d.setupNvram()
 		if err != nil {
