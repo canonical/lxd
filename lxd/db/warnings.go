@@ -122,9 +122,18 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 // UpdateWarningStatus updates the status of the warning with the given UUID.
 func (c *ClusterTx) UpdateWarningStatus(UUID string, status warningtype.Status) error {
 	str := "UPDATE warnings SET status=?, updated_date=? WHERE uuid=?"
-	_, err := c.tx.Exec(str, status, time.Now(), UUID)
+	res, err := c.tx.Exec(str, status, time.Now(), UUID)
 	if err != nil {
 		return fmt.Errorf("Failed to update warning status for warning %q: %w", UUID, err)
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Failed to get affected rows to update warning status %q: %w", UUID, err)
+	}
+
+	if rowsAffected == 0 {
+		return api.StatusErrorf(http.StatusNotFound, "Warning not found")
 	}
 
 	return nil
