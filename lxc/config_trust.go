@@ -15,7 +15,6 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -403,7 +402,7 @@ func (c *cmdConfigTrustList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, []string{cert.Type, cert.Name, tlsCert.Subject.CommonName, fp, issue, expiry})
 	}
 
-	sort.Sort(utils.StringList(data))
+	sort.Sort(cli.StringList(data))
 
 	header := []string{
 		i18n.G("TYPE"),
@@ -414,7 +413,7 @@ func (c *cmdConfigTrustList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("EXPIRY DATE"),
 	}
 
-	return utils.RenderTable(c.flagFormat, header, data, trust)
+	return cli.RenderTable(c.flagFormat, header, data, trust)
 }
 
 // List tokens.
@@ -509,7 +508,7 @@ func (c *cmdConfigTrustListTokens) Run(cmd *cobra.Command, args []string) error 
 		data = append(data, line)
 	}
 
-	sort.Sort(utils.SortColumnsNaturally(data))
+	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
 		i18n.G("NAME"),
@@ -517,7 +516,7 @@ func (c *cmdConfigTrustListTokens) Run(cmd *cobra.Command, args []string) error 
 		i18n.G("EXPIRES AT"),
 	}
 
-	return utils.RenderTable(c.flagFormat, header, data, displayTokens)
+	return cli.RenderTable(c.flagFormat, header, data, displayTokens)
 }
 
 // Remove.

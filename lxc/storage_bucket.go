@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -489,7 +488,7 @@ func (c *cmdStorageBucketList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, details)
 	}
 
-	sort.Sort(utils.SortColumnsNaturally(data))
+	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
 		i18n.G("NAME"),
@@ -500,7 +499,7 @@ func (c *cmdStorageBucketList) Run(cmd *cobra.Command, args []string) error {
 		header = append(header, i18n.G("LOCATION"))
 	}
 
-	return utils.RenderTable(c.flagFormat, header, data, buckets)
+	return cli.RenderTable(c.flagFormat, header, data, buckets)
 }
 
 // Set.
@@ -784,7 +783,7 @@ func (c *cmdStorageBucketKeyList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, details)
 	}
 
-	sort.Sort(utils.SortColumnsNaturally(data))
+	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
 		i18n.G("NAME"),
@@ -792,7 +791,7 @@ func (c *cmdStorageBucketKeyList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("ROLE"),
 	}
 
-	return utils.RenderTable(c.flagFormat, header, data, bucketKeys)
+	return cli.RenderTable(c.flagFormat, header, data, bucketKeys)
 }
 
 // Create Key.

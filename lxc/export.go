@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -82,7 +81,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Watch the background operation
-	progress := utils.ProgressRenderer{
+	progress := cli.ProgressRenderer{
 		Format: i18n.G("Backing up instance: %s"),
 		Quiet:  c.global.flagQuiet,
 	}
@@ -94,7 +93,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Wait until backup is done
-	err = utils.CancelableWait(op, &progress)
+	err = cli.CancelableWait(op, &progress)
 	if err != nil {
 		progress.Done("")
 		return err
@@ -140,7 +139,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Prepare the download request
-	progress = utils.ProgressRenderer{
+	progress = cli.ProgressRenderer{
 		Format: i18n.G("Exporting the backup: %s"),
 		Quiet:  c.global.flagQuiet,
 	}

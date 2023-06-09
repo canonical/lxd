@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -133,7 +132,7 @@ func (c *cmdNetworkZoneList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, details)
 	}
 
-	sort.Sort(utils.SortColumnsNaturally(data))
+	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
 		i18n.G("NAME"),
@@ -141,7 +140,7 @@ func (c *cmdNetworkZoneList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("USED BY"),
 	}
 
-	return utils.RenderTable(c.flagFormat, header, data, zones)
+	return cli.RenderTable(c.flagFormat, header, data, zones)
 }
 
 // Show.
@@ -697,7 +696,7 @@ func (c *cmdNetworkZoneRecordList) Run(cmd *cobra.Command, args []string) error 
 		data = append(data, details)
 	}
 
-	sort.Sort(utils.SortColumnsNaturally(data))
+	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
 		i18n.G("NAME"),
@@ -705,7 +704,7 @@ func (c *cmdNetworkZoneRecordList) Run(cmd *cobra.Command, args []string) error 
 		i18n.G("ENTRIES"),
 	}
 
-	return utils.RenderTable(c.flagFormat, header, data, records)
+	return cli.RenderTable(c.flagFormat, header, data, records)
 }
 
 // Show.

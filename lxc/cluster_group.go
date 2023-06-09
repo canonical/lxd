@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -416,7 +415,7 @@ func (c *cmdClusterGroupList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, line)
 	}
 
-	sort.Sort(utils.SortColumnsNaturally(data))
+	sort.Sort(cli.SortColumnsNaturally(data))
 
 	header := []string{
 		i18n.G("NAME"),
@@ -424,7 +423,7 @@ func (c *cmdClusterGroupList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("MEMBERS"),
 	}
 
-	return utils.RenderTable(c.flagFormat, header, data, groups)
+	return cli.RenderTable(c.flagFormat, header, data, groups)
 }
 
 // Remove.
