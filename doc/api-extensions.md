@@ -2230,3 +2230,11 @@ When the offline cluster member is evacuated, only remote-backed instances will 
 
 ## `instances_state_total`
 This extension adds a new `total` field to `InstanceStateDisk` and `InstanceStateMemory`, both part of the instance's state API.
+
+## `auth_user`
+Add current user details to the main API endpoint.
+
+This introduces:
+
+* `auth_user_name`
+* `auth_user_method`

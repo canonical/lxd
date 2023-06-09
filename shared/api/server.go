@@ -195,6 +195,20 @@ type Server struct {
 	ServerPut       `yaml:",inline"`
 	ServerUntrusted `yaml:",inline"`
 
+	// The current user username as seen by LXD
+	// Read only: true
+	// Example: uid=201105
+	//
+	// API extension: auth_user
+	AuthUserName string `json:"auth_user_name" yaml:"auth_user_name"`
+
+	// The current user login method as seen by LXD
+	// Read only: true
+	// Example: unix
+	//
+	// API extension: auth_user
+	AuthUserMethod string `json:"auth_user_method" yaml:"auth_user_method"`
+
 	// Read-only status/configuration information
 	// Read only: true
 	Environment ServerEnvironment `json:"environment" yaml:"environment"`
