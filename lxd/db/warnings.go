@@ -144,9 +144,18 @@ func (c *ClusterTx) UpdateWarningState(UUID string, message string, status warni
 	str := "UPDATE warnings SET last_message=?, last_seen_date=?, updated_date=?, status = ?, count=count+1 WHERE uuid=?"
 	now := time.Now()
 
-	_, err := c.tx.Exec(str, message, now, now, status, UUID)
+	res, err := c.tx.Exec(str, message, now, now, status, UUID)
 	if err != nil {
 		return fmt.Errorf("Failed to update warning %q: %w", UUID, err)
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Failed to get affected rows to update warning state %q: %w", UUID, err)
+	}
+
+	if rowsAffected == 0 {
+		return api.StatusErrorf(http.StatusNotFound, "Warning not found")
 	}
 
 	return nil
