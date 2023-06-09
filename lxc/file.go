@@ -19,7 +19,6 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
@@ -405,7 +404,7 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		progress := utils.ProgressRenderer{
+		progress := cli.ProgressRenderer{
 			Format: fmt.Sprintf(i18n.G("Pulling %s from %s: %%s"), targetPath, pathSpec[1]),
 			Quiet:  c.global.flagQuiet,
 		}
@@ -679,7 +678,7 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		progress := utils.ProgressRenderer{
+		progress := cli.ProgressRenderer{
 			Format: fmt.Sprintf(i18n.G("Pushing %s to %s: %%s"), f.Name(), fpath),
 			Quiet:  c.global.flagQuiet,
 		}
@@ -745,7 +744,7 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string,
 			return err
 		}
 
-		progress := utils.ProgressRenderer{
+		progress := cli.ProgressRenderer{
 			Format: fmt.Sprintf(i18n.G("Pulling %s from %s: %%s"), p, target),
 			Quiet:  c.global.flagQuiet,
 		}
@@ -845,7 +844,7 @@ func (c *cmdFile) recursivePushFile(d lxd.InstanceServer, inst string, source st
 			readCloser = f
 		}
 
-		progress := utils.ProgressRenderer{
+		progress := cli.ProgressRenderer{
 			Format: fmt.Sprintf(i18n.G("Pushing %s to %s: %%s"), p, targetPath),
 			Quiet:  c.global.flagQuiet,
 		}
