@@ -2012,8 +2012,20 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 				return err
 			}
 
+			var volOptions []string
+
+			props, _ := d.getDatasetProperties(dataset, "atime", "relatime")
+
+			if props["atime"] == "off" {
+				volOptions = append(volOptions, "noatime")
+			} else if props["relatime"] == "off" {
+				volOptions = append(volOptions, "strictatime")
+			}
+
+			mountFlags, mountOptions := filesystem.ResolveMountOptions(volOptions)
+
 			// Mount the dataset.
-			err = TryMount(dataset, mountPath, "zfs", 0, "")
+			err = TryMount(dataset, mountPath, "zfs", mountFlags, mountOptions)
 			if err != nil {
 				return err
 			}
