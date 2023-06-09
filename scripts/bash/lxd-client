@@ -106,7 +106,7 @@ _have lxc && {
       raw.qemu.conf raw.lxc raw.seccomp security.idmap.base security.idmap.isolated \
       security.idmap.size security.devlxd security.devlxd.images \
       security.nesting security.privileged security.protection.delete \
-      security.protection.shift security.secureboot \
+      security.protection.shift security.secureboot security.csm \
       security.syscalls.allow \
       security.syscalls.deny \
       security.syscalls.deny_compat security.syscalls.deny_default \
