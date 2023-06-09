@@ -252,6 +252,29 @@ func (d *zfs) getDatasetProperty(dataset string, key string) (string, error) {
 	return strings.TrimSpace(output), nil
 }
 
+func (d *zfs) getDatasetProperties(dataset string, keys ...string) (map[string]string, error) {
+	output, err := shared.RunCommand("zfs", "get", "-H", "-p", "-o", "property,value", strings.Join(keys, ","), dataset)
+	if err != nil {
+		return nil, err
+	}
+
+	props := make(map[string]string, len(keys))
+
+	for _, row := range strings.Split(output, "\n") {
+		prop := strings.Split(row, "\t")
+
+		if len(prop) < 2 {
+			continue
+		}
+
+		key := prop[0]
+		val := prop[1]
+		props[key] = val
+	}
+
+	return props, nil
+}
+
 // version returns the ZFS version based on package or kernel module version.
 func (d *zfs) version() (string, error) {
 	// This function is only really ever relevant on Ubuntu as the only
