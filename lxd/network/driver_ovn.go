@@ -1290,7 +1290,7 @@ func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string
 	}
 
 	// Attempt to learn uplink MAC.
-	n.pingOVNRouterIPv6()
+	n.pingOVNRouter()
 
 	revert.Success()
 	return nil
@@ -1310,17 +1310,27 @@ func (n *ovn) startUplinkPortBridgeOVS(uplinkNet Network, bridgeDevice string) e
 	}
 
 	// Attempt to learn uplink MAC.
-	n.pingOVNRouterIPv6()
+	n.pingOVNRouter()
 
 	revert.Success()
 	return nil
 }
 
-// pingOVNRouterIPv6 pings the OVN router's external IPv6 address to attempt to trigger MAC learning on uplink.
+// pingOVNRouter pings the OVN router's external IP addresses to attempt to trigger MAC learning on uplink.
 // This is to work around a bug in some versions of OVN.
-func (n *ovn) pingOVNRouterIPv6() {
-	routerExtPortIPv6 := net.ParseIP(n.config[ovnVolatileUplinkIPv6])
-	if routerExtPortIPv6 != nil {
+func (n *ovn) pingOVNRouter() {
+	var ips []net.IP
+
+	for _, key := range []string{ovnVolatileUplinkIPv4, ovnVolatileUplinkIPv6} {
+		ip := net.ParseIP(n.config[key])
+		if ip != nil {
+			ips = append(ips, ip)
+		}
+	}
+
+	for i := range ips {
+		ip := ips[i] // Local var
+
 		// Now that the OVN router is connected to the uplink bridge, attempt to ping the OVN
 		// router's external IPv6 from the LXD host running the uplink bridge in an attempt to trigger the
 		// OVN router to learn the uplink gateway's MAC address. This is to work around a bug in
@@ -1330,10 +1340,13 @@ func (n *ovn) pingOVNRouterIPv6() {
 		// By pinging the OVN router's external IP this will trigger an NDP request from the uplink bridge
 		// which will cause the OVN router to learn its MAC address.
 		go func() {
+			var err error
+
 			// Try several attempts as it can take a few seconds for the network to come up.
 			for i := 0; i < 5; i++ {
-				if pingIP(routerExtPortIPv6) {
-					n.logger.Debug("OVN router external IPv6 address reachable", logger.Ctx{"ip": routerExtPortIPv6.String()})
+				err = pingIP(context.TODO(), ip)
+				if err == nil {
+					n.logger.Debug("OVN router external IP address reachable", logger.Ctx{"ip": ip.String()})
 					return
 				}
 
@@ -1342,7 +1355,7 @@ func (n *ovn) pingOVNRouterIPv6() {
 
 			// We would expect this on a chassis node that isn't the active router gateway, it doesn't
 			// always indicate a problem.
-			n.logger.Debug("OVN router external IPv6 address unreachable", logger.Ctx{"ip": routerExtPortIPv6.String()})
+			n.logger.Debug("OVN router external IP address unreachable", logger.Ctx{"ip": ip.String(), "err": err})
 		}()
 	}
 }
@@ -1418,6 +1431,9 @@ func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
 	if err != nil {
 		return fmt.Errorf("Failed to bring up uplink interface %q: %w", uplinkHostName, err)
 	}
+
+	// Attempt to learn uplink MAC.
+	n.pingOVNRouter()
 
 	revert.Success()
 	return nil
