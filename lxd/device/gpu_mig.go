@@ -46,7 +46,7 @@ func (d *gpuMIG) validateConfig(instConf instance.ConfigReader) error {
 	if d.config["pci"] != "" {
 		for _, field := range []string{"id", "productid", "vendorid"} {
 			if d.config[field] != "" {
-				return fmt.Errorf(`Cannot use %q when when "pci" is set`, field)
+				return fmt.Errorf(`Cannot use %q when "pci" is set`, field)
 			}
 		}
 
@@ -56,7 +56,7 @@ func (d *gpuMIG) validateConfig(instConf instance.ConfigReader) error {
 	if d.config["id"] != "" {
 		for _, field := range []string{"pci", "productid", "vendorid"} {
 			if d.config[field] != "" {
-				return fmt.Errorf(`Cannot use %q when when "id" is set`, field)
+				return fmt.Errorf(`Cannot use %q when "id" is set`, field)
 			}
 		}
 	}
@@ -119,10 +119,8 @@ func (d *gpuMIG) Start() (*deviceConfig.RunConfig, error) {
 
 	var pciAddress string
 	for _, gpu := range gpus.Cards {
-		// Skip any cards that don't match the vendorid, pci or productid settings (if specified).
-		if (d.config["vendorid"] != "" && gpu.VendorID != d.config["vendorid"]) ||
-			(d.config["pci"] != "" && gpu.PCIAddress != d.config["pci"]) ||
-			(d.config["productid"] != "" && gpu.ProductID != d.config["productid"]) {
+		// Skip any cards that are not selected.
+		if !gpuSelected(d.Config(), gpu) {
 			continue
 		}
 
