@@ -116,7 +116,7 @@ func AskPassword(question string) string {
 		inFirst := string(pwd)
 		inFirst = strings.TrimSuffix(inFirst, "\n")
 
-		fmt.Printf("Again: ")
+		fmt.Print("Again: ")
 		pwd, _ = term.ReadPassword(0)
 		fmt.Println("")
 		inSecond := string(pwd)
