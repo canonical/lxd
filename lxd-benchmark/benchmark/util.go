@@ -27,13 +27,13 @@ func printTestConfig(count int, batchSize int, image string, privileged bool, fr
 
 	batches := count / batchSize
 	remainder := count % batchSize
-	fmt.Printf("Test variables:\n")
-	fmt.Printf("  Container count: %d\n", count)
-	fmt.Printf("  Container mode: %s\n", privilegedStr)
-	fmt.Printf("  Startup mode: %s\n", mode)
-	fmt.Printf("  Image: %s\n", image)
-	fmt.Printf("  Batches: %d\n", batches)
-	fmt.Printf("  Batch size: %d\n", batchSize)
-	fmt.Printf("  Remainder: %d\n", remainder)
-	fmt.Printf("\n")
+	fmt.Println("Test variables:")
+	fmt.Println("  Container count:", count)
+	fmt.Println("  Container mode:", privilegedStr)
+	fmt.Println("  Startup mode:", mode)
+	fmt.Println("  Image:", image)
+	fmt.Println("  Batches:", batches)
+	fmt.Println("  Batch size:", batchSize)
+	fmt.Println("  Remainder:", remainder)
+	fmt.Println("")
 }
