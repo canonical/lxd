@@ -786,8 +786,6 @@ func (c *cmdRemoteRename) Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
-
-			rc.Global = false
 		} else {
 			err := os.Rename(oldPath, newPath)
 			if err != nil {
@@ -796,6 +794,7 @@ func (c *cmdRemoteRename) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	rc.Global = false
 	conf.Remotes[args[1]] = rc
 	delete(conf.Remotes, args[0])
 
