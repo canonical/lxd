@@ -1,58 +1,81 @@
-# Remotes
+# How to add remote servers
 
-## Introduction
+Remote servers are a concept in the LXD command-line client.
+By default, the command-line client interacts with the local LXD daemon, but you can add other servers or clusters to interact with.
 
-Remotes are a concept in the LXD command line client which are used to refer to various LXD servers or clusters.
-A remote is effectively a name pointing to the URL of a particular LXD server as well as needed credentials to login and authenticate the server.
-LXD has four types of remotes:
+One use case for remote servers is to distribute images that can be used to create instances on local servers.
+See {ref}`remote-image-servers` for more information.
 
-- Static
-- Default
-- Global (per-system)
-- Local (per-user)
+You can also add a full LXD server as a remote server to your client.
+In this case, you can interact with the remote server in the same way as with your local daemon.
+For example, you can manage instances or update the server configuration on the remote server.
 
-### Static
+## Authentication
 
-Static remotes are:
+To be able to add a LXD server as a remote server, the server's API must be exposed, which means that its [`core.https_address`](server-options-core) server configuration option must be set.
 
-- `local` (default)
-- `ubuntu`
-- `ubuntu-daily`
+When adding the server, you must then authenticate with it using the chosen method for {ref}`authentication`.
 
-They are hardcoded and can't be modified by the user.
+See {ref}`server-expose` for more information.
 
-### Default
+## List configured remotes
 
-Automatically added on first use.
+% Include parts of the content from file [howto/images_remote.md](howto/images_remote.md)
+```{include} howto/images_remote.md
+   :start-after: <!-- Include start list remotes -->
+   :end-before: <!-- Include end list remotes -->
+```
 
-### Global (per-system)
+## Add a remote LXD server
 
-By default the global configuration file is kept in either `/etc/lxd/config.yml`, or `/var/snap/lxd/common/global-conf/` for the snap version, or in `LXD_GLOBAL_CONF` if defined.
-The configuration file can be manually edited to add global remotes. Certificates for those remotes should be stored inside the `servercerts` directory (e.g. `/etc/lxd/servercerts/`) and match the remote name (e.g. `foo.crt`).
+% Include parts of the content from file [howto/images_remote.md](howto/images_remote.md)
+```{include} howto/images_remote.md
+   :start-after: <!-- Include start add remotes -->
+   :end-before: <!-- Include end add remotes -->
+```
 
-An example configuration is below:
+## Select a default remote
+
+The LXD command-line client is pre-configured with the `local` remote, which is the local LXD daemon.
+
+To select a different remote as the default remote, enter the following command:
+
+    lxc remote switch <remote_name>
+
+To see which server is configured as the default remote, enter the following command:
+
+    lxc remote get-default
+
+## Configure a global remote
+
+You can configure remotes on a global, per-system basis.
+These remotes are available for every user of the LXD server for which you add the configuration.
+
+Users can override these system remotes (for example, by running `lxc remote rename` or `lxc remote set-url`), which results in the remote and its associated certificates being copied to the user configuration.
+
+To configure a global remote, edit the `config.yml` file that is located in one of the following directories:
+
+- the directory specified by `LXD_GLOBAL_CONF` (if defined)
+- `/var/snap/lxd/common/global-conf/` (if you use the snap)
+- `/etc/lxd/` (otherwise)
+
+Certificates for the remotes must be stored in the `servercerts` directory in the same location (for example, `/etc/lxd/servercerts/`).
+They must match the remote name (for example, `foo.crt`).
+
+See the following example configuration:
 
 ```
 remotes:
   foo:
-    addr: https://10.0.2.4:8443
+    addr: https://192.0.2.4:8443
     auth_type: tls
     project: default
     protocol: lxd
     public: false
   bar:
-    addr: https://10.0.2.5:8443
+    addr: https://192.0.2.5:8443
     auth_type: tls
     project: default
     protocol: lxd
     public: false
 ```
-
-### Local (per-user)
-
-Local level remotes are managed from the CLI (`lxc`) with:
-`lxc remote [command]`
-
-By default the configuration file is kept in `~/.config/lxc/config.yml`, or `~/snap/lxd/common/config/config.yml` for the snap version, or in `LXD_CONF` if defined.
-Users have the possibility to override system remotes (e.g. by running `lxc remote rename` or `lxc remote set-url`)
-which results in the remote being copied to their own configuration, including any associated certificates.

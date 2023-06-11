@@ -1,20 +1,18 @@
+(daemon-behavior)=
 # Daemon behavior
 
-## Introduction
-
-This specification covers some of the daemon's behavior, such as
-reaction to given signals, crashes, ...
+This specification covers some of the {ref}`lxd-daemon`'s behavior.
 
 ## Startup
 
 On every start, LXD checks that its directory structure exists. If it
-doesn't, it'll create the required directories, generate a key pair and
-initialize the database.
+doesn't, it creates the required directories, generates a key pair and
+initializes the database.
 
-Once the daemon is ready for work, LXD will scan the instances table
+Once the daemon is ready for work, LXD scans the instances table
 for any instance for which the stored power state differs from the
 current one. If an instance's power state was recorded as running and the
-instance isn't running, LXD will start it.
+instance isn't running, LXD starts it.
 
 ## Signal handling
 
@@ -30,12 +28,11 @@ exit cleanly.
 
 Indicates to LXD that the host is going down.
 
-LXD will attempt a clean shutdown of all the instances. After 30s, it
-will kill any remaining instance.
+LXD will attempt a clean shutdown of all the instances. After 30 seconds, it
+kills any remaining instance.
 
 The instance `power_state` in the instances table is kept as it was so
-that LXD after the host is done rebooting can restore the instances as
-they were.
+that LXD can restore the instances as they were after the host is done rebooting.
 
 ### `SIGUSR1`
 

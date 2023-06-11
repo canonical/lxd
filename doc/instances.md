@@ -16,4 +16,5 @@ Access the console <howto/instances_console.md>
 Access files <howto/instances_access_files.md>
 Troubleshoot errors <howto/instances_troubleshoot.md>
 explanation/instance_config.md
+Container environment <container-environment>
 ```
