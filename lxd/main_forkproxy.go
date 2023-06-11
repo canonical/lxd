@@ -327,7 +327,7 @@ func listenerInstance(epFd C.int, lAddr *deviceConfig.ProxyAddress, cAddr *devic
 		go func() {
 			srcConn, err := net.FileConn((*lStruct).f)
 			if err != nil {
-				fmt.Printf("Warning: Failed to re-assemble listener: %s\n", err)
+				fmt.Printf("Warning: Failed to re-assemble listener: %v\n", err)
 				rearmUDPFd(epFd, connFd)
 				return
 			}
@@ -685,7 +685,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 
 			err := listenerInstance(epFd, lAddr, cAddr, curFd, srcConn, args[11] == "true")
 			if err != nil {
-				fmt.Printf("Warning: Failed to prepare new listener instance: %s\n", err)
+				fmt.Printf("Warning: Failed to prepare new listener instance: %v\n", err)
 			}
 		}
 	}
