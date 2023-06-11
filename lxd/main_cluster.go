@@ -323,7 +323,7 @@ func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
 	if len(config.Members) > 0 {
 		fmt.Printf(SegmentComment+"\n\n%s", segmentID, data)
 	} else {
-		fmt.Printf("%s", data)
+		fmt.Print(data)
 	}
 
 	return nil
@@ -412,7 +412,7 @@ func (c *cmdClusterRecoverFromQuorumLoss) Run(cmd *cobra.Command, args []string)
 
 func (c *cmdClusterRecoverFromQuorumLoss) promptConfirmation() error {
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Printf(`You should run this command only if you are *absolutely* certain that this is
+	fmt.Print(`You should run this command only if you are *absolutely* certain that this is
 the only database node left in your cluster AND that other database nodes will
 never come back (i.e. their LXD daemon won't ever be started again).
 
@@ -488,7 +488,7 @@ func (c *cmdClusterRemoveRaftNode) Run(cmd *cobra.Command, args []string) error 
 
 func (c *cmdClusterRemoveRaftNode) promptConfirmation() error {
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Printf(`You should run this command only if you ended up in an
+	fmt.Print(`You should run this command only if you ended up in an
 inconsistent state where a node has been uncleanly removed (i.e. it doesn't show
 up in "lxc cluster list" but it's still in the raft configuration).
 
