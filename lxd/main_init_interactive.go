@@ -265,8 +265,8 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 					}
 
 					certDigest := shared.CertFingerprint(cert)
-					fmt.Printf("Cluster fingerprint: %s\n", certDigest)
-					fmt.Printf("You can validate this fingerprint by running \"lxc info\" locally on an existing cluster member.\n")
+					fmt.Println("Cluster fingerprint:", certDigest)
+					fmt.Println("You can validate this fingerprint by running \"lxc info\" locally on an existing cluster member.")
 
 					validator := func(input string) error {
 						if input == certDigest {
@@ -902,7 +902,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 		if pool.Driver == "lvm" {
 			_, err := exec.LookPath("thin_check")
 			if err != nil {
-				fmt.Printf(`
+				fmt.Print(`
 The LVM thin provisioning tools couldn't be found.
 LVM can still be used without thin provisioning but this will disable over-provisioning,
 increase the space requirements and creation time of images, instances and snapshots.
@@ -935,7 +935,7 @@ func (c *cmdInit) askDaemon(config *api.InitPreseed, d lxd.InstanceServer, serve
 	// Detect lack of uid/gid
 	idmapset, err := idmap.DefaultIdmapSet("", "")
 	if (err != nil || len(idmapset.Idmap) == 0 || idmapset.Usable() != nil) && shared.RunningInUserNS() {
-		fmt.Printf(`
+		fmt.Print(`
 We detected that you are running inside an unprivileged container.
 This means that unless you manually configured your host otherwise,
 you will not have enough uids and gids to allocate to your containers.
