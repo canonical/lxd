@@ -130,6 +130,7 @@ func archiveProfile(outputPath string, allowedCommandPaths []string) (string, er
 		"backupsPath":         backupsPath,
 		"imagesPath":          imagesPath,
 		"allowedCommandPaths": derefCommandPaths,
+		"snap":                shared.InSnap(),
 	})
 	if err != nil {
 		return "", err
