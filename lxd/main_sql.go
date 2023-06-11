@@ -145,7 +145,7 @@ func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		if len(batch.Results) > 1 {
-			fmt.Printf("\n")
+			fmt.Println("")
 		}
 	}
 	return nil
