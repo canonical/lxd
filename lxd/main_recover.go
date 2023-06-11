@@ -58,7 +58,7 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Failed getting existing storage pools: %w", err)
 	}
 
-	fmt.Print("This LXD server currently has the following storage pools:\n")
+	fmt.Println("This LXD server currently has the following storage pools:")
 	for _, existingPool := range existingPools {
 		fmt.Printf(" - %s (backend=%q, source=%q)\n", existingPool.Name, existingPool.Driver, existingPool.Config["source"])
 	}
@@ -146,7 +146,7 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Printf("The recovery process will be scanning the following storage pools:\n")
+	fmt.Println("The recovery process will be scanning the following storage pools:")
 	for _, p := range existingPools {
 		fmt.Printf(" - EXISTING: %q (backend=%q, source=%q)\n", p.Name, p.Driver, p.Config["source"])
 	}
@@ -164,7 +164,7 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Print("Scanning for unknown volumes...\n")
+	fmt.Println("Scanning for unknown volumes...")
 
 	// Send /internal/recover/validate request to LXD.
 	reqValidate := internalRecoverValidatePost{
@@ -195,14 +195,14 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		if len(res.UnknownVolumes) > 0 {
-			fmt.Print("The following unknown volumes have been found:\n")
+			fmt.Println("The following unknown volumes have been found:")
 			for _, unknownVol := range res.UnknownVolumes {
 				fmt.Printf(" - %s %q on pool %q in project %q (includes %d snapshots)\n", cases.Title(language.English).String(unknownVol.Type), unknownVol.Name, unknownVol.Pool, unknownVol.Project, unknownVol.SnapshotCount)
 			}
 		}
 
 		if len(res.DependencyErrors) > 0 {
-			fmt.Print("You are currently missing the following:\n")
+			fmt.Println("You are currently missing the following:")
 
 			for _, depErr := range res.DependencyErrors {
 				fmt.Printf(" - %s\n", depErr)
@@ -211,7 +211,7 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 			_, _ = cli.AskString("Please create those missing entries and then hit ENTER: ", "", validate.Optional())
 		} else {
 			if len(res.UnknownVolumes) <= 0 {
-				fmt.Print("No unknown volumes found. Nothing to do.\n")
+				fmt.Println("No unknown volumes found. Nothing to do.")
 				return nil
 			}
 
@@ -228,7 +228,7 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Print("Starting recovery...\n")
+	fmt.Println("Starting recovery...")
 
 	// Send /internal/recover/import request to LXD.
 	// Don't lint next line with gosimple. It says we should convert reqValidate directly to an internalRecoverImportPost
