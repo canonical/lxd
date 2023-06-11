@@ -134,8 +134,8 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 
 	digest := shared.CertFingerprint(certificate)
 
-	fmt.Printf("Certificate fingerprint: %s\n", digest)
-	fmt.Printf("ok (y/n)? ")
+	fmt.Println("Certificate fingerprint:", digest)
+	fmt.Print("ok (y/n)? ")
 	line, err := shared.ReadStdin()
 	if err != nil {
 		return nil, "", err
@@ -393,14 +393,14 @@ func (c *cmdMigrate) RunInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 	}
 
 	for {
-		fmt.Printf("\nInstance to be created:\n")
+		fmt.Println("\nInstance to be created:")
 
 		scanner := bufio.NewScanner(strings.NewReader(config.Render()))
 		for scanner.Scan() {
 			fmt.Printf("  %s\n", scanner.Text())
 		}
 
-		fmt.Printf(`
+		fmt.Print(`
 Additional overrides can be applied at this stage:
 1) Begin the migration with the above configuration
 2) Override profile list
