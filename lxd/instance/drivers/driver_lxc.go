@@ -343,9 +343,6 @@ func lxcLoad(s *state.State, args db.InstanceArgs, p api.Project) (instance.Inst
 	// Create the container struct
 	d := lxcInstantiate(s, args, nil, p)
 
-	// Setup finalizer
-	runtime.SetFinalizer(d, lxcUnload)
-
 	// Expand config and devices
 	err := d.(*lxc).expandConfig()
 	if err != nil {
@@ -357,7 +354,6 @@ func lxcLoad(s *state.State, args db.InstanceArgs, p api.Project) (instance.Inst
 
 // Unload is called by the garbage collector.
 func lxcUnload(d *lxc) {
-	runtime.SetFinalizer(d, nil)
 	d.release()
 }
 
@@ -426,7 +422,8 @@ type lxc struct {
 	// Config handling.
 	fromHook bool
 
-	cMu sync.Mutex
+	cMu        sync.Mutex
+	cFinalizer sync.Once
 
 	// Cached handles.
 	// Do not use these variables directly, instead use their associated get functions so they
@@ -650,6 +647,10 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 	if d.c != nil && (!config || d.cConfig) {
 		return d.c, nil
 	}
+
+	// As we are now going to be initialising a liblxc.Container reference, set the finalizer so that it is
+	// cleaned up (if needed) when the garbage collector destroys this instance struct.
+	d.cFinalizer.Do(func() { runtime.SetFinalizer(d, lxcUnload) })
 
 	revert := revert.New()
 	defer revert.Fail()
