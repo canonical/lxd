@@ -1479,7 +1479,12 @@ func (d *lxc) deviceStaticShiftMounts(mounts []deviceConfig.MountEntryItem) erro
 
 // deviceAddCgroupRules live adds cgroup rules to a container.
 func (d *lxc) deviceAddCgroupRules(cgroups []deviceConfig.RunConfigItem) error {
-	cg, err := d.cgroup(nil)
+	cc, err := d.initLXC(false)
+	if err != nil {
+		return err
+	}
+
+	cg, err := d.cgroup(cc)
 	if err != nil {
 		return err
 	}
@@ -1515,13 +1520,13 @@ func (d *lxc) deviceAttachNIC(configCopy map[string]string, netIF []deviceConfig
 	}
 
 	// Load the go-lxc struct.
-	err := d.initLXC(false)
+	cc, err := d.initLXC(false)
 	if err != nil {
 		return err
 	}
 
 	// Add the interface to the container.
-	err = d.c.AttachInterface(devName, configCopy["name"])
+	err = cc.AttachInterface(devName, configCopy["name"])
 	if err != nil {
 		return fmt.Errorf("Failed to attach interface: %s to %s: %w", devName, configCopy["name"], err)
 	}
@@ -1875,7 +1880,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	defer revert.Fail()
 
 	// Load the go-lxc struct
-	err := d.initLXC(true)
+	cc, err := d.initLXC(true)
 	if err != nil {
 		return "", nil, fmt.Errorf("Load go-lxc struct: %w", err)
 	}
@@ -2049,11 +2054,11 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		if runConf.RootFS.Path != "" {
 			if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
 				// Set the rootfs backend type if supported (must happen before any other lxc.rootfs)
-				err := lxcSetConfigItem(d.c, "lxc.rootfs.backend", "dir")
+				err := lxcSetConfigItem(cc, "lxc.rootfs.backend", "dir")
 				if err == nil {
-					value := d.c.ConfigItem("lxc.rootfs.backend")
+					value := cc.ConfigItem("lxc.rootfs.backend")
 					if len(value) == 0 || value[0] != "dir" {
-						_ = lxcSetConfigItem(d.c, "lxc.rootfs.backend", "")
+						_ = lxcSetConfigItem(cc, "lxc.rootfs.backend", "")
 					}
 				}
 			}
@@ -2066,9 +2071,9 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 
 			if liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
 				rootfsPath := fmt.Sprintf("dir:%s", absoluteRootfs)
-				err = lxcSetConfigItem(d.c, "lxc.rootfs.path", rootfsPath)
+				err = lxcSetConfigItem(cc, "lxc.rootfs.path", rootfsPath)
 			} else {
-				err = lxcSetConfigItem(d.c, "lxc.rootfs", absoluteRootfs)
+				err = lxcSetConfigItem(cc, "lxc.rootfs", absoluteRootfs)
 			}
 
 			if err != nil {
@@ -2076,7 +2081,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			}
 
 			if len(runConf.RootFS.Opts) > 0 {
-				err = lxcSetConfigItem(d.c, "lxc.rootfs.options", strings.Join(runConf.RootFS.Opts, ","))
+				err = lxcSetConfigItem(cc, "lxc.rootfs.options", strings.Join(runConf.RootFS.Opts, ","))
 				if err != nil {
 					return "", nil, fmt.Errorf("Failed to setup device rootfs %q: %w", dev.Name(), err)
 				}
@@ -2084,25 +2089,25 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 
 			if !d.IsPrivileged() {
 				if idmapType == idmap.IdmapStorageIdmapped {
-					err = lxcSetConfigItem(d.c, "lxc.rootfs.options", "idmap=container")
+					err = lxcSetConfigItem(cc, "lxc.rootfs.options", "idmap=container")
 					if err != nil {
 						return "", nil, fmt.Errorf("Failed to set \"idmap=container\" rootfs option: %w", err)
 					}
 				} else if idmapType == idmap.IdmapStorageShiftfs {
 					// Host side mark mount.
-					err = lxcSetConfigItem(d.c, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", strconv.Quote(d.RootfsPath()), strconv.Quote(d.RootfsPath())))
+					err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", strconv.Quote(d.RootfsPath()), strconv.Quote(d.RootfsPath())))
 					if err != nil {
 						return "", nil, fmt.Errorf("Failed to setup device mount shiftfs %q: %w", dev.Name(), err)
 					}
 
 					// Container side shift mount.
-					err = lxcSetConfigItem(d.c, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", strconv.Quote(d.RootfsPath()), strconv.Quote(d.RootfsPath())))
+					err = lxcSetConfigItem(cc, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", strconv.Quote(d.RootfsPath()), strconv.Quote(d.RootfsPath())))
 					if err != nil {
 						return "", nil, fmt.Errorf("Failed to setup device mount shiftfs %q: %w", dev.Name(), err)
 					}
 
 					// Host side umount of mark mount.
-					err = lxcSetConfigItem(d.c, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", strconv.Quote(d.RootfsPath())))
+					err = lxcSetConfigItem(cc, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", strconv.Quote(d.RootfsPath())))
 					if err != nil {
 						return "", nil, fmt.Errorf("Failed to setup device mount shiftfs %q: %w", dev.Name(), err)
 					}
@@ -2118,9 +2123,9 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 				}
 
 				if d.state.OS.CGInfo.Layout == cgroup.CgroupsUnified {
-					err = lxcSetConfigItem(d.c, fmt.Sprintf("lxc.cgroup2.%s", rule.Key), rule.Value)
+					err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.cgroup2.%s", rule.Key), rule.Value)
 				} else {
-					err = lxcSetConfigItem(d.c, fmt.Sprintf("lxc.cgroup.%s", rule.Key), rule.Value)
+					err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.cgroup.%s", rule.Key), rule.Value)
 				}
 
 				if err != nil {
@@ -2143,17 +2148,17 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 					case idmap.IdmapStorageIdmapped:
 						mntOptions = strings.Join([]string{mntOptions, "idmap=container"}, ",")
 					case idmap.IdmapStorageShiftfs:
-						err = lxcSetConfigItem(d.c, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", strconv.Quote(mount.DevPath), strconv.Quote(mount.DevPath)))
+						err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", strconv.Quote(mount.DevPath), strconv.Quote(mount.DevPath)))
 						if err != nil {
 							return "", nil, fmt.Errorf("Failed to setup device mount shiftfs %q: %w", dev.Name(), err)
 						}
 
-						err = lxcSetConfigItem(d.c, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", strconv.Quote(mount.DevPath), strconv.Quote(mount.DevPath)))
+						err = lxcSetConfigItem(cc, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", strconv.Quote(mount.DevPath), strconv.Quote(mount.DevPath)))
 						if err != nil {
 							return "", nil, fmt.Errorf("Failed to setup device mount shiftfs %q: %w", dev.Name(), err)
 						}
 
-						err = lxcSetConfigItem(d.c, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", strconv.Quote(mount.DevPath)))
+						err = lxcSetConfigItem(cc, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", strconv.Quote(mount.DevPath)))
 						if err != nil {
 							return "", nil, fmt.Errorf("Failed to setup device mount shiftfs %q: %w", dev.Name(), err)
 						}
@@ -2164,7 +2169,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 				}
 
 				mntVal := fmt.Sprintf("%s %s %s %s %d %d", shared.EscapePathFstab(mount.DevPath), shared.EscapePathFstab(mount.TargetPath), mount.FSType, mntOptions, mount.Freq, mount.PassNo)
-				err = lxcSetConfigItem(d.c, "lxc.mount.entry", mntVal)
+				err = lxcSetConfigItem(cc, "lxc.mount.entry", mntVal)
 				if err != nil {
 					return "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), err)
 				}
@@ -2182,7 +2187,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			}
 
 			for _, nicItem := range runConf.NetworkInterface {
-				err = lxcSetConfigItem(d.c, fmt.Sprintf("%s.%d.%s", networkKeyPrefix, nicID, nicItem.Key), nicItem.Value)
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.%s", networkKeyPrefix, nicID, nicItem.Key), nicItem.Value)
 				if err != nil {
 					return "", nil, fmt.Errorf("Failed to setup device network interface %q: %w", dev.Name(), err)
 				}
@@ -2206,21 +2211,21 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 
 	// Override NVIDIA_VISIBLE_DEVICES if we have devices that need it.
 	if len(nvidiaDevices) > 0 {
-		err = lxcSetConfigItem(d.c, "lxc.environment", fmt.Sprintf("NVIDIA_VISIBLE_DEVICES=%s", strings.Join(nvidiaDevices, ",")))
+		err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_VISIBLE_DEVICES=%s", strings.Join(nvidiaDevices, ",")))
 		if err != nil {
 			return "", nil, fmt.Errorf("Unable to set NVIDIA_VISIBLE_DEVICES in LXC environment: %w", err)
 		}
 	}
 
 	// Load the LXC raw config.
-	err = d.loadRawLXCConfig()
+	err = d.loadRawLXCConfig(cc)
 	if err != nil {
 		return "", nil, err
 	}
 
 	// Generate the LXC config
 	configPath := filepath.Join(d.LogPath(), "lxc.conf")
-	err = d.c.SaveConfigFile(configPath)
+	err = cc.SaveConfigFile(configPath)
 	if err != nil {
 		_ = os.Remove(configPath)
 		return "", nil, err
@@ -2592,20 +2597,21 @@ func (d *lxc) Stop(stateful bool) error {
 	}()
 
 	// Load the go-lxc struct
+	var cc *liblxc.Container
 	if d.expandedConfig["raw.lxc"] != "" {
-		err = d.initLXC(true)
+		cc, err = d.initLXC(true)
 		if err != nil {
 			op.Done(err)
 			return err
 		}
 
-		err = d.loadRawLXCConfig()
+		err = d.loadRawLXCConfig(cc)
 		if err != nil {
 			op.Done(err)
 			return err
 		}
 	} else {
-		err = d.initLXC(false)
+		cc, err = d.initLXC(false)
 		if err != nil {
 			op.Done(err)
 			return err
@@ -2661,7 +2667,7 @@ func (d *lxc) Stop(stateful bool) error {
 	}
 
 	// Load cgroup abstraction
-	cg, err := d.cgroup(nil)
+	cg, err := d.cgroup(cc)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -2686,7 +2692,7 @@ func (d *lxc) Stop(stateful bool) error {
 		}
 	}
 
-	err = d.c.Stop()
+	err = cc.Stop()
 	if err != nil {
 		op.Done(err)
 		return err
@@ -2769,20 +2775,21 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 	}()
 
 	// Load the go-lxc struct
+	var cc *liblxc.Container
 	if d.expandedConfig["raw.lxc"] != "" {
-		err = d.initLXC(true)
+		cc, err = d.initLXC(true)
 		if err != nil {
 			op.Done(err)
 			return err
 		}
 
-		err = d.loadRawLXCConfig()
+		err = d.loadRawLXCConfig(cc)
 		if err != nil {
 			op.Done(err)
 			return err
 		}
 	} else {
-		err = d.initLXC(false)
+		cc, err = d.initLXC(false)
 		if err != nil {
 			op.Done(err)
 			return err
@@ -2791,7 +2798,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 
 	// Request shutdown, but don't wait for container to stop. If call fails then cancel operation with error,
 	// otherwise expect the onStop() hook to cancel operation when done (when the container has stopped).
-	err = d.c.Shutdown(0)
+	err = cc.Shutdown(0)
 	if err != nil {
 		op.Done(err)
 	}
@@ -3034,7 +3041,15 @@ func (d *lxc) Freeze() error {
 		return fmt.Errorf("The instance isn't running")
 	}
 
-	cg, err := d.cgroup(nil)
+	// Load the go-lxc struct
+	cc, err := d.initLXC(false)
+	if err != nil {
+		ctxMap["err"] = err
+		d.logger.Error("Failed freezing container", ctxMap)
+		return err
+	}
+
+	cg, err := d.cgroup(cc)
 	if err != nil {
 		return err
 	}
@@ -3052,15 +3067,7 @@ func (d *lxc) Freeze() error {
 
 	d.logger.Info("Freezing container", ctxMap)
 
-	// Load the go-lxc struct
-	err = d.initLXC(false)
-	if err != nil {
-		ctxMap["err"] = err
-		d.logger.Error("Failed freezing container", ctxMap)
-		return err
-	}
-
-	err = d.c.Freeze()
+	err = cc.Freeze()
 	if err != nil {
 		ctxMap["err"] = err
 		d.logger.Error("Failed freezing container", ctxMap)
@@ -3085,7 +3092,14 @@ func (d *lxc) Unfreeze() error {
 		return fmt.Errorf("The container isn't running")
 	}
 
-	cg, err := d.cgroup(nil)
+	// Load the go-lxc struct
+	cc, err := d.initLXC(false)
+	if err != nil {
+		d.logger.Error("Failed unfreezing container", ctxMap)
+		return err
+	}
+
+	cg, err := d.cgroup(cc)
 	if err != nil {
 		return err
 	}
@@ -3103,14 +3117,7 @@ func (d *lxc) Unfreeze() error {
 
 	d.logger.Info("Unfreezing container", ctxMap)
 
-	// Load the go-lxc struct
-	err = d.initLXC(false)
-	if err != nil {
-		d.logger.Error("Failed unfreezing container", ctxMap)
-		return err
-	}
-
-	err = d.c.Unfreeze()
+	err = cc.Unfreeze()
 	if err != nil {
 		d.logger.Error("Failed unfreezing container", ctxMap)
 	}
@@ -3129,20 +3136,16 @@ func (d *lxc) getLxcState() (liblxc.State, error) {
 	}
 
 	// Load the go-lxc struct
-	err := d.initLXC(false)
+	cc, err := d.initLXC(false)
 	if err != nil {
 		return liblxc.StateMap["STOPPED"], err
-	}
-
-	if d.c == nil {
-		return liblxc.StateMap["STOPPED"], nil
 	}
 
 	monitor := make(chan liblxc.State, 1)
 
 	go func(c *liblxc.Container) {
 		monitor <- c.State()
-	}(d.c)
+	}(cc)
 
 	select {
 	case state := <-monitor:
@@ -3349,17 +3352,17 @@ func (d *lxc) snapshot(name string, expiry time.Time, stateful bool) error {
 
 		// Load the go-lxc struct
 		if d.expandedConfig["raw.lxc"] != "" {
-			err = d.initLXC(true)
+			cc, err := d.initLXC(true)
 			if err != nil {
 				return err
 			}
 
-			err = d.loadRawLXCConfig()
+			err = d.loadRawLXCConfig(cc)
 			if err != nil {
 				return err
 			}
 		} else {
-			err = d.initLXC(false)
+			_, err = d.initLXC(false)
 			if err != nil {
 				return err
 			}
@@ -3945,7 +3948,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 // CGroupSet sets a cgroup value for the instance.
 func (d *lxc) CGroupSet(key string, value string) error {
 	// Load the go-lxc struct
-	err := d.initLXC(false)
+	cc, err := d.initLXC(false)
 	if err != nil {
 		return err
 	}
@@ -3955,7 +3958,7 @@ func (d *lxc) CGroupSet(key string, value string) error {
 		return fmt.Errorf("Can't set cgroups on a stopped container")
 	}
 
-	err = d.c.SetCgroupItem(key, value)
+	err = cc.SetCgroupItem(key, value)
 	if err != nil {
 		return fmt.Errorf("Failed to set cgroup %s=\"%s\": %w", key, value, err)
 	}
@@ -4102,7 +4105,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			d.expiryDate = oldExpiryDate
 			d.release()
 			d.cConfig = false
-			_ = d.initLXC(true)
+			_, _ = d.initLXC(true)
 			cgroup.TaskSchedulerTrigger("container", d.name, "changed")
 		}
 	}()
@@ -4203,7 +4206,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	if userRequested {
 		d.release()
 		d.cConfig = false
-		err = d.initLXC(true)
+		_, err = d.initLXC(true)
 		if err != nil {
 			return fmt.Errorf("Initialize LXC: %w", err)
 		}
@@ -4217,7 +4220,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			return err
 		}
 
-		err = d.loadRawLXCConfig()
+		err = d.loadRawLXCConfig(cc)
 		if err != nil {
 			// Release the liblxc instance.
 			_ = cc.Release()
@@ -4299,7 +4302,12 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// Apply the live changes
 	if isRunning {
-		cg, err := d.cgroup(nil)
+		cc, err := d.initLXC(false)
+		if err != nil {
+			return err
+		}
+
+		cg, err := d.cgroup(cc)
 		if err != nil {
 			return err
 		}
@@ -6334,18 +6342,19 @@ func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 		}
 	} else {
 		// Load the go-lxc struct
+		var cc *liblxc.Container
 		if d.expandedConfig["raw.lxc"] != "" {
-			err = d.initLXC(true)
+			cc, err = d.initLXC(true)
 			if err != nil {
 				return err
 			}
 
-			err = d.loadRawLXCConfig()
+			err = d.loadRawLXCConfig(cc)
 			if err != nil {
 				return err
 			}
 		} else {
-			err = d.initLXC(false)
+			cc, err = d.initLXC(false)
 			if err != nil {
 				return err
 			}
@@ -6386,7 +6395,7 @@ func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 			args.Stop = false
 		}
 
-		migrateErr = d.c.Migrate(args.Cmd, opts)
+		migrateErr = cc.Migrate(args.Cmd, opts)
 	}
 
 	collectErr := collectCRIULogFile(d, finalStateDir, args.Function, prettyCmd)
@@ -6912,7 +6921,12 @@ func (d *lxc) Console(protocol string) (*os.File, chan error, error) {
 
 // ConsoleLog returns console log.
 func (d *lxc) ConsoleLog(opts liblxc.ConsoleLogOptions) (string, error) {
-	msg, err := d.c.ConsoleLog(opts)
+	cc, err := d.initLXC(false)
+	if err != nil {
+		return "", err
+	}
+
+	msg, err := cc.ConsoleLog(opts)
 	if err != nil {
 		return "", err
 	}
@@ -7032,8 +7046,13 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 func (d *lxc) cpuState() api.InstanceStateCPU {
 	cpu := api.InstanceStateCPU{}
 
+	cc, err := d.initLXC(false)
+	if err != nil {
+		return cpu
+	}
+
 	// CPU usage in seconds
-	cg, err := d.cgroup(nil)
+	cg, err := d.cgroup(cc)
 	if err != nil {
 		return cpu
 	}
@@ -7111,7 +7130,13 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 
 func (d *lxc) memoryState() api.InstanceStateMemory {
 	memory := api.InstanceStateMemory{}
-	cg, err := d.cgroup(nil)
+
+	cc, err := d.initLXC(false)
+	if err != nil {
+		return memory
+	}
+
+	cg, err := d.cgroup(cc)
 	if err != nil {
 		return memory
 	}
@@ -7236,7 +7261,12 @@ func (d *lxc) processesState(pid int) (int64, error) {
 		return 0, fmt.Errorf("PID of LXC instance could not be initialized")
 	}
 
-	cg, err := d.cgroup(nil)
+	cc, err := d.initLXC(false)
+	if err != nil {
+		return -1, err
+	}
+
+	cg, err := d.cgroup(cc)
 	if err != nil {
 		return 0, err
 	}
@@ -7852,13 +7882,13 @@ func (d *lxc) removeDiskDevices() error {
 // Network I/O limits.
 func (d *lxc) setNetworkPriority() error {
 	// Load the go-lxc struct.
-	err := d.initLXC(false)
+	cc, err := d.initLXC(false)
 	if err != nil {
 		return err
 	}
 
 	// Load the cgroup struct.
-	cg, err := d.cgroup(nil)
+	cg, err := d.cgroup(cc)
 	if err != nil {
 		return err
 	}
@@ -7968,29 +7998,29 @@ func (d *lxc) LockExclusive() (*operationlock.InstanceOperation, error) {
 // InitPID returns PID of init process.
 func (d *lxc) InitPID() int {
 	// Load the go-lxc struct
-	err := d.initLXC(false)
+	cc, err := d.initLXC(false)
 	if err != nil {
 		return -1
 	}
 
-	return d.c.InitPid()
+	return cc.InitPid()
 }
 
 // InitPidFd returns pidfd of init process.
 func (d *lxc) InitPidFd() (*os.File, error) {
 	// Load the go-lxc struct
-	err := d.initLXC(false)
+	cc, err := d.initLXC(false)
 	if err != nil {
 		return nil, err
 	}
 
-	return d.c.InitPidFd()
+	return cc.InitPidFd()
 }
 
 // DevptsFd returns dirfd of devpts mount.
 func (d *lxc) DevptsFd() (*os.File, error) {
 	// Load the go-lxc struct
-	err := d.initLXC(false)
+	cc, err := d.initLXC(false)
 	if err != nil {
 		return nil, err
 	}
@@ -8001,7 +8031,7 @@ func (d *lxc) DevptsFd() (*os.File, error) {
 		return nil, fmt.Errorf("Missing devpts_fd extension")
 	}
 
-	return d.c.DevptsFd()
+	return cc.DevptsFd()
 }
 
 // CurrentIdmap returns current IDMAP.
@@ -8078,12 +8108,12 @@ func (d *lxc) LogFilePath() string {
 
 func (d *lxc) CGroup() (*cgroup.CGroup, error) {
 	// Load the go-lxc struct
-	err := d.initLXC(false)
+	cc, err := d.initLXC(false)
 	if err != nil {
 		return nil, err
 	}
 
-	return d.cgroup(nil)
+	return d.cgroup(cc)
 }
 
 func (d *lxc) cgroup(cc *liblxc.Container) (*cgroup.CGroup, error) {
@@ -8164,8 +8194,13 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 		return nil, ErrInstanceIsStopped
 	}
 
+	cc, err := d.initLXC(false)
+	if err != nil {
+		return nil, err
+	}
+
 	// Load cgroup abstraction
-	cg, err := d.cgroup(nil)
+	cg, err := d.cgroup(cc)
 	if err != nil {
 		return nil, err
 	}
