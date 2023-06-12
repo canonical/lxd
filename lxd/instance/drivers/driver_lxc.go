@@ -8091,8 +8091,6 @@ func (d *lxc) cgroup(cc *liblxc.Container) (*cgroup.CGroup, error) {
 	if cc != nil {
 		rw.cc = cc
 		rw.conf = true
-	} else {
-		rw.cc = d.c
 	}
 
 	if rw.cc == nil {
