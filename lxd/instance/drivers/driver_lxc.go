@@ -363,6 +363,9 @@ func lxcUnload(d *lxc) {
 
 // release releases any internal reference to a liblxc container, invalidating the go-lxc cache.
 func (d *lxc) release() {
+	d.cMu.Lock()
+	defer d.cMu.Unlock()
+
 	if d.c != nil {
 		_ = d.c.Release()
 		d.c = nil
@@ -423,10 +426,13 @@ type lxc struct {
 	// Config handling.
 	fromHook bool
 
+	cMu sync.Mutex
+
 	// Cached handles.
 	// Do not use these variables directly, instead use their associated get functions so they
 	// will be initialised on demand.
-	c        *liblxc.Container
+	c *liblxc.Container // Use d.initLXC() instead of accessing this directly.
+
 	cConfig  bool
 	idmapset *idmap.IdmapSet
 }
@@ -626,20 +632,23 @@ func (d *lxc) init() error {
 	return nil
 }
 
-func (d *lxc) initLXC(config bool) error {
+func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
+	d.cMu.Lock()
+	defer d.cMu.Unlock()
+
 	// No need to go through all that for snapshots
 	if d.IsSnapshot() {
-		return nil
+		return nil, nil
 	}
 
 	// Check if being called from a hook
 	if d.fromHook {
-		return fmt.Errorf("You can't use go-lxc from inside a LXC hook")
+		return nil, fmt.Errorf("You can't use go-lxc from inside a LXC hook")
 	}
 
 	// Check if already initialized
 	if d.c != nil && (!config || d.cConfig) {
-		return nil
+		return d.c, nil
 	}
 
 	revert := revert.New()
@@ -649,7 +658,7 @@ func (d *lxc) initLXC(config bool) error {
 	cname := project.Instance(d.Project().Name, d.Name())
 	cc, err := liblxc.NewContainer(cname, d.state.OS.LxcPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	revert.Add(func() {
@@ -659,14 +668,14 @@ func (d *lxc) initLXC(config bool) error {
 	// Load cgroup abstraction
 	cg, err := d.cgroup(cc)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Setup logging
 	logfile := d.LogFilePath()
 	err = lxcSetConfigItem(cc, "lxc.log.file", logfile)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	logLevel := "warn"
@@ -678,19 +687,19 @@ func (d *lxc) initLXC(config bool) error {
 
 	err = lxcSetConfigItem(cc, "lxc.log.level", logLevel)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
 		// Default size log buffer
 		err = lxcSetConfigItem(cc, "lxc.console.buffer.size", "auto")
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		err = lxcSetConfigItem(cc, "lxc.console.size", "auto")
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// File to dump ringbuffer contents to when requested or
@@ -698,19 +707,19 @@ func (d *lxc) initLXC(config bool) error {
 		consoleBufferLogFile := d.ConsoleBufferLogPath()
 		err = lxcSetConfigItem(cc, "lxc.console.logfile", consoleBufferLogFile)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	if d.state.OS.ContainerCoreScheduling {
 		err = lxcSetConfigItem(cc, "lxc.sched.core", "1")
 		if err != nil {
-			return err
+			return nil, err
 		}
 	} else if d.state.OS.CoreScheduling {
 		err = lxcSetConfigItem(cc, "lxc.hook.start-host", fmt.Sprintf("/proc/%d/exe forkcoresched 1", os.Getpid()))
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -724,7 +733,7 @@ func (d *lxc) initLXC(config bool) error {
 		d.c = cc
 
 		revert.Success()
-		return nil
+		return cc, err
 	}
 
 	if d.IsPrivileged() {
@@ -736,7 +745,7 @@ func (d *lxc) initLXC(config bool) error {
 
 		err = lxcSetConfigItem(cc, "lxc.cap.drop", toDrop)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -763,17 +772,17 @@ func (d *lxc) initLXC(config bool) error {
 
 	err = lxcSetConfigItem(cc, "lxc.mount.auto", strings.Join(mounts, " "))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = lxcSetConfigItem(cc, "lxc.autodev", "1")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = lxcSetConfigItem(cc, "lxc.pty.max", "1024")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	bindMounts := []string{
@@ -792,7 +801,7 @@ func (d *lxc) initLXC(config bool) error {
 	if d.IsPrivileged() && !d.state.OS.RunningInUserNS {
 		err = lxcSetConfigItem(cc, "lxc.mount.entry", "mqueue dev/mqueue mqueue rw,relatime,create=dir,optional 0 0")
 		if err != nil {
-			return err
+			return nil, err
 		}
 	} else {
 		bindMounts = append(bindMounts, "/dev/mqueue")
@@ -806,12 +815,12 @@ func (d *lxc) initLXC(config bool) error {
 		if shared.IsDir(mnt) {
 			err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none rbind,create=dir,optional 0 0", mnt, strings.TrimPrefix(mnt, "/")))
 			if err != nil {
-				return err
+				return nil, err
 			}
 		} else {
 			err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file,optional 0 0", mnt, strings.TrimPrefix(mnt, "/")))
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
@@ -825,7 +834,7 @@ func (d *lxc) initLXC(config bool) error {
 	if shared.PathExists(fmt.Sprintf("%s/common.conf.d/", templateConfDir)) {
 		err = lxcSetConfigItem(cc, "lxc.include", fmt.Sprintf("%s/common.conf.d/", templateConfDir))
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -838,7 +847,7 @@ func (d *lxc) initLXC(config bool) error {
 		}
 
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		devices := []string{
@@ -865,7 +874,7 @@ func (d *lxc) initLXC(config bool) error {
 			}
 
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
@@ -877,12 +886,12 @@ func (d *lxc) initLXC(config bool) error {
 		 */
 		err = lxcSetConfigItem(cc, "lxc.mount.entry", "proc dev/.lxc/proc proc create=dir,optional 0 0")
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		err = lxcSetConfigItem(cc, "lxc.mount.entry", "sys dev/.lxc/sys sysfs create=dir,optional 0 0")
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -891,56 +900,56 @@ func (d *lxc) initLXC(config bool) error {
 	if err != nil {
 		personality, err = osarch.ArchitecturePersonality(d.state.OS.Architectures[0])
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	err = lxcSetConfigItem(cc, "lxc.arch", personality)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Setup the hooks
 	err = lxcSetConfigItem(cc, "lxc.hook.version", "1")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Call the onstart hook on start.
 	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/proc/%d/exe callhook %s %s %s start", os.Getpid(), shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Call the onstopns hook on stop but before namespaces are unmounted.
 	err = lxcSetConfigItem(cc, "lxc.hook.stop", fmt.Sprintf("%s callhook %s %s %s stopns", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Call the onstop hook on stop.
 	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %s %s stop", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Setup the console
 	err = lxcSetConfigItem(cc, "lxc.tty.max", "0")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Setup the hostname
 	err = lxcSetConfigItem(cc, "lxc.uts.name", d.Name())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Setup devlxd
 	if shared.IsTrueOrEmpty(d.expandedConfig["security.devlxd"]) {
 		err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s dev/lxd none bind,create=dir 0 0", shared.VarPath("devlxd")))
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -952,7 +961,7 @@ func (d *lxc) initLXC(config bool) error {
 			curProfile = strings.TrimSuffix(curProfile, " (enforce)")
 			err := lxcSetConfigItem(cc, "lxc.apparmor.profile", curProfile)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		} else {
 			// If not currently confined, use the container's profile
@@ -971,7 +980,7 @@ func (d *lxc) initLXC(config bool) error {
 
 			err := lxcSetConfigItem(cc, "lxc.apparmor.profile", profile)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	} else {
@@ -984,7 +993,7 @@ func (d *lxc) initLXC(config bool) error {
 	if seccomp.InstanceNeedsPolicy(d) {
 		err = lxcSetConfigItem(cc, "lxc.seccomp.profile", seccomp.ProfilePath(d))
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Setup notification socket
@@ -993,7 +1002,7 @@ func (d *lxc) initLXC(config bool) error {
 		if err == nil && ok {
 			err = lxcSetConfigItem(cc, "lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
@@ -1001,7 +1010,7 @@ func (d *lxc) initLXC(config bool) error {
 	// Setup idmap
 	idmapset, err := d.NextIdmap()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if idmapset != nil {
@@ -1009,7 +1018,7 @@ func (d *lxc) initLXC(config bool) error {
 		for _, line := range lines {
 			err := lxcSetConfigItem(cc, "lxc.idmap", line)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
@@ -1019,7 +1028,7 @@ func (d *lxc) initLXC(config bool) error {
 		if strings.HasPrefix(k, "environment.") {
 			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("%s=%s", strings.TrimPrefix(k, "environment."), v))
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
@@ -1033,29 +1042,29 @@ func (d *lxc) initLXC(config bool) error {
 
 		hookPath := filepath.Join(hookDir, "nvidia")
 		if !shared.PathExists(hookPath) {
-			return fmt.Errorf("The NVIDIA LXC hook couldn't be found")
+			return nil, fmt.Errorf("The NVIDIA LXC hook couldn't be found")
 		}
 
 		_, err := exec.LookPath("nvidia-container-cli")
 		if err != nil {
-			return fmt.Errorf("The NVIDIA container tools couldn't be found")
+			return nil, fmt.Errorf("The NVIDIA container tools couldn't be found")
 		}
 
 		err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_VISIBLE_DEVICES=none")
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		nvidiaDriver := d.expandedConfig["nvidia.driver.capabilities"]
 		if nvidiaDriver == "" {
 			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_DRIVER_CAPABILITIES=compute,utility")
 			if err != nil {
-				return err
+				return nil, err
 			}
 		} else {
 			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_DRIVER_CAPABILITIES=%s", nvidiaDriver))
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 
@@ -1063,7 +1072,7 @@ func (d *lxc) initLXC(config bool) error {
 		if nvidiaRequireCuda == "" {
 			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_REQUIRE_CUDA=%s", nvidiaRequireCuda))
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 
@@ -1071,13 +1080,13 @@ func (d *lxc) initLXC(config bool) error {
 		if nvidiaRequireDriver == "" {
 			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_REQUIRE_DRIVER=%s", nvidiaRequireDriver))
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 
 		err = lxcSetConfigItem(cc, "lxc.hook.mount", hookPath)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -1094,49 +1103,49 @@ func (d *lxc) initLXC(config bool) error {
 			if strings.HasSuffix(memory, "%") {
 				percent, err := strconv.ParseInt(strings.TrimSuffix(memory, "%"), 10, 64)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				memoryTotal, err := shared.DeviceTotalMemory()
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				valueInt = int64((memoryTotal / 100) * percent)
 			} else {
 				valueInt, err = units.ParseByteSizeString(memory)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 
 			if memoryEnforce == "soft" {
 				err = cg.SetMemorySoftLimit(valueInt)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			} else {
 				if d.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) && shared.IsTrueOrEmpty(memorySwap) {
 					err = cg.SetMemoryLimit(valueInt)
 					if err != nil {
-						return err
+						return nil, err
 					}
 
 					err = cg.SetMemorySwapLimit(0)
 					if err != nil {
-						return err
+						return nil, err
 					}
 				} else {
 					err = cg.SetMemoryLimit(valueInt)
 					if err != nil {
-						return err
+						return nil, err
 					}
 				}
 
 				// Set soft limit to value 10% less than hard limit
 				err = cg.SetMemorySoftLimit(int64(float64(valueInt) * 0.9))
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 		}
@@ -1146,18 +1155,18 @@ func (d *lxc) initLXC(config bool) error {
 			if shared.IsFalse(memorySwap) {
 				err = cg.SetMemorySwappiness(0)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			} else if memorySwapPriority != "" {
 				priority, err := strconv.Atoi(memorySwapPriority)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				// Maximum priority (10) should be default swappiness (60).
 				err = cg.SetMemorySwappiness(int64(70 - priority))
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 		}
@@ -1170,20 +1179,20 @@ func (d *lxc) initLXC(config bool) error {
 	if (cpuPriority != "" || cpuAllowance != "") && d.state.OS.CGInfo.Supports(cgroup.CPU, cg) {
 		cpuShares, cpuCfsQuota, cpuCfsPeriod, err := cgroup.ParseCPU(cpuAllowance, cpuPriority)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		if cpuShares != 1024 {
 			err = cg.SetCPUShare(cpuShares)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 
 		if cpuCfsPeriod != -1 && cpuCfsQuota != -1 {
 			err = cg.SetCPUCfsLimit(cpuCfsPeriod, cpuCfsQuota)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
@@ -1194,7 +1203,7 @@ func (d *lxc) initLXC(config bool) error {
 		if d.state.OS.CGInfo.Supports(cgroup.BlkioWeight, nil) {
 			priorityInt, err := strconv.Atoi(diskPriority)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			priority := priorityInt * 100
@@ -1206,10 +1215,10 @@ func (d *lxc) initLXC(config bool) error {
 
 			err = cg.SetBlkioWeight(int64(priority))
 			if err != nil {
-				return err
+				return nil, err
 			}
 		} else {
-			return fmt.Errorf("Cannot apply limits.disk.priority as blkio.weight cgroup controller is missing")
+			return nil, fmt.Errorf("Cannot apply limits.disk.priority as blkio.weight cgroup controller is missing")
 		}
 	}
 
@@ -1219,12 +1228,12 @@ func (d *lxc) initLXC(config bool) error {
 		if processes != "" {
 			valueInt, err := strconv.ParseInt(processes, 10, 64)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			err = cg.SetMaxProcesses(valueInt)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
@@ -1236,12 +1245,12 @@ func (d *lxc) initLXC(config bool) error {
 			if value != "" {
 				value, err := units.ParseByteSizeString(value)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				err = cg.SetHugepagesLimit(shared.HugePageSizeSuffix[i], value)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 		}
@@ -1254,7 +1263,7 @@ func (d *lxc) initLXC(config bool) error {
 			prlimitKey := fmt.Sprintf("lxc.prlimit.%s", prlimitSuffix)
 			err = lxcSetConfigItem(cc, prlimitKey, v)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
@@ -1266,7 +1275,7 @@ func (d *lxc) initLXC(config bool) error {
 			sysctlKey := fmt.Sprintf("lxc.sysctl.%s", sysctlSuffix)
 			err = lxcSetConfigItem(cc, sysctlKey, v)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
@@ -1279,7 +1288,7 @@ func (d *lxc) initLXC(config bool) error {
 	}
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if d.c != nil {
@@ -1288,7 +1297,7 @@ func (d *lxc) initLXC(config bool) error {
 
 	d.c = cc
 	revert.Success()
-	return nil
+	return cc, err
 }
 
 var idmappedStorageMap map[unix.Fsid]idmap.IdmapStorageType = map[unix.Fsid]idmap.IdmapStorageType{}
