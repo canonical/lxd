@@ -117,8 +117,7 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 			return err
 		}
 
-		_, err = instanceCreateFromImage(s, r, img, args, op)
-		return err
+		return instanceCreateFromImage(s, r, img, args, op)
 	}
 
 	resources := map[string][]string{}
