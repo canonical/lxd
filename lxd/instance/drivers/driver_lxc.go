@@ -8460,7 +8460,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 	return out, nil
 }
 
-func (d *lxc) loadRawLXCConfig() error {
+func (d *lxc) loadRawLXCConfig(cc *liblxc.Container) error {
 	// Load the LXC raw config.
 	lxcConfig, ok := d.expandedConfig["raw.lxc"]
 	if !ok {
@@ -8484,7 +8484,7 @@ func (d *lxc) loadRawLXCConfig() error {
 	}
 
 	// Load the config.
-	err = d.c.LoadConfigFile(f.Name())
+	err = cc.LoadConfigFile(f.Name())
 	if err != nil {
 		return fmt.Errorf("Failed to load config file %q: %w", f.Name(), err)
 	}
