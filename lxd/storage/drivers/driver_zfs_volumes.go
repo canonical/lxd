@@ -1064,17 +1064,18 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 		}
 	}
 
+	if !volTargetArgs.Refresh {
+		revert.Add(func() {
+			_ = d.DeleteVolume(vol, op)
+		})
+	}
+
 	// Transfer the main volume.
 	wrapper := migration.ProgressWriter(op, "fs_progress", vol.name)
 	err = d.receiveDataset(vol, conn, wrapper)
 	if err != nil {
-		_ = d.DeleteVolume(vol, op)
 		return fmt.Errorf("Failed receiving volume %q: %w", vol.Name(), err)
 	}
-
-	revert.Add(func() {
-		_ = d.DeleteVolume(vol, op)
-	})
 
 	// Strip internal snapshots.
 	entries, err := d.getDatasets(d.dataset(vol, false))
