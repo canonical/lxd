@@ -1196,7 +1196,7 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 	if config.PasswordCallback != nil {
 		fmt.Printf("Login with username %q and password %q\n", authUser, authPass)
 	} else {
-		fmt.Printf("Login without username and password\n")
+		fmt.Println("Login without username and password")
 	}
 
 	for {
