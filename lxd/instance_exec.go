@@ -549,7 +549,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if client != nil {
-		url := api.NewURL().Path("1.0", "instances", name, "exec").Project(projectName)
+		url := api.NewURL().Path(version.APIVersion, "instances", name, "exec").Project(projectName)
 		resp, _, err := client.RawQuery("POST", url.String(), post, "")
 		if err != nil {
 			return response.SmartError(err)
