@@ -1775,9 +1775,22 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		volumeDescription = args.Description
 	}
 
-	// Check if the volume exists on storage.
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 	vol := b.GetVolume(volType, contentType, volStorageName, volumeConfig)
+
+	// Ensure storage volume settings are honored when doing migration.
+	// This is only done for non-optimized migration because some storage volume settings,
+	// in particular block mode, cannot be honored when doing optimized migration.
+	if args.MigrationType.FSType == migration.MigrationFSType_RSYNC || args.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
+		vol.SetHasSource(false)
+
+		err = b.driver.FillVolumeConfig(vol)
+		if err != nil {
+			return fmt.Errorf("Failed filling volume config: %w", err)
+		}
+	}
+
+	// Check if the volume exists on storage.
 	volExists, err := b.driver.HasVolume(vol)
 	if err != nil {
 		return err
@@ -1812,7 +1825,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		} else {
 			// Validate config and create database entry for new storage volume if not refreshing.
 			// Strip unsupported config keys (in case the export was made from a different type of storage pool).
-			err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), volumeDescription, volType, false, volumeConfig, inst.CreationDate(), time.Time{}, contentType, true, true)
+			err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), volumeDescription, volType, false, vol.Config(), inst.CreationDate(), time.Time{}, contentType, true, true)
 			if err != nil {
 				return err
 			}
@@ -1824,7 +1837,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	if !isRemoteClusterMove {
 		for i, snapName := range args.Snapshots {
 			newSnapshotName := drivers.GetSnapshotVolumeName(inst.Name(), snapName)
-			snapConfig := volumeConfig           // Use parent volume config by default.
+			snapConfig := vol.Config()           // Use parent volume config by default.
 			snapDescription := volumeDescription // Use parent volume description by default.
 			snapExpiryDate := time.Time{}
 			snapCreationDate := time.Time{}
