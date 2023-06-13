@@ -27,6 +27,9 @@ test_fdleak() {
     exit 0
   )
 
+  # Check for open handles to liblxc lxc.log files.
+  ! find "/proc/${pid}/fd" -ls | grep lxc.log || false
+
   for i in $(seq 20); do
     afterfds=$(/bin/ls "/proc/${pid}/fd" | wc -l)
     leakedfds=$((afterfds - beforefds))
