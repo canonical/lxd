@@ -1769,11 +1769,24 @@ func clusterRolesChanged(oldRoles []db.ClusterRole, newRoles []db.ClusterRole) b
 // clusterValidateConfig validates the configuration keys/values for cluster members.
 func clusterValidateConfig(config map[string]string) error {
 	clusterConfigKeys := map[string]func(value string) error{
+		// lxddoc:generate(group=cluster, key=scheduler.instance)
+		//
+		// ---
+		//  shortdesc: Possible values are `all`, `manual` and `group`. See {ref}`clustering-instance-placement` for more information.
+		//  default: `all`
+		//  type: string
 		"scheduler.instance": validate.Optional(validate.IsOneOf("all", "group", "manual")),
 	}
 
 	for k, v := range config {
 		// User keys are free for all.
+
+		// lxddoc:generate(group=cluster, key=user.*)
+		//
+		// ---
+		//  shortdesc: Free form user key/value storage (can be used in search).
+		//  default: -
+		//  type: string
 		if strings.HasPrefix(k, "user.") {
 			continue
 		}
