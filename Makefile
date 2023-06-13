@@ -50,6 +50,12 @@ lxd-migrate:
 	CGO_ENABLED=0 go install -v -tags netgo ./lxd-migrate
 	@echo "LXD-MIGRATE built successfully"
 
+.PHONY: lxd-doc
+lxd-doc:
+	@go version > /dev/null 2>&1 || (echo "go is not installed for lxd-doc installation." && exit 1)
+	cd lxd/config/generate && CGO_ENABLED=0 go build -o $(GOPATH)/bin/lxd-doc
+	@echo "LXD-DOC built successfully"
+
 .PHONY: deps
 deps:
 	@if [ ! -e "$(RAFT_PATH)" ]; then \
@@ -125,11 +131,12 @@ doc-setup:
 	rm -Rf doc/html
 
 .PHONY: doc
-doc: doc-setup doc-incremental
+doc: lxd-doc doc-setup doc-incremental
 
 .PHONY: doc-incremental
 doc-incremental:
 	@echo "Build the documentation"
+	$(GOPATH)/bin/lxd-doc ./lxd -y ./doc/config_options.yaml -t ./doc/config_options.txt
 	. $(SPHINXENV) ; sphinx-build -c .sphinx/ -b dirhtml doc/ doc/html/ -w .sphinx/warnings.txt
 
 .PHONY: doc-serve
