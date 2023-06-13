@@ -22,17 +22,17 @@ func PrintServerInfo(c lxd.ContainerServer) error {
 	}
 
 	env := server.Environment
-	fmt.Printf("Test environment:\n")
-	fmt.Printf("  Server backend: %s\n", env.Server)
-	fmt.Printf("  Server version: %s\n", env.ServerVersion)
-	fmt.Printf("  Kernel: %s\n", env.Kernel)
-	fmt.Printf("  Kernel architecture: %s\n", env.KernelArchitecture)
-	fmt.Printf("  Kernel version: %s\n", env.KernelVersion)
-	fmt.Printf("  Storage backend: %s\n", env.Storage)
-	fmt.Printf("  Storage version: %s\n", env.StorageVersion)
-	fmt.Printf("  Container backend: %s\n", env.Driver)
-	fmt.Printf("  Container version: %s\n", env.DriverVersion)
-	fmt.Printf("\n")
+	fmt.Println("Test environment:")
+	fmt.Println("  Server backend:", env.Server)
+	fmt.Println("  Server version:", env.ServerVersion)
+	fmt.Println("  Kernel:", env.Kernel)
+	fmt.Println("  Kernel tecture:", env.KernelArchitecture)
+	fmt.Println("  Kernel version:", env.KernelVersion)
+	fmt.Println("  Storage backend:", env.Storage)
+	fmt.Println("  Storage version:", env.StorageVersion)
+	fmt.Println("  Container backend:", env.Driver)
+	fmt.Println("  Container version:", env.DriverVersion)
+	fmt.Println("")
 	return nil
 }
 
