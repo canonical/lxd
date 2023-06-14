@@ -3576,6 +3576,7 @@ test_clustering_events() {
 
   # Check events were distributed.
   for i in 1 2 3; do
+    cat "${TEST_DIR}/node${i}.log"
     grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log" | grep -Fx 2
   done
 
@@ -3603,6 +3604,7 @@ test_clustering_events() {
 
   # Check events were distributed.
   for i in 1 2 3; do
+    cat "${TEST_DIR}/node${i}.log"
     grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log" | grep -Fx 4
   done
 
