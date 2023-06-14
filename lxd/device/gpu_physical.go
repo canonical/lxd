@@ -120,42 +120,44 @@ func (d *gpuPhysical) startContainer() (*deviceConfig.RunConfig, error) {
 		found = true
 
 		// Setup DRM unix-char devices if present.
-		if gpu.DRM.CardName != "" && gpu.DRM.CardDevice != "" && shared.PathExists(filepath.Join(gpuDRIDevPath, gpu.DRM.CardName)) {
-			path := filepath.Join(gpuDRIDevPath, gpu.DRM.CardName)
-			major, minor, err := d.deviceNumStringToUint32(gpu.DRM.CardDevice)
-			if err != nil {
-				return nil, err
+		if gpu.DRM != nil {
+			if gpu.DRM.CardName != "" && gpu.DRM.CardDevice != "" && shared.PathExists(filepath.Join(gpuDRIDevPath, gpu.DRM.CardName)) {
+				path := filepath.Join(gpuDRIDevPath, gpu.DRM.CardName)
+				major, minor, err := d.deviceNumStringToUint32(gpu.DRM.CardDevice)
+				if err != nil {
+					return nil, err
+				}
+
+				err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
+				if err != nil {
+					return nil, err
+				}
 			}
 
-			err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
-			if err != nil {
-				return nil, err
-			}
-		}
+			if gpu.DRM.RenderName != "" && gpu.DRM.RenderDevice != "" && shared.PathExists(filepath.Join(gpuDRIDevPath, gpu.DRM.RenderName)) {
+				path := filepath.Join(gpuDRIDevPath, gpu.DRM.RenderName)
+				major, minor, err := d.deviceNumStringToUint32(gpu.DRM.RenderDevice)
+				if err != nil {
+					return nil, err
+				}
 
-		if gpu.DRM.RenderName != "" && gpu.DRM.RenderDevice != "" && shared.PathExists(filepath.Join(gpuDRIDevPath, gpu.DRM.RenderName)) {
-			path := filepath.Join(gpuDRIDevPath, gpu.DRM.RenderName)
-			major, minor, err := d.deviceNumStringToUint32(gpu.DRM.RenderDevice)
-			if err != nil {
-				return nil, err
-			}
-
-			err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if gpu.DRM.ControlName != "" && gpu.DRM.ControlDevice != "" && shared.PathExists(filepath.Join(gpuDRIDevPath, gpu.DRM.ControlName)) {
-			path := filepath.Join(gpuDRIDevPath, gpu.DRM.ControlName)
-			major, minor, err := d.deviceNumStringToUint32(gpu.DRM.ControlDevice)
-			if err != nil {
-				return nil, err
+				err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
+				if err != nil {
+					return nil, err
+				}
 			}
 
-			err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
-			if err != nil {
-				return nil, err
+			if gpu.DRM.ControlName != "" && gpu.DRM.ControlDevice != "" && shared.PathExists(filepath.Join(gpuDRIDevPath, gpu.DRM.ControlName)) {
+				path := filepath.Join(gpuDRIDevPath, gpu.DRM.ControlName)
+				major, minor, err := d.deviceNumStringToUint32(gpu.DRM.ControlDevice)
+				if err != nil {
+					return nil, err
+				}
+
+				err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 
