@@ -167,20 +167,20 @@ test_container_devices_nic_bridged_acl() {
   ping -c1 -6 2001:db8::2
 
   # Check egress TCP.
-  lxc exec "${ctPrefix}A" -- nc -w2 192.0.2.1 53
-  lxc exec "${ctPrefix}A" -- nc -w2 2001:db8::1 53
+  lxc exec "${ctPrefix}A" --disable-stdin -- nc -w2 192.0.2.1 53
+  lxc exec "${ctPrefix}A" --disable-stdin -- nc -w2 2001:db8::1 53
 
   nc -l -p 8080 -q0 -s 192.0.2.1 </dev/null >/dev/null &
   nc -l -p 8080 -q0 -s 2001:db8::1 </dev/null >/dev/null &
 
-  ! lxc exec "${ctPrefix}A" -- nc -w2 192.0.2.1 8080 || false
-  ! lxc exec "${ctPrefix}A" -- nc -w2 2001:db8::1 8080 || false
+  ! lxc exec "${ctPrefix}A" --disable-stdin -- nc -w2 192.0.2.1 8080 || false
+  ! lxc exec "${ctPrefix}A" --disable-stdin -- nc -w2 2001:db8::1 8080 || false
 
   lxc network acl rule add "${brName}A" egress action=allow destination=192.0.2.1/32 protocol=tcp destination_port=8080
   lxc network acl rule add "${brName}A" egress action=allow destination=2001:db8::1/128 protocol=tcp destination_port=8080
 
-  lxc exec "${ctPrefix}A" -- nc -w2 192.0.2.1 8080
-  lxc exec "${ctPrefix}A" -- nc -w2 2001:db8::1 8080
+  lxc exec "${ctPrefix}A" --disable-stdin -- nc -w2 192.0.2.1 8080
+  lxc exec "${ctPrefix}A" --disable-stdin -- nc -w2 2001:db8::1 8080
 
   # Check can't delete ACL that is in use.
   ! lxc network acl delete "${brName}A" || false
