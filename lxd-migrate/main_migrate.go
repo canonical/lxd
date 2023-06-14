@@ -349,8 +349,8 @@ func (c *cmdMigrate) RunInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 				return cmdMigrateData{}, err
 			}
 
-			if hasSecureBoot {
-				config.InstanceArgs.Config["security.secureboot"] = "true"
+			if !hasSecureBoot {
+				config.InstanceArgs.Config["security.secureboot"] = "false"
 			}
 		}
 	}
