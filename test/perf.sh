@@ -54,7 +54,7 @@ trap cleanup EXIT HUP INT TERM
 TEST_DIR=$(mktemp -d -p "$(pwd)" tmp.XXX)
 
 if [ -n "${LXD_TMPFS:-}" ]; then
-  mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751
+  mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=6G
 fi
 
 LXD_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
