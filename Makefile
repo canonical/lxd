@@ -242,8 +242,7 @@ po/%.po: po/$(DOMAIN).pot
 update-po:
 	set -eu; \
 	for lang in $(LINGUAS); do\
-	    msgmerge -U $$lang.po po/$(DOMAIN).pot; \
-	    rm -f $$lang.po~; \
+	    msgmerge --backup=none -U $$lang.po po/$(DOMAIN).pot; \
 	done
 
 .PHONY: update-pot
