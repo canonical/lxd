@@ -36,6 +36,10 @@ func (d *mock) Info() Info {
 	}
 }
 
+func (d *mock) FillConfig() error {
+	return nil
+}
+
 func (d *mock) Create() error {
 	return nil
 }
