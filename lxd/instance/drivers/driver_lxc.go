@@ -2840,6 +2840,11 @@ func (d *lxc) Restart(timeout time.Duration) error {
 	return d.restartCommon(d, timeout)
 }
 
+// Rebuild rebuilds the instance using the supplied image fingerprint as source.
+func (d *lxc) Rebuild(img *api.Image, op *operations.Operation) error {
+	return d.rebuildCommon(d, img, op)
+}
+
 // onStopNS is triggered by LXC's stop hook once a container is shutdown but before the container's
 // namespaces have been closed. The netns path of the stopped container is provided.
 func (d *lxc) onStopNS(args map[string]string) error {

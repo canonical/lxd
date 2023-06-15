@@ -2243,3 +2243,6 @@ This introduces:
 Introduce a new `security.csm` configuration key to control the use of
 `CSM` (Compatibility Support Module) to allow legacy operating systems to
 be run in LXD VMs.
+
+## `instances_rebuild`
+This extension adds the ability to rebuild an instance with the same origin image, alternate image or as empty. A new `POST /1.0/instances/<name>/rebuild?project=<project>` API endpoint has been added as well as a new CLI command `lxc rebuild`.
