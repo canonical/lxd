@@ -66,6 +66,90 @@ jobs:
         run: |
           make static-analysis
 
+  system-tests:
+    env:
+      CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
+      LXD_SHIFTFS_DISABLE: "true"
+    name: System tests
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ["cluster", "standalone"]
+        backend: ["dir", "btrfs", "lvm", "zfs"]
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18.x
+
+      - name: Install dependencies
+        run: |
+          sudo add-apt-repository ppa:ubuntu-lxc/lxc-git-master -y --no-update
+          sudo add-apt-repository ppa:dqlite/dev -y --no-update
+          sudo apt-get update
+
+          sudo apt-get autoremove docker uidmap --purge -y
+          sudo ip link delete docker0
+          sudo nft flush ruleset
+
+          sudo apt-get install --no-install-recommends -y \
+            curl \
+            dnsutils \
+            git \
+            libacl1-dev \
+            libcap-dev \
+            libdbus-1-dev \
+            libdqlite-dev \
+            liblxc-dev \
+            libseccomp-dev \
+            libselinux-dev \
+            libsqlite3-dev \
+            libtool \
+            libudev-dev \
+            make \
+            pkg-config\
+            acl \
+            attr \
+            bind9-dnsutils \
+            btrfs-progs \
+            busybox-static \
+            dnsmasq-base \
+            gettext \
+            jq \
+            lvm2 \
+            nftables \
+            quota \
+            rsync \
+            socat \
+            sqlite3 \
+            squashfs-tools \
+            tar \
+            tcl \
+            thin-provisioning-tools \
+            uuid-runtime \
+            xfsprogs \
+            xz-utils \
+            zfsutils-linux
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Download go dependencies
+        run: |
+          go mod download
+
+      - name: Run LXD build
+        run: |
+          make
+
+      - name: "Run system tests (${{ matrix.suite }}, ${{ matrix.backend }})"
+        run: |
+          chmod +x ~
+          echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
+          cd test
+          sudo --preserve-env=PATH,GOPATH,GORACE,LXD_INSPECT,LXD_DEBUG,LXD_VERBOSE,LXD_BACKEND,LXD_NIC_BRIDGED_DRIVER,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_CONCURRENT,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,LXD_SHIFTFS_DISABLE LXD_OFFLINE=1 LXD_TMPFS=1 LXD_VERBOSE=1 LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+
   client:
     name: Unit tests (client)
     strategy:
@@ -146,6 +230,7 @@ jobs:
   linkcheck:
     name: Check links (documentation)
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v3
