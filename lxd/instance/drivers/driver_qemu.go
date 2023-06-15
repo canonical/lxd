@@ -7422,7 +7422,15 @@ func (d *qemu) vsockID() int {
 	// We then add the VM's own instance id (1 or higher) to give us a
 	// unique, non-clashing context ID for our guest.
 
-	return int(d.state.OS.VsockID) + 1 + d.id
+	info := DriverStatuses()[instancetype.VM].Info
+	feature, found := info.Features["vhost_vsock"]
+
+	vsockID, ok := feature.(int)
+	if !found || !ok {
+		vsockID = vsock.Host
+	}
+
+	return vsockID + 1 + d.id
 }
 
 // InitPID returns the instance's current process ID.
@@ -7973,6 +7981,14 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 	// Check if vhost-net accelerator (for NIC CPU offloading) is available.
 	if shared.PathExists("/dev/vhost-net") {
 		features["vhost_net"] = struct{}{}
+	}
+
+	vsockID, err := vsock.ContextID()
+	if err != nil || vsockID > 2147483647 {
+		// Fallback to the default ID for a host system
+		features["vhost_vsock"] = vsock.Host
+	} else {
+		features["vhost_vsock"] = vsockID
 	}
 
 	return features, nil
