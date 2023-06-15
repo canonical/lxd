@@ -12,10 +12,8 @@ concurrency:
 
 jobs:
   static-analysis:
-    env:
-      CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
     name: Static analysis
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Install Go
         uses: actions/setup-go@v3
@@ -27,41 +25,23 @@ jobs:
           sudo add-apt-repository ppa:ubuntu-lxc/lxc-git-master -y --no-update
           sudo add-apt-repository ppa:dqlite/dev -y --no-update
           sudo apt-get update
-          sudo apt-get install -y \
-            acl \
-            attr \
-            autoconf \
-            automake \
-            bind9-dnsutils \
+
+          sudo apt-get install --no-install-recommends -y \
             curl \
-            dnsmasq-base \
-            ebtables \
-            gettext \
             git \
-            jq \
             libacl1-dev \
             libcap-dev \
+            libdbus-1-dev \
             libdqlite-dev \
-            liblxc1 \
             liblxc-dev \
-            liblz4-dev \
             libseccomp-dev \
             libselinux-dev \
             libsqlite3-dev \
             libtool \
             libudev-dev \
-            libuv1-dev \
-            libdbus-1-dev \
-            lxc \
             make \
-            pkg-config \
-            rsync \
-            socat \
-            sqlite3 \
-            squashfs-tools \
-            tar \
-            tcl \
-            xz-utils
+            pkg-config
+
           python3 -m pip install flake8
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.46.2
           sudo apt-get remove -y shellcheck
@@ -77,9 +57,12 @@ jobs:
         run: |
           go mod download
 
-      - name: Run static analysis
+      - name: Run LXD build
         run: |
           make
+
+      - name: Run static analysis
+        run: |
           make static-analysis
 
   client:
