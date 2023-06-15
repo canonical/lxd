@@ -14,11 +14,11 @@ for fn in $(find doc/ -name '*.md'); do
     sed -E "s/(\(.+\)=)/\1\n/" $fn > .tmp/$fn;
 done
 
-mdl .tmp/doc -s.sphinx/.markdownlint/style.rb -u.sphinx/.markdownlint/rules.rb --ignore-front-matter > .tmp/errors.txt || true
+mdl .tmp/doc -sdoc/.sphinx/.markdownlint/style.rb -udoc/.sphinx/.markdownlint/rules.rb --ignore-front-matter > .tmp/errors.txt || true
 
 ## Postprocessing
 
-filtered_errors="$(grep -vxFf .sphinx/.markdownlint/exceptions.txt .tmp/errors.txt)"
+filtered_errors="$(grep -vxFf doc/.sphinx/.markdownlint/exceptions.txt .tmp/errors.txt)"
 if [ "$(echo "$filtered_errors" | wc -l)" = "2" ]; then
     echo "Passed!"
     exit 0
