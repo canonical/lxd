@@ -46,12 +46,22 @@ func (d *dir) Info() Info {
 	}
 }
 
-// Create is called during pool creation and is effectively using an empty driver struct.
-// WARNING: The Create() function cannot rely on any of the struct attributes being set.
-func (d *dir) Create() error {
+// FillConfig populates the storage pool's configuration file with the default values.
+func (d *dir) FillConfig() error {
 	// Set default source if missing.
 	if d.config["source"] == "" {
 		d.config["source"] = GetPoolMountPath(d.name)
+	}
+
+	return nil
+}
+
+// Create is called during pool creation and is effectively using an empty driver struct.
+// WARNING: The Create() function cannot rely on any of the struct attributes being set.
+func (d *dir) Create() error {
+	err := d.FillConfig()
+	if err != nil {
+		return err
 	}
 
 	sourcePath := shared.HostPath(d.config["source"])
