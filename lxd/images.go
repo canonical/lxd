@@ -2572,8 +2572,8 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	resources := map[string][]string{}
-	resources["images"] = []string{imgInfo.Fingerprint}
+	resources := map[string][]api.URL{}
+	resources["images"] = []api.URL{*api.NewURL().Path(version.APIVersion, "images", imgInfo.Fingerprint)}
 
 	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.ImageDelete, resources, nil, do, nil, nil, r)
 	if err != nil {
@@ -2637,7 +2637,7 @@ func imageValidSecret(s *state.State, r *http.Request, projectName string, finge
 			continue
 		}
 
-		if !shared.StringInSlice(fmt.Sprintf("/1.0/images/%s", fingerprint), opImages) {
+		if !shared.StringPrefixInSlice(api.NewURL().Path(version.APIVersion, "images", fingerprint).String(), opImages) {
 			continue
 		}
 
@@ -4341,8 +4341,8 @@ func createTokenResponse(s *state.State, r *http.Request, projectName string, fi
 
 	meta["secret"] = secret
 
-	resources := map[string][]string{}
-	resources["images"] = []string{fingerprint}
+	resources := map[string][]api.URL{}
+	resources["images"] = []api.URL{*api.NewURL().Path(version.APIVersion, "images", fingerprint)}
 
 	op, err := operations.OperationCreate(s, projectName, operations.OperationClassToken, operationtype.ImageToken, resources, meta, nil, nil, nil, r)
 	if err != nil {

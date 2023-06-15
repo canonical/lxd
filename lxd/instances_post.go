@@ -35,6 +35,7 @@ import (
 	apiScriptlet "github.com/lxc/lxd/shared/api/scriptlet"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/lxc/lxd/shared/version"
 )
 
 func ensureDownloadedImageFitWithinBudget(s *state.State, r *http.Request, op *operations.Operation, p api.Project, img *api.Image, imgAlias string, source api.InstanceSource, imgType string) (*api.Image, error) {
@@ -120,8 +121,8 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 		return instanceCreateFromImage(s, r, img, args, op)
 	}
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{req.Name}
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name)}
 
 	if dbType == instancetype.Container {
 		resources["containers"] = resources["instances"]
@@ -170,8 +171,8 @@ func createFromNone(s *state.State, r *http.Request, projectName string, profile
 		return err
 	}
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{req.Name}
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name)}
 
 	if dbType == instancetype.Container {
 		resources["containers"] = resources["instances"]
@@ -373,8 +374,8 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 		return nil
 	}
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{req.Name}
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name)}
 
 	if dbType == instancetype.Container {
 		resources["containers"] = resources["instances"]
@@ -543,8 +544,8 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 		return nil
 	}
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{req.Name, req.Source.Source}
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name), *api.NewURL().Path(version.APIVersion, "instances", req.Source.Source)}
 
 	if dbType == instancetype.Container {
 		resources["containers"] = resources["instances"]
@@ -730,9 +731,8 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		return nil
 	}
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{bInfo.Name}
-	resources["containers"] = resources["instances"]
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", bInfo.Name)}
 
 	op, err := operations.OperationCreate(s, bInfo.Project, operations.OperationClassTask, operationtype.BackupRestore, resources, nil, run, nil, nil, r)
 	if err != nil {
@@ -1322,7 +1322,7 @@ func clusterCopyContainerInternal(s *state.State, r *http.Request, source instan
 	req.Source.Type = "migration"
 	req.Source.Certificate = string(s.Endpoints.NetworkCert().PublicKey())
 	req.Source.Mode = "pull"
-	req.Source.Operation = fmt.Sprintf("https://%s/1.0/operations/%s", nodeAddress, opAPI.ID)
+	req.Source.Operation = fmt.Sprintf("https://%s/%s/operations/%s", nodeAddress, version.APIVersion, opAPI.ID)
 	req.Source.Websockets = websockets
 	req.Source.Source = ""
 	req.Source.Project = ""

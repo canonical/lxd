@@ -216,8 +216,7 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 
 	for _, backup := range backups {
 		if !recursion {
-			url := fmt.Sprintf("/%s/storage-pools/%s/volumes/custom/%s/backups/%s",
-				version.APIVersion, poolName, volumeName, strings.Split(backup.Name(), "/")[1])
+			url := api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", "custom", volumeName, "backups", strings.Split(backup.Name(), "/")[1]).String()
 			resultString = append(resultString, url)
 		} else {
 			render := backup.Render()
@@ -424,9 +423,9 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		return nil
 	}
 
-	resources := map[string][]string{}
-	resources["storage_volumes"] = []string{volumeName}
-	resources["backups"] = []string{req.Name}
+	resources := map[string][]api.URL{}
+	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", volumeTypeName, volumeName)}
+	resources["backups"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", volumeTypeName, volumeName, "backups", req.Name)}
 
 	op, err := operations.OperationCreate(s, projectParam(r), operations.OperationClassTask, operationtype.CustomVolumeBackupCreate, resources, nil, backup, nil, nil, r)
 	if err != nil {
@@ -665,8 +664,9 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 		return nil
 	}
 
-	resources := map[string][]string{}
-	resources["volume"] = []string{volumeName}
+	resources := map[string][]api.URL{}
+	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", volumeTypeName, volumeName)}
+	resources["backups"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", volumeTypeName, volumeName, "backups", oldName)}
 
 	op, err := operations.OperationCreate(s, projectParam(r), operations.OperationClassTask, operationtype.CustomVolumeBackupRename, resources, nil, rename, nil, nil, r)
 	if err != nil {
@@ -778,8 +778,9 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 		return nil
 	}
 
-	resources := map[string][]string{}
-	resources["volume"] = []string{volumeName}
+	resources := map[string][]api.URL{}
+	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", volumeTypeName, volumeName)}
+	resources["backups"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", volumeTypeName, volumeName, "backups", backupName)}
 
 	op, err := operations.OperationCreate(s, projectParam(r), operations.OperationClassTask, operationtype.CustomVolumeBackupRemove, resources, nil, remove, nil, nil, r)
 	if err != nil {
