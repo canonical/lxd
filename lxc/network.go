@@ -72,6 +72,10 @@ func (c *cmdNetwork) Command() *cobra.Command {
 	networkListCmd := cmdNetworkList{global: c.global, network: c}
 	cmd.AddCommand(networkListCmd.Command())
 
+	// List allocations
+	networkListAllocationsCmd := cmdNetworkListAllocations{global: c.global, network: c}
+	cmd.AddCommand(networkListAllocationsCmd.Command())
+
 	// List leases
 	networkListLeasesCmd := cmdNetworkListLeases{global: c.global, network: c}
 	cmd.AddCommand(networkListLeasesCmd.Command())
