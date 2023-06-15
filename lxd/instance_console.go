@@ -27,6 +27,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/version"
 	"github.com/lxc/lxd/shared/ws"
 )
 
@@ -445,7 +446,7 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if client != nil {
-		url := api.NewURL().Path("1.0", "instances", name, "console").Project(projectName)
+		url := api.NewURL().Path(version.APIVersion, "instances", name, "console").Project(projectName)
 		resp, _, err := client.RawQuery("POST", url.String(), post, "")
 		if err != nil {
 			return response.SmartError(err)
@@ -505,8 +506,8 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	ws.height = post.Height
 	ws.protocol = post.Type
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{ws.instance.Name()}
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", ws.instance.Name())}
 
 	if inst.Type() == instancetype.Container {
 		resources["containers"] = resources["instances"]

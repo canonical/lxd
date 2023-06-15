@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // swagger:operation GET /1.0/instances/{name}/state instances instance_state_get
@@ -199,8 +200,8 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 		return doInstanceStatePut(inst, req)
 	}
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{name}
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
 	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, opType, resources, nil, do, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)

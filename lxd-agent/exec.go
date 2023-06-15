@@ -134,7 +134,7 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 	ws.uid = post.User
 	ws.gid = post.Group
 
-	resources := map[string][]string{}
+	resources := map[string][]api.URL{}
 
 	op, err := operations.OperationCreate(nil, "", operations.OperationClassWebsocket, operationtype.CommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect, r)
 	if err != nil {
