@@ -594,6 +594,72 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 	return nil
 }
 
+// rebuildCommon handles the common part of instance rebuilds.
+func (d *common) rebuildCommon(inst instance.Instance, img *api.Image, op *operations.Operation) error {
+	instLocalConfig := d.localConfig
+
+	// Reset the "image.*" keys.
+	for k := range instLocalConfig {
+		if strings.HasPrefix(k, "image.") {
+			delete(instLocalConfig, k)
+		}
+	}
+
+	delete(instLocalConfig, "volatile.base_image")
+	if img != nil {
+		for k, v := range img.Properties {
+			instLocalConfig[fmt.Sprintf("image.%s", k)] = v
+		}
+
+		instLocalConfig["volatile.base_image"] = img.Fingerprint
+		instLocalConfig["volatile.uuid.generation"] = instLocalConfig["volatile.uuid"]
+	}
+
+	// Reset relevant volatile keys.
+	delete(instLocalConfig, "volatile.idmap.next")
+	delete(instLocalConfig, "volatile.last_state.idmap")
+
+	pool, err := d.getStoragePool()
+	if err != nil {
+		return err
+	}
+
+	err = pool.DeleteInstance(inst, op)
+	if err != nil {
+		return err
+	}
+
+	// Rebuild as empty if there is no image provided.
+	if img == nil {
+		return pool.CreateInstance(inst, nil)
+	}
+
+	err = pool.CreateInstanceFromImage(inst, img.Fingerprint, op)
+	if err != nil {
+		return err
+	}
+
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = dbCluster.UpdateInstanceConfig(ctx, tx.Tx(), int64(inst.ID()), instLocalConfig)
+		if err != nil {
+			return err
+		}
+
+		err = tx.UpdateImageLastUseDate(ctx, inst.Project().Name, img.Fingerprint, time.Now().UTC())
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	d.localConfig = instLocalConfig
+	return nil
+}
+
 // runHooks executes the callback functions returned from a function.
 func (d *common) runHooks(hooks []func() error) error {
 	// Run any post start hooks.

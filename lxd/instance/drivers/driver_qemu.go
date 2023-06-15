@@ -55,6 +55,7 @@ import (
 	"github.com/lxc/lxd/lxd/metrics"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/network"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/lxd/response"
@@ -772,6 +773,11 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 // Restart restart the instance.
 func (d *qemu) Restart(timeout time.Duration) error {
 	return d.restartCommon(d, timeout)
+}
+
+// Rebuild rebuilds the instance using the supplied image fingerprint as source.
+func (d *qemu) Rebuild(img *api.Image, op *operations.Operation) error {
+	return d.rebuildCommon(d, img, op)
 }
 
 func (d *qemu) ovmfPath() string {

@@ -618,4 +618,33 @@ test_basic_usage() {
   lxc storage volume delete bla vol1
   lxc storage volume delete bla vol2
   lxc storage delete bla
+
+  # Test rebuilding an instance with its original image.
+  lxc init testimage c1
+  lxc start c1
+  lxc exec c1 -- touch /data.txt
+  lxc stop c1
+  lxc rebuild testimage c1
+  lxc start c1
+  ! lxc exec c1 -- stat /data.txt || false
+  lxc delete c1 -f
+
+  # Test a forced rebuild
+  lxc launch testimage c1
+  lxc rebuild testimage c1 --force
+  lxc start c1
+  lxc delete c1 -f
+
+  # Test rebuilding an instance with a new image.
+  lxc init c1 --empty
+  lxc remote add l1 "${LXD_ADDR}" --accept-certificate --password foo
+  lxc rebuild l1:testimage c1
+  lxc start c1
+  lxc delete c1 -f
+  lxc remote remove l1
+
+  # Test rebuilding an instance with an empty file system.
+  lxc init testimage c1
+  lxc rebuild c1 --empty
+  lxc delete c1 -f
 }

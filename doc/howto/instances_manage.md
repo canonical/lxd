@@ -76,3 +76,22 @@ There are two ways to prevent accidental deletion of instances:
 
 - To protect a specific instance from being deleted, set [`security.protection.delete`](instance-options-security) to `true` for the instance.
   See {ref}`instances-configure` for instructions.
+
+## Rebuild an instance
+
+If you want to wipe and re-initialize the root disk of your instance but keep the instance configuration, you can rebuild the instance.
+
+Rebuilding is only possible for instances that do not have any snapshots.
+
+Stop your instance before rebuilding it.
+Then enter one of the following commands:
+
+- Rebuild the instance with a different image:
+
+        lxc rebuild <image_name> <instance_name>
+
+- Rebuild the instance with an empty root disk:
+
+        lxc rebuild <instance_name> --empty
+
+For more information about the `rebuild` command, see `lxc rebuild --help`.
