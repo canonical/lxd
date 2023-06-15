@@ -177,6 +177,12 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 					return response.SmartError(fmt.Errorf("Failed to initialise unknown pool %q: %w", p.Name, err))
 				}
 
+				// Populate configuration with default values.
+				err := pool.Driver().FillConfig()
+				if err != nil {
+					return response.SmartError(fmt.Errorf("Failed to evaluate the default configuration values for unknown pool %q: %w", p.Name, err))
+				}
+
 				err = pool.Driver().Validate(poolInfo.Config)
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Failed config validation for unknown pool %q: %w", p.Name, err))
