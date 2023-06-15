@@ -83,11 +83,15 @@ cleanup() {
     read -r _
   fi
 
-  echo "==> Cleaning up"
+  if [ -n "${GITHUB_ACTIONS:-}" ]; then
+    echo "==> Skipping cleanup (GitHub Action runner detected)"
+  else
+    echo "==> Cleaning up"
 
-  umount -l "${TEST_DIR}/dev"
-  kill_external_auth_daemon "$TEST_DIR"
-  cleanup_lxds "$TEST_DIR"
+    umount -l "${TEST_DIR}/dev"
+    kill_external_auth_daemon "$TEST_DIR"
+    cleanup_lxds "$TEST_DIR"
+  fi
 
   echo ""
   echo ""
