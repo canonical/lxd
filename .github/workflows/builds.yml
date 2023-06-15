@@ -18,7 +18,7 @@ jobs:
         run: make doc
 
       - name: Print warnings
-        run: if [ -s .sphinx/warnings.txt ]; then cat .sphinx/warnings.txt; exit 1; fi
+        run: if [ -s doc/.sphinx/warnings.txt ]; then cat doc/.sphinx/warnings.txt; exit 1; fi
 
       - name: Upload artifacts
         if: always()

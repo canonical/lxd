@@ -9,7 +9,7 @@ HASH := \#
 TAG_SQLITE3=$(shell printf "$(HASH)include <dqlite.h>\nvoid main(){dqlite_node_id n = 1;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "libsqlite3")
 GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
-SPHINXENV=.sphinx/venv/bin/activate
+SPHINXENV=doc/.sphinx/venv/bin/activate
 
 ifneq "$(wildcard vendor)" ""
 	RAFT_PATH=$(CURDIR)/vendor/raft
@@ -121,13 +121,13 @@ endif
 .PHONY: doc-setup
 doc-setup:
 	@echo "Setting up documentation build environment"
-	python3 -m venv .sphinx/venv
-	. $(SPHINXENV) ; pip install --upgrade -r .sphinx/requirements.txt
-	mkdir -p .sphinx/deps/ .sphinx/themes/
-	git -C .sphinx/deps/swagger-ui pull || git clone --depth 1 https://github.com/swagger-api/swagger-ui.git .sphinx/deps/swagger-ui
-	mkdir -p .sphinx/_static/swagger-ui
-	ln -sf ../../deps/swagger-ui/dist/swagger-ui-bundle.js ../../deps/swagger-ui/dist/swagger-ui-standalone-preset.js ../../deps/swagger-ui/dist/swagger-ui.css .sphinx/_static/swagger-ui/
-	wget -N -P .sphinx/_static/download https://linuxcontainers.org/static/img/favicon.ico https://linuxcontainers.org/static/img/containers.png https://linuxcontainers.org/static/img/containers.small.png
+	python3 -m venv doc/.sphinx/venv
+	. $(SPHINXENV) ; pip install --upgrade -r doc/.sphinx/requirements.txt
+	mkdir -p doc/.sphinx/deps/ doc/.sphinx/themes/
+	git -C doc/.sphinx/deps/swagger-ui pull || git clone --depth 1 https://github.com/swagger-api/swagger-ui.git doc/.sphinx/deps/swagger-ui
+	mkdir -p doc/.sphinx/_static/swagger-ui
+	ln -sf ../../../deps/swagger-ui/dist/swagger-ui-bundle.js ../../../deps/swagger-ui/dist/swagger-ui-standalone-preset.js ../../../deps/swagger-ui/dist/swagger-ui.css doc/.sphinx/_static/swagger-ui/
+	wget -N -P doc/.sphinx/_static/download https://linuxcontainers.org/static/img/favicon.ico https://linuxcontainers.org/static/img/containers.png https://linuxcontainers.org/static/img/containers.small.png
 	rm -Rf doc/html
 
 .PHONY: doc
@@ -137,7 +137,7 @@ doc: lxd-doc doc-setup doc-incremental
 doc-incremental:
 	@echo "Build the documentation"
 	$(GOPATH)/bin/lxd-doc ./lxd -y ./doc/config_options.yaml -t ./doc/config_options.txt
-	. $(SPHINXENV) ; sphinx-build -c .sphinx/ -b dirhtml doc/ doc/html/ -w .sphinx/warnings.txt
+	. $(SPHINXENV) ; sphinx-build -c doc/ -b dirhtml doc/ doc/html/ -w doc/.sphinx/warnings.txt
 
 .PHONY: doc-serve
 doc-serve:
@@ -145,15 +145,15 @@ doc-serve:
 
 .PHONY: doc-spellcheck
 doc-spellcheck: doc
-	. $(SPHINXENV) ; python3 -m pyspelling -c .sphinx/.spellcheck.yaml
+	. $(SPHINXENV) ; python3 -m pyspelling -c doc/.sphinx/.spellcheck.yaml
 
 .PHONY: doc-linkcheck
 doc-linkcheck: doc-setup
-	. $(SPHINXENV) ; sphinx-build -c .sphinx/ -b linkcheck doc/ doc/html/
+	. $(SPHINXENV) ; sphinx-build -c doc/ -b linkcheck doc/ doc/html/
 
 .PHONY: doc-lint
 doc-lint:
-	.sphinx/.markdownlint/doc-lint.sh
+	doc/.sphinx/.markdownlint/doc-lint.sh
 
 .PHONY: debug
 debug:
