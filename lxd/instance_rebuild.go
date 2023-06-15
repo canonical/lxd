@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // swagger:operation POST /1.0/instances/{instance_name}/rebuild instances instance_post
@@ -137,8 +138,8 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 		return instanceRebuildFromImage(s, r, inst, sourceImage, op)
 	}
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{name}
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
 
 	if inst.Type() == instancetype.Container {
 		resources["containers"] = resources["instances"]
