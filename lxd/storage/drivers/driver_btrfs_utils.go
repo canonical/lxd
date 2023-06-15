@@ -187,43 +187,45 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 		return err
 	}
 
+	// Try and ensure volume is writable to possibility of destroy failing.
 	err := d.setSubvolumeReadonlyProperty(rootPath, false)
 	if err != nil {
-		return fmt.Errorf("Failed setting subvolume writable %q: %w", rootPath, err)
+		d.logger.Warn("Failed setting subvolume writable", logger.Ctx{"path": rootPath, "err": err})
 	}
 
 	// Attempt to delete the root subvol itself (short path).
 	err = destroy(rootPath)
 	if err == nil {
 		return nil
+	} else if !recursion {
+		return fmt.Errorf("Failed deleting subvolume %q: %w", rootPath, err)
 	}
 
-	// Delete subsubvols.
-	if recursion {
-		// Get the subvolumes list.
-		subSubVols, err := d.getSubvolumes(rootPath)
+	// Delete subsubvols as recursion enabled.
+
+	// Get the subvolumes list.
+	subSubVols, err := d.getSubvolumes(rootPath)
+	if err != nil {
+		return err
+	}
+
+	// Perform a first pass and ensure all sub volumes are writable.
+	sort.Sort(sort.StringSlice(subSubVols))
+	for _, subSubVol := range subSubVols {
+		subSubVolPath := filepath.Join(rootPath, subSubVol)
+		err = d.setSubvolumeReadonlyProperty(subSubVolPath, false)
 		if err != nil {
-			return err
+			d.logger.Warn("Failed setting subvolume writable", logger.Ctx{"path": subSubVolPath, "err": err})
 		}
+	}
 
-		// Perform a first pass and ensure all sub volumes are writable.
-		sort.Sort(sort.StringSlice(subSubVols))
-		for _, subSubVol := range subSubVols {
-			subSubVolPath := filepath.Join(rootPath, subSubVol)
-			err = d.setSubvolumeReadonlyProperty(subSubVolPath, false)
-			if err != nil {
-				return fmt.Errorf("Failed setting subvolume writable %q: %w", subSubVolPath, err)
-			}
-		}
-
-		// Perform a second pass to delete subvolumes.
-		sort.Sort(sort.Reverse(sort.StringSlice(subSubVols)))
-		for _, subSubVol := range subSubVols {
-			subSubVolPath := filepath.Join(rootPath, subSubVol)
-			err := destroy(subSubVolPath)
-			if err != nil {
-				return fmt.Errorf("Failed deleting subvolume %q: %w", subSubVolPath, err)
-			}
+	// Perform a second pass to delete subvolumes.
+	sort.Sort(sort.Reverse(sort.StringSlice(subSubVols)))
+	for _, subSubVol := range subSubVols {
+		subSubVolPath := filepath.Join(rootPath, subSubVol)
+		err := destroy(subSubVolPath)
+		if err != nil {
+			return fmt.Errorf("Failed deleting subvolume %q: %w", subSubVolPath, err)
 		}
 	}
 
