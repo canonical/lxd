@@ -97,6 +97,16 @@ func (d *lvm) Info() Info {
 	}
 }
 
+// FillConfig populates the storage pool's configuration file with the default values.
+func (d *lvm) FillConfig() error {
+	// Set default thin pool name if not specified.
+	if d.usesThinpool() && d.config["lvm.thinpool_name"] == "" {
+		d.config["lvm.thinpool_name"] = lvmThinpoolDefaultName
+	}
+
+	return nil
+}
+
 // Create creates the storage pool on the storage device.
 func (d *lvm) Create() error {
 	d.config["volatile.initial_source"] = d.config["source"]
@@ -110,9 +120,9 @@ func (d *lvm) Create() error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Set default thin pool name if not specified.
-	if d.usesThinpool() && d.config["lvm.thinpool_name"] == "" {
-		d.config["lvm.thinpool_name"] = lvmThinpoolDefaultName
+	err = d.FillConfig()
+	if err != nil {
+		return err
 	}
 
 	var usingLoopFile bool
