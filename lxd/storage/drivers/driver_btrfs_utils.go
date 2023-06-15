@@ -187,9 +187,10 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 		return err
 	}
 
+	// Try and ensure volume is writable to possibility of destroy failing.
 	err := d.setSubvolumeReadonlyProperty(rootPath, false)
 	if err != nil {
-		return fmt.Errorf("Failed setting subvolume writable %q: %w", rootPath, err)
+		d.logger.Warn("Failed setting subvolume writable", logger.Ctx{"path": rootPath, "err": err})
 	}
 
 	// Attempt to delete the root subvol itself (short path).
@@ -212,7 +213,7 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 			subSubVolPath := filepath.Join(rootPath, subSubVol)
 			err = d.setSubvolumeReadonlyProperty(subSubVolPath, false)
 			if err != nil {
-				return fmt.Errorf("Failed setting subvolume writable %q: %w", subSubVolPath, err)
+				d.logger.Warn("Failed setting subvolume writable", logger.Ctx{"path": subSubVolPath, "err": err})
 			}
 		}
 
