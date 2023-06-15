@@ -4140,6 +4140,11 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, bus *qemuBus, gpuConfig []devi
 	}
 
 	vgaMode := func() bool {
+		// No VGA mode on mdev.
+		if vgpu != "" {
+			return false
+		}
+
 		// No VGA mode on non-x86.
 		if d.architecture != osarch.ARCH_64BIT_INTEL_X86 {
 			return false
