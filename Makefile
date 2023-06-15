@@ -52,7 +52,7 @@ lxd-migrate:
 
 .PHONY: lxd-doc
 lxd-doc:
-	@go version > /dev/null 2>&1 || (echo "go is not installed for lxd-doc installation." && exit 1)
+	@go version > /dev/null 2>&1 || { echo "go is not installed for lxd-doc installation."; exit 1; }
 	cd lxd/config/generate && CGO_ENABLED=0 go build -o $(GOPATH)/bin/lxd-doc
 	@echo "LXD-DOC built successfully"
 
