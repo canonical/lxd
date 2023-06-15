@@ -197,34 +197,35 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 	err = destroy(rootPath)
 	if err == nil {
 		return nil
+	} else if !recursion {
+		return fmt.Errorf("Failed deleting subvolume %q: %w", rootPath, err)
 	}
 
-	// Delete subsubvols.
-	if recursion {
-		// Get the subvolumes list.
-		subSubVols, err := d.getSubvolumes(rootPath)
+	// Delete subsubvols as recursion enabled.
+
+	// Get the subvolumes list.
+	subSubVols, err := d.getSubvolumes(rootPath)
+	if err != nil {
+		return err
+	}
+
+	// Perform a first pass and ensure all sub volumes are writable.
+	sort.Sort(sort.StringSlice(subSubVols))
+	for _, subSubVol := range subSubVols {
+		subSubVolPath := filepath.Join(rootPath, subSubVol)
+		err = d.setSubvolumeReadonlyProperty(subSubVolPath, false)
 		if err != nil {
-			return err
+			d.logger.Warn("Failed setting subvolume writable", logger.Ctx{"path": subSubVolPath, "err": err})
 		}
+	}
 
-		// Perform a first pass and ensure all sub volumes are writable.
-		sort.Sort(sort.StringSlice(subSubVols))
-		for _, subSubVol := range subSubVols {
-			subSubVolPath := filepath.Join(rootPath, subSubVol)
-			err = d.setSubvolumeReadonlyProperty(subSubVolPath, false)
-			if err != nil {
-				d.logger.Warn("Failed setting subvolume writable", logger.Ctx{"path": subSubVolPath, "err": err})
-			}
-		}
-
-		// Perform a second pass to delete subvolumes.
-		sort.Sort(sort.Reverse(sort.StringSlice(subSubVols)))
-		for _, subSubVol := range subSubVols {
-			subSubVolPath := filepath.Join(rootPath, subSubVol)
-			err := destroy(subSubVolPath)
-			if err != nil {
-				return fmt.Errorf("Failed deleting subvolume %q: %w", subSubVolPath, err)
-			}
+	// Perform a second pass to delete subvolumes.
+	sort.Sort(sort.Reverse(sort.StringSlice(subSubVols)))
+	for _, subSubVol := range subSubVols {
+		subSubVolPath := filepath.Join(rootPath, subSubVol)
+		err := destroy(subSubVolPath)
+		if err != nil {
+			return fmt.Errorf("Failed deleting subvolume %q: %w", subSubVolPath, err)
 		}
 	}
 
