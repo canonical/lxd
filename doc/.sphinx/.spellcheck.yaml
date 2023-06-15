@@ -5,8 +5,8 @@ matrix:
     d: en_US
   dictionary:
     wordlists:
-    - .sphinx/.wordlist.txt
-    output: .sphinx/.wordlist.dic
+    - doc/.sphinx/.wordlist.txt
+    output: doc/.sphinx/.wordlist.dic
   sources:
   - doc/html/**/*.html
   pipeline:
