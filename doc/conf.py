@@ -26,21 +26,21 @@ myst_enable_extensions = [
 myst_linkify_fuzzy_links=False
 myst_heading_anchors = 7
 
-if os.path.exists("../doc/substitutions.yaml"):
-    with open("../doc/substitutions.yaml", "r") as fd:
+if os.path.exists("./substitutions.yaml"):
+    with open("./substitutions.yaml", "r") as fd:
         myst_substitutions = yaml.safe_load(fd.read())
 
 # Setup theme.
-templates_path = ["_templates"]
+templates_path = [".sphinx/_templates"]
 
 html_theme = "furo"
 html_show_sphinx = False
 html_last_updated_fmt = ""
-html_favicon = "https://linuxcontainers.org/static/img/favicon.ico"
-html_static_path = ['_static']
+html_favicon = ".sphinx/_static/download/favicon.ico"
+html_static_path = ['.sphinx/_static']
 html_css_files = ['custom.css']
-html_js_files = ['header-nav.js']
-html_extra_path = ['_extra']
+html_js_files = ['header-nav.js','version-switcher.js']
+html_extra_path = ['.sphinx/_extra']
 
 html_theme_options = {
     "sidebar_hide_name": True,
@@ -109,7 +109,7 @@ source_suffix = ".md"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['html', 'README.md']
+exclude_patterns = ['html', 'README.md', '.sphinx']
 
 # Setup redirects (https://documatt.gitlab.io/sphinx-reredirects/usage.html)
 redirects = {
