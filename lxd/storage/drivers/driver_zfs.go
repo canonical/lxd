@@ -174,12 +174,8 @@ func (d zfs) ensureInitialDatasets(warnOnExistingPolicyApplyError bool) error {
 	return nil
 }
 
-// Create is called during pool creation and is effectively using an empty driver struct.
-// WARNING: The Create() function cannot rely on any of the struct attributes being set.
-func (d *zfs) Create() error {
-	// Store the provided source as we are likely to be mangling it.
-	d.config["volatile.initial_source"] = d.config["source"]
-
+// FillConfig populates the storage pool's configuration file with the default values.
+func (d *zfs) FillConfig() error {
 	loopPath := loopFilePath(d.name)
 	if d.config["source"] == "" || d.config["source"] == loopPath {
 		// Create a loop based pool.
@@ -190,11 +186,6 @@ func (d *zfs) Create() error {
 			d.config["zfs.pool_name"] = d.name
 		}
 
-		// Validate pool_name.
-		if strings.Contains(d.config["zfs.pool_name"], "/") {
-			return fmt.Errorf("zfs.pool_name can't point to a dataset when source isn't set")
-		}
-
 		// Pick a default size of the loop file if not specified.
 		if d.config["size"] == "" {
 			defaultSize, err := loopFileSizeDefault()
@@ -203,6 +194,44 @@ func (d *zfs) Create() error {
 			}
 
 			d.config["size"] = fmt.Sprintf("%dGiB", defaultSize)
+		}
+	} else if filepath.IsAbs(d.config["source"]) {
+		// Set default pool_name.
+		if d.config["zfs.pool_name"] == "" {
+			d.config["zfs.pool_name"] = d.name
+		}
+
+		// Unset size property since it's irrelevant.
+		d.config["size"] = ""
+	} else {
+		// Handle an existing zpool.
+		if d.config["zfs.pool_name"] == "" {
+			d.config["zfs.pool_name"] = d.config["source"]
+		}
+
+		// Unset size property since it's irrelevant.
+		d.config["size"] = ""
+	}
+
+	return nil
+}
+
+// Create is called during pool creation and is effectively using an empty driver struct.
+// WARNING: The Create() function cannot rely on any of the struct attributes being set.
+func (d *zfs) Create() error {
+	// Store the provided source as we are likely to be mangling it.
+	d.config["volatile.initial_source"] = d.config["source"]
+
+	err := d.FillConfig()
+	if err != nil {
+		return err
+	}
+
+	loopPath := loopFilePath(d.name)
+	if d.config["source"] == "" || d.config["source"] == loopPath {
+		// Validate pool_name.
+		if strings.Contains(d.config["zfs.pool_name"], "/") {
+			return fmt.Errorf("zfs.pool_name can't point to a dataset when source isn't set")
 		}
 
 		// Create the loop file itself.
@@ -233,14 +262,6 @@ func (d *zfs) Create() error {
 		// Handle existing block devices.
 		if !shared.IsBlockdevPath(d.config["source"]) {
 			return fmt.Errorf("Custom loop file locations are not supported")
-		}
-
-		// Unset size property since it's irrelevant.
-		d.config["size"] = ""
-
-		// Set default pool_name.
-		if d.config["zfs.pool_name"] == "" {
-			d.config["zfs.pool_name"] = d.name
 		}
 
 		// Validate pool_name.
@@ -281,14 +302,6 @@ func (d *zfs) Create() error {
 		// We don't need to keep the original source path around for import.
 		d.config["source"] = d.config["zfs.pool_name"]
 	} else {
-		// Handle an existing zpool.
-		if d.config["zfs.pool_name"] == "" {
-			d.config["zfs.pool_name"] = d.config["source"]
-		}
-
-		// Unset size property since it's irrelevant.
-		d.config["size"] = ""
-
 		// Validate pool_name.
 		if d.config["zfs.pool_name"] != d.config["source"] {
 			return fmt.Errorf("The source must match zfs.pool_name if specified")
@@ -333,7 +346,7 @@ func (d *zfs) Create() error {
 	revert.Add(func() { _ = d.Delete(nil) })
 
 	// Apply our default configuration.
-	err := d.ensureInitialDatasets(false)
+	err = d.ensureInitialDatasets(false)
 	if err != nil {
 		return err
 	}
