@@ -427,7 +427,7 @@ func (s *Server) addPeer(address net.IP, asn uint32, password string) error {
 		// Allow for 120s offline before route removal.
 		GracefulRestart: &bgpAPI.GracefulRestart{
 			Enabled:     true,
-			RestartTime: 120,
+			RestartTime: 3600,
 		},
 
 		// Always allow for the maximum multihop.
