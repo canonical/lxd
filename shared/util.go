@@ -1368,3 +1368,15 @@ func JoinTokenDecode(input string) (*api.ClusterMemberJoinToken, error) {
 
 	return &j, nil
 }
+
+// TargetDetect returns either target node or group based on the provided prefix:
+// An invocation with `target=h1` returns "h1", "" and `target=@g1` returns "", "g1".
+func TargetDetect(target string) (targetNode string, targetGroup string) {
+	if strings.HasPrefix(target, "@") {
+		targetGroup = strings.TrimPrefix(target, "@")
+	} else {
+		targetNode = target
+	}
+
+	return
+}
