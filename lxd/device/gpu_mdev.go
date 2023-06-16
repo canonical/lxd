@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/pborman/uuid"
 
@@ -16,6 +17,8 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
+
+var gpuMdevMu sync.Mutex
 
 type gpuMdev struct {
 	deviceCommon
@@ -43,6 +46,10 @@ func (d *gpuMdev) Stop() (*deviceConfig.RunConfig, error) {
 // startVM detects the requested GPU devices and related virtual functions and rebinds them to the vfio-pci driver.
 func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
+
+	// Lock to prevent multiple concurrent mdev devices being setup.
+	gpuMdevMu.Lock()
+	defer gpuMdevMu.Unlock()
 
 	// Get any existing UUID.
 	v := d.volatileGet()
