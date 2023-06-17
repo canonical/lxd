@@ -112,12 +112,12 @@ func getVhostVDPADevInPath(parentPath string) (*VhostVDPA, error) {
 
 	defer fd.Close()
 
-	fileInfos, err := fd.Readdir(-1)
+	entries, err := fd.ReadDir(-1)
 	if err != nil {
-		return nil, fmt.Errorf("Can not get FileInfos: %v", err)
+		return nil, fmt.Errorf("Can not get DirEntries: %v", err)
 	}
 
-	for _, file := range fileInfos {
+	for _, file := range entries {
 		if strings.Contains(file.Name(), "vhost-vdpa") && file.IsDir() {
 			devicePath := filepath.Join(vdpaVhostDevDir, file.Name())
 			info, err := os.Stat(devicePath)
