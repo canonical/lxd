@@ -15,6 +15,9 @@ jobs:
     name: Static analysis
     runs-on: ubuntu-22.04
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
       - name: Install Go
         uses: actions/setup-go@v4
         with:
@@ -51,9 +54,6 @@ jobs:
           chmod +x shellcheck-v0.8.0/shellcheck
           sudo mv shellcheck-v0.8.0/shellcheck /bin/shellcheck
 
-      - name: Checkout
-        uses: actions/checkout@v3
-
       - name: Download go dependencies
         run: |
           go mod download
@@ -78,6 +78,9 @@ jobs:
         suite: ["cluster", "standalone"]
         backend: ["dir", "btrfs", "lvm", "zfs"]
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
       - name: Install Go
         uses: actions/setup-go@v4
         with:
@@ -132,9 +135,6 @@ jobs:
             xz-utils \
             zfsutils-linux
 
-      - name: Checkout
-        uses: actions/checkout@v3
-
       - name: Download go dependencies
         run: |
           go mod download
@@ -164,13 +164,13 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Install Go
         uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go }}
-
-      - name: Checkout code
-        uses: actions/checkout@v3
 
       - name: Test client package
         env:
