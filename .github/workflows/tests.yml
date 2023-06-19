@@ -11,8 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  static-analysis:
-    name: Static analysis
+  code-tests:
+    name: Code tests
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -38,6 +38,7 @@ jobs:
             libdbus-1-dev \
             libdqlite-dev \
             liblxc-dev \
+            lxc-templates \
             libseccomp-dev \
             libselinux-dev \
             libsqlite3-dev \
@@ -65,6 +66,10 @@ jobs:
       - name: Run static analysis
         run: |
           make static-analysis
+
+      - name: Unit tests (all)
+        run: |
+          sudo go test ./...
 
   system-tests:
     env:
