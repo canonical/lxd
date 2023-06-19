@@ -149,6 +149,8 @@ func VolumeContentTypeToDBContentType(contentType drivers.ContentType) (int, err
 		return db.StoragePoolVolumeContentTypeBlock, nil
 	case drivers.ContentTypeFS:
 		return db.StoragePoolVolumeContentTypeFS, nil
+	case drivers.ContentTypeISO:
+		return db.StoragePoolVolumeContentTypeISO, nil
 	}
 
 	return -1, fmt.Errorf("Invalid volume content type")
@@ -161,6 +163,8 @@ func VolumeDBContentTypeToContentType(volDBType int) (drivers.ContentType, error
 		return drivers.ContentTypeBlock, nil
 	case db.StoragePoolVolumeContentTypeFS:
 		return drivers.ContentTypeFS, nil
+	case db.StoragePoolVolumeContentTypeISO:
+		return drivers.ContentTypeISO, nil
 	}
 
 	return "", fmt.Errorf("Invalid volume content type")
@@ -173,6 +177,8 @@ func VolumeContentTypeNameToContentType(contentTypeName string) (int, error) {
 		return db.StoragePoolVolumeContentTypeFS, nil
 	case db.StoragePoolVolumeContentTypeNameBlock:
 		return db.StoragePoolVolumeContentTypeBlock, nil
+	case db.StoragePoolVolumeContentTypeNameISO:
+		return db.StoragePoolVolumeContentTypeISO, nil
 	}
 
 	return -1, fmt.Errorf("Invalid volume content type name")
