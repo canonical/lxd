@@ -82,7 +82,7 @@ jobs:
       matrix:
         go: ["1.18.x"]
         suite: ["cluster", "standalone"]
-        backend: ["dir", "btrfs", "lvm", "zfs"]
+        backend: ["dir", "btrfs", "lvm", "zfs", "random"]
         include:
           - go: stable
             suite: cluster
