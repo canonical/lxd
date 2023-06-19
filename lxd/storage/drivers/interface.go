@@ -37,6 +37,7 @@ type Driver interface {
 	Logger() logger.Logger
 
 	// Pool.
+	FillConfig() error
 	Create() error
 	Delete(op *operations.Operation) error
 	// Mount mounts a storage pool if needed, returns true if we caused a new mount, false if already mounted.
