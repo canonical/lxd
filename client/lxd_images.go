@@ -785,12 +785,12 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 		}
 
 		// Export image
-		_, err = metaFile.Seek(0, 0)
+		_, err = metaFile.Seek(0, io.SeekStart)
 		if err != nil {
 			return nil, err
 		}
 
-		_, err = rootfsFile.Seek(0, 0)
+		_, err = rootfsFile.Seek(0, io.SeekStart)
 		if err != nil {
 			return nil, err
 		}

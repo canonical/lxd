@@ -421,7 +421,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 
 	for _, v := range vols {
 		// Find the compression algorithm used for backup source data.
-		_, err := srcData.Seek(0, 0)
+		_, err := srcData.Seek(0, io.SeekStart)
 		if err != nil {
 			return nil, nil, err
 		}

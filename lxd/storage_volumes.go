@@ -1868,7 +1868,7 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 	}
 
 	// Detect squashfs compression and convert to tarball.
-	_, err = backupFile.Seek(0, 0)
+	_, err = backupFile.Seek(0, io.SeekStart)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1905,7 +1905,7 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 	}
 
 	// Parse the backup information.
-	_, err = backupFile.Seek(0, 0)
+	_, err = backupFile.Seek(0, io.SeekStart)
 	if err != nil {
 		return response.InternalError(err)
 	}

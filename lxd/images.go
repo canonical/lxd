@@ -157,7 +157,7 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 			return fmt.Errorf("tar2sqfs: %v (%v)", err, strings.TrimSpace(string(output)))
 		}
 		// Replay the result to outfile
-		_, err = tempfile.Seek(0, 0)
+		_, err = tempfile.Seek(0, io.SeekStart)
 		if err != nil {
 			return err
 		}
@@ -550,7 +550,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		defer func() { _ = os.Remove(imageTarf.Name()) }()
 
 		// Parse the POST data
-		_, err = post.Seek(0, 0)
+		_, err = post.Seek(0, io.SeekStart)
 		if err != nil {
 			return nil, err
 		}
@@ -644,7 +644,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 			return nil, err
 		}
 	} else {
-		_, err = post.Seek(0, 0)
+		_, err = post.Seek(0, io.SeekStart)
 		if err != nil {
 			return nil, err
 		}
@@ -952,7 +952,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Is this a container request?
-	_, err = post.Seek(0, 0)
+	_, err = post.Seek(0, io.SeekStart)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -993,7 +993,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	if !imageUpload && shared.StringInSlice(req.Source.Type, []string{"container", "instance", "virtual-machine", "snapshot"}) {
 		name := req.Source.Name
 		if name != "" {
-			_, err = post.Seek(0, 0)
+			_, err = post.Seek(0, io.SeekStart)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -1145,7 +1145,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 		return nil, "unknown", err
 	}
 
-	_, err = r.Seek(0, 0)
+	_, err = r.Seek(0, io.SeekStart)
 	if err != nil {
 		return nil, "", err
 	}

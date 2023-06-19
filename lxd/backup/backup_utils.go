@@ -13,7 +13,7 @@ import (
 
 // TarReader rewinds backup file handle r and returns new tar reader and process cleanup function.
 func TarReader(r io.ReadSeeker, sysOS *sys.OS, outputPath string) (*tar.Reader, context.CancelFunc, error) {
-	_, err := r.Seek(0, 0)
+	_, err := r.Seek(0, io.SeekStart)
 	if err != nil {
 		return nil, nil, err
 	}

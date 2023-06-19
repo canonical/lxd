@@ -577,7 +577,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	}
 
 	// Detect squashfs compression and convert to tarball.
-	_, err = backupFile.Seek(0, 0)
+	_, err = backupFile.Seek(0, io.SeekStart)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -614,7 +614,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	}
 
 	// Parse the backup information.
-	_, err = backupFile.Seek(0, 0)
+	_, err = backupFile.Seek(0, io.SeekStart)
 	if err != nil {
 		return response.InternalError(err)
 	}
