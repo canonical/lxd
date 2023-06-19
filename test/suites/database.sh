@@ -87,6 +87,7 @@ test_database_no_disk_space(){
     lxc delete -f c
   )
 
-  umount -l "${GLOBAL_DB_DIR}"
+  shutdown_lxd "${LXD_NOSPACE_DIR}"
+  umount "${GLOBAL_DB_DIR}"
   kill_lxd "${LXD_NOSPACE_DIR}"
 }
