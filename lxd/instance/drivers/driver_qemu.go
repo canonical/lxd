@@ -3552,16 +3552,16 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 				// Only warn about using writeback cache if the drive image is writable.
 				d.logger.Warn("Using writeback cache I/O", logger.Ctx{"device": driveConf.DevName, "devPath": srcDevPath, "fsType": fsType})
 			}
-
-			// Special case ISO images as cdroms.
-			if strings.HasSuffix(srcDevPath, ".iso") {
-				media = "cdrom"
-			}
 		} else if !shared.StringInSlice(device.DiskDirectIO, driveConf.Opts) {
 			// If drive config indicates we need to use unsafe I/O then use it.
 			d.logger.Warn("Using unsafe cache I/O", logger.Ctx{"device": driveConf.DevName, "devPath": srcDevPath})
 			aioMode = "threads"
 			cacheMode = "unsafe" // Use host cache, but ignore all sync requests from guest.
+		}
+
+		// Special case ISO images as cdroms.
+		if driveConf.FSType == "iso9660" {
+			media = "cdrom"
 		}
 	}
 
