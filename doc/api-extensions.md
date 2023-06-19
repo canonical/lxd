@@ -2246,3 +2246,10 @@ be run in LXD VMs.
 
 ## `instances_rebuild`
 This extension adds the ability to rebuild an instance with the same origin image, alternate image or as empty. A new `POST /1.0/instances/<name>/rebuild?project=<project>` API endpoint has been added as well as a new CLI command `lxc rebuild`.
+
+## `numa_cpu_placement`
+This adds the possibility to place a set of CPUs in a desired set of NUMA nodes.
+
+This adds the following new configuration key:
+
+* `limits.cpu.nodes` : (string) comma-separated list of NUMA node IDs or NUMA node ID ranges to place the CPUs (chosen with a dynamic value of `limits.cpu`) in.
