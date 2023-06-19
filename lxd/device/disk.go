@@ -315,6 +315,14 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 					if d.config["path"] != "" {
 						return fmt.Errorf("Custom block volumes cannot have a path defined")
 					}
+				} else if contentType == db.StoragePoolVolumeContentTypeISO {
+					if instConf.Type() == instancetype.Container {
+						return fmt.Errorf("Custom ISO volumes cannot be used on containers")
+					}
+
+					if d.config["path"] != "" {
+						return fmt.Errorf("Custom ISO volumes cannot have a path defined")
+					}
 				} else if d.config["path"] == "" {
 					return fmt.Errorf("Custom filesystem volumes require a path to be defined")
 				}
@@ -764,9 +772,13 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					return nil, err
 				}
 
+				if contentType == db.StoragePoolVolumeContentTypeISO {
+					mount.FSType = "iso9660"
+				}
+
 				// If the pool is ceph backed and a block device, don't mount it, instead pass config to QEMU instance
 				// to use the built in RBD support.
-				if d.pool.Driver().Info().Name == "ceph" && contentType == db.StoragePoolVolumeContentTypeBlock {
+				if d.pool.Driver().Info().Name == "ceph" && (contentType == db.StoragePoolVolumeContentTypeBlock || contentType == db.StoragePoolVolumeContentTypeISO) {
 					config := d.pool.ToAPI().Config
 					poolName := config["ceph.osd.pool_name"]
 
@@ -780,12 +792,16 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						clusterName = storageDrivers.CephDefaultUser
 					}
 
-					runConf.Mounts = []deviceConfig.MountEntryItem{
-						{
-							DevPath: DiskGetRBDFormat(clusterName, userName, poolName, d.config["source"]),
-							DevName: d.name,
-						},
+					mount := deviceConfig.MountEntryItem{
+						DevPath: DiskGetRBDFormat(clusterName, userName, poolName, d.config["source"]),
+						DevName: d.name,
 					}
+
+					if contentType == db.StoragePoolVolumeContentTypeISO {
+						mount.FSType = "iso9660"
+					}
+
+					runConf.Mounts = []deviceConfig.MountEntryItem{mount}
 
 					return &runConf, nil
 				}
@@ -1251,7 +1267,7 @@ func (d *disk) mountPoolVolume() (func(), string, error) {
 		}
 	}
 
-	if dbVolume.ContentType == db.StoragePoolVolumeContentTypeNameBlock {
+	if dbVolume.ContentType == db.StoragePoolVolumeContentTypeNameBlock || dbVolume.ContentType == db.StoragePoolVolumeContentTypeNameISO {
 		srcPath, err = d.pool.GetCustomVolumeDisk(storageProjectName, volumeName)
 		if err != nil {
 			return nil, "", fmt.Errorf("Failed to get disk path: %w", err)
