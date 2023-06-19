@@ -41,43 +41,65 @@ func GetCPUIsolated() []int64 {
 	return isolatedCpusInt
 }
 
-// ParseCpuset parses a limits.cpu range into a list of CPU ids.
-func ParseCpuset(cpu string) ([]int64, error) {
-	cpus := []int64{}
-	chunks := strings.Split(cpu, ",")
+// parseRangedListToInt64Slice takes an `input` of the form "1,2,8-10,5-7" and returns a slice of int64s
+// containing the expanded list of numbers. In this example, the returned slice would be [1,2,8,9,10,5,6,7].
+// The elements in the output slice are meant to represent hardware entity identifiers (e.g, either CPU or NUMA node IDs).
+func parseRangedListToInt64Slice(input string) ([]int64, error) {
+	res := []int64{}
+	chunks := strings.Split(input, ",")
 	for _, chunk := range chunks {
 		if strings.Contains(chunk, "-") {
 			// Range
 			fields := strings.SplitN(chunk, "-", 2)
 			if len(fields) != 2 {
-				return nil, fmt.Errorf("Invalid cpuset value: %s", cpu)
+				return nil, fmt.Errorf("Invalid CPU/NUMA set value: %q", input)
 			}
 
 			low, err := strconv.ParseInt(fields[0], 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("Invalid cpuset value: %s", cpu)
+				return nil, fmt.Errorf("Invalid CPU/NUMA set value: %w", err)
 			}
 
 			high, err := strconv.ParseInt(fields[1], 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("Invalid cpuset value: %s", cpu)
+				return nil, fmt.Errorf("Invalid CPU/NUMA set value: %w", err)
 			}
 
 			for i := low; i <= high; i++ {
-				cpus = append(cpus, i)
+				res = append(res, i)
 			}
 		} else {
 			// Simple entry
 			nr, err := strconv.ParseInt(chunk, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("Invalid cpuset value: %s", cpu)
+				return nil, fmt.Errorf("Invalid CPU/NUMA set value: %w", err)
 			}
 
-			cpus = append(cpus, nr)
+			res = append(res, nr)
 		}
 	}
 
+	return res, nil
+}
+
+// ParseCpuset parses a `limits.cpu` range into a list of CPU ids.
+func ParseCpuset(cpu string) ([]int64, error) {
+	cpus, err := parseRangedListToInt64Slice(cpu)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid cpuset value %q: %w", cpu, err)
+	}
+
 	return cpus, nil
+}
+
+// ParseNumaNodeSet parses a `limits.cpu.nodes` into a list of NUMA node ids.
+func ParseNumaNodeSet(numaNodeSet string) ([]int64, error) {
+	nodes, err := parseRangedListToInt64Slice(numaNodeSet)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid NUMA node set value %q: %w", numaNodeSet, err)
+	}
+
+	return nodes, nil
 }
 
 func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
