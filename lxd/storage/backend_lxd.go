@@ -1601,6 +1601,22 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) f
 	}
 }
 
+// isoFiller returns a function that can be used as a filler function with CreateVolume().
+// The function returned will copy the ISO content into the specified mount path
+// provided.
+func (b *lxdBackend) isoFiller(data io.Reader) func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
+	return func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
+		f, err := os.OpenFile(rootBlockPath, os.O_CREATE|os.O_WRONLY, 0600)
+		if err != nil {
+			return -1, err
+		}
+
+		defer func() { _ = f.Close() }()
+
+		return io.Copy(f, data)
+	}
+}
+
 // CreateInstanceFromImage creates a new volume for an instance populated with the image requested.
 // On failure caller is expected to call DeleteInstance() to clean up.
 func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint string, op *operations.Operation) error {
@@ -6236,6 +6252,78 @@ func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarW
 		return err
 	}
 
+	return nil
+}
+
+func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName string, srcData io.ReadSeeker, size int64, op *operations.Operation) error {
+	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volume": volName})
+	l.Debug("CreateCustomVolumeFromISO started")
+	defer l.Debug("CreateCustomVolumeFromISO finished")
+
+	// Check whether we are allowed to create volumes.
+	req := api.StorageVolumesPost{
+		Name: volName,
+	}
+
+	err := b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		return project.AllowVolumeCreation(tx, projectName, req)
+	})
+	if err != nil {
+		return fmt.Errorf("Failed checking volume creation allowed: %w", err)
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Get the volume name on storage.
+	volStorageName := project.StorageVolume(projectName, volName)
+
+	config := map[string]string{
+		"size": fmt.Sprintf("%d", size),
+	}
+
+	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentTypeISO, volStorageName, config)
+
+	volExists, err := b.driver.HasVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	if volExists {
+		return fmt.Errorf("Cannot create volume, already exists on target storage")
+	}
+
+	// Validate config and create database entry for new storage volume.
+	err = VolumeDBCreate(b, projectName, volName, "", vol.Type(), false, vol.Config(), time.Now(), time.Time{}, vol.ContentType(), true, true)
+	if err != nil {
+		return fmt.Errorf("Failed creating database entry for custom volume: %w", err)
+	}
+
+	revert.Add(func() { _ = VolumeDBDelete(b, projectName, volName, vol.Type()) })
+
+	_, err = srcData.Seek(0, io.SeekStart)
+	if err != nil {
+		return err
+	}
+
+	volFiller := drivers.VolumeFiller{
+		Fill: b.isoFiller(srcData),
+	}
+
+	// Unpack the ISO into the new storage volume(s).
+	err = b.driver.CreateVolume(vol, &volFiller, op)
+	if err != nil {
+		return fmt.Errorf("Failed creating volume: %w", err)
+	}
+
+	eventCtx := logger.Ctx{"type": vol.Type()}
+	if !b.Driver().Info().Remote {
+		eventCtx["location"] = b.state.ServerName
+	}
+
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, eventCtx))
+
+	revert.Success()
 	return nil
 }
 
