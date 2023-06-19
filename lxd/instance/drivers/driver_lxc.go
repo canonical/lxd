@@ -4540,7 +4540,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				if err != nil {
 					return err
 				}
-			} else if key == "limits.cpu" {
+			} else if key == "limits.cpu" || key == "limits.cpu.nodes" {
 				// Trigger a scheduler re-run
 				cgroup.TaskSchedulerTrigger("container", d.name, "changed")
 			} else if key == "limits.cpu.priority" || key == "limits.cpu.allowance" {
