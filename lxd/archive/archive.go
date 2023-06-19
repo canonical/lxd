@@ -77,7 +77,7 @@ func ExtractWithFds(cmd string, args []string, allowedCmds []string, stdin io.Re
 func CompressedTarReader(ctx context.Context, r io.ReadSeeker, unpacker []string, sysOS *sys.OS, outputPath string) (*tar.Reader, context.CancelFunc, error) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 
-	_, err := r.Seek(0, 0)
+	_, err := r.Seek(0, io.SeekStart)
 	if err != nil {
 		return nil, cancelFunc, err
 	}
