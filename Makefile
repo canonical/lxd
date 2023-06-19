@@ -122,11 +122,6 @@ doc:
 	@echo "Setting up documentation build environment"
 	python3 -m venv doc/.sphinx/venv
 	. $(SPHINXENV) ; pip install --upgrade -r doc/.sphinx/requirements.txt
-	mkdir -p doc/.sphinx/deps/ doc/.sphinx/themes/
-	git -C doc/.sphinx/deps/swagger-ui pull || git clone --depth 1 https://github.com/swagger-api/swagger-ui.git doc/.sphinx/deps/swagger-ui
-	mkdir -p doc/.sphinx/_static/swagger-ui
-	ln -sf ../../../deps/swagger-ui/dist/swagger-ui-bundle.js ../../../deps/swagger-ui/dist/swagger-ui-standalone-preset.js ../../../deps/swagger-ui/dist/swagger-ui.css doc/.sphinx/_static/swagger-ui/
-	wget -N -P doc/.sphinx/_static/download https://linuxcontainers.org/static/img/favicon.ico https://linuxcontainers.org/static/img/containers.png https://linuxcontainers.org/static/img/containers.small.png
 	rm -Rf doc/html
 	make doc-incremental
 
