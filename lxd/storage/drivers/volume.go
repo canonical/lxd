@@ -68,6 +68,9 @@ const ContentTypeFS = ContentType("filesystem")
 // know which filesystem(s) (if any) are in use.
 const ContentTypeBlock = ContentType("block")
 
+// ContentTypeISO indicates the volume will be an ISO which is read-only, and uses the ISO 9660 filesystem.
+const ContentTypeISO = ContentType("iso")
+
 // VolumePostHook function returned from a storage action that should be run later to complete the action.
 type VolumePostHook func(vol Volume) error
 
