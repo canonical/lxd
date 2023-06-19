@@ -88,7 +88,7 @@ func PathIsEmpty(path string) (bool, error) {
 	defer func() { _ = f.Close() }()
 
 	// read in ONLY one file
-	_, err = f.Readdir(1)
+	_, err = f.ReadDir(1)
 
 	// and if the file is EOF... well, the dir is empty.
 	if err == io.EOF {
