@@ -553,6 +553,10 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 
 	// If we're getting binary content, process separately.
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
+		if r.Header.Get("X-LXD-type") == "iso" {
+			return createStoragePoolVolumeFromISO(s, r, projectParam(r), projectName, r.Body, poolName, r.Header.Get("X-LXD-name"))
+		}
+
 		return createStoragePoolVolumeFromBackup(s, r, projectParam(r), projectName, r.Body, poolName, r.Header.Get("X-LXD-name"))
 	}
 
@@ -1850,6 +1854,71 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.EmptySyncResponse
+}
+
+func createStoragePoolVolumeFromISO(s *state.State, r *http.Request, requestProjectName string, projectName string, data io.Reader, pool string, volName string) response.Response {
+	revert := revert.New()
+	defer revert.Fail()
+
+	if volName == "" {
+		return response.BadRequest(fmt.Errorf("Missing volume name"))
+	}
+
+	// Create isos directory if needed.
+	if !shared.PathExists(shared.VarPath("isos")) {
+		err := os.MkdirAll(shared.VarPath("isos"), 0644)
+		if err != nil {
+			return response.InternalError(err)
+		}
+	}
+
+	// Create temporary file to store uploaded ISO data.
+	isoFile, err := os.CreateTemp(shared.VarPath("isos"), fmt.Sprintf("%s_", "lxd_iso"))
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	defer func() { _ = os.Remove(isoFile.Name()) }()
+	revert.Add(func() { _ = isoFile.Close() })
+
+	// Stream uploaded ISO data into temporary file.
+	size, err := io.Copy(isoFile, data)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	// Copy reverter so far so we can use it inside run after this function has finished.
+	runRevert := revert.Clone()
+
+	run := func(op *operations.Operation) error {
+		defer func() { _ = isoFile.Close() }()
+		defer runRevert.Fail()
+
+		pool, err := storagePools.LoadByName(s, pool)
+		if err != nil {
+			return err
+		}
+
+		// Dump ISO to storage.
+		err = pool.CreateCustomVolumeFromISO(projectName, volName, isoFile, size, op)
+		if err != nil {
+			return fmt.Errorf("Failed creating custom volume from ISO: %w", err)
+		}
+
+		runRevert.Success()
+		return nil
+	}
+
+	resources := map[string][]api.URL{}
+	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", pool, "volumes", "custom", volName)}
+
+	op, err := operations.OperationCreate(s, requestProjectName, operations.OperationClassTask, operationtype.VolumeCreate, resources, nil, run, nil, nil, r)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	revert.Success()
+	return operations.OperationResponse(op)
 }
 
 func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestProjectName string, projectName string, data io.Reader, pool string, volName string) response.Response {
