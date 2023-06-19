@@ -165,7 +165,7 @@ jobs:
           sudo --preserve-env=PATH,GOPATH,GORACE,LXD_INSPECT,LXD_DEBUG,LXD_VERBOSE,LXD_BACKEND,LXD_NIC_BRIDGED_DRIVER,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_CONCURRENT,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,LXD_SHIFTFS_DISABLE LXD_OFFLINE=1 LXD_TMPFS=1 LXD_VERBOSE=1 LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
 
   client:
-    name: Unit tests (client)
+    name: Client tests
     strategy:
       fail-fast: false
       matrix:
@@ -186,17 +186,17 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
-      - name: Test client package
+      - name: Unit tests (client)
         env:
           CGO_ENABLED: 0
         run: go test -v ./client/...
 
-      - name: Test lxc package
+      - name: Unit tests (lxc)
         env:
           CGO_ENABLED: 0
         run: go test -v ./lxc/...
 
-      - name: Test shared package
+      - name: Unit tests (shared)
         env:
           CGO_ENABLED: 0
         run: go test -v ./shared/...
