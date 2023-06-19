@@ -1142,10 +1142,13 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 	}
 
 	// Get the source volume's content type.
-	contentType := drivers.ContentTypeFS
+	contentType, err := VolumeDBContentTypeToContentType(contentDBType)
+	if err != nil {
+		return err
+	}
 
-	if contentDBType == db.StoragePoolVolumeContentTypeBlock {
-		contentType = drivers.ContentTypeBlock
+	if contentType != drivers.ContentTypeFS && contentType != drivers.ContentTypeBlock {
+		return fmt.Errorf("Volume of content type %q cannot be refreshed", contentType)
 	}
 
 	storagePoolSupported := false
@@ -4133,6 +4136,11 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 	// Apply config changes if there are any.
 	changedConfig, userOnly := b.detectChangedConfig(curVol.Config, newConfig)
 	if len(changedConfig) != 0 {
+		// Forbid changing the config for ISO custom volumes as they are read-only.
+		if contentType == drivers.ContentTypeISO {
+			return fmt.Errorf("Custom ISO volume config cannot be changed")
+		}
+
 		// Check that the volume's block.filesystem property isn't being changed.
 		if changedConfig["block.filesystem"] != "" {
 			return fmt.Errorf("Custom volume 'block.filesystem' property cannot be changed")
@@ -4506,6 +4514,20 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 		return err
 	}
 
+	volDBContentType, err := VolumeContentTypeNameToContentType(parentVol.ContentType)
+	if err != nil {
+		return err
+	}
+
+	contentType, err := VolumeDBContentTypeToContentType(volDBContentType)
+	if err != nil {
+		return err
+	}
+
+	if contentType != drivers.ContentTypeFS && contentType != drivers.ContentTypeBlock {
+		return fmt.Errorf("Volume of content type %q does not support snapshots", contentType)
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -4517,16 +4539,6 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	}
 
 	revert.Add(func() { _ = VolumeDBDelete(b, projectName, fullSnapshotName, drivers.VolumeTypeCustom) })
-
-	volDBContentType, err := VolumeContentTypeNameToContentType(parentVol.ContentType)
-	if err != nil {
-		return err
-	}
-
-	contentType, err := VolumeDBContentTypeToContentType(volDBContentType)
-	if err != nil {
-		return err
-	}
 
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, fullSnapshotName)
@@ -5513,6 +5525,20 @@ func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarW
 	volume, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
 	if err != nil {
 		return err
+	}
+
+	contentDBType, err := VolumeContentTypeNameToContentType(volume.ContentType)
+	if err != nil {
+		return err
+	}
+
+	contentType, err := VolumeDBContentTypeToContentType(contentDBType)
+	if err != nil {
+		return err
+	}
+
+	if contentType != drivers.ContentTypeFS && contentType != drivers.ContentTypeBlock {
+		return fmt.Errorf("Volume of content type %q cannot be backed up", contentType)
 	}
 
 	var snapNames []string
