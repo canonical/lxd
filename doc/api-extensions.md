@@ -2049,3 +2049,10 @@ Add current user details to the main API endpoint.
 
 ## `instances_state_total`
 This extension adds a new `total` field to `InstanceStateDisk` and `InstanceStateMemory`, both part of the instance's state API.
+
+## `numa_cpu_placement`
+This adds the possibility to place a set of CPUs in a desired set of NUMA nodes.
+
+This adds the following new configuration key:
+
+* `limits.cpu.nodes` : (string) comma-separated list of NUMA node IDs or NUMA node ID ranges to place the CPUs (chosen with a dynamic value of `limits.cpu`) in.
