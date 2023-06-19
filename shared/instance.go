@@ -89,6 +89,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	"cluster.evacuate": validate.Optional(validate.IsOneOf("auto", "migrate", "live-migrate", "stop")),
 
 	"limits.cpu":           validate.Optional(validate.IsValidCPUSet),
+	"limits.cpu.nodes":     validate.Optional(validate.IsValidCPUSet),
 	"limits.disk.priority": validate.Optional(validate.IsPriority),
 	"limits.memory": func(value string) error {
 		if value == "" {
