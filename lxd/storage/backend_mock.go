@@ -347,3 +347,7 @@ func (b *mockBackend) BackupCustomVolume(projectName string, volName string, tar
 func (b *mockBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) error {
 	return nil
 }
+
+func (b *mockBackend) CreateCustomVolumeFromISO(projectName string, volName string, srcData io.ReadSeeker, size int64, op *operations.Operation) error {
+	return nil
+}
