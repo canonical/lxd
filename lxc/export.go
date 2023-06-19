@@ -168,7 +168,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 
 	// Detect backup file type and rename file accordingly
 	if len(args) <= 1 {
-		_, err := target.Seek(0, 0)
+		_, err := target.Seek(0, io.SeekStart)
 		if err != nil {
 			return err
 		}
