@@ -375,6 +375,7 @@ var APIExtensions = []string{
 	"auth_user",
 	"security_csm",
 	"instances_rebuild",
+	"numa_cpu_placement",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
