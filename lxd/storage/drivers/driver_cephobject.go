@@ -105,10 +105,8 @@ func (d *cephobject) Validate(config map[string]string) error {
 	return d.validatePool(config, rules, nil)
 }
 
-// Create is called during pool creation and is effectively using an empty driver struct.
-// WARNING: The Create() function cannot rely on any of the struct attributes being set.
-func (d *cephobject) Create() error {
-	// Set default properties if missing.
+// FillConfig populates the storage pool's configuration file with the default values.
+func (d *cephobject) FillConfig() error {
 	if d.config["cephobject.cluster_name"] == "" {
 		d.config["cephobject.cluster_name"] = CephDefaultCluster
 	}
@@ -119,6 +117,17 @@ func (d *cephobject) Create() error {
 
 	if d.config["cephobject.radosgw.endpoint"] == "" {
 		return fmt.Errorf(`"cephobject.radosgw.endpoint" option is required`)
+	}
+
+	return nil
+}
+
+// Create is called during pool creation and is effectively using an empty driver struct.
+// WARNING: The Create() function cannot rely on any of the struct attributes being set.
+func (d *cephobject) Create() error {
+	err := d.FillConfig()
+	if err != nil {
+		return err
 	}
 
 	// Check if there is an existing cephobjectRadosgwAdminUser user.
