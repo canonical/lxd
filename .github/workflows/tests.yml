@@ -11,12 +11,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  static-analysis:
-    name: Static analysis
+  code-tests:
+    name: Code tests
     runs-on: ubuntu-22.04
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
           go-version: 1.18.x
 
@@ -35,6 +38,7 @@ jobs:
             libdbus-1-dev \
             libdqlite-dev \
             liblxc-dev \
+            lxc-templates \
             libseccomp-dev \
             libselinux-dev \
             libsqlite3-dev \
@@ -51,9 +55,6 @@ jobs:
           chmod +x shellcheck-v0.8.0/shellcheck
           sudo mv shellcheck-v0.8.0/shellcheck /bin/shellcheck
 
-      - name: Checkout
-        uses: actions/checkout@v3
-
       - name: Download go dependencies
         run: |
           go mod download
@@ -66,6 +67,10 @@ jobs:
         run: |
           make static-analysis
 
+      - name: Unit tests (all)
+        run: |
+          sudo go test ./...
+
   system-tests:
     env:
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
@@ -75,13 +80,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        go: ["1.18.x"]
         suite: ["cluster", "standalone"]
         backend: ["dir", "btrfs", "lvm", "zfs"]
+        include:
+          - go: stable
+            suite: cluster
+            backend: dir
+          - go: stable
+            suite: standalone
+            backend: dir
+
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
-          go-version: 1.18.x
+          go-version: ${{ matrix.go }}
 
       - name: Install dependencies
         run: |
@@ -132,9 +149,6 @@ jobs:
             xz-utils \
             zfsutils-linux
 
-      - name: Checkout
-        uses: actions/checkout@v3
-
       - name: Download go dependencies
         run: |
           go mod download
@@ -143,7 +157,7 @@ jobs:
         run: |
           make
 
-      - name: "Run system tests (${{ matrix.suite }}, ${{ matrix.backend }})"
+      - name: "Run system tests (${{ matrix.go }}, ${{ matrix.suite }}, ${{ matrix.backend }})"
         run: |
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
@@ -151,7 +165,7 @@ jobs:
           sudo --preserve-env=PATH,GOPATH,GORACE,LXD_INSPECT,LXD_DEBUG,LXD_VERBOSE,LXD_BACKEND,LXD_NIC_BRIDGED_DRIVER,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_CONCURRENT,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,LXD_SHIFTFS_DISABLE LXD_OFFLINE=1 LXD_TMPFS=1 LXD_VERBOSE=1 LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
 
   client:
-    name: Unit tests (client)
+    name: Client tests
     strategy:
       fail-fast: false
       matrix:
@@ -164,25 +178,25 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Install Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: ${{ matrix.go }}
-
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Test client package
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Unit tests (client)
         env:
           CGO_ENABLED: 0
         run: go test -v ./client/...
 
-      - name: Test lxc package
+      - name: Unit tests (lxc)
         env:
           CGO_ENABLED: 0
         run: go test -v ./lxc/...
 
-      - name: Test shared package
+      - name: Unit tests (shared)
         env:
           CGO_ENABLED: 0
         run: go test -v ./shared/...
