@@ -129,6 +129,20 @@ html_context = {
     "github_filetype": "md"
 }
 
+# Pass a variable to the template files that informs if we're on
+# RTD or not
+if ("ON_RTD" in os.environ) and (os.environ["ON_RTD"] == "True"):
+    html_context["ON_RTD"] = True
+
+html_sidebars = {
+    "**": [
+        "sidebar/variant-selector.html",
+        "sidebar/search.html",
+        "sidebar/scroll-start.html",
+        "sidebar/navigation.html",
+        "sidebar/scroll-end.html",
+    ]
+}
 source_suffix = ".md"
 
 # List of patterns, relative to source directory, that match files and
