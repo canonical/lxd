@@ -3573,6 +3573,7 @@ test_clustering_events() {
   # Restart instance generating restart lifecycle event.
   LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
   LXD_DIR="${LXD_THREE_DIR}" lxc restart -f c2
+  sleep 2
 
   # Check events were distributed.
   for i in 1 2 3; do
@@ -3601,6 +3602,7 @@ test_clustering_events() {
   # Restart instance generating restart lifecycle event.
   LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
   LXD_DIR="${LXD_THREE_DIR}" lxc restart -f c2
+  sleep 2
 
   # Check events were distributed.
   for i in 1 2 3; do
@@ -3634,6 +3636,7 @@ test_clustering_events() {
   # Restart instance generating restart lifecycle event.
   LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
   LXD_DIR="${LXD_THREE_DIR}" lxc restart -f c2
+  sleep 2
 
   # Check events were distributed.
   for i in 1 2 3; do
@@ -3666,8 +3669,8 @@ test_clustering_events() {
   # Confirm that local operations are not blocked by having no event hubs running, but that events are not being
   # distributed.
   LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
-  sleep 1
-  grep -Fc "instance-restarted" "${TEST_DIR}/node1.log"
+  sleep 2
+
   grep -Fc "instance-restarted" "${TEST_DIR}/node1.log" | grep -Fx 7
   for i in 2 3; do
     cat "${TEST_DIR}/node${i}.log"
