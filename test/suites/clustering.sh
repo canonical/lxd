@@ -3458,11 +3458,11 @@ test_clustering_events() {
   LXD_DIR="${LXD_ONE_DIR}" lxc info c1 | grep -q "Location: node1"
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c2 --target=node2
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc monitor --type=lifecycle > "${TEST_DIR}/node1.log" &
+  LXD_DIR="${LXD_ONE_DIR}" stdbuf -oL lxc monitor --type=lifecycle > "${TEST_DIR}/node1.log" &
   monitorNode1PID=$!
-  LXD_DIR="${LXD_TWO_DIR}" lxc monitor --type=lifecycle > "${TEST_DIR}/node2.log" &
+  LXD_DIR="${LXD_TWO_DIR}" stdbuf -oL lxc monitor --type=lifecycle > "${TEST_DIR}/node2.log" &
   monitorNode2PID=$!
-  LXD_DIR="${LXD_THREE_DIR}" lxc monitor --type=lifecycle > "${TEST_DIR}/node3.log" &
+  LXD_DIR="${LXD_THREE_DIR}" stdbuf -oL lxc monitor --type=lifecycle > "${TEST_DIR}/node3.log" &
   monitorNode3PID=$!
 
   # Restart instance generating restart lifecycle event.
