@@ -52,7 +52,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 
 	// Create sparse loopback file if volume is block.
 	rootBlockPath := ""
-	if vol.contentType == ContentTypeBlock {
+	if IsContentBlock(vol.contentType) {
 		// We expect the filler to copy the VM image into this path.
 		rootBlockPath, err = d.GetVolumeDiskPath(vol)
 		if err != nil {
@@ -81,7 +81,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 
 	// If we are creating a block volume, resize it to the requested size or the default.
 	// We expect the filler function to have converted the qcow2 image to raw into the rootBlockPath.
-	if vol.contentType == ContentTypeBlock {
+	if IsContentBlock(vol.contentType) {
 		// Convert to bytes.
 		sizeBytes, err := units.ParseByteSizeString(vol.ConfigSize())
 		if err != nil {
