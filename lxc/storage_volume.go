@@ -2292,6 +2292,8 @@ type cmdStorageVolumeImport struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
 	storageVolume *cmdStorageVolume
+
+	flagType string
 }
 
 func (c *cmdStorageVolumeImport) Command() *cobra.Command {
@@ -2305,6 +2307,7 @@ func (c *cmdStorageVolumeImport) Command() *cobra.Command {
 		Create a new custom volume using backup0.tar.gz as the source.`))
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
+	cmd.Flags().StringVar(&c.flagType, "type", "", i18n.G("Import type, backup or iso (default \"backup\")")+"``")
 
 	return cmd
 }
@@ -2351,6 +2354,24 @@ func (c *cmdStorageVolumeImport) Run(cmd *cobra.Command, args []string) error {
 		volName = args[2]
 	}
 
+	if c.flagType == "" {
+		// Set type to iso if filename suffix is .iso
+		if strings.HasSuffix(file.Name(), ".iso") {
+			c.flagType = "iso"
+		} else {
+			c.flagType = "backup"
+		}
+	} else {
+		// Validate type flag
+		if !shared.StringInSlice(c.flagType, []string{"backup", "iso"}) {
+			return fmt.Errorf("Import type needs to be \"backup\" or \"iso\"")
+		}
+	}
+
+	if c.flagType == "iso" && volName == "" {
+		return fmt.Errorf("Importing ISO images requires a volume name to be set")
+	}
+
 	progress := cli.ProgressRenderer{
 		Format: i18n.G("Importing custom volume: %s"),
 		Quiet:  c.global.flagQuiet,
@@ -2369,7 +2390,14 @@ func (c *cmdStorageVolumeImport) Run(cmd *cobra.Command, args []string) error {
 		Name: volName,
 	}
 
-	op, err := d.CreateStoragePoolVolumeFromBackup(pool, createArgs)
+	var op lxd.Operation
+
+	if c.flagType == "iso" {
+		op, err = d.CreateStoragePoolVolumeFromISO(pool, createArgs)
+	} else {
+		op, err = d.CreateStoragePoolVolumeFromBackup(pool, createArgs)
+	}
+
 	if err != nil {
 		return err
 	}
