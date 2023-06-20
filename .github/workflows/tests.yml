@@ -91,15 +91,32 @@ jobs:
           - go: stable
             suite: standalone
             backend: dir
+          - go: tip
+            suite: cluster
+            backend: dir
+          - go: tip
+            suite: standalone
+            backend: dir
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Install Go
+      - name: Install Go (stable)
         uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go }}
+        if: matrix.go != 'tip'
+
+      - name: Install Go (tip)
+        run: |
+          curl -sL https://storage.googleapis.com/go-build-snap/go/linux-amd64/$(git ls-remote https://github.com/golang/go.git HEAD | awk '{print $1;}').tar.gz -o gotip.tar.gz
+          ls -lah gotip.tar.gz
+          mkdir -p ~/sdk/gotip
+          tar -C ~/sdk/gotip -xzf gotip.tar.gz
+          ~/sdk/gotip/bin/go version
+          echo "PATH=$HOME/go/bin:$HOME/sdk/gotip/bin/:$PATH" >> $GITHUB_ENV
+        if: matrix.go == 'tip'
 
       - name: Install dependencies
         run: |
