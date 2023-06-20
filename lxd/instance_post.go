@@ -21,10 +21,13 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/scriptlet"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	apiScriptlet "github.com/lxc/lxd/shared/api/scriptlet"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -229,6 +232,31 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		})
 		if err != nil {
 			return response.SmartError(err)
+		}
+
+		if targetMemberInfo == nil && s.GlobalConfig.InstancesPlacementScriptlet() != "" {
+			leaderAddress, err := d.gateway.LeaderAddress()
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			req := apiScriptlet.InstancePlacement{
+				InstancesPost: api.InstancesPost{
+					Name: name,
+					Type: api.InstanceType(instanceType.String()),
+					InstancePut: api.InstancePut{
+						Config:  inst.ExpandedConfig(),
+						Devices: inst.ExpandedDevices().CloneNative(),
+					},
+				},
+				Project: projectName,
+				Reason:  apiScriptlet.InstancePlacementReasonRelocation,
+			}
+
+			targetMemberInfo, err = scriptlet.InstancePlacementRun(r.Context(), logger.Log, s, &req, candidateMembers, leaderAddress)
+			if err != nil {
+				return response.BadRequest(fmt.Errorf("Failed instance placement scriptlet: %w", err))
+			}
 		}
 
 		// If no member was selected yet, pick the member with the least number of instances.
