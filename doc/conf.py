@@ -96,6 +96,7 @@ html_theme_options = {
         "color-highlighted-background": "#EbEbEb",
         "color-link-underline": "var(--color-background-primary)",
         "color-link-underline--hover": "var(--color-background-primary)",
+        "color-version-popup": "#772953"
     },
     "dark_css_variables": {
         "color-foreground-secondary": "var(--color-foreground-primary)",
@@ -119,6 +120,7 @@ html_theme_options = {
         "color-highlighted-background": "#666",
         "color-link-underline": "var(--color-background-primary)",
         "color-link-underline--hover": "var(--color-background-primary)",
+        "color-version-popup": "#F29879"
     },
 }
 
@@ -133,16 +135,17 @@ html_context = {
 # RTD or not
 if ("ON_RTD" in os.environ) and (os.environ["ON_RTD"] == "True"):
     html_context["ON_RTD"] = True
-
-html_sidebars = {
-    "**": [
-        "sidebar/variant-selector.html",
-        "sidebar/search.html",
-        "sidebar/scroll-start.html",
-        "sidebar/navigation.html",
-        "sidebar/scroll-end.html",
-    ]
-}
+else:
+    # only change the sidebar when we're not on RTD
+    html_sidebars = {
+        "**": [
+            "sidebar/variant-selector.html",
+            "sidebar/search.html",
+            "sidebar/scroll-start.html",
+            "sidebar/navigation.html",
+            "sidebar/scroll-end.html",
+        ]
+    }
 source_suffix = ".md"
 
 # List of patterns, relative to source directory, that match files and
