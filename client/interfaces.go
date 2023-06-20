@@ -388,6 +388,9 @@ type InstanceServer interface {
 	GetStoragePoolVolumeBackupFile(pool string, volName string, name string, req *BackupFileRequest) (resp *BackupFileResponse, err error)
 	CreateStoragePoolVolumeFromBackup(pool string, args StoragePoolVolumeBackupArgs) (op Operation, err error)
 
+	// Storage volume ISO import function ("custom_volume_iso" API extension)
+	CreateStoragePoolVolumeFromISO(pool string, args StoragePoolVolumeBackupArgs) (op Operation, err error)
+
 	// Cluster functions ("cluster" API extensions)
 	GetCluster() (cluster *api.Cluster, ETag string, err error)
 	UpdateCluster(cluster api.ClusterPut, ETag string) (op Operation, err error)
