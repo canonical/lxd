@@ -2,6 +2,7 @@ package filter
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/canonical/lxd/shared"
@@ -16,19 +17,36 @@ type Clause struct {
 	Value       string
 }
 
+// ClauseSet is a set of clauses. There are configurable functions that can be used to
+// perform unique parsing of the clauses.
+type ClauseSet struct {
+	Clauses []Clause
+	Ops     OperatorSet
+
+	ParseInt    func(Clause) (int64, error)
+	ParseUint   func(Clause) (uint64, error)
+	ParseString func(Clause) (string, error)
+	ParseBool   func(Clause) (bool, error)
+	ParseRegexp func(Clause) (*regexp.Regexp, error)
+}
+
 // Parse a user-provided filter string.
-func Parse(s string) ([]Clause, error) {
+func Parse(s string, op OperatorSet) (*ClauseSet, error) {
+	if !op.isValid() {
+		return nil, fmt.Errorf("Invalid operator set")
+	}
+
 	clauses := []Clause{}
 
 	parts := strings.Fields(s)
 
 	index := 0
-	prevLogical := "and"
+	prevLogical := op.And
 
 	for index < len(parts) {
 		clause := Clause{}
 
-		if strings.EqualFold(parts[index], "not") {
+		if strings.EqualFold(parts[index], op.Negate) {
 			clause.Not = true
 			index++
 			if index == len(parts) {
@@ -55,23 +73,25 @@ func Parse(s string) ([]Clause, error) {
 		value := parts[index]
 
 		// support strings with spaces that are quoted
-		if strings.HasPrefix(value, "\"") {
-			value = value[1:]
-			for {
-				index++
-				if index == len(parts) {
-					return nil, fmt.Errorf("unterminated quote")
+		for _, symbol := range op.Quote {
+			if strings.HasPrefix(value, symbol) {
+				value = value[1:]
+				for {
+					index++
+					if index == len(parts) {
+						return nil, fmt.Errorf("unterminated quote")
+					}
+
+					if strings.HasSuffix(parts[index], symbol) {
+						break
+					}
+
+					value += " " + parts[index]
 				}
 
-				if strings.HasSuffix(parts[index], "\"") {
-					break
-				}
-
-				value += " " + parts[index]
+				end := parts[index]
+				value += " " + end[0:len(end)-1]
 			}
-
-			end := parts[index]
-			value += " " + end[0:len(end)-1]
 		}
 
 		clause.Value = value
@@ -80,7 +100,7 @@ func Parse(s string) ([]Clause, error) {
 		clause.PrevLogical = prevLogical
 		if index < len(parts) {
 			prevLogical = parts[index]
-			if !shared.StringInSlice(prevLogical, []string{"and", "or"}) {
+			if !shared.StringInSlice(prevLogical, []string{op.And, op.Or}) {
 				return nil, fmt.Errorf("invalid clause composition")
 			}
 
@@ -89,8 +109,9 @@ func Parse(s string) ([]Clause, error) {
 				return nil, fmt.Errorf("unterminated compound clause")
 			}
 		}
+
 		clauses = append(clauses, clause)
 	}
 
-	return clauses, nil
+	return &ClauseSet{Clauses: clauses, Ops: op}, nil
 }
