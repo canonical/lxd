@@ -17,7 +17,6 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/lxd/filter"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
@@ -26,6 +25,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/filter"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -258,12 +258,9 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 
 	// Parse filter value.
 	filterStr := r.FormValue("filter")
-	var clauses []filter.Clause
-	if filterStr != "" {
-		clauses, err = filter.Parse(filterStr)
-		if err != nil {
-			return nil, fmt.Errorf("Invalid filter: %w", err)
-		}
+	clauses, err := filter.Parse(filterStr, filter.QueryOperatorSet())
+	if err != nil {
+		return nil, fmt.Errorf("Invalid filter: %w", err)
 	}
 
 	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
@@ -489,7 +486,10 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 
 	// Filter result list if needed.
 	if clauses != nil {
-		resultFullList = instance.FilterFull(resultFullList, clauses)
+		resultFullList, err = instance.FilterFull(resultFullList, *clauses)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if recursion == 0 {
