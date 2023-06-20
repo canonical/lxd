@@ -1,20 +1,25 @@
 package instance
 
 import (
-	"github.com/canonical/lxd/lxd/filter"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/filter"
 )
 
 // FilterFull returns a filtered list of full instances that match the given clauses.
-func FilterFull(instances []*api.InstanceFull, clauses []filter.Clause) []*api.InstanceFull {
+func FilterFull(instances []*api.InstanceFull, clauses filter.ClauseSet) ([]*api.InstanceFull, error) {
 	filtered := []*api.InstanceFull{}
 	for _, instance := range instances {
-		if !filter.Match(*instance, clauses) {
+		match, err := filter.Match(*instance, clauses)
+		if err != nil {
+			return nil, err
+		}
+
+		if !match {
 			continue
 		}
 
 		filtered = append(filtered, instance)
 	}
 
-	return filtered
+	return filtered, nil
 }

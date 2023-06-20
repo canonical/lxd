@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/canonical/lxd/lxd/filter"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/filter"
 )
 
 func TestValueOf_Instance(t *testing.T) {

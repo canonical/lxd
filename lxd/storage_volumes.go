@@ -25,7 +25,6 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
-	"github.com/canonical/lxd/lxd/filter"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
@@ -37,6 +36,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/filter"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -314,13 +314,9 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	filterStr := r.FormValue("filter")
-	var clauses []filter.Clause
-	if filterStr != "" {
-		var err error
-		clauses, err = filter.Parse(filterStr)
-		if err != nil {
-			return response.SmartError(fmt.Errorf("Invalid filter: %w", err))
-		}
+	clauses, err := filter.Parse(filterStr, filter.QueryOperatorSet())
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Invalid filter: %w", err))
 	}
 
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
@@ -419,7 +415,10 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	dbVolumes = filterVolumes(dbVolumes, clauses, allProjects, projectImages)
+	dbVolumes, err = filterVolumes(dbVolumes, clauses, allProjects, projectImages)
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Sort by type then volume name.
 	sort.SliceStable(dbVolumes, func(i, j int) bool {
@@ -459,7 +458,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 }
 
 // filterVolumes returns a filtered list of volumes that match the given clauses.
-func filterVolumes(volumes []*db.StorageVolume, clauses []filter.Clause, allProjects bool, filterProjectImages []string) []*db.StorageVolume {
+func filterVolumes(volumes []*db.StorageVolume, clauses *filter.ClauseSet, allProjects bool, filterProjectImages []string) ([]*db.StorageVolume, error) {
 	// FilterStorageVolume is for filtering purpose only.
 	// It allows to filter snapshots by using default filter mechanism.
 	type FilterStorageVolume struct {
@@ -479,14 +478,19 @@ func filterVolumes(volumes []*db.StorageVolume, clauses []filter.Clause, allProj
 			Snapshot:      strconv.FormatBool(strings.Contains(volume.Name, shared.SnapshotDelimiter)),
 		}
 
-		if !filter.Match(tmpVolume, clauses) {
+		match, err := filter.Match(tmpVolume, *clauses)
+		if err != nil {
+			return nil, err
+		}
+
+		if !match {
 			continue
 		}
 
 		filtered = append(filtered, volume)
 	}
 
-	return filtered
+	return filtered, nil
 }
 
 // swagger:operation POST /1.0/storage-pools/{poolName}/volumes/{type} storage storage_pool_volumes_type_post
