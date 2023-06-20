@@ -75,6 +75,7 @@ jobs:
     env:
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
       LXD_SHIFTFS_DISABLE: "true"
+      LXD_CEPH_CLUSTER: "ceph"
     name: System tests
     runs-on: ubuntu-22.04
     strategy:
@@ -82,7 +83,7 @@ jobs:
       matrix:
         go: ["1.18.x"]
         suite: ["cluster", "standalone"]
-        backend: ["dir", "btrfs", "lvm", "zfs", "random"]
+        backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
         include:
           - go: stable
             suite: cluster
@@ -106,7 +107,8 @@ jobs:
           sudo add-apt-repository ppa:dqlite/dev -y --no-update
           sudo apt-get update
 
-          sudo apt-get autoremove docker uidmap --purge -y
+          sudo snap remove lxd --purge
+          sudo apt-get autoremove moby-containerd docker uidmap --purge -y
           sudo ip link delete docker0
           sudo nft flush ruleset
 
@@ -156,6 +158,26 @@ jobs:
       - name: Run LXD build
         run: |
           make
+
+      - name: Setup MicroCeph
+        if: ${{ matrix.backend == 'ceph' }}
+        run: |
+          sudo apt-get install --no-install-recommends -y snapd ceph-common
+          sudo snap install microceph --edge
+          sleep 5
+          sudo microceph cluster bootstrap
+          sudo microceph.ceph config set global osd_pool_default_size 1
+          sudo microceph.ceph config set global mon_allow_pool_delete true
+          sudo microceph.ceph osd crush rule rm replicated_rule
+          sudo microceph.ceph osd crush rule create-replicated replicated default osd
+          sudo swapoff /mnt/swapfile
+          sudo umount /mnt
+          sudo microceph disk add --wipe /dev/sdb
+          sudo rm -rf /etc/ceph
+          sudo ln -s /var/snap/microceph/current/conf/ /etc/ceph
+          sleep 10
+          sudo microceph.ceph status
+          sudo rm -f /snap/bin/rbd
 
       - name: "Run system tests (${{ matrix.go }}, ${{ matrix.suite }}, ${{ matrix.backend }})"
         run: |
