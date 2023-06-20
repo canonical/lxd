@@ -32,7 +32,6 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/operationtype"
-	"github.com/lxc/lxd/lxd/filter"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/lifecycle"
@@ -47,6 +46,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/filter"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
@@ -1276,7 +1276,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	return &result, imageType, nil
 }
 
-func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectName string, public bool, clauses []filter.Clause) (any, error) {
+func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectName string, public bool, clauses *filter.ClauseSet) (any, error) {
 	mustLoadObjects := recursion || clauses != nil
 
 	fingerprints, err := tx.GetImagesFingerprints(ctx, projectName, public)
@@ -1302,8 +1302,15 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 				continue
 			}
 
-			if clauses != nil && !filter.Match(*image, clauses) {
-				continue
+			if clauses != nil {
+				match, err := filter.Match(*image, *clauses)
+				if err != nil {
+					return nil, err
+				}
+
+				if !match {
+					continue
+				}
 			}
 
 			if recursion {
@@ -1531,13 +1538,9 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 	filterStr := r.FormValue("filter")
 	public := d.checkTrustedClient(r) != nil || allowProjectPermission("images", "view")(d, r) != response.EmptySyncResponse
 
-	var err error
-	var clauses []filter.Clause
-	if filterStr != "" {
-		clauses, err = filter.Parse(filterStr)
-		if err != nil {
-			return response.SmartError(fmt.Errorf("Invalid filter: %w", err))
-		}
+	clauses, err := filter.Parse(filterStr, filter.QueryOperatorSet())
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Invalid filter: %w", err))
 	}
 
 	var result any
