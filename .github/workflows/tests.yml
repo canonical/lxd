@@ -251,58 +251,33 @@ jobs:
       - name: Dependency Review
         uses: actions/dependency-review-action@v3
 
-  woke:
-    name: Inclusive naming (documentation)
+  documentation:
+    name: Documentation tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: woke
-        uses: get-woke/woke-action@v0
-        with:
-          # Cause the check to fail on any broke rules
-          fail-on-error: true
-          woke-args: "doc/*.md doc/**/*.md -c https://github.com/canonical-web-and-design/Inclusive-naming/raw/main/config.yml"
-
-  spellcheck:
-    name: Spellcheck (documentation)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Install Aspell
+      - name: Install dependencies
         run: |
           sudo apt-get install aspell aspell-en
+          sudo snap install mdl
 
-      - name: Build docs and run spellchecker
+      - name: Run markdown linter
+        run: |
+          make doc-lint
+
+      - name: Run spell checker
         run: |
           make doc-spellcheck
 
-  linkcheck:
-    name: Check links (documentation)
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Run inclusive naming checker
+        uses: get-woke/woke-action@v0
+        with:
+          woke-args: "doc/*.md doc/**/*.md -c https://github.com/canonical-web-and-design/Inclusive-naming/raw/main/config.yml"
 
-      - name: Run linkchecker
+      - name: Run link checker
+        # This can fail intermittently due to external resources being unavailable.
+        continue-on-error: true
         run: |
           make doc-linkcheck
-
-  markdownlint:
-    name: Markdownlint (documentation)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Install mdl
-        run: |
-          sudo snap install mdl
-
-      - name: Run mdl
-        run: |
-          make doc-lint
