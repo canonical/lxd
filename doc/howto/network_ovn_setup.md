@@ -146,7 +146,7 @@ See the linked YouTube video for the complete tutorial using four machines.
 
      Therefore, you must specify either an unmanaged bridge interface or an unused physical interface as the parent for the physical network that is used for OVN uplink.
      The instructions assume that you are using a manually created unmanaged bridge.
-     See [Configuring network bridges](https://netplan.io/examples/#configuring-network-bridges) for instructions on how to set up this bridge.
+     See [How to configure network bridges](https://netplan.readthedocs.io/en/stable/examples/#how-to-configure-network-bridges) for instructions on how to set up this bridge.
 
    Gateway
    : Run `ip -4 route show default` and `ip -6 route show default`.

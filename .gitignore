@@ -19,13 +19,13 @@ test/macaroon-identity/macaroon-identity
 
 # Sphinx
 doc/html/
-.sphinx/deps/
-.sphinx/themes/
-.sphinx/venv/
-.sphinx/warnings.txt
-.sphinx/.wordlist.dic
-.sphinx/_static/swagger-ui
-.sphinx/_static/download
+doc/.sphinx/deps/
+doc/.sphinx/themes/
+doc/.sphinx/venv/
+doc/.sphinx/warnings.txt
+doc/.sphinx/.wordlist.dic
+doc/.sphinx/_static/swagger-ui
+doc/.sphinx/_static/download
 
 # For Atom ctags
 .tags
