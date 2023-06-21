@@ -7260,14 +7260,7 @@ func (d *qemu) vsockID() int {
 	// unique, non-clashing context ID for our guest.
 
 	info := DriverStatuses()[instancetype.VM].Info
-	feature, found := info.Features["vhost_vsock"]
-
-	vsockID, ok := feature.(int)
-	if !found || !ok {
-		vsockID = vsock.Host
-	}
-
-	return vsockID + 1 + d.id
+	return info.Features["vhost_vsock"].(int) + 1 + d.id
 }
 
 // InitPID returns the instance's current process ID.
@@ -7783,7 +7776,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 		// Fallback to the default ID for a host system
 		features["vhost_vsock"] = vsock.Host
 	} else {
-		features["vhost_vsock"] = vsockID
+		features["vhost_vsock"] = int(vsockID)
 	}
 
 	return features, nil
