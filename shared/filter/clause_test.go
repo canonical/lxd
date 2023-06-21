@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lxc/lxd/lxd/filter"
+	"github.com/lxc/lxd/shared/filter"
 )
 
 func TestParse_Error(t *testing.T) {
@@ -23,7 +23,7 @@ func TestParse_Error(t *testing.T) {
 
 	for s, message := range cases {
 		t.Run(s, func(t *testing.T) {
-			clauses, err := filter.Parse(s)
+			clauses, err := filter.Parse(s, filter.QueryOperatorSet())
 			assert.Nil(t, clauses)
 			assert.EqualError(t, err, message)
 		})
@@ -31,11 +31,11 @@ func TestParse_Error(t *testing.T) {
 }
 
 func TestParse(t *testing.T) {
-	clauses, err := filter.Parse("foo eq \"bar egg\" or not baz eq yuk")
+	clauses, err := filter.Parse("foo eq \"bar egg\" or not baz eq yuk", filter.QueryOperatorSet())
 	require.NoError(t, err)
-	assert.Len(t, clauses, 2)
-	clause1 := clauses[0]
-	clause2 := clauses[1]
+	assert.Len(t, clauses.Clauses, 2)
+	clause1 := clauses.Clauses[0]
+	clause2 := clauses.Clauses[1]
 	assert.False(t, clause1.Not)
 	assert.Equal(t, "and", clause1.PrevLogical)
 	assert.Equal(t, "foo", clause1.Field)
