@@ -3288,13 +3288,11 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 
 		targetMemberInfo, err := evacuateClusterSelectTarget(ctx, opts.s, opts.gateway, inst, candidateMembers)
 		if err != nil {
-			return err
-		}
-
-		// Skip migration if no target available.
-		if targetMemberInfo == nil {
-			l.Warn("No migration target available for instance")
-			continue
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				// Skip migration if no target is available
+				l.Warn("No migration target available for instance")
+				continue
+			}
 		}
 
 		// Start migrating the instance.
