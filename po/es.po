@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
 "POT-Creation-Date: 2023-06-15 17:07-0400\n"
-"PO-Revision-Date: 2022-03-10 15:08+0000\n"
-"Last-Translator: Alonso José Lara Plana <alonso.lara.plana@gmail.com>\n"
+"PO-Revision-Date: 2023-06-16 20:55+0000\n"
+"Last-Translator: Francisco Serrador <fserrador@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
 "lxd/es/>\n"
 "Language: es\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 4.12-dev\n"
+"X-Generator: Weblate 4.18.1\n"
 
 #: lxc/storage_bucket.go:255 lxc/storage_bucket.go:963
 #, fuzzy
@@ -121,17 +121,12 @@ msgstr ""
 "### Observe que la huella se muestra pero no puede modificarse"
 
 #: lxc/cluster_group.go:349
-#, fuzzy
 msgid ""
 "### This is a YAML representation of the cluster group.\n"
 "### Any line starting with a '# will be ignored."
 msgstr ""
-"### Esta es una representación yaml de las propiedades de la imagen.\n"
-"### Cualquier línea que empiece con un '# será ignorada..\n"
-"###\n"
-"### Cada propiedad es representada por una única línea:\n"
-"### Un ejemplo sería:\n"
-"###  description: My custom image"
+"### Esta es una representación YAML del grupo de clústeres.\n"
+"### Cualquier línea que empiece con un '#' será ignorada."
 
 #: lxc/config.go:105
 #, fuzzy
@@ -595,12 +590,12 @@ msgstr ""
 #: lxc/info.go:288
 #, c-format
 msgid "- Partition %d"
-msgstr ""
+msgstr "- Partición %d"
 
 #: lxc/info.go:197
 #, c-format
 msgid "- Port %d (%s)"
-msgstr ""
+msgstr "- Puerto %d (%s)"
 
 #: lxc/action.go:206
 #, fuzzy
@@ -1032,7 +1027,7 @@ msgstr "Bytes enviados"
 
 #: lxc/operation.go:165
 msgid "CANCELABLE"
-msgstr ""
+msgstr "CANCELABLE"
 
 #: lxc/config_trust.go:410
 msgid "COMMON NAME"
@@ -1047,9 +1042,9 @@ msgid "COUNT"
 msgstr ""
 
 #: lxc/info.go:354
-#, fuzzy, c-format
+#, c-format
 msgid "CPU (%s):"
-msgstr "Uso de CPU:"
+msgstr "CPU (%s):"
 
 #: lxc/list.go:572
 msgid "CPU USAGE"
@@ -1079,7 +1074,7 @@ msgstr "CREADO EN"
 #: lxc/info.go:130
 #, c-format
 msgid "CUDA Version: %v"
-msgstr ""
+msgstr "Versión de CUDA: %v"
 
 #: lxc/image.go:983
 #, c-format
@@ -1094,10 +1089,12 @@ msgstr "Cacheado: %s"
 #: lxc/move.go:116
 msgid "Can't override configuration or profiles in local rename"
 msgstr ""
+"No se puede anular la configuración o los perfiles en el cambio de nombre "
+"local"
 
 #: lxc/image.go:207
 msgid "Can't provide a name for the target image"
-msgstr ""
+msgstr "No se puede proporcionar un nombre para la imagen de destino"
 
 #: lxc/file.go:332
 msgid "Can't pull a directory without --recursive"
@@ -1114,7 +1111,7 @@ msgstr ""
 
 #: lxc/list.go:586
 msgid "Can't specify --fast with --columns"
-msgstr ""
+msgstr "No se puede especificar --fast con --columns"
 
 #: lxc/list.go:459
 msgid "Can't specify --project with --all-projects"
@@ -1213,7 +1210,7 @@ msgstr "Certificado del cliente almacenado en el servidor: "
 #: lxc/version.go:37
 #, c-format
 msgid "Client version: %s\n"
-msgstr ""
+msgstr "Versión del cliente: %s\n"
 
 #: lxc/cluster_group.go:187
 #, fuzzy, c-format
@@ -1673,11 +1670,11 @@ msgstr ""
 
 #: lxc/image_alias.go:106 lxc/image_alias.go:107
 msgid "Delete image aliases"
-msgstr ""
+msgstr "Eliminar alias de imagen"
 
 #: lxc/image.go:311 lxc/image.go:312
 msgid "Delete images"
-msgstr ""
+msgstr "Eliminar imágenes"
 
 #: lxc/config_template.go:109 lxc/config_template.go:110
 msgid "Delete instance file templates"
@@ -1847,7 +1844,7 @@ msgstr ""
 #: lxc/storage_volume.go:2252 lxc/version.go:22 lxc/warning.go:29
 #: lxc/warning.go:71 lxc/warning.go:262 lxc/warning.go:303 lxc/warning.go:357
 msgid "Description"
-msgstr ""
+msgstr "Descripción"
 
 #: lxc/storage_volume.go:1220
 #, fuzzy, c-format
@@ -1918,9 +1915,9 @@ msgid "Device from profile(s) cannot be retrieved for individual instance"
 msgstr ""
 
 #: lxc/info.go:266 lxc/info.go:290
-#, fuzzy, c-format
+#, c-format
 msgid "Device: %s"
-msgstr "Cacheado: %s"
+msgstr "Dispositivo: %s"
 
 #: lxc/init.go:405
 msgid "Didn't get any affected image, instance or snapshot from server"
@@ -1947,23 +1944,21 @@ msgid "Disable stdin (reads from /dev/null)"
 msgstr ""
 
 #: lxc/info.go:425
-#, fuzzy, c-format
+#, c-format
 msgid "Disk %d:"
-msgstr "Uso del disco:"
+msgstr "Disco %d:"
 
 #: lxc/info.go:510
 msgid "Disk usage:"
 msgstr "Uso del disco:"
 
 #: lxc/info.go:420
-#, fuzzy
 msgid "Disk:"
-msgstr "Uso del disco:"
+msgstr "Disco:"
 
 #: lxc/info.go:423
-#, fuzzy
 msgid "Disks:"
-msgstr "Uso del disco:"
+msgstr "Discos:"
 
 #: lxc/list.go:135
 #, fuzzy
@@ -3557,8 +3552,8 @@ msgstr ""
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect "
-"\"custom\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect \"custom"
+"\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:32 lxc/remote.go:33
@@ -7043,8 +7038,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called "
-"\"data\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called \"data"
+"\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:452
