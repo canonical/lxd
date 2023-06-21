@@ -37,6 +37,7 @@ checksums
 Chocolatey
 CIDR
 CLI
+COPR
 CPUs
 CRIU
 CRL
@@ -155,6 +156,7 @@ OIDC
 OpenID
 OpenMetrics
 OpenSSL
+OpenSUSE
 OSD
 overcommit
 overcommitting
@@ -208,6 +210,7 @@ SIGTERM
 simplestreams
 SLAAC
 SMTP
+Snapcraft
 Solaris
 SPAs
 SPL
