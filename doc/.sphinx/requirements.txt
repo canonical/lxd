@@ -32,3 +32,5 @@ sphinx-reredirects
 linkify-it-py
 furo
 sphinxext-opengraph>=0.6.1
+gitpython
+wget
