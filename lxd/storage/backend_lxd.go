@@ -4180,10 +4180,9 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	}
 
 	// Get the source volume's content type.
-	contentType := drivers.ContentTypeFS
-
-	if contentDBType == db.StoragePoolVolumeContentTypeBlock {
-		contentType = drivers.ContentTypeBlock
+	contentType, err := VolumeDBContentTypeToContentType(contentDBType)
+	if err != nil {
+		return err
 	}
 
 	storagePoolSupported := false
@@ -4281,7 +4280,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	// "no space left on device".
 	var volSize int64
 
-	if contentType == drivers.ContentTypeBlock {
+	if drivers.IsContentBlock(contentType) {
 		err = srcVol.MountTask(func(mountPath string, op *operations.Operation) error {
 			srcPoolBackend, ok := srcPool.(*lxdBackend)
 			if !ok {
