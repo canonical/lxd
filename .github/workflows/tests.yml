@@ -120,6 +120,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          set -x
           sudo add-apt-repository ppa:ubuntu-lxc/lxc-git-master -y --no-update
           sudo add-apt-repository ppa:dqlite/dev -y --no-update
           sudo apt-get update
@@ -179,17 +180,30 @@ jobs:
       - name: Setup MicroCeph
         if: ${{ matrix.backend == 'ceph' }}
         run: |
+          set -x
           sudo apt-get install --no-install-recommends -y snapd ceph-common
           sudo snap install microceph --edge
           sleep 5
           sudo microceph cluster bootstrap
           sudo microceph.ceph config set global osd_pool_default_size 1
           sudo microceph.ceph config set global mon_allow_pool_delete true
+          sudo microceph.ceph config set global osd_memory_target 939524096
           sudo microceph.ceph osd crush rule rm replicated_rule
           sudo microceph.ceph osd crush rule create-replicated replicated default osd
+          for flag in nosnaptrim noscrub nobackfill norebalance norecover noscrub nodeep-scrub; do
+              sudo microceph.ceph osd set $flag
+          done
+          # Use ephemeral disk mounted on /mnt for ceph OSD.
+          # The block-devices plug doesn't allow accessing /dev/loopX devices so we make those same devices
+          # available under alternate names (/dev/sdiY) that are not used inside GitHub Action runners.
           sudo swapoff /mnt/swapfile
-          sudo umount /mnt
-          sudo microceph disk add --wipe /dev/sdb
+          sudo rm -f /mnt/swapfile
+          loop_file="/mnt/ceph-osd.img"
+          sudo fallocate -l 10G "${loop_file}"
+          loop_dev="$(sudo losetup --show --direct-io=on --nooverlap -f "${loop_file}")"
+          devInfo=($(sudo stat -c '%t %T' "${loop_dev}"))
+          sudo mknod -m 0660 /dev/sdia b 0x"${devInfo[0]}" 0x"${devInfo[1]}"
+          sudo microceph disk add --wipe /dev/sdia
           sudo rm -rf /etc/ceph
           sudo ln -s /var/snap/microceph/current/conf/ /etc/ceph
           sleep 10
