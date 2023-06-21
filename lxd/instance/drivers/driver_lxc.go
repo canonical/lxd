@@ -667,7 +667,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 	})
 
 	// Load cgroup abstraction
-	cg, err := d.cgroup(cc)
+	cg, err := d.cgroup(cc, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1485,7 +1485,7 @@ func (d *lxc) deviceAddCgroupRules(cgroups []deviceConfig.RunConfigItem) error {
 		return err
 	}
 
-	cg, err := d.cgroup(cc)
+	cg, err := d.cgroup(cc, true)
 	if err != nil {
 		return err
 	}
@@ -2668,7 +2668,7 @@ func (d *lxc) Stop(stateful bool) error {
 	}
 
 	// Load cgroup abstraction
-	cg, err := d.cgroup(cc)
+	cg, err := d.cgroup(cc, true)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -3049,7 +3049,7 @@ func (d *lxc) Freeze() error {
 		return err
 	}
 
-	cg, err := d.cgroup(cc)
+	cg, err := d.cgroup(cc, true)
 	if err != nil {
 		return err
 	}
@@ -3099,7 +3099,7 @@ func (d *lxc) Unfreeze() error {
 		return err
 	}
 
-	cg, err := d.cgroup(cc)
+	cg, err := d.cgroup(cc, true)
 	if err != nil {
 		return err
 	}
@@ -4307,7 +4307,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			return err
 		}
 
-		cg, err := d.cgroup(cc)
+		cg, err := d.cgroup(cc, true)
 		if err != nil {
 			return err
 		}
@@ -7052,7 +7052,7 @@ func (d *lxc) cpuState() api.InstanceStateCPU {
 	}
 
 	// CPU usage in seconds
-	cg, err := d.cgroup(cc)
+	cg, err := d.cgroup(cc, true)
 	if err != nil {
 		return cpu
 	}
@@ -7130,7 +7130,7 @@ func (d *lxc) memoryState() api.InstanceStateMemory {
 		return memory
 	}
 
-	cg, err := d.cgroup(cc)
+	cg, err := d.cgroup(cc, true)
 	if err != nil {
 		return memory
 	}
@@ -7254,7 +7254,7 @@ func (d *lxc) processesState(pid int) (int64, error) {
 		return -1, err
 	}
 
-	cg, err := d.cgroup(cc)
+	cg, err := d.cgroup(cc, true)
 	if err != nil {
 		return 0, err
 	}
@@ -7876,7 +7876,7 @@ func (d *lxc) setNetworkPriority() error {
 	}
 
 	// Load the cgroup struct.
-	cg, err := d.cgroup(cc)
+	cg, err := d.cgroup(cc, true)
 	if err != nil {
 		return err
 	}
@@ -8095,19 +8095,17 @@ func (d *lxc) CGroup() (*cgroup.CGroup, error) {
 		return nil, err
 	}
 
-	return d.cgroup(cc)
+	return d.cgroup(cc, true)
 }
 
-func (d *lxc) cgroup(cc *liblxc.Container) (*cgroup.CGroup, error) {
-	rw := lxcCgroupReadWriter{}
-	if cc != nil {
-		rw.cc = cc
-		rw.conf = true
-	}
-
-	if rw.cc == nil {
+func (d *lxc) cgroup(cc *liblxc.Container, running bool) (*cgroup.CGroup, error) {
+	if cc == nil {
 		return nil, fmt.Errorf("Container not initialized for cgroup")
 	}
+
+	rw := lxcCgroupReadWriter{}
+	rw.cc = cc
+	rw.running = running
 
 	cg, err := cgroup.New(&rw)
 	if err != nil {
@@ -8119,12 +8117,12 @@ func (d *lxc) cgroup(cc *liblxc.Container) (*cgroup.CGroup, error) {
 }
 
 type lxcCgroupReadWriter struct {
-	cc   *liblxc.Container
-	conf bool
+	cc      *liblxc.Container
+	running bool
 }
 
 func (rw *lxcCgroupReadWriter) Get(version cgroup.Backend, controller string, key string) (string, error) {
-	if rw.conf {
+	if !rw.running {
 		lxcKey := fmt.Sprintf("lxc.cgroup.%s", key)
 
 		if version == cgroup.V2 {
@@ -8138,7 +8136,7 @@ func (rw *lxcCgroupReadWriter) Get(version cgroup.Backend, controller string, ke
 }
 
 func (rw *lxcCgroupReadWriter) Set(version cgroup.Backend, controller string, key string, value string) error {
-	if rw.conf {
+	if !rw.running {
 		if version == cgroup.V1 {
 			return lxcSetConfigItem(rw.cc, fmt.Sprintf("lxc.cgroup.%s", key), value)
 		}
@@ -8182,7 +8180,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	}
 
 	// Load cgroup abstraction
-	cg, err := d.cgroup(cc)
+	cg, err := d.cgroup(cc, true)
 	if err != nil {
 		return nil, err
 	}
