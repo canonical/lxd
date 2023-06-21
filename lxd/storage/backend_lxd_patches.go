@@ -9,14 +9,17 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
 var lxdEarlyPatches = map[string]func(b *lxdBackend) error{
-	"storage_missing_snapshot_records":    patchMissingSnapshotRecords,
-	"storage_delete_old_snapshot_records": patchDeleteOldSnapshotRecords,
+	"storage_missing_snapshot_records":         patchMissingSnapshotRecords,
+	"storage_delete_old_snapshot_records":      patchDeleteOldSnapshotRecords,
+	"storage_prefix_bucket_names_with_project": patchBucketNames,
 }
 
 var lxdLatePatches = map[string]func(b *lxdBackend) error{}
@@ -151,6 +154,65 @@ DELETE FROM storage_volumes WHERE id IN (
 
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// patchBucketNames modifies the naming convention of bucket volumes by adding
+// the corresponding project name as a prefix.
+func patchBucketNames(b *lxdBackend) error {
+	// Apply patch only for btrfs, dir, lvm, and zfs drivers.
+	if !shared.StringInSlice(b.driver.Info().Name, []string{"btrfs", "dir", "lvm", "zfs"}) {
+		return nil
+	}
+
+	var buckets map[string]*db.StorageBucket
+
+	err := b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get local storage buckets.
+		localBuckets, err := tx.GetStoragePoolBuckets(ctx, true)
+		if err != nil {
+			return err
+		}
+
+		buckets = make(map[string]*db.StorageBucket, len(localBuckets))
+		for _, bucket := range localBuckets {
+			buckets[bucket.Name] = bucket
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// Get list of volumes.
+	volumes, err := b.driver.ListVolumes()
+	if err != nil {
+		return err
+	}
+
+	for _, v := range volumes {
+		// Ensure volume is of type bucket.
+		if v.Type() != drivers.VolumeTypeBucket {
+			continue
+		}
+
+		// Retrieve the bucket associated with the current volume's name.
+		bucket, ok := buckets[v.Name()]
+		if !ok {
+			continue
+		}
+
+		newVolumeName := project.StorageVolume(bucket.Project, bucket.Name)
+
+		// Rename volume.
+		err := b.driver.RenameVolume(v, newVolumeName, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
