@@ -18,6 +18,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v3
+        if: github.event_name == 'pull_request'
+
       - name: Install Go
         uses: actions/setup-go@v4
         with:
@@ -253,17 +257,6 @@ jobs:
         env:
           CGO_ENABLED: 0
         run: go test -v ./shared/...
-
-  dependencies:
-    name: Vulnerable dependencies
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v3
 
   documentation:
     name: Documentation tests
