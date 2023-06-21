@@ -281,7 +281,7 @@ jobs:
       - name: Run inclusive naming checker
         uses: get-woke/woke-action@v0
         with:
-          woke-args: "doc/*.md doc/**/*.md -c https://github.com/canonical-web-and-design/Inclusive-naming/raw/main/config.yml"
+          woke-args: "*.md **/*.md -c https://github.com/canonical-web-and-design/Inclusive-naming/raw/main/config.yml"
 
       - name: Run link checker
         # This can fail intermittently due to external resources being unavailable.
