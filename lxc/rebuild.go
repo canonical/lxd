@@ -82,15 +82,13 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 
 	// If the instance is running, stop it first.
 	if c.flagForce && current.StatusCode == api.Running {
-		req := api.InstancesPut{
-			State: &api.InstanceStatePut{
-				Action: "stop",
-				Force:  true,
-			},
+		req := api.InstanceStatePut{
+			Action: "stop",
+			Force:  true,
 		}
 
 		// Update the instance.
-		op, err := d.UpdateInstances(req, "")
+		op, err := d.UpdateInstanceState(name, req, "")
 		if err != nil {
 			return err
 		}
