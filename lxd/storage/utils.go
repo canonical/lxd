@@ -920,7 +920,7 @@ func VolumeUsedByDaemon(s *state.State, poolName string, volumeName string) (boo
 
 // FallbackMigrationType returns the fallback migration transport to use based on volume content type.
 func FallbackMigrationType(contentType drivers.ContentType) migration.MigrationFSType {
-	if contentType == drivers.ContentTypeBlock {
+	if drivers.IsContentBlock(contentType) {
 		return migration.MigrationFSType_BLOCK_AND_RSYNC
 	}
 
