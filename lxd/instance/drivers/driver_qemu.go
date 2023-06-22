@@ -3531,13 +3531,20 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 			// If backing FS is ZFS or BTRFS, avoid using direct I/O and use host page cache only.
 			// We've seen ZFS lock up and BTRFS checksum issues when using direct I/O on image files.
 			if fsType == "zfs" || fsType == "btrfs" {
-				if driveConf.FSType != "iso9660" {
-					// Only warn about using writeback cache if the drive image is writable.
-					d.logger.Warn("Using writeback cache I/O", logger.Ctx{"device": driveConf.DevName, "devPath": srcDevPath, "fsType": fsType})
-				}
-
 				aioMode = "threads"
 				cacheMode = "writeback" // Use host cache, with neither O_DSYNC nor O_DIRECT semantics.
+			} else {
+				// Use host cache, with neither O_DSYNC nor O_DIRECT semantics if filesystem
+				// doesn't support Direct I/O.
+				_, err := os.OpenFile(srcDevPath, unix.O_DIRECT|unix.O_RDONLY, 0)
+				if err != nil {
+					cacheMode = "writeback"
+				}
+			}
+
+			if cacheMode == "writeback" && driveConf.FSType != "iso9660" {
+				// Only warn about using writeback cache if the drive image is writable.
+				d.logger.Warn("Using writeback cache I/O", logger.Ctx{"device": driveConf.DevName, "devPath": srcDevPath, "fsType": fsType})
 			}
 
 			// Special case ISO images as cdroms.
