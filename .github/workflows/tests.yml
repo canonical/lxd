@@ -210,7 +210,7 @@ jobs:
           sudo microceph disk add --wipe /dev/sdia
           sudo rm -rf /etc/ceph
           sudo ln -s /var/snap/microceph/current/conf/ /etc/ceph
-          sleep 10
+          sleep 30
           sudo microceph.ceph status
           sudo rm -f /snap/bin/rbd
 
