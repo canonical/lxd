@@ -710,13 +710,13 @@ test_projects_limits() {
   # aggregate project's limit is not possible.
   ! lxc profile device set default root size=160MiB || false
   ! lxc config device set c2 root size 110MiB || false
-  ! lxc storage volume set "${pool}" v1 size 110MiB || false
+  ! lxc storage volume set "${pool}" v1 size 110MiB
 
   # Can't create a custom volume without specifying a size.
   ! lxc storage volume create "${pool}" v2 || false
 
   # Disk limits can be updated if they stay within limits.
-  lxc project set p1 limits.disk 204900KiB
+  lxc project set p1 limits.disk 200100kB
   lxc profile device set default root size=90MiB
   lxc config device set c2 root size 60MiB
 
