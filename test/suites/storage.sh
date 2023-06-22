@@ -47,7 +47,7 @@ test_storage() {
       local btrfs_storage_pool btrfs_storage_volume
       btrfs_storage_pool="lxdtest-$(basename "${LXD_DIR}")-pool-btrfs"
       btrfs_storage_volume="${storage_pool}-vol"
-      lxc storage create "$btrfs_storage_pool" "$lxd_backend" volume.block.filesystem=btrfs volume.size=200MB
+      lxc storage create "$btrfs_storage_pool" "$lxd_backend" volume.block.filesystem=btrfs volume.size=200MiB
       lxc storage volume create "$btrfs_storage_pool" "$btrfs_storage_volume"
       lxc storage volume show "$btrfs_storage_pool" "$btrfs_storage_volume"
       lxc storage volume set "$btrfs_storage_pool" "$btrfs_storage_volume" size 256MiB
@@ -426,7 +426,7 @@ test_storage() {
       lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.block.filesystem xfs
       lxc init testimage c1pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
       lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.block.filesystem btrfs
-      lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.size 120MB
+      lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.size 120MiB
       lxc init testimage c2pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
 
       lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6

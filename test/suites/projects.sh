@@ -559,16 +559,16 @@ test_projects_limits() {
 
   # Can't set the project's memory limit because not all instances have
   # limits.memory defined.
-  ! lxc project set p1 limits.memory 10GB || false
+  ! lxc project set p1 limits.memory 10GiB || false
 
   # Set limits.memory on the default profile.
-  lxc profile set default limits.memory 1GB
+  lxc profile set default limits.memory 1GiB
 
   # Can't set the memory limit below the current total usage.
-  ! lxc project set p1 limits.memory 1GB || false
+  ! lxc project set p1 limits.memory 1GiB || false
 
   # Configure a valid project memory limit.
-  lxc project set p1 limits.memory 3GB
+  lxc project set p1 limits.memory 3GiB
 
   # Validate that snapshots don't fail with limits.
   lxc snapshot c2
@@ -584,16 +584,16 @@ test_projects_limits() {
   ! lxc init testimage c2 -p unrestricted || false
 
   # Can't create a new container if "limits.memory" is too high
-  ! lxc init testimage c2 -p unrestricted -c limits.memory=4GB || false
+  ! lxc init testimage c2 -p unrestricted -c limits.memory=4GiB || false
 
   # Can't create a new container if "limits.memory" is a percentage
   ! lxc init testimage c2 -p unrestricted -c limits.memory=10% || false
 
   # No error occurs if we define "limits.memory" and stay within the limits.
-  lxc init testimage c2 -p unrestricted -c limits.memory=1GB
+  lxc init testimage c2 -p unrestricted -c limits.memory=1GiB
 
   # Can't change the container's "limits.memory" if it would overflow the limit.
-  ! lxc config set c2 limits.memory=4GB || false
+  ! lxc config set c2 limits.memory=4GiB || false
 
   # Can't unset the instance's "limits.memory".
   ! lxc config unset c2 limits.memory || false
@@ -604,7 +604,7 @@ test_projects_limits() {
 
   # Can't check the default profile's "limits.memory" to a value that would
   # violate project's limits.
-  ! lxc profile set default limits.memory=4GB || false
+  ! lxc profile set default limits.memory=4GiB || false
 
   # Can't change limits.memory to a percentage.
   ! lxc profile set default limits.memory=10% || false
@@ -612,8 +612,8 @@ test_projects_limits() {
 
   # It's possible to change both a profile and an instance memory limit, if they
   # don't break the project's aggregate allowance.
-  lxc profile set default limits.memory=2GB
-  lxc config set c2 limits.memory=512MB
+  lxc profile set default limits.memory=2GiB
+  lxc config set c2 limits.memory=512MiB
 
   # Can't set the project's processes limit because no instance has
   # limits.processes defined.
@@ -676,18 +676,18 @@ test_projects_limits() {
 
   # Can't set the project's disk limit because not all instances have
   # the "size" config defined on the root device.
-  ! lxc project set p1 limits.disk 1GB || false
+  ! lxc project set p1 limits.disk 1GiB || false
 
   # Set a disk limit on the default profile and also on instance c2
-  lxc profile device set default root size=100MB
-  lxc config device add c2 root disk path="/" pool="${pool}" size=50MB
+  lxc profile device set default root size=100MiB
+  lxc config device add c2 root disk path="/" pool="${pool}" size=50MiB
 
   # Can't set the project's disk limit because not all volumes have
   # the "size" config defined.
   pool1="lxdtest1-$(basename "${LXD_DIR}")"
   lxc storage create "${pool1}" lvm size=1GiB
   lxc storage volume create "${pool1}" v1
-  ! lxc project set p1 limits.disk 1GB || false
+  ! lxc project set p1 limits.disk 1GiB || false
   lxc storage volume delete "${pool1}" v1
   lxc storage delete "${pool1}"
 
@@ -695,30 +695,30 @@ test_projects_limits() {
   lxc storage volume create "${pool}" v1
 
   # Set a size on the custom volume.
-  lxc storage volume set "${pool}" v1 size 50MB
+  lxc storage volume set "${pool}" v1 size 50MiB
 
   # Can't set the project's disk limit below the current aggregate count.
-  ! lxc project set p1 limits.disk 190MB || false
+  ! lxc project set p1 limits.disk 190MiB || false
 
   # Set the project's disk limit
-  lxc project set p1 limits.disk 250MB
+  lxc project set p1 limits.disk 250MiB
 
   # Can't update the project's disk limit below the current aggregate count.
-  ! lxc project set p1 limits.disk 190MB || false
+  ! lxc project set p1 limits.disk 190MiB || false
 
   # Changing profile or instance root device size or volume size above the
   # aggregate project's limit is not possible.
-  ! lxc profile device set default root size=160MB || false
-  ! lxc config device set c2 root size 110MB || false
-  ! lxc storage volume set "${pool}" v1 size 110MB
+  ! lxc profile device set default root size=160MiB || false
+  ! lxc config device set c2 root size 110MiB || false
+  ! lxc storage volume set "${pool}" v1 size 110MiB
 
   # Can't create a custom volume without specifying a size.
   ! lxc storage volume create "${pool}" v2 || false
 
   # Disk limits can be updated if they stay within limits.
   lxc project set p1 limits.disk 200100kB
-  lxc profile device set default root size=90MB
-  lxc config device set c2 root size 60MB
+  lxc profile device set default root size=90MiB
+  lxc config device set c2 root size 60MiB
 
   # Can't upload an image if that would exceed the current quota.
   ! deps/import-busybox --project p1 --template start --alias otherimage || false

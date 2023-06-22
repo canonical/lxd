@@ -391,7 +391,7 @@ test_basic_usage() {
   lxc launch testimage test-limits -t c0.5-m0.2
   [ "$(lxc config get test-limits limits.cpu)" = "1" ]
   [ "$(lxc config get test-limits limits.cpu.allowance)" = "50%" ]
-  [ "$(lxc config get test-limits limits.memory)" = "204MB" ]
+  [ "$(lxc config get test-limits limits.memory)" = "204MiB" ]
   lxc delete -f test-limits
 
   # Test last_used_at field is working properly
