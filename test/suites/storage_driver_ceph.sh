@@ -54,9 +54,9 @@ test_storage_driver_ceph() {
     lxc list -c b c4pool2 | grep "lxdtest-$(basename "${LXD_DIR}")-pool2"
 
     lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool1" volume.block.filesystem xfs
-    # xfs is unhappy with block devices < 50 MB. It seems to calculate the
+    # xfs is unhappy with block devices < 48 MiB. It seems to calculate the
     # ag{count,size} parameters wrong and/or sets the data area too big.
-    lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool1" volume.size 50MB
+    lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool1" volume.size 48MiB
     lxc init testimage c5pool1 -s "lxdtest-$(basename "${LXD_DIR}")-pool1"
 
     # Test whether dependency tracking is working correctly. We should be able
@@ -118,7 +118,7 @@ test_storage_driver_ceph() {
     lxc delete -f c4pool2
     lxc delete -f c2pool2
 
-    lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 size 500MB
+    lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 size 500MiB
     lxc storage volume unset "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 size
 
     lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1
