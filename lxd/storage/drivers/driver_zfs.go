@@ -632,7 +632,7 @@ func (d *zfs) MigrationTypes(contentType ContentType, refresh bool, copySnapshot
 		features = append(features, "compress")
 	}
 
-	if contentType == ContentTypeBlock {
+	if IsContentBlock(contentType) {
 		return []migration.Type{
 			{
 				FSType:   migration.MigrationFSType_ZFS,
