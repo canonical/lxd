@@ -473,9 +473,9 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		// Get info about qcow2 file. Force input format to qcow2 so we don't rely on qemu-img's detection
 		// logic as that has been known to have vulnerabilities and we only support qcow2 images anyway.
 		// Use prlimit because qemu-img can consume considerable RAM & CPU time if fed a maliciously
-		// crafted disk image. Since cloud tenants are not to be trusted, ensure QEMU is limits to 1 GB
+		// crafted disk image. Since cloud tenants are not to be trusted, ensure QEMU is limits to 1 GiB
 		// address space and 2 seconds CPU time, which ought to be more than enough for real world images.
-		cmd := []string{"prlimit", "--cpu=2", "--as=1000000000", "qemu-img", "info", "-f", "qcow2", "--output=json", imgPath}
+		cmd := []string{"prlimit", "--cpu=2", "--as=1073741824", "qemu-img", "info", "-f", "qcow2", "--output=json", imgPath}
 		imgJSON, err := apparmor.QemuImg(sysOS, cmd, imgPath, dstPath)
 		if err != nil {
 			return -1, fmt.Errorf("Failed reading image info %q: %w", imgPath, err)
