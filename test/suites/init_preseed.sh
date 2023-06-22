@@ -52,7 +52,7 @@ profiles:
 - name: test-profile
   description: "Test profile"
   config:
-    limits.memory: 2GB
+    limits.memory: 2GiB
   devices:
     test0:
       name: test0
@@ -68,7 +68,7 @@ EOF
     lxc storage show "${storage_pool}" | grep -q "$source"
     lxc profile list | grep -q "test-profile"
     lxc profile show default | grep -q "pool: ${storage_pool}"
-    lxc profile show test-profile | grep -q "limits.memory: 2GB"
+    lxc profile show test-profile | grep -q "limits.memory: 2GiB"
     lxc profile show test-profile | grep -q "nictype: bridged"
     lxc profile show test-profile | grep -q "parent: lxdt$$"
     printf 'config: {}\ndevices: {}' | lxc profile edit default
