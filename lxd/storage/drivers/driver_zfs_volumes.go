@@ -248,7 +248,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			var err error
 			var devPath string
 
-			if vol.contentType == ContentTypeBlock {
+			if IsContentBlock(vol.contentType) {
 				// Get the device path.
 				devPath, err = d.GetVolumeDiskPath(vol)
 				if err != nil {
@@ -1570,7 +1570,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 	inUse := vol.MountInUse()
 
 	// Handle volume datasets.
-	if vol.contentType == ContentTypeBlock || d.isBlockBacked(vol) && vol.contentType == ContentTypeFS {
+	if d.isBlockBacked(vol) && vol.contentType == ContentTypeFS || IsContentBlock(vol.contentType) {
 		// Do nothing if size isn't specified.
 		if sizeBytes <= 0 {
 			return nil
@@ -1899,7 +1899,7 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 
 // activateVolume activates a ZFS volume if not already active. Returns true if activated, false if not.
 func (d *zfs) activateVolume(vol Volume) (bool, error) {
-	if vol.contentType != ContentTypeBlock && !vol.IsBlockBacked() {
+	if !IsContentBlock(vol.contentType) && !vol.IsBlockBacked() {
 		return false, nil // Nothing to do for non-block or non-block backed volumes.
 	}
 
@@ -2044,7 +2044,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 			revert.Add(func() { _, _ = d.deactivateVolume(vol) })
 		}
 
-		if vol.contentType != ContentTypeBlock && d.isBlockBacked(vol) && !filesystem.IsMountPoint(mountPath) {
+		if !IsContentBlock(vol.contentType) && d.isBlockBacked(vol) && !filesystem.IsMountPoint(mountPath) {
 			volPath, err := d.GetVolumeDiskPath(vol)
 			if err != nil {
 				return err
