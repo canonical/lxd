@@ -49,15 +49,11 @@ jobs:
             libtool \
             libudev-dev \
             make \
-            pkg-config
+            pkg-config \
+            shellcheck
 
           python3 -m pip install flake8
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.46.2
-          sudo apt-get remove -y shellcheck
-          curl -L https://github.com/koalaman/shellcheck/releases/download/v0.8.0/shellcheck-v0.8.0.linux.x86_64.tar.xz -o shellcheck.tar.xz
-          tar -xf shellcheck.tar.xz
-          chmod +x shellcheck-v0.8.0/shellcheck
-          sudo mv shellcheck-v0.8.0/shellcheck /bin/shellcheck
 
       - name: Download go dependencies
         run: |
