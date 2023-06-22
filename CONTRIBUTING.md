@@ -108,6 +108,7 @@ even when part of a larger set. You may find `git commit -s` useful.
 
 ## Code of Conduct
 
+<!-- wokeignore:rule=master -->
 When contributing, you must adhere to the Code of Conduct, which is available at: [`https://github.com/lxc/lxd/blob/master/CODE_OF_CONDUCT.md`](https://github.com/lxc/lxd/blob/master/CODE_OF_CONDUCT.md)
 
 <!-- Include end contributing -->
