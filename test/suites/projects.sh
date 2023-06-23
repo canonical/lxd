@@ -710,13 +710,13 @@ test_projects_limits() {
   # aggregate project's limit is not possible.
   ! lxc profile device set default root size=160MiB || false
   ! lxc config device set c2 root size 110MiB || false
-  ! lxc storage volume set "${pool}" v1 size 110MiB
+  ! lxc storage volume set "${pool}" v1 size 110MiB || false
 
   # Can't create a custom volume without specifying a size.
   ! lxc storage volume create "${pool}" v2 || false
 
   # Disk limits can be updated if they stay within limits.
-  lxc project set p1 limits.disk 200100kB
+  lxc project set p1 limits.disk 204900KiB
   lxc profile device set default root size=90MiB
   lxc config device set c2 root size 60MiB
 
@@ -749,8 +749,8 @@ test_projects_limits() {
 
     # Relax all constraints except the disk limits, which won't be enough for the
     # image to be downloaded.
-    lxc profile device set default root size=500kB
-    lxc project set p1 limits.disk 111000kB
+    lxc profile device set default root size=500KiB
+    lxc project set p1 limits.disk 111MiB
     lxc project unset p1 limits.containers
     lxc project unset p1 limits.cpu
     lxc project unset p1 limits.memory
