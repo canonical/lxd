@@ -552,7 +552,7 @@ test_projects_limits() {
 
   # Can't create containers anymore after the limit is reached.
   lxc project set p1 limits.containers 2
-  ! lxc init testimage c3
+  ! lxc init testimage c3 || false
 
   # Can't set the project's memory limit to a percentage value.
   ! lxc project set p1 limits.memory 10% || false
@@ -608,7 +608,7 @@ test_projects_limits() {
 
   # Can't change limits.memory to a percentage.
   ! lxc profile set default limits.memory=10% || false
-  ! lxc config set c2 limits.memory=10%
+  ! lxc config set c2 limits.memory=10% || false
 
   # It's possible to change both a profile and an instance memory limit, if they
   # don't break the project's aggregate allowance.
