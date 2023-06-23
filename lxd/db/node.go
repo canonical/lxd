@@ -1139,6 +1139,10 @@ func (c *ClusterTx) GetNodeWithLeastInstances(ctx context.Context, members []Nod
 		}
 	}
 
+	if member == nil {
+		return nil, api.StatusErrorf(http.StatusNotFound, "No suitable cluster member could be found")
+	}
+
 	return member, nil
 }
 
