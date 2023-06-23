@@ -24,7 +24,7 @@ type instanceType struct {
 	// Amount of CPUs (can be a fraction)
 	CPU float32 `yaml:"cpu"`
 
-	// Amount of memory in GB
+	// Amount of memory in GiB
 	Memory float32 `yaml:"mem"`
 }
 
@@ -280,7 +280,7 @@ func instanceParseType(value string) (map[string]string, error) {
 	// Handle memory
 	if limits.Memory > 0 {
 		rawLimit := int64(limits.Memory * 1024)
-		out["limits.memory"] = fmt.Sprintf("%dMB", rawLimit)
+		out["limits.memory"] = fmt.Sprintf("%dMiB", rawLimit)
 	}
 
 	return out, nil
