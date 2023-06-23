@@ -183,7 +183,7 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 		command = "unsquashfs"
 		args = append(args, "-f", "-d", path, "-n")
 
-		// Limit unsquashfs chunk size to 10% of memory and up to 256MB (default)
+		// Limit unsquashfs chunk size to 10% of memory and up to 256MiB (default)
 		// When running on a low memory system, also disable multi-processing
 		mem, err := shared.DeviceTotalMemory()
 		mem = mem / 1024 / 1024 / 10
