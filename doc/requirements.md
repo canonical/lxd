@@ -4,7 +4,7 @@
 
 LXD requires Go 1.18 or higher and is only tested with the Golang compiler.
 
-We recommend having at least 2GB of RAM to allow the build to complete.
+We recommend having at least 2GiB of RAM to allow the build to complete.
 
 ## Kernel requirements
 
