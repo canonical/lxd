@@ -1798,16 +1798,24 @@ type cmdStorageVolumeShow struct {
 
 func (c *cmdStorageVolumeShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("show", i18n.G("[<remote>:]<pool> <volume>[/<snapshot>]"))
+	cmd.Use = usage("show", i18n.G("[<remote>:]<pool> [<type>/]<volume>[/<snapshot>]"))
 	cmd.Short = i18n.G("Show storage volume configurations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show storage volume configurations`))
 	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc storage volume show default data
+		`Provide the type of the storage volume if it is not custom.
+Supported types are custom, image, container and virtual-machine.
+
+Add the name of the snapshot if type is one of custom, container or virtual-machine.
+
+lxc storage volume show default data
     Will show the properties of a custom volume called "data" in the "default" pool.
 
 lxc storage volume show default container/data
-    Will show the properties of the filesystem for a container called "data" in the "default" pool.`))
+    Will show the properties of the filesystem for a container called "data" in the "default" pool.
+
+lxc storage volume show default virtual-machine/data/snap0
+    Will show the properties of snapshot "snap0" for a virtual machine called "data" in the "default" pool.`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
