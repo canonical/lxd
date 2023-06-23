@@ -580,7 +580,7 @@ test_projects_limits() {
   lxc profile create unrestricted
   lxc profile device add unrestricted root disk path="/" pool="${pool}"
 
-  # Can't create a new container without denfining "limits.memory"
+  # Can't create a new container without defining "limits.memory"
   ! lxc init testimage c2 -p unrestricted || false
 
   # Can't create a new container if "limits.memory" is too high
@@ -731,7 +731,7 @@ test_projects_limits() {
   # since it on other backends it requires resize the rootfs to a value which is
   # too small for resize2fs.
   if [ "${LXD_BACKEND}" = "dir" ] || [ "${LXD_BACKEND}" = "zfs" ]; then
-     # Add a remote LXD to be used as image server.
+    # Add a remote LXD to be used as image server.
     # shellcheck disable=2039,3043
     local LXD_REMOTE_DIR
     LXD_REMOTE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
