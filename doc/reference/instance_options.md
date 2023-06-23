@@ -376,7 +376,7 @@ The following instance options control the {ref}`security` policies of the insta
 
 Key                                             | Type      | Default           | Live update   | Condition                 | Description
 :--                                             | :---      | :------           | :----------   | :----------               | :----------
-`security.csm`                                  | bool      | `false`           | no            | virtual machine           | Controls whether to use a firmware that supports UEFI-incompatible operating systems
+`security.csm`                                  | bool      | `false`           | no            | virtual machine           | Controls whether to use a firmware that supports UEFI-incompatible operating systems (when enabling this option, set `security.secureboot` to `false`)
 `security.devlxd`                               | bool      | `true`            | no            | -                         | Controls the presence of `/dev/lxd` in the instance
 `security.devlxd.images`                        | bool      | `false`           | no            | container                 | Controls the availability of the `/1.0/images` API over `devlxd`
 `security.idmap.base`                           | integer   | -                 | no            | unprivileged container    | The base host ID to use for the allocation (overrides auto-detection)
@@ -387,7 +387,7 @@ Key                                             | Type      | Default           
 `security.protection.delete`                    | bool      | `false`           | yes           | -                         | Prevents the instance from being deleted
 `security.protection.shift`                     | bool      | `false`           | yes           | container                 | Prevents the instance's file system from being UID/GID shifted on startup
 `security.agent.metrics`                        | bool      | `true`            | no            | virtual machine           | Controls whether the `lxd-agent` is queried for state information and metrics
-`security.secureboot`                           | bool      | `true`            | no            | virtual machine           | Controls whether UEFI secure boot is enabled with the default Microsoft keys
+`security.secureboot`                           | bool      | `true`            | no            | virtual machine           | Controls whether UEFI secure boot is enabled with the default Microsoft keys (when disabling this option, consider enabling `security.csm`)
 `security.sev`                                  | bool      | `false`           | no            | virtual machine           | Controls whether AMD SEV (Secure Encrypted Virtualization) is enabled for this VM
 `security.sev.policy.es`                        | bool      | `false`           | no            | virtual machine           | Controls whether AMD SEV-ES (SEV Encrypted State) is enabled for this VM
 `security.sev.session.dh`                       | string    | `true`            | no            | virtual machine           | The guest owner's `base64`-encoded Diffie-Hellman key
