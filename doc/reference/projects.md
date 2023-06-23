@@ -43,8 +43,8 @@ Project limits define a hard upper bound for the resources that can be used by t
 Depending on the `limits.*` option, the limit applies to the number of entities that are allowed in the project (for example, `limits.containers` or `limits.networks`) or to the aggregate value of resource usage for all instances in the project (for example, `limits.cpu` or `limits.processes`).
 In the latter case, the limit usually applies to the {ref}`instance-options-limits` that are configured for each instance (either directly or via a profile), and not to the resources that are actually in use.
 
-For example, if you set the project's `limits.memory` configuration to `50GB`, the sum of the individual values of all `limits.memory` configuration keys defined on the project's instances will be kept under 50 GB.
-If you try to create an instance that would make the total sum of `limits.memory` configurations exceed 50 GB, you will get an error.
+For example, if you set the project's `limits.memory` configuration to `50GiB`, the sum of the individual values of all `limits.memory` configuration keys defined on the project's instances will be kept under 50 GiB.
+If you try to create an instance that would make the total sum of `limits.memory` configurations exceed 50 GiB, you will get an error.
 
 Similarly, setting the project's `limits.cpu` configuration key to `100` means that the sum of individual `limits.cpu` values will be kept below 100.
 
