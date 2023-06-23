@@ -76,9 +76,11 @@ jobs:
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
       LXD_SHIFTFS_DISABLE: "true"
       LXD_CEPH_CLUSTER: "ceph"
+      LXD_CEPH_CEPHOBJECT_RADOSGW: "http://127.0.0.1"
       LXD_VERBOSE: "1"
       LXD_OFFLINE: "1"
       LXD_TMPFS: "1"
+      LXD_REQUIRED_TESTS: "test_storage_buckets"
     name: System tests
     runs-on: ubuntu-22.04
     strategy:
@@ -161,6 +163,7 @@ jobs:
             nftables \
             quota \
             rsync \
+            s3cmd \
             socat \
             sqlite3 \
             squashfs-tools \
@@ -171,6 +174,9 @@ jobs:
             xfsprogs \
             xz-utils \
             zfsutils-linux
+          mkdir -p "$(go env GOPATH)/bin"
+          curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/minio --output "$(go env GOPATH)/bin/minio"
+          chmod +x "$(go env GOPATH)/bin/minio"
 
       - name: Download go dependencies
         run: |
@@ -209,6 +215,7 @@ jobs:
           sudo microceph disk add --wipe /dev/sdia
           sudo rm -rf /etc/ceph
           sudo ln -s /var/snap/microceph/current/conf/ /etc/ceph
+          sudo microceph enable rgw
           sleep 30
           sudo microceph.ceph status
           sudo rm -f /snap/bin/rbd
