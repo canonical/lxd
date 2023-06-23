@@ -25,3 +25,5 @@ Virtual machines
 
   To see which features are available for virtual machines, check the condition column in the {ref}`instance-options` documentation.
   ```
+
+See {ref}`containers-and-vms` for more information about the different instance types.
