@@ -303,6 +303,10 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 						displayType = poolVol.Container.Type
 						displayName = poolVol.Container.Name
 						displaySnapshotCount = len(poolVol.Snapshots)
+					} else if poolVol.Bucket != nil {
+						displayType = "bucket"
+						displayName = poolVol.Bucket.Name
+						displaySnapshotCount = 0
 					} else {
 						displayType = "volume"
 						displayName = poolVol.Volume.Name
@@ -400,8 +404,8 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 			// Recover unknown custom volumes (do this first before recovering instances so that any
 			// instances that reference unknown custom volume disk devices can be created).
 			for _, poolVol := range poolVols {
-				if poolVol.Container != nil {
-					continue // Skip instance volumes.
+				if poolVol.Container != nil || poolVol.Bucket != nil {
+					continue // Skip instance volumes and buckets.
 				} else if poolVol.Container == nil && poolVol.Volume == nil {
 					return response.SmartError(fmt.Errorf("Volume is neither instance nor custom volume"))
 				}
@@ -417,8 +421,8 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 
 			// Recover unknown instance volumes.
 			for _, poolVol := range poolVols {
-				if poolVol.Container == nil && poolVol.Volume != nil {
-					continue // Skip custom volumes and invalid volumes.
+				if poolVol.Container == nil && (poolVol.Volume != nil || poolVol.Bucket != nil) {
+					continue // Skip custom volumes, invalid volumes and buckets.
 				}
 
 				// Recover instance volumes and any snapshots.
@@ -474,6 +478,22 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 						return response.SmartError(fmt.Errorf("Failed reinitializing root disk quota %q for instance %q in project %q: %w", rootConfig["size"], poolVol.Container.Name, projectName, err))
 					}
 				}
+			}
+
+			// Recover unknown buckets.
+			for _, poolVol := range poolVols {
+				// Skip non bucket volumes.
+				if poolVol.Bucket == nil {
+					continue
+				}
+
+				// Import bucket.
+				cleanup, err := pool.ImportBucket(projectName, poolVol, nil)
+				if err != nil {
+					return response.SmartError(fmt.Errorf("Failed importing bucket %q in project %q: %w", poolVol.Bucket.Name, projectName, err))
+				}
+
+				revert.Add(cleanup)
 			}
 		}
 	}
