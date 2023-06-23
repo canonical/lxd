@@ -17,7 +17,7 @@ func TestInternalImportRootDevicePopulate_LocalDevice(t *testing.T) {
 		"type": "disk",
 		"path": "/",
 		"pool": "oldpool",
-		"size": "15GB",
+		"size": "15GiB",
 	}
 
 	localDevices["root"] = localRootDev
@@ -42,7 +42,7 @@ func TestInternalImportRootDevicePopulate_ExpandedDeviceProfileDeviceMismatch(t 
 		"type": "disk",
 		"path": "/",
 		"pool": "oldpool",
-		"size": "15GB",
+		"size": "15GiB",
 	}
 
 	expandedDevices["root"] = expandedRootDev
@@ -74,7 +74,7 @@ func TestInternalImportRootDevicePopulate_ExpandedDeviceProfileDeviceMatch(t *te
 		"type": "disk",
 		"path": "/",
 		"pool": "oldpool",
-		"size": "15GB",
+		"size": "15GiB",
 	}
 
 	expandedDevices["root"] = expandedRootDev
@@ -92,7 +92,7 @@ func TestInternalImportRootDevicePopulate_ExpandedDeviceProfileDeviceMatch(t *te
 		"type": "disk",
 		"path": "/",
 		"pool": instancePoolName,
-		"size": "15GB",
+		"size": "15GiB",
 	}
 
 	internalImportRootDevicePopulate(instancePoolName, localDevices, expandedDevices, profiles)
@@ -111,7 +111,7 @@ func TestInternalImportRootDevicePopulate_ExpandedDeviceProfileDevicePoolMismatc
 		"type": "disk",
 		"path": "/",
 		"pool": "oldpool",
-		"size": "15GB",
+		"size": "15GiB",
 	}
 
 	expandedDevices["root"] = expandedRootDev
@@ -129,7 +129,7 @@ func TestInternalImportRootDevicePopulate_ExpandedDeviceProfileDevicePoolMismatc
 		"type": "disk",
 		"path": "/",
 		"pool": "wrongpool",
-		"size": "15GB",
+		"size": "15GiB",
 	}
 
 	internalImportRootDevicePopulate(instancePoolName, localDevices, expandedDevices, profiles)
