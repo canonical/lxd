@@ -335,6 +335,36 @@ func VolumeDBSnapshotsGet(pool Pool, projectName string, volume string, volumeTy
 	return snapshots, nil
 }
 
+// BucketDBGet loads a bucket from the database.
+func BucketDBGet(pool Pool, projectName string, bucketName string, memberSpecific bool) (*db.StorageBucket, error) {
+	p, ok := pool.(*lxdBackend)
+	if !ok {
+		return nil, fmt.Errorf("Pool is not a lxdBackend")
+	}
+
+	var err error
+	var bucket *db.StorageBucket
+
+	// Get the storage bucket.
+	err = p.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		bucket, err = tx.GetStoragePoolBucket(ctx, pool.ID(), projectName, memberSpecific, bucketName)
+		if err != nil {
+			if response.IsNotFoundError(err) {
+				return fmt.Errorf("Storage bucket %q in project %q does not exist on pool %q: %w", bucketName, projectName, pool.Name(), err)
+			}
+
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return bucket, nil
+}
+
 // BucketDBCreate creates a bucket in the database.
 // The supplied bucket's config may be modified with defaults for the storage pool being used.
 // Returns bucket DB record ID.
