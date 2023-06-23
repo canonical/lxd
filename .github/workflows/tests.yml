@@ -76,6 +76,9 @@ jobs:
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
       LXD_SHIFTFS_DISABLE: "true"
       LXD_CEPH_CLUSTER: "ceph"
+      LXD_VERBOSE: "1"
+      LXD_OFFLINE: "1"
+      LXD_TMPFS: "1"
     name: System tests
     runs-on: ubuntu-22.04
     strategy:
@@ -215,7 +218,7 @@ jobs:
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           cd test
-          sudo --preserve-env=PATH,GOPATH,GORACE,LXD_INSPECT,LXD_DEBUG,LXD_VERBOSE,LXD_BACKEND,LXD_NIC_BRIDGED_DRIVER,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_CONCURRENT,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,LXD_SHIFTFS_DISABLE LXD_OFFLINE=1 LXD_TMPFS=1 LXD_VERBOSE=1 LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+          sudo --preserve-env=PATH,GOPATH,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,LXD_SHIFTFS_DISABLE LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
 
   client:
     name: Client tests
