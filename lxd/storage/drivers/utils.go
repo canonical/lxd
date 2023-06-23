@@ -861,7 +861,7 @@ func wipeBlockHeaders(path string) error {
 
 	defer fdDisk.Close()
 
-	// Wipe the 4MB header.
+	// Wipe the 4MiB header.
 	_, err = io.CopyN(fdDisk, fdZero, 1024*1024*4)
 	if err != nil {
 		return err
