@@ -3696,6 +3696,54 @@ func (b *lxdBackend) DeleteBucket(projectName string, bucketName string, op *ope
 	return nil
 }
 
+// ImportBucket takes an existing bucket on the storage backend and ensures that the DB records
+// are restored as needed to make it operational with LXD.
+// Used during the recovery import stage.
+func (b *lxdBackend) ImportBucket(projectName string, poolVol *backupConfig.Config, op *operations.Operation) (revert.Hook, error) {
+	if poolVol.Bucket == nil {
+		return nil, fmt.Errorf("Invalid pool bucket config supplied")
+	}
+
+	l := b.logger.AddContext(logger.Ctx{"project": projectName, "bucketName": poolVol.Bucket.Name})
+	l.Debug("ImportBucket started")
+	defer l.Debug("ImportBucket finished")
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Copy bucket config from backup file if present (so BucketDBCreate can safely modify the copy if needed).
+	bucketConfig := make(map[string]string, len(poolVol.Bucket.Config))
+	for k, v := range poolVol.Bucket.Config {
+		bucketConfig[k] = v
+	}
+
+	bucket := &api.StorageBucketsPost{
+		Name:             poolVol.Bucket.Name,
+		StorageBucketPut: poolVol.Bucket.StorageBucketPut,
+	}
+
+	// Validate config and create database entry for restored bucket.
+	bucketID, err := BucketDBCreate(b.state.ShutdownCtx, b, projectName, true, bucket)
+	if err != nil {
+		return nil, err
+	}
+
+	revert.Add(func() { _ = BucketDBDelete(b.state.ShutdownCtx, b, bucketID) })
+
+	// Get the bucket name on storage.
+	storageBucketName := project.StorageVolume(projectName, poolVol.Bucket.Name)
+	storageBucket := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, storageBucketName, bucketConfig)
+
+	err = b.driver.ValidateVolume(storageBucket, false)
+	if err != nil {
+		return nil, err
+	}
+
+	cleanup := revert.Clone().Fail
+	revert.Success()
+	return cleanup, nil
+}
+
 // CreateBucketKey creates an object bucket key.
 func (b *lxdBackend) CreateBucketKey(projectName string, bucketName string, key api.StorageBucketKeysPost, op *operations.Operation) (*api.StorageBucketKey, error) {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "bucketName": bucketName, "keyName": key.Name, "desc": key.Description, "role": key.Role})
@@ -5808,6 +5856,11 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 			if err != nil {
 				return nil, err
 			}
+		} else if volType == drivers.VolumeTypeBucket {
+			err = b.detectUnknownBuckets(&poolVol, projectVols, op)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -6055,6 +6108,52 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 	}
 
 	// Add to volume to unknown volumes list for the project.
+	if projectVols[projectName] == nil {
+		projectVols[projectName] = []*backupConfig.Config{backupConf}
+	} else {
+		projectVols[projectName] = append(projectVols[projectName], backupConf)
+	}
+
+	return nil
+}
+
+// detectUnknownBuckets detects if a bucket is unknown and if so attempts to discover the filesystem of the
+// bucket. It then runs a series of consistency checks, and if all checks out, it generates a simulated backup
+// config for the bucket and adds it to projectVols.
+func (b *lxdBackend) detectUnknownBuckets(vol *drivers.Volume, projectVols map[string][]*backupConfig.Config, op *operations.Operation) error {
+	projectName, bucketName := project.StorageVolumeParts(vol.Name())
+
+	// Check if any entry for the bucket already exists in the DB.
+	bucket, err := BucketDBGet(b, projectName, bucketName, true)
+	if err != nil && !response.IsNotFoundError(err) {
+		return err
+	} else if bucket != nil {
+		return nil // Storage record already exists in DB, no recovery needed.
+	}
+
+	// This may not always be the correct thing to do, but seeing as we don't know what the volume's config
+	// was lets take a best guess that it was the default config.
+	err = b.driver.FillVolumeConfig(*vol)
+	if err != nil {
+		return fmt.Errorf("Failed filling bucket default config: %w", err)
+	}
+
+	// Check the detected filesystem is valid for the storage driver.
+	err = b.driver.ValidateVolume(*vol, false)
+	if err != nil {
+		return fmt.Errorf("Failed bucket validation: %w", err)
+	}
+
+	backupConf := &backupConfig.Config{
+		Bucket: &api.StorageBucket{
+			StorageBucketPut: api.StorageBucketPut{
+				Config: vol.Config(),
+			},
+			Name: bucketName,
+		},
+	}
+
+	// Add the bucket to unknown volumes list for the project.
 	if projectVols[projectName] == nil {
 		projectVols[projectName] = []*backupConfig.Config{backupConf}
 	} else {
