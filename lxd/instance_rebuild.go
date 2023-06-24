@@ -99,7 +99,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 
 		if req.Source.Type != "none" {
 			sourceImage, err = getSourceImageFromInstanceSource(ctx, s, tx, targetProject.Name, req.Source, &sourceImageRef, dbInst.Type.String())
-			if err != nil {
+			if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 				return err
 			}
 		}
