@@ -842,12 +842,15 @@ type cmdStorageVolumeEdit struct {
 
 func (c *cmdStorageVolumeEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("edit", i18n.G("[<remote>:]<pool> <volume>[/<snapshot>]"))
+	cmd.Use = usage("edit", i18n.G("[<remote>:]<pool> [<type>/]<volume>"))
 	cmd.Short = i18n.G("Edit storage volume configurations as YAML")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Edit storage volume configurations as YAML`))
 	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc storage volume edit [<remote>:]<pool> <volume> < volume.yaml
+		`Provide the type of the storage volume if it is not custom.
+Supported types are custom, image, container and virtual-machine.
+
+lxc storage volume edit [<remote>:]<pool> [<type>/]<volume> < volume.yaml
     Update a storage volume using the content of pool.yaml.`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
@@ -1046,10 +1049,21 @@ type cmdStorageVolumeGet struct {
 
 func (c *cmdStorageVolumeGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("get", i18n.G("[<remote>:]<pool> <volume>[/<snapshot>] <key>"))
+	cmd.Use = usage("get", i18n.G("[<remote>:]<pool> [<type>/]<volume>[/<snapshot>] <key>"))
 	cmd.Short = i18n.G("Get values for storage volume configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get values for storage volume configuration keys`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`Provide the type of the storage volume if it is not custom.
+Supported types are custom, image, container and virtual-machine.
+
+Add the name of the snapshot if type is one of custom, container or virtual-machine.
+
+lxc storage volume get default data size
+    Returns the size of a custom volume "data" in pool "default".
+
+lxc storage volume get default virtual-machine/data snapshots.expiry
+    Returns the snapshot expiration period for a virtual machine "data" in pool "default".`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
@@ -1134,10 +1148,19 @@ type cmdStorageVolumeInfo struct {
 
 func (c *cmdStorageVolumeInfo) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("info", i18n.G("[<remote>:]<pool> <volume>"))
+	cmd.Use = usage("info", i18n.G("[<remote>:]<pool> [<type>/]<volume>"))
 	cmd.Short = i18n.G("Show storage volume state information")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show storage volume state information`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`Provide the type of the storage volume if it is not custom.
+Supported types are custom, container and virtual-machine.
+
+lxc storage volume info default data
+    Returns state information for a custom volume "data" in pool "default".
+
+lxc storage volume info default virtual-machine/data
+    Returns state information for a virtual machine "data" in pool "default".`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
@@ -1710,13 +1733,22 @@ type cmdStorageVolumeSet struct {
 
 func (c *cmdStorageVolumeSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("set", i18n.G("[<remote>:]<pool> <volume> <key>=<value>..."))
+	cmd.Use = usage("set", i18n.G("[<remote>:]<pool> [<type>/]<volume> <key>=<value>..."))
 	cmd.Short = i18n.G("Set storage volume configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Set storage volume configuration keys
 
 For backward compatibility, a single configuration key may still be set with:
-    lxc storage volume set [<remote>:]<pool> <volume> <key> <value>`))
+    lxc storage volume set [<remote>:]<pool> [<type>/]<volume> <key> <value>`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`Provide the type of the storage volume if it is not custom.
+Supported types are custom, image, container and virtual-machine.
+
+lxc storage volume set default data size=1GiB
+    Sets the size of a custom volume "data" in pool "default" to 1 GiB.
+
+lxc storage volume set default virtual-machine/data snapshots.expiry=7d
+    Sets the snapshot expiration period for a virtual machine "data" in pool "default" to seven days.`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
@@ -1798,16 +1830,24 @@ type cmdStorageVolumeShow struct {
 
 func (c *cmdStorageVolumeShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("show", i18n.G("[<remote>:]<pool> <volume>[/<snapshot>]"))
+	cmd.Use = usage("show", i18n.G("[<remote>:]<pool> [<type>/]<volume>[/<snapshot>]"))
 	cmd.Short = i18n.G("Show storage volume configurations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show storage volume configurations`))
 	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc storage volume show default data
+		`Provide the type of the storage volume if it is not custom.
+Supported types are custom, image, container and virtual-machine.
+
+Add the name of the snapshot if type is one of custom, container or virtual-machine.
+
+lxc storage volume show default data
     Will show the properties of a custom volume called "data" in the "default" pool.
 
 lxc storage volume show default container/data
-    Will show the properties of the filesystem for a container called "data" in the "default" pool.`))
+    Will show the properties of the filesystem for a container called "data" in the "default" pool.
+
+lxc storage volume show default virtual-machine/data/snap0
+    Will show the properties of snapshot "snap0" for a virtual machine called "data" in the "default" pool.`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
@@ -1897,10 +1937,19 @@ type cmdStorageVolumeUnset struct {
 
 func (c *cmdStorageVolumeUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("unset", i18n.G("[<remote>:]<pool> <volume> <key>"))
+	cmd.Use = usage("unset", i18n.G("[<remote>:]<pool> [<type>/]<volume> <key>"))
 	cmd.Short = i18n.G("Unset storage volume configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Unset storage volume configuration keys`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`Provide the type of the storage volume if it is not custom.
+Supported types are custom, image, container and virtual-machine.
+
+lxc storage volume unset default data size
+    Remotes the size/quota of a custom volume "data" in pool "default".
+
+lxc storage volume unset default virtual-machine/data snapshots.expiry
+    Removes the snapshot expiration period for a virtual machine "data" in pool "default".`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
