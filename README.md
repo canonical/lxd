@@ -2,9 +2,9 @@
 
 # LXD
 
-<!-- Include start LXD intro -->
-
 LXD is a modern, secure and powerful system container and virtual machine manager.
+
+<!-- Include start LXD intro -->
 
 It provides a unified experience for running and managing full Linux systems inside containers or virtual machines. LXD supplies images for a [wide number of Linux distributions](https://images.linuxcontainers.org) and is built around a very powerful, yet pretty simple, REST API. LXD scales from one instance on a single machine to a cluster in a full data center rack, making it suitable for running workloads both for development and in production.
 
@@ -12,18 +12,17 @@ LXD allows you to easily set up a system that feels like a small private cloud. 
 
 You should consider using LXD if you want to containerize different environments or run virtual machines, or in general run and manage your infrastructure in a cost-effective way.
 
+
+<!-- Include end LXD intro -->
+
 ## Get started
 
-To get a better idea of what LXD is and what it does, you can [try it online](https://linuxcontainers.org/lxd/try-it/)!
-This interactive demo guides you through the basic steps of using LXD and shows how to launch and inspect your first instances, update the configuration, work with commands and files inside an instance and create snapshots.
-
-Then, if you want to run LXD locally, take a look at our [getting started guide](https://linuxcontainers.org/lxd/getting-started-cli/) for installation instructions.
+See [Getting started](https://linuxcontainers.org/lxd/docs/latest/getting_started/) in the LXD documentation for installation instructions and first steps.
 
 - Release announcements: [`https://linuxcontainers.org/lxd/news/`](https://linuxcontainers.org/lxd/news/)
 - Release tarballs: [`https://linuxcontainers.org/lxd/downloads/`](https://linuxcontainers.org/lxd/downloads/)
 - Documentation: [`https://linuxcontainers.org/lxd/docs/latest/`](https://linuxcontainers.org/lxd/docs/latest/)
 
-<!-- Include end LXD intro -->
 
 ## Status
 

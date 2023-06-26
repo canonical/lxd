@@ -13,10 +13,11 @@ See {ref}`installing-manage-access` for instructions.
 
 ## Choose your release
 
-LXD maintains different release branches in parallel:
-
-- Long term support (LTS) releases: currently LXD 5.0.x and LXD 4.0.x
-- Feature releases: LXD 5.x
+% Include content from [support.md](support.md)
+```{include} support.md
+    :start-after: <!-- Include start release -->
+    :end-before: <!-- Include end release -->
+```
 
 LTS releases are recommended for production environments, because they benefit from regular bugfix and security updates.
 However, there are no new features added to an LTS release, nor any kind of behavioral change.
