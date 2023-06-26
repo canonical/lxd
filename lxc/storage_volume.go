@@ -1709,13 +1709,22 @@ type cmdStorageVolumeSet struct {
 
 func (c *cmdStorageVolumeSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("set", i18n.G("[<remote>:]<pool> <volume> <key>=<value>..."))
+	cmd.Use = usage("set", i18n.G("[<remote>:]<pool> [<type>/]<volume> <key>=<value>..."))
 	cmd.Short = i18n.G("Set storage volume configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Set storage volume configuration keys
 
 For backward compatibility, a single configuration key may still be set with:
-    lxc storage volume set [<remote>:]<pool> <volume> <key> <value>`))
+    lxc storage volume set [<remote>:]<pool> [<type>/]<volume> <key> <value>`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`Provide the type of the storage volume if it is not custom.
+Supported types are custom, image, container and virtual-machine.
+
+lxc storage volume set default data size=1GiB
+    Sets the size of a custom volume "data" in pool "default" to 1 GiB.
+
+lxc storage volume set default virtual-machine/data snapshots.expiry=7d
+    Sets the snapshot expiration period for a virtual machine "data" in pool "default" to seven days.`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
