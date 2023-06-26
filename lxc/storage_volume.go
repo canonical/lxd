@@ -1937,10 +1937,19 @@ type cmdStorageVolumeUnset struct {
 
 func (c *cmdStorageVolumeUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("unset", i18n.G("[<remote>:]<pool> <volume> <key>"))
+	cmd.Use = usage("unset", i18n.G("[<remote>:]<pool> [<type>/]<volume> <key>"))
 	cmd.Short = i18n.G("Unset storage volume configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Unset storage volume configuration keys`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`Provide the type of the storage volume if it is not custom.
+Supported types are custom, image, container and virtual-machine.
+
+lxc storage volume unset default data size
+    Remotes the size/quota of a custom volume "data" in pool "default".
+
+lxc storage volume unset default virtual-machine/data snapshots.expiry
+    Removes the snapshot expiration period for a virtual machine "data" in pool "default".`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
