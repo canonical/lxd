@@ -17,9 +17,7 @@ test_storage_driver_cephfs() {
 
   # Creation, rename and deletion
   lxc storage volume create cephfs vol1
-  if [ "$(uname -r | cut -d. -f1)" -gt 4 ]; then
-    lxc storage volume set cephfs vol1 size 100MB
-  fi
+  lxc storage volume set cephfs vol1 size 100MiB
   lxc storage volume rename cephfs vol1 vol2
   lxc storage volume copy cephfs/vol2 cephfs/vol1
   lxc storage volume delete cephfs vol1

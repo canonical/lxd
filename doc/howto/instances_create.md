@@ -81,7 +81,7 @@ The syntax allows the three following forms:
 
 - `<instance type>`
 - `<cloud>:<instance type>`
-- `c<CPU>-m<RAM in GB>`
+- `c<CPU>-m<RAM in GiB>`
 
 For example, the following three instance types are equivalent:
 

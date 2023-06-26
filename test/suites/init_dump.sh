@@ -35,7 +35,7 @@ profiles:
 - name: test-profile
   description: "Test profile"
   config:
-    limits.memory: 2GB
+    limits.memory: 2GiB
   devices:
     test0:
       name: test0
@@ -77,7 +77,7 @@ profiles:
       type: disk
   name: default
 - config:
-    limits.memory: 2GB
+    limits.memory: 2GiB
   description: Test profile
   devices:
     test0:

@@ -178,7 +178,7 @@ profiles:
 - name: test-profile
   description: "Test profile"
   config:
-    limits.memory: 2GB
+    limits.memory: 2GiB
   devices:
     test0:
       name: test0

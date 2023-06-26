@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-06-26 12:39+0200\n"
+"POT-Creation-Date: 2023-06-26 11:46-0400\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Krombel <krombel@krombel.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -1175,7 +1175,7 @@ msgstr ""
 msgid "Can't unset key '%s', it's not currently set"
 msgstr ""
 
-#: lxc/rebuild.go:163
+#: lxc/rebuild.go:161
 msgid "Can't use an image with --empty"
 msgstr ""
 
@@ -5536,7 +5536,7 @@ msgstr ""
 
 #: lxc/image.go:944
 #, fuzzy, c-format
-msgid "Size: %.2fMB"
+msgid "Size: %.2fMiB"
 msgstr "Größe: %.2vMB\n"
 
 #: lxc/info.go:276 lxc/info.go:292
@@ -7655,9 +7655,9 @@ msgid ""
 "lxc launch ubuntu:22.04 u1 < config.yaml\n"
 "    Create and start a container with configuration from config.yaml\n"
 "\n"
-"lxc launch ubuntu:22.04 u2 -t aws:t1.micro\n"
-"    Create and start a container using the same size as an AWS t1.micro (1 "
-"vCPU, 627MB of RAM)\n"
+"lxc launch ubuntu:22.04 u2 -t aws:t2.micro\n"
+"    Create and start a container using the same size as an AWS t2.micro (1 "
+"vCPU, 1GiB of RAM)\n"
 "\n"
 "lxc launch ubuntu:22.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB\n"
 "    Create and start a virtual machine with 4 vCPUs and 4GiB of RAM"

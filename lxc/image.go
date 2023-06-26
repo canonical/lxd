@@ -941,7 +941,7 @@ func (c *cmdImageInfo) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf(i18n.G("Fingerprint: %s")+"\n", info.Fingerprint)
-	fmt.Printf(i18n.G("Size: %.2fMB")+"\n", float64(info.Size)/1024.0/1024.0)
+	fmt.Printf(i18n.G("Size: %.2fMiB")+"\n", float64(info.Size)/1024.0/1024.0)
 	fmt.Printf(i18n.G("Architecture: %s")+"\n", info.Architecture)
 	fmt.Printf(i18n.G("Type: %s")+"\n", imgType)
 	fmt.Printf(i18n.G("Public: %s")+"\n", public)
@@ -1127,7 +1127,7 @@ func (c *cmdImageList) architectureColumnData(image api.Image) string {
 }
 
 func (c *cmdImageList) sizeColumnData(image api.Image) string {
-	return fmt.Sprintf("%.2fMB", float64(image.Size)/1024.0/1024.0)
+	return fmt.Sprintf("%.2fMiB", float64(image.Size)/1024.0/1024.0)
 }
 
 func (c *cmdImageList) typeColumnData(image api.Image) string {
