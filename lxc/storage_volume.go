@@ -1148,10 +1148,19 @@ type cmdStorageVolumeInfo struct {
 
 func (c *cmdStorageVolumeInfo) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("info", i18n.G("[<remote>:]<pool> <volume>"))
+	cmd.Use = usage("info", i18n.G("[<remote>:]<pool> [<type>/]<volume>"))
 	cmd.Short = i18n.G("Show storage volume state information")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show storage volume state information`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`Provide the type of the storage volume if it is not custom.
+Supported types are custom, container and virtual-machine.
+
+lxc storage volume info default data
+    Returns state information for a custom volume "data" in pool "default".
+
+lxc storage volume info default virtual-machine/data
+    Returns state information for a virtual machine "data" in pool "default".`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
