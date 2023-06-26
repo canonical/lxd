@@ -631,8 +631,8 @@ test_basic_usage() {
 
   # Test a forced rebuild
   lxc launch testimage c1
+  ! lxc rebuild testimage c1 || false
   lxc rebuild testimage c1 --force
-  lxc start c1
   lxc delete c1 -f
 
   # Test rebuilding an instance with a new image.
