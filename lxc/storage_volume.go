@@ -1049,10 +1049,21 @@ type cmdStorageVolumeGet struct {
 
 func (c *cmdStorageVolumeGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("get", i18n.G("[<remote>:]<pool> <volume>[/<snapshot>] <key>"))
+	cmd.Use = usage("get", i18n.G("[<remote>:]<pool> [<type>/]<volume>[/<snapshot>] <key>"))
 	cmd.Short = i18n.G("Get values for storage volume configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get values for storage volume configuration keys`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`Provide the type of the storage volume if it is not custom.
+Supported types are custom, image, container and virtual-machine.
+
+Add the name of the snapshot if type is one of custom, container or virtual-machine.
+
+lxc storage volume get default data size
+    Returns the size of a custom volume "data" in pool "default".
+
+lxc storage volume get default virtual-machine/data snapshots.expiry
+    Returns the snapshot expiration period for a virtual machine "data" in pool "default".`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
