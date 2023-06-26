@@ -155,23 +155,51 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 		}
 
 		progress.Done("")
-		return nil
+	} else {
+		// This is a rebuild as an empty instance
+		if image != "" || iremote != "" {
+			return fmt.Errorf(i18n.G("Can't use an image with --empty"))
+		}
+
+		req.Source.Type = "none"
+		op, err := d.RebuildInstance(name, req)
+		if err != nil {
+			return err
+		}
+
+		err = op.Wait()
+		if err != nil {
+			return err
+		}
 	}
 
-	// Else, this is a rebuild as an empty instance
-	if image != "" || iremote != "" {
-		return fmt.Errorf(i18n.G("Can't use an image with --empty"))
-	}
+	// If the instance was stopped, start it back up.
+	if c.flagForce && current.StatusCode == api.Running {
+		req := api.InstanceStatePut{
+			Action: "start",
+		}
 
-	req.Source.Type = "none"
-	op, err := d.RebuildInstance(name, req)
-	if err != nil {
-		return err
-	}
+		// Update the instance.
+		op, err := d.UpdateInstanceState(name, req, "")
+		if err != nil {
+			return err
+		}
 
-	err = op.Wait()
-	if err != nil {
-		return err
+		progress := cli.ProgressRenderer{
+			Quiet: c.global.flagQuiet,
+		}
+
+		_, err = op.AddHandler(progress.UpdateOp)
+		if err != nil {
+			progress.Done("")
+			return err
+		}
+
+		err = cli.CancelableWait(op, &progress)
+		if err != nil {
+			progress.Done("")
+			return err
+		}
 	}
 
 	return nil
