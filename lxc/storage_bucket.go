@@ -731,6 +731,7 @@ func (c *cmdStorageBucketKeyList) Command() *cobra.Command {
 
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`List storage bucket keys`))
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+	cmd.Flags().StringVar(&c.storageBucketKey.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	cmd.RunE = c.Run
 
