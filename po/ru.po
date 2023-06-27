@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-06-26 11:46-0400\n"
+"POT-Creation-Date: 2023-06-27 15:54+0200\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -20,7 +20,7 @@ msgstr ""
 "n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
 "X-Generator: Weblate 4.12-dev\n"
 
-#: lxc/storage_bucket.go:255 lxc/storage_bucket.go:963
+#: lxc/storage_bucket.go:255 lxc/storage_bucket.go:964
 #, fuzzy
 msgid ""
 "### This is a YAML representation of a storage bucket.\n"
@@ -719,11 +719,11 @@ msgstr ""
 msgid "Accept certificate"
 msgstr "Принять сертификат"
 
-#: lxc/storage_bucket.go:815
+#: lxc/storage_bucket.go:816
 msgid "Access key (auto-generated if empty)"
 msgstr ""
 
-#: lxc/storage_bucket.go:871
+#: lxc/storage_bucket.go:872
 #, c-format
 msgid "Access key: %s"
 msgstr ""
@@ -1283,16 +1283,16 @@ msgstr ""
 #: lxc/storage_bucket.go:185 lxc/storage_bucket.go:248
 #: lxc/storage_bucket.go:377 lxc/storage_bucket.go:522
 #: lxc/storage_bucket.go:598 lxc/storage_bucket.go:662
-#: lxc/storage_bucket.go:813 lxc/storage_bucket.go:891
-#: lxc/storage_bucket.go:956 lxc/storage_bucket.go:1092
-#: lxc/storage_volume.go:335 lxc/storage_volume.go:533
-#: lxc/storage_volume.go:612 lxc/storage_volume.go:856
-#: lxc/storage_volume.go:1068 lxc/storage_volume.go:1165
-#: lxc/storage_volume.go:1596 lxc/storage_volume.go:1628
-#: lxc/storage_volume.go:1753 lxc/storage_volume.go:1852
-#: lxc/storage_volume.go:1954 lxc/storage_volume.go:1991
-#: lxc/storage_volume.go:2084 lxc/storage_volume.go:2156
-#: lxc/storage_volume.go:2306
+#: lxc/storage_bucket.go:734 lxc/storage_bucket.go:814
+#: lxc/storage_bucket.go:892 lxc/storage_bucket.go:957
+#: lxc/storage_bucket.go:1093 lxc/storage_volume.go:335
+#: lxc/storage_volume.go:533 lxc/storage_volume.go:612
+#: lxc/storage_volume.go:856 lxc/storage_volume.go:1068
+#: lxc/storage_volume.go:1165 lxc/storage_volume.go:1596
+#: lxc/storage_volume.go:1628 lxc/storage_volume.go:1753
+#: lxc/storage_volume.go:1852 lxc/storage_volume.go:1954
+#: lxc/storage_volume.go:1991 lxc/storage_volume.go:2084
+#: lxc/storage_volume.go:2156 lxc/storage_volume.go:2306
 msgid "Cluster member name"
 msgstr ""
 
@@ -1351,7 +1351,7 @@ msgstr ""
 #: lxc/network_forward.go:596 lxc/network_load_balancer.go:599
 #: lxc/network_peer.go:572 lxc/network_zone.go:512 lxc/network_zone.go:1066
 #: lxc/profile.go:507 lxc/project.go:315 lxc/storage.go:310
-#: lxc/storage_bucket.go:343 lxc/storage_bucket.go:1055
+#: lxc/storage_bucket.go:343 lxc/storage_bucket.go:1056
 #: lxc/storage_volume.go:989 lxc/storage_volume.go:1021
 #, c-format
 msgid "Config parsing error: %s"
@@ -1552,7 +1552,7 @@ msgstr ""
 msgid "Create instances from images"
 msgstr "Невозможно добавить имя контейнера в список"
 
-#: lxc/storage_bucket.go:809 lxc/storage_bucket.go:810
+#: lxc/storage_bucket.go:810 lxc/storage_bucket.go:811
 #, fuzzy
 msgid "Create key for a storage bucket"
 msgstr "Копирование образа: %s"
@@ -1653,7 +1653,7 @@ msgstr ""
 #: lxc/network_load_balancer.go:148 lxc/network_peer.go:140
 #: lxc/network_zone.go:139 lxc/network_zone.go:703 lxc/operation.go:163
 #: lxc/profile.go:633 lxc/project.go:492 lxc/storage.go:634
-#: lxc/storage_bucket.go:495 lxc/storage_bucket.go:790
+#: lxc/storage_bucket.go:495 lxc/storage_bucket.go:791
 #: lxc/storage_volume.go:1491
 msgid "DESCRIPTION"
 msgstr ""
@@ -1713,7 +1713,7 @@ msgstr "Невозможно добавить имя контейнера в с�
 msgid "Delete instances and snapshots"
 msgstr "Невозможно добавить имя контейнера в список"
 
-#: lxc/storage_bucket.go:887 lxc/storage_bucket.go:888
+#: lxc/storage_bucket.go:888 lxc/storage_bucket.go:889
 #, fuzzy
 msgid "Delete key from a storage bucket"
 msgstr "Копирование образа: %s"
@@ -1858,9 +1858,9 @@ msgstr ""
 #: lxc/storage_bucket.go:375 lxc/storage_bucket.go:441
 #: lxc/storage_bucket.go:516 lxc/storage_bucket.go:593
 #: lxc/storage_bucket.go:660 lxc/storage_bucket.go:691
-#: lxc/storage_bucket.go:732 lxc/storage_bucket.go:810
-#: lxc/storage_bucket.go:888 lxc/storage_bucket.go:952
-#: lxc/storage_bucket.go:1087 lxc/storage_volume.go:43
+#: lxc/storage_bucket.go:732 lxc/storage_bucket.go:811
+#: lxc/storage_bucket.go:889 lxc/storage_bucket.go:953
+#: lxc/storage_bucket.go:1088 lxc/storage_volume.go:43
 #: lxc/storage_volume.go:165 lxc/storage_volume.go:240
 #: lxc/storage_volume.go:331 lxc/storage_volume.go:530
 #: lxc/storage_volume.go:609 lxc/storage_volume.go:684
@@ -2112,7 +2112,7 @@ msgstr ""
 msgid "Edit storage bucket configurations as YAML"
 msgstr "Копирование образа: %s"
 
-#: lxc/storage_bucket.go:951 lxc/storage_bucket.go:952
+#: lxc/storage_bucket.go:952 lxc/storage_bucket.go:953
 msgid "Edit storage bucket key as YAML"
 msgstr ""
 
@@ -3694,9 +3694,9 @@ msgstr ""
 #: lxc/storage_bucket.go:111 lxc/storage_bucket.go:211
 #: lxc/storage_bucket.go:287 lxc/storage_bucket.go:403
 #: lxc/storage_bucket.go:548 lxc/storage_bucket.go:624
-#: lxc/storage_bucket.go:760 lxc/storage_bucket.go:841
-#: lxc/storage_bucket.go:916 lxc/storage_bucket.go:995
-#: lxc/storage_bucket.go:1118
+#: lxc/storage_bucket.go:761 lxc/storage_bucket.go:842
+#: lxc/storage_bucket.go:917 lxc/storage_bucket.go:996
+#: lxc/storage_bucket.go:1119
 #, fuzzy
 msgid "Missing bucket name"
 msgstr "Имя контейнера: %s"
@@ -3726,8 +3726,8 @@ msgstr "Копирование образа: %s"
 msgid "Missing instance name"
 msgstr "Имя контейнера: %s"
 
-#: lxc/storage_bucket.go:845 lxc/storage_bucket.go:920
-#: lxc/storage_bucket.go:999 lxc/storage_bucket.go:1122
+#: lxc/storage_bucket.go:846 lxc/storage_bucket.go:921
+#: lxc/storage_bucket.go:1000 lxc/storage_bucket.go:1123
 #, fuzzy
 msgid "Missing key name"
 msgstr "Имя контейнера: %s"
@@ -3803,9 +3803,9 @@ msgstr "Имя контейнера: %s"
 #: lxc/storage_bucket.go:207 lxc/storage_bucket.go:283
 #: lxc/storage_bucket.go:399 lxc/storage_bucket.go:465
 #: lxc/storage_bucket.go:544 lxc/storage_bucket.go:620
-#: lxc/storage_bucket.go:756 lxc/storage_bucket.go:837
-#: lxc/storage_bucket.go:912 lxc/storage_bucket.go:991
-#: lxc/storage_bucket.go:1114 lxc/storage_volume.go:189
+#: lxc/storage_bucket.go:757 lxc/storage_bucket.go:838
+#: lxc/storage_bucket.go:913 lxc/storage_bucket.go:992
+#: lxc/storage_bucket.go:1115 lxc/storage_volume.go:189
 #: lxc/storage_volume.go:264 lxc/storage_volume.go:556
 #: lxc/storage_volume.go:633 lxc/storage_volume.go:708
 #: lxc/storage_volume.go:790 lxc/storage_volume.go:892
@@ -3948,7 +3948,7 @@ msgstr ""
 #: lxc/network.go:963 lxc/network_acl.go:147 lxc/network_peer.go:139
 #: lxc/network_zone.go:138 lxc/network_zone.go:702 lxc/profile.go:632
 #: lxc/project.go:485 lxc/remote.go:729 lxc/storage.go:626
-#: lxc/storage_bucket.go:494 lxc/storage_bucket.go:789
+#: lxc/storage_bucket.go:494 lxc/storage_bucket.go:790
 #: lxc/storage_volume.go:1490
 msgid "NAME"
 msgstr ""
@@ -4341,7 +4341,7 @@ msgstr ""
 #: lxc/network_load_balancer.go:600 lxc/network_peer.go:573
 #: lxc/network_zone.go:513 lxc/network_zone.go:1067 lxc/profile.go:508
 #: lxc/project.go:316 lxc/storage.go:311 lxc/storage_bucket.go:344
-#: lxc/storage_bucket.go:1056 lxc/storage_volume.go:990
+#: lxc/storage_bucket.go:1057 lxc/storage_volume.go:990
 #: lxc/storage_volume.go:1022
 msgid "Press enter to open the editor again or ctrl+c to abort change"
 msgstr ""
@@ -4593,7 +4593,7 @@ msgstr ""
 msgid "RESOURCE"
 msgstr ""
 
-#: lxc/storage_bucket.go:791
+#: lxc/storage_bucket.go:792
 msgid "ROLE"
 msgstr ""
 
@@ -4895,7 +4895,7 @@ msgstr "Копирование образа: %s"
 msgid "Revoke cluster member join token"
 msgstr "Копирование образа: %s"
 
-#: lxc/storage_bucket.go:814
+#: lxc/storage_bucket.go:815
 msgid "Role (admin or read-only)"
 msgstr ""
 
@@ -4962,11 +4962,11 @@ msgstr ""
 msgid "STP"
 msgstr ""
 
-#: lxc/storage_bucket.go:816
+#: lxc/storage_bucket.go:817
 msgid "Secret key (auto-generated if empty)"
 msgstr ""
 
-#: lxc/storage_bucket.go:872
+#: lxc/storage_bucket.go:873
 #, fuzzy, c-format
 msgid "Secret key: %s"
 msgstr "Авто-обновление: %s"
@@ -5332,7 +5332,7 @@ msgstr ""
 msgid "Show storage bucket configurations"
 msgstr "Копирование образа: %s"
 
-#: lxc/storage_bucket.go:1086 lxc/storage_bucket.go:1087
+#: lxc/storage_bucket.go:1087 lxc/storage_bucket.go:1088
 #, fuzzy
 msgid "Show storage bucket key configurations"
 msgstr "Копирование образа: %s"
@@ -5490,12 +5490,12 @@ msgstr " Использование сети:"
 msgid "Storage bucket %s deleted"
 msgstr " Использование сети:"
 
-#: lxc/storage_bucket.go:870
+#: lxc/storage_bucket.go:871
 #, c-format
 msgid "Storage bucket key %s added"
 msgstr ""
 
-#: lxc/storage_bucket.go:936
+#: lxc/storage_bucket.go:937
 #, c-format
 msgid "Storage bucket key %s removed"
 msgstr ""
@@ -6890,8 +6890,8 @@ msgstr ""
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/storage_bucket.go:373 lxc/storage_bucket.go:658
-#: lxc/storage_bucket.go:808 lxc/storage_bucket.go:886
-#: lxc/storage_bucket.go:950 lxc/storage_bucket.go:1085
+#: lxc/storage_bucket.go:809 lxc/storage_bucket.go:887
+#: lxc/storage_bucket.go:951 lxc/storage_bucket.go:1086
 #, fuzzy
 msgid "[<remote>:]<pool> <bucket> <key>"
 msgstr ""
@@ -7567,13 +7567,13 @@ msgid ""
 "    Update a storage bucket using the content of bucket.yaml."
 msgstr ""
 
-#: lxc/storage_bucket.go:953
+#: lxc/storage_bucket.go:954
 msgid ""
 "lxc storage bucket edit [<remote>:]<pool> <bucket> <key> < key.yaml\n"
 "    Update a storage bucket key using the content of key.yaml."
 msgstr ""
 
-#: lxc/storage_bucket.go:1088
+#: lxc/storage_bucket.go:1089
 msgid ""
 "lxc storage bucket key show default data foo\n"
 "    Will show the properties of a bucket key called \"foo\" for a bucket "
