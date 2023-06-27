@@ -1,5 +1,6 @@
 ---
 orphan: true
+nosearch: true
 myst:
   substitutions:
     reuse_key: "This is **included** text."

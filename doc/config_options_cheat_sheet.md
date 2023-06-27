@@ -1,8 +1,14 @@
 ---
 orphan: true
+nosearch: true
 ---
 
 # Configuration options
+
+```{important}
+This page shows how to output configuration option documentation.
+The content in this page is for demonstration purposes only.
+```
 
 Some instance options:
 
