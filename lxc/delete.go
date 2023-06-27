@@ -100,7 +100,12 @@ func (c *cmdDelete) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		if shared.IsSnapshot(resource.name) {
-			return c.doDelete(resource.server, resource.name)
+			err := c.doDelete(resource.server, resource.name)
+			if err != nil {
+				return err
+			}
+
+			continue
 		}
 
 		ct, _, err := resource.server.GetInstance(resource.name)
