@@ -54,6 +54,13 @@ snapshots() {
     [ ! -d "${LXD_DIR}/snapshots/foo/snap0" ]
   fi
 
+  # test deleting multiple snapshots
+  lxc snapshot foo snap2
+  lxc snapshot foo snap3
+  lxc delete foo/snap2 foo/snap3
+  ! lxc info foo | grep -q snap2 || false
+  ! lxc info foo | grep -q snap3 || false
+
   # no CLI for this, so we use the API directly (rename a snapshot)
   wait_for "${LXD_ADDR}" my_curl -X POST "https://${LXD_ADDR}/1.0/containers/foo/snapshots/tester" -d "{\"name\":\"tester2\"}"
   # FIXME: make this backend agnostic
