@@ -76,6 +76,7 @@ jobs:
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
       LXD_SHIFTFS_DISABLE: "true"
       LXD_CEPH_CLUSTER: "ceph"
+      LXD_CEPH_CEPHFS: "cephfs"
       LXD_CEPH_CEPHOBJECT_RADOSGW: "http://127.0.0.1"
       LXD_VERBOSE: "1"
       LXD_OFFLINE: "1"
@@ -216,6 +217,10 @@ jobs:
           sudo rm -rf /etc/ceph
           sudo ln -s /var/snap/microceph/current/conf/ /etc/ceph
           sudo microceph enable rgw
+          sudo microceph.ceph osd pool create cephfs_meta 32
+          sudo microceph.ceph osd pool create cephfs_data 32
+          sudo microceph.ceph fs new cephfs cephfs_meta cephfs_data
+          sudo microceph.ceph fs ls
           sleep 30
           sudo microceph.ceph status
           sudo rm -f /snap/bin/rbd
@@ -225,7 +230,7 @@ jobs:
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           cd test
-          sudo --preserve-env=PATH,GOPATH,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,LXD_SHIFTFS_DISABLE LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+          sudo --preserve-env=PATH,GOPATH,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,LXD_SHIFTFS_DISABLE LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
 
   client:
     name: Client tests
