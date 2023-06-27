@@ -1446,7 +1446,7 @@ func (d *Daemon) init() error {
 
 	if !d.os.MockMode {
 		// Start the scheduler
-		go deviceEventListener(d.State())
+		go deviceEventListener(d.State)
 
 		prefixPath := os.Getenv("LXD_DEVMONITOR_DIR")
 		if prefixPath == "" {
