@@ -26,9 +26,10 @@ type cephfs struct {
 func (d *cephfs) load() error {
 	// Register the patches.
 	d.patches = map[string]func() error{
-		"storage_lvm_skipactivation":          nil,
-		"storage_missing_snapshot_records":    nil,
-		"storage_delete_old_snapshot_records": nil,
+		"storage_lvm_skipactivation":                         nil,
+		"storage_missing_snapshot_records":                   nil,
+		"storage_delete_old_snapshot_records":                nil,
+		"storage_zfs_drop_block_volume_filesystem_extension": nil,
 	}
 
 	// Done if previously loaded.
