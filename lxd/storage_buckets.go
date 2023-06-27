@@ -720,6 +720,11 @@ func storagePoolBucketDelete(d *Daemon, r *http.Request) response.Response {
 func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
+	resp := forwardedResponseIfTargetIsRemote(s, r)
+	if resp != nil {
+		return resp
+	}
+
 	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
@@ -745,7 +750,9 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	memberSpecific := false // Get buckets for all cluster members.
+	// If target is set, get buckets only for this cluster members.
+	targetMember := queryParam(r, "target")
+	memberSpecific := targetMember != ""
 
 	var dbBucket *db.StorageBucket
 	var dbBucketKeys []*db.StorageBucketKey
