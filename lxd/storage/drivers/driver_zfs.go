@@ -44,9 +44,10 @@ type zfs struct {
 func (d *zfs) load() error {
 	// Register the patches.
 	d.patches = map[string]func() error{
-		"storage_lvm_skipactivation":          nil,
-		"storage_missing_snapshot_records":    nil,
-		"storage_delete_old_snapshot_records": nil,
+		"storage_lvm_skipactivation":                         nil,
+		"storage_missing_snapshot_records":                   nil,
+		"storage_delete_old_snapshot_records":                nil,
+		"storage_zfs_drop_block_volume_filesystem_extension": d.patchDropBlockVolumeFilesystemExtension,
 	}
 
 	// Done if previously loaded.
@@ -663,4 +664,40 @@ func (d *zfs) MigrationTypes(contentType ContentType, refresh bool, copySnapshot
 			Features: rsyncFeatures,
 		},
 	}
+}
+
+// patchDropBlockVolumeFilesystemExtension removes the filesystem extension (e.g _ext4) from VM image block volumes.
+func (d *zfs) patchDropBlockVolumeFilesystemExtension() error {
+	poolName, ok := d.config["zfs.pool_name"]
+	if !ok {
+		poolName = d.name
+	}
+
+	out, err := shared.RunCommand("zfs", "list", "-H", "-r", "-o", "name", "-t", "volume", fmt.Sprintf("%s/images", poolName))
+	if err != nil {
+		return fmt.Errorf("Failed listing images: %w", err)
+	}
+
+	for _, volume := range strings.Split(out, "\n") {
+		fields := strings.SplitN(volume, "/", 3)
+
+		if len(fields) != 3 {
+			continue
+		}
+
+		// Ignore non-block images, and images without filesystem extension
+		if !strings.HasSuffix(fields[2], ".block") || !strings.Contains(fields[2], "_") {
+			continue
+		}
+
+		// Rename zfs dataset. Snapshots will automatically be renamed.
+		newName := fmt.Sprintf("%s/images/%s.block", poolName, strings.Split(fields[2], "_")[0])
+
+		_, err = shared.RunCommand("zfs", "rename", volume, newName)
+		if err != nil {
+			return fmt.Errorf("Failed renaming zfs dataset: %w", err)
+		}
+	}
+
+	return nil
 }
