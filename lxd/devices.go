@@ -656,7 +656,9 @@ func deviceNetworkPriority(s *state.State, netif string) {
 	}
 }
 
-func deviceEventListener(s *state.State) {
+// deviceEventListener starts the event listener for resource scheduling.
+// Accepts stateFunc which will be called each time it needs a fresh state.State.
+func deviceEventListener(stateFunc func() *state.State) {
 	chNetlinkCPU, chNetlinkNetwork, chUSB, chUnix, err := deviceNetlinkListener()
 	if err != nil {
 		logger.Errorf("scheduler: Couldn't setup netlink listener: %v", err)
@@ -671,6 +673,8 @@ func deviceEventListener(s *state.State) {
 				continue
 			}
 
+			s := stateFunc()
+
 			if !s.OS.CGInfo.Supports(cgroup.CPUSet, nil) {
 				continue
 			}
@@ -682,6 +686,8 @@ func deviceEventListener(s *state.State) {
 				logger.Errorf("Scheduler: received an invalid network hotplug event")
 				continue
 			}
+
+			s := stateFunc()
 
 			if !s.OS.CGInfo.Supports(cgroup.NetPrio, nil) {
 				continue
@@ -695,14 +701,16 @@ func deviceEventListener(s *state.State) {
 			}
 
 		case e := <-chUSB:
-			device.USBRunHandlers(s, &e)
+			device.USBRunHandlers(stateFunc(), &e)
 		case e := <-chUnix:
-			device.UnixHotplugRunHandlers(s, &e)
+			device.UnixHotplugRunHandlers(stateFunc(), &e)
 		case e := <-cgroup.DeviceSchedRebalance:
 			if len(e) != 3 {
 				logger.Errorf("Scheduler: received an invalid rebalance event")
 				continue
 			}
+
+			s := stateFunc()
 
 			if !s.OS.CGInfo.Supports(cgroup.CPUSet, nil) {
 				continue
