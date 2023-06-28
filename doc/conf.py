@@ -21,8 +21,6 @@ if not os.path.islink('.sphinx/_static/swagger-ui/swagger-ui.css'):
 # Download and link images
 os.makedirs('.sphinx/_static/download/', exist_ok=True)
 
-if not os.path.isfile('.sphinx/_static/download/favicon.ico'):
-    wget.download("https://linuxcontainers.org/static/img/favicon.ico", ".sphinx/_static/download/favicon.ico")
 if not os.path.isfile('.sphinx/_static/download/containers.png'):
     wget.download("https://linuxcontainers.org/static/img/containers.png", ".sphinx/_static/download/containers.png")
 if not os.path.isfile('doc/.sphinx/_static/download/containers.small.png'):
@@ -76,7 +74,7 @@ templates_path = [".sphinx/_templates"]
 html_theme = "furo"
 html_show_sphinx = False
 html_last_updated_fmt = ""
-html_favicon = ".sphinx/_static/download/favicon.ico"
+html_favicon = ".sphinx/_static/favicon.png"
 html_static_path = ['.sphinx/_static']
 html_css_files = ['custom.css']
 html_js_files = ['header-nav.js','version-switcher.js']
