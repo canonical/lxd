@@ -98,7 +98,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Try connecting to LXD server.
-	client, err := getClient(int(d.serverCID), int(d.serverPort), d.serverCertificate)
+	client, err := getClient(d.serverCID, int(d.serverPort), d.serverCertificate)
 	if err != nil {
 		return response.ErrorResponse(http.StatusInternalServerError, err.Error())
 	}
@@ -171,7 +171,7 @@ func stopDevlxdServer(d *Daemon) error {
 	return servers["devlxd"].Close()
 }
 
-func getClient(CID int, port int, serverCertificate string) (*http.Client, error) {
+func getClient(CID uint32, port int, serverCertificate string) (*http.Client, error) {
 	agentCert, err := os.ReadFile("agent.crt")
 	if err != nil {
 		return nil, err
