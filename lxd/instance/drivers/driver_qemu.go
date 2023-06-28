@@ -380,9 +380,9 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 	// This allows a running VM to be recovered after DB record deletion and that agent connection still work
 	// after the VM's instance ID has changed.
 	if d.localConfig["volatile.vsock_id"] != "" {
-		volatileVsockID, err := strconv.Atoi(d.localConfig["volatile.vsock_id"])
+		volatileVsockID, err := strconv.ParseUint(d.localConfig["volatile.vsock_id"], 10, 32)
 		if err == nil {
-			vsockID = volatileVsockID
+			vsockID = uint32(volatileVsockID)
 		}
 	}
 
@@ -1146,7 +1146,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 
 	// Update vsock ID in volatile if needed for recovery (do this before UpdateBackupFile() call).
 	oldVsockID := d.localConfig["volatile.vsock_id"]
-	newVsockID := strconv.Itoa(d.vsockID())
+	newVsockID := strconv.FormatUint(uint64(d.vsockID()), 10)
 	if oldVsockID != newVsockID {
 		volatileSet["volatile.vsock_id"] = newVsockID
 	}
@@ -7258,7 +7258,7 @@ func (d *qemu) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 }
 
 // vsockID returns the vsock Context ID for the VM.
-func (d *qemu) vsockID() int {
+func (d *qemu) vsockID() uint32 {
 	// We use the system's own VsockID as the base.
 	//
 	// This is either "2" for a physical system or the VM's own id if
@@ -7272,7 +7272,7 @@ func (d *qemu) vsockID() int {
 	// unique, non-clashing context ID for our guest.
 
 	info := DriverStatuses()[instancetype.VM].Info
-	return info.Features["vhost_vsock"].(int) + 1 + d.id
+	return uint32(info.Features["vhost_vsock"].(int) + 1 + d.id)
 }
 
 // InitPID returns the instance's current process ID.

@@ -299,7 +299,7 @@ func qemuRNG(opts *qemuDevOpts) []cfgSection {
 
 type qemuVsockOpts struct {
 	dev     qemuDevOpts
-	vsockID int
+	vsockID uint32
 }
 
 func qemuVsock(opts *qemuVsockOpts) []cfgSection {

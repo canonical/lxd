@@ -43,7 +43,7 @@ type devLxdHandler struct {
 
 func getVsockClient(d *Daemon) (lxd.InstanceServer, error) {
 	// Try connecting to LXD server.
-	client, err := getClient(int(d.serverCID), int(d.serverPort), d.serverCertificate)
+	client, err := getClient(d.serverCID, int(d.serverPort), d.serverCertificate)
 	if err != nil {
 		return nil, err
 	}
