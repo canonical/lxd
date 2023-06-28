@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-06-27 15:54+0200\n"
+"POT-Creation-Date: 2023-06-28 12:13+0200\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: 0x0916 <w@laoqinren.net>\n"
 "Language-Team: Chinese (Simplified) <https://hosted.weblate.org/projects/"
@@ -1156,7 +1156,7 @@ msgstr ""
 #: lxc/storage_volume.go:1628 lxc/storage_volume.go:1753
 #: lxc/storage_volume.go:1852 lxc/storage_volume.go:1954
 #: lxc/storage_volume.go:1991 lxc/storage_volume.go:2084
-#: lxc/storage_volume.go:2156 lxc/storage_volume.go:2306
+#: lxc/storage_volume.go:2156 lxc/storage_volume.go:2308
 msgid "Cluster member name"
 msgstr ""
 
@@ -1708,7 +1708,7 @@ msgstr ""
 #: lxc/storage_volume.go:1738 lxc/storage_volume.go:1835
 #: lxc/storage_volume.go:1942 lxc/storage_volume.go:1985
 #: lxc/storage_volume.go:2082 lxc/storage_volume.go:2149
-#: lxc/storage_volume.go:2301 lxc/version.go:22 lxc/warning.go:29
+#: lxc/storage_volume.go:2303 lxc/version.go:22 lxc/warning.go:29
 #: lxc/warning.go:71 lxc/warning.go:262 lxc/warning.go:303 lxc/warning.go:357
 msgid "Description"
 msgstr ""
@@ -2590,7 +2590,7 @@ msgstr ""
 msgid "Immediately attach to the console"
 msgstr ""
 
-#: lxc/storage_volume.go:2301
+#: lxc/storage_volume.go:2303
 msgid "Import backups of custom volumes including their snapshots."
 msgstr ""
 
@@ -2598,7 +2598,7 @@ msgstr ""
 msgid "Import backups of instances including their snapshots."
 msgstr ""
 
-#: lxc/storage_volume.go:2300
+#: lxc/storage_volume.go:2302
 msgid "Import custom storage volumes"
 msgstr ""
 
@@ -2617,7 +2617,11 @@ msgstr ""
 msgid "Import instance backups"
 msgstr ""
 
-#: lxc/storage_volume.go:2355
+#: lxc/storage_volume.go:2310
+msgid "Import type, backup or iso (default \"backup\")"
+msgstr ""
+
+#: lxc/storage_volume.go:2376
 #, c-format
 msgid "Importing custom volume: %s"
 msgstr ""
@@ -5166,7 +5170,7 @@ msgstr ""
 msgid "Stopping instance failed!"
 msgstr ""
 
-#: lxc/delete.go:129
+#: lxc/delete.go:134
 #, c-format
 msgid "Stopping the instance failed: %s"
 msgstr ""
@@ -5329,7 +5333,7 @@ msgstr ""
 msgid "The direction argument must be one of: ingress, egress"
 msgstr ""
 
-#: lxc/delete.go:113
+#: lxc/delete.go:118
 msgid "The instance is currently running, stop it first or pass --force"
 msgstr ""
 
@@ -6201,7 +6205,7 @@ msgstr ""
 msgid "[<remote>:]<pool>"
 msgstr ""
 
-#: lxc/storage_volume.go:2299
+#: lxc/storage_volume.go:2301
 msgid "[<remote>:]<pool> <backup file> [<volume name>]"
 msgstr ""
 
@@ -6718,7 +6722,7 @@ msgid ""
 "    Update a storage pool using the content of pool.yaml."
 msgstr ""
 
-#: lxc/storage_volume.go:2303
+#: lxc/storage_volume.go:2305
 msgid ""
 "lxc storage volume import default backup0.tar.gz\n"
 "\t\tCreate a new custom volume using backup0.tar.gz as the source."
