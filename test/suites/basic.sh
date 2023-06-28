@@ -618,4 +618,11 @@ test_basic_usage() {
   lxc storage volume delete bla vol1
   lxc storage volume delete bla vol2
   lxc storage delete bla
+
+  # Test assigning an empty profile (with no root disk device) to an instance.
+  lxc init testimage c1
+  lxc profile create foo
+  ! lxc profile assign c1 foo || false
+  lxc profile delete foo
+  lxc delete -f c1
 }
