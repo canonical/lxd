@@ -3204,11 +3204,10 @@ func (d *zfs) FillVolumeConfig(vol Volume) error {
 		return err
 	}
 
-	// Only validate filesystem config keys for filesystem volumes or VM block volumes (which have an
-	// associated filesystem volume).
-	if d.isBlockBacked(vol) && vol.ContentType() == ContentTypeFS || vol.IsVMBlock() {
+	// Only validate filesystem config keys for filesystem volumes.
+	if d.isBlockBacked(vol) && vol.ContentType() == ContentTypeFS {
 		// Inherit block mode from pool if not set.
-		if d.isBlockBacked(vol) && vol.ContentType() == ContentTypeFS && vol.config["zfs.block_mode"] == "" {
+		if vol.config["zfs.block_mode"] == "" {
 			vol.config["zfs.block_mode"] = d.config["volume.zfs.block_mode"]
 		}
 
