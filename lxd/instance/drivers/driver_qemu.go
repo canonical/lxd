@@ -374,16 +374,10 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 		return nil, err
 	}
 
-	vsockID := d.vsockID() // Default to using the vsock ID that will be used on next start.
-
-	// But if vsock ID from last VM start is present in volatile, then use that.
-	// This allows a running VM to be recovered after DB record deletion and that agent connection still work
-	// after the VM's instance ID has changed.
-	if d.localConfig["volatile.vsock_id"] != "" {
-		volatileVsockID, err := strconv.ParseUint(d.localConfig["volatile.vsock_id"], 10, 32)
-		if err == nil {
-			vsockID = uint32(volatileVsockID)
-		}
+	// Existing vsock ID from volatile.
+	vsockID, err := d.getVsockID()
+	if err != nil {
+		return nil, err
 	}
 
 	agent, err := lxdvsock.HTTPClient(vsockID, shared.HTTPSDefaultPort, clientCert, clientKey, agentCert)
@@ -2849,6 +2843,12 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 	cfg = append(cfg, qemuTablet(&tabletOpts)...)
 
+	// Existing vsock ID from volatile.
+	vsockID, err := d.getVsockID()
+	if err != nil {
+		return "", nil, err
+	}
+
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	vsockOpts := qemuVsockOpts{
 		dev: qemuDevOpts{
@@ -2857,7 +2857,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			devAddr:       devAddr,
 			multifunction: multi,
 		},
-		vsockID: d.vsockID(),
+		vsockID: vsockID,
 	}
 
 	cfg = append(cfg, qemuVsock(&vsockOpts)...)
@@ -7255,6 +7255,21 @@ func (d *qemu) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 	}
 
 	return nil
+}
+
+// getVsockID returns the vsock Context ID for the VM.
+func (d *qemu) getVsockID() (uint32, error) {
+	existingVsockID, ok := d.localConfig["volatile.vsock_id"]
+	if ok {
+		vsockID, err := strconv.ParseUint(existingVsockID, 10, 32)
+		if err != nil {
+			return 0, fmt.Errorf("Failed to parse volatile.vsock_id: %q: %w", existingVsockID, err)
+		}
+
+		return uint32(vsockID), nil
+	}
+
+	return 0, fmt.Errorf("Context ID not set in volatile.vsock_id")
 }
 
 // vsockID returns the vsock Context ID for the VM.
