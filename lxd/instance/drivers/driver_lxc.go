@@ -4206,6 +4206,11 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		if oldErr == nil && newErr == nil && oldRootDev["pool"] != newRootDev["pool"] {
 			return fmt.Errorf("Cannot update root disk device pool name to %q", newRootDev["pool"])
 		}
+
+		// Ensure the instance has a root disk.
+		if newErr != nil {
+			return fmt.Errorf("Invalid root disk device: %w", newErr)
+		}
 	}
 
 	// Run through initLXC to catch anything we missed
