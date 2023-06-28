@@ -647,4 +647,11 @@ test_basic_usage() {
   lxc init testimage c1
   lxc rebuild c1 --empty
   lxc delete c1 -f
+
+  # Test assigning an empty profile (with no root disk device) to an instance.
+  lxc init testimage c1
+  lxc profile create foo
+  ! lxc profile assign c1 foo || false
+  lxc profile delete foo
+  lxc delete -f c1
 }
