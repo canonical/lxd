@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-06-27 15:54+0200\n"
+"POT-Creation-Date: 2023-06-28 12:13+0200\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -1284,7 +1284,7 @@ msgstr "クラスターメンバー %s がグループ %s から削除されま�
 #: lxc/storage_volume.go:1628 lxc/storage_volume.go:1753
 #: lxc/storage_volume.go:1852 lxc/storage_volume.go:1954
 #: lxc/storage_volume.go:1991 lxc/storage_volume.go:2084
-#: lxc/storage_volume.go:2156 lxc/storage_volume.go:2306
+#: lxc/storage_volume.go:2156 lxc/storage_volume.go:2308
 msgid "Cluster member name"
 msgstr "クラスタメンバ名"
 
@@ -1859,7 +1859,7 @@ msgstr "警告を削除します"
 #: lxc/storage_volume.go:1738 lxc/storage_volume.go:1835
 #: lxc/storage_volume.go:1942 lxc/storage_volume.go:1985
 #: lxc/storage_volume.go:2082 lxc/storage_volume.go:2149
-#: lxc/storage_volume.go:2301 lxc/version.go:22 lxc/warning.go:29
+#: lxc/storage_volume.go:2303 lxc/version.go:22 lxc/warning.go:29
 #: lxc/warning.go:71 lxc/warning.go:262 lxc/warning.go:303 lxc/warning.go:357
 msgid "Description"
 msgstr "説明"
@@ -2795,7 +2795,7 @@ msgstr "イメージの更新が成功しました!"
 msgid "Immediately attach to the console"
 msgstr "起動直後にインスタンスのコンソールに接続します"
 
-#: lxc/storage_volume.go:2301
+#: lxc/storage_volume.go:2303
 msgid "Import backups of custom volumes including their snapshots."
 msgstr ""
 "カスタムボリュームのバックアップをスナップショットを含んだ状態でインポートし"
@@ -2806,7 +2806,7 @@ msgid "Import backups of instances including their snapshots."
 msgstr ""
 "インスタンスのバックアップをスナップショットを含んだ状態でインポートします。"
 
-#: lxc/storage_volume.go:2300
+#: lxc/storage_volume.go:2302
 msgid "Import custom storage volumes"
 msgstr "新たにカスタムストレージボリュームをインポートします"
 
@@ -2829,7 +2829,11 @@ msgstr "イメージをイメージストアにインポートします"
 msgid "Import instance backups"
 msgstr "インスタンスのバックアップをインポートします"
 
-#: lxc/storage_volume.go:2355
+#: lxc/storage_volume.go:2310
+msgid "Import type, backup or iso (default \"backup\")"
+msgstr ""
+
+#: lxc/storage_volume.go:2376
 #, c-format
 msgid "Importing custom volume: %s"
 msgstr "カスタムボリュームのインポート中: %s"
@@ -5636,7 +5640,7 @@ msgstr "実行中の場合、インスタンスを停止します"
 msgid "Stopping instance failed!"
 msgstr "インスタンスの停止に失敗しました！"
 
-#: lxc/delete.go:129
+#: lxc/delete.go:134
 #, c-format
 msgid "Stopping the instance failed: %s"
 msgstr "インスタンスの停止に失敗しました: %s"
@@ -5799,7 +5803,7 @@ msgstr "デバイスはすでに存在します"
 msgid "The direction argument must be one of: ingress, egress"
 msgstr "direction 引数は次のいずれかでなければなりません: ingress, egress"
 
-#: lxc/delete.go:113
+#: lxc/delete.go:118
 msgid "The instance is currently running, stop it first or pass --force"
 msgstr "インスタンスは実行中です。先に停止させるか、--force を指定してください"
 
@@ -6719,7 +6723,7 @@ msgstr "[<remote>:]<operation>"
 msgid "[<remote>:]<pool>"
 msgstr "[<remote>:]<pool>"
 
-#: lxc/storage_volume.go:2299
+#: lxc/storage_volume.go:2301
 msgid "[<remote>:]<pool> <backup file> [<volume name>]"
 msgstr "[<remote>:]<pool> <backup file> [<volume name>]"
 
@@ -7382,7 +7386,7 @@ msgstr ""
 "lxc storage edit [<remote>:]<pool> < pool.yaml\n"
 "    pool.yaml の内容でストレージプールを更新します。"
 
-#: lxc/storage_volume.go:2303
+#: lxc/storage_volume.go:2305
 msgid ""
 "lxc storage volume import default backup0.tar.gz\n"
 "\t\tCreate a new custom volume using backup0.tar.gz as the source."
