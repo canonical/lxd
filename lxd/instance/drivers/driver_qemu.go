@@ -1138,9 +1138,15 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 
 	volatileSet := make(map[string]string)
 
+	// New or existing vsock ID from volatile.
+	vsockID, err := d.nextVsockID()
+	if err != nil {
+		return err
+	}
+
 	// Update vsock ID in volatile if needed for recovery (do this before UpdateBackupFile() call).
 	oldVsockID := d.localConfig["volatile.vsock_id"]
-	newVsockID := strconv.FormatUint(uint64(d.vsockID()), 10)
+	newVsockID := strconv.FormatUint(uint64(vsockID), 10)
 	if oldVsockID != newVsockID {
 		volatileSet["volatile.vsock_id"] = newVsockID
 	}
@@ -7257,6 +7263,12 @@ func (d *qemu) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 	return nil
 }
 
+// reservedVsockID returns true if the given vsockID equals 0, 1 or 2.
+// Those are reserved and we cannot use them.
+func (d *qemu) reservedVsockID(vsockID uint32) bool {
+	return vsockID <= 2
+}
+
 // getVsockID returns the vsock Context ID for the VM.
 func (d *qemu) getVsockID() (uint32, error) {
 	existingVsockID, ok := d.localConfig["volatile.vsock_id"]
@@ -7266,28 +7278,81 @@ func (d *qemu) getVsockID() (uint32, error) {
 			return 0, fmt.Errorf("Failed to parse volatile.vsock_id: %q: %w", existingVsockID, err)
 		}
 
+		if d.reservedVsockID(uint32(vsockID)) {
+			return 0, fmt.Errorf("Failed to use reserved vsock Context ID: %q", vsockID)
+		}
+
 		return uint32(vsockID), nil
 	}
 
 	return 0, fmt.Errorf("Context ID not set in volatile.vsock_id")
 }
 
-// vsockID returns the vsock Context ID for the VM.
-func (d *qemu) vsockID() uint32 {
-	// We use the system's own VsockID as the base.
-	//
-	// This is either "2" for a physical system or the VM's own id if
-	// running inside of a VM.
-	//
-	// To this we add 1 for backward compatibility with prior logic
-	// which would start at id 3 rather than id 2. Removing that offset
-	// would cause conflicts between existing VMs until they're all rebooted.
-	//
-	// We then add the VM's own instance id (1 or higher) to give us a
-	// unique, non-clashing context ID for our guest.
+// freeVsockID returns true if the given vsockID is not yet acquired.
+func (d *qemu) freeVsockID(vsockID uint32) bool {
+	c, err := lxdvsock.Dial(vsockID, shared.HTTPSDefaultPort)
+	if err != nil {
+		var unixErrno unix.Errno
 
-	info := DriverStatuses()[instancetype.VM].Info
-	return uint32(info.Features["vhost_vsock"].(int) + 1 + d.id)
+		if !errors.As(err, &unixErrno) {
+			return false
+		}
+
+		if unixErrno == unix.ENODEV {
+			// The syscall to the vsock device returned "no such device".
+			// This means the address (Context ID) is free.
+			return true
+		}
+	}
+
+	// Address is already in use.
+	c.Close()
+	return false
+}
+
+// nextVsockID returns the next free vsock Context ID for the VM.
+// It tries to acquire one randomly until the timeout exceeds.
+func (d *qemu) nextVsockID() (uint32, error) {
+	// Check if vsock ID from last VM start is present in volatile, then use that.
+	// This allows a running VM to be recovered after DB record deletion and that an agent connection still works
+	// after the VM's instance ID has changed.
+	// Continue in case of error since the caller requires a valid vsockID in any case.
+	vsockID, err := d.getVsockID()
+	if err == nil {
+		// Check if the vsock ID from last VM start is still not acquired in case the VM was stopped.
+		if d.freeVsockID(vsockID) {
+			return vsockID, nil
+		}
+	}
+
+	instanceUUID := uuid.Parse(d.localConfig["volatile.uuid"])
+	if instanceUUID == nil {
+		return 0, fmt.Errorf("Failed to parse instance UUID from volatile.uuid")
+	}
+
+	r, err := util.GetStableRandomGenerator(instanceUUID.String())
+	if err != nil {
+		return 0, fmt.Errorf("Failed generating stable random seed from instance UUID %q: %w", instanceUUID, err)
+	}
+
+	timeout := 5 * time.Second
+
+	// Try to find a new Context ID.
+	for start := time.Now(); time.Since(start) <= timeout; {
+		candidateVsockID := r.Uint32()
+
+		if d.reservedVsockID(candidateVsockID) {
+			continue
+		}
+
+		if d.freeVsockID(candidateVsockID) {
+			return candidateVsockID, nil
+		}
+
+		continue
+	}
+
+	return 0, fmt.Errorf("Timeout exceeded whilst trying to acquire the next vsock Context ID")
 }
 
 // InitPID returns the instance's current process ID.
@@ -7796,14 +7861,6 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 	// Check if vhost-net accelerator (for NIC CPU offloading) is available.
 	if shared.PathExists("/dev/vhost-net") {
 		features["vhost_net"] = struct{}{}
-	}
-
-	vsockID, err := vsock.ContextID()
-	if err != nil || vsockID > 2147483647 {
-		// Fallback to the default ID for a host system
-		features["vhost_vsock"] = vsock.Host
-	} else {
-		features["vhost_vsock"] = int(vsockID)
 	}
 
 	return features, nil
