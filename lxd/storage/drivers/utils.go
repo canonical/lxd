@@ -705,6 +705,7 @@ func BTRFSSubVolumesGet(path string) ([]string, error) {
 	return result, nil
 }
 
+// Deprecated: Use IsSubvolume from the Btrfs driver instead.
 // btrfsIsSubvolume checks if a given path is a subvolume.
 func btrfsIsSubVolume(subvolPath string) bool {
 	fs := unix.Stat_t{}
