@@ -130,7 +130,7 @@ func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) (rev
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Single subvolume deletion.
+	// Single subvolume creation.
 	snapshot := func(path string, dest string) error {
 		_, err := shared.RunCommand("btrfs", "subvolume", "snapshot", path, dest)
 		if err != nil {
