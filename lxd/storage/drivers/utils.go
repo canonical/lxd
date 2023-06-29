@@ -871,3 +871,8 @@ func wipeBlockHeaders(path string) error {
 
 	return nil
 }
+
+// IsContentBlock returns true if the content type is either block or iso.
+func IsContentBlock(contentType ContentType) bool {
+	return contentType == ContentTypeBlock || contentType == ContentTypeISO
+}
