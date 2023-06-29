@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -95,7 +96,7 @@ func (d *btrfs) getSubvolumes(path string) ([]string, error) {
 	}
 
 	// Walk through the entire tree looking for subvolumes.
-	err := filepath.Walk(path, func(fpath string, fi os.FileInfo, err error) error {
+	err := filepath.WalkDir(path, func(fpath string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -106,7 +107,7 @@ func (d *btrfs) getSubvolumes(path string) ([]string, error) {
 		}
 
 		// Subvolumes can only be directories.
-		if !fi.IsDir() {
+		if !entry.IsDir() {
 			return nil
 		}
 
