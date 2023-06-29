@@ -18,6 +18,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -125,7 +126,10 @@ func (d *btrfs) getSubvolumes(path string) ([]string, error) {
 
 // snapshotSubvolume creates a snapshot of the specified path at the dest supplied. If recursion is true and
 // sub volumes are found below the path then they are created at the relative location in dest.
-func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) error {
+func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) (revert.Hook, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Single subvolume deletion.
 	snapshot := func(path string, dest string) error {
 		_, err := shared.RunCommand("btrfs", "subvolume", "snapshot", path, dest)
@@ -133,13 +137,19 @@ func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) erro
 			return err
 		}
 
+		revert.Add(func() {
+			// Don't delete recursive since there already is a revert hook
+			// for each subvolume that got created.
+			_ = d.deleteSubvolume(dest, false)
+		})
+
 		return nil
 	}
 
 	// First snapshot the root.
 	err := snapshot(path, dest)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Now snapshot all subvolumes of the root.
@@ -147,7 +157,7 @@ func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) erro
 		// Get the subvolumes list.
 		subSubVols, err := d.getSubvolumes(path)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		sort.Strings(subSubVols)
@@ -160,12 +170,14 @@ func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) erro
 
 			err := snapshot(filepath.Join(path, subSubVol), subSubVolSnapPath)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
 
-	return nil
+	cleanup := revert.Clone().Fail
+	revert.Success()
+	return cleanup, nil
 }
 
 func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
