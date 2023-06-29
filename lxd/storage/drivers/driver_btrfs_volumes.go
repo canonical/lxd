@@ -1344,7 +1344,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 
 			// Detect if parent subvolume exists, and if so use it for differential.
 			parentPath := ""
-			if parentPrefix != "" && btrfsIsSubVolume(filepath.Join(parentPrefix, subVolume.Path)) {
+			if parentPrefix != "" && d.isSubvolume(filepath.Join(parentPrefix, subVolume.Path)) {
 				parentPath = filepath.Join(parentPrefix, subVolume.Path)
 
 				// Set parent subvolume readonly if needed so we can send the subvolume.
@@ -1579,7 +1579,7 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 
 			// Detect if parent subvolume exists, and if so use it for differential.
 			parentPath := ""
-			if parentPrefix != "" && btrfsIsSubVolume(filepath.Join(parentPrefix, subVolume.Path)) {
+			if parentPrefix != "" && d.isSubvolume(filepath.Join(parentPrefix, subVolume.Path)) {
 				parentPath = filepath.Join(parentPrefix, subVolume.Path)
 
 				// Set parent subvolume readonly if needed so we can add the subvolume.
