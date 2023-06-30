@@ -3466,20 +3466,21 @@ func (b *lxdBackend) CreateBucket(projectName string, bucket api.StorageBucketsP
 
 	revert.Add(func() { _ = BucketDBDelete(context.TODO(), b, bucketID) })
 
-	storageBucket := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucket.Name, bucket.Config)
+	bucketVolName := project.StorageVolume(projectName, bucket.Name)
+	bucketVol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, bucket.Config)
 
 	// Create the bucket on the storage device.
 	if memberSpecific {
 		// Handle common MinIO implementation for local storage drivers.
-		err := b.driver.CreateVolume(storageBucket, nil, op)
+		err := b.driver.CreateVolume(bucketVol, nil, op)
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() { _ = b.driver.DeleteVolume(storageBucket, op) })
+		revert.Add(func() { _ = b.driver.DeleteVolume(bucketVol, op) })
 
 		// Start minio process.
-		minioProc, err := b.ActivateBucket(bucket.Name, op)
+		minioProc, err := b.ActivateBucket(projectName, bucket.Name, op)
 		if err != nil {
 			return err
 		}
@@ -3507,7 +3508,7 @@ func (b *lxdBackend) CreateBucket(projectName string, bucket api.StorageBucketsP
 		revert.Add(func() { _ = s3Client.RemoveBucket(ctx, bucket.Name) })
 	} else {
 		// Handle per-driver implementation for remote storage drivers.
-		err = b.driver.CreateBucket(storageBucket, op)
+		err = b.driver.CreateBucket(bucketVol, op)
 		if err != nil {
 			return err
 		}
@@ -3544,17 +3545,19 @@ func (b *lxdBackend) UpdateBucket(projectName string, bucketName string, bucket 
 		return err
 	}
 
-	curStorageBucket := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, curBucket.Name, curBucket.Config)
+	bucketVolName := project.StorageVolume(projectName, curBucket.Name)
+
+	curBucketVol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, curBucket.Config)
 
 	// Validate config.
-	newStorageBucket := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, curBucket.Name, bucket.Config)
+	newBucketVol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, bucket.Config)
 
-	err = b.driver.ValidateBucket(newStorageBucket)
+	err = b.driver.ValidateBucket(newBucketVol)
 	if err != nil {
 		return err
 	}
 
-	err = b.driver.ValidateVolume(newStorageBucket, false)
+	err = b.driver.ValidateVolume(newBucketVol, false)
 	if err != nil {
 		return err
 	}
@@ -3582,7 +3585,7 @@ func (b *lxdBackend) UpdateBucket(projectName string, bucketName string, bucket 
 	if len(changedConfig) > 0 && !userOnly {
 		if memberSpecific {
 			// Stop MinIO process if running so volume can be resized if needed.
-			minioProc := miniod.Get(curStorageBucket.Name())
+			minioProc := miniod.Get(curBucketVol.Name())
 			if minioProc != nil {
 				err = minioProc.Stop(context.Background())
 				if err != nil {
@@ -3590,13 +3593,13 @@ func (b *lxdBackend) UpdateBucket(projectName string, bucketName string, bucket 
 				}
 			}
 
-			err = b.driver.UpdateVolume(curStorageBucket, changedConfig)
+			err = b.driver.UpdateVolume(curBucketVol, changedConfig)
 			if err != nil {
 				return err
 			}
 		} else {
 			// Handle per-driver implementation for remote storage drivers.
-			err = b.driver.UpdateBucket(curStorageBucket, changedConfig)
+			err = b.driver.UpdateBucket(curBucketVol, changedConfig)
 			if err != nil {
 				return err
 			}
@@ -3638,13 +3641,14 @@ func (b *lxdBackend) DeleteBucket(projectName string, bucketName string, op *ope
 		return err
 	}
 
-	storageBucket := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucket.Name, bucket.Config)
+	bucketVolName := project.StorageVolume(projectName, bucket.Name)
+	bucketVol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, bucket.Config)
 
 	if memberSpecific {
 		// Handle common MinIO implementation for local storage drivers.
 
 		// Stop MinIO process if running.
-		minioProc := miniod.Get(bucket.Name)
+		minioProc := miniod.Get(bucketVolName)
 		if minioProc != nil {
 			err = minioProc.Stop(context.Background())
 			if err != nil {
@@ -3652,14 +3656,14 @@ func (b *lxdBackend) DeleteBucket(projectName string, bucketName string, op *ope
 			}
 		}
 
-		vol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucket.Name, nil)
+		vol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, nil)
 		err := b.driver.DeleteVolume(vol, op)
 		if err != nil {
 			return err
 		}
 	} else {
 		// Handle per-driver implementation for remote storage drivers.
-		err = b.driver.DeleteBucket(storageBucket, op)
+		err = b.driver.DeleteBucket(bucketVol, op)
 		if err != nil {
 			return err
 		}
@@ -3706,7 +3710,8 @@ func (b *lxdBackend) CreateBucketKey(projectName string, bucketName string, key 
 		return nil, err
 	}
 
-	storageBucket := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucket.Name, bucket.Config)
+	bucketVolName := project.StorageVolume(projectName, bucket.Name)
+	bucketVol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, bucket.Config)
 
 	// Create the bucket key on the storage device.
 	creds := drivers.S3Credentials{
@@ -3725,7 +3730,7 @@ func (b *lxdBackend) CreateBucketKey(projectName string, bucketName string, key 
 		// Handle common MinIO implementation for local storage drivers.
 
 		// Start minio process.
-		minioProc, err := b.ActivateBucket(bucketName, op)
+		minioProc, err := b.ActivateBucket(projectName, bucket.Name, op)
 		if err != nil {
 			return nil, err
 		}
@@ -3758,12 +3763,12 @@ func (b *lxdBackend) CreateBucketKey(projectName string, bucketName string, key 
 		}
 	} else {
 		// Handle per-driver implementation for remote storage drivers.
-		newCreds, err = b.driver.CreateBucketKey(storageBucket, key.Name, creds, key.Role, op)
+		newCreds, err = b.driver.CreateBucketKey(bucketVol, key.Name, creds, key.Role, op)
 		if err != nil {
 			return nil, err
 		}
 
-		revert.Add(func() { _ = b.driver.DeleteBucketKey(storageBucket, key.Name, op) })
+		revert.Add(func() { _ = b.driver.DeleteBucketKey(bucketVol, key.Name, op) })
 	}
 
 	key.AccessKey = newCreds.AccessKey
@@ -3847,7 +3852,8 @@ func (b *lxdBackend) UpdateBucketKey(projectName string, bucketName string, keyN
 		return nil // Nothing has changed.
 	}
 
-	storageBucket := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucket.Name, bucket.Config)
+	bucketVolName := project.StorageVolume(projectName, bucket.Name)
+	bucketVol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, bucket.Config)
 
 	creds := drivers.S3Credentials{
 		AccessKey: newBucketKey.AccessKey,
@@ -3863,7 +3869,7 @@ func (b *lxdBackend) UpdateBucketKey(projectName string, bucketName string, keyN
 		// Handle common MinIO implementation for local storage drivers.
 
 		// Start minio process.
-		minioProc, err := b.ActivateBucket(bucketName, op)
+		minioProc, err := b.ActivateBucket(projectName, bucket.Name, op)
 		if err != nil {
 			return err
 		}
@@ -3911,7 +3917,7 @@ func (b *lxdBackend) UpdateBucketKey(projectName string, bucketName string, keyN
 		key.SecretKey = newCreds.SecretKey
 	} else {
 		// Handle per-driver implementation for remote storage drivers.
-		newCreds, err := b.driver.UpdateBucketKey(storageBucket, keyName, creds, key.Role, op)
+		newCreds, err := b.driver.UpdateBucketKey(bucketVol, keyName, creds, key.Role, op)
 		if err != nil {
 			return err
 		}
@@ -3973,7 +3979,7 @@ func (b *lxdBackend) DeleteBucketKey(projectName string, bucketName string, keyN
 		// Handle common MinIO implementation for local storage drivers.
 
 		// Start minio process.
-		minioProc, err := b.ActivateBucket(bucketName, op)
+		minioProc, err := b.ActivateBucket(projectName, bucket.Name, op)
 		if err != nil {
 			return err
 		}
@@ -3989,10 +3995,11 @@ func (b *lxdBackend) DeleteBucketKey(projectName string, bucketName string, keyN
 		}
 	} else {
 		// Handle per-driver implementation for remote storage drivers.
-		storageBucket := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucket.Name, bucket.Config)
+		bucketVolName := project.StorageVolume(projectName, bucket.Name)
+		bucketVol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, bucket.Config)
 
 		// Delete the bucket key from the storage device.
-		err = b.driver.DeleteBucketKey(storageBucket, keyName, op)
+		err = b.driver.DeleteBucketKey(bucketVol, keyName, op)
 		if err != nil {
 			return err
 		}
@@ -4007,7 +4014,7 @@ func (b *lxdBackend) DeleteBucketKey(projectName string, bucketName string, keyN
 }
 
 // ActivateBucket mounts the local bucket volume and returns the MinIO S3 process for it.
-func (b *lxdBackend) ActivateBucket(bucketName string, op *operations.Operation) (*miniod.Process, error) {
+func (b *lxdBackend) ActivateBucket(projectName string, bucketName string, op *operations.Operation) (*miniod.Process, error) {
 	if !b.Driver().Info().Buckets {
 		return nil, fmt.Errorf("Storage pool does not support buckets")
 	}
@@ -4016,9 +4023,10 @@ func (b *lxdBackend) ActivateBucket(bucketName string, op *operations.Operation)
 		return nil, fmt.Errorf("Remote buckets cannot be activated")
 	}
 
-	vol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketName, nil)
+	bucketVolName := project.StorageVolume(projectName, bucketName)
+	bucketVol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, nil)
 
-	return miniod.EnsureRunning(b.state, vol)
+	return miniod.EnsureRunning(b.state, bucketVol)
 }
 
 // GetBucketURL returns S3 URL for bucket.

@@ -264,7 +264,7 @@ func (b *mockBackend) DeleteBucketKey(projectName string, bucketName string, key
 	return nil
 }
 
-func (b *mockBackend) ActivateBucket(bucketName string, op *operations.Operation) (*miniod.Process, error) {
+func (b *mockBackend) ActivateBucket(projectName string, bucketName string, op *operations.Operation) (*miniod.Process, error) {
 	return nil, nil
 }
 

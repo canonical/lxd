@@ -33,6 +33,7 @@ func (d *ceph) load() error {
 		"storage_missing_snapshot_records":                   nil,
 		"storage_delete_old_snapshot_records":                nil,
 		"storage_zfs_drop_block_volume_filesystem_extension": nil,
+		"storage_prefix_bucket_names_with_project":           nil,
 	}
 
 	// Done if previously loaded.
