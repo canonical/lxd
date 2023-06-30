@@ -405,12 +405,14 @@ func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bo
 	target := vol.MountPath()
 
 	// Recursively copy the main volume.
-	err = d.snapshotSubvolume(srcVol.MountPath(), target, true)
+	cleanup, err := d.snapshotSubvolume(srcVol.MountPath(), target, true)
 	if err != nil {
 		return err
 	}
 
-	revert.Add(func() { _ = d.deleteSubvolume(target, true) })
+	if cleanup != nil {
+		revert.Add(cleanup)
+	}
 
 	// Restore readonly property on subvolumes in reverse order (except root which should be left writable).
 	subVolCount := len(subVols)
@@ -463,9 +465,13 @@ func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bo
 			srcSnapshot := GetVolumeMountPath(d.name, srcVol.volType, GetSnapshotVolumeName(srcVol.name, snapName))
 			dstSnapshot := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, snapName))
 
-			err = d.snapshotSubvolume(srcSnapshot, dstSnapshot, true)
+			cleanup, err := d.snapshotSubvolume(srcSnapshot, dstSnapshot, true)
 			if err != nil {
 				return err
+			}
+
+			if cleanup != nil {
+				revert.Add(cleanup)
 			}
 
 			err = d.setSubvolumeReadonlyProperty(dstSnapshot, true)
@@ -1182,14 +1188,14 @@ func (d *btrfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 
 	mountPath := filepath.Join(tmpDir, vol.name)
 
-	err = d.snapshotSubvolume(sourcePath, mountPath, true)
+	cleanup, err := d.snapshotSubvolume(sourcePath, mountPath, true)
 	if err != nil {
 		return "", nil, err
 	}
 
-	revert.Add(func() {
-		_ = d.deleteSubvolume(mountPath, true)
-	})
+	if cleanup != nil {
+		revert.Add(cleanup)
+	}
 
 	err = d.setSubvolumeReadonlyProperty(mountPath, true)
 	if err != nil {
@@ -1198,7 +1204,7 @@ func (d *btrfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 
 	d.logger.Debug("Created read-only backup snapshot", logger.Ctx{"sourcePath": sourcePath, "path": mountPath})
 
-	cleanup := revert.Clone().Fail
+	cleanup = revert.Clone().Fail
 	revert.Success()
 	return mountPath, cleanup, nil
 }
@@ -1338,7 +1344,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 
 			// Detect if parent subvolume exists, and if so use it for differential.
 			parentPath := ""
-			if parentPrefix != "" && btrfsIsSubVolume(filepath.Join(parentPrefix, subVolume.Path)) {
+			if parentPrefix != "" && d.isSubvolume(filepath.Join(parentPrefix, subVolume.Path)) {
 				parentPath = filepath.Join(parentPrefix, subVolume.Path)
 
 				// Set parent subvolume readonly if needed so we can send the subvolume.
@@ -1440,7 +1446,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 
 	// Make recursive read-only snapshot of the subvolume as writable subvolumes cannot be sent.
 	migrationSendSnapshotPrefix := filepath.Join(tmpVolumesMountPoint, ".migration-send")
-	err = d.snapshotSubvolume(vol.MountPath(), migrationSendSnapshotPrefix, true)
+	_, err = d.snapshotSubvolume(vol.MountPath(), migrationSendSnapshotPrefix, true)
 	if err != nil {
 		return err
 	}
@@ -1573,7 +1579,7 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 
 			// Detect if parent subvolume exists, and if so use it for differential.
 			parentPath := ""
-			if parentPrefix != "" && btrfsIsSubVolume(filepath.Join(parentPrefix, subVolume.Path)) {
+			if parentPrefix != "" && d.isSubvolume(filepath.Join(parentPrefix, subVolume.Path)) {
 				parentPath = filepath.Join(parentPrefix, subVolume.Path)
 
 				// Set parent subvolume readonly if needed so we can add the subvolume.
@@ -1669,7 +1675,7 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 
 	// Create the read-only snapshot.
 	targetVolume := fmt.Sprintf("%s/.backup", tmpInstanceMntPoint)
-	err = d.snapshotSubvolume(sourceVolume, targetVolume, true)
+	_, err = d.snapshotSubvolume(sourceVolume, targetVolume, true)
 	if err != nil {
 		return err
 	}
@@ -1719,9 +1725,16 @@ func (d *btrfs) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) e
 		return err
 	}
 
-	err = d.snapshotSubvolume(srcPath, snapPath, true)
+	revert := revert.New()
+	defer revert.Fail()
+
+	cleanup, err := d.snapshotSubvolume(srcPath, snapPath, true)
 	if err != nil {
 		return err
+	}
+
+	if cleanup != nil {
+		revert.Add(cleanup)
 	}
 
 	err = d.setSubvolumeReadonlyProperty(snapPath, true)
@@ -1745,6 +1758,7 @@ func (d *btrfs) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) e
 		}
 	}
 
+	revert.Success()
 	return nil
 }
 
@@ -1876,12 +1890,14 @@ func (d *btrfs) RestoreVolume(vol Volume, snapshotName string, op *operations.Op
 	revert.Add(func() { _ = os.Rename(backupSubvolume, target) })
 
 	// Restore the snapshot.
-	err = d.snapshotSubvolume(srcVol.MountPath(), target, true)
+	cleanup, err := d.snapshotSubvolume(srcVol.MountPath(), target, true)
 	if err != nil {
 		return err
 	}
 
-	revert.Add(func() { _ = d.deleteSubvolume(target, true) })
+	if cleanup != nil {
+		revert.Add(cleanup)
+	}
 
 	// Restore readonly property on subvolumes in reverse order (except root which should be left writable).
 	subVolCount := len(subVols)
