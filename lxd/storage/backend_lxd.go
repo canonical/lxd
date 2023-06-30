@@ -5194,7 +5194,7 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	defer l.Debug("CreateCustomVolumeSnapshot finished")
 
 	if shared.IsSnapshot(volName) {
-		return fmt.Errorf("Volume cannot be snapshot")
+		return fmt.Errorf("Volume does not support snapshots")
 	}
 
 	if shared.IsSnapshot(newSnapshotName) {
