@@ -257,14 +257,14 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 
 	// Send volume to target (ensure local volume is mounted if needed).
 	return vol.MountTask(func(mountPath string, op *operations.Operation) error {
-		if vol.contentType != ContentTypeBlock || vol.volType != VolumeTypeCustom {
+		if !IsContentBlock(vol.contentType) || vol.volType != VolumeTypeCustom {
 			err := sendFSVol(vol, conn, mountPath)
 			if err != nil {
 				return err
 			}
 		}
 
-		if vol.IsVMBlock() || (vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom) {
+		if vol.IsVMBlock() || (IsContentBlock(vol.contentType) && vol.volType == VolumeTypeCustom) {
 			err := sendBlockVol(vol, conn)
 			if err != nil {
 				return err
@@ -279,7 +279,7 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 // initVolume is run against the main volume (not the snapshots) and is often used for quota initialization.
 func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (revert.Hook, error), vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	// Check migration transport type matches volume type.
-	if vol.contentType == ContentTypeBlock {
+	if IsContentBlock(vol.contentType) {
 		if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_BLOCK_AND_RSYNC {
 			return ErrNotSupported
 		}
@@ -354,7 +354,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 		path := shared.AddSlash(mountPath)
 		pathBlock := ""
 
-		if vol.IsVMBlock() || (vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom) {
+		if vol.IsVMBlock() || (IsContentBlock(vol.contentType) && vol.volType == VolumeTypeCustom) {
 			pathBlock, err = d.GetVolumeDiskPath(vol)
 			if err != nil {
 				return fmt.Errorf("Error getting VM block volume disk path: %w", err)
@@ -402,7 +402,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 			}
 		}
 
-		if vol.contentType != ContentTypeBlock || vol.volType != VolumeTypeCustom {
+		if !IsContentBlock(vol.contentType) || vol.volType != VolumeTypeCustom {
 			// Receive main volume.
 			err = recvFSVol(vol.name, conn, path)
 			if err != nil {
@@ -411,7 +411,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 		}
 
 		// Receive the final main volume sync if needed.
-		if volTargetArgs.Live && (vol.contentType != ContentTypeBlock || vol.volType != VolumeTypeCustom) {
+		if volTargetArgs.Live && (!IsContentBlock(vol.contentType) || vol.volType != VolumeTypeCustom) {
 			d.Logger().Debug("Starting main volume final sync", logger.Ctx{"volName": vol.name, "path": path})
 			err = recvFSVol(vol.name, conn, path)
 			if err != nil {
@@ -427,7 +427,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 		}
 
 		// Receive the block volume next (if needed).
-		if vol.IsVMBlock() || (vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom) {
+		if vol.IsVMBlock() || (IsContentBlock(vol.contentType) && vol.volType == VolumeTypeCustom) {
 			err = recvBlockVol(vol.name, conn, pathBlock)
 			if err != nil {
 				return err
@@ -460,7 +460,7 @@ func genericVFSHasVolume(vol Volume) (bool, error) {
 
 // genericVFSGetVolumeDiskPath is a generic GetVolumeDiskPath implementation for VFS-only drivers.
 func genericVFSGetVolumeDiskPath(vol Volume) (string, error) {
-	if vol.contentType != ContentTypeBlock {
+	if !IsContentBlock(vol.contentType) {
 		return "", ErrNotSupported
 	}
 

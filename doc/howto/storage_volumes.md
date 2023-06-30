@@ -18,7 +18,7 @@ See {ref}`storage-volumes` for detailed information.
 
 ### Create the volume
 
-Use the following command to create a custom storage volume in a storage pool:
+Use the following command to create a custom storage volume of type `block` or `filesystem` in a storage pool:
 
     lxc storage volume create <pool_name> <volume_name> [configuration_options...]
 
@@ -38,6 +38,10 @@ For most storage drivers, custom storage volumes are not replicated across the c
 This behavior is different for Ceph-based storage pools (`ceph` and `cephfs`), where volumes are available from any cluster member.
 ```
 
+To create a custom storage volume of type `iso`, use the `import` command instead of the `create` command:
+
+    lxc storage volume import <pool_name> <iso_path> <volume_name> --type=iso
+
 (storage-attach-volume)=
 ### Attach the volume to an instance
 
@@ -45,8 +49,9 @@ After creating a custom storage volume, you can add it to one or more instances 
 
 The following restrictions apply:
 
-- Custom storage volumes of {ref}`content type <storage-content-types>` `block` cannot be attached to containers, but only to virtual machines.
+- Custom storage volumes of {ref}`content type <storage-content-types>` `block` or `iso` cannot be attached to containers, but only to virtual machines.
 - To avoid data corruption, storage volumes of {ref}`content type <storage-content-types>` `block` should never be attached to more than one virtual machine at a time.
+- Storage volumes of {ref}`content type <storage-content-types>` `iso` are always read-only, and can therefore be attached to more than one virtual machine at a time without corrupting data.
 
 For custom storage volumes with the content type `filesystem`, use the following command, where `<location>` is the path for accessing the storage volume inside the instance (for example, `/data`):
 

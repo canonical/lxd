@@ -393,7 +393,7 @@ func (d *ceph) MigrationTypes(contentType ContentType, refresh bool, copySnapsho
 	if refresh {
 		var transportType migration.MigrationFSType
 
-		if contentType == ContentTypeBlock {
+		if IsContentBlock(contentType) {
 			transportType = migration.MigrationFSType_BLOCK_AND_RSYNC
 		} else {
 			transportType = migration.MigrationFSType_RSYNC
