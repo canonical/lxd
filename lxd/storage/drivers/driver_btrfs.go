@@ -492,7 +492,7 @@ func (d *btrfs) MigrationTypes(contentType ContentType, refresh bool, copySnapsh
 	if d.state.OS.RunningInUserNS {
 		var transportType migration.MigrationFSType
 
-		if contentType == ContentTypeBlock {
+		if IsContentBlock(contentType) {
 			transportType = migration.MigrationFSType_BLOCK_AND_RSYNC
 		} else {
 			transportType = migration.MigrationFSType_RSYNC
@@ -506,7 +506,7 @@ func (d *btrfs) MigrationTypes(contentType ContentType, refresh bool, copySnapsh
 		}
 	}
 
-	if contentType == ContentTypeBlock {
+	if IsContentBlock(contentType) {
 		return []migration.Type{
 			{
 				FSType:   migration.MigrationFSType_BTRFS,

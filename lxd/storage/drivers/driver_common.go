@@ -201,7 +201,7 @@ func (d *common) MigrationTypes(contentType ContentType, refresh bool, copySnaps
 		rsyncFeatures = []string{"xattrs", "delete", "compress", "bidirectional"}
 	}
 
-	if contentType == ContentTypeBlock {
+	if IsContentBlock(contentType) {
 		transportType = migration.MigrationFSType_BLOCK_AND_RSYNC
 	} else {
 		transportType = migration.MigrationFSType_RSYNC

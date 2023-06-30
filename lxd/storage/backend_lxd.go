@@ -1168,10 +1168,13 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 	}
 
 	// Get the source volume's content type.
-	contentType := drivers.ContentTypeFS
+	contentType, err := VolumeDBContentTypeToContentType(contentDBType)
+	if err != nil {
+		return err
+	}
 
-	if contentDBType == db.StoragePoolVolumeContentTypeBlock {
-		contentType = drivers.ContentTypeBlock
+	if contentType != drivers.ContentTypeFS && contentType != drivers.ContentTypeBlock {
+		return fmt.Errorf("Volume of content type %q cannot be refreshed", contentType)
 	}
 
 	storagePoolSupported := false
@@ -1598,6 +1601,22 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) f
 
 		imageFile := shared.VarPath("images", fingerprint)
 		return ImageUnpack(imageFile, vol, rootBlockPath, b.driver.Info().BlockBacking, b.state.OS, allowUnsafeResize, tracker)
+	}
+}
+
+// isoFiller returns a function that can be used as a filler function with CreateVolume().
+// The function returned will copy the ISO content into the specified mount path
+// provided.
+func (b *lxdBackend) isoFiller(data io.Reader) func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
+	return func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
+		f, err := os.OpenFile(rootBlockPath, os.O_CREATE|os.O_WRONLY, 0600)
+		if err != nil {
+			return -1, err
+		}
+
+		defer func() { _ = f.Close() }()
+
+		return io.Copy(f, data)
 	}
 }
 
@@ -4169,10 +4188,9 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	}
 
 	// Get the source volume's content type.
-	contentType := drivers.ContentTypeFS
-
-	if contentDBType == db.StoragePoolVolumeContentTypeBlock {
-		contentType = drivers.ContentTypeBlock
+	contentType, err := VolumeDBContentTypeToContentType(contentDBType)
+	if err != nil {
+		return err
 	}
 
 	storagePoolSupported := false
@@ -4270,7 +4288,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	// "no space left on device".
 	var volSize int64
 
-	if contentType == drivers.ContentTypeBlock {
+	if drivers.IsContentBlock(contentType) {
 		err = srcVol.MountTask(func(mountPath string, op *operations.Operation) error {
 			srcPoolBackend, ok := srcPool.(*lxdBackend)
 			if !ok {
@@ -4810,6 +4828,11 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 	// Apply config changes if there are any.
 	changedConfig, userOnly := b.detectChangedConfig(curVol.Config, newConfig)
 	if len(changedConfig) != 0 {
+		// Forbid changing the config for ISO custom volumes as they are read-only.
+		if contentType == drivers.ContentTypeISO {
+			return fmt.Errorf("Custom ISO volume config cannot be changed")
+		}
+
 		// Check that the volume's block.filesystem property isn't being changed.
 		if changedConfig["block.filesystem"] != "" {
 			return fmt.Errorf("Custom volume 'block.filesystem' property cannot be changed")
@@ -5179,7 +5202,7 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	defer l.Debug("CreateCustomVolumeSnapshot finished")
 
 	if shared.IsSnapshot(volName) {
-		return fmt.Errorf("Volume cannot be snapshot")
+		return fmt.Errorf("Volume does not support snapshots")
 	}
 
 	if shared.IsSnapshot(newSnapshotName) {
@@ -5206,6 +5229,20 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 		return err
 	}
 
+	volDBContentType, err := VolumeContentTypeNameToContentType(parentVol.ContentType)
+	if err != nil {
+		return err
+	}
+
+	contentType, err := VolumeDBContentTypeToContentType(volDBContentType)
+	if err != nil {
+		return err
+	}
+
+	if contentType != drivers.ContentTypeFS && contentType != drivers.ContentTypeBlock {
+		return fmt.Errorf("Volume of content type %q does not support snapshots", contentType)
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -5217,16 +5254,6 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	}
 
 	revert.Add(func() { _ = VolumeDBDelete(b, projectName, fullSnapshotName, drivers.VolumeTypeCustom) })
-
-	volDBContentType, err := VolumeContentTypeNameToContentType(parentVol.ContentType)
-	if err != nil {
-		return err
-	}
-
-	contentType, err := VolumeDBContentTypeToContentType(volDBContentType)
-	if err != nil {
-		return err
-	}
 
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, fullSnapshotName)
@@ -6222,6 +6249,20 @@ func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarW
 		return err
 	}
 
+	contentDBType, err := VolumeContentTypeNameToContentType(volume.ContentType)
+	if err != nil {
+		return err
+	}
+
+	contentType, err := VolumeDBContentTypeToContentType(contentDBType)
+	if err != nil {
+		return err
+	}
+
+	if contentType != drivers.ContentTypeFS && contentType != drivers.ContentTypeBlock {
+		return fmt.Errorf("Volume of content type %q cannot be backed up", contentType)
+	}
+
 	var snapNames []string
 	if snapshots {
 		// Get snapshots in age order, oldest first, and pass names to storage driver.
@@ -6244,6 +6285,78 @@ func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarW
 		return err
 	}
 
+	return nil
+}
+
+func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName string, srcData io.ReadSeeker, size int64, op *operations.Operation) error {
+	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volume": volName})
+	l.Debug("CreateCustomVolumeFromISO started")
+	defer l.Debug("CreateCustomVolumeFromISO finished")
+
+	// Check whether we are allowed to create volumes.
+	req := api.StorageVolumesPost{
+		Name: volName,
+	}
+
+	err := b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		return project.AllowVolumeCreation(tx, projectName, req)
+	})
+	if err != nil {
+		return fmt.Errorf("Failed checking volume creation allowed: %w", err)
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Get the volume name on storage.
+	volStorageName := project.StorageVolume(projectName, volName)
+
+	config := map[string]string{
+		"size": fmt.Sprintf("%d", size),
+	}
+
+	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentTypeISO, volStorageName, config)
+
+	volExists, err := b.driver.HasVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	if volExists {
+		return fmt.Errorf("Cannot create volume, already exists on target storage")
+	}
+
+	// Validate config and create database entry for new storage volume.
+	err = VolumeDBCreate(b, projectName, volName, "", vol.Type(), false, vol.Config(), time.Now(), time.Time{}, vol.ContentType(), true, true)
+	if err != nil {
+		return fmt.Errorf("Failed creating database entry for custom volume: %w", err)
+	}
+
+	revert.Add(func() { _ = VolumeDBDelete(b, projectName, volName, vol.Type()) })
+
+	_, err = srcData.Seek(0, io.SeekStart)
+	if err != nil {
+		return err
+	}
+
+	volFiller := drivers.VolumeFiller{
+		Fill: b.isoFiller(srcData),
+	}
+
+	// Unpack the ISO into the new storage volume(s).
+	err = b.driver.CreateVolume(vol, &volFiller, op)
+	if err != nil {
+		return fmt.Errorf("Failed creating volume: %w", err)
+	}
+
+	eventCtx := logger.Ctx{"type": vol.Type()}
+	if !b.Driver().Info().Remote {
+		eventCtx["location"] = b.state.ServerName
+	}
+
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, eventCtx))
+
+	revert.Success()
 	return nil
 }
 

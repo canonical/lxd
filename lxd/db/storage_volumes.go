@@ -601,12 +601,14 @@ var StoragePoolVolumeTypeNames = map[int]string{
 const (
 	StoragePoolVolumeContentTypeFS = iota
 	StoragePoolVolumeContentTypeBlock
+	StoragePoolVolumeContentTypeISO
 )
 
 // Content type names.
 const (
 	StoragePoolVolumeContentTypeNameFS    string = "filesystem"
 	StoragePoolVolumeContentTypeNameBlock string = "block"
+	StoragePoolVolumeContentTypeNameISO   string = "iso"
 )
 
 // StorageVolumeArgs is a value object holding all db-related details about a
@@ -886,6 +888,8 @@ func storagePoolVolumeContentTypeToName(contentType int) (string, error) {
 		return StoragePoolVolumeContentTypeNameFS, nil
 	case StoragePoolVolumeContentTypeBlock:
 		return StoragePoolVolumeContentTypeNameBlock, nil
+	case StoragePoolVolumeContentTypeISO:
+		return StoragePoolVolumeContentTypeNameISO, nil
 	}
 
 	return "", fmt.Errorf("Invalid storage volume content type")

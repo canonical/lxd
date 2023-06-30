@@ -237,6 +237,15 @@ test_storage_local_volume_handling() {
           lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5/snap2 user.foo | grep -Fx "snap2vol6"
           ! lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5/snapremove user.foo || false
 
+          # copy ISO custom volumes
+          truncate -s 25MiB foo.iso
+          lxc storage volume import "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" ./foo.iso iso1
+          lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${source_driver}"/iso1 "lxdtest-$(basename "${LXD_DIR}")-${target_driver}"/iso1
+          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" iso1 | grep -q 'content_type: iso'
+          lxc storage volume move "lxdtest-$(basename "${LXD_DIR}")-${source_driver}"/iso1 "lxdtest-$(basename "${LXD_DIR}")-${target_driver}"/iso2
+          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" iso2 | grep -q 'content_type: iso'
+          ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" iso1 || false
+
           # clean up
           lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
           lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1
@@ -246,6 +255,9 @@ test_storage_local_volume_handling() {
           lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol5
           lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5
           lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol6
+          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" iso1
+          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" iso2
+          rm -f foo.iso
         fi
       done
     done

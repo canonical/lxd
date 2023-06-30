@@ -180,7 +180,7 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 			var err error
 			var devPath string
 
-			if vol.contentType == ContentTypeBlock {
+			if IsContentBlock(vol.contentType) {
 				// Get the device path.
 				devPath, err = d.GetVolumeDiskPath(vol)
 				if err != nil {
@@ -1052,7 +1052,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 
 // GetVolumeDiskPath returns the location of a root disk block device.
 func (d *ceph) GetVolumeDiskPath(vol Volume) (string, error) {
-	if vol.IsVMBlock() || (vol.volType == VolumeTypeCustom && vol.contentType == ContentTypeBlock) {
+	if vol.IsVMBlock() || (vol.volType == VolumeTypeCustom && IsContentBlock(vol.contentType)) {
 		_, devPath, err := d.getRBDMappedDevPath(vol, false)
 		return devPath, err
 	}
