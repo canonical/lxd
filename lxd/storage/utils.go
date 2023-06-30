@@ -343,7 +343,8 @@ func BucketDBCreate(ctx context.Context, pool Pool, projectName string, memberSp
 		bucket.Config = map[string]string{}
 	}
 
-	bucketVol := drivers.NewVolume(pool.Driver(), pool.Name(), drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucket.Name, bucket.Config, pool.Driver().Config())
+	bucketVolName := project.StorageVolume(projectName, bucket.Name)
+	bucketVol := drivers.NewVolume(pool.Driver(), pool.Name(), drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, bucket.Config, pool.Driver().Config())
 
 	// Fill default config.
 	err := pool.Driver().FillVolumeConfig(bucketVol)
