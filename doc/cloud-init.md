@@ -92,7 +92,7 @@ config:
 ```
 
 ```{tip}
-See {ref}`cloud-init:reference/faq:how can i debug my user data?` for information on how to check whether the syntax is correct.
+See {doc}`cloud-init:howto/debug_user_data` for information on how to check whether the syntax is correct.
 ```
 
 ## How to check the `cloud-init` status
