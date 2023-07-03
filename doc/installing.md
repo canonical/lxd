@@ -1,6 +1,5 @@
 ---
 discourse: 8178, 16551
-relatedlinks: "[LXD&#32;-&#32;Installation](https://linuxcontainers.org/lxd/getting-started-cli/)"
 ---
 
 # How to install LXD
@@ -48,7 +47,7 @@ integration into Linux distributions are not covered here and may be covered in 
 future.
 
 ```bash
-git clone https://github.com/lxc/lxd
+git clone https://github.com/canonical/lxd
 cd lxd
 ```
 
