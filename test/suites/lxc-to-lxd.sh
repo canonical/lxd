@@ -5,8 +5,14 @@ test_lxc_to_lxd() {
 
   mkdir -p "${LXC_DIR}"
 
+  lxc network create lxcbr0
+
   # Create LXC containers
   lxc-create -P "${LXC_DIR}" -n c1 -B dir -t busybox
+  lxc-start -P "${LXC_DIR}" -n c1
+  lxc-attach -P "${LXC_DIR}" -n c1 -- touch /root/foo
+  lxc-stop -P "${LXC_DIR}" -n c1 --kill
+
   lxc-create -P "${LXC_DIR}" -n c2 -B dir -t busybox
   lxc-create -P "${LXC_DIR}" -n c3 -B dir -t busybox
 
@@ -34,6 +40,7 @@ test_lxc_to_lxd() {
 
   # Ensure the converted container is startable
   lxc start c1
+  lxc exec c1 -- stat /root/foo
   lxc delete -f c1
 
   # Convert some LXC containers
@@ -57,4 +64,7 @@ test_lxc_to_lxd() {
   lxc info c1
   lxc info c2
   lxc info c3
+
+  lxc delete -f c1 c2 c3
+  lxc network delete lxcbr0
 }
