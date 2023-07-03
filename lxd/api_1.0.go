@@ -978,12 +978,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		if oidcIssuer == "" || oidcClientID == "" {
 			d.oidcVerifier = nil
 		} else {
-			var err error
-
-			d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcAudience)
-			if err != nil {
-				return fmt.Errorf("Failed setting up OpenID Connect: %w", err)
-			}
+			d.oidcVerifier = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcAudience)
 		}
 	}
 
