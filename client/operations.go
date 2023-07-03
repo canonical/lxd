@@ -144,6 +144,9 @@ func (op *operation) WaitContext(ctx context.Context) error {
 	return nil
 }
 
+// setupListener initiates an event listener for an operation and manages updates to the operation's state.
+// It adds handlers to process events, monitors the listener for completion or errors,
+// and triggers a manual refresh of the operation's state to prevent race conditions.
 func (op *operation) setupListener() error {
 	// Make sure we're not racing with ourselves
 	op.handlerLock.Lock()
