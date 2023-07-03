@@ -8,7 +8,7 @@ Changes to this project should be proposed as pull requests on GitHub
 at: [`https://github.com/lxc/lxd`](https://github.com/lxc/lxd)
 
 Proposed changes will then go through code review there and once approved,
-be merged in the main branch.
+be merged in the master branch.
 
 ## Commit structure
 
