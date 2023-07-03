@@ -2016,10 +2016,6 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 }
 
 func (d *qemu) deviceAttachBlockDevice(deviceName string, configCopy map[string]string, mount deviceConfig.MountEntryItem) error {
-	if mount.FSType == "9p" {
-		return fmt.Errorf("Cannot attach directory while instance is running")
-	}
-
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
