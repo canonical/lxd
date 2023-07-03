@@ -17,16 +17,6 @@ if not os.path.islink('.sphinx/_static/swagger-ui/swagger-ui-standalone-preset.j
 if not os.path.islink('.sphinx/_static/swagger-ui/swagger-ui.css'):
     os.symlink('../../deps/swagger-ui/dist/swagger-ui.css', '.sphinx/_static/swagger-ui/swagger-ui.css')
 
-# Download and link images
-os.makedirs('.sphinx/_static/download/', exist_ok=True)
-
-if not os.path.isfile('.sphinx/_static/download/favicon.ico'):
-    wget.download("https://linuxcontainers.org/static/img/favicon.ico", ".sphinx/_static/download/favicon.ico")
-if not os.path.isfile('.sphinx/_static/download/containers.png'):
-    wget.download("https://linuxcontainers.org/static/img/containers.png", ".sphinx/_static/download/containers.png")
-if not os.path.isfile('doc/.sphinx/_static/download/containers.small.png'):
-    wget.download("https://linuxcontainers.org/static/img/containers.small.png", ".sphinx/_static/download/containers.small.png")
-
 # Project config.
 project = "LXD"
 author = "LXD contributors"
@@ -65,10 +55,10 @@ templates_path = [".sphinx/_templates"]
 html_theme = "furo"
 html_show_sphinx = False
 html_last_updated_fmt = ""
-html_favicon = ".sphinx/_static/download/favicon.ico"
+html_favicon = ".sphinx/_static/favicon.ico"
 html_static_path = ['.sphinx/_static']
 html_css_files = ['custom.css']
-html_js_files = ['header-nav.js','version-switcher.js']
+html_js_files = ['header-nav.js']
 html_extra_path = ['.sphinx/_extra']
 
 html_theme_options = {
@@ -129,27 +119,12 @@ html_theme_options = {
 }
 
 html_context = {
-    "github_url": "https://github.com/lxc/lxd",
-    "github_version": "master",
+    "github_url": "https://github.com/canonical/lxd",
+    "github_version": "main",
     "github_folder": "/doc/",
     "github_filetype": "md"
 }
 
-# Pass a variable to the template files that informs if we're on
-# RTD or not
-if ("ON_RTD" in os.environ) and (os.environ["ON_RTD"] == "True"):
-    html_context["ON_RTD"] = True
-else:
-    # only change the sidebar when we're not on RTD
-    html_sidebars = {
-        "**": [
-            "sidebar/variant-selector.html",
-            "sidebar/search.html",
-            "sidebar/scroll-start.html",
-            "sidebar/navigation.html",
-            "sidebar/scroll-end.html",
-        ]
-    }
 source_suffix = ".md"
 
 # List of patterns, relative to source directory, that match files and
@@ -159,11 +134,10 @@ exclude_patterns = ['html', 'README.md', '.sphinx']
 
 # Open Graph configuration
 
-ogp_site_url = "https://linuxcontainers.org/lxd/docs/master/"
+ogp_site_url = "https://documentation.ubuntu.com/lxd/en/stable-4.0/"
 ogp_site_name = "LXD documentation"
-ogp_image = "https://linuxcontainers.org/static/img/containers.png"
+ogp_image = "https://documentation.ubuntu.com/lxd/en/stable-4.0/_static/tag.png"
 
 # Setup redirects (https://documatt.gitlab.io/sphinx-reredirects/usage.html)
 redirects = {
-    "index/index": "../index.html",
 }

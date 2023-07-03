@@ -1,5 +1,4 @@
 
-[![LXD](.sphinx/_static/download/containers.png)](https://linuxcontainers.org/lxd)
 
 % Include content from [../README.md](../README.md)
 ```{include} ../README.md
