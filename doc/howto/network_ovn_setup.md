@@ -176,4 +176,4 @@ See the linked YouTube video for the complete tutorial using four machines.
        lxc exec c4 bash
        ping <IP of c1>
        ping <nameserver>
-       ping6 -n www.linuxcontainers.org
+       ping6 -n www.example.com

@@ -1,5 +1,3 @@
-[![LXD](https://linuxcontainers.org/static/img/containers.png)](https://linuxcontainers.org/lxd)
-
 # LXD
 
 LXD is a modern, secure and powerful system container and virtual machine manager.
@@ -17,25 +15,23 @@ You should consider using LXD if you want to containerize different environments
 
 ## Get started
 
-See [Getting started](https://linuxcontainers.org/lxd/docs/latest/getting_started/) in the LXD documentation for installation instructions and first steps.
+See [Getting started](https://documentation.ubuntu.com/lxd/en/latest/getting_started/) in the LXD documentation for installation instructions and first steps.
 
-- Release announcements: [`https://linuxcontainers.org/lxd/news/`](https://linuxcontainers.org/lxd/news/)
-- Release tarballs: [`https://linuxcontainers.org/lxd/downloads/`](https://linuxcontainers.org/lxd/downloads/)
-- Documentation: [`https://linuxcontainers.org/lxd/docs/latest/`](https://linuxcontainers.org/lxd/docs/latest/)
+- Release announcements: [`https://discourse.ubuntu.com/c/lxd/news/`](https://discourse.ubuntu.com/c/lxd/news/)
+- Release tarballs: [`https://github.com/canonical/lxd/releases/`](https://github.com/canonical/lxd/releases/)
+- Documentation: [`https://documentation.ubuntu.com/lxd/en/latest/`](https://documentation.ubuntu.com/lxd/en/latest/)
 
 
 ## Status
 
 Type                | Service               | Status
 ---                 | ---                   | ---
-CI (client)         | GitHub                | [![Build Status](https://github.com/lxc/lxd/workflows/Client%20build%20and%20unit%20tests/badge.svg)](https://github.com/lxc/lxd/actions)
+CI (client)         | GitHub                | [![Build Status](https://github.com/canonical/lxd/workflows/Client%20build%20and%20unit%20tests/badge.svg)](https://github.com/canonical/lxd/actions)
 CI (server)         | Jenkins               | [![Build Status](https://jenkins.linuxcontainers.org/job/lxd-github-commit/badge/icon)](https://jenkins.linuxcontainers.org/job/lxd-github-commit/)
-Go documentation    | Godoc                 | [![GoDoc](https://godoc.org/github.com/lxc/lxd/client?status.svg)](https://godoc.org/github.com/lxc/lxd/client)
-Static analysis     | GoReport              | [![Go Report Card](https://goreportcard.com/badge/github.com/lxc/lxd)](https://goreportcard.com/report/github.com/lxc/lxd)
+Go documentation    | Godoc                 | [![GoDoc](https://godoc.org/github.com/lxc/lxd/client?status.svg)](https://godoc.org/github.com/lcx/lxd/client)
+Static analysis     | GoReport              | [![Go Report Card](https://goreportcard.com/badge/github.com/lcx/lxd)](https://goreportcard.com/report/github.com/lxc/lxd)
 Translations        | Weblate               | [![Translation status](https://hosted.weblate.org/widgets/linux-containers/-/svg-badge.svg)](https://hosted.weblate.org/projects/linux-containers/lxd/)
 Project status      | CII Best Practices    | [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1086/badge)](https://bestpractices.coreinfrastructure.org/projects/1086)
-
-<!-- Include start installing -->
 
 ## Installing LXD from packages
 
@@ -47,10 +43,7 @@ Linux               | [Snap](https://snapcraft.io/lxd)                  | `snap 
 Windows             | [Chocolatey](https://chocolatey.org/packages/lxc) | `choco install lxc`
 macOS               | [Homebrew](https://formulae.brew.sh/formula/lxc)  | `brew install lxc`
 
-More instructions on installing LXD for a wide variety of Linux distributions and operating systems [can be found on our website](https://linuxcontainers.org/lxd/getting-started-cli/).
-<!-- Include end installing -->
-
-To install LXD from source, see [Installing LXD](https://linuxcontainers.org/lxd/docs/latest/installing/) in the documentation.
+For more instructions on installing LXD for a wide variety of Linux distributions and operating systems, and to install LXD from source, see [How to install LXD](https://documentation.ubuntu.com/lxd/en/latest/installing/) in the documentation.
 
 ## Security
 
@@ -65,7 +58,7 @@ Consider the following aspects to ensure that your LXD installation is secure:
 - Configure your network interfaces to be secure.
 <!-- Include end security -->
 
-See [Security](https://linuxcontainers.org/lxd/docs/latest/security/) for detailed information.
+See [Security](https://documentation.ubuntu.com/lxd/en/latest/security/) for detailed information.
 
 **IMPORTANT:**
 <!-- Include start security note -->
@@ -82,20 +75,15 @@ The following channels are available for you to interact with the LXD community.
 
 ### Bug reports
 
-You can file bug reports and feature requests at: [`https://github.com/lxc/lxd/issues/new`](https://github.com/lxc/lxd/issues/new)
+You can file bug reports and feature requests at: [`https://github.com/canonical/lxd/issues/new`](https://github.com/canonical/lxd/issues/new)
 
 ### Forum
 
-A discussion forum is available at: [`https://discuss.linuxcontainers.org`](https://discuss.linuxcontainers.org)
-
-### Mailing lists
-
-We use the LXC mailing lists for developer and user discussions. You can
-find and subscribe to those at: [`https://lists.linuxcontainers.org`](https://lists.linuxcontainers.org)
+A discussion forum is available at: [`https://discourse.ubuntu.com/c/lxd/`](https://discourse.ubuntu.com/c/lxd/)
 
 ### IRC
 
-If you prefer live discussions, you can find us in [`#lxc`](https://web.libera.chat/#lxc) on `irc.libera.chat`. See [Getting started with IRC](https://discuss.linuxcontainers.org/t/getting-started-with-irc/11920) if needed.
+If you prefer live discussions, you can find us in [`#lxd`](https://web.libera.chat/#lxd) on `irc.libera.chat`. See [Getting started with IRC](https://discuss.linuxcontainers.org/t/getting-started-with-irc/11920) if needed.
 
 ### Commercial support
 
@@ -103,9 +91,9 @@ Commercial support for LXD can be obtained through [Canonical Ltd](https://www.c
 
 ## Documentation
 
-The official documentation is available at: [`https://linuxcontainers.org/lxd/docs/latest/`](https://linuxcontainers.org/lxd/docs/latest/)
+The official documentation is available at: [`https://documentation.ubuntu.com/lxd/en/latest/`](https://documentation.ubuntu.com/lxd/en/latest/)
 
-You can find additional resources on the [website](https://linuxcontainers.org/lxd/articles), on [YouTube](https://www.youtube.com/channel/UCuP6xPt0WTeZu32CkQPpbvA) and in the [Tutorials section](https://discuss.linuxcontainers.org/c/tutorials/) in the forum.
+You can find additional resources on the [website](https://ubuntu.com/lxd), on [YouTube](https://www.youtube.com/channel/UCuP6xPt0WTeZu32CkQPpbvA) and in the [Tutorials section](https://discourse.ubuntu.com/c/lxd/tutorials/) in the forum.
 
 <!-- Include end support -->
 

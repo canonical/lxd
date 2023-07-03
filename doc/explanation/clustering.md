@@ -15,7 +15,7 @@ The LXD cluster can be managed uniformly using the `lxc` client or the REST API.
 This feature was introduced as part of the [`clustering`](../api-extensions.md#clustering) API extension and is available since LXD 3.0.
 
 ```{tip}
-If you want to quickly set up a basic LXD cluster, check out [MicroCloud](https://discuss.linuxcontainers.org/t/introducing-microcloud/15871).
+If you want to quickly set up a basic LXD cluster, check out [MicroCloud](https://microcloud.is).
 ```
 
 (clustering-members)=
