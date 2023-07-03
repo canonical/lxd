@@ -94,7 +94,7 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 
 	err = rsyncSend(ctx, wsFs, rootfs, rsyncArgs, instanceType)
 	if err != nil {
-		return abort(err)
+		return abort(fmt.Errorf("Failed sending filesystem volume: %w", err))
 	}
 
 	// Send block volume
@@ -116,7 +116,7 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 
 		_, err = io.Copy(conn, f)
 		if err != nil {
-			return err
+			return abort(fmt.Errorf("Failed sending block volume: %w", err))
 		}
 
 		err = conn.Close()
