@@ -101,9 +101,19 @@ func (d *disk) CanMigrate() bool {
 	return false
 }
 
+// sourceIsDir returns true if the disks source config setting is a directory.
+func (d *disk) sourceIsDir() bool {
+	return shared.IsDir(d.config["source"])
+}
+
+// sourceIsCephFs returns true if the disks source config setting is a CephFS share.
+func (d *disk) sourceIsCephFs() bool {
+	return strings.HasPrefix(d.config["source"], "cephfs:")
+}
+
 // CanHotPlug returns whether the device can be managed whilst the instance is running.
 func (d *disk) CanHotPlug() bool {
-	return true
+	return !(d.sourceIsDir() || d.sourceIsCephFs()) || d.inst.Type() == instancetype.Container
 }
 
 // validateConfig checks the supplied config for correctness.
