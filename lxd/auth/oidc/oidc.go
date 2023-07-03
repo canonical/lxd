@@ -19,8 +19,7 @@ import (
 
 // Verifier holds all information needed to verify an access token offline.
 type Verifier struct {
-	keySet   oidc.KeySet
-	verifier op.AccessTokenVerifier
+	accessTokenVerifier op.AccessTokenVerifier
 
 	clientID  string
 	issuer    string
@@ -67,6 +66,15 @@ func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		}
 
 		token = cookie.Value
+	}
+
+	if o.accessTokenVerifier == nil {
+		var err error
+
+		o.accessTokenVerifier, err = getAccessTokenVerifier(o.issuer)
+		if err != nil {
+			return "", &AuthError{err}
+		}
 	}
 
 	claims, err := o.VerifyAccessToken(ctx, token)
@@ -211,7 +219,16 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 
 // VerifyAccessToken is a wrapper around op.VerifyAccessToken which avoids having to deal with Go generics elsewhere. It validates the access token (issuer, signature and expiration).
 func (o *Verifier) VerifyAccessToken(ctx context.Context, token string) (*oidc.AccessTokenClaims, error) {
-	claims, err := op.VerifyAccessToken[*oidc.AccessTokenClaims](ctx, token, o.verifier)
+	var err error
+
+	if o.accessTokenVerifier == nil {
+		o.accessTokenVerifier, err = getAccessTokenVerifier(o.issuer)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	claims, err := op.VerifyAccessToken[*oidc.AccessTokenClaims](ctx, token, o.accessTokenVerifier)
 	if err != nil {
 		return nil, err
 	}
@@ -266,16 +283,23 @@ func (o *Verifier) getProvider(r *http.Request) (rp.RelyingParty, error) {
 	return provider, nil
 }
 
-// NewVerifier returns a Verifier. It calls the OIDC discovery endpoint in order to get the issuer's remote keys which are needed to verify an issued access token.
-func NewVerifier(issuer string, clientid string, audience string) (*Verifier, error) {
+// getAccessTokenVerifier calls the OIDC discovery endpoint in order to get the issuer's remote keys which are needed to create an access token verifier.
+func getAccessTokenVerifier(issuer string) (op.AccessTokenVerifier, error) {
 	discoveryConfig, err := client.Discover(issuer, http.DefaultClient)
 	if err != nil {
 		return nil, fmt.Errorf("Failed calling OIDC discovery endpoint: %w", err)
 	}
 
 	keySet := rp.NewRemoteKeySet(http.DefaultClient, discoveryConfig.JwksURI)
-	verifier := op.NewAccessTokenVerifier(issuer, keySet)
-	cookieKey := []byte(uuid.New())[0:16]
 
-	return &Verifier{keySet: keySet, verifier: verifier, issuer: issuer, clientID: clientid, audience: audience, cookieKey: cookieKey}, nil
+	return op.NewAccessTokenVerifier(issuer, keySet), nil
+}
+
+// NewVerifier returns a Verifier.
+func NewVerifier(issuer string, clientid string, audience string) *Verifier {
+	cookieKey := []byte(uuid.New())[0:16]
+	verifier := &Verifier{issuer: issuer, clientID: clientid, audience: audience, cookieKey: cookieKey}
+	verifier.accessTokenVerifier, _ = getAccessTokenVerifier(issuer)
+
+	return verifier
 }
