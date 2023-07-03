@@ -12,7 +12,7 @@
 
 See the following sections for detailed information.
 
-If you discover a security issue, see the [LXD security policy](https://github.com/lxc/lxd/blob/master/SECURITY.md) for information on how to report the issue. <!-- wokeignore:rule=master -->
+If you discover a security issue, see the [LXD security policy](https://github.com/canonical/lxd/blob/main/SECURITY.md) for information on how to report the issue.
 
 ## Supported versions
 

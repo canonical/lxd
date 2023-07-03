@@ -13,7 +13,7 @@ discourse: 15457
 It is highly scalable and, as a distributed system without a single point of failure, very reliable.
 
 ```{tip}
-If you want to quickly set up a basic Ceph cluster, check out [MicroCeph](https://discuss.linuxcontainers.org/t/introducing-microceph/15457).
+If you want to quickly set up a basic Ceph cluster, check out [MicroCeph](https://microcloud.is).
 ```
 
 Ceph provides different components for block storage and for file systems.

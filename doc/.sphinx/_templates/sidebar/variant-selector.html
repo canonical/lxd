@@ -1,9 +1,0 @@
-{% if ON_RTD %}
-  {% extends "furo/sidebar/variant-selector.html" %}
-  {{ super() }}
-{% else %}
-<div class="version_dropdown">
-  Doc version: <button onclick="dropdown()" class="version_select" id="current"></button>
-  <div id="all-versions" class="available_versions"></div>
-</div>
-{% endif %}

@@ -21,7 +21,7 @@ It is available as `lxd.lxc-to-lxd`.
 
 Otherwise, make sure that you have `go` (version 1.18 or later) installed and get the tool with the following command:
 
-    go install github.com/lxc/lxd/lxc-to-lxd@latest
+    go install github.com/canonical/lxd/lxc-to-lxd@latest
 
 ## Prepare your LXC containers
 

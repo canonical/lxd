@@ -1,6 +1,5 @@
 ---
 discourse: 8178, 16551
-relatedlinks: "[LXD&#32;-&#32;Installation](https://linuxcontainers.org/lxd/getting-started-cli/)"
 ---
 
 # How to install LXD
@@ -138,11 +137,11 @@ To install it:
 
 ````
 
-You can also find native builds of the LXD client on [GitHub](https://github.com/lxc/lxd/actions).
+You can also find native builds of the LXD client on [GitHub](https://github.com/canonical/lxd/actions).
 To download a specific build:
 
 1. Make sure that you are logged into your GitHub account.
-1. Filter for the branch or tag that you are interested in (for example, the latest release tag or `master`). <!-- wokeignore:rule=master -->
+1. Filter for the branch or tag that you are interested in (for example, the latest release tag or `main`).
 1. Select the latest build and download the suitable artifact.
 
 (installing_from_source)=
@@ -182,7 +181,7 @@ integration into Linux distributions are not covered here and may be covered in 
 future.
 
 ```bash
-git clone https://github.com/lxc/lxd
+git clone https://github.com/canonical/lxd
 cd lxd
 ```
 
