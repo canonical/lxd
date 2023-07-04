@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/shared"
 )
 
 // HasClientCertificate will return true if a client certificate has already been generated.
