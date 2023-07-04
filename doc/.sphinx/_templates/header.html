@@ -6,7 +6,24 @@
     }
 
     .p-navigation__nav {
+      background: #333333;
       display: flex;
+    }
+
+    .p-logo {
+      display: flex !important;
+      padding-top: 0 !important;
+      text-decoration: none;
+    }
+
+    .p-logo-image {
+      height: 44px;
+    }
+
+    .p-logo-text {
+      margin-top: 18px;
+      color: white;
+      text-decoration: none;
     }
 
     ul.p-navigation__links {
@@ -46,12 +63,17 @@
       width: 100%;
     }
 
-    ul.p-navigation__links .p-navigation__link,
-    ul.p-navigation__links .p-navigation__logo {
+    ul.p-navigation__links .p-navigation__link {
+      color: #ffffff;
+      font-weight: 300;
       text-align: center;
+      text-decoration: none;
     }
 
-    ul.p-navigation__links .p-navigation__link:hover,
+    ul.p-navigation__links .p-navigation__link:hover {
+      background-color: #2b2b2b;
+    }
+
     ul.p-navigation__links .p-dropdown__link:hover {
       background-color: var(--color-sidebar-item-background--hover);
     }
@@ -95,10 +117,6 @@
       margin-top: 0;
     }
 
-    ul.p-navigation__links li:first-child {
-      width: 130px;
-    }
-
     @media only screen and (min-width: 800px) {
       .nav-more-links::after {
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Cpath fill='%23111' d='M8.187 11.748l6.187-6.187-1.06-1.061-5.127 5.127L3.061 4.5 2 5.561z'/%3E%3C/svg%3E");
@@ -107,6 +125,7 @@
         background-size: contain;
         content: "";
         display: block;
+        filter: invert(100%);
         height: 1rem;
         pointer-events: none;
         position: absolute;
@@ -114,10 +133,6 @@
         text-indent: calc(100% + 10rem);
         top: calc(1rem + 0.25rem);
         width: 1rem;
-      }
-
-      body[data-theme=dark] .nav-more-links::after {
-        background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16'><path stroke='white' fill='white' d='M8.187 11.748l6.187-6.187-1.06-1.061-5.127 5.127L3.061 4.5 2 5.561z'/></svg>");
       }
 
       ul.p-navigation__links li:first-child {
@@ -138,49 +153,35 @@
     <ul class="p-navigation__links" role="menu">
 
       <li>
-        <a class="p-navigation__logo" href="/">
-          <img src="{{ pathto('_static/download/containers.small.png', 1) }}" alt="Linux containers logo" border="0" />
+        <a class="p-logo" href="https://ubuntu.com/lxd" aria-current="page">
+          <img src="{{ pathto('_static/tag.png', 1) }}" alt="LXD-UI logo" class="p-logo-image">
+          <div class="p-logo-text p-heading--4">Canonical LXD
+          </div>
         </a>
       </li>
 
       <li>
-        <a href="/" class="p-navigation__link">Home</a>
+        <a href="https://ubuntu.com/lxd" class="p-navigation__link">ubuntu.com/lxd</a>
       </li>
-
-      <li>
-        <a href="/lxd/try-it/" class="p-navigation__link">Demo</a>
-      </li>
-
 
       <li>
         <a href="#" class="p-navigation__link nav-more-links">More resources</a>
         <ul class="more-links-dropdown">
+
           <li>
-            <a href="/lxd/introduction/" class="p-navigation__sub-link p-dropdown__link">Introduction</a>
+            <a href="https://ubuntu.com/lxd/install/" class="p-navigation__sub-link p-dropdown__link">Install LXD</a>
           </li>
 
           <li>
-            <a href="/lxd/news/" class="p-navigation__sub-link p-dropdown__link">News</a>
+            <a href="https://ubuntu.com/lxd/manage/" class="p-navigation__sub-link p-dropdown__link">Manage LXD</a>
           </li>
 
           <li>
-            <a href="/lxd/getting-started-cli/" class="p-navigation__sub-link is-selected p-dropdown__link">Getting started</a>
+            <a href="https://discourse.ubuntu.com/c/lxd" class="p-navigation__sub-link p-dropdown__link">Forum</a>
           </li>
 
           <li>
-            <a href="/lxd/third-party-integrations/" class="p-navigation__sub-link p-dropdown__link">Third-party integrations</a>
-          </li>
-
-          <li>
-            <a href="/lxd/advanced-guide/" class="p-navigation__sub-link p-dropdown__link">Advanced guide</a>
-          </li>
-
-          <li>
-            <a href="https://discuss.linuxcontainers.org" class="p-navigation__sub-link p-dropdown__link">Forum</a>
-          </li>
-
-          <li>
-            <a href="https://github.com/lxc/lxd" class="p-navigation__sub-link p-dropdown__link">GitHub</a>
+            <a href="https://github.com/canonical/lxd" class="p-navigation__sub-link p-dropdown__link">GitHub</a>
           </li>
 
         </ul>
