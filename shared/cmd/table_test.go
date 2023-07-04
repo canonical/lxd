@@ -133,11 +133,11 @@ foo,1,/1.0/instances/foo
 				sortColumns:    "i",
 				columnMap:      testDataTypeColumnMap,
 			},
-			expect: `  SOME STRING  SOME INTEGER  
-  foo          1             
-  bar          2             
-  fizz         3             
-  buzz         4             
+			expect: `  SOME STRING  SOME INTEGER  ` + `
+  foo          1             ` + `
+  bar          2             ` + `
+  fizz         3             ` + `
+  buzz         4             ` + `
 `,
 			expectErr: nil,
 		},
