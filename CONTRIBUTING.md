@@ -104,4 +104,4 @@ When contributing, you must adhere to the Code of Conduct, which is available at
 
 ## More information
 
-For more information, see [Contributing](doc/contributing.md) in the documentation.
+For more information, see [Contributing](https://documentation.ubuntu.com/lxd/en/stable-4.0/contributing/) in the documentation.
