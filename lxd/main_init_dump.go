@@ -5,9 +5,9 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/shared/api"
 )
 
 func (c *cmdInit) RunDump(d lxd.InstanceServer) error {

@@ -1,7 +1,7 @@
 package dns
 
 import (
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // Zone represents a DNS zone configuration and its content.

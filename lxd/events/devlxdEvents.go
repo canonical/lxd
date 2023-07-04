@@ -8,9 +8,9 @@ import (
 
 	"github.com/pborman/uuid"
 
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/cancel"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/cancel"
 )
 
 // DevLXDServer represents an instance of an devlxd event server.

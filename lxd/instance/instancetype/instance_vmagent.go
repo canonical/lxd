@@ -1,7 +1,7 @@
 package instancetype
 
 import (
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 )
 
 // VMAgentMount defines mounts to perform inside VM via agent.

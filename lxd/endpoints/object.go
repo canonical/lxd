@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lxc/lxd/lxd/endpoints/listeners"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/endpoints/listeners"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 func storageBucketsCreateListener(address string, cert *shared.CertInfo) (net.Listener, error) {

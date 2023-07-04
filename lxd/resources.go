@@ -6,10 +6,10 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/lxc/lxd/lxd/resources"
-	"github.com/lxc/lxd/lxd/response"
-	storagePools "github.com/lxc/lxd/lxd/storage"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/lxd/resources"
+	"github.com/canonical/lxd/lxd/response"
+	storagePools "github.com/canonical/lxd/lxd/storage"
+	"github.com/canonical/lxd/shared/api"
 )
 
 var api10ResourcesCmd = APIEndpoint{

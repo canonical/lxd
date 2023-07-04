@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lxc/lxd/lxd/config"
+	"github.com/canonical/lxd/lxd/config"
 )
 
 // Loading a config Map initializes it with the given values.

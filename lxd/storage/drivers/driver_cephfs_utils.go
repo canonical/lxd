@@ -3,7 +3,7 @@ package drivers
 import (
 	"fmt"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/shared"
 )
 
 // fsExists checks that the Ceph FS instance indeed exists.

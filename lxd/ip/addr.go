@@ -1,7 +1,7 @@
 package ip
 
 import (
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/shared"
 )
 
 // Addr represents arguments for address protocol manipulation.

@@ -7,9 +7,9 @@ import (
 	_ "net/http/pprof" // pprof magic
 	"time"
 
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 func pprofCreateServer() *http.Server {

@@ -13,10 +13,10 @@ import (
 
 	"github.com/pborman/uuid"
 
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/validate"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/validate"
+	"github.com/canonical/lxd/shared/version"
 )
 
 const nftablesNamespace = "lxd"

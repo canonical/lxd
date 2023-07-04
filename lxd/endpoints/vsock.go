@@ -10,8 +10,8 @@ import (
 	"github.com/mdlayher/vsock"
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/lxd/endpoints/listeners"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/endpoints/listeners"
+	"github.com/canonical/lxd/shared"
 )
 
 func createVsockListener(cert *shared.CertInfo) (net.Listener, error) {

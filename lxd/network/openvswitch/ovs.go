@@ -7,8 +7,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/lxc/lxd/lxd/ip"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/ip"
+	"github.com/canonical/lxd/shared"
 )
 
 // ovnBridgeMappingMutex locks access to read/write external-ids:ovn-bridge-mappings.

@@ -5,12 +5,12 @@ import (
 	"io"
 	"net/http"
 
-	backupConfig "github.com/lxc/lxd/lxd/backup/config"
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/ioprogress"
-	"github.com/lxc/lxd/shared/units"
+	backupConfig "github.com/canonical/lxd/lxd/backup/config"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ioprogress"
+	"github.com/canonical/lxd/shared/units"
 )
 
 // Info represents the index frame sent if supported.

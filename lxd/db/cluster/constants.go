@@ -1,7 +1,7 @@
 package cluster
 
 import (
-	"github.com/lxc/lxd/shared/version"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // Numeric type codes identifying different kind of entities.
