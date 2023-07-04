@@ -50,13 +50,13 @@ The following examples use `lxc launch`, but you can use `lxc init` in the same 
 
 ### Launch a container
 
-To launch a container with a Ubuntu 22.04 image from the `images` server using the instance name `ubuntu-container`, enter the following command:
+To launch a container with an Ubuntu 22.04 image from the `images` server using the instance name `ubuntu-container`, enter the following command:
 
     lxc launch images:ubuntu/22.04 ubuntu-container
 
 ### Launch a virtual machine
 
-To launch a virtual machine with a Ubuntu 22.04 image from the `images` server using the instance name `ubuntu-vm`, enter the following command:
+To launch a virtual machine with an Ubuntu 22.04 image from the `images` server using the instance name `ubuntu-vm`, enter the following command:
 
     lxc launch images:ubuntu/22.04 ubuntu-vm --vm
 
