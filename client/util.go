@@ -13,6 +13,10 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
+// tlsHTTPClient creates an HTTP client with a specified Transport Layer Security (TLS) configuration.
+// It takes in parameters for client certificates, keys, Certificate Authority, server certificates,
+// a boolean for skipping verification, a proxy function, and a transport wrapper function.
+// It returns the HTTP client with the provided configurations and handles any errors that might occur during the setup process.
 func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey string, tlsCA string, tlsServerCert string, insecureSkipVerify bool, proxy func(req *http.Request) (*url.URL, error), transportWrapper func(t *http.Transport) HTTPTransporter) (*http.Client, error) {
 	// Get the TLS configuration
 	tlsConfig, err := shared.GetTLSConfigMem(tlsClientCert, tlsClientKey, tlsCA, tlsServerCert, insecureSkipVerify)
@@ -105,6 +109,10 @@ func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey strin
 	return client, nil
 }
 
+// unixHTTPClient creates an HTTP client that communicates over a Unix socket.
+// It takes in the connection arguments and the Unix socket path as parameters.
+// The function sets up a Unix socket dialer, configures the HTTP transport, and returns the HTTP client with the specified configurations.
+// Any errors encountered during the setup process are also handled by the function.
 func unixHTTPClient(args *ConnectionArgs, path string) (*http.Client, error) {
 	// Setup a Unix socket dialer
 	unixDial := func(_ context.Context, network, addr string) (net.Conn, error) {
