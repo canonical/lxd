@@ -9,8 +9,8 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/shared"
 )
 
 type cmdSql struct {

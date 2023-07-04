@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"net"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/network"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared/logger"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/network"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // deviceCommon represents the common struct for all devices.

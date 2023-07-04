@@ -11,8 +11,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // CreateNetworkLoadBalancer creates a new Network Load Balancer.

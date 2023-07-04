@@ -8,18 +8,18 @@ import (
 
 	"go.starlark.net/starlark"
 
-	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/db"
-	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
-	"github.com/lxc/lxd/lxd/resources"
-	scriptletLoad "github.com/lxc/lxd/lxd/scriptlet/load"
-	"github.com/lxc/lxd/lxd/state"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	apiScriptlet "github.com/lxc/lxd/shared/api/scriptlet"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/units"
+	"github.com/canonical/lxd/lxd/cluster"
+	"github.com/canonical/lxd/lxd/db"
+	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
+	"github.com/canonical/lxd/lxd/resources"
+	scriptletLoad "github.com/canonical/lxd/lxd/scriptlet/load"
+	"github.com/canonical/lxd/lxd/state"
+	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	apiScriptlet "github.com/canonical/lxd/shared/api/scriptlet"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/units"
 )
 
 // InstancePlacementRun runs the instance placement scriptlet and returns the chosen cluster member target.

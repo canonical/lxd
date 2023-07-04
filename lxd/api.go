@@ -10,18 +10,18 @@ import (
 
 	"github.com/gorilla/mux"
 
-	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
-	"github.com/lxc/lxd/lxd/cluster/request"
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/project"
-	lxdRequest "github.com/lxc/lxd/lxd/request"
-	"github.com/lxc/lxd/lxd/response"
-	storagePools "github.com/lxc/lxd/lxd/storage"
-	"github.com/lxc/lxd/lxd/storage/s3"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
+	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
+	"github.com/canonical/lxd/lxd/cluster/request"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/project"
+	lxdRequest "github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/response"
+	storagePools "github.com/canonical/lxd/lxd/storage"
+	"github.com/canonical/lxd/lxd/storage/s3"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // swagger:operation GET / server api_get

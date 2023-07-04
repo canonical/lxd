@@ -8,15 +8,15 @@ import (
 
 	"github.com/gorilla/mux"
 
-	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
-	"github.com/lxc/lxd/lxd/lifecycle"
-	"github.com/lxc/lxd/lxd/network"
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/request"
-	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
+	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
+	"github.com/canonical/lxd/lxd/lifecycle"
+	"github.com/canonical/lxd/lxd/network"
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/version"
 )
 
 var networkForwardsCmd = APIEndpoint{

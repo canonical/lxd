@@ -13,15 +13,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lxc/lxd/lxd/db"
-	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
-	"github.com/lxc/lxd/lxd/device/pci"
-	"github.com/lxc/lxd/lxd/ip"
-	"github.com/lxc/lxd/lxd/network/openvswitch"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/db"
+	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/device/pci"
+	"github.com/canonical/lxd/lxd/ip"
+	"github.com/canonical/lxd/lxd/network/openvswitch"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // sriovReservedDevicesMutex used to coordinate access for checking reserved devices.

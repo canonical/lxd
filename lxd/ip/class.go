@@ -1,7 +1,7 @@
 package ip
 
 import (
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/shared"
 )
 
 // Class represents qdisc class object.

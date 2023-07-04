@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/lxc/lxd/lxd/config"
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/validate"
+	"github.com/canonical/lxd/lxd/config"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 // Config holds node-local configuration values for a certain LXD instance.

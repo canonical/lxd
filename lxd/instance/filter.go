@@ -1,8 +1,8 @@
 package instance
 
 import (
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/filter"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/filter"
 )
 
 // FilterFull returns a filtered list of full instances that match the given clauses.

@@ -19,8 +19,8 @@ import (
 	"github.com/grafana/dskit/backoff"
 	"github.com/sirupsen/logrus"
 
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // This is a modified version of https://github.com/grafana/loki/blob/v1.6.1/pkg/promtail/client/.

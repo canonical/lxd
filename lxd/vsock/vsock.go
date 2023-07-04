@@ -9,7 +9,7 @@ import (
 
 	"github.com/mdlayher/vsock"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/shared"
 )
 
 // ContextID returns the local VM sockets context ID.

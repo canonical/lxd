@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // Action indicates the operation action type.

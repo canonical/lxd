@@ -3,10 +3,10 @@ package drivers
 import (
 	"fmt"
 
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/lxd/storage/quota"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/units"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/lxd/storage/quota"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/units"
 )
 
 // withoutGetVolID returns a copy of this struct but with a volIDFunc which will cause quotas to be skipped.

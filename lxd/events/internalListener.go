@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/lxc/lxd/lxd/storage/memorypipe"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/lxd/storage/memorypipe"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // InternalListener represents a internal event listener.

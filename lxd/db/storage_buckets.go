@@ -12,8 +12,8 @@ import (
 
 	dqliteDriver "github.com/canonical/go-dqlite/driver"
 
-	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // StorageBucketFilter used for filtering storage buckets with GetStorageBuckets().
