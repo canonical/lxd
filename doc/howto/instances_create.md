@@ -60,6 +60,10 @@ To launch a virtual machine with a Ubuntu 22.04 image from the `images` server u
 
     lxc launch images:ubuntu/22.04 ubuntu-vm --vm
 
+Or with a bigger disk:
+
+    lxc launch images:ubuntu/22.04 ubuntu-vm-big --vm --device root,size=30GiB
+
 ### Launch a container with specific configuration options
 
 To launch a container and limit its resources to one vCPU and 192 MiB of RAM, enter the following command:
