@@ -34,3 +34,4 @@ furo
 sphinxext-opengraph>=0.6.1
 gitpython
 wget
+sphinx-notfound-page
