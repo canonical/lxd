@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/events"
-	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/ws"
+	"github.com/canonical/lxd/lxd/events"
+	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/ws"
 )
 
 var eventsCmd = APIEndpoint{
