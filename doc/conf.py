@@ -40,7 +40,8 @@ extensions = [
     "myst_parser",
     "sphinx_tabs.tabs",
     "sphinx_reredirects",
-    "sphinxext.opengraph"
+    "sphinxext.opengraph",
+    "notfound.extension"
 ]
 
 myst_enable_extensions = [
@@ -56,6 +57,8 @@ if os.path.exists("./substitutions.yaml"):
     with open("./substitutions.yaml", "r") as fd:
         myst_substitutions = yaml.safe_load(fd.read())
 
+
+notfound_urls_prefix = "/lxd/en/latest/"
 # Setup theme.
 templates_path = [".sphinx/_templates"]
 
