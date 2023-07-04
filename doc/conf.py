@@ -18,14 +18,6 @@ if not os.path.islink('.sphinx/_static/swagger-ui/swagger-ui-standalone-preset.j
 if not os.path.islink('.sphinx/_static/swagger-ui/swagger-ui.css'):
     os.symlink('../../deps/swagger-ui/dist/swagger-ui.css', '.sphinx/_static/swagger-ui/swagger-ui.css')
 
-# Download and link images
-os.makedirs('.sphinx/_static/download/', exist_ok=True)
-
-if not os.path.isfile('.sphinx/_static/download/containers.png'):
-    wget.download("https://linuxcontainers.org/static/img/containers.png", ".sphinx/_static/download/containers.png")
-if not os.path.isfile('doc/.sphinx/_static/download/containers.small.png'):
-    wget.download("https://linuxcontainers.org/static/img/containers.small.png", ".sphinx/_static/download/containers.small.png")
-
 # Project config.
 project = "LXD"
 author = "LXD contributors"
@@ -33,7 +25,6 @@ copyright = "2014-%s %s" % (datetime.date.today().year, author)
 
 with open("../shared/version/flex.go") as fd:
     version = fd.read().split("\n")[-2].split()[-1].strip("\"")
-
 
 # Extensions.
 extensions = [
@@ -74,10 +65,10 @@ templates_path = [".sphinx/_templates"]
 html_theme = "furo"
 html_show_sphinx = False
 html_last_updated_fmt = ""
-html_favicon = ".sphinx/_static/favicon.png"
+html_favicon = ".sphinx/_static/favicon.ico"
 html_static_path = ['.sphinx/_static']
 html_css_files = ['custom.css']
-html_js_files = ['header-nav.js','version-switcher.js']
+html_js_files = ['header-nav.js']
 html_extra_path = ['.sphinx/_extra']
 
 html_theme_options = {
@@ -138,28 +129,12 @@ html_theme_options = {
 }
 
 html_context = {
-    "github_url": "https://github.com/lxc/lxd",
-    "github_version": "master",
+    "github_url": "https://github.com/canonical/lxd",
+    "github_version": "main",
     "github_folder": "/doc/",
     "github_filetype": "md",
     "discourse_prefix": "https://discuss.linuxcontainers.org/t/"
 }
-
-# Pass a variable to the template files that informs if we're on
-# RTD or not
-if ("ON_RTD" in os.environ) and (os.environ["ON_RTD"] == "True"):
-    html_context["ON_RTD"] = True
-else:
-    # only change the sidebar when we're not on RTD
-    html_sidebars = {
-        "**": [
-            "sidebar/variant-selector.html",
-            "sidebar/search.html",
-            "sidebar/scroll-start.html",
-            "sidebar/navigation.html",
-            "sidebar/scroll-end.html",
-        ]
-    }
 
 source_suffix = ".md"
 
@@ -170,9 +145,9 @@ exclude_patterns = ['html', 'README.md', '.sphinx', 'config_options_cheat_sheet.
 
 # Open Graph configuration
 
-ogp_site_url = "https://linuxcontainers.org/lxd/docs/latest/"
+ogp_site_url = "https://documentation.ubuntu.com/lxd/en/latest/"
 ogp_site_name = "LXD documentation"
-ogp_image = "https://linuxcontainers.org/static/img/containers.png"
+ogp_image = "https://documentation.ubuntu.com/lxd/en/latest/_static/tag.png"
 
 # Links to ignore when checking links
 
@@ -183,25 +158,4 @@ linkcheck_ignore = [
 
 # Setup redirects (https://documatt.gitlab.io/sphinx-reredirects/usage.html)
 redirects = {
-    "index/index": "../index.html",
-    "network-peers/index": "../howto/network_ovn_peers/index.html",
-    "network-acls/index": "../howto/network_acls/index.html",
-    "network-forwards/index": "../howto/network_forwards/index.html",
-    "network-zones/index": "../howto/network_zones/index.html",
-    "howto/storage_create_pool/index": "../storage_pools/index.html#create-a-storage-pool",
-    "howto/storage_configure_pool/index": "../storage_pools/index.html#configure-storage-pool-settings",
-    "howto/storage_view_pools/index": "../storage_pools/index.html#view-storage-pools",
-    "howto/storage_resize_pool/index": "../storage_pools/index.html#resize-a-storage-pool",
-    "howto/storage_create_bucket/index": "../storage_buckets/index.html#create-a-storage-bucket",
-    "howto/storage_configure_bucket/index": "../storage_buckets/index.html#configure-storage-bucket-settings",
-    "howto/storage_view_buckets/index": "../storage_buckets/index.html#view-storage-buckets",
-    "howto/storage_resize_bucket/index": "../storage_buckets/index.html#resize-a-storage-bucket",
-    "howto/storage_create_volume/index": "../storage_volumes/index.html#create-a-custom-storage-volume",
-    "howto/storage_configure_volume/index": "../storage_volumes/index.html#configure-storage-volume-settings",
-    "howto/storage_view_volumes/index": "../storage_volumes/index.html#view-storage-volumes",
-    "howto/storage_resize_volume/index": "../storage_volumes/index.html#resize-a-storage-volume",
-    "containers/index": "../explanation/instances",
-    "virtual-machines/index": "../explanation/instances",
-    "preseed/index": "../howto/initialize/index.html#initialize-preseed",
-    "configuration/index": "../server"
 }

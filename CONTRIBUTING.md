@@ -5,7 +5,7 @@ Check the following guidelines before contributing to the project.
 ## Pull requests
 
 Changes to this project should be proposed as pull requests on GitHub
-at: [`https://github.com/lxc/lxd`](https://github.com/lxc/lxd)
+at: [`https://github.com/canonical/lxd`](https://github.com/canonical/lxd)
 
 Proposed changes will then go through code review there and once approved,
 be merged in the main branch.
@@ -108,11 +108,10 @@ even when part of a larger set. You may find `git commit -s` useful.
 
 ## Code of Conduct
 
-<!-- wokeignore:rule=master -->
-When contributing, you must adhere to the Code of Conduct, which is available at: [`https://github.com/lxc/lxd/blob/master/CODE_OF_CONDUCT.md`](https://github.com/lxc/lxd/blob/master/CODE_OF_CONDUCT.md)
+When contributing, you must adhere to the Code of Conduct, which is available at: [`https://github.com/canonical/lxd/blob/main/CODE_OF_CONDUCT.md`](https://github.com/canonical/lxd/blob/main/CODE_OF_CONDUCT.md)
 
 <!-- Include end contributing -->
 
 ## More information
 
-For more information, see [Contributing](https://linuxcontainers.org/lxd/docs/latest/contributing/) in the documentation.
+For more information, see [Contributing](https://documentation.ubuntu.com/lxd/en/latest/contributing/) in the documentation.
