@@ -22,3 +22,4 @@ matrix:
       - link
       - title
       - div.relatedlinks
+      - a.p-navigation__link
