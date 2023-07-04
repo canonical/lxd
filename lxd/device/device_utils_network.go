@@ -223,24 +223,45 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint
 		},
 	}
 
-	// Set the MTU on both ends. If not specified and has parent, will inherit MTU from parent.
+	// Set the MTU on both ends.
+	// The host side should always line up with the bridge to avoid accidentally lowering the bridge MTU.
+	// The instance side should use the configured MTU (if any), if not, it should match the host side.
+	var instanceMTU uint32
+	var parentMTU uint32
+
+	if m["parent"] != "" {
+		mtu, err := network.GetDevMTU(m["parent"])
+		if err != nil {
+			return "", 0, fmt.Errorf("Failed to get the parent MTU: %w", err)
+		}
+
+		parentMTU = uint32(mtu)
+	}
+
 	if m["mtu"] != "" {
 		mtu, err := strconv.ParseUint(m["mtu"], 10, 32)
 		if err != nil {
 			return "", 0, fmt.Errorf("Invalid MTU specified: %w", err)
 		}
 
-		veth.MTU = uint32(mtu)
-	} else if m["parent"] != "" {
-		mtu, err := network.GetDevMTU(m["parent"])
-		if err != nil {
-			return "", 0, fmt.Errorf("Failed to get the parent MTU: %w", err)
-		}
-
-		veth.MTU = mtu
+		instanceMTU = uint32(mtu)
 	}
 
-	veth.Peer.MTU = veth.MTU
+	if instanceMTU == 0 && parentMTU > 0 {
+		instanceMTU = parentMTU
+	}
+
+	if parentMTU == 0 && instanceMTU > 0 {
+		parentMTU = instanceMTU
+	}
+
+	if instanceMTU > 0 {
+		veth.Peer.MTU = instanceMTU
+	}
+
+	if parentMTU > 0 {
+		veth.MTU = parentMTU
+	}
 
 	// Set the MAC address on peer.
 	if m["hwaddr"] != "" {
@@ -276,7 +297,7 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint
 		return "", 0, fmt.Errorf("Failed to create the veth interfaces %q and %q: %w", hostName, veth.Peer.Name, err)
 	}
 
-	return veth.Peer.Name, veth.MTU, nil
+	return veth.Peer.Name, veth.Peer.MTU, nil
 }
 
 // networkCreateTap creates and configures a TAP device.
@@ -304,7 +325,9 @@ func networkCreateTap(hostName string, m deviceConfig.Device) (uint32, error) {
 
 	revert.Add(func() { _ = network.InterfaceRemove(hostName) })
 
-	// Set the MTU on peer. If not specified and has parent, will inherit MTU from parent.
+	// Set the MTU on both ends.
+	// The host side should always line up with the bridge to avoid accidentally lowering the bridge MTU.
+	// The instance side should use the configured MTU (if any), if not, it should match the host side.
 	var mtu uint32
 	if m["mtu"] != "" {
 		nicMTU, err := strconv.ParseUint(m["mtu"], 10, 32)
@@ -313,19 +336,21 @@ func networkCreateTap(hostName string, m deviceConfig.Device) (uint32, error) {
 		}
 
 		mtu = uint32(nicMTU)
-	} else if m["parent"] != "" {
+	}
+
+	if m["parent"] != "" {
 		parentMTU, err := network.GetDevMTU(m["parent"])
 		if err != nil {
 			return 0, fmt.Errorf("Failed to get the parent MTU: %w", err)
 		}
 
-		mtu = parentMTU
-	}
-
-	if mtu > 0 {
-		err = NetworkSetDevMTU(hostName, mtu)
+		err = NetworkSetDevMTU(hostName, parentMTU)
 		if err != nil {
 			return 0, fmt.Errorf("Failed to set the MTU %d: %w", mtu, err)
+		}
+
+		if mtu == 0 {
+			mtu = parentMTU
 		}
 	}
 
