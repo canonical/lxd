@@ -48,7 +48,8 @@ extensions = [
     "sphinx_copybutton",
     "sphinx.ext.intersphinx",
     "terminal-output",
-    "config-options"
+    "config-options",
+    "notfound.extension"
 ]
 
 myst_enable_extensions = [
@@ -67,6 +68,8 @@ if os.path.exists("./substitutions.yaml"):
 intersphinx_mapping = {
     'cloud-init': ('https://cloudinit.readthedocs.io/en/latest/', None)
 }
+
+notfound_urls_prefix = "/lxd/en/latest/"
 
 # Setup theme.
 templates_path = [".sphinx/_templates"]
