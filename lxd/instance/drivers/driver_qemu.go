@@ -4949,6 +4949,12 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		isLiveUpdatable := func(key string) bool {
+			// Skip container config keys for VMs
+			_, ok := shared.InstanceConfigKeysContainer[key]
+			if ok {
+				return true
+			}
+
 			if key == "limits.cpu" {
 				return d.architectureSupportsCPUHotplug()
 			}
