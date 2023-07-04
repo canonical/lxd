@@ -50,11 +50,11 @@ Specify the profile name and the key and value of the instance option:
 To add and configure an instance device for your profile, use the `lxc profile device add` command.
 Specify the profile name, a device name, the device type and maybe device options (depending on the {ref}`device type <devices>`):
 
-    lxc profile device add <instance_name> <device_name> <device_type> <device_option_key>=<device_option_value> <device_option_key>=<device_option_value> ...
+    lxc profile device add <profile_name> <device_name> <device_type> <device_option_key>=<device_option_value> <device_option_key>=<device_option_value> ...
 
 To configure instance device options for a device that you have added to the profile earlier, use the `lxc profile device set` command:
 
-    lxc profile device set <instance_name> <device_name> <device_option_key>=<device_option_value> <device_option_key>=<device_option_value> ...
+    lxc profile device set <profile_name> <device_name> <device_option_key>=<device_option_value> <device_option_key>=<device_option_value> ...
 
 ### Edit the full profile
 
