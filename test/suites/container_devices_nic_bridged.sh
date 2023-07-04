@@ -88,8 +88,8 @@ test_container_devices_nic_bridged() {
     false
   fi
 
-  # Check profile custom MTU is applied on host side of veth.
-  if ! grep "1400" /sys/class/net/"${vethHostName}"/mtu ; then
+  # Check profile custom MTU doesn't affect the host.
+  if ! grep "1500" /sys/class/net/"${vethHostName}"/mtu ; then
     echo "host veth mtu invalid"
     false
   fi
@@ -157,8 +157,8 @@ test_container_devices_nic_bridged() {
     false
   fi
 
-  # Check custom MTU is applied host-side on hot-plug.
-  if !  grep "1401" /sys/class/net/"${vethHostName}"/mtu ; then
+  # Check custom MTU doesn't affect the host.
+  if ! grep "1500" /sys/class/net/"${vethHostName}"/mtu ; then
     echo "host veth mtu invalid"
     false
   fi
@@ -208,8 +208,8 @@ test_container_devices_nic_bridged() {
     false
   fi
 
-  # Checl profile custom MTU is applied host-side on hot-removal.
-  if ! grep "1400" /sys/class/net/"${vethHostName}"/mtu ; then
+  # Check custom MTU doesn't affect the host.
+  if ! grep "1500" /sys/class/net/"${vethHostName}"/mtu ; then
     echo "host veth mtu invalid"
     false
   fi
