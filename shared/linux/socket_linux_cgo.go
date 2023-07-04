@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	_ "github.com/lxc/lxd/lxd/include" // Used by cgo
+	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
 )
 
 /*

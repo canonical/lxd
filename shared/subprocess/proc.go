@@ -13,7 +13,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/shared"
 )
 
 // Process struct. Has ability to set runtime arguments.
