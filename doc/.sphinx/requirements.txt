@@ -38,3 +38,4 @@ pyspelling
 sphinx-copybutton
 gitpython
 wget
+sphinx-notfound-page
