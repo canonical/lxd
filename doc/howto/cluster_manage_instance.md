@@ -12,7 +12,7 @@ You can do this from any cluster member.
 
 For example, to launch an instance named `c1` on the cluster member `server2`, use the following command:
 
-    lxc launch images:ubuntu/22.04 c1 --target server2
+    lxc launch ubuntu:22.04 c1 --target server2
 
 You can launch instances on specific cluster members or on specific {ref}`cluster groups <howto-cluster-groups>`.
 
