@@ -211,6 +211,7 @@ func (r *ProtocolLXD) UpdateInstances(state api.InstancesPut, ETag string) (Oper
 	return op, nil
 }
 
+// rebuildInstance initiates a rebuild of a given instance on the LXD Protocol server and returns the corresponding operation or an error.
 func (r *ProtocolLXD) rebuildInstance(instanceName string, instance api.InstanceRebuildPost) (Operation, error) {
 	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
 	if err != nil {
