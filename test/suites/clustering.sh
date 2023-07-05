@@ -3292,6 +3292,16 @@ test_clustering_groups() {
   lxc cluster group create cluster:foobar
   [ "$(lxc query cluster:/1.0/cluster/groups/foobar | jq '.members | length')" -eq 0 ]
 
+  # Copy both description and members from default group
+  lxc cluster group show cluster:default | lxc cluster group edit cluster:foobar
+  [ "$(lxc query cluster:/1.0/cluster/groups/foobar | jq '.description == "Default cluster group"')" = "true" ]
+  [ "$(lxc query cluster:/1.0/cluster/groups/foobar | jq '.members | length')" -eq 3 ]
+
+  # Delete all members from new group
+  lxc cluster group remove cluster:node1 foobar
+  lxc cluster group remove cluster:node2 foobar
+  lxc cluster group remove cluster:node3 foobar
+
   # Add second node to new group. Node2 will now belong to both groups.
   lxc cluster group assign cluster:node2 default,foobar
   [ "$(lxc query cluster:/1.0/cluster/members/node2 | jq 'any(.groups[] == "default"; .)')" = "true" ]
