@@ -131,7 +131,7 @@ For external links, use only the URL, or Markdown syntax if you want to override
 * - Input
   - Output
 * - `https://ubuntu.com/lxd`
-  - [{spellexception}`https://ubuntu.com/lxd`](https://ubuntu.com/lxd)
+  - [https://ubuntu.com/lxd](https://ubuntu.com/lxd)
 * - `[LXD](https://ubuntu.com/lxd)`
   - [LXD](https://ubuntu.com/lxd)
 ```
@@ -144,7 +144,7 @@ To display a URL as text and prevent it from being linked, add a `<span></span>`
 * - Input
   - Output
 * - `https:/<span></span>/ubuntu.com/lxd`
-  - {spellexception}`https:/<span></span>/ubuntu.com/lxd`
+  - https:/<span></span>/ubuntu.com/lxd
 
 ```
 
