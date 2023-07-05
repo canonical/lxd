@@ -4005,23 +4005,6 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		groupID, err := dbCluster.GetClusterGroupID(ctx, tx.Tx(), obj.Name)
-		if err != nil {
-			return err
-		}
-
-		err = dbCluster.DeleteNodeClusterGroup(ctx, tx.Tx(), int(groupID))
-		if err != nil {
-			return err
-		}
-
-		for _, node := range obj.Nodes {
-			_, err = dbCluster.CreateNodeClusterGroup(ctx, tx.Tx(), dbCluster.NodeClusterGroup{GroupID: int(groupID), Node: node})
-			if err != nil {
-				return err
-			}
-		}
-
 		members, err := tx.GetClusterGroupNodes(ctx, name)
 		if err != nil {
 			return err
