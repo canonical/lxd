@@ -691,7 +691,7 @@ func (d *lvm) Mount() (bool, error) {
 }
 
 // Unmount unmounts the storage pool (this does nothing).
-// LVM doesn't currently support unmounting, please see https://github.com/lxc/lxd/issues/9278
+// LVM doesn't currently support unmounting, please see https://github.com/canonical/lxd/issues/9278
 func (d *lvm) Unmount() (bool, error) {
 	return false, nil
 }
