@@ -431,6 +431,8 @@ func (r *ProtocolLXD) tryMigrateStoragePoolVolume(source InstanceServer, pool st
 	return &rop, nil
 }
 
+// tryCreateStoragePoolVolume attempts to create a storage volume in the specified storage pool.
+// It will try to do this on every server in the provided list of urls, and waits for the creation to be complete.
 func (r *ProtocolLXD) tryCreateStoragePoolVolume(pool string, req api.StorageVolumesPost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("The source server isn't listening on the network")
