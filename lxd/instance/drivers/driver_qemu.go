@@ -5118,6 +5118,16 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			"security.secureboot",
 		}
 
+		liveUpdateKeyPrefixes := []string{
+			"boot.",
+			"cloud-init.",
+			"environment.",
+			"image.",
+			"snapshots.",
+			"user.",
+			"volatile.",
+		}
+
 		isLiveUpdatable := func(key string) bool {
 			// Skip container config keys for VMs
 			_, ok := shared.InstanceConfigKeysContainer[key]
@@ -5129,35 +5139,11 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 				return d.architectureSupportsCPUHotplug()
 			}
 
-			if strings.HasPrefix(key, "boot.") {
-				return true
-			}
-
-			if strings.HasPrefix(key, "cloud-init.") {
-				return true
-			}
-
-			if strings.HasPrefix(key, "environment.") {
-				return true
-			}
-
-			if strings.HasPrefix(key, "image.") {
-				return true
-			}
-
-			if strings.HasPrefix(key, "snapshots.") {
-				return true
-			}
-
-			if strings.HasPrefix(key, "user.") {
-				return true
-			}
-
-			if strings.HasPrefix(key, "volatile.") {
-				return true
-			}
-
 			if shared.StringInSlice(key, liveUpdateKeys) {
+				return true
+			}
+
+			if shared.StringHasPrefix(key, liveUpdateKeyPrefixes...) {
 				return true
 			}
 
