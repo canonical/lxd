@@ -109,6 +109,10 @@ func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey strin
 	return client, nil
 }
 
+// unixHTTPClient creates an HTTP client that communicates over a Unix socket.
+// It takes in the connection arguments and the Unix socket path as parameters.
+// The function sets up a Unix socket dialer, configures the HTTP transport, and returns the HTTP client with the specified configurations.
+// Any errors encountered during the setup process are also handled by the function.
 func unixHTTPClient(args *ConnectionArgs, path string) (*http.Client, error) {
 	// Setup a Unix socket dialer
 	unixDial := func(_ context.Context, network, addr string) (net.Conn, error) {
