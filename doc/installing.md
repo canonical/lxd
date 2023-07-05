@@ -42,7 +42,7 @@ LXD publishes and tests [snap packages](https://snapcraft.io/lxd) that work for 
 
 Complete the following steps to install the snap:
 
-1. Check the [provided distributions](https://jenkins.linuxcontainers.org/job/lxd-test-snap-latest-stable/) to see if a snap is available for your Linux distribution.
+1. Check the [LXD snap page on Snapcraft](https://snapcraft.io/lxd) to see if a snap is available for your Linux distribution.
    If it is not, use one of the {ref}`installing-other`.
 
 1. Install `snapd`.
