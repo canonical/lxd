@@ -3,7 +3,7 @@ package device
 import (
 	"strings"
 
-	"github.com/lxc/lxd/shared/validate"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 // gpuValidMigUUID validates Nvidia MIG (Multi Instance GPU) UUID with or without "MIG-" prefix.

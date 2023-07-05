@@ -11,15 +11,15 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/lxd/cgroup"
-	"github.com/lxc/lxd/lxd/device"
-	_ "github.com/lxc/lxd/lxd/include" // Used by cgo
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/resources"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/cgroup"
+	"github.com/canonical/lxd/lxd/device"
+	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/resources"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 /*

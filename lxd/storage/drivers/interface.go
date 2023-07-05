@@ -4,14 +4,14 @@ import (
 	"io"
 	"net/url"
 
-	"github.com/lxc/lxd/lxd/backup"
-	"github.com/lxc/lxd/lxd/migration"
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/instancewriter"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/instancewriter"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // driver is the extended internal interface.

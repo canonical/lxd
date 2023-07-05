@@ -18,17 +18,17 @@ import (
 	liblxc "github.com/lxc/go-lxc"
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/db/operationtype"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/version"
-	"github.com/lxc/lxd/shared/ws"
+	"github.com/canonical/lxd/lxd/cluster"
+	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
+	"github.com/canonical/lxd/shared/ws"
 )
 
 type consoleWs struct {

@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // InstanceBackup is a value object holding all db-related details about an instance backup.

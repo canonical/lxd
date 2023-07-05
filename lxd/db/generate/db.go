@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/lxd/db/generate/db"
-	"github.com/lxc/lxd/lxd/db/generate/file"
-	"github.com/lxc/lxd/lxd/db/generate/lex"
+	"github.com/canonical/lxd/lxd/db/generate/db"
+	"github.com/canonical/lxd/lxd/db/generate/file"
+	"github.com/canonical/lxd/lxd/db/generate/lex"
 )
 
 // Return a new db command.

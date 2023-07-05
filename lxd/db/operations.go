@@ -5,9 +5,9 @@ package db
 import (
 	"context"
 
-	"github.com/lxc/lxd/lxd/db/cluster"
-	"github.com/lxc/lxd/lxd/db/operationtype"
-	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // GetNodesWithOperations returns a list of nodes that have operations.

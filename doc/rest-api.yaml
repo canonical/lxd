@@ -39,7 +39,7 @@ definitions:
                 type: string
                 x-go-name: Type
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     CertificateAddToken:
         properties:
             addresses:
@@ -73,7 +73,7 @@ definitions:
                 x-go-name: Secret
         title: CertificateAddToken represents the fields contained within an encoded certificate add token.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     CertificatePut:
         description: CertificatePut represents the modifiable fields of a LXD certificate
         properties:
@@ -108,7 +108,7 @@ definitions:
                 type: string
                 x-go-name: Type
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     CertificatesPost:
         description: CertificatesPost represents the fields of a new LXD certificate
         properties:
@@ -153,7 +153,7 @@ definitions:
                 type: string
                 x-go-name: Type
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     Cluster:
         properties:
             enabled:
@@ -175,7 +175,7 @@ definitions:
                 x-go-name: ServerName
         title: Cluster represents high-level information about a LXD cluster.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ClusterCertificatePut:
         description: ClusterCertificatePut represents the certificate and key pair for all members in a LXD Cluster
         properties:
@@ -190,7 +190,7 @@ definitions:
                 type: string
                 x-go-name: ClusterCertificateKey
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ClusterGroup:
         properties:
             description:
@@ -214,7 +214,7 @@ definitions:
                 x-go-name: Name
         title: ClusterGroup represents a cluster group.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ClusterGroupPost:
         properties:
             name:
@@ -224,7 +224,7 @@ definitions:
                 x-go-name: Name
         title: ClusterGroupPost represents the fields required to rename a cluster group.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ClusterGroupPut:
         properties:
             description:
@@ -243,7 +243,7 @@ definitions:
                 x-go-name: Members
         title: ClusterGroupPut represents the modifiable fields of a cluster group.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ClusterGroupsPost:
         properties:
             description:
@@ -267,7 +267,7 @@ definitions:
                 x-go-name: Name
         title: ClusterGroupsPost represents the fields available for a new cluster group.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ClusterMember:
         properties:
             architecture:
@@ -337,7 +337,7 @@ definitions:
                 x-go-name: URL
         title: ClusterMember represents the a LXD node in the cluster.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ClusterMemberConfigKey:
         description: |-
             The Value field is empty when getting clustering information with GET
@@ -373,7 +373,7 @@ definitions:
             ClusterMemberConfigKey represents a single config key that a new member of
             the cluster is required to provide when joining.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ClusterMemberJoinToken:
         properties:
             addresses:
@@ -407,7 +407,7 @@ definitions:
                 x-go-name: ServerName
         title: ClusterMemberJoinToken represents the fields contained within an encoded cluster member join token.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ClusterMemberPost:
         properties:
             server_name:
@@ -417,7 +417,7 @@ definitions:
                 x-go-name: ServerName
         title: ClusterMemberPost represents the fields required to rename a LXD node.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ClusterMemberPut:
         description: ClusterMemberPut represents the modifiable fields of a LXD cluster member
         properties:
@@ -457,7 +457,7 @@ definitions:
                 type: array
                 x-go-name: Roles
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ClusterMemberState:
         properties:
             storage_pools:
@@ -469,7 +469,7 @@ definitions:
                 $ref: '#/definitions/ClusterMemberSysInfo'
         title: ClusterMemberState represents the state of a cluster member.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ClusterMemberStatePost:
         properties:
             action:
@@ -484,7 +484,7 @@ definitions:
                 x-go-name: Mode
         title: ClusterMemberStatePost represents the fields required to evacuate a cluster member.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ClusterMemberSysInfo:
         properties:
             buffered_ram:
@@ -527,7 +527,7 @@ definitions:
                 x-go-name: Uptime
         title: ClusterMemberSysInfo represents the sysinfo of a cluster member.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ClusterMembersPost:
         properties:
             server_name:
@@ -537,7 +537,7 @@ definitions:
                 x-go-name: ServerName
         title: ClusterMembersPost represents the fields required to request a join token to add a member to the cluster.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ClusterPut:
         description: |-
             ClusterPut represents the fields required to bootstrap or join a LXD
@@ -581,7 +581,7 @@ definitions:
                 type: string
                 x-go-name: ServerName
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     Event:
         description: Event represents an event entry (over websocket)
         properties:
@@ -615,7 +615,7 @@ definitions:
                 type: string
                 x-go-name: Type
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     Image:
         description: Image represents a LXD image
         properties:
@@ -711,7 +711,7 @@ definitions:
                 type: string
                 x-go-name: UploadedAt
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ImageAlias:
         description: ImageAlias represents an alias from the alias list of a LXD image
         properties:
@@ -726,7 +726,7 @@ definitions:
                 type: string
                 x-go-name: Name
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ImageAliasesEntry:
         description: ImageAliasesEntry represents a LXD image alias
         properties:
@@ -751,7 +751,7 @@ definitions:
                 type: string
                 x-go-name: Type
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ImageAliasesEntryPost:
         description: ImageAliasesEntryPost represents the required fields to rename a LXD image alias
         properties:
@@ -761,7 +761,7 @@ definitions:
                 type: string
                 x-go-name: Name
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ImageAliasesEntryPut:
         description: ImageAliasesEntryPut represents the modifiable fields of a LXD image alias
         properties:
@@ -776,7 +776,7 @@ definitions:
                 type: string
                 x-go-name: Target
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ImageAliasesPost:
         description: ImageAliasesPost represents a new LXD image alias
         properties:
@@ -801,7 +801,7 @@ definitions:
                 type: string
                 x-go-name: Type
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ImageExportPost:
         description: ImageExportPost represents the fields required to export a LXD image
         properties:
@@ -840,7 +840,7 @@ definitions:
                 type: string
                 x-go-name: Target
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ImageMetadata:
         description: ImageMetadata represents LXD image metadata (used in image tarball)
         properties:
@@ -878,7 +878,7 @@ definitions:
                 type: object
                 x-go-name: Templates
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ImageMetadataTemplate:
         description: ImageMetadataTemplate represents a template entry in image metadata (used in image tarball)
         properties:
@@ -908,7 +908,7 @@ definitions:
                 type: array
                 x-go-name: When
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ImagePut:
         description: ImagePut represents the modifiable fields of a LXD image
         properties:
@@ -947,7 +947,7 @@ definitions:
                 type: boolean
                 x-go-name: Public
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ImageSource:
         description: ImageSource represents the source of a LXD image
         properties:
@@ -977,7 +977,7 @@ definitions:
                 type: string
                 x-go-name: Server
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ImagesPost:
         description: ImagesPost represents the fields available for a new LXD image
         properties:
@@ -1037,7 +1037,7 @@ definitions:
             source:
                 $ref: '#/definitions/ImagesPostSource'
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ImagesPostSource:
         description: ImagesPostSource represents the source of a new LXD image
         properties:
@@ -1102,7 +1102,7 @@ definitions:
                 type: string
                 x-go-name: URL
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InitClusterPreseed:
         properties:
             cluster_address:
@@ -1154,7 +1154,7 @@ definitions:
                 x-go-name: ServerName
         title: InitClusterPreseed represents initialization configuration for the LXD cluster.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InitLocalPreseed:
         properties:
             config:
@@ -1195,7 +1195,7 @@ definitions:
                 x-go-name: StoragePools
         title: InitLocalPreseed represents initialization configuration for the local LXD.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InitNetworksProjectPost:
         properties:
             Project:
@@ -1229,7 +1229,7 @@ definitions:
                 x-go-name: Type
         title: InitNetworksProjectPost represents the fields of a new LXD network along with its associated project.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InitPreseed:
         properties:
             Node:
@@ -1238,7 +1238,7 @@ definitions:
                 $ref: '#/definitions/InitClusterPreseed'
         title: InitPreseed represents initialization configuration that can be supplied to `lxd init`.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     Instance:
         properties:
             architecture:
@@ -1357,7 +1357,7 @@ definitions:
                 x-go-name: Type
         title: Instance represents a LXD instance.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceBackup:
         properties:
             container_only:
@@ -1394,7 +1394,7 @@ definitions:
                 x-go-name: OptimizedStorage
         title: InstanceBackup represents a LXD instance backup.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceBackupPost:
         properties:
             name:
@@ -1404,7 +1404,7 @@ definitions:
                 x-go-name: Name
         title: InstanceBackupPost represents the fields available for the renaming of a instance backup.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceBackupsPost:
         properties:
             compression_algorithm:
@@ -1440,7 +1440,7 @@ definitions:
                 x-go-name: OptimizedStorage
         title: InstanceBackupsPost represents the fields available for a new LXD instance backup.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceConsolePost:
         properties:
             height:
@@ -1462,7 +1462,7 @@ definitions:
                 x-go-name: Width
         title: InstanceConsolePost represents a LXD instance console request.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceExecPost:
         properties:
             command:
@@ -1526,7 +1526,7 @@ definitions:
                 x-go-name: Width
         title: InstanceExecPost represents a LXD instance exec request.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceFull:
         properties:
             architecture:
@@ -1659,7 +1659,7 @@ definitions:
                 x-go-name: Type
         title: InstanceFull is a combination of Instance, InstanceBackup, InstanceState and InstanceSnapshot.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstancePost:
         properties:
             allow_inconsistent:
@@ -1706,7 +1706,7 @@ definitions:
                 $ref: '#/definitions/InstancePostTarget'
         title: InstancePost represents the fields required to rename/move a LXD instance.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstancePostTarget:
         properties:
             certificate:
@@ -1730,7 +1730,7 @@ definitions:
                 x-go-name: Websockets
         title: InstancePostTarget represents the migration target host and operation.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstancePut:
         properties:
             architecture:
@@ -1789,14 +1789,14 @@ definitions:
                 x-go-name: Stateful
         title: InstancePut represents the modifiable fields of a LXD instance.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceRebuildPost:
         properties:
             source:
                 $ref: '#/definitions/InstanceSource'
         title: InstanceRebuildPost indicates how to rebuild an instance.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceSnapshot:
         properties:
             architecture:
@@ -1895,7 +1895,7 @@ definitions:
                 x-go-name: Stateful
         title: InstanceSnapshot represents a LXD instance snapshot.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceSnapshotPost:
         properties:
             live:
@@ -1917,7 +1917,7 @@ definitions:
                 $ref: '#/definitions/InstancePostTarget'
         title: InstanceSnapshotPost represents the fields required to rename/move a LXD instance snapshot.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceSnapshotPut:
         properties:
             expires_at:
@@ -1928,7 +1928,7 @@ definitions:
                 x-go-name: ExpiresAt
         title: InstanceSnapshotPut represents the modifiable fields of a LXD instance snapshot.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceSnapshotsPost:
         properties:
             expires_at:
@@ -1949,7 +1949,7 @@ definitions:
                 x-go-name: Stateful
         title: InstanceSnapshotsPost represents the fields available for a new LXD instance snapshot.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceSource:
         properties:
             alias:
@@ -2058,7 +2058,7 @@ definitions:
                 x-go-name: Type
         title: InstanceSource represents the creation source for a new instance.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceState:
         properties:
             cpu:
@@ -2098,7 +2098,7 @@ definitions:
                 $ref: '#/definitions/StatusCode'
         title: InstanceState represents a LXD instance's state.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceStateCPU:
         properties:
             usage:
@@ -2109,7 +2109,7 @@ definitions:
                 x-go-name: Usage
         title: InstanceStateCPU represents the cpu information section of a LXD instance's state.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceStateDisk:
         properties:
             total:
@@ -2126,7 +2126,7 @@ definitions:
                 x-go-name: Usage
         title: InstanceStateDisk represents the disk information section of a LXD instance's state.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceStateMemory:
         properties:
             swap_usage:
@@ -2161,7 +2161,7 @@ definitions:
                 x-go-name: UsagePeak
         title: InstanceStateMemory represents the memory information section of a LXD instance's state.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceStateNetwork:
         properties:
             addresses:
@@ -2200,7 +2200,7 @@ definitions:
                 x-go-name: Type
         title: InstanceStateNetwork represents the network information section of a LXD instance's state.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceStateNetworkAddress:
         description: |-
             InstanceStateNetworkAddress represents a network address as part of the network section of a LXD
@@ -2227,7 +2227,7 @@ definitions:
                 type: string
                 x-go-name: Scope
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceStateNetworkCounters:
         description: |-
             InstanceStateNetworkCounters represents packet counters as part of the network section of a LXD
@@ -2282,7 +2282,7 @@ definitions:
                 type: integer
                 x-go-name: PacketsSent
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceStatePut:
         properties:
             action:
@@ -2308,11 +2308,11 @@ definitions:
                 x-go-name: Timeout
         title: InstanceStatePut represents the modifiable fields of a LXD instance's state.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceType:
         title: InstanceType represents the type if instance being returned or requested via the API.
         type: string
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstancesPost:
         properties:
             architecture:
@@ -2385,14 +2385,14 @@ definitions:
                 $ref: '#/definitions/InstanceType'
         title: InstancesPost represents the fields available for a new LXD instance.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     InstancesPut:
         properties:
             state:
                 $ref: '#/definitions/InstanceStatePut'
         title: InstancesPut represents the fields available for a mass update.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     Network:
         description: Network represents a LXD network
         properties:
@@ -2457,7 +2457,7 @@ definitions:
                 type: array
                 x-go-name: UsedBy
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkACL:
         properties:
             config:
@@ -2503,7 +2503,7 @@ definitions:
                 x-go-name: UsedBy
         title: NetworkACL used for displaying an ACL.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkACLPost:
         properties:
             name:
@@ -2513,7 +2513,7 @@ definitions:
                 x-go-name: Name
         title: NetworkACLPost used for renaming an ACL.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkACLPut:
         properties:
             config:
@@ -2543,7 +2543,7 @@ definitions:
                 x-go-name: Ingress
         title: NetworkACLPut used for updating an ACL.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkACLRule:
         description: Refer to doc/network-acls.md for details.
         properties:
@@ -2599,7 +2599,7 @@ definitions:
                 x-go-name: State
         title: NetworkACLRule represents a single rule in an ACL ruleset.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkACLsPost:
         properties:
             config:
@@ -2634,7 +2634,7 @@ definitions:
                 x-go-name: Name
         title: NetworkACLsPost used for creating an ACL.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkForward:
         properties:
             config:
@@ -2668,7 +2668,7 @@ definitions:
                 x-go-name: Ports
         title: NetworkForward used for displaying an network address forward.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkForwardPort:
         description: NetworkForwardPort represents a port specification in a network address forward
         properties:
@@ -2698,7 +2698,7 @@ definitions:
                 type: string
                 x-go-name: TargetPort
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkForwardPut:
         description: NetworkForwardPut represents the modifiable fields of a LXD network address forward
         properties:
@@ -2722,7 +2722,7 @@ definitions:
                 type: array
                 x-go-name: Ports
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkForwardsPost:
         description: NetworkForwardsPost represents the fields of a new LXD network address forward
         properties:
@@ -2751,7 +2751,7 @@ definitions:
                 type: array
                 x-go-name: Ports
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkLease:
         description: NetworkLease represents a DHCP lease
         properties:
@@ -2781,7 +2781,7 @@ definitions:
                 type: string
                 x-go-name: Type
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkLoadBalancer:
         description: NetworkLoadBalancer used for displaying a network load balancer
         properties:
@@ -2821,7 +2821,7 @@ definitions:
                 type: array
                 x-go-name: Ports
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkLoadBalancerBackend:
         description: NetworkLoadBalancerBackend represents a target backend specification in a network load balancer
         properties:
@@ -2846,7 +2846,7 @@ definitions:
                 type: string
                 x-go-name: TargetPort
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkLoadBalancerPort:
         description: NetworkLoadBalancerPort represents a port specification in a network load balancer
         properties:
@@ -2875,7 +2875,7 @@ definitions:
                 type: array
                 x-go-name: TargetBackend
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkLoadBalancerPut:
         description: NetworkLoadBalancerPut represents the modifiable fields of a LXD network load balancer
         properties:
@@ -2905,7 +2905,7 @@ definitions:
                 type: array
                 x-go-name: Ports
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkLoadBalancersPost:
         description: NetworkLoadBalancersPost represents the fields of a new LXD network load balancer
         properties:
@@ -2940,7 +2940,7 @@ definitions:
                 type: array
                 x-go-name: Ports
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkPeer:
         properties:
             config:
@@ -2992,7 +2992,7 @@ definitions:
                 x-go-name: UsedBy
         title: NetworkPeer used for displaying a LXD network peering.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkPeerPut:
         description: NetworkPeerPut represents the modifiable fields of a LXD network peering
         properties:
@@ -3010,7 +3010,7 @@ definitions:
                 type: string
                 x-go-name: Description
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkPeersPost:
         description: NetworkPeersPost represents the fields of a new LXD network peering
         properties:
@@ -3043,7 +3043,7 @@ definitions:
                 type: string
                 x-go-name: TargetProject
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkPost:
         description: NetworkPost represents the fields required to rename a LXD network
         properties:
@@ -3053,7 +3053,7 @@ definitions:
                 type: string
                 x-go-name: Name
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkPut:
         description: NetworkPut represents the modifiable fields of a LXD network
         properties:
@@ -3073,7 +3073,7 @@ definitions:
                 type: string
                 x-go-name: Description
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkState:
         description: NetworkState represents the network state
         properties:
@@ -3115,7 +3115,7 @@ definitions:
             vlan:
                 $ref: '#/definitions/NetworkStateVLAN'
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkStateAddress:
         description: NetworkStateAddress represents a network address
         properties:
@@ -3140,7 +3140,7 @@ definitions:
                 type: string
                 x-go-name: Scope
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkStateBond:
         description: NetworkStateBond represents bond specific state
         properties:
@@ -3187,7 +3187,7 @@ definitions:
                 type: integer
                 x-go-name: UpDelay
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkStateBridge:
         description: NetworkStateBridge represents bridge specific state
         properties:
@@ -3228,7 +3228,7 @@ definitions:
                 type: boolean
                 x-go-name: VLANFiltering
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkStateCounters:
         description: NetworkStateCounters represents packet counters
         properties:
@@ -3257,7 +3257,7 @@ definitions:
                 type: integer
                 x-go-name: PacketsSent
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkStateOVN:
         description: NetworkStateOVN represents OVN specific state
         properties:
@@ -3266,7 +3266,7 @@ definitions:
                 type: string
                 x-go-name: Chassis
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkStateVLAN:
         description: NetworkStateVLAN represents VLAN specific state
         properties:
@@ -3282,7 +3282,7 @@ definitions:
                 type: integer
                 x-go-name: VID
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkZone:
         properties:
             config:
@@ -3315,7 +3315,7 @@ definitions:
                 x-go-name: UsedBy
         title: NetworkZone represents a network zone (DNS).
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkZonePut:
         description: NetworkZonePut represents the modifiable fields of a LXD network zone
         properties:
@@ -3333,7 +3333,7 @@ definitions:
                 type: string
                 x-go-name: Description
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkZoneRecord:
         properties:
             config:
@@ -3362,7 +3362,7 @@ definitions:
                 x-go-name: Name
         title: NetworkZoneRecord represents a network zone (DNS) record.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkZoneRecordEntry:
         description: NetworkZoneRecordEntry represents the fields in a record entry
         properties:
@@ -3383,7 +3383,7 @@ definitions:
                 type: string
                 x-go-name: Value
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkZoneRecordPut:
         description: NetworkZoneRecordPut represents the modifiable fields of a LXD network zone record
         properties:
@@ -3407,7 +3407,7 @@ definitions:
                 type: array
                 x-go-name: Entries
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkZoneRecordsPost:
         description: NetworkZoneRecordsPost represents the fields of a new LXD network zone record
         properties:
@@ -3436,7 +3436,7 @@ definitions:
                 type: string
                 x-go-name: Name
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkZonesPost:
         description: NetworkZonesPost represents the fields of a new LXD network zone
         properties:
@@ -3459,7 +3459,7 @@ definitions:
                 type: string
                 x-go-name: Name
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworksPost:
         description: NetworksPost represents the fields of a new LXD network
         properties:
@@ -3489,7 +3489,7 @@ definitions:
                 type: string
                 x-go-name: Type
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     Operation:
         description: Operation represents a LXD background operation
         properties:
@@ -3574,7 +3574,7 @@ definitions:
                 type: string
                 x-go-name: UpdatedAt
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     Profile:
         description: Profile represents a LXD profile
         properties:
@@ -3626,7 +3626,7 @@ definitions:
                 type: array
                 x-go-name: UsedBy
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ProfilePost:
         description: ProfilePost represents the fields required to rename a LXD profile
         properties:
@@ -3636,7 +3636,7 @@ definitions:
                 type: string
                 x-go-name: Name
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ProfilePut:
         description: ProfilePut represents the modifiable fields of a LXD profile
         properties:
@@ -3672,7 +3672,7 @@ definitions:
                 type: object
                 x-go-name: Devices
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ProfilesPost:
         description: ProfilesPost represents the fields of a new LXD profile
         properties:
@@ -3713,7 +3713,7 @@ definitions:
                 type: string
                 x-go-name: Name
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     Project:
         description: Project represents a LXD project
         properties:
@@ -3751,7 +3751,7 @@ definitions:
                 type: array
                 x-go-name: UsedBy
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ProjectPost:
         description: ProjectPost represents the fields required to rename a LXD project
         properties:
@@ -3761,7 +3761,7 @@ definitions:
                 type: string
                 x-go-name: Name
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ProjectPut:
         description: ProjectPut represents the modifiable fields of a LXD project
         properties:
@@ -3780,7 +3780,7 @@ definitions:
                 type: string
                 x-go-name: Description
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ProjectState:
         description: ProjectState represents the current running state of a LXD project
         properties:
@@ -3799,7 +3799,7 @@ definitions:
                 type: object
                 x-go-name: Resources
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ProjectStateResource:
         description: ProjectStateResource represents the state of a particular resource in a LXD project
         properties:
@@ -3814,7 +3814,7 @@ definitions:
                 format: int64
                 type: integer
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ProjectsPost:
         description: ProjectsPost represents the fields of a new LXD project
         properties:
@@ -3838,7 +3838,7 @@ definitions:
                 type: string
                 x-go-name: Name
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     Resources:
         description: Resources represents the system resources available for LXD
         properties:
@@ -3859,7 +3859,7 @@ definitions:
             usb:
                 $ref: '#/definitions/ResourcesUSB'
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesCPU:
         description: ResourcesCPU represents the cpu resources available on the system
         properties:
@@ -3881,7 +3881,7 @@ definitions:
                 type: integer
                 x-go-name: Total
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesCPUCache:
         description: ResourcesCPUCache represents a CPU cache
         properties:
@@ -3903,7 +3903,7 @@ definitions:
                 type: string
                 x-go-name: Type
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesCPUCore:
         description: ResourcesCPUCore represents a CPU core on the system
         properties:
@@ -3932,7 +3932,7 @@ definitions:
                 type: array
                 x-go-name: Threads
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesCPUSocket:
         description: ResourcesCPUSocket represents a CPU socket on the system
         properties:
@@ -3983,7 +3983,7 @@ definitions:
                 type: string
                 x-go-name: Vendor
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesCPUThread:
         description: ResourcesCPUThread represents a CPU thread on the system
         properties:
@@ -4016,7 +4016,7 @@ definitions:
                 type: integer
                 x-go-name: Thread
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesGPU:
         description: ResourcesGPU represents the GPU resources available on the system
         properties:
@@ -4033,7 +4033,7 @@ definitions:
                 type: integer
                 x-go-name: Total
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesGPUCard:
         description: ResourcesGPUCard represents a GPU card on the system
         properties:
@@ -4097,7 +4097,7 @@ definitions:
                 type: string
                 x-go-name: VendorID
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesGPUCardDRM:
         description: ResourcesGPUCardDRM represents the Linux DRM configuration of the GPU
         properties:
@@ -4138,7 +4138,7 @@ definitions:
                 type: string
                 x-go-name: RenderName
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesGPUCardMdev:
         description: ResourcesGPUCardMdev represents the mediated devices configuration of the GPU
         properties:
@@ -4173,7 +4173,7 @@ definitions:
                 type: string
                 x-go-name: Name
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesGPUCardNvidia:
         description: ResourcesGPUCardNvidia represents additional information for NVIDIA GPUs
         properties:
@@ -4218,7 +4218,7 @@ definitions:
                 type: string
                 x-go-name: UUID
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesGPUCardSRIOV:
         description: ResourcesGPUCardSRIOV represents the SRIOV configuration of the GPU
         properties:
@@ -4242,7 +4242,7 @@ definitions:
                 type: array
                 x-go-name: VFs
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesMemory:
         description: ResourcesMemory represents the memory resources available on the system
         properties:
@@ -4284,7 +4284,7 @@ definitions:
                 type: integer
                 x-go-name: Used
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesMemoryNode:
         description: ResourcesMemoryNode represents the node-specific memory resources available on the system
         properties:
@@ -4319,7 +4319,7 @@ definitions:
                 type: integer
                 x-go-name: Used
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesNetwork:
         description: ResourcesNetwork represents the network cards available on the system
         properties:
@@ -4336,7 +4336,7 @@ definitions:
                 type: integer
                 x-go-name: Total
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesNetworkCard:
         description: ResourcesNetworkCard represents a network card on the system
         properties:
@@ -4402,7 +4402,7 @@ definitions:
                 type: string
                 x-go-name: VendorID
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesNetworkCardPort:
         description: ResourcesNetworkCardPort represents a network port on the system
         properties:
@@ -4481,7 +4481,7 @@ definitions:
                 type: string
                 x-go-name: TransceiverType
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesNetworkCardPortInfiniband:
         description: ResourcesNetworkCardPortInfiniband represents the Linux Infiniband configuration for the port
         properties:
@@ -4516,7 +4516,7 @@ definitions:
                 type: string
                 x-go-name: VerbName
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesNetworkCardSRIOV:
         description: ResourcesNetworkCardSRIOV represents the SRIOV configuration of the network card
         properties:
@@ -4540,7 +4540,7 @@ definitions:
                 type: array
                 x-go-name: VFs
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesNetworkCardVDPA:
         description: ResourceNetworkCardVDPA represents the VDPA configuration of the network card
         properties:
@@ -4553,7 +4553,7 @@ definitions:
                 type: string
                 x-go-name: Name
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesPCI:
         description: ResourcesPCI represents the PCI devices available on the system
         properties:
@@ -4570,7 +4570,7 @@ definitions:
                 type: integer
                 x-go-name: Total
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesPCIDevice:
         description: ResourcesPCIDevice represents a PCI device
         properties:
@@ -4624,7 +4624,7 @@ definitions:
             vpd:
                 $ref: '#/definitions/ResourcesPCIVPD'
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesPCIVPD:
         description: ResourcesPCIVPD represents VPD entries for a device
         properties:
@@ -4641,7 +4641,7 @@ definitions:
                 type: string
                 x-go-name: ProductName
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesStorage:
         description: ResourcesStorage represents the local storage
         properties:
@@ -4658,7 +4658,7 @@ definitions:
                 type: integer
                 x-go-name: Total
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesStorageDisk:
         description: ResourcesStorageDisk represents a disk
         properties:
@@ -4758,7 +4758,7 @@ definitions:
                 type: string
                 x-go-name: WWN
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesStorageDiskPartition:
         description: ResourcesStorageDiskPartition represents a partition on a disk
         properties:
@@ -4790,7 +4790,7 @@ definitions:
                 type: integer
                 x-go-name: Size
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesStoragePool:
         description: ResourcesStoragePool represents the resources available to a given storage pool
         properties:
@@ -4799,7 +4799,7 @@ definitions:
             space:
                 $ref: '#/definitions/ResourcesStoragePoolSpace'
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesStoragePoolInodes:
         description: ResourcesStoragePoolInodes represents the inodes available to a given storage pool
         properties:
@@ -4816,7 +4816,7 @@ definitions:
                 type: integer
                 x-go-name: Used
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesStoragePoolSpace:
         description: ResourcesStoragePoolSpace represents the space available to a given storage pool
         properties:
@@ -4833,7 +4833,7 @@ definitions:
                 type: integer
                 x-go-name: Used
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesSystem:
         description: ResourcesSystem represents the system
         properties:
@@ -4885,7 +4885,7 @@ definitions:
                 type: string
                 x-go-name: Version
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesSystemChassis:
         description: ResourcesSystemChassis represents the system chassis
         properties:
@@ -4910,7 +4910,7 @@ definitions:
                 type: string
                 x-go-name: Version
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesSystemFirmware:
         description: ResourcesSystemFirmware represents the system firmware
         properties:
@@ -4930,7 +4930,7 @@ definitions:
                 type: string
                 x-go-name: Version
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesSystemMotherboard:
         description: ResourcesSystemMotherboard represents the motherboard
         properties:
@@ -4955,7 +4955,7 @@ definitions:
                 type: string
                 x-go-name: Version
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesUSB:
         description: ResourcesUSB represents the USB devices available on the system
         properties:
@@ -4972,7 +4972,7 @@ definitions:
                 type: integer
                 x-go-name: Total
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesUSBDevice:
         description: ResourcesUSBDevice represents a USB device
         properties:
@@ -5021,7 +5021,7 @@ definitions:
                 type: string
                 x-go-name: VendorID
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesUSBDeviceInterface:
         description: ResourcesUSBDeviceInterface represents a USB device interface
         properties:
@@ -5064,7 +5064,7 @@ definitions:
                 type: integer
                 x-go-name: SubClassID
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     Server:
         description: Server represents a LXD server
         properties:
@@ -5137,7 +5137,7 @@ definitions:
                 type: boolean
                 x-go-name: Public
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ServerEnvironment:
         properties:
             addresses:
@@ -5282,7 +5282,7 @@ definitions:
                 x-go-name: StorageVersion
         title: ServerEnvironment represents the read-only environment fields of a LXD server.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ServerPut:
         description: ServerPut represents the modifiable fields of a LXD server configuration
         properties:
@@ -5295,7 +5295,7 @@ definitions:
                 type: object
                 x-go-name: Config
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ServerStorageDriverInfo:
         description: ServerStorageDriverInfo represents the read-only info about a storage driver
         properties:
@@ -5312,7 +5312,7 @@ definitions:
                 example: 0.8.4-1ubuntu11
                 type: string
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     ServerUntrusted:
         description: ServerUntrusted represents a LXD server for an untrusted client
         properties:
@@ -5363,12 +5363,12 @@ definitions:
                 type: boolean
                 x-go-name: Public
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StatusCode:
         format: int64
         title: StatusCode represents a valid LXD operation and container status.
         type: integer
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StorageBucket:
         description: StorageBucket represents the fields of a LXD storage pool bucket
         properties:
@@ -5401,7 +5401,7 @@ definitions:
                 type: string
                 x-go-name: S3URL
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StorageBucketKey:
         description: StorageBucketKey represents the fields of a LXD storage pool bucket key
         properties:
@@ -5431,7 +5431,7 @@ definitions:
                 type: string
                 x-go-name: SecretKey
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StorageBucketKeyPut:
         description: StorageBucketKeyPut represents the modifiable fields of a LXD storage pool bucket key
         properties:
@@ -5456,7 +5456,7 @@ definitions:
                 type: string
                 x-go-name: SecretKey
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StorageBucketKeysPost:
         description: StorageBucketKeysPost represents the fields of a new LXD storage pool bucket key
         properties:
@@ -5486,7 +5486,7 @@ definitions:
                 type: string
                 x-go-name: SecretKey
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StorageBucketPut:
         description: StorageBucketPut represents the modifiable fields of a LXD storage pool bucket
         properties:
@@ -5504,7 +5504,7 @@ definitions:
                 type: string
                 x-go-name: Description
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StorageBucketsPost:
         description: StorageBucketsPost represents the fields of a new LXD storage pool bucket
         properties:
@@ -5527,7 +5527,7 @@ definitions:
                 type: string
                 x-go-name: Name
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StoragePool:
         properties:
             config:
@@ -5582,7 +5582,7 @@ definitions:
                 x-go-name: UsedBy
         title: StoragePool represents the fields of a LXD storage pool.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StoragePoolPut:
         properties:
             config:
@@ -5601,7 +5601,7 @@ definitions:
                 x-go-name: Description
         title: StoragePoolPut represents the modifiable fields of a LXD storage pool.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StoragePoolState:
         properties:
             inodes:
@@ -5610,7 +5610,7 @@ definitions:
                 $ref: '#/definitions/ResourcesStoragePoolSpace'
         title: StoragePoolState represents the state of a storage pool.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StoragePoolVolumeBackup:
         description: StoragePoolVolumeBackup represents a LXD volume backup
         properties:
@@ -5642,7 +5642,7 @@ definitions:
                 type: boolean
                 x-go-name: VolumeOnly
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StoragePoolVolumeBackupPost:
         description: StoragePoolVolumeBackupPost represents the fields available for the renaming of a volume backup
         properties:
@@ -5652,7 +5652,7 @@ definitions:
                 type: string
                 x-go-name: Name
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StoragePoolVolumeBackupsPost:
         description: StoragePoolVolumeBackupsPost represents the fields available for a new LXD volume backup
         properties:
@@ -5683,7 +5683,7 @@ definitions:
                 type: boolean
                 x-go-name: VolumeOnly
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StoragePoolsPost:
         description: StoragePoolsPost represents the fields of a new LXD storage pool
         properties:
@@ -5712,7 +5712,7 @@ definitions:
                 type: string
                 x-go-name: Name
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StorageVolume:
         properties:
             config:
@@ -5775,7 +5775,7 @@ definitions:
                 x-go-name: UsedBy
         title: StorageVolume represents the fields of a LXD storage volume.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StorageVolumePost:
         description: StorageVolumePost represents the fields required to rename a LXD storage pool volume
         properties:
@@ -5807,7 +5807,7 @@ definitions:
                 type: boolean
                 x-go-name: VolumeOnly
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StorageVolumePostTarget:
         description: StorageVolumePostTarget represents the migration target host and operation
         properties:
@@ -5830,7 +5830,7 @@ definitions:
                 type: object
                 x-go-name: Websockets
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StorageVolumePut:
         description: StorageVolumePut represents the modifiable fields of a LXD storage volume
         properties:
@@ -5854,7 +5854,7 @@ definitions:
                 type: string
                 x-go-name: Restore
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StorageVolumeSnapshot:
         description: StorageVolumeSnapshot represents a LXD storage volume snapshot
         properties:
@@ -5895,7 +5895,7 @@ definitions:
                 type: string
                 x-go-name: Name
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StorageVolumeSnapshotPost:
         description: StorageVolumeSnapshotPost represents the fields required to rename/move a LXD storage volume snapshot
         properties:
@@ -5905,7 +5905,7 @@ definitions:
                 type: string
                 x-go-name: Name
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StorageVolumeSnapshotPut:
         description: StorageVolumeSnapshotPut represents the modifiable fields of a LXD storage volume
         properties:
@@ -5921,7 +5921,7 @@ definitions:
                 type: string
                 x-go-name: ExpiresAt
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StorageVolumeSnapshotsPost:
         description: StorageVolumeSnapshotsPost represents the fields available for a new LXD storage volume snapshot
         properties:
@@ -5937,7 +5937,7 @@ definitions:
                 type: string
                 x-go-name: Name
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StorageVolumeSource:
         description: StorageVolumeSource represents the creation source for a new storage volume
         properties:
@@ -5995,14 +5995,14 @@ definitions:
                 type: boolean
                 x-go-name: VolumeOnly
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StorageVolumeState:
         description: StorageVolumeState represents the live state of the volume
         properties:
             usage:
                 $ref: '#/definitions/StorageVolumeStateUsage'
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StorageVolumeStateUsage:
         description: StorageVolumeStateUsage represents the disk usage of a volume
         properties:
@@ -6019,7 +6019,7 @@ definitions:
                 type: integer
                 x-go-name: Used
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     StorageVolumesPost:
         description: StorageVolumesPost represents the fields of a new LXD storage pool volume
         properties:
@@ -6060,7 +6060,7 @@ definitions:
                 type: string
                 x-go-name: Type
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     Warning:
         properties:
             count:
@@ -6123,7 +6123,7 @@ definitions:
                 x-go-name: UUID
         title: Warning represents a warning entry.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
     WarningPut:
         properties:
             status:
@@ -6133,12 +6133,12 @@ definitions:
                 x-go-name: Status
         title: WarningPut represents the modifiable fields of a warning.
         type: object
-        x-go-package: github.com/lxc/lxd/shared/api
+        x-go-package: github.com/canonical/lxd/shared/api
 info:
     contact:
-        email: lxc-devel@lists.linuxcontainers.org
+        email: lxd@lists.canonical.com
         name: LXD upstream
-        url: https://github.com/lxc/lxd
+        url: https://github.com/canonical/lxd
     description: |-
         This is the REST API used by all LXD clients.
         Internal endpoints aren't included in this documentation.

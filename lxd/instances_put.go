@@ -8,15 +8,15 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/canonical/lxd/lxd/cluster"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/version"
 )
 
 func coalesceErrors(local bool, errors map[string]error) error {

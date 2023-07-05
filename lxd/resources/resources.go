@@ -3,7 +3,7 @@ package resources
 import (
 	"fmt"
 
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // GetResources returns a filled api.Resources struct ready for use by LXD.

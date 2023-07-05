@@ -11,14 +11,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/node"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/cluster"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/node"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // The returned notifier connects to all nodes.

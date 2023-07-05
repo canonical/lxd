@@ -15,9 +15,9 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/zitadel/oidc/v2/pkg/oidc"
 
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/simplestreams"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/simplestreams"
 )
 
 // ConnectionArgs represents a set of common connection properties.

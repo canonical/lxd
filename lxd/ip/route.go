@@ -3,7 +3,7 @@ package ip
 import (
 	"strings"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/shared"
 )
 
 // Route represents arguments for route manipulation.

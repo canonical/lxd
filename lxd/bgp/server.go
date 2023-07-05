@@ -13,8 +13,8 @@ import (
 	"github.com/pborman/uuid"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // Server represents a BGP server instance.

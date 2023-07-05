@@ -1,4 +1,4 @@
-module github.com/lxc/lxd
+module github.com/canonical/lxd
 
 go 1.18
 

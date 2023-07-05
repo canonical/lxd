@@ -18,8 +18,8 @@ import (
 	"github.com/robfig/cron/v3"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/shared/osarch"
-	"github.com/lxc/lxd/shared/units"
+	"github.com/canonical/lxd/shared/osarch"
+	"github.com/canonical/lxd/shared/units"
 )
 
 // stringInSlice checks whether the supplied string is present in the supplied slice.

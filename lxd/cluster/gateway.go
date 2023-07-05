@@ -20,15 +20,15 @@ import (
 	dqlite "github.com/canonical/go-dqlite"
 	client "github.com/canonical/go-dqlite/client"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/db/cluster"
-	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/tcp"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/tcp"
 )
 
 // NewGateway creates a new Gateway for managing access to the dqlite cluster.

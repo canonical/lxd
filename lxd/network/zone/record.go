@@ -5,9 +5,9 @@ import (
 
 	"github.com/miekg/dns"
 
-	"github.com/lxc/lxd/lxd/cluster/request"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/lxd/cluster/request"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 )
 
 func (d *zone) AddRecord(req api.NetworkZoneRecordsPost) error {

@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // Config represents the config of a backup that can be stored in a backup.yaml file (or embedded in index.yaml).

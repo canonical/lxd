@@ -10,10 +10,10 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 func restServer(tlsConfig *tls.Config, cert *x509.Certificate, debug bool, d *Daemon) *http.Server {

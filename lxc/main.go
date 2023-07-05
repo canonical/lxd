@@ -9,13 +9,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxc/config"
-	"github.com/lxc/lxd/shared"
-	cli "github.com/lxc/lxd/shared/cmd"
-	"github.com/lxc/lxd/shared/i18n"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxc/config"
+	"github.com/canonical/lxd/shared"
+	cli "github.com/canonical/lxd/shared/cmd"
+	"github.com/canonical/lxd/shared/i18n"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
 type cmdGlobal struct {

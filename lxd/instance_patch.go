@@ -11,16 +11,16 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/db/cluster"
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
-	projecthelpers "github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/osarch"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/cluster"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/instance"
+	projecthelpers "github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/osarch"
 )
 
 // swagger:operation PATCH /1.0/instances/{name} instances instance_patch

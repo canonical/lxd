@@ -9,15 +9,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/instance/operationlock"
-	"github.com/lxc/lxd/lxd/migration"
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/instance/operationlock"
+	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool, allowInconsistent bool, clusterMoveSourceName string, pushTarget *api.InstancePostTarget) (*migrationSourceWs, error) {

@@ -9,9 +9,9 @@ import (
 	"os/user"
 	"strconv"
 
-	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // Bind to the given unix socket path.

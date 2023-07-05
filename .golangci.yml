@@ -10,4 +10,4 @@ linters-settings:
     sections:
       - standard
       - default
-      - prefix(github.com/lxc/lxd)
+      - prefix(github.com/canonical/lxd)

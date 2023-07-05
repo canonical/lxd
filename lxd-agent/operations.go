@@ -9,11 +9,11 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 )
 
 var operationCmd = APIEndpoint{

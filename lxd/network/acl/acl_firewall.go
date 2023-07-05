@@ -3,11 +3,11 @@ package acl
 import (
 	"fmt"
 
-	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
+	firewallDrivers "github.com/canonical/lxd/lxd/firewall/drivers"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // FirewallApplyACLRules applies ACL rules to network firewall.

@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxd/migration"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/shared/api"
 )
 
 func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string, rsyncArgs string) error {

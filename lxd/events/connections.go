@@ -12,8 +12,8 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // EventListenerConnection represents an event listener connection.

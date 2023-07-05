@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lxc/lxd/lxd/db/node"
-	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/db/node"
+	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared"
 )
 
 func TestUpdateFromV38_RaftNodes(t *testing.T) {

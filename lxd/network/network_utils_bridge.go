@@ -5,9 +5,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/ip"
-	"github.com/lxc/lxd/lxd/network/openvswitch"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/ip"
+	"github.com/canonical/lxd/lxd/network/openvswitch"
+	"github.com/canonical/lxd/shared"
 )
 
 // BridgeVLANFilteringStatus returns whether VLAN filtering is enabled on a bridge interface.

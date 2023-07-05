@@ -15,10 +15,10 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/utils/inotify"
 
-	"github.com/lxc/lxd/lxd/network"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/dnsutil"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/network"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/dnsutil"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 type cmdForkDNS struct {

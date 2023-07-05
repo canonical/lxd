@@ -19,20 +19,20 @@ import (
 	liblxc "github.com/lxc/go-lxc"
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/lxd/cgroup"
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	_ "github.com/lxc/lxd/lxd/include" // Used by cgo
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/ucred"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/idmap"
-	"github.com/lxc/lxd/shared/linux"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/netutils"
-	"github.com/lxc/lxd/shared/osarch"
+	"github.com/canonical/lxd/lxd/cgroup"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/ucred"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/idmap"
+	"github.com/canonical/lxd/shared/linux"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/netutils"
+	"github.com/canonical/lxd/shared/osarch"
 )
 
 /*

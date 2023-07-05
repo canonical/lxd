@@ -9,9 +9,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/idmap"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/idmap"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // InstanceTarWriter provides a TarWriter implementation that handles ID shifting and hardlink tracking.

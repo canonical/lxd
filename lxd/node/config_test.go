@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/node"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/node"
 )
 
 // The server configuration is initially empty.

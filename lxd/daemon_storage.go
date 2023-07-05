@@ -7,14 +7,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/node"
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/rsync"
-	"github.com/lxc/lxd/lxd/state"
-	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/node"
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/rsync"
+	"github.com/canonical/lxd/lxd/state"
+	storagePools "github.com/canonical/lxd/lxd/storage"
+	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
+	"github.com/canonical/lxd/shared"
 )
 
 func daemonStorageVolumesUnmount(s *state.State) error {

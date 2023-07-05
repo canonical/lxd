@@ -9,16 +9,16 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/lxc/lxd/lxd/db"
-	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
-	"github.com/lxc/lxd/lxd/db/operationtype"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/canonical/lxd/lxd/db"
+	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // swagger:operation POST /1.0/instances/{instance_name}/rebuild instances instance_post
