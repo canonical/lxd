@@ -296,7 +296,5 @@ jobs:
           woke-args: "*.md **/*.md -c https://github.com/canonical-web-and-design/Inclusive-naming/raw/main/config.yml"
 
       - name: Run link checker
-        # This can fail intermittently due to external resources being unavailable.
-        continue-on-error: true
         run: |
           make doc-linkcheck
