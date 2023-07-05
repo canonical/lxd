@@ -156,7 +156,7 @@ ogp_image = "https://documentation.ubuntu.com/lxd/en/latest/_static/tag.png"
 
 linkcheck_ignore = [
     'https://127.0.0.1:8443/1.0',
-    'https://web.libera.chat/#lxc'
+    'https://web.libera.chat/#lxd'
 ]
 
 # Setup redirects (https://documatt.gitlab.io/sphinx-reredirects/usage.html)
