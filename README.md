@@ -27,9 +27,9 @@ See [Getting started](https://documentation.ubuntu.com/lxd/en/latest/getting_sta
 Type                | Service               | Status
 ---                 | ---                   | ---
 CI (client)         | GitHub                | [![Build Status](https://github.com/canonical/lxd/workflows/Client%20build%20and%20unit%20tests/badge.svg)](https://github.com/canonical/lxd/actions)
-CI (server)         | Jenkins               | [![Build Status](https://jenkins.linuxcontainers.org/job/lxd-github-commit/badge/icon)](https://jenkins.linuxcontainers.org/job/lxd-github-commit/)
-Go documentation    | Godoc                 | [![GoDoc](https://godoc.org/github.com/lxc/lxd/client?status.svg)](https://godoc.org/github.com/lcx/lxd/client)
-Static analysis     | GoReport              | [![Go Report Card](https://goreportcard.com/badge/github.com/lcx/lxd)](https://goreportcard.com/report/github.com/lxc/lxd)
+CI (server)         | GitHub                | [![Build Status](https://github.com/canonical/lxd/workflows/Tests/badge.svg)](https://github.com/canonical/lxd/actions)
+Go documentation    | Godoc                 | [![GoDoc](https://godoc.org/github.com/canonical/lxd/client?status.svg)](https://godoc.org/github.com/canonical/lxd/client)
+Static analysis     | GoReport              | [![Go Report Card](https://goreportcard.com/badge/github.com/canonical/lxd)](https://goreportcard.com/report/github.com/canonical/lxd)
 Translations        | Weblate               | [![Translation status](https://hosted.weblate.org/widgets/linux-containers/-/svg-badge.svg)](https://hosted.weblate.org/projects/linux-containers/lxd/)
 Project status      | CII Best Practices    | [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1086/badge)](https://bestpractices.coreinfrastructure.org/projects/1086)
 
