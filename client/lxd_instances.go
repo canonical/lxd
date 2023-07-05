@@ -227,6 +227,8 @@ func (r *ProtocolLXD) rebuildInstance(instanceName string, instance api.Instance
 	return op, nil
 }
 
+// tryRebuildInstance attempts to rebuild a specific instance on multiple target servers identified by their URLs.
+// It runs the rebuild process asynchronously and returns a RemoteOperation to monitor the progress and any errors.
 func (r *ProtocolLXD) tryRebuildInstance(instanceName string, req api.InstanceRebuildPost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("The source server isn't listening on the network")
