@@ -35,6 +35,8 @@ Static analysis     | GoReport              | [![Go Report Card](https://gorepor
 Translations        | Weblate               | [![Translation status](https://hosted.weblate.org/widgets/linux-containers/-/svg-badge.svg)](https://hosted.weblate.org/projects/linux-containers/lxd/)
 Project status      | CII Best Practices    | [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1086/badge)](https://bestpractices.coreinfrastructure.org/projects/1086)
 
+<!-- Include start installing -->
+
 ## Installing LXD from packages
 
 The LXD daemon only works on Linux but the client tool (`lxc`) is available on most platforms.
@@ -44,6 +46,8 @@ OS                  | Format                                            | Comman
 Linux               | [Snap](https://snapcraft.io/lxd)                  | `snap install lxd`
 Windows             | [Chocolatey](https://chocolatey.org/packages/lxc) | `choco install lxc`
 macOS               | [Homebrew](https://formulae.brew.sh/formula/lxc)  | `brew install lxc`
+
+<!-- Include end installing -->
 
 For more instructions on installing LXD for a wide variety of Linux distributions and operating systems, and to install LXD from source, see [How to install LXD](https://documentation.ubuntu.com/lxd/en/stable-5.0/installing/) in the documentation.
 

@@ -18,8 +18,6 @@ if not os.path.islink('.sphinx/_static/swagger-ui/swagger-ui-standalone-preset.j
 if not os.path.islink('.sphinx/_static/swagger-ui/swagger-ui.css'):
     os.symlink('../../deps/swagger-ui/dist/swagger-ui.css', '.sphinx/_static/swagger-ui/swagger-ui.css')
 
-if not os.path.isfile('.sphinx/_static/download/favicon.ico'):
-    wget.download("https://linuxcontainers.org/static/img/favicon.ico", ".sphinx/_static/download/favicon.ico")
 # Project config.
 project = "LXD"
 author = "LXD contributors"
@@ -135,7 +133,7 @@ html_theme_options = {
 
 html_context = {
     "github_url": "https://github.com/canonical/lxd",
-    "github_version": "main",
+    "github_version": "stable-5.0",
     "github_folder": "/doc/",
     "github_filetype": "md",
     "discourse_prefix": "https://discuss.linuxcontainers.org/t/"
