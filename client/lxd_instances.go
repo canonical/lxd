@@ -612,6 +612,8 @@ func (r *ProtocolLXD) CreateInstance(instance api.InstancesPost) (Operation, err
 	return op, nil
 }
 
+// tryCreateInstance attempts to create a new instance on multiple target servers specified by their URLs.
+// It runs the instance creation asynchronously and returns a RemoteOperation to monitor the progress and any errors.
 func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("The source server isn't listening on the network")
