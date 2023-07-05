@@ -2094,6 +2094,71 @@ func (r *ProtocolLXD) DeleteInstanceLogfile(name string, filename string) error 
 	return nil
 }
 
+// getInstanceExecOutputLogFile returns the content of the requested exec logfile.
+//
+// Note that it's the caller's responsibility to close the returned ReadCloser.
+func (r *ProtocolLXD) getInstanceExecOutputLogFile(name string, filename string) (io.ReadCloser, error) {
+	err := r.CheckExtension("container_exec_recording")
+	if err != nil {
+		return nil, err
+	}
+
+	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
+	if err != nil {
+		return nil, err
+	}
+
+	// Prepare the HTTP request
+	url := fmt.Sprintf("%s/1.0%s/%s/logs/exec-output/%s", r.httpBaseURL.String(), path, url.PathEscape(name), url.PathEscape(filename))
+
+	url, err = r.setQueryAttributes(url)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Send the request
+	resp, err := r.DoHTTP(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check the return value for a cleaner error
+	if resp.StatusCode != http.StatusOK {
+		_, _, err := lxdParseResponse(resp)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return resp.Body, nil
+}
+
+// deleteInstanceExecOutputLogFiles deletes the requested exec logfile.
+func (r *ProtocolLXD) deleteInstanceExecOutputLogFile(instanceName string, filename string) error {
+	err := r.CheckExtension("container_exec_recording")
+	if err != nil {
+		return err
+	}
+
+	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
+	if err != nil {
+		return err
+	}
+
+	// Send the request
+	_, _, err = r.query("DELETE", fmt.Sprintf("%s/%s/logs/exec-output/%s", path, url.PathEscape(instanceName), url.PathEscape(filename)), nil, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // GetInstanceMetadata returns instance metadata.
 func (r *ProtocolLXD) GetInstanceMetadata(name string) (*api.ImageMetadata, string, error) {
 	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
