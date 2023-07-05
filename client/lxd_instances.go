@@ -974,6 +974,8 @@ func (r *ProtocolLXD) RenameInstance(name string, instance api.InstancePost) (Op
 	return op, nil
 }
 
+// tryMigrateInstance attempts to migrate a specific instance from a source server to one of the target URLs.
+// The function runs the migration operation asynchronously and returns a RemoteOperation to track the progress and handle any errors.
 func (r *ProtocolLXD) tryMigrateInstance(source InstanceServer, name string, req api.InstancePost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("The target server isn't listening on the network")
