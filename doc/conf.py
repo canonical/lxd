@@ -120,7 +120,7 @@ html_theme_options = {
 
 html_context = {
     "github_url": "https://github.com/canonical/lxd",
-    "github_version": "main",
+    "github_version": "stable-4.0",
     "github_folder": "/doc/",
     "github_filetype": "md"
 }
