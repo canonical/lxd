@@ -11,11 +11,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/metrics"
-	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/lxd/storage/filesystem"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/metrics"
+	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // These mountpoints are excluded as they are irrelevant for metrics.

@@ -11,10 +11,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // iptablesChainNICFilterPrefix chain prefix used for NIC specific filtering rules.

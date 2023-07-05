@@ -1,7 +1,7 @@
 package cluster
 
 import (
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/shared/api"
 )
 
 //go:generate -command mapper lxd-generate db mapper -t cluster_groups.mapper.go

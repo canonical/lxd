@@ -11,9 +11,9 @@ import (
 
 	"github.com/pborman/uuid"
 
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/lxd/sys"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/lxd/sys"
+	"github.com/canonical/lxd/shared"
 )
 
 var rsyncProfileTpl = template.Must(template.New("rsyncProfile").Parse(`#include <tunables/global>

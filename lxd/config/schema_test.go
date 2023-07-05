@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lxc/lxd/lxd/config"
+	"github.com/canonical/lxd/lxd/config"
 )
 
 func TestSchema_Defaults(t *testing.T) {

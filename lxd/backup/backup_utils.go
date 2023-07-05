@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/lxc/lxd/lxd/archive"
-	"github.com/lxc/lxd/lxd/sys"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/archive"
+	"github.com/canonical/lxd/lxd/sys"
+	"github.com/canonical/lxd/shared"
 )
 
 // TarReader rewinds backup file handle r and returns new tar reader and process cleanup function.

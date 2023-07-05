@@ -3,8 +3,8 @@ package main
 import (
 	"sync"
 
-	"github.com/lxc/lxd/lxd/events"
-	"github.com/lxc/lxd/lxd/vsock"
+	"github.com/canonical/lxd/lxd/events"
+	"github.com/canonical/lxd/lxd/vsock"
 )
 
 // A Daemon can respond to requests from a shared client.

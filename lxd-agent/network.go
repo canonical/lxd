@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"sync"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/ip"
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/ip"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // A variation of the standard tls.Listener that supports atomically swapping

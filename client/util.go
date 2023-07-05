@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/shared"
 )
 
 func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey string, tlsCA string, tlsServerCert string, insecureSkipVerify bool, proxy func(req *http.Request) (*url.URL, error), transportWrapper func(t *http.Transport) HTTPTransporter) (*http.Client, error) {

@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/lxd/sys"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/sys"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 type cmdDaemon struct {

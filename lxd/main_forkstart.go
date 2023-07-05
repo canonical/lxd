@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/linux"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/linux"
 )
 
 type cmdForkstart struct {

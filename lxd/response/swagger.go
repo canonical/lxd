@@ -4,7 +4,7 @@
 package response
 
 import (
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // Operation

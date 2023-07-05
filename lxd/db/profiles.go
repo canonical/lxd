@@ -6,9 +6,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/lxc/lxd/lxd/db/cluster"
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/lxd/db/cluster"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // GetProfileNames returns the names of all profiles in the given project.

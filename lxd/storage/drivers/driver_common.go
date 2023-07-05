@@ -8,16 +8,16 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/backup"
-	"github.com/lxc/lxd/lxd/migration"
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/storage/filesystem"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/instancewriter"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/instancewriter"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 type common struct {
