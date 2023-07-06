@@ -9,9 +9,9 @@ import (
 	"github.com/canonical/go-dqlite/client"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
 )
 
 // Set the cluster.https_address config key to the given address, and insert the

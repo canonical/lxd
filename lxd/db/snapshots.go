@@ -7,8 +7,8 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/lxc/lxd/lxd/db/cluster"
-	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // UpdateInstanceSnapshotConfig inserts/updates/deletes the provided config keys.

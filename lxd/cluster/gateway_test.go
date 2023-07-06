@@ -15,11 +15,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/db"
-	clusterDB "github.com/lxc/lxd/lxd/db/cluster"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/cluster"
+	"github.com/canonical/lxd/lxd/db"
+	clusterDB "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/shared"
 )
 
 // Basic creation and shutdown. By default, the gateway runs an in-memory gRPC

@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/lxc/lxd/lxd/db/operationtype"
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/task"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/task"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 func autoRemoveExpiredTokens(ctx context.Context, d *Daemon) error {

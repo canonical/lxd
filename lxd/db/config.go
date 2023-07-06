@@ -5,7 +5,7 @@ package db
 import (
 	"context"
 
-	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // Config fetches all LXD node-level config keys.

@@ -3,7 +3,7 @@ package firewall
 import (
 	"net"
 
-	drivers "github.com/lxc/lxd/lxd/firewall/drivers"
+	drivers "github.com/canonical/lxd/lxd/firewall/drivers"
 )
 
 // Firewall represents a LXD firewall.

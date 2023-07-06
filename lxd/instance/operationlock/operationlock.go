@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // TimeoutDefault timeout the operation lock will be kept alive for without needing to call Reset().

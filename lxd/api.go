@@ -8,14 +8,14 @@ import (
 
 	"github.com/gorilla/mux"
 
-	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
-	"github.com/lxc/lxd/lxd/cluster/request"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/project"
-	lxdRequest "github.com/lxc/lxd/lxd/request"
-	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
+	"github.com/canonical/lxd/lxd/cluster/request"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/project"
+	lxdRequest "github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // swagger:operation GET / server api_get

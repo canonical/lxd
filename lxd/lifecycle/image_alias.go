@@ -1,8 +1,8 @@
 package lifecycle
 
 import (
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // ImageAliasAction represents a lifecycle event action for image aliases.

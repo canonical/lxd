@@ -7,14 +7,14 @@ import (
 
 	"github.com/pborman/uuid"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	pcidev "github.com/lxc/lxd/lxd/device/pci"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/resources"
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	pcidev "github.com/canonical/lxd/lxd/device/pci"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/resources"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 type gpuMdev struct {

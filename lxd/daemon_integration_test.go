@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxd/sys"
+	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/sys"
 )
 
 // The daemon is started and a client can connect to it via unix socket.

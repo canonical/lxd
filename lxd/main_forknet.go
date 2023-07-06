@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	_ "github.com/lxc/lxd/lxd/include" // Used by cgo
-	"github.com/lxc/lxd/lxd/ip"
-	"github.com/lxc/lxd/shared/netutils"
+	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
+	"github.com/canonical/lxd/lxd/ip"
+	"github.com/canonical/lxd/shared/netutils"
 )
 
 /*

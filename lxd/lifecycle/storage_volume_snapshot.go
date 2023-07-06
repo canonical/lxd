@@ -1,9 +1,9 @@
 package lifecycle
 
 import (
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // StorageVolumeSnapshotAction represents a lifecycle event action for storage volume snapshots.
