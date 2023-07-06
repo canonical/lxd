@@ -4,12 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gorilla/websocket"
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // Event handling functions
@@ -73,12 +77,34 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 	// Spawn a watcher that will close the websocket connection after all
 	// listeners are gone.
 	stopCh := make(chan struct{})
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGQUIT)
 	go func() {
 		for {
 			select {
 			case <-time.After(time.Minute):
 			case <-r.ctxConnected.Done():
 			case <-stopCh:
+			case sig := <-sigCh:
+				if sig == syscall.SIGQUIT {
+					logger.Debug("Received SIGQUIT, closing websocket connections...")
+					r.eventListenersLock.Lock()
+					r.eventConnsLock.Lock()
+
+					// We don't need the connection anymore, disconnect and clear.
+					if r.eventListeners[listener.projectName] != nil {
+						_ = r.eventConns[listener.projectName].Close()
+						delete(r.eventConns, listener.projectName)
+					}
+
+					r.eventListeners[listener.projectName] = nil
+					r.eventListenersLock.Unlock()
+					r.eventConnsLock.Unlock()
+
+					listener.Disconnect()
+
+					return
+				}
 			}
 
 			r.eventListenersLock.Lock()
