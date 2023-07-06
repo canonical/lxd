@@ -14,6 +14,8 @@ type cmdAlias struct {
 	global *cmdGlobal
 }
 
+// Command configures the 'alias' command of a Cobra-based CLI application
+// It allows managing command aliases including adding, listing, renaming, and removing aliases
 func (c *cmdAlias) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("alias")
@@ -49,6 +51,8 @@ type cmdAliasAdd struct {
 	alias  *cmdAlias
 }
 
+// Command configures the 'add' subcommand under 'alias' for a Cobra-based CLI application
+// It allows adding new aliases to the application
 func (c *cmdAliasAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("<alias> <target>"))
@@ -64,6 +68,8 @@ func (c *cmdAliasAdd) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the 'add' subcommand under 'alias' for a Cobra-based CLI application
+// It adds a new alias to the application if it does not already exist, and saves the updated configuration
 func (c *cmdAliasAdd) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -94,6 +100,8 @@ type cmdAliasList struct {
 	flagFormat string
 }
 
+// Command configures the 'list' subcommand under 'alias' for a Cobra-based CLI application
+// It allows listing all aliases in the application, with various output format options (csv, json, table, yaml, compact)
 func (c *cmdAliasList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list")
@@ -108,6 +116,8 @@ func (c *cmdAliasList) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the 'list' subcommand under 'alias' for a Cobra-based CLI application
+// It lists all existing aliases and their corresponding targets in a specified output format
 func (c *cmdAliasList) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -139,6 +149,8 @@ type cmdAliasRename struct {
 	alias  *cmdAlias
 }
 
+// Command configures the 'rename' subcommand under 'alias' for a Cobra-based CLI application
+// It allows renaming existing aliases in the application
 func (c *cmdAliasRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("<old alias> <new alias>"))
@@ -155,6 +167,8 @@ func (c *cmdAliasRename) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the 'rename' subcommand under 'alias' for a Cobra-based CLI application
+// It renames an existing alias to a new one if the new alias doesn't already exist, and saves the updated configuration
 func (c *cmdAliasRename) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -190,6 +204,8 @@ type cmdAliasRemove struct {
 	alias  *cmdAlias
 }
 
+// Command configures the 'remove' subcommand under 'alias' for a Cobra-based CLI application
+// It allows removing existing aliases from the application
 func (c *cmdAliasRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("<alias>"))
@@ -206,6 +222,8 @@ func (c *cmdAliasRemove) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the 'remove' subcommand under 'alias' for a Cobra-based CLI application
+// It removes an existing alias from the application and saves the updated configuration
 func (c *cmdAliasRemove) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
