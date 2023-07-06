@@ -189,6 +189,8 @@ func (c *Config) GetImageServer(name string) (lxd.ImageServer, error) {
 	return d, nil
 }
 
+// getConnectionArgs is a method on the Config struct that sets up and returns the ConnectionArgs for a given LXD remote.
+// It handles authentication setup, cookie jars, OIDC tokens, and TLS certificates, both for server and client side.
 func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 	remote := c.Remotes[name]
 	args := lxd.ConnectionArgs{
