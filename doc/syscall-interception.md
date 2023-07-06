@@ -118,7 +118,7 @@ previously allowed by the kernel.
 
 This can be enabled by setting `security.syscalls.intercept.setxattr` to `true`.
 
-## `sysinfo`
+### `sysinfo`
 
 The `sysinfo` system call is used by some distributions instead of `/proc/` entries to report on resource usage.
 
