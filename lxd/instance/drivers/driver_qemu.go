@@ -2385,7 +2385,7 @@ func (d *qemu) generateConfigShare() error {
 
 	lxdAgentServiceUnit := `[Unit]
 Description=LXD - agent
-Documentation=https://linuxcontainers.org/lxd
+Documentation=https://documentation.ubuntu.com/lxd/en/latest/
 ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
 Before=cloud-init.target cloud-init.service cloud-init-local.service
 DefaultDependencies=no
