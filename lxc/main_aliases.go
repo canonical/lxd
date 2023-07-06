@@ -11,9 +11,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lxc/lxd/lxc/config"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/i18n"
+	"github.com/canonical/lxd/lxc/config"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/i18n"
 )
 
 var numberedArgRegex = regexp.MustCompile(`@ARG(\d+)@`)

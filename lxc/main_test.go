@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lxc/lxd/lxc/config"
+	"github.com/canonical/lxd/lxc/config"
 )
 
 type aliasTestcase struct {

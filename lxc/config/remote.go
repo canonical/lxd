@@ -14,8 +14,8 @@ import (
 	"github.com/juju/persistent-cookiejar"
 	schemaform "gopkg.in/juju/environschema.v1/form"
 
-	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/shared"
 )
 
 // Remote holds details for communication with a remote daemon.

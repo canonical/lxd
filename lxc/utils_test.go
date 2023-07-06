@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/lxc/lxd/lxc/utils"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/lxc/utils"
+	"github.com/canonical/lxd/shared/api"
 )
 
 type utilsTestSuite struct {

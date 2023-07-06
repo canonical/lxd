@@ -12,13 +12,13 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxc/utils"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	cli "github.com/lxc/lxd/shared/cmd"
-	"github.com/lxc/lxd/shared/i18n"
-	"github.com/lxc/lxd/shared/termios"
-	"github.com/lxc/lxd/shared/units"
+	"github.com/canonical/lxd/lxc/utils"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	cli "github.com/canonical/lxd/shared/cmd"
+	"github.com/canonical/lxd/shared/i18n"
+	"github.com/canonical/lxd/shared/termios"
+	"github.com/canonical/lxd/shared/units"
 )
 
 type cmdStorage struct {
