@@ -211,6 +211,7 @@ func (r *ProtocolLXD) UpdateInstances(state api.InstancesPut, ETag string) (Oper
 	return op, nil
 }
 
+// rebuildInstance initiates a rebuild of a given instance on the LXD Protocol server and returns the corresponding operation or an error.
 func (r *ProtocolLXD) rebuildInstance(instanceName string, instance api.InstanceRebuildPost) (Operation, error) {
 	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
 	if err != nil {
@@ -226,6 +227,8 @@ func (r *ProtocolLXD) rebuildInstance(instanceName string, instance api.Instance
 	return op, nil
 }
 
+// tryRebuildInstance attempts to rebuild a specific instance on multiple target servers identified by their URLs.
+// It runs the rebuild process asynchronously and returns a RemoteOperation to monitor the progress and any errors.
 func (r *ProtocolLXD) tryRebuildInstance(instanceName string, req api.InstanceRebuildPost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("The source server isn't listening on the network")
@@ -609,6 +612,8 @@ func (r *ProtocolLXD) CreateInstance(instance api.InstancesPost) (Operation, err
 	return op, nil
 }
 
+// tryCreateInstance attempts to create a new instance on multiple target servers specified by their URLs.
+// It runs the instance creation asynchronously and returns a RemoteOperation to monitor the progress and any errors.
 func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("The source server isn't listening on the network")
@@ -969,6 +974,8 @@ func (r *ProtocolLXD) RenameInstance(name string, instance api.InstancePost) (Op
 	return op, nil
 }
 
+// tryMigrateInstance attempts to migrate a specific instance from a source server to one of the target URLs.
+// The function runs the migration operation asynchronously and returns a RemoteOperation to track the progress and handle any errors.
 func (r *ProtocolLXD) tryMigrateInstance(source InstanceServer, name string, req api.InstancePost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("The target server isn't listening on the network")
