@@ -22,6 +22,8 @@ type cmdClusterGroup struct {
 	cluster *cmdCluster
 }
 
+// Command configures the 'group' command of a Cobra-based CLI application
+// It allows managing cluster groups, including assigning, creating, deleting, editing, listing, removing, renaming, and showing groups
 func (c *cmdClusterGroup) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("group")
@@ -70,6 +72,8 @@ type cmdClusterGroupAssign struct {
 	cluster *cmdCluster
 }
 
+// Command configures the 'assign' subcommand under 'group' for a Cobra-based CLI application
+// It allows assigning sets of groups to cluster members
 func (c *cmdClusterGroupAssign) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("assign", i18n.G("[<remote>:]<member> <group>"))
@@ -89,6 +93,8 @@ lxc cluster group assign foo default
 	return cmd
 }
 
+// Run executes the 'assign' subcommand under 'group' for a Cobra-based CLI application
+// It assigns sets of groups to a cluster member, updating the member's group configuration
 func (c *cmdClusterGroupAssign) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -142,6 +148,8 @@ type cmdClusterGroupCreate struct {
 	cluster *cmdCluster
 }
 
+// Command configures the 'create' subcommand under 'group' for a Cobra-based CLI application
+// It allows creating a new cluster group with a specified name
 func (c *cmdClusterGroupCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<group>"))
@@ -154,6 +162,8 @@ func (c *cmdClusterGroupCreate) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the 'create' subcommand under 'group' for a Cobra-based CLI application
+// It creates a new cluster group with the specified name on the targeted remote server
 func (c *cmdClusterGroupCreate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -196,6 +206,8 @@ type cmdClusterGroupDelete struct {
 	cluster *cmdCluster
 }
 
+// Command configures the 'delete' subcommand under 'group' for a Cobra-based CLI application
+// It allows deleting an existing cluster group with the specified name
 func (c *cmdClusterGroupDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<group>"))
@@ -209,6 +221,8 @@ func (c *cmdClusterGroupDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the 'delete' subcommand under 'group' for a Cobra-based CLI application
+// It deletes an existing cluster group with the specified name from the targeted remote server
 func (c *cmdClusterGroupDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -247,6 +261,8 @@ type cmdClusterGroupEdit struct {
 	cluster *cmdCluster
 }
 
+// Command configures the 'edit' subcommand under 'group' for a Cobra-based CLI application
+// It allows editing an existing cluster group with the specified name
 func (c *cmdClusterGroupEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<group>"))
@@ -259,6 +275,9 @@ func (c *cmdClusterGroupEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the 'edit' subcommand under 'group' for a Cobra-based CLI application
+// It allows editing an existing cluster group with the specified name by opening a text editor or reading from stdin,
+// and updates the group configuration based on the edited content
 func (c *cmdClusterGroupEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -345,6 +364,8 @@ func (c *cmdClusterGroupEdit) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// helpTemplate returns the help template for the 'edit' subcommand under 'group'
+// It provides information on the YAML representation of the cluster group and how to format it
 func (c *cmdClusterGroupEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a YAML representation of the cluster group.
@@ -359,6 +380,8 @@ type cmdClusterGroupList struct {
 	flagFormat string
 }
 
+// Command configures the 'list' subcommand under 'group' for a Cobra-based CLI application
+// It allows listing all cluster groups in the application, with various output format options (csv, json, table, yaml, compact)
 func (c *cmdClusterGroupList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
@@ -373,6 +396,9 @@ func (c *cmdClusterGroupList) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the 'list' subcommand under 'group' for a Cobra-based CLI application
+// It lists all cluster groups in the application, displaying their names, descriptions, and member counts,
+// with the option to specify an output format (csv, json, table, yaml, compact)
 func (c *cmdClusterGroupList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
@@ -432,6 +458,8 @@ type cmdClusterGroupRemove struct {
 	cluster *cmdCluster
 }
 
+// Command configures the 'remove' subcommand under 'group' for a Cobra-based CLI application
+// It allows removing a cluster member from a cluster group
 func (c *cmdClusterGroupRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<member> <group>"))
@@ -444,6 +472,8 @@ func (c *cmdClusterGroupRemove) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the 'remove' subcommand under 'group' for a Cobra-based CLI application
+// It removes a cluster member from a cluster group by updating the member's group configuration
 func (c *cmdClusterGroupRemove) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -502,6 +532,8 @@ type cmdClusterGroupRename struct {
 	cluster *cmdCluster
 }
 
+// Command configures the 'rename' subcommand under 'group' for a Cobra-based CLI application
+// It allows renaming an existing cluster group to a new name
 func (c *cmdClusterGroupRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("[<remote>:]<group> <new-name>"))
@@ -515,6 +547,8 @@ func (c *cmdClusterGroupRename) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the 'rename' subcommand under 'group' for a Cobra-based CLI application
+// It renames an existing cluster group to a new name on the targeted remote server
 func (c *cmdClusterGroupRename) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -549,6 +583,8 @@ type cmdClusterGroupShow struct {
 	cluster *cmdCluster
 }
 
+// Command configures the 'show' subcommand under 'group' for a Cobra-based CLI application
+// It allows displaying the configuration of a specific cluster group
 func (c *cmdClusterGroupShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<group>"))
@@ -561,6 +597,8 @@ func (c *cmdClusterGroupShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the 'show' subcommand under 'group' for a Cobra-based CLI application
+// It displays the configuration of a specific cluster group on the targeted remote server
 func (c *cmdClusterGroupShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
