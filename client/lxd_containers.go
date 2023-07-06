@@ -1201,6 +1201,8 @@ func (r *ProtocolLXD) RenameContainerSnapshot(containerName string, name string,
 	return op, nil
 }
 
+// tryMigrateContainerSnapshot attempts to migrate a container snapshot from the source instance server to one of the target URLs.
+// It runs the migration asynchronously and returns a RemoteOperation to track the migration status and any errors.
 func (r *ProtocolLXD) tryMigrateContainerSnapshot(source InstanceServer, containerName string, name string, req api.ContainerSnapshotPost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("The target server isn't listening on the network")
