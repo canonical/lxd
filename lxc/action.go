@@ -20,6 +20,8 @@ type cmdStart struct {
 	action *cmdAction
 }
 
+// Command defines a cobra command for the "start" action in a command-line interface.
+// It sets the usage, short description, and long description for the "start" command, which is used to start instances.
 func (c *cmdStart) Command() *cobra.Command {
 	cmdAction := cmdAction{global: c.global}
 	c.action = &cmdAction
@@ -39,6 +41,9 @@ type cmdPause struct {
 	action *cmdAction
 }
 
+// Command defines a cobra command for the "pause" action in a command-line interface.
+// It sets the usage, short description, and long description for the "pause" command, which is used to pause instances.
+// This command is also aliased as "freeze" and is hidden.
 func (c *cmdPause) Command() *cobra.Command {
 	cmdAction := cmdAction{global: c.global}
 	c.action = &cmdAction
@@ -60,6 +65,7 @@ type cmdRestart struct {
 	action *cmdAction
 }
 
+// Command defines a cobra command for the "restart" action in a command-line interface, setting up its usage, short and long descriptions.
 func (c *cmdRestart) Command() *cobra.Command {
 	cmdAction := cmdAction{global: c.global}
 	c.action = &cmdAction
@@ -81,6 +87,7 @@ type cmdStop struct {
 	action *cmdAction
 }
 
+// Command defines a cobra command for the "stop" action in a command-line interface, setting up its usage, short and long descriptions.
 func (c *cmdStop) Command() *cobra.Command {
 	cmdAction := cmdAction{global: c.global}
 	c.action = &cmdAction
@@ -105,6 +112,8 @@ type cmdAction struct {
 	flagTimeout   int
 }
 
+// Command defines a cobra command for a given action in a command-line interface, setting up the usage, flags and execution method.
+// It adjusts its behaviour based on the specified action string (like "start", "stop", "restart").
 func (c *cmdAction) Command(action string) *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.RunE = c.Run
@@ -130,6 +139,9 @@ func (c *cmdAction) Command(action string) *cobra.Command {
 	return cmd
 }
 
+// doActionAll performs an action such as 'start', 'stop', 'pause' (or 'freeze') on all instances in the specified remote resource.
+// It handles state storage for 'stop' action when required, allows forced actions, and reports on the progress of the operation.
+// It returns an error if the action couldn't be performed.
 func (c *cmdAction) doActionAll(action string, resource remoteResource) error {
 	if resource.name != "" {
 		// both --all and instance name given.
@@ -189,6 +201,9 @@ func (c *cmdAction) doActionAll(action string, resource remoteResource) error {
 	return nil
 }
 
+// doAction performs a specific action (like 'start', 'stop', 'pause') on a given instance.
+// It handles state saving, forceful actions, console attachment, and reports the progress of the operation.
+// If an error occurs during the operation, it suggests checking the logs of the instance for more information. It returns an error if the action couldn't be performed.
 func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string) error {
 	state := false
 
@@ -287,6 +302,8 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 	return nil
 }
 
+// Run executes the command line action for Cobra-based CLI application
+// Manages operations (start/stop) on all or selected instances of servers, with specific handling for console outputs and errors.
 func (c *cmdAction) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
