@@ -15,6 +15,8 @@ type cmdClusterRole struct {
 	cluster *cmdCluster
 }
 
+// Command configures the 'role' subcommand for managing cluster roles in a Cobra-based CLI application
+// It provides functionality to add and remove cluster roles
 func (c *cmdClusterRole) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("role")
@@ -41,6 +43,8 @@ type cmdClusterRoleAdd struct {
 	clusterRole *cmdClusterRole
 }
 
+// Command configures the 'add' subcommand under 'role' for a Cobra-based CLI application
+// It allows adding roles to a cluster member on the targeted remote server
 func (c *cmdClusterRoleAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:]<member> <role[,role...]>"))
@@ -53,6 +57,8 @@ func (c *cmdClusterRoleAdd) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the 'add' subcommand under 'role' for a Cobra-based CLI application
+// It adds the specified roles to a cluster member on the targeted remote server
 func (c *cmdClusterRoleAdd) Run(cmd *cobra.Command, args []string) error {
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -95,6 +101,8 @@ type cmdClusterRoleRemove struct {
 	clusterRole *cmdClusterRole
 }
 
+// Command configures the 'remove' subcommand under 'role' for a Cobra-based CLI application
+// It allows removing roles from a cluster member on the targeted remote server
 func (c *cmdClusterRoleRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<member> <role[,role...]>"))
@@ -107,6 +115,8 @@ func (c *cmdClusterRoleRemove) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the 'remove' command under the 'role' subcommand
+// It removes the specified roles from a cluster member on the targeted remote server
 func (c *cmdClusterRoleRemove) Run(cmd *cobra.Command, args []string) error {
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
