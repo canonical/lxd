@@ -24,7 +24,7 @@ See [Getting started](https://documentation.ubuntu.com/lxd/en/stable-4.0/getting
 Type                | Service               | Status
 ---                 | ---                   | ---
 CI (client)         | GitHub                | [![Build Status](https://github.com/canonical/lxd/workflows/Client%20build%20and%20unit%20tests/badge.svg?branch=stable-4.0)](https://github.com/canonical/lxd/actions)
-CI (server)         | Jenkins               | [![Build Status](https://jenkins.linuxcontainers.org/job/lxd-github-commit/badge/icon)](https://jenkins.linuxcontainers.org/job/lxd-github-commit/)
+CI (server)         | GitHub                | [![Build Status](https://github.com/canonical/lxd/workflows/Tests/badge.svg?branch=stable-4.0)](https://github.com/canonical/lxd/actions)
 Go documentation    | Godoc                 | [![GoDoc](https://godoc.org/github.com/canonical/lxd/client?status.svg)](https://godoc.org/github.com/canonical/lxd/client)
 Static analysis     | GoReport              | [![Go Report Card](https://goreportcard.com/badge/github.com/canonical/lxd)](https://goreportcard.com/report/github.com/canonical/lxd)
 Translations        | Weblate               | [![Translation status](https://hosted.weblate.org/widgets/linux-containers/-/svg-badge.svg)](https://hosted.weblate.org/projects/linux-containers/lxd/)
