@@ -13,6 +13,8 @@ type cmdGlobal struct {
 	flagHelp    bool
 }
 
+// main is the entry point for the uid/gid shifting tool.
+// It sets up the application, handles global flags, configures the version output, and executes the main command.
 func main() {
 	// shift command (main)
 	shiftCmd := cmdShift{}

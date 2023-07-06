@@ -16,6 +16,8 @@ type cmdShift struct {
 	flagTestMode bool
 }
 
+// cmdShift defines a cobra command for the uid/gid shifting tool.
+// It creates and configures the command, setting up its usage, description, examples, and flags.
 func (c *cmdShift) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "fuidshift <directory> <range> [<range>...]"
@@ -43,6 +45,8 @@ func (c *cmdShift) Command() *cobra.Command {
 	return cmd
 }
 
+// Run implements the main logic for the uid/gid shifting tool.
+// It parses the arguments, checks the permissions, handles the mapping and triggers the shifting process.
 func (c *cmdShift) Run(cmd *cobra.Command, args []string) error {
 	// Help and usage
 	if len(args) == 0 {
