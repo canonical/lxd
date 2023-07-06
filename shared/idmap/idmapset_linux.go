@@ -17,8 +17,8 @@ import (
 	"sync/atomic"
 	"syscall"
 
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 const VFS3FscapsUnsupported int32 = 0

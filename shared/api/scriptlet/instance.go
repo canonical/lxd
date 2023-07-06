@@ -1,7 +1,7 @@
 package scriptlet
 
 import (
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // InstancePlacementReasonNew is when a new instance request is received.
