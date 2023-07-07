@@ -147,6 +147,7 @@ type Instance struct {
 	Name     string
 	Project  string
 	Location string
+	Type     instancetype.Type
 }
 
 // GetInstancesByMemberAddress returns the instances associated to each cluster member address.
@@ -157,7 +158,7 @@ func (c *ClusterTx) GetInstancesByMemberAddress(ctx context.Context, offlineThre
 	var q strings.Builder
 
 	q.WriteString(`SELECT
-		instances.id, instances.name,
+		instances.id, instances.name, instances.type,
 		nodes.id, nodes.name, nodes.address, nodes.heartbeat,
 		projects.name
 	FROM instances
@@ -193,7 +194,7 @@ func (c *ClusterTx) GetInstancesByMemberAddress(ctx context.Context, offlineThre
 		var memberAddress string
 		var memberID int64
 		var memberHeartbeat time.Time
-		err := rows.Scan(&inst.ID, &inst.Name, &memberID, &inst.Location, &memberAddress, &memberHeartbeat, &inst.Project)
+		err := rows.Scan(&inst.ID, &inst.Name, &inst.Type, &memberID, &inst.Location, &memberAddress, &memberHeartbeat, &inst.Project)
 		if err != nil {
 			return nil, err
 		}
