@@ -254,6 +254,23 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
+      - name: Create build directory
+        run: |
+            mkdir bin
+
+      - name: Build static lxc
+        env:
+          CGO_ENABLED: 0
+        run: |
+          go build -o bin ./lxc
+
+      - name: Build static lxd-migrate
+        if: runner.os == 'Linux'
+        env:
+          CGO_ENABLED: 0
+        run: |
+          go build -o bin ./lxd-migrate
+
       - name: Unit tests (client)
         env:
           CGO_ENABLED: 0
@@ -268,6 +285,13 @@ jobs:
         env:
           CGO_ENABLED: 0
         run: go test -v ./shared/...
+
+      - name: Upload lxc client artifacts
+        uses: actions/upload-artifact@v3
+        continue-on-error: true
+        with:
+          name: ${{ runner.os }}
+          path: bin/
 
   documentation:
     name: Documentation tests
