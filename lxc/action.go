@@ -20,6 +20,8 @@ type cmdStart struct {
 	action *cmdAction
 }
 
+// The function Command() returns a cobra.Command object representing the "start" command.
+// It is used to start one or more instances specified by the user.
 func (c *cmdStart) Command() *cobra.Command {
 	cmdAction := cmdAction{global: c.global}
 	c.action = &cmdAction
@@ -39,6 +41,8 @@ type cmdPause struct {
 	action *cmdAction
 }
 
+// The function Command() returns a cobra.Command object representing the "pause" command.
+// It is used to pause (or freeze) one or more instances specified by the user. This command is hidden and has an alias "freeze".
 func (c *cmdPause) Command() *cobra.Command {
 	cmdAction := cmdAction{global: c.global}
 	c.action = &cmdAction
@@ -60,6 +64,8 @@ type cmdRestart struct {
 	action *cmdAction
 }
 
+// The function Command() returns a cobra.Command object representing the "restart" command.
+// It is used to restart one or more instances specified by the user. This command restarts the instances, which is the opposite of the "pause" command.
 func (c *cmdRestart) Command() *cobra.Command {
 	cmdAction := cmdAction{global: c.global}
 	c.action = &cmdAction
@@ -81,6 +87,8 @@ type cmdStop struct {
 	action *cmdAction
 }
 
+// The function Command() returns a cobra.Command object representing the "stop" command.
+// It is used to stop one or more instances specified by the user. This command stops the instances, effectively shutting them down.
 func (c *cmdStop) Command() *cobra.Command {
 	cmdAction := cmdAction{global: c.global}
 	c.action = &cmdAction
@@ -105,6 +113,8 @@ type cmdAction struct {
 	flagTimeout   int
 }
 
+// Command is a method of the cmdAction structure which constructs and configures a cobra Command object.
+// It creates a command with a specific action, defines flags based on that action, and assigns appropriate help text.
 func (c *cmdAction) Command(action string) *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.RunE = c.Run
@@ -130,6 +140,8 @@ func (c *cmdAction) Command(action string) *cobra.Command {
 	return cmd
 }
 
+// doActionAll is a method of the cmdAction structure. It performs a specified action on all instances of a remote resource.
+// It ensures that flags and parameters are appropriately set, and handles any errors that may occur during the process.
 func (c *cmdAction) doActionAll(action string, resource remoteResource) error {
 	if resource.name != "" {
 		// both --all and instance name given.
@@ -189,6 +201,8 @@ func (c *cmdAction) doActionAll(action string, resource remoteResource) error {
 	return nil
 }
 
+// doAction is a method of the cmdAction structure. It carries out a specified action on an instance,
+// using a given config and instance name. It manages state changes, flag checks, error handling and console attachment.
 func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string) error {
 	state := false
 
@@ -287,6 +301,8 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 	return nil
 }
 
+// Run is a method of the cmdAction structure that implements the execution logic for the given Cobra command.
+// It handles actions on instances (single or all) and manages error handling, console flag restrictions, and batch operations.
 func (c *cmdAction) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
