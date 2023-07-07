@@ -95,6 +95,13 @@ Then add this certificate to the list of trusted clients, specifying the type as
 
     lxc config trust add metrics.crt --type=metrics
 
+If requiring TLS client authentication isn't possible in your environment, the `/1.0/metrics` API endpoint can be made available to unauthenticated clients. While not recommended, this might be acceptable if you have other controls in place to restrict who can reach that API endpoint. To disable the authentication on the metrics API:
+
+```bash
+# Disable authentication (NOT RECOMMENDED)
+lxc config set core.metrics_authentication false
+```
+
 ### Make the metrics certificate available for Prometheus
 
 If you run Prometheus on a different machine than your LXD server, you must copy the required certificates to the Prometheus machine:
