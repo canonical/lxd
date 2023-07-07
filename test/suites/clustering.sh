@@ -3602,7 +3602,7 @@ test_clustering_events() {
     grep -Fc "cluster-member-updated" "${TEST_DIR}/node${i}.log" | grep -Fx 2
   done
 
-  sleep 1 # Wait for notification heartbeat to distribute new roles.
+  sleep 2 # Wait for notification heartbeat to distribute new roles.
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: hub-server"
   LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F "server_event_mode: hub-server"
   LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
@@ -3659,7 +3659,7 @@ test_clustering_events() {
   LXD_DIR="${LXD_FOUR_DIR}" lxc cluster role add node4 event-hub
   LXD_DIR="${LXD_FIVE_DIR}" lxc cluster role add node5 event-hub
 
-  sleep 1 # Wait for notification heartbeat to distribute new roles.
+  sleep 2 # Wait for notification heartbeat to distribute new roles.
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
   LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F "server_event_mode: hub-client"
   LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
