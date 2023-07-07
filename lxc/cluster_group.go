@@ -22,6 +22,7 @@ type cmdClusterGroup struct {
 	cluster *cmdCluster
 }
 
+// Cluster management including assignment, creation, deletion, editing, listing, removal, renaming, and showing details.
 func (c *cmdClusterGroup) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("group")
@@ -70,6 +71,7 @@ type cmdClusterGroupAssign struct {
 	cluster *cmdCluster
 }
 
+// Setting a groups to cluster members, setting usage, description, examples, and the RunE method.
 func (c *cmdClusterGroupAssign) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("assign", i18n.G("[<remote>:]<member> <group>"))
@@ -89,6 +91,7 @@ lxc cluster group assign foo default
 	return cmd
 }
 
+// Groups assigning to a cluster member, performing checks, parsing arguments, and updating the member's group configuration.
 func (c *cmdClusterGroupAssign) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -142,6 +145,7 @@ type cmdClusterGroupCreate struct {
 	cluster *cmdCluster
 }
 
+// Creation of a new cluster group, defining its usage, short and long descriptions, and the RunE method.
 func (c *cmdClusterGroupCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<group>"))
@@ -154,6 +158,7 @@ func (c *cmdClusterGroupCreate) Command() *cobra.Command {
 	return cmd
 }
 
+// It creates new cluster group after performing checks, parsing arguments, and making the server call for creation.
 func (c *cmdClusterGroupCreate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -196,6 +201,7 @@ type cmdClusterGroupDelete struct {
 	cluster *cmdCluster
 }
 
+// It deletes a cluster group, setting up usage, descriptions, aliases, and the RunE method.
 func (c *cmdClusterGroupDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<group>"))
@@ -209,6 +215,7 @@ func (c *cmdClusterGroupDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// It's the deletion of a cluster group after argument checks, parsing, and making the server call for deletion.
 func (c *cmdClusterGroupDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -247,6 +254,7 @@ type cmdClusterGroupEdit struct {
 	cluster *cmdCluster
 }
 
+// This Command generates the cobra command that enables the editing of a cluster group's attributes.
 func (c *cmdClusterGroupEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<group>"))
@@ -259,6 +267,7 @@ func (c *cmdClusterGroupEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// The modification of a cluster group's configuration, either through an editor or via the terminal.
 func (c *cmdClusterGroupEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -345,6 +354,7 @@ func (c *cmdClusterGroupEdit) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// Returns a string explaining the expected YAML structure for a cluster group configuration.
 func (c *cmdClusterGroupEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a YAML representation of the cluster group.
@@ -359,6 +369,7 @@ type cmdClusterGroupList struct {
 	flagFormat string
 }
 
+// Command returns a cobra command to list all the cluster groups in a specified format.
 func (c *cmdClusterGroupList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
@@ -373,6 +384,7 @@ func (c *cmdClusterGroupList) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command to list all the cluster groups, their descriptions, and number of members.
 func (c *cmdClusterGroupList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
@@ -432,6 +444,7 @@ type cmdClusterGroupRemove struct {
 	cluster *cmdCluster
 }
 
+// Removal of a specified member from a specific cluster group.
 func (c *cmdClusterGroupRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<member> <group>"))
@@ -444,6 +457,7 @@ func (c *cmdClusterGroupRemove) Command() *cobra.Command {
 	return cmd
 }
 
+// The removal process of a cluster member from a specific cluster group, with verbose output unless the 'quiet' flag is set.
 func (c *cmdClusterGroupRemove) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -502,6 +516,7 @@ type cmdClusterGroupRename struct {
 	cluster *cmdCluster
 }
 
+// Renaming a cluster group, defining usage, aliases, and linking the associated runtime function.
 func (c *cmdClusterGroupRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("[<remote>:]<group> <new-name>"))
@@ -515,6 +530,7 @@ func (c *cmdClusterGroupRename) Command() *cobra.Command {
 	return cmd
 }
 
+// Renaming operation of a cluster group after checking arguments and parsing the remote server, and provides appropriate output.
 func (c *cmdClusterGroupRename) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -549,6 +565,7 @@ type cmdClusterGroupShow struct {
 	cluster *cmdCluster
 }
 
+// Setting up the 'show' command to display the configurations of a specified cluster group in a remote server.
 func (c *cmdClusterGroupShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<group>"))
@@ -561,6 +578,7 @@ func (c *cmdClusterGroupShow) Command() *cobra.Command {
 	return cmd
 }
 
+// This retrieves and prints the configuration details of a specified cluster group from a remote server in YAML format.
 func (c *cmdClusterGroupShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
