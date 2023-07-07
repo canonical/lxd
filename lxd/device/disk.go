@@ -101,9 +101,24 @@ func (d *disk) CanMigrate() bool {
 	return false
 }
 
+// sourceIsDir returns true if the disks source config setting is a directory.
+func (d *disk) sourceIsDir() bool {
+	return shared.IsDir(d.config["source"])
+}
+
+// sourceIsCephFs returns true if the disks source config setting is a CephFS share.
+func (d *disk) sourceIsCephFs() bool {
+	return strings.HasPrefix(d.config["source"], "cephfs:")
+}
+
+// sourceIsCeph returns true if the disks source config setting is a Ceph RBD.
+func (d *disk) sourceIsCeph() bool {
+	return strings.HasPrefix(d.config["source"], "ceph:")
+}
+
 // CanHotPlug returns whether the device can be managed whilst the instance is running.
 func (d *disk) CanHotPlug() bool {
-	return true
+	return !(d.sourceIsDir() || d.sourceIsCephFs()) || d.inst.Type() == instancetype.Container
 }
 
 // validateConfig checks the supplied config for correctness.
@@ -128,7 +143,7 @@ func (d *disk) sourceIsLocalPath(source string) bool {
 		return false
 	}
 
-	if shared.StringHasPrefix(d.config["source"], "ceph:", "cephfs:") {
+	if d.sourceIsCeph() || d.sourceIsCephFs() {
 		return false
 	}
 
@@ -217,7 +232,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	// Check ceph options are only used when ceph or cephfs type source is specified.
-	if !shared.StringHasPrefix(d.config["source"], "ceph:", "cephfs:") && (d.config["ceph.cluster_name"] != "" || d.config["ceph.user_name"] != "") {
+	if !(d.sourceIsCeph() || d.sourceIsCephFs()) && (d.config["ceph.cluster_name"] != "" || d.config["ceph.user_name"] != "") {
 		return fmt.Errorf("Invalid options ceph.cluster_name/ceph.user_name for source %q", d.config["source"])
 	}
 
@@ -725,7 +740,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		revert.Success()
 		return &runConf, nil
 	} else if d.config["source"] != "" {
-		if strings.HasPrefix(d.config["source"], "ceph:") {
+		if d.sourceIsCeph() {
 			// Get the pool and volume names.
 			fields := strings.SplitN(d.config["source"], ":", 2)
 			fields = strings.SplitN(fields[1], "/", 2)
@@ -823,7 +838,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			// If the source being added is a directory or cephfs share, then we will use the lxd-agent
 			// directory sharing feature to mount the directory inside the VM, and as such we need to
 			// indicate to the VM the target path to mount to.
-			if shared.IsDir(mount.DevPath) || strings.HasPrefix(d.config["source"], "cephfs:") {
+			if shared.IsDir(mount.DevPath) || d.sourceIsCephFs() {
 				// Mount the source in the instance devices directory.
 				// This will ensure that if the exported directory configured as readonly that this
 				// takes effect event if using virtio-fs (which doesn't support read only mode) by
@@ -1297,7 +1312,7 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 
 	var isFile bool
 	if d.config["pool"] == "" {
-		if strings.HasPrefix(d.config["source"], "cephfs:") {
+		if d.sourceIsCephFs() {
 			// Get fs name and path from d.config.
 			fields := strings.SplitN(d.config["source"], ":", 2)
 			fields = strings.SplitN(fields[1], "/", 2)
@@ -1317,7 +1332,7 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 			fsName = "ceph"
 			srcPath = mntSrcPath
 			isFile = false
-		} else if strings.HasPrefix(d.config["source"], "ceph:") {
+		} else if d.sourceIsCeph() {
 			// Get the pool and volume names.
 			fields := strings.SplitN(d.config["source"], ":", 2)
 			fields = strings.SplitN(fields[1], "/", 2)
@@ -1703,7 +1718,7 @@ func (d *disk) postStop() error {
 		}
 	}
 
-	if strings.HasPrefix(d.config["source"], "ceph:") {
+	if d.sourceIsCeph() {
 		v := d.volatileGet()
 		err := diskCephRbdUnmap(v["ceph_rbd"])
 		if err != nil {
