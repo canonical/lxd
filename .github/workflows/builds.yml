@@ -34,7 +34,7 @@ jobs:
       - name: Trigger Launchpad snap build
         env:
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
-          TARGET: >
+          TARGET: >-
             ${{ fromJson('{
               "main": "latest-edge",
             }')[github.ref_name] }}
