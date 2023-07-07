@@ -885,11 +885,6 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 		// refresh.
 		if len(snapshots) == 0 {
 			volTargetArgs.Refresh = false
-
-			err = d.DeleteVolume(vol, op)
-			if err != nil {
-				return fmt.Errorf("Failed deleting volume: %w", err)
-			}
 		}
 
 		var respSnapshots []ZFSDataset
