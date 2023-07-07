@@ -318,6 +318,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 				StatusCode: api.Error,
 				Location:   inst.Location,
 				Project:    inst.Project,
+				Type:       inst.Type.String(),
 			},
 		}
 
