@@ -341,7 +341,7 @@ func GenerateMemCert(client bool, addHosts bool) ([]byte, []byte, error) {
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
-			Organization: []string{"linuxcontainers.org"},
+			Organization: []string{"LXD"},
 			CommonName:   fmt.Sprintf("%s@%s", username, hostname),
 		},
 		NotBefore: validFrom,
