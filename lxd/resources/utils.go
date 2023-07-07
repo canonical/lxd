@@ -109,7 +109,7 @@ func hasBitField(n []uint32, bit uint) bool {
 }
 
 func udevDecode(s string) (string, error) {
-	// Inverse of https://github.com/systemd/systemd/blob/master/src/basic/device-nodes.c#L22
+	// Inverse of https://github.com/systemd/systemd/blob/main/src/shared/device-nodes.c#L19
 	ret := ""
 	for i := 0; i < len(s); i++ {
 		// udev converts non-devnode supported chars to four byte encode hex strings.
