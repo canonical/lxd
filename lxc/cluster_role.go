@@ -15,6 +15,7 @@ type cmdClusterRole struct {
 	cluster *cmdCluster
 }
 
+// It uses the cmdGlobal, cmdCluster, and cmdClusterRole structs for context and operation.
 func (c *cmdClusterRole) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("role")
@@ -41,6 +42,7 @@ type cmdClusterRoleAdd struct {
 	clusterRole *cmdClusterRole
 }
 
+// Setting up the usage, short description, and long description of the command, as well as its RunE method.
 func (c *cmdClusterRoleAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:]<member> <role[,role...]>"))
@@ -53,6 +55,7 @@ func (c *cmdClusterRoleAdd) Command() *cobra.Command {
 	return cmd
 }
 
+// It checks and parses input arguments, verifies role assignment, and updates the member's roles.
 func (c *cmdClusterRoleAdd) Run(cmd *cobra.Command, args []string) error {
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -95,6 +98,7 @@ type cmdClusterRoleRemove struct {
 	clusterRole *cmdClusterRole
 }
 
+// Removing the roles from a cluster member, setting up usage, descriptions, and the RunE method.
 func (c *cmdClusterRoleRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<member> <role[,role...]>"))
@@ -107,6 +111,7 @@ func (c *cmdClusterRoleRemove) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the removal of specified roles from a cluster member, checking inputs, validating role assignment, and updating the member's roles.
 func (c *cmdClusterRoleRemove) Run(cmd *cobra.Command, args []string) error {
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
