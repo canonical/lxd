@@ -1,5 +1,10 @@
 name: Builds
-on: workflow_dispatch
+on:
+  workflow_run:
+    workflows: [Tests]
+    types: [completed]
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -8,7 +13,7 @@ jobs:
   snap:
     name: Trigger snap build
     runs-on: ubuntu-22.04
-
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -50,4 +55,5 @@ jobs:
           git add --all
           git commit --all --quiet -s --allow-empty -m "Automatic upstream build (${TARGET})" -m "Upstream commit: ${localRev}"
           git show
+          git push --quiet
 
