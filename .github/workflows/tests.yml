@@ -298,3 +298,16 @@ jobs:
       - name: Run link checker
         run: |
           make doc-linkcheck
+
+      - name: Build docs (Sphinx)
+        run: make doc
+
+      - name: Print warnings (Sphinx)
+        run: if [ -s doc/.sphinx/warnings.txt ]; then cat doc/.sphinx/warnings.txt; exit 1; fi
+
+      - name: Upload documentation artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: documentation
+          path: doc/html
