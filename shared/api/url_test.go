@@ -11,7 +11,7 @@ func ExampleURL() {
 	fmt.Println(u.Project("project-with-%-in-it"))
 	fmt.Println(u.Target(""))
 	fmt.Println(u.Target("member-with-%-in-it"))
-	fmt.Println(u.Host("linuxcontainers.org"))
+	fmt.Println(u.Host("example.com"))
 	fmt.Println(u.Scheme("https"))
 
 	// Output: /1.0/networks/name-with-%252F-in-it
@@ -19,6 +19,6 @@ func ExampleURL() {
 	// /1.0/networks/name-with-%252F-in-it?project=project-with-%25-in-it
 	// /1.0/networks/name-with-%252F-in-it?project=project-with-%25-in-it
 	// /1.0/networks/name-with-%252F-in-it?project=project-with-%25-in-it&target=member-with-%25-in-it
-	// //linuxcontainers.org/1.0/networks/name-with-%252F-in-it?project=project-with-%25-in-it&target=member-with-%25-in-it
-	// https://linuxcontainers.org/1.0/networks/name-with-%252F-in-it?project=project-with-%25-in-it&target=member-with-%25-in-it
+	// //example.com/1.0/networks/name-with-%252F-in-it?project=project-with-%25-in-it&target=member-with-%25-in-it
+	// https://example.com/1.0/networks/name-with-%252F-in-it?project=project-with-%25-in-it&target=member-with-%25-in-it
 }
