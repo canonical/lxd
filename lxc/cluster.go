@@ -963,7 +963,7 @@ type cmdClusterRevokeToken struct {
 	cluster *cmdCluster
 }
 
-// Defination of the cobra command for revoking a cluster member join token.
+// Definition of the cobra command for revoking a cluster member join token.
 func (c *cmdClusterRevokeToken) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("revoke-token", i18n.G("[<remote>:]<member>"))
