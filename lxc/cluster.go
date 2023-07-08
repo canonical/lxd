@@ -22,6 +22,7 @@ type cmdCluster struct {
 	global *cmdGlobal
 }
 
+// This function defines and returns the cobra command for cluster management, providing operations like list, rename, remove, etc.
 func (c *cmdCluster) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("cluster")
@@ -114,6 +115,7 @@ type cmdClusterList struct {
 	flagFormat string
 }
 
+// Command defines and returns the cobra command for listing all the members of a cluster.
 func (c *cmdClusterList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
@@ -128,6 +130,7 @@ func (c *cmdClusterList) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command to list all members of a cluster along with their relevant details.
 func (c *cmdClusterList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
@@ -199,6 +202,7 @@ type cmdClusterShow struct {
 	cluster *cmdCluster
 }
 
+// It defines and returns the cobra command to display detailed information about a specific cluster member.
 func (c *cmdClusterShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<member>"))
@@ -211,6 +215,7 @@ func (c *cmdClusterShow) Command() *cobra.Command {
 	return cmd
 }
 
+// This executes the command to fetch and print detailed information of a specific cluster member in YAML format.
 func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -248,6 +253,7 @@ type cmdClusterInfo struct {
 	cluster *cmdCluster
 }
 
+// It fetches and displays information about a specific cluster member.
 func (c *cmdClusterInfo) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("info", i18n.G("[<remote>:]<member>"))
@@ -260,6 +266,7 @@ func (c *cmdClusterInfo) Command() *cobra.Command {
 	return cmd
 }
 
+// Run retrieves and prints the state information of a specific cluster member in YAML format.
 func (c *cmdClusterInfo) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -297,6 +304,7 @@ type cmdClusterGet struct {
 	cluster *cmdCluster
 }
 
+// Get the values of configuration keys for a cluster member.
 func (c *cmdClusterGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<member> <key>"))
@@ -308,6 +316,7 @@ func (c *cmdClusterGet) Command() *cobra.Command {
 	return cmd
 }
 
+// It retrieves the value of a specific configuration key for a cluster member.
 func (c *cmdClusterGet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -344,6 +353,7 @@ type cmdClusterSet struct {
 	cluster *cmdCluster
 }
 
+// This defines and returns the cobra command for setting configuration keys for a cluster member.
 func (c *cmdClusterSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<member> <key>=<value>..."))
@@ -355,6 +365,7 @@ func (c *cmdClusterSet) Command() *cobra.Command {
 	return cmd
 }
 
+// Run function executes the command to set a cluster member's configuration keys, updating the member's info.
 func (c *cmdClusterSet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -396,6 +407,7 @@ type cmdClusterUnset struct {
 	clusterSet *cmdClusterSet
 }
 
+// Removal of a configuration key from a cluster member.
 func (c *cmdClusterUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<member> <key>"))
@@ -407,6 +419,7 @@ func (c *cmdClusterUnset) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the removal of a configuration key from a cluster member.
 func (c *cmdClusterUnset) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -424,6 +437,7 @@ type cmdClusterRename struct {
 	cluster *cmdCluster
 }
 
+// Defines the cobra command for renaming a cluster member.
 func (c *cmdClusterRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("[<remote>:]<member> <new-name>"))
@@ -437,6 +451,7 @@ func (c *cmdClusterRename) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the cluster member rename operation.
 func (c *cmdClusterRename) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -474,6 +489,7 @@ type cmdClusterRemove struct {
 	flagNonInteractive bool
 }
 
+// Defines the cobra command for removing a member from a cluster.
 func (c *cmdClusterRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<member>"))
@@ -489,6 +505,7 @@ func (c *cmdClusterRemove) Command() *cobra.Command {
 	return cmd
 }
 
+// Prompts the user for confirmation before forcefully removing a server from the cluster.
 func (c *cmdClusterRemove) promptConfirmation(name string) error {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Printf(i18n.G(`Forcefully removing a server from the cluster should only be done as a last
@@ -516,6 +533,7 @@ Are you really sure you want to force removing %s? (yes/no): `), name)
 	return nil
 }
 
+// Executes the cluster member removal operation with optional user confirmation for forceful removal.
 func (c *cmdClusterRemove) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -558,6 +576,7 @@ type cmdClusterEnable struct {
 	cluster *cmdCluster
 }
 
+// Defines the cobra command for enabling clustering on a single non-clustered LXD server.
 func (c *cmdClusterEnable) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("enable", i18n.G("[<remote>:] <name>"))
@@ -577,6 +596,7 @@ func (c *cmdClusterEnable) Command() *cobra.Command {
 	return cmd
 }
 
+// Enabling the clustering on a single non-clustered LXD server.
 func (c *cmdClusterEnable) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
@@ -643,6 +663,7 @@ type cmdClusterEdit struct {
 	cluster *cmdCluster
 }
 
+// Enabling clustering on a single non-clustered LXD server.
 func (c *cmdClusterEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<cluster member>"))
@@ -658,12 +679,14 @@ func (c *cmdClusterEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// Returns a string representation of the YAML help message for editing a cluster member.
 func (c *cmdClusterEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a yaml representation of the cluster member.
 ### Any line starting with a '# will be ignored.`)
 }
 
+// Executes the edit command to modify the configuration of a specified cluster member.
 func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -758,6 +781,7 @@ type cmdClusterAdd struct {
 	flagName string
 }
 
+// Requesting a join token to add a new member to the cluster.
 func (c *cmdClusterAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[[<remote>:]<name>]"))
@@ -770,6 +794,7 @@ func (c *cmdClusterAdd) Command() *cobra.Command {
 	return cmd
 }
 
+// Executution of the cobra command to request a join token for a new cluster member.
 func (c *cmdClusterAdd) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -834,6 +859,7 @@ type cmdClusterListTokens struct {
 	flagFormat string
 }
 
+// Constructs the cobra command to list all active join tokens for cluster members.
 func (c *cmdClusterListTokens) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list-tokens", i18n.G("[<remote>:]"))
@@ -846,6 +872,7 @@ func (c *cmdClusterListTokens) Command() *cobra.Command {
 	return cmd
 }
 
+// Runs the command to list all active join tokens for cluster members and displays them in a table format.
 func (c *cmdClusterListTokens) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
@@ -936,6 +963,7 @@ type cmdClusterRevokeToken struct {
 	cluster *cmdCluster
 }
 
+// Defination of the cobra command for revoking a cluster member join token.
 func (c *cmdClusterRevokeToken) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("revoke-token", i18n.G("[<remote>:]<member>"))
@@ -946,6 +974,7 @@ func (c *cmdClusterRevokeToken) Command() *cobra.Command {
 	return cmd
 }
 
+// Revokes a cluster member join token by deleting the corresponding operation.
 func (c *cmdClusterRevokeToken) Run(cmd *cobra.Command, args []string) error {
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -1014,6 +1043,7 @@ type cmdClusterUpdateCertificate struct {
 	cluster *cmdCluster
 }
 
+// Updating of the cluster certificate using PEM certificate and key files.
 func (c *cmdClusterUpdateCertificate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("update-certificate", i18n.G("[<remote>:] <cert.crt> <cert.key>"))
@@ -1026,6 +1056,7 @@ func (c *cmdClusterUpdateCertificate) Command() *cobra.Command {
 	return cmd
 }
 
+// Update the cluster certificate by reading the PEM certificate and key from input files.
 func (c *cmdClusterUpdateCertificate) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -1118,6 +1149,7 @@ type cmdClusterEvacuate struct {
 	action  *cmdClusterEvacuateAction
 }
 
+// Evacuating a cluster member, allowing for specifying a particular evacuation action.
 func (c *cmdClusterEvacuate) Command() *cobra.Command {
 	cmdAction := cmdClusterEvacuateAction{global: c.global}
 	c.action = &cmdAction
@@ -1140,6 +1172,7 @@ type cmdClusterRestore struct {
 	action  *cmdClusterEvacuateAction
 }
 
+// Restoring a cluster member.
 func (c *cmdClusterRestore) Command() *cobra.Command {
 	cmdAction := cmdClusterEvacuateAction{global: c.global}
 	c.action = &cmdAction
@@ -1152,6 +1185,7 @@ func (c *cmdClusterRestore) Command() *cobra.Command {
 	return cmd
 }
 
+// Returns a Cobra command for a specific cluster evacuation action.
 func (c *cmdClusterEvacuateAction) Command(action string) *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.RunE = c.Run
@@ -1160,6 +1194,7 @@ func (c *cmdClusterEvacuateAction) Command(action string) *cobra.Command {
 	return cmd
 }
 
+// It prompts for user confirmation unless the force flag is set. It updates the cluster member state accordingly and displays progress during the operation.
 func (c *cmdClusterEvacuateAction) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
