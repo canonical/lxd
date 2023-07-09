@@ -1,6 +1,6 @@
 ---
 discourse: 12281,11735
-relatedlinks: https://grafana.com/grafana/dashboards/15726
+relatedlinks: https://grafana.com/grafana/dashboards/19131-lxd/
 ---
 
 (metrics)=
@@ -234,7 +234,7 @@ After editing the configuration, restart Prometheus (for example, `snap restart 
 ## Set up a Grafana dashboard
 
 To visualize the metrics data, set up [Grafana](https://grafana.com/).
-LXD provides a [Grafana dashboard](https://grafana.com/grafana/dashboards/15726-lxd/) that is configured to display the LXD metrics scraped by Prometheus.
+LXD provides a [Grafana dashboard](https://grafana.com/grafana/dashboards/19131-lxd/) that is configured to display the LXD metrics scraped by Prometheus.
 
 ```{note}
 The dashboard requires Grafana 8.4 or later.
@@ -245,7 +245,7 @@ See the Grafana documentation for instructions on installing and signing in:
 - [Install Grafana](https://grafana.com/docs/grafana/latest/setup-grafana/installation/)
 - [Sign in to Grafana](https://grafana.com/docs/grafana/latest/setup-grafana/sign-in-to-grafana/)
 
-Complete the following steps to import the [LXD dashboard](https://grafana.com/grafana/dashboards/15726-lxd/):
+Complete the following steps to import the [LXD dashboard](https://grafana.com/grafana/dashboards/19131-lxd/):
 
 1. Configure Prometheus as the data source:
 
@@ -271,7 +271,7 @@ Complete the following steps to import the [LXD dashboard](https://grafana.com/g
 
       ![Import a dashboard in Grafana](images/grafana_dashboard_import.png)
 
-   1. In the {guilabel}`Import via grafana.com` field, enter the dashboard ID `15726`.
+   1. In the {guilabel}`Import via grafana.com` field, enter the dashboard ID `19131`.
 
       ![Enter the LXD dashboard ID](images/grafana_dashboard_id.png)
 
