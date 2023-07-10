@@ -64,7 +64,7 @@
   "description": "Overview of LXD instances",
   "editable": false,
   "fiscalYearStartMonth": 0,
-  "gnetId": 15726,
+  "gnetId": 19131,
   "graphTooltip": 0,
   "id": null,
   "links": [
@@ -74,7 +74,7 @@
       "targetBlank": true,
       "title": "Documentation",
       "type": "link",
-      "url": "https://linuxcontainers.org/lxd/docs/latest/"
+      "url": "https://documentation.ubuntu.com/lxd/en/latest/"
     }
   ],
   "liveNow": false,

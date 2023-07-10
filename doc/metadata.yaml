@@ -1,5 +1,5 @@
 site_title: LXD
-site_logo_url: https://linuxcontainers.org/static/img/containers.png
+site_logo_url: https://documentation.ubuntu.com/lxd/en/latest/_static/tag.png
 navigation:
     - title: Getting started
       location: index.md
