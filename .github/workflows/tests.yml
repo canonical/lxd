@@ -11,14 +11,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  static-analysis:
-    env:
-      CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
-    name: Static analysis
-    runs-on: ubuntu-latest
+  code-tests:
+    name: Code tests
+    runs-on: ubuntu-22.04
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v3
+        if: github.event_name == 'pull_request'
+
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
           go-version: 1.18.x
 
@@ -27,61 +32,204 @@ jobs:
           sudo add-apt-repository ppa:ubuntu-lxc/lxc-git-master -y --no-update
           sudo add-apt-repository ppa:dqlite/dev -y --no-update
           sudo apt-get update
-          sudo apt-get install -y \
-            acl \
-            attr \
-            autoconf \
-            automake \
-            bind9-dnsutils \
+
+          sudo apt-get install --no-install-recommends -y \
             curl \
-            dnsmasq-base \
-            ebtables \
             gettext \
             git \
-            jq \
             libacl1-dev \
             libcap-dev \
+            libdbus-1-dev \
             libdqlite-dev \
-            liblxc1 \
             liblxc-dev \
-            liblz4-dev \
+            lxc-templates \
             libseccomp-dev \
             libselinux-dev \
             libsqlite3-dev \
             libtool \
             libudev-dev \
-            libuv1-dev \
-            lxc \
             make \
             pkg-config \
-            rsync \
-            socat \
-            sqlite3 \
-            squashfs-tools \
-            tar \
-            tcl \
-            xz-utils
+            shellcheck
+
           python3 -m pip install flake8
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.46.2
-          sudo apt-get remove -y shellcheck
-          curl -L https://github.com/koalaman/shellcheck/releases/download/v0.8.0/shellcheck-v0.8.0.linux.x86_64.tar.xz -o shellcheck.tar.xz
-          tar -xf shellcheck.tar.xz
-          chmod +x shellcheck-v0.8.0/shellcheck
-          sudo mv shellcheck-v0.8.0/shellcheck /bin/shellcheck
-
-      - name: Checkout
-        uses: actions/checkout@v3
 
       - name: Download go dependencies
         run: |
           go mod download
 
+      - name: Run LXD build
+        run: |
+          make
+
       - name: Run static analysis
         run: |
           make static-analysis
 
+      - name: Unit tests (all)
+        run: |
+          sudo go test ./...
+
+  system-tests:
+    env:
+      CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
+      LXD_SHIFTFS_DISABLE: "true"
+      LXD_CEPH_CLUSTER: "ceph"
+      LXD_CEPH_CEPHFS: "cephfs"
+      LXD_VERBOSE: "1"
+      LXD_OFFLINE: "1"
+      LXD_TMPFS: "1"
+    name: System tests
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.18.x"]
+        suite: ["cluster", "standalone"]
+        backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
+        include:
+          - go: stable
+            suite: cluster
+            backend: dir
+          - go: stable
+            suite: standalone
+            backend: dir
+          - go: tip
+            suite: cluster
+            backend: dir
+          - go: tip
+            suite: standalone
+            backend: dir
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Go (stable)
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go }}
+        if: matrix.go != 'tip'
+
+      - name: Install Go (tip)
+        run: |
+          curl -sL https://storage.googleapis.com/go-build-snap/go/linux-amd64/$(git ls-remote https://github.com/golang/go.git HEAD | awk '{print $1;}').tar.gz -o gotip.tar.gz
+          ls -lah gotip.tar.gz
+          mkdir -p ~/sdk/gotip
+          tar -C ~/sdk/gotip -xzf gotip.tar.gz
+          ~/sdk/gotip/bin/go version
+          echo "PATH=$HOME/go/bin:$HOME/sdk/gotip/bin/:$PATH" >> $GITHUB_ENV
+        if: matrix.go == 'tip'
+
+      - name: Install dependencies
+        run: |
+          set -x
+          sudo add-apt-repository ppa:ubuntu-lxc/lxc-git-master -y --no-update
+          sudo add-apt-repository ppa:dqlite/dev -y --no-update
+          sudo apt-get update
+
+          sudo snap remove lxd --purge
+          sudo apt-get autopurge moby-containerd docker uidmap -y
+          sudo ip link delete docker0
+          sudo nft flush ruleset
+
+          sudo apt-get install --no-install-recommends -y \
+            curl \
+            dnsutils \
+            git \
+            libacl1-dev \
+            libcap-dev \
+            libdbus-1-dev \
+            libdqlite-dev \
+            liblxc-dev \
+            libseccomp-dev \
+            libselinux-dev \
+            libsqlite3-dev \
+            libtool \
+            libudev-dev \
+            make \
+            pkg-config\
+            acl \
+            attr \
+            bind9-dnsutils \
+            btrfs-progs \
+            busybox-static \
+            dnsmasq-base \
+            gettext \
+            jq \
+            lvm2 \
+            nftables \
+            quota \
+            rsync \
+            s3cmd \
+            socat \
+            sqlite3 \
+            squashfs-tools \
+            tar \
+            tcl \
+            thin-provisioning-tools \
+            uuid-runtime \
+            xfsprogs \
+            xz-utils \
+            zfsutils-linux
+          mkdir -p "$(go env GOPATH)/bin"
+
+      - name: Download go dependencies
+        run: |
+          go mod download
+
+      - name: Run LXD build
+        run: |
+          make
+
+      - name: Setup MicroCeph
+        if: ${{ matrix.backend == 'ceph' }}
+        run: |
+          set -x
+          sudo apt-get install --no-install-recommends -y snapd ceph-common
+          sudo snap install microceph --edge
+          sleep 5
+          sudo microceph cluster bootstrap
+          sudo microceph.ceph config set global osd_pool_default_size 1
+          sudo microceph.ceph config set global mon_allow_pool_delete true
+          sudo microceph.ceph config set global osd_memory_target 939524096
+          sudo microceph.ceph osd crush rule rm replicated_rule
+          sudo microceph.ceph osd crush rule create-replicated replicated default osd
+          for flag in nosnaptrim noscrub nobackfill norebalance norecover noscrub nodeep-scrub; do
+              sudo microceph.ceph osd set $flag
+          done
+          # Use ephemeral disk mounted on /mnt for ceph OSD.
+          # The block-devices plug doesn't allow accessing /dev/loopX devices so we make those same devices
+          # available under alternate names (/dev/sdiY) that are not used inside GitHub Action runners.
+          sudo swapoff /mnt/swapfile
+          sudo rm -f /mnt/swapfile
+          loop_file="/mnt/ceph-osd.img"
+          sudo fallocate -l 10G "${loop_file}"
+          loop_dev="$(sudo losetup --show --direct-io=on --nooverlap -f "${loop_file}")"
+          devInfo=($(sudo stat -c '%t %T' "${loop_dev}"))
+          sudo mknod -m 0660 /dev/sdia b 0x"${devInfo[0]}" 0x"${devInfo[1]}"
+          sudo microceph disk add --wipe /dev/sdia
+          sudo rm -rf /etc/ceph
+          sudo ln -s /var/snap/microceph/current/conf/ /etc/ceph
+          sudo microceph enable rgw
+          sudo microceph.ceph osd pool create cephfs_meta 32
+          sudo microceph.ceph osd pool create cephfs_data 32
+          sudo microceph.ceph fs new cephfs cephfs_meta cephfs_data
+          sudo microceph.ceph fs ls
+          sleep 30
+          sudo microceph.ceph status
+          sudo rm -f /snap/bin/rbd
+
+      - name: "Run system tests (${{ matrix.go }}, ${{ matrix.suite }}, ${{ matrix.backend }})"
+        run: |
+          chmod +x ~
+          echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
+          cd test
+          sudo --preserve-env=PATH,GOPATH,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,LXD_SHIFTFS_DISABLE LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+
   client:
-    name: Unit tests (client)
+    name: Client tests
     strategy:
       fail-fast: false
       matrix:
@@ -94,91 +242,92 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Install Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: ${{ matrix.go }}
-
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Test client package
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Create build directory
+        run: |
+            mkdir bin
+
+      - name: Build static lxc
+        env:
+          CGO_ENABLED: 0
+        run: |
+          go build -o bin ./lxc
+
+      - name: Build static lxd-migrate
+        if: runner.os == 'Linux'
+        env:
+          CGO_ENABLED: 0
+        run: |
+          go build -o bin ./lxd-migrate
+
+      - name: Unit tests (client)
         env:
           CGO_ENABLED: 0
         run: go test -v ./client/...
 
-      - name: Test lxc package
+      - name: Unit tests (lxc)
         env:
           CGO_ENABLED: 0
         run: go test -v ./lxc/...
 
-      - name: Test shared package
+      - name: Unit tests (shared)
         env:
           CGO_ENABLED: 0
         run: go test -v ./shared/...
 
-  dependencies:
-    name: Vulnerable dependencies
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v3
-
-  woke:
-    name: Inclusive naming (documentation)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: woke
-        uses: get-woke/woke-action@v0
+      - name: Upload lxc client artifacts
+        uses: actions/upload-artifact@v3
+        continue-on-error: true
         with:
-          # Cause the check to fail on any broke rules
-          fail-on-error: true
-          woke-args: "doc/*.md doc/**/*.md -c https://github.com/canonical-web-and-design/Inclusive-naming/raw/main/config.yml"
+          name: ${{ runner.os }}
+          path: bin/
 
-  spellcheck:
-    name: Spellcheck (documentation)
+  documentation:
+    name: Documentation tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Install Aspell
+      - name: Install dependencies
         run: |
           sudo apt-get install aspell aspell-en
+          sudo snap install mdl
 
-      - name: Build docs and run spellchecker
+      - name: Run markdown linter
+        run: |
+          make doc-lint
+
+      - name: Run spell checker
         run: |
           make doc-spellcheck
 
-  linkcheck:
-    name: Check links (documentation)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Run inclusive naming checker
+        uses: get-woke/woke-action@v0
+        with:
+          fail-on-error: true
+          woke-args: "*.md **/*.md -c https://github.com/canonical-web-and-design/Inclusive-naming/raw/main/config.yml"
 
-      - name: Run linkchecker
+      - name: Run link checker
         run: |
           make doc-linkcheck
 
-  markdownlint:
-    name: Markdownlint (documentation)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Build docs (Sphinx)
+        run: make doc
 
-      - name: Install mdl
-        run: |
-          sudo snap install mdl
+      - name: Print warnings (Sphinx)
+        run: if [ -s doc/.sphinx/warnings.txt ]; then cat doc/.sphinx/warnings.txt; exit 1; fi
 
-      - name: Run mdl
-        run: |
-          make doc-lint
+      - name: Upload documentation artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: documentation
+          path: doc/html
