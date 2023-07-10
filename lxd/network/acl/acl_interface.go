@@ -1,9 +1,9 @@
 package acl
 
 import (
-	"github.com/lxc/lxd/lxd/cluster/request"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/lxd/cluster/request"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // NetworkACL represents a Network ACL.

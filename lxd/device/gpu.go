@@ -1,7 +1,7 @@
 package device
 
 import (
-	"github.com/lxc/lxd/shared/validate"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 func gpuValidationRules(requiredFields []string, optionalFields []string) map[string]func(value string) error {

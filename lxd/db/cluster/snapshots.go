@@ -6,8 +6,8 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/shared"
 )
 
 // Code generation directives.

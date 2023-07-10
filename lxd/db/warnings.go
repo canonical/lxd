@@ -9,9 +9,9 @@ import (
 
 	"github.com/pborman/uuid"
 
-	"github.com/lxc/lxd/lxd/db/cluster"
-	"github.com/lxc/lxd/lxd/db/warningtype"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/warningtype"
+	"github.com/canonical/lxd/shared"
 )
 
 var warningCreate = cluster.RegisterStmt(`

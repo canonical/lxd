@@ -375,7 +375,7 @@ migration() {
   lxc_remote storage volume set l1:"$remote_pool1" vol3 user.foo=postsnap1vol3
 
   # check snapshot volumes and snapshots are refreshed
-  # FIXME: Due to a known issue (https://github.com/lxc/lxd/issues/10436) we are currently only diffing the
+  # FIXME: Due to a known issue (https://github.com/canonical/lxd/issues/10436) we are currently only diffing the
   # snapshots by name, so infact existing snapshots of the same name won't be overwritten even if their config or
   # contents is different.
   lxc_remote storage volume copy l1:"$remote_pool1/vol3" l2:"$remote_pool2/vol2" --refresh

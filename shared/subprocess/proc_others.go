@@ -3,7 +3,7 @@
 package subprocess
 
 import (
-	"github.com/lxc/lxd/shared/idmap"
+	"github.com/canonical/lxd/shared/idmap"
 )
 
 // SetUserns allows running inside of a user namespace.

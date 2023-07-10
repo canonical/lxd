@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 
-	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/node"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared"
+	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/node"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/shared"
 )
 
 func daemonConfigRender(state *state.State) (map[string]any, error) {

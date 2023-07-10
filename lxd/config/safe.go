@@ -3,7 +3,7 @@ package config
 import (
 	"fmt"
 
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // SafeLoad is a wrapper around Load() that does not error when invalid keys

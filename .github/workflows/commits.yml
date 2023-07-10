@@ -10,7 +10,7 @@ jobs:
     permissions:
       pull-requests: read  # for tim-actions/get-pr-commits to get list of commits from the PR
     name: Signed-off-by (DCO)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - name: Get PR Commits
       id: 'get-pr-commits'
@@ -27,14 +27,14 @@ jobs:
     permissions:
       contents: none
     name: Branch target
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - name: Check branch target
       env:
         TARGET: ${{ github.event.pull_request.base.ref }}
       run: |
         set -x
-        [ "${TARGET}" = "master" ] && exit 0
+        [ "${TARGET}" = "main" ] && exit 0
 
         echo "Invalid branch target: ${TARGET}"
         exit 1

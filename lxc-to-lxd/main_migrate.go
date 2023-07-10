@@ -11,12 +11,12 @@ import (
 	liblxc "github.com/lxc/go-lxc"
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxc/utils"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/i18n"
-	"github.com/lxc/lxd/shared/osarch"
+	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxc/utils"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/i18n"
+	"github.com/canonical/lxd/shared/osarch"
 )
 
 type cmdMigrate struct {

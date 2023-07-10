@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared"
 )
 
 // DoesSchemaTableExist return whether the schema table is present in the

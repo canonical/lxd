@@ -11,10 +11,10 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
 
-	"github.com/lxc/lxd/lxd/migration"
-	"github.com/lxc/lxd/lxd/rsync"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/linux"
+	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/lxd/rsync"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/linux"
 )
 
 // Send an rsync stream of a path over a websocket.

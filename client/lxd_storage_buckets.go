@@ -1,7 +1,7 @@
 package lxd
 
 import (
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // GetStoragePoolBucketNames returns a list of storage bucket names.

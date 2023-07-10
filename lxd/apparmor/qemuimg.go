@@ -10,9 +10,9 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/lxc/lxd/lxd/sys"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/subprocess"
+	"github.com/canonical/lxd/lxd/sys"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/subprocess"
 )
 
 var qemuImgProfileTpl = template.Must(template.New("qemuImgProfile").Parse(`#include <tunables/global>

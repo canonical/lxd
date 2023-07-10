@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/client"
+	"github.com/canonical/lxd/client"
 )
 
 type cmdShutdown struct {

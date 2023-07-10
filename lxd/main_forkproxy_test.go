@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/network"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/network"
 )
 
 func TestParseAddr(t *testing.T) {
