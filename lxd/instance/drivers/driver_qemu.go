@@ -7460,11 +7460,14 @@ func (d *qemu) freeVsockID(vsockID uint32) bool {
 			return false
 		}
 
-		if unixErrno == unix.ENODEV {
-			// The syscall to the vsock device returned "no such device".
-			// This means the address (Context ID) is free.
-			return true
+		if unixErrno != unix.ENODEV {
+			// Skip the vsockID if another syscall error was encountered.
+			return false
 		}
+
+		// The syscall to the vsock device returned "no such device".
+		// This means the address (Context ID) is free.
+		return true
 	}
 
 	// Address is already in use.
