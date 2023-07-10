@@ -146,10 +146,10 @@ For external links, use only the URL, or Markdown syntax if you want to override
 
 * - Input
   - Output
-* - `https://linuxcontainers.org`
-  - [{spellexception}`https://linuxcontainers.org`](https://linuxcontainers.org)
-* - `[Linux Containers](https://linuxcontainers.org)`
-  - [Linux Containers](https://linuxcontainers.org)
+* - `https://ubuntu.com/lxd`
+  - [{spellexception}`https://ubuntu.com/lxd`](https://ubuntu.com/lxd)
+* - `[LXD](https://ubuntu.com/lxd)`
+  - [LXD](https://ubuntu.com/lxd)
 ```
 
 To display a URL as text and prevent it from being linked, add a `<span></span>`:
@@ -159,8 +159,8 @@ To display a URL as text and prevent it from being linked, add a `<span></span>`
 
 * - Input
   - Output
-* - `https:/<span></span>/linuxcontainers.org`
-  - {spellexception}`https:/<span></span>/linuxcontainers.org`
+* - `https:/<span></span>/ubuntu.com/lxd`
+  - {spellexception}`https:/<span></span>/ubuntu.com/lxd`
 
 ```
 
@@ -460,18 +460,18 @@ Adhere to the following conventions:
 * - Input
   - Output
 * - ```
-    ![Alt text](https://linuxcontainers.org/static/img/containers.png)
+    ![Alt text](https://documentation.ubuntu.com/lxd/en/latest/_static/tag.png)
     ```
-  - ![Alt text](https://linuxcontainers.org/static/img/containers.png)
+  - ![Alt text](https://documentation.ubuntu.com/lxd/en/latest/_static/tag.png)
 * - ````
-    ```{figure} https://linuxcontainers.org/static/img/containers.png
+    ```{figure} https://documentation.ubuntu.com/lxd/en/latest/_static/tag.png
        :width: 100px
        :alt: Alt text
 
        Figure caption
     ```
     ````
-  - ```{figure} https://linuxcontainers.org/static/img/containers.png
+  - ```{figure} https://documentation.ubuntu.com/lxd/en/latest/_static/tag.png
        :width: 100px
        :alt: Alt text
 
@@ -545,7 +545,7 @@ By combining file inclusion and substitutions, you can even replace parts of the
     % Include parts of the content from file [../README.md](../README.md)
     ```{include} ../README.md
        :start-after: Installing LXD from packages
-       :end-before: <!-- Include end installing -->
+       :end-before: For more instructions on installing LXD
     ```
 
     ````
@@ -554,7 +554,7 @@ By combining file inclusion and substitutions, you can even replace parts of the
     % Include parts of the content from file [../README.md](../README.md)
     ```{include} ../README.md
        :start-after: Installing LXD from packages
-       :end-before: <!-- Include end installing -->
+       :end-before: For more instructions on installing LXD
     ```
 
 `````

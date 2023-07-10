@@ -1,14 +1,14 @@
 # LXD documentation
 
-The LXD documentation is available at: <https://linuxcontainers.org/lxd/docs/stable-5.0/>
+The LXD documentation is available at: <https://documentation.ubuntu.com/lxd/en/stable-5.0/>
 
-GitHub provides a basic rendering of the documentation as well, but important features like includes and clickable links are missing. Therefore, we recommend reading the [published documentation](https://linuxcontainers.org/lxd/docs/stable-5.0/).
+GitHub provides a basic rendering of the documentation as well, but important features like includes and clickable links are missing. Therefore, we recommend reading the [published documentation](https://documentation.ubuntu.com/lxd/en/stable-5.0/).
 
 ## Documentation format
 
 The documentation is written in [Markdown](https://commonmark.org/) with [MyST](https://myst-parser.readthedocs.io/) extensions.
 
-For syntax help and guidelines, see the [documentation cheat sheet](https://linuxcontainers.org/lxd/docs/stable-5.0/doc-cheat-sheet/) ([source](doc-cheat-sheet.md?plain=1)).
+For syntax help and guidelines, see the [documentation cheat sheet](https://documentation.ubuntu.com/lxd/en/stable-5.0/doc-cheat-sheet/) ([source](doc-cheat-sheet.md?plain=1)).
 
 ## Building the documentation
 
