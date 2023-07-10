@@ -62,6 +62,10 @@ func (c *cmdClusterGroup) Command() *cobra.Command {
 	clusterGroupShowCmd := cmdClusterGroupShow{global: c.global, cluster: c.cluster}
 	cmd.AddCommand(clusterGroupShowCmd.Command())
 
+	// Add
+	clusterGroupAddCmd := cmdClusterGroupAdd{global: c.global, cluster: c.cluster}
+	cmd.AddCommand(clusterGroupAddCmd.Command())
+
 	return cmd
 }
 
@@ -610,6 +614,67 @@ func (c *cmdClusterGroupShow) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("%s", data)
+
+	return nil
+}
+
+// Add.
+type cmdClusterGroupAdd struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+}
+
+func (c *cmdClusterGroupAdd) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("add", i18n.G("[<remote>:]<member> <group>"))
+	cmd.Short = i18n.G("Add member to group")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Add a cluster member to a cluster group`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdClusterGroupAdd) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing cluster member name"))
+	}
+
+	// Retrieve cluster member information.
+	member, etag, err := resource.server.GetClusterMember(resource.name)
+	if err != nil {
+		return err
+	}
+
+	if shared.StringInSlice(args[1], member.Groups) {
+		return fmt.Errorf(i18n.G("Cluster member %s is already in group %s"), resource.name, args[1])
+	}
+
+	member.Groups = append(member.Groups, args[1])
+
+	err = resource.server.UpdateClusterMember(resource.name, member.Writable(), etag)
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Cluster member %s added to group %s")+"\n", resource.name, args[1])
+	}
 
 	return nil
 }
