@@ -117,7 +117,7 @@ navigation:
     - title: External resources
       children:
         - title: Project repository
-          location: https://github.com/lxc/lxd
+          location: https://github.com/canonical/lxd
           external: true
 
         - title: Image server

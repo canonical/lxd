@@ -25,18 +25,9 @@ but we simply do not consider such containers to be root safe.
 Unprivileged container escapes are certainly something we'd consider a
 security issue, especially if somehow facilitated by LXD.
 
-More details can be found here: https://linuxcontainers.org/lxc/security/
+## Ubuntu Security disclosure and embargo policy
 
-## Reporting a vulnerability
-The easiest way to report a security issue is by e-mail to:
- security@linuxcontainers.org
-
-This e-mail address will reach the three main maintainers for LXC/LXD/LXCFS:
- - Christian Brauner
- - Stéphane Graber
- - Serge Hallyn
-
-We will be working with you to determine whether the issue qualifies as a
-security issue, if so in what component and then handle figuring out a
-fix, getting a CVE assigned and coordinating the release of the fix to
-the various Linux distributions.
+See the [Ubuntu Security disclosure and embargo
+policy](https://ubuntu.com/security/disclosure-policy) for information
+about how to contact the Ubuntu Security Team, what you can expect when
+you contact us, and what we expect from you.
