@@ -769,6 +769,39 @@ test_projects_limits() {
   lxc project switch default
   lxc project delete p1
 
+  # Start with clean project.
+  lxc project create p1
+  lxc project switch p1
+
+  # Relaxing restricted.containers.lowlevel to 'allow' makes it possible set
+  # low-level keys.
+  lxc project set p1 restricted.containers.lowlevel allow
+
+  # Add a root device to the default profile of the project and import an image.
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+  lxc profile device add default root disk path="/" pool="${pool}"
+
+  deps/import-busybox --project p1 --alias testimage
+
+  # Create a couple of containers in the project.
+  lxc init testimage c1 -c limits.memory=1GiB
+  lxc init testimage c2 -c limits.memory=1GiB
+
+  lxc export c1
+  lxc delete c1
+
+  # Configure a valid project memory limit.
+  lxc project set p1 limits.memory 1GiB
+
+  # Can't import the backup as it would exceed the 1GiB project memory limit.
+  ! lxc import c1.tar.gz || false
+
+  rm c1.tar.gz
+  lxc delete c2
+  lxc image delete testimage
+  lxc project switch default
+  lxc project delete p1
+
   if [ "${LXD_BACKEND}" = "dir" ] || [ "${LXD_BACKEND}" = "zfs" ]; then
     lxc remote remove l2
     kill_lxd "$LXD_REMOTE_DIR"
