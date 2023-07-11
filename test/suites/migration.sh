@@ -461,7 +461,7 @@ migration() {
   lxc_remote copy l2:c1 l1:
   lxc_remote start l1:c1
   lxc_remote delete l1:c1 -f
-  lxc_remote delete l2:c1
+  lxc_remote delete l2:c1 -f
 
   lxc_remote project switch l1:default
   lxc_remote project delete l1:proj
