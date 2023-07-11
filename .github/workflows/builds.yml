@@ -16,11 +16,9 @@ jobs:
         env:
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
           LAUNCHPAD_LXD_BOT_KEY: ${{ secrets.LAUNCHPAD_LXD_BOT_KEY }}
-          LXD_REPO: ${{ github.action_repository }}
-          LXD_ACTION: ${{ github.event_name }}
         run: |
-          echo ${LXD_REPO}
-          echo ${LXD_ACTION}
+          echo ${GITHUB_REF_NAME}
+          echo ${GITHUB_REPOSITORY}
           ssh-agent -a "${SSH_AUTH_SOCK}" > /dev/null
           ssh-add - <<< "${{ secrets.LAUNCHPAD_LXD_BOT_KEY }}"
           mkdir -m 0700 -p ~/.ssh/
