@@ -294,6 +294,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_snap_volume_db_recovery "snapshot volume database record recovery"
     run_test test_config_profiles "profiles and configuration"
     run_test test_config_edit "container configuration edit"
+    run_test test_property "container property"
     run_test test_config_edit_container_snapshot_pool_config "container and snapshot volume configuration edit"
     run_test test_container_metadata "manage container metadata and templates"
     run_test test_container_snapshot_config "container snapshot configuration"
