@@ -1,10 +1,5 @@
 name: Builds
-on:
-  workflow_run:
-    workflows: [Tests]
-    types: [completed]
-    branches:
-      - main
+on: workflow_dispatch
 
 permissions:
   contents: read
@@ -13,7 +8,6 @@ jobs:
   snap:
     name: Trigger snap build
     runs-on: ubuntu-22.04
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -22,7 +16,11 @@ jobs:
         env:
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
           LAUNCHPAD_LXD_BOT_KEY: ${{ secrets.LAUNCHPAD_LXD_BOT_KEY }}
+          LXD_REPO: github.action_repository
+          LXD_ACTION: github.event_name
         run: |
+          echo ${LXD_REPO}
+          echo ${LXD_ACTION}
           ssh-agent -a "${SSH_AUTH_SOCK}" > /dev/null
           ssh-add - <<< "${{ secrets.LAUNCHPAD_LXD_BOT_KEY }}"
           mkdir -m 0700 -p ~/.ssh/
