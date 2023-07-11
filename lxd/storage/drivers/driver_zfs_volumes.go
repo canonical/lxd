@@ -1842,16 +1842,19 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 			continue // Ignore unrecognised volume.
 		}
 
-		// Detect if a volume is block content type using both the defined suffix and the dataset type.
-		isBlock := strings.HasSuffix(volName, zfsBlockVolSuffix) && zfsContentType == "volume"
+		// Detect if a volume is block content type using only the dataset type.
+		isBlock := zfsContentType == "volume"
 
 		if volType == VolumeTypeVM && !isBlock {
 			continue // Ignore VM filesystem volumes as we will just return the VM's block volume.
 		}
 
 		contentType := ContentTypeFS
-		if volType == VolumeTypeVM || isBlock {
+		if isBlock {
 			contentType = ContentTypeBlock
+		}
+
+		if volType == VolumeTypeVM || isBlock {
 			volName = strings.TrimSuffix(volName, zfsBlockVolSuffix)
 		}
 
@@ -1863,7 +1866,7 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 		if !foundExisting || (existingVol.Type() == VolumeTypeImage && existingVol.ContentType() == ContentTypeFS) {
 			v := NewVolume(d, d.name, volType, contentType, volName, make(map[string]string), d.config)
 
-			if zfsContentType == "volume" {
+			if isBlock {
 				v.SetMountFilesystemProbe(true)
 			}
 
