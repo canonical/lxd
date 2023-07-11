@@ -112,7 +112,7 @@ See the following how-to guides for additional information:
 
 Storage volumes can be of the following types:
 
-`container`/`vm`
+`container`/`virtual-machine`
 : LXD automatically creates one of these storage volumes when you launch an instance.
   It is used as the root disk for the instance, and it is destroyed when the instance is deleted.
 
