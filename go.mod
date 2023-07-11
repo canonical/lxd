@@ -10,7 +10,7 @@ require (
 	github.com/checkpoint-restore/go-criu/v6 v6.3.0
 	github.com/digitalocean/go-qemu v0.0.0-20221209210016-f035778c97f7
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
-	github.com/dustinkirkland/golang-petname v0.0.0-20191129215211-8e5a1ed0cff0
+	github.com/dustinkirkland/golang-petname v0.0.0-20230626224747-e794b9370d49
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3
 	github.com/fvbommel/sortorder v1.1.0
 	github.com/go-acme/lego/v4 v4.12.3
@@ -19,7 +19,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/gosexy/gettext v0.0.0-20160830220431-74466a0a0c4a
-	github.com/grafana/dskit v0.0.0-20230620150242-3dc2113b720d
+	github.com/grafana/dskit v0.0.0-20230706162620-5081d8ed53e6
 	github.com/j-keck/arping v1.0.3
 	github.com/jaypipes/pcidb v1.0.0
 	github.com/jochenvg/go-udev v0.0.0-20171110120927-d6b62d56d37b
@@ -34,9 +34,9 @@ require (
 	github.com/mdlayher/vsock v1.2.1
 	github.com/miekg/dns v1.1.55
 	github.com/minio/madmin-go v1.7.5
-	github.com/minio/minio-go/v7 v7.0.57
+	github.com/minio/minio-go/v7 v7.0.59
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/osrg/gobgp/v3 v3.15.0
+	github.com/osrg/gobgp/v3 v3.16.0
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/sftp v1.13.5
 	github.com/pkg/xattr v0.4.9
@@ -46,20 +46,20 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	github.com/vishvananda/netlink v1.2.1-beta.2
-	github.com/zitadel/oidc/v2 v2.6.3
+	github.com/zitadel/oidc/v2 v2.6.4
 	go.starlark.net v0.0.0-20230612165344-9532f5667272
-	golang.org/x/crypto v0.10.0
-	golang.org/x/oauth2 v0.9.0
+	golang.org/x/crypto v0.11.0
+	golang.org/x/oauth2 v0.10.0
 	golang.org/x/sync v0.3.0
-	golang.org/x/sys v0.9.0
-	golang.org/x/term v0.9.0
-	golang.org/x/text v0.10.0
-	google.golang.org/protobuf v1.30.0
+	golang.org/x/sys v0.10.0
+	golang.org/x/term v0.10.0
+	golang.org/x/text v0.11.0
+	google.golang.org/protobuf v1.31.0
 	gopkg.in/juju/environschema.v1 v1.0.1
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/utils v0.0.0-20230505201702-9f6742963106
+	k8s.io/utils v0.0.0-20230711102312-30195339c3c7
 )
 
 require (
@@ -95,7 +95,7 @@ require (
 	github.com/juju/webbrowser v1.0.0 // indirect
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/k-sone/critbitgo v1.4.0 // indirect
-	github.com/klauspost/compress v1.16.6 // indirect
+	github.com/klauspost/compress v1.16.7 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20230326075908-cb1d2100619a // indirect
@@ -122,7 +122,7 @@ require (
 	github.com/rs/xid v1.5.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/secure-io/sio-go v0.3.1 // indirect
-	github.com/shirou/gopsutil/v3 v3.23.5 // indirect
+	github.com/shirou/gopsutil/v3 v3.23.6 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
@@ -135,13 +135,13 @@ require (
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/vishvananda/netns v0.0.4 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
-	golang.org/x/mod v0.11.0 // indirect
-	golang.org/x/net v0.11.0 // indirect
-	golang.org/x/tools v0.10.0 // indirect
+	golang.org/x/mod v0.12.0 // indirect
+	golang.org/x/net v0.12.0 // indirect
+	golang.org/x/tools v0.11.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20230525234020-1aefcd67740a // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230530153820-e85fd2cbaebc // indirect
-	google.golang.org/grpc v1.56.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20230710151506-e685fd7b542b // indirect
+	google.golang.org/grpc v1.56.2 // indirect
 	gopkg.in/errgo.v1 v1.0.1 // indirect
 	gopkg.in/httprequest.v1 v1.2.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
