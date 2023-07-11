@@ -24,8 +24,7 @@ After building your dependencies, you can now add your GitHub fork as a remote:
 
 Then switch to it:
 
-<!-- wokeignore:rule=master -->
-    git checkout myfork/master
+    git checkout myfork/main
 
 ### Building LXD
 

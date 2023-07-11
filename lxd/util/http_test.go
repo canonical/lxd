@@ -7,17 +7,17 @@ import (
 func ExampleListenAddresses() {
 	listenAddressConfigs := []string{
 		"",
-		"127.0.0.1:8000",           // Valid IPv4 address with port.
-		"127.0.0.1",                // Valid IPv4 address without port.
-		"[127.0.0.1]",              // Valid wrapped IPv4 address without port.
-		"[::1]:8000",               // Valid IPv6 address with port.
-		"::1:8000",                 // Valid IPv6 address without port (that might look like a port).
-		"::1",                      // Valid IPv6 address without port.
-		"[::1]",                    // Valid wrapped IPv6 address without port.
-		"linuxcontainers.org",      // Valid hostname without port.
-		"linuxcontainers.org:8000", // Valid hostname with port.
-		"foo:8000:9000",            // Invalid host and port combination.
-		":::8000",                  // Invalid host and port combination.
+		"127.0.0.1:8000",   // Valid IPv4 address with port.
+		"127.0.0.1",        // Valid IPv4 address without port.
+		"[127.0.0.1]",      // Valid wrapped IPv4 address without port.
+		"[::1]:8000",       // Valid IPv6 address with port.
+		"::1:8000",         // Valid IPv6 address without port (that might look like a port).
+		"::1",              // Valid IPv6 address without port.
+		"[::1]",            // Valid wrapped IPv6 address without port.
+		"example.com",      // Valid hostname without port.
+		"example.com:8000", // Valid hostname with port.
+		"foo:8000:9000",    // Invalid host and port combination.
+		":::8000",          // Invalid host and port combination.
 	}
 
 	for _, listlistenAddressConfig := range listenAddressConfigs {
@@ -33,8 +33,8 @@ func ExampleListenAddresses() {
 	// "::1:8000": [[::1:8000]:8443] <nil>
 	// "::1": [[::1]:8443] <nil>
 	// "[::1]": [[::1]:8443] <nil>
-	// "linuxcontainers.org": [linuxcontainers.org:8443] <nil>
-	// "linuxcontainers.org:8000": [linuxcontainers.org:8000] <nil>
+	// "example.com": [example.com:8443] <nil>
+	// "example.com:8000": [example.com:8000] <nil>
 	// "foo:8000:9000": [] address foo:8000:9000: too many colons in address
 	// ":::8000": [] address :::8000: too many colons in address
 }

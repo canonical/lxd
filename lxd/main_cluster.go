@@ -425,7 +425,7 @@ database, so you can possibly inspect it for further recovery.
 You'll be able to permanently delete from the database all information about
 former cluster members by running "lxc cluster remove <member-name> --force".
 
-See https://linuxcontainers.org/lxd/docs/master/clustering#recover-from-quorum-loss for more
+See https://documentation.ubuntu.com/lxd/en/latest/howto/cluster_recover/#recover-from-quorum-loss for more
 info.
 
 Do you want to proceed? (yes/no): `)
