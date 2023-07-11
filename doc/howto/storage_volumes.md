@@ -120,19 +120,21 @@ See the {ref}`storage-drivers` documentation for the available configuration opt
 
 Use the following command to set configuration options for a storage volume:
 
-    lxc storage volume set <pool_name> <volume_name> <key> <value>
+    lxc storage volume set <pool_name> [<volume_type>/]<volume_name> <key> <value>
 
-For example, to set the snapshot expiry time to one month, use the following command:
+The default {ref}`storage volume type <storage-volume-types>` is `custom`, so you can leave out the `<volume_type>/` when configuring a custom storage volume.
 
-    lxc storage volume set my-pool my-volume snapshots.expiry 1M
+For example, to set the size of your custom storage volume `my-volume` to 1 GiB, use the following command:
 
-To configure an instance storage volume, specify the volume name including the {ref}`storage volume type <storage-volume-types>`, for example:
+    lxc storage volume set my-pool my-volume size=1GiB
 
-    lxc storage volume set my-pool container/my-container-volume user.XXX value
+To set the snapshot expiry time for your virtual machine `my-vm` to one month, use the following command:
+
+    lxc storage volume set my-pool virtual-machine/my-vm snapshots.expiry 1M
 
 You can also edit the storage volume configuration by using the following command:
 
-    lxc storage volume edit <pool_name> <volume_name>
+    lxc storage volume edit <pool_name> [<volume_type>/]<volume_name>
 
 (storage-configure-vol-default)=
 ### Configure default values for storage volumes
@@ -141,7 +143,7 @@ You can define default volume configurations for a storage pool.
 To do so, set a storage pool configuration with a `volume` prefix, thus `volume.<VOLUME_CONFIGURATION>=<VALUE>`.
 
 This value is then used for all new storage volumes in the pool, unless it is set explicitly for a volume or an instance.
-In general, the defaults set on a storage pool level (before the volume was created) can be overridden through the volume configuration, and the volume configuration can be overridden through the instance configuration (for storage volumes of {ref}`type <storage-volume-types>` `container` or `vm`).
+In general, the defaults set on a storage pool level (before the volume was created) can be overridden through the volume configuration, and the volume configuration can be overridden through the instance configuration (for storage volumes of {ref}`type <storage-volume-types>` `container` or `virtual-machine`).
 
 For example, to set a default volume size for a storage pool, use the following command:
 
@@ -164,13 +166,15 @@ Custom storage volumes might use the same name as instance volumes (for example,
 Therefore, to distinguish between instance storage volumes and custom storage volumes, all instance storage volumes must be referred to as `<volume_type>/<volume_name>` (for example, `container/c1` or `virtual-machine/vm`) in commands.
 ```
 
-To show detailed information about a specific custom volume, use the following command:
+To show detailed configuration information about a specific volume, use the following command:
 
-    lxc storage volume show <pool_name> <volume_name>
+    lxc storage volume show <pool_name> [<volume_type>/]<volume_name>
 
-To show detailed information about a specific instance volume, use the following command:
+To show state information about a specific volume, use the following command:
 
-    lxc storage volume show <pool_name> <volume_type>/<volume_name>
+    lxc storage volume info <pool_name> [<volume_type>/]<volume_name>
+
+In both commands, the default {ref}`storage volume type <storage-volume-types>` is `custom`, so you can leave out the `<volume_type>/` when displaying information about a custom storage volume.
 
 ## Resize a storage volume
 
