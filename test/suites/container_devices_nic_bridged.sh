@@ -616,6 +616,18 @@ test_container_devices_nic_bridged() {
   grep -F "192.0.2.232" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0"
   lxc delete -f foo
 
+  # Test container without extra network configuration can be restored from backup.
+  lxc init testimage foo -p "${ctName}"
+  lxc export foo foo.tar.gz
+  lxc import foo.tar.gz foo2
+  rm foo.tar.gz
+  lxc profile assign foo2 "${ctName}"
+
+  # Test container start will fail due to volatile MAC conflict.
+  lxc config get foo volatile.eth0.hwaddr | grep -Fx "$(lxc config get foo2 volatile.eth0.hwaddr)"
+  ! lxc start foo2 || false
+  lxc delete -f foo foo2
+
   # Check we haven't left any NICS lying around.
   endNicCount=$(find /sys/class/net | wc -l)
   if [ "$startNicCount" != "$endNicCount" ]; then
