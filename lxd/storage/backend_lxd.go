@@ -1,12 +1,15 @@
 package storage
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -3731,7 +3734,7 @@ func (b *lxdBackend) ImportBucket(projectName string, poolVol *backupConfig.Conf
 	revert.Add(func() { _ = BucketDBDelete(b.state.ShutdownCtx, b, bucketID) })
 
 	// Get the bucket name on storage.
-	storageBucketName := project.StorageVolume(projectName, poolVol.Bucket.Name)
+	storageBucketName := project.StorageVolume(projectName, bucket.Name)
 	storageBucket := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, storageBucketName, bucketConfig)
 
 	err = b.driver.ValidateVolume(storageBucket, false)
@@ -3739,9 +3742,126 @@ func (b *lxdBackend) ImportBucket(projectName string, poolVol *backupConfig.Conf
 		return nil, err
 	}
 
+	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
+
+	if memberSpecific {
+		// Handle common MinIO implementation for local storage drivers.
+
+		// Extract existing bucket keys from MinIO.
+		keys, err := b.recoverMinIOKeys(projectName, bucket.Name, op)
+		if err != nil {
+			return nil, err
+		}
+
+		// Insert keys into the database.
+		for _, key := range keys {
+			keyID, err := b.state.DB.Cluster.CreateStoragePoolBucketKey(b.state.ShutdownCtx, bucketID, key)
+			if err != nil {
+				return nil, err
+			}
+
+			revert.Add(func() { _ = b.state.DB.Cluster.DeleteStoragePoolBucketKey(b.state.ShutdownCtx, bucketID, keyID) })
+		}
+	} else {
+		return nil, fmt.Errorf("Importing buckets from a remote storage is not supported")
+	}
+
 	cleanup := revert.Clone().Fail
 	revert.Success()
 	return cleanup, nil
+}
+
+// recoverMinIOKeys retrieves existing bucket keys from MinIO for each service account associated with the given bucket.
+func (b *lxdBackend) recoverMinIOKeys(projectName string, bucketName string, op *operations.Operation) ([]api.StorageBucketKeysPost, error) {
+	// Start minio process.
+	minioProc, err := b.ActivateBucket(projectName, bucketName, op)
+	if err != nil {
+		return nil, err
+	}
+
+	// Initialize minio client object.
+	adminClient, err := minioProc.AdminClient()
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, ctxCancel := context.WithTimeout(b.state.ShutdownCtx, time.Duration(time.Second*30))
+	defer ctxCancel()
+
+	// Export IAM data (response is ZIP file).
+	iamReader, err := adminClient.ExportIAM(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	defer iamReader.Close()
+
+	iamBytes, err := ioutil.ReadAll(iamReader)
+	if err != nil {
+		return nil, err
+	}
+
+	iamZipReader, err := zip.NewReader(bytes.NewReader(iamBytes), int64(len(iamBytes)))
+	if err != nil {
+		return nil, err
+	}
+
+	// We are interesed only in a json file that contains service accounts.
+	// Find that file and extract service accounts.
+	svcAccounts := map[string]madmin.Credentials{}
+	for _, file := range iamZipReader.File {
+		if file.Name != "iam-assets/svcaccts.json" {
+			continue
+		}
+
+		f, err := file.Open()
+		if err != nil {
+			return nil, err
+		}
+
+		defer f.Close()
+
+		fContent, err := ioutil.ReadAll(f)
+		if err != nil {
+			return nil, err
+		}
+
+		err = json.Unmarshal(fContent, &svcAccounts)
+		if err != nil {
+			return nil, err
+		}
+
+		break
+	}
+
+	var recoveredKeys []api.StorageBucketKeysPost
+
+	// Extract bucket keys for each service account.
+	for _, creds := range svcAccounts {
+		svcAccountInfo, err := adminClient.InfoServiceAccount(ctx, creds.AccessKey)
+		if err != nil {
+			return nil, err
+		}
+
+		bucketRole, err := s3.BucketPolicyRole(bucketName, svcAccountInfo.Policy)
+		if err != nil {
+			return nil, err
+		}
+
+		key := api.StorageBucketKeysPost{
+			Name: creds.AccessKey,
+			StorageBucketKeyPut: api.StorageBucketKeyPut{
+				Description: "Recovered bucket key",
+				Role:        bucketRole,
+				AccessKey:   creds.AccessKey,
+				SecretKey:   creds.SecretKey,
+			},
+		}
+
+		recoveredKeys = append(recoveredKeys, key)
+	}
+
+	return recoveredKeys, nil
 }
 
 // CreateBucketKey creates an object bucket key.
