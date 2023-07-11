@@ -78,7 +78,9 @@ func (c *migrationFields) recv(m proto.Message) error {
 
 func (c *migrationFields) disconnect() {
 	c.controlLock.Lock()
-	conn, _ := c.conns[api.SecretNameControl].WebSocket(context.TODO())
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Second)
+	defer cancel()
+	conn, _ := c.conns[api.SecretNameControl].WebSocket(ctx)
 	if conn != nil {
 		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 		_ = conn.SetWriteDeadline(time.Now().Add(time.Second * 30))
