@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"sort"
 	"strings"
@@ -238,6 +239,7 @@ type cmdProfileCopy struct {
 	profile *cmdProfile
 
 	flagTargetProject string
+	flagRefresh       bool
 }
 
 func (c *cmdProfileCopy) Command() *cobra.Command {
@@ -248,6 +250,7 @@ func (c *cmdProfileCopy) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Copy profiles`))
 	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
+	cmd.Flags().BoolVar(&c.flagRefresh, "refresh", false, i18n.G("Update the target profile from the source if it already exists"))
 
 	cmd.RunE = c.Run
 
@@ -284,13 +287,21 @@ func (c *cmdProfileCopy) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if c.flagTargetProject != "" {
+		dest.server = dest.server.UseProject(c.flagTargetProject)
+	}
+
+	// Refresh the profile if requested.
+	if c.flagRefresh {
+		err := dest.server.UpdateProfile(dest.name, profile.Writable(), "")
+		if err == nil || !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return err
+		}
+	}
+
 	newProfile := api.ProfilesPost{
 		ProfilePut: profile.Writable(),
 		Name:       dest.name,
-	}
-
-	if c.flagTargetProject != "" {
-		dest.server = dest.server.UseProject(c.flagTargetProject)
 	}
 
 	return dest.server.CreateProfile(newProfile)
