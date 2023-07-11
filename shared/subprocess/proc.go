@@ -173,16 +173,20 @@ func (p *Process) start(ctx context.Context, fds []*os.File) error {
 	go func() {
 		defer close(p.chExit)
 
-		procstate, err := cmd.Process.Wait()
-		if err != nil {
+		err := cmd.Wait()
+
+		if cmd.ProcessState != nil {
+			p.exitCode = int64(cmd.ProcessState.ExitCode())
+		} else {
 			p.exitCode = -1
+		}
+
+		if err != nil {
 			p.exitErr = err
 
 			return
 		}
 
-		exitcode := int64(procstate.ExitCode())
-		p.exitCode = exitcode
 		if p.exitCode != 0 {
 			p.exitErr = fmt.Errorf("Process exited with non-zero value %d", p.exitCode)
 		}
