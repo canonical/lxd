@@ -16,8 +16,8 @@ jobs:
         env:
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
           LAUNCHPAD_LXD_BOT_KEY: ${{ secrets.LAUNCHPAD_LXD_BOT_KEY }}
-          LXD_REPO: github.action_repository
-          LXD_ACTION: github.event_name
+          LXD_REPO: ${{ github.action_repository }}
+          LXD_ACTION: ${{ github.event_name }}
         run: |
           echo ${LXD_REPO}
           echo ${LXD_ACTION}
