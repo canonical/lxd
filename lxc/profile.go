@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"sort"
 	"strings"
@@ -238,6 +239,7 @@ type cmdProfileCopy struct {
 	profile *cmdProfile
 
 	flagTargetProject string
+	flagRefresh       bool
 }
 
 func (c *cmdProfileCopy) Command() *cobra.Command {
@@ -248,6 +250,7 @@ func (c *cmdProfileCopy) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Copy profiles`))
 	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
+	cmd.Flags().BoolVar(&c.flagRefresh, "refresh", false, i18n.G("Update the target project from the source if it already exist"))
 
 	cmd.RunE = c.Run
 
@@ -256,7 +259,7 @@ func (c *cmdProfileCopy) Command() *cobra.Command {
 
 func (c *cmdProfileCopy) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
 	if exit {
 		return err
 	}
@@ -278,14 +281,28 @@ func (c *cmdProfileCopy) Run(cmd *cobra.Command, args []string) error {
 		dest.name = source.name
 	}
 
-	// Copy the profile
-	profile, _, err := source.server.GetProfile(source.name)
+	sourceProfile, _, err := source.server.GetProfile(source.name)
 	if err != nil {
 		return err
 	}
 
+	// update if refresh flag is set and the destination profile exist
+	if c.flagRefresh {
+		_, _, err := dest.server.GetProfile(dest.name)
+		if err != nil {
+			// GetProfile returns a wrapped http.StatusNotFound if the profile does not exist
+			// If the error is not of this type, it's means something else happened
+			if err.(api.StatusError).Status() != http.StatusNotFound {
+				return err
+			}
+		} else {
+			return dest.server.UpdateProfile(dest.name, sourceProfile.ProfilePut, "")
+		}
+	}
+
+	// Copy the profile
 	newProfile := api.ProfilesPost{
-		ProfilePut: profile.Writable(),
+		ProfilePut: sourceProfile.Writable(),
 		Name:       dest.name,
 	}
 
