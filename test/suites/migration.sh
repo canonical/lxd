@@ -431,6 +431,7 @@ migration() {
   lxc_remote storage volume copy l1:"$remote_pool1"/foo l2:"$remote_pool2"/bar
   lxc_remote storage volume delete l1:"$remote_pool1" foo
   lxc_remote storage volume delete l2:"$remote_pool2" bar
+  lxc_remote storage unset l1:"$remote_pool1" rsync.compression
 
   # Test some migration between projects
   lxc_remote project create l1:proj -c features.images=false -c features.profiles=false
