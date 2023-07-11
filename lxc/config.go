@@ -23,6 +23,8 @@ type cmdConfig struct {
 	flagTarget string
 }
 
+// Command creates a Cobra command for managing instance and server configurations,
+// including options for device, edit, get, metadata, profile, set, show, template, trust, and unset.
 func (c *cmdConfig) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("config")
@@ -85,6 +87,7 @@ type cmdConfigEdit struct {
 	config *cmdConfig
 }
 
+// Command creates a Cobra command to edit instance or server configurations using YAML, with optional flags for targeting cluster members.
 func (c *cmdConfigEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:][<instance>[/<snapshot>]]"))
@@ -101,6 +104,7 @@ func (c *cmdConfigEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// helpTemplate returns a sample YAML configuration and guidelines for editing instance configurations.
 func (c *cmdConfigEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a YAML representation of the configuration.
@@ -122,6 +126,7 @@ func (c *cmdConfigEdit) helpTemplate() string {
 ### Note that the name is shown but cannot be changed`)
 }
 
+// Run executes the config edit command, allowing users to edit instance or server configurations via an interactive YAML editor.
 func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
@@ -365,6 +370,8 @@ type cmdConfigGet struct {
 	flagExpanded bool
 }
 
+// Command creates a Cobra command to fetch values for given instance or server configuration keys,
+// with optional flags for expanded configuration and cluster targeting.
 func (c *cmdConfigGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:][<instance>] <key>"))
@@ -379,6 +386,7 @@ func (c *cmdConfigGet) Command() *cobra.Command {
 	return cmd
 }
 
+// Run fetches and prints the specified configuration key's value for an instance or server, also handling target and expansion flags.
 func (c *cmdConfigGet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
@@ -457,6 +465,7 @@ type cmdConfigSet struct {
 	config *cmdConfig
 }
 
+// Command creates a new Cobra command to set instance or server configuration keys and returns it.
 func (c *cmdConfigSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:][<instance>] <key>=<value>..."))
@@ -482,6 +491,7 @@ lxc config set core.trust_password=blah
 	return cmd
 }
 
+// Run executes the "set" command, updating instance or server configuration keys based on provided arguments.
 func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
@@ -619,6 +629,7 @@ type cmdConfigShow struct {
 	flagExpanded bool
 }
 
+// Command sets up the "show" command, which displays instance or server configurations based on the provided arguments.
 func (c *cmdConfigShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:][<instance>[/<snapshot>]]"))
@@ -633,6 +644,7 @@ func (c *cmdConfigShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the "show" command, displaying the YAML-formatted configuration of a specified server or instance.
 func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
@@ -739,6 +751,7 @@ type cmdConfigUnset struct {
 	configSet *cmdConfigSet
 }
 
+// Command generates a new "unset" command to remove specific configuration keys for an instance or server.
 func (c *cmdConfigUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:][<instance>] <key>"))
@@ -752,6 +765,7 @@ func (c *cmdConfigUnset) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the "unset" command, delegating to the "set" command to remove specific configuration keys.
 func (c *cmdConfigUnset) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
