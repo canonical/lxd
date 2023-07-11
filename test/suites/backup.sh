@@ -243,6 +243,57 @@ EOF
   kill_lxd "${LXD_IMPORT_DIR}"
 }
 
+test_bucket_recover() {
+  (
+    set -e
+
+    poolName=$(lxc profile device get default root pool)
+    poolDriver=$(lxc storage show "${poolName}" | awk '/^driver:/ {print $2}')
+    bucketName="bucket123"
+
+    # Skip ceph driver - ceph does not support storage buckets
+    if [ "${poolDriver}" = "ceph" ]; then
+      return 0
+    fi
+
+    # Create storage bucket
+    lxc storage bucket create "${poolName}" "${bucketName}"
+
+    # Create storage bucket keys
+    key1=$(lxc storage bucket key create "${poolName}" "${bucketName}" key1 --role admin)
+    key2=$(lxc storage bucket key create "${poolName}" "${bucketName}" key2 --role read-only)
+    key1_accessKey=$(echo "$key1" | awk '/^Access key/ { print $3 }')
+    key1_secretKey=$(echo "$key1" | awk '/^Secret key/ { print $3 }')
+    key2_accessKey=$(echo "$key2" | awk '/^Access key/ { print $3 }')
+    key2_secretKey=$(echo "$key2" | awk '/^Secret key/ { print $3 }')
+
+    # Remove bucket from global DB
+    lxd sql global "delete from storage_buckets where name = '${bucketName}'"
+
+    # Recover bucket
+    cat <<EOF | lxd recover
+no
+yes
+yes
+EOF
+
+    # Verify bucket is recovered
+    lxc storage bucket ls "${poolName}" --format compact | grep "${bucketName}"
+
+    # Verify bucket key with role admin is recovered
+    recoveredKey1=$(lxc storage bucket key show "${poolName}" "${bucketName}" "${key1_accessKey}")
+    echo "${recoveredKey1}" | grep "role: admin"
+    echo "${recoveredKey1}" | grep "access-key: ${key1_accessKey}"
+    echo "${recoveredKey1}" | grep "secret-key: ${key1_secretKey}"
+
+    # Verify bucket key with role read-only is recovered
+    recoveredKey2=$(lxc storage bucket key show "${poolName}" "${bucketName}" "${key2_accessKey}")
+    echo "${recoveredKey2}" | grep "role: read-only"
+    echo "${recoveredKey2}" | grep "access-key: ${key2_accessKey}"
+    echo "${recoveredKey2}" | grep "secret-key: ${key2_secretKey}"
+  )
+}
+
 test_backup_import() {
   test_backup_import_with_project
   test_backup_import_with_project fooproject
