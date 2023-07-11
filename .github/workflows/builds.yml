@@ -51,5 +51,4 @@ jobs:
           git add --all
           git commit --all --quiet -s --allow-empty -m "Automatic upstream build (${TARGET})" -m "Upstream commit: ${localRev}"
           git show
-          git push --quiet
 

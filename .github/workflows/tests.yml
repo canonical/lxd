@@ -337,10 +337,10 @@ jobs:
           path: doc/html
 
   snap:
-    name: Trigger snap build
+    name: Trigger snap edge build
     runs-on: ubuntu-22.04
     needs: [code-tests, system-tests, client, documentation]
-    if: ${{ github.action_repository == 'canonical/lxd' && github.event_name == 'push'}}
+    if: ${{ github.repository == 'canonical/lxd' && github.event_name == 'push'}}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -382,3 +382,4 @@ jobs:
           git add --all
           git commit --all --quiet -s --allow-empty -m "Automatic upstream build (${TARGET})" -m "Upstream commit: ${localRev}"
           git show
+          git push --quiet
