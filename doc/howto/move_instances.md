@@ -62,7 +62,7 @@ If you want to use live migration for containers, you must enable CRIU on both t
 If you are using the snap, use the following commands to enable CRIU:
 
     snap set lxd criu.enable=true
-    systemctl reload snap.lxd.daemon
+    sudo systemctl reload snap.lxd.daemon
 
 Otherwise, make sure you have CRIU installed on both systems.
 
