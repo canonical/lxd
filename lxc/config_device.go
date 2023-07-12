@@ -17,6 +17,7 @@ type cmdConfigDevice struct {
 	profile *cmdProfile
 }
 
+// Defines the 'device' command and its subcommands for managing device configurations in the application.
 func (c *cmdConfigDevice) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("device")
@@ -72,6 +73,7 @@ type cmdConfigDeviceAdd struct {
 	profile      *cmdProfile
 }
 
+// Adds the 'add' subcommand used for adding devices to an instance or profile within the application.
 func (c *cmdConfigDeviceAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Short = i18n.G("Add instance devices")
@@ -100,6 +102,7 @@ lxc profile device add [<remote>:]profile1 <device-name> disk pool=some-pool sou
 	return cmd
 }
 
+// Implements the runtime logic of the 'add' subcommand, adding specified devices to an instance or profile.
 func (c *cmdConfigDeviceAdd) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
@@ -196,6 +199,7 @@ type cmdConfigDeviceGet struct {
 	profile      *cmdProfile
 }
 
+// Defines the 'get' subcommand used for retrieving device configuration key values within the application.
 func (c *cmdConfigDeviceGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	if c.config != nil {
@@ -213,6 +217,7 @@ func (c *cmdConfigDeviceGet) Command() *cobra.Command {
 	return cmd
 }
 
+// Puts the runtime logic of the 'get' subcommand, retrieving the value of a specific key for a given device.
 func (c *cmdConfigDeviceGet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
@@ -278,6 +283,7 @@ type cmdConfigDeviceList struct {
 	profile      *cmdProfile
 }
 
+// Defines the 'list' subcommand used for listing devices of an instance or profile within the application.
 func (c *cmdConfigDeviceList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Aliases = []string{"ls"}
@@ -295,6 +301,7 @@ func (c *cmdConfigDeviceList) Command() *cobra.Command {
 	return cmd
 }
 
+// Implements the runtime logic of the 'list' subcommand, displaying all devices for a given instance or profile.
 func (c *cmdConfigDeviceList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -349,6 +356,7 @@ type cmdConfigDeviceOverride struct {
 	profile      *cmdProfile
 }
 
+// Defines the 'override' subcommand used for copying profile-inherited devices and overriding their configuration keys.
 func (c *cmdConfigDeviceOverride) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("override", i18n.G("[<remote>:]<instance> <device> [key=value...]"))
@@ -361,6 +369,7 @@ func (c *cmdConfigDeviceOverride) Command() *cobra.Command {
 	return cmd
 }
 
+// Overrides the configuration of a specified device on an instance, based on provided key-value pairs.
 func (c *cmdConfigDeviceOverride) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -437,6 +446,7 @@ type cmdConfigDeviceRemove struct {
 	profile      *cmdProfile
 }
 
+// Generates a command object to remove one or more devices from an instance or profile.
 func (c *cmdConfigDeviceRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	if c.config != nil {
@@ -455,6 +465,7 @@ func (c *cmdConfigDeviceRemove) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the removal of one or more devices from a given instance or profile.
 func (c *cmdConfigDeviceRemove) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -540,6 +551,7 @@ type cmdConfigDeviceSet struct {
 	profile      *cmdProfile
 }
 
+// Constructs a command object to set or update the configuration keys of a device for an instance or profile.
 func (c *cmdConfigDeviceSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Short = i18n.G("Set device configuration keys")
@@ -564,6 +576,7 @@ For backward compatibility, a single configuration key may still be set with:
 	return cmd
 }
 
+// Executes the 'set' subcommand to update the configuration keys of a device for a specific instance or profile.
 func (c *cmdConfigDeviceSet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
@@ -656,6 +669,7 @@ type cmdConfigDeviceShow struct {
 	profile      *cmdProfile
 }
 
+// Generates a command object to display the complete configuration of a device for a specific instance or profile.
 func (c *cmdConfigDeviceShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	if c.config != nil {
@@ -673,6 +687,7 @@ func (c *cmdConfigDeviceShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the 'show' subcommand to print the full configuration of all devices for a specific instance or profile in YAML format.
 func (c *cmdConfigDeviceShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -729,6 +744,7 @@ type cmdConfigDeviceUnset struct {
 	profile         *cmdProfile
 }
 
+// Generates a command object to unset a configuration key from a device associated with an instance or profile.
 func (c *cmdConfigDeviceUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	if c.config != nil {
@@ -746,6 +762,7 @@ func (c *cmdConfigDeviceUnset) Command() *cobra.Command {
 	return cmd
 }
 
+// Unsets a configuration key from a device associated with an instance or profile by appending an empty value to the arguments.
 func (c *cmdConfigDeviceUnset) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
