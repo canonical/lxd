@@ -17,9 +17,14 @@ func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string, rs
 		return err
 	}
 
+	abort := func(err error) error {
+		protoSendError(wsControl, err)
+		return err
+	}
+
 	wsFs, err := op.GetWebsocket(opAPI.Metadata[api.SecretNameFilesystem].(string))
 	if err != nil {
-		return err
+		return abort(err)
 	}
 
 	// Setup control struct
@@ -36,22 +41,15 @@ func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string, rs
 
 	err = migration.ProtoSend(wsControl, &header)
 	if err != nil {
-		protoSendError(wsControl, err)
-		return err
+		return abort(err)
 	}
 
 	err = migration.ProtoRecv(wsControl, &header)
 	if err != nil {
-		protoSendError(wsControl, err)
-		return err
+		return abort(err)
 	}
 
 	// Send the filesystem
-	abort := func(err error) error {
-		protoSendError(wsControl, err)
-		return err
-	}
-
 	err = rsyncSend(wsFs, rootfs, rsyncArgs)
 	if err != nil {
 		return abort(err)
