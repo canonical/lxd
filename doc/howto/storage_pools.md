@@ -91,13 +91,17 @@ Use the existing ZFS dataset `my-tank/slice` for `pool4`:
 
     lxc storage create pool4 zfs source=my-tank/slice
 
-Create a pool named `pool5` on `/dev/sdX` (the ZFS zpool will also be called `pool5`):
+Use the existing ZFS dataset `my-tank/zvol` for `pool5` and configure it to use ZFS block mode:
 
-    lxc storage create pool5 zfs source=/dev/sdX
+    lxc storage create pool5 zfs source=my-tank/zvol volume.zfs.block_mode=yes
 
-Create a pool named `pool6` on `/dev/sdX` with the ZFS zpool name `my-tank`:
+Create a pool named `pool6` on `/dev/sdX` (the ZFS zpool will also be called `pool6`):
 
-    lxc storage create pool6 zfs source=/dev/sdX zfs.pool_name=my-tank
+    lxc storage create pool6 zfs source=/dev/sdX
+
+Create a pool named `pool7` on `/dev/sdX` with the ZFS zpool name `my-tank`:
+
+    lxc storage create pool7 zfs source=/dev/sdX zfs.pool_name=my-tank
 ````
 ````{group-tab} Ceph RBD
 
