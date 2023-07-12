@@ -30,6 +30,9 @@ import (
 var errBtrfsNoQuota = fmt.Errorf("Quotas disabled on filesystem")
 var errBtrfsNoQGroup = fmt.Errorf("Unable to find quota group")
 
+// btrfsISOVolSuffix suffix used for iso content type volumes.
+const btrfsISOVolSuffix = ".iso"
+
 // setReceivedUUID sets the "Received UUID" field on a subvolume with the given path using ioctl.
 func setReceivedUUID(path string, UUID string) error {
 	type btrfsIoctlReceivedSubvolArgs struct {
