@@ -369,6 +369,7 @@ jobs:
           TARGET: >-
             ${{ fromJson('{
               "main": "latest-edge",
+              "stable-5.0": "5.0-edge",
             }')[github.ref_name] }}
         run: |
           set -x
