@@ -15,7 +15,7 @@ Image
   Images for various operating systems are available on the built-in remote image servers.
   See {ref}`images` for more information.
 
-  Unless the image is available locally, you must specify the name of the image server and the name of the image (for example, `images:ubuntu/22.04` for the 22.04 Ubuntu image from LXD's community image server).
+  Unless the image is available locally, you must specify the name of the image server and the name of the image (for example, `ubuntu:22.04` for the official 22.04 Ubuntu image).
 
 Instance name
 : Instance names must be unique within a LXD deployment (also within a cluster).
