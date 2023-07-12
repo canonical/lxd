@@ -1451,39 +1451,65 @@ func (d Xtables) iptablesChainDelete(ipVersion uint, table string, chain string,
 
 // NetworkApplyForwards apply network address forward rules to firewall.
 func (d Xtables) NetworkApplyForwards(networkName string, rules []AddressForward) error {
-	comment := d.networkForwardIPTablesComment(networkName)
+	// Validate all rules first.
+	for i, rule := range rules {
+		if rule.ListenAddress == nil {
+			return fmt.Errorf("Invalid rule %d, listen address is required", i)
+		}
 
-	// Clear any forward rules associated to the network.
-	for _, ipVersion := range []uint{4, 6} {
-		err := d.iptablesClear(ipVersion, []string{comment}, "nat")
-		if err != nil {
-			return err
+		if rule.TargetAddress == nil {
+			return fmt.Errorf("Invalid rule %d, target address is required", i)
+		}
+
+		listenPortLen := len(rule.ListenPorts)
+		if listenPortLen == 0 && rule.Protocol != "" {
+			return fmt.Errorf("Invalid rule %d, default target rule but non-empty protocol", i)
+		}
+
+		targetPortLen := len(rule.TargetPorts)
+		if targetPortLen > 1 && targetPortLen != listenPortLen {
+			return fmt.Errorf("Invalid rule %d, mismatch between listen port(s) and target port(s) count", i)
 		}
 	}
+
+	comment := d.networkForwardIPTablesComment(networkName)
+
+	clearNetworkForwards := func() error {
+		for _, ipVersion := range []uint{4, 6} {
+			err := d.iptablesClear(ipVersion, []string{comment}, "nat")
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	// Clear any forward rules associated to the network.
+	err := clearNetworkForwards()
+	if err != nil {
+		return err
+	}
+
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	// Clear all network forwards if we fail, otherwise the forwards are only partially applied.
+	reverter.Add(func() {
+		err := clearNetworkForwards()
+		if err != nil {
+			logger.Error("Failed to clear firewall rules after failing to apply network forwards", logger.Ctx{"network_name": networkName, "error": err})
+		}
+	})
 
 	// Build up rules, ordering by default target rules first, followed by port specific listen rules.
 	// This is so the generated firewall rules will apply the port specific rules first (they are prepended).
 	for _, listenPortsOnly := range []bool{false, true} {
-		for ruleIndex, rule := range rules {
-			if rule.ListenAddress == nil {
-				return fmt.Errorf("Invalid rule %d, listen address is required", ruleIndex)
-			}
-
-			if rule.TargetAddress == nil {
-				return fmt.Errorf("Invalid rule %d, target address is required", ruleIndex)
-			}
-
-			listenPortsLen := len(rule.ListenPorts)
-
+		for _, rule := range rules {
 			// Process the rules in order of outer loop.
+			listenPortsLen := len(rule.ListenPorts)
 			if (listenPortsOnly && listenPortsLen < 1) || (!listenPortsOnly && listenPortsLen > 0) {
 				continue
-			}
-
-			// If multiple target ports supplied, check they match the listen port(s) count.
-			targetPortsLen := len(rule.TargetPorts)
-			if targetPortsLen > 1 && targetPortsLen != listenPortsLen {
-				return fmt.Errorf("Invalid rule %d, mismatch between listen port(s) and target port(s) count", ruleIndex)
 			}
 
 			ipVersion := uint(4)
@@ -1494,58 +1520,50 @@ func (d Xtables) NetworkApplyForwards(networkName string, rules []AddressForward
 			listenAddressStr := rule.ListenAddress.String()
 			targetAddressStr := rule.TargetAddress.String()
 
-			if listenPortsLen > 0 {
-				for i := range rule.ListenPorts {
-					// Use the target port that corresponds to the listen port (unless only 1
-					// is specified, in which case use same target port for all listen ports).
-					var targetPort uint64
+			if rule.Protocol != "" {
+				if len(rule.TargetPorts) == 0 {
+					rule.TargetPorts = rule.ListenPorts
+				}
 
-					switch {
-					case targetPortsLen <= 0:
-						// No target ports specified, use same port as listen port index.
-						targetPort = rule.ListenPorts[i]
-					case targetPortsLen == 1:
-						// Single target port specified, use that for all listen ports.
-						targetPort = rule.TargetPorts[0]
-					case targetPortsLen > 1:
-						// Multiple target ports specified, user port associated with
-						// listen port index.
-						targetPort = rule.TargetPorts[i]
+				targetPortRanges := portRangesFromSlice(rule.TargetPorts)
+				for _, targetPortRange := range targetPortRanges {
+					targetPortRangeStr := portRangeStr(targetPortRange, ":")
+
+					// Apply MASQUERADE rule for each target range.
+					// instance <-> instance.
+					// Requires instance's bridge port has hairpin mode enabled when br_netfilter is loaded.
+					err := d.iptablesPrepend(ipVersion, comment, "nat", "POSTROUTING", "-p", rule.Protocol, "--source", targetAddressStr, "--destination", targetAddressStr, "--dport", targetPortRangeStr, "-j", "MASQUERADE")
+					if err != nil {
+						return err
 					}
+				}
 
-					// Format the destination host/port as appropriate.
-					targetDest := fmt.Sprintf("%s:%d", targetAddressStr, targetPort)
-					if ipVersion == 6 {
-						targetDest = fmt.Sprintf("[%s]:%d", targetAddressStr, targetPort)
+				dnatRanges := getOptimisedDNATRanges(&rule)
+				for listenPortRange, targetPortRange := range dnatRanges {
+					listenPortRangeStr := portRangeStr(listenPortRange, ":")
+					targetDest := targetAddressStr
+
+					if targetPortRange[1] == 1 {
+						targetPortStr := portRangeStr(targetPortRange, ":")
+						targetDest = fmt.Sprintf("%s:%s", targetAddressStr, targetPortStr)
+						if ipVersion == 6 {
+							targetDest = fmt.Sprintf("[%s]:%s", targetAddressStr, targetPortStr)
+						}
 					}
-
-					listenPortStr := fmt.Sprintf("%d", rule.ListenPorts[i])
-					targetPortStr := fmt.Sprintf("%d", targetPort)
 
 					// outbound <-> instance.
-					err := d.iptablesPrepend(ipVersion, comment, "nat", "PREROUTING", "-p", rule.Protocol, "--destination", listenAddressStr, "--dport", listenPortStr, "-j", "DNAT", "--to-destination", targetDest)
+					err := d.iptablesPrepend(ipVersion, comment, "nat", "PREROUTING", "-p", rule.Protocol, "--destination", listenAddressStr, "--dport", listenPortRangeStr, "-j", "DNAT", "--to-destination", targetDest)
 					if err != nil {
 						return err
 					}
 
 					// host <-> instance.
-					err = d.iptablesPrepend(ipVersion, comment, "nat", "OUTPUT", "-p", rule.Protocol, "--destination", listenAddressStr, "--dport", listenPortStr, "-j", "DNAT", "--to-destination", targetDest)
+					err = d.iptablesPrepend(ipVersion, comment, "nat", "OUTPUT", "-p", rule.Protocol, "--destination", listenAddressStr, "--dport", listenPortRangeStr, "-j", "DNAT", "--to-destination", targetDest)
 					if err != nil {
 						return err
 					}
-
-					// Only add >1 hairpin NAT rules if multiple target ports being used.
-					if i == 0 || targetPortsLen != 1 {
-						// instance <-> instance.
-						// Requires instance's bridge port has hairpin mode enabled when
-						// br_netfilter is loaded.
-						err = d.iptablesPrepend(ipVersion, comment, "nat", "POSTROUTING", "-p", rule.Protocol, "--source", targetAddressStr, "--destination", targetAddressStr, "--dport", targetPortStr, "-j", "MASQUERADE")
-						if err != nil {
-							return err
-						}
-					}
 				}
-			} else if rule.Protocol == "" {
+			} else {
 				// Format the destination host/port as appropriate.
 				targetDest := targetAddressStr
 				if ipVersion == 6 {
@@ -1571,11 +1589,10 @@ func (d Xtables) NetworkApplyForwards(networkName string, rules []AddressForward
 				if err != nil {
 					return err
 				}
-			} else {
-				return fmt.Errorf("Invalid rule %d, default target rule but non-empty protocol", ruleIndex)
 			}
 		}
 	}
 
+	reverter.Success()
 	return nil
 }

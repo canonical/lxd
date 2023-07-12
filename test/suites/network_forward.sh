@@ -59,19 +59,13 @@ test_network_forward() {
   # Check can add a port with a listener range and no target port (so it uses same range for target ports).
   lxc network forward port add "${netName}" 198.51.100.1 tcp 80-81 192.0.2.3
   if [ "$firewallDriver" = "xtables" ]; then
-    iptables -w -t nat -S | grep -- "-A PREROUTING -d 198.51.100.1/32 -p tcp -m tcp --dport 81 -m comment --comment \"generated for LXD network-forward ${netName}\" -j DNAT --to-destination 192.0.2.3:81"
-    iptables -w -t nat -S | grep -- "-A PREROUTING -d 198.51.100.1/32 -p tcp -m tcp --dport 80 -m comment --comment \"generated for LXD network-forward ${netName}\" -j DNAT --to-destination 192.0.2.3:80"
-    iptables -w -t nat -S | grep -- "-A OUTPUT -d 198.51.100.1/32 -p tcp -m tcp --dport 81 -m comment --comment \"generated for LXD network-forward ${netName}\" -j DNAT --to-destination 192.0.2.3:81"
-    iptables -w -t nat -S | grep -- "-A OUTPUT -d 198.51.100.1/32 -p tcp -m tcp --dport 80 -m comment --comment \"generated for LXD network-forward ${netName}\" -j DNAT --to-destination 192.0.2.3:80"
-    iptables -w -t nat -S | grep -- "-A POSTROUTING -s 192.0.2.3/32 -d 192.0.2.3/32 -p tcp -m tcp --dport 81 -m comment --comment \"generated for LXD network-forward ${netName}\" -j MASQUERADE"
-    iptables -w -t nat -S | grep -- "-A POSTROUTING -s 192.0.2.3/32 -d 192.0.2.3/32 -p tcp -m tcp --dport 80 -m comment --comment \"generated for LXD network-forward ${netName}\" -j MASQUERADE"
+    iptables -w -t nat -S | grep -- "-A PREROUTING -d 198.51.100.1/32 -p tcp -m tcp --dport 80:81 -m comment --comment \"generated for LXD network-forward ${netName}\" -j DNAT --to-destination 192.0.2.3"
+    iptables -w -t nat -S | grep -- "-A OUTPUT -d 198.51.100.1/32 -p tcp -m tcp --dport 80:81 -m comment --comment \"generated for LXD network-forward ${netName}\" -j DNAT --to-destination 192.0.2.3"
+    iptables -w -t nat -S | grep -- "-A POSTROUTING -s 192.0.2.3/32 -d 192.0.2.3/32 -p tcp -m tcp --dport 80:81 -m comment --comment \"generated for LXD network-forward ${netName}\" -j MASQUERADE"
   else
-    nft -nn list chain inet lxd "fwdprert.${netName}" | grep "ip daddr 198.51.100.1 tcp dport 80 dnat ip to 192.0.2.3:80"
-    nft -nn list chain inet lxd "fwdprert.${netName}" | grep "ip daddr 198.51.100.1 tcp dport 81 dnat ip to 192.0.2.3:81"
-    nft -nn list chain inet lxd "fwdout.${netName}" | grep "ip daddr 198.51.100.1 tcp dport 80 dnat ip to 192.0.2.3:80"
-    nft -nn list chain inet lxd "fwdout.${netName}" | grep "ip daddr 198.51.100.1 tcp dport 81 dnat ip to 192.0.2.3:81"
-    nft -nn list chain inet lxd "fwdpstrt.${netName}" | grep "ip saddr 192.0.2.3 ip daddr 192.0.2.3 tcp dport 80 masquerade"
-    nft -nn list chain inet lxd "fwdpstrt.${netName}" | grep "ip saddr 192.0.2.3 ip daddr 192.0.2.3 tcp dport 81 masquerade"
+    nft -nn list chain inet lxd "fwdprert.${netName}" | grep "ip daddr 198.51.100.1 tcp dport 80-81 dnat ip to 192.0.2.3"
+    nft -nn list chain inet lxd "fwdout.${netName}" | grep "ip daddr 198.51.100.1 tcp dport 80-81 dnat ip to 192.0.2.3"
+    nft -nn list chain inet lxd "fwdpstrt.${netName}" | grep "ip saddr 192.0.2.3 ip daddr 192.0.2.3 tcp dport 80-81 masquerade"
   fi
 
   # Check can't add port with duplicate listen port.
@@ -101,9 +95,7 @@ test_network_forward() {
     iptables -w -t nat -S | grep -- "-A OUTPUT -d 198.51.100.1/32 -p tcp -m tcp --dport 84 -m comment --comment \"generated for LXD network-forward ${netName}\" -j DNAT --to-destination 192.0.2.3:92"
     iptables -w -t nat -S | grep -- "-A OUTPUT -d 198.51.100.1/32 -p tcp -m tcp --dport 83 -m comment --comment \"generated for LXD network-forward ${netName}\" -j DNAT --to-destination 192.0.2.3:91"
     iptables -w -t nat -S | grep -- "-A OUTPUT -d 198.51.100.1/32 -p tcp -m tcp --dport 82 -m comment --comment \"generated for LXD network-forward ${netName}\" -j DNAT --to-destination 192.0.2.3:90"
-    iptables -w -t nat -S | grep -- "-A POSTROUTING -s 192.0.2.3/32 -d 192.0.2.3/32 -p tcp -m tcp --dport 92 -m comment --comment \"generated for LXD network-forward ${netName}\" -j MASQUERADE"
-    iptables -w -t nat -S | grep -- "-A POSTROUTING -s 192.0.2.3/32 -d 192.0.2.3/32 -p tcp -m tcp --dport 91 -m comment --comment \"generated for LXD network-forward ${netName}\" -j MASQUERADE"
-    iptables -w -t nat -S | grep -- "-A POSTROUTING -s 192.0.2.3/32 -d 192.0.2.3/32 -p tcp -m tcp --dport 90 -m comment --comment \"generated for LXD network-forward ${netName}\" -j MASQUERADE"
+    iptables -w -t nat -S | grep -- "-A POSTROUTING -s 192.0.2.3/32 -d 192.0.2.3/32 -p tcp -m tcp --dport 90:92 -m comment --comment \"generated for LXD network-forward ${netName}\" -j MASQUERADE"
   else
     nft -nn list chain inet lxd "fwdprert.${netName}" | grep "ip daddr 198.51.100.1 tcp dport 82 dnat ip to 192.0.2.3:90"
     nft -nn list chain inet lxd "fwdprert.${netName}" | grep "ip daddr 198.51.100.1 tcp dport 83 dnat ip to 192.0.2.3:91"
@@ -111,18 +103,16 @@ test_network_forward() {
     nft -nn list chain inet lxd "fwdout.${netName}" | grep "ip daddr 198.51.100.1 tcp dport 82 dnat ip to 192.0.2.3:90"
     nft -nn list chain inet lxd "fwdout.${netName}" | grep "ip daddr 198.51.100.1 tcp dport 83 dnat ip to 192.0.2.3:91"
     nft -nn list chain inet lxd "fwdout.${netName}" | grep "ip daddr 198.51.100.1 tcp dport 84 dnat ip to 192.0.2.3:92"
-    nft -nn list chain inet lxd "fwdpstrt.${netName}" | grep "ip saddr 192.0.2.3 ip daddr 192.0.2.3 tcp dport 90 masquerade"
-    nft -nn list chain inet lxd "fwdpstrt.${netName}" | grep "ip saddr 192.0.2.3 ip daddr 192.0.2.3 tcp dport 91 masquerade"
-    nft -nn list chain inet lxd "fwdpstrt.${netName}" | grep "ip saddr 192.0.2.3 ip daddr 192.0.2.3 tcp dport 92 masquerade"
+    nft -nn list chain inet lxd "fwdpstrt.${netName}" | grep "ip saddr 192.0.2.3 ip daddr 192.0.2.3 tcp dport 90-92 masquerade"
   fi
 
   # Check deleting multiple rules is prevented without --force, and that it takes effect with --force.
   if [ "$firewallDriver" = "xtables" ]; then
-    [ "$(iptables -w -t nat -S | grep -c "generated for LXD network-forward ${netName}")" -eq 21 ]
+    [ "$(iptables -w -t nat -S | grep -c "generated for LXD network-forward ${netName}")" -eq 16 ]
   else
-    [ "$(nft -nn list chain inet lxd "fwdprert.${netName}" | wc -l)" -eq 12 ]
-    [ "$(nft -nn list chain inet lxd "fwdout.${netName}"| wc -l)" -eq 12 ]
-    [ "$(nft -nn list chain inet lxd "fwdpstrt.${netName}" | wc -l)" -eq 12 ]
+    [ "$(nft -nn list chain inet lxd "fwdprert.${netName}" | wc -l)" -eq 11 ]
+    [ "$(nft -nn list chain inet lxd "fwdout.${netName}"| wc -l)" -eq 11 ]
+    [ "$(nft -nn list chain inet lxd "fwdpstrt.${netName}" | wc -l)" -eq 9 ]
   fi
 
   ! lxc network forward port remove "${netName}" 198.51.100.1 tcp || false

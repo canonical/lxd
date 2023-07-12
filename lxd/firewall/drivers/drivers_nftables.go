@@ -929,6 +929,13 @@ func (d Nftables) NetworkApplyForwards(networkName string, rules []AddressForwar
 	// This is so the generated firewall rules will apply the port specific rules first.
 	for _, listenPortsOnly := range []bool{true, false} {
 		for ruleIndex, rule := range rules {
+			// Process the rules in order of outer loop.
+			listenPortsLen := len(rule.ListenPorts)
+			if (listenPortsOnly && listenPortsLen < 1) || (!listenPortsOnly && listenPortsLen > 0) {
+				continue
+			}
+
+			// Validate the rule.
 			if rule.ListenAddress == nil {
 				return fmt.Errorf("Invalid rule %d, listen address is required", ruleIndex)
 			}
@@ -937,16 +944,21 @@ func (d Nftables) NetworkApplyForwards(networkName string, rules []AddressForwar
 				return fmt.Errorf("Invalid rule %d, target address is required", ruleIndex)
 			}
 
-			listenPortsLen := len(rule.ListenPorts)
-
-			// Process the rules in order of outer loop.
-			if (listenPortsOnly && listenPortsLen < 1) || (!listenPortsOnly && listenPortsLen > 0) {
-				continue
+			if listenPortsLen == 0 && rule.Protocol != "" {
+				return fmt.Errorf("Invalid rule %d, default target rule but non-empty protocol", ruleIndex)
 			}
 
-			// If multiple target ports supplied, check they match the listen port(s) count.
-			targetPortsLen := len(rule.TargetPorts)
-			if targetPortsLen > 1 && targetPortsLen != listenPortsLen {
+			switch len(rule.TargetPorts) {
+			case 0:
+				// No target ports specified, use listen ports (only valid when protocol is specified).
+				rule.TargetPorts = rule.ListenPorts
+			case 1:
+				// Single target port specified, OK.
+				break
+			case len(rule.ListenPorts):
+				// One-to-one match with listen ports, OK.
+				break
+			default:
 				return fmt.Errorf("Invalid rule %d, mismatch between listen port(s) and target port(s) count", ruleIndex)
 			}
 
@@ -958,52 +970,39 @@ func (d Nftables) NetworkApplyForwards(networkName string, rules []AddressForwar
 			listenAddressStr := rule.ListenAddress.String()
 			targetAddressStr := rule.TargetAddress.String()
 
-			if listenPortsLen > 0 {
-				for i := range rule.ListenPorts {
-					// Use the target port that corresponds to the listen port (unless only 1
-					// is specified, in which case use same target port for all listen ports).
-					var targetPort uint64
+			if rule.Protocol != "" {
+				targetPortRanges := portRangesFromSlice(rule.TargetPorts)
+				for _, targetPortRange := range targetPortRanges {
+					targetPortRangeStr := portRangeStr(targetPortRange, "-")
+					snatRules = append(snatRules, map[string]any{
+						"ipFamily":    ipFamily,
+						"protocol":    rule.Protocol,
+						"targetHost":  targetAddressStr,
+						"targetPorts": targetPortRangeStr,
+					})
+				}
 
-					switch {
-					case targetPortsLen <= 0:
-						// No target ports specified, use same port as listen port index.
-						targetPort = rule.ListenPorts[i]
-					case targetPortsLen == 1:
-						// Single target port specified, use that for all listen ports.
-						targetPort = rule.TargetPorts[0]
-					case targetPortsLen > 1:
-						// Multiple target ports specified, user port associated with
-						// listen port index.
-						targetPort = rule.TargetPorts[i]
-					}
-
-					// Format the destination host/port as appropriate.
-					targetDest := fmt.Sprintf("%s:%d", targetAddressStr, targetPort)
-					if ipFamily == "ip6" {
-						targetDest = fmt.Sprintf("[%s]:%d", targetAddressStr, targetPort)
+				dnatRanges := getOptimisedDNATRanges(&rule)
+				for listenPortRange, targetPortRange := range dnatRanges {
+					// Format the destination host/port as appropriate
+					targetDest := targetAddressStr
+					if targetPortRange[1] == 1 {
+						targetPortStr := portRangeStr(targetPortRange, ":")
+						targetDest = fmt.Sprintf("%s:%s", targetAddressStr, targetPortStr)
+						if ipFamily == "ip6" {
+							targetDest = fmt.Sprintf("[%s]:%s", targetAddressStr, targetPortStr)
+						}
 					}
 
 					dnatRules = append(dnatRules, map[string]any{
 						"ipFamily":      ipFamily,
 						"protocol":      rule.Protocol,
 						"listenAddress": listenAddressStr,
-						"listenPorts":   rule.ListenPorts[i],
+						"listenPorts":   portRangeStr(listenPortRange, "-"),
 						"targetDest":    targetDest,
-						"targetHost":    targetAddressStr,
-						"targetPorts":   targetPort,
 					})
-
-					// Only add >1 hairpin NAT rules if multiple target ports being used.
-					if i == 0 || targetPortsLen != 1 {
-						snatRules = append(snatRules, map[string]any{
-							"ipFamily":    ipFamily,
-							"protocol":    rule.Protocol,
-							"targetHost":  targetAddressStr,
-							"targetPorts": targetPort,
-						})
-					}
 				}
-			} else if rule.Protocol == "" {
+			} else {
 				// Format the destination host/port as appropriate.
 				targetDest := targetAddressStr
 				if ipFamily == "ip6" {
@@ -1021,8 +1020,6 @@ func (d Nftables) NetworkApplyForwards(networkName string, rules []AddressForwar
 					"ipFamily":   ipFamily,
 					"targetHost": targetAddressStr,
 				})
-			} else {
-				return fmt.Errorf("Invalid rule %d, default target rule but non-empty protocol", ruleIndex)
 			}
 		}
 	}
