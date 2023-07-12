@@ -20,6 +20,7 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/revert"
 	storagePools "github.com/canonical/lxd/lxd/storage"
+	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -72,6 +73,7 @@ var patches = []patch{
 	{name: "storage_missing_snapshot_records", stage: patchPostDaemonStorage, run: patchGenericStorage},
 	{name: "storage_delete_old_snapshot_records", stage: patchPostDaemonStorage, run: patchGenericStorage},
 	{name: "storage_zfs_drop_block_volume_filesystem_extension", stage: patchPostDaemonStorage, run: patchGenericStorage},
+	{name: "storage_move_custom_iso_block_volumes", stage: patchPostDaemonStorage, run: patchStorageRenameCustomISOBlockVolumes},
 }
 
 type patch struct {
@@ -763,6 +765,73 @@ func patchNetworkClearBridgeVolatileHwaddr(name string, d *Daemon) error {
 			err = d.db.Cluster.UpdateNetwork(projectName, net.Name, net.Description, net.Config)
 			if err != nil {
 				return fmt.Errorf("Failed updating network %q for network_clear_bridge_volatile_hwaddr patch: %w", networkName, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// patchStorageRenameCustomISOBlockVolumes renames existing custom ISO volumes by adding the ".iso" suffix so they can be distinguished from regular custom block volumes.
+// This patch doesn't use the patchGenericStorage function because the storage drivers themselves aren't aware of custom ISO volumes.
+func patchStorageRenameCustomISOBlockVolumes(name string, d *Daemon) error {
+	s := d.State()
+
+	// Get all storage pool names.
+	pools, err := s.DB.Cluster.GetStoragePoolNames()
+	if err != nil {
+		return fmt.Errorf("Failed getting storage pool names: %w", err)
+	}
+
+	volTypeCustom := db.StoragePoolVolumeTypeCustom
+	customPoolVolumes := make(map[string][]*db.StorageVolume, 0)
+
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		for _, pool := range pools {
+			// Get storage pool ID.
+			poolID, err := tx.GetStoragePoolID(ctx, pool)
+			if err != nil {
+				return fmt.Errorf("Failed getting storage pool ID of pool %q: %w", pool, err)
+			}
+
+			// Get the pool's custom storage volumes.
+			customVolumes, err := tx.GetStoragePoolVolumes(ctx, poolID, false, db.StorageVolumeFilter{Type: &volTypeCustom})
+			if err != nil {
+				return fmt.Errorf("Failed getting custom storage volumes of pool %q: %w", pool, err)
+			}
+
+			if customPoolVolumes[pool] == nil {
+				customPoolVolumes[pool] = []*db.StorageVolume{}
+			}
+
+			customPoolVolumes[pool] = append(customPoolVolumes[pool], customVolumes...)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	for poolName, volumes := range customPoolVolumes {
+		// Load storage pool.
+		p, err := storagePools.LoadByName(s, poolName)
+		if err != nil {
+			return fmt.Errorf("Failed loading pool %q: %w", poolName, err)
+		}
+
+		for _, vol := range volumes {
+			// Exclude non-ISO custom volumes.
+			if vol.ContentType != db.StoragePoolVolumeContentTypeNameISO {
+				continue
+			}
+
+			// We need to use ContentTypeBlock here in order for the driver to figure out the correct (old) location.
+			oldVol := storageDrivers.NewVolume(p.Driver(), p.Name(), storageDrivers.VolumeTypeCustom, storageDrivers.ContentTypeBlock, project.StorageVolume(vol.Project, vol.Name), nil, nil)
+
+			err = p.Driver().RenameVolume(oldVol, fmt.Sprintf("%s.iso", oldVol.Name()), nil)
+			if err != nil {
+				return fmt.Errorf("Failed renaming volume: %w", err)
 			}
 		}
 	}
