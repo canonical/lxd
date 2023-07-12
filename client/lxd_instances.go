@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 
 	"github.com/gorilla/websocket"
@@ -1131,6 +1132,63 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 			values := value.(map[string]any)
 			for k, v := range values {
 				fds[k] = v.(string)
+			}
+		}
+
+		if exec.RecordOutput && (args.Stdout != nil || args.Stderr != nil) {
+			err = op.Wait()
+			if err != nil {
+				return nil, err
+			}
+
+			opAPI = op.Get()
+			outputFiles := map[string]string{}
+			outputs, ok := opAPI.Metadata["output"].(map[string]any)
+			if ok {
+				for k, v := range outputs {
+					outputFiles[k] = v.(string)
+				}
+			}
+
+			if outputFiles["1"] != "" {
+				reader, _ := r.getInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["1"]))
+				if args.Stdout != nil {
+					_, errCopy := io.Copy(args.Stdout, reader)
+					// Regardless of errCopy value, we want to delete the file after a copy operation
+					errDelete := r.deleteInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["1"]))
+					if errDelete != nil {
+						return nil, errDelete
+					}
+
+					if errCopy != nil {
+						return nil, fmt.Errorf("Could not copy the content of the exec output log file to stdout: %w", err)
+					}
+				}
+
+				err = r.deleteInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["1"]))
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			if outputFiles["2"] != "" {
+				reader, _ := r.getInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["2"]))
+				if args.Stderr != nil {
+					_, errCopy := io.Copy(args.Stderr, reader)
+					errDelete := r.deleteInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["1"]))
+					if errDelete != nil {
+						return nil, errDelete
+					}
+
+					if errCopy != nil {
+						return nil, fmt.Errorf("Could not copy the content of the exec output log file to stderr: %w", err)
+					}
+				}
+
+				err = r.deleteInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["2"]))
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 
