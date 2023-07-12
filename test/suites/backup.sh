@@ -1,3 +1,34 @@
+test_storage_volume_recover() {
+  LXD_IMPORT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_IMPORT_DIR}"
+  spawn_lxd "${LXD_IMPORT_DIR}" true
+
+  poolName=$(lxc profile device get default root pool)
+
+  # Create custom block volume.
+  lxc storage volume create "${poolName}" vol1 --type=block
+
+  # Delete database entry of the created custom block volume.
+  lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='vol1'"
+
+  # Ensure the custom block volume is no longer listed.
+  ! lxc storage volume show "${poolName}" vol1 || false
+
+  # Recover custom block volume.
+  cat <<EOF | lxd recover
+no
+yes
+yes
+EOF
+
+  # Ensure custom storage volume has been recovered.
+  lxc storage volume show "${poolName}" vol1 | grep -q 'content_type: block'
+
+  # Cleanup
+  lxc storage volume delete "${poolName}" vol1
+  shutdown_lxd "${LXD_DIR}"
+}
+
 test_container_recover() {
   LXD_IMPORT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_IMPORT_DIR}"
