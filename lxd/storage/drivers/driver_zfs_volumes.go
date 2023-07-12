@@ -1854,7 +1854,10 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 			contentType = ContentTypeBlock
 		}
 
-		if volType == VolumeTypeVM || isBlock {
+		if volType == VolumeTypeCustom && isBlock && strings.HasSuffix(volName, zfsISOVolSuffix) {
+			contentType = ContentTypeISO
+			volName = strings.TrimSuffix(volName, zfsISOVolSuffix)
+		} else if volType == VolumeTypeVM || isBlock {
 			volName = strings.TrimSuffix(volName, zfsBlockVolSuffix)
 		}
 
