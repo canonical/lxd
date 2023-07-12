@@ -24,6 +24,8 @@ func CephGetRBDImageName(vol Volume, snapName string, zombie bool) string {
 
 	if vol.contentType == ContentTypeBlock {
 		parentName = fmt.Sprintf("%s%s", parentName, cephBlockVolSuffix)
+	} else if vol.contentType == ContentTypeISO {
+		parentName = fmt.Sprintf("%s%s", parentName, cephISOVolSuffix)
 	}
 
 	// Use volume's type as storage volume prefix, unless there is an override in cephVolTypePrefixes.
