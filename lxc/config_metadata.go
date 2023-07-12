@@ -20,6 +20,7 @@ type cmdConfigMetadata struct {
 	config *cmdConfig
 }
 
+// Provides a command object to manage instance metadata files, including subcommands for editing and showing metadata.
 func (c *cmdConfigMetadata) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("metadata")
@@ -48,6 +49,7 @@ type cmdConfigMetadataEdit struct {
 	configMetadata *cmdConfigMetadata
 }
 
+// Generates a command object to edit the metadata files of a specified instance.
 func (c *cmdConfigMetadataEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<instance>"))
@@ -60,6 +62,7 @@ func (c *cmdConfigMetadataEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// Returns a help template for editing instance metadata, providing an example of a valid YAML configuration.
 func (c *cmdConfigMetadataEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a YAML representation of the instance metadata.
@@ -84,6 +87,7 @@ func (c *cmdConfigMetadataEdit) helpTemplate() string {
 ###     properties: {}`)
 }
 
+// Executes the command to edit instance metadata, handling error checks, YAML parsing, and user interaction via text editor.
 func (c *cmdConfigMetadataEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -173,6 +177,7 @@ type cmdConfigMetadataShow struct {
 	configMetadata *cmdConfigMetadata
 }
 
+// Constructs a cobra command for showing the metadata files of a specific instance.
 func (c *cmdConfigMetadataShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<instance>"))
@@ -185,6 +190,7 @@ func (c *cmdConfigMetadataShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Retrieves and prints the YAML-formatted metadata of a specific instance.
 func (c *cmdConfigMetadataShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
