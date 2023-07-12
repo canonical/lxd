@@ -20,6 +20,7 @@ type cmdConfigTemplate struct {
 	config *cmdConfig
 }
 
+// Defines a command for managing instance file templates, including creation, deletion, editing, listing, and showing specific templates.
 func (c *cmdConfigTemplate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("template")
@@ -60,6 +61,7 @@ type cmdConfigTemplateCreate struct {
 	configTemplate *cmdConfigTemplate
 }
 
+// Constructs a command for creating a new instance file template.
 func (c *cmdConfigTemplateCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<instance> <template>"))
@@ -72,6 +74,7 @@ func (c *cmdConfigTemplateCreate) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the command to create a new instance file template.
 func (c *cmdConfigTemplateCreate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -102,6 +105,7 @@ type cmdConfigTemplateDelete struct {
 	configTemplate *cmdConfigTemplate
 }
 
+// Generates a command to delete specific instance file templates.
 func (c *cmdConfigTemplateDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<instance> <template>"))
@@ -115,6 +119,7 @@ func (c *cmdConfigTemplateDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the deletion of the specified instance file template.
 func (c *cmdConfigTemplateDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -145,6 +150,7 @@ type cmdConfigTemplateEdit struct {
 	configTemplate *cmdConfigTemplate
 }
 
+// Sets up a command for editing an existing instance file template.
 func (c *cmdConfigTemplateEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<instance> <template>"))
@@ -157,6 +163,7 @@ func (c *cmdConfigTemplateEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// Generates a command to list the file templates associated with an instance.
 func (c *cmdConfigTemplateEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -233,6 +240,7 @@ type cmdConfigTemplateList struct {
 	flagFormat string
 }
 
+// Generates a command to list the file templates associated with an instance, allowing customization of the output format.
 func (c *cmdConfigTemplateList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]<instance>"))
@@ -246,6 +254,8 @@ func (c *cmdConfigTemplateList) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the command to list the file templates associated with an instance, retrieves the templates,
+// and renders them in the specified format (table, csv, json, yaml, or compact).
 func (c *cmdConfigTemplateList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -293,6 +303,7 @@ type cmdConfigTemplateShow struct {
 	configTemplate *cmdConfigTemplate
 }
 
+// Constructs a command for showing the content of a specific instance file template.
 func (c *cmdConfigTemplateShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<instance> <template>"))
@@ -305,6 +316,7 @@ func (c *cmdConfigTemplateShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Retrieves and prints the content of a specific instance file template.
 func (c *cmdConfigTemplateShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
