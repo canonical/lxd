@@ -2326,8 +2326,8 @@ func (r *ProtocolLXD) ConsoleInstance(instanceName string, console api.InstanceC
 
 	// And attach stdin and stdout to it
 	go func() {
-		ws.MirrorRead(context.Background(), conn, args.Terminal)
-		<-ws.MirrorWrite(context.Background(), conn, args.Terminal)
+		_, writeDone := ws.Mirror(context.Background(), conn, args.Terminal)
+		<-writeDone
 		_ = conn.Close()
 	}()
 
