@@ -7434,20 +7434,20 @@ func (d *qemu) reservedVsockID(vsockID uint32) bool {
 // getVsockID returns the vsock Context ID for the VM.
 func (d *qemu) getVsockID() (uint32, error) {
 	existingVsockID, ok := d.localConfig["volatile.vsock_id"]
-	if ok {
-		vsockID, err := strconv.ParseUint(existingVsockID, 10, 32)
-		if err != nil {
-			return 0, fmt.Errorf("Failed to parse volatile.vsock_id: %q: %w", existingVsockID, err)
-		}
-
-		if d.reservedVsockID(uint32(vsockID)) {
-			return 0, fmt.Errorf("Failed to use reserved vsock Context ID: %q", vsockID)
-		}
-
-		return uint32(vsockID), nil
+	if !ok {
+		return 0, fmt.Errorf("Context ID not set in volatile.vsock_id")
 	}
 
-	return 0, fmt.Errorf("Context ID not set in volatile.vsock_id")
+	vsockID, err := strconv.ParseUint(existingVsockID, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to parse volatile.vsock_id: %q: %w", existingVsockID, err)
+	}
+
+	if d.reservedVsockID(uint32(vsockID)) {
+		return 0, fmt.Errorf("Failed to use reserved vsock Context ID: %q", vsockID)
+	}
+
+	return uint32(vsockID), nil
 }
 
 // freeVsockID returns true if the given vsockID is not yet acquired.
