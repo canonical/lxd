@@ -136,6 +136,9 @@ jobs:
           sudo ip link delete docker0
           sudo nft flush ruleset
 
+          sudo systemctl mask lxc.service
+          sudo systemctl mask lxc-net.service
+
           sudo apt-get install --no-install-recommends -y \
             curl \
             dnsutils \
@@ -160,6 +163,7 @@ jobs:
             dnsmasq-base \
             gettext \
             jq \
+            lxc-utils \
             lvm2 \
             nftables \
             quota \

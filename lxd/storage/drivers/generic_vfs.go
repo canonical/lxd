@@ -306,7 +306,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 			wrapper = migration.ProgressTracker(op, "fs_progress", volName)
 		}
 
-		d.Logger().Debug("Receiving filesystem volume started", logger.Ctx{"volName": volName, "path": path})
+		d.Logger().Debug("Receiving filesystem volume started", logger.Ctx{"volName": volName, "path": path, "features": volTargetArgs.MigrationType.Features})
 		defer d.Logger().Debug("Receiving filesystem volume stopped", logger.Ctx{"volName": volName, "path": path})
 
 		return rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
