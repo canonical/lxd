@@ -16,19 +16,19 @@ If you do not specify a remote, the {ref}`default remote <images-remote-default>
 ### Filter available images
 
 To filter the results that are displayed, specify a part of the alias or fingerprint after the command.
-For example, to show all Debian images, enter the following command:
+For example, to show all Ubuntu 22.04 images, enter the following command:
 
-    lxc image list images: debian
+    lxc image list ubuntu: 22.04
 
 You can specify several filters as well.
-For example, to show all 64-bit Debian images, enter the following command:
+For example, to show all Arm 64-bit Ubuntu 22.04 images, enter the following command:
 
-    lxc image list images: debian amd64
+    lxc image list ubuntu: 22.04 arm64
 
 To filter for properties other than alias or fingerprint, specify the filter in `<key>=<value>` format.
 For example:
 
-    lxc image list images: debian architecture=x86_64
+    lxc image list ubuntu: 22.04 architecture=x86_64
 
 ## View image information
 
@@ -37,7 +37,7 @@ To view information about an image, enter the following command:
     lxc image info <image_ID>
 
 As the image ID, you can specify either the image's alias or its fingerprint.
-For a remote image, remember to include the remote server (for example, `images:ubuntu/22.04`).
+For a remote image, remember to include the remote server (for example, `ubuntu:22.04`).
 
 To display only the image properties, enter the following command:
 
