@@ -19,6 +19,9 @@ import (
 // tmpVolSuffix Suffix to use for any temporary volumes created by LXD.
 const tmpVolSuffix = ".lxdtmp"
 
+// isoVolSuffix suffix used for iso content type volumes.
+const isoVolSuffix = ".iso"
+
 // DefaultBlockSize is the default size of block volumes.
 const DefaultBlockSize = "10GiB"
 
@@ -161,7 +164,13 @@ func (v Volume) MountPath() string {
 		return v.mountCustomPath
 	}
 
-	return GetVolumeMountPath(v.pool, v.volType, v.name)
+	volName := v.name
+
+	if v.volType == VolumeTypeCustom && v.contentType == ContentTypeISO {
+		volName = fmt.Sprintf("%s%s", volName, isoVolSuffix)
+	}
+
+	return GetVolumeMountPath(v.pool, v.volType, volName)
 }
 
 // mountLockName returns the lock name to use for mount/unmount operations on a volume.
