@@ -570,7 +570,10 @@ func (d *lvm) ListVolumes() ([]Volume, error) {
 		volName = strings.Replace(volName, lvmEscapedHyphen, "-", -1)
 
 		contentType := ContentTypeFS
-		if volType == VolumeTypeVM || isBlock {
+		if volType == VolumeTypeCustom && strings.HasSuffix(volName, lvmISOVolSuffix) {
+			contentType = ContentTypeISO
+			volName = strings.TrimSuffix(volName, lvmISOVolSuffix)
+		} else if volType == VolumeTypeVM || isBlock {
 			contentType = ContentTypeBlock
 			volName = strings.TrimSuffix(volName, lvmBlockVolSuffix)
 		}
