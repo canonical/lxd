@@ -281,7 +281,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			opts     qemuVsockOpts
 			expected string
 		}{{
-			qemuVsockOpts{qemuDevOpts{"pcie", "qemu_pcie0", "00.4", true}, 14},
+			qemuVsockOpts{qemuDevOpts{"pcie", "qemu_pcie0", "00.4", true}, 4, 14},
 			`# Vsock
 			[device "qemu_vsock"]
 			driver = "vhost-vsock-pci"
@@ -289,13 +289,15 @@ func TestQemuConfigTemplates(t *testing.T) {
 			addr = "00.4"
 			multifunction = "on"
 			guest-cid = "14"
+			vhostfd = "4"
 			`,
 		}, {
-			qemuVsockOpts{qemuDevOpts{"ccw", "qemu_pcie0", "00.4", false}, 3},
+			qemuVsockOpts{qemuDevOpts{"ccw", "qemu_pcie0", "00.4", false}, 4, 3},
 			`# Vsock
 			[device "qemu_vsock"]
 			driver = "vhost-vsock-ccw"
 			guest-cid = "3"
+			vhostfd = "4"
 			`,
 		}}
 		for _, tc := range testCases {

@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/flosch/pongo2"
 	"github.com/gorilla/websocket"
@@ -1136,13 +1137,26 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 
 	revert.Add(func() { _ = d.unmount() })
 
-	volatileSet := make(map[string]string)
+	// Define a set of files to open and pass their file descriptors to QEMU command.
+	fdFiles := make([]*os.File, 0)
+
+	// Ensure passed files are closed after start has returned (either because QEMU has started or on error).
+	defer func() {
+		for _, file := range fdFiles {
+			_ = file.Close()
+		}
+	}()
 
 	// New or existing vsock ID from volatile.
-	vsockID, err := d.nextVsockID()
+	vsockID, vsockF, err := d.nextVsockID()
 	if err != nil {
 		return err
 	}
+
+	// Add allocated QEMU vhost file descriptor.
+	vsockFD := d.addFileDescriptor(&fdFiles, vsockF)
+
+	volatileSet := make(map[string]string)
 
 	// Update vsock ID in volatile if needed for recovery (do this before UpdateBackupFile() call).
 	oldVsockID := d.localConfig["volatile.vsock_id"]
@@ -1346,16 +1360,6 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		return err
 	}
 
-	// Define a set of files to open and pass their file descriptors to qemu command.
-	fdFiles := make([]*os.File, 0)
-
-	// Ensure passed files are closed after start has returned (either because qemu has started or on error).
-	defer func() {
-		for _, file := range fdFiles {
-			_ = file.Close()
-		}
-	}()
-
 	// Snapshot if needed.
 	snapName, expiry, err := d.getStartupSnapNameAndExpiry(d)
 	if err != nil {
@@ -1402,7 +1406,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	// Generate the QEMU configuration.
-	confFile, monHooks, err := d.generateQemuConfigFile(cpuInfo, mountInfo, qemuBus, devConfs, &fdFiles)
+	confFile, monHooks, err := d.generateQemuConfigFile(cpuInfo, mountInfo, qemuBus, vsockFD, devConfs, &fdFiles)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -2731,7 +2735,7 @@ func (d *qemu) deviceBootPriorities() (map[string]int, error) {
 
 // generateQemuConfigFile writes the qemu config file and returns its location.
 // It writes the config file inside the VM's log path.
-func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePools.MountInfo, busName string, devConfs []*deviceConfig.RunConfig, fdFiles *[]*os.File) (string, []monitorHook, error) {
+func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePools.MountInfo, busName string, vsockFD int, devConfs []*deviceConfig.RunConfig, fdFiles *[]*os.File) (string, []monitorHook, error) {
 	var monHooks []monitorHook
 
 	cfg := qemuBase(&qemuBaseOpts{d.Architecture()})
@@ -2859,6 +2863,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			devAddr:       devAddr,
 			multifunction: multi,
 		},
+		vsockFD: vsockFD,
 		vsockID: vsockID,
 	}
 
@@ -7276,74 +7281,100 @@ func (d *qemu) getVsockID() (uint32, error) {
 	return uint32(vsockID), nil
 }
 
-// freeVsockID returns true if the given vsockID is not yet acquired.
-func (d *qemu) freeVsockID(vsockID uint32) bool {
-	c, err := lxdvsock.Dial(vsockID, shared.HTTPSDefaultPort)
+// acquireVsockID tries to occupy the given vsock Context ID.
+// If the ID is free it returns the corresponding file handle.
+func (d *qemu) acquireVsockID(vsockID uint32) (*os.File, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
+	vsockF, err := os.OpenFile("/dev/vhost-vsock", os.O_RDWR, 0)
 	if err != nil {
-		var unixErrno unix.Errno
-
-		if !errors.As(err, &unixErrno) {
-			return false
-		}
-
-		if unixErrno != unix.ENODEV {
-			// Skip the vsockID if another syscall error was encountered.
-			return false
-		}
-
-		// The syscall to the vsock device returned "no such device".
-		// This means the address (Context ID) is free.
-		return true
+		return nil, fmt.Errorf("Failed to open vhost socket: %w", err)
 	}
 
-	// Address is already in use.
-	c.Close()
-	return false
+	revert.Add(func() { _ = vsockF.Close() })
+
+	// The vsock Context ID cannot be supplied as type uint32.
+	vsockIDInt := int(vsockID)
+
+	// 0x4008AF60 = VHOST_VSOCK_SET_GUEST_CID = _IOW(VHOST_VIRTIO, 0x60, __u64)
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, vsockF.Fd(), 0x4008AF60, uintptr(unsafe.Pointer(&vsockIDInt)))
+	if errno != 0 {
+		if !errors.Is(errno, unix.EADDRINUSE) {
+			return nil, fmt.Errorf("Failed ioctl syscall to vhost socket: %q", errno.Error())
+		}
+
+		// vsock Context ID is already in use.
+		return nil, nil
+	}
+
+	revert.Success()
+	return vsockF, nil
 }
 
-// nextVsockID returns the next free vsock Context ID for the VM.
-// It tries to acquire one randomly until the timeout exceeds.
-func (d *qemu) nextVsockID() (uint32, error) {
+// acquireExistingVsockID tries to acquire an already existing vsock Context ID from volatile.
+// It returns both the acquired ID and opened vsock file handle for QEMU.
+func (d *qemu) acquireExistingVsockID() (uint32, *os.File, error) {
+	vsockID, err := d.getVsockID()
+	if err != nil {
+		return 0, nil, err
+	}
+
+	// Check if the vsockID from last VM start is still not acquired in case the VM was stopped.
+	f, err := d.acquireVsockID(vsockID)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return vsockID, f, nil
+}
+
+// nextVsockID tries to acquire the next free vsock Context ID for the VM.
+// It returns both the acquired ID and opened vsock file handle for QEMU.
+func (d *qemu) nextVsockID() (uint32, *os.File, error) {
 	// Check if vsock ID from last VM start is present in volatile, then use that.
 	// This allows a running VM to be recovered after DB record deletion and that an agent connection still works
 	// after the VM's instance ID has changed.
 	// Continue in case of error since the caller requires a valid vsockID in any case.
-	vsockID, err := d.getVsockID()
-	if err == nil {
-		// Check if the vsock ID from last VM start is still not acquired in case the VM was stopped.
-		if d.freeVsockID(vsockID) {
-			return vsockID, nil
-		}
+	vsockID, vsockF, _ := d.acquireExistingVsockID()
+	if vsockID != 0 && vsockF != nil {
+		return vsockID, vsockF, nil
 	}
 
+	// Ignore the error from before and start to acquire a new Context ID.
 	instanceUUID := uuid.Parse(d.localConfig["volatile.uuid"])
 	if instanceUUID == nil {
-		return 0, fmt.Errorf("Failed to parse instance UUID from volatile.uuid")
+		return 0, nil, fmt.Errorf("Failed to parse instance UUID from volatile.uuid")
 	}
 
 	r, err := util.GetStableRandomGenerator(instanceUUID.String())
 	if err != nil {
-		return 0, fmt.Errorf("Failed generating stable random seed from instance UUID %q: %w", instanceUUID, err)
+		return 0, nil, fmt.Errorf("Failed generating stable random seed from instance UUID %q: %w", instanceUUID, err)
 	}
 
-	timeout := 5 * time.Second
+	timeout := time.Now().Add(5 * time.Second)
 
 	// Try to find a new Context ID.
-	for start := time.Now(); time.Since(start) <= timeout; {
+	for {
+		if time.Now().After(timeout) {
+			return 0, nil, fmt.Errorf("Timeout exceeded whilst trying to acquire the next vsock Context ID")
+		}
+
 		candidateVsockID := r.Uint32()
 
 		if d.reservedVsockID(candidateVsockID) {
 			continue
 		}
 
-		if d.freeVsockID(candidateVsockID) {
-			return candidateVsockID, nil
+		vsockF, err := d.acquireVsockID(candidateVsockID)
+		if err != nil {
+			return 0, nil, err
 		}
 
-		continue
+		if vsockF != nil {
+			return candidateVsockID, vsockF, nil
+		}
 	}
-
-	return 0, fmt.Errorf("Timeout exceeded whilst trying to acquire the next vsock Context ID")
 }
 
 // InitPID returns the instance's current process ID.
