@@ -165,13 +165,15 @@ func (s *consoleWs) connectVGA(op *operations.Operation, r *http.Request, w http
 
 		// Mirror the console and websocket.
 		go func() {
-			defer logger.Debug("Finished mirroring websocket to console")
+			l := logger.AddContext(logger.Ctx{"address": conn.RemoteAddr().String()})
 
-			logger.Debug("Started mirroring websocket")
+			defer l.Debug("Finished mirroring websocket to console")
+
+			l.Debug("Started mirroring websocket")
 			readDone, writeDone := ws.Mirror(context.Background(), conn, console)
 
 			<-readDone
-			logger.Debugf("Finished mirroring console to websocket")
+			l.Debug("Finished mirroring console to websocket")
 			<-writeDone
 		}()
 
