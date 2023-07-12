@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/migration"
@@ -30,7 +31,7 @@ func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string, rs
 	// Setup control struct
 	fs := migration.MigrationFSType_RSYNC
 	rsyncHasFeature := true
-	header := migration.MigrationHeader{
+	offerHeader := migration.MigrationHeader{
 		Fs: &fs,
 		RsyncFeatures: &migration.RsyncFeatures{
 			Xattrs:   &rsyncHasFeature,
@@ -39,14 +40,22 @@ func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string, rs
 		},
 	}
 
-	err = migration.ProtoSend(wsControl, &header)
+	err = migration.ProtoSend(wsControl, &offerHeader)
 	if err != nil {
 		return abort(err)
 	}
 
-	err = migration.ProtoRecv(wsControl, &header)
+	var respHeader migration.MigrationHeader
+	err = migration.ProtoRecv(wsControl, &respHeader)
 	if err != nil {
 		return abort(err)
+	}
+
+	rsyncFeaturesOffered := offerHeader.GetRsyncFeaturesSlice()
+	rsyncFeaturesResponse := respHeader.GetRsyncFeaturesSlice()
+
+	if !reflect.DeepEqual(rsyncFeaturesOffered, rsyncFeaturesResponse) {
+		return abort(fmt.Errorf("Offered rsync features (%v) differ from those in the migration response (%v)", rsyncFeaturesOffered, rsyncFeaturesResponse))
 	}
 
 	// Send the filesystem
