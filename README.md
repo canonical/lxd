@@ -6,7 +6,7 @@ LXD is a modern, secure and powerful system container and virtual machine manage
 
 <!-- Include start LXD intro -->
 
-It provides a unified experience for running and managing full Linux systems inside containers or virtual machines. LXD supplies images for a [wide number of Linux distributions](https://images.linuxcontainers.org) and is built around a very powerful, yet pretty simple, REST API. LXD scales from one instance on a single machine to a cluster in a full data center rack, making it suitable for running workloads both for development and in production.
+It provides a unified experience for running and managing full Linux systems inside containers or virtual machines. LXD supports images for a large number of Linux distributions (official Ubuntu images and images provided by the community) and is built around a very powerful, yet pretty simple, REST API. LXD scales from one instance on a single machine to a cluster in a full data center rack, making it suitable for running workloads both for development and in production.
 
 LXD allows you to easily set up a system that feels like a small private cloud. You can run any type of workload in an efficient way while keeping your resources optimized.
 
