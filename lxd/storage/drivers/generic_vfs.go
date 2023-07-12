@@ -30,6 +30,9 @@ const genericVolumeBlockExtension = "img"
 // genericVolumeDiskFile used to indicate the file name used for block volume disk files.
 const genericVolumeDiskFile = "root.img"
 
+// genericISOVolumeSuffix suffix used for generic iso content type volumes.
+const genericISOVolumeSuffix = ".iso"
+
 // genericVFSGetResources is a generic GetResources implementation for VFS-only drivers.
 func genericVFSGetResources(d Driver) (*api.ResourcesStoragePool, error) {
 	// Get the VFS information
@@ -1097,14 +1100,21 @@ func genericVFSListVolumes(d Driver) ([]Volume, error) {
 		}
 
 		for _, ent := range ents {
+			volName := ent.Name()
+
 			contentType := ContentTypeFS
 			if volType == VolumeTypeVM {
 				contentType = ContentTypeBlock
-			} else if volType == VolumeTypeCustom && shared.PathExists(filepath.Join(volTypePath, ent.Name(), genericVolumeDiskFile)) {
-				contentType = ContentTypeBlock
+			} else if volType == VolumeTypeCustom && shared.PathExists(filepath.Join(volTypePath, volName, genericVolumeDiskFile)) {
+				if strings.HasSuffix(ent.Name(), genericISOVolumeSuffix) {
+					contentType = ContentTypeISO
+					volName = strings.TrimSuffix(volName, genericISOVolumeSuffix)
+				} else {
+					contentType = ContentTypeBlock
+				}
 			}
 
-			vols = append(vols, NewVolume(d, poolName, volType, contentType, ent.Name(), make(map[string]string), poolConfig))
+			vols = append(vols, NewVolume(d, poolName, volType, contentType, volName, make(map[string]string), poolConfig))
 		}
 	}
 
