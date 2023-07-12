@@ -2413,8 +2413,7 @@ func (r *ProtocolLXD) ConsoleInstanceDynamic(instanceName string, console api.In
 		}
 
 		// Attach reader/writer.
-		readDone, writeDone := ws.Mirror(context.Background(), conn, rwc)
-		<-readDone
+		_, writeDone := ws.Mirror(context.Background(), conn, rwc)
 		<-writeDone
 		_ = conn.Close()
 
