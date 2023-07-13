@@ -37,9 +37,14 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 		return err
 	}
 
+	abort := func(err error) error {
+		protoSendError(wsControl, err)
+		return err
+	}
+
 	wsFs, err := op.GetWebsocket(opAPI.Metadata[api.SecretNameFilesystem].(string))
 	if err != nil {
-		return err
+		return abort(err)
 	}
 
 	// Setup control struct
@@ -66,7 +71,7 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 	if instanceType == api.InstanceTypeVM {
 		stat, err := os.Stat(filepath.Join(rootfs, "root.img"))
 		if err != nil {
-			return err
+			return abort(err)
 		}
 
 		size := stat.Size()
@@ -76,22 +81,15 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 
 	err = migration.ProtoSend(wsControl, &header)
 	if err != nil {
-		protoSendError(wsControl, err)
-		return err
+		return abort(err)
 	}
 
 	err = migration.ProtoRecv(wsControl, &header)
 	if err != nil {
-		protoSendError(wsControl, err)
-		return err
+		return abort(err)
 	}
 
 	// Send the filesystem
-	abort := func(err error) error {
-		protoSendError(wsControl, err)
-		return err
-	}
-
 	err = rsyncSend(ctx, wsFs, rootfs, rsyncArgs, instanceType)
 	if err != nil {
 		return abort(fmt.Errorf("Failed sending filesystem volume: %w", err))
@@ -101,7 +99,7 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 	if instanceType == api.InstanceTypeVM {
 		f, err := os.Open(filepath.Join(rootfs, "root.img"))
 		if err != nil {
-			return err
+			return abort(err)
 		}
 
 		defer func() { _ = f.Close() }()
@@ -121,7 +119,7 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 
 		err = conn.Close()
 		if err != nil {
-			return err
+			return abort(err)
 		}
 	}
 
