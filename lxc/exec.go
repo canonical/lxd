@@ -34,6 +34,7 @@ type cmdExec struct {
 	interactive bool
 }
 
+// Defines and returns a 'cobra.Command' for executing commands within instances, with various flags for configuration.
 func (c *cmdExec) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("exec", i18n.G("[<remote>:]<instance> [flags] [--] <command line>"))
@@ -63,6 +64,7 @@ Mode defaults to non-interactive, interactive mode is selected if both stdin AND
 	return cmd
 }
 
+// Sends the terminal window size to the control websocket to handle window resizing events.
 func (c *cmdExec) sendTermSize(control *websocket.Conn) error {
 	width, height, err := termios.GetSize(getStdoutFd())
 	if err != nil {
@@ -80,6 +82,7 @@ func (c *cmdExec) sendTermSize(control *websocket.Conn) error {
 	return control.WriteJSON(msg)
 }
 
+// Runs the provided command in an instance while handling the terminal interaction, environment, and operation completion.
 func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
