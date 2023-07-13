@@ -74,6 +74,7 @@ var patches = []patch{
 	{name: "storage_delete_old_snapshot_records", stage: patchPostDaemonStorage, run: patchGenericStorage},
 	{name: "storage_zfs_drop_block_volume_filesystem_extension", stage: patchPostDaemonStorage, run: patchGenericStorage},
 	{name: "storage_move_custom_iso_block_volumes", stage: patchPostDaemonStorage, run: patchStorageRenameCustomISOBlockVolumes},
+	{name: "zfs_set_content_type_user_property", stage: patchPostDaemonStorage, run: patchZfsSetContentTypeUserProperty},
 }
 
 type patch struct {
@@ -832,6 +833,75 @@ func patchStorageRenameCustomISOBlockVolumes(name string, d *Daemon) error {
 			err = p.Driver().RenameVolume(oldVol, fmt.Sprintf("%s.iso", oldVol.Name()), nil)
 			if err != nil {
 				return fmt.Errorf("Failed renaming volume: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// patchZfsSetContentTypeUserProperty adds the `lxd:content_type` user property to custom storage volumes. In case of recovery, this allows for proper detection of block-mode enabled volumes.
+func patchZfsSetContentTypeUserProperty(name string, d *Daemon) error {
+	s := d.State()
+
+	// Get all storage pool names.
+	pools, err := s.DB.Cluster.GetStoragePoolNames()
+	if err != nil {
+		return fmt.Errorf("Failed getting storage pool names: %w", err)
+	}
+
+	volTypeCustom := db.StoragePoolVolumeTypeCustom
+	customPoolVolumes := make(map[string][]*db.StorageVolume, 0)
+
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		for _, pool := range pools {
+			// Get storage pool ID.
+			poolID, err := tx.GetStoragePoolID(ctx, pool)
+			if err != nil {
+				return fmt.Errorf("Failed getting storage pool ID of pool %q: %w", pool, err)
+			}
+
+			// Get the pool's custom storage volumes.
+			customVolumes, err := tx.GetStoragePoolVolumes(ctx, poolID, false, db.StorageVolumeFilter{Type: &volTypeCustom})
+			if err != nil {
+				return fmt.Errorf("Failed getting custom storage volumes of pool %q: %w", pool, err)
+			}
+
+			if customPoolVolumes[pool] == nil {
+				customPoolVolumes[pool] = []*db.StorageVolume{}
+			}
+
+			customPoolVolumes[pool] = append(customPoolVolumes[pool], customVolumes...)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	for poolName, volumes := range customPoolVolumes {
+		// Load storage pool.
+		p, err := storagePools.LoadByName(s, poolName)
+		if err != nil {
+			return fmt.Errorf("Failed loading pool %q: %w", poolName, err)
+		}
+
+		if p.Driver().Info().Name != "zfs" {
+			continue
+		}
+
+		for _, vol := range volumes {
+			zfsPoolName := p.Driver().Config()["zfs.pool_name"]
+			if zfsPoolName != "" {
+				poolName = zfsPoolName
+			}
+
+			zfsVolName := fmt.Sprintf("%s/%s/%s", poolName, storageDrivers.VolumeTypeCustom, project.StorageVolume(vol.Project, vol.Name))
+
+			_, err = shared.RunCommand("zfs", "set", fmt.Sprintf("lxd:content_type=%s", vol.ContentType), zfsVolName)
+			if err != nil {
+				logger.Debug("Failed setting lxd:content_type property", logger.Ctx{"name": zfsVolName, "err": err})
 			}
 		}
 	}
