@@ -663,10 +663,10 @@ test_clustering_storage() {
   # Define storage pools on the two nodes
   driver_config=""
   if [ "${poolDriver}" = "btrfs" ]; then
-      driver_config="size=20GB"
+      driver_config="size=1GiB"
   fi
   if [ "${poolDriver}" = "zfs" ]; then
-      driver_config="size=20GB"
+      driver_config="size=1GiB"
   fi
   if [ "${poolDriver}" = "ceph" ]; then
       driver_config="source=lxdtest-$(basename "${TEST_DIR}")-pool1"
@@ -714,9 +714,9 @@ test_clustering_storage() {
 
   # Create the storage pool
   if [ "${poolDriver}" = "lvm" ]; then
-      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" volume.size=25MB
+      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" volume.size=25MiB
   elif [ "${poolDriver}" = "ceph" ]; then
-      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" volume.size=25MB ceph.osd.pg_num=16
+      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" volume.size=25MiB ceph.osd.pg_num=16
   else
       LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}"
   fi
@@ -945,10 +945,10 @@ test_clustering_storage_single_node() {
   # Create a pending storage pool on the node.
   driver_config=""
   if [ "${poolDriver}" = "btrfs" ]; then
-      driver_config="size=20GB"
+      driver_config="size=1GiB"
   fi
   if [ "${poolDriver}" = "zfs" ]; then
-      driver_config="size=20GB"
+      driver_config="size=1GiB"
   fi
   if [ "${poolDriver}" = "ceph" ]; then
       driver_config="source=lxdtest-$(basename "${TEST_DIR}")-pool1"
@@ -3458,11 +3458,11 @@ test_clustering_events() {
   LXD_DIR="${LXD_ONE_DIR}" lxc info c1 | grep -q "Location: node1"
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c2 --target=node2
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc monitor --type=lifecycle > "${TEST_DIR}/node1.log" &
+  LXD_DIR="${LXD_ONE_DIR}" stdbuf -oL lxc monitor --type=lifecycle > "${TEST_DIR}/node1.log" &
   monitorNode1PID=$!
-  LXD_DIR="${LXD_TWO_DIR}" lxc monitor --type=lifecycle > "${TEST_DIR}/node2.log" &
+  LXD_DIR="${LXD_TWO_DIR}" stdbuf -oL lxc monitor --type=lifecycle > "${TEST_DIR}/node2.log" &
   monitorNode2PID=$!
-  LXD_DIR="${LXD_THREE_DIR}" lxc monitor --type=lifecycle > "${TEST_DIR}/node3.log" &
+  LXD_DIR="${LXD_THREE_DIR}" stdbuf -oL lxc monitor --type=lifecycle > "${TEST_DIR}/node3.log" &
   monitorNode3PID=$!
 
   # Restart instance generating restart lifecycle event.
@@ -3471,6 +3471,7 @@ test_clustering_events() {
 
   # Check events were distributed.
   for i in 1 2 3; do
+    cat "${TEST_DIR}/node${i}.log"
     grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log" | grep -Fx 2
   done
 
@@ -3498,6 +3499,7 @@ test_clustering_events() {
 
   # Check events were distributed.
   for i in 1 2 3; do
+    cat "${TEST_DIR}/node${i}.log"
     grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log" | grep -Fx 4
   done
 

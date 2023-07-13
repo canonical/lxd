@@ -113,7 +113,7 @@ TEST_DIR=$(mktemp -d -p "$(pwd)" tmp.XXX)
 chmod +x "${TEST_DIR}"
 
 if [ -n "${LXD_TMPFS:-}" ]; then
-  mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751
+  mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=6G
 fi
 
 mkdir -p "${TEST_DIR}/dev"
