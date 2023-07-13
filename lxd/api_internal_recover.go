@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
+	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
@@ -221,6 +223,10 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 		// Get list of unknown volumes on pool.
 		poolProjectVols, err := pool.ListUnknownVolumes(nil)
 		if err != nil {
+			if errors.Is(err, storageDrivers.ErrNotSupported) {
+				continue // Ignore unsupported storage drivers.
+			}
+
 			return response.SmartError(fmt.Errorf("Failed checking volumes on pool %q: %w", pool.Name(), err))
 		}
 
