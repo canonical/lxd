@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2023-07-06 10:13+0100\n"
+"POT-Creation-Date: 2023-07-13 07:56+0100\n"
 "PO-Revision-Date: 2022-03-31 14:23+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -2561,7 +2561,7 @@ msgstr "イメージは以下のフィンガープリントでインポートさ
 msgid "Image refreshed successfully!"
 msgstr "イメージの更新が成功しました!"
 
-#: lxc/action.go:121 lxc/launch.go:39
+#: lxc/action.go:121 lxc/launch.go:42
 msgid "Immediately attach to the console"
 msgstr "起動直後にインスタンスのコンソールに接続します"
 
@@ -5051,8 +5051,8 @@ msgid "Show warning"
 msgstr "警告を表示します"
 
 #: lxc/image.go:942
-#, c-format
-msgid "Size: %.2fMB"
+#, fuzzy, c-format
+msgid "Size: %.2fMiB"
 msgstr "サイズ: %.2fMB"
 
 #: lxc/info.go:277 lxc/info.go:293
@@ -5090,7 +5090,7 @@ msgstr "取得元:"
 msgid "Start instances"
 msgstr "インスタンスを起動します"
 
-#: lxc/launch.go:76
+#: lxc/launch.go:79
 #, c-format
 msgid "Starting %s"
 msgstr "%s を起動中"
@@ -5454,7 +5454,7 @@ msgstr "インスタンスを転送中: %s"
 msgid "Transmit policy"
 msgstr "通信ポリシー"
 
-#: lxc/action.go:274 lxc/launch.go:108
+#: lxc/action.go:274 lxc/launch.go:111
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "更に情報を得るために `lxc info --show-log %s` を実行してみてください"
@@ -6546,8 +6546,12 @@ msgid ""
 "lxc launch ubuntu:22.04 u1 < config.yaml\n"
 "    Create and start a container with configuration from config.yaml\n"
 "\n"
-"lxc launch ubuntu:22.04 v1 --vm\n"
-"    Create and start a virtual machine"
+"lxc launch ubuntu:22.04 u2 -t aws:t2.micro\n"
+"    Create and start a container using the same size as an AWS t2.micro (1 "
+"vCPU, 1GiB of RAM)\n"
+"\n"
+"lxc launch ubuntu:22.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB\n"
+"    Create and start a virtual machine with 4 vCPUs and 4GiB of RAM"
 msgstr ""
 "lxc launch ubuntu:20.04 u1\n"
 "\n"
