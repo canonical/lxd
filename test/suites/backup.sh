@@ -4,6 +4,7 @@ test_storage_volume_recover() {
   spawn_lxd "${LXD_IMPORT_DIR}" true
 
   poolName=$(lxc profile device get default root pool)
+  poolDriver=$(lxc storage show "${poolName}" | awk '/^driver:/ {print $2}')
 
   # Create custom block volume.
   lxc storage volume create "${poolName}" vol1 --type=block
@@ -14,6 +15,22 @@ test_storage_volume_recover() {
   # Ensure the custom block volume is no longer listed.
   ! lxc storage volume show "${poolName}" vol1 || false
 
+  if [ "$poolDriver" = "zfs" ]; then
+    # Create filesystem volume.
+    lxc storage volume create "${poolName}" vol3
+
+    # Create block_mode enabled volume.
+    lxc storage volume create "${poolName}" vol4 zfs.block_mode=true size=200MiB
+
+    # Delete database entries of the created custom volumes.
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='vol3'"
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='vol4'"
+
+    # Ensure the custom volumes are no longer listed.
+    ! lxc storage volume show "${poolName}" vol3 || false
+    ! lxc storage volume show "${poolName}" vol4 || false
+  fi
+
   # Recover custom block volume.
   cat <<EOF | lxd recover
 no
@@ -23,6 +40,16 @@ EOF
 
   # Ensure custom storage volume has been recovered.
   lxc storage volume show "${poolName}" vol1 | grep -q 'content_type: block'
+
+  if [ "$poolDriver" = "zfs" ]; then
+    # Ensure custom storage volumes have been recovered.
+    lxc storage volume show "${poolName}" vol3| grep -q 'content_type: filesystem'
+    lxc storage volume show "${poolName}" vol4| grep -q 'content_type: filesystem'
+
+    # Cleanup
+    lxc storage volume delete "${poolName}" vol3
+    lxc storage volume delete "${poolName}" vol4
+  fi
 
   # Cleanup
   lxc storage volume delete "${poolName}" vol1
