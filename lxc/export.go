@@ -25,6 +25,7 @@ type cmdExport struct {
 	flagCompressionAlgorithm string
 }
 
+// Constructs and returns a Cobra command for exporting instance backups with various options and flags.
 func (c *cmdExport) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("export", i18n.G("[<remote>:]<instance> [target] [--instance-only] [--optimized-storage]"))
@@ -45,6 +46,8 @@ func (c *cmdExport) Command() *cobra.Command {
 	return cmd
 }
 
+// Runs the export command, which connects to LXD, creates an instance backup, watches the backup progress,
+// exports the backup to a target file or stdout, and performs cleanup operations.
 func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
