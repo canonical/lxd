@@ -1802,7 +1802,7 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 	// However for custom block volumes it does not also end the volume name in zfsBlockVolSuffix (unlike the
 	// LVM and Ceph drivers), so we must also retrieve the dataset type here and look for "volume" types
 	// which also indicate this is a block volume.
-	cmd := exec.Command("zfs", "list", "-H", "-o", "name,type", "-r", "-t", "filesystem,volume", d.config["zfs.pool_name"])
+	cmd := exec.Command("zfs", "list", "-H", "-o", "name,type,lxd:content_type", "-r", "-t", "filesystem,volume", d.config["zfs.pool_name"])
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
@@ -1824,12 +1824,13 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 
 		// Splitting fields on tab should be safe as ZFS doesn't appear to allow tabs in dataset names.
 		parts := strings.Split(line, "\t")
-		if len(parts) != 2 {
+		if len(parts) != 3 {
 			return nil, fmt.Errorf("Unexpected volume line %q", line)
 		}
 
 		zfsVolName := parts[0]
 		zfsContentType := parts[1]
+		lxdContentType := parts[2]
 
 		var volType VolumeType
 		var volName string
@@ -1875,7 +1876,14 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 			v := NewVolume(d, d.name, volType, contentType, volName, make(map[string]string), d.config)
 
 			if isBlock {
-				v.SetMountFilesystemProbe(true)
+				// Get correct content type from lxd:content_type property.
+				if lxdContentType != "-" {
+					v.contentType = ContentType(lxdContentType)
+				}
+
+				if v.contentType == ContentTypeBlock {
+					v.SetMountFilesystemProbe(true)
+				}
 			}
 
 			vols[volName] = v
