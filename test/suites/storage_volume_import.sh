@@ -14,6 +14,15 @@ test_storage_volume_import() {
   lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" foo | grep -q 'content_type: iso'
   lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" foobar | grep -q 'content_type: iso'
 
+  # delete an ISO storage volume and re-import it
+  lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")" foo
+  lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")" foobar
+
+  lxc storage volume import "lxdtest-$(basename "${LXD_DIR}")" ./foo.iso foo
+  lxc storage volume import "lxdtest-$(basename "${LXD_DIR}")" ./foo.img --type=iso foobar
+  lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" foo | grep -q 'content_type: iso'
+  lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" foobar | grep -q 'content_type: iso'
+
   # snapshots are disabled for ISO storage volumes
   ! lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")" foo || false
 
