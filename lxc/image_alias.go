@@ -17,6 +17,7 @@ type cmdImageAlias struct {
 	image  *cmdImage
 }
 
+// Generates the "image alias" command and its subcommands for managing image aliases.
 func (c *cmdImageAlias) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("alias")
@@ -53,6 +54,7 @@ type cmdImageAliasCreate struct {
 	imageAlias *cmdImageAlias
 }
 
+// Generates the "image alias create" command for creating aliases for existing images.
 func (c *cmdImageAliasCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<alias> <fingerprint>"))
@@ -65,6 +67,7 @@ func (c *cmdImageAliasCreate) Command() *cobra.Command {
 	return cmd
 }
 
+// Runs the "image alias create" command to create an alias for an existing image.
 func (c *cmdImageAliasCreate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -99,6 +102,7 @@ type cmdImageAliasDelete struct {
 	imageAlias *cmdImageAlias
 }
 
+// Generates the "image alias delete" command for deleting image aliases.
 func (c *cmdImageAliasDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<alias>"))
@@ -112,6 +116,7 @@ func (c *cmdImageAliasDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// Deletes the specified image alias.
 func (c *cmdImageAliasDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -144,6 +149,7 @@ type cmdImageAliasList struct {
 	flagFormat string
 }
 
+// Generates the "image alias list" command for listing image aliases with optional filters and formatting options.
 func (c *cmdImageAliasList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:] [<filters>...]"))
@@ -161,6 +167,7 @@ Filters may be part of the image hash or part of the image alias name.
 	return cmd
 }
 
+// Checks if an image alias should be included based on the given filters, returning true if it matches any of the filters.
 func (c *cmdImageAliasList) aliasShouldShow(filters []string, state *api.ImageAliasesEntry) bool {
 	if len(filters) == 0 {
 		return true
@@ -175,6 +182,7 @@ func (c *cmdImageAliasList) aliasShouldShow(filters []string, state *api.ImageAl
 	return false
 }
 
+// Executes the "image alias list" command to retrieve and display a list of image aliases based on the provided filters.
 func (c *cmdImageAliasList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, -1)
@@ -247,6 +255,7 @@ type cmdImageAliasRename struct {
 	imageAlias *cmdImageAlias
 }
 
+// Generates the "image alias rename" command for renaming image aliases.
 func (c *cmdImageAliasRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("[<remote>:]<alias> <new-name>"))
@@ -260,6 +269,7 @@ func (c *cmdImageAliasRename) Command() *cobra.Command {
 	return cmd
 }
 
+// Renames an image alias by calling the server API with the new alias name.
 func (c *cmdImageAliasRename) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
