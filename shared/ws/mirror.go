@@ -69,10 +69,6 @@ func MirrorWrite(ctx context.Context, conn *websocket.Conn, wc io.WriteCloser) c
 		_, _ = io.Copy(wc, connRWC)
 		defer close(chDone)
 
-		// Send close message.
-		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-		_ = conn.WriteMessage(websocket.CloseMessage, closeMsg)
-
 		logger.Debug("Websocket: Stopped write mirror", logger.Ctx{"address": conn.RemoteAddr().String()})
 	}()
 
