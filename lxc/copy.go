@@ -32,6 +32,8 @@ type cmdCopy struct {
 	flagAllowInconsistent bool
 }
 
+// Command generates the cobra.Command for the "copy" command, allowing instances to be copied within or
+// between LXD servers with a variety of transfer modes and configuration options.
 func (c *cmdCopy) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("copy", i18n.G("[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"))
@@ -66,6 +68,7 @@ The pull transfer mode is the default as it is compatible with all LXD versions.
 	return cmd
 }
 
+// Copies or moves an instance or snapshot from one location to another, potentially modifying its configuration and devices in the process.
 func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destResource string, keepVolatile bool, ephemeral int, stateful bool, instanceOnly bool, mode string, pool string, move bool) error {
 	// Parse the source
 	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
@@ -440,6 +443,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 	return nil
 }
 
+// Orchestrates the execution of instance or snapshot copy/move based on provided command line arguments and flags.
 func (c *cmdCopy) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
