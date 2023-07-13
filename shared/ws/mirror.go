@@ -31,8 +31,8 @@ func MirrorRead(ctx context.Context, conn *websocket.Conn, rc io.ReadCloser) cha
 	connRWC := NewWrapper(conn)
 
 	go func() {
-		_, _ = io.Copy(connRWC, rc)
 		defer close(chDone)
+		_, _ = io.Copy(connRWC, rc)
 
 		// Send write barrier.
 		connRWC.Close()
@@ -66,8 +66,8 @@ func MirrorWrite(ctx context.Context, conn *websocket.Conn, wc io.WriteCloser) c
 	connRWC := NewWrapper(conn)
 
 	go func() {
-		_, _ = io.Copy(wc, connRWC)
 		defer close(chDone)
+		_, _ = io.Copy(wc, connRWC)
 
 		logger.Debug("Websocket: Stopped write mirror", logger.Ctx{"address": conn.RemoteAddr().String()})
 	}()
