@@ -13,10 +13,12 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+// Fetches the TERM environment variable, returning its value and a boolean indicating if it was found.
 func (c *cmdExec) getTERM() (string, bool) {
 	return os.LookupEnv("TERM")
 }
 
+// Handles and forwards appropriate system signals received by the process to a control websocket connection.
 func (c *cmdExec) controlSocketHandler(control *websocket.Conn) {
 	ch := make(chan os.Signal, 10)
 	signal.Notify(ch,
@@ -161,6 +163,7 @@ func (c *cmdExec) controlSocketHandler(control *websocket.Conn) {
 	}
 }
 
+// Forwards a specific Unix signal to a given instance via a websocket connection.
 func (c *cmdExec) forwardSignal(control *websocket.Conn, sig unix.Signal) error {
 	logger.Debugf("Forwarding signal: %s", sig)
 
