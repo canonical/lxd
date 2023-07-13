@@ -42,6 +42,7 @@ type cmdFile struct {
 	flagRecursive bool
 }
 
+// Retrieves a file from the server while handling interrupt signals and allowing for early cancellation after multiple interrupts.
 func fileGetWrapper(server lxd.InstanceServer, inst string, path string) (buf io.ReadCloser, resp *lxd.InstanceFileResponse, err error) {
 	// Signal handling
 	chSignal := make(chan os.Signal, 1)
@@ -71,6 +72,7 @@ func fileGetWrapper(server lxd.InstanceServer, inst string, path string) (buf io
 	}
 }
 
+// Defines the "file" command and its subcommands for managing files in instances.
 func (c *cmdFile) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("file")
@@ -110,6 +112,7 @@ type cmdFileDelete struct {
 	file   *cmdFile
 }
 
+// Defines the "file delete" command for deleting files in instances.
 func (c *cmdFileDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"))
@@ -123,6 +126,7 @@ func (c *cmdFileDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// Runs the "file delete" command to delete files in instances based on the provided arguments.
 func (c *cmdFileDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
@@ -160,6 +164,7 @@ type cmdFileEdit struct {
 	filePush *cmdFilePush
 }
 
+// Generates the "file edit" command to edit files in instances.
 func (c *cmdFileEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<instance>/<path>"))
@@ -172,6 +177,7 @@ func (c *cmdFileEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the "file edit" command to edit files in instances, allowing interactive editing using a text editor.
 func (c *cmdFileEdit) Run(cmd *cobra.Command, args []string) error {
 	c.filePush.noModeChange = true
 
@@ -230,6 +236,7 @@ type cmdFilePull struct {
 	edit bool
 }
 
+// Generates the "file pull" command to pull files from instances, allowing the transfer of files from instances to the local machine.
 func (c *cmdFilePull) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("pull", i18n.G("[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"))
@@ -247,6 +254,7 @@ func (c *cmdFilePull) Command() *cobra.Command {
 	return cmd
 }
 
+// Handles the "file pull" command to pull files from instances, allowing the transfer of files from instances to the local machine.
 func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -452,6 +460,7 @@ type cmdFilePush struct {
 	noModeChange bool
 }
 
+// Generates the "file push" command to push files into instances, allowing the transfer of files from the local machine to instances.
 func (c *cmdFilePush) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("push", i18n.G("<source path>... [<remote>:]<instance>/<path>"))
@@ -472,6 +481,8 @@ func (c *cmdFilePush) Command() *cobra.Command {
 	return cmd
 }
 
+// Handles the "file push" command to push files into instances, transferring files from the local machine to
+// instances, with support for recursive transfers, setting file permissions, and creating directories if necessary.
 func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -708,6 +719,7 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// Recursively pulls files and directories from an instance, preserving file permissions and directory structure, and saves them to the target directory on the local machine.
 func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string, targetDir string) error {
 	buf, resp, err := d.GetInstanceFile(inst, p)
 	if err != nil {
@@ -791,6 +803,7 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string,
 	return nil
 }
 
+// Recursively pushes files and directories from the source path to an instance, preserving file permissions and directory structure.
 func (c *cmdFile) recursivePushFile(d lxd.InstanceServer, inst string, source string, target string) error {
 	source = filepath.Clean(source)
 	sourceDir, _ := filepath.Split(source)
@@ -893,6 +906,7 @@ func (c *cmdFile) recursivePushFile(d lxd.InstanceServer, inst string, source st
 	return filepath.Walk(source, sendFile)
 }
 
+// Recursively creates directories in the specified instance path, preserving permissions and ownership.
 func (c *cmdFile) recursiveMkdir(d lxd.InstanceServer, inst string, p string, mode *os.FileMode, uid int64, gid int64) error {
 	/* special case, every instance has a /, we don't need to do anything */
 	if p == "/" {
@@ -960,6 +974,7 @@ type cmdFileMount struct {
 	flagAuthUser string
 }
 
+// Generates the "file mount" command to mount files from instances or set up an SSH SFTP listener.
 func (c *cmdFileMount) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("mount", i18n.G("[<remote>:]<instance>[/<path>] [<target path>]"))
@@ -978,6 +993,7 @@ func (c *cmdFileMount) Command() *cobra.Command {
 	return cmd
 }
 
+// Runs the "file mount" command, either mounting files using SSHFS or setting up an SSH SFTP listener, based on the provided arguments and options.
 func (c *cmdFileMount) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
