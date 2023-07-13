@@ -23,6 +23,7 @@ type cmdDelete struct {
 	flagInteractive    bool
 }
 
+// Constructs the 'delete' command with its usage, descriptions, flags, and bind its execution function for deleting instances and snapshots.
 func (c *cmdDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/<snapshot>]...]"))
@@ -38,6 +39,7 @@ func (c *cmdDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// Prompts user for confirmation to delete a specified entity and aborts operation if the input isn't affirmative.
 func (c *cmdDelete) promptDelete(name string) error {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Printf(i18n.G("Remove %s (yes/no): "), name)
@@ -51,6 +53,7 @@ func (c *cmdDelete) promptDelete(name string) error {
 	return nil
 }
 
+// Executes the deletion of an instance or snapshot, returning an error if the operation fails.
 func (c *cmdDelete) doDelete(d lxd.InstanceServer, name string) error {
 	var op lxd.Operation
 	var err error
@@ -71,6 +74,7 @@ func (c *cmdDelete) doDelete(d lxd.InstanceServer, name string) error {
 	return op.Wait()
 }
 
+// Coordinates deletion of provided instances or snapshots, prompting user confirmation if necessary and handling force deletions.
 func (c *cmdDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
