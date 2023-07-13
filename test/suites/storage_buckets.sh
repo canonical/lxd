@@ -38,7 +38,7 @@ test_storage_buckets() {
       export TEST_UNMET_REQUIREMENT="LXD_CEPH_CEPHOBJECT_RADOSGW not specified"
       return
     fi
-  elif ! which minio ; then
+  elif ! command -v minio ; then
     # Check minio is installed for local storage pool buckets.
     export TEST_UNMET_REQUIREMENT="minio command not found"
     return
