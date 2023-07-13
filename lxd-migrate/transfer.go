@@ -32,6 +32,8 @@ func rsyncSend(ctx context.Context, conn *websocket.Conn, path string, rsyncArgs
 	}
 
 	readDone, writeDone := ws.Mirror(ctx, conn, dataSocket)
+	<-writeDone
+	_ = dataSocket.Close()
 
 	output, err := io.ReadAll(stderr)
 	if err != nil {
@@ -42,7 +44,6 @@ func rsyncSend(ctx context.Context, conn *websocket.Conn, path string, rsyncArgs
 
 	err = cmd.Wait()
 	<-readDone
-	<-writeDone
 
 	if err != nil {
 		return fmt.Errorf("Failed to rsync: %v\n%s", err, output)
