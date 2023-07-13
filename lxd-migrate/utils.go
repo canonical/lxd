@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery"
@@ -59,7 +60,7 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 		rsyncHasFeature = true
 	}
 
-	header := migration.MigrationHeader{
+	offerHeader := migration.MigrationHeader{
 		RsyncFeatures: &migration.RsyncFeatures{
 			Xattrs:   &rsyncHasFeature,
 			Delete:   &rsyncHasFeature,
@@ -75,18 +76,26 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 		}
 
 		size := stat.Size()
-		header.VolumeSize = &size
+		offerHeader.VolumeSize = &size
 		rootfs = shared.AddSlash(rootfs)
 	}
 
-	err = migration.ProtoSend(wsControl, &header)
+	err = migration.ProtoSend(wsControl, &offerHeader)
 	if err != nil {
 		return abort(err)
 	}
 
-	err = migration.ProtoRecv(wsControl, &header)
+	var respHeader migration.MigrationHeader
+	err = migration.ProtoRecv(wsControl, &respHeader)
 	if err != nil {
 		return abort(err)
+	}
+
+	rsyncFeaturesOffered := offerHeader.GetRsyncFeaturesSlice()
+	rsyncFeaturesResponse := respHeader.GetRsyncFeaturesSlice()
+
+	if !reflect.DeepEqual(rsyncFeaturesOffered, rsyncFeaturesResponse) {
+		return abort(fmt.Errorf("Offered rsync features (%v) differ from those in the migration response (%v)", rsyncFeaturesOffered, rsyncFeaturesResponse))
 	}
 
 	// Send the filesystem
