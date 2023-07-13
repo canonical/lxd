@@ -174,6 +174,11 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			opts = []string{"volmode=none"}
 		}
 
+		// Add custom property lxd:content_type which allows distinguishing between regular volumes, block_mode enabled volumes, and ISO volumes.
+		if vol.volType == VolumeTypeCustom {
+			opts = append(opts, fmt.Sprintf("lxd:content_type=%s", vol.contentType))
+		}
+
 		// Avoid double caching in the ARC cache and in the guest OS filesystem cache.
 		if vol.volType == VolumeTypeVM {
 			opts = append(opts, "primarycache=metadata", "secondarycache=metadata")
