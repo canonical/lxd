@@ -11,6 +11,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// TestDotPrefixMatch verifies the functionality of dotPrefixMatch method, ensuring it correctly matches prefixes.
 func TestDotPrefixMatch(t *testing.T) {
 	list := cmdList{}
 
@@ -23,6 +24,7 @@ func TestDotPrefixMatch(t *testing.T) {
 	}
 }
 
+// TestShouldShow validates the functionality of the shouldShow method, checking if the appropriate instances are filtered based on the provided criteria.
 func TestShouldShow(t *testing.T) {
 	list := cmdList{}
 	inst := &api.Instance{
@@ -156,6 +158,7 @@ func TestShouldShow(t *testing.T) {
 const shorthand = "46abcdDefFlmMnNpPsStuL"
 const alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
+// TestColumns validates the parseColumns method's ability to correctly parse and generate a list of columns from a given input string.
 func TestColumns(t *testing.T) {
 	keys := make([]string, 0, len(shared.InstanceConfigKeysAny)+len(shared.InstanceConfigKeysContainer)+len(shared.InstanceConfigKeysVM))
 	for k := range shared.InstanceConfigKeysAny {
@@ -296,6 +299,7 @@ func TestColumns(t *testing.T) {
 	}
 }
 
+// TestInvalidColumns checks the error handling of parseColumns when provided with various invalid input string formats.
 func TestInvalidColumns(t *testing.T) {
 	run := func(raw string) {
 		list := cmdList{flagColumns: raw}
