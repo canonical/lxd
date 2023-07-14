@@ -12,4 +12,5 @@ type Config struct {
 	Profiles        []*api.Profile               `yaml:"profiles,omitempty"`
 	Volume          *api.StorageVolume           `yaml:"volume,omitempty"`
 	VolumeSnapshots []*api.StorageVolumeSnapshot `yaml:"volume_snapshots,omitempty"`
+	Bucket          *api.StorageBucket           `yaml:"bucket,omitempty"`
 }
