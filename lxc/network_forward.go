@@ -318,6 +318,8 @@ func (c *cmdNetworkForwardCreate) Run(cmd *cobra.Command, args []string) error {
 type cmdNetworkForwardGet struct {
 	global         *cmdGlobal
 	networkForward *cmdNetworkForward
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkForwardGet) Command() *cobra.Command {
@@ -325,6 +327,8 @@ func (c *cmdNetworkForwardGet) Command() *cobra.Command {
 	cmd.Use = usage("get", i18n.G("[<remote>:]<network> <listen_address> <key>"))
 	cmd.Short = i18n.G("Get values for network forward configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Get values for network forward configuration keys"))
+
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a network forward property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -360,9 +364,19 @@ func (c *cmdNetworkForwardGet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for k, v := range forward.Config {
-		if k == args[2] {
-			fmt.Printf("%s\n", v)
+	if c.flagIsProperty {
+		w := forward.Writable()
+		res, err := getFieldByJsonTag(&w, args[2])
+		if err != nil {
+			return fmt.Errorf(i18n.G("The property %q does not exist on the network forward %q: %v"), args[1], resource.name, err)
+		}
+
+		fmt.Printf("%v\n", res)
+	} else {
+		for k, v := range forward.Config {
+			if k == args[2] {
+				fmt.Printf("%s\n", v)
+			}
 		}
 	}
 
@@ -373,6 +387,8 @@ func (c *cmdNetworkForwardGet) Run(cmd *cobra.Command, args []string) error {
 type cmdNetworkForwardSet struct {
 	global         *cmdGlobal
 	networkForward *cmdNetworkForward
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkForwardSet) Command() *cobra.Command {
@@ -386,6 +402,7 @@ For backward compatibility, a single configuration key may still be set with:
     lxc network set [<remote>:]<network> <listen_address> <key> <value>`))
 	cmd.RunE = c.Run
 
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a network forward property"))
 	cmd.Flags().StringVar(&c.networkForward.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	return cmd
@@ -437,13 +454,30 @@ func (c *cmdNetworkForwardSet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for k, v := range keys {
-		forward.Config[k] = v
+	writable := forward.Writable()
+	if c.flagIsProperty {
+		if cmd.Name() == "unset" {
+			for k := range keys {
+				err := unsetFieldByJsonTag(&writable, k)
+				if err != nil {
+					return fmt.Errorf(i18n.G("Error unsetting property: %v"), err)
+				}
+			}
+		} else {
+			err := unpackKVToWritable(&writable, keys)
+			if err != nil {
+				return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+			}
+		}
+	} else {
+		for k, v := range keys {
+			writable.Config[k] = v
+		}
 	}
 
-	forward.Normalise()
+	writable.Normalise()
 
-	return client.UpdateNetworkForward(resource.name, forward.ListenAddress, forward.Writable(), etag)
+	return client.UpdateNetworkForward(resource.name, forward.ListenAddress, writable, etag)
 }
 
 // Unset.
@@ -451,6 +485,8 @@ type cmdNetworkForwardUnset struct {
 	global            *cmdGlobal
 	networkForward    *cmdNetworkForward
 	networkForwardSet *cmdNetworkForwardSet
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkForwardUnset) Command() *cobra.Command {
@@ -460,6 +496,7 @@ func (c *cmdNetworkForwardUnset) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Unset network forward keys"))
 	cmd.RunE = c.Run
 
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a network forward property"))
 	return cmd
 }
 
@@ -469,6 +506,8 @@ func (c *cmdNetworkForwardUnset) Run(cmd *cobra.Command, args []string) error {
 	if exit {
 		return err
 	}
+
+	c.networkForwardSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
 	return c.networkForwardSet.Run(cmd, args)
