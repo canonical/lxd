@@ -25,6 +25,9 @@ import (
 // lvmBlockVolSuffix suffix used for block content type volumes.
 const lvmBlockVolSuffix = ".block"
 
+// lvmISOVolSuffix suffix used for iso content type volumes.
+const lvmISOVolSuffix = ".iso"
+
 // lvmSnapshotSeparator separator character used between volume name and snaphot name in logical volume names.
 const lvmSnapshotSeparator = "-"
 
@@ -472,6 +475,8 @@ func (d *lvm) lvmFullVolumeName(volType VolumeType, contentType ContentType, vol
 	contentTypeSuffix := ""
 	if contentType == ContentTypeBlock {
 		contentTypeSuffix = lvmBlockVolSuffix
+	} else if contentType == ContentTypeISO {
+		contentTypeSuffix = lvmISOVolSuffix
 	}
 
 	// Escape the volume name to a name suitable for using as a logical volume.

@@ -909,8 +909,14 @@ func (d *btrfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 		return fmt.Errorf("Cannot remove a volume that has snapshots")
 	}
 
+	volName := vol.name
+
+	if vol.volType == VolumeTypeCustom && vol.contentType == ContentTypeISO {
+		volName = fmt.Sprintf("%s%s", vol.name, btrfsISOVolSuffix)
+	}
+
 	// If the volume doesn't exist, then nothing more to do.
-	volPath := GetVolumeMountPath(d.name, vol.volType, vol.name)
+	volPath := GetVolumeMountPath(d.name, vol.volType, volName)
 	if !shared.PathExists(volPath) {
 		return nil
 	}
@@ -923,7 +929,7 @@ func (d *btrfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 	// Although the volume snapshot directory should already be removed, lets remove it here
 	// to just in case the top-level directory is left.
-	err = deleteParentSnapshotDirIfEmpty(d.name, vol.volType, vol.name)
+	err = deleteParentSnapshotDirIfEmpty(d.name, vol.volType, volName)
 	if err != nil {
 		return err
 	}

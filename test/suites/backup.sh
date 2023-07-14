@@ -8,11 +8,17 @@ test_storage_volume_recover() {
   # Create custom block volume.
   lxc storage volume create "${poolName}" vol1 --type=block
 
+  # Import ISO.
+  truncate -s 25MiB foo.iso
+  lxc storage volume import "${poolName}" ./foo.iso vol2 --type=iso
+
   # Delete database entry of the created custom block volume.
   lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='vol1'"
+  lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='vol2'"
 
   # Ensure the custom block volume is no longer listed.
   ! lxc storage volume show "${poolName}" vol1 || false
+  ! lxc storage volume show "${poolName}" vol2 || false
 
   # Recover custom block volume.
   cat <<EOF | lxd recover
@@ -23,9 +29,12 @@ EOF
 
   # Ensure custom storage volume has been recovered.
   lxc storage volume show "${poolName}" vol1 | grep -q 'content_type: block'
+  lxc storage volume show "${poolName}" vol2 | grep -q 'content_type: iso'
 
   # Cleanup
+  rm -f foo.iso
   lxc storage volume delete "${poolName}" vol1
+  lxc storage volume delete "${poolName}" vol2
   shutdown_lxd "${LXD_DIR}"
 }
 
