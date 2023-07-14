@@ -19,6 +19,7 @@ import (
 	"github.com/canonical/lxd/shared/termios"
 )
 
+// cmdInit is a struct for holding flags and configurations for new LXD instances.
 type cmdInit struct {
 	global *cmdGlobal
 
@@ -35,6 +36,7 @@ type cmdInit struct {
 	flagVM         bool
 }
 
+// Command generates a cobra.Command object for 'init', enabling the creation of LXD instances from images with various configurable options.
 func (c *cmdInit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("init", i18n.G("[<remote>:]<image> [<remote>:][<name>]"))
@@ -61,6 +63,7 @@ lxc init ubuntu:22.04 u1 < config.yaml
 	return cmd
 }
 
+// Run performs checks on arguments and initiates the creation of new LXD instances.
 func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 2)
@@ -77,6 +80,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	return err
 }
 
+// create configures and initiates the creation of a new LXD instance based on the provided parameters and flags.
 func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer, string, error) {
 	var name string
 	var image string
@@ -423,6 +427,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 	return d, name, nil
 }
 
+// checkNetwork verifies if the specified LXD instance has a network device attached, and provides instructions if not.
 func (c *cmdInit) checkNetwork(d lxd.InstanceServer, name string) {
 	ct, _, err := d.GetInstance(name)
 	if err != nil {
