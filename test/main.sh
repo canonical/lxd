@@ -318,6 +318,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_init_preseed "lxd init preseed"
     run_test test_storage_profiles "storage profiles"
     run_test test_container_recover "container recover"
+    run_test test_bucket_recover "bucket recover"
     run_test test_storage_volume_attach "attaching storage volumes"
     run_test test_storage_driver_btrfs "btrfs storage driver"
     run_test test_storage_driver_ceph "ceph storage driver"
