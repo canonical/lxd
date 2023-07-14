@@ -1,27 +1,5 @@
 package main
 
-import (
-	"fmt"
-	"os"
-	"path"
-	"path/filepath"
-	"sort"
-	"strconv"
-	"strings"
-
-	"golang.org/x/sys/unix"
-
-	"github.com/canonical/lxd/lxd/cgroup"
-	"github.com/canonical/lxd/lxd/device"
-	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
-	"github.com/canonical/lxd/lxd/instance"
-	"github.com/canonical/lxd/lxd/instance/instancetype"
-	"github.com/canonical/lxd/lxd/resources"
-	"github.com/canonical/lxd/lxd/state"
-	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/logger"
-)
-
 /*
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1
@@ -53,6 +31,28 @@ static int get_hidraw_devinfo(int fd, struct hidraw_devinfo *info)
 
 */
 import "C"
+
+import (
+	"fmt"
+	"os"
+	"path"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+
+	"golang.org/x/sys/unix"
+
+	"github.com/canonical/lxd/lxd/cgroup"
+	"github.com/canonical/lxd/lxd/device"
+	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/resources"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
+)
 
 type deviceTaskCPU struct {
 	id    int64

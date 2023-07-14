@@ -1,14 +1,5 @@
 package main
 
-import (
-	"fmt"
-
-	"github.com/spf13/cobra"
-
-	// Used by cgo
-	_ "github.com/canonical/lxd/lxd/include"
-)
-
 /*
 #include "config.h"
 
@@ -335,6 +326,15 @@ void forkexec(void)
 }
 */
 import "C"
+
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+
+	// Used by cgo
+	_ "github.com/canonical/lxd/lxd/include"
+)
 
 type cmdForkexec struct {
 	global *cmdGlobal

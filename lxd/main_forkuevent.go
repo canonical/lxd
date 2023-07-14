@@ -1,11 +1,5 @@
 package main
 
-import (
-	"fmt"
-
-	"github.com/spf13/cobra"
-)
-
 /*
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1
@@ -219,6 +213,12 @@ void forkuevent(void)
 }
 */
 import "C"
+
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+)
 
 type cmdForkuevent struct {
 	global *cmdGlobal
