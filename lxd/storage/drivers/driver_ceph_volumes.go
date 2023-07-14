@@ -1118,7 +1118,10 @@ func (d *ceph) ListVolumes() ([]Volume, error) {
 		}
 
 		contentType := ContentTypeFS
-		if volType == VolumeTypeVM || isBlock {
+		if volType == VolumeTypeCustom && strings.HasSuffix(volName, cephISOVolSuffix) {
+			contentType = ContentTypeISO
+			volName = strings.TrimSuffix(volName, cephISOVolSuffix)
+		} else if volType == VolumeTypeVM || isBlock {
 			contentType = ContentTypeBlock
 			volName = strings.TrimSuffix(volName, cephBlockVolSuffix)
 		}

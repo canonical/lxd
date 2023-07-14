@@ -26,6 +26,9 @@ import (
 // cephBlockVolSuffix suffix used for block content type volumes.
 const cephBlockVolSuffix = ".block"
 
+// cephISOVolSuffix suffix used for iso content type volumes.
+const cephISOVolSuffix = ".iso"
+
 const cephVolumeTypeZombieImage = VolumeType("zombie_image")
 
 // CephDefaultCluster represents the default ceph cluster name.
@@ -899,7 +902,7 @@ func (d *ceph) parseParent(parent string) (Volume, string, error) {
 	// Match normal instance volumes.
 	// Looks for volumes like:
 	// pool/container_bar@zombie_snapshot_ce77e971-6c1b-45c0-b193-dba9ec5e7d82
-	reInst, err := regexp.Compile(`^((?:zombie_)?[a-z-]+)_([\w-]+)\.?(block)?@?([-\w]+)?$`)
+	reInst, err := regexp.Compile(`^((?:zombie_)?[a-z-]+)_([\w-]+)\.?(block|iso)?@?([-\w]+)?$`)
 	if err != nil {
 		return vol, "", err
 	}
@@ -910,9 +913,12 @@ func (d *ceph) parseParent(parent string) (Volume, string, error) {
 		vol.pool = poolName
 		vol.name = instRes[2]
 
-		if instRes[3] == "block" {
+		switch instRes[3] {
+		case "block":
 			vol.contentType = ContentTypeBlock
-		} else {
+		case "iso":
+			vol.contentType = ContentTypeISO
+		default:
 			vol.contentType = ContentTypeFS
 		}
 

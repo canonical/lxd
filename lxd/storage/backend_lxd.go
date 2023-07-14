@@ -5988,6 +5988,8 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 
 	if contentType == drivers.ContentTypeBlock {
 		apiContentType = db.StoragePoolVolumeContentTypeNameBlock
+	} else if contentType == drivers.ContentTypeISO {
+		apiContentType = db.StoragePoolVolumeContentTypeNameISO
 	} else if contentType == drivers.ContentTypeFS {
 		apiContentType = db.StoragePoolVolumeContentTypeNameFS
 

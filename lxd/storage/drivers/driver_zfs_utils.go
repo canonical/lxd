@@ -21,6 +21,9 @@ const (
 	// zfsBlockVolSuffix suffix used for block content type volumes.
 	zfsBlockVolSuffix = ".block"
 
+	// zfsISOVolSuffix suffix used for iso content type volumes.
+	zfsISOVolSuffix = ".iso"
+
 	// zfsMinBlockSize is a minimum value for recordsize and volblocksize properties.
 	zfsMinBlocksize = 512
 
@@ -40,6 +43,8 @@ func (d *zfs) dataset(vol Volume, deleted bool) string {
 
 	if (vol.volType == VolumeTypeVM || vol.volType == VolumeTypeImage) && vol.contentType == ContentTypeBlock {
 		name = fmt.Sprintf("%s%s", name, zfsBlockVolSuffix)
+	} else if vol.volType == VolumeTypeCustom && vol.contentType == ContentTypeISO {
+		name = fmt.Sprintf("%s%s", name, zfsISOVolSuffix)
 	}
 
 	if snapName != "" {
