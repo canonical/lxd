@@ -17,6 +17,7 @@ type cmdLaunch struct {
 	flagConsole string
 }
 
+// Command sets up the 'launch' command in the CLI to create and start LXD instances from images with specific configurations.
 func (c *cmdLaunch) Command() *cobra.Command {
 	cmd := c.init.Command()
 	cmd.Use = usage("launch", i18n.G("[<remote>:]<image> [<remote>:][<name>]"))
@@ -44,6 +45,7 @@ lxc launch ubuntu:22.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB
 	return cmd
 }
 
+// Run processes the 'launch' command, creating and starting the instance, and optionally attaching to the console upon completion.
 func (c *cmdLaunch) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
