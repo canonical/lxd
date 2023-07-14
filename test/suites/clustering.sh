@@ -3327,6 +3327,20 @@ test_clustering_groups() {
   lxc cluster group create cluster:foobar2
   lxc cluster group assign cluster:node3 default,foobar2
 
+  # Create a new group "newgroup"
+  lxc cluster group create cluster:newgroup
+  [ "$(lxc query cluster:/1.0/cluster/groups/newgroup | jq '.members | length')" -eq 0 ]
+
+  # Add node1 to the "newgroup" group
+  lxc cluster group add cluster:node1 newgroup
+  [ "$(lxc query cluster:/1.0/cluster/members/node1 | jq 'any(.groups[] == "newgroup"; .)')" = "true" ]
+
+  # remove node1 from "newgroup"
+  lxc cluster group remove cluster:node1 newgroup
+
+  # delete cluster group "newgroup"
+  lxc cluster group delete cluster:newgroup
+
   # With these settings:
   # - node1 will receive instances unless a different node is directly targeted (not via group)
   # - node2 will receive instances if either targeted by group or directly
