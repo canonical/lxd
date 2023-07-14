@@ -348,6 +348,7 @@ var APIExtensions = []string{
 	"auth_user",
 	"instances_state_total",
 	"numa_cpu_placement",
+	"network_allocations",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

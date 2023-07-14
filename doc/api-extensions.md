@@ -2056,3 +2056,10 @@ This adds the possibility to place a set of CPUs in a desired set of NUMA nodes.
 This adds the following new configuration key:
 
 * `limits.cpu.nodes` : (string) comma-separated list of NUMA node IDs or NUMA node ID ranges to place the CPUs (chosen with a dynamic value of `limits.cpu`) in.
+
+## `network_allocations`
+This adds the possibility to list a LXD deployment's network allocations.
+
+Through the `lxc network list-allocations` command and the `--project <PROJECT> | --all-projects` flags,
+you can list all the used IP addresses, hardware addresses (for instances), resource URIs and whether it uses NAT for
+each `instance`, `network`, and `network forward`.
