@@ -2327,8 +2327,8 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 		}
 
 		allImages = make(map[string][]dbCluster.Image, len(images))
-		for i := range images {
-			allImages[images[i].Fingerprint] = append(allImages[images[i].Fingerprint], images[i])
+		for _, image := range images {
+			allImages[image.Fingerprint] = append(allImages[image.Fingerprint], image)
 		}
 
 		return nil
