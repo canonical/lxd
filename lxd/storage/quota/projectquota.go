@@ -1,18 +1,5 @@
 package quota
 
-import (
-	"bufio"
-	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
-	"unsafe"
-
-	"golang.org/x/sys/unix"
-
-	"github.com/canonical/lxd/shared"
-)
-
 /*
 #include <linux/fs.h>
 #include <linux/dqblk_xfs.h>
@@ -164,6 +151,19 @@ int32_t quota_get_path(char *path) {
 
 */
 import "C"
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"unsafe"
+
+	"golang.org/x/sys/unix"
+
+	"github.com/canonical/lxd/shared"
+)
 
 var errNoDevice = fmt.Errorf("Couldn't find backing device for mountpoint")
 
