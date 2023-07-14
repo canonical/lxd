@@ -255,6 +255,8 @@ func (c *cmdNetworkACLShowLog) Run(cmd *cobra.Command, args []string) error {
 type cmdNetworkACLGet struct {
 	global     *cmdGlobal
 	networkACL *cmdNetworkACL
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkACLGet) Command() *cobra.Command {
@@ -262,6 +264,8 @@ func (c *cmdNetworkACLGet) Command() *cobra.Command {
 	cmd.Use = usage("get", i18n.G("[<remote>:]<ACL> <key>"))
 	cmd.Short = i18n.G("Get values for network ACL configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Get values for network ACL configuration keys"))
+
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a network ACL property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -291,9 +295,19 @@ func (c *cmdNetworkACLGet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for k, v := range resp.Config {
-		if k == args[1] {
-			fmt.Printf("%s\n", v)
+	if c.flagIsProperty {
+		w := resp.Writable()
+		res, err := getFieldByJsonTag(&w, args[1])
+		if err != nil {
+			return fmt.Errorf(i18n.G("The property %q does not exist on the network ACL %q: %v"), args[1], resource.name, err)
+		}
+
+		fmt.Printf("%v\n", res)
+	} else {
+		for k, v := range resp.Config {
+			if k == args[1] {
+				fmt.Printf("%s\n", v)
+			}
 		}
 	}
 
@@ -387,6 +401,8 @@ func (c *cmdNetworkACLCreate) Run(cmd *cobra.Command, args []string) error {
 type cmdNetworkACLSet struct {
 	global     *cmdGlobal
 	networkACL *cmdNetworkACL
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkACLSet) Command() *cobra.Command {
@@ -399,6 +415,7 @@ func (c *cmdNetworkACLSet) Command() *cobra.Command {
 For backward compatibility, a single configuration key may still be set with:
     lxc network set [<remote>:]<ACL> <key> <value>`))
 
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a network ACL property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -435,11 +452,28 @@ func (c *cmdNetworkACLSet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for k, v := range keys {
-		netACL.Config[k] = v
+	writable := netACL.Writable()
+	if c.flagIsProperty {
+		if cmd.Name() == "unset" {
+			for k := range keys {
+				err := unsetFieldByJsonTag(&writable, k)
+				if err != nil {
+					return fmt.Errorf(i18n.G("Error unsetting property: %v"), err)
+				}
+			}
+		} else {
+			err := unpackKVToWritable(&writable, keys)
+			if err != nil {
+				return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+			}
+		}
+	} else {
+		for k, v := range keys {
+			writable.Config[k] = v
+		}
 	}
 
-	return resource.server.UpdateNetworkACL(resource.name, netACL.Writable(), etag)
+	return resource.server.UpdateNetworkACL(resource.name, writable, etag)
 }
 
 // Unset.
@@ -447,6 +481,8 @@ type cmdNetworkACLUnset struct {
 	global        *cmdGlobal
 	networkACL    *cmdNetworkACL
 	networkACLSet *cmdNetworkACLSet
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkACLUnset) Command() *cobra.Command {
@@ -456,6 +492,7 @@ func (c *cmdNetworkACLUnset) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Unset network ACL configuration keys"))
 	cmd.RunE = c.Run
 
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a network ACL property"))
 	return cmd
 }
 
@@ -465,6 +502,8 @@ func (c *cmdNetworkACLUnset) Run(cmd *cobra.Command, args []string) error {
 	if exit {
 		return err
 	}
+
+	c.networkACLSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
 	return c.networkACLSet.Run(cmd, args)
