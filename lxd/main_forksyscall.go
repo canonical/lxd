@@ -1,14 +1,5 @@
 package main
 
-import (
-	"fmt"
-
-	"github.com/spf13/cobra"
-
-	// Used by cgo
-	_ "github.com/canonical/lxd/lxd/include"
-)
-
 /*
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1
@@ -661,6 +652,15 @@ void forksyscall(void)
 }
 */
 import "C"
+
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+
+	// Used by cgo
+	_ "github.com/canonical/lxd/lxd/include"
+)
 
 type cmdForksyscall struct {
 	global *cmdGlobal

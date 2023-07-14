@@ -1,16 +1,5 @@
 package main
 
-import (
-	"os"
-	"runtime"
-
-	"golang.org/x/sys/unix"
-
-	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
-	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/logger"
-)
-
 /*
 #include "config.h"
 
@@ -588,6 +577,17 @@ static bool kernel_supports_idmapped_mounts(void)
 }
 */
 import "C"
+
+import (
+	"os"
+	"runtime"
+
+	"golang.org/x/sys/unix"
+
+	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
+)
 
 func canUseNetnsGetifaddrs() bool {
 	if !bool(C.is_empty_string(&C.errbuf[0])) {

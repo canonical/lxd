@@ -1,18 +1,5 @@
 package main
 
-import (
-	"net"
-	"os"
-	"os/signal"
-	"strconv"
-	"sync"
-	"time"
-
-	"github.com/pkg/sftp"
-	"github.com/spf13/cobra"
-	"golang.org/x/sys/unix"
-)
-
 /*
 #include "config.h"
 
@@ -96,6 +83,19 @@ void forkfile(void)
 }
 */
 import "C"
+
+import (
+	"net"
+	"os"
+	"os/signal"
+	"strconv"
+	"sync"
+	"time"
+
+	"github.com/pkg/sftp"
+	"github.com/spf13/cobra"
+	"golang.org/x/sys/unix"
+)
 
 type cmdForkfile struct {
 	global *cmdGlobal
