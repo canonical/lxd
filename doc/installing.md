@@ -2,6 +2,7 @@
 discourse: 8178, 16551
 ---
 
+(installing)=
 # How to install LXD
 
 The easiest way to install LXD is to {ref}`install one of the available packages <installing-from-package>`, but you can also {ref}`install LXD from the sources <installing_from_source>`.
