@@ -200,6 +200,8 @@ func (c *cmdNetworkZoneShow) Run(cmd *cobra.Command, args []string) error {
 type cmdNetworkZoneGet struct {
 	global      *cmdGlobal
 	networkZone *cmdNetworkZone
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkZoneGet) Command() *cobra.Command {
@@ -209,6 +211,7 @@ func (c *cmdNetworkZoneGet) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Get values for network zone configuration keys"))
 	cmd.RunE = c.Run
 
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a network zone property"))
 	return cmd
 }
 
@@ -236,9 +239,19 @@ func (c *cmdNetworkZoneGet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for k, v := range resp.Config {
-		if k == args[1] {
-			fmt.Printf("%s\n", v)
+	if c.flagIsProperty {
+		w := resp.Writable()
+		res, err := getFieldByJsonTag(&w, args[1])
+		if err != nil {
+			return fmt.Errorf(i18n.G("The property %q does not exist on the network zone %q: %v"), args[1], resource.name, err)
+		}
+
+		fmt.Printf("%v\n", res)
+	} else {
+		for k, v := range resp.Config {
+			if k == args[1] {
+				fmt.Printf("%s\n", v)
+			}
 		}
 	}
 
@@ -330,6 +343,8 @@ func (c *cmdNetworkZoneCreate) Run(cmd *cobra.Command, args []string) error {
 type cmdNetworkZoneSet struct {
 	global      *cmdGlobal
 	networkZone *cmdNetworkZone
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkZoneSet) Command() *cobra.Command {
@@ -343,6 +358,7 @@ For backward compatibility, a single configuration key may still be set with:
     lxc network set [<remote>:]<Zone> <key> <value>`))
 
 	cmd.RunE = c.Run
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a network zone property"))
 
 	return cmd
 }
@@ -378,11 +394,28 @@ func (c *cmdNetworkZoneSet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for k, v := range keys {
-		netZone.Config[k] = v
+	writable := netZone.Writable()
+	if c.flagIsProperty {
+		if cmd.Name() == "unset" {
+			for k := range keys {
+				err := unsetFieldByJsonTag(&writable, k)
+				if err != nil {
+					return fmt.Errorf(i18n.G("Error unsetting property: %v"), err)
+				}
+			}
+		} else {
+			err := unpackKVToWritable(&writable, keys)
+			if err != nil {
+				return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+			}
+		}
+	} else {
+		for k, v := range keys {
+			writable.Config[k] = v
+		}
 	}
 
-	return resource.server.UpdateNetworkZone(resource.name, netZone.Writable(), etag)
+	return resource.server.UpdateNetworkZone(resource.name, writable, etag)
 }
 
 // Unset.
@@ -390,6 +423,8 @@ type cmdNetworkZoneUnset struct {
 	global         *cmdGlobal
 	networkZone    *cmdNetworkZone
 	networkZoneSet *cmdNetworkZoneSet
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkZoneUnset) Command() *cobra.Command {
@@ -398,6 +433,8 @@ func (c *cmdNetworkZoneUnset) Command() *cobra.Command {
 	cmd.Short = i18n.G("Unset network zone configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Unset network zone configuration keys"))
 	cmd.RunE = c.Run
+
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a network zone property"))
 
 	return cmd
 }
@@ -408,6 +445,8 @@ func (c *cmdNetworkZoneUnset) Run(cmd *cobra.Command, args []string) error {
 	if exit {
 		return err
 	}
+
+	c.networkZoneSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
 	return c.networkZoneSet.Run(cmd, args)
@@ -761,6 +800,8 @@ func (c *cmdNetworkZoneRecordShow) Run(cmd *cobra.Command, args []string) error 
 type cmdNetworkZoneRecordGet struct {
 	global            *cmdGlobal
 	networkZoneRecord *cmdNetworkZoneRecord
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkZoneRecordGet) Command() *cobra.Command {
@@ -770,6 +811,7 @@ func (c *cmdNetworkZoneRecordGet) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Get values for network zone record configuration keys"))
 	cmd.RunE = c.Run
 
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a network zone record property"))
 	return cmd
 }
 
@@ -796,9 +838,19 @@ func (c *cmdNetworkZoneRecordGet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for k, v := range resp.Config {
-		if k == args[2] {
-			fmt.Printf("%s\n", v)
+	if c.flagIsProperty {
+		w := resp.Writable()
+		res, err := getFieldByJsonTag(&w, args[2])
+		if err != nil {
+			return fmt.Errorf(i18n.G("The property %q does not exist on the network zone record %q: %v"), args[2], resource.name, err)
+		}
+
+		fmt.Printf("%v\n", res)
+	} else {
+		for k, v := range resp.Config {
+			if k == args[2] {
+				fmt.Printf("%s\n", v)
+			}
 		}
 	}
 
@@ -889,6 +941,8 @@ func (c *cmdNetworkZoneRecordCreate) Run(cmd *cobra.Command, args []string) erro
 type cmdNetworkZoneRecordSet struct {
 	global            *cmdGlobal
 	networkZoneRecord *cmdNetworkZoneRecord
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkZoneRecordSet) Command() *cobra.Command {
@@ -900,6 +954,7 @@ func (c *cmdNetworkZoneRecordSet) Command() *cobra.Command {
 
 	cmd.RunE = c.Run
 
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a network zone record property"))
 	return cmd
 }
 
@@ -933,11 +988,28 @@ func (c *cmdNetworkZoneRecordSet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for k, v := range keys {
-		netRecord.Config[k] = v
+	writable := netRecord.Writable()
+	if c.flagIsProperty {
+		if cmd.Name() == "unset" {
+			for k := range keys {
+				err := unsetFieldByJsonTag(&writable, k)
+				if err != nil {
+					return fmt.Errorf(i18n.G("Error unsetting property: %v"), err)
+				}
+			}
+		} else {
+			err := unpackKVToWritable(&writable, keys)
+			if err != nil {
+				return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+			}
+		}
+	} else {
+		for k, v := range keys {
+			writable.Config[k] = v
+		}
 	}
 
-	return resource.server.UpdateNetworkZoneRecord(resource.name, args[1], netRecord.Writable(), etag)
+	return resource.server.UpdateNetworkZoneRecord(resource.name, args[1], writable, etag)
 }
 
 // Unset.
@@ -945,6 +1017,8 @@ type cmdNetworkZoneRecordUnset struct {
 	global               *cmdGlobal
 	networkZoneRecord    *cmdNetworkZoneRecord
 	networkZoneRecordSet *cmdNetworkZoneRecordSet
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkZoneRecordUnset) Command() *cobra.Command {
@@ -954,6 +1028,7 @@ func (c *cmdNetworkZoneRecordUnset) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Unset network zone record configuration keys"))
 	cmd.RunE = c.Run
 
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a network zone record property"))
 	return cmd
 }
 
@@ -963,6 +1038,8 @@ func (c *cmdNetworkZoneRecordUnset) Run(cmd *cobra.Command, args []string) error
 	if exit {
 		return err
 	}
+
+	c.networkZoneRecordSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
 	return c.networkZoneRecordSet.Run(cmd, args)
