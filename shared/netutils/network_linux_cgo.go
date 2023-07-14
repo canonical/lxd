@@ -2,6 +2,12 @@
 
 package netutils
 
+/*
+#include "unixfd.h"
+#include "netns_getifaddrs.c"
+*/
+import "C"
+
 import (
 	"fmt"
 	"io"
@@ -12,12 +18,6 @@ import (
 
 	"github.com/canonical/lxd/shared/api"
 )
-
-/*
-#include "unixfd.h"
-#include "netns_getifaddrs.c"
-*/
-import "C"
 
 // Allow the caller to set expectations.
 
