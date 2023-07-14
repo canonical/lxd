@@ -2688,7 +2688,8 @@ test_clustering_image_refresh() {
 
   # Wait for the image to be refreshed
   for pid in ${pids}; do
-    wait "${pid}"
+    # Don't fail if PID isn't available as the process could be done already.
+    wait "${pid}" || true
   done
 
   if [ "${poolDriver}" != "dir" ]; then
@@ -2725,7 +2726,8 @@ test_clustering_image_refresh() {
 
   # Wait for the image to be refreshed
   for pid in ${pids}; do
-    wait "${pid}"
+    # Don't fail if PID isn't available as the process could be done already.
+    wait "${pid}" || true
   done
 
   LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="foo"' | grep "${old_fingerprint}"
@@ -2750,7 +2752,8 @@ test_clustering_image_refresh() {
 
   # Wait for the image to be refreshed
   for pid in ${pids}; do
-    wait "${pid}"
+    # Don't fail if PID isn't available as the process could be done already.
+    wait "${pid}" || true
   done
 
   pids=""
