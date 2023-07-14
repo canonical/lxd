@@ -2,19 +2,6 @@
 
 package idmap
 
-import (
-	"fmt"
-	"os"
-	"os/exec"
-	"unsafe"
-
-	"golang.org/x/sys/unix"
-
-	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
-	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/logger"
-)
-
 // #cgo LDFLAGS: -lacl
 /*
 #ifndef _GNU_SOURCE
@@ -352,6 +339,19 @@ static int create_detached_idmapped_mount(const char *path, const char *fstype)
 }
 */
 import "C"
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"unsafe"
+
+	"golang.org/x/sys/unix"
+
+	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
+)
 
 // ShiftOwner updates uid and gid for a file when entering/exiting a namespace
 func ShiftOwner(basepath string, path string, uid int, gid int) error {
