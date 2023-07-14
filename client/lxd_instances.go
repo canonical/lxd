@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 
 	"github.com/gorilla/websocket"
@@ -1134,6 +1135,63 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 			}
 		}
 
+		if exec.RecordOutput && (args.Stdout != nil || args.Stderr != nil) {
+			err = op.Wait()
+			if err != nil {
+				return nil, err
+			}
+
+			opAPI = op.Get()
+			outputFiles := map[string]string{}
+			outputs, ok := opAPI.Metadata["output"].(map[string]any)
+			if ok {
+				for k, v := range outputs {
+					outputFiles[k] = v.(string)
+				}
+			}
+
+			if outputFiles["1"] != "" {
+				reader, _ := r.getInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["1"]))
+				if args.Stdout != nil {
+					_, errCopy := io.Copy(args.Stdout, reader)
+					// Regardless of errCopy value, we want to delete the file after a copy operation
+					errDelete := r.deleteInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["1"]))
+					if errDelete != nil {
+						return nil, errDelete
+					}
+
+					if errCopy != nil {
+						return nil, fmt.Errorf("Could not copy the content of the exec output log file to stdout: %w", err)
+					}
+				}
+
+				err = r.deleteInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["1"]))
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			if outputFiles["2"] != "" {
+				reader, _ := r.getInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["2"]))
+				if args.Stderr != nil {
+					_, errCopy := io.Copy(args.Stderr, reader)
+					errDelete := r.deleteInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["1"]))
+					if errDelete != nil {
+						return nil, errDelete
+					}
+
+					if errCopy != nil {
+						return nil, fmt.Errorf("Could not copy the content of the exec output log file to stderr: %w", err)
+					}
+				}
+
+				err = r.deleteInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["2"]))
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+
 		// Call the control handler with a connection to the control socket
 		if args.Control != nil && fds[api.SecretNameControl] != "" {
 			conn, err := r.GetOperationWebsocket(opAPI.ID, fds[api.SecretNameControl])
@@ -2087,6 +2145,71 @@ func (r *ProtocolLXD) DeleteInstanceLogfile(name string, filename string) error 
 
 	// Send the request
 	_, _, err = r.query("DELETE", fmt.Sprintf("%s/%s/logs/%s", path, url.PathEscape(name), url.PathEscape(filename)), nil, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// getInstanceExecOutputLogFile returns the content of the requested exec logfile.
+//
+// Note that it's the caller's responsibility to close the returned ReadCloser.
+func (r *ProtocolLXD) getInstanceExecOutputLogFile(name string, filename string) (io.ReadCloser, error) {
+	err := r.CheckExtension("container_exec_recording")
+	if err != nil {
+		return nil, err
+	}
+
+	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
+	if err != nil {
+		return nil, err
+	}
+
+	// Prepare the HTTP request
+	url := fmt.Sprintf("%s/1.0%s/%s/logs/exec-output/%s", r.httpBaseURL.String(), path, url.PathEscape(name), url.PathEscape(filename))
+
+	url, err = r.setQueryAttributes(url)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Send the request
+	resp, err := r.DoHTTP(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check the return value for a cleaner error
+	if resp.StatusCode != http.StatusOK {
+		_, _, err := lxdParseResponse(resp)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return resp.Body, nil
+}
+
+// deleteInstanceExecOutputLogFiles deletes the requested exec logfile.
+func (r *ProtocolLXD) deleteInstanceExecOutputLogFile(instanceName string, filename string) error {
+	err := r.CheckExtension("container_exec_recording")
+	if err != nil {
+		return err
+	}
+
+	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
+	if err != nil {
+		return err
+	}
+
+	// Send the request
+	_, _, err = r.query("DELETE", fmt.Sprintf("%s/%s/logs/exec-output/%s", path, url.PathEscape(instanceName), url.PathEscape(filename)), nil, "")
 	if err != nil {
 		return err
 	}
