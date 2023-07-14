@@ -329,6 +329,8 @@ func (c *cmdStorageEdit) Run(cmd *cobra.Command, args []string) error {
 type cmdStorageGet struct {
 	global  *cmdGlobal
 	storage *cmdStorage
+
+	flagIsProperty bool
 }
 
 func (c *cmdStorageGet) Command() *cobra.Command {
@@ -339,6 +341,7 @@ func (c *cmdStorageGet) Command() *cobra.Command {
 		`Get values for storage pool configuration keys`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a storage property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -374,9 +377,18 @@ func (c *cmdStorageGet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for k, v := range resp.Config {
-		if k == args[1] {
-			fmt.Printf("%s\n", v)
+	if c.flagIsProperty {
+		w := resp.Writable()
+		res, err := getFieldByJsonTag(&w, args[1])
+		if err != nil {
+			return fmt.Errorf(i18n.G("The property %q does not exist on the storage pool %q: %v"), args[1], resource.name, err)
+		}
+
+		fmt.Printf("%v\n", res)
+	} else {
+		v, ok := resp.Config[args[1]]
+		if ok {
+			fmt.Println(v)
 		}
 	}
 
@@ -638,6 +650,8 @@ func (c *cmdStorageList) Run(cmd *cobra.Command, args []string) error {
 type cmdStorageSet struct {
 	global  *cmdGlobal
 	storage *cmdStorage
+
+	flagIsProperty bool
 }
 
 func (c *cmdStorageSet) Command() *cobra.Command {
@@ -651,6 +665,7 @@ For backward compatibility, a single configuration key may still be set with:
     lxc storage set [<remote>:]<pool> <key> <value>`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a storage property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -693,12 +708,29 @@ func (c *cmdStorageSet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Update the pool
-	for k, v := range keys {
-		pool.Config[k] = v
+	writable := pool.Writable()
+	if c.flagIsProperty {
+		if cmd.Name() == "unset" {
+			for k := range keys {
+				err := unsetFieldByJsonTag(&writable, k)
+				if err != nil {
+					return fmt.Errorf(i18n.G("Error unsetting property: %v"), err)
+				}
+			}
+		} else {
+			err := unpackKVToWritable(&writable, keys)
+			if err != nil {
+				return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+			}
+		}
+	} else {
+		// Update the volume config keys.
+		for k, v := range keys {
+			writable.Config[k] = v
+		}
 	}
 
-	err = client.UpdateStoragePool(resource.name, pool.Writable(), etag)
+	err = client.UpdateStoragePool(resource.name, writable, etag)
 	if err != nil {
 		return err
 	}
@@ -796,6 +828,8 @@ type cmdStorageUnset struct {
 	global     *cmdGlobal
 	storage    *cmdStorage
 	storageSet *cmdStorageSet
+
+	flagIsProperty bool
 }
 
 func (c *cmdStorageUnset) Command() *cobra.Command {
@@ -806,6 +840,7 @@ func (c *cmdStorageUnset) Command() *cobra.Command {
 		`Unset storage pool configuration keys`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a storage property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -817,6 +852,8 @@ func (c *cmdStorageUnset) Run(cmd *cobra.Command, args []string) error {
 	if exit {
 		return err
 	}
+
+	c.storageSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
 	return c.storageSet.Run(cmd, args)
