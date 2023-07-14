@@ -42,6 +42,7 @@ __attribute__((constructor)) void init(void) {
 }
 */
 import "C"
+
 import (
 	"os"
 
