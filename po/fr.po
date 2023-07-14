@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2023-07-06 03:25-0400\n"
+"POT-Creation-Date: 2023-07-12 11:35+0000\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -113,7 +113,7 @@ msgstr ""
 "### Prenez note que l'empreinte digitale (fingerprint ) est affichée mais ne "
 "peut pas être modifiée"
 
-#: lxc/cluster_group.go:349
+#: lxc/cluster_group.go:359
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the cluster group.\n"
@@ -477,7 +477,7 @@ msgstr ""
 "###\n"
 "### Notez que seule la configuration peut être modifiée."
 
-#: lxc/profile.go:425
+#: lxc/profile.go:436
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the profile.\n"
@@ -586,7 +586,7 @@ msgstr "%s n'est pas un répertoire"
 msgid "'%s' isn't a supported file type"
 msgstr "'%s' n'est pas un format de fichier pris en charge."
 
-#: lxc/cluster_group.go:129 lxc/profile.go:225
+#: lxc/cluster_group.go:132 lxc/profile.go:226
 msgid "(none)"
 msgstr "(aucun)"
 
@@ -605,16 +605,16 @@ msgstr "- Partition %d"
 msgid "- Port %d (%s)"
 msgstr "- Port %d (%s)"
 
-#: lxc/action.go:206
+#: lxc/action.go:220
 msgid "--console can't be used while forcing instance shutdown"
 msgstr ""
 "--console ne peut être pas utilisée tant que l'arrêt de l'instance est forcé"
 
-#: lxc/action.go:353
+#: lxc/action.go:369
 msgid "--console can't be used with --all"
 msgstr "--console ne peut être utilisé avec --all"
 
-#: lxc/action.go:357
+#: lxc/action.go:373
 msgid "--console only works with a single instance"
 msgstr "--console fonctionne seulement avec une instance seule"
 
@@ -647,17 +647,17 @@ msgstr "--refresh ne peut être utilisé qu'avec des instances"
 msgid "--target cannot be used with instances"
 msgstr "--target ne peut pas être utilisé avec des instances"
 
-#: lxc/alias.go:195
+#: lxc/alias.go:211
 #, fuzzy
 msgid "<alias>"
 msgstr "Alias :"
 
-#: lxc/alias.go:54
+#: lxc/alias.go:58
 #, fuzzy
 msgid "<alias> <target>"
 msgstr "Cible invalide %s"
 
-#: lxc/alias.go:144
+#: lxc/alias.go:156
 msgid "<old alias> <new alias>"
 msgstr "<ancien alias> <nouvel alias>"
 
@@ -697,7 +697,7 @@ msgstr ""
 msgid "<target>"
 msgstr "<cible>"
 
-#: lxc/alias.go:129 lxc/image.go:1053 lxc/image_alias.go:234
+#: lxc/alias.go:139 lxc/image.go:1053 lxc/image_alias.go:234
 msgid "ALIAS"
 msgstr "ALIAS"
 
@@ -768,7 +768,7 @@ msgstr ""
 msgid "Add instance devices"
 msgstr "Création du conteneur"
 
-#: lxc/alias.go:55 lxc/alias.go:56
+#: lxc/alias.go:59 lxc/alias.go:60
 #, fuzzy
 msgid "Add new aliases"
 msgstr "Alias :"
@@ -827,12 +827,12 @@ msgstr ""
 msgid "Add ports to a load balancer"
 msgstr ""
 
-#: lxc/profile.go:102 lxc/profile.go:103
+#: lxc/profile.go:103 lxc/profile.go:104
 #, fuzzy
 msgid "Add profiles to instances"
 msgstr "Création du conteneur"
 
-#: lxc/cluster_role.go:47 lxc/cluster_role.go:48
+#: lxc/cluster_role.go:49 lxc/cluster_role.go:50
 #, fuzzy
 msgid "Add roles to a cluster member"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -862,12 +862,12 @@ msgstr "Mot de passe administrateur pour %s : "
 msgid "Admin secret key: %s"
 msgstr "Créé : %s"
 
-#: lxc/alias.go:79 lxc/alias.go:176
+#: lxc/alias.go:85 lxc/alias.go:190
 #, fuzzy, c-format
 msgid "Alias %s already exists"
 msgstr "le serveur distant %s existe déjà"
 
-#: lxc/alias.go:170 lxc/alias.go:221
+#: lxc/alias.go:184 lxc/alias.go:239
 #, fuzzy, c-format
 msgid "Alias %s doesn't exist"
 msgstr "le serveur distant %s n'existe pas"
@@ -922,12 +922,12 @@ msgstr ""
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
-#: lxc/cluster_group.go:77 lxc/cluster_group.go:78
+#: lxc/cluster_group.go:79 lxc/cluster_group.go:80
 #, fuzzy
 msgid "Assign sets of groups to cluster members"
 msgstr "Création du conteneur"
 
-#: lxc/profile.go:165 lxc/profile.go:166
+#: lxc/profile.go:166 lxc/profile.go:167
 #, fuzzy
 msgid "Assign sets of profiles to instances"
 msgstr "Création du conteneur"
@@ -1041,7 +1041,7 @@ msgstr "Mauvaise propriété : %s"
 msgid "Bond:"
 msgstr ""
 
-#: lxc/action.go:136 lxc/action.go:309
+#: lxc/action.go:148 lxc/action.go:325
 msgid "Both --all and instance name given"
 msgstr ""
 
@@ -1251,22 +1251,22 @@ msgstr "Certificat client enregistré sur le serveur : "
 msgid "Client version: %s\n"
 msgstr "Afficher la version du client"
 
-#: lxc/cluster_group.go:187
+#: lxc/cluster_group.go:192
 #, fuzzy, c-format
 msgid "Cluster group %s created"
 msgstr "Profil %s créé"
 
-#: lxc/cluster_group.go:238
+#: lxc/cluster_group.go:245
 #, fuzzy, c-format
 msgid "Cluster group %s deleted"
 msgstr "Profil %s supprimé"
 
-#: lxc/cluster_group.go:473
+#: lxc/cluster_group.go:487
 #, fuzzy, c-format
 msgid "Cluster group %s isn't currently applied to %s"
 msgstr "Profils %s appliqués à %s"
 
-#: lxc/cluster_group.go:540
+#: lxc/cluster_group.go:556
 #, fuzzy, c-format
 msgid "Cluster group %s renamed to %s"
 msgstr "Profil %s ajouté à %s"
@@ -1276,12 +1276,12 @@ msgstr "Profil %s ajouté à %s"
 msgid "Cluster join token for %s:%s deleted"
 msgstr ""
 
-#: lxc/cluster_group.go:133
+#: lxc/cluster_group.go:136
 #, c-format
 msgid "Cluster member %s added to cluster groups %s"
 msgstr ""
 
-#: lxc/cluster_group.go:493
+#: lxc/cluster_group.go:507
 #, fuzzy, c-format
 msgid "Cluster member %s removed from group %s"
 msgstr "Périphérique %s retiré de %s"
@@ -1376,12 +1376,12 @@ msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 msgid "Config key/value to apply to the target instance"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 
-#: lxc/cluster.go:731 lxc/cluster_group.go:326 lxc/config.go:263
+#: lxc/cluster.go:731 lxc/cluster_group.go:335 lxc/config.go:263
 #: lxc/config.go:338 lxc/config_metadata.go:147 lxc/config_trust.go:314
 #: lxc/image.go:456 lxc/network.go:682 lxc/network_acl.go:581
 #: lxc/network_forward.go:596 lxc/network_load_balancer.go:599
 #: lxc/network_peer.go:572 lxc/network_zone.go:512 lxc/network_zone.go:1066
-#: lxc/profile.go:507 lxc/project.go:315 lxc/storage.go:310
+#: lxc/profile.go:518 lxc/project.go:315 lxc/storage.go:310
 #: lxc/storage_bucket.go:343 lxc/storage_bucket.go:1056
 #: lxc/storage_volume.go:989 lxc/storage_volume.go:1021
 #, c-format
@@ -1451,7 +1451,7 @@ msgstr ""
 msgid "Copy profile inherited devices and override configuration keys"
 msgstr ""
 
-#: lxc/profile.go:247 lxc/profile.go:248
+#: lxc/profile.go:249 lxc/profile.go:250
 msgid "Copy profiles"
 msgstr ""
 
@@ -1470,7 +1470,7 @@ msgstr "Copiez le conteneur sans ses instantanés"
 msgid "Copy the volume without its snapshots"
 msgstr "Copiez le conteneur sans ses instantanés"
 
-#: lxc/copy.go:61 lxc/image.go:157 lxc/move.go:66 lxc/profile.go:250
+#: lxc/copy.go:61 lxc/image.go:157 lxc/move.go:66 lxc/profile.go:252
 #: lxc/storage_volume.go:338
 msgid "Copy to a project different from the source"
 msgstr ""
@@ -1543,7 +1543,7 @@ msgstr "Impossible de créer le dossier de stockage des certificats serveurs"
 msgid "Couldn't find a matching entry"
 msgstr ""
 
-#: lxc/cluster_group.go:148 lxc/cluster_group.go:149
+#: lxc/cluster_group.go:152 lxc/cluster_group.go:153
 msgid "Create a cluster group"
 msgstr ""
 
@@ -1657,7 +1657,7 @@ msgstr "Copie de l'image : %s"
 msgid "Create new networks"
 msgstr ""
 
-#: lxc/profile.go:308 lxc/profile.go:309
+#: lxc/profile.go:319 lxc/profile.go:320
 #, fuzzy
 msgid "Create profiles"
 msgstr "Créé : %s"
@@ -1701,12 +1701,12 @@ msgstr ""
 msgid "DEFAULT TARGET ADDRESS"
 msgstr ""
 
-#: lxc/cluster.go:188 lxc/cluster_group.go:422 lxc/image.go:1058
+#: lxc/cluster.go:188 lxc/cluster_group.go:434 lxc/image.go:1058
 #: lxc/image_alias.go:237 lxc/list.go:557 lxc/network.go:968
 #: lxc/network_acl.go:148 lxc/network_forward.go:145
 #: lxc/network_load_balancer.go:148 lxc/network_peer.go:140
 #: lxc/network_zone.go:139 lxc/network_zone.go:703 lxc/operation.go:163
-#: lxc/profile.go:633 lxc/project.go:492 lxc/storage.go:634
+#: lxc/profile.go:644 lxc/project.go:492 lxc/storage.go:634
 #: lxc/storage_bucket.go:495 lxc/storage_bucket.go:791
 #: lxc/storage_volume.go:1491
 msgid "DESCRIPTION"
@@ -1737,7 +1737,7 @@ msgstr "Définir un algorithme de compression : pour image ou aucun"
 msgid "Delete a background operation (will attempt to cancel)"
 msgstr ""
 
-#: lxc/cluster_group.go:203 lxc/cluster_group.go:204
+#: lxc/cluster_group.go:209 lxc/cluster_group.go:210
 msgid "Delete a cluster group"
 msgstr ""
 
@@ -1807,7 +1807,7 @@ msgstr "Récupération de l'image : %s"
 msgid "Delete networks"
 msgstr ""
 
-#: lxc/profile.go:362 lxc/profile.go:363
+#: lxc/profile.go:373 lxc/profile.go:374
 msgid "Delete profiles"
 msgstr ""
 
@@ -1835,17 +1835,17 @@ msgstr "Copie de l'image : %s"
 msgid "Delete warning"
 msgstr "Récupération de l'image : %s"
 
-#: lxc/action.go:30 lxc/action.go:49 lxc/action.go:70 lxc/action.go:91
-#: lxc/alias.go:21 lxc/alias.go:56 lxc/alias.go:102 lxc/alias.go:147
-#: lxc/alias.go:198 lxc/cluster.go:29 lxc/cluster.go:122 lxc/cluster.go:206
+#: lxc/action.go:32 lxc/action.go:53 lxc/action.go:76 lxc/action.go:99
+#: lxc/alias.go:23 lxc/alias.go:60 lxc/alias.go:110 lxc/alias.go:159
+#: lxc/alias.go:214 lxc/cluster.go:29 lxc/cluster.go:122 lxc/cluster.go:206
 #: lxc/cluster.go:255 lxc/cluster.go:304 lxc/cluster.go:351 lxc/cluster.go:403
 #: lxc/cluster.go:432 lxc/cluster.go:482 lxc/cluster.go:565 lxc/cluster.go:650
 #: lxc/cluster.go:765 lxc/cluster.go:841 lxc/cluster.go:943 lxc/cluster.go:1022
-#: lxc/cluster.go:1129 lxc/cluster.go:1150 lxc/cluster_group.go:29
-#: lxc/cluster_group.go:78 lxc/cluster_group.go:149 lxc/cluster_group.go:204
-#: lxc/cluster_group.go:254 lxc/cluster_group.go:367 lxc/cluster_group.go:439
-#: lxc/cluster_group.go:510 lxc/cluster_group.go:556 lxc/cluster_role.go:22
-#: lxc/cluster_role.go:48 lxc/cluster_role.go:102 lxc/config.go:30
+#: lxc/cluster.go:1129 lxc/cluster.go:1150 lxc/cluster_group.go:30
+#: lxc/cluster_group.go:80 lxc/cluster_group.go:153 lxc/cluster_group.go:210
+#: lxc/cluster_group.go:262 lxc/cluster_group.go:378 lxc/cluster_group.go:452
+#: lxc/cluster_group.go:525 lxc/cluster_group.go:573 lxc/cluster_role.go:23
+#: lxc/cluster_role.go:50 lxc/cluster_role.go:106 lxc/config.go:30
 #: lxc/config.go:92 lxc/config.go:372 lxc/config.go:464 lxc/config.go:626
 #: lxc/config.go:746 lxc/config_device.go:24 lxc/config_device.go:78
 #: lxc/config_device.go:208 lxc/config_device.go:285 lxc/config_device.go:356
@@ -1901,10 +1901,10 @@ msgstr "Récupération de l'image : %s"
 #: lxc/network_zone.go:981 lxc/network_zone.go:1099 lxc/network_zone.go:1148
 #: lxc/network_zone.go:1163 lxc/network_zone.go:1209 lxc/operation.go:23
 #: lxc/operation.go:55 lxc/operation.go:104 lxc/operation.go:184
-#: lxc/profile.go:28 lxc/profile.go:103 lxc/profile.go:166 lxc/profile.go:248
-#: lxc/profile.go:309 lxc/profile.go:363 lxc/profile.go:413 lxc/profile.go:539
-#: lxc/profile.go:588 lxc/profile.go:649 lxc/profile.go:725 lxc/profile.go:775
-#: lxc/profile.go:834 lxc/profile.go:888 lxc/project.go:29 lxc/project.go:93
+#: lxc/profile.go:29 lxc/profile.go:104 lxc/profile.go:167 lxc/profile.go:250
+#: lxc/profile.go:320 lxc/profile.go:374 lxc/profile.go:424 lxc/profile.go:550
+#: lxc/profile.go:599 lxc/profile.go:660 lxc/profile.go:736 lxc/profile.go:786
+#: lxc/profile.go:845 lxc/profile.go:899 lxc/project.go:29 lxc/project.go:93
 #: lxc/project.go:158 lxc/project.go:221 lxc/project.go:347 lxc/project.go:397
 #: lxc/project.go:510 lxc/project.go:565 lxc/project.go:625 lxc/project.go:654
 #: lxc/project.go:707 lxc/project.go:766 lxc/publish.go:32 lxc/query.go:34
@@ -2101,7 +2101,7 @@ msgid ""
 "(interrupt two more times to force)"
 msgstr ""
 
-#: lxc/cluster_group.go:253 lxc/cluster_group.go:254
+#: lxc/cluster_group.go:261 lxc/cluster_group.go:262
 msgid "Edit a cluster group"
 msgstr ""
 
@@ -2168,7 +2168,7 @@ msgstr "Clé de configuration invalide"
 msgid "Edit network zone record configurations as YAML"
 msgstr "Clé de configuration invalide"
 
-#: lxc/profile.go:412 lxc/profile.go:413
+#: lxc/profile.go:423 lxc/profile.go:424
 msgid "Edit profile configurations as YAML"
 msgstr ""
 
@@ -2538,7 +2538,7 @@ msgstr "Forcer l'allocation d'un pseudo-terminal"
 msgid "Force removing a member, even if degraded"
 msgstr ""
 
-#: lxc/action.go:126
+#: lxc/action.go:136
 #, fuzzy
 msgid "Force the instance to stop"
 msgstr "Forcer le conteneur à s'arrêter"
@@ -2576,13 +2576,13 @@ msgid ""
 "Are you really sure you want to force removing %s? (yes/no): "
 msgstr ""
 
-#: lxc/alias.go:104 lxc/cluster.go:124 lxc/cluster.go:842
-#: lxc/cluster_group.go:369 lxc/config_template.go:242 lxc/config_trust.go:352
+#: lxc/alias.go:112 lxc/cluster.go:124 lxc/cluster.go:842
+#: lxc/cluster_group.go:380 lxc/config_template.go:242 lxc/config_trust.go:352
 #: lxc/config_trust.go:434 lxc/image.go:1045 lxc/image_alias.go:157
 #: lxc/list.go:133 lxc/network.go:899 lxc/network.go:990 lxc/network_acl.go:97
 #: lxc/network_forward.go:89 lxc/network_load_balancer.go:93
 #: lxc/network_peer.go:84 lxc/network_zone.go:88 lxc/network_zone.go:653
-#: lxc/operation.go:106 lxc/profile.go:592 lxc/project.go:399
+#: lxc/operation.go:106 lxc/profile.go:603 lxc/project.go:399
 #: lxc/project.go:768 lxc/remote.go:668 lxc/storage.go:576
 #: lxc/storage_bucket.go:442 lxc/storage_bucket.go:733
 #: lxc/storage_volume.go:1402 lxc/warning.go:93
@@ -2703,7 +2703,7 @@ msgstr "Clé de configuration invalide"
 msgid "Get values for network zone record configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/profile.go:538 lxc/profile.go:539
+#: lxc/profile.go:549 lxc/profile.go:550
 #, fuzzy
 msgid "Get values for profile configuration keys"
 msgstr "Clé de configuration invalide"
@@ -2847,7 +2847,7 @@ msgstr ""
 msgid "Ignore copy errors for volatile files"
 msgstr ""
 
-#: lxc/action.go:117
+#: lxc/action.go:127
 #, fuzzy
 msgid "Ignore the instance state"
 msgstr "Ignorer l'état du conteneur (seulement pour start)"
@@ -2888,7 +2888,7 @@ msgstr "Image importée avec l'empreinte : %s"
 msgid "Image refreshed successfully!"
 msgstr "Image copiée avec succès !"
 
-#: lxc/action.go:121 lxc/launch.go:41
+#: lxc/action.go:131 lxc/launch.go:41
 #, fuzzy
 msgid "Immediately attach to the console"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
@@ -3134,7 +3134,7 @@ msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
 #: lxc/cluster.go:158 lxc/cluster.go:876 lxc/cluster.go:970 lxc/cluster.go:1061
-#: lxc/cluster_group.go:403
+#: lxc/cluster_group.go:415
 msgid "LXD server isn't part of a cluster"
 msgstr ""
 
@@ -3166,7 +3166,7 @@ msgstr ""
 msgid "List DHCP leases"
 msgstr ""
 
-#: lxc/alias.go:101 lxc/alias.go:102
+#: lxc/alias.go:109 lxc/alias.go:110
 #, fuzzy
 msgid "List aliases"
 msgstr "Alias :"
@@ -3181,7 +3181,7 @@ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 msgid "List all active cluster member join tokens"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/cluster_group.go:366 lxc/cluster_group.go:367
+#: lxc/cluster_group.go:377 lxc/cluster_group.go:378
 #, fuzzy
 msgid "List all the cluster groups"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -3444,7 +3444,7 @@ msgstr ""
 msgid "List of projects to restrict the certificate to"
 msgstr ""
 
-#: lxc/profile.go:587 lxc/profile.go:588
+#: lxc/profile.go:598 lxc/profile.go:599
 msgid "List profiles"
 msgstr ""
 
@@ -3572,7 +3572,7 @@ msgstr "Créé : %s"
 msgid "MANAGED"
 msgstr "GÉRÉ"
 
-#: lxc/cluster_group.go:423
+#: lxc/cluster_group.go:435
 msgid "MEMBERS"
 msgstr ""
 
@@ -3618,7 +3618,7 @@ msgstr "Rendre l'image publique"
 msgid "Manage and attach instances to networks"
 msgstr ""
 
-#: lxc/cluster_group.go:28 lxc/cluster_group.go:29
+#: lxc/cluster_group.go:29 lxc/cluster_group.go:30
 #, fuzzy
 msgid "Manage cluster groups"
 msgstr "Copie de l'image : %s"
@@ -3627,12 +3627,12 @@ msgstr "Copie de l'image : %s"
 msgid "Manage cluster members"
 msgstr ""
 
-#: lxc/cluster_role.go:21 lxc/cluster_role.go:22
+#: lxc/cluster_role.go:22 lxc/cluster_role.go:23
 #, fuzzy
 msgid "Manage cluster roles"
 msgstr "Copie de l'image : %s"
 
-#: lxc/alias.go:20 lxc/alias.go:21
+#: lxc/alias.go:22 lxc/alias.go:23
 msgid "Manage command aliases"
 msgstr ""
 
@@ -3745,7 +3745,7 @@ msgstr "Nom du réseau"
 msgid "Manage network zones"
 msgstr "Nom du réseau"
 
-#: lxc/profile.go:27 lxc/profile.go:28
+#: lxc/profile.go:28 lxc/profile.go:29
 msgid "Manage profiles"
 msgstr ""
 
@@ -3815,12 +3815,12 @@ msgstr ""
 msgid "Mdev profiles:"
 msgstr "Profils : %s"
 
-#: lxc/cluster_role.go:83
+#: lxc/cluster_role.go:86
 #, fuzzy, c-format
 msgid "Member %q already has role %q"
 msgstr "Profil %s ajouté à %s"
 
-#: lxc/cluster_role.go:137
+#: lxc/cluster_role.go:142
 #, fuzzy, c-format
 msgid "Member %q does not have role %q"
 msgstr "Profil %s ajouté à %s"
@@ -3888,14 +3888,14 @@ msgstr "Résumé manquant."
 msgid "Missing certificate fingerprint"
 msgstr "Empreinte du certificat : %s"
 
-#: lxc/cluster_group.go:173 lxc/cluster_group.go:228 lxc/cluster_group.go:278
-#: lxc/cluster_group.go:580
+#: lxc/cluster_group.go:178 lxc/cluster_group.go:235 lxc/cluster_group.go:287
+#: lxc/cluster_group.go:598
 #, fuzzy
 msgid "Missing cluster group name"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/cluster.go:683 lxc/cluster.go:1179 lxc/cluster_group.go:109
-#: lxc/cluster_group.go:463 lxc/cluster_role.go:70 lxc/cluster_role.go:124
+#: lxc/cluster.go:683 lxc/cluster.go:1179 lxc/cluster_group.go:112
+#: lxc/cluster_group.go:477 lxc/cluster_role.go:73 lxc/cluster_role.go:129
 #, fuzzy
 msgid "Missing cluster member name"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -3903,8 +3903,8 @@ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 #: lxc/config_metadata.go:103 lxc/config_metadata.go:204
 #: lxc/config_template.go:91 lxc/config_template.go:134
 #: lxc/config_template.go:176 lxc/config_template.go:265
-#: lxc/config_template.go:324 lxc/profile.go:127 lxc/profile.go:200
-#: lxc/profile.go:673 lxc/rebuild.go:59
+#: lxc/config_template.go:324 lxc/profile.go:128 lxc/profile.go:201
+#: lxc/profile.go:684 lxc/rebuild.go:59
 #, fuzzy
 msgid "Missing instance name"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -4002,8 +4002,8 @@ msgstr "Résumé manquant."
 msgid "Missing pool name"
 msgstr "Nom de l'ensemble de stockage"
 
-#: lxc/profile.go:333 lxc/profile.go:387 lxc/profile.go:461 lxc/profile.go:563
-#: lxc/profile.go:749 lxc/profile.go:802 lxc/profile.go:858
+#: lxc/profile.go:344 lxc/profile.go:398 lxc/profile.go:472 lxc/profile.go:574
+#: lxc/profile.go:760 lxc/profile.go:813 lxc/profile.go:869
 msgid "Missing profile name"
 msgstr ""
 
@@ -4013,7 +4013,7 @@ msgstr ""
 msgid "Missing project name"
 msgstr "Nom de l'ensemble de stockage"
 
-#: lxc/profile.go:274
+#: lxc/profile.go:277
 msgid "Missing source profile name"
 msgstr ""
 
@@ -4131,15 +4131,15 @@ msgstr ""
 msgid "Must run as root to import from directory"
 msgstr ""
 
-#: lxc/action.go:220
+#: lxc/action.go:234
 #, fuzzy
 msgid "Must supply instance name for: "
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/cluster.go:183 lxc/cluster.go:925 lxc/cluster_group.go:421
+#: lxc/cluster.go:183 lxc/cluster.go:925 lxc/cluster_group.go:433
 #: lxc/config_trust.go:409 lxc/config_trust.go:514 lxc/list.go:565
 #: lxc/network.go:963 lxc/network_acl.go:147 lxc/network_peer.go:139
-#: lxc/network_zone.go:138 lxc/network_zone.go:702 lxc/profile.go:632
+#: lxc/network_zone.go:138 lxc/network_zone.go:702 lxc/profile.go:643
 #: lxc/project.go:485 lxc/remote.go:729 lxc/storage.go:626
 #: lxc/storage_bucket.go:494 lxc/storage_bucket.go:790
 #: lxc/storage_volume.go:1490
@@ -4504,7 +4504,7 @@ msgstr "Options :"
 msgid "Password for %s: "
 msgstr "Mot de passe administrateur pour %s : "
 
-#: lxc/action.go:48 lxc/action.go:49
+#: lxc/action.go:52 lxc/action.go:53
 #, fuzzy
 msgid "Pause instances"
 msgstr "Création du conteneur"
@@ -4544,12 +4544,12 @@ msgstr ""
 msgid "Press ctrl+c to finish"
 msgstr ""
 
-#: lxc/cluster.go:732 lxc/cluster_group.go:327 lxc/config.go:264
+#: lxc/cluster.go:732 lxc/cluster_group.go:336 lxc/config.go:264
 #: lxc/config.go:339 lxc/config_metadata.go:148 lxc/config_template.go:206
 #: lxc/config_trust.go:315 lxc/image.go:457 lxc/network.go:683
 #: lxc/network_acl.go:582 lxc/network_forward.go:597
 #: lxc/network_load_balancer.go:600 lxc/network_peer.go:573
-#: lxc/network_zone.go:513 lxc/network_zone.go:1067 lxc/profile.go:508
+#: lxc/network_zone.go:513 lxc/network_zone.go:1067 lxc/profile.go:519
 #: lxc/project.go:316 lxc/storage.go:311 lxc/storage_bucket.go:344
 #: lxc/storage_bucket.go:1057 lxc/storage_volume.go:990
 #: lxc/storage_volume.go:1022
@@ -4588,32 +4588,32 @@ msgstr "l'analyse des alias a échoué %s\n"
 msgid "Product: %v (%v)"
 msgstr ""
 
-#: lxc/profile.go:149
+#: lxc/profile.go:150
 #, c-format
 msgid "Profile %s added to %s"
 msgstr "Profil %s ajouté à %s"
 
-#: lxc/profile.go:346
+#: lxc/profile.go:357
 #, c-format
 msgid "Profile %s created"
 msgstr "Profil %s créé"
 
-#: lxc/profile.go:397
+#: lxc/profile.go:408
 #, c-format
 msgid "Profile %s deleted"
 msgstr "Profil %s supprimé"
 
-#: lxc/profile.go:683
+#: lxc/profile.go:694
 #, fuzzy, c-format
 msgid "Profile %s isn't currently applied to %s"
 msgstr "Profils %s appliqués à %s"
 
-#: lxc/profile.go:708
+#: lxc/profile.go:719
 #, c-format
 msgid "Profile %s removed from %s"
 msgstr "Profil %s supprimé de %s"
 
-#: lxc/profile.go:759
+#: lxc/profile.go:770
 #, fuzzy, c-format
 msgid "Profile %s renamed to %s"
 msgstr "Profil %s ajouté à %s"
@@ -4633,7 +4633,7 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Profile to apply to the target instance"
 msgstr "Profil à appliquer au nouveau conteneur"
 
-#: lxc/profile.go:229
+#: lxc/profile.go:230
 #, c-format
 msgid "Profiles %s applied to %s"
 msgstr "Profils %s appliqués à %s"
@@ -4905,7 +4905,7 @@ msgstr "Serveur distant : %s"
 msgid "Remove %s (yes/no): "
 msgstr "Supprimer %s (oui/non) : "
 
-#: lxc/cluster_group.go:439
+#: lxc/cluster_group.go:452
 #, fuzzy
 msgid "Remove a cluster member from a cluster group"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -4919,7 +4919,7 @@ msgstr ""
 msgid "Remove a network zone record entry"
 msgstr "Clé de configuration invalide"
 
-#: lxc/alias.go:197 lxc/alias.go:198
+#: lxc/alias.go:213 lxc/alias.go:214
 #, fuzzy
 msgid "Remove aliases"
 msgstr "Mot de passe de l'administrateur distant"
@@ -4952,7 +4952,7 @@ msgstr "Création du conteneur"
 msgid "Remove instance devices"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/cluster_group.go:438
+#: lxc/cluster_group.go:451
 msgid "Remove member from group"
 msgstr ""
 
@@ -4966,7 +4966,7 @@ msgstr "Création du conteneur"
 msgid "Remove ports from a load balancer"
 msgstr "Création du conteneur"
 
-#: lxc/profile.go:648 lxc/profile.go:649
+#: lxc/profile.go:659 lxc/profile.go:660
 #, fuzzy
 msgid "Remove profiles from instances"
 msgstr "Création du conteneur"
@@ -4975,7 +4975,7 @@ msgstr "Création du conteneur"
 msgid "Remove remotes"
 msgstr ""
 
-#: lxc/cluster_role.go:101 lxc/cluster_role.go:102
+#: lxc/cluster_role.go:105 lxc/cluster_role.go:106
 #, fuzzy
 msgid "Remove roles from a cluster member"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -4990,7 +4990,7 @@ msgstr "Création du conteneur"
 msgid "Remove trusted client"
 msgstr "Ajouter de nouveaux clients de confiance"
 
-#: lxc/cluster_group.go:509 lxc/cluster_group.go:510
+#: lxc/cluster_group.go:524 lxc/cluster_group.go:525
 msgid "Rename a cluster group"
 msgstr ""
 
@@ -4998,7 +4998,7 @@ msgstr ""
 msgid "Rename a cluster member"
 msgstr ""
 
-#: lxc/alias.go:146 lxc/alias.go:147 lxc/image_alias.go:254
+#: lxc/alias.go:158 lxc/alias.go:159 lxc/image_alias.go:254
 #: lxc/image_alias.go:255
 msgid "Rename aliases"
 msgstr ""
@@ -5016,7 +5016,7 @@ msgstr ""
 msgid "Rename networks"
 msgstr ""
 
-#: lxc/profile.go:724 lxc/profile.go:725
+#: lxc/profile.go:735 lxc/profile.go:736
 msgid "Rename profiles"
 msgstr ""
 
@@ -5061,12 +5061,12 @@ msgstr "Requérir une confirmation de l'utilisateur"
 msgid "Resources:"
 msgstr "Ressources :"
 
-#: lxc/action.go:69
+#: lxc/action.go:75
 #, fuzzy
 msgid "Restart instances"
 msgstr "Création du conteneur"
 
-#: lxc/action.go:70
+#: lxc/action.go:76
 #, fuzzy
 msgid ""
 "Restart instances\n"
@@ -5145,7 +5145,7 @@ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 msgid "Role (admin or read-only)"
 msgstr ""
 
-#: lxc/action.go:112
+#: lxc/action.go:122
 msgid "Run against all instances"
 msgstr ""
 
@@ -5386,12 +5386,12 @@ msgstr ""
 msgid "Set network zone record configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/profile.go:774
+#: lxc/profile.go:785
 #, fuzzy
 msgid "Set profile configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/profile.go:775
+#: lxc/profile.go:786
 msgid ""
 "Set profile configuration keys\n"
 "\n"
@@ -5484,7 +5484,7 @@ msgstr ""
 msgid "Show all information messages"
 msgstr ""
 
-#: lxc/cluster_group.go:555 lxc/cluster_group.go:556
+#: lxc/cluster_group.go:572 lxc/cluster_group.go:573
 #, fuzzy
 msgid "Show cluster group configurations"
 msgstr "Afficher la configuration étendue"
@@ -5585,7 +5585,7 @@ msgstr "Afficher la configuration étendue"
 msgid "Show network zone record configurations"
 msgstr "Afficher la configuration étendue"
 
-#: lxc/profile.go:833 lxc/profile.go:834
+#: lxc/profile.go:844 lxc/profile.go:845
 #, fuzzy
 msgid "Show profile configurations"
 msgstr "Afficher la configuration étendue"
@@ -5695,7 +5695,7 @@ msgstr "Instantanés :"
 msgid "Socket %d:"
 msgstr ""
 
-#: lxc/action.go:386
+#: lxc/action.go:402
 #, fuzzy, c-format
 msgid "Some instances failed to %s"
 msgstr "L'arrêt du conteneur a échoué !"
@@ -5704,7 +5704,7 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Source:"
 msgstr "Source :"
 
-#: lxc/action.go:29 lxc/action.go:30
+#: lxc/action.go:31 lxc/action.go:32
 #, fuzzy
 msgid "Start instances"
 msgstr "Création du conteneur"
@@ -5734,7 +5734,7 @@ msgstr "à suivi d'état"
 msgid "Status: %s"
 msgstr "État : %s"
 
-#: lxc/action.go:90 lxc/action.go:91
+#: lxc/action.go:98 lxc/action.go:99
 #, fuzzy
 msgid "Stop instances"
 msgstr "L'arrêt du conteneur a échoué !"
@@ -5813,7 +5813,7 @@ msgstr "Image copiée avec succès !"
 msgid "Storage volume moved successfully!"
 msgstr "Image copiée avec succès !"
 
-#: lxc/action.go:115
+#: lxc/action.go:125
 #, fuzzy
 msgid "Store the instance state"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
@@ -5851,7 +5851,7 @@ msgstr "impossible de supprimer le serveur distant par défaut"
 msgid "Switch the default remote"
 msgstr "impossible de supprimer le serveur distant par défaut"
 
-#: lxc/alias.go:130
+#: lxc/alias.go:140
 msgid "TARGET"
 msgstr ""
 
@@ -6006,7 +6006,7 @@ msgstr ""
 msgid "Threads:"
 msgstr ""
 
-#: lxc/action.go:127
+#: lxc/action.go:137
 #, fuzzy
 msgid "Time to wait for the instance to shutdown cleanly"
 msgstr "Temps d'attente du conteneur avant de le tuer"
@@ -6090,7 +6090,7 @@ msgstr "Transfert de l'image : %s"
 msgid "Transmit policy"
 msgstr ""
 
-#: lxc/action.go:274 lxc/launch.go:110
+#: lxc/action.go:288 lxc/launch.go:110
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "Essayer `lxc info --show-log %s` pour plus d'informations"
@@ -6139,7 +6139,7 @@ msgid "USAGE"
 msgstr ""
 
 #: lxc/network.go:969 lxc/network_acl.go:149 lxc/network_zone.go:140
-#: lxc/profile.go:634 lxc/project.go:493 lxc/storage.go:635
+#: lxc/profile.go:645 lxc/project.go:493 lxc/storage.go:635
 #: lxc/storage_volume.go:1493
 msgid "USED BY"
 msgstr "UTILISÉ PAR"
@@ -6273,7 +6273,7 @@ msgstr "Clé de configuration invalide"
 msgid "Unset network zone record configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/profile.go:887 lxc/profile.go:888
+#: lxc/profile.go:898 lxc/profile.go:899
 #, fuzzy
 msgid "Unset profile configuration keys"
 msgstr "Clé de configuration invalide"
@@ -6316,6 +6316,10 @@ msgstr "Accepter le certificat"
 msgid ""
 "Update cluster certificate with PEM certificate and key read from input "
 "files."
+msgstr ""
+
+#: lxc/profile.go:253
+msgid "Update the target profile from the source if it already exists"
 msgstr ""
 
 #: lxc/image.go:955
@@ -6477,10 +6481,10 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/cluster.go:119 lxc/cluster.go:839 lxc/cluster_group.go:364
+#: lxc/cluster.go:119 lxc/cluster.go:839 lxc/cluster_group.go:375
 #: lxc/config_trust.go:347 lxc/config_trust.go:430 lxc/monitor.go:31
 #: lxc/network.go:892 lxc/network_acl.go:91 lxc/network_zone.go:82
-#: lxc/operation.go:101 lxc/profile.go:585 lxc/project.go:394
+#: lxc/operation.go:101 lxc/profile.go:596 lxc/project.go:394
 #: lxc/storage.go:571 lxc/version.go:20 lxc/warning.go:68
 #, fuzzy
 msgid "[<remote>:]"
@@ -6692,8 +6696,8 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/cluster_group.go:147 lxc/cluster_group.go:201 lxc/cluster_group.go:252
-#: lxc/cluster_group.go:554
+#: lxc/cluster_group.go:151 lxc/cluster_group.go:207 lxc/cluster_group.go:260
+#: lxc/cluster_group.go:571
 #, fuzzy
 msgid "[<remote>:]<group>"
 msgstr ""
@@ -6701,7 +6705,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/cluster_group.go:507
+#: lxc/cluster_group.go:522
 #, fuzzy
 msgid "[<remote>:]<group> <new-name>"
 msgstr ""
@@ -6834,7 +6838,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/profile.go:101 lxc/profile.go:647
+#: lxc/profile.go:102 lxc/profile.go:658
 #, fuzzy
 msgid "[<remote>:]<instance> <profile>"
 msgstr ""
@@ -6846,7 +6850,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/profile.go:163
+#: lxc/profile.go:164
 #, fuzzy
 msgid "[<remote>:]<instance> <profiles>"
 msgstr ""
@@ -6895,7 +6899,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/action.go:28 lxc/action.go:47 lxc/action.go:68 lxc/action.go:89
+#: lxc/action.go:30 lxc/action.go:51 lxc/action.go:74 lxc/action.go:97
 #, fuzzy
 msgid "[<remote>:]<instance> [[<remote>:]<instance>...]"
 msgstr ""
@@ -7027,7 +7031,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/cluster_group.go:75 lxc/cluster_group.go:437
+#: lxc/cluster_group.go:77 lxc/cluster_group.go:450
 #, fuzzy
 msgid "[<remote>:]<member> <group>"
 msgstr ""
@@ -7067,7 +7071,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/cluster_role.go:46 lxc/cluster_role.go:100
+#: lxc/cluster_role.go:48 lxc/cluster_role.go:104
 #, fuzzy
 msgid "[<remote>:]<member> <role[,role...]>"
 msgstr ""
@@ -7514,8 +7518,8 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/config_device.go:290 lxc/config_device.go:664 lxc/profile.go:307
-#: lxc/profile.go:360 lxc/profile.go:411 lxc/profile.go:832
+#: lxc/config_device.go:290 lxc/config_device.go:664 lxc/profile.go:318
+#: lxc/profile.go:371 lxc/profile.go:422 lxc/profile.go:843
 #, fuzzy
 msgid "[<remote>:]<profile>"
 msgstr ""
@@ -7547,7 +7551,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/profile.go:537 lxc/profile.go:886
+#: lxc/profile.go:548 lxc/profile.go:897
 #, fuzzy
 msgid "[<remote>:]<profile> <key>"
 msgstr ""
@@ -7555,7 +7559,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/profile.go:773
+#: lxc/profile.go:784
 #, fuzzy
 msgid "[<remote>:]<profile> <key><value>..."
 msgstr ""
@@ -7571,7 +7575,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/profile.go:722
+#: lxc/profile.go:733
 #, fuzzy
 msgid "[<remote>:]<profile> <new-name>"
 msgstr ""
@@ -7579,7 +7583,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/profile.go:245
+#: lxc/profile.go:247
 #, fuzzy
 msgid "[<remote>:]<profile> [<remote>:]<profile>"
 msgstr ""
@@ -7773,7 +7777,7 @@ msgstr ""
 msgid "enabled"
 msgstr "activé"
 
-#: lxc/action.go:378
+#: lxc/action.go:394
 #, c-format
 msgid "error: %v"
 msgstr "erreur : %v"
@@ -7782,19 +7786,19 @@ msgstr "erreur : %v"
 msgid "info"
 msgstr ""
 
-#: lxc/alias.go:58
+#: lxc/alias.go:62
 msgid ""
 "lxc alias add list \"list -c ns46S\"\n"
 "    Overwrite the \"list\" command to pass -c ns46S."
 msgstr ""
 
-#: lxc/alias.go:200
+#: lxc/alias.go:216
 msgid ""
 "lxc alias remove my-list\n"
 "    Remove the \"my-list\" alias."
 msgstr ""
 
-#: lxc/alias.go:149
+#: lxc/alias.go:161
 msgid ""
 "lxc alias rename list my-list\n"
 "    Rename existing alias \"list\" to \"my-list\"."
@@ -7806,7 +7810,7 @@ msgid ""
 "    Update a cluster member using the content of member.yaml"
 msgstr ""
 
-#: lxc/cluster_group.go:80
+#: lxc/cluster_group.go:82
 msgid ""
 "lxc cluster group assign foo default,bar\n"
 "    Set the groups for \"foo\" to \"default\" and \"bar\".\n"
@@ -7993,7 +7997,7 @@ msgid ""
 "    Show details on that operation UUID"
 msgstr ""
 
-#: lxc/profile.go:168
+#: lxc/profile.go:169
 msgid ""
 "lxc profile assign foo default,bar\n"
 "    Set the profiles for \"foo\" to \"default\" and \"bar\".\n"
@@ -8016,7 +8020,7 @@ msgid ""
 "    Will mount the some-volume volume on some-pool onto /opt in the instance."
 msgstr ""
 
-#: lxc/profile.go:415
+#: lxc/profile.go:426
 msgid ""
 "lxc profile edit <profile> < profile.yaml\n"
 "    Update a profile using the content of profile.yaml"
