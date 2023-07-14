@@ -1,28 +1,5 @@
 package main
 
-import (
-	"fmt"
-	"io"
-	"net"
-	"os"
-	"os/signal"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
-	"unsafe"
-
-	"github.com/spf13/cobra"
-	"golang.org/x/sys/unix"
-
-	"github.com/canonical/lxd/lxd/daemon"
-	deviceConfig "github.com/canonical/lxd/lxd/device/config"
-	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
-	"github.com/canonical/lxd/lxd/network"
-	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/netutils"
-)
-
 /*
 #include "config.h"
 
@@ -262,6 +239,29 @@ void forkproxy(void)
 }
 */
 import "C"
+
+import (
+	"fmt"
+	"io"
+	"net"
+	"os"
+	"os/signal"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+	"unsafe"
+
+	"github.com/spf13/cobra"
+	"golang.org/x/sys/unix"
+
+	"github.com/canonical/lxd/lxd/daemon"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
+	"github.com/canonical/lxd/lxd/network"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/netutils"
+)
 
 const forkproxyUDSSockFDNum int = C.FORKPROXY_UDS_SOCK_FD_NUM
 
