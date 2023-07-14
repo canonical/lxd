@@ -242,6 +242,8 @@ func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
 type cmdClusterGet struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
+
+	flagIsProperty bool
 }
 
 func (c *cmdClusterGet) Command() *cobra.Command {
@@ -250,6 +252,7 @@ func (c *cmdClusterGet) Command() *cobra.Command {
 	cmd.Short = i18n.G("Get values for cluster member configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), cmd.Short)
 
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a cluster property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -276,6 +279,17 @@ func (c *cmdClusterGet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if c.flagIsProperty {
+		w := member.Writable()
+		res, err := getFieldByJsonTag(&w, args[1])
+		if err != nil {
+			return fmt.Errorf(i18n.G("The property %q does not exist on the cluster member %q: %v"), args[1], resource.name, err)
+		}
+
+		fmt.Printf("%v\n", res)
+		return nil
+	}
+
 	value, ok := member.Config[args[1]]
 	if !ok {
 		return fmt.Errorf(i18n.G("The key %q does not exist on cluster member %q"), args[1], resource.name)
@@ -289,6 +303,8 @@ func (c *cmdClusterGet) Run(cmd *cobra.Command, args []string) error {
 type cmdClusterSet struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
+
+	flagIsProperty bool
 }
 
 func (c *cmdClusterSet) Command() *cobra.Command {
@@ -297,6 +313,7 @@ func (c *cmdClusterSet) Command() *cobra.Command {
 	cmd.Short = i18n.G("Set a cluster member's configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), cmd.Short)
 
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a cluster property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -323,17 +340,34 @@ func (c *cmdClusterSet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Get the new config entries
-	entries, err := getConfig(args[1:]...)
+	// Get the new config keys
+	keys, err := getConfig(args[1:]...)
 	if err != nil {
 		return err
 	}
 
-	for k, v := range entries {
-		member.Config[k] = v
+	writable := member.Writable()
+	if c.flagIsProperty {
+		if cmd.Name() == "unset" {
+			for k := range keys {
+				err := unsetFieldByJsonTag(&writable, k)
+				if err != nil {
+					return fmt.Errorf(i18n.G("Error unsetting property: %v"), err)
+				}
+			}
+		} else {
+			err := unpackKVToWritable(&writable, keys)
+			if err != nil {
+				return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+			}
+		}
+	} else {
+		for k, v := range keys {
+			writable.Config[k] = v
+		}
 	}
 
-	return resource.server.UpdateClusterMember(resource.name, member.Writable(), "")
+	return resource.server.UpdateClusterMember(resource.name, writable, "")
 }
 
 // Unset.
@@ -341,6 +375,8 @@ type cmdClusterUnset struct {
 	global     *cmdGlobal
 	cluster    *cmdCluster
 	clusterSet *cmdClusterSet
+
+	flagIsProperty bool
 }
 
 func (c *cmdClusterUnset) Command() *cobra.Command {
@@ -349,6 +385,7 @@ func (c *cmdClusterUnset) Command() *cobra.Command {
 	cmd.Short = i18n.G("Unset a cluster member's configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), cmd.Short)
 
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a cluster property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -360,6 +397,8 @@ func (c *cmdClusterUnset) Run(cmd *cobra.Command, args []string) error {
 	if exit {
 		return err
 	}
+
+	c.clusterSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
 	return c.clusterSet.Run(cmd, args)
