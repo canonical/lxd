@@ -1045,6 +1045,8 @@ type cmdStorageVolumeGet struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
 	storageVolume *cmdStorageVolume
+
+	flagIsProperty bool
 }
 
 func (c *cmdStorageVolumeGet) Command() *cobra.Command {
@@ -1066,6 +1068,7 @@ lxc storage volume get default virtual-machine/data snapshots.expiry
     Returns the snapshot expiration period for a virtual machine "data" in pool "default".`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a storage volume property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -1109,15 +1112,22 @@ func (c *cmdStorageVolumeGet) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if isSnapshot {
-		// Get the storage volume snapshot entry
 		resp, _, err := client.GetStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1])
 		if err != nil {
 			return err
 		}
 
-		for k, v := range resp.Config {
-			if k == args[2] {
-				fmt.Printf("%s\n", v)
+		if c.flagIsProperty {
+			res, err := getFieldByJsonTag(resp, args[2])
+			if err != nil {
+				return fmt.Errorf(i18n.G("The property %q does not exist on the storage pool volume snapshot %s/%s: %v"), args[2], fields[0], fields[1], err)
+			}
+
+			fmt.Printf("%v\n", res)
+		} else {
+			v, ok := resp.Config[args[2]]
+			if ok {
+				fmt.Println(v)
 			}
 		}
 
@@ -1130,9 +1140,17 @@ func (c *cmdStorageVolumeGet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for k, v := range resp.Config {
-		if k == args[2] {
-			fmt.Printf("%s\n", v)
+	if c.flagIsProperty {
+		res, err := getFieldByJsonTag(resp, args[2])
+		if err != nil {
+			return fmt.Errorf(i18n.G("The property %q does not exist on the storage pool volume %q: %v"), args[2], resource.name, err)
+		}
+
+		fmt.Printf("%v\n", res)
+	} else {
+		v, ok := resp.Config[args[2]]
+		if ok {
+			fmt.Println(v)
 		}
 	}
 
@@ -1725,6 +1743,8 @@ type cmdStorageVolumeSet struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
 	storageVolume *cmdStorageVolume
+
+	flagIsProperty bool
 }
 
 func (c *cmdStorageVolumeSet) Command() *cobra.Command {
@@ -1747,6 +1767,7 @@ lxc storage volume set default virtual-machine/data snapshots.expiry=7d
     Sets the snapshot expiration period for a virtual machine "data" in pool "default" to seven days.`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a storage volume property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -1790,6 +1811,35 @@ func (c *cmdStorageVolumeSet) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if isSnapshot {
+		if c.flagIsProperty {
+			snapVol, etag, err := client.GetStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1])
+			if err != nil {
+				return err
+			}
+
+			writable := snapVol.Writable()
+			if cmd.Name() == "unset" {
+				for k := range keys {
+					err := unsetFieldByJsonTag(&writable, k)
+					if err != nil {
+						return fmt.Errorf(i18n.G("Error unsetting property: %v"), err)
+					}
+				}
+			} else {
+				err := unpackKVToWritable(&writable, keys)
+				if err != nil {
+					return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+				}
+			}
+
+			err = client.UpdateStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1], writable, etag)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}
+
 		return fmt.Errorf(i18n.G("Snapshots are read-only and can't have their configuration changed"))
 	}
 
@@ -1804,12 +1854,29 @@ func (c *cmdStorageVolumeSet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Update the volume.
-	for k, v := range keys {
-		vol.Config[k] = v
+	writable := vol.Writable()
+	if c.flagIsProperty {
+		if cmd.Name() == "unset" {
+			for k := range keys {
+				err := unsetFieldByJsonTag(&writable, k)
+				if err != nil {
+					return fmt.Errorf(i18n.G("Error unsetting property: %v"), err)
+				}
+			}
+		} else {
+			err := unpackKVToWritable(&writable, keys)
+			if err != nil {
+				return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+			}
+		}
+	} else {
+		// Update the volume config keys.
+		for k, v := range keys {
+			writable.Config[k] = v
+		}
 	}
 
-	err = client.UpdateStoragePoolVolume(resource.name, vol.Type, vol.Name, vol.Writable(), etag)
+	err = client.UpdateStoragePoolVolume(resource.name, vol.Type, vol.Name, writable, etag)
 	if err != nil {
 		return err
 	}
@@ -1929,6 +1996,8 @@ type cmdStorageVolumeUnset struct {
 	storage          *cmdStorage
 	storageVolume    *cmdStorageVolume
 	storageVolumeSet *cmdStorageVolumeSet
+
+	flagIsProperty bool
 }
 
 func (c *cmdStorageVolumeUnset) Command() *cobra.Command {
@@ -1948,6 +2017,7 @@ lxc storage volume unset default virtual-machine/data snapshots.expiry
     Removes the snapshot expiration period for a virtual machine "data" in pool "default".`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a storage volume property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -1959,6 +2029,8 @@ func (c *cmdStorageVolumeUnset) Run(cmd *cobra.Command, args []string) error {
 	if exit {
 		return err
 	}
+
+	c.storageVolumeSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
 	return c.storageVolumeSet.Run(cmd, args)
