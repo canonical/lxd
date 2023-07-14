@@ -9,6 +9,7 @@ See the following sections for information on how to get started with LXD:
 ```{toctree}
 :maxdepth: 1
 
+tutorial/first_steps
 explanation/containers_and_vms
 requirements
 Install LXD <installing>
