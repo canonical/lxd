@@ -95,8 +95,6 @@ func finalizeTLSConfig(tlsConfig *tls.Config, tlsRemoteCert *x509.Certificate) {
 			tlsConfig.ServerName = tlsRemoteCert.DNSNames[0]
 		}
 	}
-
-	tlsConfig.BuildNameToCertificate()
 }
 
 func GetTLSConfig(tlsClientCertFile string, tlsClientKeyFile string, tlsClientCAFile string, tlsRemoteCert *x509.Certificate) (*tls.Config, error) {
