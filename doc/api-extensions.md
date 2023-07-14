@@ -2258,3 +2258,10 @@ This adds the following new configuration key:
 This adds the possibility to import ISO images as custom storage volumes.
 
 This adds the `--type` flag to `lxc storage volume import`.
+
+## `network_allocations`
+This adds the possibility to list a LXD deployment's network allocations.
+
+Through the `lxc network list-allocations` command and the `--project <PROJECT> | --all-projects` flags,
+you can list all the used IP addresses, hardware addresses (for instances), resource URIs and whether it uses NAT for
+each `instance`, `network`, `network forward` and `network load-balancer`.
