@@ -21,6 +21,7 @@ type cmdImport struct {
 	flagStorage string
 }
 
+// Command creates a cobra command to import backups of LXD instances, optionally specifying a storage pool.
 func (c *cmdImport) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("import", i18n.G("[<remote>:] <backup file> [<instance name>]"))
@@ -37,6 +38,7 @@ func (c *cmdImport) Command() *cobra.Command {
 	return cmd
 }
 
+// Run parses arguments and triggers the import process of an LXD instance backup from a file or standard input.
 func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 3)
