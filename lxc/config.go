@@ -367,7 +367,8 @@ type cmdConfigGet struct {
 	global *cmdGlobal
 	config *cmdConfig
 
-	flagExpanded bool
+	flagExpanded   bool
+	flagIsProperty bool
 }
 
 // Command creates a Cobra command to fetch values for given instance or server configuration keys,
@@ -380,6 +381,7 @@ func (c *cmdConfigGet) Command() *cobra.Command {
 		`Get values for instance or server configuration keys`))
 
 	cmd.Flags().BoolVarP(&c.flagExpanded, "expanded", "e", false, i18n.G("Access the expanded configuration"))
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as an instance property"))
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
 
@@ -406,6 +408,8 @@ func (c *cmdConfigGet) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	resource := resources[0]
+	fields := strings.SplitN(resource.name, "/", 2)
+	isSnapshot := len(fields) == 2
 
 	// Get the config key
 	if resource.name != "" {
@@ -414,15 +418,49 @@ func (c *cmdConfigGet) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("--target cannot be used with instances"))
 		}
 
+		if isSnapshot {
+			inst, _, err := resource.server.GetInstanceSnapshot(fields[0], fields[1])
+			if err != nil {
+				return err
+			}
+
+			if c.flagIsProperty {
+				res, err := getFieldByJsonTag(inst, args[len(args)-1])
+				if err != nil {
+					return fmt.Errorf(i18n.G("The property %q does not exist on the instance snapshot %s/%s: %v"), args[len(args)-1], fields[0], fields[1], err)
+				}
+
+				fmt.Printf("%v\n", res)
+			} else {
+				if c.flagExpanded {
+					fmt.Println(inst.ExpandedConfig[args[len(args)-1]])
+				} else {
+					fmt.Println(inst.Config[args[len(args)-1]])
+				}
+			}
+
+			return nil
+		}
+
 		resp, _, err := resource.server.GetInstance(resource.name)
 		if err != nil {
 			return err
 		}
 
-		if c.flagExpanded {
-			fmt.Println(resp.ExpandedConfig[args[len(args)-1]])
+		if c.flagIsProperty {
+			w := resp.Writable()
+			res, err := getFieldByJsonTag(&w, args[len(args)-1])
+			if err != nil {
+				return fmt.Errorf(i18n.G("The property %q does not exist on the instance %q: %v"), args[len(args)-1], resource.name, err)
+			}
+
+			fmt.Printf("%v\n", res)
 		} else {
-			fmt.Println(resp.Config[args[len(args)-1]])
+			if c.flagExpanded {
+				fmt.Println(resp.ExpandedConfig[args[len(args)-1]])
+			} else {
+				fmt.Println(resp.Config[args[len(args)-1]])
+			}
 		}
 	} else {
 		// Quick check.
@@ -463,6 +501,8 @@ func (c *cmdConfigGet) Run(cmd *cobra.Command, args []string) error {
 type cmdConfigSet struct {
 	global *cmdGlobal
 	config *cmdConfig
+
+	flagIsProperty bool
 }
 
 // Command creates a new Cobra command to set instance or server configuration keys and returns it.
@@ -486,6 +526,7 @@ lxc config set core.trust_password=blah
     Will set the server's trust password to blah.`))
 
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as an instance property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -543,6 +584,8 @@ func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	resource := resources[0]
+	fields := strings.SplitN(resource.name, "/", 2)
+	isSnapshot := len(fields) == 2
 
 	// Set the config keys
 	if resource.name != "" {
@@ -556,25 +599,75 @@ func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
+		if isSnapshot {
+			inst, etag, err := resource.server.GetInstanceSnapshot(fields[0], fields[1])
+			if err != nil {
+				return err
+			}
+
+			writable := inst.Writable()
+			if c.flagIsProperty {
+				if cmd.Name() == "unset" {
+					for k := range keys {
+						err := unsetFieldByJsonTag(&writable, k)
+						if err != nil {
+							return fmt.Errorf(i18n.G("Error unsetting properties: %v"), err)
+						}
+					}
+				} else {
+					err := unpackKVToWritable(&writable, keys)
+					if err != nil {
+						return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+					}
+				}
+
+				op, err := resource.server.UpdateInstanceSnapshot(fields[0], fields[1], writable, etag)
+				if err != nil {
+					return err
+				}
+
+				return op.Wait()
+			} else {
+				return fmt.Errorf(i18n.G("The is no config key to set on an instance snapshot."))
+			}
+		}
+
 		inst, etag, err := resource.server.GetInstance(resource.name)
 		if err != nil {
 			return err
 		}
 
-		for k, v := range keys {
+		writable := inst.Writable()
+		if c.flagIsProperty {
 			if cmd.Name() == "unset" {
-				_, ok := inst.Config[k]
-				if !ok {
-					return fmt.Errorf(i18n.G("Can't unset key '%s', it's not currently set"), k)
+				for k := range keys {
+					err := unsetFieldByJsonTag(&writable, k)
+					if err != nil {
+						return fmt.Errorf(i18n.G("Error unsetting properties: %v"), err)
+					}
 				}
-
-				delete(inst.Config, k)
 			} else {
-				inst.Config[k] = v
+				err := unpackKVToWritable(&writable, keys)
+				if err != nil {
+					return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+				}
+			}
+		} else {
+			for k, v := range keys {
+				if cmd.Name() == "unset" {
+					_, ok := writable.Config[k]
+					if !ok {
+						return fmt.Errorf(i18n.G("Can't unset key '%s', it's not currently set"), k)
+					}
+
+					delete(writable.Config, k)
+				} else {
+					writable.Config[k] = v
+				}
 			}
 		}
 
-		op, err := resource.server.UpdateInstance(resource.name, inst.Writable(), etag)
+		op, err := resource.server.UpdateInstance(resource.name, writable, etag)
 		if err != nil {
 			return err
 		}
@@ -749,6 +842,8 @@ type cmdConfigUnset struct {
 	global    *cmdGlobal
 	config    *cmdConfig
 	configSet *cmdConfigSet
+
+	flagIsProperty bool
 }
 
 // Command generates a new "unset" command to remove specific configuration keys for an instance or server.
@@ -760,6 +855,7 @@ func (c *cmdConfigUnset) Command() *cobra.Command {
 		`Unset instance or server configuration keys`))
 
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as an instance property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -772,6 +868,8 @@ func (c *cmdConfigUnset) Run(cmd *cobra.Command, args []string) error {
 	if exit {
 		return err
 	}
+
+	c.configSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
 	return c.configSet.Run(cmd, args)
