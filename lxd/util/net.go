@@ -119,7 +119,6 @@ func ServerTLSConfig(cert *shared.CertInfo) *tls.Config {
 		logger.Infof("LXD is in CA mode, only CA-signed certificates will be allowed")
 	}
 
-	config.BuildNameToCertificate()
 	return config
 }
 
