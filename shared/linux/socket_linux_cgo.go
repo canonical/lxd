@@ -2,15 +2,6 @@
 
 package linux
 
-import (
-	"fmt"
-	"os"
-
-	"golang.org/x/sys/unix"
-
-	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
-)
-
 /*
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1
@@ -53,6 +44,15 @@ again:
 }
 */
 import "C"
+
+import (
+	"fmt"
+	"os"
+
+	"golang.org/x/sys/unix"
+
+	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
+)
 
 const ABSTRACT_UNIX_SOCK_LEN int = C.ABSTRACT_UNIX_SOCK_LEN
 
