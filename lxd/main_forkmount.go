@@ -1,14 +1,5 @@
 package main
 
-import (
-	"fmt"
-
-	"github.com/spf13/cobra"
-
-	// Used by cgo
-	_ "github.com/canonical/lxd/lxd/include"
-)
-
 /*
 #include "config.h"
 
@@ -657,6 +648,15 @@ void forkmount(void)
 }
 */
 import "C"
+
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+
+	// Used by cgo
+	_ "github.com/canonical/lxd/lxd/include"
+)
 
 type cmdForkmount struct {
 	global *cmdGlobal
