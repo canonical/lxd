@@ -1,17 +1,5 @@
 package main
 
-import (
-	"encoding/json"
-	"fmt"
-	"net"
-
-	"github.com/spf13/cobra"
-
-	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
-	"github.com/canonical/lxd/lxd/ip"
-	"github.com/canonical/lxd/shared/netutils"
-)
-
 /*
 #include "config.h"
 
@@ -113,6 +101,18 @@ void forknet(void)
 }
 */
 import "C"
+
+import (
+	"encoding/json"
+	"fmt"
+	"net"
+
+	"github.com/spf13/cobra"
+
+	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
+	"github.com/canonical/lxd/lxd/ip"
+	"github.com/canonical/lxd/shared/netutils"
+)
 
 type cmdForknet struct {
 	global *cmdGlobal
