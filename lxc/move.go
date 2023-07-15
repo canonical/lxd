@@ -28,6 +28,7 @@ type cmdMove struct {
 	flagAllowInconsistent bool
 }
 
+// Command sets up the 'move' command, allowing users to transfer instances within or between LXD servers, optionally renaming and modifying configurations.
 func (c *cmdMove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("move", i18n.G("[<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"))
@@ -69,6 +70,7 @@ lxc move <instance>/<old snapshot name> <instance>/<new snapshot name>
 	return cmd
 }
 
+// Run performs the 'move' command, handling the transfer of instances within or between LXD servers, with additional configuration and condition checks.
 func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -254,7 +256,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Move an instance using special POST /instances/<name>?target=<member> API.
+// Moves an instance using special POST /instances/<name>?target=<member> API.
 func moveClusterInstance(conf *config.Config, sourceResource string, destResource string, target string, quiet bool, stateful bool) error {
 	// Parse the source.
 	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
@@ -330,7 +332,7 @@ func moveClusterInstance(conf *config.Config, sourceResource string, destResourc
 	return nil
 }
 
-// Move an instance between pools using special POST /instances/<name> API.
+// Moves an instance between pools using special POST /instances/<name> API.
 func moveInstancePool(conf *config.Config, sourceResource string, destResource string, instanceOnly bool, storage string, stateful bool) error {
 	// Parse the source.
 	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
@@ -382,7 +384,7 @@ func moveInstancePool(conf *config.Config, sourceResource string, destResource s
 	return nil
 }
 
-// Move an instance between projects using special POST /instances/<name> API.
+// Moves an instance between projects using special POST /instances/<name> API.
 func moveInstanceProject(conf *config.Config, sourceResource string, destResource string, targetProject string, instanceOnly bool, stateful bool) error {
 	// Parse the source.
 	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
