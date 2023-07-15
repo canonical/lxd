@@ -25,6 +25,7 @@ type cmdNetwork struct {
 	flagType   string
 }
 
+// Defines a command for managing network operations like attach, detach, create, delete, list, and set/unset properties.
 func (c *cmdNetwork) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("network")
@@ -128,6 +129,7 @@ type cmdNetworkAttach struct {
 	network *cmdNetwork
 }
 
+// Defines a command for attaching a network interface to an instance.
 func (c *cmdNetworkAttach) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("attach", i18n.G("[<remote>:]<network> <instance> [<device name>] [<interface name>]"))
@@ -140,6 +142,7 @@ func (c *cmdNetworkAttach) Command() *cobra.Command {
 	return cmd
 }
 
+// Implements the logic to attach a network interface to a specified instance.
 func (c *cmdNetworkAttach) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 4)
@@ -213,6 +216,7 @@ type cmdNetworkAttachProfile struct {
 	network *cmdNetwork
 }
 
+// Sets up the command to attach a network interface to a specific profile.
 func (c *cmdNetworkAttachProfile) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("attach-profile", i18n.G("[<remote>:]<network> <profile> [<device name>] [<interface name>]"))
@@ -225,6 +229,7 @@ func (c *cmdNetworkAttachProfile) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the action of attaching a network interface to a specific profile, handling any errors.
 func (c *cmdNetworkAttachProfile) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 4)
@@ -286,6 +291,7 @@ type cmdNetworkCreate struct {
 	network *cmdNetwork
 }
 
+// Generates the command to create a new network along with associated flags and handles its execution.
 func (c *cmdNetworkCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<network> [key=value...]"))
@@ -305,6 +311,7 @@ lxc network create bar network=baz --type ovn
 	return cmd
 }
 
+// Executes the creation of a new network, handling validation, configuration and potential errors.
 func (c *cmdNetworkCreate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
@@ -364,6 +371,7 @@ type cmdNetworkDelete struct {
 	network *cmdNetwork
 }
 
+// Constructs and executes the command to delete a network, managing aliases and handling errors.
 func (c *cmdNetworkDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<network>"))
@@ -377,6 +385,7 @@ func (c *cmdNetworkDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the network deletion command, validates inputs, and manages output based on flag settings.
 func (c *cmdNetworkDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -415,6 +424,7 @@ type cmdNetworkDetach struct {
 	network *cmdNetwork
 }
 
+// Provides a command to detach network interfaces from instances.
 func (c *cmdNetworkDetach) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("detach", i18n.G("[<remote>:]<network> <instance> [<device name>]"))
@@ -427,6 +437,7 @@ func (c *cmdNetworkDetach) Command() *cobra.Command {
 	return cmd
 }
 
+// Detaches a network interface from an instance.
 func (c *cmdNetworkDetach) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
@@ -500,6 +511,7 @@ type cmdNetworkDetachProfile struct {
 	network *cmdNetwork
 }
 
+// Detaches the network interfaces from profiles.
 func (c *cmdNetworkDetachProfile) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("detach-profile", i18n.G("[<remote>:]<network> <profile> [<device name>]"))
@@ -512,6 +524,7 @@ func (c *cmdNetworkDetachProfile) Command() *cobra.Command {
 	return cmd
 }
 
+// Removes a network interface device from a profile.
 func (c *cmdNetworkDetachProfile) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
@@ -585,6 +598,7 @@ type cmdNetworkEdit struct {
 	network *cmdNetwork
 }
 
+// Provides a command to edit network configurations using YAML format.
 func (c *cmdNetworkEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<network>"))
@@ -597,6 +611,7 @@ func (c *cmdNetworkEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// Returns the help template for editing network configurations in YAML format.
 func (c *cmdNetworkEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a YAML representation of the network.
@@ -617,6 +632,7 @@ func (c *cmdNetworkEdit) helpTemplate() string {
 ### Note that only the configuration can be changed.`)
 }
 
+// Allows editing network configurations interactively using a text editor or from stdin if not a terminal, and updates the network with the modified configuration.
 func (c *cmdNetworkEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -713,6 +729,7 @@ type cmdNetworkGet struct {
 	flagIsProperty bool
 }
 
+// Provides a command to retrieve the values of specific configuration keys for a network.
 func (c *cmdNetworkGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<network> <key>"))
@@ -727,6 +744,7 @@ func (c *cmdNetworkGet) Command() *cobra.Command {
 	return cmd
 }
 
+// Retrieves the value of a specific configuration key for a network and prints it.
 func (c *cmdNetworkGet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -782,6 +800,7 @@ type cmdNetworkInfo struct {
 	network *cmdNetwork
 }
 
+// Retrieves and displays runtime information for a network.
 func (c *cmdNetworkInfo) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("info", i18n.G("[<remote>:]<network>"))
@@ -795,6 +814,8 @@ func (c *cmdNetworkInfo) Command() *cobra.Command {
 	return cmd
 }
 
+// Retrieves and displays runtime information for a network, including interface information,
+// IP addresses, network usage, bond information, bridge information, VLAN information, and OVN information.
 func (c *cmdNetworkInfo) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -904,6 +925,7 @@ type cmdNetworkList struct {
 	flagFormat string
 }
 
+// Generates a command to list available networks and provides options to specify the output format (csv, json, table, yaml, compact).
 func (c *cmdNetworkList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
@@ -918,6 +940,7 @@ func (c *cmdNetworkList) Command() *cobra.Command {
 	return cmd
 }
 
+// Runs the command to list available networks, retrieves network information, and renders the output in the specified format (csv, json, table, yaml, compact).
 func (c *cmdNetworkList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
@@ -998,6 +1021,7 @@ type cmdNetworkListLeases struct {
 	flagFormat string
 }
 
+// Returns a Cobra command for listing DHCP leases of a network and specifies the output format (csv, json, table, yaml, compact).
 func (c *cmdNetworkListLeases) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list-leases", i18n.G("[<remote>:]<network>"))
@@ -1011,6 +1035,7 @@ func (c *cmdNetworkListLeases) Command() *cobra.Command {
 	return cmd
 }
 
+// Run lists the DHCP leases of a network and renders them in the specified format (csv, json, table, yaml, compact).
 func (c *cmdNetworkListLeases) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -1068,6 +1093,7 @@ type cmdNetworkRename struct {
 	network *cmdNetwork
 }
 
+// Command returns the Cobra command for the "network rename" operation, which is used to rename networks.
 func (c *cmdNetworkRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("[<remote>:]<network> <new-name>"))
@@ -1081,6 +1107,7 @@ func (c *cmdNetworkRename) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the "network rename" command, which renames a network.
 func (c *cmdNetworkRename) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -1121,6 +1148,7 @@ type cmdNetworkSet struct {
 	flagIsProperty bool
 }
 
+// Command returns the Cobra command for the "network set" command, which is used to set network configuration keys.
 func (c *cmdNetworkSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<network> <key>=<value>..."))
@@ -1138,6 +1166,7 @@ For backward compatibility, a single configuration key may still be set with:
 	return cmd
 }
 
+// Run executes the "network set" command, which sets network configuration keys for a given network.
 func (c *cmdNetworkSet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -1209,6 +1238,7 @@ type cmdNetworkShow struct {
 	network *cmdNetwork
 }
 
+// Command returns a Cobra command for the "network show" command, which displays network configurations.
 func (c *cmdNetworkShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<network>"))
@@ -1222,6 +1252,7 @@ func (c *cmdNetworkShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the "network show" command, which retrieves and displays the network configuration in YAML format.
 func (c *cmdNetworkShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -1273,6 +1304,7 @@ type cmdNetworkUnset struct {
 	flagIsProperty bool
 }
 
+// Command returns a Cobra command for the "network unset" command, which is used to unset specific network configuration keys.
 func (c *cmdNetworkUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<network> <key>"))
@@ -1287,6 +1319,7 @@ func (c *cmdNetworkUnset) Command() *cobra.Command {
 	return cmd
 }
 
+// Run is a helper function that invokes the "network set" command with an additional empty value argument, effectively unsetting a network configuration key.
 func (c *cmdNetworkUnset) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
