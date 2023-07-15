@@ -22,6 +22,7 @@ type cmdNetworkACL struct {
 	global *cmdGlobal
 }
 
+// Command sets up the 'acl' subcommands for managing network Access Control Lists (ACLs).
 func (c *cmdNetworkACL) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("acl")
@@ -86,6 +87,7 @@ type cmdNetworkACLList struct {
 	flagFormat string
 }
 
+// Command sets up the 'list' subcommand to display available network ACLs in the specified format.
 func (c *cmdNetworkACLList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
@@ -99,6 +101,7 @@ func (c *cmdNetworkACLList) Command() *cobra.Command {
 	return cmd
 }
 
+// Run fetches and lists the network ACLs from the specified or default server, displaying their names, descriptions, and usage count.
 func (c *cmdNetworkACLList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
@@ -158,6 +161,7 @@ type cmdNetworkACLShow struct {
 	networkACL *cmdNetworkACL
 }
 
+// Command creates a new cobra.Command, enabling users to display the configuration details of a specified network ACL.
 func (c *cmdNetworkACLShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<ACL>"))
@@ -168,6 +172,7 @@ func (c *cmdNetworkACLShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the network ACL Show command, fetching and displaying the configuration details of a specific network ACL in YAML format.
 func (c *cmdNetworkACLShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -211,6 +216,7 @@ type cmdNetworkACLShowLog struct {
 	networkACL *cmdNetworkACL
 }
 
+// Command method creates a cobra.Command object to execute the 'show-log' command, providing log details for a specific network ACL.
 func (c *cmdNetworkACLShowLog) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show-log", i18n.G("[<remote>:]<ACL>"))
@@ -221,6 +227,7 @@ func (c *cmdNetworkACLShowLog) Command() *cobra.Command {
 	return cmd
 }
 
+// Run method executes the 'show-log' command, retrieving and displaying the log file of a specified network ACL.
 func (c *cmdNetworkACLShowLog) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -259,6 +266,7 @@ type cmdNetworkACLGet struct {
 	flagIsProperty bool
 }
 
+// Command method defines the 'get' command that retrieves the value of a specific configuration key for a given network ACL.
 func (c *cmdNetworkACLGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<ACL> <key>"))
@@ -271,6 +279,7 @@ func (c *cmdNetworkACLGet) Command() *cobra.Command {
 	return cmd
 }
 
+// Run method fetches and displays the value of the specified configuration key for a given network ACL.
 func (c *cmdNetworkACLGet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -320,6 +329,7 @@ type cmdNetworkACLCreate struct {
 	networkACL *cmdNetworkACL
 }
 
+// Command method sets up a new command to create a network ACL with optional key-value pairs as configurations.
 func (c *cmdNetworkACLCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<ACL> [key=value...]"))
@@ -331,6 +341,7 @@ func (c *cmdNetworkACLCreate) Command() *cobra.Command {
 	return cmd
 }
 
+// Run method executes the creation of a new network ACL with specified configurations from user input or stdin.
 func (c *cmdNetworkACLCreate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
@@ -405,6 +416,7 @@ type cmdNetworkACLSet struct {
 	flagIsProperty bool
 }
 
+// Command method sets up the 'set' command structure to modify configurations of a specified network ACL.
 func (c *cmdNetworkACLSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<ACL> <key>=<value>..."))
@@ -421,6 +433,7 @@ For backward compatibility, a single configuration key may still be set with:
 	return cmd
 }
 
+// Run method executes the 'set' command to update the configuration of a specified network ACL.
 func (c *cmdNetworkACLSet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -485,6 +498,7 @@ type cmdNetworkACLUnset struct {
 	flagIsProperty bool
 }
 
+// Command method sets up the 'unset' command to remove a configuration key from a specified network ACL.
 func (c *cmdNetworkACLUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<ACL> <key>"))
@@ -496,6 +510,7 @@ func (c *cmdNetworkACLUnset) Command() *cobra.Command {
 	return cmd
 }
 
+// Run method executes the 'unset' command, removing a specified configuration key from a network ACL.
 func (c *cmdNetworkACLUnset) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -515,6 +530,7 @@ type cmdNetworkACLEdit struct {
 	networkACL *cmdNetworkACL
 }
 
+// Command method constructs and returns a 'edit' command, which enables modification of network ACL configurations using YAML.
 func (c *cmdNetworkACLEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<ACL>"))
@@ -526,6 +542,7 @@ func (c *cmdNetworkACLEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// helpTemplate method returns a string template with instructions and example for editing a network ACL in YAML format.
 func (c *cmdNetworkACLEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a YAML representation of the network ACL.
@@ -553,6 +570,7 @@ func (c *cmdNetworkACLEdit) helpTemplate() string {
 ### Note that only the ingress and egress rules, description and configuration keys can be changed.`)
 }
 
+// Run method for cmdNetworkACLEdit executes the edit command for network ACLs, providing a text editor interface for YAML-based ACL configuration.
 func (c *cmdNetworkACLEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -645,6 +663,7 @@ type cmdNetworkACLRename struct {
 	networkACL *cmdNetworkACL
 }
 
+// Command method for cmdNetworkACLRename generates a cobra command to rename network ACLs.
 func (c *cmdNetworkACLRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("[<remote>:]<ACL> <new-name>"))
@@ -656,6 +675,7 @@ func (c *cmdNetworkACLRename) Command() *cobra.Command {
 	return cmd
 }
 
+// Run method for cmdNetworkACLRename renames an existing network ACL using provided arguments.
 func (c *cmdNetworkACLRename) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -694,6 +714,7 @@ type cmdNetworkACLDelete struct {
 	networkACL *cmdNetworkACL
 }
 
+// Command method for cmdNetworkACLDelete constructs the cobra command to delete a network ACL.
 func (c *cmdNetworkACLDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<ACL>"))
@@ -705,6 +726,7 @@ func (c *cmdNetworkACLDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// Run method for cmdNetworkACLDelete deletes a specified network ACL from the server.
 func (c *cmdNetworkACLDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -744,6 +766,7 @@ type cmdNetworkACLRule struct {
 	flagRemoveForce bool
 }
 
+// Command method for cmdNetworkACLRule creates subcommands for managing network ACL rules.
 func (c *cmdNetworkACLRule) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rule")
@@ -759,6 +782,7 @@ func (c *cmdNetworkACLRule) Command() *cobra.Command {
 	return cmd
 }
 
+// CommandAdd method for cmdNetworkACLRule creates a command to add new rules to a network ACL.
 func (c *cmdNetworkACLRule) CommandAdd() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:]<ACL> <direction> <key>=<value>..."))
@@ -825,6 +849,7 @@ func (c *cmdNetworkACLRule) parseConfigToRule(config map[string]string) (*api.Ne
 	return &rule, nil
 }
 
+// RunAdd method for cmdNetworkACLRule parses and adds new rules to either the ingress or egress section of a specified network ACL.
 func (c *cmdNetworkACLRule) RunAdd(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -880,6 +905,7 @@ func (c *cmdNetworkACLRule) RunAdd(cmd *cobra.Command, args []string) error {
 	return resource.server.UpdateNetworkACL(resource.name, netACL.Writable(), etag)
 }
 
+// CommandRemove generates a cobra command to remove rules from the ingress or egress section of a specified network ACL.
 func (c *cmdNetworkACLRule) CommandRemove() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<ACL> <direction> <key>=<value>..."))
@@ -892,6 +918,7 @@ func (c *cmdNetworkACLRule) CommandRemove() *cobra.Command {
 	return cmd
 }
 
+// RunRemove processes the removal of specific or all matching rules from a network ACL's ingress or egress ruleset, based on user-defined filters.
 func (c *cmdNetworkACLRule) RunRemove(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
