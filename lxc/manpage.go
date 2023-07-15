@@ -15,6 +15,7 @@ type cmdManpage struct {
 	flagFormat string
 }
 
+// Command creates a cobra.Command object to generate manpages for all commands in different formats.
 func (c *cmdManpage) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("manpage", i18n.G("<target>"))
@@ -29,6 +30,7 @@ func (c *cmdManpage) Command() *cobra.Command {
 	return cmd
 }
 
+// Run generates documentation for all commands in a specified format (man, md, rest, yaml) and saves it to a given path.
 func (c *cmdManpage) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
