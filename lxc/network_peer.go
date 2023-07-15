@@ -21,6 +21,8 @@ type cmdNetworkPeer struct {
 	global *cmdGlobal
 }
 
+// Command returns a Cobra command for managing network peerings, including subcommands
+// for listing, showing, creating, getting, setting, unsetting, editing, and deleting network peerings.
 func (c *cmdNetworkPeer) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("peer")
@@ -73,6 +75,7 @@ type cmdNetworkPeerList struct {
 	flagFormat string
 }
 
+// Command returns a Cobra command for listing available network peers for a given network.
 func (c *cmdNetworkPeerList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]<network>"))
@@ -86,6 +89,7 @@ func (c *cmdNetworkPeerList) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command to list available network peers and displays them in a formatted table.
 func (c *cmdNetworkPeerList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -151,6 +155,7 @@ type cmdNetworkPeerShow struct {
 	networkPeer *cmdNetworkPeer
 }
 
+// Command returns the Cobra command for showing network peer configurations.
 func (c *cmdNetworkPeerShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<network> <peer name>"))
@@ -161,6 +166,7 @@ func (c *cmdNetworkPeerShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Run retrieves and displays the configuration of a network peer.
 func (c *cmdNetworkPeerShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -208,6 +214,7 @@ type cmdNetworkPeerCreate struct {
 	networkPeer *cmdNetworkPeer
 }
 
+// Command returns the Cobra command for creating a new network peering.
 func (c *cmdNetworkPeerCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<network> <peer_name> <[target project/]target_network> [key=value...]"))
@@ -218,6 +225,7 @@ func (c *cmdNetworkPeerCreate) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command to create a new network peering by parsing the arguments, reading input from stdin if available, and sending the necessary API requests.
 func (c *cmdNetworkPeerCreate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
@@ -324,6 +332,7 @@ type cmdNetworkPeerGet struct {
 	flagIsProperty bool
 }
 
+// Run retrieves the values of specific network peer configuration keys by parsing the arguments and sending the corresponding API request.
 func (c *cmdNetworkPeerGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<network> <peer_name> <key>"))
@@ -335,6 +344,8 @@ func (c *cmdNetworkPeerGet) Command() *cobra.Command {
 	return cmd
 }
 
+// Run retrieves the value of a specific network peer configuration key by parsing the arguments and
+// sending the corresponding API request, and then prints the value to the standard output.
 func (c *cmdNetworkPeerGet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
@@ -392,6 +403,8 @@ type cmdNetworkPeerSet struct {
 	flagIsProperty bool
 }
 
+// Command returns the Cobra command for setting network peer keys,
+// allowing users to specify the network, peer name, and a series of key-value pairs to be set for the peer's configuration.
 func (c *cmdNetworkPeerSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<network> <peer_name> <key>=<value>..."))
@@ -407,6 +420,8 @@ For backward compatibility, a single configuration key may still be set with:
 	return cmd
 }
 
+// Run executes the command to set network peer keys by retrieving the current configuration,
+// updating the specified keys with their values, and then updating the network peer with the modified configuration.
 func (c *cmdNetworkPeerSet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
@@ -481,6 +496,7 @@ type cmdNetworkPeerUnset struct {
 	flagIsProperty bool
 }
 
+// Command returns the Cobra command for unsetting network peer configuration keys.
 func (c *cmdNetworkPeerUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<network> <peer_name> <key>"))
@@ -492,6 +508,7 @@ func (c *cmdNetworkPeerUnset) Command() *cobra.Command {
 	return cmd
 }
 
+// Run unsets a network peer configuration key by calling the Run method of the networkPeerSet command with additional arguments.
 func (c *cmdNetworkPeerUnset) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
@@ -511,6 +528,7 @@ type cmdNetworkPeerEdit struct {
 	networkPeer *cmdNetworkPeer
 }
 
+// Command returns a Cobra command for editing network peer configurations as YAML.
 func (c *cmdNetworkPeerEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<network> <peer_name>"))
@@ -521,6 +539,7 @@ func (c *cmdNetworkPeerEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// helpTemplate returns a help template that provides guidance on editing network peer configurations as YAML.
 func (c *cmdNetworkPeerEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a YAML representation of the network peer.
@@ -537,6 +556,7 @@ func (c *cmdNetworkPeerEdit) helpTemplate() string {
 ### Note that the name, target_project, target_network and status fields cannot be changed.`)
 }
 
+// Run executes the command to edit network peer configurations interactively, allowing users to modify the YAML representation of the network peer and update it.
 func (c *cmdNetworkPeerEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -635,6 +655,7 @@ type cmdNetworkPeerDelete struct {
 	networkPeer *cmdNetworkPeer
 }
 
+// Command returns a Cobra command for the "network peer delete" operation, which is used to delete network peerings.
 func (c *cmdNetworkPeerDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<network> <peer_name>"))
@@ -646,6 +667,7 @@ func (c *cmdNetworkPeerDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the "network peer delete" command to delete a network peering.
 func (c *cmdNetworkPeerDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
