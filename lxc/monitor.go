@@ -26,6 +26,7 @@ type cmdMonitor struct {
 	flagFormat      string
 }
 
+// Command creates a cobra.Command object to monitor a local or remote LXD server's events, with options for event type, log level, and output format.
 func (c *cmdMonitor) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("monitor", i18n.G("[<remote>:]"))
@@ -54,6 +55,7 @@ lxc monitor --type=lifecycle
 	return cmd
 }
 
+// Run establishes a connection to monitor events from a local or remote LXD server, filtering and formatting the output based on user-specified parameters.
 func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -211,6 +213,7 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 	return <-chError
 }
 
+// unpackCtx converts a slice of context data into a structured logrus.Fields object, pairing adjacent elements as key-value pairs.
 func (c *cmdMonitor) unpackCtx(ctx []any) logrus.Fields {
 	out := logrus.Fields{}
 
