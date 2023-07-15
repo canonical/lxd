@@ -14,6 +14,7 @@ type aliasTestcase struct {
 	expectErr bool
 }
 
+// slicesEqual checks if two string slices are equal by comparing their elements.
 func slicesEqual(a, b []string) bool {
 	if a == nil && b == nil {
 		return true
@@ -36,6 +37,7 @@ func slicesEqual(a, b []string) bool {
 	return true
 }
 
+// TestExpandAliases is a test function that verifies the expansion of aliases by comparing the result with the expected output for different input test cases.
 func TestExpandAliases(t *testing.T) {
 	aliases := map[string]string{
 		"tester 12":                "list",
