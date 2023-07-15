@@ -22,6 +22,7 @@ type cmdNetworkForward struct {
 	flagTarget string
 }
 
+// Command acts as a root for the subcommands related to managing network forwards, including list, show, create, get, set, unset, edit, delete, and port.
 func (c *cmdNetworkForward) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("forward")
@@ -78,6 +79,7 @@ type cmdNetworkForwardList struct {
 	flagFormat string
 }
 
+// Command sets up the 'list' command, which lists all network forwards in the specified format (table, csv, json, yaml, or compact).
 func (c *cmdNetworkForwardList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]<network>"))
@@ -91,6 +93,7 @@ func (c *cmdNetworkForwardList) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the 'list' command, displaying network forwards and their details for the given network.
 func (c *cmdNetworkForwardList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -160,6 +163,7 @@ type cmdNetworkForwardShow struct {
 	networkForward *cmdNetworkForward
 }
 
+// Command prepares the 'show' command which displays the configuration details of a specific network forward.
 func (c *cmdNetworkForwardShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<network> <listen_address>"))
@@ -172,6 +176,7 @@ func (c *cmdNetworkForwardShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the 'show' command, fetching and displaying the configuration details of a specific network forward.
 func (c *cmdNetworkForwardShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -224,6 +229,7 @@ type cmdNetworkForwardCreate struct {
 	networkForward *cmdNetworkForward
 }
 
+// Command returns the Cobra command for the 'create' command, which is used to create new network forwards.
 func (c *cmdNetworkForwardCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<network> <listen_address> [key=value...]"))
@@ -236,6 +242,7 @@ func (c *cmdNetworkForwardCreate) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the logic for the 'create' command, which creates a new network forward based on the provided arguments and configuration.
 func (c *cmdNetworkForwardCreate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -322,6 +329,7 @@ type cmdNetworkForwardGet struct {
 	flagIsProperty bool
 }
 
+// Command returns a Cobra command for the 'get' command, which is used to retrieve the values of specific configuration keys for a network forward.
 func (c *cmdNetworkForwardGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<network> <listen_address> <key>"))
@@ -334,6 +342,7 @@ func (c *cmdNetworkForwardGet) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the 'get' command to retrieve the value of a specific configuration key for a network forward.
 func (c *cmdNetworkForwardGet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
@@ -391,6 +400,7 @@ type cmdNetworkForwardSet struct {
 	flagIsProperty bool
 }
 
+// Command returns the Cobra command for the 'set' subcommand, which is used to set network forward configuration keys.
 func (c *cmdNetworkForwardSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<network> <listen_address> <key>=<value>..."))
@@ -408,6 +418,7 @@ For backward compatibility, a single configuration key may still be set with:
 	return cmd
 }
 
+// Run executes the 'set' command, which sets network forward configuration keys for a specific network and listen address.
 func (c *cmdNetworkForwardSet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
@@ -489,6 +500,7 @@ type cmdNetworkForwardUnset struct {
 	flagIsProperty bool
 }
 
+// Command returns a Cobra command for the 'unset' command, which unsets network forward configuration keys for a specific network and listen address.
 func (c *cmdNetworkForwardUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<network> <listen_address> <key>"))
@@ -500,6 +512,8 @@ func (c *cmdNetworkForwardUnset) Command() *cobra.Command {
 	return cmd
 }
 
+// Run unsets network forward configuration keys for a specific network and
+// listen address by invoking the 'networkForwardSet' command with the same arguments.
 func (c *cmdNetworkForwardUnset) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
@@ -519,6 +533,7 @@ type cmdNetworkForwardEdit struct {
 	networkForward *cmdNetworkForward
 }
 
+// Command returns a Cobra command for the 'networkForwardEdit' command that allows editing network forward configurations as YAML.
 func (c *cmdNetworkForwardEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<network> <listen_address>"))
@@ -531,6 +546,8 @@ func (c *cmdNetworkForwardEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// helpTemplate returns a string that represents the help template for the 'networkForwardEdit' command,
+// providing information about the YAML representation of network forwards and its structure.
 func (c *cmdNetworkForwardEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a YAML representation of the network forward.
@@ -554,6 +571,7 @@ func (c *cmdNetworkForwardEdit) helpTemplate() string {
 ### Note that the listen_address and location cannot be changed.`)
 }
 
+// Run executes the 'networkForwardEdit' command, allowing the user to edit network forward configurations interactively using a text editor.
 func (c *cmdNetworkForwardEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -660,6 +678,7 @@ type cmdNetworkForwardDelete struct {
 	networkForward *cmdNetworkForward
 }
 
+// Command returns the Cobra command for the 'networkForwardDelete' command, which is used to delete network forwards.
 func (c *cmdNetworkForwardDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<network> <listen_address>"))
@@ -673,6 +692,7 @@ func (c *cmdNetworkForwardDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// Run is the implementation of the 'networkForwardDelete' command. It deletes a network forward specified by the listen address.
 func (c *cmdNetworkForwardDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -723,6 +743,7 @@ type cmdNetworkForwardPort struct {
 	flagRemoveForce bool
 }
 
+// Command returns a Cobra command for managing network forward ports. It includes subcommands for adding and removing ports.
 func (c *cmdNetworkForwardPort) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("port")
@@ -738,6 +759,7 @@ func (c *cmdNetworkForwardPort) Command() *cobra.Command {
 	return cmd
 }
 
+// CommandAdd returns a Cobra command for adding ports to a network forward.
 func (c *cmdNetworkForwardPort) CommandAdd() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:]<network> <listen_address> <protocol> <listen_port(s)> <target_address> [<target_port(s)>]"))
@@ -750,6 +772,7 @@ func (c *cmdNetworkForwardPort) CommandAdd() *cobra.Command {
 	return cmd
 }
 
+// RunAdd adds ports to a network forward by updating the network forward configuration.
 func (c *cmdNetworkForwardPort) RunAdd(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 5, 6)
@@ -803,6 +826,7 @@ func (c *cmdNetworkForwardPort) RunAdd(cmd *cobra.Command, args []string) error 
 	return client.UpdateNetworkForward(resource.name, forward.ListenAddress, forward.Writable(), etag)
 }
 
+// CommandRemove returns a Cobra command for removing ports from a network forward.
 func (c *cmdNetworkForwardPort) CommandRemove() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<network> <listen_address> [<protocol>] [<listen_port(s)>]"))
@@ -816,6 +840,8 @@ func (c *cmdNetworkForwardPort) CommandRemove() *cobra.Command {
 	return cmd
 }
 
+// RunRemove removes ports from a network forward based on the specified filter arguments.
+// If multiple ports match the filter and the `--force` flag is not set, an error is returned.
 func (c *cmdNetworkForwardPort) RunRemove(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 4)
