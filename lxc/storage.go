@@ -26,6 +26,7 @@ type cmdStorage struct {
 	flagTarget string
 }
 
+// This function returns a Cobra command for managing storage pools and volumes.
 func (c *cmdStorage) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("storage")
@@ -89,6 +90,7 @@ type cmdStorageCreate struct {
 	storage *cmdStorage
 }
 
+// This function returns a Cobra command for creating storage pools.
 func (c *cmdStorageCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<pool> <driver> [key=value...]"))
@@ -102,6 +104,8 @@ func (c *cmdStorageCreate) Command() *cobra.Command {
 	return cmd
 }
 
+// This function runs the command for creating a storage pool by parsing the command arguments,
+// creating a new storage pool entry, and invoking the API to create the pool.
 func (c *cmdStorageCreate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -162,6 +166,7 @@ type cmdStorageDelete struct {
 	storage *cmdStorage
 }
 
+// This function returns a Cobra command for deleting storage pools.
 func (c *cmdStorageDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<pool>"))
@@ -175,6 +180,8 @@ func (c *cmdStorageDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// This function runs the command for deleting a storage pool by parsing the command arguments,
+// obtaining the pool details, and invoking the API to delete the pool.
 func (c *cmdStorageDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -213,6 +220,7 @@ type cmdStorageEdit struct {
 	storage *cmdStorage
 }
 
+// This function returns a Cobra command for editing storage pool configurations as YAML.
 func (c *cmdStorageEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<pool>"))
@@ -228,6 +236,7 @@ func (c *cmdStorageEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// This function returns the help template for editing storage pool configurations as YAML, including an example and guidelines.
 func (c *cmdStorageEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a YAML representation of a storage pool.
@@ -245,6 +254,7 @@ func (c *cmdStorageEdit) helpTemplate() string {
 ###   zfs.pool_name: default`)
 }
 
+// This function edits a storage pool by handling user input, parsing the edited content, and updating the storage pool configuration.
 func (c *cmdStorageEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -337,6 +347,7 @@ type cmdStorageGet struct {
 	flagIsProperty bool
 }
 
+// This function returns a Cobra command for retrieving storage pool configuration values by specifying the pool and key.
 func (c *cmdStorageGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<pool> <key>"))
@@ -351,6 +362,7 @@ func (c *cmdStorageGet) Command() *cobra.Command {
 	return cmd
 }
 
+// This function retrieves and prints the value of a specific configuration key for a storage pool.
 func (c *cmdStorageGet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -407,6 +419,7 @@ type cmdStorageInfo struct {
 	flagBytes bool
 }
 
+// This function returns a Cobra command for displaying storage pool information with options for space usage and cluster targeting.
 func (c *cmdStorageInfo) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("info", i18n.G("[<remote>:]<pool>"))
@@ -421,6 +434,7 @@ func (c *cmdStorageInfo) Command() *cobra.Command {
 	return cmd
 }
 
+// This function displays information about a storage pool, including its name, driver, description, space usage, and associated entities.
 func (c *cmdStorageInfo) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -578,6 +592,7 @@ type cmdStorageList struct {
 	flagFormat string
 }
 
+// This function returns a Cobra command for listing storage pools with options for output format selection.
 func (c *cmdStorageList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
@@ -592,6 +607,7 @@ func (c *cmdStorageList) Command() *cobra.Command {
 	return cmd
 }
 
+// This function retrieves storage pools and renders a table displaying their name, driver, source (if not clustered), description, usage count, and state.
 func (c *cmdStorageList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
@@ -658,6 +674,7 @@ type cmdStorageSet struct {
 	flagIsProperty bool
 }
 
+// Set up storage pool configuration keys, enabling users to define specific configuration values.
 func (c *cmdStorageSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<pool> <key> <value>"))
@@ -675,6 +692,7 @@ For backward compatibility, a single configuration key may still be set with:
 	return cmd
 }
 
+// Sets storage pool configuration keys and values by parsing the arguments and updating the pool configuration using the API.
 func (c *cmdStorageSet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -750,6 +768,7 @@ type cmdStorageShow struct {
 	flagResources bool
 }
 
+// Displays the storage pool configurations and resources, including options for showing resources and specifying a cluster member.
 func (c *cmdStorageShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<pool>"))
@@ -764,6 +783,7 @@ func (c *cmdStorageShow) Command() *cobra.Command {
 	return cmd
 }
 
+// This function retrieves and displays storage pool configurations and resources based on the command options.
 func (c *cmdStorageShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -836,6 +856,7 @@ type cmdStorageUnset struct {
 	flagIsProperty bool
 }
 
+// This function returns a Cobra command for unsetting storage pool configuration keys.
 func (c *cmdStorageUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<pool> <key>"))
@@ -850,6 +871,8 @@ func (c *cmdStorageUnset) Command() *cobra.Command {
 	return cmd
 }
 
+// This function handles the execution of the `storage unset` command by
+// validating the arguments and passing them to the `storage set` command for removal.
 func (c *cmdStorageUnset) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
