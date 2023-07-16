@@ -22,6 +22,7 @@ type cmdProject struct {
 	global *cmdGlobal
 }
 
+// Initializes and manages all project related subcommands such as create, delete, edit, get, list, rename, etc.
 func (c *cmdProject) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("project")
@@ -86,6 +87,7 @@ type cmdProjectCreate struct {
 	flagConfig []string
 }
 
+// Sets up a command for creating new projects with configurable key/value parameters.
 func (c *cmdProjectCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<project>"))
@@ -99,6 +101,7 @@ func (c *cmdProjectCreate) Command() *cobra.Command {
 	return cmd
 }
 
+// Handles the execution of the "create" command, enabling the creation of new projects with custom configurations.
 func (c *cmdProjectCreate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -150,6 +153,7 @@ type cmdProjectDelete struct {
 	project *cmdProject
 }
 
+// Sets up the "delete" command, facilitating the removal of existing projects.
 func (c *cmdProjectDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<project>"))
@@ -163,6 +167,7 @@ func (c *cmdProjectDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// Deletes the specified project and, if it was the current project, switches back to the default project.
 func (c *cmdProjectDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -214,6 +219,7 @@ type cmdProjectEdit struct {
 	project *cmdProject
 }
 
+// Edits the configuration of the specified project using input YAML data.
 func (c *cmdProjectEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<project>"))
@@ -229,6 +235,7 @@ func (c *cmdProjectEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// Provides a template with descriptions and examples to guide the user during project configuration editing.
 func (c *cmdProjectEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a YAML representation of the project.
@@ -250,6 +257,7 @@ func (c *cmdProjectEdit) helpTemplate() string {
 ### Note that the name is shown but cannot be changed`)
 }
 
+// Handles the editing process of project configuration, including reading from stdin, invoking the text editor, and applying changes.
 func (c *cmdProjectEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -342,6 +350,7 @@ type cmdProjectGet struct {
 	flagIsProperty bool
 }
 
+// Returns a command object that retrieves the value of a given configuration key from a specified project.
 func (c *cmdProjectGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<project> <key>"))
@@ -354,6 +363,7 @@ func (c *cmdProjectGet) Command() *cobra.Command {
 	return cmd
 }
 
+// Retrieves the value of the specified configuration key from the given project and prints it to the console.
 func (c *cmdProjectGet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -402,6 +412,7 @@ type cmdProjectList struct {
 	flagFormat string
 }
 
+// Creates a command for listing projects, allowing for different output formats and remote specifications.
 func (c *cmdProjectList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
@@ -416,6 +427,7 @@ func (c *cmdProjectList) Command() *cobra.Command {
 	return cmd
 }
 
+// Runs the command to list projects, displaying information about each project such as features, description, and usage.
 func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -515,6 +527,7 @@ type cmdProjectRename struct {
 	project *cmdProject
 }
 
+// Defines the "rename" command that allows renaming projects.
 func (c *cmdProjectRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("[<remote>:]<project> <new-name>"))
@@ -528,6 +541,7 @@ func (c *cmdProjectRename) Command() *cobra.Command {
 	return cmd
 }
 
+// Renames the specified project to the new name.
 func (c *cmdProjectRename) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -573,6 +587,7 @@ type cmdProjectSet struct {
 	flagIsProperty bool
 }
 
+// Defines the "set" command for managing project configuration keys and their values.
 func (c *cmdProjectSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<project> <key>=<value>..."))
@@ -588,6 +603,7 @@ For backward compatibility, a single configuration key may still be set with:
 	return cmd
 }
 
+// Updates the project configuration keys and their values based on the provided arguments.
 func (c *cmdProjectSet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -652,6 +668,7 @@ type cmdProjectUnset struct {
 	flagIsProperty bool
 }
 
+// Removes the specified project configuration key from the project's configuration.
 func (c *cmdProjectUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<project> <key>"))
@@ -664,6 +681,7 @@ func (c *cmdProjectUnset) Command() *cobra.Command {
 	return cmd
 }
 
+// Removes the specified project configuration key from the project's configuration by invoking the `projectSet` command with unset arguments.
 func (c *cmdProjectUnset) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -683,6 +701,7 @@ type cmdProjectShow struct {
 	project *cmdProject
 }
 
+// Generates a command for displaying the project options and configurations.
 func (c *cmdProjectShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<project>"))
@@ -695,6 +714,7 @@ func (c *cmdProjectShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Retrieves and displays the options and configurations of the specified project.
 func (c *cmdProjectShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -736,6 +756,7 @@ type cmdProjectSwitch struct {
 	project *cmdProject
 }
 
+// Changes the current project to the specified project.
 func (c *cmdProjectSwitch) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("switch", i18n.G("[<remote>:]<project>"))
@@ -748,6 +769,7 @@ func (c *cmdProjectSwitch) Command() *cobra.Command {
 	return cmd
 }
 
+// Changes the current project to the specified project by updating the configuration file.
 func (c *cmdProjectSwitch) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -795,6 +817,7 @@ type cmdProjectInfo struct {
 	flagFormat string
 }
 
+// Provides a summary of resource allocations for the specified project.
 func (c *cmdProjectInfo) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("info", i18n.G("[<remote>:]<project> <key>"))
@@ -808,6 +831,7 @@ func (c *cmdProjectInfo) Command() *cobra.Command {
 	return cmd
 }
 
+// Retrieves the current resource allocations for the specified project and renders the output in a formatted table.
 func (c *cmdProjectInfo) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
