@@ -22,6 +22,7 @@ type cmdProfile struct {
 	global *cmdGlobal
 }
 
+// Command() orchestrates profile management subcommands in a cobra.Command object.
 func (c *cmdProfile) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("profile")
@@ -97,6 +98,7 @@ type cmdProfileAdd struct {
 	profile *cmdProfile
 }
 
+// Command() manages the 'add' subcommand to append profiles to specified instances.
 func (c *cmdProfileAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:]<instance> <profile>"))
@@ -109,6 +111,7 @@ func (c *cmdProfileAdd) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() executes the 'add' subcommand logic, appending a specified profile to a given instance and optionally returning a message.
 func (c *cmdProfileAdd) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -159,6 +162,7 @@ type cmdProfileAssign struct {
 	profile *cmdProfile
 }
 
+// Command() creates the 'assign' subcommand to set or reset the profile associations for a given instance.
 func (c *cmdProfileAssign) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("assign", i18n.G("[<remote>:]<instance> <profiles>"))
@@ -181,6 +185,7 @@ lxc profile assign foo ''
 	return cmd
 }
 
+// Run() executes the 'assign' subcommand, updating the associated profiles of a given instance.
 func (c *cmdProfileAssign) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -242,6 +247,7 @@ type cmdProfileCopy struct {
 	flagRefresh       bool
 }
 
+// Command() returns the 'copy' subcommand, allowing the copying of profiles between different instances or projects.
 func (c *cmdProfileCopy) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("copy", i18n.G("[<remote>:]<profile> [<remote>:]<profile>"))
@@ -257,6 +263,7 @@ func (c *cmdProfileCopy) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() executes the 'copy' subcommand, which retrieves the source profile and creates a copy of it in the desired destination.
 func (c *cmdProfileCopy) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -313,6 +320,7 @@ type cmdProfileCreate struct {
 	profile *cmdProfile
 }
 
+// Command() returns a Cobra command for 'create', which initializes a new profile on the specified remote.
 func (c *cmdProfileCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<profile>"))
@@ -325,6 +333,7 @@ func (c *cmdProfileCreate) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() executes the profile creation command, creating a new profile on the remote server with the specified name.
 func (c *cmdProfileCreate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -366,6 +375,7 @@ type cmdProfileDelete struct {
 	profile *cmdProfile
 }
 
+// Command() sets up the 'profile delete' command, which is used to delete a specific profile from a remote server.
 func (c *cmdProfileDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<profile>"))
@@ -379,6 +389,7 @@ func (c *cmdProfileDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() executes the 'profile delete' command, deleting the specified profile from the remote server.
 func (c *cmdProfileDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -417,6 +428,7 @@ type cmdProfileEdit struct {
 	profile *cmdProfile
 }
 
+// Command() generates the 'profile edit' command, enabling users to modify profile configurations using YAML.
 func (c *cmdProfileEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<profile>"))
@@ -432,6 +444,7 @@ func (c *cmdProfileEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// helpTemplate() returns a string representation of a YAML profile template, serving as a guide for profile creation and modification.
 func (c *cmdProfileEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a YAML representation of the profile.
@@ -453,6 +466,7 @@ func (c *cmdProfileEdit) helpTemplate() string {
 ### Note that the name is shown but cannot be changed`)
 }
 
+// Run() method for cmdProfileEdit, allowing users to edit the YAML configuration of a profile, either directly or using an interactive text editor.
 func (c *cmdProfileEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -545,6 +559,7 @@ type cmdProfileGet struct {
 	flagIsProperty bool
 }
 
+// Command() method for cmdProfileGet, creates a cobra command to retrieve the values of specified profile configuration keys.
 func (c *cmdProfileGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<profile> <key>"))
@@ -558,6 +573,7 @@ func (c *cmdProfileGet) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() method for cmdProfileGet, fetches and prints the value for a specified configuration key from a given profile.
 func (c *cmdProfileGet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -605,6 +621,7 @@ type cmdProfileList struct {
 	flagFormat string
 }
 
+// Command() method for cmdProfileList, provides a command that lists the profiles with support for multiple output formats.
 func (c *cmdProfileList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
@@ -619,6 +636,7 @@ func (c *cmdProfileList) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() method for cmdProfileList, retrieves the list of profiles and displays them in the selected output format.
 func (c *cmdProfileList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
@@ -667,6 +685,7 @@ type cmdProfileRemove struct {
 	profile *cmdProfile
 }
 
+// Generates a cobra.Command for cmdProfileRemove, which removes a specified profile from an instance.
 func (c *cmdProfileRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<instance> <profile>"))
@@ -679,6 +698,7 @@ func (c *cmdProfileRemove) Command() *cobra.Command {
 	return cmd
 }
 
+// Implements the execution of cmdProfileRemove, effectively removing a specified profile from a given instance.
 func (c *cmdProfileRemove) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -742,6 +762,7 @@ type cmdProfileRename struct {
 	profile *cmdProfile
 }
 
+// Defines cmdProfileRename command, enabling renaming of existing profiles in the remote.
 func (c *cmdProfileRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("[<remote>:]<profile> <new-name>"))
@@ -755,6 +776,7 @@ func (c *cmdProfileRename) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes profile renaming process, handling checks, remote parsing, renaming operation, and feedback to the user.
 func (c *cmdProfileRename) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -795,6 +817,7 @@ type cmdProfileSet struct {
 	flagIsProperty bool
 }
 
+// Generates a command for setting profile configuration keys, supporting both single and multiple key-value pair changes.
 func (c *cmdProfileSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<profile> <key><value>..."))
@@ -810,6 +833,7 @@ For backward compatibility, a single configuration key may still be set with:
 	return cmd
 }
 
+// Updates profile configuration using provided key-value pairs, supporting both single and multiple key-value pair updates.
 func (c *cmdProfileSet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -871,6 +895,7 @@ type cmdProfileShow struct {
 	profile *cmdProfile
 }
 
+// Initializes and returns a command that displays the configurations of a specified profile.
 func (c *cmdProfileShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<profile>"))
@@ -883,6 +908,7 @@ func (c *cmdProfileShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Retrieves and prints the YAML representation of a specified profile's configuration.
 func (c *cmdProfileShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -927,6 +953,7 @@ type cmdProfileUnset struct {
 	flagIsProperty bool
 }
 
+// Creates a command that unsets a specified profile configuration key.
 func (c *cmdProfileUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<profile> <key>"))
@@ -940,6 +967,7 @@ func (c *cmdProfileUnset) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the unset command by calling the set method with a blank value.
 func (c *cmdProfileUnset) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
