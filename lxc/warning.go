@@ -22,6 +22,7 @@ type cmdWarning struct {
 	global *cmdGlobal
 }
 
+// Creates a cobra.Command instance for the "warning" command with subcommands for managing warnings.
 func (c *cmdWarning) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("warning")
@@ -63,6 +64,7 @@ type cmdWarningList struct {
 
 const defaultWarningColumns = "utSscpLl"
 
+// It provides functionality to list warnings with options for specifying columns, format, and listing all warnings.
 func (c *cmdWarningList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
@@ -98,6 +100,8 @@ Column shorthand chars:
 	return cmd
 }
 
+// This function executes the "list" command for warnings, retrieves and filters warnings from a remote server,
+// processes the columns, and renders the table output.
 func (c *cmdWarningList) Run(cmd *cobra.Command, args []string) error {
 	// Parse remote
 	remote := ""
@@ -168,42 +172,53 @@ func (c *cmdWarningList) Run(cmd *cobra.Command, args []string) error {
 	return cli.RenderTable(c.flagFormat, headers, data, rawData)
 }
 
+// Warning Count
 func (c *cmdWarningList) countColumnData(warning api.Warning) string {
 	return fmt.Sprintf("%d", warning.Count)
 }
 
+// First Seen
 func (c *cmdWarningList) firstSeenColumnData(warning api.Warning) string {
 	return warning.FirstSeenAt.UTC().Format("Jan 2, 2006 at 3:04pm (MST)")
 }
 
+// Last Seen
 func (c *cmdWarningList) lastSeenColumnData(warning api.Warning) string {
 	return warning.LastSeenAt.UTC().Format("Jan 2, 2006 at 3:04pm (MST)")
 }
 
+// Location
 func (c *cmdWarningList) locationColumnData(warning api.Warning) string {
 	return warning.Location
 }
 
+// Project
 func (c *cmdWarningList) projectColumnData(warning api.Warning) string {
 	return warning.Project
 }
 
+// Severity
 func (c *cmdWarningList) severityColumnData(warning api.Warning) string {
 	return strings.ToUpper(warning.Severity)
 }
 
+// Status
 func (c *cmdWarningList) statusColumnData(warning api.Warning) string {
 	return strings.ToUpper(warning.Status)
 }
 
+// Type
 func (c *cmdWarningList) typeColumnData(warning api.Warning) string {
 	return warning.Type
 }
 
+// UUID
 func (c *cmdWarningList) uuidColumnData(warning api.Warning) string {
 	return warning.UUID
 }
 
+// Parses shorthand characters to column functions based on clustering,
+// returning a list of warning columns for display in the warning list output.
 func (c *cmdWarningList) parseColumns(clustered bool) ([]warningColumn, error) {
 	columnsShorthandMap := map[rune]warningColumn{
 		'c': {i18n.G("COUNT"), c.countColumnData},
@@ -254,6 +269,7 @@ type cmdWarningAcknowledge struct {
 	warning *cmdWarning
 }
 
+// It is used to acknowledge a warning by providing the warning UUID.
 func (c *cmdWarningAcknowledge) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("acknowledge", i18n.G("[<remote>:]<warning-uuid>"))
@@ -267,6 +283,7 @@ func (c *cmdWarningAcknowledge) Command() *cobra.Command {
 	return cmd
 }
 
+// This function acknowledges a warning by updating its status to "acknowledged" using the provided warning UUID.
 func (c *cmdWarningAcknowledge) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -296,6 +313,7 @@ type cmdWarningShow struct {
 	warning *cmdWarning
 }
 
+// It is used to display details of a warning based on the provided warning UUID.
 func (c *cmdWarningShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<warning-uuid>"))
@@ -308,6 +326,8 @@ func (c *cmdWarningShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Displaying the details of a warning based on the provided UUID, fetching the warning
+// from the remote server and printing the information in YAML format.
 func (c *cmdWarningShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -349,6 +369,7 @@ type cmdWarningDelete struct {
 	flagAll bool
 }
 
+// Support for the "--all" flag to delete all warnings.
 func (c *cmdWarningDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<warning-uuid>"))
@@ -364,6 +385,7 @@ func (c *cmdWarningDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// This function deletes a warning by UUID using the remote server and returns any resulting error.
 func (c *cmdWarningDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
