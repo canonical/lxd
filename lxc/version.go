@@ -15,6 +15,7 @@ type cmdVersion struct {
 	global *cmdGlobal
 }
 
+// This function returns a `cobra.Command` instance for the "version" command, which shows the local and remote versions.
 func (c *cmdVersion) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("version", i18n.G("[<remote>:]"))
@@ -27,6 +28,7 @@ func (c *cmdVersion) Command() *cobra.Command {
 	return cmd
 }
 
+// This function prints the client and server versions, optionally retrieving the server version from a specified remote server.
 func (c *cmdVersion) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
