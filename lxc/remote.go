@@ -26,6 +26,8 @@ type cmdRemote struct {
 	global *cmdGlobal
 }
 
+// Command returns the Cobra command for managing the list of remote servers, including
+// adding, getting, listing, renaming, removing, setting default, and setting URL.
 func (c *cmdRemote) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remote")
@@ -81,6 +83,7 @@ type cmdRemoteAdd struct {
 	flagProject    string
 }
 
+// Command returns the Cobra command for adding new remote servers, including specifying the remote's URL, protocol, authentication type, and other options.
 func (c *cmdRemoteAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>] <IP|FQDN|URL|token>"))
@@ -106,6 +109,8 @@ Basic authentication can be used when combined with the "simplestreams" protocol
 	return cmd
 }
 
+// findProject retrieves the project name to use for the remote server, either by checking the
+// allowed projects on the server or by prompting the user to choose from available projects.
 func (c *cmdRemoteAdd) findProject(d lxd.InstanceServer, project string) (string, error) {
 	if project == "" {
 		// Check if we can pull a list of projects.
@@ -150,6 +155,7 @@ func (c *cmdRemoteAdd) findProject(d lxd.InstanceServer, project string) (string
 	return project, nil
 }
 
+// RunToken adds a remote server using a token and generates a client certificate if not already present.
 func (c *cmdRemoteAdd) RunToken(server string, token string, rawToken *api.CertificateAddToken) error {
 	conf := c.global.conf
 
@@ -196,6 +202,7 @@ func (c *cmdRemoteAdd) RunToken(server string, token string, rawToken *api.Certi
 	return nil
 }
 
+// addRemoteFromToken adds a remote server using a token, handles certificate generation and saving, and associates the project.
 func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token string, fingerprint string) error {
 	conf := c.global.conf
 
@@ -267,6 +274,7 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 	return conf.SaveConfig(c.global.confPath)
 }
 
+// Run adds a remote server based on the provided arguments, handles remote configuration, authentication, and project association.
 func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -621,6 +629,7 @@ type cmdRemoteGetDefault struct {
 	remote *cmdRemote
 }
 
+// Command returns a Cobra command for the "get-default" subcommand, which is used to show the default remote.
 func (c *cmdRemoteGetDefault) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get-default")
@@ -633,6 +642,7 @@ func (c *cmdRemoteGetDefault) Command() *cobra.Command {
 	return cmd
 }
 
+// Run retrieves and prints the default remote from the LXD configuration.
 func (c *cmdRemoteGetDefault) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -656,6 +666,7 @@ type cmdRemoteList struct {
 	flagFormat string
 }
 
+// Command returns a Cobra command for the "list" subcommand, used to list the available remotes with various output formats.
 func (c *cmdRemoteList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list")
@@ -670,6 +681,7 @@ func (c *cmdRemoteList) Command() *cobra.Command {
 	return cmd
 }
 
+// Run lists the available remotes and their details, displaying the output in the specified format.
 func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -744,6 +756,7 @@ type cmdRemoteRename struct {
 	remote *cmdRemote
 }
 
+// Command returns a Cobra command for the "rename" subcommand, used to rename remotes by specifying the current remote name and the new name.
 func (c *cmdRemoteRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("<remote> <new-name>"))
@@ -757,6 +770,7 @@ func (c *cmdRemoteRename) Command() *cobra.Command {
 	return cmd
 }
 
+// Run renames a remote by updating the remote configuration, renaming the associated certificate file if applicable, and saving the updated configuration.
 func (c *cmdRemoteRename) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -815,6 +829,7 @@ type cmdRemoteRemove struct {
 	remote *cmdRemote
 }
 
+// Command returns a Cobra command for the "remove" subcommand, used to remove a remote by specifying its name.
 func (c *cmdRemoteRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("<remote>"))
@@ -828,6 +843,7 @@ func (c *cmdRemoteRemove) Command() *cobra.Command {
 	return cmd
 }
 
+// Run removes a remote by deleting its configuration, associated certificate, cookies, and OIDC token files, and saving the updated configuration.
 func (c *cmdRemoteRemove) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -870,6 +886,7 @@ type cmdRemoteSwitch struct {
 	remote *cmdRemote
 }
 
+// Command returns a Cobra command for the "switch" subcommand, used to switch the default remote by specifying its name.
 func (c *cmdRemoteSwitch) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Aliases = []string{"set-default"}
@@ -883,6 +900,7 @@ func (c *cmdRemoteSwitch) Command() *cobra.Command {
 	return cmd
 }
 
+// Run sets the specified remote as the default remote in the LXD configuration.
 func (c *cmdRemoteSwitch) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -909,6 +927,7 @@ type cmdRemoteSetURL struct {
 	remote *cmdRemote
 }
 
+// Command returns a Cobra command for the "set-url" subcommand, used to set the URL for a remote by specifying the remote name and the URL.
 func (c *cmdRemoteSetURL) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set-url", i18n.G("<remote> <URL>"))
@@ -921,6 +940,7 @@ func (c *cmdRemoteSetURL) Command() *cobra.Command {
 	return cmd
 }
 
+// Run sets the URL for a remote by updating the remote configuration and saving the updated configuration.
 func (c *cmdRemoteSetURL) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
