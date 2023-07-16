@@ -25,6 +25,7 @@ type cmdPublish struct {
 	flagReuse                bool
 }
 
+// Creates a Cobra command for the "publish" functionality, which allows instances to be published as images with various options and flags.
 func (c *cmdPublish) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("publish", i18n.G("[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"))
@@ -43,6 +44,7 @@ func (c *cmdPublish) Command() *cobra.Command {
 	return cmd
 }
 
+// Runs the "publish" command, which publishes instances as images with various options and flags.
 func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
