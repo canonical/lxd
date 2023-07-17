@@ -37,13 +37,13 @@ type InstanceState struct {
 	// Example: 101
 	StatusCode StatusCode `json:"status_code" yaml:"status_code"`
 
-	// Dict of disk usage
+	// Disk usage key/value pairs
 	Disk map[string]InstanceStateDisk `json:"disk" yaml:"disk"`
 
 	// Memory usage information
 	Memory InstanceStateMemory `json:"memory" yaml:"memory"`
 
-	// Dict of network usage
+	// Network usage key/value pairs
 	Network map[string]InstanceStateNetwork `json:"network" yaml:"network"`
 
 	// PID of the runtime
