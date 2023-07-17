@@ -34,7 +34,7 @@ There are three standard return types:
 
 ### Standard return value
 
-For a standard synchronous operation, the following dict is returned:
+For a standard synchronous operation, the following JSON object is returned:
 
 ```js
 {
@@ -52,7 +52,7 @@ HTTP code must be 200.
 When a request results in a background operation, the HTTP code is set to 202 (Accepted)
 and the Location HTTP header is set to the operation URL.
 
-The body is a dict with the following structure:
+The body is a JSON object with the following structure:
 
 ```js
 {
@@ -162,7 +162,7 @@ A `recursion` argument can be passed to a GET query against a collection.
 
 The default value is 0 which means that collection member URLs are
 returned. Setting it to 1 will have those URLs be replaced by the object
-they point to (typically a dict).
+they point to (typically another JSON object).
 
 Recursion is implemented by simply replacing any pointer to an job (URL)
 by the object itself.
