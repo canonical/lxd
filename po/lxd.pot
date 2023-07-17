@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-        "POT-Creation-Date: 2023-07-13 18:08+0000\n"
+        "POT-Creation-Date: 2023-07-17 11:42+0100\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -69,7 +69,7 @@ msgid   "### This is a YAML representation of the cluster group.\n"
         "### Any line starting with a '# will be ignored."
 msgstr  ""
 
-#: lxc/config.go:105
+#: lxc/config.go:109
 msgid   "### This is a YAML representation of the configuration.\n"
         "### Any line starting with a '# will be ignored.\n"
         "###\n"
@@ -356,7 +356,7 @@ msgstr  ""
 msgid   "--empty cannot be combined with an image name"
 msgstr  ""
 
-#: lxc/config.go:422 lxc/config.go:662
+#: lxc/config.go:430 lxc/config.go:674
 msgid   "--expanded cannot be used with a server"
 msgstr  ""
 
@@ -376,7 +376,7 @@ msgstr  ""
 msgid   "--refresh can only be used with instances"
 msgstr  ""
 
-#: lxc/config.go:152 lxc/config.go:406 lxc/config.go:541 lxc/config.go:688 lxc/info.go:451
+#: lxc/config.go:157 lxc/config.go:414 lxc/config.go:551 lxc/config.go:700 lxc/info.go:451
 msgid   "--target cannot be used with instances"
 msgstr  ""
 
@@ -445,7 +445,7 @@ msgstr  ""
 msgid   "Access key: %s"
 msgstr  ""
 
-#: lxc/config.go:375
+#: lxc/config.go:382
 msgid   "Access the expanded configuration"
 msgstr  ""
 
@@ -844,7 +844,7 @@ msgstr  ""
 msgid   "Can't supply uid/gid/mode in recursive mode"
 msgstr  ""
 
-#: lxc/config.go:558
+#: lxc/config.go:568
 #, c-format
 msgid   "Can't unset key '%s', it's not currently set"
 msgstr  ""
@@ -957,7 +957,7 @@ msgstr  ""
 msgid   "Cluster member %s removed from group %s"
 msgstr  ""
 
-#: lxc/config.go:98 lxc/config.go:376 lxc/config.go:479 lxc/config.go:630 lxc/config.go:749 lxc/copy.go:60 lxc/info.go:45 lxc/init.go:55 lxc/move.go:65 lxc/network.go:296 lxc/network.go:717 lxc/network.go:775 lxc/network.go:1115 lxc/network.go:1182 lxc/network.go:1244 lxc/network_forward.go:170 lxc/network_forward.go:234 lxc/network_forward.go:389 lxc/network_forward.go:490 lxc/network_forward.go:632 lxc/network_forward.go:709 lxc/network_forward.go:775 lxc/network_load_balancer.go:172 lxc/network_load_balancer.go:236 lxc/network_load_balancer.go:391 lxc/network_load_balancer.go:492 lxc/network_load_balancer.go:635 lxc/network_load_balancer.go:711 lxc/network_load_balancer.go:775 lxc/network_load_balancer.go:876 lxc/network_load_balancer.go:938 lxc/storage.go:99 lxc/storage.go:345 lxc/storage.go:406 lxc/storage.go:657 lxc/storage.go:729 lxc/storage.go:812 lxc/storage_bucket.go:85 lxc/storage_bucket.go:185 lxc/storage_bucket.go:248 lxc/storage_bucket.go:377 lxc/storage_bucket.go:522 lxc/storage_bucket.go:598 lxc/storage_bucket.go:662 lxc/storage_bucket.go:734 lxc/storage_bucket.go:814 lxc/storage_bucket.go:892 lxc/storage_bucket.go:957 lxc/storage_bucket.go:1093 lxc/storage_volume.go:335 lxc/storage_volume.go:533 lxc/storage_volume.go:612 lxc/storage_volume.go:856 lxc/storage_volume.go:1068 lxc/storage_volume.go:1165 lxc/storage_volume.go:1596 lxc/storage_volume.go:1628 lxc/storage_volume.go:1753 lxc/storage_volume.go:1852 lxc/storage_volume.go:1954 lxc/storage_volume.go:1991 lxc/storage_volume.go:2084 lxc/storage_volume.go:2156 lxc/storage_volume.go:2308
+#: lxc/config.go:101 lxc/config.go:383 lxc/config.go:488 lxc/config.go:641 lxc/config.go:762 lxc/copy.go:60 lxc/info.go:45 lxc/init.go:55 lxc/move.go:65 lxc/network.go:296 lxc/network.go:717 lxc/network.go:775 lxc/network.go:1115 lxc/network.go:1182 lxc/network.go:1244 lxc/network_forward.go:170 lxc/network_forward.go:234 lxc/network_forward.go:389 lxc/network_forward.go:490 lxc/network_forward.go:632 lxc/network_forward.go:709 lxc/network_forward.go:775 lxc/network_load_balancer.go:172 lxc/network_load_balancer.go:236 lxc/network_load_balancer.go:391 lxc/network_load_balancer.go:492 lxc/network_load_balancer.go:635 lxc/network_load_balancer.go:711 lxc/network_load_balancer.go:775 lxc/network_load_balancer.go:876 lxc/network_load_balancer.go:938 lxc/storage.go:99 lxc/storage.go:345 lxc/storage.go:406 lxc/storage.go:657 lxc/storage.go:729 lxc/storage.go:812 lxc/storage_bucket.go:85 lxc/storage_bucket.go:185 lxc/storage_bucket.go:248 lxc/storage_bucket.go:377 lxc/storage_bucket.go:522 lxc/storage_bucket.go:598 lxc/storage_bucket.go:662 lxc/storage_bucket.go:734 lxc/storage_bucket.go:814 lxc/storage_bucket.go:892 lxc/storage_bucket.go:957 lxc/storage_bucket.go:1093 lxc/storage_volume.go:335 lxc/storage_volume.go:533 lxc/storage_volume.go:612 lxc/storage_volume.go:856 lxc/storage_volume.go:1068 lxc/storage_volume.go:1165 lxc/storage_volume.go:1596 lxc/storage_volume.go:1628 lxc/storage_volume.go:1753 lxc/storage_volume.go:1852 lxc/storage_volume.go:1954 lxc/storage_volume.go:1991 lxc/storage_volume.go:2084 lxc/storage_volume.go:2156 lxc/storage_volume.go:2308
 msgid   "Cluster member name"
 msgstr  ""
 
@@ -1008,7 +1008,7 @@ msgstr  ""
 msgid   "Config key/value to apply to the target instance"
 msgstr  ""
 
-#: lxc/cluster.go:731 lxc/cluster_group.go:335 lxc/config.go:263 lxc/config.go:338 lxc/config_metadata.go:147 lxc/config_trust.go:314 lxc/image.go:456 lxc/network.go:682 lxc/network_acl.go:581 lxc/network_forward.go:596 lxc/network_load_balancer.go:599 lxc/network_peer.go:572 lxc/network_zone.go:512 lxc/network_zone.go:1066 lxc/profile.go:518 lxc/project.go:315 lxc/storage.go:310 lxc/storage_bucket.go:343 lxc/storage_bucket.go:1056 lxc/storage_volume.go:989 lxc/storage_volume.go:1021
+#: lxc/cluster.go:731 lxc/cluster_group.go:335 lxc/config.go:268 lxc/config.go:343 lxc/config_metadata.go:147 lxc/config_trust.go:314 lxc/image.go:456 lxc/network.go:682 lxc/network_acl.go:581 lxc/network_forward.go:596 lxc/network_load_balancer.go:599 lxc/network_peer.go:572 lxc/network_zone.go:512 lxc/network_zone.go:1066 lxc/profile.go:518 lxc/project.go:315 lxc/storage.go:310 lxc/storage_bucket.go:343 lxc/storage_bucket.go:1056 lxc/storage_volume.go:989 lxc/storage_volume.go:1021
 #, c-format
 msgid   "Config parsing error: %s"
 msgstr  ""
@@ -1389,7 +1389,7 @@ msgstr  ""
 msgid   "Delete warning"
 msgstr  ""
 
-#: lxc/action.go:32 lxc/action.go:53 lxc/action.go:76 lxc/action.go:99 lxc/alias.go:23 lxc/alias.go:60 lxc/alias.go:110 lxc/alias.go:159 lxc/alias.go:214 lxc/cluster.go:29 lxc/cluster.go:122 lxc/cluster.go:206 lxc/cluster.go:255 lxc/cluster.go:304 lxc/cluster.go:351 lxc/cluster.go:403 lxc/cluster.go:432 lxc/cluster.go:482 lxc/cluster.go:565 lxc/cluster.go:650 lxc/cluster.go:765 lxc/cluster.go:841 lxc/cluster.go:943 lxc/cluster.go:1022 lxc/cluster.go:1129 lxc/cluster.go:1150 lxc/cluster_group.go:30 lxc/cluster_group.go:80 lxc/cluster_group.go:153 lxc/cluster_group.go:210 lxc/cluster_group.go:262 lxc/cluster_group.go:378 lxc/cluster_group.go:452 lxc/cluster_group.go:525 lxc/cluster_group.go:573 lxc/cluster_role.go:23 lxc/cluster_role.go:50 lxc/cluster_role.go:106 lxc/config.go:30 lxc/config.go:92 lxc/config.go:372 lxc/config.go:464 lxc/config.go:626 lxc/config.go:746 lxc/config_device.go:24 lxc/config_device.go:78 lxc/config_device.go:208 lxc/config_device.go:285 lxc/config_device.go:356 lxc/config_device.go:450 lxc/config_device.go:548 lxc/config_device.go:555 lxc/config_device.go:668 lxc/config_device.go:741 lxc/config_metadata.go:27 lxc/config_metadata.go:55 lxc/config_metadata.go:180 lxc/config_template.go:27 lxc/config_template.go:67 lxc/config_template.go:110 lxc/config_template.go:152 lxc/config_template.go:240 lxc/config_template.go:300 lxc/config_trust.go:34 lxc/config_trust.go:87 lxc/config_trust.go:236 lxc/config_trust.go:350 lxc/config_trust.go:432 lxc/config_trust.go:534 lxc/config_trust.go:580 lxc/config_trust.go:651 lxc/console.go:36 lxc/copy.go:40 lxc/delete.go:31 lxc/exec.go:41 lxc/export.go:32 lxc/file.go:78 lxc/file.go:118 lxc/file.go:167 lxc/file.go:237 lxc/file.go:459 lxc/file.go:967 lxc/image.go:37 lxc/image.go:145 lxc/image.go:312 lxc/image.go:363 lxc/image.go:490 lxc/image.go:651 lxc/image.go:884 lxc/image.go:1019 lxc/image.go:1338 lxc/image.go:1418 lxc/image.go:1477 lxc/image.go:1529 lxc/image.go:1585 lxc/image_alias.go:24 lxc/image_alias.go:60 lxc/image_alias.go:107 lxc/image_alias.go:152 lxc/image_alias.go:255 lxc/import.go:28 lxc/info.go:33 lxc/init.go:40 lxc/launch.go:24 lxc/list.go:49 lxc/main.go:79 lxc/manpage.go:22 lxc/monitor.go:33 lxc/move.go:36 lxc/network.go:32 lxc/network.go:131 lxc/network.go:216 lxc/network.go:289 lxc/network.go:368 lxc/network.go:418 lxc/network.go:503 lxc/network.go:588 lxc/network.go:714 lxc/network.go:772 lxc/network.go:895 lxc/network.go:988 lxc/network.go:1059 lxc/network.go:1109 lxc/network.go:1179 lxc/network.go:1241 lxc/network_acl.go:29 lxc/network_acl.go:94 lxc/network_acl.go:165 lxc/network_acl.go:218 lxc/network_acl.go:264 lxc/network_acl.go:313 lxc/network_acl.go:396 lxc/network_acl.go:456 lxc/network_acl.go:483 lxc/network_acl.go:614 lxc/network_acl.go:663 lxc/network_acl.go:712 lxc/network_acl.go:727 lxc/network_acl.go:848 lxc/network_forward.go:29 lxc/network_forward.go:86 lxc/network_forward.go:167 lxc/network_forward.go:231 lxc/network_forward.go:327 lxc/network_forward.go:382 lxc/network_forward.go:460 lxc/network_forward.go:487 lxc/network_forward.go:629 lxc/network_forward.go:691 lxc/network_forward.go:706 lxc/network_forward.go:771 lxc/network_load_balancer.go:29 lxc/network_load_balancer.go:90 lxc/network_load_balancer.go:169 lxc/network_load_balancer.go:233 lxc/network_load_balancer.go:329 lxc/network_load_balancer.go:384 lxc/network_load_balancer.go:462 lxc/network_load_balancer.go:489 lxc/network_load_balancer.go:632 lxc/network_load_balancer.go:693 lxc/network_load_balancer.go:708 lxc/network_load_balancer.go:772 lxc/network_load_balancer.go:858 lxc/network_load_balancer.go:873 lxc/network_load_balancer.go:934 lxc/network_peer.go:28 lxc/network_peer.go:81 lxc/network_peer.go:158 lxc/network_peer.go:215 lxc/network_peer.go:329 lxc/network_peer.go:384 lxc/network_peer.go:453 lxc/network_peer.go:480 lxc/network_peer.go:605 lxc/network_zone.go:28 lxc/network_zone.go:85 lxc/network_zone.go:156 lxc/network_zone.go:209 lxc/network_zone.go:258 lxc/network_zone.go:339 lxc/network_zone.go:399 lxc/network_zone.go:426 lxc/network_zone.go:545 lxc/network_zone.go:593 lxc/network_zone.go:650 lxc/network_zone.go:720 lxc/network_zone.go:770 lxc/network_zone.go:818 lxc/network_zone.go:898 lxc/network_zone.go:954 lxc/network_zone.go:981 lxc/network_zone.go:1099 lxc/network_zone.go:1148 lxc/network_zone.go:1163 lxc/network_zone.go:1209 lxc/operation.go:23 lxc/operation.go:55 lxc/operation.go:104 lxc/operation.go:184 lxc/profile.go:29 lxc/profile.go:104 lxc/profile.go:167 lxc/profile.go:250 lxc/profile.go:320 lxc/profile.go:374 lxc/profile.go:424 lxc/profile.go:550 lxc/profile.go:599 lxc/profile.go:660 lxc/profile.go:736 lxc/profile.go:786 lxc/profile.go:845 lxc/profile.go:899 lxc/project.go:29 lxc/project.go:93 lxc/project.go:158 lxc/project.go:221 lxc/project.go:347 lxc/project.go:397 lxc/project.go:510 lxc/project.go:565 lxc/project.go:625 lxc/project.go:654 lxc/project.go:707 lxc/project.go:766 lxc/publish.go:32 lxc/query.go:34 lxc/rebuild.go:27 lxc/remote.go:33 lxc/remote.go:88 lxc/remote.go:628 lxc/remote.go:664 lxc/remote.go:752 lxc/remote.go:823 lxc/remote.go:878 lxc/remote.go:916 lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:33 lxc/storage.go:96 lxc/storage.go:170 lxc/storage.go:220 lxc/storage.go:342 lxc/storage.go:402 lxc/storage.go:574 lxc/storage.go:651 lxc/storage.go:725 lxc/storage.go:809 lxc/storage_bucket.go:29 lxc/storage_bucket.go:83 lxc/storage_bucket.go:183 lxc/storage_bucket.go:244 lxc/storage_bucket.go:375 lxc/storage_bucket.go:441 lxc/storage_bucket.go:516 lxc/storage_bucket.go:593 lxc/storage_bucket.go:660 lxc/storage_bucket.go:691 lxc/storage_bucket.go:732 lxc/storage_bucket.go:811 lxc/storage_bucket.go:889 lxc/storage_bucket.go:953 lxc/storage_bucket.go:1088 lxc/storage_volume.go:43 lxc/storage_volume.go:165 lxc/storage_volume.go:240 lxc/storage_volume.go:331 lxc/storage_volume.go:530 lxc/storage_volume.go:609 lxc/storage_volume.go:684 lxc/storage_volume.go:766 lxc/storage_volume.go:847 lxc/storage_volume.go:1054 lxc/storage_volume.go:1153 lxc/storage_volume.go:1302 lxc/storage_volume.go:1386 lxc/storage_volume.go:1592 lxc/storage_volume.go:1625 lxc/storage_volume.go:1738 lxc/storage_volume.go:1835 lxc/storage_volume.go:1942 lxc/storage_volume.go:1985 lxc/storage_volume.go:2082 lxc/storage_volume.go:2149 lxc/storage_volume.go:2303 lxc/version.go:22 lxc/warning.go:29 lxc/warning.go:71 lxc/warning.go:262 lxc/warning.go:303 lxc/warning.go:357
+#: lxc/action.go:32 lxc/action.go:53 lxc/action.go:76 lxc/action.go:99 lxc/alias.go:23 lxc/alias.go:60 lxc/alias.go:110 lxc/alias.go:159 lxc/alias.go:214 lxc/cluster.go:29 lxc/cluster.go:122 lxc/cluster.go:206 lxc/cluster.go:255 lxc/cluster.go:304 lxc/cluster.go:351 lxc/cluster.go:403 lxc/cluster.go:432 lxc/cluster.go:482 lxc/cluster.go:565 lxc/cluster.go:650 lxc/cluster.go:765 lxc/cluster.go:841 lxc/cluster.go:943 lxc/cluster.go:1022 lxc/cluster.go:1129 lxc/cluster.go:1150 lxc/cluster_group.go:30 lxc/cluster_group.go:80 lxc/cluster_group.go:153 lxc/cluster_group.go:210 lxc/cluster_group.go:262 lxc/cluster_group.go:378 lxc/cluster_group.go:452 lxc/cluster_group.go:525 lxc/cluster_group.go:573 lxc/cluster_role.go:23 lxc/cluster_role.go:50 lxc/cluster_role.go:106 lxc/config.go:32 lxc/config.go:95 lxc/config.go:379 lxc/config.go:473 lxc/config.go:637 lxc/config.go:759 lxc/config_device.go:24 lxc/config_device.go:78 lxc/config_device.go:208 lxc/config_device.go:285 lxc/config_device.go:356 lxc/config_device.go:450 lxc/config_device.go:548 lxc/config_device.go:555 lxc/config_device.go:668 lxc/config_device.go:741 lxc/config_metadata.go:27 lxc/config_metadata.go:55 lxc/config_metadata.go:180 lxc/config_template.go:27 lxc/config_template.go:67 lxc/config_template.go:110 lxc/config_template.go:152 lxc/config_template.go:240 lxc/config_template.go:300 lxc/config_trust.go:34 lxc/config_trust.go:87 lxc/config_trust.go:236 lxc/config_trust.go:350 lxc/config_trust.go:432 lxc/config_trust.go:534 lxc/config_trust.go:580 lxc/config_trust.go:651 lxc/console.go:36 lxc/copy.go:40 lxc/delete.go:31 lxc/exec.go:41 lxc/export.go:32 lxc/file.go:78 lxc/file.go:118 lxc/file.go:167 lxc/file.go:237 lxc/file.go:459 lxc/file.go:967 lxc/image.go:37 lxc/image.go:145 lxc/image.go:312 lxc/image.go:363 lxc/image.go:490 lxc/image.go:651 lxc/image.go:884 lxc/image.go:1019 lxc/image.go:1338 lxc/image.go:1418 lxc/image.go:1477 lxc/image.go:1529 lxc/image.go:1585 lxc/image_alias.go:24 lxc/image_alias.go:60 lxc/image_alias.go:107 lxc/image_alias.go:152 lxc/image_alias.go:255 lxc/import.go:28 lxc/info.go:33 lxc/init.go:40 lxc/launch.go:24 lxc/list.go:49 lxc/main.go:79 lxc/manpage.go:22 lxc/monitor.go:33 lxc/move.go:36 lxc/network.go:32 lxc/network.go:131 lxc/network.go:216 lxc/network.go:289 lxc/network.go:368 lxc/network.go:418 lxc/network.go:503 lxc/network.go:588 lxc/network.go:714 lxc/network.go:772 lxc/network.go:895 lxc/network.go:988 lxc/network.go:1059 lxc/network.go:1109 lxc/network.go:1179 lxc/network.go:1241 lxc/network_acl.go:29 lxc/network_acl.go:94 lxc/network_acl.go:165 lxc/network_acl.go:218 lxc/network_acl.go:264 lxc/network_acl.go:313 lxc/network_acl.go:396 lxc/network_acl.go:456 lxc/network_acl.go:483 lxc/network_acl.go:614 lxc/network_acl.go:663 lxc/network_acl.go:712 lxc/network_acl.go:727 lxc/network_acl.go:848 lxc/network_forward.go:29 lxc/network_forward.go:86 lxc/network_forward.go:167 lxc/network_forward.go:231 lxc/network_forward.go:327 lxc/network_forward.go:382 lxc/network_forward.go:460 lxc/network_forward.go:487 lxc/network_forward.go:629 lxc/network_forward.go:691 lxc/network_forward.go:706 lxc/network_forward.go:771 lxc/network_load_balancer.go:29 lxc/network_load_balancer.go:90 lxc/network_load_balancer.go:169 lxc/network_load_balancer.go:233 lxc/network_load_balancer.go:329 lxc/network_load_balancer.go:384 lxc/network_load_balancer.go:462 lxc/network_load_balancer.go:489 lxc/network_load_balancer.go:632 lxc/network_load_balancer.go:693 lxc/network_load_balancer.go:708 lxc/network_load_balancer.go:772 lxc/network_load_balancer.go:858 lxc/network_load_balancer.go:873 lxc/network_load_balancer.go:934 lxc/network_peer.go:28 lxc/network_peer.go:81 lxc/network_peer.go:158 lxc/network_peer.go:215 lxc/network_peer.go:329 lxc/network_peer.go:384 lxc/network_peer.go:453 lxc/network_peer.go:480 lxc/network_peer.go:605 lxc/network_zone.go:28 lxc/network_zone.go:85 lxc/network_zone.go:156 lxc/network_zone.go:209 lxc/network_zone.go:258 lxc/network_zone.go:339 lxc/network_zone.go:399 lxc/network_zone.go:426 lxc/network_zone.go:545 lxc/network_zone.go:593 lxc/network_zone.go:650 lxc/network_zone.go:720 lxc/network_zone.go:770 lxc/network_zone.go:818 lxc/network_zone.go:898 lxc/network_zone.go:954 lxc/network_zone.go:981 lxc/network_zone.go:1099 lxc/network_zone.go:1148 lxc/network_zone.go:1163 lxc/network_zone.go:1209 lxc/operation.go:23 lxc/operation.go:55 lxc/operation.go:104 lxc/operation.go:184 lxc/profile.go:29 lxc/profile.go:104 lxc/profile.go:167 lxc/profile.go:250 lxc/profile.go:320 lxc/profile.go:374 lxc/profile.go:424 lxc/profile.go:550 lxc/profile.go:599 lxc/profile.go:660 lxc/profile.go:736 lxc/profile.go:786 lxc/profile.go:845 lxc/profile.go:899 lxc/project.go:29 lxc/project.go:93 lxc/project.go:158 lxc/project.go:221 lxc/project.go:347 lxc/project.go:397 lxc/project.go:510 lxc/project.go:565 lxc/project.go:625 lxc/project.go:654 lxc/project.go:707 lxc/project.go:766 lxc/publish.go:32 lxc/query.go:34 lxc/rebuild.go:27 lxc/remote.go:33 lxc/remote.go:88 lxc/remote.go:628 lxc/remote.go:664 lxc/remote.go:752 lxc/remote.go:823 lxc/remote.go:878 lxc/remote.go:916 lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:33 lxc/storage.go:96 lxc/storage.go:170 lxc/storage.go:220 lxc/storage.go:342 lxc/storage.go:402 lxc/storage.go:574 lxc/storage.go:651 lxc/storage.go:725 lxc/storage.go:809 lxc/storage_bucket.go:29 lxc/storage_bucket.go:83 lxc/storage_bucket.go:183 lxc/storage_bucket.go:244 lxc/storage_bucket.go:375 lxc/storage_bucket.go:441 lxc/storage_bucket.go:516 lxc/storage_bucket.go:593 lxc/storage_bucket.go:660 lxc/storage_bucket.go:691 lxc/storage_bucket.go:732 lxc/storage_bucket.go:811 lxc/storage_bucket.go:889 lxc/storage_bucket.go:953 lxc/storage_bucket.go:1088 lxc/storage_volume.go:43 lxc/storage_volume.go:165 lxc/storage_volume.go:240 lxc/storage_volume.go:331 lxc/storage_volume.go:530 lxc/storage_volume.go:609 lxc/storage_volume.go:684 lxc/storage_volume.go:766 lxc/storage_volume.go:847 lxc/storage_volume.go:1054 lxc/storage_volume.go:1153 lxc/storage_volume.go:1302 lxc/storage_volume.go:1386 lxc/storage_volume.go:1592 lxc/storage_volume.go:1625 lxc/storage_volume.go:1738 lxc/storage_volume.go:1835 lxc/storage_volume.go:1942 lxc/storage_volume.go:1985 lxc/storage_volume.go:2082 lxc/storage_volume.go:2149 lxc/storage_volume.go:2303 lxc/version.go:22 lxc/warning.go:29 lxc/warning.go:71 lxc/warning.go:262 lxc/warning.go:303 lxc/warning.go:357
 msgid   "Description"
 msgstr  ""
 
@@ -1565,7 +1565,7 @@ msgstr  ""
 msgid   "Edit instance metadata files"
 msgstr  ""
 
-#: lxc/config.go:91 lxc/config.go:92
+#: lxc/config.go:94 lxc/config.go:95
 msgid   "Edit instance or server configurations as YAML"
 msgstr  ""
 
@@ -2031,7 +2031,7 @@ msgstr  ""
 msgid   "Get values for device configuration keys"
 msgstr  ""
 
-#: lxc/config.go:371 lxc/config.go:372
+#: lxc/config.go:378 lxc/config.go:379
 msgid   "Get values for instance or server configuration keys"
 msgstr  ""
 
@@ -2906,7 +2906,7 @@ msgid   "Manage images\n"
         "hash or alias name (if one is set)."
 msgstr  ""
 
-#: lxc/config.go:29 lxc/config.go:30
+#: lxc/config.go:31 lxc/config.go:32
 msgid   "Manage instance and server configuration options"
 msgstr  ""
 
@@ -3620,7 +3620,7 @@ msgstr  ""
 msgid   "Press ctrl+c to finish"
 msgstr  ""
 
-#: lxc/cluster.go:732 lxc/cluster_group.go:336 lxc/config.go:264 lxc/config.go:339 lxc/config_metadata.go:148 lxc/config_template.go:206 lxc/config_trust.go:315 lxc/image.go:457 lxc/network.go:683 lxc/network_acl.go:582 lxc/network_forward.go:597 lxc/network_load_balancer.go:600 lxc/network_peer.go:573 lxc/network_zone.go:513 lxc/network_zone.go:1067 lxc/profile.go:519 lxc/project.go:316 lxc/storage.go:311 lxc/storage_bucket.go:344 lxc/storage_bucket.go:1057 lxc/storage_volume.go:990 lxc/storage_volume.go:1022
+#: lxc/cluster.go:732 lxc/cluster_group.go:336 lxc/config.go:269 lxc/config.go:344 lxc/config_metadata.go:148 lxc/config_template.go:206 lxc/config_trust.go:315 lxc/image.go:457 lxc/network.go:683 lxc/network_acl.go:582 lxc/network_forward.go:597 lxc/network_load_balancer.go:600 lxc/network_peer.go:573 lxc/network_zone.go:513 lxc/network_zone.go:1067 lxc/profile.go:519 lxc/project.go:316 lxc/storage.go:311 lxc/storage_bucket.go:344 lxc/storage_bucket.go:1057 lxc/storage_volume.go:990 lxc/storage_volume.go:1022
 msgid   "Press enter to open the editor again or ctrl+c to abort change"
 msgstr  ""
 
@@ -4263,11 +4263,11 @@ msgstr  ""
 msgid   "Set image properties"
 msgstr  ""
 
-#: lxc/config.go:463
+#: lxc/config.go:472
 msgid   "Set instance or server configuration keys"
 msgstr  ""
 
-#: lxc/config.go:464
+#: lxc/config.go:473
 msgid   "Set instance or server configuration keys\n"
         "\n"
         "For backward compatibility, a single configuration key may still be set with:\n"
@@ -4459,7 +4459,7 @@ msgstr  ""
 msgid   "Show instance metadata files"
 msgstr  ""
 
-#: lxc/config.go:625 lxc/config.go:626
+#: lxc/config.go:636 lxc/config.go:637
 msgid   "Show instance or server configurations"
 msgstr  ""
 
@@ -4543,7 +4543,7 @@ msgstr  ""
 msgid   "Show the default remote"
 msgstr  ""
 
-#: lxc/config.go:629
+#: lxc/config.go:640
 msgid   "Show the expanded configuration"
 msgstr  ""
 
@@ -4915,7 +4915,7 @@ msgid   "To start your first container, try: lxc launch ubuntu:22.04\n"
         "Or for a virtual machine: lxc launch ubuntu:22.04 --vm"
 msgstr  ""
 
-#: lxc/config.go:288 lxc/config.go:428 lxc/config.go:578 lxc/config.go:668 lxc/copy.go:128 lxc/info.go:336 lxc/network.go:804 lxc/storage.go:434
+#: lxc/config.go:293 lxc/config.go:436 lxc/config.go:588 lxc/config.go:680 lxc/copy.go:128 lxc/info.go:336 lxc/network.go:804 lxc/storage.go:434
 msgid   "To use --target, the destination remote must be a cluster"
 msgstr  ""
 
@@ -5084,7 +5084,7 @@ msgstr  ""
 msgid   "Unset image properties"
 msgstr  ""
 
-#: lxc/config.go:745 lxc/config.go:746
+#: lxc/config.go:758 lxc/config.go:759
 msgid   "Unset instance or server configuration keys"
 msgstr  ""
 
@@ -5825,7 +5825,7 @@ msgstr  ""
 msgid   "[<remote>:]<zone> <record> [key=value...]"
 msgstr  ""
 
-#: lxc/config.go:90 lxc/config.go:624
+#: lxc/config.go:93 lxc/config.go:635
 msgid   "[<remote>:][<instance>[/<snapshot>]]"
 msgstr  ""
 
@@ -5833,11 +5833,11 @@ msgstr  ""
 msgid   "[<remote>:][<instance>]"
 msgstr  ""
 
-#: lxc/config.go:370 lxc/config.go:744
+#: lxc/config.go:377 lxc/config.go:757
 msgid   "[<remote>:][<instance>] <key>"
 msgstr  ""
 
-#: lxc/config.go:462
+#: lxc/config.go:471
 msgid   "[<remote>:][<instance>] <key>=<value>..."
 msgstr  ""
 
@@ -5914,12 +5914,12 @@ msgid   "lxc config device add [<remote>:]instance1 <device-name> disk source=/s
         "    Will mount the some-volume volume on some-pool onto /opt in the instance."
 msgstr  ""
 
-#: lxc/config.go:94
+#: lxc/config.go:97
 msgid   "lxc config edit <instance> < instance.yaml\n"
         "    Update the instance configuration from config.yaml."
 msgstr  ""
 
-#: lxc/config.go:469
+#: lxc/config.go:478
 msgid   "lxc config set [<remote>:]<instance> limits.cpu=2\n"
         "    Will set a CPU limit of \"2\" for the instance.\n"
         "\n"
@@ -6129,7 +6129,7 @@ msgstr  ""
 msgid   "ok (y/n/[fingerprint])?"
 msgstr  ""
 
-#: lxc/config.go:53
+#: lxc/config.go:55
 msgid   "please use `lxc profile`"
 msgstr  ""
 
