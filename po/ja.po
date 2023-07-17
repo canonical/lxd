@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2023-07-17 11:42+0100\n"
+"POT-Creation-Date: 2023-07-17 17:47+0530\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -107,7 +107,7 @@ msgstr ""
 "###\n"
 "### Note that the fingerprint is shown but cannot be changed"
 
-#: lxc/cluster_group.go:359
+#: lxc/cluster_group.go:363
 msgid ""
 "### This is a YAML representation of the cluster group.\n"
 "### Any line starting with a '# will be ignored."
@@ -573,7 +573,7 @@ msgstr "%s はディレクトリではありません"
 msgid "'%s' isn't a supported file type"
 msgstr "'%s' はサポートされないタイプのファイルです"
 
-#: lxc/cluster_group.go:132 lxc/profile.go:226
+#: lxc/cluster_group.go:136 lxc/profile.go:226
 msgid "(none)"
 msgstr "(none)"
 
@@ -717,6 +717,11 @@ msgstr "%q はこのツールではサポートされていません"
 msgid "Action (defaults to GET)"
 msgstr "使用するHTTPのメソッド (デフォルト: GET)"
 
+#: lxc/cluster_group.go:631
+#, fuzzy
+msgid "Add a cluster member to a cluster group"
+msgstr "クラスタグループからメンバを削除します"
+
 #: lxc/network_zone.go:1162
 msgid "Add a network zone record entry"
 msgstr "ネットワークゾーンレコードのエントリを追加します"
@@ -736,6 +741,11 @@ msgstr "ネットワークゾーンレコードにエントリを追加します
 #: lxc/config_device.go:77 lxc/config_device.go:78
 msgid "Add instance devices"
 msgstr "インスタンスにデバイスを追加します"
+
+#: lxc/cluster_group.go:630
+#, fuzzy
+msgid "Add member to group"
+msgstr "グループからメンバーを削除します"
 
 #: lxc/alias.go:59 lxc/alias.go:60
 msgid "Add new aliases"
@@ -895,7 +905,7 @@ msgstr "どちらもみつかりませんでした。raw SPICE ソケットは�
 msgid "Asked for a VM but image is of type container"
 msgstr "VMを要求しましたが、イメージタイプがコンテナです"
 
-#: lxc/cluster_group.go:79 lxc/cluster_group.go:80
+#: lxc/cluster_group.go:83 lxc/cluster_group.go:84
 msgid "Assign sets of groups to cluster members"
 msgstr "クラスターメンバーにグループの組を割り当てます"
 
@@ -1223,22 +1233,22 @@ msgstr "クライアント証明書がサーバに信頼されました:"
 msgid "Client version: %s\n"
 msgstr "クライアントバージョン: %s\n"
 
-#: lxc/cluster_group.go:192
+#: lxc/cluster_group.go:196
 #, c-format
 msgid "Cluster group %s created"
 msgstr "クラスターグループ %s を作成しました"
 
-#: lxc/cluster_group.go:245
+#: lxc/cluster_group.go:249
 #, c-format
 msgid "Cluster group %s deleted"
 msgstr "クラスターグループ %s が削除されました"
 
-#: lxc/cluster_group.go:487
+#: lxc/cluster_group.go:491
 #, c-format
 msgid "Cluster group %s isn't currently applied to %s"
 msgstr "クラスターグループ %s は現在 %s に適用されていません"
 
-#: lxc/cluster_group.go:556
+#: lxc/cluster_group.go:560
 #, c-format
 msgid "Cluster group %s renamed to %s"
 msgstr "クラスタグループ名 %s を %s に変更しました"
@@ -1248,12 +1258,22 @@ msgstr "クラスタグループ名 %s を %s に変更しました"
 msgid "Cluster join token for %s:%s deleted"
 msgstr "%s:%s のクラスターに join するためのトークンが削除されました"
 
-#: lxc/cluster_group.go:136
+#: lxc/cluster_group.go:140
 #, c-format
 msgid "Cluster member %s added to cluster groups %s"
 msgstr "クラスターメンバー %s がクラスターグループ %s に追加されました"
 
-#: lxc/cluster_group.go:507
+#: lxc/cluster_group.go:676
+#, fuzzy, c-format
+msgid "Cluster member %s added to group %s"
+msgstr "クラスターメンバー %s がクラスターグループ %s に追加されました"
+
+#: lxc/cluster_group.go:665
+#, fuzzy, c-format
+msgid "Cluster member %s is already in group %s"
+msgstr "クラスターメンバー %s がグループ %s から削除されました"
+
+#: lxc/cluster_group.go:511
 #, c-format
 msgid "Cluster member %s removed from group %s"
 msgstr "クラスターメンバー %s がグループ %s から削除されました"
@@ -1341,7 +1361,7 @@ msgstr "新しいプロジェクトに適用するキー/値の設定"
 msgid "Config key/value to apply to the target instance"
 msgstr "移動先のインスタンスに適用するキー/値の設定"
 
-#: lxc/cluster.go:731 lxc/cluster_group.go:335 lxc/config.go:268
+#: lxc/cluster.go:731 lxc/cluster_group.go:339 lxc/config.go:268
 #: lxc/config.go:343 lxc/config_metadata.go:147 lxc/config_trust.go:314
 #: lxc/image.go:456 lxc/network.go:682 lxc/network_acl.go:581
 #: lxc/network_forward.go:596 lxc/network_load_balancer.go:599
@@ -1517,7 +1537,7 @@ msgstr "サーバ証明書ファイル %q を書き込めません: %w"
 msgid "Couldn't find a matching entry"
 msgstr "一致するエントリを見つけられませんでした"
 
-#: lxc/cluster_group.go:152 lxc/cluster_group.go:153
+#: lxc/cluster_group.go:156 lxc/cluster_group.go:157
 msgid "Create a cluster group"
 msgstr "クラスターグループを作成します"
 
@@ -1644,7 +1664,7 @@ msgstr "現在の VF 数: %d"
 msgid "DEFAULT TARGET ADDRESS"
 msgstr "DEFAULT TARGET ADDRESS"
 
-#: lxc/cluster.go:188 lxc/cluster_group.go:434 lxc/image.go:1058
+#: lxc/cluster.go:188 lxc/cluster_group.go:438 lxc/image.go:1058
 #: lxc/image_alias.go:237 lxc/list.go:557 lxc/network.go:968
 #: lxc/network_acl.go:148 lxc/network_forward.go:145
 #: lxc/network_load_balancer.go:148 lxc/network_peer.go:140
@@ -1679,7 +1699,7 @@ msgstr "圧縮アルゴリズムを指定します: backup or none"
 msgid "Delete a background operation (will attempt to cancel)"
 msgstr "バックグラウンドの操作を削除します（キャンセルを試みます）"
 
-#: lxc/cluster_group.go:209 lxc/cluster_group.go:210
+#: lxc/cluster_group.go:213 lxc/cluster_group.go:214
 msgid "Delete a cluster group"
 msgstr "クラスタグループを削除します"
 
@@ -1770,86 +1790,86 @@ msgstr "警告を削除します"
 #: lxc/cluster.go:432 lxc/cluster.go:482 lxc/cluster.go:565 lxc/cluster.go:650
 #: lxc/cluster.go:765 lxc/cluster.go:841 lxc/cluster.go:943 lxc/cluster.go:1022
 #: lxc/cluster.go:1129 lxc/cluster.go:1150 lxc/cluster_group.go:30
-#: lxc/cluster_group.go:80 lxc/cluster_group.go:153 lxc/cluster_group.go:210
-#: lxc/cluster_group.go:262 lxc/cluster_group.go:378 lxc/cluster_group.go:452
-#: lxc/cluster_group.go:525 lxc/cluster_group.go:573 lxc/cluster_role.go:23
-#: lxc/cluster_role.go:50 lxc/cluster_role.go:106 lxc/config.go:32
-#: lxc/config.go:95 lxc/config.go:379 lxc/config.go:473 lxc/config.go:637
-#: lxc/config.go:759 lxc/config_device.go:24 lxc/config_device.go:78
-#: lxc/config_device.go:208 lxc/config_device.go:285 lxc/config_device.go:356
-#: lxc/config_device.go:450 lxc/config_device.go:548 lxc/config_device.go:555
-#: lxc/config_device.go:668 lxc/config_device.go:741 lxc/config_metadata.go:27
-#: lxc/config_metadata.go:55 lxc/config_metadata.go:180
-#: lxc/config_template.go:27 lxc/config_template.go:67
-#: lxc/config_template.go:110 lxc/config_template.go:152
-#: lxc/config_template.go:240 lxc/config_template.go:300 lxc/config_trust.go:34
-#: lxc/config_trust.go:87 lxc/config_trust.go:236 lxc/config_trust.go:350
-#: lxc/config_trust.go:432 lxc/config_trust.go:534 lxc/config_trust.go:580
-#: lxc/config_trust.go:651 lxc/console.go:36 lxc/copy.go:40 lxc/delete.go:31
-#: lxc/exec.go:41 lxc/export.go:32 lxc/file.go:78 lxc/file.go:118
-#: lxc/file.go:167 lxc/file.go:237 lxc/file.go:459 lxc/file.go:967
-#: lxc/image.go:37 lxc/image.go:145 lxc/image.go:312 lxc/image.go:363
-#: lxc/image.go:490 lxc/image.go:651 lxc/image.go:884 lxc/image.go:1019
-#: lxc/image.go:1338 lxc/image.go:1418 lxc/image.go:1477 lxc/image.go:1529
-#: lxc/image.go:1585 lxc/image_alias.go:24 lxc/image_alias.go:60
-#: lxc/image_alias.go:107 lxc/image_alias.go:152 lxc/image_alias.go:255
-#: lxc/import.go:28 lxc/info.go:33 lxc/init.go:40 lxc/launch.go:24
-#: lxc/list.go:49 lxc/main.go:79 lxc/manpage.go:22 lxc/monitor.go:33
-#: lxc/move.go:36 lxc/network.go:32 lxc/network.go:131 lxc/network.go:216
-#: lxc/network.go:289 lxc/network.go:368 lxc/network.go:418 lxc/network.go:503
-#: lxc/network.go:588 lxc/network.go:714 lxc/network.go:772 lxc/network.go:895
-#: lxc/network.go:988 lxc/network.go:1059 lxc/network.go:1109
-#: lxc/network.go:1179 lxc/network.go:1241 lxc/network_acl.go:29
-#: lxc/network_acl.go:94 lxc/network_acl.go:165 lxc/network_acl.go:218
-#: lxc/network_acl.go:264 lxc/network_acl.go:313 lxc/network_acl.go:396
-#: lxc/network_acl.go:456 lxc/network_acl.go:483 lxc/network_acl.go:614
-#: lxc/network_acl.go:663 lxc/network_acl.go:712 lxc/network_acl.go:727
-#: lxc/network_acl.go:848 lxc/network_forward.go:29 lxc/network_forward.go:86
-#: lxc/network_forward.go:167 lxc/network_forward.go:231
-#: lxc/network_forward.go:327 lxc/network_forward.go:382
-#: lxc/network_forward.go:460 lxc/network_forward.go:487
-#: lxc/network_forward.go:629 lxc/network_forward.go:691
-#: lxc/network_forward.go:706 lxc/network_forward.go:771
-#: lxc/network_load_balancer.go:29 lxc/network_load_balancer.go:90
-#: lxc/network_load_balancer.go:169 lxc/network_load_balancer.go:233
-#: lxc/network_load_balancer.go:329 lxc/network_load_balancer.go:384
-#: lxc/network_load_balancer.go:462 lxc/network_load_balancer.go:489
-#: lxc/network_load_balancer.go:632 lxc/network_load_balancer.go:693
-#: lxc/network_load_balancer.go:708 lxc/network_load_balancer.go:772
-#: lxc/network_load_balancer.go:858 lxc/network_load_balancer.go:873
-#: lxc/network_load_balancer.go:934 lxc/network_peer.go:28
-#: lxc/network_peer.go:81 lxc/network_peer.go:158 lxc/network_peer.go:215
-#: lxc/network_peer.go:329 lxc/network_peer.go:384 lxc/network_peer.go:453
-#: lxc/network_peer.go:480 lxc/network_peer.go:605 lxc/network_zone.go:28
-#: lxc/network_zone.go:85 lxc/network_zone.go:156 lxc/network_zone.go:209
-#: lxc/network_zone.go:258 lxc/network_zone.go:339 lxc/network_zone.go:399
-#: lxc/network_zone.go:426 lxc/network_zone.go:545 lxc/network_zone.go:593
-#: lxc/network_zone.go:650 lxc/network_zone.go:720 lxc/network_zone.go:770
-#: lxc/network_zone.go:818 lxc/network_zone.go:898 lxc/network_zone.go:954
-#: lxc/network_zone.go:981 lxc/network_zone.go:1099 lxc/network_zone.go:1148
-#: lxc/network_zone.go:1163 lxc/network_zone.go:1209 lxc/operation.go:23
-#: lxc/operation.go:55 lxc/operation.go:104 lxc/operation.go:184
-#: lxc/profile.go:29 lxc/profile.go:104 lxc/profile.go:167 lxc/profile.go:250
-#: lxc/profile.go:320 lxc/profile.go:374 lxc/profile.go:424 lxc/profile.go:550
-#: lxc/profile.go:599 lxc/profile.go:660 lxc/profile.go:736 lxc/profile.go:786
-#: lxc/profile.go:845 lxc/profile.go:899 lxc/project.go:29 lxc/project.go:93
-#: lxc/project.go:158 lxc/project.go:221 lxc/project.go:347 lxc/project.go:397
-#: lxc/project.go:510 lxc/project.go:565 lxc/project.go:625 lxc/project.go:654
-#: lxc/project.go:707 lxc/project.go:766 lxc/publish.go:32 lxc/query.go:34
-#: lxc/rebuild.go:27 lxc/remote.go:33 lxc/remote.go:88 lxc/remote.go:628
-#: lxc/remote.go:664 lxc/remote.go:752 lxc/remote.go:823 lxc/remote.go:878
-#: lxc/remote.go:916 lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:28
-#: lxc/storage.go:33 lxc/storage.go:96 lxc/storage.go:170 lxc/storage.go:220
-#: lxc/storage.go:342 lxc/storage.go:402 lxc/storage.go:574 lxc/storage.go:651
-#: lxc/storage.go:725 lxc/storage.go:809 lxc/storage_bucket.go:29
-#: lxc/storage_bucket.go:83 lxc/storage_bucket.go:183 lxc/storage_bucket.go:244
-#: lxc/storage_bucket.go:375 lxc/storage_bucket.go:441
-#: lxc/storage_bucket.go:516 lxc/storage_bucket.go:593
-#: lxc/storage_bucket.go:660 lxc/storage_bucket.go:691
-#: lxc/storage_bucket.go:732 lxc/storage_bucket.go:811
-#: lxc/storage_bucket.go:889 lxc/storage_bucket.go:953
-#: lxc/storage_bucket.go:1088 lxc/storage_volume.go:43
-#: lxc/storage_volume.go:165 lxc/storage_volume.go:240
+#: lxc/cluster_group.go:84 lxc/cluster_group.go:157 lxc/cluster_group.go:214
+#: lxc/cluster_group.go:266 lxc/cluster_group.go:382 lxc/cluster_group.go:456
+#: lxc/cluster_group.go:529 lxc/cluster_group.go:577 lxc/cluster_group.go:631
+#: lxc/cluster_role.go:23 lxc/cluster_role.go:50 lxc/cluster_role.go:106
+#: lxc/config.go:32 lxc/config.go:95 lxc/config.go:379 lxc/config.go:473
+#: lxc/config.go:637 lxc/config.go:759 lxc/config_device.go:24
+#: lxc/config_device.go:78 lxc/config_device.go:208 lxc/config_device.go:285
+#: lxc/config_device.go:356 lxc/config_device.go:450 lxc/config_device.go:548
+#: lxc/config_device.go:555 lxc/config_device.go:668 lxc/config_device.go:741
+#: lxc/config_metadata.go:27 lxc/config_metadata.go:55
+#: lxc/config_metadata.go:180 lxc/config_template.go:27
+#: lxc/config_template.go:67 lxc/config_template.go:110
+#: lxc/config_template.go:152 lxc/config_template.go:240
+#: lxc/config_template.go:300 lxc/config_trust.go:34 lxc/config_trust.go:87
+#: lxc/config_trust.go:236 lxc/config_trust.go:350 lxc/config_trust.go:432
+#: lxc/config_trust.go:534 lxc/config_trust.go:580 lxc/config_trust.go:651
+#: lxc/console.go:36 lxc/copy.go:40 lxc/delete.go:31 lxc/exec.go:41
+#: lxc/export.go:32 lxc/file.go:78 lxc/file.go:118 lxc/file.go:167
+#: lxc/file.go:237 lxc/file.go:459 lxc/file.go:967 lxc/image.go:37
+#: lxc/image.go:145 lxc/image.go:312 lxc/image.go:363 lxc/image.go:490
+#: lxc/image.go:651 lxc/image.go:884 lxc/image.go:1019 lxc/image.go:1338
+#: lxc/image.go:1418 lxc/image.go:1477 lxc/image.go:1529 lxc/image.go:1585
+#: lxc/image_alias.go:24 lxc/image_alias.go:60 lxc/image_alias.go:107
+#: lxc/image_alias.go:152 lxc/image_alias.go:255 lxc/import.go:28
+#: lxc/info.go:33 lxc/init.go:40 lxc/launch.go:24 lxc/list.go:49 lxc/main.go:79
+#: lxc/manpage.go:22 lxc/monitor.go:33 lxc/move.go:36 lxc/network.go:32
+#: lxc/network.go:131 lxc/network.go:216 lxc/network.go:289 lxc/network.go:368
+#: lxc/network.go:418 lxc/network.go:503 lxc/network.go:588 lxc/network.go:714
+#: lxc/network.go:772 lxc/network.go:895 lxc/network.go:988 lxc/network.go:1059
+#: lxc/network.go:1109 lxc/network.go:1179 lxc/network.go:1241
+#: lxc/network_acl.go:29 lxc/network_acl.go:94 lxc/network_acl.go:165
+#: lxc/network_acl.go:218 lxc/network_acl.go:264 lxc/network_acl.go:313
+#: lxc/network_acl.go:396 lxc/network_acl.go:456 lxc/network_acl.go:483
+#: lxc/network_acl.go:614 lxc/network_acl.go:663 lxc/network_acl.go:712
+#: lxc/network_acl.go:727 lxc/network_acl.go:848 lxc/network_forward.go:29
+#: lxc/network_forward.go:86 lxc/network_forward.go:167
+#: lxc/network_forward.go:231 lxc/network_forward.go:327
+#: lxc/network_forward.go:382 lxc/network_forward.go:460
+#: lxc/network_forward.go:487 lxc/network_forward.go:629
+#: lxc/network_forward.go:691 lxc/network_forward.go:706
+#: lxc/network_forward.go:771 lxc/network_load_balancer.go:29
+#: lxc/network_load_balancer.go:90 lxc/network_load_balancer.go:169
+#: lxc/network_load_balancer.go:233 lxc/network_load_balancer.go:329
+#: lxc/network_load_balancer.go:384 lxc/network_load_balancer.go:462
+#: lxc/network_load_balancer.go:489 lxc/network_load_balancer.go:632
+#: lxc/network_load_balancer.go:693 lxc/network_load_balancer.go:708
+#: lxc/network_load_balancer.go:772 lxc/network_load_balancer.go:858
+#: lxc/network_load_balancer.go:873 lxc/network_load_balancer.go:934
+#: lxc/network_peer.go:28 lxc/network_peer.go:81 lxc/network_peer.go:158
+#: lxc/network_peer.go:215 lxc/network_peer.go:329 lxc/network_peer.go:384
+#: lxc/network_peer.go:453 lxc/network_peer.go:480 lxc/network_peer.go:605
+#: lxc/network_zone.go:28 lxc/network_zone.go:85 lxc/network_zone.go:156
+#: lxc/network_zone.go:209 lxc/network_zone.go:258 lxc/network_zone.go:339
+#: lxc/network_zone.go:399 lxc/network_zone.go:426 lxc/network_zone.go:545
+#: lxc/network_zone.go:593 lxc/network_zone.go:650 lxc/network_zone.go:720
+#: lxc/network_zone.go:770 lxc/network_zone.go:818 lxc/network_zone.go:898
+#: lxc/network_zone.go:954 lxc/network_zone.go:981 lxc/network_zone.go:1099
+#: lxc/network_zone.go:1148 lxc/network_zone.go:1163 lxc/network_zone.go:1209
+#: lxc/operation.go:23 lxc/operation.go:55 lxc/operation.go:104
+#: lxc/operation.go:184 lxc/profile.go:29 lxc/profile.go:104 lxc/profile.go:167
+#: lxc/profile.go:250 lxc/profile.go:320 lxc/profile.go:374 lxc/profile.go:424
+#: lxc/profile.go:550 lxc/profile.go:599 lxc/profile.go:660 lxc/profile.go:736
+#: lxc/profile.go:786 lxc/profile.go:845 lxc/profile.go:899 lxc/project.go:29
+#: lxc/project.go:93 lxc/project.go:158 lxc/project.go:221 lxc/project.go:347
+#: lxc/project.go:397 lxc/project.go:510 lxc/project.go:565 lxc/project.go:625
+#: lxc/project.go:654 lxc/project.go:707 lxc/project.go:766 lxc/publish.go:32
+#: lxc/query.go:34 lxc/rebuild.go:27 lxc/remote.go:33 lxc/remote.go:88
+#: lxc/remote.go:628 lxc/remote.go:664 lxc/remote.go:752 lxc/remote.go:823
+#: lxc/remote.go:878 lxc/remote.go:916 lxc/rename.go:21 lxc/restore.go:24
+#: lxc/snapshot.go:28 lxc/storage.go:33 lxc/storage.go:96 lxc/storage.go:170
+#: lxc/storage.go:220 lxc/storage.go:342 lxc/storage.go:402 lxc/storage.go:574
+#: lxc/storage.go:651 lxc/storage.go:725 lxc/storage.go:809
+#: lxc/storage_bucket.go:29 lxc/storage_bucket.go:83 lxc/storage_bucket.go:183
+#: lxc/storage_bucket.go:244 lxc/storage_bucket.go:375
+#: lxc/storage_bucket.go:441 lxc/storage_bucket.go:516
+#: lxc/storage_bucket.go:593 lxc/storage_bucket.go:660
+#: lxc/storage_bucket.go:691 lxc/storage_bucket.go:732
+#: lxc/storage_bucket.go:811 lxc/storage_bucket.go:889
+#: lxc/storage_bucket.go:953 lxc/storage_bucket.go:1088
+#: lxc/storage_volume.go:43 lxc/storage_volume.go:165 lxc/storage_volume.go:240
 #: lxc/storage_volume.go:331 lxc/storage_volume.go:530
 #: lxc/storage_volume.go:609 lxc/storage_volume.go:684
 #: lxc/storage_volume.go:766 lxc/storage_volume.go:847
@@ -2027,7 +2047,7 @@ msgstr ""
 "ファイル転送のサーバ側の初期処理はキャンセルできません（強制的に中断するには"
 "あと2回行ってください）"
 
-#: lxc/cluster_group.go:261 lxc/cluster_group.go:262
+#: lxc/cluster_group.go:265 lxc/cluster_group.go:266
 msgid "Edit a cluster group"
 msgstr "クラスタグループを編集します"
 
@@ -2499,7 +2519,7 @@ msgstr ""
 "本当に強制的に %s を削除してもよろしいですか? (yes/no): "
 
 #: lxc/alias.go:112 lxc/cluster.go:124 lxc/cluster.go:842
-#: lxc/cluster_group.go:380 lxc/config_template.go:242 lxc/config_trust.go:352
+#: lxc/cluster_group.go:384 lxc/config_template.go:242 lxc/config_trust.go:352
 #: lxc/config_trust.go:434 lxc/image.go:1045 lxc/image_alias.go:157
 #: lxc/list.go:133 lxc/network.go:899 lxc/network.go:990 lxc/network_acl.go:97
 #: lxc/network_forward.go:89 lxc/network_load_balancer.go:93
@@ -3043,7 +3063,7 @@ msgstr ""
 "を使います。"
 
 #: lxc/cluster.go:158 lxc/cluster.go:876 lxc/cluster.go:970 lxc/cluster.go:1061
-#: lxc/cluster_group.go:415
+#: lxc/cluster_group.go:419
 msgid "LXD server isn't part of a cluster"
 msgstr "LXD サーバはクラスタの一部ではありません"
 
@@ -3087,7 +3107,7 @@ msgstr "有効な証明書追加トークンをすべて一覧表示します"
 msgid "List all active cluster member join tokens"
 msgstr "有効なクラスターへの join トークンをすべて一覧表示します"
 
-#: lxc/cluster_group.go:377 lxc/cluster_group.go:378
+#: lxc/cluster_group.go:381 lxc/cluster_group.go:382
 msgid "List all the cluster groups"
 msgstr "クラスタグループをすべて一覧表示します"
 
@@ -3542,7 +3562,7 @@ msgstr "MAD: %s (%s)"
 msgid "MANAGED"
 msgstr "MANAGED"
 
-#: lxc/cluster_group.go:435
+#: lxc/cluster_group.go:439
 msgid "MEMBERS"
 msgstr "MEMBERS"
 
@@ -3842,13 +3862,14 @@ msgstr "バケット名を指定する必要があります"
 msgid "Missing certificate fingerprint"
 msgstr "証明書のフィンガープリントがありません"
 
-#: lxc/cluster_group.go:178 lxc/cluster_group.go:235 lxc/cluster_group.go:287
-#: lxc/cluster_group.go:598
+#: lxc/cluster_group.go:182 lxc/cluster_group.go:239 lxc/cluster_group.go:291
+#: lxc/cluster_group.go:602
 msgid "Missing cluster group name"
 msgstr "クラスターグループ名がありません"
 
-#: lxc/cluster.go:683 lxc/cluster.go:1179 lxc/cluster_group.go:112
-#: lxc/cluster_group.go:477 lxc/cluster_role.go:73 lxc/cluster_role.go:129
+#: lxc/cluster.go:683 lxc/cluster.go:1179 lxc/cluster_group.go:116
+#: lxc/cluster_group.go:481 lxc/cluster_group.go:655 lxc/cluster_role.go:73
+#: lxc/cluster_role.go:129
 msgid "Missing cluster member name"
 msgstr "クラスターメンバー名がありません"
 
@@ -4083,7 +4104,7 @@ msgstr "ディレクトリからのインポートは root で実行する必要
 msgid "Must supply instance name for: "
 msgstr "インスタンス名を指定する必要があります: "
 
-#: lxc/cluster.go:183 lxc/cluster.go:925 lxc/cluster_group.go:433
+#: lxc/cluster.go:183 lxc/cluster.go:925 lxc/cluster_group.go:437
 #: lxc/config_trust.go:409 lxc/config_trust.go:514 lxc/list.go:565
 #: lxc/network.go:963 lxc/network_acl.go:147 lxc/network_peer.go:139
 #: lxc/network_zone.go:138 lxc/network_zone.go:702 lxc/profile.go:643
@@ -4472,7 +4493,7 @@ msgstr "ポート:"
 msgid "Press ctrl+c to finish"
 msgstr "終了するには ctrl+c を押してください"
 
-#: lxc/cluster.go:732 lxc/cluster_group.go:336 lxc/config.go:269
+#: lxc/cluster.go:732 lxc/cluster_group.go:340 lxc/config.go:269
 #: lxc/config.go:344 lxc/config_metadata.go:148 lxc/config_template.go:206
 #: lxc/config_trust.go:315 lxc/image.go:457 lxc/network.go:683
 #: lxc/network_acl.go:582 lxc/network_forward.go:597
@@ -4825,7 +4846,7 @@ msgstr "リムーバブルディスク: %v"
 msgid "Remove %s (yes/no): "
 msgstr "%s を消去しますか (yes/no): "
 
-#: lxc/cluster_group.go:452
+#: lxc/cluster_group.go:456
 msgid "Remove a cluster member from a cluster group"
 msgstr "クラスタグループからメンバを削除します"
 
@@ -4865,7 +4886,7 @@ msgstr "ネットワークゾーンレコードからエントリを削除しま
 msgid "Remove instance devices"
 msgstr "インスタンスのデバイスを削除します"
 
-#: lxc/cluster_group.go:451
+#: lxc/cluster_group.go:455
 msgid "Remove member from group"
 msgstr "グループからメンバーを削除します"
 
@@ -4897,7 +4918,7 @@ msgstr "ACL からルールを削除します"
 msgid "Remove trusted client"
 msgstr "信頼済みクライアントを削除します"
 
-#: lxc/cluster_group.go:524 lxc/cluster_group.go:525
+#: lxc/cluster_group.go:528 lxc/cluster_group.go:529
 msgid "Rename a cluster group"
 msgstr "クラスタグループの名前を変更します"
 
@@ -5409,7 +5430,7 @@ msgstr "デバッグメッセージをすべて表示します"
 msgid "Show all information messages"
 msgstr "詳細な情報を出力します"
 
-#: lxc/cluster_group.go:572 lxc/cluster_group.go:573
+#: lxc/cluster_group.go:576 lxc/cluster_group.go:577
 msgid "Show cluster group configurations"
 msgstr "クラスタグループの設定を表示します"
 
@@ -6347,7 +6368,7 @@ msgstr "[<remote:>]<pool> <volume> <profile> [<device name>]"
 msgid "[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"
 msgstr "[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"
 
-#: lxc/cluster.go:119 lxc/cluster.go:839 lxc/cluster_group.go:375
+#: lxc/cluster.go:119 lxc/cluster.go:839 lxc/cluster_group.go:379
 #: lxc/config_trust.go:347 lxc/config_trust.go:430 lxc/monitor.go:31
 #: lxc/network.go:892 lxc/network_acl.go:91 lxc/network_zone.go:82
 #: lxc/operation.go:101 lxc/profile.go:596 lxc/project.go:394
@@ -6444,12 +6465,12 @@ msgstr "[<remote>:]<cluster member>"
 msgid "[<remote>:]<fingerprint>"
 msgstr "[<remote>:]<fingerprint>"
 
-#: lxc/cluster_group.go:151 lxc/cluster_group.go:207 lxc/cluster_group.go:260
-#: lxc/cluster_group.go:571
+#: lxc/cluster_group.go:155 lxc/cluster_group.go:211 lxc/cluster_group.go:264
+#: lxc/cluster_group.go:575
 msgid "[<remote>:]<group>"
 msgstr "[<remote>:]<group>"
 
-#: lxc/cluster_group.go:522
+#: lxc/cluster_group.go:526
 msgid "[<remote>:]<group> <new-name>"
 msgstr "[<remote>:]<group> <new-name>"
 
@@ -6586,7 +6607,7 @@ msgstr ""
 msgid "[<remote>:]<member>"
 msgstr "[<remote>:]<member>"
 
-#: lxc/cluster_group.go:77 lxc/cluster_group.go:450
+#: lxc/cluster_group.go:81 lxc/cluster_group.go:454 lxc/cluster_group.go:629
 msgid "[<remote>:]<member> <group>"
 msgstr "[<remote>:]<member> <group>"
 
@@ -7008,7 +7029,7 @@ msgstr ""
 "lxc cluster edit <cluster member> < member.yaml\n"
 "    member.yaml の内容でクラスターメンバーを更新します"
 
-#: lxc/cluster_group.go:82
+#: lxc/cluster_group.go:86
 msgid ""
 "lxc cluster group assign foo default,bar\n"
 "    Set the groups for \"foo\" to \"default\" and \"bar\".\n"

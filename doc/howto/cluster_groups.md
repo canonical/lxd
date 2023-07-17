@@ -27,6 +27,12 @@ To assign `server1` to the `gpu` group and also keep it in the `default` group, 
 
     lxc cluster group assign server1 default,gpu
 
+To add a cluster member to a specific group without removing it from other groups, use the `lxc cluster group add` command.
+
+For example, to add `server1` to the `gpu` group and also keep it in the `default` group, use the following command:
+
+    lxc cluster group add server1 gpu
+
 ## Launch an instance on a cluster group member
 
 With cluster groups, you can target an instance to run on one of the members of the cluster group, instead of targeting it to run on a specific member.
