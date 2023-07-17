@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Tests if `certificateNeedsUpdate` correctly identifies when a certificate requires renewal.
 func Test_certificateNeedsUpdate(t *testing.T) {
 	type args struct {
 		domain string
