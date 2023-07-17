@@ -126,6 +126,7 @@ func RsyncWrapper(sysOS *sys.OS, cmd *exec.Cmd, sourcePath string, dstPath strin
 	return cleanup, nil
 }
 
+// Generates, writes, and loads an AppArmor profile for rsync operations.
 func rsyncProfileLoad(sysOS *sys.OS, sourcePath string, dstPath string) (string, error) {
 	revert := revert.New()
 	defer revert.Fail()
