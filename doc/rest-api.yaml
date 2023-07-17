@@ -2066,7 +2066,7 @@ definitions:
             disk:
                 additionalProperties:
                     $ref: '#/definitions/InstanceStateDisk'
-                description: Dict of disk usage
+                description: Disk usage key/value pairs
                 type: object
                 x-go-name: Disk
             memory:
@@ -2074,7 +2074,7 @@ definitions:
             network:
                 additionalProperties:
                     $ref: '#/definitions/InstanceStateNetwork'
-                description: Dict of network usage
+                description: Network usage key/value pairs
                 type: object
                 x-go-name: Network
             pid:
@@ -4631,7 +4631,7 @@ definitions:
             entries:
                 additionalProperties:
                     type: string
-                description: Dict of vendor provided key/value pairs.
+                description: Vendor provided key/value pairs.
                 example: '{"EC": ""A-5545", "MN": "103C", "V0": "5W PCIeGen2"}'
                 type: object
                 x-go-name: Entries
