@@ -49,6 +49,7 @@ var checkedKeys = []string{
 	"lxd.migrated",
 }
 
+// Filters and returns keys from the config array that are not included in the checkedKeys array.
 func getUnsupportedKeys(config []string) []string {
 	var out []string
 
@@ -70,6 +71,7 @@ func getUnsupportedKeys(config []string) []string {
 	return out
 }
 
+// Returns values for a given key from the config array, ignoring empty lines and comments.
 func getConfig(config []string, key string) []string {
 	// Return an array since keys can be specified more than once
 	var out []string
@@ -102,6 +104,7 @@ func getConfig(config []string, key string) []string {
 	return out
 }
 
+// Extracts and returns unique config keys prefixed with "lxc.", excluding comments and empty lines.
 func getConfigKeys(config []string) []string {
 	// Make sure we don't have duplicate keys
 	m := make(map[string]bool)
@@ -128,6 +131,7 @@ func getConfigKeys(config []string) []string {
 	return out
 }
 
+// Reads and parses a configuration file, expanding includes and fstabs while ignoring empty lines and comments.
 func parseConfig(path string) ([]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
