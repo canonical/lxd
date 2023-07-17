@@ -9,6 +9,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// Transfers a container's root filesystem using Rsync over websockets, aborting if any errors are encountered.
 func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string, rsyncArgs string) error {
 	opAPI := op.Get()
 
