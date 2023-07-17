@@ -290,34 +290,44 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 	return nil
 }
 
-func pruneExpiredContainerBackupsTask(d *Daemon) (task.Func, task.Schedule) {
+func pruneExpiredBackupsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := d.State()
 
 		opRun := func(op *operations.Operation) error {
-			return pruneExpiredContainerBackups(ctx, s)
+			err := pruneExpiredInstanceBackups(ctx, s)
+			if err != nil {
+				return fmt.Errorf("Failed pruning expired instance backups: %w", err)
+			}
+
+			err = pruneExpiredStorageVolumeBackups(ctx, s)
+			if err != nil {
+				return fmt.Errorf("Failed pruning expired storage volume backups: %w", err)
+			}
+
+			return nil
 		}
 
 		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.BackupsExpire, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed creating expired instance backups operation", logger.Ctx{"err": err})
+			logger.Error("Failed creating expired backups operation", logger.Ctx{"err": err})
 			return
 		}
 
-		logger.Info("Pruning expired instance backups")
+		logger.Info("Pruning expired backups")
 		err = op.Start()
 		if err != nil {
-			logger.Error("Failed starting expired instance backups operation", logger.Ctx{"err": err})
+			logger.Error("Failed starting expired backups operation", logger.Ctx{"err": err})
 			return
 		}
 
 		err = op.Wait(ctx)
 		if err != nil {
-			logger.Error("Failed pruning expired instance backups", logger.Ctx{"err": err})
+			logger.Error("Failed pruning expired backups", logger.Ctx{"err": err})
 			return
 		}
 
-		logger.Info("Done pruning expired instance backups")
+		logger.Info("Done pruning expired backups")
 	}
 
 	f(context.Background())
@@ -337,7 +347,7 @@ func pruneExpiredContainerBackupsTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, schedule
 }
 
-func pruneExpiredContainerBackups(ctx context.Context, s *state.State) error {
+func pruneExpiredInstanceBackups(ctx context.Context, s *state.State) error {
 	// Get the list of expired backups.
 	backups, err := s.DB.Cluster.GetExpiredInstanceBackups()
 	if err != nil {
@@ -550,6 +560,53 @@ func volumeBackupWriteIndex(s *state.State, projectName string, volumeName strin
 	err = tarWriter.WriteFileFromReader(r, &indexFileInfo)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func pruneExpiredStorageVolumeBackups(ctx context.Context, s *state.State) error {
+	var volumeBackups []*backup.VolumeBackup
+
+	// Get the list of expired backups.
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		nodeID := tx.GetNodeID()
+
+		backups, err := tx.GetExpiredStorageVolumeBackups(ctx)
+		if err != nil {
+			return fmt.Errorf("Unable to retrieve the list of expired storage volume backups: %w", err)
+		}
+
+		for _, b := range backups {
+			vol, err := tx.GetStoragePoolVolumeWithID(ctx, int(b.VolumeID))
+			if err != nil {
+				logger.Warn("Failed getting storage pool of backup", logger.Ctx{"backup": b.Name, "err": err})
+				continue
+			}
+
+			// Ignore volumes on other nodes, but include remote pools (NodeID == -1).
+			if vol.NodeID != -1 && vol.NodeID != nodeID {
+				continue
+			}
+
+			volBackup := backup.NewVolumeBackup(s, vol.ProjectName, vol.PoolName, vol.Name, b.ID, b.Name, b.CreationDate, b.ExpiryDate, b.VolumeOnly, b.OptimizedStorage)
+
+			volumeBackups = append(volumeBackups, volBackup)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// The deletion is done outside of the transaction to avoid any unnecessary IO while inside of
+	// the transaction.
+	for _, b := range volumeBackups {
+		err := b.Delete()
+		if err != nil {
+			return fmt.Errorf("Error deleting storage volume backup %q: %w", b.Name(), err)
+		}
 	}
 
 	return nil

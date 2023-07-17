@@ -1465,8 +1465,8 @@ func (d *Daemon) init() error {
 		// Auto-update instance types (daily)
 		d.tasks.Add(instanceRefreshTypesTask(d))
 
-		// Remove expired container backups (hourly)
-		d.tasks.Add(pruneExpiredContainerBackupsTask(d))
+		// Remove expired backups (hourly)
+		d.tasks.Add(pruneExpiredBackupsTask(d))
 
 		// Prune expired instance snapshots and take snapshot of instances (minutely check of configurable cron expression)
 		d.tasks.Add(pruneExpiredAndAutoCreateInstanceSnapshotsTask(d))
