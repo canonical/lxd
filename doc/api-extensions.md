@@ -765,7 +765,7 @@ and `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly>` 
 
 ## `container_copy_project`
 
-Introduces a `project` field to the container source dict, allowing for
+Introduces a `project` field to the container source JSON object, allowing for
 copy/move of containers between projects.
 
 ## `clustering_server_address`

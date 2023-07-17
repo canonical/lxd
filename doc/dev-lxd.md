@@ -79,7 +79,7 @@ Return value:
 ##### GET
 
 * Description: Information about the 1.0 API
-* Return: dict
+* Return: JSON object
 
 Return value:
 
@@ -143,7 +143,7 @@ Return value:
 ##### GET
 
 * Description: Map of instance devices
-* Return: dict
+* Return: JSON object
 
 Return value:
 
@@ -178,7 +178,7 @@ The notification types are:
 * `config` (changes to any of the `user.*` configuration keys)
 * `device` (any device addition, change or removal)
 
-This never returns. Each notification is sent as a separate JSON dict:
+This never returns. Each notification is sent as a separate JSON object:
 
 ```json
 {
