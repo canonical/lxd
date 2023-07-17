@@ -92,6 +92,7 @@ hotplugged
 hotplugging
 HTTPS
 ICMP
+IPAM
 idmap
 idmapped
 idmaps
@@ -261,6 +262,8 @@ UFW
 UI
 UID
 UIDs
+URI
+URIs
 unconfigured
 unevictable
 unmanaged
