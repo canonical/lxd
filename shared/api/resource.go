@@ -969,7 +969,7 @@ type ResourcesPCIVPD struct {
 	// Example: HP Ethernet 1Gb 4-port 331i Adapter
 	ProductName string `json:"product_name,omitempty" yaml:"product_name,omitempty"`
 
-	// Dict of vendor provided key/value pairs.
+	// Vendor provided key/value pairs.
 	// Example: {"EC": ""A-5545", "MN": "103C", "V0": "5W PCIeGen2"}
 	Entries map[string]string `json:"entries,omitempty" yaml:"entries,omitempty"`
 }
