@@ -878,6 +878,7 @@ func (g *Gateway) WaitLeadership() error {
 	return fmt.Errorf("RAFT node did not self-elect within %s", time.Duration(n)*sleep)
 }
 
+// Checks if the current gateway instance is the leader in the raft cluster.
 func (g *Gateway) isLeader() (bool, error) {
 	if g.server == nil || g.info.Role != db.RaftVoter {
 		return false, nil
@@ -1009,6 +1010,7 @@ func (g *Gateway) nodeAddress(raftAddress string) (string, error) {
 	return address, nil
 }
 
+// dqliteNetworkDial establishes a connection to a dqlite node using the HTTP protocol.
 func dqliteNetworkDial(ctx context.Context, name string, addr string, g *Gateway) (net.Conn, error) {
 	config, err := tlsClientConfig(g.networkCert, g.state().ServerCert())
 	if err != nil {
@@ -1218,6 +1220,7 @@ type dqliteProxyError struct {
 	second error
 }
 
+// Error concatenates the first and second errors in the dqliteProxyError.
 func (e dqliteProxyError) Error() string {
 	msg := ""
 	if e.first != nil {
@@ -1241,6 +1244,7 @@ type dqliteNodeStore struct {
 	onDisk   client.NodeStore
 }
 
+// Get retrieves the node information either from in-memory or on-disk storage.
 func (s *dqliteNodeStore) Get(ctx context.Context) ([]client.NodeInfo, error) {
 	if s.inMemory != nil {
 		return s.inMemory.Get(ctx)
@@ -1249,6 +1253,7 @@ func (s *dqliteNodeStore) Get(ctx context.Context) ([]client.NodeInfo, error) {
 	return s.onDisk.Get(ctx)
 }
 
+// Set stores the given node information either in-memory or on-disk.
 func (s *dqliteNodeStore) Set(ctx context.Context, servers []client.NodeInfo) error {
 	if s.inMemory != nil {
 		return s.inMemory.Set(ctx, servers)
