@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Tests the validateConfig function with different config scenarios to ensure appropriate validation error handling.
 func TestValidateConfig(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -110,6 +111,7 @@ func TestValidateConfig(t *testing.T) {
 	}
 }
 
+// Tests network config conversion into device configurations.
 func TestConvertNetworkConfig(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -243,6 +245,7 @@ func TestConvertNetworkConfig(t *testing.T) {
 	}
 }
 
+// Tests the conversion of storage configuration into device configurations.
 func TestConvertStorageConfig(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -339,6 +342,7 @@ func TestConvertStorageConfig(t *testing.T) {
 	}
 }
 
+// Tests the extraction of root filesystem path from LXC configuration.
 func TestGetRootfs(t *testing.T) {
 	tests := []struct {
 		name           string
