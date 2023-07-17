@@ -27,6 +27,7 @@ func NewHTTP01Provider() HTTP01Provider {
 	return &http01Provider{}
 }
 
+// Stores HTTP-01 challenge information for a domain in the provider instance.
 func (p *http01Provider) Present(domain string, token string, keyAuth string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -38,6 +39,7 @@ func (p *http01Provider) Present(domain string, token string, keyAuth string) er
 	return nil
 }
 
+// Clears the HTTP-01 challenge information stored in the provider instance.
 func (p *http01Provider) CleanUp(domain string, token string, keyAuth string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -49,6 +51,7 @@ func (p *http01Provider) CleanUp(domain string, token string, keyAuth string) er
 	return nil
 }
 
+// Returns the key authorization string for the HTTP-01 challenge.
 func (p *http01Provider) KeyAuth() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -56,6 +59,7 @@ func (p *http01Provider) KeyAuth() string {
 	return p.keyAuth
 }
 
+// Returns the domain associated with the HTTP-01 challenge.
 func (p *http01Provider) Domain() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -63,6 +67,7 @@ func (p *http01Provider) Domain() string {
 	return p.domain
 }
 
+// Retrieves the token associated with the HTTP-01 challenge.
 func (p *http01Provider) Token() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
