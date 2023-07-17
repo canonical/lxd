@@ -368,7 +368,7 @@ func operationCancel(s *state.State, r *http.Request, projectName string, op *ap
 //
 //  Get the operations
 //
-//  Returns a dict of operation type to operation list (URLs).
+//  Returns a JSON object of operation type to operation list (URLs).
 //
 //  ---
 //  produces:
@@ -398,7 +398,7 @@ func operationCancel(s *state.State, r *http.Request, projectName string, op *ap
 //              type: array
 //              items:
 //                type: string
-//            description: Dict of operation types to operation URLs
+//            description: JSON object of operation types to operation URLs
 //            example: |-
 //              {
 //                "running": [
