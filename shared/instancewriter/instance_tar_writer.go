@@ -117,7 +117,7 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 					continue
 				}
 
-				hdr.PAXRecords["SCHILY.acl.access"] = aclAccess
+				val = aclAccess
 			} else if key == "system.posix_acl_default" && ctw.idmapSet != nil {
 				aclDefault, err := idmap.UnshiftACL(val, ctw.idmapSet)
 				if err != nil {
@@ -125,7 +125,7 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 					continue
 				}
 
-				hdr.PAXRecords["SCHILY.acl.default"] = aclDefault
+				val = aclDefault
 			} else if key == "security.capability" && ctw.idmapSet != nil {
 				vfsCaps, err := idmap.UnshiftCaps(val, ctw.idmapSet)
 				if err != nil {
@@ -133,10 +133,10 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 					continue
 				}
 
-				hdr.PAXRecords["SCHILY.xattr."+key] = vfsCaps
-			} else {
-				hdr.PAXRecords["SCHILY.xattr."+key] = val
+				val = vfsCaps
 			}
+
+			hdr.PAXRecords["SCHILY.xattr."+key] = val
 		}
 	}
 
