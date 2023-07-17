@@ -1217,10 +1217,8 @@ func (c *cmdStorageVolumeInfo) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	volState, err := client.GetStoragePoolVolumeState(resource.name, volType, volName)
-	if err != nil {
-		return err
-	}
+	// Instead of failing here if the usage cannot be determined, it is just omitted.
+	volState, _ := client.GetStoragePoolVolumeState(resource.name, volType, volName)
 
 	volSnapshots, err := client.GetStoragePoolVolumeSnapshots(resource.name, volType, volName)
 	if err != nil {
@@ -1259,7 +1257,7 @@ func (c *cmdStorageVolumeInfo) Run(cmd *cobra.Command, args []string) error {
 		fmt.Printf(i18n.G("Location: %s")+"\n", vol.Location)
 	}
 
-	if volState.Usage != nil {
+	if volState != nil && volState.Usage != nil {
 		fmt.Printf(i18n.G("Usage: %s")+"\n", units.GetByteSizeStringIEC(int64(volState.Usage.Used), 2))
 		if volState.Usage.Total > 0 {
 			fmt.Printf(i18n.G("Total: %s")+"\n", units.GetByteSizeStringIEC(int64(volState.Usage.Total), 2))
