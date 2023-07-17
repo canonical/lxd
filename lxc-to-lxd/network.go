@@ -7,6 +7,7 @@ import (
 	liblxc "github.com/lxc/go-lxc"
 )
 
+// Retrieves network configuration for a specific device in a LXC container.
 func networkGet(container *liblxc.Container, index int, configKey string) map[string]string {
 	keys := container.ConfigKeys(fmt.Sprintf("%s.%d", configKey, index))
 	if len(keys) == 0 {
