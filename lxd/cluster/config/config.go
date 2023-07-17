@@ -799,6 +799,7 @@ var ConfigSchema = config.Schema{
 	"network.ovn.northbound_connection": {Default: "unix:/var/run/ovn/ovnnb_db.sock"},
 }
 
+// Validates if the provided value is a valid expiry timestamp.
 func expiryValidator(value string) error {
 	_, err := shared.GetExpiry(time.Time{}, value)
 	if err != nil {
@@ -808,6 +809,7 @@ func expiryValidator(value string) error {
 	return nil
 }
 
+// Validates if the provided value is a valid log level for the logrus library.
 func logLevelValidator(value string) error {
 	if value == "" {
 		return nil
@@ -821,10 +823,12 @@ func logLevelValidator(value string) error {
 	return nil
 }
 
+// Returns the default offline threshold as a string representation.
 func offlineThresholdDefault() string {
 	return strconv.Itoa(db.DefaultOfflineThreshold)
 }
 
+// Validates the provided value as an offline threshold, ensuring it is a number greater than a minimum threshold.
 func offlineThresholdValidator(value string) error {
 	minThreshold := 10
 
@@ -842,6 +846,7 @@ func offlineThresholdValidator(value string) error {
 	return nil
 }
 
+// Validates minimal image replica count as a positive number or -1 (unlimited).
 func imageMinimalReplicaValidator(value string) error {
 	count, err := strconv.Atoi(value)
 	if err != nil {
@@ -855,6 +860,7 @@ func imageMinimalReplicaValidator(value string) error {
 	return nil
 }
 
+// Validates the maximum number of voters as an odd number equal to or higher than 3.
 func maxVotersValidator(value string) error {
 	n, err := strconv.Atoi(value)
 	if err != nil {
@@ -868,6 +874,7 @@ func maxVotersValidator(value string) error {
 	return nil
 }
 
+// Validates the maximum number of stand-by nodes within the range of 0 to 5.
 func maxStandByValidator(value string) error {
 	n, err := strconv.Atoi(value)
 	if err != nil {
@@ -881,6 +888,7 @@ func maxStandByValidator(value string) error {
 	return nil
 }
 
+// Sets and hashes the password value using scrypt algorithm.
 func passwordSetter(value string) (string, error) {
 	// Nothing to do on unset
 	if value == "" {
