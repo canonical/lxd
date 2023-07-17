@@ -1,5 +1,5 @@
 ---
-relatedlinks: https://dqlite.io/, https://github.com/canonical/dqlite
+relatedlinks: "[Canonical&#32;Dqlite](https://dqlite.io/), https://github.com/canonical/dqlite"
 ---
 
 (database)=
