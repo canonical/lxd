@@ -282,6 +282,44 @@ func (c *Cluster) GetExpiredInstanceBackups() ([]InstanceBackup, error) {
 	return result, nil
 }
 
+// GetExpiredStorageVolumeBackups returns a list of expired storage volume backups.
+func (c *ClusterTx) GetExpiredStorageVolumeBackups(ctx context.Context) ([]StoragePoolVolumeBackup, error) {
+	var backups []StoragePoolVolumeBackup
+
+	q := `SELECT storage_volumes_backups.name, storage_volumes_backups.expiry_date, storage_volumes_backups.storage_volume_id FROM storage_volumes_backups`
+
+	err := query.Scan(ctx, c.Tx(), q, func(scan func(dest ...any) error) error {
+		var b StoragePoolVolumeBackup
+		var expiryTime sql.NullTime
+
+		err := scan(&b.Name, &expiryTime, &b.VolumeID)
+		if err != nil {
+			return err
+		}
+
+		b.ExpiryDate = expiryTime.Time // Convert nulls to zero.
+
+		// Since zero time causes some issues due to timezones, we check the
+		// unix timestamp instead of IsZero().
+		if b.ExpiryDate.Unix() <= 0 {
+			// Backup doesn't expire
+			return nil
+		}
+
+		// Backup has expired
+		if time.Now().Unix()-b.ExpiryDate.Unix() >= 0 {
+			backups = append(backups, b)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return backups, nil
+}
+
 // GetStoragePoolVolumeBackups returns a list of volume backups.
 func (c *Cluster) GetStoragePoolVolumeBackups(projectName string, volumeName string, poolID int64) ([]StoragePoolVolumeBackup, error) {
 	q := `
