@@ -121,6 +121,7 @@ func rsyncSendSetup(path string, rsyncArgs string) (*exec.Cmd, net.Conn, io.Read
 	return cmd, conn, stderr, nil
 }
 
+// Sends an error message over a WebSocket connection and closes it if an error occurs.
 func protoSendError(ws *websocket.Conn, err error) {
 	migration.ProtoSendControl(ws, err)
 
