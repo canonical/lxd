@@ -32,10 +32,12 @@ type AuthError struct {
 	Err error
 }
 
+// Generates a formatted error message for authentication failures.
 func (e AuthError) Error() string {
 	return fmt.Sprintf("Failed to authenticate: %s", e.Err.Error())
 }
 
+// Provides the underlying error for an AuthError, aiding in error handling.
 func (e AuthError) Unwrap() error {
 	return e.Err
 }
@@ -138,6 +140,7 @@ func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	return claims.Subject, nil
 }
 
+// Initiates the login process by redirecting the client to the provider's authentication page.
 func (o *Verifier) Login(w http.ResponseWriter, r *http.Request) {
 	// Get the provider.
 	provider, err := o.getProvider(r)
@@ -149,6 +152,7 @@ func (o *Verifier) Login(w http.ResponseWriter, r *http.Request) {
 	handler(w, r)
 }
 
+// Clears authentication-related cookies to log out the user from the current session.
 func (o *Verifier) Logout(w http.ResponseWriter, r *http.Request) {
 	// Access token.
 	accessCookie := http.Cookie{
@@ -175,6 +179,7 @@ func (o *Verifier) Logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &refreshCookie)
 }
 
+// Handles the OIDC callback, sets authentication cookies and redirects the user to the UI.
 func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 	// Get the provider.
 	provider, err := o.getProvider(r)
@@ -265,6 +270,7 @@ func (o *Verifier) IsRequest(r *http.Request) bool {
 	return false
 }
 
+// Returns a new OIDC relying party provider with custom configurations.
 func (o *Verifier) getProvider(r *http.Request) (rp.RelyingParty, error) {
 	cookieHandler := httphelper.NewCookieHandler(o.cookieKey, o.cookieKey, httphelper.WithUnsecure())
 	options := []rp.Option{
@@ -295,7 +301,7 @@ func getAccessTokenVerifier(issuer string) (op.AccessTokenVerifier, error) {
 	return op.NewAccessTokenVerifier(issuer, keySet), nil
 }
 
-// NewVerifier returns a Verifier.
+// Creates a new verifier with given issuer, clientID, and audience details.
 func NewVerifier(issuer string, clientid string, audience string) *Verifier {
 	cookieKey := []byte(uuid.New())[0:16]
 	verifier := &Verifier{issuer: issuer, clientID: clientid, audience: audience, cookieKey: cookieKey}
