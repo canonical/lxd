@@ -11929,7 +11929,7 @@ paths:
                 - networks
     /1.0/operations:
         get:
-            description: Returns a dict of operation type to operation list (URLs).
+            description: Returns a JSON object of operation type to operation list (URLs).
             operationId: operations_get
             produces:
                 - application/json
@@ -11944,7 +11944,7 @@ paths:
                                     items:
                                         type: string
                                     type: array
-                                description: Dict of operation types to operation URLs
+                                description: JSON object of operation types to operation URLs
                                 example: |-
                                     {
                                       "running": [
