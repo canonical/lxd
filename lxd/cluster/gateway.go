@@ -37,7 +37,7 @@ import (
 // what kind of role this node plays and if it's exposed over the network. It
 // will initialize internal data structures accordingly, for example starting a
 // local dqlite server if this node is a database node.
-//
+// Func
 // After creation, the Daemon is expected to expose whatever http handlers the
 // HandlerFuncs method returns and to access the dqlite cluster using the
 // dialer returned by the DialFunc method.
@@ -140,7 +140,7 @@ type Gateway struct {
 // Current dqlite protocol version.
 const dqliteVersion = 1
 
-// Set the dqlite version header.
+// Sets the dqlite version header.
 func setDqliteVersionHeader(request *http.Request) {
 	request.Header.Set("X-Dqlite-Version", fmt.Sprintf("%d", dqliteVersion))
 }
@@ -394,7 +394,7 @@ func (g *Gateway) DialFunc() client.DialFunc {
 	}
 }
 
-// Dial function for establishing raft connections.
+// raftDial function for establishing the raft connections.
 func (g *Gateway) raftDial() client.DialFunc {
 	return func(ctx context.Context, address string) (net.Conn, error) {
 		nodeAddress, err := g.nodeAddress(address)
@@ -498,7 +498,7 @@ func (g *Gateway) TransferLeadership() error {
 	return client.Transfer(ctx, id)
 }
 
-// DemoteOfflineNode force demoting an offline node.
+// Demotes the offline node from raft leader to a spare role.
 func (g *Gateway) DemoteOfflineNode(raftID uint64) error {
 	cli, err := g.getClient()
 	if err != nil {
@@ -516,7 +516,7 @@ func (g *Gateway) DemoteOfflineNode(raftID uint64) error {
 	return nil
 }
 
-// Shutdown this gateway, stopping the gRPC server and possibly the raft factory.
+// Shuts down the database gateway and releases any associated resources.
 func (g *Gateway) Shutdown() error {
 	logger.Infof("Stop database gateway")
 
@@ -576,11 +576,12 @@ func (g *Gateway) Sync() {
 	}
 }
 
+// Returns a new dqlite client for the gateway's bind address.
 func (g *Gateway) getClient() (*client.Client, error) {
 	return client.New(context.Background(), g.bindAddress)
 }
 
-// Reset the gateway, shutting it down.
+// Resets the gateway, shutting it down.
 //
 // This is used when disabling clustering on a node.
 func (g *Gateway) Reset(networkCert *shared.CertInfo) error {
@@ -749,7 +750,7 @@ func (g *Gateway) NetworkUpdateCert(cert *shared.CertInfo) {
 	g.networkCert = cert
 }
 
-// Initialize the gateway, creating a new raft factory and gRPC server (if this
+// Initializes the gateway, creating a new raft factory and gRPC server (if this
 // node is a database node), and a gRPC dialer.
 // @bootstrap should only be true when turning a non-clustered LXD instance into
 // the first (and leader) node of a new LXD cluster.
@@ -878,6 +879,7 @@ func (g *Gateway) WaitLeadership() error {
 	return fmt.Errorf("RAFT node did not self-elect within %s", time.Duration(n)*sleep)
 }
 
+// Checks if the current gateway instance is the leader in the raft cluster.
 func (g *Gateway) isLeader() (bool, error) {
 	if g.server == nil || g.info.Role != db.RaftVoter {
 		return false, nil
@@ -902,7 +904,7 @@ func (g *Gateway) isLeader() (bool, error) {
 // ErrNotLeader signals that a node not the leader.
 var ErrNotLeader = fmt.Errorf("Not leader")
 
-// Return information about the LXD nodes that a currently part of the raft
+// Returns the information about the LXD nodes that a currently part of the raft
 // cluster, as configured in the raft log. It returns an error if this node is
 // not the leader.
 func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
@@ -979,7 +981,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	return raftNodes, nil
 }
 
-// Translate a raft address to a node address. They are always the same except
+// Translates a raft address to a node address. They are always the same except
 // for the bootstrap node, which has address "1".
 func (g *Gateway) nodeAddress(raftAddress string) (string, error) {
 	if raftAddress != "1" && raftAddress != "0" {
@@ -1009,6 +1011,7 @@ func (g *Gateway) nodeAddress(raftAddress string) (string, error) {
 	return address, nil
 }
 
+// dqliteNetworkDial establishes a connection to a dqlite node using the HTTP protocol.
 func dqliteNetworkDial(ctx context.Context, name string, addr string, g *Gateway) (net.Conn, error) {
 	config, err := tlsClientConfig(g.networkCert, g.state().ServerCert())
 	if err != nil {
@@ -1098,7 +1101,7 @@ func dqliteNetworkDial(ctx context.Context, name string, addr string, g *Gateway
 	return conn, nil
 }
 
-// Create a dial function that connects to the local dqlite.
+// Creates a dial function that connects to the local dqlite.
 func dqliteMemoryDial(bindAddress string) client.DialFunc {
 	return func(ctx context.Context, address string) (net.Conn, error) {
 		return net.Dial("unix", bindAddress)
@@ -1124,7 +1127,7 @@ func DqliteLog(l client.LogLevel, format string, a ...any) {
 	}
 }
 
-// Copy incoming TLS streams from upgraded HTTPS connections into Unix sockets
+// Copies the incoming TLS streams from upgraded HTTPS connections into Unix sockets
 // connected to the dqlite task.
 func runDqliteProxy(stopCh chan struct{}, bindAddress string, acceptCh chan net.Conn) {
 	for {
@@ -1218,6 +1221,7 @@ type dqliteProxyError struct {
 	second error
 }
 
+// Error concatenates the first and second errors in the dqliteProxyError.
 func (e dqliteProxyError) Error() string {
 	msg := ""
 	if e.first != nil {
@@ -1241,6 +1245,7 @@ type dqliteNodeStore struct {
 	onDisk   client.NodeStore
 }
 
+// Get retrieves the node information either from in-memory or on-disk storage.
 func (s *dqliteNodeStore) Get(ctx context.Context) ([]client.NodeInfo, error) {
 	if s.inMemory != nil {
 		return s.inMemory.Get(ctx)
@@ -1249,6 +1254,7 @@ func (s *dqliteNodeStore) Get(ctx context.Context) ([]client.NodeInfo, error) {
 	return s.onDisk.Get(ctx)
 }
 
+// Set stores the given node information either in-memory or on-disk.
 func (s *dqliteNodeStore) Set(ctx context.Context, servers []client.NodeInfo) error {
 	if s.inMemory != nil {
 		return s.inMemory.Set(ctx, servers)
