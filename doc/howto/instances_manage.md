@@ -1,4 +1,4 @@
-(instances_manage)=
+(instances-manage)=
 # How to manage instances
 
 Enter the following command to list all instances:
