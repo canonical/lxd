@@ -338,6 +338,8 @@ func (c *cmdProjectEdit) Run(cmd *cobra.Command, args []string) error {
 type cmdProjectGet struct {
 	global  *cmdGlobal
 	project *cmdProject
+
+	flagIsProperty bool
 }
 
 func (c *cmdProjectGet) Command() *cobra.Command {
@@ -348,7 +350,7 @@ func (c *cmdProjectGet) Command() *cobra.Command {
 		`Get values for project configuration keys`))
 
 	cmd.RunE = c.Run
-
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a project property"))
 	return cmd
 }
 
@@ -377,7 +379,18 @@ func (c *cmdProjectGet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("%s\n", project.Config[args[1]])
+	if c.flagIsProperty {
+		w := project.Writable()
+		res, err := getFieldByJsonTag(&w, args[1])
+		if err != nil {
+			return fmt.Errorf(i18n.G("The property %q does not exist on the project %q: %v"), args[1], resource.name, err)
+		}
+
+		fmt.Printf("%v\n", res)
+	} else {
+		fmt.Printf("%s\n", project.Config[args[1]])
+	}
+
 	return nil
 }
 
@@ -556,6 +569,8 @@ func (c *cmdProjectRename) Run(cmd *cobra.Command, args []string) error {
 type cmdProjectSet struct {
 	global  *cmdGlobal
 	project *cmdProject
+
+	flagIsProperty bool
 }
 
 func (c *cmdProjectSet) Command() *cobra.Command {
@@ -569,7 +584,7 @@ For backward compatibility, a single configuration key may still be set with:
     lxc project set [<remote>:]<project> <key> <value>`))
 
 	cmd.RunE = c.Run
-
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a project property"))
 	return cmd
 }
 
@@ -604,11 +619,28 @@ func (c *cmdProjectSet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for k, v := range keys {
-		project.Config[k] = v
+	writable := project.Writable()
+	if c.flagIsProperty {
+		if cmd.Name() == "unset" {
+			for k := range keys {
+				err := unsetFieldByJsonTag(&writable, k)
+				if err != nil {
+					return fmt.Errorf(i18n.G("Error unsetting property: %v"), err)
+				}
+			}
+		} else {
+			err := unpackKVToWritable(&writable, keys)
+			if err != nil {
+				return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+			}
+		}
+	} else {
+		for k, v := range keys {
+			writable.Config[k] = v
+		}
 	}
 
-	return resource.server.UpdateProject(resource.name, project.Writable(), etag)
+	return resource.server.UpdateProject(resource.name, writable, etag)
 }
 
 // Unset.
@@ -616,6 +648,8 @@ type cmdProjectUnset struct {
 	global     *cmdGlobal
 	project    *cmdProject
 	projectSet *cmdProjectSet
+
+	flagIsProperty bool
 }
 
 func (c *cmdProjectUnset) Command() *cobra.Command {
@@ -626,7 +660,7 @@ func (c *cmdProjectUnset) Command() *cobra.Command {
 		`Unset project configuration keys`))
 
 	cmd.RunE = c.Run
-
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a project property"))
 	return cmd
 }
 
@@ -636,6 +670,8 @@ func (c *cmdProjectUnset) Run(cmd *cobra.Command, args []string) error {
 	if exit {
 		return err
 	}
+
+	c.projectSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
 	return c.projectSet.Run(cmd, args)

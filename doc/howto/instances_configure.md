@@ -32,6 +32,22 @@ Others are updated only when the instance is restarted.
 See the "Live update" column in the {ref}`instance-options` tables for information about which options are applied immediately while the instance is running.
 ```
 
+(instances-configure-properties)=
+## Configure instance properties
+
+To update instance properties after the instance is created, use the `lxc config set` command with the `--property` flag.
+Specify the instance name and the key and value of the instance property:
+
+    lxc config set <instance_name> <property_key>=<property_value> <property_key>=<property_value> ... --property
+
+Using the same flag, you can also unset a property just like you would unset a configuration option:
+
+    lxc config unset <instance_name> <property_key> --property
+
+You can also retrieve a specific property value with:
+
+    lxc config get <instance_name> <property_key> --property
+
 (instances-configure-devices)=
 ## Configure devices
 
