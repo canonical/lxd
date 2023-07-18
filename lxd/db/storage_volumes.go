@@ -70,7 +70,7 @@ WHERE storage_volumes.type = ?
 }
 
 // GetStoragePoolVolumeWithID returns the volume with the given ID.
-func (c *Cluster) GetStoragePoolVolumeWithID(volumeID int) (StorageVolumeArgs, error) {
+func (c *ClusterTx) GetStoragePoolVolumeWithID(ctx context.Context, volumeID int) (StorageVolumeArgs, error) {
 	var response StorageVolumeArgs
 
 	stmt := `
@@ -81,10 +81,7 @@ JOIN projects ON projects.id = storage_volumes.project_id
 WHERE storage_volumes.id = ?
 `
 
-	inargs := []any{volumeID}
-	outargs := []any{&response.ID, &response.Name, &response.Description, &response.PoolName, &response.Type, &response.ProjectName}
-
-	err := dbQueryRowScan(c, stmt, inargs, outargs)
+	err := c.tx.QueryRowContext(ctx, stmt, volumeID).Scan(&response.ID, &response.Name, &response.Description, &response.PoolName, &response.Type, &response.ProjectName)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return StorageVolumeArgs{}, api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
@@ -93,7 +90,7 @@ WHERE storage_volumes.id = ?
 		return StorageVolumeArgs{}, err
 	}
 
-	response.Config, err = c.storageVolumeConfigGet(response.ID, false)
+	response.Config, err = c.storageVolumeConfigGet(ctx, response.ID, false)
 	if err != nil {
 		return StorageVolumeArgs{}, err
 	}
