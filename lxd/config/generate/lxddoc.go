@@ -96,6 +96,8 @@ func sortConfigKeys(projectEntries map[string][]any) map[string][]any {
 	return orderedProjectEntries
 }
 
+// parse traverses the specified directory, extracts LXD documentation comments from Go files,
+// and generates a YAML documentation file containing the extracted information.
 func parse(path string, outputYAMLPath string, excludedPaths []string) (*doc, error) {
 	yamlDoc := &doc{}
 	docKeys := make(map[string]struct{}, 0)
@@ -248,7 +250,7 @@ func parse(path string, outputYAMLPath string, excludedPaths []string) (*doc, er
 	return yamlDoc, nil
 }
 
-func writeDocFile(inputYamlPath, outputTxtPath string) error {
+func writeDocFile(path string, yaml *doc) error {
 	countMaxBackTicks := func(s string) int {
 		count, curr_count := 0, 0
 		n := len(s)
