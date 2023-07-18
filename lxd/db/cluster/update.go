@@ -636,6 +636,7 @@ CREATE TABLE "networks_load_balancers_config" (
 	return nil
 }
 
+// Creates new tables for network zone records and their configurations in a schema update.
 func updateFromV59(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE networks_zones_records (
@@ -664,6 +665,7 @@ CREATE TABLE networks_zones_records_config (
 	return nil
 }
 
+// Updates the sequence number of 'storage_volumes' to match the max ID from either 'storage_volumes' or 'storage_volumes_snapshots'.
 func updateFromV58(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 UPDATE sqlite_sequence SET seq = (
@@ -677,6 +679,7 @@ WHERE name='storage_volumes';
 	return err
 }
 
+// Updates the sequence number of 'storage_volumes' based on the maximum ID present in either 'storage_volumes' or 'storage_volumes_snapshots'.
 func updateFromV57(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 UPDATE sqlite_sequence SET seq = (
@@ -688,6 +691,7 @@ WHERE name='storage_volumes';
 	return err
 }
 
+// Updates the sequence number of 'storage_volumes' to the maximum ID in either 'storage_volumes' or 'storage_volumes_snapshots'.
 func updateFromV56(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 UPDATE sqlite_sequence SET seq = (
@@ -699,6 +703,7 @@ WHERE name='storage_volumes';
 	return err
 }
 
+// Reconstructs 'projects', 'certificates_projects', and 'images' tables and migrates existing data to the newly structured tables.
 func updateFromV55(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 DROP VIEW storage_volumes_all;
@@ -3584,11 +3589,13 @@ CREATE VIEW profiles_used_by_ref (project,
 	return err
 }
 
+// Adds a new 'expiry_date' column to the 'containers' table in the database.
 func updateFromV13(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE containers ADD COLUMN expiry_date DATETIME;")
 	return err
 }
 
+// Recreates 'profiles_used_by_ref' view to include project names in the profile references.
 func updateFromV12(ctx context.Context, tx *sql.Tx) error {
 	stmts := `
 DROP VIEW profiles_used_by_ref;
@@ -3613,6 +3620,7 @@ CREATE VIEW profiles_used_by_ref (project,
 	return err
 }
 
+// Establishes project scope in the database by introducing a 'project_id' column in relevant tables.
 func updateFromV11(ctx context.Context, tx *sql.Tx) error {
 	// There was at least a case of dangling references to rows in the
 	// containers table that don't exist anymore. So sanitize them before
@@ -4122,6 +4130,7 @@ CREATE VIEW profiles_used_by_ref (project, name, value) AS
 	return err
 }
 
+// Adds a 'snapshot' column to the 'storage_volumes' table to distinguish between snapshots and regular volumes.
 func updateFromV10(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 ALTER TABLE storage_volumes ADD COLUMN snapshot INTEGER NOT NULL DEFAULT 0;
@@ -4149,6 +4158,7 @@ func updateFromV8(ctx context.Context, tx *sql.Tx) error {
 	return nil
 }
 
+// Creates a new 'containers_backups' table to store backup information for each container.
 func updateFromV7(ctx context.Context, tx *sql.Tx) error {
 	stmts := `
 CREATE TABLE containers_backups (
@@ -4330,12 +4340,14 @@ INSERT INTO storage_volumes_config(storage_volume_id, key, value) VALUES(?, ?, ?
 	return nil
 }
 
+// Updates all records in 'networks' table to set the 'state' column to 1.
 func updateFromV4(ctx context.Context, tx *sql.Tx) error {
 	stmt := "UPDATE networks SET state = 1"
 	_, err := tx.Exec(stmt)
 	return err
 }
 
+// Creates 'storage_pools_nodes' table for mapping storage pools to nodes and sets 'state' of all storage pools to 1.
 func updateFromV3(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE storage_pools_nodes (
@@ -4353,6 +4365,7 @@ UPDATE storage_pools SET state = 1;
 	return err
 }
 
+// Creates 'operations' table to track ongoing operations, each associated with a specific node.
 func updateFromV2(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE operations (
@@ -4367,6 +4380,7 @@ CREATE TABLE operations (
 	return err
 }
 
+// Initializes the database by creating 'certificates', 'config', and 'containers' tables.
 func updateFromV1(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE certificates (
@@ -4574,6 +4588,7 @@ CREATE TABLE storage_volumes_config (
 	return err
 }
 
+// Sets up the initial database schema by creating the 'nodes' table for clustering support.
 func updateFromV0(ctx context.Context, tx *sql.Tx) error {
 	// v0..v1 the dawn of clustering
 	stmt := `
