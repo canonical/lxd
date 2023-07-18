@@ -306,10 +306,10 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 			return "", fmt.Errorf("Failed to get volume backup: %w", err)
 		}
 
-		var instance StorageVolumeArgs
+		var volume StorageVolumeArgs
 
 		err = c.Transaction(c.closingCtx, func(ctx context.Context, tx *ClusterTx) error {
-			instance, err = tx.GetStoragePoolVolumeWithID(ctx, int(backup.ID))
+			volume, err = tx.GetStoragePoolVolumeWithID(ctx, int(backup.VolumeID))
 			if err != nil {
 				return err
 			}
@@ -320,7 +320,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 			return "", fmt.Errorf("Failed to get storage volume: %w", err)
 		}
 
-		uri = fmt.Sprintf(cluster.EntityURIs[entityType], instance.PoolName, instance.Name, backup.Name, instance.ProjectName)
+		uri = fmt.Sprintf(cluster.EntityURIs[entityType], volume.PoolName, volume.TypeName, volume.Name, backup.Name, volume.ProjectName)
 	case cluster.TypeStorageVolumeSnapshot:
 		snapshot, err := c.GetStorageVolumeSnapshotWithID(entityID)
 		if err != nil {
