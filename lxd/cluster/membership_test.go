@@ -25,6 +25,7 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
+// TestBootstrap_UnmetPreconditions tests the unmet preconditions for the cluster bootstrap process.
 func TestBootstrap_UnmetPreconditions(t *testing.T) {
 	cases := []struct {
 		setup func(*membershipFixtures)
@@ -84,6 +85,8 @@ func TestBootstrap_UnmetPreconditions(t *testing.T) {
 	}
 }
 
+// TestBootstrap tests the cluster bootstrap process by setting up the necessary environment
+// and verifying the expected state and behavior.
 func TestBootstrap(t *testing.T) {
 	state, cleanup := state.NewTestState(t)
 	defer cleanup()
@@ -270,6 +273,7 @@ func TestAccept(t *testing.T) {
 	assert.Equal(t, "5.6.7.8:666", nodes[1].Address)
 }
 
+// TestJoin tests the process of joining a cluster and verifies the expected state and behavior during the join process.
 func TestJoin(t *testing.T) {
 	// Setup a target node running as leader of a cluster.
 	targetCert := shared.TestingKeyPair()
@@ -446,7 +450,7 @@ type membershipFixtures struct {
 	state *state.State
 }
 
-// Set core.https_address to the given value.
+// Sets core.https_address to the given value.
 func (h *membershipFixtures) CoreAddress(address string) {
 	err := h.state.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 		config := map[string]string{
@@ -458,7 +462,7 @@ func (h *membershipFixtures) CoreAddress(address string) {
 	require.NoError(h.t, err)
 }
 
-// Set cluster.https_address to the given value.
+// Sets cluster.https_address to the given value.
 func (h *membershipFixtures) ClusterAddress(address string) {
 	err := h.state.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 		config := map[string]string{
@@ -470,7 +474,7 @@ func (h *membershipFixtures) ClusterAddress(address string) {
 	require.NoError(h.t, err)
 }
 
-// Add the given address to the raft_nodes table.
+// Adds the given address to the raft_nodes table.
 func (h *membershipFixtures) RaftNode(address string) {
 	err := h.state.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 		_, err := tx.CreateRaftNode(address, "rusp")
@@ -479,7 +483,7 @@ func (h *membershipFixtures) RaftNode(address string) {
 	require.NoError(h.t, err)
 }
 
-// Get the current list of the raft nodes in the raft_nodes table.
+// Gets the current list of the raft nodes in the raft_nodes table.
 func (h *membershipFixtures) RaftNodes() []db.RaftNode {
 	var nodes []db.RaftNode
 	err := h.state.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
@@ -491,7 +495,7 @@ func (h *membershipFixtures) RaftNodes() []db.RaftNode {
 	return nodes
 }
 
-// Add the given address to the nodes table of the cluster database.
+// Adds the given address to the nodes table of the cluster database.
 func (h *membershipFixtures) ClusterNode(address string) {
 	err := h.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		_, err := tx.CreateNode("rusp", address)
