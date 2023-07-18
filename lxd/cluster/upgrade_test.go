@@ -141,6 +141,7 @@ func TestMaybeUpdate_NothingToDo(t *testing.T) {
 	require.True(t, os.IsNotExist(err))
 }
 
+// TestUpgradeMembersWithoutRole tests the upgrade process of members without a role, ensuring they are added to the raft configuration correctly.
 func TestUpgradeMembersWithoutRole(t *testing.T) {
 	state, cleanup := state.NewTestState(t)
 	defer cleanup()
