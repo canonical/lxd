@@ -55,6 +55,7 @@ const (
 	TypePCI         = DeviceType(11)
 )
 
+// String method for DeviceType enum converts device type codes to their string representations.
 func (t DeviceType) String() string {
 	switch t {
 	case TypeNone:
