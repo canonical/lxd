@@ -77,13 +77,13 @@ func TestHeartbeat(t *testing.T) {
 // Helper for testing heartbeat-related code.
 type heartbeatFixture struct {
 	t        *testing.T
-	gateways map[int]*cluster.Gateway              // node index to gateway
+	gateways map[int]*cluster.Gateway              // node index to gatefuncway
 	states   map[*cluster.Gateway]*state.State     // gateway to its state handle
 	servers  map[*cluster.Gateway]*httptest.Server // gateway to its HTTP server
 	cleanups []func()
 }
 
-// Bootstrap the first node of the cluster.
+// Initializes a test cluster by bootstrapping the first node.
 func (f *heartbeatFixture) Bootstrap() *cluster.Gateway {
 	f.t.Logf("create bootstrap node for test cluster")
 	state, gateway, _ := f.node()
@@ -114,7 +114,7 @@ func (f *heartbeatFixture) Grow() *cluster.Gateway {
 	return gateway
 }
 
-// Return the leader gateway in the cluster.
+// Returns the leader gateway in the cluster.
 func (f *heartbeatFixture) Leader() *cluster.Gateway {
 	timeout := time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -143,7 +143,7 @@ func (f *heartbeatFixture) Leader() *cluster.Gateway {
 	}
 }
 
-// Return a follower gateway in the cluster.
+// Returns a follower gateway in the cluster.
 func (f *heartbeatFixture) Follower() *cluster.Gateway {
 	timeout := time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -172,7 +172,7 @@ func (f *heartbeatFixture) Follower() *cluster.Gateway {
 	}
 }
 
-// Return the cluster index of the given gateway.
+// Returns the cluster index of the given gateway.
 func (f *heartbeatFixture) Index(gateway *cluster.Gateway) int {
 	for i := range f.gateways {
 		if f.gateways[i] == gateway {
@@ -182,19 +182,19 @@ func (f *heartbeatFixture) Index(gateway *cluster.Gateway) int {
 	return -1
 }
 
-// Return the state associated with the given gateway.
+// Returns the state associated with the given gateway.
 func (f *heartbeatFixture) State(gateway *cluster.Gateway) *state.State {
 	return f.states[gateway]
 }
 
-// Return the HTTP server associated with the given gateway.
+// Returns the HTTP server associated with the given gateway.
 func (f *heartbeatFixture) Server(gateway *cluster.Gateway) *httptest.Server {
 	return f.servers[gateway]
 }
 
 // Creates a new node, without either bootstrapping or joining it.
 //
-// Return the associated gateway and network address.
+// Returns the associated gateway and network address.
 func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 	if f.gateways == nil {
 		f.gateways = make(map[int]*cluster.Gateway)
@@ -262,6 +262,7 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 	return state, gateway, address
 }
 
+// Cleanup reversely executes the registered cleanups and closes the servers.
 func (f *heartbeatFixture) Cleanup() {
 	// Run the cleanups in reverse order
 	for i := len(f.cleanups) - 1; i >= 0; i-- {
