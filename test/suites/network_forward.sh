@@ -9,6 +9,12 @@ test_network_forward() {
         ipv4.address=192.0.2.1/24 \
         ipv6.address=fd42:4242:4242:1010::1/64
 
+  # Check creating a forward with an unspecified IPv4 address fails.
+  ! lxc network forward create "${netName}" 0.0.0.0 || false
+
+  # Check creating a forward with an unspecified IPv6 address fails.
+  ! lxc network forward create "${netName}" :: || false
+
   # Check creating empty forward doesn't create any firewall rules.
   lxc network forward create "${netName}" 198.51.100.1
   if [ "$firewallDriver" = "xtables" ]; then
