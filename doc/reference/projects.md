@@ -95,7 +95,7 @@ Key                                    | Type   | Default        | Description
 `restricted`                           | bool   | `false`        | Whether to block access to security-sensitive features - must be enabled to allow the `restricted.*` keys to take effect (this is so it can be temporarily disabled if needed without having to clear the related keys)
 `restricted.backups`                   | string | `block`        | Prevents creating any instance or volume backups
 `restricted.cluster.groups`            | string | -              | Prevents targeting cluster groups other than the provided ones
-`restricted.cluster.target`            | string | `block`        | Prevents direct targeting of cluster members when creating or moving instances
+`restricted.cluster.target`            | string | `block`        | Prevents targeting of cluster members either directly or via group when creating or moving instances
 `restricted.containers.lowlevel`       | string | `block`        | Prevents using low-level container options like `raw.lxc`, `raw.idmap`, `volatile`, etc.
 `restricted.containers.nesting`        | string | `block`        | Prevents setting `security.nesting=true`
 `restricted.containers.privilege`      | string | `unprivileged` | Prevents configuring privileged containers (`unpriviliged` prevents setting `security.privileged=true`, `isolated` prevents setting `security.privileged=true` and also `security.idmap.isolated=true`, `allow` means no restrictions)
