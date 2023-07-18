@@ -24,7 +24,7 @@ type Stmt struct {
 	pkg    *ast.Package      // Package to perform for struct declaration lookups
 }
 
-// NewStmt return a new statement code snippet for running the given kind of
+// NewStmt returns a new statement code snippet for running the given kind of
 // query against the given database entity.
 func NewStmt(database, pkg, entity, kind string, config map[string]string) (*Stmt, error) {
 	var pkgPath string
@@ -75,7 +75,7 @@ func NewStmt(database, pkg, entity, kind string, config map[string]string) (*Stm
 	return stmt, nil
 }
 
-// Generate plumbing and wiring code for the desired statement.
+// Generates plumbing and wiring code for the desired statement.
 func (s *Stmt) Generate(buf *file.Buffer) error {
 	kind := strings.Split(s.kind, "-by-")[0]
 
@@ -104,6 +104,7 @@ func (s *Stmt) GenerateSignature(buf *file.Buffer) error {
 	return nil
 }
 
+// objects generates the SQL statement for querying multiple objects from the database table, handling various variations based on the statement kind.
 func (s *Stmt) objects(buf *file.Buffer) error {
 	if strings.HasPrefix(s.kind, "objects-by") {
 		return s.objectsBy(buf)
@@ -238,6 +239,7 @@ func (s *Stmt) objectsBy(buf *file.Buffer) error {
 	return nil
 }
 
+// create generates the SQL statement for creating or replacing an object in the database table, with support for replace operation if specified.
 func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 	entityCreate := lex.Camel(s.entity)
 
@@ -282,6 +284,7 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 	return nil
 }
 
+// id generates the SQL statement for fetching an object from the database table based on its natural key.
 func (s *Stmt) id(buf *file.Buffer) error {
 	mapping, err := Parse(s.pkg, lex.Camel(s.entity), s.kind)
 	if err != nil {
@@ -323,6 +326,7 @@ func (s *Stmt) id(buf *file.Buffer) error {
 	return nil
 }
 
+// rename generates the SQL statement for renaming an object in the database table.
 func (s *Stmt) rename(buf *file.Buffer) error {
 	mapping, err := Parse(s.pkg, lex.Camel(s.entity), s.kind)
 	if err != nil {
@@ -352,6 +356,7 @@ func (s *Stmt) rename(buf *file.Buffer) error {
 	return nil
 }
 
+// update generates the SQL statement for updating an object in the database table.
 func (s *Stmt) update(buf *file.Buffer) error {
 	entityUpdate := lex.Camel(s.entity)
 
@@ -384,6 +389,7 @@ func (s *Stmt) update(buf *file.Buffer) error {
 	return nil
 }
 
+// delete generates the SQL statement for deleting objects from the database table.
 func (s *Stmt) delete(buf *file.Buffer) error {
 	mapping, err := Parse(s.pkg, lex.Camel(s.entity), s.kind)
 	if err != nil {
@@ -432,7 +438,7 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 	return nil
 }
 
-// Output a line of code that registers the given statement and declares the
+// Outputs a line of code that registers the given statement and declares the
 // associated statement code global variable.
 func (s *Stmt) register(buf *file.Buffer, stmtName, sql string, filters ...string) {
 	if !strings.HasPrefix(sql, "`") || !strings.HasSuffix(sql, "`") {
