@@ -19,7 +19,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/gosexy/gettext v0.0.0-20160830220431-74466a0a0c4a
-	github.com/grafana/dskit v0.0.0-20230706162620-5081d8ed53e6
+	github.com/grafana/dskit v0.0.0-20230718115325-c30720760c5d
 	github.com/j-keck/arping v1.0.3
 	github.com/jaypipes/pcidb v1.0.0
 	github.com/jochenvg/go-udev v0.0.0-20171110120927-d6b62d56d37b
@@ -34,7 +34,7 @@ require (
 	github.com/mdlayher/vsock v1.2.1
 	github.com/miekg/dns v1.1.55
 	github.com/minio/madmin-go v1.7.5
-	github.com/minio/minio-go/v7 v7.0.60
+	github.com/minio/minio-go/v7 v7.0.61
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/osrg/gobgp/v3 v3.16.0
 	github.com/pborman/uuid v1.2.1
@@ -46,8 +46,8 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	github.com/vishvananda/netlink v1.2.1-beta.2
-	github.com/zitadel/oidc/v2 v2.6.4
-	go.starlark.net v0.0.0-20230612165344-9532f5667272
+	github.com/zitadel/oidc/v2 v2.7.0
+	go.starlark.net v0.0.0-20230717150657-8a3343210976
 	golang.org/x/crypto v0.11.0
 	golang.org/x/oauth2 v0.10.0
 	golang.org/x/sync v0.3.0
@@ -110,7 +110,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/muhlemmer/gu v0.3.1 // indirect
-	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
+	github.com/pelletier/go-toml/v2 v2.0.9 // indirect
 	github.com/philhofer/fwd v1.1.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
@@ -140,7 +140,7 @@ require (
 	golang.org/x/tools v0.11.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20230525234020-1aefcd67740a // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230711160842-782d3b101e98 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20230717213848-3f92550aa753 // indirect
 	google.golang.org/grpc v1.56.2 // indirect
 	gopkg.in/errgo.v1 v1.0.1 // indirect
 	gopkg.in/httprequest.v1 v1.2.1 // indirect
