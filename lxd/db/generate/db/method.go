@@ -25,7 +25,7 @@ type Method struct {
 	pkg    *ast.Package      // Package to perform for struct declaration lookup
 }
 
-// NewMethod return a new method code snippet for executing a certain mapping.
+// NewMethod returns a new method code snippet for executing a certain mapping.
 func NewMethod(database, pkg, entity, kind string, config map[string]string) (*Method, error) {
 	var pkgPath string
 	if pkg != "" {
@@ -63,7 +63,7 @@ func NewMethod(database, pkg, entity, kind string, config map[string]string) (*M
 	return method, nil
 }
 
-// Generate the desired method.
+// Generate generates the desired method.
 func (m *Method) Generate(buf *file.Buffer) error {
 	mapping, err := Parse(m.pkg, lex.Camel(m.entity), m.kind)
 	if err != nil {
@@ -134,6 +134,7 @@ func (m *Method) GenerateSignature(buf *file.Buffer) error {
 	return m.signature(buf, true)
 }
 
+// Retrieves multiple instances of an entity from a database, handling different table types and constructing dynamic SQL queries accordingly.
 func (m *Method) getMany(buf *file.Buffer) error {
 	mapping, err := Parse(m.pkg, lex.Camel(m.entity), m.kind)
 	if err != nil {
@@ -487,6 +488,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	return nil
 }
 
+// Retrieves references of a given entity from the database, handling different reference table and map table types.
 func (m *Method) getRefs(buf *file.Buffer, refMapping *Mapping) error {
 	m.ref = refMapping.Name
 	err := m.signature(buf, false)
@@ -534,6 +536,7 @@ func (m *Method) getRefs(buf *file.Buffer, refMapping *Mapping) error {
 	return nil
 }
 
+// Retrieves a single entity from the database based on its natural key, returning an error if not found or if multiple matches are found.
 func (m *Method) getOne(buf *file.Buffer) error {
 	mapping, err := Parse(m.pkg, lex.Camel(m.entity), m.kind)
 	if err != nil {
@@ -579,6 +582,7 @@ func (m *Method) getOne(buf *file.Buffer) error {
 	return nil
 }
 
+// Retrieves the ID of an entity from the database based on its natural key, returning an error if not found.
 func (m *Method) id(buf *file.Buffer) error {
 	// Support using a different structure or package to pass arguments to Create.
 	entityCreate, ok := m.config["struct"]
@@ -628,6 +632,7 @@ func (m *Method) id(buf *file.Buffer) error {
 	return nil
 }
 
+// Checks if an entity exists in the database based on its natural key, returning true if it exists and false otherwise.
 func (m *Method) exists(buf *file.Buffer) error {
 	// Support using a different structure or package to pass arguments to Create.
 	entityCreate, ok := m.config["struct"]
@@ -663,6 +668,7 @@ func (m *Method) exists(buf *file.Buffer) error {
 	return nil
 }
 
+// create creates a new entity in the database based on the provided parameters or replaces an existing one if specified.
 func (m *Method) create(buf *file.Buffer, replace bool) error {
 	mapping, err := Parse(m.pkg, lex.Camel(m.entity), m.kind)
 	if err != nil {
@@ -853,6 +859,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 	return nil
 }
 
+// createRefs creates reference entities or maps for the associated entity in the database based on the provided parameters.
 func (m *Method) createRefs(buf *file.Buffer, refMapping *Mapping) error {
 	m.ref = refMapping.Name
 	err := m.signature(buf, false)
@@ -899,6 +906,7 @@ func (m *Method) createRefs(buf *file.Buffer, refMapping *Mapping) error {
 	return nil
 }
 
+// rename renames the entity in the database using the provided parameters.
 func (m *Method) rename(buf *file.Buffer) error {
 	mapping, err := Parse(m.pkg, lex.Camel(m.entity), m.kind)
 	if err != nil {
@@ -942,6 +950,7 @@ func (m *Method) rename(buf *file.Buffer) error {
 	return nil
 }
 
+// update updates the entity in the database based on the provided parameters, including handling of references and associations.
 func (m *Method) update(buf *file.Buffer) error {
 	mapping, err := Parse(m.pkg, lex.Camel(m.entity), m.kind)
 	if err != nil {
@@ -1099,6 +1108,7 @@ func (m *Method) update(buf *file.Buffer) error {
 	return nil
 }
 
+// updateRefs updates the references of the entity in the database based on the provided parameters.
 func (m *Method) updateRefs(buf *file.Buffer, refMapping *Mapping) error {
 	m.ref = refMapping.Name
 	err := m.signature(buf, false)
@@ -1123,6 +1133,7 @@ func (m *Method) updateRefs(buf *file.Buffer, refMapping *Mapping) error {
 	return nil
 }
 
+// delete deletes the entity or its references from the database based on the provided parameters.
 func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 	mapping, err := Parse(m.pkg, lex.Camel(m.entity), m.kind)
 	if err != nil {
@@ -1404,6 +1415,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 	return m.begin(buf, comment, args, rets, isInterface)
 }
 
+// Generates the function signature and comment for the specified method based on the entity and operation.
 func (m *Method) begin(buf *file.Buffer, comment string, args string, rets string, isInterface bool) error {
 	mapping, err := Parse(m.pkg, lex.Camel(m.entity), m.kind)
 	if err != nil {
@@ -1480,6 +1492,8 @@ func (m *Method) begin(buf *file.Buffer, comment string, args string, rets strin
 	return nil
 }
 
+// Checks if an error is not nil and returns the specified values as the result.
+// If `newLine` is true, adds a new line after the error check.
 func (m *Method) ifErrNotNil(buf *file.Buffer, newLine bool, rets ...string) {
 	buf.L("if err != nil {")
 	buf.L("return %s", strings.Join(rets, ", "))
@@ -1489,6 +1503,7 @@ func (m *Method) ifErrNotNil(buf *file.Buffer, newLine bool, rets ...string) {
 	}
 }
 
+// Adds the closing bracket to the code block.
 func (m *Method) end(buf *file.Buffer) {
 	buf.L("}")
 }
