@@ -73,6 +73,7 @@ var EntityURIs = map[int]string{
 	TypeClusterGroup:          "/" + version.APIVersion + "/cluster/groups/%s",
 }
 
+// init populates EntityTypes map with entity codes keyed by their names.
 func init() {
 	for code, name := range EntityNames {
 		EntityTypes[name] = code
