@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/shared/osarch"
 )
 
+// TestUpdateFromV0 validates the schema update process and the uniqueness constraints on name and address fields.
 func TestUpdateFromV0(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(1, nil)
@@ -36,6 +37,8 @@ func TestUpdateFromV0(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestUpdateFromV1_Certificates validates the schema update process and
+// the uniqueness constraint on the fingerprint field in the certificates table.
 func TestUpdateFromV1_Certificates(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(2, nil)
@@ -49,6 +52,7 @@ func TestUpdateFromV1_Certificates(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestUpdateFromV1_Config validates the schema update process and the uniqueness constraint on the key field in the config table.
 func TestUpdateFromV1_Config(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(2, nil)
@@ -62,6 +66,7 @@ func TestUpdateFromV1_Config(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestUpdateFromV1_Containers checks the schema update, unique name constraint, and cascading delete behavior in the containers table.
 func TestUpdateFromV1_Containers(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(2, nil)
@@ -96,6 +101,7 @@ INSERT INTO containers VALUES (2, 2, 'jammy', 2, 2, 1, ?, 1, ?, 'Ubuntu LTS')
 	assert.Equal(t, int64(0), n) // The row was already deleted by the previous query
 }
 
+// TestUpdateFromV1_Network validates the schema update process and the uniqueness constraint on the name field in the networks table.
 func TestUpdateFromV1_Network(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(2, nil)
@@ -109,6 +115,7 @@ func TestUpdateFromV1_Network(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestUpdateFromV1_ConfigTables checks the schema update in the networks and storage_pools tables using a helper function.
 func TestUpdateFromV1_ConfigTables(t *testing.T) {
 	testConfigTable(t, "networks", func(db *sql.DB) {
 		_, err := db.Exec("INSERT INTO networks VALUES (1, 'foo', 'blah', 1)")
@@ -120,6 +127,7 @@ func TestUpdateFromV1_ConfigTables(t *testing.T) {
 	})
 }
 
+// testConfigTable tests schema update constraints and cascade behaviors on a specific config table.
 func testConfigTable(t *testing.T, table string, setup func(db *sql.DB)) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(2, nil)
@@ -179,6 +187,7 @@ func testConfigTable(t *testing.T, table string, setup func(db *sql.DB)) {
 	assert.Equal(t, int64(0), n) // The row was already deleted by the previous query
 }
 
+// TestUpdateFromV2 checks unique constraints and cascade delete operation for node_id in the operations table after a schema update.
 func TestUpdateFromV2(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(3, nil)
@@ -204,6 +213,8 @@ func TestUpdateFromV2(t *testing.T) {
 	assert.Equal(t, int64(0), n)
 }
 
+// TestUpdateFromV3 checks the enforcement of unique constraints on storage_pool_id/node_id
+// in the storage_pools_nodes table post schema update.
 func TestUpdateFromV3(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(4, nil)
@@ -223,6 +234,7 @@ func TestUpdateFromV3(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestUpdateFromV5 validates the proper replication of volume configurations across nodes for different storage pools after a schema update.
 func TestUpdateFromV5(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(6, func(db *sql.DB) {
@@ -294,6 +306,7 @@ SELECT id FROM storage_volumes WHERE storage_pool_id=2 AND name='v1' ORDER BY id
 	require.Equal(t, config1, config2)
 }
 
+// TestUpdateFromV6 verifies node-specific configurations are properly applied and global configurations remain unchanged post schema update.
 func TestUpdateFromV6(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(7, func(db *sql.DB) {
@@ -350,6 +363,7 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
 	assert.Equal(t, map[string]string{"zfs.clone_copy": "true"}, config)
 }
 
+// TestUpdateFromV9 tests addition of type column to operations table and ensures existing rows are updated correctly.
 func TestUpdateFromV9(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(10, func(db *sql.DB) {
@@ -376,6 +390,7 @@ func TestUpdateFromV9(t *testing.T) {
 	require.Equal(t, []int{0}, types)
 }
 
+// TestUpdateFromV11 tests the addition of project_id column to tables and checks for unique constraints on container names within the same project.
 func TestUpdateFromV11(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(12, func(db *sql.DB) {
@@ -464,6 +479,7 @@ INSERT INTO containers VALUES (4, 1, 'xenial', 1, 1, 0, ?, 0, ?, 'Xenial Xerus',
 	assert.EqualError(t, err, "UNIQUE constraint failed: containers.project_id, containers.name")
 }
 
+// TestUpdateFromV14 tests the creation and querying of a new 'instances' table in the database.
 func TestUpdateFromV14(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(15, func(db *sql.DB) {
@@ -493,6 +509,7 @@ INSERT INTO containers VALUES (1, 1, 'eoan', 1, 1, 0, ?, 0, ?, 'Eoan Ermine', 1,
 	assert.Equal(t, 1, count)
 }
 
+// TestUpdateFromV15 tests the migration of snapshot instances to new tables and validates data integrity.
 func TestUpdateFromV15(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(16, func(db *sql.DB) {
@@ -585,6 +602,7 @@ INSERT INTO instances VALUES (2, 1, 'eoan/snap', 2, 1, 0, ?, 0, ?, 'Eoan Ermine 
 	assert.Equal(t, config, map[string]string{"k": "v"})
 }
 
+// TestUpdateFromV19 tests the schema update involving node architecture and verifies its constraints.
 func TestUpdateFromV19(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(20, func(db *sql.DB) {
@@ -621,6 +639,7 @@ VALUES (2, 'n2', '', '2.2.3.4:666', 1, 32, ?, 0)`, time.Now())
 	assert.Equal(t, sqliteErr.Code, sqlite3.ErrConstraint)
 }
 
+// TestUpdateFromV25 tests the schema update handling for storage volume snapshots and their configurations.
 func TestUpdateFromV25(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(26, func(db *sql.DB) {
@@ -673,6 +692,7 @@ func TestUpdateFromV25(t *testing.T) {
 	assert.Equal(t, config["k"], "v-old")
 }
 
+// Tests the schema update without any storage volumes present.
 func TestUpdateFromV26_WithoutVolumes(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(27, func(db *sql.DB) {})
@@ -680,6 +700,7 @@ func TestUpdateFromV26_WithoutVolumes(t *testing.T) {
 	defer func() { _ = db.Close() }()
 }
 
+// TestUpdateFromV26_WithVolumes checks the schema update with storage volumes present, ensuring correct sequence handling.
 func TestUpdateFromV26_WithVolumes(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(27, func(db *sql.DB) {
@@ -718,6 +739,7 @@ func TestUpdateFromV26_WithVolumes(t *testing.T) {
 	assert.Equal(t, ids[0], 2)
 }
 
+// TestUpdateFromV34 tests schema update handling of duplicate volume entries across multiple nodes.
 func TestUpdateFromV34(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(35, func(db *sql.DB) {
