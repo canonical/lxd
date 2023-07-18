@@ -100,6 +100,8 @@ func MaybeUpdate(state *state.State) error {
 	return triggerUpdate()
 }
 
+// triggerUpdate triggers an auto-update process for the cluster if the update executable is set,
+// with a random delay, and returns any error encountered.
 func triggerUpdate() error {
 	logger.Warn("Member is out-of-date with respect to other cluster members")
 
