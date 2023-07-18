@@ -167,7 +167,7 @@ func (t Type) Description() string {
 	case InstanceTypesUpdate:
 		return "Updating instance types"
 	case BackupsExpire:
-		return "Cleaning up expired instance backups"
+		return "Cleaning up expired backups"
 	case SnapshotsExpire:
 		return "Cleaning up expired instance snapshots"
 	case CustomVolumeSnapshotsExpire:
