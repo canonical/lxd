@@ -926,3 +926,28 @@ test_backup_different_instance_uuid() {
 
   lxc delete -f c1
 }
+
+test_backup_volume_expiry() {
+  poolName=$(lxc profile device get default root pool)
+
+  # Create custom volume.
+  lxc storage volume create "${poolName}" vol1
+
+  # Create storage volume backups using the API directly.
+  # The first one is created with an expiry date, the second one never expires.
+  lxc query -X POST -d '{\"expires_at\":\"2023-07-17T00:00:00Z\"}' /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups
+  lxc query -X POST -d '{}' /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups
+
+  # Check that both backups are listed.
+  [ "$(lxc query /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups | jq '.[]' | wc -l)" -eq 2 ]
+
+  # Restart LXD which will trigger the task which removes expired volume backups.
+  shutdown_lxd "${LXD_DIR}"
+  respawn_lxd "${LXD_DIR}" true
+
+  # Check that there's only one backup remaining.
+  [ "$(lxc query /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups | jq '.[]' | wc -l)" -eq 1 ]
+
+  # Cleanup.
+  lxc storage volume delete "${poolName}" vol1
+}
