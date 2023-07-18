@@ -281,6 +281,8 @@ func (g *Gateway) HeartbeatRestart() bool {
 	return false
 }
 
+// heartbeat performs the heartbeat round for the Gateway, updating node states
+// and sending heartbeats to cluster members.
 func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	if g.Cluster == nil || g.server == nil || g.memoryDial != nil {
 		// We're not a raft node or we're not clustered
