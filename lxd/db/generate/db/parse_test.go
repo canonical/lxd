@@ -13,6 +13,8 @@ import (
 	"github.com/canonical/lxd/lxd/db/generate/db"
 )
 
+// TestPackages is a unit test that verifies the functionality of retrieving packages from the database
+// and performing assertions on the results.
 func TestPackages(t *testing.T) {
 	packages, err := db.Packages()
 	require.NoError(t, err)
@@ -45,6 +47,8 @@ type Teacher struct {
 type TeacherFilter struct {
 }
 
+// TestParse ensures that the parsed package information matches the expected values,
+// including the package name, struct name, field names, and field types.
 func TestParse(t *testing.T) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, "parse_test.go", nil, parser.ParseComments)
