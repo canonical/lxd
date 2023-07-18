@@ -823,6 +823,10 @@ func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwa
 		return nil, fmt.Errorf("Invalid listen address")
 	}
 
+	if listenAddress.IsUnspecified() {
+		return nil, fmt.Errorf("Cannot use unspecified address: %q", listenAddress.String())
+	}
+
 	listenIsIP4 := listenAddress.To4() != nil
 
 	// For checking target addresses are within network's subnet.
