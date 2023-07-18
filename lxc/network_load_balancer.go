@@ -320,6 +320,8 @@ func (c *cmdNetworkLoadBalancerCreate) Run(cmd *cobra.Command, args []string) er
 type cmdNetworkLoadBalancerGet struct {
 	global              *cmdGlobal
 	networkLoadBalancer *cmdNetworkLoadBalancer
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkLoadBalancerGet) Command() *cobra.Command {
@@ -329,6 +331,7 @@ func (c *cmdNetworkLoadBalancerGet) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Get values for network load balancer configuration keys"))
 	cmd.RunE = c.Run
 
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a network load balancer property"))
 	return cmd
 }
 
@@ -362,9 +365,19 @@ func (c *cmdNetworkLoadBalancerGet) Run(cmd *cobra.Command, args []string) error
 		return err
 	}
 
-	for k, v := range loadBalancer.Config {
-		if k == args[2] {
-			fmt.Printf("%s\n", v)
+	if c.flagIsProperty {
+		w := loadBalancer.Writable()
+		res, err := getFieldByJsonTag(&w, args[2])
+		if err != nil {
+			return fmt.Errorf(i18n.G("The property %q does not exist on the load balancer %q: %v"), args[2], resource.name, err)
+		}
+
+		fmt.Printf("%v\n", res)
+	} else {
+		for k, v := range loadBalancer.Config {
+			if k == args[2] {
+				fmt.Printf("%s\n", v)
+			}
 		}
 	}
 
@@ -375,6 +388,8 @@ func (c *cmdNetworkLoadBalancerGet) Run(cmd *cobra.Command, args []string) error
 type cmdNetworkLoadBalancerSet struct {
 	global              *cmdGlobal
 	networkLoadBalancer *cmdNetworkLoadBalancer
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkLoadBalancerSet) Command() *cobra.Command {
@@ -388,6 +403,7 @@ For backward compatibility, a single configuration key may still be set with:
     lxc network set [<remote>:]<network> <listen_address> <key> <value>`))
 	cmd.RunE = c.Run
 
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a network load balancer property"))
 	cmd.Flags().StringVar(&c.networkLoadBalancer.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	return cmd
@@ -439,13 +455,30 @@ func (c *cmdNetworkLoadBalancerSet) Run(cmd *cobra.Command, args []string) error
 		return err
 	}
 
-	for k, v := range keys {
-		loadBalancer.Config[k] = v
+	writable := loadBalancer.Writable()
+	if c.flagIsProperty {
+		if cmd.Name() == "unset" {
+			for k := range keys {
+				err := unsetFieldByJsonTag(&writable, k)
+				if err != nil {
+					return fmt.Errorf(i18n.G("Error unsetting property: %v"), err)
+				}
+			}
+		} else {
+			err := unpackKVToWritable(&writable, keys)
+			if err != nil {
+				return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+			}
+		}
+	} else {
+		for k, v := range keys {
+			writable.Config[k] = v
+		}
 	}
 
-	loadBalancer.Normalise()
+	writable.Normalise()
 
-	return client.UpdateNetworkLoadBalancer(resource.name, loadBalancer.ListenAddress, loadBalancer.Writable(), etag)
+	return client.UpdateNetworkLoadBalancer(resource.name, loadBalancer.ListenAddress, writable, etag)
 }
 
 // Unset.
@@ -453,6 +486,8 @@ type cmdNetworkLoadBalancerUnset struct {
 	global                 *cmdGlobal
 	networkLoadBalancer    *cmdNetworkLoadBalancer
 	networkLoadBalancerSet *cmdNetworkLoadBalancerSet
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkLoadBalancerUnset) Command() *cobra.Command {
@@ -462,6 +497,7 @@ func (c *cmdNetworkLoadBalancerUnset) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Unset network load balancer keys"))
 	cmd.RunE = c.Run
 
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a network load balancer property"))
 	return cmd
 }
 
@@ -471,6 +507,8 @@ func (c *cmdNetworkLoadBalancerUnset) Run(cmd *cobra.Command, args []string) err
 	if exit {
 		return err
 	}
+
+	c.networkLoadBalancerSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
 	return c.networkLoadBalancerSet.Run(cmd, args)

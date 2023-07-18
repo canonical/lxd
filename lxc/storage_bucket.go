@@ -366,6 +366,8 @@ func (c *cmdStorageBucketEdit) Run(cmd *cobra.Command, args []string) error {
 type cmdStorageBucketGet struct {
 	global        *cmdGlobal
 	storageBucket *cmdStorageBucket
+
+	flagIsProperty bool
 }
 
 func (c *cmdStorageBucketGet) Command() *cobra.Command {
@@ -375,6 +377,7 @@ func (c *cmdStorageBucketGet) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Get values for storage bucket configuration keys`))
 
 	cmd.Flags().StringVar(&c.storageBucket.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a storage bucket property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -416,9 +419,18 @@ func (c *cmdStorageBucketGet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for k, v := range resp.Config {
-		if k == args[2] {
-			fmt.Printf("%s\n", v)
+	if c.flagIsProperty {
+		w := resp.Writable()
+		res, err := getFieldByJsonTag(&w, args[2])
+		if err != nil {
+			return fmt.Errorf(i18n.G("The property %q does not exist on the storage bucket %q: %v"), args[2], resource.name, err)
+		}
+
+		fmt.Printf("%v\n", res)
+	} else {
+		v, ok := resp.Config[args[2]]
+		if ok {
+			fmt.Println(v)
 		}
 	}
 
@@ -507,6 +519,8 @@ type cmdStorageBucketSet struct {
 	global *cmdGlobal
 
 	storageBucket *cmdStorageBucket
+
+	flagIsProperty bool
 }
 
 func (c *cmdStorageBucketSet) Command() *cobra.Command {
@@ -520,6 +534,7 @@ For backward compatibility, a single configuration key may still be set with:
     lxc storage bucket set [<remote>:]<pool> <bucket> <key> <value>`))
 
 	cmd.Flags().StringVar(&c.storageBucket.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a storage bucket property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -567,12 +582,28 @@ func (c *cmdStorageBucketSet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Update the bucket.
-	for k, v := range keys {
-		bucket.Config[k] = v
+	writable := bucket.Writable()
+	if c.flagIsProperty {
+		if cmd.Name() == "unset" {
+			for k := range keys {
+				err := unsetFieldByJsonTag(&writable, k)
+				if err != nil {
+					return fmt.Errorf(i18n.G("Error unsetting property: %v"), err)
+				}
+			}
+		} else {
+			err := unpackKVToWritable(&writable, keys)
+			if err != nil {
+				return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+			}
+		}
+	} else {
+		for k, v := range keys {
+			writable.Config[k] = v
+		}
 	}
 
-	err = client.UpdateStoragePoolBucket(resource.name, args[1], bucket.Writable(), etag)
+	err = client.UpdateStoragePoolBucket(resource.name, args[1], writable, etag)
 	if err != nil {
 		return err
 	}
@@ -651,6 +682,8 @@ type cmdStorageBucketUnset struct {
 	global           *cmdGlobal
 	storageBucket    *cmdStorageBucket
 	storageBucketSet *cmdStorageBucketSet
+
+	flagIsProperty bool
 }
 
 func (c *cmdStorageBucketUnset) Command() *cobra.Command {
@@ -660,6 +693,7 @@ func (c *cmdStorageBucketUnset) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Unset storage bucket configuration keys`))
 
 	cmd.Flags().StringVar(&c.storageBucket.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a storage bucket property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -671,6 +705,8 @@ func (c *cmdStorageBucketUnset) Run(cmd *cobra.Command, args []string) error {
 	if exit {
 		return err
 	}
+
+	c.storageBucketSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
 	return c.storageBucketSet.Run(cmd, args)

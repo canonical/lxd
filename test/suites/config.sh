@@ -287,6 +287,61 @@ test_config_edit() {
     lxc delete foo
 }
 
+test_property() {
+  ensure_import_testimage
+
+  lxc init testimage foo -s "lxdtest-$(basename "${LXD_DIR}")"
+
+  # Set a property of an instance
+  lxc config set foo description="a new description" --property
+  # Check that the property is set
+  lxc config show foo | grep -q "description: a new description"
+
+  # Unset a property of an instance
+  lxc config unset foo description --property
+  # Check that the property is unset
+  ! lxc config show foo | grep -q "description: a new description" || false
+
+  # Set a property of an instance (bool)
+  lxc config set foo ephemeral=true --property
+  # Check that the property is set
+  lxc config show foo | grep -q "ephemeral: true"
+
+  # Unset a property of an instance (bool)
+  lxc config unset foo ephemeral --property
+  # Check that the property is unset (i.e false)
+  lxc config show foo | grep -q "ephemeral: false"
+
+  # Create a snap of the instance to set its expiration timestamp
+  lxc snapshot foo s1
+  lxc config set foo/s1 expires_at="2024-03-23T17:38:37.753398689-04:00" --property
+  lxc config show foo/s1 | grep -q "expires_at: 2024-03-23T17:38:37.753398689-04:00"
+  lxc config unset foo/s1 expires_at --property
+  lxc config show foo/s1 | grep -q "expires_at: 0001-01-01T00:00:00Z"
+
+
+  # Create a storage volume, create a volume snapshot and set its expiration timestamp
+  # shellcheck disable=2039,3043
+  local storage_pool
+  storage_pool="lxdtest-$(basename "${LXD_DIR}")"
+  storage_volume="${storage_pool}-vol"
+
+  lxc storage volume create "${storage_pool}" "${storage_volume}"
+  lxc launch testimage c1 -s "${storage_pool}"
+
+  # This will create a snapshot named 'snap0'
+  lxc storage volume snapshot "${storage_pool}" "${storage_volume}"
+
+  lxc storage volume set "${storage_pool}" "${storage_volume}"/snap0 expires_at="2024-03-23T17:38:37.753398689-04:00" --property
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'expires_at: 2024-03-23T17:38:37.753398689-04:00'
+  lxc storage volume unset "${storage_pool}" "${storage_volume}"/snap0 expires_at --property
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'expires_at: 0001-01-01T00:00:00Z'
+
+  lxc delete -f c1
+  lxc storage volume delete "${storage_pool}" "${storage_volume}"
+  lxc delete -f foo
+}
+
 test_config_edit_container_snapshot_pool_config() {
     # shellcheck disable=2034,2039,2155,3043
     local storage_pool="lxdtest-$(basename "${LXD_DIR}")"
