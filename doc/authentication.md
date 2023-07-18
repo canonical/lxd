@@ -148,6 +148,7 @@ Any user that authenticates through the configured OIDC Identity Provider gets f
 ```
 
 To configure LXD to use OIDC authentication, set the [`oidc.*`](server-options-oidc) server configuration options.
+Your OIDC provider must be configured to enable the [Device Authorization Grant](https://oauth.net/2/device-flow/) type.
 
 To add a remote pointing to a LXD server configured with OIDC authentication, run `lxc remote add <remote_name> <remote_address>`.
 You are then prompted to authenticate through your web browser, where you must confirm the device code that LXD uses.
