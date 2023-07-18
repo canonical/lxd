@@ -118,6 +118,7 @@ func RefFiltersFromStmt(pkg *ast.Package, entity string, ref string, filters []*
 	return stmtFilters, ignoredFilters
 }
 
+// sortFilters sorts filters by length and lexicographically, with longer filters first. sortFilter sorts a single filter in reverse lexicographic order.
 func sortFilters(filters [][]string) [][]string {
 	sort.Slice(filters, func(i, j int) bool {
 		n1 := len(filters[i])
@@ -141,6 +142,7 @@ func sortFilters(filters [][]string) [][]string {
 	return filters
 }
 
+// sortFilter sorts a filter in reverse lexicographic order.
 func sortFilter(filter []string) []string {
 	f := make([]string, len(filter))
 	copy(f, filter)
@@ -148,7 +150,7 @@ func sortFilter(filter []string) []string {
 	return f
 }
 
-// Parse the structure declaration with the given name found in the given Go package.
+// Parses the structure declaration with the given name found in the given Go package.
 // Any 'Entity' struct should also have an 'EntityFilter' struct defined in the same file.
 func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
 	// The main entity struct.
@@ -280,7 +282,7 @@ func tableType(pkg *ast.Package, name string, fields []*Field) TableType {
 	return EntityTable
 }
 
-// Find the StructType node for the structure with the given name.
+// Finds the StructType node for the structure with the given name.
 func findStruct(scope *ast.Scope, name string) *ast.StructType {
 	obj := scope.Lookup(name)
 	if obj == nil {
@@ -300,7 +302,7 @@ func findStruct(scope *ast.Scope, name string) *ast.StructType {
 	return str
 }
 
-// Extract field information from the given structure.
+// Extracts field information from the given structure.
 func parseStruct(str *ast.StructType, kind string) ([]*Field, error) {
 	fields := make([]*Field, 0)
 
@@ -350,6 +352,7 @@ func parseStruct(str *ast.StructType, kind string) ([]*Field, error) {
 	return fields, nil
 }
 
+// parseField parses an ast.Field and returns the corresponding Field object, representing a struct field in the database model.
 func parseField(f *ast.Field, kind string) (*Field, error) {
 	name := f.Names[0]
 
@@ -427,6 +430,7 @@ func parseField(f *ast.Field, kind string) (*Field, error) {
 	return &field, nil
 }
 
+// parseType parses an ast.Expr and returns the corresponding type name as a string.
 func parseType(x ast.Expr) string {
 	switch t := x.(type) {
 	case *ast.StarExpr:
