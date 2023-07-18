@@ -36,6 +36,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+// main sets up command-line flags, executes the root command, and logs success or error messages.
 func main() {
 	rootCmd.Flags().StringSliceVarP(&exclude, "exclude", "e", []string{}, "Path to exclude from the process")
 	rootCmd.Flags().StringVarP(&jsonOutput, "json", "j", "configuration.json", "Output JSON file containing the generated configuration")
