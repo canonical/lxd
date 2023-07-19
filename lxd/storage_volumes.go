@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/canonical/lxd/lxd/archive"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
 	lxdCluster "github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
@@ -28,7 +29,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
-	"github.com/canonical/lxd/lxd/rbac"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/state"
@@ -1042,7 +1042,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Check if user has access to effective storage target project
-		if !rbac.UserHasPermission(r, targetProjectName, "manage-storage-volumes") {
+		if !auth.UserHasPermission(r, targetProjectName, "manage-storage-volumes") {
 			return response.Forbidden(nil)
 		}
 	}

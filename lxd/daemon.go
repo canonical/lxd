@@ -27,6 +27,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/acme"
 	"github.com/canonical/lxd/lxd/apparmor"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/auth/candid"
 	"github.com/canonical/lxd/lxd/auth/oidc"
 	"github.com/canonical/lxd/lxd/bgp"
@@ -48,7 +49,6 @@ import (
 	"github.com/canonical/lxd/lxd/maas"
 	networkZone "github.com/canonical/lxd/lxd/network/zone"
 	"github.com/canonical/lxd/lxd/node"
-	"github.com/canonical/lxd/lxd/rbac"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/rsync"
@@ -80,7 +80,7 @@ type Daemon struct {
 	maas        *maas.Controller
 	bgp         *bgp.Server
 	dns         *dns.Server
-	rbac        *rbac.Server
+	rbac        *auth.Server
 
 	// Event servers
 	devlxdEvents     *events.DevLXDServer
@@ -236,7 +236,7 @@ func allowAuthenticated(d *Daemon, r *http.Request) response.Response {
 func allowProjectPermission(feature string, permission string) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		// Shortcut for speed
-		if rbac.UserIsAdmin(r) {
+		if auth.UserIsAdmin(r) {
 			return response.EmptySyncResponse
 		}
 
@@ -244,7 +244,7 @@ func allowProjectPermission(feature string, permission string) func(d *Daemon, r
 		projectName := projectParam(r)
 
 		// Validate whether the user has the needed permission
-		if !rbac.UserHasPermission(r, projectName, permission) {
+		if !auth.UserHasPermission(r, projectName, permission) {
 			return response.Forbidden(nil)
 		}
 
@@ -495,8 +495,8 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			logger.Debug("Handling API request", logCtx)
 
 			// Get user access data.
-			userAccess, err := func() (*rbac.UserAccess, error) {
-				ua := &rbac.UserAccess{}
+			userAccess, err := func() (*auth.UserAccess, error) {
+				ua := &auth.UserAccess{}
 				ua.Admin = true
 
 				// Internal cluster communications.
@@ -641,7 +641,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 				}
 			} else if !action.AllowUntrusted {
 				// Require admin privileges
-				if !rbac.UserIsAdmin(r) {
+				if !auth.UserIsAdmin(r) {
 					return response.Forbidden(nil)
 				}
 			}
@@ -1816,7 +1816,7 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 	}
 
 	// Get a new server struct
-	server, err := rbac.NewServer(rbacURL, rbacKey, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey)
+	server, err := auth.NewServer(rbacURL, rbacKey, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey)
 	if err != nil {
 		return err
 	}

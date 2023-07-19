@@ -1,4 +1,4 @@
-package rbac
+package auth
 
 import (
 	"net/http"

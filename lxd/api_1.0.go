@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/auth/candid"
 	"github.com/canonical/lxd/lxd/auth/oidc"
 	"github.com/canonical/lxd/lxd/cluster"
@@ -20,7 +21,6 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/project"
-	"github.com/canonical/lxd/lxd/rbac"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	scriptletLoad "github.com/canonical/lxd/lxd/scriptlet/load"
@@ -375,7 +375,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	fullSrv.AuthUserName = requestor.Username
 	fullSrv.AuthUserMethod = requestor.Protocol
 
-	if rbac.UserIsAdmin(r) {
+	if auth.UserIsAdmin(r) {
 		fullSrv.Config, err = daemonConfigRender(s)
 		if err != nil {
 			return response.InternalError(err)
