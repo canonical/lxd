@@ -2067,3 +2067,7 @@ each `instance`, `network`, and `network forward`.
 ## `storage_api_remote_volume_snapshot_copy`
 
 This allows copying storage volume snapshots to and from remotes.
+
+## `zfs_delegate`
+This implements a new `zfs.delegate` volume Boolean for volumes on a ZFS storage driver.
+When enabled and a suitable system is in use (requires ZFS 2.2 or higher), the ZFS dataset will be delegated to the container, allowing for its use through the `zfs` command line tool.
