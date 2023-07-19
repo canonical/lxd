@@ -377,6 +377,7 @@ var APIExtensions = []string{
 	"instances_rebuild",
 	"numa_cpu_placement",
 	"custom_volume_iso",
+	"network_allocations",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
