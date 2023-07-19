@@ -9,7 +9,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/generate/lex"
 )
 
-// Reset an auto-generated source file, writing a new empty file header.
+// Resets the specified file with generated content, including imports and optional build comment.
 func Reset(path string, imports []string, buildComment string, iface bool) error {
 	// A new line needs to be appended after the build comment.
 	if buildComment != "" {
@@ -58,6 +58,7 @@ import (
 	return nil
 }
 
+// resetInterface resets the interface file for the given path by recreating it with the provided imports and build comment.
 func resetInterface(path string, imports []string, buildComment string) error {
 	if strings.HasSuffix(path, "mapper.go") {
 		parts := strings.Split(path, ".")
@@ -70,7 +71,7 @@ func resetInterface(path string, imports []string, buildComment string) error {
 	return nil
 }
 
-// Append a code snippet to a file.
+// Appends a generated code snippet to the specified file or interface.
 func Append(entity string, path string, snippet Snippet, iface bool) error {
 	if iface {
 		err := appendInterface(entity, path, snippet)
@@ -118,6 +119,7 @@ func Append(entity string, path string, snippet Snippet, iface bool) error {
 	return nil
 }
 
+// appendInterface appends the given snippet to the interface file located at the provided path for the specified entity.
 func appendInterface(entity string, path string, snippet Snippet) error {
 	if !strings.HasSuffix(path, ".mapper.go") {
 		return nil
