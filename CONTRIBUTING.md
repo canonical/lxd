@@ -100,8 +100,8 @@ An example of a valid sign-off line is:
 Signed-off-by: Random J Developer <random@developer.org>
 ```
 
-Use your real name and a valid e-mail address.
-Sorry, no pseudonyms or anonymous contributions are allowed.
+Use a known identity and a valid e-mail address.
+Sorry, no anonymous contributions are allowed.
 
 We also require each commit be individually signed-off by their author,
 even when part of a larger set. You may find `git commit -s` useful.
