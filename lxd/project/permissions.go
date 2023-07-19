@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	deviceconfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
-	"github.com/canonical/lxd/lxd/rbac"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/idmap"
@@ -1419,7 +1419,7 @@ var aggregateLimitConfigValuePrinters = map[string]func(int64) string{
 // FilterUsedBy filters a UsedBy list based on project access.
 func FilterUsedBy(r *http.Request, entries []string) []string {
 	// Shortcut for admins and non-RBAC environments.
-	if rbac.UserIsAdmin(r) {
+	if auth.UserIsAdmin(r) {
 		return entries
 	}
 
@@ -1441,7 +1441,7 @@ func FilterUsedBy(r *http.Request, entries []string) []string {
 			projectName = val
 		}
 
-		if !rbac.UserHasPermission(r, projectName, "view") {
+		if !auth.UserHasPermission(r, projectName, "view") {
 			continue
 		}
 
@@ -1472,7 +1472,7 @@ func projectHasRestriction(project *api.Project, restrictionKey string, blockVal
 // CheckClusterTargetRestriction check if user is allowed to use cluster member targeting.
 func CheckClusterTargetRestriction(r *http.Request, project *api.Project, targetFlag string) error {
 	// Allow server administrators to move instances around even when restricted (node evacuation, ...)
-	if rbac.UserIsAdmin(r) {
+	if auth.UserIsAdmin(r) {
 		return nil
 	}
 
