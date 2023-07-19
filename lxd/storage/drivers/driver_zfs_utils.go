@@ -188,7 +188,6 @@ func (d *zfs) getDatasets(dataset string, types string) ([]string, error) {
 		}
 
 		line = strings.TrimPrefix(line, dataset)
-		line = strings.TrimPrefix(line, "/")
 		children = append(children, line)
 	}
 
