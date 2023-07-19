@@ -377,6 +377,8 @@ func (d *zfs) Delete(op *operations.Operation) error {
 
 	initialDatasets := d.initialDatasets()
 	for _, dataset := range datasets {
+		dataset = strings.TrimPrefix(dataset, "/")
+
 		if shared.StringInSlice(dataset, initialDatasets) {
 			continue
 		}
