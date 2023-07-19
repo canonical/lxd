@@ -1,6 +1,8 @@
 import datetime
 import os
+import subprocess
 import sys
+import tempfile
 import yaml
 from git import Repo
 import wget
@@ -165,3 +167,40 @@ linkcheck_ignore = [
 redirects = {
     "howto/instances_snapshots/index": "../instances_backup/",
 }
+
+
+def generate_go_docs(app):
+    """
+        This function calls the `lxd-doc` tool to generate
+        the documentation elements from an annotated Golang codebase.
+    """
+    try:
+        subprocess.run(["go", "version"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        raise ValueError("go is not installed for lxd-doc installation.")
+
+    if os.getcwd().endswith("/doc"):
+        os.chdir("../lxd/config/generate")
+    else:
+        os.chdir("lxd/config/generate")
+
+    os.environ['CGO_ENABLED'] = '0'
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        try:
+            subprocess.run(["go", "build", "-o", os.path.join(tempdir, "lxd-doc")], check=True)
+        except subprocess.CalledProcessError:
+            raise ValueError("Building lxd-doc failed.")
+
+        # Generate the documentation
+        os.chdir("../../..")
+        try:
+            subprocess.run([os.path.join(tempdir, "lxd-doc"), ".", "-y", "./doc/config_options.yaml", "-t", "./doc/config_options.txt"], check=True)
+        except subprocess.CalledProcessError:
+            raise ValueError("Generating the codebase documentation failed.")
+
+        print("Codebase documentation generated successfully")
+
+
+def setup(app):
+    app.connect('builder-inited', generate_go_docs)
