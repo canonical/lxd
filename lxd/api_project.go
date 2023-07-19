@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
@@ -20,7 +21,6 @@ import (
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/operations"
 	projecthelpers "github.com/canonical/lxd/lxd/project"
-	"github.com/canonical/lxd/lxd/rbac"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -147,7 +147,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 
 		filtered := []api.Project{}
 		for _, project := range projects {
-			if !rbac.UserHasPermission(r, project.Name, "view") {
+			if !auth.UserHasPermission(r, project.Name, "view") {
 				continue
 			}
 
@@ -405,7 +405,7 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check user permissions
-	if !rbac.UserHasPermission(r, name, "view") {
+	if !auth.UserHasPermission(r, name, "view") {
 		return response.Forbidden(nil)
 	}
 
@@ -475,7 +475,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check user permissions
-	if !rbac.UserHasPermission(r, name, "manage-projects") {
+	if !auth.UserHasPermission(r, name, "manage-projects") {
 		return response.Forbidden(nil)
 	}
 
@@ -566,7 +566,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check user permissions
-	if !rbac.UserHasPermission(r, name, "manage-projects") {
+	if !auth.UserHasPermission(r, name, "manage-projects") {
 		return response.Forbidden(nil)
 	}
 
@@ -977,7 +977,7 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check user permissions.
-	if !rbac.UserHasPermission(r, name, "view") {
+	if !auth.UserHasPermission(r, name, "view") {
 		return response.Forbidden(nil)
 	}
 
