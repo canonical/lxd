@@ -1,6 +1,9 @@
+import contextlib
 import datetime
 import os
+import subprocess
 import sys
+import tempfile
 import yaml
 from git import Repo
 import wget
@@ -179,3 +182,54 @@ if ("TOPICAL" in os.environ) and (os.environ["TOPICAL"] == "True"):
 else:
     exclude_patterns.extend(['index_topical.md','security.md','external_resources.md','reference/network_external.md'])
     tags.add('diataxis')
+
+
+@contextlib.contextmanager
+def pushd(new_dir):
+    previous_dir = os.getcwd()
+    os.chdir(new_dir)
+    try:
+        yield
+    finally:
+        os.chdir(previous_dir)
+
+
+def generate_go_docs(app):
+    """
+        This function calls the `lxd-doc` tool to generate
+        the documentation elements from an annotated Golang codebase.
+    """
+    try:
+        subprocess.run(["go", "version"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        raise ValueError("go is not installed for lxd-doc installation.")
+
+    os.environ['CGO_ENABLED'] = '0'
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        if os.getcwd().endswith("/doc"):
+            lxddocDir = "../lxd/config/generate"
+            lxdBaseDir = ".."
+            outputBaseDir = ""
+        else:
+            lxddocDir = "lxd/config/generate"
+            lxdBaseDir = "."
+            outputBaseDir = "./doc/"
+
+        with pushd(lxddocDir):
+            try:
+                subprocess.run(["go", "build", "-o", os.path.join(tempdir, "lxd-doc")], check=True)
+            except subprocess.CalledProcessError:
+                raise ValueError("Building lxd-doc failed.")
+
+        # Generate the documentation
+        try:
+            subprocess.run([os.path.join(tempdir, "lxd-doc"), lxdBaseDir, "-y", f"{outputBaseDir}config_options.yaml", "-t", f"{outputBaseDir}config_options.txt"], check=True)
+        except subprocess.CalledProcessError:
+            raise ValueError("Generating the codebase documentation failed.")
+
+        print("Codebase documentation generated successfully")
+
+
+def setup(app):
+    app.connect('builder-inited', generate_go_docs)
