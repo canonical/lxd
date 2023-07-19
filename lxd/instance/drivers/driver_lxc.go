@@ -1126,7 +1126,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 					return nil, err
 				}
 			} else {
-				if d.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) && shared.IsTrueOrEmpty(memorySwap) {
+				if d.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) && shared.IsFalse(memorySwap) {
 					err = cg.SetMemoryLimit(valueInt)
 					if err != nil {
 						return nil, err
@@ -4489,7 +4489,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 						return err
 					}
 				} else {
-					if d.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) && shared.IsTrueOrEmpty(memorySwap) {
+					if d.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) && shared.IsFalse(memorySwap) {
 						err = cg.SetMemoryLimit(memoryInt)
 						if err != nil {
 							revertMemory()
