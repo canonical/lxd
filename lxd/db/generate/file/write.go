@@ -58,6 +58,7 @@ import (
 	return nil
 }
 
+// resetInterface resets the interface file for the given path by recreating it with the provided imports and build comment.
 func resetInterface(path string, imports []string, buildComment string) error {
 	if strings.HasSuffix(path, "mapper.go") {
 		parts := strings.Split(path, ".")
@@ -118,6 +119,7 @@ func Append(entity string, path string, snippet Snippet, iface bool) error {
 	return nil
 }
 
+// appendInterface appends the given snippet to the interface file located at the provided path for the specified entity.
 func appendInterface(entity string, path string, snippet Snippet) error {
 	if !strings.HasSuffix(path, ".mapper.go") {
 		return nil
