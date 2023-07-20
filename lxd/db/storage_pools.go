@@ -130,7 +130,7 @@ func (c *ClusterTx) UpdateStoragePoolAfterNodeJoin(poolID, nodeID int64) error {
 	return nil
 }
 
-// UpdateCephStoragePoolAfterNodeJoin updates internal state to reflect that nodeID is
+// UpdateCephStoragePoolAfterNodeJoin update the internal state to reflect that nodeID is
 // joining a cluster where poolID is a ceph pool.
 func (c *ClusterTx) UpdateCephStoragePoolAfterNodeJoin(ctx context.Context, poolID int64, nodeID int64) error {
 	// Get the IDs of the other nodes (they should be all linked to
@@ -349,6 +349,7 @@ func (c *ClusterTx) StoragePoolErrored(name string) error {
 	return c.storagePoolState(name, storagePoolErrored)
 }
 
+// Updates the state of a specified storage pool in the database.
 func (c *ClusterTx) storagePoolState(name string, state StoragePoolState) error {
 	stmt := "UPDATE storage_pools SET state=? WHERE name=?"
 	result, err := c.tx.Exec(stmt, state, name)
@@ -565,7 +566,7 @@ func (c *Cluster) GetCreatedStoragePoolNames() ([]string, error) {
 	return c.storagePools("state=?", StoragePoolCreated)
 }
 
-// Get all storage pools matching the given WHERE filter (if given).
+// Get all the storage pools matching the given WHERE filter (if given).
 func (c *Cluster) storagePools(where string, args ...any) ([]string, error) {
 	var name string
 	stmt := "SELECT name FROM storage_pools"
@@ -811,7 +812,7 @@ func (c *Cluster) CreateStoragePool(poolName string, poolDescription string, poo
 	return id, nil
 }
 
-// Add new storage pool config.
+// Adds new storage pool config.
 func storagePoolConfigAdd(tx *sql.Tx, poolID, nodeID int64, poolConfig map[string]string) error {
 	str := "INSERT INTO storage_pools_config (storage_pool_id, node_id, key, value) VALUES(?, ?, ?, ?)"
 	stmt, err := tx.Prepare(str)
@@ -871,13 +872,13 @@ func (c *Cluster) UpdateStoragePool(poolName, description string, poolConfig map
 	return err
 }
 
-// Uupdate the storage pool description.
+// Updates the storage pool description.
 func updateStoragePoolDescription(tx *sql.Tx, id int64, description string) error {
 	_, err := tx.Exec("UPDATE storage_pools SET description=? WHERE id=?", description, id)
 	return err
 }
 
-// Delete the storage pool config.
+// Deletes the storage pool config.
 func clearStoragePoolConfig(tx *sql.Tx, poolID, nodeID int64) error {
 	_, err := tx.Exec("DELETE FROM storage_pools_config WHERE storage_pool_id=? AND (node_id=? OR node_id IS NULL)", poolID, nodeID)
 	if err != nil {
@@ -887,7 +888,7 @@ func clearStoragePoolConfig(tx *sql.Tx, poolID, nodeID int64) error {
 	return nil
 }
 
-// RemoveStoragePool deletes storage pool.
+// RemoveStoragePool deletes the storage pool.
 func (c *Cluster) RemoveStoragePool(poolName string) (*api.StoragePool, error) {
 	poolID, pool, _, err := c.GetStoragePoolInAnyState(poolName)
 	if err != nil {
@@ -913,7 +914,7 @@ var NodeSpecificStorageConfig = []string{
 	"lvm.vg_name",
 }
 
-// IsRemoteStorage return whether a given pool is backed by remote storage.
+// IsRemoteStorage returns whether a given pool is backed by remote storage.
 func (c *Cluster) IsRemoteStorage(poolID int64) (bool, error) {
 	isRemoteStorage := false
 
