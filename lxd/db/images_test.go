@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 )
 
+// exec executes a query with the provided arguments and handles retries on retriable errors.
 func TestLocateImage(t *testing.T) {
 	cluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
@@ -43,6 +44,7 @@ func TestLocateImage(t *testing.T) {
 	require.EqualError(t, err, "Image not available on any online member")
 }
 
+// exec executes a query with the provided arguments and handles retries on retriable errors.
 func TestImageExists(t *testing.T) {
 	cluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
@@ -62,6 +64,7 @@ func TestImageExists(t *testing.T) {
 	assert.True(t, exists)
 }
 
+// TestGetImage verifies the functionality of GetImage method under various conditions and input cases.
 func TestGetImage(t *testing.T) {
 	dbCluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
