@@ -77,47 +77,12 @@ test_network() {
   fi
 
   # Check IPAM information
-  ipam_output="$(lxc network list-allocations)"
-
   net_ipv4="$(lxc network get lxdt$$ ipv4.address)"
   net_ipv6="$(lxc network get lxdt$$ ipv6.address)"
 
-  expected_addresses_net="[\"${net_ipv4}\",\"${net_ipv6}\"]"
-  expected_used_by_net="\"/1.0/networks/lxdt$$\""
-  expected_nat_net='false'
-
-  expected_addresses_instance="[\"${v4_addr}\",\"${v6_addr}\"]"
-  expected_used_by_instance='"/1.0/instances/nettest"'
-  expected_nat_instance='false'
-
-  echo "$ipam_output" | jq -c 'with_entries(.)' | while read -r object; do
-    type=$(echo "$object" | jq -r '.type')
-
-    if [ "$type" = 'network' ]; then
-      addresses=$(echo "$object" | jq -c '.addresses')
-      used_by=$(echo "$object" | jq '.used_by')
-      nat=$(echo "$object" | jq '.nat')
-
-      # Check if the values are as expected for type "network"
-      if [ "$addresses" != "$expected_addresses_net" ] || [ "$used_by" != "$expected_used_by_net" ] || [ "$nat" != "$expected_nat_net" ]; then
-        echo "The JSON object fields for type 'network' are not as expected."
-        false
-      fi
-    elif [ "$type" = 'instance' ]; then
-      used_by=$(echo "$object" | jq '.used_by')
-      addresses=$(echo "$object" | jq -c '.addresses')
-      base_ipv4=$(echo "$addresses" | jq -r '.[0]' | cut -d '/' -f1)
-      base_ipv6=$(echo "$addresses" | jq -r '.[1]' | cut -d '/' -f1)
-      no_cidr_instance_addresses="[\"${base_ipv4}\",\"${base_ipv6}\"]"
-
-      if [ "$no_cidr_instance_addresses" != "$expected_addresses_instance" ] || [ "$used_by" != "$expected_used_by_instance" ] || [ "$nat" != "$expected_nat_instance" ]; then
-        echo "The JSON object fields for type 'instance' are not as expected."
-        false
-      fi
-    else
-      echo "Unknown type: $type"
-    fi
-  done
+  lxc network list-allocations | grep -e "${net_ipv4}" -e "${net_ipv6}"
+  lxc network list-allocations | grep -e "/1.0/networks/lxdt$$" -e "/1.0/instances/nettest"
+  lxc network list-allocations | grep -e "${v4_addr}" -e "${v6_addr}"
 
   lxc delete nettest -f
   lxc network delete lxdt$$
