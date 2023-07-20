@@ -18,6 +18,8 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// TestContainerList verifies the retrieval of containers from the database,
+// ensuring they're correctly associated with their nodes, devices, and configurations.
 func TestContainerList(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -80,6 +82,7 @@ func TestContainerList(t *testing.T) {
 	assert.Equal(t, map[string]string{"x": "y"}, c3Devices["root"].Config)
 }
 
+// TestContainerList_FilterByNode validates that the container retrieval function correctly filters containers by the specified node.
 func TestContainerList_FilterByNode(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -110,6 +113,8 @@ func TestContainerList_FilterByNode(t *testing.T) {
 	assert.Equal(t, "node2", containers[1].Node)
 }
 
+// TestInstanceList_ContainerWithSameNameInDifferentProjects validates
+// that containers with the same name can exist in different projects with unique profiles.
 func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -196,6 +201,7 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 	assert.Equal(t, "intranet", c2Profiles[0].Name)
 }
 
+// TestInstanceList verifies instance creation and retrieval, ensuring correct merging of profiles and instance-level configurations.
 func TestInstanceList(t *testing.T) {
 	c, clusterCleanup := db.NewTestCluster(t)
 	defer clusterCleanup()
@@ -284,6 +290,8 @@ func TestInstanceList(t *testing.T) {
 	}, instances[0].Devices.CloneNative())
 }
 
+// TestCreateInstance verifies the creation of an instance and
+// checks if its associated configuration, devices, and profiles are correctly stored.
 func TestCreateInstance(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -335,6 +343,8 @@ func TestCreateInstance(t *testing.T) {
 	assert.Equal(t, "default", c1Profiles[0].Name)
 }
 
+// TestCreateInstance_Snapshot tests the creation of an instance snapshot and
+// validates the successful storage of its configuration and profiles.
 func TestCreateInstance_Snapshot(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -435,6 +445,7 @@ func TestGetInstancesByMemberAddress(t *testing.T) {
 		}, result)
 }
 
+// TestGetInstancePool validates the retrieval of an instance's storage pool by its project and name.
 func TestGetInstancePool(t *testing.T) {
 	dbCluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
@@ -474,7 +485,7 @@ func TestGetInstancePool(t *testing.T) {
 	assert.Equal(t, "default", poolName)
 }
 
-// All containers on a node are loaded in bulk.
+// All the containers on a node are loaded in bulk.
 func TestGetLocalInstancesInProject(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -532,6 +543,7 @@ func TestGetLocalInstancesInProject(t *testing.T) {
 	assert.Equal(t, map[string]map[string]string{"root": {"type": "disk", "x": "y"}}, cluster.DevicesToAPI(c3Devices))
 }
 
+// addContainer inserts a new container instance into the database with provided parameters for testing.
 func addContainer(t *testing.T, tx *db.ClusterTx, nodeID int64, name string) {
 	stmt := `
 INSERT INTO instances(node_id, name, architecture, type, project_id, description) VALUES (?, ?, 1, ?, 1, '')
@@ -540,6 +552,7 @@ INSERT INTO instances(node_id, name, architecture, type, project_id, description
 	require.NoError(t, err)
 }
 
+// addContainerConfig adds a configuration entry for a given container in the database for testing purposes.
 func addContainerConfig(t *testing.T, tx *db.ClusterTx, container, key, value string) {
 	id := getContainerID(t, tx, container)
 
@@ -550,6 +563,7 @@ INSERT INTO instances_config(instance_id, key, value) VALUES (?, ?, ?)
 	require.NoError(t, err)
 }
 
+// addContainerDevice adds a device with a specified type and configuration to a given container in the database for testing purposes.
 func addContainerDevice(t *testing.T, tx *db.ClusterTx, container, name, typ string, config map[string]string) {
 	id := getContainerID(t, tx, container)
 
@@ -573,7 +587,7 @@ INSERT INTO instances_devices_config(instance_device_id, key, value) VALUES (?, 
 	}
 }
 
-// Return the container ID given its name.
+// Returns the container ID given its name.
 func getContainerID(t *testing.T, tx *db.ClusterTx, name string) int64 {
 	var id int64
 
@@ -585,7 +599,7 @@ func getContainerID(t *testing.T, tx *db.ClusterTx, name string) int64 {
 	return id
 }
 
-// Return the device ID given its container ID and name.
+// Returns the device ID given its container ID and name.
 func getDeviceID(t *testing.T, tx *db.ClusterTx, containerID int64, name string) int64 {
 	var id int64
 
