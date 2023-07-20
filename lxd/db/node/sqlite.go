@@ -7,6 +7,7 @@ import (
 	"github.com/mattn/go-sqlite3"
 )
 
+// init registers the "sqlite3_with_fk" driver using the SQLiteDriver with foreign key support.
 func init() {
 	sql.Register("sqlite3_with_fk", &sqlite3.SQLiteDriver{ConnectHook: sqliteEnableForeignKeys})
 }
@@ -23,6 +24,8 @@ func sqliteOpen(path string) (*sql.DB, error) {
 	return sql.Open("sqlite3_with_fk", openPath)
 }
 
+// sqliteEnableForeignKeys is a function that enables foreign key support
+// in an SQLite connection by executing the "PRAGMA foreign_keys=ON;" statement.
 func sqliteEnableForeignKeys(conn *sqlite3.SQLiteConn) error {
 	_, err := conn.Exec("PRAGMA foreign_keys=ON;", nil)
 	return err
