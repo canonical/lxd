@@ -415,6 +415,7 @@ func (d *Daemon) State() *state.State {
 		LocalConfig:            localConfig,
 		ServerName:             d.serverName,
 		StartTime:              d.startTime,
+		Authorizer:             d.authorizer,
 	}
 }
 
