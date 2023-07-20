@@ -12,7 +12,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/query"
 )
 
-// Count returns the current number of rows.
+// TestCount returns the current number of rows.
 func TestCount(t *testing.T) {
 	cases := []struct {
 		where string
@@ -46,6 +46,8 @@ func TestCount(t *testing.T) {
 	}
 }
 
+// The TestCountAll function tests the counting of records in different categories
+// using the `query.CountAll` function.
 func TestCountAll(t *testing.T) {
 	tx := newTxForCount(t)
 	defer func() { _ = tx.Rollback() }()
@@ -59,7 +61,7 @@ func TestCountAll(t *testing.T) {
 	}, counts)
 }
 
-// Return a new transaction against an in-memory SQLite database with a single
+// Returns a new transaction against an in-memory SQLite database with a single
 // test table and a few rows.
 func newTxForCount(t *testing.T) *sql.Tx {
 	db, err := sql.Open("sqlite3", ":memory:")
