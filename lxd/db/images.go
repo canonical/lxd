@@ -150,6 +150,7 @@ func (c *ClusterTx) imageFill(ctx context.Context, id int, image *api.Image, cre
 	return nil
 }
 
+// imageFillProfiles populates the image's profile list from the associated profiles in the database.
 func (c *ClusterTx) imageFillProfiles(ctx context.Context, id int, image *api.Image, project string) error {
 	// Check which project name to use
 	enabled, err := cluster.ProjectHasProfiles(context.Background(), c.tx, project)
@@ -1029,7 +1030,7 @@ func (c *Cluster) CreateImage(project string, fp string, fname string, sz int64,
 	return err
 }
 
-// GetPoolsWithImage get the IDs of all storage pools on which a given image exists.
+// GetPoolsWithImage gets the IDs of all storage pools on which a given image exists.
 func (c *Cluster) GetPoolsWithImage(imageFingerprint string) ([]int64, error) {
 	q := "SELECT storage_pool_id FROM storage_volumes WHERE (node_id=? OR node_id IS NULL) AND name=? AND type=?"
 	var ids []int
@@ -1050,7 +1051,7 @@ func (c *Cluster) GetPoolsWithImage(imageFingerprint string) ([]int64, error) {
 	return poolIDs, nil
 }
 
-// GetPoolNamesFromIDs get the names of the storage pools with the given IDs.
+// GetPoolNamesFromIDs gets the names of the storage pools with the given IDs.
 func (c *Cluster) GetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
 	params := make([]string, len(poolIDs))
 	args := make([]any, len(poolIDs))
@@ -1079,7 +1080,7 @@ func (c *Cluster) GetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
 	return poolNames, nil
 }
 
-// GetImages returns all images.
+// GetImages returns all the images.
 func (c *Cluster) GetImages() (map[string][]string, error) {
 	images := make(map[string][]string) // key is fingerprint, value is list of projects
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
@@ -1108,12 +1109,12 @@ func (c *Cluster) GetImages() (map[string][]string, error) {
 	return images, err
 }
 
-// GetImagesOnLocalNode returns all images that the local LXD node has.
+// GetImagesOnLocalNode returns all the images that the local LXD node has.
 func (c *Cluster) GetImagesOnLocalNode() (map[string][]string, error) {
 	return c.GetImagesOnNode(c.nodeID)
 }
 
-// GetImagesOnNode returns all images that the node with the given id has.
+// GetImagesOnNode returns all the images that the node with the given id has.
 func (c *Cluster) GetImagesOnNode(id int64) (map[string][]string, error) {
 	images := make(map[string][]string) // key is fingerprint, value is list of projects
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
@@ -1179,6 +1180,7 @@ SELECT DISTINCT nodes.address FROM nodes WHERE nodes.address NOT IN (
 	return c.getNodesByImageFingerprint(q, fingerprint, nil)
 }
 
+// getNodesByImageFingerprint retrieves the addresses of online nodes that have a specific image fingerprint.
 func (c *Cluster) getNodesByImageFingerprint(stmt string, fingerprint string, autoUpdate *bool) ([]string, error) {
 	var addresses []string // Addresses of online nodes with the image
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
@@ -1217,7 +1219,7 @@ func (c *Cluster) getNodesByImageFingerprint(stmt string, fingerprint string, au
 	return addresses, err
 }
 
-// GetProjectsUsingImage get the project names using an image by fingerprint.
+// GetProjectsUsingImage gets the project names using an image by fingerprint.
 func (c *ClusterTx) GetProjectsUsingImage(ctx context.Context, fingerprint string) ([]string, error) {
 	var err error
 	var imgProjectNames []string
