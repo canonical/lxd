@@ -4,6 +4,45 @@ test_storage_driver_zfs() {
   do_storage_driver_zfs btrfs
 
   do_zfs_cross_pool_copy
+  do_zfs_delegate
+}
+
+do_zfs_delegate() {
+  # shellcheck disable=2039,3043
+  local lxd_backend
+
+  lxd_backend=$(storage_backend "$LXD_DIR")
+  if [ "$lxd_backend" != "zfs" ]; then
+    return
+  fi
+
+  if ! zfs --help | grep -q zone; then
+    echo "==> SKIP: Skipping ZFS delegation tests due as installed version doesn't support it"
+    return
+  fi
+
+  # Import image into default storage pool.
+  ensure_import_testimage
+
+  # Test enabling delegation.
+  storage_pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  lxc init testimage c1
+  lxc storage volume set "${storage_pool}" container/c1 zfs.delegate=true
+  lxc start c1
+
+  PID=$(lxc info c1 | awk '/^PID:/ {print $2}')
+  nsenter -t "${PID}" -U -- zfs list | grep -q containers/c1
+
+  # Confirm that ZFS dataset is empty when off.
+  lxc stop -f c1
+  lxc storage volume unset "${storage_pool}" container/c1 zfs.delegate
+  lxc start c1
+
+  PID=$(lxc info c1 | awk '/^PID:/ {print $2}')
+  ! nsenter -t "${PID}" -U -- zfs list | grep -q containers/c1
+
+  lxc delete -f c1
 }
 
 do_zfs_cross_pool_copy() {
