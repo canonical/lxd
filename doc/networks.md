@@ -2,6 +2,7 @@
 discourse: 13021
 ---
 
+(networking)=
 # Networking
 
 ```{toctree}
