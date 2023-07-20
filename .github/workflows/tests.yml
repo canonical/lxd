@@ -34,7 +34,7 @@ jobs:
           sudo apt-get update
 
           sudo apt-get install --no-install-recommends -y \
-            curl=7.81.0-1ubuntu1.10 \
+            curl \
             gettext \
             git \
             libacl1-dev \
@@ -139,7 +139,7 @@ jobs:
           sudo systemctl mask lxc-net.service
 
           sudo apt-get install --no-install-recommends -y \
-            curl=7.81.0-1ubuntu1.10 \
+            curl \
             dnsutils \
             git \
             libacl1-dev \
