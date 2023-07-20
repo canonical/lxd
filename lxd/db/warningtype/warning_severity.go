@@ -24,6 +24,7 @@ var Severities = map[Severity]string{
 // SeverityTypes associates a warning severity to its type code.
 var SeverityTypes = map[string]Severity{}
 
+// init initializes the SeverityTypes map with the code-name pairs from the Severities map.
 func init() {
 	for code, name := range Severities {
 		SeverityTypes[name] = code
