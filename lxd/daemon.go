@@ -147,6 +147,9 @@ type Daemon struct {
 
 	// HTTP-01 challenge provider for ACME
 	http01Provider acme.HTTP01Provider
+
+	// Authorization.
+	authorizer auth.Authorizer
 }
 
 // DaemonConfig holds configuration values for Daemon.
@@ -761,7 +764,15 @@ func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, l
 }
 
 func (d *Daemon) init() error {
+	var err error
+
 	var dbWarnings []dbCluster.Warning
+
+	// Set default authorizer.
+	d.authorizer, err = auth.LoadAuthorizer("tls", nil, logger.Log, nil)
+	if err != nil {
+		return err
+	}
 
 	// Setup logger
 	events.LoggingServer = d.events
@@ -770,7 +781,7 @@ func (d *Daemon) init() error {
 	d.internalListener = events.NewInternalListener(d.shutdownCtx, d.events)
 
 	// Lets check if there's an existing LXD running
-	err := endpoints.CheckAlreadyRunning(d.UnixSocket())
+	err = endpoints.CheckAlreadyRunning(d.UnixSocket())
 	if err != nil {
 		return err
 	}
