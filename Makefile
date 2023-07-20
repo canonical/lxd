@@ -30,6 +30,7 @@ ifeq "$(TAG_SQLITE3)" ""
 	exit 1
 endif
 
+	CGO_ENABLED=0 go install -v -tags lxddoc ./lxd/config/generate
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	CGO_ENABLED=0 go install -v -tags netgo ./lxd-migrate
 	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
@@ -49,12 +50,6 @@ lxd-agent:
 lxd-migrate:
 	CGO_ENABLED=0 go install -v -tags netgo ./lxd-migrate
 	@echo "LXD-MIGRATE built successfully"
-
-.PHONY: lxd-doc
-lxd-doc:
-	@go version > /dev/null 2>&1 || { echo "go is not installed for lxd-doc installation."; exit 1; }
-	cd lxd/config/generate && CGO_ENABLED=0 go build -o $(GOPATH)/bin/lxd-doc
-	@echo "LXD-DOC built successfully"
 
 .PHONY: deps
 deps:
@@ -125,13 +120,17 @@ doc-setup:
 	. $(SPHINXENV) ; pip install --upgrade -r doc/.sphinx/requirements.txt
 	rm -Rf doc/html
 
+.PHONY: generate-config
+generate-config:
+	@echo "Generating golang documentation"
+	$(GOPATH)/bin/lxd-doc . -y ./doc/config_options.yaml -t ./doc/config_options.txt
+
 .PHONY: doc
-doc: lxd-doc doc-setup doc-incremental
+doc: doc-setup doc-incremental
 
 .PHONY: doc-incremental
 doc-incremental:
 	@echo "Build the documentation"
-	$(GOPATH)/bin/lxd-doc ./lxd -y ./doc/config_options.yaml -t ./doc/config_options.txt
 	. $(SPHINXENV) ; sphinx-build -c doc/ -b dirhtml doc/ doc/html/ -w doc/.sphinx/warnings.txt
 
 .PHONY: doc-serve
