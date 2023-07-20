@@ -12,6 +12,7 @@ type Unmarshaler interface {
 	UnmarshalDB(string) error
 }
 
+// Marshal transforms a given value into a string format if it implements the DBMarshaler interface.
 func Marshal(v any) (string, error) {
 	marshaller, ok := v.(Marshaler)
 	if !ok {
@@ -21,6 +22,7 @@ func Marshal(v any) (string, error) {
 	return marshaller.MarshalDB()
 }
 
+// Unmarshal decodes data from a string format into a provided value if it implements the DBUnmarshaler interface.
 func Unmarshal(data string, v any) error {
 	if v == nil {
 		return fmt.Errorf("Cannot unmarshal data into nil value")
