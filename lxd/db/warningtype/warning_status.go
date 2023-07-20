@@ -24,6 +24,7 @@ var Statuses = map[Status]string{
 // StatusTypes associates a warning status to its type code.
 var StatusTypes = map[string]Status{}
 
+// init populates the StatusTypes map using the name-code pairs from the Statuses map.
 func init() {
 	for code, name := range Statuses {
 		StatusTypes[name] = code
