@@ -10,6 +10,8 @@ import (
 	"github.com/canonical/lxd/lxd/db/node"
 )
 
+// TestOpen tests the Open function by creating a new database directory,
+// opening it, and ensuring no error occurs.
 func TestOpen(t *testing.T) {
 	dir, cleanup := newDir(t)
 	defer cleanup()
