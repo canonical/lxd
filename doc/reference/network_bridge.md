@@ -118,7 +118,7 @@ Key                                  | Type      | Condition             | Defau
 `tunnel.NAME.local`                  | string    | `gre` or `vxlan`      | -                         | Local address for the tunnel (not necessary for multicast `vxlan`)
 `tunnel.NAME.port`                   | integer   | `vxlan`               | `0`                       | Specific port to use for the `vxlan` tunnel
 `tunnel.NAME.protocol`               | string    | standard mode         | -                         | Tunneling protocol: `vxlan` or `gre`
-`tunnel.NAME.remote`                 | string    | `gre` or `vxlan`      | -                         | Remote address for the tunnel (not necessary for multicast `vxlan`)
+`tunnel.NAME.remote`                 | string    | `gre` or `vxlan`      | -                         | Remote address for the tunnel (not necessary for multicast `vxlan`) - for a `vxlan` tunnel, you can specify multiple IP addresses separated by comma
 `tunnel.NAME.ttl`                    | integer   | `vxlan`               | `1`                       | Specific TTL to use for multicast routing topologies
 `user.*`                             | string    | -                     | -                         | User-provided free-form key/value pairs
 
