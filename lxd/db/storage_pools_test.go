@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 )
 
+// Initializes the package by setting the supported remote storage driver names.
 func init() {
 	db.StorageRemoteDriverNames = func() []string {
 		return []string{"ceph", "cephfs"}
@@ -58,6 +59,7 @@ func TestGetStoragePoolsLocalConfigs(t *testing.T) {
 	})
 }
 
+// Tests the creation of pending storage pools across multiple nodes, validating their configuration.
 func TestStoragePoolsCreatePending(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -96,6 +98,7 @@ func TestStoragePoolsCreatePending(t *testing.T) {
 	assert.Equal(t, map[string]string{"source": "/egg"}, configs["none"])
 }
 
+// Tests the creation of multiple pending storage pools across nodes, ensuring they maintain distinct configurations.
 func TestStoragePoolsCreatePending_OtherPool(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
