@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -142,8 +143,8 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			leases, err := n.Leases(projectName, clusterRequest.ClientTypeNormal)
-			if err != nil {
-				return response.SmartError(err)
+			if err != nil && !errors.Is(network.ErrNotImplemented, err) {
+				return response.SmartError(fmt.Errorf("Failed getting leases for network %q in project %q: %w", networkName, projectName, err))
 			}
 
 			instanceAllocs := make(map[string]api.NetworkAllocations, 0)
