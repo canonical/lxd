@@ -1168,6 +1168,7 @@ func (c *ClusterTx) SetNodeVersion(id int64, version [2]int) error {
 	return nil
 }
 
+// Determines if a node is offline based on its last heartbeat timestamp and the provided threshold.
 func nodeIsOffline(threshold time.Duration, heartbeat time.Time) bool {
 	offlineTime := time.Now().UTC().Add(-threshold)
 
