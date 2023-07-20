@@ -300,7 +300,7 @@ func (n *bridge) Validate(config map[string]string) error {
 			case "local":
 				rules[k] = validate.Optional(validate.IsNetworkAddress)
 			case "remote":
-				rules[k] = validate.Optional(validate.IsNetworkAddress)
+				rules[k] = validate.Optional(validate.IsListOf(validate.IsNetworkAddress))
 			case "port":
 				rules[k] = networkValidPort
 			case "group":
@@ -1457,9 +1457,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				Link: ip.Link{Name: tunName},
 			}
 
+			remotes := shared.SplitNTrimSpace(tunRemote, ",", -1, false)
 			if tunLocal != "" && tunRemote != "" {
 				vxlan.Local = tunLocal
-				vxlan.Remote = tunRemote
+				if len(remotes) == 1 {
+					vxlan.Remote = remotes[0]
+				}
 			} else {
 				if tunGroup == "" {
 					tunGroup = "239.0.0.1"
@@ -1501,6 +1504,20 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			err := vxlan.Add()
 			if err != nil {
 				return err
+			}
+
+			if len(remotes) > 1 {
+				for _, remote := range remotes {
+					if _, err := shared.RunCommand(
+						"bridge", "fdb",
+						"append", "00:00:00:00:00:00",
+						"dev", tunName,
+						"dst", remote,
+						"self", "permanent",
+					); err != nil {
+						return err
+					}
+				}
 			}
 		}
 
