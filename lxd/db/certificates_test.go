@@ -13,6 +13,8 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 )
 
+// TestGetCertificate verifies the creation and
+// retrieval of a specific certificate from the cluster using its fingerprint.
 func TestGetCertificate(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
