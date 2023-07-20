@@ -690,7 +690,7 @@ func (c *ClusterTx) UpdateInstanceNode(ctx context.Context, project string, oldN
 	return nil
 }
 
-// GetLocalInstancesInProject retuurns all instances of the given type on the local member in the given project.
+// GetLocalInstancesInProject returns all instances of the given type on the local member in the given project.
 // If projectName is empty then all instances in all projects are returned.
 func (c *ClusterTx) GetLocalInstancesInProject(ctx context.Context, filter cluster.InstanceFilter) ([]cluster.Instance, error) {
 	node, err := c.GetLocalNodeName(ctx)
@@ -717,6 +717,7 @@ func (c *ClusterTx) UpdateInstanceConfig(id int, values map[string]string) error
 	return c.configUpdate(id, values, insertSQL, deleteSQL)
 }
 
+// configUpdate handles the insertion, update, or removal of database configuration keys for a given ID.
 func (c *ClusterTx) configUpdate(id int, values map[string]string, insertSQL, deleteSQL string) error {
 	changes := map[string]string{}
 	deletes := []string{}
@@ -798,7 +799,7 @@ func (c *ClusterTx) UpdateInstanceLastUsedDate(id int, date time.Time) error {
 	return nil
 }
 
-// GetInstanceSnapshotsWithName returns all snapshots of a given instance in date created order, oldest first.
+// GetInstanceSnapshotsWithName returns all the snapshots of a given instance in date created order, oldest first.
 func (c *ClusterTx) GetInstanceSnapshotsWithName(ctx context.Context, project string, name string) ([]cluster.Instance, error) {
 	instance, err := cluster.GetInstance(ctx, c.tx, project, name)
 	if err != nil {
@@ -827,7 +828,7 @@ func (c *ClusterTx) GetInstanceSnapshotsWithName(ctx context.Context, project st
 	return instances, nil
 }
 
-// GetLocalInstanceWithVsockID returns all available instances with the given config key and value.
+// GetLocalInstanceWithVsockID returns all the available instances with the given config key and value.
 func (c *ClusterTx) GetLocalInstanceWithVsockID(ctx context.Context, vsockID int) (*cluster.Instance, error) {
 	q := `
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
