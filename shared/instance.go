@@ -180,9 +180,36 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	//  shortdesc: Controls what to do when evacuating the instance (`auto`, `migrate`, `live-migrate`, or `stop`)
 	"cluster.evacuate": validate.Optional(validate.IsOneOf("auto", "migrate", "live-migrate", "stop")),
 
-	"limits.cpu":           validate.Optional(validate.IsValidCPUSet),
-	"limits.cpu.nodes":     validate.Optional(validate.IsValidCPUSet),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.cpu)
+	//
+	// ---
+	//  type: string
+	//  default: for VMs: 1 CPU
+	//  liveupdate: yes
+	//  shortdesc: Number or range of CPUs to expose to the instance; see {ref}`instance-options-limits-cpu`
+	"limits.cpu": validate.Optional(validate.IsValidCPUSet),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.cpu.nodes)
+	//
+	// ---
+	//  type: string
+	//  liveupdate: yes
+	//  shortdesc: Comma-separated list of NUMA node IDs or ranges to place the instance CPUs on; see {ref}`instance-options-limits-cpu-container`
+	"limits.cpu.nodes": validate.Optional(validate.IsValidCPUSet),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.disk.priority)
+	//
+	// ---
+	//  type: integer
+	//  default: `5` (medium)
+	//  liveupdate: yes
+	//  shortdesc: Controls how much priority to give to the instance’s I/O requests when under load (integer between 0 and 10)
 	"limits.disk.priority": validate.Optional(validate.IsPriority),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.memory)
+	//
+	// ---
+	//  type: string
+	//  default: for VMs: `1Gib`
+	//  liveupdate: yes
+	//  shortdesc: Percentage of the host's memory or fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`)
 	"limits.memory": func(value string) error {
 		if value == "" {
 			return nil
@@ -212,6 +239,13 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 
 		return nil
 	},
+	// lxddoc:generate(group=instance-resource-limits, key=limits.network.priority)
+	//
+	// ---
+	//  type: integer
+	//  default: `0` (minimum)
+	//  liveupdate: yes
+	//  shortdesc: Controls how much priority to give to the instance’s network requests when under load (integer between 0 and 10)
 	"limits.network.priority": validate.Optional(validate.IsPriority),
 
 	// Caller is responsible for full validation of any raw.* value.
@@ -244,6 +278,14 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 
 // InstanceConfigKeysContainer is a map of config key to validator. (keys applying to containers only).
 var InstanceConfigKeysContainer = map[string]func(value string) error{
+	// lxddoc:generate(group=instance-resource-limits, key=limits.cpu.allowance)
+	//
+	// ---
+	//  type: string
+	//  default: 100%
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Controls how much of the CPU can be used: either a percentage (`50%`) for a soft limit or a chunk of time (`25ms/100ms`) for a hard limit; see {ref}`instance-options-limits-cpu-container`
 	"limits.cpu.allowance": func(value string) error {
 		if value == "" {
 			return nil
@@ -277,16 +319,84 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 
 		return nil
 	},
-	"limits.cpu.priority":   validate.Optional(validate.IsPriority),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.cpu.priority)
+	//
+	// ---
+	//  type: integer
+	//  default: `10` (maximum)
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: CPU scheduling priority compared to other instances sharing the same CPUs when overcommitting resources (integer between 0 and 10); see {ref}`instance-options-limits-cpu-container`
+	"limits.cpu.priority": validate.Optional(validate.IsPriority),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.hugepages.64KB)
+	//
+	// ---
+	//  type: string
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`) to limit number of 64 KB huge pages; see {ref}`instance-options-limits-hugepages`
 	"limits.hugepages.64KB": validate.Optional(validate.IsSize),
-	"limits.hugepages.1MB":  validate.Optional(validate.IsSize),
-	"limits.hugepages.2MB":  validate.Optional(validate.IsSize),
-	"limits.hugepages.1GB":  validate.Optional(validate.IsSize),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.hugepages.1MB)
+	//
+	// ---
+	//  type: string
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`) to limit number of 1 MB huge pages; see {ref}`instance-options-limits-hugepages`
+	"limits.hugepages.1MB": validate.Optional(validate.IsSize),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.hugepages.2MB)
+	//
+	// ---
+	//  type: string
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`) to limit number of 2 MB huge pages; see {ref}`instance-options-limits-hugepages`
+	"limits.hugepages.2MB": validate.Optional(validate.IsSize),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.hugepages.1GB)
+	//
+	// ---
+	//  type: string
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`) to limit number of 1 GB huge pages; see {ref}`instance-options-limits-hugepages`
+	"limits.hugepages.1GB": validate.Optional(validate.IsSize),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.memory.enforce)
+	//
+	// ---
+	//  type: string
+	//  default: `hard`
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: If `hard`, the instance cannot exceed its memory limit; if `soft`, the instance can exceed its memory limit when extra host memory is available
 	"limits.memory.enforce": validate.Optional(validate.IsOneOf("soft", "hard")),
 
-	"limits.memory.swap":          validate.Optional(validate.IsBool),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.memory.swap)
+	//
+	// ---
+	//  type: bool
+	//  default: `true`
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Controls whether to encourage/discourage swapping less used pages for this instance
+	"limits.memory.swap": validate.Optional(validate.IsBool),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.memory.swap.priority)
+	//
+	// ---
+	//  type: integer
+	//  default: `10` (maximum)
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Prevents the instance from being swapped to disk (integer between 0 and 10; the higher the value, the less likely the instance is to be swapped to disk)
 	"limits.memory.swap.priority": validate.Optional(validate.IsPriority),
-	"limits.processes":            validate.Optional(validate.IsInt64),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.processes)
+	//
+	// ---
+	//  type: integer
+	//  default: -(max)
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Maximum number of processes that can run in the instance
+	"limits.processes": validate.Optional(validate.IsInt64),
 
 	// lxddoc:generate(group=instance-miscellaneous, key=linux.kernel_modules)
 	//
@@ -355,6 +465,14 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 
 // InstanceConfigKeysVM is a map of config key to validator. (keys applying to VM only).
 var InstanceConfigKeysVM = map[string]func(value string) error{
+	// lxddoc:generate(group=instance-resource-limits, key=limits.memory.hugepages)
+	//
+	// ---
+	//  type: bool
+	//  default: `false`
+	//  liveupdate: no
+	//  condition: virtual machine
+	//  shortdesc: Controls whether to back the instance using huge pages rather than regular system memory
 	"limits.memory.hugepages": validate.Optional(validate.IsBool),
 
 	"migration.stateful": validate.Optional(validate.IsBool),
