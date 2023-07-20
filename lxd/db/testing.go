@@ -134,7 +134,7 @@ func NewTestDqliteServer(t *testing.T) (string, driver.NodeStore, func()) {
 	return dir, store, cleanup
 }
 
-// Return a new temporary directory.
+// Returns a new temporary directory.
 func newDir(t *testing.T) (string, func()) {
 	t.Helper()
 
@@ -153,6 +153,7 @@ func newDir(t *testing.T) (string, func()) {
 	return dir, cleanup
 }
 
+// Returns a logging function suitable for a client, to log test information at different levels.
 func newLogFunc(t *testing.T) client.LogFunc {
 	return func(l client.LogLevel, format string, a ...any) {
 		format = fmt.Sprintf("%s: %s", l.String(), format)
