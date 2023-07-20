@@ -20,6 +20,7 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 )
 
+// TestLoadPreClusteringData verifies the loading of configuration and network data prior to clustering.
 func TestLoadPreClusteringData(t *testing.T) {
 	tx := newPreClusteringTx(t)
 
@@ -44,6 +45,8 @@ func TestLoadPreClusteringData(t *testing.T) {
 	assert.Equal(t, rows, dump.Data["networks"][0])
 }
 
+// TestImportPreClusteringData validates the import operation of pre-clustering data,
+// ensuring proper configuration, networks, storage, and profiles.
 func TestImportPreClusteringData(t *testing.T) {
 	tx := newPreClusteringTx(t)
 
