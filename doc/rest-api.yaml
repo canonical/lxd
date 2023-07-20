@@ -5912,11 +5912,18 @@ definitions:
     StorageVolumeSnapshotPost:
         description: StorageVolumeSnapshotPost represents the fields required to rename/move a LXD storage volume snapshot
         properties:
+            migration:
+                description: Initiate volume snapshot migration
+                example: false
+                type: boolean
+                x-go-name: Migration
             name:
                 description: New snapshot name
                 example: snap1
                 type: string
                 x-go-name: Name
+            target:
+                $ref: '#/definitions/StorageVolumePostTarget'
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     StorageVolumeSnapshotPut:
