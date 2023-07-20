@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/bgp"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/db"
@@ -77,4 +78,7 @@ type State struct {
 
 	// Local server start time.
 	StartTime time.Time
+
+	// Authorizer.
+	Authorizer auth.Authorizer
 }
