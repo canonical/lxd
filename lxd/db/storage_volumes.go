@@ -81,15 +81,17 @@ SELECT
 	storage_volumes.description,
 	storage_volumes.creation_date,
 	storage_volumes.type,
+	IFNULL(storage_volumes.node_id, -1),
 	storage_pools.name,
 	projects.name
 FROM storage_volumes
 JOIN storage_pools ON storage_pools.id = storage_volumes.storage_pool_id
 JOIN projects ON projects.id = storage_volumes.project_id
+LEFT JOIN nodes ON nodes.id = storage_volumes.node_id
 WHERE storage_volumes.id = ?
 `
 
-	err := c.tx.QueryRowContext(ctx, stmt, volumeID).Scan(&response.ID, &response.Name, &response.Description, &response.CreationDate, &response.Type, &response.PoolName, &response.ProjectName)
+	err := c.tx.QueryRowContext(ctx, stmt, volumeID).Scan(&response.ID, &response.Name, &response.Description, &response.CreationDate, &response.Type, &response.NodeID, &response.PoolName, &response.ProjectName)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return StorageVolumeArgs{}, api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
