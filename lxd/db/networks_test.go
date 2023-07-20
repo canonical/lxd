@@ -39,6 +39,7 @@ func TestGetNetworksLocalConfigs(t *testing.T) {
 	})
 }
 
+// TestCreatePendingNetwork checks the creation of a network across multiple nodes, validating successful configuration for each.
 func TestCreatePendingNetwork(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
