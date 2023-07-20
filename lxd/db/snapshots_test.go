@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 )
 
+// Tests retrieval and validation of instance snapshots, including their configuration and associated devices.
 func TestGetInstanceSnapshots(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -77,6 +78,7 @@ func TestGetInstanceSnapshots(t *testing.T) {
 	assert.Equal(t, map[string]string{"x": "y"}, s3Devices["root"].Config)
 }
 
+// Tests the retrieval of instance snapshots filtered by specific instance name.
 func TestGetInstanceSnapshots_FilterByInstance(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -105,6 +107,7 @@ func TestGetInstanceSnapshots_FilterByInstance(t *testing.T) {
 	assert.Equal(t, "c2", s2.Instance)
 }
 
+// Tests the handling of snapshots with identical names in separate projects.
 func TestGetInstanceSnapshots_SameNameInDifferentProjects(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -182,6 +185,7 @@ func TestGetInstanceSnapshots_SameNameInDifferentProjects(t *testing.T) {
 	assert.Equal(t, "s1", snapshot.Name)
 }
 
+// Adds a snapshot to an instance within the database for testing.
 func addInstanceSnapshot(t *testing.T, tx *db.ClusterTx, instanceID int64, name string) {
 	stmt := `
 INSERT INTO instances_snapshots(instance_id, name, creation_date, description) VALUES (?, ?, ?, '')
@@ -190,7 +194,7 @@ INSERT INTO instances_snapshots(instance_id, name, creation_date, description) V
 	require.NoError(t, err)
 }
 
-// Return the instance snapshot ID given its name and instance name.
+// Returns the instance snapshot ID given its name and instance name.
 func getInstanceSnapshotID(t *testing.T, tx *db.ClusterTx, instance, name string) int64 {
 	var id int64
 
@@ -207,6 +211,7 @@ WHERE instances.name=? AND instances_snapshots.name=?
 	return id
 }
 
+// Inserts a key-value pair into the configuration of a specified instance snapshot for testing.
 func addInstanceSnapshotConfig(t *testing.T, tx *db.ClusterTx, instance, name, key, value string) {
 	id := getInstanceSnapshotID(t, tx, instance, name)
 
@@ -217,7 +222,7 @@ INSERT INTO instances_snapshots_config(instance_snapshot_id, key, value) VALUES 
 	require.NoError(t, err)
 }
 
-// Return the instance snapshot device ID given its instance snapshot ID and name.
+// Returns the instance snapshot device ID given its instance snapshot ID and name.
 func getInstanceSnapshotDeviceID(t *testing.T, tx *db.ClusterTx, instanceSnapshotID int64, name string) int64 {
 	var id int64
 
@@ -229,6 +234,7 @@ func getInstanceSnapshotDeviceID(t *testing.T, tx *db.ClusterTx, instanceSnapsho
 	return id
 }
 
+// Adds a device with its configuration to a specified instance snapshot for testing purposes.
 func addInstanceSnapshotDevice(t *testing.T, tx *db.ClusterTx, instance, snapshot, name, typ string, config map[string]string) {
 	id := getInstanceSnapshotID(t, tx, instance, snapshot)
 
