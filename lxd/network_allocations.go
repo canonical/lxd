@@ -117,14 +117,14 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 	for _, projectName := range projectNames {
 		networkNames, err := d.db.Cluster.GetNetworks(projectName)
 		if err != nil {
-			return response.SmartError(err)
+			return response.SmartError(fmt.Errorf("Failed loading networks: %w", err))
 		}
 
 		// Get all the networks, their attached instances, their network forwards and their network load balancers.
 		for _, networkName := range networkNames {
 			n, err := network.LoadByName(d.State(), projectName, networkName)
 			if err != nil {
-				return response.SmartError(err)
+				return response.SmartError(fmt.Errorf("Failed loading network %q in project %q: %w", networkName, projectName, err))
 			}
 
 			gwAddrs := make([]string, 0)
@@ -179,7 +179,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 			forwards, err := d.db.Cluster.GetNetworkForwards(r.Context(), n.ID(), false)
 			if err != nil {
-				return response.SmartError(err)
+				return response.SmartError(fmt.Errorf("Failed getting forwards for network %q in project %q: %w", networkName, projectName, err))
 			}
 
 			for _, forward := range forwards {
@@ -200,7 +200,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 			loadBalancers, err := d.db.Cluster.GetNetworkLoadBalancers(r.Context(), n.ID(), false)
 			if err != nil {
-				return response.SmartError(err)
+				return response.SmartError(fmt.Errorf("Failed getting load-balancers for network %q in project %q: %w", networkName, projectName, err))
 			}
 
 			for _, loadBalancer := range loadBalancers {
