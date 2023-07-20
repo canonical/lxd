@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -96,16 +97,18 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Helper function to get the default CIDR address (/32 or /128 mask for ipv4 or ipv6 respectively)
-	getDefaultCIDRAddr := func(addr string) (string, error) {
+	// Helper function to get the CIDR address of an IP (/32 or /128 mask for ipv4 or ipv6 respectively).
+	ipToCIDR := func(addr string) (string, error) {
 		ip := net.ParseIP(addr)
-		if ip.To4() != nil {
-			return fmt.Sprintf("%s/32", addr), nil
-		} else if ip.To16() != nil {
-			return fmt.Sprintf("%s/128", addr), nil
-		} else {
-			return "", fmt.Errorf("%s is not a valid IP address.", addr)
+		if ip == nil {
+			return "", fmt.Errorf("Invalid IP address %q", addr)
 		}
+
+		if ip.To4() != nil {
+			return fmt.Sprintf("%s/32", ip.String()), nil
+		}
+
+		return fmt.Sprintf("%s/128", ip.String()), nil
 	}
 
 	result := make([]api.NetworkAllocations, 0)
@@ -114,14 +117,14 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 	for _, projectName := range projectNames {
 		networkNames, err := d.db.Cluster.GetNetworks(projectName)
 		if err != nil {
-			return response.SmartError(err)
+			return response.SmartError(fmt.Errorf("Failed loading networks: %w", err))
 		}
 
 		// Get all the networks, their attached instances, their network forwards and their network load balancers.
 		for _, networkName := range networkNames {
 			n, err := network.LoadByName(d.State(), projectName, networkName)
 			if err != nil {
-				return response.SmartError(err)
+				return response.SmartError(fmt.Errorf("Failed loading network %q in project %q: %w", networkName, projectName, err))
 			}
 
 			gwAddrs := make([]string, 0)
@@ -142,14 +145,14 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			leases, err := n.Leases(projectName, clusterRequest.ClientTypeNormal)
-			if err != nil {
-				return response.SmartError(err)
+			if err != nil && !errors.Is(network.ErrNotImplemented, err) {
+				return response.SmartError(fmt.Errorf("Failed getting leases for network %q in project %q: %w", networkName, projectName, err))
 			}
 
 			instanceAllocs := make(map[string]api.NetworkAllocations, 0)
 			for _, lease := range leases {
 				if shared.StringInSlice(lease.Type, []string{"static", "dynamic"}) {
-					cidrAddr, err := getDefaultCIDRAddr(lease.Address)
+					cidrAddr, err := ipToCIDR(lease.Address)
 					if err != nil {
 						return response.SmartError(err)
 					}
@@ -176,11 +179,11 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 			forwards, err := d.db.Cluster.GetNetworkForwards(r.Context(), n.ID(), false)
 			if err != nil {
-				return response.SmartError(err)
+				return response.SmartError(fmt.Errorf("Failed getting forwards for network %q in project %q: %w", networkName, projectName, err))
 			}
 
 			for _, forward := range forwards {
-				cidrAddr, err := getDefaultCIDRAddr(forward.ListenAddress)
+				cidrAddr, err := ipToCIDR(forward.ListenAddress)
 				if err != nil {
 					return response.SmartError(err)
 				}
@@ -197,11 +200,11 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 			loadBalancers, err := d.db.Cluster.GetNetworkLoadBalancers(r.Context(), n.ID(), false)
 			if err != nil {
-				return response.SmartError(err)
+				return response.SmartError(fmt.Errorf("Failed getting load-balancers for network %q in project %q: %w", networkName, projectName, err))
 			}
 
 			for _, loadBalancer := range loadBalancers {
-				cidrAddr, err := getDefaultCIDRAddr(loadBalancer.ListenAddress)
+				cidrAddr, err := ipToCIDR(loadBalancer.ListenAddress)
 				if err != nil {
 					return response.SmartError(err)
 				}
