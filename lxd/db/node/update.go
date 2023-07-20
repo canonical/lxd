@@ -124,6 +124,7 @@ ALTER TABLE "config_new" RENAME TO "config";
 	return err
 }
 
+// updateFromV41 updates "raft_nodes" table by adding "name" column, TestUpdateFromV41 tests it.
 func updateFromV41(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 	ALTER TABLE raft_nodes ADD COLUMN name TEXT NOT NULL default "";
@@ -132,6 +133,7 @@ func updateFromV41(ctx context.Context, tx *sql.Tx) error {
 	return err
 }
 
+// updateFromV40 adds "certificates" table with the specified columns, TestUpdateFromV40 tests it.
 func updateFromV40(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE certificates (
@@ -147,7 +149,7 @@ CREATE TABLE certificates (
 	return err
 }
 
-// Fix the address of the bootstrap node being set to "0" in the raft_nodes
+// Fixes the address of the bootstrap node being set to "0" in the raft_nodes
 // table.
 func updateFromV39(ctx context.Context, tx *sql.Tx) error {
 	type node struct {
@@ -198,7 +200,7 @@ func updateFromV39(ctx context.Context, tx *sql.Tx) error {
 	return nil
 }
 
-// Add role column to raft_nodes table. All existing entries will have role "0"
+// Adds the role column to raft_nodes table. All existing entries will have role "0"
 // which means voter.
 func updateFromV38(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
@@ -208,7 +210,7 @@ ALTER TABLE raft_nodes ADD COLUMN role INTEGER NOT NULL DEFAULT 0;
 	return err
 }
 
-// Copy core.https_address to cluster.https_address in case this node is
+// Copies the core.https_address to cluster.https_address in case this node is
 // clustered.
 func updateFromV37(ctx context.Context, tx *sql.Tx) error {
 	count, err := query.Count(ctx, tx, "raft_nodes", "")
@@ -283,6 +285,8 @@ DROP TABLE storage_pools;
 	return err
 }
 
+// updateFromV35 performs multiple database schema updates, including table creation,
+// data insertion, table renaming, and column addition.
 func updateFromV35(ctx context.Context, tx *sql.Tx) error {
 	stmts := `
 CREATE TABLE tmp (
@@ -308,6 +312,7 @@ ALTER TABLE containers ADD COLUMN description TEXT;
 	return err
 }
 
+// updateFromV34 creates several tables related to storage pools and storage volumes in the database schema.
 func updateFromV34(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE IF NOT EXISTS storage_pools (
@@ -344,6 +349,7 @@ CREATE TABLE IF NOT EXISTS storage_volumes_config (
 	return err
 }
 
+// updateFromV33 creates tables for networks and their configurations in the database schema.
 func updateFromV33(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE IF NOT EXISTS networks (
@@ -363,11 +369,13 @@ CREATE TABLE IF NOT EXISTS networks_config (
 	return err
 }
 
+// updateFromV32 adds the "last_use_date" column to the "containers" table in the database schema.
 func updateFromV32(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE containers ADD COLUMN last_use_date DATETIME;")
 	return err
 }
 
+// updateFromV31 creates the "patches" table in the database schema to track applied patches.
 func updateFromV31(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE IF NOT EXISTS patches (
@@ -380,12 +388,15 @@ CREATE TABLE IF NOT EXISTS patches (
 	return err
 }
 
+// updateFromV30 is a no-op function. The update logic has been moved elsewhere.
 func updateFromV30(ctx context.Context, tx *sql.Tx) error {
 	// NOTE: this database update contained daemon-level logic which
 	//       was been moved to patchUpdateFromV15 in patches.go.
 	return nil
 }
 
+// updateFromV29 updates the database schema from version 29.
+// It modifies the permissions of the zfs.img file if it exists.
 func updateFromV29(ctx context.Context, tx *sql.Tx) error {
 	if shared.PathExists(shared.VarPath("zfs.img")) {
 		err := os.Chmod(shared.VarPath("zfs.img"), 0600)
@@ -397,6 +408,8 @@ func updateFromV29(ctx context.Context, tx *sql.Tx) error {
 	return nil
 }
 
+// updateFromV28 updates the database schema from version 28.
+// It inserts entries into the profiles_devices and profiles_devices_config tables.
 func updateFromV28(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 INSERT INTO profiles_devices (profile_id, name, type) SELECT id, "aadisable", 2 FROM profiles WHERE name="docker";
@@ -407,11 +420,14 @@ INSERT INTO profiles_devices_config (profile_device_id, key, value) SELECT profi
 	return nil
 }
 
+// updateFromV27 updates the database schema from version 27. It modifies the type of entries in the profiles_devices table.
 func updateFromV27(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("UPDATE profiles_devices SET type=3 WHERE type='unix-char';")
 	return err
 }
 
+// updateFromV26 updates the database schema from version 26.
+// It adds a column to the images table and creates a new table images_source.
 func updateFromV26(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 ALTER TABLE images ADD COLUMN auto_update INTEGER NOT NULL DEFAULT 0;
@@ -428,6 +444,8 @@ CREATE TABLE IF NOT EXISTS images_source (
 	return err
 }
 
+// updateFromV25 updates the database schema from version 25.
+// It inserts data into various tables related to profiles and their configurations.
 func updateFromV25(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 INSERT INTO profiles (name, description) VALUES ("docker", "Profile supporting docker in containers");
@@ -440,16 +458,19 @@ INSERT INTO profiles_devices_config (profile_device_id, key, value) SELECT profi
 	return nil
 }
 
+// updateFromV24 updates the database schema from version 24 by adding a new column to the containers table.
 func updateFromV24(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE containers ADD COLUMN stateful INTEGER NOT NULL DEFAULT 0;")
 	return err
 }
 
+// updateFromV23 updates the database schema from version 23 by adding a new column to the profiles table.
 func updateFromV23(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE profiles ADD COLUMN description TEXT;")
 	return err
 }
 
+// updateFromV22 updates the database schema from version 22 by deleting specific rows from tables.
 func updateFromV22(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 DELETE FROM containers_devices_config WHERE key='type';
@@ -458,11 +479,13 @@ DELETE FROM profiles_devices_config WHERE key='type';`
 	return err
 }
 
+// updateFromV21 updates the database schema from version 21 by adding a new column to the "containers" table.
 func updateFromV21(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE containers ADD COLUMN creation_date DATETIME NOT NULL DEFAULT 0;")
 	return err
 }
 
+// updateFromV20 updates the database schema from version 20.
 func updateFromV20(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 UPDATE containers_devices SET name='__lxd_upgrade_root' WHERE name='root';
@@ -475,6 +498,7 @@ INSERT INTO containers_devices_config (container_device_id, key, value) SELECT i
 	return err
 }
 
+// updateFromV19 updates the database schema from version 19 by removing orphaned data.
 func updateFromV19(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 DELETE FROM containers_config WHERE container_id NOT IN (SELECT id FROM containers);
@@ -487,6 +511,7 @@ DELETE FROM images_properties WHERE image_id NOT IN (SELECT id FROM images);`
 	return err
 }
 
+// updateFromV18 updates the database schema from version 18 by converting memory limit values in containers and profiles to a unified format.
 func updateFromV18(ctx context.Context, tx *sql.Tx) error {
 	var id int
 	var value string
@@ -586,6 +611,7 @@ func updateFromV18(ctx context.Context, tx *sql.Tx) error {
 	return nil
 }
 
+// updateFromV17 updates the database schema from version 17.
 func updateFromV17(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 DELETE FROM profiles_config WHERE key LIKE 'volatile.%';
@@ -595,6 +621,7 @@ UPDATE profiles_config SET key='limits.cpu' WHERE key='limits.cpus';`
 	return err
 }
 
+// updateFromV16 updates the database schema from version 16.
 func updateFromV16(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 UPDATE config SET key='storage.lvm_vg_name' WHERE key = 'core.lvm_vg_name';
@@ -603,12 +630,14 @@ UPDATE config SET key='storage.lvm_thinpool_name' WHERE key = 'core.lvm_thinpool
 	return err
 }
 
+// updateFromV15 updates the database schema from version 15.
 func updateFromV15(ctx context.Context, tx *sql.Tx) error {
 	// NOTE: this database update contained daemon-level logic which
 	//       was been moved to patchUpdateFromV15 in patches.go.
 	return nil
 }
 
+// updateFromV14 updates the database schema from version 14.
 func updateFromV14(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 PRAGMA foreign_keys=OFF; -- So that integrity doesn't get in the way for now
@@ -642,6 +671,7 @@ PRAGMA foreign_keys=ON; -- Make sure we turn integrity checks back on.`
 	return err
 }
 
+// updateFromV13 updates the database schema from version 13.
 func updateFromV13(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 UPDATE containers_config SET key='volatile.base_image' WHERE key = 'volatile.baseImage';`
@@ -649,6 +679,7 @@ UPDATE containers_config SET key='volatile.base_image' WHERE key = 'volatile.bas
 	return err
 }
 
+// updateFromV12 updates the database schema from version 12.
 func updateFromV12(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 ALTER TABLE images ADD COLUMN cached INTEGER NOT NULL DEFAULT 0;
@@ -657,18 +688,21 @@ ALTER TABLE images ADD COLUMN last_use_date DATETIME;`
 	return err
 }
 
+// updateFromV11 updates the database schema from version 11.
 func updateFromV11(ctx context.Context, tx *sql.Tx) error {
 	// NOTE: this database update contained daemon-level logic which
 	//       was been moved to patchUpdateFromV15 in patches.go.
 	return nil
 }
 
+// updateFromV10 updates the database schema from version 10.
 func updateFromV10(ctx context.Context, tx *sql.Tx) error {
 	// NOTE: this database update contained daemon-level logic which
 	//       was been moved to patchUpdateFromV10 in patches.go.
 	return nil
 }
 
+// updateFromV9 updates the database schema from version 9.
 func updateFromV9(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE tmp (
@@ -712,6 +746,7 @@ DROP TABLE tmp;`
 	return err
 }
 
+// updateFromV8 updates the database schema from version 8.
 func updateFromV8(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 UPDATE certificates SET fingerprint = replace(fingerprint, " ", "");`
@@ -719,6 +754,7 @@ UPDATE certificates SET fingerprint = replace(fingerprint, " ", "");`
 	return err
 }
 
+// updateFromV7 updates the database schema from version 7.
 func updateFromV7(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 UPDATE config SET key='core.trust_password' WHERE key IN ('password', 'trust_password', 'trust-password', 'core.trust-password');
@@ -727,6 +763,7 @@ DELETE FROM config WHERE key != 'core.trust_password';`
 	return err
 }
 
+// updateFromV6 updates the database schema from version 6 and recreates the schemas that need ON DELETE CASCADE foreign keys.
 func updateFromV6(ctx context.Context, tx *sql.Tx) error {
 	// This update recreates the schemas that need an ON DELETE CASCADE foreign
 	// key.
@@ -893,6 +930,7 @@ PRAGMA foreign_keys=ON; -- Make sure we turn integrity checks back on.`
 	return nil
 }
 
+// updateFromV5 updates the database schema from version 5 by adding the power_state and ephemeral columns to the containers table.
 func updateFromV5(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 ALTER TABLE containers ADD COLUMN power_state INTEGER NOT NULL DEFAULT 0;
@@ -901,6 +939,8 @@ ALTER TABLE containers ADD COLUMN ephemeral INTEGER NOT NULL DEFAULT 0;`
 	return err
 }
 
+// This function updates the database schema and
+// inserts the trust password value from the admin password file, if available.
 func updateFromV4(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE IF NOT EXISTS config (
@@ -940,6 +980,7 @@ CREATE TABLE IF NOT EXISTS config (
 	return nil
 }
 
+// This function creates a default profile in the database if it doesn't already exist.
 func updateFromV3(ctx context.Context, tx *sql.Tx) error {
 	// Attempt to create a default profile (but don't fail if already there)
 	_, _ = tx.Exec("INSERT INTO profiles (name) VALUES (\"default\");")
@@ -947,6 +988,8 @@ func updateFromV3(ctx context.Context, tx *sql.Tx) error {
 	return nil
 }
 
+// This function creates several database tables and their
+// corresponding relationships for managing containers, profiles, and their configurations.
 func updateFromV2(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE IF NOT EXISTS containers_devices (
@@ -1007,6 +1050,7 @@ CREATE TABLE IF NOT EXISTS profiles_devices_config (
 	return err
 }
 
+// This function adds a table for managing image aliases, which associates user-defined names with specific images.
 func updateFromV1(ctx context.Context, tx *sql.Tx) error {
 	// v1..v2 adds images aliases
 	stmt := `
@@ -1022,6 +1066,7 @@ CREATE TABLE IF NOT EXISTS images_aliases (
 	return err
 }
 
+// This function creates the initial database schema for containers, images, certificates, and associated configuration.
 func updateFromV0(ctx context.Context, tx *sql.Tx) error {
 	// v0..v1 the dawn of containers
 	stmt := `
