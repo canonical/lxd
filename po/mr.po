@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2023-07-18 19:22+0200\n"
+"POT-Creation-Date: 2023-07-20 17:57+0200\n"
 "PO-Revision-Date: 2022-03-10 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Marathi <https://hosted.weblate.org/projects/linux-containers/"
@@ -441,6 +441,10 @@ msgstr ""
 
 #: lxc/manpage.go:20
 msgid "<target>"
+msgstr ""
+
+#: lxc/network_allocations.go:26
+msgid "ADDRESSES"
 msgstr ""
 
 #: lxc/alias.go:139 lxc/image.go:1053 lxc/image_alias.go:234
@@ -1540,7 +1544,7 @@ msgstr ""
 #: lxc/network_acl.go:327 lxc/network_acl.go:412 lxc/network_acl.go:492
 #: lxc/network_acl.go:522 lxc/network_acl.go:653 lxc/network_acl.go:702
 #: lxc/network_acl.go:751 lxc/network_acl.go:766 lxc/network_acl.go:887
-#: lxc/network_allocations.go:35 lxc/network_forward.go:29
+#: lxc/network_allocations.go:53 lxc/network_forward.go:29
 #: lxc/network_forward.go:86 lxc/network_forward.go:167
 #: lxc/network_forward.go:231 lxc/network_forward.go:329
 #: lxc/network_forward.go:398 lxc/network_forward.go:496
@@ -2224,11 +2228,11 @@ msgstr ""
 #: lxc/cluster_group.go:384 lxc/config_template.go:242 lxc/config_trust.go:352
 #: lxc/config_trust.go:434 lxc/image.go:1045 lxc/image_alias.go:157
 #: lxc/list.go:133 lxc/network.go:916 lxc/network.go:1007 lxc/network_acl.go:97
-#: lxc/network_forward.go:89 lxc/network_load_balancer.go:93
-#: lxc/network_peer.go:84 lxc/network_zone.go:88 lxc/network_zone.go:692
-#: lxc/operation.go:106 lxc/profile.go:617 lxc/project.go:412
-#: lxc/project.go:804 lxc/remote.go:668 lxc/storage.go:588
-#: lxc/storage_bucket.go:454 lxc/storage_bucket.go:769
+#: lxc/network_allocations.go:59 lxc/network_forward.go:89
+#: lxc/network_load_balancer.go:93 lxc/network_peer.go:84
+#: lxc/network_zone.go:88 lxc/network_zone.go:692 lxc/operation.go:106
+#: lxc/profile.go:617 lxc/project.go:412 lxc/project.go:804 lxc/remote.go:668
+#: lxc/storage.go:588 lxc/storage_bucket.go:454 lxc/storage_bucket.go:769
 #: lxc/storage_volume.go:1418 lxc/warning.go:93
 msgid "Format (csv|json|table|yaml|compact)"
 msgstr ""
@@ -2420,6 +2424,10 @@ msgstr ""
 
 #: lxc/exec.go:60
 msgid "Group ID to run the command as (default 0)"
+msgstr ""
+
+#: lxc/network_allocations.go:30
+msgid "HARDWARE ADDRESS"
 msgstr ""
 
 #: lxc/network.go:1052
@@ -3036,7 +3044,7 @@ msgid ""
 "  Defaults to -1 (unlimited). Use 0 to limit to the column header size."
 msgstr ""
 
-#: lxc/network_allocations.go:34 lxc/network_allocations.go:35
+#: lxc/network_allocations.go:52 lxc/network_allocations.go:53
 msgid "List network allocations in use"
 msgstr ""
 
@@ -3680,6 +3688,10 @@ msgstr ""
 #: lxc/storage_bucket.go:506 lxc/storage_bucket.go:826
 #: lxc/storage_volume.go:1506
 msgid "NAME"
+msgstr ""
+
+#: lxc/network_allocations.go:29
+msgid "NAT"
 msgstr ""
 
 #: lxc/project.go:504
@@ -4603,7 +4615,7 @@ msgstr ""
 msgid "Role (admin or read-only)"
 msgstr ""
 
-#: lxc/network_allocations.go:41
+#: lxc/network_allocations.go:60
 msgid "Run again a specific project"
 msgstr ""
 
@@ -4611,7 +4623,7 @@ msgstr ""
 msgid "Run against all instances"
 msgstr ""
 
-#: lxc/network_allocations.go:42
+#: lxc/network_allocations.go:61
 msgid "Run against all projects"
 msgstr ""
 
@@ -5323,7 +5335,8 @@ msgid "TOKEN"
 msgstr ""
 
 #: lxc/config_trust.go:408 lxc/image.go:1062 lxc/image_alias.go:236
-#: lxc/list.go:571 lxc/network.go:981 lxc/network.go:1055 lxc/operation.go:162
+#: lxc/list.go:571 lxc/network.go:981 lxc/network.go:1055
+#: lxc/network_allocations.go:27 lxc/operation.go:162
 #: lxc/storage_volume.go:1505 lxc/warning.go:215
 msgid "TYPE"
 msgstr ""
@@ -5669,9 +5682,9 @@ msgstr ""
 msgid "USAGE"
 msgstr ""
 
-#: lxc/network.go:986 lxc/network_acl.go:149 lxc/network_zone.go:140
-#: lxc/profile.go:659 lxc/project.go:506 lxc/storage.go:647
-#: lxc/storage_volume.go:1509
+#: lxc/network.go:986 lxc/network_acl.go:149 lxc/network_allocations.go:28
+#: lxc/network_zone.go:140 lxc/profile.go:659 lxc/project.go:506
+#: lxc/storage.go:647 lxc/storage_volume.go:1509
 msgid "USED BY"
 msgstr ""
 
