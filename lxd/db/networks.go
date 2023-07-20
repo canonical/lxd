@@ -379,6 +379,7 @@ func (c *ClusterTx) NetworkErrored(project string, name string) error {
 	return c.networkState(project, name, networkErrored)
 }
 
+// networkState updates the state of a specific network within a given project.
 func (c *ClusterTx) networkState(project string, name string, state NetworkState) error {
 	stmt := "UPDATE networks SET state=? WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?"
 	result, err := c.tx.Exec(stmt, state, project, name)
@@ -503,7 +504,7 @@ func (c *Cluster) GetCreatedNetworks(project string) ([]string, error) {
 	return c.networks(project, "state=?", networkCreated)
 }
 
-// Get all networks matching the given WHERE filter (if given).
+// Gets all networks matching the given WHERE filter (if given).
 func (c *Cluster) networks(project string, where string, args ...any) ([]string, error) {
 	q := "SELECT name FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?)"
 	inargs := []any{project}
@@ -677,6 +678,7 @@ func NetworkStateToAPIStatus(state NetworkState) string {
 	}
 }
 
+// networkFillType assigns a string representation to a given network type.
 func networkFillType(network *api.Network, netType NetworkType) {
 	switch netType {
 	case NetworkTypeBridge:
@@ -826,12 +828,13 @@ func (c *Cluster) UpdateNetwork(project string, name, description string, config
 	return err
 }
 
-// Update the description of the network with the given ID.
+// Updates the description of the network with the given ID.
 func updateNetworkDescription(tx *sql.Tx, id int64, description string) error {
 	_, err := tx.Exec("UPDATE networks SET description=? WHERE id=?", description, id)
 	return err
 }
 
+// networkConfigAdd inserts configuration details of a network into the database.
 func networkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]string) error {
 	str := "INSERT INTO networks_config (network_id, node_id, key, value) VALUES(?, ?, ?, ?)"
 	stmt, err := tx.Prepare(str)
@@ -862,7 +865,7 @@ func networkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]str
 	return nil
 }
 
-// Remove any the config of the network with the given ID
+// Removes any the config of the network with the given ID
 // associated with the node with the given ID.
 func clearNetworkConfig(tx *sql.Tx, networkID, nodeID int64) error {
 	_, err := tx.Exec(
