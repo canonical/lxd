@@ -1,4 +1,9 @@
 test_lxc_to_lxd() {
+  if ! command -v "lxc-create" >/dev/null 2>&1; then
+    echo "==> SKIP: Skipping lxc-to-lxd as system is missing LXC"
+    return
+  fi
+
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   LXC_DIR="${TEST_DIR}/lxc"
