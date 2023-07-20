@@ -17,7 +17,7 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-// GetStoragePoolVolumesWithType return a list of all volumes of the given type.
+// GetStoragePoolVolumesWithType returns a list of all volumes of the given type.
 // If memberSpecific is true, then the search is restricted to volumes that belong to this member or belong to
 // all members.
 func (c *ClusterTx) GetStoragePoolVolumesWithType(ctx context.Context, volumeType int, memberSpecific bool) ([]StorageVolumeArgs, error) {
@@ -399,8 +399,7 @@ func (c *Cluster) UpdateStoragePoolVolume(projectName string, volumeName string,
 	return err
 }
 
-// RemoveStoragePoolVolume deletes the storage volume attached to a given storage
-// pool.
+// RemoveStoragePoolVolume deletes the storage volume attached to a given storage pool.
 func (c *Cluster) RemoveStoragePoolVolume(projectName string, volumeName string, volumeType int, poolID int64) error {
 	var err error
 
@@ -515,7 +514,7 @@ INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description, 
 	return volumeID, err
 }
 
-// Return the ID of a storage volume on a given storage pool of a given storage
+// Returns the ID of a storage volume on a given storage pool of a given storage
 // volume type, on the given node.
 func (c *Cluster) storagePoolVolumeGetTypeID(project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, error) {
 	var id int64
@@ -531,6 +530,7 @@ func (c *Cluster) storagePoolVolumeGetTypeID(project string, volumeName string, 
 	return id, nil
 }
 
+// Retrieves the ID of a storage volume based on its details and associated storage pool and node.
 func (c *ClusterTx) storagePoolVolumeGetTypeID(ctx context.Context, project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, error) {
 	remoteDrivers := StorageRemoteDriverNames()
 
@@ -707,7 +707,7 @@ func (c *ClusterTx) GetStorageVolumeNodes(ctx context.Context, poolID int64, pro
 	return nodes, nil
 }
 
-// Get the config of a storage volume.
+// Gets the config of a storage volume.
 func (c *ClusterTx) storageVolumeConfigGet(ctx context.Context, volumeID int64, isSnapshot bool) (map[string]string, error) {
 	var queryStr string
 	if isSnapshot {
@@ -801,7 +801,7 @@ func storageVolumeDescriptionUpdate(tx *sql.Tx, volumeID int64, description stri
 	return err
 }
 
-// Add a new storage volume config into database.
+// Adds a new storage volume config into database.
 func storageVolumeConfigAdd(tx *sql.Tx, volumeID int64, volumeConfig map[string]string, isSnapshot bool) error {
 	var str string
 	if isSnapshot {
@@ -831,7 +831,7 @@ func storageVolumeConfigAdd(tx *sql.Tx, volumeID int64, volumeConfig map[string]
 	return nil
 }
 
-// Delete storage volume config.
+// Deletes the storage volume config.
 func storageVolumeConfigClear(tx *sql.Tx, volumeID int64, isSnapshot bool) error {
 	var stmt string
 	if isSnapshot {
@@ -848,7 +848,7 @@ func storageVolumeConfigClear(tx *sql.Tx, volumeID int64, isSnapshot bool) error
 	return nil
 }
 
-// Convert a volume integer type code to its human-readable name.
+// Converts a volume integer type code to its human-readable name.
 func storagePoolVolumeTypeToName(volumeType int) (string, error) {
 	switch volumeType {
 	case StoragePoolVolumeTypeContainer:
@@ -864,7 +864,7 @@ func storagePoolVolumeTypeToName(volumeType int) (string, error) {
 	return "", fmt.Errorf("Invalid storage volume type")
 }
 
-// Convert a volume integer content type code to its human-readable name.
+// Converts a volume integer content type code to its human-readable name.
 func storagePoolVolumeContentTypeToName(contentType int) (string, error) {
 	switch contentType {
 	case StoragePoolVolumeContentTypeFS:
