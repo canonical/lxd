@@ -45,6 +45,7 @@ func TestNodeAdd(t *testing.T) {
 	assert.Equal(t, "buzz", node.Name)
 }
 
+// TestGetNodesCount verifies the correct count of nodes present in the database.
 func TestGetNodesCount(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -61,6 +62,7 @@ func TestGetNodesCount(t *testing.T) {
 	assert.Equal(t, 2, count)
 }
 
+// TestNodeIsOutdated_SingleNode checks if a single node in the cluster is outdated.
 func TestNodeIsOutdated_SingleNode(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -71,6 +73,7 @@ func TestNodeIsOutdated_SingleNode(t *testing.T) {
 	assert.False(t, outdated)
 }
 
+// TestNodeIsOutdated_AllNodesAtSameVersion verifies if all nodes in the cluster are at the same version.
 func TestNodeIsOutdated_AllNodesAtSameVersion(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -84,6 +87,7 @@ func TestNodeIsOutdated_AllNodesAtSameVersion(t *testing.T) {
 	assert.False(t, outdated)
 }
 
+// TestNodeIsOutdated_OneNodeWithHigherVersion checks if any node in the cluster is at a higher schema version.
 func TestNodeIsOutdated_OneNodeWithHigherVersion(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -101,6 +105,8 @@ func TestNodeIsOutdated_OneNodeWithHigherVersion(t *testing.T) {
 	assert.True(t, outdated)
 }
 
+// TestNodeIsOutdated_OneNodeWithLowerVersion tests if the function correctly identifies
+// when a node is not outdated despite having a lower API extension count.
 func TestNodeIsOutdated_OneNodeWithLowerVersion(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -118,6 +124,7 @@ func TestNodeIsOutdated_OneNodeWithLowerVersion(t *testing.T) {
 	assert.False(t, outdated)
 }
 
+// TestGetLocalNodeName validates if the function correctly retrieves the local node name.
 func TestGetLocalNodeName(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -424,6 +431,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 	assert.Equal(t, "none", member.Name)
 }
 
+// TestUpdateNodeFailureDomain checks if the function correctly updates and retrieves the node's failure domain.
 func TestUpdateNodeFailureDomain(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -452,6 +460,7 @@ func TestUpdateNodeFailureDomain(t *testing.T) {
 	assert.Equal(t, map[string]uint64{"0.0.0.0": 0, "1.2.3.4:666": 0}, domains)
 }
 
+// Verifies the function accurately identifies the node with the least instances for the default architecture.
 func TestGetNodeWithLeastInstances_DefaultArch(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
