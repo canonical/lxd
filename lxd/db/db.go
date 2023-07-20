@@ -360,6 +360,7 @@ func (c *Cluster) ExitExclusive(ctx context.Context, f func(context.Context, *Cl
 	return c.transaction(ctx, f)
 }
 
+// transaction manages a transaction with retry logic for handling leader election during a query timeout.
 func (c *Cluster) transaction(ctx context.Context, f func(context.Context, *ClusterTx) error) error {
 	clusterTx := &ClusterTx{
 		nodeID: c.nodeID,
@@ -384,6 +385,7 @@ func (c *Cluster) transaction(ctx context.Context, f func(context.Context, *Clus
 	})
 }
 
+// retry invokes the provided function, retrying in case of failure if the Cluster is not closing.
 func (c *Cluster) retry(f func() error) error {
 	if c.closingCtx.Err() != nil {
 		return f()
@@ -424,6 +426,7 @@ func (c *Cluster) Begin() (*sql.Tx, error) {
 	return begin(c.db)
 }
 
+// begin starts a transaction with retries if it's locked, returning an error if it remains locked after 1000 attempts.
 func begin(db *sql.DB) (*sql.Tx, error) {
 	for i := 0; i < 1000; i++ {
 		tx, err := db.Begin()
@@ -500,6 +503,7 @@ func DqliteLatestSegment() (string, error) {
 	return "none", nil
 }
 
+// dbQueryRowScan executes a query and scans the result into the specified output arguments with built-in retry mechanism.
 func dbQueryRowScan(c *Cluster, q string, args []any, outargs []any) error {
 	return c.retry(func() error {
 		return query.Transaction(context.TODO(), c.db, func(ctx context.Context, tx *sql.Tx) error {
@@ -508,6 +512,7 @@ func dbQueryRowScan(c *Cluster, q string, args []any, outargs []any) error {
 	})
 }
 
+// doDbScan executes a query and scans the multiple rows result into a dynamic 2D array with error handling and retry mechanism.
 func doDbScan(c *Cluster, q string, args []any, outargs []any) ([][]any, error) {
 	result := [][]any{}
 
@@ -595,6 +600,7 @@ func queryScan(c *Cluster, q string, inargs []any, outfmt []any) ([][]any, error
 	return doDbScan(c, q, inargs, outfmt)
 }
 
+// exec executes a query with the provided arguments and handles retries on retriable errors.
 func exec(c *Cluster, q string, args ...any) error {
 	err := c.retry(func() error {
 		return query.Transaction(context.TODO(), c.db, func(ctx context.Context, tx *sql.Tx) error {
