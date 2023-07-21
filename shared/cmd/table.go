@@ -28,12 +28,14 @@ func RenderTable(format string, header []string, data [][]string, raw any) error
 	case TableFormatTable:
 		table := getBaseTable(header, data)
 		table.SetRowLine(true)
+		table.SetAutoMergeCells(true)
 		table.Render()
 	case TableFormatCompact:
 		table := getBaseTable(header, data)
 		table.SetColumnSeparator("")
 		table.SetHeaderLine(false)
 		table.SetBorder(false)
+		table.SetAutoMergeCells(true)
 		table.Render()
 	case TableFormatCSV:
 		w := csv.NewWriter(os.Stdout)
