@@ -9,10 +9,12 @@ type DeviceNamed struct {
 // DevicesSortable is a sortable slice of device names and config.
 type DevicesSortable []DeviceNamed
 
+// Determines the length of the devices slice.
 func (devices DevicesSortable) Len() int {
 	return len(devices)
 }
 
+// Compares two devices to determine their order based on type, nested status, path, and name.
 func (devices DevicesSortable) Less(i, j int) bool {
 	a := devices[i]
 	b := devices[j]
@@ -75,6 +77,7 @@ func (devices DevicesSortable) Less(i, j int) bool {
 	return a.Name < b.Name
 }
 
+// Switches the position of two devices in a sortable list based on their indices.
 func (devices DevicesSortable) Swap(i, j int) {
 	devices[i], devices[j] = devices[j], devices[i]
 }
