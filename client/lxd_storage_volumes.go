@@ -367,6 +367,11 @@ func (r *ProtocolLXD) MigrateStoragePoolVolume(pool string, volume api.StorageVo
 
 	srcVolParentName, srcVolSnapName, srcIsSnapshot := api.GetParentAndSnapshotName(volume.Name)
 	if srcIsSnapshot {
+		err := r.CheckExtension("storage_api_remote_volume_snapshot_copy")
+		if err != nil {
+			return nil, err
+		}
+
 		// Set the actual name of the snapshot without delimiter.
 		req = api.StorageVolumeSnapshotPost{
 			Name:      srcVolSnapName,
