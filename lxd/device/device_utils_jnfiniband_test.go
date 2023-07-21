@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// Tests infinibandValidMAC function to validate Infiniband MAC addresses, both in long and short form.
 func Example_infinibandValidMAC() {
 	tests := []string{
 		"00:00:00:00:fe:80:00:00:00:00:00:00:02:00:5e:10:00:00:00:01", // valid long form
