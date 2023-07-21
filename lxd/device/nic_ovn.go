@@ -341,7 +341,7 @@ func (d *nicOVN) checkAddressConflict() error {
 	})
 }
 
-// Add is run when a device is added to a non-snapshot instance whether or not the instance is running.
+// Add executes when a device is added to a non-snapshot instance whether or not the instance is running.
 func (d *nicOVN) Add() error {
 	return d.network.InstanceDevicePortAdd(d.inst.LocalConfig()["volatile.uuid"], d.name, d.config)
 }
@@ -376,7 +376,7 @@ func (d *nicOVN) validateEnvironment() error {
 	return nil
 }
 
-// Start is run when the device is added to a running instance or instance is starting up.
+// Start executes when the device is added to a running instance or instance is starting up.
 func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
@@ -688,7 +688,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	return &runConf, nil
 }
 
-// postStart is run after the device is added to the instance.
+// postStart starts after the device is added to the instance.
 func (d *nicOVN) postStart() error {
 	err := bgpAddPrefix(&d.deviceCommon, d.network, d.config)
 	if err != nil {
@@ -782,6 +782,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	return nil
 }
 
+// findRepresentorPort locates the associated representor port of a SR-IOV virtual function.
 func (d *nicOVN) findRepresentorPort(volatile map[string]string) (string, error) {
 	physSwitchID, pfID, err := network.SRIOVGetSwitchAndPFID(volatile["last_state.vf.parent"])
 	if err != nil {
@@ -808,7 +809,7 @@ func (d *nicOVN) findRepresentorPort(volatile map[string]string) (string, error)
 	return representorPort, nil
 }
 
-// Stop is run when the device is removed from the instance.
+// Stop executes when the device is removed from the instance.
 func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{
 		PostHooks: []func() error{d.postStop},
@@ -875,7 +876,7 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 	return &runConf, nil
 }
 
-// postStop is run after the device is removed from the instance.
+// postStop starts after the device is removed from the instance.
 func (d *nicOVN) postStop() error {
 	defer func() {
 		_ = d.volatileSet(map[string]string{
@@ -1105,6 +1106,7 @@ func (d *nicOVN) Register() error {
 	return nil
 }
 
+// setupHostNIC configures the host network interface for use with OVN, associating it with a specific OVN port.
 func (d *nicOVN) setupHostNIC(hostName string, ovnPortName openvswitch.OVNSwitchPort, uplink *api.Network) (revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
