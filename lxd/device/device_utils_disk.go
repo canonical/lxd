@@ -178,6 +178,7 @@ func DiskMountClear(mntPath string) error {
 	return nil
 }
 
+// Maps a Ceph RBD volume to a local block device and unmaps a given Ceph RBD device, retrying if device is busy.
 func diskCephRbdMap(clusterName string, userName string, poolName string, volumeName string) (string, error) {
 	devPath, err := shared.RunCommand(
 		"rbd",
