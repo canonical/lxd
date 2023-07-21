@@ -415,9 +415,33 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	//  condition: container
 	//  shortdesc: Value to override the corresponding `sysctl` setting in the container
 
-	"migration.incremental.memory":            validate.Optional(validate.IsBool),
+	// lxddoc:generate(group=instance-migration, key=migration.incremental.memory)
+	//
+	// ---
+	//  type: bool
+	//  default: `false`
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Controls whether to use incremental memory transfer of the instance’s memory to reduce downtime
+	"migration.incremental.memory": validate.Optional(validate.IsBool),
+	// lxddoc:generate(group=instance-migration, key=migration.incremental.memory.iterations)
+	//
+	// ---
+	//  type: integer
+	//  default: `10`
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Maximum number of transfer operations to go through before stopping the instance
 	"migration.incremental.memory.iterations": validate.Optional(validate.IsUint32),
-	"migration.incremental.memory.goal":       validate.Optional(validate.IsUint32),
+	// lxddoc:generate(group=instance-migration, key=migration.incremental.memory.goal)
+	//
+	// ---
+	//  type: integer
+	//  default: `70`
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Percentage of memory to have in sync before stopping the instance
+	"migration.incremental.memory.goal": validate.Optional(validate.IsUint32),
 
 	"nvidia.runtime":             validate.Optional(validate.IsBool),
 	"nvidia.driver.capabilities": validate.IsAny,
@@ -475,6 +499,14 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	//  shortdesc: Controls whether to back the instance using huge pages rather than regular system memory
 	"limits.memory.hugepages": validate.Optional(validate.IsBool),
 
+	// lxddoc:generate(group=instance-migration, key=migration.stateful)
+	//
+	// ---
+	//  type: bool
+	//  default: `false`
+	//  liveupdate: no
+	//  condition: virtual machine
+	//  shortdesc: Controls whether to allow for stateful stop/start and snapshots (enabling this prevents the use of some features that are incompatible with it)
 	"migration.stateful": validate.Optional(validate.IsBool),
 
 	// Caller is responsible for full validation of any raw.* value.
