@@ -675,7 +675,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	return &runConf, nil
 }
 
-// postStart is run after the device is added to the instance.
+// postStart executes after the device is added to the instance.
 func (d *nicBridged) postStart() error {
 	err := bgpAddPrefix(&d.deviceCommon, d.network, d.config)
 	if err != nil {
@@ -793,7 +793,7 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 	return nil
 }
 
-// Stop is run when the device is removed from the instance.
+// Stop runs when the device is removed from the instance.
 func (d *nicBridged) Stop() (*deviceConfig.RunConfig, error) {
 	// Remove BGP announcements.
 	err := bgpRemovePrefix(&d.deviceCommon, d.config)
@@ -817,7 +817,7 @@ func (d *nicBridged) Stop() (*deviceConfig.RunConfig, error) {
 	return &runConf, nil
 }
 
-// postStop is run after the device is removed from the instance.
+// postStop executes after the device is removed from the instance.
 func (d *nicBridged) postStop() error {
 	defer func() {
 		_ = d.volatileSet(map[string]string{
@@ -858,7 +858,7 @@ func (d *nicBridged) postStop() error {
 	return nil
 }
 
-// Remove is run when the device is removed from the instance or the instance is deleted.
+// Remove runs when the device is removed from the instance or the instance is deleted.
 func (d *nicBridged) Remove() error {
 	if d.config["parent"] != "" {
 		dnsmasq.ConfigMutex.Lock()
@@ -1740,6 +1740,7 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 	return &network, nil
 }
 
+// getHostMTU retrieves the Maximum Transmission Unit (MTU) of the host network interface.
 func (d *nicBridged) getHostMTU() (int, error) {
 	// Get MTU of host interface if exists.
 	iface, err := net.InterfaceByName(d.config["host_name"])
