@@ -220,6 +220,7 @@ func (d *gpuSRIOV) getVFDevicePCISlot(parentPCIAddress string, vfID string) (pci
 	return pciDev, nil
 }
 
+// findFreeVirtualFunction locates an unassigned SR-IOV Virtual Function (VF) on a given PCI device.
 func (d *gpuSRIOV) findFreeVirtualFunction(parentDev pcidev.Device) (int, error) {
 	// Get number of currently enabled VFs.
 	sriovNumVFs := fmt.Sprintf("/sys/bus/pci/devices/%s/sriov_numvfs", parentDev.SlotName)
