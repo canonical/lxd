@@ -377,6 +377,7 @@ func (d *proxy) Stop() (*deviceConfig.RunConfig, error) {
 	return nil, nil
 }
 
+// setupNAT configures NAT for the proxy, forwarding connections to a target, and enables hairpin mode as needed.
 func (d *proxy) setupNAT() error {
 	listenAddr, err := network.ProxyParseAddr(d.config["listen"])
 	if err != nil {
@@ -486,6 +487,7 @@ func (d *proxy) setupNAT() error {
 	return nil
 }
 
+// rewriteHostAddr converts Unix non-abstract socket addresses to host file system addresses, preserving protocol.
 func (d *proxy) rewriteHostAddr(addr string) string {
 	fields := strings.SplitN(addr, ":", 2)
 	proto := fields[0]
@@ -499,6 +501,7 @@ func (d *proxy) rewriteHostAddr(addr string) string {
 	return fmt.Sprintf("%s:%s", proto, addr)
 }
 
+// setupProxyProcInfo prepares necessary process and network information for establishing a proxy connection.
 func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 	cname := project.Instance(d.inst.Project().Name, d.inst.Name())
 	cc, err := liblxc.NewContainer(cname, d.state.OS.LxcPath)
@@ -576,6 +579,7 @@ func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 	return p, nil
 }
 
+// killProxyProc terminates the proxy process associated with the given PID file, and removes the PID file.
 func (d *proxy) killProxyProc(pidPath string) error {
 	// If the pid file doesn't exist, there is no process to kill.
 	if !shared.PathExists(pidPath) {
@@ -596,6 +600,7 @@ func (d *proxy) killProxyProc(pidPath string) error {
 	return nil
 }
 
+// Remove deletes the proxy's AppArmor profile and associated warnings from the database.
 func (d *proxy) Remove() error {
 	err := warnings.DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.DB.Cluster, d.inst.Project().Name, warningtype.ProxyBridgeNetfilterNotEnabled, cluster.TypeInstance, d.inst.ID())
 	if err != nil {
