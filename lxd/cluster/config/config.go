@@ -445,10 +445,35 @@ var ConfigSchema = config.Schema{
 	//  type: bool
 	//  scope: global
 	//  shortdesc: Whether to automatically trust clients signed by the CA
-	"core.trust_ca_certificates":    {Type: config.Bool},
-	"candid.api.key":                {},
-	"candid.api.url":                {},
-	"candid.domains":                {},
+	"core.trust_ca_certificates": {Type: config.Bool},
+	// lxddoc:generate(group=server-candid-and-rbac, key=candid.api_key)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Public key of the Candid server (required for HTTP-only servers)
+	"candid.api.key": {},
+	// lxddoc:generate(group=server-candid-and-rbac, key=candid.api_url)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: URL of the external authentication endpoint using Candid
+	"candid.api.url": {},
+	// lxddoc:generate(group=server-candid-and-rbac, key=candid.domains)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Comma-separated list of allowed Candid domains (empty string means all domains are valid)
+	"candid.domains": {},
+	// lxddoc:generate(group=server-candid-and-rbac, key=candid.expiry)
+	//
+	// ---
+	//  type: integer
+	//  scope: global
+	//  default: `3600`
+	//  shortdesc: Candid macaroon expiry in seconds
 	"candid.expiry":                 {Type: config.Int64, Default: "3600"},
 	"images.auto_update_cached":     {Type: config.Bool, Default: "true"},
 	"images.auto_update_interval":   {Type: config.Int64, Default: "6"},
@@ -469,14 +494,56 @@ var ConfigSchema = config.Schema{
 	"oidc.client.id":                {},
 	"oidc.issuer":                   {},
 	"oidc.audience":                 {},
-	"rbac.agent.url":                {},
-	"rbac.agent.username":           {},
-	"rbac.agent.private_key":        {},
-	"rbac.agent.public_key":         {},
-	"rbac.api.expiry":               {Type: config.Int64, Default: "3600"},
-	"rbac.api.key":                  {},
-	"rbac.api.url":                  {},
-	"rbac.expiry":                   {Type: config.Int64, Default: "3600"},
+	// lxddoc:generate(group=server-candid-and-rbac, key=rbac.agent.url)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: URL of the Candid agent as provided during RBAC registration
+	"rbac.agent.url": {},
+	// lxddoc:generate(group=server-candid-and-rbac, key=rbac.agent.username)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: User name of the Candid agent as provided during RBAC registration
+	"rbac.agent.username": {},
+	// lxddoc:generate(group=server-candid-and-rbac, key=rbac.agent.private_key)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Private key of the Candid agent as provided during RBAC registration
+	"rbac.agent.private_key": {},
+	// lxddoc:generate(group=server-candid-and-rbac, key=rbac.agent.public_key)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Public key of the Candid agent as provided during RBAC registration
+	"rbac.agent.public_key": {},
+	// lxddoc:generate(group=server-candid-and-rbac, key=rbac.api.expiry)
+	//
+	// ---
+	//  type: integer
+	//  scope: global
+	//  shortdesc: RBAC macaroon expiry in seconds
+	"rbac.api.expiry": {Type: config.Int64, Default: "3600"},
+	// lxddoc:generate(group=server-candid-and-rbac, key=rbac.api.key)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Public key of the RBAC server (required for HTTP-only servers)
+	"rbac.api.key": {},
+	// lxddoc:generate(group=server-candid-and-rbac, key=rbac.api.url)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: URL of the external RBAC server
+	"rbac.api.url": {},
+	"rbac.expiry":  {Type: config.Int64, Default: "3600"},
 
 	// OVN networking global keys.
 	"network.ovn.integration_bridge":    {Default: "br-int"},
