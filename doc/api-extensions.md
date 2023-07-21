@@ -2063,3 +2063,7 @@ This adds the possibility to list a LXD deployment's network allocations.
 Through the `lxc network list-allocations` command and the `--project <PROJECT> | --all-projects` flags,
 you can list all the used IP addresses, hardware addresses (for instances), resource URIs and whether it uses NAT for
 each `instance`, `network`, and `network forward`.
+
+## `storage_api_remote_volume_snapshot_copy`
+
+This allows copying storage volume snapshots to and from remotes.

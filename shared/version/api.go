@@ -349,6 +349,7 @@ var APIExtensions = []string{
 	"instances_state_total",
 	"numa_cpu_placement",
 	"network_allocations",
+	"storage_api_remote_volume_snapshot_copy",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
