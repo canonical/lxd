@@ -74,7 +74,7 @@ func (d *tpm) validateEnvironment() error {
 	return nil
 }
 
-// Start is run when the device is added to the instance.
+// Initializes the TPM device for either a VM or a container instance.
 func (d *tpm) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
@@ -97,6 +97,7 @@ func (d *tpm) Start() (*deviceConfig.RunConfig, error) {
 	return d.startContainer()
 }
 
+// startContainer initiates a TPM emulator for an instance and configures the device.
 func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 	tpmDevPath := filepath.Join(d.inst.Path(), fmt.Sprintf("tpm.%s", d.name))
 	logFileName := fmt.Sprintf("tpm.%s.log", d.name)
@@ -192,6 +193,7 @@ func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 	return &runConf, nil
 }
 
+// startVM initiates a TPM emulator for a virtual machine and returns the run configuration.
 func (d *tpm) startVM() (*deviceConfig.RunConfig, error) {
 	tpmDevPath := filepath.Join(d.inst.Path(), fmt.Sprintf("tpm.%s", d.name))
 	socketPath := filepath.Join(tpmDevPath, fmt.Sprintf("swtpm-%s.sock", d.name))
