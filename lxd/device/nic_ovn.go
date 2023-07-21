@@ -777,6 +777,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	return nil
 }
 
+// findRepresentorPort locates the associated representor port of a SR-IOV virtual function.
 func (d *nicOVN) findRepresentorPort(volatile map[string]string) (string, error) {
 	physSwitchID, pfID, err := network.SRIOVGetSwitchAndPFID(volatile["last_state.vf.parent"])
 	if err != nil {
@@ -1100,6 +1101,7 @@ func (d *nicOVN) Register() error {
 	return nil
 }
 
+// setupHostNIC configures the host network interface for use with OVN, associating it with a specific OVN port.
 func (d *nicOVN) setupHostNIC(hostName string, ovnPortName openvswitch.OVNSwitchPort, uplink *api.Network) (revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
