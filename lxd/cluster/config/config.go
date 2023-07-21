@@ -338,7 +338,14 @@ var ConfigSchema = config.Schema{
 	//  scope: global
 	//  default: `false`
 	//  shortdesc: Agree to ACME terms of service
-	"acme.agree_tos":                {Type: config.Bool, Default: "false"},
+	"acme.agree_tos": {Type: config.Bool, Default: "false"},
+	// lxddoc:generate(group=server-miscellaneous, key=backups.compression_algorithm)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  default: `gzip`
+	//  shortdesc: Compression algorithm to use for backups (`bzip2`, `gzip`, `lzma`, `xz` or `none`)
 	"backups.compression_algorithm": {Default: "gzip", Validator: validate.IsCompressionAlgorithm},
 	// lxddoc:generate(group=server-cluster, key=cluster.offline_threshold)
 	//
@@ -554,8 +561,21 @@ var ConfigSchema = config.Schema{
 	//  scope: global
 	//  default: `10`
 	//  shortdesc: Number of days after which an unused cached remote image is flushed
-	"images.remote_cache_expiry":    {Type: config.Int64, Default: "10"},
-	"instances.nic.host_name":       {Validator: validate.Optional(validate.IsOneOf("random", "mac"))},
+	"images.remote_cache_expiry": {Type: config.Int64, Default: "10"},
+	// lxddoc:generate(group=server-miscellaneous, key=instances.nic.host_name)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  default: `random`
+	//  shortdesc: If set to `random`, use the random host interface name as the host name; if set to `mac`, generate a host name in the form `lxd<mac_address>` (MAC without leading two digits)
+	"instances.nic.host_name": {Validator: validate.Optional(validate.IsOneOf("random", "mac"))},
+	// lxddoc:generate(group=server-miscellaneous, key=instances.placement.scriptlet)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Stores the {ref}`clustering-instance-placement-scriptlet` for custom automatic instance placement logic
 	"instances.placement.scriptlet": {Validator: validate.Optional(scriptletLoad.InstancePlacementValidate)},
 	// lxddoc:generate(group=server-loki, key=loki.auth.username)
 	//
@@ -607,8 +627,20 @@ var ConfigSchema = config.Schema{
 	//  scope: global
 	//  default: `lifecycle,logging`
 	//  shortdesc: Comma-separated list of events to send to the Loki server (`lifecycle` and/or `logging`)
-	"loki.types":   {Validator: validate.Optional(validate.IsListOf(validate.IsOneOf("lifecycle", "logging"))), Default: "lifecycle,logging"},
+	"loki.types": {Validator: validate.Optional(validate.IsListOf(validate.IsOneOf("lifecycle", "logging"))), Default: "lifecycle,logging"},
+	// lxddoc:generate(group=server-miscellaneous, key=maas.api.key)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: API key to manage MAAS
 	"maas.api.key": {},
+	// lxddoc:generate(group=server-miscellaneous, key=maas.api.url)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: URL of the MAAS server
 	"maas.api.url": {},
 	// lxddoc:generate(group=server-oidc, key=oidc.client.id)
 	//
@@ -683,7 +715,22 @@ var ConfigSchema = config.Schema{
 	"rbac.expiry":  {Type: config.Int64, Default: "3600"},
 
 	// OVN networking global keys.
-	"network.ovn.integration_bridge":    {Default: "br-int"},
+
+	// lxddoc:generate(group=server-miscellaneous, key=network.ovn.integration_bridge)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  default: `br-int`
+	//  shortdesc: OVS integration bridge to use for OVN networks
+	"network.ovn.integration_bridge": {Default: "br-int"},
+	// lxddoc:generate(group=server-miscellaneous, key=network.ovn.northbound_connection)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  default: `unix:/var/run/ovn/ovnnb_db.sock`
+	//  shortdesc: OVN northbound database connection string
 	"network.ovn.northbound_connection": {Default: "unix:/var/run/ovn/ovnnb_db.sock"},
 }
 
