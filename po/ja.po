@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2023-07-18 19:22+0200\n"
+"POT-Creation-Date: 2023-07-21 08:56+0100\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -670,6 +670,11 @@ msgstr ""
 #: lxc/manpage.go:20
 msgid "<target>"
 msgstr "<target>"
+
+#: lxc/network_allocations.go:26
+#, fuzzy
+msgid "ADDRESS"
+msgstr "IP ADDRESS"
 
 #: lxc/alias.go:139 lxc/image.go:1053 lxc/image_alias.go:234
 msgid "ALIAS"
@@ -1825,7 +1830,7 @@ msgstr "警告を削除します"
 #: lxc/network_acl.go:327 lxc/network_acl.go:412 lxc/network_acl.go:492
 #: lxc/network_acl.go:522 lxc/network_acl.go:653 lxc/network_acl.go:702
 #: lxc/network_acl.go:751 lxc/network_acl.go:766 lxc/network_acl.go:887
-#: lxc/network_allocations.go:35 lxc/network_forward.go:29
+#: lxc/network_allocations.go:52 lxc/network_forward.go:29
 #: lxc/network_forward.go:86 lxc/network_forward.go:167
 #: lxc/network_forward.go:231 lxc/network_forward.go:329
 #: lxc/network_forward.go:398 lxc/network_forward.go:496
@@ -2558,11 +2563,11 @@ msgstr ""
 #: lxc/cluster_group.go:384 lxc/config_template.go:242 lxc/config_trust.go:352
 #: lxc/config_trust.go:434 lxc/image.go:1045 lxc/image_alias.go:157
 #: lxc/list.go:133 lxc/network.go:916 lxc/network.go:1007 lxc/network_acl.go:97
-#: lxc/network_forward.go:89 lxc/network_load_balancer.go:93
-#: lxc/network_peer.go:84 lxc/network_zone.go:88 lxc/network_zone.go:692
-#: lxc/operation.go:106 lxc/profile.go:617 lxc/project.go:412
-#: lxc/project.go:804 lxc/remote.go:668 lxc/storage.go:588
-#: lxc/storage_bucket.go:454 lxc/storage_bucket.go:769
+#: lxc/network_allocations.go:58 lxc/network_forward.go:89
+#: lxc/network_load_balancer.go:93 lxc/network_peer.go:84
+#: lxc/network_zone.go:88 lxc/network_zone.go:692 lxc/operation.go:106
+#: lxc/profile.go:617 lxc/project.go:412 lxc/project.go:804 lxc/remote.go:668
+#: lxc/storage.go:588 lxc/storage_bucket.go:454 lxc/storage_bucket.go:769
 #: lxc/storage_volume.go:1418 lxc/warning.go:93
 msgid "Format (csv|json|table|yaml|compact)"
 msgstr "フォーマット (csv|json|table|yaml|compact)"
@@ -2764,6 +2769,11 @@ msgstr "指定したコピー先 %q がコピー元のボリュームの場所 %
 #: lxc/exec.go:60
 msgid "Group ID to run the command as (default 0)"
 msgstr "コマンドを実行する際のグループ ID (GID) (デフォルト 0)"
+
+#: lxc/network_allocations.go:29
+#, fuzzy
+msgid "HARDWARE ADDRESS"
+msgstr "MAC ADDRESS"
 
 #: lxc/network.go:1052
 msgid "HOSTNAME"
@@ -3506,7 +3516,7 @@ msgstr ""
 "  MAXWIDTH: カラムの最大幅 (結果がこれより長い場合は切り詰められます)\n"
 "  デフォルトは -1 (制限なし)。0 はカラムのヘッダサイズに制限します。"
 
-#: lxc/network_allocations.go:34 lxc/network_allocations.go:35
+#: lxc/network_allocations.go:51 lxc/network_allocations.go:52
 #, fuzzy
 msgid "List network allocations in use"
 msgstr "ネットワーク設定をYAMLで編集します"
@@ -3870,8 +3880,8 @@ msgstr "ストレージボリュームを管理します"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect \"custom"
-"\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect "
+"\"custom\" (user created) volumes."
 msgstr ""
 "ストレージボリュームを管理します\n"
 "\n"
@@ -4219,6 +4229,10 @@ msgstr "インスタンス名を指定する必要があります: "
 #: lxc/storage_volume.go:1506
 msgid "NAME"
 msgstr "NAME"
+
+#: lxc/network_allocations.go:28
+msgid "NAT"
+msgstr ""
 
 #: lxc/project.go:504
 msgid "NETWORK ZONES"
@@ -4732,8 +4746,8 @@ msgid ""
 "Supported types are custom, container and virtual-machine.\n"
 "\n"
 "lxc storage volume info default data\n"
-"    Returns state information for a custom volume \"data\" in pool \"default"
-"\".\n"
+"    Returns state information for a custom volume \"data\" in pool "
+"\"default\".\n"
 "\n"
 "lxc storage volume info default virtual-machine/data\n"
 "    Returns state information for a virtual machine \"data\" in pool "
@@ -4769,8 +4783,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called \"data"
-"\" in the \"default\" pool.\n"
+"    Will show the properties of the filesystem for a container called "
+"\"data\" in the \"default\" pool.\n"
 "\n"
 "lxc storage volume show default virtual-machine/data/snap0\n"
 "    Will show the properties of snapshot \"snap0\" for a virtual machine "
@@ -5158,7 +5172,7 @@ msgstr "クラスターメンバーに join するためのトークンを失効
 msgid "Role (admin or read-only)"
 msgstr "ロール（admin または read-only）"
 
-#: lxc/network_allocations.go:41
+#: lxc/network_allocations.go:59
 msgid "Run again a specific project"
 msgstr ""
 
@@ -5166,7 +5180,7 @@ msgstr ""
 msgid "Run against all instances"
 msgstr "すべてのインスタンスに対してコマンドを実行します"
 
-#: lxc/network_allocations.go:42
+#: lxc/network_allocations.go:60
 #, fuzzy
 msgid "Run against all projects"
 msgstr "すべてのインスタンスに対してコマンドを実行します"
@@ -5947,7 +5961,8 @@ msgid "TOKEN"
 msgstr "TOKEN"
 
 #: lxc/config_trust.go:408 lxc/image.go:1062 lxc/image_alias.go:236
-#: lxc/list.go:571 lxc/network.go:981 lxc/network.go:1055 lxc/operation.go:162
+#: lxc/list.go:571 lxc/network.go:981 lxc/network.go:1055
+#: lxc/network_allocations.go:27 lxc/operation.go:162
 #: lxc/storage_volume.go:1505 lxc/warning.go:215
 msgid "TYPE"
 msgstr "TYPE"
@@ -6319,9 +6334,9 @@ msgstr "URL"
 msgid "USAGE"
 msgstr "USAGE"
 
-#: lxc/network.go:986 lxc/network_acl.go:149 lxc/network_zone.go:140
-#: lxc/profile.go:659 lxc/project.go:506 lxc/storage.go:647
-#: lxc/storage_volume.go:1509
+#: lxc/network.go:986 lxc/network_acl.go:149 lxc/network_allocations.go:25
+#: lxc/network_zone.go:140 lxc/profile.go:659 lxc/project.go:506
+#: lxc/storage.go:647 lxc/storage_volume.go:1509
 msgid "USED BY"
 msgstr "USED BY"
 
@@ -9488,8 +9503,8 @@ msgstr "yes"
 #~ "lxc storage volume move [<pool>/]<volume> [<pool>/]<volume>\n"
 #~ "    Move an existing volume to the specified pool.\n"
 #~ "\n"
-#~ "Unless specified through a prefix, all volume operations affect \"custom"
-#~ "\" (user created) volumes.\n"
+#~ "Unless specified through a prefix, all volume operations affect "
+#~ "\"custom\" (user created) volumes.\n"
 #~ "\n"
 #~ "*Examples*\n"
 #~ "cat pool.yaml | lxc storage edit [<remote>:]<pool>\n"

@@ -2641,18 +2641,16 @@ definitions:
             e.g, instance, network forward, load-balancer, network...
         properties:
             addresses:
-                description: The CIDR subnet of the forward
+                description: The network address of the allocation (in CIDR format)
                 example: 192.0.2.1/24
-                items:
-                    type: string
-                type: array
-                x-go-name: Addresses
+                type: string
+                x-go-name: Address
             hwaddr:
                 description: Hwaddr is the MAC address of the entity consuming the network address
                 type: string
                 x-go-name: Hwaddr
             nat:
-                description: Whether the entity comes from a network that LXD performs NAT on from those that are directly routed from the external network
+                description: Whether the entity comes from a network that LXD performs egress source NAT on
                 type: boolean
                 x-go-name: NAT
             type:
