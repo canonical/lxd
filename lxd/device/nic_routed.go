@@ -264,7 +264,7 @@ func (d *nicRouted) checkIPAvailability(parent string) error {
 	return nil
 }
 
-// Start is run when the instance is starting up (Routed mode doesn't support hot plugging).
+// Start executes when the instance is starting up (Routed mode doesn't support hot plugging).
 func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
@@ -587,7 +587,7 @@ func (d *nicRouted) Update(oldDevices deviceConfig.Devices, isRunning bool) erro
 	return nil
 }
 
-// Stop is run when the device is removed from the instance.
+// Stop runs when the device is removed from the instance.
 func (d *nicRouted) Stop() (*deviceConfig.RunConfig, error) {
 	// Populate device config with volatile fields (hwaddr and host_name) if needed.
 	networkVethFillFromVolatile(d.config, d.volatileGet())
@@ -604,7 +604,7 @@ func (d *nicRouted) Stop() (*deviceConfig.RunConfig, error) {
 	return &runConf, nil
 }
 
-// postStop is run after the device is removed from the instance.
+// postStop runs after the device is removed from the instance.
 func (d *nicRouted) postStop() error {
 	defer func() {
 		_ = d.volatileSet(map[string]string{
@@ -667,6 +667,7 @@ func (d *nicRouted) postStop() error {
 	return nil
 }
 
+// ipHostAddress returns the configured host IP address for the given IP family or defaults to the routed NIC gateway.
 func (d *nicRouted) ipHostAddress(ipFamily string) string {
 	key := fmt.Sprintf("%s.host_address", ipFamily)
 	if d.config[key] != "" {
@@ -676,6 +677,7 @@ func (d *nicRouted) ipHostAddress(ipFamily string) string {
 	return nicRoutedIPGateway[ipFamily]
 }
 
+// isUniqueWithGatewayAutoMode validates that only one 'routed' NIC device on the instance is configured with auto mode for IP gateway.
 func (d *nicRouted) isUniqueWithGatewayAutoMode(instConf instance.ConfigReader) error {
 	instDevs := instConf.ExpandedDevices()
 	for _, k := range []string{"ipv4.gateway", "ipv6.gateway"} {
