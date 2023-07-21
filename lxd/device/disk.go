@@ -71,10 +71,12 @@ type diskSourceNotFoundError struct {
 	err error
 }
 
+// Error formats the diskSourceNotFoundError message.
 func (e diskSourceNotFoundError) Error() string {
 	return fmt.Sprintf("%s: %v", e.msg, e.err)
 }
 
+// Unwrap retrieves the underlying error from diskSourceNotFoundError.
 func (e diskSourceNotFoundError) Unwrap() error {
 	return e.err
 }
@@ -716,6 +718,8 @@ func (d *disk) vmVirtiofsdPaths() (string, string) {
 	return sockPath, pidPath
 }
 
+// detectVMPoolMountOpts determines virtual machine pool's mount options.
+// The function configures options such as disk type, I/O mode, and caching.
 func (d *disk) detectVMPoolMountOpts() []string {
 	var opts []string
 
@@ -1254,10 +1258,12 @@ type cgroupWriter struct {
 	runConf *deviceConfig.RunConfig
 }
 
+// Get method returns an error as this cgroup handler doesn't support reading operations.
 func (w *cgroupWriter) Get(version cgroup.Backend, controller string, key string) (string, error) {
 	return "", fmt.Errorf("This cgroup handler does not support reading")
 }
 
+// Set method appends a new cgroup configuration item to the run configuration.
 func (w *cgroupWriter) Set(version cgroup.Backend, controller string, key string, value string) error {
 	w.runConf.CGroups = append(w.runConf.CGroups, deviceConfig.RunConfigItem{
 		Key:   key,
@@ -1551,6 +1557,7 @@ func (d *disk) localSourceOpen(srcPath string) (*os.File, error) {
 	return f, nil
 }
 
+// This function handles the shifting of a storage pool volume in context of disk security.
 func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName string, volumeType int, remapPath string) error {
 	var err error
 	var dbVolume *db.StorageVolume
@@ -1744,6 +1751,7 @@ func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 	return &runConf, nil
 }
 
+// This function stops a VM, cleans up helper processes, and returns a RunConfig for post-stop tasks.
 func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
 	// Stop the virtfs-proxy-helper process and clean up.
 	err := DiskVMVirtfsProxyStop(d.vmVirtfsProxyHelperPaths())
@@ -1950,6 +1958,7 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 	return result, nil
 }
 
+// This function parses disk limits from provided read and write speed strings, returning them as bytes per second and IOPS.
 func (d *disk) parseDiskLimit(readSpeed string, writeSpeed string) (int64, int64, int64, int64, error) {
 	parseValue := func(value string) (int64, int64, error) {
 		var err error
@@ -1989,6 +1998,7 @@ func (d *disk) parseDiskLimit(readSpeed string, writeSpeed string) (int64, int64
 	return readBps, readIops, writeBps, writeIops, nil
 }
 
+// `getParentBlocks` identifies and returns the identifiers for the parent block devices of a specified path.
 func (d *disk) getParentBlocks(path string) ([]string, error) {
 	var devices []string
 	var dev []string
