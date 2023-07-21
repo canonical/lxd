@@ -491,9 +491,27 @@ var ConfigSchema = config.Schema{
 	"loki.types":                    {Validator: validate.Optional(validate.IsListOf(validate.IsOneOf("lifecycle", "logging"))), Default: "lifecycle,logging"},
 	"maas.api.key":                  {},
 	"maas.api.url":                  {},
-	"oidc.client.id":                {},
-	"oidc.issuer":                   {},
-	"oidc.audience":                 {},
+	// lxddoc:generate(group=server-oidc, key=oidc.client.id)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: OpenID Connect client ID
+	"oidc.client.id": {},
+	// lxddoc:generate(group=server-oidc, key=oidc.issuer)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: OpenID Connect Discovery URL for the provider
+	"oidc.issuer": {},
+	// lxddoc:generate(group=server-oidc, key=oidc.audience)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Expected audience value for the application (required by some providers)
+	"oidc.audience": {},
 	// lxddoc:generate(group=server-candid-and-rbac, key=rbac.agent.url)
 	//
 	// ---
