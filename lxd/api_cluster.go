@@ -1758,9 +1758,9 @@ func clusterValidateConfig(config map[string]string) error {
 		// lxddoc:generate(group=cluster, key=scheduler.instance)
 		//
 		// ---
-		//  shortdesc: Possible values are `all`, `manual` and `group`. See {ref}`clustering-instance-placement` for more information.
-		//  default: `all`
 		//  type: string
+		//  default: `all`
+		//  shortdesc: Possible values are `all`, `manual` and `group`. See {ref}`clustering-instance-placement` for more information.
 		"scheduler.instance": validate.Optional(validate.IsOneOf("all", "group", "manual")),
 	}
 
@@ -1770,9 +1770,8 @@ func clusterValidateConfig(config map[string]string) error {
 		// lxddoc:generate(group=cluster, key=user.*)
 		//
 		// ---
-		//  shortdesc: Free form user key/value storage (can be used in search).
-		//  default: -
 		//  type: string
+		//  shortdesc: Free form user key/value storage (can be used in search).
 		if strings.HasPrefix(k, "user.") {
 			continue
 		}
