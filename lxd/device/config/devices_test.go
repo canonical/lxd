@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Tests the sorting and reversing functionality for a list of devices.
 func TestSortableDevices(t *testing.T) {
 	devices := Devices{
 		"a-unix1":       Device{"type": "unix"},
