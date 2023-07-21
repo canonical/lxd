@@ -8,6 +8,7 @@ import (
 	"github.com/canonical/lxd/shared/validate"
 )
 
+// gpuValidationRules returns a set of validation rules for GPU fields, dividing them into required and optional.
 func gpuValidationRules(requiredFields []string, optionalFields []string) map[string]func(value string) error {
 	// Define a set of default validators for each field name.
 	defaultValidators := map[string]func(value string) error{
