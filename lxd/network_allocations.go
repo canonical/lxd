@@ -98,17 +98,18 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Helper function to get the CIDR address of an IP (/32 or /128 mask for ipv4 or ipv6 respectively).
-	ipToCIDR := func(addr string) (string, error) {
+	// Returns IP address in its canonical CIDR form and whether the network is using NAT for that IP family.
+	ipToCIDR := func(addr string, netConf map[string]string) (string, bool, error) {
 		ip := net.ParseIP(addr)
 		if ip == nil {
-			return "", fmt.Errorf("Invalid IP address %q", addr)
+			return "", false, fmt.Errorf("Invalid IP address %q", addr)
 		}
 
 		if ip.To4() != nil {
-			return fmt.Sprintf("%s/32", ip.String()), nil
+			return fmt.Sprintf("%s/32", ip.String()), shared.IsTrue(netConf["ipv4.nat"]), nil
 		}
 
-		return fmt.Sprintf("%s/128", ip.String()), nil
+		return fmt.Sprintf("%s/128", ip.String()), shared.IsTrue(netConf["ipv6.nat"]), nil
 	}
 
 	result := make([]api.NetworkAllocations, 0)
@@ -127,20 +128,19 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 				return response.SmartError(fmt.Errorf("Failed loading network %q in project %q: %w", networkName, projectName, err))
 			}
 
-			gwAddrs := make([]string, 0)
 			netConf := n.Config()
-			for _, key := range []string{"ipv4.address", "ipv6.address"} {
-				ipNet, _ := network.ParseIPCIDRToNet(netConf[key])
-				if ipNet != nil {
-					gwAddrs = append(gwAddrs, ipNet.String())
-				}
-			}
 
-			if len(gwAddrs) > 0 {
+			for _, keyPrefix := range []string{"ipv4", "ipv6"} {
+				ipNet, _ := network.ParseIPCIDRToNet(netConf[fmt.Sprintf("%s.address", keyPrefix)])
+				if ipNet == nil {
+					continue
+				}
+
 				result = append(result, api.NetworkAllocations{
-					Addresses: gwAddrs,
-					UsedBy:    api.NewURL().Path(version.APIVersion, "networks", networkName).Project(projectName).String(),
-					Type:      "network",
+					Address: ipNet.String(),
+					UsedBy:  api.NewURL().Path(version.APIVersion, "networks", networkName).Project(projectName).String(),
+					Type:    "network",
+					NAT:     shared.IsTrue(netConf[fmt.Sprintf("%s.nat", keyPrefix)]),
 				})
 			}
 
@@ -149,32 +149,21 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 				return response.SmartError(fmt.Errorf("Failed getting leases for network %q in project %q: %w", networkName, projectName, err))
 			}
 
-			instanceAllocs := make(map[string]api.NetworkAllocations, 0)
 			for _, lease := range leases {
 				if shared.StringInSlice(lease.Type, []string{"static", "dynamic"}) {
-					cidrAddr, err := ipToCIDR(lease.Address)
+					cidrAddr, nat, err := ipToCIDR(lease.Address, netConf)
 					if err != nil {
 						return response.SmartError(err)
 					}
 
-					_, ok := instanceAllocs[lease.Hwaddr]
-					if ok {
-						instanceAlloc := instanceAllocs[lease.Hwaddr]
-						instanceAlloc.Addresses = append(instanceAlloc.Addresses, cidrAddr)
-						instanceAllocs[lease.Hwaddr] = instanceAlloc
-					} else {
-						instanceAllocs[lease.Hwaddr] = api.NetworkAllocations{
-							Addresses: []string{cidrAddr},
-							UsedBy:    api.NewURL().Path(version.APIVersion, "instances", lease.Hostname).Project(projectName).String(),
-							Type:      "instance",
-							Hwaddr:    lease.Hwaddr,
-						}
-					}
+					result = append(result, api.NetworkAllocations{
+						Address: cidrAddr,
+						UsedBy:  api.NewURL().Path(version.APIVersion, "instances", lease.Hostname).Project(projectName).String(),
+						Type:    "instance",
+						Hwaddr:  lease.Hwaddr,
+						NAT:     nat,
+					})
 				}
-			}
-
-			for _, v := range instanceAllocs {
-				result = append(result, v)
 			}
 
 			forwards, err := d.db.Cluster.GetNetworkForwards(r.Context(), n.ID(), false)
@@ -183,7 +172,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			for _, forward := range forwards {
-				cidrAddr, err := ipToCIDR(forward.ListenAddress)
+				cidrAddr, _, err := ipToCIDR(forward.ListenAddress, netConf)
 				if err != nil {
 					return response.SmartError(err)
 				}
@@ -191,9 +180,10 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 				result = append(
 					result,
 					api.NetworkAllocations{
-						Addresses: []string{cidrAddr},
-						UsedBy:    api.NewURL().Path(version.APIVersion, "networks", networkName, "forwards", forward.ListenAddress).Project(projectName).String(),
-						Type:      "network-forward",
+						Address: cidrAddr,
+						UsedBy:  api.NewURL().Path(version.APIVersion, "networks", networkName, "forwards", forward.ListenAddress).Project(projectName).String(),
+						Type:    "network-forward",
+						NAT:     false, // Network forwards are ingress and so aren't affected by SNAT.
 					},
 				)
 			}
@@ -204,7 +194,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			for _, loadBalancer := range loadBalancers {
-				cidrAddr, err := ipToCIDR(loadBalancer.ListenAddress)
+				cidrAddr, _, err := ipToCIDR(loadBalancer.ListenAddress, netConf)
 				if err != nil {
 					return response.SmartError(err)
 				}
@@ -212,9 +202,10 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 				result = append(
 					result,
 					api.NetworkAllocations{
-						Addresses: []string{cidrAddr},
-						UsedBy:    api.NewURL().Path(version.APIVersion, "networks", networkName, "load-balancers", loadBalancer.ListenAddress).Project(projectName).String(),
-						Type:      "network-load-balancer",
+						Address: cidrAddr,
+						UsedBy:  api.NewURL().Path(version.APIVersion, "networks", networkName, "load-balancers", loadBalancer.ListenAddress).Project(projectName).String(),
+						Type:    "network-load-balancer",
+						NAT:     false, // Network load-balancers are ingress and so aren't affected by SNAT.
 					},
 				)
 			}
