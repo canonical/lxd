@@ -63,6 +63,7 @@ func (d *infinibandSRIOV) validateEnvironment() error {
 	return nil
 }
 
+// startContainer prepares an Infiniband SR-IOV device for container use, configuring it and generating a run-time setup.
 func (d *infinibandSRIOV) startContainer() (*deviceConfig.RunConfig, error) {
 	saveData := make(map[string]string)
 
@@ -153,6 +154,7 @@ func (d *infinibandSRIOV) startContainer() (*deviceConfig.RunConfig, error) {
 	return &runConf, nil
 }
 
+// startVM prepares an Infiniband SR-IOV device for use in a virtual machine and generates a run-time configuration.
 func (d *infinibandSRIOV) startVM() (*deviceConfig.RunConfig, error) {
 	saveData := make(map[string]string)
 
@@ -369,6 +371,7 @@ func (d *infinibandSRIOV) getVFDevicePCISlot(parentPCIAddress string, vfID strin
 	return pciDev, nil
 }
 
+// findFreeVirtualFunction identifies an unbound virtual function (VF) on a given parent PCI device.
 func (d *infinibandSRIOV) findFreeVirtualFunction(parentDev pcidev.Device) (int, error) {
 	// Get number of currently enabled VFs.
 	sriovNumVFs := fmt.Sprintf("/sys/bus/pci/devices/%s/sriov_numvfs", parentDev.SlotName)
