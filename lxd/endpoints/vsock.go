@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/shared"
 )
 
+// CreateVsockListener sets up a secure VSOCK listener on a random port for communication with VMs.
 func createVsockListener(cert *shared.CertInfo) (net.Listener, error) {
 	for i := 0; i < 10; i++ {
 		// Get random port between 1024 and 65535.
