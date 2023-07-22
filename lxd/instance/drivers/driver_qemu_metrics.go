@@ -16,6 +16,8 @@ import (
 	"github.com/canonical/lxd/shared/units"
 )
 
+// getQemuMetrics retrieves various metrics for the qemu instance and returns them as a MetricSet,
+// which includes CPU, memory, disk, and network statistics.
 func (d *qemu) getQemuMetrics() (*metrics.MetricSet, error) {
 	// Connect to the monitor.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -74,6 +76,8 @@ func (d *qemu) getQemuMetrics() (*metrics.MetricSet, error) {
 	return metricSet, nil
 }
 
+// getQemuDiskMetrics retrieves disk statistics for the qemu instance using the provided monitor and
+// returns them as a map of device names to DiskMetrics.
 func (d *qemu) getQemuDiskMetrics(monitor *qmp.Monitor) (map[string]metrics.DiskMetrics, error) {
 	stats, err := monitor.GetBlockStats()
 	if err != nil {
@@ -94,6 +98,7 @@ func (d *qemu) getQemuDiskMetrics(monitor *qmp.Monitor) (map[string]metrics.Disk
 	return out, nil
 }
 
+// getQemuMemoryMetrics retrieves memory statistics for the qemu instance and returns them as a MemoryMetrics struct.
 func (d *qemu) getQemuMemoryMetrics(monitor *qmp.Monitor) (metrics.MemoryMetrics, error) {
 	out := metrics.MemoryMetrics{}
 
@@ -162,6 +167,8 @@ func (d *qemu) getQemuMemoryMetrics(monitor *qmp.Monitor) (metrics.MemoryMetrics
 	return out, nil
 }
 
+// retrieves CPU-related statistics for the qemu instance using the provided monitor and
+// returns them as a map of CPU thread IDs to CPUMetrics.
 func (d *qemu) getQemuCPUMetrics(monitor *qmp.Monitor) (map[string]metrics.CPUMetrics, error) {
 	// Get CPU metrics
 	threadIDs, err := monitor.GetCPUs()
