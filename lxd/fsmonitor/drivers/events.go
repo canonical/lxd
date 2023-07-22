@@ -10,6 +10,7 @@ const (
 	Remove
 )
 
+// Converts event type enum to its corresponding string representation.
 func (e Event) String() string {
 	return map[Event]string{
 		Add:    "add",
