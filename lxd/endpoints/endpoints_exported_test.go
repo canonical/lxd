@@ -12,6 +12,7 @@ func Unstarted() *Endpoints {
 	}
 }
 
+// Up initializes the Endpoints with the provided configuration.
 func (e *Endpoints) Up(config *Config) error {
 	return e.up(config)
 }
@@ -24,6 +25,7 @@ func (e *Endpoints) DevLxdSocketPath() string {
 	return listener.Addr().String()
 }
 
+// LocalSocketPath returns the address string of the local listener.
 func (e *Endpoints) LocalSocketPath() string {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
