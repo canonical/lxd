@@ -16,6 +16,7 @@ type dnsHandler struct {
 	server *Server
 }
 
+// ServeDNS handles DNS requests and responses; isAllowed authorizes client access based on IP and TSIG.
 func (d dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	// Check if we're ready to serve queries.
 	if d.server.zoneRetriever == nil {
@@ -134,6 +135,7 @@ func (d dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	}
 }
 
+// Determines if a given IP with optional TSIG is allowed access to a DNS zone.
 func (d *dnsHandler) isAllowed(zone api.NetworkZone, ip string, tsig *dns.TSIG, tsigStatus bool) bool {
 	type peer struct {
 		address string
