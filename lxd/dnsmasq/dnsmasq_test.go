@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Test_staticAllocationFileName verifies the generation of a file name based on project, instance, and device names.
 func Test_staticAllocationFileName(t *testing.T) {
 	projectName := "test.project"
 	instanceName := "test-instance"
