@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Test_networkServerErrorLogWriter_shouldDiscard checks if logs from trusted proxies are correctly ignored.
 func Test_networkServerErrorLogWriter_shouldDiscard(t *testing.T) {
 	tests := []struct {
 		name    string
