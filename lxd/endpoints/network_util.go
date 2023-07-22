@@ -15,6 +15,7 @@ type networkServerErrorLogWriter struct {
 // Regex for the log we want to ignore.
 var unwantedLogRegex = regexp.MustCompile(`^http: TLS handshake error from ([^\[:]+?|\[([^\]]+?)\]):[0-9]+: .+write: connection reset by peer$`)
 
+// Writes logs any non-empty message stripped of trusted proxy errors.
 func (d networkServerErrorLogWriter) Write(p []byte) (int, error) {
 	strippedLog := d.stripLog(p)
 	if strippedLog == "" {
@@ -25,6 +26,7 @@ func (d networkServerErrorLogWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// StripLog filters the provided log, removing any trusted proxy errors, and returns the cleaned log.
 func (d networkServerErrorLogWriter) stripLog(p []byte) string {
 	// Strip the beginning of the log until we reach "http:".
 	for len(p) > 5 && string(p[0:5]) != "http:" {
