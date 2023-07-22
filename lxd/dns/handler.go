@@ -16,6 +16,7 @@ type dnsHandler struct {
 	server *Server
 }
 
+// ServeDNS handles DNS requests and responses; isAllowed authorizes client access based on IP and TSIG.
 func (d dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	// Check if we're ready to serve queries.
 	if d.server.zoneRetriever == nil {
