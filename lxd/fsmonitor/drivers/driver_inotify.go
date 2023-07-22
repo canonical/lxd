@@ -22,10 +22,12 @@ type inotify struct {
 	watcher *in.Watcher
 }
 
+// Returns the name of the inotify instance.
 func (d *inotify) Name() string {
 	return "inotify"
 }
 
+// Initializes inotify, sets up recursive directory watch, and starts event processing routine.
 func (d *inotify) load(ctx context.Context) error {
 	if inotifyLoaded {
 		return nil
@@ -52,6 +54,7 @@ func (d *inotify) load(ctx context.Context) error {
 	return nil
 }
 
+// Monitors the filesystem events (creation or deletion of files/directories) and notifies the registered watchers.
 func (d *inotify) getEvents(ctx context.Context) {
 	for {
 		select {
@@ -146,6 +149,7 @@ func (d *inotify) getEvents(ctx context.Context) {
 	}
 }
 
+// Sets up watchers recursively for every directory in a filesystem tree, starting from a given path.
 func (d *inotify) watchFSTree(path string) error {
 	if !shared.PathExists(path) {
 		return errors.New("Path doesn't exist")
