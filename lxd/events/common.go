@@ -30,6 +30,7 @@ type listenerCommon struct {
 	recvFunc     EventHandler
 }
 
+// start initiates the event listener, handles incoming data, and closes the listener after use.
 func (e *listenerCommon) start() {
 	logger.Debug("Event listener server handler started", logger.Ctx{"id": e.id, "local": e.LocalAddr(), "remote": e.RemoteAddr()})
 
