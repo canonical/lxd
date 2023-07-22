@@ -9,6 +9,7 @@ func (s *Server) Debug(zone string) string {
 	return s.debug(zone)
 }
 
+// Performs a debugging operation for a given zone within the server instance.
 func (s *Server) debug(zone string) string {
 	return ""
 }
