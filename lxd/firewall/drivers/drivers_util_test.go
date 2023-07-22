@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Tests the function that converts slices of ports into ranges for various scenarios including single ports, ranges, and mixtures.
 func Test_portRangesFromSlice(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -62,6 +63,8 @@ func Test_portRangesFromSlice(t *testing.T) {
 	}
 }
 
+// Tests the function that optimises DNAT ranges for equal,
+// unequal and mixed ports in both single and range scenarios.
 func Test_getOptimisedSNATRanges(t *testing.T) {
 	tests := []struct {
 		name     string
