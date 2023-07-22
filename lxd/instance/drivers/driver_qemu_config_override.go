@@ -19,6 +19,8 @@ type rawConfigKey struct {
 
 type configMap map[rawConfigKey]string
 
+// sortedConfigKeys returns a sorted slice of rawConfigKey items
+// by comparing their section names, indices, and entry keys.
 func sortedConfigKeys(cfgMap configMap) []rawConfigKey {
 	rv := []rawConfigKey{}
 
@@ -35,6 +37,8 @@ func sortedConfigKeys(cfgMap configMap) []rawConfigKey {
 	return rv
 }
 
+// parseConfOverride parses a configuration override string and
+// returns a map of config keys and their corresponding values.
 func parseConfOverride(confOverride string) configMap {
 	s := confOverride
 	rv := configMap{}
@@ -111,6 +115,7 @@ func parseConfOverride(confOverride string) configMap {
 	return rv
 }
 
+// updateEntries updates cfgEntry values based on the rawConfigKey in cfgMap and returns the modified cfgEntry slice.
 func updateEntries(entries []cfgEntry, sk rawConfigKey, cfgMap configMap) []cfgEntry {
 	rv := []cfgEntry{}
 
@@ -134,6 +139,7 @@ func updateEntries(entries []cfgEntry, sk rawConfigKey, cfgMap configMap) []cfgE
 	return rv
 }
 
+// appends new config entries from the configMap to the existing cfgEntry slice for the given rawConfigKey section
 func appendEntries(entries []cfgEntry, sk rawConfigKey, cfgMap configMap) []cfgEntry {
 	// sort to have deterministic output in the appended entries
 	sortedKeys := sortedConfigKeys(cfgMap)
@@ -156,6 +162,7 @@ func appendEntries(entries []cfgEntry, sk rawConfigKey, cfgMap configMap) []cfgE
 	return entries
 }
 
+// updateSections updates cfgSection entries based on configMap, handling additions, deletions, and modifications, and returns the modified cfgSection slice.
 func updateSections(cfg []cfgSection, cfgMap configMap) []cfgSection {
 	newCfg := []cfgSection{}
 	sectionCounts := map[string]uint{}
@@ -195,6 +202,8 @@ func updateSections(cfg []cfgSection, cfgMap configMap) []cfgSection {
 	return newCfg
 }
 
+// appendSections appends new cfgSections with their corresponding cfgEntry values from the configMap,
+// ensuring deterministic output with sorted keys.
 func appendSections(newCfg []cfgSection, cfgMap configMap) []cfgSection {
 	tmp := map[rawConfigKey]cfgSection{}
 	// sort to have deterministic output in the appended entries
@@ -239,6 +248,7 @@ func appendSections(newCfg []cfgSection, cfgMap configMap) []cfgSection {
 	return newCfg
 }
 
+// qemuRawCfgOverride applies raw QEMU configuration overrides using expandedConfig, returning the modified cfgSection slice.
 func qemuRawCfgOverride(cfg []cfgSection, expandedConfig map[string]string) []cfgSection {
 	confOverride, ok := expandedConfig["raw.qemu.conf"]
 	if !ok {
