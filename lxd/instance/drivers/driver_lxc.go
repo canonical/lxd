@@ -76,7 +76,7 @@ import (
 	"github.com/canonical/lxd/shared/ws"
 )
 
-// Helper functions.
+// lxcSetConfigItem sets a configuration item for a given LXC container, adapting for older liblxc versions.
 func lxcSetConfigItem(c *liblxc.Container, key string, value string) error {
 	if c == nil {
 		return fmt.Errorf("Uninitialized go-lxc struct")
@@ -141,6 +141,7 @@ func lxcSetConfigItem(c *liblxc.Container, key string, value string) error {
 	return nil
 }
 
+// lxcStatusCode maps liblxc state to corresponding LXD API status code.
 func lxcStatusCode(state liblxc.State) api.StatusCode {
 	return map[int]api.StatusCode{
 		1: api.Stopped,
@@ -339,6 +340,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.In
 	return d, cleanup, err
 }
 
+// lxcLoad creates a new LXC container instance using the provided state, instance arguments, and project.
 func lxcLoad(s *state.State, args db.InstanceArgs, p api.Project) (instance.Instance, error) {
 	// Create the container struct
 	d := lxcInstantiate(s, args, nil, p)
@@ -352,7 +354,7 @@ func lxcLoad(s *state.State, args db.InstanceArgs, p api.Project) (instance.Inst
 	return d, nil
 }
 
-// Unload is called by the garbage collector.
+// lxcUnload releases resources associated with the given LXC instance.
 func lxcUnload(d *lxc) {
 	d.release()
 }
@@ -368,7 +370,7 @@ func (d *lxc) release() {
 	}
 }
 
-// Create a container struct without initializing it.
+// Creates a container struct without initializing it.
 func lxcInstantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices, p api.Project) instance.Instance {
 	d := &lxc{
 		common: common{
@@ -434,6 +436,7 @@ type lxc struct {
 	idmapset *idmap.IdmapSet
 }
 
+// idmapSize calculates the size of the ID map based on the provided state, isolation flag, and size string.
 func idmapSize(state *state.State, isolatedStr string, size string) (int64, error) {
 	isolated := false
 	if shared.IsTrue(isolatedStr) {
@@ -465,6 +468,7 @@ func idmapSize(state *state.State, isolatedStr string, size string) (int64, erro
 
 var idmapLock sync.Mutex
 
+// findIdmap calculates the ID map for the container based on provided state, configuration, and raw ID map data.
 func findIdmap(state *state.State, cName string, isolatedStr string, configBase string, configSize string, rawIdmap string) (*idmap.IdmapSet, int64, error) {
 	isolated := false
 	if shared.IsTrue(isolatedStr) {
@@ -619,6 +623,7 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 	return nil, 0, fmt.Errorf("Not enough uid/gid available for the container")
 }
 
+// Initializes the LXC container by expanding the configuration and device list.
 func (d *lxc) init() error {
 	// Compute the expanded config and device list
 	err := d.expandConfig()
@@ -629,6 +634,8 @@ func (d *lxc) init() error {
 	return nil
 }
 
+// initLXC initializes the LXC container by setting up configuration, hooks, and limits.
+// expandConfig expands the container's configuration and devices list.
 func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 	d.cMu.Lock()
 	defer d.cMu.Unlock()
@@ -1385,6 +1392,7 @@ func (d *lxc) IdmappedStorage(path string, fstype string) idmap.IdmapStorageType
 	return mode
 }
 
+// devlxdEventSend sends a custom event to DevLXD events for the LXC container with the given `eventType` and `eventMessage` metadata.
 func (d *lxc) devlxdEventSend(eventType string, eventMessage map[string]any) error {
 	event := shared.Jmap{}
 	event["type"] = eventType
@@ -1474,7 +1482,7 @@ func (d *lxc) deviceStart(dev device.Device, instanceRunning bool) (*deviceConfi
 	return runConf, nil
 }
 
-// deviceStaticShiftMounts statically shift device mount files ownership to active idmap if needed.
+// deviceStaticShiftMounts applies UID and GID shifting to device mounts if required by the instance's idmap configuration.
 func (d *lxc) deviceStaticShiftMounts(mounts []deviceConfig.MountEntryItem) error {
 	idmapSet, err := d.CurrentIdmap()
 	if err != nil {
@@ -1812,6 +1820,8 @@ func (d *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 	return nil
 }
 
+// handles the idmapped storage for the LXC container,
+// including remapping the filesystem and updating the container's idmap configuration.
 func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, error) {
 	diskIdmap, err := d.DiskIdmap()
 	if err != nil {
@@ -1899,7 +1909,7 @@ func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, 
 	return idmapType, nextIdmap, nil
 }
 
-// Start functions.
+// Prepares the LXC instance for starting, returning post-start hooks and any errors.
 func (d *lxc) startCommon() (string, []func() error, error) {
 	postStartHooks := []func() error{}
 
@@ -2594,7 +2604,7 @@ func (d *lxc) onStart(_ map[string]string) error {
 	return nil
 }
 
-// Stop functions.
+// Stops the LXC instance, optionally preserving its state.
 func (d *lxc) Stop(stateful bool) error {
 	d.logger.Debug("Stop started", logger.Ctx{"stateful": stateful})
 	defer d.logger.Debug("Stop finished", logger.Ctx{"stateful": stateful})
@@ -2872,7 +2882,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 	return nil
 }
 
-// Restart restart the instance.
+// Restart restarts the instance.
 func (d *lxc) Restart(timeout time.Duration) error {
 	return d.restartCommon(d, timeout)
 }
@@ -3072,7 +3082,7 @@ func (d *lxc) cleanupDevices(instanceRunning bool, stopHookNetnsPath string) {
 	}
 }
 
-// Freeze functions.
+// Freezes the LXC instance, preventing it from executing any processes.
 func (d *lxc) Freeze() error {
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
@@ -3171,7 +3181,7 @@ func (d *lxc) Unfreeze() error {
 	return err
 }
 
-// Get lxc container state, with 1 second timeout.
+// Gets lxc container state, with 1 second timeout.
 // If we don't get a reply, assume the lxc monitor is unresponsive.
 func (d *lxc) getLxcState() (liblxc.State, error) {
 	if d.IsSnapshot() {
@@ -3650,6 +3660,8 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	return nil
 }
 
+// cleanup performs various cleanup tasks for the container,
+// including unmounting devices, removing security profiles, and cleaning up related paths.
 func (d *lxc) cleanup() {
 	// Unmount any leftovers
 	_ = d.removeUnixDevices()
@@ -5064,12 +5076,14 @@ func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.
 	return meta, nil
 }
 
+// collects the CRIU log file for the LXC container and saves it with a timestamp in the container's log directory.
 func collectCRIULogFile(d instance.Instance, imagesDir string, function string, method string) error {
 	t := time.Now().Format(time.RFC3339)
 	newPath := filepath.Join(d.LogPath(), fmt.Sprintf("%s_%s_%s.log", function, method, t))
 	return shared.FileCopy(filepath.Join(imagesDir, fmt.Sprintf("%s.log", method)), newPath)
 }
 
+// getCRIULogErrors reads the CRIU log file for the specified method in the imagesDir and returns any lines containing "Error" or "Warn".
 func getCRIULogErrors(imagesDir string, method string) (string, error) {
 	f, err := os.Open(path.Join(imagesDir, fmt.Sprintf("%s.log", method)))
 	if err != nil {
@@ -5090,7 +5104,7 @@ func getCRIULogErrors(imagesDir string, method string) (string, error) {
 	return strings.Join(ret, "\n"), nil
 }
 
-// Check if CRIU supports pre-dumping and number of pre-dump iterations.
+// Checks if CRIU supports pre-dumping and number of pre-dump iterations.
 func (d *lxc) migrationSendCheckForPreDumpSupport() (bool, int) {
 	// Check if this architecture/kernel/criu combination supports pre-copy dirty memory tracking feature.
 	_, err := shared.RunCommand("criu", "check", "--feature", "mem_dirty_track")
@@ -5137,6 +5151,7 @@ func (d *lxc) migrationSendCheckForPreDumpSupport() (bool, int) {
 	return usePreDumps, maxIterations
 }
 
+// Generates a CRIU post-dump migration action shell script and writes it to the specified directory.
 func (d *lxc) migrationSendWriteActionScript(directory string, operation string, secret string, execPath string) error {
 	script := fmt.Sprintf(`#!/bin/sh -e
 if [ "$CRTOOLS_SCRIPT_ACTION" = "post-dump" ]; then
@@ -5162,6 +5177,7 @@ fi
 	return f.Close()
 }
 
+// MigrateSend initiates the migration process including offer, type negotiation, and storage/live migration to the target.
 func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 	d.logger.Info("Migration send starting")
 	defer d.logger.Info("Migration send stopped")
@@ -5723,6 +5739,7 @@ func (d *lxc) migrateSendPreDumpLoop(args *preDumpLoopArgs) (bool, error) {
 	return final, nil
 }
 
+// resetContainerDiskIdmap updates the container's disk idmap if it differs from the source instance's idmap.
 func (d *lxc) resetContainerDiskIdmap(srcIdmap *idmap.IdmapSet) error {
 	dstIdmap, err := d.DiskIdmap()
 	if err != nil {
@@ -5756,6 +5773,8 @@ func (d *lxc) resetContainerDiskIdmap(srcIdmap *idmap.IdmapSet) error {
 	return nil
 }
 
+// MigrateReceive receives migration data and state for an LXC container from a source node.
+// It handles filesystem transfer, state transfer, and container creation on the target node.
 func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	d.logger.Info("Migration receive starting")
 	defer d.logger.Info("Migration receive stopped")
@@ -6493,6 +6512,7 @@ func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 	return nil
 }
 
+// templateApplyNow applies templates for the LXC container based on the provided trigger type.
 func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 	// If there's no metadata, just return
 	fname := filepath.Join(d.Path(), "metadata.yaml")
@@ -6656,6 +6676,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 	return nil
 }
 
+// inheritInitPidFd gets the file descriptor and file for the init process's PID FD if supported by the OS.
 func (d *lxc) inheritInitPidFd() (int, *os.File) {
 	if d.state.OS.PidFds {
 		pidFdFile, err := d.InitPidFd()
@@ -7118,6 +7139,8 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 	return instCmd, nil
 }
 
+// cpuState retrieves the CPU usage of the container in seconds using cgroup data and
+// returns an API struct representing the CPU state.
 func (d *lxc) cpuState() api.InstanceStateCPU {
 	cpu := api.InstanceStateCPU{}
 
@@ -7147,6 +7170,7 @@ func (d *lxc) cpuState() api.InstanceStateCPU {
 	return cpu
 }
 
+// diskState retrieves the disk usage and total size for each disk device of the container and returns a map representing the disk state.
 func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 	disk := map[string]api.InstanceStateDisk{}
 
@@ -7203,6 +7227,8 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 	return disk
 }
 
+// retrieves memory usage, peak usage, total memory, swap usage, and swap peak usage for the container and
+// returns an API representation of the memory state.
 func (d *lxc) memoryState() api.InstanceStateMemory {
 	memory := api.InstanceStateMemory{}
 
@@ -7261,6 +7287,7 @@ func (d *lxc) memoryState() api.InstanceStateMemory {
 	return memory
 }
 
+// networkState retrieves network information of the container and returns an API representation of the network state.
 func (d *lxc) networkState(hostInterfaces []net.Interface) map[string]api.InstanceStateNetwork {
 	result := map[string]api.InstanceStateNetwork{}
 
@@ -7330,6 +7357,7 @@ func (d *lxc) networkState(hostInterfaces []net.Interface) map[string]api.Instan
 	return result
 }
 
+// processesState returns the number of processes running inside the LXC container with the given PID.
 func (d *lxc) processesState(pid int) (int64, error) {
 	// Return 0 if not running
 	if pid == -1 {
@@ -7555,6 +7583,7 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 	return nil
 }
 
+// insertMountLXC mounts the specified file system (source) into the LXC container with the given target path, file system type (fstype), and flags.
 func (d *lxc) insertMountLXC(source, target, fstype string, flags int) error {
 	cname := project.Instance(d.Project().Name, d.Name())
 	configPath := filepath.Join(d.LogPath(), "lxc.conf")
@@ -7585,6 +7614,7 @@ func (d *lxc) insertMountLXC(source, target, fstype string, flags int) error {
 	return nil
 }
 
+// insertMountLXC mounts the specified file system (source) into the LXC container with the given target path, file system type (fstype), and flags.
 func (d *lxc) moveMount(source, target, fstype string, flags int, idmapType idmap.IdmapStorageType) error {
 	// Get the init PID
 	pid := d.InitPID()
@@ -7632,6 +7662,7 @@ func (d *lxc) moveMount(source, target, fstype string, flags int, idmapType idma
 	return nil
 }
 
+// insertMount inserts a mount into the LXC container or LXD instance based on the provided parameters and container capabilities.
 func (d *lxc) insertMount(source, target, fstype string, flags int, idmapType idmap.IdmapStorageType) error {
 	if d.state.OS.IdmappedMounts && idmapType != idmap.IdmapStorageShiftfs {
 		return d.moveMount(source, target, fstype, flags, idmapType)
@@ -7644,6 +7675,7 @@ func (d *lxc) insertMount(source, target, fstype string, flags int, idmapType id
 	return d.insertMountLXD(source, target, fstype, flags, -1, idmapType)
 }
 
+// removeMount removes a mount from the LXC container or LXD instance based on the provided mount path.
 func (d *lxc) removeMount(mount string) error {
 	// Get the init PID
 	pid := d.InitPID()
@@ -7754,6 +7786,7 @@ func (d *lxc) InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid 
 	return d.insertMountLXD(devPath, tgtPath, "none", unix.MS_BIND, pid, idmap.IdmapStorageNone)
 }
 
+// removeUnixDevices removes Unix devices associated with the LXC container.
 func (d *lxc) removeUnixDevices() error {
 	// Check that we indeed have devices to remove
 	if !shared.PathExists(d.DevicesPath()) {
@@ -7921,6 +7954,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 	return newDevice, nil
 }
 
+// removeDiskDevices removes disk devices associated with the LXC container.
 func (d *lxc) removeDiskDevices() error {
 	// Check that we indeed have devices to remove
 	if !shared.PathExists(d.DevicesPath()) {
@@ -7954,7 +7988,7 @@ func (d *lxc) removeDiskDevices() error {
 	return nil
 }
 
-// Network I/O limits.
+// Sets the network priority for the LXC instance based on its configuration.
 func (d *lxc) setNetworkPriority() error {
 	// Load the go-lxc struct.
 	cc, err := d.initLXC(false)
@@ -8024,6 +8058,7 @@ func (d *lxc) IsNesting() bool {
 	return shared.IsTrue(d.expandedConfig["security.nesting"])
 }
 
+// isCurrentlyPrivileged checks if the LXC container is currently running in a privileged mode.
 func (d *lxc) isCurrentlyPrivileged() bool {
 	if !d.IsRunning() {
 		return d.IsPrivileged()
@@ -8181,6 +8216,7 @@ func (d *lxc) LogFilePath() string {
 	return filepath.Join(d.LogPath(), "lxc.log")
 }
 
+// CGroup returns the cgroup associated with the LXC container.
 func (d *lxc) CGroup() (*cgroup.CGroup, error) {
 	// Load the go-lxc struct
 	cc, err := d.initLXC(false)
@@ -8191,6 +8227,7 @@ func (d *lxc) CGroup() (*cgroup.CGroup, error) {
 	return d.cgroup(cc, true)
 }
 
+// cgroup returns the cgroup associated with the LXC container based on its running state.
 func (d *lxc) cgroup(cc *liblxc.Container, running bool) (*cgroup.CGroup, error) {
 	if cc == nil {
 		return nil, fmt.Errorf("Container not initialized for cgroup")
@@ -8214,6 +8251,7 @@ type lxcCgroupReadWriter struct {
 	running bool
 }
 
+// Get retrieves the value of a specific cgroup property (key) for the LXC container.
 func (rw *lxcCgroupReadWriter) Get(version cgroup.Backend, controller string, key string) (string, error) {
 	if !rw.running {
 		lxcKey := fmt.Sprintf("lxc.cgroup.%s", key)
@@ -8228,6 +8266,7 @@ func (rw *lxcCgroupReadWriter) Get(version cgroup.Backend, controller string, ke
 	return strings.Join(rw.cc.CgroupItem(key), "\n"), nil
 }
 
+// Set sets the value of a specific cgroup property (key) for the LXC container.
 func (rw *lxcCgroupReadWriter) Set(version cgroup.Backend, controller string, key string, value string) error {
 	if !rw.running {
 		if version == cgroup.V1 {
@@ -8260,6 +8299,7 @@ func (d *lxc) Info() instance.Info {
 	}
 }
 
+// Metrics collects various metrics related to the LXC container and returns them as a metrics.MetricSet.
 func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
 	out := metrics.NewMetricSet(map[string]string{"project": d.project.Name, "name": d.name, "type": instancetype.Container.String()})
 
@@ -8429,6 +8469,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	return out, nil
 }
 
+// getFSStats retrieves filesystem statistics for the LXC container and returns them as a metrics.MetricSet.
 func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 	type mountInfo struct {
 		Mountpoint string
@@ -8568,6 +8609,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 	return out, nil
 }
 
+// loadRawLXCConfig loads the raw LXC configuration for the container and sets it on the provided liblxc container (cc).
 func (d *lxc) loadRawLXCConfig(cc *liblxc.Container) error {
 	// Load the LXC raw config.
 	lxcConfig, ok := d.expandedConfig["raw.lxc"]
