@@ -19,6 +19,7 @@ type cfgSection struct {
 	entries []cfgEntry
 }
 
+// qemuStringifyCfg converts the configuration sections into a QEMU-compatible string representation.
 func qemuStringifyCfg(cfg ...cfgSection) *strings.Builder {
 	sb := &strings.Builder{}
 
@@ -42,6 +43,7 @@ func qemuStringifyCfg(cfg ...cfgSection) *strings.Builder {
 	return sb
 }
 
+// qemuMachineType translates the provided architecture into the corresponding QEMU machine type.
 func qemuMachineType(architecture int) string {
 	var machineType string
 
@@ -63,6 +65,7 @@ type qemuBaseOpts struct {
 	architecture int
 }
 
+// qemuBase generates a base QEMU configuration for a given machine architecture.
 func qemuBase(opts *qemuBaseOpts) []cfgSection {
 	machineType := qemuMachineType(opts.architecture)
 	gicVersion := ""
@@ -118,6 +121,7 @@ type qemuMemoryOpts struct {
 	memSizeMB int64
 }
 
+// qemuMemory generates a QEMU configuration section for setting the memory size.
 func qemuMemory(opts *qemuMemoryOpts) []cfgSection {
 	return []cfgSection{{
 		name:    "memory",
@@ -139,6 +143,7 @@ type qemuDevEntriesOpts struct {
 	ccwName string
 }
 
+// qemuDeviceEntries constructs a set of device entries based on provided device options.
 func qemuDeviceEntries(opts *qemuDevEntriesOpts) []cfgEntry {
 	entries := []cfgEntry{}
 
@@ -165,6 +170,7 @@ type qemuSerialOpts struct {
 	ringbufSizeBytes int
 }
 
+// qemuSerial creates QEMU configuration sections for setting up virtual serial buses and devices.
 func qemuSerial(opts *qemuSerialOpts) []cfgSection {
 	entriesOpts := qemuDevEntriesOpts{
 		dev:     opts.dev,
@@ -230,6 +236,7 @@ type qemuPCIeOpts struct {
 	multifunction bool
 }
 
+// qemuPCIe generates a QEMU configuration section for setting up a PCI Express root port.
 func qemuPCIe(opts *qemuPCIeOpts) []cfgSection {
 	entries := []cfgEntry{
 		{key: "driver", value: "pcie-root-port"},
@@ -248,6 +255,7 @@ func qemuPCIe(opts *qemuPCIeOpts) []cfgSection {
 	}}
 }
 
+// qemuSCSI generates a QEMU configuration section for setting up a SCSI controller.
 func qemuSCSI(opts *qemuDevOpts) []cfgSection {
 	entriesOpts := qemuDevEntriesOpts{
 		dev:     *opts,
@@ -262,6 +270,7 @@ func qemuSCSI(opts *qemuDevOpts) []cfgSection {
 	}}
 }
 
+// qemuBalloon constructs a QEMU configuration section for initializing a virtio balloon device.
 func qemuBalloon(opts *qemuDevOpts) []cfgSection {
 	entriesOpts := qemuDevEntriesOpts{
 		dev:     *opts,
@@ -276,6 +285,7 @@ func qemuBalloon(opts *qemuDevOpts) []cfgSection {
 	}}
 }
 
+// qemuRNG configures a QEMU section for creating a virtio random number generator device.
 func qemuRNG(opts *qemuDevOpts) []cfgSection {
 	entriesOpts := qemuDevEntriesOpts{
 		dev:     *opts,
@@ -305,6 +315,7 @@ type qemuSevOpts struct {
 	sessionDataFD   string
 }
 
+// qemuSEV configures QEMU to use AMD's Secure Encrypted Virtualization (SEV) feature.
 func qemuSEV(opts *qemuSevOpts) []cfgSection {
 	entries := []cfgEntry{
 		{key: "qom-type", value: "sev-guest"},
@@ -330,6 +341,7 @@ type qemuVsockOpts struct {
 	vsockID uint32
 }
 
+// qemuVsock sets up a Virtio Vsock device for guest-to-host communication in QEMU.
 func qemuVsock(opts *qemuVsockOpts) []cfgSection {
 	entriesOpts := qemuDevEntriesOpts{
 		dev:     opts.dev,
@@ -351,6 +363,7 @@ type qemuGpuOpts struct {
 	architecture int
 }
 
+// qemuGPU sets up the virtual GPU device for the QEMU virtual machine based on the specified architecture.
 func qemuGPU(opts *qemuGpuOpts) []cfgSection {
 	var pciName string
 
@@ -373,6 +386,7 @@ func qemuGPU(opts *qemuGpuOpts) []cfgSection {
 	}}
 }
 
+// qemuKeyboard creates a configuration for the virtual keyboard device for the QEMU virtual machine.
 func qemuKeyboard(opts *qemuDevOpts) []cfgSection {
 	entriesOpts := qemuDevEntriesOpts{
 		dev:     *opts,
@@ -387,6 +401,7 @@ func qemuKeyboard(opts *qemuDevOpts) []cfgSection {
 	}}
 }
 
+// qemuTablet creates a configuration for the virtual tablet input device for the QEMU virtual machine.
 func qemuTablet(opts *qemuDevOpts) []cfgSection {
 	entriesOpts := qemuDevEntriesOpts{
 		dev:     *opts,
@@ -422,6 +437,7 @@ type qemuCPUOpts struct {
 	qemuMemObjectFormat string
 }
 
+// qemuCPUNumaHostNode generates the configuration for the NUMA host memory node for the QEMU virtual machine.
 func qemuCPUNumaHostNode(opts *qemuCPUOpts, index int) []cfgSection {
 	entries := []cfgEntry{}
 
@@ -451,6 +467,7 @@ func qemuCPUNumaHostNode(opts *qemuCPUOpts, index int) []cfgSection {
 	}}
 }
 
+// qemuCPU generates the configuration for the CPU of the QEMU virtual machine with potential CPU pinning.
 func qemuCPU(opts *qemuCPUOpts, pinning bool) []cfgSection {
 	entries := []cfgEntry{
 		{key: "cpus", value: fmt.Sprintf("%d", opts.cpuCount)},
@@ -539,6 +556,7 @@ type qemuControlSocketOpts struct {
 	path string
 }
 
+// qemuControlSocket creates the configuration for the control socket used by QEMU for communication.
 func qemuControlSocket(opts *qemuControlSocketOpts) []cfgSection {
 	return []cfgSection{{
 		name:    `chardev "monitor"`,
@@ -562,6 +580,7 @@ type qemuConsoleOpts struct {
 	path string
 }
 
+// qemuConsole generates the configuration for the QEMU virtual console.
 func qemuConsole(opts *qemuConsoleOpts) []cfgSection {
 	return []cfgSection{{
 		name:    `chardev "console"`,
@@ -580,6 +599,7 @@ type qemuDriveFirmwareOpts struct {
 	nvramPath string
 }
 
+// qemuDriveFirmware configures the firmware drives for QEMU, including the read-only and writable sections.
 func qemuDriveFirmware(opts *qemuDriveFirmwareOpts) []cfgSection {
 	return []cfgSection{{
 		name:    "drive",
@@ -617,6 +637,7 @@ type qemuHostDriveOpts struct {
 	protocol      string
 }
 
+// qemuHostDrive sets up file system sharing between the host and the QEMU virtual machine using either 9p or virtio-fs protocol.
 func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 	var extraDeviceEntries []cfgEntry
 	var driveSection cfgSection
@@ -685,6 +706,7 @@ type qemuDriveConfigOpts struct {
 	path     string
 }
 
+// qemuDriveConfig sets up a read-only drive in the QEMU virtual machine for configuration purposes.
 func qemuDriveConfig(opts *qemuDriveConfigOpts) []cfgSection {
 	return qemuHostDrive(&qemuHostDriveOpts{
 		dev: opts.dev,
@@ -711,6 +733,7 @@ type qemuDriveDirOpts struct {
 	readonly bool
 }
 
+// qemuDriveDir configures a drive in the QEMU virtual machine associated with a specified directory.
 func qemuDriveDir(opts *qemuDriveDirOpts) []cfgSection {
 	return qemuHostDrive(&qemuHostDriveOpts{
 		dev: opts.dev,
@@ -732,6 +755,7 @@ type qemuPCIPhysicalOpts struct {
 	pciSlotName string
 }
 
+// qemuPCIPhysical configures a physical PCI card within the QEMU virtual machine.
 func qemuPCIPhysical(opts *qemuPCIPhysicalOpts) []cfgSection {
 	deviceOpts := qemuDevEntriesOpts{
 		dev:     opts.dev,
@@ -759,6 +783,7 @@ type qemuGPUDevPhysicalOpts struct {
 	vga         bool
 }
 
+// Configures physical GPU device settings for a QEMU virtual machine.
 func qemuGPUDevPhysical(opts *qemuGPUDevPhysicalOpts) []cfgSection {
 	deviceOpts := qemuDevEntriesOpts{
 		dev:     opts.dev,
@@ -794,6 +819,7 @@ type qemuUSBOpts struct {
 	ports         int
 }
 
+// Sets up USB controller and USB redirection devices for a QEMU VM.
 func qemuUSB(opts *qemuUSBOpts) []cfgSection {
 	deviceOpts := qemuDevEntriesOpts{
 		dev: qemuDevOpts{
@@ -839,6 +865,7 @@ type qemuTPMOpts struct {
 	path    string
 }
 
+// Configures TPM (Trusted Platform Module) emulator for a QEMU VM.
 func qemuTPM(opts *qemuTPMOpts) []cfgSection {
 	chardev := fmt.Sprintf("qemu_tpm-chardev_%s", opts.devName)
 	tpmdev := fmt.Sprintf("qemu_tpm-tpmdev_%s", opts.devName)
@@ -868,6 +895,7 @@ type qemuVmgenIDOpts struct {
 	guid string
 }
 
+// Sets up a VM Generation ID device for a QEMU VM for VM-unique identifiers.
 func qemuVmgen(opts *qemuVmgenIDOpts) []cfgSection {
 	return []cfgSection{{
 		name:    `device "vmgenid0"`,
