@@ -12,6 +12,8 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+// StorageBucketsCreateListener establishes a secure TCP listener for storage bucket communication,
+// returns error if unable to bind to the network address.
 func storageBucketsCreateListener(address string, cert *shared.CertInfo) (net.Listener, error) {
 	// Listening on `tcp` network with address 0.0.0.0 will end up with listening
 	// on both IPv4 and IPv6 interfaces. Pass `tcp4` to make it
