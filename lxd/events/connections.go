@@ -51,6 +51,7 @@ func NewWebsocketListenerConnection(connection *websocket.Conn) EventListenerCon
 	}
 }
 
+// Handles incoming WebSocket messages, implements keepalive, and facilitates shutdown.
 func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHandler) {
 	ctx, cancel := context.WithCancel(ctx)
 
@@ -131,6 +132,7 @@ func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHa
 	}
 }
 
+// Writes JSON-encoded event to the WebSocket connection with a set deadline.
 func (e *websockListenerConnection) WriteJSON(event any) error {
 	e.lock.Lock()
 	defer e.lock.Unlock()
@@ -167,6 +169,7 @@ X-Content-Type-Options: nosniff
 	}, nil
 }
 
+// Initializes a goroutine to read from the stream connection and detect client disconnections.
 func (e *streamListenerConnection) Reader(ctx context.Context, recvFunc EventHandler) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 
@@ -208,6 +211,7 @@ func (e *streamListenerConnection) Reader(ctx context.Context, recvFunc EventHan
 	<-ctx.Done()
 }
 
+// Encodes and sends JSON events over a stream connection with a write deadline.
 func (e *streamListenerConnection) WriteJSON(event any) error {
 	e.lock.Lock()
 	defer e.lock.Unlock()
@@ -225,6 +229,7 @@ func (e *streamListenerConnection) WriteJSON(event any) error {
 	return nil
 }
 
+// Closes the underlying stream connection.
 func (e *streamListenerConnection) Close() error {
 	return e.Conn.Close()
 }
@@ -236,6 +241,7 @@ func NewSimpleListenerConnection(rwc io.ReadWriteCloser) EventListenerConnection
 	}
 }
 
+// Starts a goroutine to read from the connection and triggers a closure when the client terminates or context ends.
 func (e *simpleListenerConnection) Reader(ctx context.Context, recvFunc EventHandler) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 
@@ -277,6 +283,7 @@ func (e *simpleListenerConnection) Reader(ctx context.Context, recvFunc EventHan
 	<-ctx.Done()
 }
 
+// Encodes and sends a JSON event through the connection, returning an error if the process fails.
 func (e *simpleListenerConnection) WriteJSON(event any) error {
 	err := json.NewEncoder(e.rwc).Encode(event)
 	if err != nil {
@@ -286,14 +293,17 @@ func (e *simpleListenerConnection) WriteJSON(event any) error {
 	return nil
 }
 
+// Closes the simple listener connection, returning an error if the process fails.
 func (e *simpleListenerConnection) Close() error {
 	return e.rwc.Close()
 }
 
+// Returns nil local address for logging in a simple listener connection context.
 func (e *simpleListenerConnection) LocalAddr() net.Addr { // Used for logging
 	return nil
 }
 
+// Returns nil remote address for logging in a simple listener connection context.
 func (e *simpleListenerConnection) RemoteAddr() net.Addr { // Used for logging
 	return nil
 }
