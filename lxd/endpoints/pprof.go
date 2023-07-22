@@ -12,6 +12,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+// PprofCreateServer creates a standalone HTTP server dedicated to serving Go's pprof debugging requests.
 func pprofCreateServer() *http.Server {
 	// Undo the magic that importing pprof does
 	pprofMux := http.DefaultServeMux
@@ -25,6 +26,7 @@ func pprofCreateServer() *http.Server {
 	return srv
 }
 
+// PprofCreateListener creates a TCP listener for the Go pprof debugging server on a specific address.
 func pprofCreateListener(address string) (net.Listener, error) {
 	return net.Listen("tcp", address)
 }
