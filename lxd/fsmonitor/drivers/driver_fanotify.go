@@ -34,10 +34,12 @@ type fanotifyEventInfoFid struct {
 	FSID uint64
 }
 
+// Returns the string "fanotify" as the name of this notifier implementation.
 func (d *fanotify) Name() string {
 	return "fanotify"
 }
 
+// Initializes fanotify, marks the directory for monitoring and starts listening for events asynchronously.
 func (d *fanotify) load(ctx context.Context) error {
 	if fanotifyLoaded {
 		return nil
@@ -75,6 +77,7 @@ func (d *fanotify) load(ctx context.Context) error {
 	return nil
 }
 
+// Processes file system events from fanotify, handles event metadata, and dispatches to watchers.
 func (d *fanotify) getEvents(ctx context.Context, mountFd int) {
 	for {
 		buf := make([]byte, 256)
