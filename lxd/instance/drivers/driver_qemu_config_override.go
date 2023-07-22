@@ -139,7 +139,7 @@ func updateEntries(entries []cfgEntry, sk rawConfigKey, cfgMap configMap) []cfgE
 	return rv
 }
 
-// appends new config entries from the configMap to the existing cfgEntry slice for the given rawConfigKey section
+// appends new config entries from the configMap to the existing cfgEntry slice for the given rawConfigKey section.
 func appendEntries(entries []cfgEntry, sk rawConfigKey, cfgMap configMap) []cfgEntry {
 	// sort to have deterministic output in the appended entries
 	sortedKeys := sortedConfigKeys(cfgMap)
