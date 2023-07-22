@@ -59,7 +59,7 @@ func (l *FancyTLSListener) Config(cert *shared.CertInfo) {
 	l.config = config
 }
 
-// TrustedProxy sets new the https trusted proxy configuration.
+// Sets the list of trusted proxy IPs for the FancyTLSListener.
 func (l *FancyTLSListener) TrustedProxy(trustedProxy []net.IP) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -67,6 +67,7 @@ func (l *FancyTLSListener) TrustedProxy(trustedProxy []net.IP) {
 	l.trustedProxy = trustedProxy
 }
 
+// isProxy checks if a given address corresponds to one of the provided proxy IPs.
 func isProxy(addr string, proxies []net.IP) bool {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
