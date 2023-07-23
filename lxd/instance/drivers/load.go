@@ -41,6 +41,7 @@ var driverStatuses map[instancetype.Type]*DriverStatus
 var instanceRefsMu sync.Mutex
 var instanceRefs map[string]instance.Instance
 
+// init initializes the instance package by exposing necessary functions, preventing circular imports.
 func init() {
 	// Expose load to the instance package, to avoid circular imports.
 	instance.Load = load
@@ -72,7 +73,7 @@ func load(s *state.State, args db.InstanceArgs, p api.Project) (instance.Instanc
 	return inst, nil
 }
 
-// validDevices validate instance device configs.
+// validDevices validates the instance device configs.
 func validDevices(state *state.State, p api.Project, instanceType instancetype.Type, localDevices deviceConfig.Devices, expandedDevices deviceConfig.Devices) error {
 	instConf := &common{
 		dbType:          instanceType,
@@ -139,6 +140,8 @@ func validDevices(state *state.State, p api.Project, instanceType instancetype.T
 	return nil
 }
 
+// create facilitates the creation of a new instance, either of type Container or VM,
+// based on the provided arguments.
 func create(s *state.State, args db.InstanceArgs, p api.Project) (instance.Instance, revert.Hook, error) {
 	if args.Type == instancetype.Container {
 		return lxcCreate(s, args, p)
