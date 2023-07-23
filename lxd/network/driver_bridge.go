@@ -1912,6 +1912,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 	return nil
 }
 
+// spawnForkDNS spawns a dnsmasq daemon as a subprocess for the bridge with specified listenAddress.
 func (n *bridge) spawnForkDNS(listenAddress string) error {
 	// Setup the dnsmasq domain
 	dnsDomain := n.config["dns.domain"]
@@ -2025,6 +2026,7 @@ func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 	return nil
 }
 
+// getTunnels returns a list of tunnel names extracted from the bridge's config keys.
 func (n *bridge) getTunnels() []string {
 	tunnels := []string{}
 
@@ -2108,6 +2110,7 @@ func (n *bridge) applyBootRoutesV6(routes []string) {
 	}
 }
 
+// fanAddress calculates and returns the FAN IP address, device name, and original IP for a given underlay and overlay network.
 func (n *bridge) fanAddress(underlay *net.IPNet, overlay *net.IPNet) (string, string, string, error) {
 	// Quick checks.
 	underlaySize, _ := underlay.Mask.Size()
@@ -2156,6 +2159,7 @@ func (n *bridge) fanAddress(underlay *net.IPNet, overlay *net.IPNet) (string, st
 	return fmt.Sprintf("%s/%d", ipBytes.String(), overlaySize), dev, ipStr, err
 }
 
+// addressForSubnet finds and returns the IP address and device name associated with the given subnet.
 func (n *bridge) addressForSubnet(subnet *net.IPNet) (net.IP, string, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -2189,6 +2193,7 @@ func (n *bridge) addressForSubnet(subnet *net.IPNet) (net.IP, string, error) {
 	return net.IP{}, "", fmt.Errorf("No address found in subnet")
 }
 
+// killForkDNS stops the running forkdns process associated with the bridge network if it exists.
 func (n *bridge) killForkDNS() error {
 	// Check if we have a running forkdns at all
 	pidPath := shared.VarPath("networks", n.name, "forkdns.pid")
