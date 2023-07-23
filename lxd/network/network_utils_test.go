@@ -7,6 +7,8 @@ import (
 	"github.com/canonical/lxd/shared"
 )
 
+// The Example_parseIPRange function demonstrates the usage of the
+// parseIPRange function with both allowed and disallowed IP ranges.
 func Example_parseIPRange() {
 	_, allowedv4NetworkA, _ := net.ParseCIDR("192.168.1.0/24")
 	_, allowedv4NetworkB, _ := net.ParseCIDR("192.168.0.0/16")
@@ -89,6 +91,8 @@ func Example_parseIPRange() {
 	// Start: ::aaaa:ffff:ffff:ffff:1, End: ::aaaa:ffff:ffff:ffff:ffff
 }
 
+// Example_ipRangesOverlap function showcases IP range pairs and their overlapping status using
+// IPRangesOverlap function.
 func Example_ipRangesOverlap() {
 	rangePairs := [][2]string{
 		{"10.1.1.1-10.1.1.2", "10.1.1.3-10.1.1.4"},
