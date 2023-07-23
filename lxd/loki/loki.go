@@ -105,6 +105,7 @@ func NewClient(ctx context.Context, url *url.URL, username string, password stri
 	return &client
 }
 
+// run is the main event loop, it manages entries and sends batches based on configuration.
 func (c *Client) run() {
 	batch := newBatch()
 
@@ -156,6 +157,8 @@ func (c *Client) run() {
 	}
 }
 
+// sendBatch encodes and sends a batch of entries,
+// retrying on specific errors based on the backoff configuration.
 func (c *Client) sendBatch(batch *batch) {
 	if batch.empty() {
 		return
@@ -185,6 +188,7 @@ func (c *Client) sendBatch(batch *batch) {
 	}
 }
 
+// send creates and sends an HTTP request containing the provided buffer, returning the status code and any error encountered.
 func (c *Client) send(ctx context.Context, buf []byte) (int, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.cfg.timeout)
 	defer cancel()
@@ -343,6 +347,7 @@ func (c *Client) HandleEvent(event api.Event) {
 	c.entries <- entry
 }
 
+// Generates a flattened key-value map from a nested map, concatenating keys from each level.
 func buildNestedContext(prefix string, m map[string]any) map[string]string {
 	labels := map[string]string{}
 
