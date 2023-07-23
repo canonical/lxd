@@ -40,6 +40,7 @@ type ContainerInterfaceSubnet struct {
 	Address string
 }
 
+// Parses a list of container interfaces, validates each one, and returns a map keyed by MAC address.
 func parseInterfaces(interfaces []ContainerInterface) (map[string]ContainerInterface, error) {
 	// Quick checks.
 	if len(interfaces) == 0 {
@@ -112,6 +113,7 @@ func NewController(url string, key string, machine string) (*Controller, error) 
 	return &c, err
 }
 
+// Returns the FQDN for an instance considering its project name.
 func (c *Controller) getDomain(inst Instance) string {
 	fields := strings.Split(c.machine.FQDN(), ".")
 	domain := strings.Join(fields[1:], ".")
@@ -123,6 +125,7 @@ func (c *Controller) getDomain(inst Instance) string {
 	return fmt.Sprintf("%s.%s", inst.Project().Name, domain)
 }
 
+// Retrieves a specific MAAS device based on its name and domain.
 func (c *Controller) getDevice(name string, domain string) (gomaasapi.Device, error) {
 	devs, err := c.machine.Devices(gomaasapi.DevicesArgs{
 		Hostname: []string{name},
@@ -139,6 +142,7 @@ func (c *Controller) getDevice(name string, domain string) (gomaasapi.Device, er
 	return devs[0], nil
 }
 
+// Retrieves all the subnets from the MAAS spaces and returns them as a map.
 func (c *Controller) getSubnets() (map[string]gomaasapi.Subnet, error) {
 	// Get all the spaces
 	spaces, err := c.srv.Spaces()
