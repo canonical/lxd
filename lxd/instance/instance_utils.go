@@ -152,6 +152,7 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 	return nil
 }
 
+// validConfigKey validates the given key-value pair according to instance type and system architecture constraints.
 func validConfigKey(os *sys.OS, key string, value string, instanceType instancetype.Type) error {
 	f, err := shared.ConfigKeyChecker(key, instanceType)
 	if err != nil {
@@ -180,6 +181,7 @@ func validConfigKey(os *sys.OS, key string, value string, instanceType instancet
 	return nil
 }
 
+// lxcParseRawLXC parses a given line of raw LXC config, ignoring comments and empty lines, and returns key-value pairs.
 func lxcParseRawLXC(line string) (string, string, error) {
 	// Ignore empty lines
 	if len(line) == 0 {
@@ -205,6 +207,7 @@ func lxcParseRawLXC(line string) (string, string, error) {
 	return key, val, nil
 }
 
+// lxcValidConfig checks a given raw LXC config for disallowed keys and compatibility issues.
 func lxcValidConfig(rawLxc string) error {
 	for _, line := range strings.Split(rawLxc, "\n") {
 		key, _, err := lxcParseRawLXC(line)
