@@ -91,7 +91,7 @@ type common struct {
 	nodes       map[int64]db.NetworkNode
 }
 
-// init initialise internal variables.
+// init initializes internal variables.
 func (n *common) init(state *state.State, id int64, projectName string, netInfo *api.Network, netNodes map[int64]db.NetworkNode) {
 	n.logger = logger.AddContext(logger.Ctx{"project": projectName, "driver": netInfo.Type, "network": netInfo.Name})
 	n.id = id
@@ -116,7 +116,7 @@ func (n *common) validationRules() map[string]func(string) error {
 	return map[string]func(string) error{}
 }
 
-// validate a network config against common rules and optional driver specific rules.
+// This function validates the provided network configuration against common and driver-specific rules.
 func (n *common) validate(config map[string]string, driverRules map[string]func(value string) error) error {
 	checkedFields := map[string]struct{}{}
 
@@ -269,6 +269,7 @@ func (n *common) Config() map[string]string {
 	return n.config
 }
 
+// IsManaged returns a boolean indicating whether the common resource is managed or not.
 func (n *common) IsManaged() bool {
 	return n.managed
 }
@@ -353,7 +354,7 @@ func (n *common) DHCPv6Ranges() []shared.IPRange {
 	return dhcpRanges
 }
 
-// update the internal config variables, and if not cluster notification, notifies all nodes and updates database.
+// This function updates the internal config variables, and if not cluster notification, notifies all nodes and updates database.
 func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
 	// Update internal config before database has been updated (so that if update is a notification we apply
 	// the config being supplied and not that in the database).
@@ -447,7 +448,7 @@ func (n *common) configChanged(newNetwork api.NetworkPut) (bool, []string, api.N
 	return dbUpdateNeeded, changedKeys, oldNetwork, nil
 }
 
-// rename the network directory, update database record and update internal variables.
+// rename renames the network directory, update database record and update internal variables.
 func (n *common) rename(newName string) error {
 	// Clear new directory if exists.
 	if shared.PathExists(shared.VarPath("networks", newName)) {
@@ -486,7 +487,7 @@ func (n *common) warningsDelete() error {
 	return nil
 }
 
-// delete the network on local server.
+// It deletes the network on local server.
 func (n *common) delete(clientType request.ClientType) error {
 	// Delete any persistent warnings for network.
 	err := n.warningsDelete()
@@ -574,7 +575,7 @@ func (n *common) handleDependencyChange(netName string, netConfig map[string]str
 	return nil
 }
 
-// bgpValidate.
+// Generates validation rules for BGP configuration keys based on their suffixes.
 func (n *common) bgpValidationRules(config map[string]string) (map[string]func(value string) error, error) {
 	rules := map[string]func(value string) error{}
 	for k := range config {
@@ -1487,10 +1488,12 @@ func (n *common) peerUsedBy(peerName string, firstOnly bool) ([]string, error) {
 	return usedBy, nil
 }
 
+// State retrieves the state of the common resource and returns it along with any error encountered.
 func (n *common) State() (*api.NetworkState, error) {
 	return resources.GetNetworkState(n.name)
 }
 
+// setUnavailable marks the common resource as available.
 func (n *common) setUnavailable() {
 	pn := ProjectNetwork{
 		ProjectName: n.Project(),
@@ -1502,6 +1505,7 @@ func (n *common) setUnavailable() {
 	unavailableNetworksMu.Unlock()
 }
 
+// setAvailable marks the common resource as available.
 func (n *common) setAvailable() {
 	pn := ProjectNetwork{
 		ProjectName: n.Project(),
