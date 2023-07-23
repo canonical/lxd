@@ -269,6 +269,7 @@ func (n *common) Config() map[string]string {
 	return n.config
 }
 
+// IsManaged returns a boolean indicating whether the common resource is managed or not.
 func (n *common) IsManaged() bool {
 	return n.managed
 }
@@ -1487,10 +1488,12 @@ func (n *common) peerUsedBy(peerName string, firstOnly bool) ([]string, error) {
 	return usedBy, nil
 }
 
+// State retrieves the state of the common resource and returns it along with any error encountered.
 func (n *common) State() (*api.NetworkState, error) {
 	return resources.GetNetworkState(n.name)
 }
 
+// setUnavailable marks the common resource as available.
 func (n *common) setUnavailable() {
 	pn := ProjectNetwork{
 		ProjectName: n.Project(),
@@ -1502,6 +1505,7 @@ func (n *common) setUnavailable() {
 	unavailableNetworksMu.Unlock()
 }
 
+// setAvailable marks the common resource as available.
 func (n *common) setAvailable() {
 	pn := ProjectNetwork{
 		ProjectName: n.Project(),
