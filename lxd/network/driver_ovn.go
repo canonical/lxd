@@ -103,6 +103,7 @@ func (n *ovn) Info() Info {
 	return info
 }
 
+// State returns the network state for the OVN network, including addresses, MTU, and OVN-related information.
 func (n *ovn) State() (*api.NetworkState, error) {
 	var addresses []api.NetworkStateAddress
 	IPv4Net, err := ParseIPCIDRToNet(n.config["ipv4.address"])
@@ -1817,6 +1818,7 @@ func (n *ovn) getDHCPv4Reservations() ([]shared.IPRange, error) {
 	return dhcpReserveIPv4s, nil
 }
 
+// Configures and sets up the OVN network, including logical switches, router ports, DHCP options, and ACLs.
 func (n *ovn) setup(update bool) error {
 	// If we are in mock mode, just no-op.
 	if n.state.OS.MockMode {
