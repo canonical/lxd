@@ -50,24 +50,29 @@ var (
 	}
 )
 
+// Enum returns a pointer to a new MigrationFSType set to the value of the receiver.
 func (x MigrationFSType) Enum() *MigrationFSType {
 	p := new(MigrationFSType)
 	*p = x
 	return p
 }
 
+// String returns the string representation of the MigrationFSType enum value.
 func (x MigrationFSType) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
+// Descriptor returns the enum descriptor for the MigrationFSType enum.
 func (MigrationFSType) Descriptor() protoreflect.EnumDescriptor {
 	return file_lxd_migration_migrate_proto_enumTypes[0].Descriptor()
 }
 
+// Type returns the enum type for the MigrationFSType enum.
 func (MigrationFSType) Type() protoreflect.EnumType {
 	return &file_lxd_migration_migrate_proto_enumTypes[0]
 }
 
+// Number returns the enum number for the MigrationFSType enum.
 func (x MigrationFSType) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
@@ -112,24 +117,29 @@ var (
 	}
 )
 
+// Enum returns a pointer to a new CRIUType set to the value of the receiver.
 func (x CRIUType) Enum() *CRIUType {
 	p := new(CRIUType)
 	*p = x
 	return p
 }
 
+// String returns the string representation of the CRIUType enum value.
 func (x CRIUType) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
+// Descriptor returns the enum descriptor for the CRIUType enum.
 func (CRIUType) Descriptor() protoreflect.EnumDescriptor {
 	return file_lxd_migration_migrate_proto_enumTypes[1].Descriptor()
 }
 
+// Type returns the enum type for the CRIUType enum.
 func (CRIUType) Type() protoreflect.EnumType {
 	return &file_lxd_migration_migrate_proto_enumTypes[1]
 }
 
+// Number returns the enum number for the CRIUType enum.
 func (x CRIUType) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
@@ -161,6 +171,7 @@ type IDMapType struct {
 	Maprange *int32 `protobuf:"varint,5,req,name=maprange" json:"maprange,omitempty"`
 }
 
+// Reset resets the IDMapType to its zero value.
 func (x *IDMapType) Reset() {
 	*x = IDMapType{}
 	if protoimpl.UnsafeEnabled {
@@ -170,12 +181,15 @@ func (x *IDMapType) Reset() {
 	}
 }
 
+// String returns the string representation of the IDMapType.
 func (x *IDMapType) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
+// ProtoMessage is a no-op function required to implement the ProtoMessage interface.
 func (*IDMapType) ProtoMessage() {}
 
+// ProtoReflect returns the message's reflection interface.
 func (x *IDMapType) ProtoReflect() protoreflect.Message {
 	mi := &file_lxd_migration_migrate_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
@@ -193,6 +207,7 @@ func (*IDMapType) Descriptor() ([]byte, []int) {
 	return file_lxd_migration_migrate_proto_rawDescGZIP(), []int{0}
 }
 
+// GetIsuid returns the value of the Isuid field, or false if it's nil.
 func (x *IDMapType) GetIsuid() bool {
 	if x != nil && x.Isuid != nil {
 		return *x.Isuid
@@ -200,6 +215,7 @@ func (x *IDMapType) GetIsuid() bool {
 	return false
 }
 
+// GetIsgid returns the value of the Isgid field, or false if it's nil.
 func (x *IDMapType) GetIsgid() bool {
 	if x != nil && x.Isgid != nil {
 		return *x.Isgid
@@ -207,6 +223,7 @@ func (x *IDMapType) GetIsgid() bool {
 	return false
 }
 
+// GetHostid returns the value of the Hostid field, or 0 if it's nil.
 func (x *IDMapType) GetHostid() int32 {
 	if x != nil && x.Hostid != nil {
 		return *x.Hostid
@@ -214,6 +231,7 @@ func (x *IDMapType) GetHostid() int32 {
 	return 0
 }
 
+// GetNsid returns the value of the Nsid field, or 0 if it's nil.
 func (x *IDMapType) GetNsid() int32 {
 	if x != nil && x.Nsid != nil {
 		return *x.Nsid
@@ -221,6 +239,7 @@ func (x *IDMapType) GetNsid() int32 {
 	return 0
 }
 
+// GetMaprange returns the value of the Maprange field, or 0 if it's nil.
 func (x *IDMapType) GetMaprange() int32 {
 	if x != nil && x.Maprange != nil {
 		return *x.Maprange
@@ -237,6 +256,7 @@ type Config struct {
 	Value *string `protobuf:"bytes,2,req,name=value" json:"value,omitempty"`
 }
 
+// Reset resets the Config to its zero value.
 func (x *Config) Reset() {
 	*x = Config{}
 	if protoimpl.UnsafeEnabled {
@@ -246,12 +266,15 @@ func (x *Config) Reset() {
 	}
 }
 
+// String returns the string representation of the Config.
 func (x *Config) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
+// ProtoMessage is a no-op function required to implement the ProtoMessage interface.
 func (*Config) ProtoMessage() {}
 
+// ProtoReflect returns the message's reflection interface.
 func (x *Config) ProtoReflect() protoreflect.Message {
 	mi := &file_lxd_migration_migrate_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
@@ -269,6 +292,7 @@ func (*Config) Descriptor() ([]byte, []int) {
 	return file_lxd_migration_migrate_proto_rawDescGZIP(), []int{1}
 }
 
+// GetKey returns the value of the Key field, or an empty string if it's nil.
 func (x *Config) GetKey() string {
 	if x != nil && x.Key != nil {
 		return *x.Key
@@ -276,6 +300,7 @@ func (x *Config) GetKey() string {
 	return ""
 }
 
+// GetValue returns the value of the Value field, or an empty string if it's nil.
 func (x *Config) GetValue() string {
 	if x != nil && x.Value != nil {
 		return *x.Value
@@ -292,6 +317,7 @@ type Device struct {
 	Config []*Config `protobuf:"bytes,2,rep,name=config" json:"config,omitempty"`
 }
 
+// Reset resets the Device to its zero value.
 func (x *Device) Reset() {
 	*x = Device{}
 	if protoimpl.UnsafeEnabled {
@@ -301,12 +327,15 @@ func (x *Device) Reset() {
 	}
 }
 
+// String returns the string representation of the Device.
 func (x *Device) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
+// ProtoMessage is a no-op function required to implement the ProtoMessage interface.
 func (*Device) ProtoMessage() {}
 
+// ProtoReflect returns the message's reflection interface.
 func (x *Device) ProtoReflect() protoreflect.Message {
 	mi := &file_lxd_migration_migrate_proto_msgTypes[2]
 	if protoimpl.UnsafeEnabled && x != nil {
@@ -324,6 +353,7 @@ func (*Device) Descriptor() ([]byte, []int) {
 	return file_lxd_migration_migrate_proto_rawDescGZIP(), []int{2}
 }
 
+// GetName returns the value of the Name field, or an empty string if it's nil.
 func (x *Device) GetName() string {
 	if x != nil && x.Name != nil {
 		return *x.Name
@@ -331,6 +361,7 @@ func (x *Device) GetName() string {
 	return ""
 }
 
+// GetConfig returns the value of the Config field, or nil if it's nil.
 func (x *Device) GetConfig() []*Config {
 	if x != nil {
 		return x.Config
@@ -355,6 +386,7 @@ type Snapshot struct {
 	ExpiryDate   *int64    `protobuf:"varint,10,opt,name=expiry_date,json=expiryDate" json:"expiry_date,omitempty"`
 }
 
+// Reset resets the Snapshot to its zero value.
 func (x *Snapshot) Reset() {
 	*x = Snapshot{}
 	if protoimpl.UnsafeEnabled {
@@ -364,12 +396,15 @@ func (x *Snapshot) Reset() {
 	}
 }
 
+// String returns the string representation of the Snapshot.
 func (x *Snapshot) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
+// ProtoMessage is a no-op function required to implement the ProtoMessage interface.
 func (*Snapshot) ProtoMessage() {}
 
+// ProtoReflect returns the message's reflection interface.
 func (x *Snapshot) ProtoReflect() protoreflect.Message {
 	mi := &file_lxd_migration_migrate_proto_msgTypes[3]
 	if protoimpl.UnsafeEnabled && x != nil {
@@ -387,6 +422,7 @@ func (*Snapshot) Descriptor() ([]byte, []int) {
 	return file_lxd_migration_migrate_proto_rawDescGZIP(), []int{3}
 }
 
+// GetName returns the value of the Name field, or an empty string if it's nil.
 func (x *Snapshot) GetName() string {
 	if x != nil && x.Name != nil {
 		return *x.Name
@@ -394,6 +430,7 @@ func (x *Snapshot) GetName() string {
 	return ""
 }
 
+// GetLocalConfig returns the value of the LocalConfig field, or nil if it's nil.
 func (x *Snapshot) GetLocalConfig() []*Config {
 	if x != nil {
 		return x.LocalConfig
@@ -401,6 +438,7 @@ func (x *Snapshot) GetLocalConfig() []*Config {
 	return nil
 }
 
+// GetProfiles returns the value of the Profiles field, or nil if it's nil.
 func (x *Snapshot) GetProfiles() []string {
 	if x != nil {
 		return x.Profiles
@@ -408,6 +446,7 @@ func (x *Snapshot) GetProfiles() []string {
 	return nil
 }
 
+// GetEphemeral returns the value of the Ephemeral field, or false if it's nil.
 func (x *Snapshot) GetEphemeral() bool {
 	if x != nil && x.Ephemeral != nil {
 		return *x.Ephemeral
@@ -415,6 +454,7 @@ func (x *Snapshot) GetEphemeral() bool {
 	return false
 }
 
+// GetLocalDevices returns the value of the LocalDevices field, or nil if it's nil.
 func (x *Snapshot) GetLocalDevices() []*Device {
 	if x != nil {
 		return x.LocalDevices
@@ -422,6 +462,7 @@ func (x *Snapshot) GetLocalDevices() []*Device {
 	return nil
 }
 
+// GetArchitecture returns the value of the Architecture field, or 0 if it's nil.
 func (x *Snapshot) GetArchitecture() int32 {
 	if x != nil && x.Architecture != nil {
 		return *x.Architecture
@@ -429,6 +470,7 @@ func (x *Snapshot) GetArchitecture() int32 {
 	return 0
 }
 
+// GetStateful returns the value of the Stateful field, or false if it's nil.
 func (x *Snapshot) GetStateful() bool {
 	if x != nil && x.Stateful != nil {
 		return *x.Stateful
@@ -436,6 +478,7 @@ func (x *Snapshot) GetStateful() bool {
 	return false
 }
 
+// GetCreationDate returns the value of the CreationDate field, or 0 if it's nil.
 func (x *Snapshot) GetCreationDate() int64 {
 	if x != nil && x.CreationDate != nil {
 		return *x.CreationDate
@@ -443,6 +486,7 @@ func (x *Snapshot) GetCreationDate() int64 {
 	return 0
 }
 
+// GetLastUsedDate returns the value of the LastUsedDate field, or 0 if it's nil.
 func (x *Snapshot) GetLastUsedDate() int64 {
 	if x != nil && x.LastUsedDate != nil {
 		return *x.LastUsedDate
@@ -450,6 +494,7 @@ func (x *Snapshot) GetLastUsedDate() int64 {
 	return 0
 }
 
+// GetExpiryDate returns the value of the ExpiryDate field, or 0 if it's nil.
 func (x *Snapshot) GetExpiryDate() int64 {
 	if x != nil && x.ExpiryDate != nil {
 		return *x.ExpiryDate
@@ -468,6 +513,7 @@ type RsyncFeatures struct {
 	Bidirectional *bool `protobuf:"varint,4,opt,name=bidirectional" json:"bidirectional,omitempty"`
 }
 
+// Reset resets the RsyncFeatures to its zero value.
 func (x *RsyncFeatures) Reset() {
 	*x = RsyncFeatures{}
 	if protoimpl.UnsafeEnabled {
@@ -477,12 +523,15 @@ func (x *RsyncFeatures) Reset() {
 	}
 }
 
+// String returns the string representation of the RsyncFeatures.
 func (x *RsyncFeatures) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
+// ProtoMessage is a no-op function required to implement the ProtoMessage interface.
 func (*RsyncFeatures) ProtoMessage() {}
 
+// ProtoReflect returns the message's reflection interface.
 func (x *RsyncFeatures) ProtoReflect() protoreflect.Message {
 	mi := &file_lxd_migration_migrate_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
@@ -500,6 +549,7 @@ func (*RsyncFeatures) Descriptor() ([]byte, []int) {
 	return file_lxd_migration_migrate_proto_rawDescGZIP(), []int{4}
 }
 
+// GetXattrs returns the value of the Xattrs field, or false if it's nil.
 func (x *RsyncFeatures) GetXattrs() bool {
 	if x != nil && x.Xattrs != nil {
 		return *x.Xattrs
@@ -507,6 +557,7 @@ func (x *RsyncFeatures) GetXattrs() bool {
 	return false
 }
 
+// GetDelete returns the value of the Delete field, or false if it's nil.
 func (x *RsyncFeatures) GetDelete() bool {
 	if x != nil && x.Delete != nil {
 		return *x.Delete
@@ -514,6 +565,7 @@ func (x *RsyncFeatures) GetDelete() bool {
 	return false
 }
 
+// GetCompress returns the value of the Compress field, or false if it's nil.
 func (x *RsyncFeatures) GetCompress() bool {
 	if x != nil && x.Compress != nil {
 		return *x.Compress
@@ -521,6 +573,7 @@ func (x *RsyncFeatures) GetCompress() bool {
 	return false
 }
 
+// GetBidirectional returns the value of the Bidirectional field, or false if it's nil.
 func (x *RsyncFeatures) GetBidirectional() bool {
 	if x != nil && x.Bidirectional != nil {
 		return *x.Bidirectional
@@ -538,6 +591,7 @@ type ZfsFeatures struct {
 	HeaderZvols     *bool `protobuf:"varint,3,opt,name=header_zvols,json=headerZvols" json:"header_zvols,omitempty"`
 }
 
+// Reset resets the ZfsFeatures to its zero value.
 func (x *ZfsFeatures) Reset() {
 	*x = ZfsFeatures{}
 	if protoimpl.UnsafeEnabled {
@@ -547,12 +601,15 @@ func (x *ZfsFeatures) Reset() {
 	}
 }
 
+// String returns the string representation of the ZfsFeatures.
 func (x *ZfsFeatures) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
+// ProtoMessage is a no-op function required to implement the ProtoMessage interface.
 func (*ZfsFeatures) ProtoMessage() {}
 
+// ProtoReflect returns the message's reflection interface.
 func (x *ZfsFeatures) ProtoReflect() protoreflect.Message {
 	mi := &file_lxd_migration_migrate_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
@@ -570,6 +627,7 @@ func (*ZfsFeatures) Descriptor() ([]byte, []int) {
 	return file_lxd_migration_migrate_proto_rawDescGZIP(), []int{5}
 }
 
+// GetCompress returns the value of the Compress field, or false if it's nil.
 func (x *ZfsFeatures) GetCompress() bool {
 	if x != nil && x.Compress != nil {
 		return *x.Compress
@@ -577,6 +635,7 @@ func (x *ZfsFeatures) GetCompress() bool {
 	return false
 }
 
+// GetMigrationHeader returns the value of the MigrationHeader field, or false if it's nil.
 func (x *ZfsFeatures) GetMigrationHeader() bool {
 	if x != nil && x.MigrationHeader != nil {
 		return *x.MigrationHeader
@@ -584,6 +643,7 @@ func (x *ZfsFeatures) GetMigrationHeader() bool {
 	return false
 }
 
+// GetHeaderZvols returns the value of the HeaderZvols field, or false if it's nil.
 func (x *ZfsFeatures) GetHeaderZvols() bool {
 	if x != nil && x.HeaderZvols != nil {
 		return *x.HeaderZvols
@@ -601,6 +661,7 @@ type BtrfsFeatures struct {
 	HeaderSubvolumeUuids *bool `protobuf:"varint,3,opt,name=header_subvolume_uuids,json=headerSubvolumeUuids" json:"header_subvolume_uuids,omitempty"`
 }
 
+// Reset resets the BtrfsFeatures to its zero value.
 func (x *BtrfsFeatures) Reset() {
 	*x = BtrfsFeatures{}
 	if protoimpl.UnsafeEnabled {
@@ -610,12 +671,15 @@ func (x *BtrfsFeatures) Reset() {
 	}
 }
 
+// String returns the string representation of the BtrfsFeatures.
 func (x *BtrfsFeatures) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
+// ProtoMessage is a no-op function required to implement the ProtoMessage interface.
 func (*BtrfsFeatures) ProtoMessage() {}
 
+// ProtoReflect returns the message's reflection interface.
 func (x *BtrfsFeatures) ProtoReflect() protoreflect.Message {
 	mi := &file_lxd_migration_migrate_proto_msgTypes[6]
 	if protoimpl.UnsafeEnabled && x != nil {
@@ -633,6 +697,7 @@ func (*BtrfsFeatures) Descriptor() ([]byte, []int) {
 	return file_lxd_migration_migrate_proto_rawDescGZIP(), []int{6}
 }
 
+// GetMigrationHeader returns the value of the MigrationHeader field, or false if it's nil.
 func (x *BtrfsFeatures) GetMigrationHeader() bool {
 	if x != nil && x.MigrationHeader != nil {
 		return *x.MigrationHeader
@@ -640,6 +705,7 @@ func (x *BtrfsFeatures) GetMigrationHeader() bool {
 	return false
 }
 
+// GetHeaderSubvolumes returns the value of the HeaderSubvolumes field, or false if it's nil.
 func (x *BtrfsFeatures) GetHeaderSubvolumes() bool {
 	if x != nil && x.HeaderSubvolumes != nil {
 		return *x.HeaderSubvolumes
@@ -647,6 +713,7 @@ func (x *BtrfsFeatures) GetHeaderSubvolumes() bool {
 	return false
 }
 
+// GetHeaderSubvolumeUuids returns the value of the HeaderSubvolumeUuids field, or false if it's nil.
 func (x *BtrfsFeatures) GetHeaderSubvolumeUuids() bool {
 	if x != nil && x.HeaderSubvolumeUuids != nil {
 		return *x.HeaderSubvolumeUuids
@@ -673,6 +740,7 @@ type MigrationHeader struct {
 	IndexHeaderVersion *uint32          `protobuf:"varint,13,opt,name=indexHeaderVersion" json:"indexHeaderVersion,omitempty"`
 }
 
+// Reset resets the MigrationHeader to its zero value.
 func (x *MigrationHeader) Reset() {
 	*x = MigrationHeader{}
 	if protoimpl.UnsafeEnabled {
@@ -682,12 +750,15 @@ func (x *MigrationHeader) Reset() {
 	}
 }
 
+// String returns the string representation of the MigrationHeader.
 func (x *MigrationHeader) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
+// ProtoMessage is a no-op function required to implement the ProtoMessage interface.
 func (*MigrationHeader) ProtoMessage() {}
 
+// ProtoReflect returns the message's reflection interface.
 func (x *MigrationHeader) ProtoReflect() protoreflect.Message {
 	mi := &file_lxd_migration_migrate_proto_msgTypes[7]
 	if protoimpl.UnsafeEnabled && x != nil {
@@ -705,6 +776,7 @@ func (*MigrationHeader) Descriptor() ([]byte, []int) {
 	return file_lxd_migration_migrate_proto_rawDescGZIP(), []int{7}
 }
 
+// GetFs returns the value of the Fs field.
 func (x *MigrationHeader) GetFs() MigrationFSType {
 	if x != nil && x.Fs != nil {
 		return *x.Fs
@@ -712,6 +784,7 @@ func (x *MigrationHeader) GetFs() MigrationFSType {
 	return MigrationFSType_RSYNC
 }
 
+// GetCriu returns the value of the Criu field.
 func (x *MigrationHeader) GetCriu() CRIUType {
 	if x != nil && x.Criu != nil {
 		return *x.Criu
@@ -719,6 +792,7 @@ func (x *MigrationHeader) GetCriu() CRIUType {
 	return CRIUType_CRIU_RSYNC
 }
 
+// GetIdmap returns the value of the Idmap field.
 func (x *MigrationHeader) GetIdmap() []*IDMapType {
 	if x != nil {
 		return x.Idmap
@@ -726,6 +800,7 @@ func (x *MigrationHeader) GetIdmap() []*IDMapType {
 	return nil
 }
 
+// GetSnapshotNames returns the value of the SnapshotNames field.
 func (x *MigrationHeader) GetSnapshotNames() []string {
 	if x != nil {
 		return x.SnapshotNames
@@ -733,6 +808,7 @@ func (x *MigrationHeader) GetSnapshotNames() []string {
 	return nil
 }
 
+// GetSnapshots returns the value of the Snapshots field.
 func (x *MigrationHeader) GetSnapshots() []*Snapshot {
 	if x != nil {
 		return x.Snapshots
@@ -740,6 +816,7 @@ func (x *MigrationHeader) GetSnapshots() []*Snapshot {
 	return nil
 }
 
+// GetPredump returns the value of the Predump field.
 func (x *MigrationHeader) GetPredump() bool {
 	if x != nil && x.Predump != nil {
 		return *x.Predump
@@ -747,6 +824,7 @@ func (x *MigrationHeader) GetPredump() bool {
 	return false
 }
 
+// GetRsyncFeatures returns the value of the RsyncFeatures field.
 func (x *MigrationHeader) GetRsyncFeatures() *RsyncFeatures {
 	if x != nil {
 		return x.RsyncFeatures
@@ -754,6 +832,7 @@ func (x *MigrationHeader) GetRsyncFeatures() *RsyncFeatures {
 	return nil
 }
 
+// GetRefresh returns the value of the Refresh field.
 func (x *MigrationHeader) GetRefresh() bool {
 	if x != nil && x.Refresh != nil {
 		return *x.Refresh
@@ -761,6 +840,7 @@ func (x *MigrationHeader) GetRefresh() bool {
 	return false
 }
 
+// GetZfsFeatures returns the value of the ZfsFeatures field.
 func (x *MigrationHeader) GetZfsFeatures() *ZfsFeatures {
 	if x != nil {
 		return x.ZfsFeatures
@@ -768,6 +848,7 @@ func (x *MigrationHeader) GetZfsFeatures() *ZfsFeatures {
 	return nil
 }
 
+// GetVolumeSize returns the value of the VolumeSize field.
 func (x *MigrationHeader) GetVolumeSize() int64 {
 	if x != nil && x.VolumeSize != nil {
 		return *x.VolumeSize
@@ -775,6 +856,7 @@ func (x *MigrationHeader) GetVolumeSize() int64 {
 	return 0
 }
 
+// GetBtrfsFeatures returns the value of the BtrfsFeatures field.
 func (x *MigrationHeader) GetBtrfsFeatures() *BtrfsFeatures {
 	if x != nil {
 		return x.BtrfsFeatures
@@ -782,6 +864,7 @@ func (x *MigrationHeader) GetBtrfsFeatures() *BtrfsFeatures {
 	return nil
 }
 
+// GetIndexHeaderVersion returns the value of the IndexHeaderVersion field.
 func (x *MigrationHeader) GetIndexHeaderVersion() uint32 {
 	if x != nil && x.IndexHeaderVersion != nil {
 		return *x.IndexHeaderVersion
@@ -799,6 +882,7 @@ type MigrationControl struct {
 	Message *string `protobuf:"bytes,2,opt,name=message" json:"message,omitempty"`
 }
 
+// Reset resets the MigrationControl to its zero value.
 func (x *MigrationControl) Reset() {
 	*x = MigrationControl{}
 	if protoimpl.UnsafeEnabled {
@@ -808,12 +892,15 @@ func (x *MigrationControl) Reset() {
 	}
 }
 
+// String returns the string representation of the MigrationControl.
 func (x *MigrationControl) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
+// ProtoMessage is a no-op function required to implement the ProtoMessage interface.
 func (*MigrationControl) ProtoMessage() {}
 
+// ProtoReflect returns the message's reflection interface.
 func (x *MigrationControl) ProtoReflect() protoreflect.Message {
 	mi := &file_lxd_migration_migrate_proto_msgTypes[8]
 	if protoimpl.UnsafeEnabled && x != nil {
@@ -831,6 +918,7 @@ func (*MigrationControl) Descriptor() ([]byte, []int) {
 	return file_lxd_migration_migrate_proto_rawDescGZIP(), []int{8}
 }
 
+// GetSuccess returns the value of the Success field.
 func (x *MigrationControl) GetSuccess() bool {
 	if x != nil && x.Success != nil {
 		return *x.Success
@@ -838,6 +926,7 @@ func (x *MigrationControl) GetSuccess() bool {
 	return false
 }
 
+// GetMessage returns the value of the Message field.
 func (x *MigrationControl) GetMessage() string {
 	if x != nil && x.Message != nil {
 		return *x.Message
@@ -853,6 +942,7 @@ type MigrationSync struct {
 	FinalPreDump *bool `protobuf:"varint,1,req,name=finalPreDump" json:"finalPreDump,omitempty"`
 }
 
+// Reset resets the MigrationSync to its zero value.
 func (x *MigrationSync) Reset() {
 	*x = MigrationSync{}
 	if protoimpl.UnsafeEnabled {
@@ -862,12 +952,15 @@ func (x *MigrationSync) Reset() {
 	}
 }
 
+// String returns the string representation of the MigrationSync.
 func (x *MigrationSync) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
+// ProtoMessage is a no-op function required to implement the ProtoMessage interface.
 func (*MigrationSync) ProtoMessage() {}
 
+// ProtoReflect returns the message's reflection interface.
 func (x *MigrationSync) ProtoReflect() protoreflect.Message {
 	mi := &file_lxd_migration_migrate_proto_msgTypes[9]
 	if protoimpl.UnsafeEnabled && x != nil {
@@ -885,6 +978,7 @@ func (*MigrationSync) Descriptor() ([]byte, []int) {
 	return file_lxd_migration_migrate_proto_rawDescGZIP(), []int{9}
 }
 
+// GetFinalPreDump returns the value of the FinalPreDump field.
 func (x *MigrationSync) GetFinalPreDump() bool {
 	if x != nil && x.FinalPreDump != nil {
 		return *x.FinalPreDump
@@ -1022,6 +1116,7 @@ var (
 	file_lxd_migration_migrate_proto_rawDescData = file_lxd_migration_migrate_proto_rawDesc
 )
 
+// file_lxd_migration_migrate_proto_rawDescGZIP compresses the raw descriptor data using GZIP.
 func file_lxd_migration_migrate_proto_rawDescGZIP() []byte {
 	file_lxd_migration_migrate_proto_rawDescOnce.Do(func() {
 		file_lxd_migration_migrate_proto_rawDescData = protoimpl.X.CompressGZIP(file_lxd_migration_migrate_proto_rawDescData)
@@ -1063,7 +1158,10 @@ var file_lxd_migration_migrate_proto_depIdxs = []int32{
 	0,  // [0:10] is the sub-list for field type_name
 }
 
+// init initializes the proto file_lxd_migration_migrate_proto.
 func init() { file_lxd_migration_migrate_proto_init() }
+
+// file_lxd_migration_migrate_proto_init initializes the proto file_lxd_migration_migrate_proto.
 func file_lxd_migration_migrate_proto_init() {
 	if File_lxd_migration_migrate_proto != nil {
 		return
