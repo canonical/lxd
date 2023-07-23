@@ -12,6 +12,7 @@ type Qdisc struct {
 	Ingress bool
 }
 
+// mainCmd generates command line arguments for configuring a queueing discipline.
 func (qdisc *Qdisc) mainCmd() []string {
 	cmd := []string{"qdisc", "add", "dev", qdisc.Dev}
 	if qdisc.Handle != "" {
