@@ -10,6 +10,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// AddRecord adds a new network zone record to the zone and performs validation checks.
 func (d *zone) AddRecord(req api.NetworkZoneRecordsPost) error {
 	// Validate.
 	err := d.validateRecordConfig(req.NetworkZoneRecordPut)
@@ -32,6 +33,7 @@ func (d *zone) AddRecord(req api.NetworkZoneRecordsPost) error {
 	return nil
 }
 
+// GetRecords retrieves all network zone records from the zone.
 func (d *zone) GetRecords() ([]api.NetworkZoneRecord, error) {
 	// Get the record names.
 	names, err := d.state.DB.Cluster.GetNetworkZoneRecordNames(d.id)
@@ -53,6 +55,7 @@ func (d *zone) GetRecords() ([]api.NetworkZoneRecord, error) {
 	return records, nil
 }
 
+// GetRecord retrieves a specific network zone record by name from the zone.
 func (d *zone) GetRecord(name string) (*api.NetworkZoneRecord, error) {
 	// Get the record.
 	_, record, err := d.state.DB.Cluster.GetNetworkZoneRecord(d.id, name)
@@ -63,6 +66,7 @@ func (d *zone) GetRecord(name string) (*api.NetworkZoneRecord, error) {
 	return record, nil
 }
 
+// UpdateRecord updates a specific network zone record by name in the zone with the provided data.
 func (d *zone) UpdateRecord(name string, req api.NetworkZoneRecordPut, clientType request.ClientType) error {
 	// Validate.
 	err := d.validateRecordConfig(req)
@@ -91,6 +95,7 @@ func (d *zone) UpdateRecord(name string, req api.NetworkZoneRecordPut, clientTyp
 	return nil
 }
 
+// DeleteRecord deletes a specific network zone record by name from the zone.
 func (d *zone) DeleteRecord(name string) error {
 	// Get the record.
 	id, _, err := d.state.DB.Cluster.GetNetworkZoneRecord(d.id, name)
