@@ -91,7 +91,7 @@ func (n *ovn) DBType() db.NetworkType {
 	return db.NetworkTypeOVN
 }
 
-// Config returns the network driver info.
+// Returns the OVN-specific network information.
 func (n *ovn) Info() Info {
 	info := n.common.Info()
 	info.Projects = true
@@ -103,6 +103,7 @@ func (n *ovn) Info() Info {
 	return info
 }
 
+// State returns the network state for the OVN network, including addresses, MTU, and OVN-related information.
 func (n *ovn) State() (*api.NetworkState, error) {
 	var addresses []api.NetworkStateAddress
 	IPv4Net, err := ParseIPCIDRToNet(n.config["ipv4.address"])
@@ -293,7 +294,7 @@ func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnet
 	return externalSubnets, nil
 }
 
-// Validate network config.
+// Validates the given OVN network configuration and returns an error if inconsistencies are found.
 func (n *ovn) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
 		"network":       validate.IsAny,
@@ -829,32 +830,32 @@ func (n *ovn) getExtSwitchProviderPortName() openvswitch.OVNSwitchPort {
 	return openvswitch.OVNSwitchPort(fmt.Sprintf("%s-lsp-provider", n.getExtSwitchName()))
 }
 
-// getIntSwitchName returns OVN logical internal switch name.
+// getIntSwitchName returns an OVN logical internal switch name.
 func (n *ovn) getIntSwitchName() openvswitch.OVNSwitch {
 	return acl.OVNIntSwitchName(n.id)
 }
 
-// getIntSwitchRouterPortName returns OVN logical internal switch router port name.
+// getIntSwitchRouterPortName returns an OVN logical internal switch router port name.
 func (n *ovn) getIntSwitchRouterPortName() openvswitch.OVNSwitchPort {
 	return acl.OVNIntSwitchRouterPortName(n.id)
 }
 
-// getIntSwitchInstancePortPrefix returns OVN logical internal switch instance port name prefix.
+// getIntSwitchInstancePortPrefix returns an OVN logical internal switch instance port name prefix.
 func (n *ovn) getIntSwitchInstancePortPrefix() string {
 	return fmt.Sprintf("%s-instance", n.getNetworkPrefix())
 }
 
-// getLoadBalancerName returns OVN load balancer name to use for a listen address.
+// getLoadBalancerName returns an OVN load balancer name to use for a listen address.
 func (n *ovn) getLoadBalancerName(listenAddress string) openvswitch.OVNLoadBalancer {
 	return openvswitch.OVNLoadBalancer(fmt.Sprintf("%s-lb-%s", n.getNetworkPrefix(), listenAddress))
 }
 
-// getLogicalRouterPeerPortName returns OVN logical router port name to use for a peer connection.
+// getLogicalRouterPeerPortName returns an OVN logical router port name to use for a peer connection.
 func (n *ovn) getLogicalRouterPeerPortName(peerNetworkID int64) openvswitch.OVNRouterPort {
 	return openvswitch.OVNRouterPort(fmt.Sprintf("%s-lrp-peer-net%d", n.getRouterName(), peerNetworkID))
 }
 
-// setupUplinkPort initialises the uplink connection. Returns the derived ovnUplinkVars settings used
+// setupUplinkPort initializes the uplink connection. Returns the derived ovnUplinkVars settings used
 // during the initial creation of the logical network.
 func (n *ovn) setupUplinkPort(routerMAC net.HardwareAddr) (*ovnUplinkVars, error) {
 	// Uplink network must be in default project.
@@ -1360,7 +1361,7 @@ func (n *ovn) pingOVNRouter() {
 	}
 }
 
-// startUplinkPortPhysical creates OVS bridge (if doesn't exist) and connects uplink interface to the OVS bridge.
+// startUplinkPortPhysical creates an OVS bridge (if doesn't exist) and connects uplink interface to the OVS bridge.
 func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
 	// Do this after gaining lock so that on failure we revert before release locking.
 	revert := revert.New()
@@ -1556,7 +1557,7 @@ func (n *ovn) deleteUplinkPortBridgeNative(uplinkNet Network) error {
 	return nil
 }
 
-// deleteUplinkPortBridge deletes OVN bridge mappings if not in use.
+// deleteUplinkPortBridge deletes an OVN bridge mappings if not in use.
 func (n *ovn) deleteUplinkPortBridgeOVS(uplinkNet Network, ovsBridge string) error {
 	uplinkUsed, err := n.checkUplinkUse()
 	if err != nil {
@@ -1575,7 +1576,7 @@ func (n *ovn) deleteUplinkPortBridgeOVS(uplinkNet Network, ovsBridge string) err
 	return nil
 }
 
-// deleteUplinkPortPhysical deletes uplink OVS bridge and OVN bridge mappings if not in use.
+// deleteUplinkPortPhysical deletes an uplink OVS bridge and OVN bridge mappings if not in use.
 func (n *ovn) deleteUplinkPortPhysical(uplinkNet Network) error {
 	uplinkConfig := uplinkNet.Config()
 	uplinkHostName := GetHostDevice(uplinkConfig["parent"], uplinkConfig["vlan"])
@@ -1698,7 +1699,7 @@ func (n *ovn) populateAutoConfig(config map[string]string) error {
 	return nil
 }
 
-// Create sets up network in OVN Northbound database.
+// Create sets up network in an OVN Northbound database.
 func (n *ovn) Create(clientType request.ClientType) error {
 	n.logger.Debug("Create", logger.Ctx{"clientType": clientType, "config": n.config})
 
@@ -1817,6 +1818,7 @@ func (n *ovn) getDHCPv4Reservations() ([]shared.IPRange, error) {
 	return dhcpReserveIPv4s, nil
 }
 
+// Configures and sets up an OVN network, including logical switches, router ports, DHCP options, and ACLs.
 func (n *ovn) setup(update bool) error {
 	// If we are in mock mode, just no-op.
 	if n.state.OS.MockMode {
@@ -3345,7 +3347,7 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, deviceName string, devi
 	return nil
 }
 
-// hasDHCPv4Reservation returns whether IP is in the supplied reservation list.
+// hasDHCPv4Reservation checks if the provided IP has a DHCPv4 reservation.
 func (n *ovn) hasDHCPv4Reservation(dhcpReservations []shared.IPRange, ip net.IP) bool {
 	for _, dhcpReservation := range dhcpReservations {
 		if dhcpReservation.Start.Equal(ip) && dhcpReservation.End == nil {
@@ -4311,7 +4313,7 @@ func (n *ovn) uplinkHasIngressRoutedAnycastIPv6(uplink *api.Network) bool {
 	return shared.IsTrue(uplink.Config["ipv6.routes.anycast"]) && uplink.Config["ovn.ingress_mode"] == "routed"
 }
 
-// handleDependencyChange applies changes from uplink network if specific watched keys have changed.
+// handleDependencyChange applies changes from an uplink network if specific watched keys have changed.
 func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]string, changedKeys []string) error {
 	// Detect changes that need to be applied to the network.
 	for _, k := range []string{"dns.nameservers"} {
