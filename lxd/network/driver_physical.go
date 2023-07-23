@@ -27,7 +27,7 @@ func (n *physical) DBType() db.NetworkType {
 	return db.NetworkTypePhysical
 }
 
-// Validate network config.
+// Validates the provided physical network configuration against a set of rules.
 func (n *physical) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
 		"parent":                      validate.Required(validate.IsNotEmpty, validate.IsInterfaceName),
