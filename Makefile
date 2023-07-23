@@ -30,8 +30,6 @@ ifeq "$(TAG_SQLITE3)" ""
 	exit 1
 endif
 
-	cd lxd/config/generate && CGO_ENABLED=0 go build -o $(GOPATH)/bin/lxd-doc
-	@echo "LXD-DOC built successfully"
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	CGO_ENABLED=0 go install -v -tags netgo ./lxd-migrate
 	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
@@ -114,6 +112,11 @@ ifeq "$(LXD_OFFLINE)" ""
 endif
 	swagger generate spec -o doc/rest-api.yaml -w ./lxd -m
 
+.PHONY: update-gendocs
+update-gendocs: build-lxd-doc
+	@echo "Generating golang documentation"
+	$(GOPATH)/bin/lxd-doc . -y ./lxd/gendocs/docs.yaml
+
 .PHONY: doc-setup
 doc-setup:
 	@echo "Setting up documentation build environment"
@@ -121,10 +124,10 @@ doc-setup:
 	. $(SPHINXENV) ; pip install --upgrade -r doc/.sphinx/requirements.txt
 	rm -Rf doc/html
 
-.PHONY: generate-config
-generate-config:
-	@echo "Generating golang documentation"
-	$(GOPATH)/bin/lxd-doc . -y ./doc/config_options.yaml -t ./doc/config_options.txt
+.PHONY: build-lxd-doc
+build-lxd-doc:
+	cd lxd/config/generate && CGO_ENABLED=0 go build -o $(GOPATH)/bin/lxd-doc
+	@echo "LXD-DOC built successfully"
 
 .PHONY: doc
 doc: doc-setup doc-incremental
