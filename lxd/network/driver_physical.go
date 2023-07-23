@@ -173,6 +173,7 @@ func (n *physical) Start() error {
 	return nil
 }
 
+// Sets up the physical network interface, including VLAN creation, MTU configuration, and BGP setup.
 func (n *physical) setup(oldConfig map[string]string) error {
 	revert := revert.New()
 	defer revert.Fail()
