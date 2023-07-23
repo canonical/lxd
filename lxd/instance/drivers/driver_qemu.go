@@ -390,6 +390,7 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 	return agent, nil
 }
 
+// getMonitorEventHandler returns a callback function to handle VM events such as start and shutdown.
 func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) {
 	// Create local variables from instance properties we need so as not to keep references to instance around
 	// after we have returned the callback function.
@@ -775,6 +776,7 @@ func (d *qemu) Rebuild(img *api.Image, op *operations.Operation) error {
 	return d.rebuildCommon(d, img, op)
 }
 
+// ovmfPath retrieves the OVMF path from the environment or uses a default value.
 func (d *qemu) ovmfPath() string {
 	if os.Getenv("LXD_OVMF_PATH") != "" {
 		return os.Getenv("LXD_OVMF_PATH")
@@ -1756,6 +1758,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	return nil
 }
 
+// setupSEV configures and validates AMD's Secure Encrypted Virtualization (SEV) settings for the VM.
 func (d *qemu) setupSEV(fdFiles *[]*os.File) (*qemuSevOpts, error) {
 	if d.architecture != osarch.ARCH_64BIT_INTEL_X86 {
 		return nil, errors.New("AMD SEV support is only available on x86_64 systems")
@@ -1912,10 +1915,13 @@ func (d *qemu) AgentCertificate() *x509.Certificate {
 	return cert
 }
 
+// architectureSupportsUEFI checks if the given architecture supports UEFI firmware.
 func (d *qemu) architectureSupportsUEFI(arch int) bool {
 	return shared.IntInSlice(arch, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN})
 }
 
+// setupNvram prepares the NVRAM for the VM,
+// handling secure boot and compatibility support module (CSM) configurations.
 func (d *qemu) setupNvram() error {
 	d.logger.Debug("Generating NVRAM")
 
@@ -1985,6 +1991,7 @@ func (d *qemu) setupNvram() error {
 	return nil
 }
 
+// qemuArchConfig determines the QEMU binary and device model based on the provided architecture.
 func (d *qemu) qemuArchConfig(arch int) (string, string, error) {
 	if arch == osarch.ARCH_64BIT_INTEL_X86 {
 		path, err := exec.LookPath("qemu-system-x86_64")
@@ -2024,6 +2031,7 @@ func (d *qemu) RegisterDevices() {
 	d.devicesRegister(d)
 }
 
+// saveConnectionInfo writes the agent connection information to a configuration file.
 func (d *qemu) saveConnectionInfo(connInfo *agentAPI.API10Put) error {
 	configDrivePath := filepath.Join(d.Path(), "config")
 
@@ -2113,6 +2121,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 	return runConf, nil
 }
 
+// deviceAttachBlockDevice attaches a block device to the running QEMU instance.
 func (d *qemu) deviceAttachBlockDevice(deviceName string, configCopy map[string]string, mount deviceConfig.MountEntryItem) error {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -2133,6 +2142,7 @@ func (d *qemu) deviceAttachBlockDevice(deviceName string, configCopy map[string]
 	return nil
 }
 
+// deviceDetachBlockDevice detaches a block device from the running QEMU instance.
 func (d *qemu) deviceDetachBlockDevice(deviceName string, rawConfig deviceConfig.Device) error {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -2362,22 +2372,27 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 	return nil
 }
 
+// monitorPath returns the path to the QEMU monitor log file
 func (d *qemu) monitorPath() string {
 	return filepath.Join(d.LogPath(), "qemu.monitor")
 }
 
+// nvramPath returns the path to the QEMU instance's Non-Volatile RAM file.
 func (d *qemu) nvramPath() string {
 	return filepath.Join(d.Path(), "qemu.nvram")
 }
 
+// consolePath returns the path to the QEMU console log file.
 func (d *qemu) consolePath() string {
 	return filepath.Join(d.LogPath(), "qemu.console")
 }
 
+// spicePath returns the path to the QEMU instance's SPICE server socket.
 func (d *qemu) spicePath() string {
 	return filepath.Join(d.LogPath(), "qemu.spice")
 }
 
+// spiceCmdlineConfig generates and returns the command line configuration for the SPICE server.
 func (d *qemu) spiceCmdlineConfig() string {
 	return fmt.Sprintf("unix=on,disable-ticketing=on,addr=%s", d.spicePath())
 }
@@ -2665,6 +2680,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 	return nil
 }
 
+// templateApplyNow applies relevant metadata templates to the instance upon a given trigger, like start or stop.
 func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) error {
 	// If there's no metadata, just return.
 	fname := filepath.Join(d.Path(), "metadata.yaml")
@@ -4247,6 +4263,7 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, bus *qemuBus, gpuConfig []devi
 	return nil
 }
 
+// addUSBDeviceConfig sets up USB device configuration for a given host device to be added to the QEMU instance.
 func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHook, error) {
 	device := map[string]string{
 		"id":     fmt.Sprintf("%s%s", qemuDeviceIDPrefix, usbDev.DeviceName),
@@ -4288,6 +4305,7 @@ func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHoo
 	return monHook, nil
 }
 
+// addTPMDeviceConfig prepares TPM device configuration for a QEMU instance based on the TPM run config items.
 func (d *qemu) addTPMDeviceConfig(cfg *[]cfgSection, tpmConfig []deviceConfig.RunConfigItem) error {
 	var devName, socketPath string
 
@@ -4308,6 +4326,7 @@ func (d *qemu) addTPMDeviceConfig(cfg *[]cfgSection, tpmConfig []deviceConfig.Ru
 	return nil
 }
 
+// addVmgenDeviceConfig prepares vmgenid device configuration for a QEMU instance using the provided GUID.
 func (d *qemu) addVmgenDeviceConfig(cfg *[]cfgSection, guid string) error {
 	vmgenIDOpts := qemuVmgenIDOpts{
 		guid: guid,
@@ -5404,6 +5423,7 @@ func (d *qemu) updateMemoryLimit(newLimit string) error {
 	return fmt.Errorf("Failed setting memory to %dMiB (currently %dMiB) as it was taking too long", newSizeMB, curSizeMB)
 }
 
+// removeUnixDevices cleans up Unix-type devices associated with the QEMU instance from the device directory.
 func (d *qemu) removeUnixDevices() error {
 	// Check that we indeed have devices to remove.
 	if !shared.PathExists(d.DevicesPath()) {
@@ -5433,6 +5453,7 @@ func (d *qemu) removeUnixDevices() error {
 	return nil
 }
 
+// removeDiskDevices removes disk-type devices associated with the QEMU instance from the device directory.
 func (d *qemu) removeDiskDevices() error {
 	// Check that we indeed have devices to remove.
 	if !shared.PathExists(d.DevicesPath()) {
@@ -5465,6 +5486,8 @@ func (d *qemu) removeDiskDevices() error {
 	return nil
 }
 
+// Performs cleanup operations such as unmounting devices,
+// deleting security profiles and paths for the QEMU instance.
 func (d *qemu) cleanup() {
 	// Unmount any leftovers
 	_ = d.removeUnixDevices()
@@ -5519,6 +5542,7 @@ func (d *qemu) cleanupDevices() {
 	}
 }
 
+// Initializes the QEMU instance by expanding its configuration.
 func (d *qemu) init() error {
 	// Compute the expanded config and device list.
 	err := d.expandConfig()
@@ -6484,6 +6508,7 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 	return nil
 }
 
+// MigrateReceive is responsible for handling the migration of a QEMU-based instance (virtual machine) from one host to another.
 func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	d.logger.Info("Migration receive starting")
 	defer d.logger.Info("Migration receive stopped")
@@ -7557,6 +7582,7 @@ func (d *qemu) InitPID() int {
 	return pid
 }
 
+// MigrateReceive handles the incoming migration request and processes the data for a QEMU VM instance.
 func (d *qemu) statusCode() api.StatusCode {
 	// Shortcut to avoid spamming QMP during ongoing operations.
 	op := operationlock.Get(d.Project().Name, d.Name())
@@ -7840,6 +7866,7 @@ func (d *qemu) cpuTopology(limit string) (*cpuTopology, error) {
 	return topology, nil
 }
 
+// devlxdEventSend transmits specified event details to the lxd-agent of a QEMU VM instance.
 func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]any) error {
 	event := shared.Jmap{}
 	event["type"] = eventType
@@ -7932,6 +7959,7 @@ func (d *qemu) Info() instance.Info {
 	return data
 }
 
+// checkFeatures probes the host and QEMU for specific VM capabilities and returns a map of supported features.
 func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, error) {
 	monitorPath, err := os.CreateTemp("", "")
 	if err != nil {
@@ -8115,6 +8143,7 @@ func (d *qemu) version() (*version.DottedVersion, error) {
 	return qemuVer, nil
 }
 
+// Metrics retrieves the running VM's metrics either from the agent (if enabled) or directly from QEMU.
 func (d *qemu) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
 	if !d.IsRunning() {
 		return nil, ErrInstanceIsStopped
@@ -8137,6 +8166,7 @@ func (d *qemu) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, erro
 	return d.getQemuMetrics()
 }
 
+// getAgentMetrics fetches the metrics from the lxd-agent for the running VM instance.
 func (d *qemu) getAgentMetrics() (*metrics.MetricSet, error) {
 	client, err := d.getAgentClient()
 	if err != nil {
@@ -8171,6 +8201,7 @@ func (d *qemu) getAgentMetrics() (*metrics.MetricSet, error) {
 	return metricSet, nil
 }
 
+// getNetworkState retrieves the current network state for the NICs associated with the VM.
 func (d *qemu) getNetworkState() (map[string]api.InstanceStateNetwork, error) {
 	networks := map[string]api.InstanceStateNetwork{}
 	for k, m := range d.ExpandedDevices() {
@@ -8207,10 +8238,12 @@ func (d *qemu) getNetworkState() (map[string]api.InstanceStateNetwork, error) {
 	return networks, nil
 }
 
+// agentMetricsEnabled checks if the metrics collection via the LXD agent is enabled for the VM.
 func (d *qemu) agentMetricsEnabled() bool {
 	return shared.IsTrueOrEmpty(d.expandedConfig["security.agent.metrics"])
 }
 
+// deviceAttachUSB connects a specified USB device to the virtual machine.
 func (d *qemu) deviceAttachUSB(usbConf deviceConfig.USBDeviceItem) error {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -8231,6 +8264,7 @@ func (d *qemu) deviceAttachUSB(usbConf deviceConfig.USBDeviceItem) error {
 	return nil
 }
 
+// deviceDetachUSB disconnects a specified USB device from the virtual machine.
 func (d *qemu) deviceDetachUSB(usbDev deviceConfig.USBDeviceItem) error {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -8270,6 +8304,8 @@ func (d *qemu) blockNodeName(name string) string {
 	return fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, name)
 }
 
+// setCPUs dynamically adjusts the number of CPUs allocated to the virtual machine,
+// supporting both CPU hotplug and hot-unplug.
 func (d *qemu) setCPUs(count int) error {
 	if count == 0 {
 		return nil
@@ -8386,6 +8422,7 @@ func (d *qemu) setCPUs(count int) error {
 	return nil
 }
 
+// architectureSupportsCPUHotplug checks if the VM architecture supports CPU hot-plugging.
 func (d *qemu) architectureSupportsCPUHotplug() bool {
 	// Check supported features.
 	info := DriverStatuses()[instancetype.VM].Info
