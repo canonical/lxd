@@ -50,6 +50,7 @@ var api10 = []APIEndpoint{
 	clusterNodeStateCmd,
 	clusterNodesCmd,
 	clusterCertificateCmd,
+	documentationCmd,
 	instanceBackupCmd,
 	instanceBackupExportCmd,
 	instanceBackupsCmd,
