@@ -14,6 +14,7 @@ type batch struct {
 	createdAt time.Time
 }
 
+// newBatch creates a new batch and adds provided entries to it.
 func newBatch(entries ...entry) *batch {
 	b := &batch{
 		streams:   map[string]*Stream{},
@@ -29,7 +30,7 @@ func newBatch(entries ...entry) *batch {
 	return b
 }
 
-// add an entry to the batch.
+// add adds an entry to the batch.
 func (b *batch) add(entry entry) {
 	b.bytes += len(entry.Line)
 
@@ -55,12 +56,12 @@ func (b *batch) sizeBytesAfter(entry entry) int {
 	return b.bytes + len(entry.Line)
 }
 
-// age of the batch since its creation.
+// age checks the age of the batch since its creation.
 func (b *batch) age() time.Duration {
 	return time.Since(b.createdAt)
 }
 
-// encode the batch as push request, and returns the encoded bytes and the number of encoded
+// encode encodes the batch as push request, and returns the encoded bytes and the number of encoded
 // entries.
 func (b *batch) encode() ([]byte, int, error) {
 	req, entriesCount := b.createPushRequest()
