@@ -36,14 +36,17 @@ func (d *mock) Info() Info {
 	}
 }
 
+// FillConfig does the necessary configuration for the mock object (no-op).
 func (d *mock) FillConfig() error {
 	return nil
 }
 
+// Create creates the mock object (no-op).
 func (d *mock) Create() error {
 	return nil
 }
 
+// Delete deletes the mock object and takes an operations.Operation parameter (no-op).
 func (d *mock) Delete(op *operations.Operation) error {
 	return nil
 }
