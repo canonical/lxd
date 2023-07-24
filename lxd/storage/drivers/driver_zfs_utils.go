@@ -34,6 +34,7 @@ const (
 	zfsMaxVolBlocksize = 128 * 1024
 )
 
+// Returns the ZFS dataset path for a given volume.
 func (d *zfs) dataset(vol Volume, deleted bool) string {
 	name, snapName, _ := api.GetParentAndSnapshotName(vol.name)
 
@@ -64,6 +65,7 @@ func (d *zfs) dataset(vol Volume, deleted bool) string {
 	return filepath.Join(d.config["zfs.pool_name"], string(vol.volType), name)
 }
 
+// Creates a ZFS dataset.
 func (d *zfs) createDataset(dataset string, options ...string) error {
 	args := []string{"create"}
 	for _, option := range options {
@@ -81,6 +83,7 @@ func (d *zfs) createDataset(dataset string, options ...string) error {
 	return nil
 }
 
+// Creates a ZFS volume.
 func (d *zfs) createVolume(dataset string, size int64, options ...string) error {
 	size = d.roundVolumeBlockSizeBytes(size)
 
@@ -100,6 +103,7 @@ func (d *zfs) createVolume(dataset string, size int64, options ...string) error 
 	return nil
 }
 
+// Checks if a ZFS dataset exists.
 func (d *zfs) datasetExists(dataset string) (bool, error) {
 	out, err := shared.RunCommand("zfs", "get", "-H", "-o", "name", "name", dataset)
 	if err != nil {
@@ -109,6 +113,7 @@ func (d *zfs) datasetExists(dataset string) (bool, error) {
 	return strings.TrimSpace(out) == dataset, nil
 }
 
+// Recursively deletes a ZFS dataset and any snapshots it contains.
 func (d *zfs) deleteDatasetRecursive(dataset string) error {
 	// Locate the origin snapshot (if any).
 	origin, err := d.getDatasetProperty(dataset, "origin")
@@ -154,6 +159,7 @@ func (d *zfs) deleteDatasetRecursive(dataset string) error {
 	return nil
 }
 
+// Gets all clones of a ZFS dataset.
 func (d *zfs) getClones(dataset string) ([]string, error) {
 	out, err := shared.RunCommand("zfs", "get", "-H", "-p", "-r", "-o", "value", "clones", dataset)
 	if err != nil {
@@ -194,6 +200,7 @@ func (d *zfs) getDatasets(dataset string, types string) ([]string, error) {
 	return children, nil
 }
 
+// Sets the properties of a ZFS dataset.
 func (d *zfs) setDatasetProperties(dataset string, options ...string) error {
 	args := []string{"set"}
 	args = append(args, options...)
@@ -207,6 +214,7 @@ func (d *zfs) setDatasetProperties(dataset string, options ...string) error {
 	return nil
 }
 
+// Sets the blocksize of a ZFS volume from the configuration.
 func (d *zfs) setBlocksizeFromConfig(vol Volume) error {
 	size := vol.ExpandedConfig("zfs.blocksize")
 	if size == "" {
@@ -222,6 +230,7 @@ func (d *zfs) setBlocksizeFromConfig(vol Volume) error {
 	return d.setBlocksize(vol, sizeBytes)
 }
 
+// Sets the blocksize of a ZFS volume.
 func (d *zfs) setBlocksize(vol Volume, size int64) error {
 	if vol.contentType != ContentTypeFS {
 		return nil
@@ -235,6 +244,7 @@ func (d *zfs) setBlocksize(vol Volume, size int64) error {
 	return nil
 }
 
+// Gets the value of a property from a ZFS dataset.
 func (d *zfs) getDatasetProperty(dataset string, key string) (string, error) {
 	output, err := shared.RunCommand("zfs", "get", "-H", "-p", "-o", "value", key, dataset)
 	if err != nil {
@@ -244,6 +254,7 @@ func (d *zfs) getDatasetProperty(dataset string, key string) (string, error) {
 	return strings.TrimSpace(output), nil
 }
 
+// Gets the properties of a ZFS dataset.
 func (d *zfs) getDatasetProperties(dataset string, keys ...string) (map[string]string, error) {
 	output, err := shared.RunCommand("zfs", "get", "-H", "-p", "-o", "property,value", strings.Join(keys, ","), dataset)
 	if err != nil {
@@ -322,6 +333,7 @@ func (d *zfs) needsRecursion(dataset string) bool {
 	return true
 }
 
+// Sends a ZFS dataset over a stream.
 func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.VolumeSourceArgs, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTracker) error {
 	defer func() { _ = conn.Close() }()
 
@@ -384,6 +396,7 @@ func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.V
 	return nil
 }
 
+// Receives a ZFS dataset from a stream.
 func (d *zfs) receiveDataset(vol Volume, conn io.ReadWriteCloser, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
 	// Assemble zfs receive command.
 	cmd := exec.Command("zfs", "receive", "-x", "mountpoint", "-F", "-u", d.dataset(vol, false))
@@ -465,6 +478,7 @@ type ZFSMetaDataHeader struct {
 	SnapshotDatasets []ZFSDataset `json:"snapshot_datasets" yaml:"snapshot_datasets"`
 }
 
+// Returns a ZFSMetaDataHeader object for a volume and its snapshots.
 func (d *zfs) datasetHeader(vol Volume, snapshots []string) (*ZFSMetaDataHeader, error) {
 	migrationHeader := ZFSMetaDataHeader{
 		SnapshotDatasets: make([]ZFSDataset, len(snapshots)),
@@ -485,6 +499,7 @@ func (d *zfs) datasetHeader(vol Volume, snapshots []string) (*ZFSMetaDataHeader,
 	return &migrationHeader, nil
 }
 
+// Returns a random volume name based on the volume name and a UUID.
 func (d *zfs) randomVolumeName(vol Volume) string {
 	return fmt.Sprintf("%s_%s", vol.name, uuid.New())
 }
