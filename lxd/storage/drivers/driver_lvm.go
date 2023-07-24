@@ -28,6 +28,7 @@ type lvm struct {
 	common
 }
 
+// Initializes the LVM storage backend and sets its version.
 func (d *lvm) load() error {
 	// Register the patches.
 	d.patches = map[string]func() error{
@@ -501,6 +502,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 	return nil
 }
 
+// Validates the configuration for the Lvm storage driver.
 func (d *lvm) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
 		"size":                       validate.Optional(validate.IsSize),
