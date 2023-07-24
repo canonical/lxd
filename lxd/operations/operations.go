@@ -38,6 +38,7 @@ const (
 	OperationClassToken OperationClass = 3
 )
 
+// Converts the operation class type to its corresponding string representation.
 func (t OperationClass) String() string {
 	return map[OperationClass]string{
 		OperationClassTask:      api.OperationClassTask,
@@ -220,6 +221,7 @@ func (op *Operation) Requestor() *api.EventLifecycleRequestor {
 	return op.requestor
 }
 
+// Finalizes operation and initiates asynchronous cleanup.
 func (op *Operation) done() {
 	if op.readonly {
 		return
@@ -446,6 +448,7 @@ func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 	return chanConnect, nil
 }
 
+// Determines if the operation can be canceled based on its class or associated canceler.
 func (op *Operation) mayCancel() bool {
 	if op.class == OperationClassToken {
 		return true
