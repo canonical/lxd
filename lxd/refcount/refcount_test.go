@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// Demonstrates the usage of the Increment function, including overflow handling.
 func ExampleIncrement() {
 	refCounter1 := "testinc1"
 	fmt.Println(Increment(refCounter1, 1))
@@ -32,6 +33,7 @@ func ExampleIncrement() {
 	// Recovered: Ref counter "testinc2" overflowed from 11 to 10
 }
 
+// Showcases usage and effect of Decrement function on reference counters.
 func ExampleDecrement() {
 	refCounter1 := "testdec1"
 	fmt.Println(Increment(refCounter1, 10))
