@@ -7,6 +7,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// Determines if a given name corresponds to a valid or known key in the Vital Product Data (VPD).
 func vpdKnownKey(name string) bool {
 	// Sanity check.
 	if name == "" {
@@ -35,6 +36,7 @@ func vpdKnownKey(name string) bool {
 	return false
 }
 
+// Reads an integer from the buffer, given the length of the integer.
 func vpdReadInt(buf []byte, length int) ([]byte, int) {
 	if length > len(buf) {
 		return []byte{}, 0
@@ -48,6 +50,7 @@ func vpdReadInt(buf []byte, length int) ([]byte, int) {
 	return buf[length:], value
 }
 
+// Reads a string from the buffer, given the length of the string.
 func vpdReadString(buf []byte, length int) ([]byte, string) {
 	if length > len(buf) {
 		length = len(buf)
@@ -56,6 +59,7 @@ func vpdReadString(buf []byte, length int) ([]byte, string) {
 	return buf[length:], strings.Trim(string(buf[:length]), "\x00 ")
 }
 
+// vpdReadEntries reads VPD entries from the buffer and returns a map of key-value pairs.
 func vpdReadEntries(buf []byte, length int) ([]byte, map[string]string) {
 	entries := map[string]string{}
 	vpdBuf := buf[:length]
@@ -84,6 +88,7 @@ func vpdReadEntries(buf []byte, length int) ([]byte, map[string]string) {
 	return buf[length:], entries
 }
 
+// Parses PCI VPD data and returns a struct containing the entries.
 func parsePCIVPD(buf []byte) api.ResourcesPCIVPD {
 	vpd := api.ResourcesPCIVPD{Entries: map[string]string{}}
 
