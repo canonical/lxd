@@ -124,6 +124,7 @@ func GetSystem() (*api.ResourcesSystem, error) {
 	return &system, nil
 }
 
+// Returns the type of system we're running on.
 func systemGetType() string {
 	// If systemd-detect-virt is unavailable, the system type is unknown.
 	_, err := exec.LookPath("systemd-detect-virt")
@@ -153,6 +154,7 @@ func systemGetType() string {
 	return "physical"
 }
 
+// Gets the firmware information from the sysfs filesystem.
 func systemGetFirmware() (*api.ResourcesSystemFirmware, error) {
 	firmware := api.ResourcesSystemFirmware{}
 
@@ -192,6 +194,7 @@ func systemGetFirmware() (*api.ResourcesSystemFirmware, error) {
 	return &firmware, nil
 }
 
+// Gets the chassis information from the sysfs filesystem.
 func systemGetChassis() (*api.ResourcesSystemChassis, error) {
 	chassis := api.ResourcesSystemChassis{}
 
@@ -282,6 +285,7 @@ func systemGetChassis() (*api.ResourcesSystemChassis, error) {
 	return &chassis, nil
 }
 
+// Gets the motherboard information from the sysfs filesystem.
 func systemGetMotherboard() (*api.ResourcesSystemMotherboard, error) {
 	motherboard := api.ResourcesSystemMotherboard{}
 
