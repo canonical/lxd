@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// Tests the mountFlagsToOpts function for different sets of flags.
 func TestMountFlagsToOpts(t *testing.T) {
 	opts := mountFlagsToOpts(knownFlags)
 	if opts != "ro,nosuid,nodev,noexec,sync,remount,mand,noatime,nodiratime,bind,strictatime,lazytime" {
