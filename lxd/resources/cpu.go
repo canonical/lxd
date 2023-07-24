@@ -102,6 +102,7 @@ func ParseNumaNodeSet(numaNodeSet string) ([]int64, error) {
 	return nodes, nil
 }
 
+// Retrieves and processes CPU cache information from the provided system path.
 func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 	caches := []api.ResourcesCPUCache{}
 
@@ -173,6 +174,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 	return caches, nil
 }
 
+// Extracts CPU vendor and version information from the system's DMI tables.
 func getCPUdmi() (string, string, error) {
 	// Open the system DMI tables.
 	stream, _, err := smbios.Stream()
