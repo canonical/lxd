@@ -139,6 +139,7 @@ func (c *Config) Patch(patch map[string]any) (map[string]string, error) {
 	return c.update(values)
 }
 
+// Updates configuration with provided values, and persists the changes to a transaction.
 func (c *Config) update(values map[string]any) (map[string]string, error) {
 	changed, err := c.m.Change(values)
 	if err != nil {
