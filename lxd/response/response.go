@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
@@ -37,6 +37,7 @@ type devLxdResponse struct {
 	contentType string
 }
 
+// Renders the response to the given HTTP response writer.
 func (r *devLxdResponse) Render(w http.ResponseWriter) error {
 	var err error
 
@@ -64,6 +65,7 @@ func (r *devLxdResponse) Render(w http.ResponseWriter) error {
 	return nil
 }
 
+// Returns a string representation of the response, indicating success or failure.
 func (r *devLxdResponse) String() string {
 	if r.code == http.StatusOK {
 		return "success"
@@ -142,6 +144,7 @@ func SyncResponsePlain(success bool, compress bool, metadata string) Response {
 	return &syncResponse{success: success, metadata: metadata, plaintext: true, compress: compress}
 }
 
+// Renders the response to the given HTTP response writer, handling JSON and plain text responses.
 func (r *syncResponse) Render(w http.ResponseWriter) error {
 	// Set an appropriate ETag header
 	if r.etag != nil {
@@ -227,6 +230,7 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 	return util.WriteJSON(w, resp, debugLogger)
 }
 
+// Returns a string representation of the response, indicating success or failure.
 func (r *syncResponse) String() string {
 	if r.success {
 		return "success"
@@ -302,7 +306,7 @@ func PreconditionFailed(err error) Response {
 	return &errorResponse{http.StatusPreconditionFailed, err.Error()}
 }
 
-// Unavailable return an unavailable response (503) with the given error.
+// Unavailable returns an unavailable response (503) with the given error.
 func Unavailable(err error) Response {
 	message := "unavailable"
 	if err != nil {
@@ -312,10 +316,12 @@ func Unavailable(err error) Response {
 	return &errorResponse{http.StatusServiceUnavailable, message}
 }
 
+// Returns a string representation of the error, including the error message.
 func (r *errorResponse) String() string {
 	return r.msg
 }
 
+// Renders the error response to the HTTP response writer.
 func (r *errorResponse) Render(w http.ResponseWriter) error {
 	var output io.Writer
 
@@ -383,6 +389,7 @@ func FileResponse(r *http.Request, files []FileResponseEntry, headers map[string
 	return &fileResponse{r, files, headers}
 }
 
+// Renders the file response to the HTTP response writer, either inline or as multipart.
 func (r *fileResponse) Render(w http.ResponseWriter) error {
 	if r.headers != nil {
 		for k, v := range r.headers {
@@ -476,6 +483,7 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 	return mw.Close()
 }
 
+// Returns a string representation of the number of files in the file response.
 func (r *fileResponse) String() string {
 	return fmt.Sprintf("%d files", len(r.files))
 }
@@ -494,6 +502,7 @@ func ForwardedResponse(client lxd.InstanceServer, request *http.Request) Respons
 	}
 }
 
+// Renders the forwarded response to the HTTP response writer.
 func (r *forwardedResponse) Render(w http.ResponseWriter) error {
 	info, err := r.client.GetConnectionInfo()
 	if err != nil {
@@ -529,6 +538,7 @@ func (r *forwardedResponse) Render(w http.ResponseWriter) error {
 	return err
 }
 
+// Returns a string representation of the forwarded request URL.
 func (r *forwardedResponse) String() string {
 	return fmt.Sprintf("request to %s", r.request.URL)
 }
@@ -542,15 +552,17 @@ func ManualResponse(hook func(w http.ResponseWriter) error) Response {
 	return &manualResponse{hook: hook}
 }
 
+// Renders the manual response by calling the hook function.
 func (r *manualResponse) Render(w http.ResponseWriter) error {
 	return r.hook(w)
 }
 
+// Returns a string representation of the manual response, indicating that it is unknown.
 func (r *manualResponse) String() string {
 	return "unknown"
 }
 
-// Unauthorized return an unauthorized response (401) with the given error.
+// Unauthorized returns an unauthorized response (401) with the given error.
 func Unauthorized(err error) Response {
 	message := "unauthorized"
 	if err != nil {
