@@ -6,6 +6,7 @@ import (
 	"github.com/canonical/lxd/lxd/revert"
 )
 
+// Example of how to use the revert package to fail a function and run revert functions in reverse order.
 func ExampleReverter_fail() {
 	revert := revert.New()
 	defer revert.Fail()
@@ -18,6 +19,7 @@ func ExampleReverter_fail() {
 	// 1st step
 }
 
+// Example of how to use revert to succeed a function.
 func ExampleReverter_success() {
 	revert := revert.New()
 	defer revert.Fail()
