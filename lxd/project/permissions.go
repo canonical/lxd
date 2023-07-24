@@ -86,7 +86,7 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 	return nil
 }
 
-// Check that we have not exceeded the maximum total allotted number of instances for both containers and vms.
+// Checks that we have not exceeded the maximum total allotted number of instances for both containers and vms.
 func checkTotalInstanceCountLimit(info *projectInfo) error {
 	count, limit, err := getTotalInstanceCountLimit(info)
 	if err != nil {
@@ -100,6 +100,7 @@ func checkTotalInstanceCountLimit(info *projectInfo) error {
 	return nil
 }
 
+// Retrieves the total instance count and its limit from the project configuration.
 func getTotalInstanceCountLimit(info *projectInfo) (int, int, error) {
 	overallValue, ok := info.Project.Config["limits.instances"]
 	if ok {
@@ -114,7 +115,7 @@ func getTotalInstanceCountLimit(info *projectInfo) (int, int, error) {
 	return len(info.Instances), -1, nil
 }
 
-// Check that we have not reached the maximum number of instances for this type.
+// Checks that we have not reached the maximum number of instances for this type.
 func checkInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) error {
 	count, limit, err := getInstanceCountLimit(info, instanceType)
 	if err != nil {
@@ -128,6 +129,7 @@ func checkInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) 
 	return nil
 }
 
+// Returns the instance count and its limit for a specific instance type from the project configuration.
 func getInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) (int, int, error) {
 	var key string
 	switch instanceType {
@@ -159,7 +161,7 @@ func getInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) (i
 	return instanceCount, -1, nil
 }
 
-// Check restrictions on setting volatile.* keys.
+// Checks the restrictions on setting volatile.* keys.
 func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instancetype.Type, instanceName string, config, currentConfig map[string]string, strip bool) error {
 	if project.Config["restrict"] == "false" {
 		return nil
@@ -304,7 +306,7 @@ func GetImageSpaceBudget(tx *db.ClusterTx, projectName string) (int64, error) {
 	return 0, nil
 }
 
-// Check that we would not violate the project limits or restrictions if we
+// Checks that we would not violate the project limits or restrictions if we
 // were to commit the given instances and profiles.
 func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, info *projectInfo) error {
 	// List of config keys for which we need to check aggregate values
@@ -349,6 +351,7 @@ func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, info *projectInfo) er
 	return nil
 }
 
+// Generates and returns the aggregated usage and limits for specified keys in the project configuration.
 func getAggregateLimits(info *projectInfo, aggregateKeys []string) (map[string]api.ProjectStateResource, error) {
 	result := map[string]api.ProjectStateResource{}
 
@@ -383,6 +386,7 @@ func getAggregateLimits(info *projectInfo, aggregateKeys []string) (map[string]a
 	return result, nil
 }
 
+// Checks if aggregate usage exceeds project configuration limits.
 func checkAggregateLimits(info *projectInfo, aggregateKeys []string) error {
 	if len(aggregateKeys) == 0 {
 		return nil
@@ -429,7 +433,7 @@ func parseHostIDMapRange(isUID bool, isGID bool, listValue string) ([]idmap.Idma
 	return idmaps, nil
 }
 
-// Check that the project's restrictions are not violated across the given
+// Checks that the project's restrictions are not violated across the given
 // instances and profiles.
 func checkRestrictions(project api.Project, instances []api.Instance, profiles []api.Profile) error {
 	containerConfigChecks := map[string]func(value string) error{}
@@ -821,7 +825,7 @@ var allowableIntercept = []string{
 	"security.syscalls.intercept.sysinfo",
 }
 
-// Return true if a low-level container option is forbidden.
+// Returns true if a low-level container option is forbidden.
 func isContainerLowLevelOptionForbidden(key string) bool {
 	if strings.HasPrefix(key, "security.syscalls.intercept") && !shared.StringInSlice(key, allowableIntercept) {
 		return true
@@ -844,7 +848,7 @@ func isContainerLowLevelOptionForbidden(key string) bool {
 	return false
 }
 
-// Return true if a low-level VM option is forbidden.
+// Returns true if a low-level VM option is forbidden.
 func isVMLowLevelOptionForbidden(key string) bool {
 	return shared.StringInSlice(key, []string{
 		"boot.host_shutdown_timeout",
@@ -1040,7 +1044,7 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 	return nil
 }
 
-// Check that limits.instances, i.e. the total limit of containers/virtual machines allocated
+// Checks that limits, instances, i.e. the total limit of containers/virtual machines allocated
 // to the user is equal to or above the current count.
 func validateTotalInstanceCountLimit(instances []api.Instance, value, project string) error {
 	if value == "" {
@@ -1061,7 +1065,7 @@ func validateTotalInstanceCountLimit(instances []api.Instance, value, project st
 	return nil
 }
 
-// Check that limits.containers or limits.virtual-machines is equal or above
+// Checks that limits.containers or limits.virtual-machines is equal or above
 // the current count.
 func validateInstanceCountLimit(instances []api.Instance, key, value, project string) error {
 	if value == "" {
@@ -1120,7 +1124,7 @@ func validateAggregateLimit(totals map[string]int64, key, value string) error {
 	return nil
 }
 
-// Return true if the project has some limits or restrictions set.
+// Returns true if the project has some limits or restrictions set.
 func projectHasLimitsOrRestrictions(project api.Project) bool {
 	for k, v := range project.Config {
 		if strings.HasPrefix(k, "limits.") {
@@ -1144,7 +1148,7 @@ type projectInfo struct {
 	Volumes   []db.StorageVolumeArgs
 }
 
-// Fetch the given project from the database along with its profiles, instances
+// Fetches the given project from the database along with its profiles, instances
 // and possibly custom volumes.
 //
 // If the skipIfNoLimits flag is true, then profiles, instances and volumes
@@ -1223,7 +1227,7 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 	return info, nil
 }
 
-// Expand the configuration and devices of the given instances, taking the give
+// Expands the configuration and devices of the given instances, taking the give
 // project profiles into account.
 func expandInstancesConfigAndDevices(instances []api.Instance, profiles []api.Profile) ([]api.Instance, error) {
 	expandedInstances := make([]api.Instance, len(instances))
@@ -1292,7 +1296,7 @@ func getTotalsAcrossProjectEntities(info *projectInfo, keys []string, skipUnset 
 	return totals, nil
 }
 
-// Return the effective instance-level values for the limits with the given keys.
+// Returns the effective instance-level values for the limits with the given keys.
 func getInstanceLimits(instance api.Instance, keys []string, skipUnset bool) (map[string]int64, error) {
 	var err error
 	limits := map[string]int64{}
@@ -1452,7 +1456,7 @@ func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string)
 	return usedBy
 }
 
-// Return true if particular restriction in project is violated.
+// Returns true if particular restriction in project is violated.
 func projectHasRestriction(project *api.Project, restrictionKey string, blockValue string) bool {
 	if shared.IsFalseOrEmpty(project.Config["restricted"]) {
 		return false
@@ -1470,7 +1474,7 @@ func projectHasRestriction(project *api.Project, restrictionKey string, blockVal
 	return false
 }
 
-// CheckClusterTargetRestriction check if user is allowed to use cluster member targeting.
+// CheckClusterTargetRestriction checks if user is allowed to use cluster member targeting.
 func CheckClusterTargetRestriction(authorizer auth.Authorizer, r *http.Request, project *api.Project, targetFlag string) error {
 	// Allow server administrators to move instances around even when restricted (node evacuation, ...)
 	if authorizer.UserIsAdmin(r) {
