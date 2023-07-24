@@ -20,6 +20,7 @@ import (
 var sysClassDrm = "/sys/class/drm"
 var procDriverNvidia = "/proc/driver/nvidia"
 
+// Loads and maps the NVIDIA GPU information from the proc filesystem.
 func loadNvidiaProc() (map[string]*api.ResourcesGPUCardNvidia, error) {
 	nvidiaCards := map[string]*api.ResourcesGPUCardNvidia{}
 
@@ -80,6 +81,7 @@ func loadNvidiaProc() (map[string]*api.ResourcesGPUCardNvidia, error) {
 	return nvidiaCards, nil
 }
 
+// Retrieves and processes NVIDIA GPU information using nvidia-container-cli command.
 func loadNvidiaContainer() (map[string]*api.ResourcesGPUCardNvidia, error) {
 	// Check for nvidia-container-cli
 	_, err := exec.LookPath("nvidia-container-cli")
@@ -147,6 +149,7 @@ func loadNvidiaContainer() (map[string]*api.ResourcesGPUCardNvidia, error) {
 	return nvidiaCards, nil
 }
 
+// Enhances the GPU device data with additional hardware-specific details using sysfs paths.
 func gpuAddDeviceInfo(devicePath string, nvidiaCards map[string]*api.ResourcesGPUCardNvidia, pciDB *pcidb.PCIDB, uname unix.Utsname, card *api.ResourcesGPUCard) error {
 	// Handle nested devices.
 	if isDir(filepath.Join(devicePath, "device")) {
