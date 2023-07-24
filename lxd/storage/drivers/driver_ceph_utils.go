@@ -1101,6 +1101,7 @@ func (d *ceph) generateUUID(fsType string, devPath string) error {
 	return nil
 }
 
+// Returns the Ceph RBD volume name for a given LXD volume.
 func (d *ceph) getRBDVolumeName(vol Volume, snapName string, zombie bool, withPoolName bool) string {
 	out := CephGetRBDImageName(vol, snapName, zombie)
 
@@ -1183,6 +1184,7 @@ func (d *ceph) sendVolume(conn io.ReadWriteCloser, volumeName string, volumePare
 	return nil
 }
 
+// Receives a Ceph RBD volume from a remote connection.
 func (d *ceph) receiveVolume(volumeName string, conn io.ReadWriteCloser, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
 	args := []string{
 		"import-diff",
