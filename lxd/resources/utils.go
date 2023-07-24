@@ -11,6 +11,7 @@ import (
 
 var sysBusPci = "/sys/bus/pci/devices"
 
+// Checks if the given path is a directory.
 func isDir(name string) bool {
 	stat, err := os.Stat(name)
 	if err != nil {
@@ -20,6 +21,7 @@ func isDir(name string) bool {
 	return stat.IsDir()
 }
 
+// Reads a uint64 value from the given path and trims whitespace.
 func readUint(path string) (uint64, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
@@ -34,6 +36,7 @@ func readUint(path string) (uint64, error) {
 	return value, nil
 }
 
+// Reads an int64 value from the given path and trims whitespace.
 func readInt(path string) (int64, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
@@ -48,6 +51,7 @@ func readInt(path string) (int64, error) {
 	return value, nil
 }
 
+// Checks if the given string is in the given list.
 func stringInSlice(key string, list []string) bool {
 	for _, entry := range list {
 		if entry == key {
@@ -57,6 +61,7 @@ func stringInSlice(key string, list []string) bool {
 	return false
 }
 
+// Checks if the given int64 is in the given list.
 func int64InSlice(key int64, list []int64) bool {
 	for _, entry := range list {
 		if entry == key {
@@ -66,11 +71,13 @@ func int64InSlice(key int64, list []int64) bool {
 	return false
 }
 
+// Checks if the given sysfs path exists.
 func sysfsExists(path string) bool {
 	_, err := os.Lstat(path)
 	return err == nil
 }
 
+// Gets the NUMA node for the given sysfs path, or 0 if not found.
 func sysfsNumaNode(path string) (uint64, error) {
 	// List all the directory entries
 	entries, err := os.ReadDir(path)
@@ -99,15 +106,18 @@ func sysfsNumaNode(path string) (uint64, error) {
 	return 0, nil
 }
 
+// Checks if the given bit is set in the given uint32.
 func hasBit(n uint32, pos uint) bool {
 	val := n & (1 << pos)
 	return (val > 0)
 }
 
+// Checks if the given bit is set in the given bitfield.
 func hasBitField(n []uint32, bit uint) bool {
 	return (n[bit/32] & (1 << (bit % 32))) != 0
 }
 
+// Decodes a udev-encoded string.
 func udevDecode(s string) (string, error) {
 	// Inverse of https://github.com/systemd/systemd/blob/main/src/shared/device-nodes.c#L19
 	ret := ""
@@ -130,6 +140,7 @@ func udevDecode(s string) (string, error) {
 	return ret, nil
 }
 
+// Gets the PCI address for the given sysfs path, or empty string if not found.
 func pciAddress(devicePath string) (string, error) {
 	// Check if we have a subsystem listed at all.
 	if !sysfsExists(filepath.Join(devicePath, "subsystem")) {
