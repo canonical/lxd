@@ -30,6 +30,7 @@ type common struct {
 	patches     map[string]func() error
 }
 
+// Initializes the common storage driver state.
 func (d *common) init(state *state.State, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonRules *Validators) {
 	d.name = name
 	d.config = config
