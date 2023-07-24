@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// Returns the Ceph RBD volume name for a given LXD volume.
 func Test_ceph_getRBDVolumeName(t *testing.T) {
 	type args struct {
 		vol          Volume
@@ -117,6 +118,8 @@ func Test_ceph_getRBDVolumeName(t *testing.T) {
 		})
 	}
 }
+
+// Parses a Ceph RBD volume parent name and returns the volume details.
 func Example_ceph_parseParent() {
 	d := &ceph{}
 
