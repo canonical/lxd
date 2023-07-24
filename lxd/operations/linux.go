@@ -12,6 +12,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// Registers a database operation with its type, and includes project-related information if applicable.
 func registerDBOperation(op *Operation, opType operationtype.Type) error {
 	if op.state == nil {
 		return nil
@@ -43,6 +44,7 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 	return nil
 }
 
+// Deletes the specified operation from the database.
 func removeDBOperation(op *Operation) error {
 	if op.state == nil {
 		return nil
@@ -55,6 +57,7 @@ func removeDBOperation(op *Operation) error {
 	return err
 }
 
+// Dispatches a specific event message related to an operation, if possible.
 func (op *Operation) sendEvent(eventMessage any) {
 	if op.events == nil {
 		return
