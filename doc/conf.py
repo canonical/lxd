@@ -136,7 +136,9 @@ html_context = {
     "github_version": "stable-5.0",
     "github_folder": "/doc/",
     "github_filetype": "md",
-    "discourse_prefix": "https://discuss.linuxcontainers.org/t/"
+    "discourse_prefix": {
+        "lxc": "https://discuss.linuxcontainers.org/t/",
+        "ubuntu": "https://discourse.ubuntu.com/t/"}
 }
 
 source_suffix = ".md"
