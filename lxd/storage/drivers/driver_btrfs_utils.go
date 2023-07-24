@@ -65,6 +65,7 @@ func setReceivedUUID(path string, UUID string) error {
 	return nil
 }
 
+// Gets the mount options for a btrfs filesystem.
 func (d *btrfs) getMountOptions() string {
 	// Allow overriding the default options.
 	if d.config["btrfs.mount_options"] != "" {
@@ -74,6 +75,7 @@ func (d *btrfs) getMountOptions() string {
 	return "user_subvol_rm_allowed"
 }
 
+// Checks if a path is a btrfs subvolume.
 func (d *btrfs) isSubvolume(path string) bool {
 	// Stat the path.
 	fs := unix.Stat_t{}
@@ -90,6 +92,7 @@ func (d *btrfs) isSubvolume(path string) bool {
 	return true
 }
 
+// Gets a list of all subvolumes in a btrfs filesystem.
 func (d *btrfs) getSubvolumes(path string) ([]string, error) {
 	result := []string{}
 
@@ -184,6 +187,7 @@ func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) (rev
 	return cleanup, nil
 }
 
+// Deletes a btrfs subvolume, recursively if necessary.
 func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 	// Single subvolume deletion.
 	destroy := func(path string) error {
@@ -254,6 +258,7 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 	return nil
 }
 
+// Gets the qgroup identifier and usage for a btrfs subvolume.
 func (d *btrfs) getQGroup(path string) (string, int64, error) {
 	// Try to get the qgroup details.
 	output, err := shared.RunCommand("btrfs", "qgroup", "show", "-e", "-f", "--raw", path)
@@ -293,6 +298,7 @@ func (d *btrfs) getQGroup(path string) (string, int64, error) {
 	return qgroup, usage, nil
 }
 
+// Sends a btrfs subvolume to an output stream.
 func (d *btrfs) sendSubvolume(path string, parent string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTracker) error {
 	defer func() { _ = conn.Close() }()
 
@@ -441,6 +447,7 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 	return subVols, nil
 }
 
+// Gets the UUID of a btrfs subvolume that was received from another machine.
 func (d *btrfs) getSubVolumeReceivedUUID(vol Volume) (string, error) {
 	stdout := strings.Builder{}
 
