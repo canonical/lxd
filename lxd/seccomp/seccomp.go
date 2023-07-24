@@ -732,6 +732,7 @@ func MakePidFd(pid int, s *state.State) (int, *os.File) {
 	return -1, nil
 }
 
+// Gets the seccomp policy content for a container.
 func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 	config := c.ExpandedConfig()
 
@@ -1286,6 +1287,7 @@ type MknodArgs struct {
 	path  string
 }
 
+// Handles the `mknod` syscall for containers.
 func (s *Server) doDeviceSyscall(c Instance, args *MknodArgs, siov *Iovec) int {
 	dev := deviceConfig.Device{}
 	dev["type"] = "unix-char"
@@ -1922,6 +1924,7 @@ var mountFlagsToOptMap = map[C.ulong]string{
 	C.MS_REC | C.MS_BIND: "rbind",
 }
 
+// Converts mount flags to mount options.
 func mountFlagsToOpts(flags C.ulong) string {
 	var currentBit C.ulong
 	opts := ""
@@ -2294,6 +2297,7 @@ func (s *Server) HandleBpfSyscall(c Instance, siov *Iovec) int {
 	return 0
 }
 
+// Handles seccomp notifications for containers.
 func (s *Server) handleSyscall(c Instance, siov *Iovec) int {
 	switch int(C.seccomp_notify_get_syscall(siov.req, siov.resp)) {
 	case lxdSeccompNotifyMknod:
@@ -2349,6 +2353,7 @@ func (s *Server) Stop() error {
 	return s.l.Close()
 }
 
+// Checks if the seccomp notify feature supports continuing syscalls.
 func lxcSupportSeccompNotifyContinue(state *state.State) error {
 	err := lxcSupportSeccompNotify(state)
 	if err != nil {
@@ -2362,6 +2367,7 @@ func lxcSupportSeccompNotifyContinue(state *state.State) error {
 	return nil
 }
 
+// Checks if the seccomp notify feature supports adding file descriptors.
 func lxcSupportSeccompNotifyAddfd(state *state.State) error {
 	err := lxcSupportSeccompNotify(state)
 	if err != nil {
@@ -2379,6 +2385,7 @@ func lxcSupportSeccompNotifyAddfd(state *state.State) error {
 	return nil
 }
 
+// Checks if the seccomp notify feature is supported by the host and LXC.
 func lxcSupportSeccompNotify(state *state.State) error {
 	if !state.OS.SeccompListener {
 		return fmt.Errorf("Seccomp notify not supported")
@@ -2486,6 +2493,7 @@ func (s *Server) MountSyscallShift(c Instance, path string) idmap.IdmapStorageTy
 
 var pageSize = 4096
 
+// Initializes the `pageSize` variable to the system's page size.
 func init() {
 	tmp := unix.Getpagesize()
 	if tmp > 0 {
