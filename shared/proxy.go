@@ -94,7 +94,7 @@ func ProxyFromConfig(httpsProxy string, httpProxy string, noProxy string) func(r
 		}
 
 		proxyURL, err := url.Parse(proxy)
-		if err != nil || !strings.HasPrefix(proxyURL.Scheme, "http") {
+		if err != nil || (!strings.HasPrefix(proxyURL.Scheme, "http") && proxyURL.Scheme != "socks5") {
 			// proxy was bogus. Try prepending "http://" to it and
 			// see if that parses correctly. If not, we fall
 			// through and complain about the original one.
