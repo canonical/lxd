@@ -8,10 +8,12 @@ test_storage_volume_snapshots() {
   LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
   chmod +x "${LXD_STORAGE_DIR}"
   spawn_lxd "${LXD_STORAGE_DIR}" false
+  lxc remote add test "${LXD_ADDR}" --accept-certificate --password foo
 
   # shellcheck disable=2039,3043
   local storage_pool storage_volume
   storage_pool="lxdtest-$(basename "${LXD_STORAGE_DIR}")-pool"
+  storage_pool2="${storage_pool}2"
   storage_volume="${storage_pool}-vol"
 
   lxc storage create "$storage_pool" "$lxd_backend"
@@ -98,8 +100,123 @@ test_storage_volume_snapshots() {
   lxc storage volume delete "${storage_pool}" "vol1"
   lxc storage volume delete "${storage_pool}" "vol1-snap0"
 
+  # Check snapshot copy (mode pull).
+  lxc launch testimage "c1"
+  lxc storage volume create "${storage_pool}" "vol1"
+  lxc storage volume attach "${storage_pool}" "vol1" "c1" /mnt
+  lxc exec "c1" touch /mnt/foo
+  lxc delete -f "c1"
+  lxc storage volume snapshot "${storage_pool}" "vol1" "snap0"
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "${storage_pool}/vol2" --mode pull
+  lxc launch testimage "c1"
+  lxc storage volume attach "${storage_pool}" "vol2" "c1" /mnt
+  lxc exec "c1" -- test -f /mnt/foo
+  lxc delete -f "c1"
+  lxc storage volume delete "${storage_pool}" "vol2"
 
+  # Check snapshot copy (mode pull, remote).
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "test:${storage_pool}/vol2" --mode pull
+  lxc launch testimage "c1"
+  lxc storage volume attach "${storage_pool}" "vol2" "c1" /mnt
+  lxc exec "c1" -- test -f /mnt/foo
+  lxc delete -f "c1"
+  lxc storage volume delete "${storage_pool}" "vol2"
+
+  # Check snapshot copy (mode push).
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "${storage_pool}/vol2" --mode push
+  lxc launch testimage "c1"
+  lxc storage volume attach "${storage_pool}" "vol2" "c1" /mnt
+  lxc exec "c1" -- test -f /mnt/foo
+  lxc delete -f "c1"
+  lxc storage volume delete "${storage_pool}" "vol2"
+
+  # Check snapshot copy (mode push, remote).
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "test:${storage_pool}/vol2" --mode push
+  lxc launch testimage "c1"
+  lxc storage volume attach "${storage_pool}" "vol2" "c1" /mnt
+  lxc exec "c1" -- test -f /mnt/foo
+  lxc delete -f "c1"
+  lxc storage volume delete "${storage_pool}" "vol2"
+
+  # Check snapshot copy (mode relay).
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "${storage_pool}/vol2" --mode relay
+  lxc launch testimage "c1"
+  lxc storage volume attach "${storage_pool}" "vol2" "c1" /mnt
+  lxc exec "c1" -- test -f /mnt/foo
+  lxc delete -f "c1"
+  lxc storage volume delete "${storage_pool}" "vol2"
+
+  # Check snapshot copy (mode relay, remote).
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "test:${storage_pool}/vol2" --mode relay
+  lxc launch testimage "c1"
+  lxc storage volume attach "${storage_pool}" "vol2" "c1" /mnt
+  lxc exec "c1" -- test -f /mnt/foo
+  lxc delete -f "c1"
+  lxc storage volume delete "${storage_pool}" "vol2"
+
+  # Check snapshot copy between pools.
+  lxc storage create "${storage_pool2}" dir
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "${storage_pool2}/vol2"
+  lxc launch testimage "c1"
+  lxc storage volume attach "${storage_pool2}" "vol2" "c1" /mnt
+  lxc exec "c1" -- test -f /mnt/foo
+  lxc delete -f "c1"
+  lxc storage volume delete "${storage_pool2}" "vol2"
+  lxc storage delete "${storage_pool2}"
+
+  # Check snapshot copy between pools (remote).
+  lxc storage create "${storage_pool2}" dir
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "test:${storage_pool2}/vol2"
+  lxc launch testimage "c1"
+  lxc storage volume attach "${storage_pool2}" "vol2" "c1" /mnt
+  lxc exec "c1" -- test -f /mnt/foo
+  lxc delete -f "c1"
+  lxc storage volume delete "${storage_pool2}" "vol2"
+  lxc storage volume copy "test:${storage_pool}/vol1/snap0" "${storage_pool2}/vol2"
+  lxc launch testimage "c1"
+  lxc storage volume attach "${storage_pool2}" "vol2" "c1" /mnt
+  lxc exec "c1" -- test -f /mnt/foo
+  lxc delete -f "c1"
+  lxc storage volume delete "${storage_pool2}" "vol2"
+  lxc storage delete "${storage_pool2}"
+
+  # Check snapshot volume only copy.
+  ! lxc storage volume copy "${storage_pool}/vol1/snap0" "${storage_pool}/vol2" --volume-only || false
+  lxc storage volume copy "${storage_pool}/vol1" "${storage_pool}/vol2" --volume-only
+  [ "$(lxc query "/1.0/storage-pools/${storage_pool}/volumes/custom/vol2/snapshots" | jq "length == 0")" = "true" ]
+  lxc storage volume delete "${storage_pool}" "vol2"
+
+  # Check snapshot volume only copy (remote).
+  ! lxc storage volume copy "${storage_pool}/vol1/snap0" "test:${storage_pool}/vol2" --volume-only || false
+  lxc storage volume copy "${storage_pool}/vol1" "test:${storage_pool}/vol2" --volume-only
+  [ "$(lxc query "/1.0/storage-pools/${storage_pool}/volumes/custom/vol2/snapshots" | jq "length == 0")" = "true" ]
+  lxc storage volume delete "${storage_pool}" "vol2"
+
+  # Check snapshot refresh.
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "${storage_pool}/vol2"
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "${storage_pool}/vol2" --refresh
+  lxc storage volume delete "${storage_pool}" "vol2"
+
+  # Check snapshot refresh (remote).
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "test:${storage_pool}/vol2"
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "test:${storage_pool}/vol2" --refresh
+  lxc storage volume delete "${storage_pool}" "vol2"
+
+  # Check snapshot copy between projects.
+  lxc project create project1
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "${storage_pool}/vol1" --target-project project1
+  [ "$(lxc query "/1.0/storage-pools/${storage_pool}/volumes?project=project1" | jq "length == 1")" = "true" ]
+  lxc storage volume delete "${storage_pool}" "vol1" --project project1
+
+  # Check snapshot copy between projects (remote).
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "test:${storage_pool}/vol1" --target-project project1
+  [ "$(lxc query "/1.0/storage-pools/${storage_pool}/volumes?project=project1" | jq "length == 1")" = "true" ]
+  lxc storage volume delete "${storage_pool}" "vol1" --project project1
+
+  lxc storage volume delete "${storage_pool}" "vol1"
+  lxc project delete "project1"
   lxc storage delete "${storage_pool}"
+  lxc remote remove "test"
 
   # shellcheck disable=SC2031,2269
   LXD_DIR="${LXD_DIR}"

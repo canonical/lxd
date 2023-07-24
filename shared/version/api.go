@@ -378,6 +378,7 @@ var APIExtensions = []string{
 	"numa_cpu_placement",
 	"custom_volume_iso",
 	"network_allocations",
+	"storage_api_remote_volume_snapshot_copy",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

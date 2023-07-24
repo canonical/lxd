@@ -362,9 +362,31 @@ func (r *ProtocolLXD) MigrateStoragePoolVolume(pool string, volume api.StorageVo
 		return nil, fmt.Errorf("Can't ask for a rename through MigrateStoragePoolVolume")
 	}
 
+	var req any
+	var path string
+
+	srcVolParentName, srcVolSnapName, srcIsSnapshot := api.GetParentAndSnapshotName(volume.Name)
+	if srcIsSnapshot {
+		err := r.CheckExtension("storage_api_remote_volume_snapshot_copy")
+		if err != nil {
+			return nil, err
+		}
+
+		// Set the actual name of the snapshot without delimiter.
+		req = api.StorageVolumeSnapshotPost{
+			Name:      srcVolSnapName,
+			Migration: volume.Migration,
+			Target:    volume.Target,
+		}
+
+		path = api.NewURL().Path("storage-pools", pool, "volumes", "custom", srcVolParentName, "snapshots", srcVolSnapName).String()
+	} else {
+		req = volume
+		path = api.NewURL().Path("storage-pools", pool, "volumes", "custom", volume.Name).String()
+	}
+
 	// Send the request
-	path := fmt.Sprintf("/storage-pools/%s/volumes/custom/%s", url.PathEscape(pool), volume.Name)
-	op, _, err := r.queryOperation("POST", path, volume, "")
+	op, _, err := r.queryOperation("POST", path, req, "")
 	if err != nil {
 		return nil, err
 	}
@@ -533,6 +555,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 		return nil, fmt.Errorf("Failed to get destination connection info: %w", err)
 	}
 
+	// Copy the storage pool volume locally.
 	if destInfo.URL == sourceInfo.URL && destInfo.SocketPath == sourceInfo.SocketPath && (volume.Location == r.clusterTarget || (volume.Location == "none" && r.clusterTarget == "")) {
 		// Project handling
 		if destInfo.Project != sourceInfo.Project {

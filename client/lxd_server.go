@@ -55,6 +55,7 @@ func (r *ProtocolLXD) UpdateServer(server api.ServerPut, ETag string) error {
 }
 
 // HasExtension returns true if the server supports a given API extension.
+// Deprecated: Use CheckExtension instead.
 func (r *ProtocolLXD) HasExtension(extension string) bool {
 	// If no cached API information, just assume we're good
 	// This is needed for those rare cases where we must avoid a GetServer call
