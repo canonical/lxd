@@ -20,6 +20,7 @@ func OperationWebSocket(req *http.Request, op *Operation) response.Response {
 	return &operationWebSocket{req, op}
 }
 
+// Establishes a WebSocket connection for the operation and waits for its completion.
 func (r *operationWebSocket) Render(w http.ResponseWriter) error {
 	chanErr, err := r.op.Connect(r.req, w)
 	if err != nil {
@@ -30,6 +31,7 @@ func (r *operationWebSocket) Render(w http.ResponseWriter) error {
 	return err
 }
 
+// Returns the operation ID or an error string if the operation rendering fails.
 func (r *operationWebSocket) String() string {
 	_, md, err := r.op.Render()
 	if err != nil {
@@ -67,6 +69,7 @@ func (r *forwardedOperationWebSocket) Render(w http.ResponseWriter) error {
 	return nil
 }
 
+// Returns the ID of the forwarded operation connected via WebSocket.
 func (r *forwardedOperationWebSocket) String() string {
 	return r.id
 }
