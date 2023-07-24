@@ -145,6 +145,7 @@ type ethtoolLinkModeMaps struct {
 	mapLpAdvertising []uint32
 }
 
+// Gathers ethernet card firmware version using ethtool's IOCTL interface.
 func ethtoolAddCardInfo(name string, info *api.ResourcesNetworkCard) error {
 	// Open FD
 	ethtoolFd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.IPPROTO_IP)
@@ -175,6 +176,7 @@ func ethtoolAddCardInfo(name string, info *api.ResourcesNetworkCard) error {
 	return unix.Close(ethtoolFd)
 }
 
+// Retrieves network interface link, port, transceiver and support details using ethtool's IOCTL interface.
 func ethtoolGset(ethtoolFd int, req *ethtoolReq, info *api.ResourcesNetworkCardPort) error {
 	// Interface info
 	ethCmd := ethtoolCmd{
@@ -256,6 +258,7 @@ func ethtoolGset(ethtoolFd int, req *ethtoolReq, info *api.ResourcesNetworkCardP
 	return nil
 }
 
+// Retrieves and sets detailed network link settings using the ethtool interface.
 func ethtoolLink(ethtoolFd int, req *ethtoolReq, info *api.ResourcesNetworkCardPort) error {
 	// Interface info
 	ethLinkSettings := ethtoolLinkSettings{
@@ -361,6 +364,7 @@ func ethtoolLink(ethtoolFd int, req *ethtoolReq, info *api.ResourcesNetworkCardP
 	return nil
 }
 
+// Retrieves and populates detailed network port information using the ethtool interface.
 func ethtoolAddPortInfo(info *api.ResourcesNetworkCardPort) error {
 	// Open FD
 	ethtoolFd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.IPPROTO_IP)
