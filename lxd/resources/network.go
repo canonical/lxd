@@ -23,6 +23,7 @@ var netProtocols = map[uint64]string{
 	32: "infiniband",
 }
 
+// Extracts and adds device-specific information to the network card object from the device's system path.
 func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsname, card *api.ResourcesNetworkCard) error {
 	// VDPA
 	vDPAMatches, err := filepath.Glob(filepath.Join(devicePath, "vdpa*"))
