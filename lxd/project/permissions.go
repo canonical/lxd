@@ -100,6 +100,7 @@ func checkTotalInstanceCountLimit(info *projectInfo) error {
 	return nil
 }
 
+// Retrieves the total instance count and its limit from the project configuration.
 func getTotalInstanceCountLimit(info *projectInfo) (int, int, error) {
 	overallValue, ok := info.Project.Config["limits.instances"]
 	if ok {
@@ -128,6 +129,7 @@ func checkInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) 
 	return nil
 }
 
+// Returns the instance count and its limit for a specific instance type from the project configuration.
 func getInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) (int, int, error) {
 	var key string
 	switch instanceType {
@@ -349,6 +351,7 @@ func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, info *projectInfo) er
 	return nil
 }
 
+// Generates and returns the aggregated usage and limits for specified keys in the project configuration.
 func getAggregateLimits(info *projectInfo, aggregateKeys []string) (map[string]api.ProjectStateResource, error) {
 	result := map[string]api.ProjectStateResource{}
 
@@ -383,6 +386,7 @@ func getAggregateLimits(info *projectInfo, aggregateKeys []string) (map[string]a
 	return result, nil
 }
 
+// Checks if aggregate usage exceeds project configuration limits.
 func checkAggregateLimits(info *projectInfo, aggregateKeys []string) error {
 	if len(aggregateKeys) == 0 {
 		return nil
