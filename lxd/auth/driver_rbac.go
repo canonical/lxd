@@ -474,7 +474,12 @@ func (r *rbac) syncPermissions(username string) error {
 	return nil
 }
 
+<<<<<<< HEAD:lxd/auth/driver_rbac.go
 func (r *rbac) postResources(updates []rbacResource, removals []string, force bool) error {
+=======
+// Sends resource updates and removals to the API server and handles conflicts by syncing projects.
+func (r *Server) postResources(updates []rbacResource, removals []string, force bool) error {
+>>>>>>> Added the headings in multiple functions in lxd/rbac/server.go file:lxd/rbac/server.go
 	// Make sure that we have a baseline sync in place
 	if !force && r.lastSyncID == "" {
 		return r.syncProjects()
