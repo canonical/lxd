@@ -31,8 +31,10 @@ type DummyStringer int
 
 var _ fmt.Stringer = DummyStringer(0)
 
+// Returns a string representation of the DummyStringer
 func (DummyStringer) String() string { return "(DummyStringer)" }
 
+// Tests the StarlarkMarshal function for different types
 func TestStarlarkMarshal(t *testing.T) {
 	type DummyEmbeddedStruct struct {
 		A string
