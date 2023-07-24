@@ -120,6 +120,7 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArg
 	return msg, nil
 }
 
+// Sends an rsync setup request to the remote server
 func sendSetup(name string, path string, bwlimit string, execPath string, features []string, rsyncArgs ...string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 	/*
 	 * The way rsync works, it invokes a subprocess that does the actual
@@ -412,6 +413,7 @@ func Recv(path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTrac
 	return nil
 }
 
+// Returns the rsync feature arguments for the given features
 func rsyncFeatureArgs(features []string) []string {
 	args := []string{}
 	if shared.StringInSlice("xattrs", features) {
