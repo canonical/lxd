@@ -419,7 +419,7 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 // VM Format A: Separate metadata tarball and root qcow2 file.
 //   - Unpack metadata tarball into mountPath.
 //   - Check rootBlockPath is a file and convert qcow2 file into raw format in rootBlockPath.
-func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blockBackend bool, sysOS *sys.OS, allowUnsafeResize bool, tracker *ioprogress.ProgressTracker) (int64, error) {
+func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, sysOS *sys.OS, allowUnsafeResize bool, tracker *ioprogress.ProgressTracker) (int64, error) {
 	l := logger.Log.AddContext(logger.Ctx{"imageFile": imageFile, "volName": vol.Name()})
 	l.Info("Image unpack started")
 	defer l.Info("Image unpack stopped")
@@ -433,7 +433,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		rootfsPath := filepath.Join(destPath, "rootfs")
 
 		// Unpack the main image file.
-		err := archive.Unpack(imageFile, destPath, blockBackend, sysOS, tracker)
+		err := archive.Unpack(imageFile, destPath, vol.IsBlockBacked(), sysOS, tracker)
 		if err != nil {
 			return -1, err
 		}
@@ -445,7 +445,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 				return -1, fmt.Errorf("Error creating rootfs directory")
 			}
 
-			err = archive.Unpack(imageRootfsFile, rootfsPath, blockBackend, sysOS, tracker)
+			err = archive.Unpack(imageRootfsFile, rootfsPath, vol.IsBlockBacked(), sysOS, tracker)
 			if err != nil {
 				return -1, err
 			}
@@ -574,7 +574,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 
 	if shared.PathExists(imageRootfsFile) {
 		// Unpack the main image file.
-		err := archive.Unpack(imageFile, destPath, blockBackend, sysOS, tracker)
+		err := archive.Unpack(imageFile, destPath, vol.IsBlockBacked(), sysOS, tracker)
 		if err != nil {
 			return -1, err
 		}
@@ -594,7 +594,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		defer func() { _ = os.RemoveAll(tempDir) }()
 
 		// Unpack the whole image.
-		err = archive.Unpack(imageFile, tempDir, blockBackend, sysOS, tracker)
+		err = archive.Unpack(imageFile, tempDir, vol.IsBlockBacked(), sysOS, tracker)
 		if err != nil {
 			return -1, err
 		}
