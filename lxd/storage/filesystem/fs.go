@@ -71,6 +71,7 @@ func FSTypeToName(fsType int32) (string, error) {
 	return fmt.Sprintf("0x%x", fsType), nil
 }
 
+// Verifies if a given path is a mount point, handling possible symlinks.
 func parseMountinfo(name string) int {
 	// In case someone uses symlinks we need to look for the actual
 	// mountpoint.
