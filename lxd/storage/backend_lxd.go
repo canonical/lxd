@@ -1572,7 +1572,7 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) f
 		}
 
 		imageFile := shared.VarPath("images", fingerprint)
-		return ImageUnpack(imageFile, vol, rootBlockPath, b.driver.Info().BlockBacking, b.state.OS, allowUnsafeResize, tracker)
+		return ImageUnpack(imageFile, vol, rootBlockPath, b.state.OS, allowUnsafeResize, tracker)
 	}
 }
 
