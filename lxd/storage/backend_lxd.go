@@ -3161,15 +3161,6 @@ func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operati
 	return err
 }
 
-// poolBlockFilesystem returns the filesystem used for new block device filesystems.
-func (b *lxdBackend) poolBlockFilesystem() string {
-	if b.db.Config["volume.block.filesystem"] != "" {
-		return b.db.Config["volume.block.filesystem"]
-	}
-
-	return drivers.DefaultFilesystem
-}
-
 // EnsureImage creates an optimized volume of the image if supported by the storage pool driver and the volume
 // doesn't already exist. If the volume already exists then it is checked to ensure it matches the pools current
 // volume settings ("volume.size" and "block.filesystem" if applicable). If not the optimized volume is removed
