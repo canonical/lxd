@@ -587,6 +587,7 @@ func (d *zfs) Unmount() (bool, error) {
 	return true, nil
 }
 
+// GetResources retrieves the total and used space of a ZFS storage pool and returns it as an API resource.
 func (d *zfs) GetResources() (*api.ResourcesStoragePool, error) {
 	// Get the total amount of space.
 	availableStr, err := d.getDatasetProperty(d.config["zfs.pool_name"], "available")
