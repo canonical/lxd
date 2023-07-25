@@ -80,7 +80,9 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 			}
 
 			poolVolSize := DefaultBlockSize
-			if vol.poolConfig["volume.size"] != "" {
+			if vol.config["volatile.rootfs.size"] != "" {
+				poolVolSize = vol.config["volatile.rootfs.size"]
+			} else if vol.poolConfig["volume.size"] != "" {
 				poolVolSize = vol.poolConfig["volume.size"]
 			}
 
