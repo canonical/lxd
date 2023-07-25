@@ -29,6 +29,7 @@ var acmeChallengeCmd = APIEndpoint{
 	Get: APIEndpointAction{Handler: acmeProvideChallenge, AllowUntrusted: true},
 }
 
+// Handles ACME HTTP01 challenge requests.
 func acmeProvideChallenge(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -80,6 +81,7 @@ func acmeProvideChallenge(d *Daemon, r *http.Request) response.Response {
 	})
 }
 
+// Automatically renews the server certificate if necessary.
 func autoRenewCertificate(ctx context.Context, d *Daemon, force bool) error {
 	s := d.State()
 
@@ -174,6 +176,7 @@ func autoRenewCertificate(ctx context.Context, d *Daemon, force bool) error {
 	return nil
 }
 
+// Returns a task function and its schedule for auto-renewing the certificate.
 func autoRenewCertificateTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		_ = autoRenewCertificate(ctx, d, false)
