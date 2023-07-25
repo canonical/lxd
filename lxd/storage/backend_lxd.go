@@ -3994,6 +3994,7 @@ func (b *lxdBackend) CreateBucketKey(projectName string, bucketName string, key 
 	return &newKey, err
 }
 
+// Updates the key for a given storage bucket, handling local and remote storage pool differences.
 func (b *lxdBackend) UpdateBucketKey(projectName string, bucketName string, keyName string, key api.StorageBucketKeyPut, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "bucketName": bucketName, "keyName": keyName, "desc": key.Description, "role": key.Role})
 	l.Debug("UpdateBucketKey started")
@@ -5666,6 +5667,7 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 	return nil
 }
 
+// Creates necessary directories for each volume type in a given storage path.
 func (b *lxdBackend) createStorageStructure(path string) error {
 	for _, volType := range b.driver.Info().VolumeTypes {
 		for _, name := range drivers.BaseDirectories[volType] {
@@ -6492,6 +6494,7 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 	return cleanup, err
 }
 
+// Backs up a custom volume, including its snapshots if requested, using the provided tar writer.
 func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volume": volName, "optimized": optimized, "snapshots": snapshots})
 	l.Debug("BackupCustomVolume started")
@@ -6544,6 +6547,7 @@ func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarW
 	return nil
 }
 
+// Creates a custom volume from an ISO, specifying the size and using the provided reader for the ISO content.
 func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName string, srcData io.ReadSeeker, size int64, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volume": volName})
 	l.Debug("CreateCustomVolumeFromISO started")
@@ -6616,6 +6620,7 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 	return nil
 }
 
+// Creates a custom volume from a backup, using the provided reader for the backup data.
 func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": srcBackup.Project, "volume": srcBackup.Name, "snapshots": srcBackup.Snapshots, "optimizedStorage": *srcBackup.OptimizedStorage})
 	l.Debug("CreateCustomVolumeFromBackup started")
