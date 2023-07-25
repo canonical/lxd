@@ -10,6 +10,7 @@ import (
 	"github.com/canonical/lxd/lxd/task"
 )
 
+// Tests if tasks are added and executed properly in a group.
 func TestGroup_Add(t *testing.T) {
 	group := &task.Group{}
 	ok := make(chan struct{})
@@ -22,6 +23,7 @@ func TestGroup_Add(t *testing.T) {
 	assert.NoError(t, group.Stop(time.Second))
 }
 
+// Tests if the group stops even when there are tasks running ungracefully.
 func TestGroup_StopUngracefully(t *testing.T) {
 	group := &task.Group{}
 
