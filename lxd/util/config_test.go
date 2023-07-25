@@ -8,6 +8,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 )
 
+// Tests the comparison of mismatched configuration maps.
 func Test_CompareConfigsMismatch(t *testing.T) {
 	cases := []struct {
 		config1 map[string]string
@@ -34,6 +35,7 @@ func Test_CompareConfigsMismatch(t *testing.T) {
 	}
 }
 
+// Tests the comparison of configuration maps with exception keys.
 func Test_CompareConfigs(t *testing.T) {
 	config1 := map[string]string{"foo": "bar", "baz": "buz"}
 	config2 := map[string]string{"foo": "egg", "baz": "buz"}
