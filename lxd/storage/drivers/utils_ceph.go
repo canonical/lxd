@@ -145,6 +145,7 @@ func CephMonitors(cluster string) ([]string, error) {
 	return cephMon, nil
 }
 
+// Extracts the Ceph secret key from a specified file.
 func getCephKeyFromFile(path string) (string, error) {
 	cephKeyring, err := os.Open(path)
 	if err != nil {
