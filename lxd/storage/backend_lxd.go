@@ -3246,9 +3246,8 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 				return err
 			}
 
-			// Reset img volume variables as we just deleted the old one.
+			// Reset img volume variable as we just deleted the old one.
 			imgDBVol = nil
-			imgVol = b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
 		}
 	}
 
