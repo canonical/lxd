@@ -1603,7 +1603,7 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) f
 		}
 
 		imageFile := shared.VarPath("images", fingerprint)
-		return ImageUnpack(imageFile, vol, rootBlockPath, b.driver.Info().BlockBacking, b.state.OS, allowUnsafeResize, tracker)
+		return ImageUnpack(imageFile, vol, rootBlockPath, b.state.OS, allowUnsafeResize, tracker)
 	}
 }
 
@@ -3161,15 +3161,6 @@ func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operati
 	return err
 }
 
-// poolBlockFilesystem returns the filesystem used for new block device filesystems.
-func (b *lxdBackend) poolBlockFilesystem() string {
-	if b.db.Config["volume.block.filesystem"] != "" {
-		return b.db.Config["volume.block.filesystem"]
-	}
-
-	return drivers.DefaultFilesystem
-}
-
 // EnsureImage creates an optimized volume of the image if supported by the storage pool driver and the volume
 // doesn't already exist. If the volume already exists then it is checked to ensure it matches the pools current
 // volume settings ("volume.size" and "block.filesystem" if applicable). If not the optimized volume is removed
@@ -3222,15 +3213,23 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	// If not we need to delete the existing cached image volume and re-create using new filesystem.
 	// We need to do this for VM block images too, as they create a filesystem based config volume too.
 	if imgDBVol != nil {
+		// Generate a temporary volume instance that represents how a new volume using pool defaults would
+		// be configured.
+		tmpImgVol := imgVol.Clone()
+		err := b.Driver().FillVolumeConfig(tmpImgVol)
+		if err != nil {
+			return err
+		}
+
 		// Add existing image volume's config to imgVol.
 		imgVol = b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, imgDBVol.Config)
 
 		// Check if the volume's block backed mode differs from the pool's current setting for new volumes.
-		blockModeChanged := b.Driver().Info().BlockBacking != imgVol.IsBlockBacked()
+		blockModeChanged := tmpImgVol.IsBlockBacked() != imgVol.IsBlockBacked()
 
 		// Check if the volume is block backed and its filesystem is different from the pool's current
 		// setting for new volumes.
-		blockFSChanged := imgVol.IsBlockBacked() && imgVol.Config()["block.filesystem"] != b.poolBlockFilesystem()
+		blockFSChanged := imgVol.IsBlockBacked() && imgVol.Config()["block.filesystem"] != tmpImgVol.Config()["block.filesystem"]
 
 		// If the existing image volume no longer matches the pool's settings for new volumes then we need
 		// to delete and re-create it.
