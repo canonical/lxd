@@ -82,6 +82,7 @@ func (s *OS) initAppArmor() []cluster.Warning {
 	return dbWarnings
 }
 
+// Determines if the current process has MAC_ADMIN capabilities.
 func haveMacAdmin() bool {
 	c, err := capability.NewPid2(0)
 	if err != nil {
