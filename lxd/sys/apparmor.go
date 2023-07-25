@@ -17,7 +17,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
-// Initialize AppArmor-specific attributes.
+// Initializes AppArmor-specific attributes.
 func (s *OS) initAppArmor() []cluster.Warning {
 	var dbWarnings []cluster.Warning
 
@@ -82,6 +82,7 @@ func (s *OS) initAppArmor() []cluster.Warning {
 	return dbWarnings
 }
 
+// Determines if the current process has MAC_ADMIN capabilities.
 func haveMacAdmin() bool {
 	c, err := capability.NewPid2(0)
 	if err != nil {
