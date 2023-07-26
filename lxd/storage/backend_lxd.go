@@ -4359,26 +4359,33 @@ func (b *lxdBackend) GetCustomVolumeUsage(projectName, volName string) (int64, e
 }
 
 // MountCustomVolume mounts a custom volume.
-func (b *lxdBackend) MountCustomVolume(projectName, volName string, op *operations.Operation) error {
+func (b *lxdBackend) MountCustomVolume(projectName, volName string, op *operations.Operation) (*MountInfo, error) {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volName": volName})
 	l.Debug("MountCustomVolume started")
 	defer l.Debug("MountCustomVolume finished")
 
 	err := b.isStatusReady()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	volume, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
 	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
 
-	return b.driver.MountVolume(vol, op)
+	// Perform the mount.
+	mountInfo := &MountInfo{}
+	err = b.driver.MountVolume(vol, op)
+	if err != nil {
+		return nil, err
+	}
+
+	return mountInfo, nil
 }
 
 // UnmountCustomVolume unmounts a custom volume.
