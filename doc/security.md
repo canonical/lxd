@@ -1,4 +1,4 @@
-(security)=
+(security-landing)=
 # Security
 
 ```{toctree}

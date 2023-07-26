@@ -1,5 +1,7 @@
 # Contributing
 
+<!-- Include start contributing -->
+
 Check the following guidelines before contributing to the project.
 
 ## Pull requests

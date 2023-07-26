@@ -218,3 +218,9 @@ The following functions are available to the scriptlet (in addition to those pro
 ```{note}
 Field names in the object types are equivalent to the JSON field names in the associated Go types.
 ```
+
+## Related topics
+
+{{clustering_how}}
+
+{{clustering_ref}}

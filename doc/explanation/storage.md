@@ -184,3 +184,9 @@ To enable storage buckets for local storage pool drivers and allow applications 
 See the following how-to guide for additional information:
 
 - {ref}`howto-storage-buckets`
+
+## Related topics
+
+{{storage_how}}
+
+{{storage_ref}}

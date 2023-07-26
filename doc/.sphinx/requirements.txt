@@ -25,6 +25,7 @@ sphinxcontrib-jsmath
 sphinxcontrib-qthelp
 sphinxcontrib-serializinghtml
 sphinxcontrib-jquery
+sphinx-design
 tornado
 urllib3
 myst-parser

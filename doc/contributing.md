@@ -2,8 +2,11 @@
 relatedlinks: https://www.youtube.com/watch?v=pqV0Z1qwbkg
 ---
 
+# How to contribute to LXD
+
 % Include content from [../CONTRIBUTING.md](../CONTRIBUTING.md)
 ```{include} ../CONTRIBUTING.md
+    :start-after: <!-- Include start contributing -->
     :end-before: <!-- Include end contributing -->
 ```
 

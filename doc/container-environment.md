@@ -94,3 +94,9 @@ LXD's communication with PID1 in the container is limited to two signals:
 The initial environment of PID1 is blank except for `container=lxc`, which can be used by the init system to detect the runtime.
 
 All file descriptors above the default three are closed prior to PID1 being spawned.
+
+## Related topics
+
+{{instances_how}}
+
+{{instances_exp}}

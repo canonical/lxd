@@ -185,8 +185,8 @@ To reference a documentation page, use MyST syntax to automatically extract the 
   - Output on GitHub
   - Status
 * - `` {doc}`index` ``
-  - {doc}`index`
-  - {doc}<span></span>`index`
+  - {doc}`doc-cheat-sheet`
+  - {doc}<span></span>`doc-cheat-sheet`
   - Preferred.
 * - `[](index)`
   - [](index)
@@ -196,8 +196,8 @@ To reference a documentation page, use MyST syntax to automatically extract the 
   - [LXD documentation](index)
   - [LXD documentation](index)
   - Preferred when overriding the link text.
-* - `` {doc}`LXD documentation <index>` ``
-  - {doc}`LXD documentation <index>`
+* - `` {doc}`LXD documentation <doc-cheat-sheet>` ``
+  - {doc}`LXD documentation <doc-cheat-sheet>`
   - {doc}<span></span>`LXD documentation <index>`
   - Alternative when overriding the link text.
 
