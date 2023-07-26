@@ -891,3 +891,37 @@ test_backup_volume_expiry() {
   # Cleanup.
   lxc storage volume delete "${poolName}" vol1
 }
+
+test_backup_export_import_recover() {
+  (
+    set -e
+
+    poolName=$(lxc profile device get default root pool)
+
+    ensure_import_testimage
+    ensure_has_localhost_remote "${LXD_ADDR}"
+
+    # Create and export an instance.
+    lxc launch testimage c1
+    lxc export c1 "${LXD_DIR}/c1.tar.gz"
+    lxc rm -f c1
+
+    # Import instance and remove no longer required tarball.
+    lxc import "${LXD_DIR}/c1.tar.gz" c2
+    rm "${LXD_DIR}/c1.tar.gz"
+
+    # Remove imported instance enteries from database.
+    lxd sql global "delete from instances where name = 'c2'"
+    lxd sql global "delete from storage_volumes where name = 'c2'"
+
+    # Recover removed instance.
+    cat <<EOF | lxd recover
+no
+yes
+yes
+EOF
+
+    # Remove recovered instance.
+    lxc rm -f c2
+  )
+}
