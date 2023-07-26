@@ -12,3 +12,9 @@ The following keys are currently supported:
 | :-------------------- | :-------- | :------ | :---------- |
 | `scheduler.instance`  | string    | `all`   | Possible values are `all`, `manual` and `group`. See {ref}`clustering-instance-placement` for more information.|
 | `user.*`              | string    | -       | Free form user key/value storage (can be used in search). |
+
+## Related topics
+
+{{clustering_how}}
+
+{{clustering_exp}}

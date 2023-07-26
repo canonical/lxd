@@ -2,6 +2,7 @@
 relatedlinks: https://ubuntu.com/lxd, https://ubuntu.com/blog/open-source-for-beginners-dev-environment-with-lxd
 ---
 
+(index)=
 # LXD
 
 LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play();return false;">`[lɛks'di:]`&#128264;</a>) is a modern, secure and powerful system container and virtual machine manager.
@@ -14,41 +15,6 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
     :end-before: <!-- Include end LXD intro -->
 ```
 
----
-
-## In this documentation
-
-````{grid} 1 1 2 2
-
-```{grid-item} [Tutorials](tutorial/index)
-
-**Start here**: a hands-on introduction to LXD for new users
-```
-
-```{grid-item} [How-to guides](howto/index)
-
-**Step-by-step guides** covering key operations and common tasks
-```
-
-````
-
-````{grid} 1 1 2 2
-:reverse:
-
-```{grid-item} [Reference](reference/index)
-
-**Technical information** - specifications, APIs, architecture
-```
-
-```{grid-item} [Explanation](explanation/index)
-
-**Discussion and clarification** of key topics
-```
-
-````
-
----
-
 ## Security
 
 % Include content from [../README.md](../README.md)
@@ -57,7 +23,7 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
     :end-before: <!-- Include end security -->
 ```
 
-See {ref}`security` for detailed information.
+See [Security](security.md) for detailed information.
 
 ````{important}
 % Include content from [../README.md](../README.md)
@@ -67,8 +33,8 @@ See {ref}`security` for detailed information.
 ```
 ````
 
----
-
+(troubleshoot)=
+(community)=
 ## Project and community
 
 LXD is free software and developed under the [Apache 2 license](https://www.apache.org/licenses/LICENSE-2.0).
@@ -90,8 +56,18 @@ The LXD project is sponsored by [Canonical Ltd](https://www.canonical.com).
 :titlesonly:
 
 self
-tutorial/index
-howto/index
-explanation/index
-reference/index
+getting_started
+Server and client <operation>
+security
+instances
+images
+storage
+networks
+projects
+clustering
+production-setup
+migration
+restapi_landing
+Internals & debugging <internals>
+external_resources
 ```

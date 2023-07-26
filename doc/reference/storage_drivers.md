@@ -10,13 +10,13 @@ LXD supports the following storage drivers for storing images, instances and cus
 ```{toctree}
 :maxdepth: 1
 
-storage_dir
 storage_btrfs
-storage_lvm
-storage_zfs
-storage_ceph
 storage_cephfs
 storage_cephobject
+storage_ceph
+storage_dir
+storage_lvm
+storage_zfs
 ```
 
 See the corresponding pages for driver-specific information and configuration options.
@@ -94,3 +94,9 @@ This means when dedicated disk devices are shared between different storage pool
 This becomes security relevant when, for example, one storage pool is supposed to provide `acl` support and the second one is supposed to not provide `acl` support.
 
 For this reason, it is currently recommended to either have dedicated disk devices per storage pool or to ensure that all storage pools that share the same dedicated disk device use the same mount options.
+
+## Related topics
+
+{{storage_how}}
+
+{{storage_exp}}

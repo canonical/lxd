@@ -135,3 +135,9 @@ Key                             | Type    | Default | Description
 `images.default_architecture`   | string  | -       | Default architecture to use in a mixed-architecture cluster
 `images.remote_cache_expiry`    | integer | -       | Number of days after which an unused cached remote image is flushed in the project
 `user.*`                        | string  | -       | User-provided free-form key/value pairs
+
+## Related topics
+
+{{projects_how}}
+
+{{projects_exp}}

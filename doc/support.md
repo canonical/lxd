@@ -1,4 +1,4 @@
-# Support
+# How to get support
 
 <!-- Include start release -->
 

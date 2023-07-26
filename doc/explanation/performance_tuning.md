@@ -37,10 +37,10 @@ Therefore, you should check and modify the relevant server settings to avoid hit
 
 Typical errors that you might see when you encounter those limits are:
 
-* `Failed to allocate directory watch: Too many open files`
-* `<Error> <Error>: Too many open files`
-* `failed to open stream: Too many open files in...`
-* `neighbour: ndisc_cache: neighbor table overflow!`
+- `Failed to allocate directory watch: Too many open files`
+- `<Error> <Error>: Too many open files`
+- `failed to open stream: Too many open files in...`
+- `neighbour: ndisc_cache: neighbor table overflow!`
 
 See {ref}`server-settings` for a list of relevant server settings and suggested values.
 
@@ -50,3 +50,9 @@ If you have a lot of local activity between instances or between the LXD host an
 You can do this by increasing the transmit and receive queue lengths.
 
 See {ref}`network-increase-bandwidth` for instructions.
+
+## Related topics
+
+{{performance_how}}
+
+{{performance_ref}}
