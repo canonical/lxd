@@ -372,6 +372,16 @@ func operationCancel(s *state.State, r *http.Request, projectName string, op *ap
 //  ---
 //  produces:
 //    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//    - in: query
+//      name: all-projects
+//      description: Retrieve operations from all projects
+//      type: boolean
 //  responses:
 //    "200":
 //      description: API endpoints
@@ -418,6 +428,16 @@ func operationCancel(s *state.State, r *http.Request, projectName string, op *ap
 //	---
 //	produces:
 //	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: query
+//	    name: all-projects
+//	    description: Retrieve operations from all projects
+//	    type: boolean
 //	responses:
 //	  "200":
 //	    description: API endpoints
