@@ -206,6 +206,10 @@ var api10 = []APIEndpoint{
 //	          $ref: "#/definitions/Server"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// doApi10Update handles updating the server configuration. It first deals with config
+// specific to the local daemon, then applies any changes to the global config.
+// Returns a response.Response.
 func api10Get(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -420,6 +424,8 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles the updating of daemon configuration, including cluster notifications and handling update triggers.
 func api10Put(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -519,6 +525,8 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Manages partial updates to the daemon configuration.
 func api10Patch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -554,6 +562,7 @@ func api10Patch(d *Daemon, r *http.Request) response.Response {
 	return doApi10Update(d, r, req, true)
 }
 
+// Handles the server configuration update process, validating inputs, updating the database, and propagating changes to other cluster nodes.
 func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) response.Response {
 	s := d.State()
 
@@ -799,6 +808,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	return response.EmptySyncResponse
 }
 
+// Executes triggers after a server configuration update, applying changes to daemon and handling potential consequences.
 func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, nodeConfig *node.Config, clusterConfig *clusterConfig.Config) error {
 	s := d.State()
 
