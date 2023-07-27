@@ -94,4 +94,5 @@ tutorial/index
 howto/index
 explanation/index
 reference/index
+Switch to topical navigation <https://documentation.ubuntu.com/lxd/to/latest/index_topical/>
 ```
