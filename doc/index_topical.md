@@ -70,4 +70,5 @@ migration
 restapi_landing
 Internals & debugging <internals>
 external_resources
+Switch to Diataxis navigation <https://documentation.ubuntu.com/lxd/en/latest/>
 ```
