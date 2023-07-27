@@ -2273,3 +2273,8 @@ This allows copying storage volume snapshots to and from remotes.
 ## `zfs_delegate`
 This implements a new `zfs.delegate` volume Boolean for volumes on a ZFS storage driver.
 When enabled and a suitable system is in use (requires ZFS 2.2 or higher), the ZFS dataset will be delegated to the container, allowing for its use through the `zfs` command line tool.
+
+## `operations_get_query_all_projects`
+
+This adds new support of query param `all-projects` for GET api call of both `/1.0/operations` and `/1.0/operations?recursion=1`,
+which allows to bypass the project name filter.
