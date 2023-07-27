@@ -134,6 +134,9 @@ var projectStateCmd = APIEndpoint{
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// projectsGet retrieves the list of projects, filters based on user permissions,
+// and returns the result as a synchronous response with recursion support.
 func projectsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -268,6 +271,8 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Proje
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// projectsPost creates a new project, validates its configuration, and adds it to the database with RBAC support.
 func projectsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -397,6 +402,8 @@ func projectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// projectGet retrieves and returns a specific project's information with an ETag for caching.
 func projectGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -467,6 +474,8 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// projectPut updates an existing project's information based on the request payload, with ETag validation.
 func projectPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -558,6 +567,8 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// projectPatch updates an existing project's information partially based on the request payload, with ETag validation.
 func projectPatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -650,7 +661,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	return projectChange(s, project, req)
 }
 
-// Common logic between PUT and PATCH.
+// projectChange updates the configuration of a given project and handles related feature changes.
 func projectChange(s *state.State, project *api.Project, req api.ProjectPut) response.Response {
 	// Make a list of config keys that have changed.
 	configChanged := []string{}
@@ -780,6 +791,8 @@ func projectChange(s *state.State, project *api.Project, req api.ProjectPut) res
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// projectPost renames an existing project to a new name, performing checks and validations with an asynchronous operation.
 func projectPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -881,6 +894,8 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// projectDelete deletes an empty project with the specified name and sends a lifecycle event.
 func projectDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -967,6 +982,8 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// projectStateGet retrieves and returns the resource usage and limits for a specific project.
 func projectStateGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1001,7 +1018,7 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, &state)
 }
 
-// Check if a project is empty.
+// projectIsEmpty checks if the given project has any resources (instances, images, profiles, etc.) associated with it.
 func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.ClusterTx) (bool, error) {
 	instances, err := cluster.GetInstances(ctx, tx.Tx(), cluster.InstanceFilter{Project: &project.Name})
 	if err != nil {
@@ -1065,14 +1082,17 @@ func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.Cluste
 	return true, nil
 }
 
+// isEitherAllowOrBlock validates if the value is "allow" or "block.".
 func isEitherAllowOrBlock(value string) error {
 	return validate.Optional(validate.IsOneOf("block", "allow"))(value)
 }
 
+// isEitherAllowOrBlockOrManaged validates if the value is "allow," "block," or "managed.".
 func isEitherAllowOrBlockOrManaged(value string) error {
 	return validate.Optional(validate.IsOneOf("block", "allow", "managed"))(value)
 }
 
+// projectValidateConfig validates the project configuration against predefined keys and their validators.
 func projectValidateConfig(s *state.State, config map[string]string) error {
 	// Validate the project configuration.
 	projectConfigKeys := map[string]func(value string) error{
@@ -1157,6 +1177,7 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 	return nil
 }
 
+// projectValidateName validates the provided project name for correctness and allowed characters.
 func projectValidateName(name string) error {
 	if name == "" {
 		return fmt.Errorf("No name provided")
