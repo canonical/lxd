@@ -187,6 +187,7 @@ func internalCreateWarning(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// Handles optimization of a given image in a specified storage pool.
 func internalOptimizeImage(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -206,6 +207,7 @@ func internalOptimizeImage(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// Triggers automatic update of images stored in the daemon's state.
 func internalRefreshImage(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -217,6 +219,7 @@ func internalRefreshImage(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// Verifies the readiness of the LXD daemon, returning an error if it's shutting down or not ready yet.
 func internalWaitReady(d *Daemon, r *http.Request) response.Response {
 	// Check that we're not shutting down.
 	isClosing := d.State().ShutdownCtx.Err() != nil
@@ -231,6 +234,7 @@ func internalWaitReady(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// Triggers the shutdown of the LXD daemon, either forcefully or waiting for operations to finish, and handles shutdown errors.
 func internalShutdown(d *Daemon, r *http.Request) response.Response {
 	force := queryParam(r, "force")
 	logger.Info("Asked to shutdown by API", logger.Ctx{"force": force})
@@ -317,6 +321,7 @@ func internalContainerHookLoadFromReference(s *state.State, r *http.Request) (in
 	return inst, nil
 }
 
+// Executes the 'start' hook for a specified container instance.
 func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -335,6 +340,7 @@ func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// Executes the 'stopns' hook for a specified container instance, used to handle namespace-specific stop events.
 func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -365,6 +371,7 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// Executes the 'stop' hook for a specified container instance, used to handle stop events.
 func internalContainerOnStop(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -412,7 +419,7 @@ type internalSQLResult struct {
 	RowsAffected int64    `json:"rows_affected" yaml:"rows_affected"`
 }
 
-// Perform a database dump.
+// internalSQLGet returns a SQL dump of the specified database (either "local" or "global") from the daemon's state.
 func internalSQLGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -450,7 +457,7 @@ func internalSQLGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, internalSQLDump{Text: dump})
 }
 
-// Execute queries.
+// internalSQLPost executes the provided SQL query on the specified database (either "local" or "global") and returns the results.
 func internalSQLPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -518,6 +525,7 @@ func internalSQLPost(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, batch)
 }
 
+// Executes a SQL SELECT query and populates the result struct with the retrieved data.
 func internalSQLSelect(tx *sql.Tx, query string, result *internalSQLResult) error {
 	result.Type = "select"
 
@@ -565,6 +573,7 @@ func internalSQLSelect(tx *sql.Tx, query string, result *internalSQLResult) erro
 	return nil
 }
 
+// Executes a SQL query using the given transaction and populates the result struct with the query's type and affected rows.
 func internalSQLExec(tx *sql.Tx, query string, result *internalSQLResult) error {
 	result.Type = "exec"
 	r, err := tx.Exec(query)
@@ -995,6 +1004,7 @@ func internalImportRootDevicePopulate(instancePoolName string, localDevices map[
 	}
 }
 
+// Performs a forced garbage collection run and logs memory statistics before and after the process.
 func internalGC(d *Daemon, r *http.Request) response.Response {
 	logger.Infof("Started forced garbage collection run")
 	runtime.GC()
@@ -1012,12 +1022,14 @@ func internalGC(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// internalRAFTSnapshot is not supported and returns an internal error.
 func internalRAFTSnapshot(d *Daemon, r *http.Request) response.Response {
 	logger.Warn("Forced RAFT snapshot not supported")
 
 	return response.InternalError(fmt.Errorf("Not supported"))
 }
 
+// internalBGPState returns the BGP debug state as a synchronous response.
 func internalBGPState(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
