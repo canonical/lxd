@@ -191,6 +191,8 @@ var internalClusterHealCmd = APIEndpoint{
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Returns the current cluster state and configuration details.
 func clusterGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 	serverName := s.ServerName
@@ -215,7 +217,7 @@ func clusterGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, cluster, cluster)
 }
 
-// Fetch information about all node-specific configuration keys set on the
+// Fetches information about all node-specific configuration keys set on the
 // storage pools and networks of this cluster.
 func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, error) {
 	var pools map[string]map[string]string
@@ -317,6 +319,8 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles enabling, disabling, or updating the cluster state and configuration.
 func clusterPut(d *Daemon, r *http.Request) response.Response {
 	req := api.ClusterPut{}
 
@@ -354,6 +358,7 @@ func clusterPut(d *Daemon, r *http.Request) response.Response {
 	return clusterPutJoin(d, r, req)
 }
 
+// Initiates the process of cluster bootstrapping and configuration.
 func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
 	s := d.State()
 
@@ -438,6 +443,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 	return operations.OperationResponse(op)
 }
 
+// Joins a node to a cluster, configures necessary certificates and initiates clustering tasks.
 func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
 	s := d.State()
 
@@ -829,7 +835,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 // from the cluster when not the leader.
 var clusterPutDisableMu sync.Mutex
 
-// Disable clustering on a node.
+// clusterPutDisable disables clustering on the current node, reconfigures it as standalone, and then restarts or exits the LXD daemon.
 func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
 	s := d.State()
 
@@ -1038,7 +1044,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 	return revert, nil
 }
 
-// Perform a request to the /internal/cluster/accept endpoint to check if a new
+// Performs a request to the /internal/cluster/accept endpoint to check if a new
 // node can be accepted into the cluster and obtain joining information such as
 // the cluster private certificate.
 func clusterAcceptMember(client lxd.InstanceServer, name string, address string, schema int, apiExt int, pools []api.StoragePool, networks []api.InitNetworksProjectPost) (*internalClusterPostAcceptResponse, error) {
@@ -1151,6 +1157,8 @@ func clusterAcceptMember(client lxd.InstanceServer, name string, address string,
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves the list of cluster members, either as detailed objects in case of recursion or as API URLs.
 func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 	s := d.State()
@@ -1265,6 +1273,8 @@ var clusterNodesPostMu sync.Mutex // Used to prevent races when creating cluster
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// clusterNodesPost generates a cluster join token for a new member, ensuring only one active token per member.
 func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1425,6 +1435,8 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// clusterNodeGet retrieves detailed information about a specific cluster member.
 func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1525,6 +1537,8 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// clusterNodePatch applies a partial update to the configuration of a cluster node.
 func clusterNodePatch(d *Daemon, r *http.Request) response.Response {
 	return updateClusterNode(d.State(), d.gateway, r, true)
 }
@@ -1558,6 +1572,8 @@ func clusterNodePatch(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// clusterNodePut replaces the configuration of a cluster node with new values.
 func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 	return updateClusterNode(d.State(), d.gateway, r, false)
 }
@@ -1832,6 +1848,8 @@ func clusterValidateConfig(config map[string]string) error {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// clusterNodePost renames a cluster member and updates the local server name accordingly.
 func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1890,6 +1908,8 @@ func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// clusterNodeDelete removes a member from the cluster, handling network, storage, and leadership changes.
 func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -2158,6 +2178,8 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// clusterCertificatePut updates and validates the cluster's certificate and key.
 func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -2193,6 +2215,7 @@ func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// Updates and distributes a new cluster certificate across all nodes.
 func updateClusterCertificate(ctx context.Context, s *state.State, gateway *cluster.Gateway, r *http.Request, req api.ClusterCertificatePut) error {
 	revert := revert.New()
 	defer revert.Fail()
@@ -2318,6 +2341,7 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 	return nil
 }
 
+// Handles cluster join requests by verifying configurations and adding the new member to the cluster.
 func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -2456,8 +2480,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 	return response.SyncResponse(true, nil)
 }
 
-// Check if there's a dqlite node whose role should be changed, and post a
-// change role request if so.
+// rebalanceMemberRoles rebalances the roles of cluster members, promoting and demoting nodes as necessary.
 func rebalanceMemberRoles(s *state.State, gateway *cluster.Gateway, r *http.Request, unavailableMembers []string) error {
 	if s.ShutdownCtx.Err() != nil {
 		return nil
@@ -2503,8 +2526,7 @@ again:
 	goto again
 }
 
-// Check if there are nodes not part of the raft configuration and add them in
-// case.
+// upgradeNodesWithoutRaftRole upgrades cluster members that don't hold a raft role.
 func upgradeNodesWithoutRaftRole(s *state.State, gateway *cluster.Gateway) error {
 	if s.ShutdownCtx.Err() != nil {
 		return nil
@@ -2527,8 +2549,8 @@ func upgradeNodesWithoutRaftRole(s *state.State, gateway *cluster.Gateway) error
 	return cluster.UpgradeMembersWithoutRole(gateway, members)
 }
 
-// Post a change role request to the member with the given address. The nodes
-// slice contains details about all members, including the one being changed.
+// Posts a change role request to the member with the given address.
+// The nodes slice contains details about all members, including the one being changed.
 func changeMemberRole(s *state.State, r *http.Request, address string, nodes []db.RaftNode) error {
 	post := &internalClusterPostAssignRequest{}
 	for _, node := range nodes {
@@ -2553,7 +2575,7 @@ func changeMemberRole(s *state.State, r *http.Request, address string, nodes []d
 	return nil
 }
 
-// Try to handover the role of this member to another one.
+// handoverMemberRole tries to handover the role of this member to another one.
 func handoverMemberRole(s *state.State, gateway *cluster.Gateway) error {
 	// If we aren't clustered, there's nothing to do.
 	clustered, err := cluster.Enabled(s.DB.Node)
@@ -2609,7 +2631,7 @@ findLeader:
 	return nil
 }
 
-// Used to assign a new role to a the local dqlite node.
+// internalClusterPostAssign assigns raft roles to the provided cluster members.
 func internalClusterPostAssign(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 	req := internalClusterPostAssignRequest{}
@@ -2646,7 +2668,7 @@ type internalClusterPostAssignRequest struct {
 	RaftNodes []internalRaftNode `json:"raft_nodes" yaml:"raft_nodes"`
 }
 
-// Used to to transfer the responsibilities of a member to another one.
+// internalClusterPostHandover manages the handover of raft leadership from one cluster member to another.
 func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 	req := internalClusterPostHandoverRequest{}
@@ -2730,6 +2752,7 @@ type internalClusterPostHandoverRequest struct {
 	Address string `json:"address" yaml:"address"`
 }
 
+// clusterCheckStoragePoolsMatch ensures that the provided storage pools match the existing ones in the cluster.
 func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePool) error {
 	poolNames, err := cluster.GetCreatedStoragePoolNames()
 	if err != nil && !response.IsNotFoundError(err) {
@@ -2769,6 +2792,7 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 	return nil
 }
 
+// Ensures the requested networks to join the cluster match with the existing ones in the cluster.
 func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []api.InitNetworksProjectPost) error {
 	var err error
 
@@ -2827,7 +2851,7 @@ func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []api.InitNetwor
 	return nil
 }
 
-// Used as low-level recovering helper.
+// internalClusterRaftNodeDelete removes a raft node from the cluster and rebalances member roles.
 func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -2883,6 +2907,8 @@ func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles requests to get the state of a specified cluster member node.
 func clusterNodeStateGet(d *Daemon, r *http.Request) response.Response {
 	memberName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -2932,6 +2958,8 @@ func clusterNodeStateGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles the evacuation or restoration requests of a specified cluster member node.
 func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -3035,6 +3063,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 	return response.BadRequest(fmt.Errorf("Unknown action %q", req.Action))
 }
 
+// Initiates healing process in a cluster by moving CEPH-backed instances to functioning nodes.
 func internalClusterHeal(d *Daemon, r *http.Request) response.Response {
 	migrateFunc := func(s *state.State, r *http.Request, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, metadata map[string]any, op *operations.Operation) error {
 		// This returns an error if the instance's storage pool is local.
@@ -3102,6 +3131,7 @@ func internalClusterHeal(d *Daemon, r *http.Request) response.Response {
 	return evacuateClusterMember(d.State(), d.gateway, r, "migrate", nil, migrateFunc)
 }
 
+// Sets the state of a given cluster node, with checks for existing and pending states.
 func evacuateClusterSetState(s *state.State, name string, state int) error {
 	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the node.
@@ -3143,6 +3173,7 @@ func evacuateClusterSetState(s *state.State, name string, state int) error {
 // evacuateHostShutdownDefaultTimeout default timeout (in seconds) for waiting for clean shutdown to complete.
 const evacuateHostShutdownDefaultTimeout = 30
 
+// Initiates evacuation of a cluster member, managing instance stoppage and migration.
 func evacuateClusterMember(s *state.State, gateway *cluster.Gateway, r *http.Request, mode string, stopInstance evacuateStopFunc, migrateInstance evacuateMigrateFunc) response.Response {
 	nodeName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -3222,6 +3253,7 @@ func evacuateClusterMember(s *state.State, gateway *cluster.Gateway, r *http.Req
 	return operations.OperationResponse(op)
 }
 
+// Manages the evacuation of instances in a cluster by stopping or migrating them as necessary.
 func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 	if opts.migrateInstance == nil {
 		return fmt.Errorf("Missing migration callback function")
@@ -3314,6 +3346,7 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 	return nil
 }
 
+// Restores a cluster member by restarting and migrating instances.
 func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -3568,6 +3601,8 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Creates a new cluster group and adds the specified cluster members to it.
 func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -3706,6 +3741,8 @@ func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves a list of all cluster groups or specific details for a single group, depending on the request.
 func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -3799,6 +3836,8 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves detailed information about a specified cluster group by name.
 func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -3876,6 +3915,8 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles the renaming of a specified cluster group.
 func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -3964,6 +4005,8 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Updates the description and members of a specified cluster group.
 func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -4089,6 +4132,8 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Applies partial modifications to the description or members of a specified cluster group.
 func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -4257,6 +4302,8 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Applies partial modifications to the description or members of a specified cluster group.
 func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -4293,6 +4340,7 @@ func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// Removes an empty cluster group and validates the appropriateness of the given cluster group name respectively.
 func clusterGroupValidateName(name string) error {
 	if name == "" {
 		return fmt.Errorf("No name provided")
@@ -4325,6 +4373,7 @@ func clusterGroupValidateName(name string) error {
 	return nil
 }
 
+// Selects a target for cluster member evacuation based on load or an optional scriptlet.
 func evacuateClusterSelectTarget(ctx context.Context, s *state.State, gateway *cluster.Gateway, inst instance.Instance, candidateMembers []db.NodeInfo) (*db.NodeInfo, error) {
 	var targetMemberInfo *db.NodeInfo
 
@@ -4389,6 +4438,7 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, gateway *c
 	return targetMemberInfo, nil
 }
 
+// Creates a task to automatically heal offline cluster members if the threshold is exceeded.
 func autoHealClusterTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := d.State()
@@ -4474,6 +4524,7 @@ func autoHealClusterTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, task.Every(time.Minute)
 }
 
+// Initiates the healing process for offline cluster members by making a request to each offline member.
 func autoHealCluster(ctx context.Context, s *state.State, offlineMembers []db.NodeInfo) error {
 	logger.Info("Healing cluster instances")
 
