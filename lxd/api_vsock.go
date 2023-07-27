@@ -13,6 +13,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 )
 
+// authenticateAgentCert verifies the agent certificate and returns the authentication status and instance.
 func authenticateAgentCert(s *state.State, r *http.Request) (bool, instance.Instance, error) {
 	var vsockID int
 	trusted := false
