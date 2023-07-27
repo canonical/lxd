@@ -2674,6 +2674,21 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 	}
 
 	revert.Success() // From here on it is up to caller to call UnmountInstance() when done.
+
+	// Handle delegation.
+	if b.driver.CanDelegateVolume(vol) {
+		mountInfo.PostHooks = append(mountInfo.PostHooks, func(inst instance.Instance) error {
+			pid := inst.InitPID()
+
+			// Only apply to running instances.
+			if pid < 1 {
+				return nil
+			}
+
+			return b.driver.DelegateVolume(vol, pid)
+		})
+	}
+
 	return mountInfo, nil
 }
 
@@ -5243,26 +5258,47 @@ func (b *lxdBackend) GetCustomVolumeUsage(projectName, volName string) (*VolumeU
 }
 
 // MountCustomVolume mounts a custom volume.
-func (b *lxdBackend) MountCustomVolume(projectName, volName string, op *operations.Operation) error {
+func (b *lxdBackend) MountCustomVolume(projectName, volName string, op *operations.Operation) (*MountInfo, error) {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volName": volName})
 	l.Debug("MountCustomVolume started")
 	defer l.Debug("MountCustomVolume finished")
 
 	err := b.isStatusReady()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	volume, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
 	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
 
-	return b.driver.MountVolume(vol, op)
+	// Perform the mount.
+	mountInfo := &MountInfo{}
+	err = b.driver.MountVolume(vol, op)
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle delegation.
+	if b.driver.CanDelegateVolume(vol) {
+		mountInfo.PostHooks = append(mountInfo.PostHooks, func(inst instance.Instance) error {
+			pid := inst.InitPID()
+
+			// Only apply to running instances.
+			if pid < 1 {
+				return nil
+			}
+
+			return b.driver.DelegateVolume(vol, pid)
+		})
+	}
+
+	return mountInfo, nil
 }
 
 // UnmountCustomVolume unmounts a custom volume.

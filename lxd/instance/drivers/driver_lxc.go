@@ -799,6 +799,11 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		"/sys/kernel/tracing",
 	}
 
+	// Pass in /dev/zfs to the container if delegation is supported on the system.
+	if storageDrivers.ZFSSupportsDelegation() && shared.PathExists("/dev/zfs") {
+		bindMounts = append(bindMounts, "/dev/zfs")
+	}
+
 	if d.IsPrivileged() && !d.state.OS.RunningInUserNS {
 		err = lxcSetConfigItem(cc, "lxc.mount.entry", "mqueue dev/mqueue mqueue rw,relatime,create=dir,optional 0 0")
 		if err != nil {
@@ -865,6 +870,10 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 			"c 5:2 rwm",    // /dev/ptmx
 			"c 10:229 rwm", // /dev/fuse
 			"c 10:200 rwm", // /dev/net/tun
+		}
+
+		if storageDrivers.ZFSSupportsDelegation() {
+			devices = append(devices, "c 10:249 rwm")
 		}
 
 		for _, dev := range devices {
@@ -1877,6 +1886,8 @@ func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, 
 
 // Start functions.
 func (d *lxc) startCommon() (string, []func() error, error) {
+	postStartHooks := []func() error{}
+
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -1919,10 +1930,22 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	d.stopForkfile(false)
 
 	// Mount instance root volume.
-	_, err = d.mount()
+	mountInfo, err := d.mount()
 	if err != nil {
 		return "", nil, err
 	}
+
+	// Handle post hooks.
+	postStartHooks = append(postStartHooks, func() error {
+		for _, hook := range mountInfo.PostHooks {
+			err := hook(d)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 
 	revert.Add(func() { _ = d.unmount() })
 
@@ -1997,7 +2020,6 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	}
 
 	// Create the devices
-	postStartHooks := []func() error{}
 	nicID := -1
 	nvidiaDevices := []string{}
 
