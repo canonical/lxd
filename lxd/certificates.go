@@ -138,6 +138,8 @@ var certificateCmd = APIEndpoint{
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves trusted certificates from the database, supporting both list and full data retrieval.
 func certificatesGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
@@ -183,6 +185,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, body)
 }
 
+// Refreshes in-memory certificate cache from the database and handles any parsing or decoding errors.
 func updateCertificateCache(d *Daemon) {
 	s := d.State()
 
@@ -484,6 +487,8 @@ func certificateTokenValid(s *state.State, r *http.Request, addToken *api.Certif
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Manages creation, validation, and notification of new client certificates.
 func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -800,6 +805,8 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves and returns the certificate corresponding to the provided fingerprint.
 func certificateGet(d *Daemon, r *http.Request) response.Response {
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
 	if err != nil {
@@ -852,6 +859,8 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Updates the certificate identified by the provided fingerprint based on request data.
 func certificatePut(d *Daemon, r *http.Request) response.Response {
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
 	if err != nil {
@@ -921,6 +930,8 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Modifies an existing certificate with the provided fingerprint using the partial update request.
 func certificatePatch(d *Daemon, r *http.Request) response.Response {
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
 	if err != nil {
@@ -960,6 +971,7 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 	return doCertificateUpdate(d, *apiEntry, req.Writable(), clientType, r)
 }
 
+// Updates a certificate's record based on the provided information, validating changes, and notifying other nodes.
 func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificatePut, clientType clusterRequest.ClientType, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1102,6 +1114,8 @@ func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificateP
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles the deletion of a certificate and updates relevant nodes and cache.
 func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1188,6 +1202,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// Validates that a given certificate is currently valid and meets security standards.
 func certificateValidate(cert *x509.Certificate) error {
 	if time.Now().Before(cert.NotBefore) {
 		return fmt.Errorf("The provided certificate isn't valid yet")
