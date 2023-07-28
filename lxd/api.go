@@ -61,6 +61,8 @@ import (
 //	          items:
 //	            type: string
 //	          example: ["/1.0"]
+
+// Initializes and returns an HTTP server handling UI, OIDC login/logout, and API endpoints.
 func restServer(d *Daemon) *http.Server {
 	/* Setup the web server */
 	mux := mux.NewRouter()
@@ -157,6 +159,7 @@ func restServer(d *Daemon) *http.Server {
 	}
 }
 
+// Wraps a request handler with agent certificate authentication and error handling for virtual machine requests.
 func hoistReqVM(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		trusted, inst, err := authenticateAgentCert(d.State(), r)
@@ -175,10 +178,12 @@ func hoistReqVM(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Re
 	}
 }
 
+// Initializes and returns an HTTP server for handling requests over vSock, using agent authentication.
 func vSockServer(d *Daemon) *http.Server {
 	return &http.Server{Handler: devLxdAPI(d, hoistReqVM)}
 }
 
+// Initializes and returns an HTTP server for handling metrics and other related requests.
 func metricsServer(d *Daemon) *http.Server {
 	/* Setup the web server */
 	mux := mux.NewRouter()
@@ -206,6 +211,7 @@ func metricsServer(d *Daemon) *http.Server {
 	return &http.Server{Handler: &lxdHttpServer{r: mux, d: d}}
 }
 
+// Creates an HTTP server for managing storage bucket requests via MinIO instances.
 func storageBucketsServer(d *Daemon) *http.Server {
 	/* Setup the web server */
 	m := mux.NewRouter()
@@ -352,6 +358,7 @@ type lxdHttpServer struct {
 	d *Daemon
 }
 
+// Overrides the default ServeHTTP to handle CORS and pre-processing for non-internal requests.
 func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if !strings.HasPrefix(req.URL.Path, "/internal") {
 		<-s.d.setupChan
@@ -369,6 +376,7 @@ func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	s.r.ServeHTTP(rw, req)
 }
 
+// Sets the appropriate CORS headers on the HTTP response based on the server configuration.
 func setCORSHeaders(rw http.ResponseWriter, req *http.Request, config *clusterConfig.Config) {
 	allowedOrigin := config.HTTPSAllowedOrigin()
 	origin := req.Header.Get("Origin")
@@ -434,6 +442,7 @@ type uiHttpDir struct {
 	http.FileSystem
 }
 
+// Opens a file, defaults to "index.html" if file not found.
 func (fs uiHttpDir) Open(name string) (http.File, error) {
 	fsFile, err := fs.FileSystem.Open(name)
 	if err != nil && os.IsNotExist(err) {
