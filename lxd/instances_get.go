@@ -13,7 +13,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -287,7 +286,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 			}
 
 			for _, project := range projects {
-				if !auth.UserHasPermission(r, project.Name, "view") {
+				if !s.Authorizer.UserHasPermission(r, project.Name, "view") {
 					continue
 				}
 

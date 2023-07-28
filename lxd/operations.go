@@ -11,7 +11,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -258,7 +257,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 				projectName = project.Default
 			}
 
-			if !auth.UserHasPermission(r, projectName, op.Permission()) {
+			if !s.Authorizer.UserHasPermission(r, projectName, op.Permission()) {
 				return response.Forbidden(nil)
 			}
 		}

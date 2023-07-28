@@ -11,7 +11,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -214,7 +213,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 			var targetGroupName string
 
-			targetMemberInfo, targetGroupName, err = project.CheckTarget(ctx, r, tx, targetProject, target, allMembers)
+			targetMemberInfo, targetGroupName, err = project.CheckTarget(ctx, s.Authorizer, r, tx, targetProject, target, allMembers)
 			if err != nil {
 				return err
 			}
@@ -333,7 +332,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		// Server-side project migration.
 		if req.Project != "" {
 			// Check if user has access to target project
-			if !auth.UserHasPermission(r, req.Project, "manage-containers") {
+			if !s.Authorizer.UserHasPermission(r, req.Project, "manage-containers") {
 				return response.Forbidden(nil)
 			}
 

@@ -16,7 +16,6 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
@@ -836,7 +835,7 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, projectName st
 		apiNet.Description = n.Description()
 		apiNet.Type = n.Type()
 
-		if auth.UserIsAdmin(r) || auth.UserHasPermission(r, projectName, "manage-networks") {
+		if s.Authorizer.UserIsAdmin(r) || s.Authorizer.UserHasPermission(r, projectName, "manage-networks") {
 			// Only allow admins to see network config as sensitive info can be stored there.
 			apiNet.Config = n.Config()
 		}
@@ -879,7 +878,7 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, projectName st
 			return api.Network{}, err
 		}
 
-		apiNet.UsedBy = project.FilterUsedBy(r, usedBy)
+		apiNet.UsedBy = project.FilterUsedBy(s.Authorizer, r, usedBy)
 	}
 
 	if n != nil {
