@@ -186,6 +186,25 @@ jobs:
         run: |
           go mod download
 
+      - name: Build CRIU
+        run: |
+          sudo apt-get install --no-install-recommends -y \
+            asciidoc \
+            libbsd-dev \
+            libcap-dev \
+            libnet1-dev \
+            libnftables-dev \
+            libnl-3-dev \
+            libprotobuf-c-dev \
+            libprotobuf-dev \
+            protobuf-c-compiler \
+            protobuf-compiler \
+            xmlto
+          git clone --depth=1 https://github.com/checkpoint-restore/criu.git -b v3.17.1
+          cd criu
+          make
+          sudo make install
+
       - name: Run LXD build
         run: |
           make
