@@ -1819,8 +1819,6 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 						snapExpiryDate = *srcInfo.Config.VolumeSnapshots[i].ExpiresAt
 					}
 				}
-
-				break
 			}
 
 			// Validate config and create database entry for new storage volume.
