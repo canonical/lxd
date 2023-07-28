@@ -121,6 +121,7 @@ var imagePublishLock sync.Mutex
 // stepping on each other's toes.
 var imageTaskMu sync.Mutex
 
+// This function compresses and writes an input file using various compression tools.
 func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 	reproducible := []string{"gzip"}
 	var cmd *exec.Cmd
@@ -394,6 +395,7 @@ func imgPostInstanceInfo(s *state.State, r *http.Request, req api.ImagesPost, op
 	return &info, nil
 }
 
+// This function processes and updates remote image information in the database.
 func imgPostRemoteInfo(s *state.State, r *http.Request, req api.ImagesPost, op *operations.Operation, project string, budget int64) (*api.Image, error) {
 	var err error
 	var hash string
@@ -461,6 +463,7 @@ func imgPostRemoteInfo(s *state.State, r *http.Request, req api.ImagesPost, op *
 	return info, nil
 }
 
+// This function processes and updates remote image information in the database.
 func imgPostURLInfo(s *state.State, r *http.Request, req api.ImagesPost, op *operations.Operation, project string, budget int64) (*api.Image, error) {
 	var err error
 
@@ -542,6 +545,7 @@ func imgPostURLInfo(s *state.State, r *http.Request, req api.ImagesPost, op *ope
 	return info, nil
 }
 
+// This function processes the received image data and updates the image information in the database.
 func getImgPostInfo(s *state.State, r *http.Request, builddir string, project string, post *os.File, metadata map[string]any) (*api.Image, error) {
 	info := api.Image{}
 	var imageMeta *api.ImageMetadata
@@ -912,6 +916,9 @@ func imageCreateInPool(s *state.State, info *api.Image, storagePool string) erro
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// imagesPost manages image operations, including uploads, copying from remote sources,
+// and creation from containers, using background tasks to update the database.
 func imagesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1162,6 +1169,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
+// getImageMetadata extracts image metadata and determines the image type (container or VM) from a tarball.
 func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	var tr *tar.Reader
 	var result api.ImageMetadata
@@ -1276,6 +1284,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	return &result, imageType, nil
 }
 
+// This function retrieves image information based on filters, allowing recursive retrieval if needed.
 func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectName string, public bool, clauses *filter.ClauseSet) (any, error) {
 	mustLoadObjects := recursion || clauses != nil
 
@@ -1533,6 +1542,8 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// This function handles image retrieval with filtering, considering project permissions and recursion requests.
 func imagesGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	filterStr := r.FormValue("filter")
@@ -1559,6 +1570,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, result)
 }
 
+// This function schedules and executes a task to automatically update images in the background.
 func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := d.State()
@@ -1597,6 +1609,7 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, task.Hourly()
 }
 
+// This function automates image updates in the cluster, distributing updates to other members and removing old images from the database.
 func autoUpdateImages(ctx context.Context, s *state.State) error {
 	imageMap := make(map[string][]dbCluster.Image)
 
@@ -1729,6 +1742,7 @@ func autoUpdateImages(ctx context.Context, s *state.State) error {
 	return nil
 }
 
+// distributeImage distributes a new image to other nodes in the cluster and optimizes the image on storage pools, removing the old image from each pool.
 func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFingerprint string, newImage *api.Image) error {
 	// Get config of all nodes (incl. own) and check for storage.images_volume.
 	// If the setting is missing, distribute the image to the node.
@@ -2131,6 +2145,7 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 	return newInfo, nil
 }
 
+// This function schedules regular pruning of expired images with an initial synchronous pruning during startup.
 func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := d.State()
@@ -2184,6 +2199,8 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, schedule
 }
 
+// This function cleans up leftover image files from the images directory
+// and ensures that shared image volumes are not mistakenly deleted.
 func pruneLeftoverImages(s *state.State) {
 	opRun := func(op *operations.Operation) error {
 		// Check if dealing with shared image storage.
@@ -2284,6 +2301,7 @@ func pruneLeftoverImages(s *state.State) {
 	logger.Infof("Done cleaning up leftover image files")
 }
 
+// This function prunes expired cached images and their records from the database, and deletes their corresponding files and storage volumes.
 func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Operation) error {
 	var err error
 	var projectsImageRemoteCacheExpiryDays map[string]int64
@@ -2456,6 +2474,8 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// imageDelete handles image deletion, including storage volumes and database entry, with cluster-wide notification.
 func imageDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -2607,6 +2627,7 @@ func imageDeleteFromDisk(fingerprint string) {
 	}
 }
 
+// doImageGet retrieves image information from the database based on the project, fingerprint, and public status.
 func doImageGet(ctx context.Context, tx *db.ClusterTx, project, fingerprint string, public bool) (*api.Image, error) {
 	filter := dbCluster.ImageFilter{Project: &project}
 	if public {
@@ -2749,6 +2770,9 @@ func imageValidSecret(s *state.State, r *http.Request, projectName string, finge
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// imageGet retrieves image information based on the project, fingerprint,
+// and permissions, including handling public and secret access.
 func imageGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -2821,6 +2845,9 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// imagePut updates image information, including expiration date, profiles,
+// and properties, based on the request data and permissions.
 func imagePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -2916,6 +2943,8 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// imagePatch updates the "public", "auto_update", and "properties" fields of an image based on the request data and permissions.
 func imagePatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -3026,6 +3055,9 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// imageAliasesPost creates a new image alias with the specified name, target,
+// and description in the given project.
 func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -3166,6 +3198,9 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// imageAliasesGet retrieves a list of image aliases in the specified project,
+// returning URLs or detailed information based on "recursion".
 func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	recursion := util.IsRecursionRequest(r)
@@ -3293,6 +3328,8 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// imageAliasGet retrieves detailed information about an image alias in the specified project.
 func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
@@ -3339,6 +3376,8 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// imageAliasDelete deletes the specified image alias in the given project.
 func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -3405,6 +3444,8 @@ func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// imageAliasPut updates the specified image alias in the given project with the new target and description.
 func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -3496,6 +3537,8 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// imageAliasPatch updates the specified fields of the image alias in the given project based on the provided request data.
 func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -3600,6 +3643,8 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// imageAliasPost renames the image alias in the given project based on the provided request data.
 func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -3703,6 +3748,8 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// imageExport exports the image data for a specified project and fingerprint in the response.
 func imageExport(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -3835,6 +3882,8 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// imageExportPost exports the image specified by the fingerprint to the target server provided in the request.
 func imageExportPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -3977,6 +4026,8 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// imageSecret generates and returns an authentication token for the specified image.
 func imageSecret(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
@@ -3992,6 +4043,7 @@ func imageSecret(d *Daemon, r *http.Request) response.Response {
 	return createTokenResponse(d.State(), r, projectName, imgInfo.Fingerprint, nil)
 }
 
+// imageImportFromNode imports an image from a remote LXD node and saves it locally in the specified images directory.
 func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprint string) error {
 	// Prepare the temp files
 	buildDir, err := os.MkdirTemp(imagesDir, "lxd_build_")
@@ -4088,6 +4140,8 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// imageRefresh initiates background refresh, auto-update, and distribution of an image in the project.
 func imageRefresh(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -4140,6 +4194,7 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
+// autoSyncImagesTask defines a scheduled task for image synchronization across the cluster.
 func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := d.State()
@@ -4197,6 +4252,7 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, task.Hourly()
 }
 
+// autoSyncImages synchronizes images across the cluster using goroutines for each image fingerprint.
 func autoSyncImages(ctx context.Context, s *state.State) error {
 	// Get all images.
 	imageProjectInfo, err := s.DB.Cluster.GetImages()
@@ -4225,6 +4281,7 @@ func autoSyncImages(ctx context.Context, s *state.State) error {
 	return nil
 }
 
+// imageSyncBetweenNodes synchronizes an image to desired nodes within a cluster, replicating it from a source node to target nodes.
 func imageSyncBetweenNodes(s *state.State, r *http.Request, project string, fingerprint string) error {
 	logger.Info("Syncing image to members started", logger.Ctx{"fingerprint": fingerprint, "project": project})
 	defer logger.Info("Syncing image to members finished", logger.Ctx{"fingerprint": fingerprint, "project": project})
@@ -4330,6 +4387,7 @@ func imageSyncBetweenNodes(s *state.State, r *http.Request, project string, fing
 	return nil
 }
 
+// createTokenResponse generates a token for image access with a secret and image URL, and sends it as an operation response.
 func createTokenResponse(s *state.State, r *http.Request, projectName string, fingerprint string, metadata shared.Jmap) response.Response {
 	secret, err := shared.RandomCryptoString()
 	if err != nil {
