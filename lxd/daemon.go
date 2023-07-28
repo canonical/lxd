@@ -48,6 +48,7 @@ import (
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/rsync"
 	"github.com/canonical/lxd/lxd/seccomp"
 	"github.com/canonical/lxd/lxd/state"
@@ -75,7 +76,6 @@ type Daemon struct {
 	maas        *maas.Controller
 	bgp         *bgp.Server
 	dns         *dns.Server
-	rbac        *auth.Server
 
 	// Event servers
 	devlxdEvents     *events.DevLXDServer
@@ -226,8 +226,10 @@ func allowAuthenticated(d *Daemon, r *http.Request) response.Response {
 // allowProjectPermission is a wrapper to check access against the project, its features and RBAC permission.
 func allowProjectPermission(feature string, permission string) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
+		s := d.State()
+
 		// Shortcut for speed
-		if auth.UserIsAdmin(r) {
+		if s.Authorizer.UserIsAdmin(r) {
 			return response.EmptySyncResponse
 		}
 
@@ -235,7 +237,7 @@ func allowProjectPermission(feature string, permission string) func(d *Daemon, r
 		projectName := projectParam(r)
 
 		// Validate whether the user has the needed permission
-		if !auth.UserHasPermission(r, projectName, permission) {
+		if !s.Authorizer.UserHasPermission(r, projectName, permission) {
 			return response.Forbidden(nil)
 		}
 
@@ -508,12 +510,12 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 				}
 
 				// If no external authentication configured, we're done now.
-				if d.candidVerifier == nil || d.rbac == nil || r.RemoteAddr == "@" {
+				if d.candidVerifier == nil || r.RemoteAddr == "@" {
 					return ua, nil
 				}
 
 				// Validate RBAC permissions.
-				ua, err = d.rbac.UserAccess(username)
+				ua, err = d.authorizer.UserAccess(username)
 				if err != nil {
 					return nil, err
 				}
@@ -611,7 +613,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 				}
 			} else if !action.AllowUntrusted {
 				// Require admin privileges
-				if !auth.UserIsAdmin(r) {
+				if !d.authorizer.UserIsAdmin(r) {
 					return response.Forbidden(nil)
 				}
 			}
@@ -1719,44 +1721,58 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 
 // Setup RBAC.
 func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int64, rbacAgentURL string, rbacAgentUsername string, rbacAgentPrivateKey string, rbacAgentPublicKey string) error {
-	if d.rbac != nil || rbacURL == "" || rbacAgentURL == "" || rbacAgentUsername == "" || rbacAgentPrivateKey == "" || rbacAgentPublicKey == "" {
+	var err error
+
+	if rbacURL == "" || rbacAgentURL == "" || rbacAgentUsername == "" || rbacAgentPrivateKey == "" || rbacAgentPublicKey == "" {
 		return nil
 	}
 
-	// Get a new server struct
-	server, err := auth.NewServer(rbacURL, rbacKey, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey)
+	d.candidVerifier = nil
+
+	if d.authorizer != nil {
+		d.authorizer.StopStatusCheck()
+	}
+
+	// Reset to default authorizer in case rbac fails.
+	d.authorizer, err = auth.LoadAuthorizer("tls", nil, logger.Log, nil)
 	if err != nil {
 		return err
 	}
 
-	// Set projects helper
-	server.ProjectsFunc = func() (map[int64]string, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
+	projectsFunc := func() (map[int64]string, error) {
 		var result map[int64]string
-		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 			result, err = dbCluster.GetProjectIDsToNames(ctx, tx.Tx())
 			return err
 		})
+		if err != nil {
+			return nil, err
+		}
 
-		return result, err
+		return result, nil
 	}
 
-	// Perform full sync when online
-	go func() {
-		for {
-			err = server.SyncProjects()
-			if err != nil {
-				time.Sleep(time.Minute)
-				continue
-			}
+	config := map[string]any{
+		"rbac.api.url":           rbacURL,
+		"rbac.agent.url":         rbacAgentURL,
+		"rbac.agent.private_key": rbacAgentPrivateKey,
+		"rbac.agent.public_key":  rbacAgentPublicKey,
+	}
 
-			break
-		}
-	}()
+	// Load RBAC authorizer
+	rbacAuthorizer, err := auth.LoadAuthorizer("rbac", config, logger.Log, projectsFunc)
+	if err != nil {
+		return err
+	}
 
-	server.StartStatusCheck()
-
-	d.rbac = server
+	revert.Add(func() {
+		// Stop status check in case candid fails.
+		rbacAuthorizer.StopStatusCheck()
+	})
 
 	// Enable candid authentication
 	d.candidVerifier, err = candid.NewVerifier(fmt.Sprintf("%s/auth", rbacURL), rbacKey, rbacExpiry, "")
@@ -1764,6 +1780,9 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 		return err
 	}
 
+	d.authorizer = rbacAuthorizer
+
+	revert.Success()
 	return nil
 }
 

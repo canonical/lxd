@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -171,8 +172,10 @@ func TestCheckClusterTargetRestriction_RestrictedTrue(t *testing.T) {
 	require.NoError(t, err)
 
 	req := &http.Request{}
+	authorizer, err := auth.LoadAuthorizer("tls", nil, nil, nil)
+	require.NoError(t, err)
 
-	err = project.CheckClusterTargetRestriction(req, p, "n1")
+	err = project.CheckClusterTargetRestriction(authorizer, req, p, "n1")
 	assert.EqualError(t, err, "This project doesn't allow cluster member targeting")
 }
 
@@ -195,7 +198,9 @@ func TestCheckClusterTargetRestriction_RestrictedFalse(t *testing.T) {
 	require.NoError(t, err)
 
 	req := &http.Request{}
+	authorizer, err := auth.LoadAuthorizer("tls", nil, nil, nil)
+	require.NoError(t, err)
 
-	err = project.CheckClusterTargetRestriction(req, p, "n1")
+	err = project.CheckClusterTargetRestriction(authorizer, req, p, "n1")
 	assert.NoError(t, err)
 }
