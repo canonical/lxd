@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/shared"
 )
 
+// Unmounts the storage volumes for backups and images as specified in the daemon's node configuration.
 func daemonStorageVolumesUnmount(s *state.State) error {
 	var storageBackups string
 	var storageImages string
@@ -74,6 +75,7 @@ func daemonStorageVolumesUnmount(s *state.State) error {
 	return nil
 }
 
+// Mounts the storage volumes for backups and images as specified in the daemon's node configuration.
 func daemonStorageMount(s *state.State) error {
 	var storageBackups string
 	var storageImages string
@@ -130,6 +132,7 @@ func daemonStorageMount(s *state.State) error {
 	return nil
 }
 
+// Splits the provided volume string into pool and volume names for storage manipulation.
 func daemonStorageSplitVolume(volume string) (string, string, error) {
 	fields := strings.Split(volume, "/")
 	if len(fields) != 2 {
@@ -142,6 +145,7 @@ func daemonStorageSplitVolume(volume string) (string, string, error) {
 	return poolName, volumeName, nil
 }
 
+// Checks and validates a given storage volume's existence, emptiness, and mountability.
 func daemonStorageValidate(s *state.State, target string) error {
 	// Check syntax.
 	if target == "" {
@@ -226,6 +230,7 @@ func daemonStorageValidate(s *state.State, target string) error {
 	return nil
 }
 
+// Transfers data between storage volumes, managing symlinks and permissions.
 func daemonStorageMove(s *state.State, storageType string, target string) error {
 	destPath := shared.VarPath(storageType)
 
