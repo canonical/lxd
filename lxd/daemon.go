@@ -260,7 +260,7 @@ func allowProjectPermission(feature string, permission string) func(d *Daemon, r
 	}
 }
 
-// Convenience function around Authenticate.
+// checkTrustedClient authenticates the client and ensures it's trusted.
 func (d *Daemon) checkTrustedClient(r *http.Request) error {
 	trusted, _, _, err := d.Authenticate(nil, r)
 	if !trusted || err != nil {
@@ -435,6 +435,7 @@ func (d *Daemon) UnixSocket() string {
 	return filepath.Join(d.os.VarDir, "unix.socket")
 }
 
+// createCmd sets up the API endpoint and its associated handler based on the provided configuration.
 func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 	var uri string
 	if c.Path == "" {
@@ -748,6 +749,7 @@ func (d *Daemon) Init() error {
 	return nil
 }
 
+// Sets up a Loki client for log forwarding and attaches the client to the daemon's event handler.
 func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, labels []string, logLevel string, types []string) error {
 	if d.lokiClient != nil {
 		d.lokiClient.Stop()
@@ -769,6 +771,7 @@ func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, l
 	return nil
 }
 
+// Initializes daemon with logging, event listeners, and kernel features.
 func (d *Daemon) init() error {
 	var err error
 
@@ -1622,6 +1625,7 @@ func (d *Daemon) init() error {
 	return nil
 }
 
+// Starts various cluster tasks including event listeners, heartbeats, and cleanup operations.
 func (d *Daemon) startClusterTasks() {
 	// Add initial event listeners from global database members.
 	// Run asynchronously so that connecting to remote members doesn't delay starting up other cluster tasks.
@@ -1643,6 +1647,7 @@ func (d *Daemon) startClusterTasks() {
 	d.clusterTasks.Start(d.shutdownCtx)
 }
 
+// Stops all running cluster tasks and resets the task group.
 func (d *Daemon) stopClusterTasks() {
 	_ = d.clusterTasks.Stop(3 * time.Second)
 	d.clusterTasks = task.Group{}
@@ -1833,7 +1838,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	return err
 }
 
-// Setup RBAC.
+// setupRBACServer configures the daemon's RBAC (Role-Based Access Control) server based on the provided settings.
 func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int64, rbacAgentURL string, rbacAgentUsername string, rbacAgentPrivateKey string, rbacAgentPublicKey string) error {
 	var err error
 
@@ -1908,7 +1913,7 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 	return nil
 }
 
-// Setup MAAS.
+// setupMAASController initializes the daemon's MAAS (Metal as a Service) controller with the provided settings.
 func (d *Daemon) setupMAASController(server string, key string, machine string) error {
 	var err error
 	d.maas = nil
@@ -1937,6 +1942,7 @@ func (d *Daemon) setupMAASController(server string, key string, machine string) 
 	return nil
 }
 
+// setupSyslogSocket sets up or tears down the syslog socket based on the "enable" flag.
 func (d *Daemon) setupSyslogSocket(enable bool) error {
 	// Always cancel the context to ensure that no goroutines leak.
 	if d.syslogSocketCancel != nil {
@@ -1962,7 +1968,7 @@ func (d *Daemon) setupSyslogSocket(enable bool) error {
 	return nil
 }
 
-// Create a database connection and perform any updates needed.
+// initializeDbObject creates a database connection and perform any updates needed.
 func initializeDbObject(d *Daemon) error {
 	logger.Info("Initializing local database")
 
