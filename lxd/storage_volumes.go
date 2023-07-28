@@ -20,7 +20,6 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/canonical/lxd/lxd/archive"
-	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
 	lxdCluster "github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
@@ -442,7 +441,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 				return response.InternalError(err)
 			}
 
-			vol.UsedBy = project.FilterUsedBy(r, volumeUsedBy)
+			vol.UsedBy = project.FilterUsedBy(s.Authorizer, r, volumeUsedBy)
 			volumes = append(volumes, vol)
 		}
 
@@ -1042,7 +1041,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Check if user has access to effective storage target project
-		if !auth.UserHasPermission(r, targetProjectName, "manage-storage-volumes") {
+		if !s.Authorizer.UserHasPermission(r, targetProjectName, "manage-storage-volumes") {
 			return response.Forbidden(nil)
 		}
 	}
@@ -1399,7 +1398,7 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	dbVolume.UsedBy = project.FilterUsedBy(r, volumeUsedBy)
+	dbVolume.UsedBy = project.FilterUsedBy(s.Authorizer, r, volumeUsedBy)
 
 	etag := []any{volumeName, dbVolume.Type, dbVolume.Config}
 

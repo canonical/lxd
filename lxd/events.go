@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/events"
@@ -64,7 +63,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 	if len(types) == 1 && types[0] == "" {
 		types = []string{}
 		for _, entry := range eventTypes {
-			if !auth.UserIsAdmin(r) && shared.StringInSlice(entry, privilegedEventTypes) {
+			if !s.Authorizer.UserIsAdmin(r) && shared.StringInSlice(entry, privilegedEventTypes) {
 				continue
 			}
 
@@ -79,7 +78,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 		}
 	}
 
-	if shared.StringInSlice(api.EventTypeLogging, types) && !auth.UserIsAdmin(r) {
+	if shared.StringInSlice(api.EventTypeLogging, types) && !s.Authorizer.UserIsAdmin(r) {
 		return api.StatusErrorf(http.StatusForbidden, "Forbidden")
 	}
 
