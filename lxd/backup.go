@@ -370,6 +370,7 @@ func pruneExpiredInstanceBackups(ctx context.Context, s *state.State) error {
 	return nil
 }
 
+// Creates a compressed backup for a given volume, managing errors and database entries.
 func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, projectName string, poolName string, volumeName string) error {
 	l := logger.AddContext(logger.Ctx{"project": projectName, "storage_volume": volumeName, "name": args.Name})
 	l.Debug("Volume backup started")
