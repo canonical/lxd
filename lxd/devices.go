@@ -62,10 +62,16 @@ type deviceTaskCPU struct {
 
 type deviceTaskCPUs []deviceTaskCPU
 
-func (c deviceTaskCPUs) Len() int           { return len(c) }
-func (c deviceTaskCPUs) Less(i, j int) bool { return *c[i].count < *c[j].count }
-func (c deviceTaskCPUs) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
+// Len returns the number of CPUs in the task.
+func (c deviceTaskCPUs) Len() int { return len(c) }
 
+// Less checks if CPU at index i has less tasks than CPU at index j.
+func (c deviceTaskCPUs) Less(i, j int) bool { return *c[i].count < *c[j].count }
+
+// Swap exchanges the CPUs at indices i and j.
+func (c deviceTaskCPUs) Swap(i, j int) { c[i], c[j] = c[j], c[i] }
+
+// Listens for system events on CPUs, networks, USBs, and Unix hotplug devices.
 func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent, chan device.UnixHotplugEvent, error) {
 	NETLINK_KOBJECT_UEVENT := 15
 	UEVENT_BUFFER_SIZE := 2048
@@ -623,6 +629,7 @@ func deviceTaskBalance(s *state.State) {
 	}
 }
 
+// Sets network priority for each container that has it specified in its configuration.
 func deviceNetworkPriority(s *state.State, netif string) {
 	// Don't bother running when CGroup support isn't there
 	if !s.OS.CGInfo.Supports(cgroup.NetPrio, nil) {
@@ -737,6 +744,7 @@ func devicesRegister(instances []instance.Instance) {
 	}
 }
 
+// Retrieves vendor and product IDs for a specific HID raw device.
 func getHidrawDevInfo(fd int) (string, string, error) {
 	info := C.struct_hidraw_devinfo{}
 	ret, err := C.get_hidraw_devinfo(C.int(fd), &info)
@@ -747,6 +755,7 @@ func getHidrawDevInfo(fd int) (string, string, error) {
 	return fmt.Sprintf("%04x", info.vendor), fmt.Sprintf("%04x", info.product), nil
 }
 
+// Parses vendor and product IDs from udev properties or HID raw device information.
 func ueventParseVendorProduct(props map[string]string, subsystem string, devname string) (string, string, bool) {
 	vendor, vendorOk := props["ID_VENDOR_ID"]
 	product, productOk := props["ID_MODEL_ID"]
