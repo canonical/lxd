@@ -10,6 +10,7 @@ import (
 	"github.com/canonical/lxd/shared"
 )
 
+// Merges global and local daemon configurations into a JSON-compatible map.
 func daemonConfigRender(state *state.State) (map[string]any, error) {
 	config := map[string]any{}
 
@@ -38,6 +39,7 @@ func daemonConfigRender(state *state.State) (map[string]any, error) {
 	return config, nil
 }
 
+// Updates the daemon's cached proxy function using the provided configuration.
 func daemonConfigSetProxy(d *Daemon, config *clusterConfig.Config) {
 	// Update the cached proxy function
 	d.proxy = shared.ProxyFromConfig(
