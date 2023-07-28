@@ -32,7 +32,7 @@ import (
 	"github.com/canonical/lxd/shared/units"
 )
 
-// Create a new backup.
+// backupCreate creates a backup for a given instance.
 func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.Instance, op *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"project": sourceInst.Project().Name, "instance": sourceInst.Name(), "name": args.Name})
 	l.Debug("Instance backup started")
@@ -290,6 +290,7 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 	return nil
 }
 
+// pruneExpiredBackupsTask returns a task to periodically prune expired backups.
 func pruneExpiredBackupsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := d.State()
@@ -347,6 +348,7 @@ func pruneExpiredBackupsTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, schedule
 }
 
+// pruneExpiredInstanceBackups deletes all expired instance backups from the database.
 func pruneExpiredInstanceBackups(ctx context.Context, s *state.State) error {
 	// Get the list of expired backups.
 	backups, err := s.DB.Cluster.GetExpiredInstanceBackups()
@@ -370,6 +372,7 @@ func pruneExpiredInstanceBackups(ctx context.Context, s *state.State) error {
 	return nil
 }
 
+// Creates a compressed backup for a given volume, managing errors and database entries.
 func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, projectName string, poolName string, volumeName string) error {
 	l := logger.AddContext(logger.Ctx{"project": projectName, "storage_volume": volumeName, "name": args.Name})
 	l.Debug("Volume backup started")
@@ -565,6 +568,7 @@ func volumeBackupWriteIndex(s *state.State, projectName string, volumeName strin
 	return nil
 }
 
+// pruneExpiredStorageVolumeBackups deletes all expired storage volume backups from the database.
 func pruneExpiredStorageVolumeBackups(ctx context.Context, s *state.State) error {
 	var volumeBackups []*backup.VolumeBackup
 
