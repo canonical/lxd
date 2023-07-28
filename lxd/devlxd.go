@@ -276,6 +276,7 @@ var handlers = []devLxdHandler{
 	devlxdDevicesGet,
 }
 
+// hoistReq wraps an HTTP handler function to validate the caller's credentials and provide relevant instance context.
 func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn := ucred.GetConnFromContext(r.Context())
@@ -312,6 +313,7 @@ func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Requ
 	}
 }
 
+// Creates an HTTP router with LXD API handlers using the given hoistFunc for access control.
 func devLxdAPI(d *Daemon, f hoistFunc) http.Handler {
 	m := mux.NewRouter()
 	m.UseEncodedPath() // Allow encoded values in path segments.
@@ -355,6 +357,7 @@ type ConnPidMapper struct {
 	mLock sync.Mutex
 }
 
+// Manages Unix connection state and associated credentials in ConnPidMapper.
 func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 	unixConn := conn.(*net.UnixConn)
 	switch state {
@@ -395,6 +398,7 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 
 var pidNotInContainerErr = fmt.Errorf("pid not in container?")
 
+// Finds the container associated with a given PID by analyzing process tree and matching PID namespaces.
 func findContainerForPid(pid int32, s *state.State) (instance.Container, error) {
 	/*
 	 * Try and figure out which container a pid is in. There is probably a
