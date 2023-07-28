@@ -745,6 +745,7 @@ func (d *Daemon) Init() error {
 	return nil
 }
 
+// Sets up a Loki client for log forwarding and attaches the client to the daemon's event handler.
 func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, labels []string, logLevel string, types []string) error {
 	if d.lokiClient != nil {
 		d.lokiClient.Stop()
@@ -766,6 +767,7 @@ func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, l
 	return nil
 }
 
+// Initializes daemon with logging, event listeners, and kernel features.
 func (d *Daemon) init() error {
 	var err error
 
@@ -1612,6 +1614,7 @@ func (d *Daemon) init() error {
 	return nil
 }
 
+// Starts various cluster tasks including event listeners, heartbeats, and cleanup operations.
 func (d *Daemon) startClusterTasks() {
 	// Add initial event listeners from global database members.
 	// Run asynchronously so that connecting to remote members doesn't delay starting up other cluster tasks.
@@ -1633,6 +1636,7 @@ func (d *Daemon) startClusterTasks() {
 	d.clusterTasks.Start(d.shutdownCtx)
 }
 
+// Stops all running cluster tasks and resets the task group.
 func (d *Daemon) stopClusterTasks() {
 	_ = d.clusterTasks.Stop(3 * time.Second)
 	d.clusterTasks = task.Group{}
