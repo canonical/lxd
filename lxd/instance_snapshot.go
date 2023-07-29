@@ -121,6 +121,9 @@ import (
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves a list of snapshots for a given instance,
+// either in a simple URL format or with detailed information if requested with recursion.
 func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -229,6 +232,8 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// instanceSnapshotsPost creates a new snapshot of a given instance with optional expiration and stateful settings.
 func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -340,6 +345,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
+// instanceSnapshotHandler handles HTTP methods for interacting with a specific instance snapshot.
 func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -426,6 +432,8 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// snapshotPatch delegates snapshot metadata updates to snapshotPut.
 func snapshotPatch(s *state.State, r *http.Request, snapInst instance.Instance) response.Response {
 	// Only expires_at is currently editable, so PATCH is equivalent to PUT.
 	return snapshotPut(s, r, snapInst)
@@ -463,6 +471,9 @@ func snapshotPatch(s *state.State, r *http.Request, snapInst instance.Instance) 
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// snapshotPut updates the metadata of a snapshot based on the provided JSON request body,
+// such as the expiration date.
 func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance) response.Response {
 	// Validate the ETag
 	etag := []any{snapInst.ExpiryDate()}
@@ -582,6 +593,8 @@ func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance) re
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// snapshotGet fetches snapshot metadata, includes usage statistics, and responds with ETag for caching.
 func snapshotGet(s *state.State, snapInst instance.Instance) response.Response {
 	render, _, err := snapInst.Render(storagePools.RenderSnapshotUsage(s, snapInst))
 	if err != nil {
@@ -630,6 +643,8 @@ func snapshotGet(s *state.State, snapInst instance.Instance) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// snapshotPost handles snapshot renaming and migration requests based on the provided request body.
 func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) response.Response {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -774,6 +789,8 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// snapshotDelete handles the deletion of a snapshot associated with the provided instance.
 func snapshotDelete(s *state.State, r *http.Request, snapInst instance.Instance) response.Response {
 	remove := func(op *operations.Operation) error {
 		return snapInst.Delete(false)
