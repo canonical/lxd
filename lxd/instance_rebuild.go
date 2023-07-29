@@ -56,6 +56,8 @@ import (
 //	  $ref: "#/responses/NotFound"
 //	"500":
 //	  $ref: "#/responses/InternalServerError"
+
+// Handles the rebuild of an instance, either from an image or empty, based on the provided request.
 func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
