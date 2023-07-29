@@ -24,6 +24,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+// instanceFileHandler manages file operations (GET, POST, DELETE) in an instance based on the request method.
 func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -150,6 +151,8 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves and prepares file/directory information from an instance for a GET request.
 func instanceFileGet(s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
@@ -313,6 +316,8 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles a HEAD request by returning the metadata of a file/directory from an instance without the body.
 func instanceFileHead(s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
@@ -428,6 +433,8 @@ func instanceFileHead(s *state.State, inst instance.Instance, path string, r *ht
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles a POST request to create or modify a file, directory, or symlink in the instance.
 func instanceFilePost(s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
 	// Get a SFTP client.
 	client, err := inst.FileSFTP()
@@ -585,6 +592,8 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles a DELETE request to remove a specified file from the instance.
 func instanceFileDelete(s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
 	// Get a SFTP client.
 	client, err := inst.FileSFTP()
