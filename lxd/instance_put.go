@@ -58,6 +58,8 @@ import (
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Updates or restores the configuration of an instance based on the provided request data.
 func instancePut(d *Daemon, r *http.Request) response.Response {
 	// Don't mess with instance while in setup mode.
 	<-d.waitReady.Done()
@@ -185,6 +187,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
+// Restores an instance from a snapshot, updating its configuration and generating a new volatile UUID generation.
 func instanceSnapRestore(s *state.State, projectName string, name string, snap string, stateful bool) error {
 	// normalize snapshot name
 	if !shared.IsSnapshot(snap) {
