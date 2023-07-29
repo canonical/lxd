@@ -63,6 +63,7 @@ type consoleWs struct {
 	protocol string
 }
 
+// Returns console WebSocket connection metadata including FDs and secrets.
 func (s *consoleWs) Metadata() any {
 	fds := shared.Jmap{}
 	for fd, secret := range s.fds {
@@ -76,6 +77,7 @@ func (s *consoleWs) Metadata() any {
 	return shared.Jmap{"fds": fds}
 }
 
+// Establishes a WebSocket connection for console or VGA depending on the protocol.
 func (s *consoleWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	switch s.protocol {
 	case instance.ConsoleTypeConsole:
@@ -87,6 +89,7 @@ func (s *consoleWs) Connect(op *operations.Operation, r *http.Request, w http.Re
 	}
 }
 
+// Manages WebSocket connection upgrade for console interaction.
 func (s *consoleWs) connectConsole(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
@@ -128,6 +131,7 @@ func (s *consoleWs) connectConsole(op *operations.Operation, r *http.Request, w 
 	return os.ErrPermission
 }
 
+// Establishes a VGA WebSocket connection for a given operation.
 func (s *consoleWs) connectVGA(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
@@ -189,6 +193,7 @@ func (s *consoleWs) connectVGA(op *operations.Operation, r *http.Request, w http
 	return os.ErrPermission
 }
 
+// Executes the operation based on the specific console protocol (console or VGA).
 func (s *consoleWs) Do(op *operations.Operation) error {
 	switch s.protocol {
 	case instance.ConsoleTypeConsole:
@@ -200,6 +205,7 @@ func (s *consoleWs) Do(op *operations.Operation) error {
 	}
 }
 
+// Manages the console protocol, including handling window resizing, mirroring, and cleanup on operation completion.
 func (s *consoleWs) doConsole(op *operations.Operation) error {
 	defer logger.Debug("Console websocket finished")
 	<-s.allConnected
@@ -335,6 +341,7 @@ func (s *consoleWs) doConsole(op *operations.Operation) error {
 	return nil
 }
 
+// Handles VGA protocol connections, and terminates them when operation is complete.
 func (s *consoleWs) doVGA(op *operations.Operation) error {
 	defer logger.Debug("VGA websocket finished")
 
@@ -414,6 +421,8 @@ func (s *consoleWs) doVGA(op *operations.Operation) error {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles instance console requests, validates input parameters and starts console operation.
 func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -556,6 +565,8 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves the console log for a given instance, handling remote forwarding and console ringbuffer queries.
 func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -663,6 +674,8 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Deletes the console log of a specified instance, handling both non-running and running instance cases.
 func instanceConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
 	if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
 		return response.BadRequest(fmt.Errorf("Clearing the console buffer requires liblxc >= 3.0"))
