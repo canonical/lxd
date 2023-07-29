@@ -97,6 +97,8 @@ import (
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles a GET request to retrieve the state and properties of a specific instance.
 func instanceGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
