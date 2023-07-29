@@ -117,6 +117,8 @@ import (
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves backups of a specified instance, with optional detailed information.
 func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -210,6 +212,8 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Creates a new backup for a specified instance, with customizations available for backup properties.
 func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -393,6 +397,8 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves the details of a specific backup for a given instance.
 func instanceBackupGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -467,6 +473,8 @@ func instanceBackupGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Renames a specified backup for a given instance.
 func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -569,6 +577,8 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Deletes a specified backup for a given instance.
 func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -654,6 +664,8 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Exports the specified backup for a given instance.
 func instanceBackupExportGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
