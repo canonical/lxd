@@ -215,10 +215,13 @@ var instanceBackupExportCmd = APIEndpoint{
 
 type instanceAutostartList []instance.Instance
 
+// This method returns the length of an instanceAutostartList slice.
 func (slice instanceAutostartList) Len() int {
 	return len(slice)
 }
 
+// It sorts instances based on "boot.autostart.priority" in descending order,
+// and then by instance name in ascending order.
 func (slice instanceAutostartList) Less(i, j int) bool {
 	iOrder := slice[i].ExpandedConfig()["boot.autostart.priority"]
 	jOrder := slice[j].ExpandedConfig()["boot.autostart.priority"]
@@ -232,6 +235,7 @@ func (slice instanceAutostartList) Less(i, j int) bool {
 	return slice[i].Name() < slice[j].Name()
 }
 
+// Swap is a function that swaps two elements in the instanceAutostartList slice, used for sorting instances.
 func (slice instanceAutostartList) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
@@ -248,6 +252,7 @@ func instanceShouldAutoStart(inst instance.Instance) bool {
 	return shared.IsTrue(autoStart) || (autoStart == "" && lastState == instance.PowerStateRunning)
 }
 
+// instancesStart starts a list of instances based on their autostart priorities and handles auto-start retries and delays.
 func instancesStart(s *state.State, instances []instance.Instance) {
 	instancesStartMu.Lock()
 	defer instancesStartMu.Unlock()
@@ -321,10 +326,12 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 
 type instanceStopList []instance.Instance
 
+// Len returns the length of the instanceStopList slice.
 func (slice instanceStopList) Len() int {
 	return len(slice)
 }
 
+// Less sorts instances in instanceStopList by "boot.stop.priority" and then by name alphabetically.
 func (slice instanceStopList) Less(i, j int) bool {
 	iOrder := slice[i].ExpandedConfig()["boot.stop.priority"]
 	jOrder := slice[j].ExpandedConfig()["boot.stop.priority"]
@@ -338,11 +345,12 @@ func (slice instanceStopList) Less(i, j int) bool {
 	return slice[i].Name() < slice[j].Name()
 }
 
+// Swap swaps the instances at positions i and j in instanceStopList.
 func (slice instanceStopList) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
 
-// Return all local instances on disk (if instance is running, it will attempt to populate the instance's local
+// Returns all the local instances on disk (if instance is running, it will attempt to populate the instance's local
 // and expanded config using the backup.yaml file). It will clear the instance's profiles property to avoid needing
 // to enrich them from the database.
 func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
@@ -412,6 +420,8 @@ func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
 	return instances, nil
 }
 
+// instancesShutdown shuts down instances in batches based on priority,
+// ensuring concurrency limits and handling forceful stops.
 func instancesShutdown(s *state.State, instances []instance.Instance) {
 	sort.Sort(instanceStopList(instances))
 
