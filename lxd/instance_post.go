@@ -67,6 +67,8 @@ import (
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles various instance-related operations, including instance rename, migration, and post-creation tasks.
 func instancePost(d *Daemon, r *http.Request) response.Response {
 	// Don't mess with instance while in setup mode.
 	<-d.waitReady.Done()
@@ -458,7 +460,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-// Move an instance to another pool.
+// instancePostPoolMigration handles moving an instance to a new storage pool, optionally renaming it and preserving its running state.
 func instancePostPoolMigration(s *state.State, inst instance.Instance, newName string, instanceOnly bool, newPool string, stateful bool, allowInconsistent bool, op *operations.Operation) error {
 	if inst.IsSnapshot() {
 		return fmt.Errorf("Instance snapshots cannot be moved between pools")
@@ -556,7 +558,7 @@ func instancePostPoolMigration(s *state.State, inst instance.Instance, newName s
 	return nil
 }
 
-// Move an instance to another project.
+// instancePostProjectMigration handles moving an instance to a new project, optionally renaming it and preserving its running state.
 func instancePostProjectMigration(s *state.State, inst instance.Instance, newName string, newProject string, instanceOnly bool, stateful bool, allowInconsistent bool, op *operations.Operation) error {
 	localConfig := inst.LocalConfig()
 
@@ -626,7 +628,7 @@ func instancePostProjectMigration(s *state.State, inst instance.Instance, newNam
 	return nil
 }
 
-// Move a non-ceph container to another cluster node.
+// instancePostClusteringMigrate manages the migration of an instance to another cluster member, potentially renaming it and preserving its state.
 func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, srcMember db.NodeInfo, newMember db.NodeInfo, stateful bool, allowInconsistent bool) (func(op *operations.Operation) error, error) {
 	srcMemberOffline := srcMember.IsOffline(s.GlobalConfig.OfflineThreshold())
 
@@ -936,6 +938,7 @@ func instancePostClusteringMigrateWithCeph(s *state.State, r *http.Request, srcP
 	return run, nil
 }
 
+// migrateInstance migrates an instance to a different node in a clustered environment, handling Ceph-based instances separately.
 func migrateInstance(s *state.State, r *http.Request, inst instance.Instance, targetNode string, req api.InstancePost, op *operations.Operation) error {
 	// If target isn't the same as the instance's location.
 	if targetNode == inst.Location() {
