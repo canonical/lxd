@@ -19,6 +19,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+// This code registers a custom SQLite driver with the connect hook function sqliteDirectAccess.
 func init() {
 	sql.Register("dqlite_direct_access", &sqlite3.SQLiteDriver{ConnectHook: sqliteDirectAccess})
 }
@@ -27,6 +28,7 @@ type cmdActivateifneeded struct {
 	global *cmdGlobal
 }
 
+// It checks if LXD should be started based on certain conditions.
 func (c *cmdActivateifneeded) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "activateifneeded"
@@ -46,6 +48,7 @@ func (c *cmdActivateifneeded) Command() *cobra.Command {
 	return cmd
 }
 
+// This function checks for specific conditions and activates the LXD daemon accordingly.
 func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	// Only root should run this
 	if os.Geteuid() != 0 {
