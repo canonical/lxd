@@ -19,6 +19,7 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
+// coalesceErrors generates a single error message from a map of instance errors, formatted based on the 'local' flag.
 func coalesceErrors(local bool, errors map[string]error) error {
 	if len(errors) == 0 {
 		return nil
@@ -72,6 +73,8 @@ func coalesceErrors(local bool, errors map[string]error) error {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// This function handles batch state updates for multiple instances, including clustering and error coalescing.
 func instancesPut(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 
