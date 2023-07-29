@@ -54,6 +54,8 @@ import (
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Updates the configuration of an instance using the data provided in the PATCH request.
 func instancePatch(d *Daemon, r *http.Request) response.Response {
 	// Don't mess with instance while in setup mode.
 	<-d.waitReady.Done()
