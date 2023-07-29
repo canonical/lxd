@@ -53,6 +53,7 @@ type execWs struct {
 	s                     *state.State
 }
 
+// Returns metadata for an exec websocket session.
 func (s *execWs) Metadata() any {
 	fds := shared.Jmap{}
 	for fd, secret := range s.fds {
@@ -71,6 +72,7 @@ func (s *execWs) Metadata() any {
 	}
 }
 
+// Connects a websocket to the operation, performing validation and handling connection setup.
 func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
@@ -151,6 +153,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 	return os.ErrPermission
 }
 
+// Do executes an operation on an instance, managing websockets and interactive/non-interactive sessions.
 func (s *execWs) Do(op *operations.Operation) error {
 	// Once this function ends ensure that any connected websockets are closed.
 	defer func() {
@@ -513,6 +516,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// instanceExecPost executes a command in an instance, handling environment and I/O.
 func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
