@@ -31,6 +31,7 @@ type instanceType struct {
 
 var instanceTypes map[string]map[string]*instanceType
 
+// Saves the current instance types data to a cache file in YAML format.
 func instanceSaveCache() error {
 	if instanceTypes == nil {
 		return nil
@@ -49,6 +50,7 @@ func instanceSaveCache() error {
 	return nil
 }
 
+// Loads instance types data from a cached YAML file if it exists.
 func instanceLoadCache() error {
 	if !shared.PathExists(shared.CachePath("instance_types.yaml")) {
 		return nil
@@ -67,6 +69,7 @@ func instanceLoadCache() error {
 	return nil
 }
 
+// Returns a task that refreshes instance types and schedules it to run daily.
 func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := d.State()
@@ -100,6 +103,7 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, task.Daily()
 }
 
+// Updates instance type information from a remote source, and saves it in the local cache.
 func instanceRefreshTypes(ctx context.Context, s *state.State) error {
 	// Attempt to download the new definitions
 	downloadParse := func(filename string, target any) error {
@@ -192,6 +196,7 @@ func instanceRefreshTypes(ctx context.Context, s *state.State) error {
 	return nil
 }
 
+// Parses instance type details and returns corresponding CPU and memory limits as a string map.
 func instanceParseType(value string) (map[string]string, error) {
 	sourceName := ""
 	sourceType := ""
