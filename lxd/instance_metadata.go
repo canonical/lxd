@@ -65,6 +65,8 @@ import (
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// instanceMetadataGet handles the retrieval of metadata for a given instance.
 func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -177,6 +179,8 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// instanceMetadataPatch handles the patching of metadata for a specific instance.
 func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -297,6 +301,8 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// instanceMetadataPut handles the updating of metadata for a specific instance using the HTTP PUT method.
 func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -354,6 +360,7 @@ func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 	return doInstanceMetadataUpdate(s, inst, metadata, r)
 }
 
+// doInstanceMetadataUpdate updates the metadata for a specific instance and saves it to "metadata.yaml".
 func doInstanceMetadataUpdate(s *state.State, inst instance.Instance, metadata api.ImageMetadata, r *http.Request) response.Response {
 	// Convert YAML.
 	data, err := yaml.Marshal(metadata)
@@ -421,6 +428,8 @@ func doInstanceMetadataUpdate(s *state.State, inst instance.Instance, metadata a
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// instanceMetadataTemplatesGet retrieves and returns instance metadata templates or a specific template file for the given instance.
 func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -573,6 +582,8 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// instanceMetadataTemplatesPost updates or creates a new metadata template for a specific instance.
 func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -691,6 +702,8 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// instanceMetadataTemplatesDelete deletes an instance metadata template for the given instance.
 func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -765,7 +778,7 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 	return response.EmptySyncResponse
 }
 
-// Return the full path of a container template.
+// getContainerTemplatePath returns the full path of a container template.
 func getContainerTemplatePath(c instance.Instance, filename string) (string, error) {
 	if strings.Contains(filename, "/") {
 		return "", fmt.Errorf("Invalid template filename")
