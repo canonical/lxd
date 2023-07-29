@@ -117,6 +117,8 @@ var instanceExecOutputsCmd = APIEndpoint{
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles GET requests to fetch logs of an instance even when the instance doesn't exist in the database.
 func instanceLogsGet(d *Daemon, r *http.Request) response.Response {
 	/* Let's explicitly *not* try to do a containerLoadByName here. In some
 	 * cases (e.g. when container creation failed), the container won't
@@ -207,6 +209,8 @@ func instanceLogsGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles GET requests to fetch a specific log file for an existing instance, also validates log file name.
 func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -291,6 +295,8 @@ func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles DELETE requests to remove a specific log file of an instance, also validates log file name.
 func instanceLogDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -403,6 +409,8 @@ func instanceLogDelete(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves execution output logs for a given instance.
 func instanceExecOutputsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -505,6 +513,8 @@ func instanceExecOutputsGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Returns a specific instance execution output log file.
 func instanceExecOutputGet(d *Daemon, r *http.Request) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
@@ -608,6 +618,8 @@ func instanceExecOutputGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Deletes a specific instance execution output log file.
 func instanceExecOutputDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -679,6 +691,7 @@ func instanceExecOutputDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// Validates if the log file name matches predefined formats.
 func validLogFileName(fname string) bool {
 	/* Let's just require that the paths be relative, so that we don't have
 	 * to deal with any escaping or whatever.
@@ -691,6 +704,7 @@ func validLogFileName(fname string) bool {
 		strings.HasPrefix(fname, "snapshot_")
 }
 
+// Validates if the execution output file name follows the predefined convention.
 func validExecOutputFileName(fName string) bool {
 	return (strings.HasSuffix(fName, ".stdout") || strings.HasSuffix(fName, ".stderr")) &&
 		strings.HasPrefix(fName, "exec_")
