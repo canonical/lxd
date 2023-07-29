@@ -25,6 +25,7 @@ type containerTestSuite struct {
 	lxdTestSuite
 }
 
+// TestContainer_ProfilesDefault verifies that a new container has the default profile assigned to it.
 func (suite *containerTestSuite) TestContainer_ProfilesDefault() {
 	args := db.InstanceArgs{
 		Type:      instancetype.Container,
@@ -49,6 +50,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesDefault() {
 		"First profile should be the default profile.")
 }
 
+// TestContainer_ProfilesMulti verifies that a container correctly applies multiple profiles, including the unprivileged one.
 func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 	// Create an unprivileged profile
 	err := suite.d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -104,6 +106,8 @@ func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 		"The container is not privileged (didn't apply the unprivileged profile?).")
 }
 
+// TestContainer_ProfilesOverwriteDefaultNic checks if the container's
+// "eth0" NIC device configuration overwrites the profile's configuration.
 func (suite *containerTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
 	args := db.InstanceArgs{
 		Type:      instancetype.Container,
@@ -137,6 +141,8 @@ func (suite *containerTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
 		"Container config doesn't overwrite profile config.")
 }
 
+// TestContainer_LoadFromDB tests loading a container from the database and
+// verifying its configuration matches the initial creation.
 func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	args := db.InstanceArgs{
 		Type:      instancetype.Container,
@@ -191,6 +197,7 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	)
 }
 
+// TestContainer_Path_Regular tests the container path generation for a regular container.
 func (suite *containerTestSuite) TestContainer_Path_Regular() {
 	// Regular
 	args := db.InstanceArgs{
@@ -209,6 +216,7 @@ func (suite *containerTestSuite) TestContainer_Path_Regular() {
 	suite.Req.Equal(shared.VarPath("containers", "testFoo2"), storagePools.InstancePath(instancetype.Container, "default", "testFoo2", false))
 }
 
+// TestContainer_LogPath tests the log path generation for a container.
 func (suite *containerTestSuite) TestContainer_LogPath() {
 	args := db.InstanceArgs{
 		Type:      instancetype.Container,
@@ -224,6 +232,7 @@ func (suite *containerTestSuite) TestContainer_LogPath() {
 	suite.Req.Equal(shared.VarPath("logs", "testFoo"), c.LogPath())
 }
 
+// TestContainer_IsPrivileged_Privileged tests whether a privileged container is correctly identified as privileged.
 func (suite *containerTestSuite) TestContainer_IsPrivileged_Privileged() {
 	args := db.InstanceArgs{
 		Type:      instancetype.Container,
@@ -239,6 +248,7 @@ func (suite *containerTestSuite) TestContainer_IsPrivileged_Privileged() {
 	suite.Req.Nil(c.Delete(true), "Failed to delete the container.")
 }
 
+// Tests the validation of adding routed NIC devices to a container with different configurations.
 func (suite *containerTestSuite) TestContainer_AddRoutedNicValidation() {
 	eth0 := deviceConfig.Device{"name": "eth0", "type": "nic", "ipv4.gateway": "none",
 		"ipv6.gateway": "none", "nictype": "routed", "parent": "unknownbr0"}
@@ -302,6 +312,7 @@ func (suite *containerTestSuite) TestContainer_AddRoutedNicValidation() {
 		fmt.Errorf("Adding multiple nic devices with unicque nictype ['routed'] should throw error. "))
 }
 
+// Tests the creation of an unprivileged container with "security.privileged" set to "false" in its configuration.
 func (suite *containerTestSuite) TestContainer_IsPrivileged_Unprivileged() {
 	args := db.InstanceArgs{
 		Type:      instancetype.Container,
@@ -317,6 +328,8 @@ func (suite *containerTestSuite) TestContainer_IsPrivileged_Unprivileged() {
 	suite.Req.Nil(c.Delete(true), "Failed to delete the container.")
 }
 
+// TestContainer_Rename tests the renaming of a container and
+// verifies that the container's path is updated accordingly.
 func (suite *containerTestSuite) TestContainer_Rename() {
 	args := db.InstanceArgs{
 		Type:      instancetype.Container,
@@ -333,6 +346,8 @@ func (suite *containerTestSuite) TestContainer_Rename() {
 	suite.Req.Equal(shared.VarPath("containers", "testFoo2"), c.Path())
 }
 
+// TestContainer_findIdmap_isolated tests idmap isolation for two containers,
+// verifying their idmap settings are correctly applied.
 func (suite *containerTestSuite) TestContainer_findIdmap_isolated() {
 	c1, op, _, err := instance.CreateInternal(suite.d.State(), db.InstanceArgs{
 		Type: instancetype.Container,
@@ -376,6 +391,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_isolated() {
 	}
 }
 
+// This test checks idmap configurations in containers with different isolated settings.
 func (suite *containerTestSuite) TestContainer_findIdmap_mixed() {
 	c1, op, _, err := instance.CreateInternal(suite.d.State(), db.InstanceArgs{
 		Type: instancetype.Container,
@@ -419,6 +435,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_mixed() {
 	}
 }
 
+// This test verifies the idmap configuration in a container with raw idmap settings.
 func (suite *containerTestSuite) TestContainer_findIdmap_raw() {
 	c1, op, _, err := instance.CreateInternal(suite.d.State(), db.InstanceArgs{
 		Type: instancetype.Container,
@@ -456,6 +473,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_raw() {
 	}
 }
 
+// TestContainer_findIdmap_maxed ensures that isolated idmap sets of multiple containers do not intersect up to a maximum limit.
 func (suite *containerTestSuite) TestContainer_findIdmap_maxed() {
 	maps := []*idmap.IdmapSet{}
 
@@ -498,6 +516,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_maxed() {
 	}
 }
 
+// TestContainerTestSuite runs the test suite for the container package.
 func TestContainerTestSuite(t *testing.T) {
 	suite.Run(t, new(containerTestSuite))
 }
