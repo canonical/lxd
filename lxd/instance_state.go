@@ -64,6 +64,8 @@ import (
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// instanceState retrieves and returns the current state of the instance associated with the provided name and project.
 func instanceState(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -138,6 +140,9 @@ func instanceState(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// instanceStatePut updates the state of an instance based on the provided action
+// and returns the response for the operation.
 func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -210,6 +215,8 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
+// instanceActionToOptype maps a shared instance action to an LXD operation type
+// or returns an error for unknown actions.
 func instanceActionToOptype(action string) (operationtype.Type, error) {
 	switch shared.InstanceAction(action) {
 	case shared.Start:
@@ -227,6 +234,7 @@ func instanceActionToOptype(action string) (operationtype.Type, error) {
 	return operationtype.Unknown, fmt.Errorf("Unknown action: '%s'", action)
 }
 
+// doInstanceStatePut executes the requested instance action with the specified options.
 func doInstanceStatePut(inst instance.Instance, req api.InstanceStatePut) error {
 	if req.Force {
 		// A zero timeout indicates to do a forced stop/restart.
