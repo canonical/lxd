@@ -16,6 +16,7 @@ type cmdCallhook struct {
 	global *cmdGlobal
 }
 
+// Triggers and handles lifecycle hooks in LXD for specified container instance.
 func (c *cmdCallhook) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "callhook <path> [<instance id>|<instance project> <instance name>] <hook>"
@@ -32,6 +33,7 @@ func (c *cmdCallhook) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes specified lifecycle hook on a LXD container.
 func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) < 2 {
