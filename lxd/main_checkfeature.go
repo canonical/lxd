@@ -589,6 +589,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+// canUseNetnsGetifaddrs checks if the network namespace interfaces can be retrieved.
 func canUseNetnsGetifaddrs() bool {
 	if !bool(C.is_empty_string(&C.errbuf[0])) {
 		logger.Debugf("%s", C.GoString(&C.errbuf[0]))
@@ -597,26 +598,32 @@ func canUseNetnsGetifaddrs() bool {
 	return bool(C.netnsid_aware)
 }
 
+// canUseUeventInjection checks if uEvent Injection is supported.
 func canUseUeventInjection() bool {
 	return bool(C.uevent_aware)
 }
 
+// canUseSeccompListener checks if Seccomp Listener is supported.
 func canUseSeccompListener() bool {
 	return bool(C.seccomp_notify_aware > 0)
 }
 
+// canUseSeccompListenerContinue checks if the Seccomp Listener supports continue mode.
 func canUseSeccompListenerContinue() bool {
 	return bool(C.seccomp_notify_aware >= 2)
 }
 
+// canUseSeccompListenerAddfd checks if Seccomp Listener supports file descriptor addition.
 func canUseSeccompListenerAddfd() bool {
 	return bool(C.seccomp_notify_aware == 3)
 }
 
+// canUsePidFds checks if Process ID file descriptors are supported.
 func canUsePidFds() bool {
 	return bool(C.pidfd_aware)
 }
 
+// Checks for Shiftfs support in the Linux kernel.
 func canUseShiftfs() bool {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -660,18 +667,22 @@ func kernelSupportsIdmappedMounts() bool {
 	return bool(C.kernel_supports_idmapped_mounts())
 }
 
+// canUseNativeTerminals checks if native terminal support is enabled.
 func canUseNativeTerminals() bool {
 	return bool(C.tiocgptpeer_aware)
 }
 
+// canUseCloseRange verifies if close_range syscall is available.
 func canUseCloseRange() bool {
 	return bool(C.close_range_aware)
 }
 
+// canUsePidFdSetns checks if Process ID file descriptors namespace setting is possible.
 func canUsePidFdSetns() bool {
 	return bool(C.pidfd_setns_aware)
 }
 
+// canUseCoreScheduling verifies if core scheduling feature is supported.
 func canUseCoreScheduling() bool {
 	return bool(C.core_scheduling_aware)
 }
