@@ -96,6 +96,7 @@ type cmdForkcoresched struct {
 	global *cmdGlobal
 }
 
+// Assigns a set of processes to a new core scheduling domain for isolation purposes.
 func (c *cmdForkcoresched) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -113,6 +114,7 @@ func (c *cmdForkcoresched) Command() *cobra.Command {
 	return cmd
 }
 
+// Placeholder function intended to be intercepted in cgo, does not perform any operation.
 func (c *cmdForkcoresched) Run(cmd *cobra.Command, args []string) error {
 	return fmt.Errorf("This command should have been intercepted in cgo")
 }
