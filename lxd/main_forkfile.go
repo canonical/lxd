@@ -101,6 +101,7 @@ type cmdForkfile struct {
 	global *cmdGlobal
 }
 
+// Sets up a command to handle container file operations over SFTP inside the container's filesystem.
 func (c *cmdForkfile) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -123,6 +124,7 @@ func (c *cmdForkfile) Command() *cobra.Command {
 	return cmd
 }
 
+// Spawns an SFTP server for container file operations, auto-shuts down on inactivity.
 func (c *cmdForkfile) Run(cmd *cobra.Command, args []string) error {
 	var mu sync.RWMutex
 	var connections uint64
