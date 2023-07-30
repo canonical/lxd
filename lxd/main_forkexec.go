@@ -340,6 +340,7 @@ type cmdForkexec struct {
 	global *cmdGlobal
 }
 
+// Prepares and executes an internal command to run a specific task within a container.
 func (c *cmdForkexec) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -357,6 +358,7 @@ func (c *cmdForkexec) Command() *cobra.Command {
 	return cmd
 }
 
+// Placeholder function for an operation handled in cgo, not to be executed directly.
 func (c *cmdForkexec) Run(cmd *cobra.Command, args []string) error {
 	return fmt.Errorf("This command should have been intercepted in cgo")
 }
