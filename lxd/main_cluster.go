@@ -29,6 +29,7 @@ type cmdCluster struct {
 	global *cmdGlobal
 }
 
+// Handles the "cluster" command for administering LXD clusters.
 func (c *cmdCluster) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "cluster"
@@ -108,6 +109,7 @@ type cmdClusterEdit struct {
 	global *cmdGlobal
 }
 
+// Defines the "edit" command for modifying LXD cluster configuration in YAML format.
 func (c *cmdClusterEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "edit"
@@ -119,6 +121,7 @@ func (c *cmdClusterEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the "edit" command to modify YAML-based LXD cluster configuration with validation.
 func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 	// Make sure that the daemon is not running.
 	_, err := lxd.ConnectLXDUnix("", nil)
@@ -231,6 +234,7 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// Ensures the proposed LXD cluster configuration adheres to role and count constraints.
 func validateNewConfig(oldNodes []db.RaftNode, newNodes []db.RaftNode) error {
 	if len(oldNodes) > len(newNodes) {
 		return fmt.Errorf("Removing cluster members is not supported")
@@ -276,6 +280,7 @@ type cmdClusterShow struct {
 	global *cmdGlobal
 }
 
+// Returns a command to display the LXD cluster configuration in YAML.
 func (c *cmdClusterShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "show"
@@ -287,6 +292,7 @@ func (c *cmdClusterShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Returns a command to display the LXD cluster configuration in YAML.
 func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
 	database, err := db.OpenNode(filepath.Join(sys.DefaultOS().VarDir, "database"), nil)
 	if err != nil {
@@ -333,6 +339,7 @@ type cmdClusterListDatabase struct {
 	global *cmdGlobal
 }
 
+// Returns a command that prints the addresses of all cluster members hosting the database.
 func (c *cmdClusterListDatabase) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "list-database"
@@ -344,6 +351,7 @@ func (c *cmdClusterListDatabase) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the command to list the addresses of all cluster members hosting the database.
 func (c *cmdClusterListDatabase) Run(cmd *cobra.Command, args []string) error {
 	os := sys.DefaultOS()
 
@@ -373,6 +381,7 @@ type cmdClusterRecoverFromQuorumLoss struct {
 	flagNonInteractive bool
 }
 
+// Generates a command to recover a LXD instance from a loss of quorum in its cluster.
 func (c *cmdClusterRecoverFromQuorumLoss) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "recover-from-quorum-loss"
@@ -385,6 +394,7 @@ func (c *cmdClusterRecoverFromQuorumLoss) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the recovery process for a LXD instance that has lost quorum in its cluster.
 func (c *cmdClusterRecoverFromQuorumLoss) Run(cmd *cobra.Command, args []string) error {
 	// Make sure that the daemon is not running.
 	_, err := lxd.ConnectLXDUnix("", nil)
@@ -410,6 +420,7 @@ func (c *cmdClusterRecoverFromQuorumLoss) Run(cmd *cobra.Command, args []string)
 	return cluster.Recover(db)
 }
 
+// Prompts for user confirmation before proceeding with a cluster quorum loss recovery operation.
 func (c *cmdClusterRecoverFromQuorumLoss) promptConfirmation() error {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print(`You should run this command only if you are *absolutely* certain that this is
@@ -444,6 +455,7 @@ type cmdClusterRemoveRaftNode struct {
 	flagNonInteractive bool
 }
 
+// Returns a command that removes a specified raft node from the raft configuration.
 func (c *cmdClusterRemoveRaftNode) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "remove-raft-node <address>"
@@ -456,6 +468,7 @@ func (c *cmdClusterRemoveRaftNode) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the command to remove a specified raft node from the raft configuration.
 func (c *cmdClusterRemoveRaftNode) Run(cmd *cobra.Command, args []string) error {
 	if len(args) != 1 {
 		_ = cmd.Help()
@@ -486,6 +499,7 @@ func (c *cmdClusterRemoveRaftNode) Run(cmd *cobra.Command, args []string) error 
 	return nil
 }
 
+// Prompts user for confirmation before removing a raft node from an inconsistent state.
 func (c *cmdClusterRemoveRaftNode) promptConfirmation() error {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print(`You should run this command only if you ended up in an
