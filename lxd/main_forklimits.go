@@ -17,6 +17,7 @@ type cmdForklimits struct {
 	global *cmdGlobal
 }
 
+// Creates a command to execute tasks with specific limits and optional file descriptors.
 func (c *cmdForklimits) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -34,6 +35,7 @@ func (c *cmdForklimits) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes a specified command with user-defined resource limits and optional file descriptors.
 func (c *cmdForklimits) Run(cmd *cobra.Command, _ []string) error {
 	// Use raw args instead of cobra passed args, as we need to access the "--" argument.
 	args := c.global.rawArgs(cmd)
