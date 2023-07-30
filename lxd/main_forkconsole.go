@@ -14,6 +14,7 @@ type cmdForkconsole struct {
 	global *cmdGlobal
 }
 
+// Provides the internal command to attach to a container's tty device.
 func (c *cmdForkconsole) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -30,6 +31,7 @@ func (c *cmdForkconsole) Command() *cobra.Command {
 	return cmd
 }
 
+// Attaches the standard input/output streams to a specific container console using LXC.
 func (c *cmdForkconsole) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) != 5 {
