@@ -164,16 +164,7 @@ test_config_profiles() {
   lxc profile assign foo onenic
   lxc profile create unconfined
 
-  # Look at the LXC version to decide whether to use the new
-  # or the new config key for apparmor.
-  lxc_version=$(lxc info | awk '/driver_version:/ {print $NF}')
-  lxc_major=$(echo "${lxc_version}" | cut -d. -f1)
-  lxc_minor=$(echo "${lxc_version}" | cut -d. -f2)
-  if [ "${lxc_major}" -lt 2 ] || { [ "${lxc_major}" = "2" ] && [ "${lxc_minor}" -lt "1" ]; }; then
-      lxc profile set unconfined raw.lxc "lxc.aa_profile=unconfined"
-  else
-      lxc profile set unconfined raw.lxc "lxc.apparmor.profile=unconfined"
-  fi
+  lxc profile set unconfined raw.lxc "lxc.apparmor.profile=unconfined"
 
   lxc profile assign foo onenic,unconfined
 
