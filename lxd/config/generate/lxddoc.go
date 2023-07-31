@@ -265,9 +265,17 @@ func writeDocFile(path string, yaml *doc) error {
 						}
 					}
 
+					if strings.Contains(configEntryContentValueStr, `"`) {
+						if strings.HasPrefix(configEntryContentValueStr, `"`) && strings.HasSuffix(configEntryContentValueStr, `"`) {
+							break
+						}
+
+						configEntryContentValueStr = strings.ReplaceAll(configEntryContentValueStr, `"`, `\"`)
+					}
+
 					kvBuffer.WriteString(
 						fmt.Sprintf(
-							":%s: %s\n",
+							":%s: \"%s\"\n",
 							configEntryContentKey,
 							configEntryContentValueStr,
 						),
