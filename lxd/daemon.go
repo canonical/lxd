@@ -1723,20 +1723,20 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int64, rbacAgentURL string, rbacAgentUsername string, rbacAgentPrivateKey string, rbacAgentPublicKey string) error {
 	var err error
 
-	if rbacURL == "" || rbacAgentURL == "" || rbacAgentUsername == "" || rbacAgentPrivateKey == "" || rbacAgentPublicKey == "" {
-		return nil
-	}
-
-	d.candidVerifier = nil
-
 	if d.authorizer != nil {
 		d.authorizer.StopStatusCheck()
 	}
 
-	// Reset to default authorizer in case rbac fails.
-	d.authorizer, err = auth.LoadAuthorizer("tls", nil, logger.Log, nil)
-	if err != nil {
-		return err
+	if rbacURL == "" || rbacAgentURL == "" || rbacAgentUsername == "" || rbacAgentPrivateKey == "" || rbacAgentPublicKey == "" {
+		d.candidVerifier = nil
+
+		// Reset to default authorizer.
+		d.authorizer, err = auth.LoadAuthorizer("tls", nil, logger.Log, nil)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 
 	revert := revert.New()
@@ -1762,6 +1762,13 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 		"rbac.agent.private_key": rbacAgentPrivateKey,
 		"rbac.agent.public_key":  rbacAgentPublicKey,
 	}
+
+	revert.Add(func() {
+		d.candidVerifier = nil
+
+		// Reset to default authorizer.
+		d.authorizer, _ = auth.LoadAuthorizer("tls", nil, logger.Log, nil)
+	})
 
 	// Load RBAC authorizer
 	rbacAuthorizer, err := auth.LoadAuthorizer("rbac", config, logger.Log, projectsFunc)
