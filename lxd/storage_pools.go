@@ -139,6 +139,8 @@ var storagePoolCmd = APIEndpoint{
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves a list of storage pools or detailed information about each pool if recursion is requested.
 func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -238,6 +240,8 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles storage pool creation, either locally or across the cluster.
 func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -570,6 +574,9 @@ func storagePoolsPostCluster(s *state.State, pool *api.StoragePool, req api.Stor
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Fetches storage pool details, including users and configuration,
+// and handles clustering and node-specific filtering.
 func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -668,6 +675,8 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Updates storage pool configuration, handling clustering and node-specific settings.
 func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -802,6 +811,8 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Updates storage pool configuration using the same logic as storagePoolPut function.
 func storagePoolPatch(d *Daemon, r *http.Request) response.Response {
 	return storagePoolPut(d, r)
 }
@@ -899,6 +910,8 @@ func doStoragePoolUpdate(s *state.State, pool storagePools.Pool, req api.Storage
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Deletes a storage pool, handling both local and clustered scenarios, and notifying other nodes if applicable.
 func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
