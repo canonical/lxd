@@ -166,6 +166,8 @@ var networkStateCmd = APIEndpoint{
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves managed networks and their details with optional recursion for Default project interfaces.
 func networksGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -267,6 +269,8 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles creation of a new network, supporting both clustered and non-clustered environments.
 func networksPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -752,6 +756,8 @@ func doNetworksCreate(s *state.State, n network.Network, clientType clusterReque
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves network information, forwards requests in clusters, and returns details with ETag.
 func networkGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -918,6 +924,8 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, projectName st
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Deletes the specified network, handles cluster notifications, and notifies other nodes if clustered.
 func networkDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1034,6 +1042,8 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Renames the specified network and handles clustering mode considerations.
 func networkPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1168,6 +1178,8 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Updates the network configuration and handles clustering mode considerations.
 func networkPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1305,6 +1317,8 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Forwards the PATCH request to the networkPut function to handle the network update.
 func networkPatch(d *Daemon, r *http.Request) response.Response {
 	return networkPut(d, r)
 }
@@ -1401,6 +1415,8 @@ func doNetworkUpdate(projectName string, n network.Network, req api.NetworkPut, 
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// networkLeasesGet retrieves the leases for a given network and project, if allowed.
 func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1434,6 +1450,8 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, leases)
 }
 
+// networkStartup initializes networks in priority order and
+// retries if any fail, and then starts instances that can now be started.
 func networkStartup(s *state.State) error {
 	var err error
 
@@ -1636,6 +1654,7 @@ func networkStartup(s *state.State) error {
 	return nil
 }
 
+// networkShutdown brings down all managed networks in each project when shutting down the daemon.
 func networkShutdown(s *state.State) {
 	var err error
 
@@ -1765,6 +1784,8 @@ func networkRestartOVN(s *state.State) error {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// networkStateGet retrieves the state of a network (whether managed or unmanaged) for a given project.
 func networkStateGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
