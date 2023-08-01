@@ -29,6 +29,7 @@ with open("../shared/version/flex.go") as fd:
 # Extensions.
 extensions = [
     "myst_parser",
+    "sphinx_design",
     "sphinx_tabs.tabs",
     "sphinx_reredirects",
     "sphinxext.opengraph",
@@ -55,6 +56,9 @@ myst_heading_anchors = 7
 if os.path.exists("./substitutions.yaml"):
     with open("./substitutions.yaml", "r") as fd:
         myst_substitutions = yaml.safe_load(fd.read())
+if os.path.exists("./related_topics.yaml"):
+    with open("./related_topics.yaml", "r") as fd:
+        myst_substitutions.update(yaml.safe_load(fd.read()))
 
 intersphinx_mapping = {
     'cloud-init': ('https://cloudinit.readthedocs.io/en/latest/', None)
@@ -164,4 +168,14 @@ linkcheck_ignore = [
 # Setup redirects (https://documatt.gitlab.io/sphinx-reredirects/usage.html)
 redirects = {
     "howto/instances_snapshots/index": "../instances_backup/",
+    "reference/network_external/index": "../networks/",
 }
+
+
+if ("TOPICAL" in os.environ) and (os.environ["TOPICAL"] == "True"):
+    root_doc = "index_topical"
+    exclude_patterns.extend(['index.md','tutorial/index.md','howto/index.md','explanation/index.md','reference/index.md','howto/troubleshoot.md','reference/configuration_options.md'])
+    tags.add('topical')
+else:
+    exclude_patterns.extend(['index_topical.md','security.md','external_resources.md','reference/network_external.md'])
+    tags.add('diataxis')

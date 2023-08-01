@@ -41,3 +41,9 @@ Parameter                           | Value      | Default   | Description
 `net.ipv4.neigh.default.gc_thresh3` | `8192`     | `1024`    | Maximum number of entries in the IPv4 ARP table (increase this value if you plan to create over 1024 instances - otherwise, you will get the error `neighbour: ndisc_cache: neighbor table overflow!` when the ARP table gets full and the instances cannot get a network configuration; see [`ip-sysctl`](https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt))
 `net.ipv6.neigh.default.gc_thresh3` | `8192`     | `1024`    | Maximum number of entries in IPv6 ARP table (increase this value if you plan to create over 1024 instances - otherwise, you will get the error `neighbour: ndisc_cache: neighbor table overflow!` when the ARP table gets full and the instances cannot get a network configuration; see [`ip-sysctl`](https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt))
 `vm.max_map_count`                  | `262144`   | `65530`   | Maximum number of memory map areas a process may have (memory map areas are used as a side-effect of calling `malloc`, directly by `mmap` and `mprotect`, and also when loading shared libraries)
+
+## Related topics
+
+{{performance_how}}
+
+{{performance_exp}}

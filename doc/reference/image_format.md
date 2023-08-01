@@ -152,3 +152,9 @@ This format is designed to allow for easy image building from existing non-LXD r
 You should also use this format if you want to create images that can be consumed by both LXD and other tools.
 
 The image identifier for such images is the SHA-256 of the concatenation of the metadata and root file system tarball (in that order).
+
+## Related topics
+
+{{images_how}}
+
+{{images_exp}}

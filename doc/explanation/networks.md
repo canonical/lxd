@@ -46,9 +46,11 @@ LXD can only set up some of the types as managed networks.
 
 ### Fully controlled networks
 
-Fully controlled networks create network interfaces and provide most functionality, including, for example, the ability to do IP management.
-
-LXD supports the following network types:
+% Include content from [../reference/networks.md](../reference/networks.md)
+```{include} ../reference/networks.md
+    :start-after: <!-- Include start controlled intro -->
+    :end-before: <!-- Include end controlled intro -->
+```
 
 {ref}`network-bridge`
 : % Include content from [../reference/network_bridge.md](../reference/network_bridge.md)
@@ -82,8 +84,8 @@ LXD supports the following network types:
 
 ### External networks
 
-% Include content from [../reference/network_external.md](../reference/network_external.md)
-```{include} ../reference/network_external.md
+% Include content from [../reference/networks.md](../reference/network_external.md)
+```{include} ../reference/networks.md
     :start-after: <!-- Include start external intro -->
     :end-before: <!-- Include end external intro -->
 ```
@@ -134,3 +136,9 @@ As a general recommendation:
 
 - To connect an instance NIC to a managed network, use the `network` property rather than the `parent` property, if possible.
   This way, the NIC can inherit the settings from the network and you don't need to specify the `nictype`.
+
+## Related topics
+
+{{networks_how}}
+
+{{networks_ref}}

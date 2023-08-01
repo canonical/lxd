@@ -7,6 +7,7 @@ relatedlinks: https://www.youtube.com/watch?v=6O0q3rSWr8A
 # Remote API authentication
 
 Remote communications with the LXD daemon happen using JSON over HTTPS.
+This requires the LXD API to be exposed over the network; see {ref}`server-expose` for instructions.
 
 To be able to access the remote API, clients must authenticate with the LXD server.
 The following authentication methods are supported:
@@ -315,3 +316,9 @@ If it did, the certificate can be replaced by the new one, or the remote can be 
 The server trust relationship is revoked for a client if another trusted client or the local server administrator removes the trust entry for the client on the server.
 
 In this case, the server still uses the same certificate, but all API calls return a 403 code with an error indicating that the client isn't trusted.
+
+## Related topics
+
+{{security_exp}}
+
+{{security_how}}

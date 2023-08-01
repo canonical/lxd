@@ -153,3 +153,11 @@ The following internal metrics are provided:
 * - `lxd_warnings_total`
   - Number of active warnings
 ```
+
+## Related topics
+
+How-to guides:
+
+- {ref}`metrics`
+
+{{performance_exp}}

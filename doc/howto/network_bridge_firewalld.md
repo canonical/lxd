@@ -5,6 +5,12 @@ discourse: 10034,9953
 (network-bridge-firewall)=
 # How to configure your firewall
 
+````{only} diataxis
+```{important}
+This guide applies to managed bridge networks only.
+```
+````
+
 Linux firewalls are based on `netfilter`.
 LXD uses the same subsystem, which can lead to connectivity issues.
 

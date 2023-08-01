@@ -2,7 +2,7 @@
 # How to configure networks for a cluster
 
 All members of a cluster must have identical networks defined.
-The only configuration keys that may differ between networks on different members are [`bridge.external_interfaces`](network-bridge-options), [`parent`](network-external), [`bgp.ipv4.nexthop`](network-bridge-options) and [`bgp.ipv6.nexthop`](network-bridge-options).
+The only configuration keys that may differ between networks on different members are [`bridge.external_interfaces`](network-bridge-options), [`parent`](ref-networks), [`bgp.ipv4.nexthop`](network-bridge-options) and [`bgp.ipv6.nexthop`](network-bridge-options).
 See {ref}`clustering-member-config` for more information.
 
 Creating additional networks is a two-step process:

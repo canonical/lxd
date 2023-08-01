@@ -326,3 +326,7 @@ You can create a snapshot of your instance, which makes it easy to restore the i
        lxc delete first/clean
 
 See {ref}`instances-snapshots` for more information.
+
+## Next steps
+
+Now that you've done your first experiments with LXD, check out the information in the {ref}`getting-started` section!

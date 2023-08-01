@@ -1,3 +1,4 @@
+(requirements)=
 # Requirements
 
 ## Go
@@ -55,3 +56,9 @@ LXD itself also uses a number of (usually packaged) C libraries:
 
 Make sure you have all these libraries themselves and their development
 headers (`-dev` packages) installed.
+
+## Related topics
+
+{{getting_started_tut}}
+
+{{getting_started_how}}
