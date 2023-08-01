@@ -15,6 +15,7 @@ type cmdMigratedumpsuccess struct {
 	global *cmdGlobal
 }
 
+// Cobra command for internal "migratedumpsuccess" used to signal successful CRIU dump to LXD.
 func (c *cmdMigratedumpsuccess) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "migratedumpsuccess <operation> <secret>"
@@ -31,6 +32,7 @@ func (c *cmdMigratedumpsuccess) Command() *cobra.Command {
 	return cmd
 }
 
+// Run signals successful CRIU dump to LXD by making a WebSocket connection and checking the operation status.
 func (c *cmdMigratedumpsuccess) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) < 2 {
