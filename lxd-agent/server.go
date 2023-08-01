@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+// restServer creates an HTTP server with the provided TLS configuration and handles API routes for version 1.0.
 func restServer(tlsConfig *tls.Config, cert *x509.Certificate, debug bool, d *Daemon) *http.Server {
 	mux := mux.NewRouter()
 	mux.StrictSlash(false) // Don't redirect to URL with trailing slash.
@@ -33,6 +34,7 @@ func restServer(tlsConfig *tls.Config, cert *x509.Certificate, debug bool, d *Da
 	return &http.Server{Handler: mux, TLSConfig: tlsConfig}
 }
 
+// createCmd sets up an API endpoint on the given Router with the specified version, handler functions, and authentication.
 func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Certificate, debug bool, d *Daemon) {
 	var uri string
 	if c.Path == "" {
@@ -108,6 +110,7 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Ce
 	}
 }
 
+// authenticate checks if the request is authenticated based on the client's TLS certificate.
 func authenticate(r *http.Request, cert *x509.Certificate) bool {
 	clientCerts := map[string]x509.Certificate{"0": *cert}
 
