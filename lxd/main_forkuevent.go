@@ -224,6 +224,7 @@ type cmdForkuevent struct {
 	global *cmdGlobal
 }
 
+// Command configuration for injecting uevents into a container's network namespace.
 func (c *cmdForkuevent) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -249,6 +250,7 @@ func (c *cmdForkuevent) Command() *cobra.Command {
 	return cmd
 }
 
+// Placeholder function to throw error if cmdForkuevent is not intercepted in cgo.
 func (c *cmdForkuevent) Run(cmd *cobra.Command, args []string) error {
 	return fmt.Errorf("This command should have been intercepted in cgo")
 }
