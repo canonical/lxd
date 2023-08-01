@@ -20,6 +20,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+// Creates a new storage migration source with WebSocket connections for migration channels.
 func newStorageMigrationSource(volumeOnly bool, pushTarget *api.StorageVolumePostTarget) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{
 		migrationFields: migrationFields{},
@@ -65,6 +66,7 @@ func newStorageMigrationSource(volumeOnly bool, pushTarget *api.StorageVolumePos
 	return &ret, nil
 }
 
+// Performs the migration process for a storage volume using WebSocket connections for migration channels.
 func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, poolName string, volName string, migrateOp *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"project": projectName, "pool": poolName, "volume": volName, "push": s.pushOperationURL != ""})
 
@@ -201,6 +203,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	return nil
 }
 
+// Creates a new migration sink for a storage volume using WebSocket connections for migration channels.
 func newStorageMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
 		migrationFields: migrationFields{
@@ -238,6 +241,7 @@ func newStorageMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	return &sink, nil
 }
 
+// Performs the migration process on the target for a storage volume using WebSocket connections for migration channels.
 func (c *migrationSink) DoStorage(state *state.State, projectName string, poolName string, req *api.StorageVolumesPost, op *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"project": projectName, "pool": poolName, "volume": req.Name, "push": c.push})
 
@@ -480,6 +484,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	}
 }
 
+// Converts a storage volume snapshot into its corresponding Protocol Buffer (protobuf) representation for migration.
 func volumeSnapshotToProtobuf(vol *api.StorageVolumeSnapshot) *migration.Snapshot {
 	config := []*migration.Config{}
 	for k, v := range vol.Config {
