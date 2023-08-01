@@ -173,6 +173,7 @@ jobs:
             socat \
             sqlite3 \
             squashfs-tools \
+            swtpm \
             tar \
             tcl \
             thin-provisioning-tools \
@@ -183,6 +184,11 @@ jobs:
           mkdir -p "$(go env GOPATH)/bin"
           curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/minio --output "$(go env GOPATH)/bin/minio"
           chmod +x "$(go env GOPATH)/bin/minio"
+
+          # tpm tests require linux-modules-extra
+          echo "MODULES=dep" | sudo tee /etc/initramfs-tools/conf.d/modules.conf
+          sudo apt-get install --no-install-recommends --yes "linux-modules-extra-$(uname -r)"
+
 
       - name: Download go dependencies
         run: |
