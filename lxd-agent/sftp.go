@@ -16,6 +16,7 @@ var sftpCmd = APIEndpoint{
 	Get: APIEndpointAction{Handler: sftpHandler},
 }
 
+// sftpHandler upgrades the HTTP connection to SFTP and starts the SFTP server.
 func sftpHandler(d *Daemon, r *http.Request) response.Response {
 	return &sftpServe{d, r}
 }
@@ -25,10 +26,12 @@ type sftpServe struct {
 	r *http.Request
 }
 
+// String returns a descriptive name for the sftpServe handler.
 func (r *sftpServe) String() string {
 	return "sftp handler"
 }
 
+// Render starts the SFTP server to handle requests after upgrading the connection.
 func (r *sftpServe) Render(w http.ResponseWriter) error {
 	// Upgrade to sftp.
 	if r.r.Header.Get("Upgrade") != "sftp" {
