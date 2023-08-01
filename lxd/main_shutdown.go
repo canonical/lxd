@@ -19,6 +19,7 @@ type cmdShutdown struct {
 	flagTimeout int
 }
 
+// Command returns a Cobra command to cleanly shutdown LXD and all containers, with timeout and forceful options.
 func (c *cmdShutdown) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "shutdown"
@@ -39,6 +40,7 @@ func (c *cmdShutdown) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the LXD shutdown process with optional timeout and force flag.
 func (c *cmdShutdown) Run(cmd *cobra.Command, args []string) error {
 	connArgs := &lxd.ConnectionArgs{
 		SkipGetServer: true,
