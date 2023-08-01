@@ -24,14 +24,18 @@ type eventsServe struct {
 	d   *Daemon
 }
 
+// Render implements the Render interface to serve real-time event notifications over the WebSocket.
 func (r *eventsServe) Render(w http.ResponseWriter) error {
 	return eventsSocket(r.d, r.req, w)
 }
 
+// String returns a short description of the event handler.
 func (r *eventsServe) String() string {
 	return "event handler"
 }
 
+// eventsSocket serves real-time event notifications over WebSockets or
+// long-polling event streams based on the client request type.
 func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	typeStr := r.FormValue("type")
 	if typeStr == "" {
@@ -82,10 +86,12 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	return nil
 }
 
+// eventsGet returns an instance of eventsServe to handle event requests.
 func eventsGet(d *Daemon, r *http.Request) response.Response {
 	return &eventsServe{req: r, d: d}
 }
 
+// eventsPost sends an event received in the request to the events system for processing.
 func eventsPost(d *Daemon, r *http.Request) response.Response {
 	var event api.Event
 
