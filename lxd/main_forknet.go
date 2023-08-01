@@ -119,6 +119,7 @@ type cmdForknet struct {
 	global *cmdGlobal
 }
 
+// Sets up and runs hidden commands for container network operations like info and detach.
 func (c *cmdForknet) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -152,6 +153,7 @@ func (c *cmdForknet) Command() *cobra.Command {
 	return cmd
 }
 
+// Fetches and prints container network interfaces information.
 func (c *cmdForknet) RunInfo(cmd *cobra.Command, args []string) error {
 	hostInterfaces, _ := net.Interfaces()
 	networks, err := netutils.NetnsGetifaddrs(-1, hostInterfaces)
@@ -169,6 +171,7 @@ func (c *cmdForknet) RunInfo(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// Detaches a network interface from a container, removing IP addresses and moving it to the host namespace.
 func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
 	lxdPID := args[1]
 	ifName := args[2]
