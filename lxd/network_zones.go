@@ -129,6 +129,8 @@ var networkZoneCmd = APIEndpoint{
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves network zones, returning either zone URLs or detailed info based on recursion.
 func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -202,6 +204,8 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Creates a new network zone based on the provided request data.
 func networkZonesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -264,6 +268,8 @@ func networkZonesPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Deletes the specified network zone.
 func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -332,6 +338,8 @@ func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves information about the specified network zone, including its usage details.
 func networkZoneGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -428,6 +436,9 @@ func networkZoneGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Updates the configuration of the specified network zone based on the request data,
+// validating ETag for concurrency control.
 func networkZonePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
