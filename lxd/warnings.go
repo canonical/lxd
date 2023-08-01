@@ -44,6 +44,7 @@ var warningCmd = APIEndpoint{
 	Delete: APIEndpointAction{Handler: warningDelete},
 }
 
+// filterWarnings filters the given list of warnings based on the provided filter clauses.
 func filterWarnings(warnings []api.Warning, clauses *filter.ClauseSet) ([]api.Warning, error) {
 	filtered := []api.Warning{}
 
@@ -151,6 +152,8 @@ func filterWarnings(warnings []api.Warning, clauses *filter.ClauseSet) ([]api.Wa
 //	            $ref: "#/definitions/Warning"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// warningsGet retrieves and filters warnings based on query parameters.
 func warningsGet(d *Daemon, r *http.Request) response.Response {
 	// Parse the recursion field
 	recursionStr := r.FormValue("recursion")
@@ -262,6 +265,8 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// warningGet retrieves a specific warning by its ID and returns it as an API response.
 func warningGet(d *Daemon, r *http.Request) response.Response {
 	id, err := url.PathUnescape(mux.Vars(r)["id"])
 	if err != nil {
@@ -318,6 +323,8 @@ func warningGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// warningPatch is an alias for warningPut function, handling the HTTP request.
 func warningPatch(d *Daemon, r *http.Request) response.Response {
 	return warningPut(d, r)
 }
@@ -349,6 +356,8 @@ func warningPatch(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// warningPut updates the status of a warning to acknowledged or new based on the HTTP request.
 func warningPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -410,6 +419,8 @@ func warningPut(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/EmptySyncResponse"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// warningDelete deletes a warning based on the provided ID.
 func warningDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -435,6 +446,7 @@ func warningDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// pruneResolvedWarningsTask returns a task that removes resolved warnings on a daily schedule.
 func pruneResolvedWarningsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := d.State()
@@ -468,6 +480,7 @@ func pruneResolvedWarningsTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, task.Daily()
 }
 
+// pruneResolvedWarnings deletes resolved warnings from the database resolved for at least 24 hours.
 func pruneResolvedWarnings(ctx context.Context, s *state.State) error {
 	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Retrieve warnings by resolved status.
