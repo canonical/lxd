@@ -12,6 +12,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// Applies templates specified in metadata.yaml to the specified path by copying template files into place.
 func templatesApply(path string) ([]string, error) {
 	metaName := filepath.Join(path, "metadata.yaml")
 	if !shared.PathExists(metaName) {
