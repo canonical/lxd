@@ -13,6 +13,7 @@ type cmdVersion struct {
 	global *cmdGlobal
 }
 
+// Command returns a Cobra command for "version" that shows the server version.
 func (c *cmdVersion) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "version"
@@ -25,6 +26,7 @@ func (c *cmdVersion) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the "version" command, printing the server version to the console.
 func (c *cmdVersion) Run(cmd *cobra.Command, args []string) error {
 	fmt.Println(version.Version)
 
