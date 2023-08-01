@@ -15,6 +15,7 @@ type cmdMigratedumpsuccess struct {
 	global *cmdGlobal
 }
 
+// Command sets up the "migratedumpsuccess" command in LXD, which notifies LXD of a successful CRIU dump operation.
 func (c *cmdMigratedumpsuccess) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "migratedumpsuccess <operation> <secret>"
@@ -31,6 +32,7 @@ func (c *cmdMigratedumpsuccess) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the "migratedumpsuccess" command, notifying LXD of a successful CRIU dump operation.
 func (c *cmdMigratedumpsuccess) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) < 2 {
