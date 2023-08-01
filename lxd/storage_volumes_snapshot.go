@@ -85,6 +85,8 @@ var storagePoolVolumeSnapshotTypeCmd = APIEndpoint{
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Creates a custom snapshot of a storage volume in a storage pool.
 func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -343,6 +345,8 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves all custom snapshots of a storage volume in a storage pool and returns their information.
 func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -478,6 +482,8 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Renames a custom storage volume snapshot in a storage pool.
 func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -626,6 +632,8 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves details of a custom storage volume snapshot in a storage pool.
 func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -749,6 +757,8 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Updates the properties of a custom storage volume snapshot in a storage pool.
 func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -877,6 +887,8 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Updates specific properties of a custom storage volume snapshot in a storage pool.
 func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -966,6 +978,7 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 	return doStoragePoolVolumeSnapshotUpdate(s, r, poolName, projectName, dbVolume.Name, volumeType, req)
 }
 
+// Updates properties of a custom storage volume snapshot in a storage pool based on the provided request.
 func doStoragePoolVolumeSnapshotUpdate(s *state.State, r *http.Request, poolName string, projectName string, volName string, volumeType int, req api.StorageVolumeSnapshotPut) response.Response {
 	expiry := time.Time{}
 	if req.ExpiresAt != nil {
@@ -1033,6 +1046,8 @@ func doStoragePoolVolumeSnapshotUpdate(s *state.State, r *http.Request, poolName
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Deletes a custom storage volume snapshot from a storage pool based on the provided request.
 func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1109,6 +1124,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	return operations.OperationResponse(op)
 }
 
+// Periodic task for custom volume snapshots (pruning expired and auto-creating scheduled snapshots).
 func pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := d.State()
@@ -1339,6 +1355,7 @@ func pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, t
 
 var customVolSnapshotsPruneRunning = sync.Map{}
 
+// pruneExpiredCustomVolumeSnapshots deletes expired custom volume snapshots in parallel.
 func pruneExpiredCustomVolumeSnapshots(ctx context.Context, s *state.State, expiredSnapshots []db.StorageVolumeArgs) error {
 	for _, v := range expiredSnapshots {
 		err := ctx.Err()
@@ -1367,6 +1384,7 @@ func pruneExpiredCustomVolumeSnapshots(ctx context.Context, s *state.State, expi
 	return nil
 }
 
+// autoCreateCustomVolumeSnapshots creates auto-scheduled custom volume snapshots sequentially.
 func autoCreateCustomVolumeSnapshots(ctx context.Context, s *state.State, volumes []db.StorageVolumeArgs) error {
 	// Make the snapshots sequentially.
 	for _, v := range volumes {
@@ -1399,6 +1417,7 @@ func autoCreateCustomVolumeSnapshots(ctx context.Context, s *state.State, volume
 	return nil
 }
 
+// Determines the name of the next custom volume snapshot based on the pattern and existing snapshots.
 func volumeDetermineNextSnapshotName(s *state.State, volume db.StorageVolumeArgs, defaultPattern string) (string, error) {
 	var err error
 
