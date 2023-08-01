@@ -11,6 +11,7 @@ import (
 
 var networkOVNChassis *bool
 
+// Attaches a network interface to its corresponding network in the cluster's database if found.
 func networkAutoAttach(cluster *db.Cluster, devName string) error {
 	_, dbInfo, err := cluster.GetNetworkWithInterface(devName)
 	if err != nil {
