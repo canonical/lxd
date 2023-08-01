@@ -42,6 +42,8 @@ func readStoragePoolDriversCache() ([]api.ServerStorageDriverInfo, map[string]st
 	return supportedDrivers.([]api.ServerStorageDriverInfo), usedDrivers.(map[string]string)
 }
 
+// Performs the startup process for storage pools, initializes and mounts them,
+// and retries if some pools fail to initialize.
 func storageStartup(s *state.State, forceCheck bool) error {
 	// Update the storage drivers supported and used cache in api_1.0.go.
 	storagePoolDriversCacheUpdate(s)
@@ -150,6 +152,7 @@ func storageStartup(s *state.State, forceCheck bool) error {
 	return nil
 }
 
+// Updates the cache of storage drivers used and supported by LXD, improving read performance.
 func storagePoolDriversCacheUpdate(s *state.State) {
 	// Get a list of all storage drivers currently in use
 	// on this LXD instance. Only do this when we do not already have done
