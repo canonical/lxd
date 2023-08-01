@@ -280,6 +280,7 @@ type udpSession struct {
 	timerLock sync.Mutex
 }
 
+// Sets up proxy process to facilitate network connection between a container and the host.
 func (c *cmdForkproxy) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -299,6 +300,7 @@ func (c *cmdForkproxy) Command() *cobra.Command {
 	return cmd
 }
 
+// Resets the UDP file descriptor in epoll instance for one-time notification of 'read' events.
 func rearmUDPFd(epFd C.int, connFd C.int) {
 	var ev C.struct_epoll_event
 	ev.events = C.EPOLLIN | C.EPOLLONESHOT
@@ -309,6 +311,7 @@ func rearmUDPFd(epFd C.int, connFd C.int) {
 	}
 }
 
+// Handles and forwards incoming connections to the target with optional PROXY protocol support.
 func listenerInstance(epFd C.int, lAddr *deviceConfig.ProxyAddress, cAddr *deviceConfig.ProxyAddress, connFd C.int, lStruct *lStruct, proxy bool) error {
 	// Single or multiple port -> single port
 	connectAddr := cAddr.Address
@@ -403,6 +406,7 @@ type lStruct struct {
 	lAddrIndex int
 }
 
+// Manages the lifecycle of a forkproxy instance, setting up listeners and handling incoming connections.
 func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	// Only root should run this
 	if os.Geteuid() != 0 {
@@ -694,6 +698,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// Manages data transfer between two network connections.
 func proxyCopy(dst net.Conn, src net.Conn) error {
 	var err error
 
@@ -816,6 +821,7 @@ func proxyCopy(dst net.Conn, src net.Conn) error {
 	return err
 }
 
+// Facilitates bi-directional data relay between two network connections.
 func genericRelay(dst net.Conn, src net.Conn, timeout bool) {
 	relayer := func(src net.Conn, dst net.Conn, ch chan error) {
 		ch <- proxyCopy(src, dst)
@@ -854,6 +860,7 @@ func genericRelay(dst net.Conn, src net.Conn, timeout bool) {
 	<-chRecv
 }
 
+// Handles data and out-of-band message relaying between two Unix connections.
 func unixRelayer(src *net.UnixConn, dst *net.UnixConn, ch chan error) {
 	dataBuf := make([]byte, 4096)
 	oobBuf := make([]byte, 4096)
@@ -918,6 +925,7 @@ func unixRelayer(src *net.UnixConn, dst *net.UnixConn, ch chan error) {
 	}
 }
 
+// Facilitates bidirectional relay of data and errors between Unix connections.
 func unixRelay(dst io.ReadWriteCloser, src io.ReadWriteCloser) {
 	chSend := make(chan error)
 	go unixRelayer(dst.(*net.UnixConn), src.(*net.UnixConn), chSend)
@@ -945,6 +953,7 @@ func unixRelay(dst io.ReadWriteCloser, src io.ReadWriteCloser) {
 	<-chRecv
 }
 
+// Attempts to establish a network listener on the provided protocol and address, with retries.
 func tryListen(protocol string, addr string) (net.Listener, error) {
 	var listener net.Listener
 	var err error
@@ -965,6 +974,8 @@ func tryListen(protocol string, addr string) (net.Listener, error) {
 	return listener, nil
 }
 
+// Attempts to establish a UDP listener on the specified protocol and address, with retries,
+// returning the associated file descriptor.
 func tryListenUDP(protocol string, addr string) (*os.File, error) {
 	var UDPConn *net.UDPConn
 	var err error
@@ -998,6 +1009,7 @@ func tryListenUDP(protocol string, addr string) (*os.File, error) {
 	return file, err
 }
 
+// Retrieves the file descriptor for a TCP or Unix listener based on the provided protocol and address.
 func getListenerFile(protocol string, addr string) (*os.File, error) {
 	if protocol == "udp" {
 		return tryListenUDP("udp", addr)
