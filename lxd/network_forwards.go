@@ -129,6 +129,8 @@ var networkForwardCmd = APIEndpoint{
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves network forwards for the specified network and returns them as a response.
 func networkForwardsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -217,6 +219,8 @@ func networkForwardsGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Creates a network forward for the specified network using the information provided in the request.
 func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -295,6 +299,8 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Deletes the specified network forward for the given network and listen address.
 func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -384,6 +390,8 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves information about the specified network forward for the given network and listen address.
 func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -501,6 +509,8 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Updates the specified network forward for the given network and listen address with the provided configuration.
 func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
