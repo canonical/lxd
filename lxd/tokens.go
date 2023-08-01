@@ -11,6 +11,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+// autoRemoveExpiredTokens cancels expired token operations and removes them from the system.
 func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 	expiredTokenOps := make([]*operations.Operation, 0)
 
@@ -66,6 +67,7 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 	logger.Debug("Done removing expired tokens")
 }
 
+// autoRemoveExpiredTokensTask periodically cancels expired token operations in the system.
 func autoRemoveExpiredTokensTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		autoRemoveExpiredTokens(ctx, d.State())
