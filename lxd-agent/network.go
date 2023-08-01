@@ -25,6 +25,7 @@ type networkListener struct {
 	config *tls.Config
 }
 
+// networkTLSListener creates a TLS network listener with the specified inner listener and config.
 func networkTLSListener(inner net.Listener, config *tls.Config) *networkListener {
 	listener := &networkListener{
 		Listener: inner,
@@ -48,6 +49,7 @@ func (l *networkListener) Accept() (net.Conn, error) {
 	return tls.Server(c, l.config), nil
 }
 
+// serverTLSConfig generates a TLS configuration with a key pair and CA for the server.
 func serverTLSConfig() (*tls.Config, error) {
 	certInfo, err := shared.KeyPairAndCA(".", "agent", shared.CertServer, false)
 	if err != nil {
