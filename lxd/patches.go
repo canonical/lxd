@@ -85,6 +85,7 @@ type patch struct {
 	run   func(name string, d *Daemon) error
 }
 
+// Executes the patch, then marks it as applied in the node database if successful.
 func (p *patch) apply(d *Daemon) error {
 	logger.Info("Applying patch", logger.Ctx{"name": p.name})
 
@@ -101,7 +102,7 @@ func (p *patch) apply(d *Daemon) error {
 	return nil
 }
 
-// Return the names of all available patches.
+// patchesGetNames returns the names of all valid patches with a defined stage.
 func patchesGetNames() []string {
 	names := make([]string, len(patches))
 	for i, patch := range patches {
@@ -142,6 +143,7 @@ func patchesApply(d *Daemon, stage patchStage) error {
 
 // Patches begin here
 
+// Updates DNSMasq static entries and includes the device name in them.
 func patchDnsmasqEntriesIncludeDeviceName(name string, d *Daemon) error {
 	err := network.UpdateDNSMasqStatic(d.State(), "")
 	if err != nil {
@@ -151,6 +153,7 @@ func patchDnsmasqEntriesIncludeDeviceName(name string, d *Daemon) error {
 	return nil
 }
 
+// Removes warnings associated with an empty node from the database.
 func patchRemoveWarningsWithEmptyNode(name string, d *Daemon) error {
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		warnings, err := dbCluster.GetWarnings(ctx, tx.Tx())
@@ -176,6 +179,7 @@ func patchRemoveWarningsWithEmptyNode(name string, d *Daemon) error {
 	return nil
 }
 
+// Adds the local server's certificate to the cluster trust store and ensures all members have done the same.
 func patchClusteringServerCertTrust(name string, d *Daemon) error {
 	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
@@ -714,10 +718,12 @@ func patchMoveBackupsInstances(name string, d *Daemon) error {
 	return nil
 }
 
+// Applies a specific storage-related patch across all storage pools in the system.
 func patchGenericStorage(name string, d *Daemon) error {
 	return storagePools.Patch(d.State(), name)
 }
 
+// Returns a function that performs a precheck and then applies a specific network-related patch.
 func patchGenericNetwork(f func(name string, d *Daemon) error) func(name string, d *Daemon) error {
 	return func(name string, d *Daemon) error {
 		err := network.PatchPreCheck()
@@ -729,6 +735,7 @@ func patchGenericNetwork(f func(name string, d *Daemon) error) func(name string,
 	}
 }
 
+// Removes all database roles from each cluster member as part of a patch operation.
 func patchClusteringDropDatabaseRole(name string, d *Daemon) error {
 	return d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		members, err := tx.GetNodes(ctx)
