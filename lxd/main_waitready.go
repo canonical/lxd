@@ -16,6 +16,7 @@ type cmdWaitready struct {
 	flagTimeout int
 }
 
+// Command returns a Cobra command for "waitready" which waits for LXD to be ready to process requests.
 func (c *cmdWaitready) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "waitready"
@@ -33,6 +34,7 @@ func (c *cmdWaitready) Command() *cobra.Command {
 	return cmd
 }
 
+// Run checks if LXD daemon is ready by attempting to connect and checking /internal/ready endpoint, with optional timeout.
 func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 	finger := make(chan error, 1)
 	var errLast error
