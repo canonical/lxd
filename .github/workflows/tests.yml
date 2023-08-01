@@ -173,7 +173,6 @@ jobs:
             socat \
             sqlite3 \
             squashfs-tools \
-            swtpm \
             tar \
             tcl \
             thin-provisioning-tools \
@@ -185,10 +184,13 @@ jobs:
           curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/minio --output "$(go env GOPATH)/bin/minio"
           chmod +x "$(go env GOPATH)/bin/minio"
 
+      - name: Install dependencies for TPM
+        if: ${{ matrix.suite == 'standalone' }}
+        run: |
+          set -x
           # tpm tests require linux-modules-extra
           echo "MODULES=dep" | sudo tee /etc/initramfs-tools/conf.d/modules.conf
-          sudo apt-get install --no-install-recommends --yes "linux-modules-extra-$(uname -r)"
-
+          sudo apt-get install --no-install-recommends --yes "linux-modules-extra-$(uname -r)" swtpm
 
       - name: Download go dependencies
         run: |
