@@ -64,6 +64,8 @@ var storagePoolResourcesCmd = APIEndpoint{
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Fetches system resource usage information, forwarding the request if a remote target is specified.
 func api10ResourcesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -122,6 +124,8 @@ func api10ResourcesGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves the resource usage of a specific storage pool, forwarding the request if a remote target is specified.
 func storagePoolResourcesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
