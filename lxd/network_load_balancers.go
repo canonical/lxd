@@ -129,6 +129,8 @@ var networkLoadBalancerCmd = APIEndpoint{
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves the list of load balancers associated with the specified network, or their URLs if recursion is requested.
 func networkLoadBalancersGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -218,6 +220,8 @@ func networkLoadBalancersGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Creates a new load balancer for the specified network using the provided request data.
 func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -296,6 +300,8 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Deletes the specified load balancer from the network.
 func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -385,6 +391,8 @@ func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves the details of the specified load balancer from the network.
 func networkLoadBalancerGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -502,6 +510,8 @@ func networkLoadBalancerGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Updates the specified load balancer with the provided configuration.
 func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
