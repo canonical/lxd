@@ -1,4 +1,4 @@
-package rbac
+package auth
 
 import (
 	"bytes"
@@ -45,16 +45,16 @@ type rbacStatus struct {
 // Errors.
 var errUnknownUser = fmt.Errorf("Unknown RBAC user")
 
-// UserAccess struct for permission checks.
-type UserAccess struct {
-	Admin    bool
-	Projects map[string][]string
-}
+// rbac represents an RBAC server.
+type rbac struct {
+	commonAuthorizer
+	tls
 
-// Server represents an RBAC server.
-type Server struct {
-	apiURL string
-	apiKey string
+	apiURL          string
+	agentPrivateKey string
+	agentPublicKey  string
+	agentAuthURL    string
+	agentUsername   string
 
 	lastSyncID string
 	client     *httpbakery.Client
@@ -70,33 +70,27 @@ type Server struct {
 
 	permissionsLock *sync.Mutex
 
-	ProjectsFunc func() (map[int64]string, error)
+	projectsFunc func() (map[int64]string, error)
 }
 
-// NewServer returns a new RBAC server instance.
-func NewServer(apiURL string, apiKey string, agentAuthURL string, agentUsername string, agentPrivateKey string, agentPublicKey string) (*Server, error) {
-	r := Server{
-		apiURL:          apiURL,
-		apiKey:          apiKey,
-		lastSyncID:      "",
-		lastChange:      "",
-		resources:       make(map[string]string),
-		permissions:     make(map[string]map[string][]string),
-		permissionsLock: &sync.Mutex{},
+func (r *rbac) load() error {
+	err := r.validateConfig()
+	if err != nil {
+		return err
 	}
 
 	// Setup context
 	r.ctx, r.ctxCancel = context.WithCancel(context.Background())
 
 	var keyPair bakery.KeyPair
-	err := keyPair.Private.UnmarshalText([]byte(agentPrivateKey))
+	err = keyPair.Private.UnmarshalText([]byte(r.agentPrivateKey))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	err = keyPair.Public.UnmarshalText([]byte(agentPublicKey))
+	err = keyPair.Public.UnmarshalText([]byte(r.agentPublicKey))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	r.client = httpbakery.NewClient()
@@ -104,27 +98,74 @@ func NewServer(apiURL string, apiKey string, agentAuthURL string, agentUsername 
 		Key: &keyPair,
 		Agents: []agent.Agent{
 			{
-				URL:      agentAuthURL,
-				Username: agentUsername,
+				URL:      r.agentAuthURL,
+				Username: r.agentUsername,
 			},
 		},
 	}
 
 	err = agent.SetUpAuth(r.client, &authInfo)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	r.client.Client.Jar, err = cookiejar.New(nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return &r, nil
+	// Perform full sync when online
+	go func() {
+		for {
+			err = r.syncProjects()
+			if err != nil {
+				time.Sleep(time.Minute)
+				continue
+			}
+
+			break
+		}
+	}()
+
+	r.startStatusCheck()
+
+	return nil
 }
 
-// StartStatusCheck runs a status checking loop.
-func (r *Server) StartStatusCheck() {
+func (r *rbac) validateConfig() error {
+	val, ok := r.config["rbac.agent.private_key"]
+	if !ok {
+		return fmt.Errorf("Missing RBAC agent private key")
+	}
+
+	r.agentPrivateKey = val.(string)
+
+	val, ok = r.config["rbac.agent.public_key"]
+	if !ok {
+		return fmt.Errorf("Missing RBAC agent public key")
+	}
+
+	r.agentPublicKey = val.(string)
+
+	val, ok = r.config["rbac.agent.url"]
+	if !ok {
+		return fmt.Errorf("Missing RBAC agent URL")
+	}
+
+	r.agentAuthURL = val.(string)
+
+	val, ok = r.config["rbac.agent.username"]
+	if !ok {
+		return fmt.Errorf("Missing RBAC agent username")
+	}
+
+	r.agentUsername = val.(string)
+
+	return nil
+}
+
+// startStatusCheck runs a status checking loop.
+func (r *rbac) startStatusCheck() {
 	var status rbacStatus
 
 	// Figure out the new URL.
@@ -200,13 +241,13 @@ func (r *Server) StartStatusCheck() {
 }
 
 // StopStatusCheck stops the periodic status checker.
-func (r *Server) StopStatusCheck() {
+func (r *rbac) StopStatusCheck() {
 	r.ctxCancel()
 }
 
-// SyncProjects updates the list of projects in RBAC.
-func (r *Server) SyncProjects() error {
-	if r.ProjectsFunc == nil {
+// syncProjects updates the list of projects in RBAC.
+func (r *rbac) syncProjects() error {
+	if r.projectsFunc == nil {
 		return fmt.Errorf("ProjectsFunc isn't configured yet, cannot sync")
 	}
 
@@ -214,7 +255,7 @@ func (r *Server) SyncProjects() error {
 	resourcesMap := map[string]string{}
 
 	// Get all projects
-	projects, err := r.ProjectsFunc()
+	projects, err := r.projectsFunc()
 	if err != nil {
 		return err
 	}
@@ -244,10 +285,10 @@ func (r *Server) SyncProjects() error {
 }
 
 // AddProject adds a new project resource to RBAC.
-func (r *Server) AddProject(id int64, name string) error {
+func (r *rbac) AddProject(projectID int64, name string) error {
 	resource := rbacResource{
 		Name:       name,
-		Identifier: strconv.FormatInt(id, 10),
+		Identifier: strconv.FormatInt(projectID, 10),
 	}
 
 	// Update RBAC
@@ -258,16 +299,16 @@ func (r *Server) AddProject(id int64, name string) error {
 
 	// Update project map
 	r.resourcesLock.Lock()
-	r.resources[name] = strconv.FormatInt(id, 10)
+	r.resources[name] = strconv.FormatInt(projectID, 10)
 	r.resourcesLock.Unlock()
 
 	return nil
 }
 
 // DeleteProject adds a new project resource to RBAC.
-func (r *Server) DeleteProject(id int64) error {
+func (r *rbac) DeleteProject(projectID int64) error {
 	// Update RBAC
-	err := r.postResources(nil, []string{strconv.FormatInt(id, 10)}, false)
+	err := r.postResources(nil, []string{strconv.FormatInt(projectID, 10)}, false)
 	if err != nil {
 		return err
 	}
@@ -275,7 +316,7 @@ func (r *Server) DeleteProject(id int64) error {
 	// Update project map
 	r.resourcesLock.Lock()
 	for k, v := range r.resources {
-		if v == strconv.FormatInt(id, 10) {
+		if v == strconv.FormatInt(projectID, 10) {
 			delete(r.resources, k)
 			break
 		}
@@ -286,12 +327,12 @@ func (r *Server) DeleteProject(id int64) error {
 }
 
 // RenameProject renames an existing project resource in RBAC.
-func (r *Server) RenameProject(id int64, name string) error {
-	return r.AddProject(id, name)
+func (r *rbac) RenameProject(projectID int64, name string) error {
+	return r.AddProject(projectID, name)
 }
 
 // UserAccess returns a UserAccess struct for the user.
-func (r *Server) UserAccess(username string) (*UserAccess, error) {
+func (r *rbac) UserAccess(username string) (*UserAccess, error) {
 	r.permissionsLock.Lock()
 	defer r.permissionsLock.Unlock()
 
@@ -336,7 +377,7 @@ func (r *Server) UserAccess(username string) (*UserAccess, error) {
 	return &access, nil
 }
 
-func (r *Server) flushCache() {
+func (r *rbac) flushCache() {
 	r.permissionsLock.Lock()
 	defer r.permissionsLock.Unlock()
 
@@ -353,7 +394,7 @@ func (r *Server) flushCache() {
 	logger.Info("Flushed RBAC permissions cache")
 }
 
-func (r *Server) syncAdmin(username string) bool {
+func (r *rbac) syncAdmin(username string) bool {
 	u, err := url.Parse(r.apiURL)
 	if err != nil {
 		return false
@@ -386,7 +427,7 @@ func (r *Server) syncAdmin(username string) bool {
 	return shared.StringInSlice("admin", permissions[""])
 }
 
-func (r *Server) syncPermissions(username string) error {
+func (r *rbac) syncPermissions(username string) error {
 	u, err := url.Parse(r.apiURL)
 	if err != nil {
 		return err
@@ -426,10 +467,10 @@ func (r *Server) syncPermissions(username string) error {
 	return nil
 }
 
-func (r *Server) postResources(updates []rbacResource, removals []string, force bool) error {
+func (r *rbac) postResources(updates []rbacResource, removals []string, force bool) error {
 	// Make sure that we have a baseline sync in place
 	if !force && r.lastSyncID == "" {
-		return r.SyncProjects()
+		return r.syncProjects()
 	}
 
 	// Generate the URL
@@ -475,7 +516,7 @@ func (r *Server) postResources(updates []rbacResource, removals []string, force 
 	// Handle errors
 	if resp.StatusCode == 409 {
 		// Sync IDs don't match, force sync
-		return r.SyncProjects()
+		return r.syncProjects()
 	} else if resp.StatusCode != http.StatusOK {
 		// Something went wrong
 		return errors.New(resp.Status)

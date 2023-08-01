@@ -19,7 +19,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
-	"github.com/canonical/lxd/lxd/rbac"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/scriptlet"
 	"github.com/canonical/lxd/lxd/state"
@@ -214,7 +213,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 			var targetGroupName string
 
-			targetMemberInfo, targetGroupName, err = project.CheckTarget(ctx, r, tx, targetProject, target, allMembers)
+			targetMemberInfo, targetGroupName, err = project.CheckTarget(ctx, s.Authorizer, r, tx, targetProject, target, allMembers)
 			if err != nil {
 				return err
 			}
@@ -333,7 +332,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		// Server-side project migration.
 		if req.Project != "" {
 			// Check if user has access to target project
-			if !rbac.UserHasPermission(r, req.Project, "manage-containers") {
+			if !s.Authorizer.UserHasPermission(r, req.Project, "manage-containers") {
 				return response.Forbidden(nil)
 			}
 
