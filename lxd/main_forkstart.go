@@ -16,6 +16,7 @@ type cmdForkstart struct {
 	global *cmdGlobal
 }
 
+// Sets up the "forkstart" command for starting a container in a separate process.
 func (c *cmdForkstart) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -33,6 +34,7 @@ func (c *cmdForkstart) Command() *cobra.Command {
 	return cmd
 }
 
+// Validates inputs, prepares the environment, and starts a specified container.
 func (c *cmdForkstart) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) != 3 {
