@@ -13,6 +13,7 @@ type cmdManpage struct {
 	global *cmdGlobal
 }
 
+// Command returns a Cobra command for generating manpages for all commands.
 func (c *cmdManpage) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "manpage <target>"
@@ -26,6 +27,7 @@ func (c *cmdManpage) Command() *cobra.Command {
 	return cmd
 }
 
+// Run generates manpages for all commands based on the specified arguments.
 func (c *cmdManpage) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) != 1 {
