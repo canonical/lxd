@@ -150,6 +150,8 @@ var storagePoolVolumeTypeCustomBackupExportCmd = APIEndpoint{
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves custom backups of a storage volume, handling local and clustered scenarios.
 func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -268,6 +270,8 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Creates a custom backup of a storage volume, handling local and clustered scenarios.
 func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -480,6 +484,8 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves information about a custom backup of a storage volume, handling local and clustered scenarios.
 func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -580,6 +586,8 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Renames a custom backup of a storage volume.
 func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -707,6 +715,8 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Deletes a custom backup of a storage volume.
 func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -817,6 +827,8 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves and exports a custom backup of a storage volume.
 func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
