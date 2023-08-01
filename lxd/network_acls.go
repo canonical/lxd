@@ -139,6 +139,9 @@ var networkACLLogCmd = APIEndpoint{
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves and returns Network ACLs in either simple string format or
+// detailed map format based on recursion.
 func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -212,6 +215,8 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Creates a new Network ACL based on the request data and sends a lifecycle event.
 func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -273,6 +278,8 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Deletes the specified Network ACL and sends a lifecycle event.
 func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -341,6 +348,9 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves and returns the information of the specified Network ACL,
+// including its usage details, if available.
 func networkACLGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -437,6 +447,8 @@ func networkACLGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Updates the specified Network ACL with the provided configuration, allowing full replacement or partial modification.
 func networkACLPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -525,6 +537,8 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Renames the specified Network ACL with the new name provided in the request.
 func networkACLPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -590,6 +604,8 @@ func networkACLPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves the log file for the specified Network ACL and returns it as a file response.
 func networkACLLogGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
