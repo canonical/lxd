@@ -10,6 +10,7 @@ import (
 	"github.com/canonical/lxd/lxd/network"
 )
 
+// Tests parsing of various formats of proxy addresses, including IP, Unix sockets, and port ranges.
 func TestParseAddr(t *testing.T) {
 	tests := []struct {
 		name       string
