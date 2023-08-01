@@ -13,6 +13,7 @@ type cmdForkmigrate struct {
 	global *cmdGlobal
 }
 
+// Initializes and runs a command to restore a container from saved state.
 func (c *cmdForkmigrate) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -30,6 +31,7 @@ func (c *cmdForkmigrate) Command() *cobra.Command {
 	return cmd
 }
 
+// Runs the 'forkmigrate' command, restoring a saved container state with root privileges.
 func (c *cmdForkmigrate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) != 5 {
