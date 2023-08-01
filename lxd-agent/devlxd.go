@@ -12,7 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/daemon"
 	"github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/util"
@@ -21,7 +21,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
-// DevLxdServer creates an http.Server capable of handling requests against the
+// devLxdServer creates an http.Server capable of handling requests against the
 // /dev/lxd Unix socket endpoint created inside VMs.
 func devLxdServer(d *Daemon) *http.Server {
 	return &http.Server{
@@ -41,6 +41,7 @@ type devLxdHandler struct {
 	f func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse
 }
 
+// getVsockClient connects to the LXD server over vsock and returns the client instance.
 func getVsockClient(d *Daemon) (lxd.InstanceServer, error) {
 	// Try connecting to LXD server.
 	client, err := getClient(d.serverCID, int(d.serverPort), d.serverCertificate)
@@ -229,6 +230,7 @@ var handlers = []devLxdHandler{
 	devlxdDevicesGet,
 }
 
+// hoistReq wraps the provided function to handle HTTP responses based on the devLxdResponse type.
 func hoistReq(f func(*Daemon, http.ResponseWriter, *http.Request) *devLxdResponse, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		resp := f(d, w, r)
@@ -250,6 +252,7 @@ func hoistReq(f func(*Daemon, http.ResponseWriter, *http.Request) *devLxdRespons
 	}
 }
 
+// devLxdAPI creates an HTTP router with handlers to process incoming requests for the specified daemon (`d`).
 func devLxdAPI(d *Daemon) http.Handler {
 	m := mux.NewRouter()
 	m.UseEncodedPath() // Allow encoded values in path segments.
@@ -300,7 +303,7 @@ func createDevLxdlListener(dir string) (net.Listener, error) {
 	return listener, nil
 }
 
-// Remove any stale socket file at the given path.
+// Removes any stale socket file at the given path.
 func socketUnixRemoveStale(path string) error {
 	// If there's no socket file at all, there's nothing to do.
 	if !shared.PathExists(path) {
@@ -316,7 +319,7 @@ func socketUnixRemoveStale(path string) error {
 	return nil
 }
 
-// Change the file mode of the given unix socket file.
+// Changes the file mode of the given unix socket file.
 func socketUnixSetPermissions(path string, mode os.FileMode) error {
 	err := os.Chmod(path, mode)
 	if err != nil {
@@ -326,7 +329,7 @@ func socketUnixSetPermissions(path string, mode os.FileMode) error {
 	return nil
 }
 
-// Bind to the given unix socket path.
+// socketUnixListen creates and returns a Unix domain socket listener for the given path.
 func socketUnixListen(path string) (net.Listener, error) {
 	addr, err := net.ResolveUnixAddr("unix", path)
 	if err != nil {
