@@ -281,6 +281,8 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// storagePoolVolumesGet retrieves the list of storage volumes for a specific pool with optional filtering.
 func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -532,6 +534,8 @@ func filterVolumes(volumes []*db.StorageVolume, clauses *filter.ClauseSet, allPr
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// storagePoolVolumesTypePost creates custom storage volumes with various options and source types for a specific pool.
 func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -639,6 +643,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 	}
 }
 
+// doCustomVolumeRefresh performs the copy (refresh) operation for a custom storage volume.
 func doCustomVolumeRefresh(s *state.State, r *http.Request, requestProjectName string, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
 	var run func(op *operations.Operation) error
 
@@ -672,6 +677,7 @@ func doCustomVolumeRefresh(s *state.State, r *http.Request, requestProjectName s
 	return operations.OperationResponse(op)
 }
 
+// doVolumeCreateOrCopy performs the create or copy operation for a custom storage volume.
 func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName string, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
 	var run func(op *operations.Operation) error
 
@@ -760,6 +766,8 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// storagePoolVolumesPost handles the creation and copying of custom storage volumes in a storage pool.
 func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -845,6 +853,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	}
 }
 
+// Handles custom storage volume migration between LXD instances (pull/push mode).
 func doVolumeMigration(s *state.State, r *http.Request, requestProjectName string, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
 	// Validate migration mode
 	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
@@ -968,6 +977,8 @@ func doVolumeMigration(s *state.State, r *http.Request, requestProjectName strin
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles storage volume renaming and migration requests within LXD clusters.
 func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1330,6 +1341,8 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, poolName str
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles the retrieval of information about a storage volume, including its properties and usage data.
 func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1444,6 +1457,8 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles the retrieval of information about a storage volume, including its properties and usage data.
 func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1615,6 +1630,8 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Updates a custom storage volume's description and configuration (patch operation).
 func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1747,6 +1764,8 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Deletes a custom or image storage volume from the specified storage pool.
 func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1860,6 +1879,7 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// Creates a custom storage volume from an uploaded ISO file in the specified storage pool.
 func createStoragePoolVolumeFromISO(s *state.State, r *http.Request, requestProjectName string, projectName string, data io.Reader, pool string, volName string) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
@@ -1925,6 +1945,7 @@ func createStoragePoolVolumeFromISO(s *state.State, r *http.Request, requestProj
 	return operations.OperationResponse(op)
 }
 
+// Restores a custom storage volume from an uploaded backup in the specified storage pool.
 func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestProjectName string, projectName string, data io.Reader, pool string, volName string) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
