@@ -38,6 +38,7 @@ type migrationFields struct {
 	allowInconsistent bool
 }
 
+// send sends a protobuf message over the control connection, ensuring that writes are not concurrent.
 func (c *migrationFields) send(m proto.Message) error {
 	/* gorilla websocket doesn't allow concurrent writes, and
 	 * panic()s if it sees them (which is reasonable). If e.g. we
@@ -67,6 +68,7 @@ func (c *migrationFields) send(m proto.Message) error {
 	return nil
 }
 
+// recv receives a protobuf message over the control connection.
 func (c *migrationFields) recv(m proto.Message) error {
 	conn, err := c.conns[api.SecretNameControl].WebSocket(context.TODO())
 	if err != nil {
@@ -76,6 +78,7 @@ func (c *migrationFields) recv(m proto.Message) error {
 	return migration.ProtoRecv(conn, m)
 }
 
+// disconnect closes the control connection and force closes other connections for migration.
 func (c *migrationFields) disconnect() {
 	c.controlLock.Lock()
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second)
@@ -102,6 +105,8 @@ func (c *migrationFields) disconnect() {
 	}
 }
 
+// sendControl sends an error message over the control connection
+// and disconnects other connections for migration.
 func (c *migrationFields) sendControl(err error) {
 	c.controlLock.Lock()
 	conn, _ := c.conns[api.SecretNameControl].WebSocket(context.TODO())
@@ -116,6 +121,7 @@ func (c *migrationFields) sendControl(err error) {
 	}
 }
 
+// controlChannel returns a channel to receive migration control responses and processes them in a separate goroutine.
 func (c *migrationFields) controlChannel() <-chan *migration.ControlResponse {
 	ch := make(chan *migration.ControlResponse)
 	go func() {
@@ -144,6 +150,7 @@ type migrationSourceWs struct {
 	pushSecrets      map[string]string
 }
 
+// Metadata returns the connection secrets of the migration source in a Jmap format.
 func (s *migrationSourceWs) Metadata() any {
 	secrets := make(shared.Jmap, len(s.conns))
 	for connName, conn := range s.conns {
@@ -153,6 +160,7 @@ func (s *migrationSourceWs) Metadata() any {
 	return secrets
 }
 
+// Handles incoming migration source connection request and validates the provided secret.
 func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	incomingSecret := r.FormValue("secret")
 	if incomingSecret == "" {
