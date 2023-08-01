@@ -10,6 +10,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 )
 
+// Tests scheduled container snapshot creation based on various cron patterns.
 func (suite *containerTestSuite) TestSnapshotScheduling() {
 	args := db.InstanceArgs{
 		Type:      instancetype.Container,
@@ -35,6 +36,7 @@ func (suite *containerTestSuite) TestSnapshotScheduling() {
 	op.Done(nil)
 }
 
+// Executes tests for common functionalities in container snapshots.
 func TestSnapshotCommon(t *testing.T) {
 	suite.Run(t, new(containerTestSuite))
 }
