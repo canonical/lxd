@@ -8,10 +8,11 @@ Each cluster member has its own key/value configuration with the following suppo
 
 The following keys are currently supported:
 
-| Key                   | Type      | Default | Description |
-| :-------------------- | :-------- | :------ | :---------- |
-| `scheduler.instance`  | string    | `all`   | Possible values are `all`, `manual` and `group`. See {ref}`clustering-instance-placement` for more information.|
-| `user.*`              | string    | -       | Free form user key/value storage (can be used in search). |
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group cluster start -->
+    :end-before: <!-- config group cluster end -->
+```
 
 ## Related topics
 
