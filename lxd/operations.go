@@ -167,6 +167,8 @@ func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdown
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// operationGet retrieves the specified operation, either locally or from another node if needed.
 func operationGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -240,6 +242,8 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// operationDelete cancels a given operation locally or on a different node.
 func operationDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -466,6 +470,8 @@ func operationCancel(s *state.State, r *http.Request, projectName string, op *ap
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// operationsGet retrieves all operations in a project, including those on cluster nodes.
 func operationsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -683,7 +689,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, md)
 }
 
-// operationsGetByType gets all operations for a project and type.
+// operationsGetByType gets all the operations for a project and type.
 func operationsGetByType(s *state.State, r *http.Request, projectName string, opType operationtype.Type) ([]*api.Operation, error) {
 	ops := make([]*api.Operation, 0)
 
@@ -887,6 +893,8 @@ func operationsGetByType(s *state.State, r *http.Request, projectName string, op
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// operationWaitGet waits for a specified operation to complete, either locally or on a different node.
 func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -978,6 +986,7 @@ type operationWebSocket struct {
 	op  *operations.Operation
 }
 
+// Render connects to the operation's websocket and waits for it to complete.
 func (r *operationWebSocket) Render(w http.ResponseWriter) error {
 	chanErr, err := r.op.Connect(r.req, w)
 	if err != nil {
@@ -988,6 +997,7 @@ func (r *operationWebSocket) Render(w http.ResponseWriter) error {
 	return err
 }
 
+// Returns string representation of the operation's ID or error message.
 func (r *operationWebSocket) String() string {
 	_, md, err := r.op.Render()
 	if err != nil {
@@ -1051,6 +1061,8 @@ func (r *operationWebSocket) String() string {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Establishes a websocket connection for the operation, either locally or forwarded to a different node.
 func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1109,6 +1121,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	return operations.ForwardedOperationWebSocket(r, id, source)
 }
 
+// autoRemoveOrphanedOperationsTask returns a task to clean up orphaned operations on the cluster leader hourly.
 func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := d.State()
