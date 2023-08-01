@@ -81,3 +81,9 @@ Multi-user LXD daemon
   If you're not using the snap, you can still use this feature if your distribution supports it.
 
 See {ref}`projects-confine` for instructions on how to enable and configure the different authentication methods.
+
+## Related topics
+
+{{projects_how}}
+
+{{projects_ref}}

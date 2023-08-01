@@ -50,7 +50,7 @@ This indicates support for PKI authentication mode.
 
 In this mode, the client and server both must use certificates issued by the same PKI.
 
-See [Security](security.md) for details.
+See {ref}`security` for details.
 
 ## `container_last_used_at`
 

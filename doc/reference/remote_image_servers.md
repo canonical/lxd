@@ -46,3 +46,9 @@ LXD servers
 
   For security reasons, you should restrict the access to the remote API and configure an authentication method to control access.
   See {ref}`server-expose` and {ref}`authentication` for more information.
+
+## Related topics
+
+{{images_how}}
+
+{{images_exp}}

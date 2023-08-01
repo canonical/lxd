@@ -153,3 +153,9 @@ Key                                 | Type      | Scope     | Default           
 `network.ovn.northbound_connection` | string    | global    | `unix:/var/run/ovn/ovnnb_db.sock`                | OVN northbound database connection string
 `storage.backups_volume`            | string    | local     | -                                                | Volume to use to store the backup tarballs (syntax is `POOL/VOLUME`)
 `storage.images_volume`             | string    | local     | -                                                | Volume to use to store the image tarballs (syntax is `POOL/VOLUME`)
+
+## Related topics
+
+How-to guides:
+
+- {ref}`server-configure`

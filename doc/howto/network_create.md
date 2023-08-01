@@ -1,6 +1,7 @@
-# How to create and configure a network
+(network-create)=
+# How to create a network
 
-To create and configure a managed network, use the `lxc network` command and its subcommands.
+To create a managed network, use the `lxc network` command and its subcommands.
 Append `--help` to any command to see more information about its usage and available flags.
 
 (network-types)=
@@ -96,26 +97,3 @@ Alternatively, you can add a NIC device based on the network configuration in th
 
 When using this way, you can add further configuration to the command to override the default settings for the network if needed.
 See {ref}`NIC device <devices-nic>` for all available device options.
-
-## Configure a network
-
-To configure an existing network, use either the `lxc network set` and `lxc network unset` commands (to configure single settings) or the `lxc network edit` command (to edit the full configuration).
-To configure settings for specific cluster members, add the `--target` flag.
-
-For example, the following command configures a DNS server for a physical network:
-
-```bash
-lxc network set UPLINK dns.nameservers=8.8.8.8
-```
-
-The available configuration options differ depending on the network type.
-See {ref}`network-types` for links to the configuration options for each network type.
-
-There are separate commands to configure advanced networking features.
-See the following documentation:
-
-- {doc}`/howto/network_acls`
-- {doc}`/howto/network_forwards`
-- {doc}`/howto/network_load_balancers`
-- {doc}`/howto/network_zones`
-- {doc}`/howto/network_ovn_peers` (OVN only)

@@ -133,6 +133,13 @@ The following features are supported for the `bridge` network type:
 - {ref}`network-bgp`
 - [How to integrate with `systemd-resolved`](network-bridge-resolved)
 
+```{only} diataxis
+## Firewall issues
+
+See {ref}`network-bridge-firewall` for instructions on how to troubleshoot firewall issues.
+```
+
+````{only} topical
 ```{toctree}
 :maxdepth: 1
 :hidden:
@@ -140,3 +147,4 @@ The following features are supported for the `bridge` network type:
 Integrate with resolved </howto/network_bridge_resolved>
 Configure your firewall </howto/network_bridge_firewalld>
 ```
+````
