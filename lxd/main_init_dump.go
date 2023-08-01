@@ -10,6 +10,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// Dumps the current configuration of the LXD server as a YAML preseed file.
 func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 	currentServer, _, err := d.GetServer()
 	if err != nil {
