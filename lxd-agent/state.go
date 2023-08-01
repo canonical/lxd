@@ -24,14 +24,17 @@ var stateCmd = APIEndpoint{
 	Put: APIEndpointAction{Handler: statePut},
 }
 
+// stateGet retrieves the current state of the daemon and returns it as a JSON response.
 func stateGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, renderState())
 }
 
+// statePut is not implemented and returns a "Not Implemented" response.
 func statePut(d *Daemon, r *http.Request) response.Response {
 	return response.NotImplemented(nil)
 }
 
+// renderState returns the current instance state with CPU, Memory, Network, Pid, and Processes.
 func renderState() *api.InstanceState {
 	return &api.InstanceState{
 		CPU:       cpuState(),
@@ -42,6 +45,7 @@ func renderState() *api.InstanceState {
 	}
 }
 
+// Returns CPU usage in nanoseconds from /sys/fs/cgroup/cpuacct/cpuacct.usage or /sys/fs/cgroup/cpu.stat.
 func cpuState() api.InstanceStateCPU {
 	var value []byte
 	var err error
@@ -94,6 +98,7 @@ func cpuState() api.InstanceStateCPU {
 	return cpu
 }
 
+// Returns memory usage, total memory, and peak memory usage.
 func memoryState() api.InstanceStateMemory {
 	memory := api.InstanceStateMemory{}
 
@@ -115,6 +120,7 @@ func memoryState() api.InstanceStateMemory {
 	return memory
 }
 
+// Retrieves network state, including interface details, counters, and addresses.
 func networkState() map[string]api.InstanceStateNetwork {
 	result := map[string]api.InstanceStateNetwork{}
 
@@ -219,6 +225,7 @@ func networkState() map[string]api.InstanceStateNetwork {
 	return result
 }
 
+// Counts the number of processes running on the system.
 func processesState() int64 {
 	pids := []int64{1}
 
