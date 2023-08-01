@@ -40,6 +40,7 @@ func storagePoolDBCreate(s *state.State, poolName string, poolDescription string
 	return id, nil
 }
 
+// Validates the specified storage pool configuration for the given pool name and driver type.
 func storagePoolValidate(s *state.State, poolName string, driverName string, config map[string]string) error {
 	poolType, err := storagePools.LoadByType(s, driverName)
 	if err != nil {
@@ -61,6 +62,7 @@ func storagePoolValidate(s *state.State, poolName string, driverName string, con
 	return nil
 }
 
+// Creates a global storage pool and handles rollback in case of failure.
 func storagePoolCreateGlobal(state *state.State, req api.StoragePoolsPost, clientType request.ClientType) error {
 	// Create the database entry.
 	id, err := storagePoolDBCreate(state, req.Name, req.Description, req.Driver, req.Config)
@@ -146,7 +148,7 @@ func storagePoolCreateLocal(state *state.State, poolID int64, req api.StoragePoo
 	return pool.Driver().Config(), nil
 }
 
-// Helper around the low-level DB API, which also updates the driver names cache.
+// dbStoragePoolCreateAndUpdateCache creates a storage pool in the database and updates the driver cache.
 func dbStoragePoolCreateAndUpdateCache(s *state.State, poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
 	id, err := s.DB.Cluster.CreateStoragePool(poolName, poolDescription, poolDriver, poolConfig)
 	if err != nil {
@@ -159,8 +161,7 @@ func dbStoragePoolCreateAndUpdateCache(s *state.State, poolName string, poolDesc
 	return id, nil
 }
 
-// Helper around the low-level DB API, which also updates the driver names
-// cache.
+// dbStoragePoolDeleteAndUpdateCache deletes a storage pool from the database and updates the driver cache.
 func dbStoragePoolDeleteAndUpdateCache(s *state.State, poolName string) error {
 	_, err := s.DB.Cluster.RemoveStoragePool(poolName)
 	if err != nil {
