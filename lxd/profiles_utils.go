@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// Updates a profile with new configurations and devices, validates changes, and propagates updates to instances using this profile.
 func doProfileUpdate(s *state.State, p api.Project, profileName string, id int64, profile *api.Profile, req api.ProfilePut) error {
 	// Check project limits.
 	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -196,7 +197,7 @@ func doProfileUpdateCluster(s *state.State, projectName string, profileName stri
 	return nil
 }
 
-// Profile update of a single instance.
+// doProfileUpdateInstance updates an instance with new profile configurations from the provided project.
 func doProfileUpdateInstance(s *state.State, args db.InstanceArgs, p api.Project) error {
 	profileNames := make([]string, 0, len(args.Profiles))
 
@@ -229,7 +230,7 @@ func doProfileUpdateInstance(s *state.State, args db.InstanceArgs, p api.Project
 	}, true)
 }
 
-// Query the db for information about instances associated with the given profile.
+// getProfileInstancesInfo retrieves instances associated with a profile and their respective projects' details.
 func getProfileInstancesInfo(dbCluster *db.Cluster, projectName string, profileName string) (map[int]db.InstanceArgs, map[string]*api.Project, error) {
 	// Query the db for information about instances associated with the given profile.
 	projectInstNames, err := dbCluster.GetInstancesWithProfile(projectName, profileName)
