@@ -16,6 +16,7 @@ type cmdGlobal struct {
 	flagLogDebug   bool
 }
 
+// Main entry point for the LXD virtual machine agent.
 func main() {
 	// agent command (main)
 	agentCmd := cmdAgent{}
