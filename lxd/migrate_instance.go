@@ -20,6 +20,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+// Creates a migration source with connections and secrets based on instance properties.
 func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool, allowInconsistent bool, clusterMoveSourceName string, pushTarget *api.InstancePostTarget) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{
 		migrationFields: migrationFields{
@@ -81,6 +82,7 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 	return &ret, nil
 }
 
+// Handles the migration process for the migration source using WebSocket connections.
 func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name(), "live": s.live, "clusterMoveSourceName": s.clusterMoveSourceName, "push": s.pushOperationURL != ""})
 
@@ -155,6 +157,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	return nil
 }
 
+// Creates a new migration sink using WebSocket connections for the migration process.
 func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
 		migrationFields: migrationFields{
@@ -206,6 +209,7 @@ func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	return &sink, nil
 }
 
+// Performs the migration process on the target using WebSocket connections for migration channels.
 func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOperation) error {
 	l := logger.AddContext(logger.Ctx{"project": c.instance.Project().Name, "instance": c.instance.Name(), "live": c.live, "clusterMoveSourceName": c.clusterMoveSourceName, "push": c.push})
 
