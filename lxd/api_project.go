@@ -20,7 +20,6 @@ import (
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/operations"
 	projecthelpers "github.com/canonical/lxd/lxd/project"
-	"github.com/canonical/lxd/lxd/rbac"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -136,10 +135,12 @@ var projectStateCmd = APIEndpoint{
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func projectsGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	recursion := util.IsRecursionRequest(r)
 
 	var result any
-	err := d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		projects, err := cluster.GetProjects(ctx, tx.Tx())
 		if err != nil {
 			return err
@@ -147,7 +148,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 
 		filtered := []api.Project{}
 		for _, project := range projects {
-			if !rbac.UserHasPermission(r, project.Name, "view") {
+			if !s.Authorizer.UserHasPermission(r, project.Name, "view") {
 				continue
 			}
 
@@ -334,11 +335,9 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed creating project %q: %w", project.Name, err))
 	}
 
-	if d.rbac != nil {
-		err = d.rbac.AddProject(id, project.Name)
-		if err != nil {
-			return response.SmartError(err)
-		}
+	err = s.Authorizer.AddProject(id, project.Name)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	requestor := request.CreateRequestor(r)
@@ -399,19 +398,21 @@ func projectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func projectGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Check user permissions
-	if !rbac.UserHasPermission(r, name, "view") {
+	if !s.Authorizer.UserHasPermission(r, name, "view") {
 		return response.Forbidden(nil)
 	}
 
 	// Get the database entry
 	var project *api.Project
-	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := cluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return err
@@ -475,7 +476,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check user permissions
-	if !rbac.UserHasPermission(r, name, "manage-projects") {
+	if !s.Authorizer.UserHasPermission(r, name, "manage-projects") {
 		return response.Forbidden(nil)
 	}
 
@@ -566,7 +567,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check user permissions
-	if !rbac.UserHasPermission(r, name, "manage-projects") {
+	if !s.Authorizer.UserHasPermission(r, name, "manage-projects") {
 		return response.Forbidden(nil)
 	}
 
@@ -843,11 +844,9 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		if d.rbac != nil {
-			err = d.rbac.RenameProject(id, req.Name)
-			if err != nil {
-				return err
-			}
+		err = s.Authorizer.RenameProject(id, req.Name)
+		if err != nil {
+			return err
 		}
 
 		requestor := request.CreateRequestor(r)
@@ -923,11 +922,9 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if d.rbac != nil {
-		err = d.rbac.DeleteProject(id)
-		if err != nil {
-			return response.SmartError(err)
-		}
+	err = s.Authorizer.DeleteProject(id)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	requestor := request.CreateRequestor(r)
@@ -971,13 +968,15 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func projectStateGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Check user permissions.
-	if !rbac.UserHasPermission(r, name, "view") {
+	if !s.Authorizer.UserHasPermission(r, name, "view") {
 		return response.Forbidden(nil)
 	}
 
@@ -985,7 +984,7 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 	state := api.ProjectState{}
 
 	// Get current limits and usage.
-	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		result, err := projecthelpers.GetCurrentAllocations(ctx, tx, name)
 		if err != nil {
 			return err

@@ -17,7 +17,6 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/project"
-	"github.com/canonical/lxd/lxd/rbac"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -173,9 +172,9 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			poolAPI := pool.ToAPI()
-			poolAPI.UsedBy = project.FilterUsedBy(r, poolUsedBy)
+			poolAPI.UsedBy = project.FilterUsedBy(s.Authorizer, r, poolUsedBy)
 
-			if !rbac.UserIsAdmin(r) {
+			if !s.Authorizer.UserIsAdmin(r) {
 				// Don't allow non-admins to see pool config as sensitive info can be stored there.
 				poolAPI.Config = nil
 			}
@@ -608,9 +607,9 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	poolAPI := pool.ToAPI()
-	poolAPI.UsedBy = project.FilterUsedBy(r, poolUsedBy)
+	poolAPI.UsedBy = project.FilterUsedBy(s.Authorizer, r, poolUsedBy)
 
-	if !rbac.UserIsAdmin(r) {
+	if !s.Authorizer.UserIsAdmin(r) {
 		// Don't allow non-admins to see pool config as sensitive info can be stored there.
 		poolAPI.Config = nil
 	}

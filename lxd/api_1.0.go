@@ -20,7 +20,6 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/project"
-	"github.com/canonical/lxd/lxd/rbac"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	scriptletLoad "github.com/canonical/lxd/lxd/scriptlet/load"
@@ -375,7 +374,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	fullSrv.AuthUserName = requestor.Username
 	fullSrv.AuthUserMethod = requestor.Protocol
 
-	if rbac.UserIsAdmin(r) {
+	if s.Authorizer.UserIsAdmin(r) {
 		fullSrv.Config, err = daemonConfigRender(s)
 		if err != nil {
 			return response.InternalError(err)
@@ -910,13 +909,6 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 
 	if rbacChanged {
 		apiURL, apiKey, apiExpiry, agentURL, agentUsername, agentPrivateKey, agentPublicKey := clusterConfig.RBACServer()
-
-		// Since RBAC seems to have been set up already, we need to disable it temporarily
-		if d.rbac != nil {
-			d.candidVerifier = nil
-			d.rbac.StopStatusCheck()
-			d.rbac = nil
-		}
 
 		err := d.setupRBACServer(apiURL, apiKey, apiExpiry, agentURL, agentUsername, agentPrivateKey, agentPublicKey)
 		if err != nil {

@@ -20,7 +20,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/project"
-	"github.com/canonical/lxd/lxd/rbac"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
@@ -287,7 +286,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 			}
 
 			for _, project := range projects {
-				if !rbac.UserHasPermission(r, project.Name, "view") {
+				if !s.Authorizer.UserHasPermission(r, project.Name, "view") {
 					continue
 				}
 

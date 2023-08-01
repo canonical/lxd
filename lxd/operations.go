@@ -18,7 +18,6 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
-	"github.com/canonical/lxd/lxd/rbac"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -258,7 +257,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 				projectName = project.Default
 			}
 
-			if !rbac.UserHasPermission(r, projectName, op.Permission()) {
+			if !s.Authorizer.UserHasPermission(r, projectName, op.Permission()) {
 				return response.Forbidden(nil)
 			}
 		}
