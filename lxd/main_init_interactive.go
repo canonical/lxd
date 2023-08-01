@@ -27,6 +27,7 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
+// Guides the user interactively to initialize the LXD server configuration, with an option to output a preseed YAML.
 func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.InstanceServer, server *api.Server) (*api.InitPreseed, error) {
 	// Initialize config
 	config := api.InitPreseed{}
@@ -106,6 +107,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 	return &config, nil
 }
 
+// Interactively queries the user for LXD cluster configuration details, including membership and server name.
 func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, server *api.Server) error {
 	clustering, err := c.global.asker.AskBool("Would you like to use LXD clustering? (yes/no) [default=no]: ", "no")
 	if err != nil {
@@ -366,6 +368,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 	return nil
 }
 
+// Prompts user for MAAS server details and updates configuration.
 func (c *cmdInit) askMAAS(config *api.InitPreseed, d lxd.InstanceServer) error {
 	maas, err := c.global.asker.AskBool("Would you like to connect to a MAAS server? (yes/no) [default=no]: ", "no")
 	if err != nil {
@@ -398,6 +401,7 @@ func (c *cmdInit) askMAAS(config *api.InitPreseed, d lxd.InstanceServer) error {
 	return nil
 }
 
+// Interactively configures networking options and updates the configuration accordingly.
 func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) error {
 	var err error
 	localBridgeCreate := false
@@ -622,6 +626,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 	return nil
 }
 
+// Interactively guides the user to configure local and/or remote storage pools for the LXD instance.
 func (c *cmdInit) askStorage(config *api.InitPreseed, d lxd.InstanceServer, server *api.Server) error {
 	if config.Cluster != nil {
 		localStoragePool, err := c.global.asker.AskBool("Do you want to configure a new local storage pool? (yes/no) [default=yes]: ", "yes")
@@ -663,6 +668,7 @@ func (c *cmdInit) askStorage(config *api.InitPreseed, d lxd.InstanceServer, serv
 	return c.askStoragePool(config, d, server, util.PoolTypeAny)
 }
 
+// Guides the user interactively to configure a new storage pool with optimal settings based on the available storage drivers.
 func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, server *api.Server, poolType util.PoolType) error {
 	// Figure out the preferred storage driver
 	availableBackends := util.AvailableStorageDrivers(server.Environment.StorageSupportedDrivers, poolType)
@@ -931,6 +937,7 @@ and make sure that your user can see and run the "thin_check" command before run
 	return nil
 }
 
+// Interacts with the user for configuring LXD server settings.
 func (c *cmdInit) askDaemon(config *api.InitPreseed, d lxd.InstanceServer, server *api.Server) error {
 	// Detect lack of uid/gid
 	idmapset, err := idmap.DefaultIdmapSet("", "")
