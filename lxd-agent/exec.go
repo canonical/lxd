@@ -39,6 +39,7 @@ var execCmd = APIEndpoint{
 	Post: APIEndpointAction{Handler: execPost},
 }
 
+// execPost handles the execution of commands inside a container and sets up the necessary environment.
 func execPost(d *Daemon, r *http.Request) response.Response {
 	post := api.ContainerExecPost{}
 
@@ -163,6 +164,7 @@ type execWs struct {
 	cwd                   string
 }
 
+// Metadata returns the metadata required for executing a command inside a container.
 func (s *execWs) Metadata() any {
 	fds := shared.Jmap{}
 	for fd, secret := range s.fds {
@@ -181,6 +183,7 @@ func (s *execWs) Metadata() any {
 	}
 }
 
+// Connect upgrades the HTTP connection to a WebSocket and establishes connections for the given fds using the provided secrets.
 func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
@@ -222,6 +225,8 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 	return os.ErrPermission
 }
 
+// Do performs the execution of the command, handles websockets,
+// and manages cleanup once execution is complete.
 func (s *execWs) Do(op *operations.Operation) error {
 	// Once this function ends ensure that any connected websockets are closed.
 	defer func() {
