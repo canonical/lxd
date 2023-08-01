@@ -17,6 +17,7 @@ type cmdRecover struct {
 	global *cmdGlobal
 }
 
+// Returns the "recover" command for disaster recovery to recreate missing instances and volumes from storage pools.
 func (c *cmdRecover) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "recover"
@@ -33,6 +34,7 @@ func (c *cmdRecover) Command() *cobra.Command {
 	return cmd
 }
 
+// Performs disaster recovery by scanning storage pools to identify missing instances and volumes for database record recreation.
 func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) > 0 {
