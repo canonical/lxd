@@ -13,6 +13,7 @@ type cmdGlobal struct {
 	flagVersion bool
 }
 
+// Configures and starts the LXD user project daemon.
 func main() {
 	// daemon command (main)
 	daemonCmd := cmdDaemon{}
