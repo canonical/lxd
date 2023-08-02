@@ -69,8 +69,6 @@ type rbac struct {
 	permissions map[string]map[string][]string
 
 	permissionsLock *sync.Mutex
-
-	projectsFunc func() (map[int64]string, error)
 }
 
 func (r *rbac) load() error {
@@ -256,7 +254,7 @@ func (r *rbac) StopStatusCheck() {
 
 // syncProjects updates the list of projects in RBAC.
 func (r *rbac) syncProjects() error {
-	if r.projectsFunc == nil {
+	if r.projectsGetFunc == nil {
 		return fmt.Errorf("ProjectsFunc isn't configured yet, cannot sync")
 	}
 
@@ -264,7 +262,7 @@ func (r *rbac) syncProjects() error {
 	resourcesMap := map[string]string{}
 
 	// Get all projects
-	projects, err := r.projectsFunc()
+	projects, err := r.projectsGetFunc()
 	if err != nil {
 		return err
 	}
