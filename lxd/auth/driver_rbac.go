@@ -137,28 +137,28 @@ func (r *rbac) load() error {
 func (r *rbac) validateConfig() error {
 	val, ok := r.config["rbac.agent.private_key"]
 	if !ok {
-		return fmt.Errorf("Missing RBAC agent private key")
+		return fmt.Errorf("Missing rbac.agent.private_key")
 	}
 
 	r.agentPrivateKey = val.(string)
 
 	val, ok = r.config["rbac.agent.public_key"]
 	if !ok {
-		return fmt.Errorf("Missing RBAC agent public key")
+		return fmt.Errorf("Missing rbac.agent.public_key")
 	}
 
 	r.agentPublicKey = val.(string)
 
 	val, ok = r.config["rbac.agent.url"]
 	if !ok {
-		return fmt.Errorf("Missing RBAC agent URL")
+		return fmt.Errorf("Missing rbac.agent.url")
 	}
 
 	r.agentAuthURL = val.(string)
 
 	val, ok = r.config["rbac.agent.username"]
 	if !ok {
-		return fmt.Errorf("Missing RBAC agent username")
+		return fmt.Errorf("Missing rbac.agent.username")
 	}
 
 	r.agentUsername = val.(string)
