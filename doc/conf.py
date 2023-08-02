@@ -175,6 +175,8 @@ redirects = {
 if ("TOPICAL" in os.environ) and (os.environ["TOPICAL"] == "True"):
     root_doc = "index_topical"
     exclude_patterns.extend(['index.md','tutorial/index.md','howto/index.md','explanation/index.md','reference/index.md','howto/troubleshoot.md'])
+    redirects["index/index"] = "../index_topical/"
+    redirects["index"] = "../index_topical/"
     tags.add('topical')
 else:
     exclude_patterns.extend(['index_topical.md','security.md','external_resources.md','reference/network_external.md'])
