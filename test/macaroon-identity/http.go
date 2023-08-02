@@ -16,6 +16,7 @@ type httpService struct {
 	listener net.Listener
 }
 
+// Endpoint returns the service's HTTP endpoint address or an empty string if not available.
 func (s *httpService) Endpoint() string {
 	if s.listener == nil {
 		return ""
@@ -24,6 +25,7 @@ func (s *httpService) Endpoint() string {
 	return "http://" + s.listener.Addr().String()
 }
 
+// Start starts the HTTP service, serving requests in the background if 'background' is true.
 func (s *httpService) Start(background bool) error {
 	listener, err := net.Listen("tcp", s.ListenAddr)
 	if err != nil {
@@ -48,6 +50,7 @@ func (s *httpService) Start(background bool) error {
 	return nil
 }
 
+// LogRequest logs the HTTP request method and path.
 func (s *httpService) LogRequest(req *http.Request) {
 	s.Logger.Printf("%s - %s %s", s.Name, req.Method, req.URL.Path)
 }
