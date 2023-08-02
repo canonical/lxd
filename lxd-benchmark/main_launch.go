@@ -13,6 +13,7 @@ type cmdLaunch struct {
 	flagFreeze bool
 }
 
+// Returns a cobra.Command for launching containers with additional options and a defined 'Run' method.
 func (c *cmdLaunch) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "launch [[<remote>:]<image>]"
@@ -24,6 +25,7 @@ func (c *cmdLaunch) Command() *cobra.Command {
 	return cmd
 }
 
+// Starts containers with given parameters and measures the duration.
 func (c *cmdLaunch) Run(cmd *cobra.Command, args []string) error {
 	// Choose the image
 	image := "ubuntu:"
