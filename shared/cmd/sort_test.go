@@ -12,11 +12,12 @@ type sortSuite struct {
 	suite.Suite
 }
 
+// TestSortSuite runs the "sortSuite" test suite using the suite package.
 func TestSortSuite(t *testing.T) {
 	suite.Run(t, new(sortSuite))
 }
 
-// stringList can be used to sort a list of strings.
+// Test_stringList can be used to sort a list of strings.
 func (s *sortSuite) Test_stringList() {
 	data := [][]string{{"foo", "bar"}, {"baz", "bza"}}
 	sort.Sort(StringList(data))
@@ -37,6 +38,7 @@ func (s *sortSuite) Test_stringList_empty_strings() {
 	s.Equal([][]string{{"foo", "baz"}, {"", "bar"}}, data)
 }
 
+// This function tests with different scenarios and expected results.
 func (s *sortSuite) TestSortByPrecedence() {
 	type args struct {
 		data           [][]string
