@@ -92,6 +92,7 @@ func (r *CSVReport) AddRecord(label string, elapsed time.Duration) error {
 	return r.addRecord(record)
 }
 
+// Adds a record to the CSV report, ensuring it matches the required field count.
 func (r *CSVReport) addRecord(record []string) error {
 	if len(record) != len(csvFields) {
 		return fmt.Errorf("Invalid number of fields : %q", record)
