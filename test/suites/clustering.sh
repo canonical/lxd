@@ -3258,59 +3258,106 @@ test_clustering_remove_members() {
   ns2="${prefix}2"
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
 
-  # Ensure successful communication
-  LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -q "server_name: node2"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -q "server_name: node1"
-
-  # Remove the leader, via the stand-by node
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster rm node1
-
-  # Ensure the remaining node is working
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -q "node1" || false
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -q "node2"
-
-  # Previous leader should no longer be clustered
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list || false
-
-  # Spawn a third node, joining the cluster with node2
+  # Spawn a three node
   setup_clustering_netns 3
   LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_THREE_DIR}"
   ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 2 "${LXD_THREE_DIR}"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
 
-  # Ensure successful communication
-  LXD_DIR="${LXD_TWO_DIR}" lxc info --target node3 | grep -q "server_name: node3"
-  LXD_DIR="${LXD_THREE_DIR}" lxc info --target node2 | grep -q "server_name: node2"
+  # Spawn a four node
+  setup_clustering_netns 4
+  LXD_FOUR_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_FOUR_DIR}"
+  ns4="${prefix}4"
+  spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_FOUR_DIR}"
 
-  # Remove the third node, via itself
-  LXD_DIR="${LXD_THREE_DIR}" lxc cluster rm node3
+  # Spawn a five node
+  setup_clustering_netns 5
+  LXD_FIVE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_FIVE_DIR}"
+  ns5="${prefix}5"
+  spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 1 "${LXD_FIVE_DIR}"
 
-  # Ensure only node2 is left in the cluster
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster ls | grep -q node2
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc cluster ls -f csv | grep -qv node2 || false
+  # Spawn a sixth node
+  setup_clustering_netns 6
+  LXD_SIX_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_SIX_DIR}"
+  ns6="${prefix}6"
+  spawn_lxd_and_join_cluster "${ns6}" "${bridge}" "${cert}" 6 1 "${LXD_SIX_DIR}"
 
-  # Ensure clustering is disabled (no output) on node1 and node3
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster ls | grep -qv "." || false
-  ! LXD_DIR="${LXD_THREE_DIR}" lxc cluster ls | grep -qv "." || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -q "server_name: node2"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_THREE_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_FOUR_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_FIVE_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_SIX_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+
+  # stop node 6
+  shutdown_lxd "${LXD_SIX_DIR}"
+
+  # Remove node2 node3 node4 node5
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster rm node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster rm node3
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster rm node4
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster rm node5
+
+  # Ensure the remaining node is working and node2, node3, node4,node5 successful reomve from cluster
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node2" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node3" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node4" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node5" || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node1"
+
+  # Start node 6
+  LXD_NETNS="${ns6}" respawn_lxd "${LXD_SIX_DIR}" true
+
+  # make sure node6 is a spare ndoe
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node6"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node6 | grep -qE "\- database-standy$|\- database-leader$|\- database$" || false
+
+  # waite for leader update table raft_node of local database by heartbeat
+  sleep 10s
+
+  # Remove the leader, via the spare node
+  LXD_DIR="${LXD_SIX_DIR}" lxc cluster rm node1
+
+  # Ensure the remaining node is working and node1 had successful remove
+  ! LXD_DIR="${LXD_SIX_DIR}" lxc cluster list | grep -q "node1" || false
+  LXD_DIR="${LXD_SIX_DIR}" lxc cluster list | grep -q "node6"
+
+  # Check whether node6 is changed from a spare node to a leader node.
+  LXD_DIR="${LXD_SIX_DIR}" lxc cluster show node6 | grep -q "\- database-leader$"
+  LXD_DIR="${LXD_SIX_DIR}" lxc cluster show node6 | grep -q "\- database$"
+
+  # Spawn a sixth node
+  setup_clustering_netns 7
+  LXD_SEVEN_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_SEVEN_DIR}"
+  ns7="${prefix}7"
+  spawn_lxd_and_join_cluster "${ns7}" "${bridge}" "${cert}" 7 6 "${LXD_SEVEN_DIR}"
+
+  # Ensure the remaining node is working by join a new node7
+  LXD_DIR="${LXD_SIX_DIR}" lxc info --target node7 | grep -q "server_name: node7"
+  LXD_DIR="${LXD_SEVEN_DIR}" lxc info --target node6 | grep -q "server_name: node6"
 
   # Clean up
-  daemon_pid1=$(cat "${LXD_ONE_DIR}/lxd.pid")
   shutdown_lxd "${LXD_ONE_DIR}"
-
-  daemon_pid2=$(cat "${LXD_TWO_DIR}/lxd.pid")
   shutdown_lxd "${LXD_TWO_DIR}"
-
-  daemon_pid3=$(cat "${LXD_THREE_DIR}/lxd.pid")
   shutdown_lxd "${LXD_THREE_DIR}"
-
-  wait "${daemon_pid1}"
-  wait "${daemon_pid2}"
-  wait "${daemon_pid3}"
+  shutdown_lxd "${LXD_FOUR_DIR}"
+  shutdown_lxd "${LXD_FIVE_DIR}"
+  shutdown_lxd "${LXD_SIX_DIR}"
+  shutdown_lxd "${LXD_SEVEN_DIR}"
 
   rm -f "${LXD_ONE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_FOUR_DIR}/unix.socket"
+  rm -f "${LXD_FIVE_DIR}/unix.socket"
+  rm -f "${LXD_SIX_DIR}/unix.socket"
+  rm -f "${LXD_SEVEN_DIR}/unix.socket"
+
 
   teardown_clustering_netns
   teardown_clustering_bridge
@@ -3318,6 +3365,10 @@ test_clustering_remove_members() {
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_FOUR_DIR}"
+  kill_lxd "${LXD_FIVE_DIR}"
+  kill_lxd "${LXD_SIX_DIR}"
+  kill_lxd "${LXD_SEVEN_DIR}"
 }
 
 test_clustering_autotarget() {
