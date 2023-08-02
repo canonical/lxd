@@ -9,6 +9,7 @@ The following how-to guides cover common operations related to instances:
 
 Access files </howto/instances_access_files.md>
 Access the console </howto/instances_console.md>
+Add a routed NIC to a VM </howto/instances_routed_nic_vm.md>
 Back up instances </howto/instances_backup.md>
 Configure instances </howto/instances_configure.md>
 Create instances </howto/instances_create.md>
@@ -42,6 +43,7 @@ Use cloud-init </cloud-init>
 Run commands </instance-exec.md>
 Access the console </howto/instances_console.md>
 Access files </howto/instances_access_files.md>
+Add a routed NIC to a VM </howto/instances_routed_nic_vm.md>
 Troubleshoot errors </howto/instances_troubleshoot.md>
 /explanation/instance_config.md
 Container environment </container-environment>
