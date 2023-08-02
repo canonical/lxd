@@ -5,6 +5,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// Initiates a new LXD container with specified image and configuration.
 func createContainer(c lxd.ContainerServer, fingerprint string, name string, privileged bool) error {
 	config := map[string]string{}
 	if privileged {
@@ -31,6 +32,7 @@ func createContainer(c lxd.ContainerServer, fingerprint string, name string, pri
 	return op.Wait()
 }
 
+// Starts the specified LXD container.
 func startContainer(c lxd.ContainerServer, name string) error {
 	op, err := c.UpdateContainerState(
 		name, api.ContainerStatePut{Action: "start", Timeout: -1}, "")
@@ -41,6 +43,7 @@ func startContainer(c lxd.ContainerServer, name string) error {
 	return op.Wait()
 }
 
+// Forcefully stops the specified LXD container.
 func stopContainer(c lxd.ContainerServer, name string) error {
 	op, err := c.UpdateContainerState(
 		name, api.ContainerStatePut{Action: "stop", Timeout: -1, Force: true}, "")
@@ -51,6 +54,7 @@ func stopContainer(c lxd.ContainerServer, name string) error {
 	return op.Wait()
 }
 
+// Freezes the specified LXD container.
 func freezeContainer(c lxd.ContainerServer, name string) error {
 	op, err := c.UpdateContainerState(
 		name, api.ContainerStatePut{Action: "freeze", Timeout: -1}, "")
@@ -61,6 +65,7 @@ func freezeContainer(c lxd.ContainerServer, name string) error {
 	return op.Wait()
 }
 
+// Deletes the specified LXD container.
 func deleteContainer(c lxd.ContainerServer, name string) error {
 	op, err := c.DeleteContainer(name)
 	if err != nil {
@@ -70,6 +75,7 @@ func deleteContainer(c lxd.ContainerServer, name string) error {
 	return op.Wait()
 }
 
+// Copies an image from the specified image server to the local LXD server.
 func copyImage(c lxd.ContainerServer, s lxd.ImageServer, image api.Image) error {
 	op, err := c.CopyImage(s, image, nil)
 	if err != nil {
