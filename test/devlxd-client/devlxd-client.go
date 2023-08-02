@@ -28,6 +28,7 @@ type devLxdDialer struct {
 	Path string
 }
 
+// devLxdDial establishes a Unix socket connection to the LXD daemon for device operations.
 func (d devLxdDialer) devLxdDial(ctx context.Context, network, path string) (net.Conn, error) {
 	addr, err := net.ResolveUnixAddr("unix", d.Path)
 	if err != nil {
@@ -46,6 +47,7 @@ var devLxdTransport = &http.Transport{
 	DialContext: devLxdDialer{"/dev/lxd/sock"}.devLxdDial,
 }
 
+// devlxdMonitorStream connects to LXD's event API via a Unix socket, reads and prints events in YAML.
 func devlxdMonitorStream() {
 	client := http.Client{
 		Transport: &http.Transport{
@@ -80,6 +82,7 @@ func devlxdMonitorStream() {
 	}
 }
 
+// Connects to LXD's event API via Unix socket, reads and prints events in YAML.
 func devlxdMonitorWebsocket(c http.Client) {
 	dialer := websocket.Dialer{
 		NetDialContext:   devLxdTransport.DialContext,
@@ -114,6 +117,7 @@ func devlxdMonitorWebsocket(c http.Client) {
 	}
 }
 
+// Sets the state of the devlxd application to either "ready" or "started" using the LXD API.
 func devlxdState(ready bool) {
 	client := http.Client{
 		Transport: &http.Transport{
@@ -152,6 +156,7 @@ func devlxdState(ready bool) {
 	}
 }
 
+// Entry point for devlxd application, handling commands and API calls.
 func main() {
 	c := http.Client{Transport: devLxdTransport}
 	raw, err := c.Get("http://meshuggah-rocks/")
