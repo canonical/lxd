@@ -12,6 +12,7 @@ type sortSuite struct {
 	suite.Suite
 }
 
+// TestSortSuite runs the "sortSuite" test suite using the suite package.
 func TestSortSuite(t *testing.T) {
 	suite.Run(t, new(sortSuite))
 }
@@ -37,6 +38,7 @@ func (s *sortSuite) Test_stringList_empty_strings() {
 	s.Equal([][]string{{"foo", "baz"}, {"", "bar"}}, data)
 }
 
+// Test for SortByPrecedence function with different scenarios and expected results.
 func (s *sortSuite) TestSortByPrecedence() {
 	type args struct {
 		data           [][]string
