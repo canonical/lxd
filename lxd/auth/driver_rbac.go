@@ -69,8 +69,6 @@ type rbac struct {
 	permissions map[string]map[string][]string
 
 	permissionsLock *sync.Mutex
-
-	projectsFunc func() (map[int64]string, error)
 }
 
 func (r *rbac) load() error {
@@ -78,6 +76,8 @@ func (r *rbac) load() error {
 	if err != nil {
 		return err
 	}
+
+	r.permissionsLock = &sync.Mutex{}
 
 	// Setup context
 	r.ctx, r.ctxCancel = context.WithCancel(context.Background())
@@ -135,31 +135,38 @@ func (r *rbac) load() error {
 func (r *rbac) validateConfig() error {
 	val, ok := r.config["rbac.agent.private_key"]
 	if !ok {
-		return fmt.Errorf("Missing RBAC agent private key")
+		return fmt.Errorf("Missing rbac.agent.private_key")
 	}
 
 	r.agentPrivateKey = val.(string)
 
 	val, ok = r.config["rbac.agent.public_key"]
 	if !ok {
-		return fmt.Errorf("Missing RBAC agent public key")
+		return fmt.Errorf("Missing rbac.agent.public_key")
 	}
 
 	r.agentPublicKey = val.(string)
 
 	val, ok = r.config["rbac.agent.url"]
 	if !ok {
-		return fmt.Errorf("Missing RBAC agent URL")
+		return fmt.Errorf("Missing rbac.agent.url")
 	}
 
 	r.agentAuthURL = val.(string)
 
 	val, ok = r.config["rbac.agent.username"]
 	if !ok {
-		return fmt.Errorf("Missing RBAC agent username")
+		return fmt.Errorf("Missing rbac.agent.username")
 	}
 
 	r.agentUsername = val.(string)
+
+	val, ok = r.config["rbac.api.url"]
+	if !ok {
+		return fmt.Errorf("Missing rbac.api.url")
+	}
+
+	r.apiURL = val.(string)
 
 	return nil
 }
@@ -247,7 +254,7 @@ func (r *rbac) StopStatusCheck() {
 
 // syncProjects updates the list of projects in RBAC.
 func (r *rbac) syncProjects() error {
-	if r.projectsFunc == nil {
+	if r.projectsGetFunc == nil {
 		return fmt.Errorf("ProjectsFunc isn't configured yet, cannot sync")
 	}
 
@@ -255,7 +262,7 @@ func (r *rbac) syncProjects() error {
 	resourcesMap := map[string]string{}
 
 	// Get all projects
-	projects, err := r.projectsFunc()
+	projects, err := r.projectsGetFunc()
 	if err != nil {
 		return err
 	}

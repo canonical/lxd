@@ -1865,6 +1865,7 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 		"rbac.agent.url":         rbacAgentURL,
 		"rbac.agent.private_key": rbacAgentPrivateKey,
 		"rbac.agent.public_key":  rbacAgentPublicKey,
+		"rbac.agent.username":    rbacAgentUsername,
 	}
 
 	revert.Add(func() {
