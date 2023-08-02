@@ -29,6 +29,7 @@ import (
 	"github.com/canonical/lxd/shared/ws"
 )
 
+// Transfers root filesystem and block volume of an instance to a destination server.
 func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operation, rootfs string, rsyncArgs string, instanceType api.InstanceType) error {
 	opAPI := op.Get()
 
@@ -147,6 +148,7 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 	return nil
 }
 
+// Establishes a secure connection to a remote LXD server, handling TLS or candid authentication.
 func connectTarget(url string, certPath string, keyPath string, authType string, token string) (lxd.InstanceServer, string, error) {
 	args := lxd.ConnectionArgs{
 		AuthType: authType,
@@ -331,6 +333,7 @@ func connectTarget(url string, certPath string, keyPath string, authType string,
 	return c, clientFingerprint, nil
 }
 
+// Sets up the source directory with the provided mounts, making them bind-mounted and read-only.
 func setupSource(path string, mounts []string) error {
 	prefix := "/"
 	if len(mounts) > 0 {
@@ -357,6 +360,7 @@ func setupSource(path string, mounts []string) error {
 	return nil
 }
 
+// parseURL normalizes the provided URL, adding a default scheme and port if not provided.
 func parseURL(URL string) (string, error) {
 	u, err := url.Parse(URL)
 	if err != nil {
