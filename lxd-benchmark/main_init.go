@@ -13,6 +13,7 @@ type cmdInit struct {
 	flagPrivileged bool
 }
 
+// Returns a cobra.Command for creating containers with specific flags and the defined 'Run' method.
 func (c *cmdInit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "init [[<remote>:]<image>]"
@@ -24,6 +25,7 @@ func (c *cmdInit) Command() *cobra.Command {
 	return cmd
 }
 
+// Launches specified number of containers and tracks the operation duration.
 func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	// Choose the image
 	image := "ubuntu:"
