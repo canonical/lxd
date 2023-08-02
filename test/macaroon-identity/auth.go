@@ -22,7 +22,7 @@ type loginResponse struct {
 	Token *httpbakery.DischargeToken `json:"token"`
 }
 
-// AuthService is an HTTP service for authentication using macaroons.
+// authService is an HTTP service for authentication using macaroons.
 type authService struct {
 	httpService
 
@@ -32,7 +32,7 @@ type authService struct {
 	userTokens map[string]string // map user token to username
 }
 
-// NewAuthService returns an AuthService.
+// newAuthService returns an AuthService.
 func newAuthService(listenAddr string, logger *log.Logger) *authService {
 	key := bakery.MustGenerateKey()
 	mux := http.NewServeMux()
@@ -59,6 +59,7 @@ func newAuthService(listenAddr string, logger *log.Logger) *authService {
 	return &s
 }
 
+// thirdPartyChecker validates a third-party caveat and returns the username if valid.
 func (s *authService) thirdPartyChecker(ctx context.Context, req *http.Request, info *bakery.ThirdPartyCaveatInfo, token *httpbakery.DischargeToken) ([]checkers.Caveat, error) {
 	if token == nil {
 		err := httpbakery.NewInteractionRequiredError(nil, req)
@@ -81,6 +82,7 @@ func (s *authService) thirdPartyChecker(ctx context.Context, req *http.Request, 
 	}, nil
 }
 
+// writeJSON writes 'val' as JSON to the HTTP response with the given status code.
 func writeJSON(w http.ResponseWriter, code int, val any) error {
 	data, err := json.Marshal(val)
 	if err != nil {
@@ -93,6 +95,7 @@ func writeJSON(w http.ResponseWriter, code int, val any) error {
 	return err
 }
 
+// formHandler handles the HTTP GET and POST requests for login form and validation.
 func (s *authService) formHandler(w http.ResponseWriter, req *http.Request) {
 	s.LogRequest(req)
 	switch req.Method {
@@ -139,11 +142,13 @@ func (s *authService) formHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// getRandomToken generates a random token using UUID and Base64 encoding.
 func (s *authService) getRandomToken() string {
 	uuid := []byte(uuid.New()[0:24])
 	return base64.StdEncoding.EncodeToString(uuid)
 }
 
+// bakeryFail writes an HTTP bakery error response with the given message and arguments.
 func (s *authService) bakeryFail(w http.ResponseWriter, msg string, args ...any) {
 	httpbakery.WriteError(context.TODO(), w, fmt.Errorf(msg, args...))
 }
