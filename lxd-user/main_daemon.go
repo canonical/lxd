@@ -21,6 +21,7 @@ var transactions uint64
 
 type cmdDaemon struct{}
 
+// Command creates and returns the "lxd-user" Cobra command for managing LXD users.
 func (c *cmdDaemon) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "lxd-user"
@@ -29,6 +30,7 @@ func (c *cmdDaemon) Command() *cobra.Command {
 	return cmd
 }
 
+// Sets up and starts the LXD daemon, handling socket activation and accepting incoming connections.
 func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 	// Setup logger.
 	log.SetFormatter(&log.TextFormatter{
