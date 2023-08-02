@@ -10,6 +10,7 @@ type cmdStop struct {
 	global *cmdGlobal
 }
 
+// Returns the 'stop' command setup to halt all active containers.
 func (c *cmdStop) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "stop"
@@ -19,6 +20,7 @@ func (c *cmdStop) Command() *cobra.Command {
 	return cmd
 }
 
+// Halts containers and records operation duration.
 func (c *cmdStop) Run(cmd *cobra.Command, args []string) error {
 	// Get the containers
 	containers, err := benchmark.GetContainers(c.global.srv)
