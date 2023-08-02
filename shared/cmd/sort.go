@@ -11,14 +11,17 @@ import (
 // StringList represents the type for sorting nested string lists.
 type StringList [][]string
 
+// Len returns the number of elements in the StringList.
 func (a StringList) Len() int {
 	return len(a)
 }
 
+// Swap swaps the elements at index i and j in the StringList.
 func (a StringList) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
+// Less compares two elements in the StringList based on natural sorting order.
 func (a StringList) Less(i, j int) bool {
 	x := 0
 	for x = range a[i] {
@@ -41,14 +44,17 @@ func (a StringList) Less(i, j int) bool {
 // SortColumnsNaturally represents the type for sorting columns in a natural order from left to right.
 type SortColumnsNaturally [][]string
 
+// Len returns the number of elements in the SortColumnsNaturally slice.
 func (a SortColumnsNaturally) Len() int {
 	return len(a)
 }
 
+// Swap swaps the elements at indices i and j in the SortColumnsNaturally slice.
 func (a SortColumnsNaturally) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
+// Less compares the elements at indices i and j using natural sorting for strings.
 func (a SortColumnsNaturally) Less(i, j int) bool {
 	for k := range a[i] {
 		if a[i][k] == a[j][k] {
@@ -72,14 +78,17 @@ func (a SortColumnsNaturally) Less(i, j int) bool {
 // ByNameAndType represents the type for sorting Storage volumes.
 type ByNameAndType [][]string
 
+// Len returns the number of elements in the ByNameAndType slice.
 func (a ByNameAndType) Len() int {
 	return len(a)
 }
 
+// Swap swaps the elements at indices i and j in the ByNameAndType slice.
 func (a ByNameAndType) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
+// Less compares elements by name and type for sorting in ByNameAndType.
 func (a ByNameAndType) Less(i, j int) bool {
 	// Sort snapshot and parent together.
 	iType := strings.Split(a[i][0], " ")[0]
@@ -136,6 +145,7 @@ type byPrecedence struct {
 	data [][]string
 }
 
+// Len returns the length of the data slice in byPrecedence.
 func (a byPrecedence) Len() int {
 	if a.data == nil {
 		return 0
@@ -144,6 +154,7 @@ func (a byPrecedence) Len() int {
 	return len(a.data)
 }
 
+// Swap swaps the elements in the data slice at positions i and j in byPrecedence.
 func (a byPrecedence) Swap(i, j int) {
 	if a.data == nil {
 		return
@@ -152,6 +163,7 @@ func (a byPrecedence) Swap(i, j int) {
 	a.data[i], a.data[j] = a.data[j], a.data[i]
 }
 
+// Less compares elements in data based on precedence indices using natural sorting.
 func (a byPrecedence) Less(i, j int) bool {
 	for _, k := range a.precedence {
 		if k >= len(a.data[i]) {
