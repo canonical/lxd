@@ -46,6 +46,7 @@ func IsReverse(name string) int {
 	return 0
 }
 
+// reverse converts a reversed slice of IPv4 address segments to a standard IPv4 address.
 func reverse(slice []string) string {
 	for i := 0; i < len(slice)/2; i++ {
 		j := len(slice) - i - 1
