@@ -16,6 +16,7 @@ type cmdNetcat struct {
 	global *cmdGlobal
 }
 
+// Generates a Cobra command for the 'netcat' utility, which sends stdin data to a unix socket.
 func (c *cmdNetcat) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 
@@ -27,6 +28,7 @@ func (c *cmdNetcat) Command() *cobra.Command {
 	return cmd
 }
 
+// Transfers data between stdin/stdout and a Unix socket.
 func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
 	// Help and usage
 	if len(args) == 0 {
