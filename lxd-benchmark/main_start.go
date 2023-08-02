@@ -10,6 +10,7 @@ type cmdStart struct {
 	global *cmdGlobal
 }
 
+// Creates a command to initialize container startup operation.
 func (c *cmdStart) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "start"
@@ -19,6 +20,7 @@ func (c *cmdStart) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the command to begin all retrieved containers in parallel.
 func (c *cmdStart) Run(cmd *cobra.Command, args []string) error {
 	// Get the containers
 	containers, err := benchmark.GetContainers(c.global.srv)
