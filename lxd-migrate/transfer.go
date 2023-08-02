@@ -20,7 +20,7 @@ import (
 	"github.com/canonical/lxd/shared/ws"
 )
 
-// Send an rsync stream of a path over a websocket.
+// Sends an rsync stream of a path over a websocket.
 func rsyncSend(ctx context.Context, conn *websocket.Conn, path string, rsyncArgs string, instanceType api.InstanceType) error {
 	cmd, dataSocket, stderr, err := rsyncSendSetup(ctx, path, rsyncArgs, instanceType)
 	if err != nil {
@@ -52,7 +52,7 @@ func rsyncSend(ctx context.Context, conn *websocket.Conn, path string, rsyncArgs
 	return nil
 }
 
-// Spawn the rsync process.
+// Spawns the rsync process.
 func rsyncSendSetup(ctx context.Context, path string, rsyncArgs string, instanceType api.InstanceType) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 	auds := fmt.Sprintf("@lxd-migrate/%s", uuid.New())
 	if len(auds) > linux.ABSTRACT_UNIX_SOCK_LEN-1 {
@@ -131,6 +131,7 @@ func rsyncSendSetup(ctx context.Context, path string, rsyncArgs string, instance
 	return cmd, conn, stderr, nil
 }
 
+// Sends an error message over the WebSocket connection and closes it if an error exists.
 func protoSendError(ws *websocket.Conn, err error) {
 	migration.ProtoSendControl(ws, err)
 
