@@ -33,6 +33,7 @@ type cmdMigrate struct {
 	flagRsyncArgs string
 }
 
+// Sets up the command-line interface for the migration tool.
 func (c *cmdMigrate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "lxd-migrate"
@@ -62,6 +63,7 @@ type cmdMigrateData struct {
 	Project      string
 }
 
+// Transforms the migration data into a YAML string for output.
 func (c *cmdMigrateData) Render() string {
 	data := struct {
 		Name        string            `yaml:"Name"`
@@ -110,6 +112,7 @@ func (c *cmdMigrateData) Render() string {
 	return string(out)
 }
 
+// Interactively asks for the LXD server URL and sets up a connection with appropriate authentication.
 func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	// Server address
 	serverURL, err := cli.AskString("Please provide LXD server URL: ", "", nil)
@@ -250,6 +253,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	return connectTarget(serverURL, certPath, keyPath, authType, token)
 }
 
+// Interactively collects user input to configure instance migration details and validates their choices.
 func (c *cmdMigrate) RunInteractive(server lxd.InstanceServer) (cmdMigrateData, error) {
 	var err error
 
@@ -434,6 +438,7 @@ Additional overrides can be applied at this stage:
 	}
 }
 
+// Handles migration process including server connection, user interaction and instance creation.
 func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if os.Geteuid() != 0 {
@@ -589,6 +594,7 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// Asks the user for profiles to apply to the instance and validates their input.
 func (c *cmdMigrate) askProfiles(server lxd.InstanceServer, config *cmdMigrateData) error {
 	profileNames, err := server.GetProfileNames()
 	if err != nil {
@@ -622,6 +628,7 @@ func (c *cmdMigrate) askProfiles(server lxd.InstanceServer, config *cmdMigrateDa
 	return nil
 }
 
+// Asks for and validates additional configuration keys and values from the user.
 func (c *cmdMigrate) askConfig(config *cmdMigrateData) error {
 	configs, err := cli.AskString("Please specify config keys and values (key=value ...): ", "", func(s string) error {
 		if s == "" {
@@ -648,6 +655,7 @@ func (c *cmdMigrate) askConfig(config *cmdMigrateData) error {
 	return nil
 }
 
+// Prompts the user to select a storage pool, and optionally specify a storage size.
 func (c *cmdMigrate) askStorage(server lxd.InstanceServer, config *cmdMigrateData) error {
 	storagePools, err := server.GetStoragePoolNames()
 	if err != nil {
@@ -689,6 +697,7 @@ func (c *cmdMigrate) askStorage(server lxd.InstanceServer, config *cmdMigrateDat
 	return nil
 }
 
+// Prompts user for instance network configuration and sets up the corresponding network device.
 func (c *cmdMigrate) askNetwork(server lxd.InstanceServer, config *cmdMigrateData) error {
 	networks, err := server.GetNetworkNames()
 	if err != nil {
