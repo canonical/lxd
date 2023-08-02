@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// lxdIsConfigured checks if LXD is properly configured with the default network and storage pool.
 func lxdIsConfigured(client lxd.InstanceServer) (bool, error) {
 	// Look for networks.
 	networks, err := client.GetNetworkNames()
@@ -40,6 +41,7 @@ func lxdIsConfigured(client lxd.InstanceServer) (bool, error) {
 	return true, nil
 }
 
+// Sets up the initial LXD configuration including default storage pool, network, and updating the profile.
 func lxdInitialConfiguration(client lxd.InstanceServer) error {
 	// Load current server config.
 	info, _, err := client.GetServer()
@@ -137,6 +139,7 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 	return nil
 }
 
+// Sets up a user-specific LXD configuration including project, certificate, network, and default profile.
 func lxdSetupUser(uid uint32) error {
 	projectName := fmt.Sprintf("user-%d", uid)
 	networkName := fmt.Sprintf("lxdbr-%d", uid)
