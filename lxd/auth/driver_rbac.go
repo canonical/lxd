@@ -79,6 +79,8 @@ func (r *rbac) load() error {
 		return err
 	}
 
+	r.permissionsLock = &sync.Mutex{}
+
 	// Setup context
 	r.ctx, r.ctxCancel = context.WithCancel(context.Background())
 
