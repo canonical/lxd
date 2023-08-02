@@ -163,6 +163,13 @@ func (r *rbac) validateConfig() error {
 
 	r.agentUsername = val.(string)
 
+	val, ok = r.config["rbac.api.url"]
+	if !ok {
+		return fmt.Errorf("Missing rbac.api.url")
+	}
+
+	r.apiURL = val.(string)
+
 	return nil
 }
 
