@@ -222,6 +222,7 @@ func DeleteContainers(c lxd.ContainerServer, containers []api.Container, paralle
 	return duration, nil
 }
 
+// Validates and imports an image from remote server to local LXD store if not already present.
 func ensureImage(c lxd.ContainerServer, image string) (string, error) {
 	var fingerprint string
 
