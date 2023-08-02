@@ -7,6 +7,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// Using the unix.Sysinfo_t struct, the main function retrieves and prints system information.
 func main() {
 	var s unix.Sysinfo_t
 
