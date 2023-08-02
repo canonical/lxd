@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// Calculates batch size based on input parallelism or defaults to CPU count.
 func getBatchSize(parallel int) (int, error) {
 	batchSize := parallel
 	if batchSize < 1 {
@@ -21,6 +22,7 @@ func getBatchSize(parallel int) (int, error) {
 	return batchSize, nil
 }
 
+// Executes a provided function across batches of tasks and reports the processing time.
 func processBatch(count int, batchSize int, process func(index int, wg *sync.WaitGroup)) time.Duration {
 	batches := count / batchSize
 	remainder := count % batchSize
