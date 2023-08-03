@@ -843,7 +843,7 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	"security.syscalls.intercept.sched_setscheduler": validate.Optional(validate.IsBool),
 
 	// lxddoc:generate(group=instance-security, key=security.syscalls.intercept.setxattr)
-	// This sytem call allows setting a limited subset of restricted extended attributes.
+	// This system call allows setting a limited subset of restricted extended attributes.
 	// ---
 	//  type: bool
 	//  default: `false`
