@@ -39,7 +39,12 @@ type Authorizer interface {
 
 	UserAccess(username string) (*UserAccess, error)
 	UserIsAdmin(r *http.Request) bool
-	UserHasPermission(r *http.Request, projectName string, permission string) bool
+	UserHasPermission(r *http.Request, projectName string, objectName string, relation Relation) bool
+	ListObjects(r *http.Request, relation Relation, objectType ObjectType) ([]string, error)
+	GetPermissionChecker(r *http.Request, relation Relation, objectType ObjectType) (func(object string) bool, error)
+
+	AddTuple(user string, relation Relation, object string) error
+	DeleteTuple(user string, relation Relation, object string) error
 }
 
 // UserAccess struct for permission checks.
