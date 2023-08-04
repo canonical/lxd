@@ -50,7 +50,7 @@ func (a *tls) UserIsAdmin(r *http.Request) bool {
 }
 
 // UserHasPermission checks whether the requestor has a specific permission on a project.
-func (a *tls) UserHasPermission(r *http.Request, projectName string, permission string) bool {
+func (a *tls) UserHasPermission(r *http.Request, projectName string, _ string, relation Relation) bool {
 	val := r.Context().Value(request.CtxAccess)
 	if val == nil {
 		return false
@@ -61,5 +61,26 @@ func (a *tls) UserHasPermission(r *http.Request, projectName string, permission 
 		return true
 	}
 
-	return shared.StringInSlice(permission, ua.Projects[projectName])
+	return shared.StringInSlice(a.relationToPermission(relation), ua.Projects[projectName])
+}
+
+func (a *tls) relationToPermission(relation Relation) string {
+	switch relation {
+	case RelationImageManager:
+		return "manage-images"
+	case RelationInstanceManager:
+		return "manage-containers"
+	case RelationNetworkManager, RelationNetworkACLManager, RelationNetworkZoneManager:
+		return "manage-networks"
+	case RelationProfileManager:
+		return "manage-profiles"
+	case RelationStorageBucketManager, RelationStorageVolumeManager:
+		return "manage-storage-volumes"
+	case RelationInstanceOperator:
+		return "operate-containers"
+	case RelationImageViewer, RelationInstanceViewer, RelationNetworkViewer, RelationNetworkACLViewer, RelationNetworkZoneViewer, RelationProfileViewer, RelationStorageVolumeViewer, RelationViewer:
+		return "view"
+	}
+
+	return ""
 }
