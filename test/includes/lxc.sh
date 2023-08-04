@@ -1,6 +1,7 @@
 # lxc CLI related test helpers.
 
 lxc() {
+    set +x
     LXC_LOCAL=1 lxc_remote "$@"
 }
 
