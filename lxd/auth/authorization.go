@@ -10,6 +10,9 @@ import (
 // ErrUnknownDriver is the "Unknown driver" error.
 var ErrUnknownDriver = fmt.Errorf("Unknown driver")
 
+// ErrNotSupported is the "Not supported" error.
+var ErrNotSupported = fmt.Errorf("Not supported")
+
 var authorizers = map[string]func() authorizer{
 	"tls": func() authorizer { return &tls{} },
 	"rbac": func() authorizer {
