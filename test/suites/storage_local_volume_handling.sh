@@ -238,7 +238,7 @@ test_storage_local_volume_handling() {
           ! lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5/snapremove user.foo || false
 
           # copy ISO custom volumes
-          truncate -s 25MiB foo.iso
+          truncate -s 8MiB foo.iso
           lxc storage volume import "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" ./foo.iso iso1
           lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${source_driver}"/iso1 "lxdtest-$(basename "${LXD_DIR}")-${target_driver}"/iso1
           lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" iso1 | grep -q 'content_type: iso'
