@@ -20,6 +20,41 @@ func NewMetricSet(labels map[string]string) *MetricSet {
 	return &out
 }
 
+// FilterSamples returns a new MetricSet with samples containing all the provided labels.
+// If no labels are provided, it only matches samples without labels.
+func (m *MetricSet) FilterSamples(labels map[string]string) *MetricSet {
+	hasLabels := func(s Sample, labels map[string]string) bool {
+		matchedLabels := 0
+
+		if len(labels) == 0 && len(s.Labels) > 0 {
+			return false
+		}
+
+		for k, v := range s.Labels {
+			val, ok := labels[k]
+			if ok && val == v {
+				matchedLabels++
+			}
+		}
+
+		return matchedLabels == len(labels)
+	}
+
+	out := NewMetricSet(m.labels)
+
+	for metricType, samples := range m.set {
+		for _, s := range samples {
+			if !hasLabels(s, labels) {
+				continue
+			}
+
+			out.AddSamples(metricType, s)
+		}
+	}
+
+	return out
+}
+
 // AddSamples adds samples of the type metricType to the MetricSet.
 func (m *MetricSet) AddSamples(metricType MetricType, samples ...Sample) {
 	for i := 0; i < len(samples); i++ {
