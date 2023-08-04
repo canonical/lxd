@@ -1,0 +1,68 @@
+model
+  schema 1.1
+type user
+type group
+  relations
+    define member: [user, group#member]
+type project
+  relations
+    define manager: [user, group#member]
+    define viewer: [user, group#member] or manager
+    define instance_manager: [user, group#member] or manager
+    define instance_operator: [user, group#member] or instance_manager
+    define instance_viewer: [user, group#member] or instance_operator
+    define image_manager: [user, group#member] or manager
+    define image_viewer: [user, group#member] or image_manager
+    define profile_manager: [user, group#member] or manager
+    define profile_viewer: [user, group#member] or profile_manager
+    define network_manager: [user, group#member] or manager
+    define network_viewer: [user, group#member] or network_manager
+    define network_acl_manager: [user, group#member] or manager
+    define network_acl_viewer: [user, group#member] or network_acl_manager
+    define network_zone_manager: [user, group#member] or manager
+    define network_zone_viewer: [user, group#member] or network_zone_manager
+    define storage_volume_manager: [user, group#member] or manager
+    define storage_volume_viewer: [user, group#member] or storage_volume_manager
+    define storage_bucket_manager: [user, group#member] or manager
+    define storage_bucket_viewer: [user, group#member] or storage_bucket_manager
+type instance
+  relations
+    define project: [project]
+    define manager: [user, group#member] or instance_manager from project
+    define operator: [user, group#member] or manager or instance_operator from project
+    define viewer: [user, group#member] or operator or instance_viewer from project
+type image
+  relations
+    define project: [project]
+    define manager: [user, group#member] or image_manager from project
+    define viewer: [user, group#member] or manager or image_viewer from project
+type profile
+  relations
+    define project: [project]
+    define manager: [user, group#member] or profile_manager from project
+    define viewer: [user, group#member] or manager or profile_viewer from project
+type network
+  relations
+    define project: [project]
+    define manager: [user, group#member] or network_manager from project
+    define viewer: [user, group#member] or manager or network_viewer from project
+type network_acl
+  relations
+    define project: [project]
+    define manager: [user, group#member] or network_acl_manager from project
+    define viewer: [user, group#member] or manager or network_acl_viewer from project
+type network_zone
+  relations
+    define project: [project]
+    define manager: [user, group#member] or network_zone_manager from project
+    define viewer: [user, group#member] or manager or network_zone_viewer from project
+type storage_volume
+  relations
+    define project: [project]
+    define manager: [user, group#member] or storage_volume_manager from project
+    define viewer: [user, group#member] or manager or storage_volume_viewer from project
+type storage_bucket
+  relations
+    define project: [project]
+    define manager: [user, group#member] or storage_bucket_manager from project
+    define viewer: [user, group#member] or manager or storage_bucket_viewer from project

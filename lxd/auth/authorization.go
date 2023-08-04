@@ -14,7 +14,8 @@ var ErrUnknownDriver = fmt.Errorf("Unknown driver")
 var ErrNotSupported = fmt.Errorf("Not supported")
 
 var authorizers = map[string]func() authorizer{
-	"tls": func() authorizer { return &tls{} },
+	"tls":     func() authorizer { return &tls{} },
+	"openfga": func() authorizer { return &openfga{} },
 	"rbac": func() authorizer {
 		return &rbac{
 			resources:   map[string]string{},
