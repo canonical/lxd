@@ -250,7 +250,7 @@ func parse(path string, outputYAMLPath string, excludedPaths []string) (*doc, er
 	return yamlDoc, nil
 }
 
-func writeDocFile(path string, yaml *doc) error {
+func writeDocFile(inputYamlPath, outputTxtPath string) error {
 	countMaxBackTicks := func(s string) int {
 		count, curr_count := 0, 0
 		n := len(s)
