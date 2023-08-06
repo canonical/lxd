@@ -1,6 +1,7 @@
 # lxc CLI related test helpers.
 
 lxc() {
+    set +x
     LXC_LOCAL=1 lxc_remote "$@"
 }
 
@@ -31,9 +32,10 @@ lxc_remote() {
         cmd="${cmd} ${DEBUG-}"
     fi
     if [ -n "${DEBUG:-}" ]; then
-        set -x
+        eval "set -x;timeout --foreground 120 ${cmd}"
+    else
+        eval "timeout --foreground 120 ${cmd}"
     fi
-    eval "timeout --foreground 120 ${cmd}"
 }
 
 gen_cert() {
