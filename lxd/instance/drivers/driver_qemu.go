@@ -2484,7 +2484,7 @@ func (d *qemu) generateConfigShare() error {
 	lxdAgentServiceUnit := `[Unit]
 Description=LXD - agent
 Documentation=https://documentation.ubuntu.com/lxd/en/latest/
-ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
+ConditionPathExists=/dev/virtio-ports/com.canonical.lxd
 Before=cloud-init.target cloud-init.service cloud-init-local.service
 DefaultDependencies=no
 
@@ -2559,7 +2559,7 @@ chown -R root:root "${PREFIX}"
 		return err
 	}
 
-	lxdAgentRules := `ACTION=="add", SYMLINK=="virtio-ports/org.linuxcontainers.lxd", TAG+="systemd", ACTION=="add", RUN+="/bin/systemctl start lxd-agent.service"`
+	lxdAgentRules := `ACTION=="add", SYMLINK=="virtio-ports/com.canonical.lxd", TAG+="systemd", ACTION=="add", RUN+="/bin/systemctl start lxd-agent.service"`
 	err = os.WriteFile(filepath.Join(configDrivePath, "udev", "99-lxd-agent.rules"), []byte(lxdAgentRules), 0400)
 	if err != nil {
 		return err
