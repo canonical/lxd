@@ -870,6 +870,7 @@ func (d *common) maasUpdate(inst instance.Instance, oldDevices map[string]map[st
 	return d.state.MAAS.CreateContainer(d, interfaces)
 }
 
+// maasInterfaces generates a list of MAAS container interfaces based on the provided instance and network devices map.
 func (d *common) maasInterfaces(inst instance.Instance, devices map[string]map[string]string) ([]maas.ContainerInterface, error) {
 	interfaces := []maas.ContainerInterface{}
 	for k, m := range devices {
@@ -920,6 +921,7 @@ func (d *common) maasInterfaces(inst instance.Instance, devices map[string]map[s
 	return interfaces, nil
 }
 
+// maasRename renames a MAAS container by updating its name in the MAAS controller or the local configuration.
 func (d *common) maasRename(inst instance.Instance, newName string) error {
 	maasURL, _ := d.state.GlobalConfig.MAASController()
 
@@ -952,6 +954,7 @@ func (d *common) maasRename(inst instance.Instance, newName string) error {
 	return d.state.MAAS.RenameContainer(d, newName)
 }
 
+// maasDelete deletes the corresponding MAAS container entry for the LXD instance, if it exists.
 func (d *common) maasDelete(inst instance.Instance) error {
 	maasURL, _ := d.state.GlobalConfig.MAASController()
 
@@ -1132,6 +1135,7 @@ func (d *common) recordLastState() error {
 	})
 }
 
+// setCoreSched toggles core scheduling for the given PIDs on the LXD instance if supported by the OS.
 func (d *common) setCoreSched(pids []int) error {
 	if !d.state.OS.CoreScheduling {
 		return nil

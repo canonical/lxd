@@ -48,6 +48,7 @@ func TestGetStorageVolumeNodes(t *testing.T) {
 	}, nodes)
 }
 
+// Adds a new storage pool with given name to the database.
 func addPool(t *testing.T, tx *db.ClusterTx, name string) int64 {
 	stmt := `
 INSERT INTO storage_pools(name, driver, description) VALUES (?, 'dir', '')
@@ -61,6 +62,7 @@ INSERT INTO storage_pools(name, driver, description) VALUES (?, 'dir', '')
 	return id
 }
 
+// Inserts a new storage volume into the database for a specific pool and node.
 func addVolume(t *testing.T, tx *db.ClusterTx, poolID, nodeID int64, name string) {
 	stmt := `
 INSERT INTO storage_volumes(storage_pool_id, node_id, name, type, project_id, description) VALUES (?, ?, ?, 1, 1, '')

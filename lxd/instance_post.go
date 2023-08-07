@@ -67,6 +67,8 @@ import (
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles various instance-related operations, including instance rename, migration, and post-creation tasks.
 func instancePost(d *Daemon, r *http.Request) response.Response {
 	// Don't mess with instance while in setup mode.
 	<-d.waitReady.Done()
@@ -926,6 +928,7 @@ func instancePostClusteringMigrateWithCeph(s *state.State, r *http.Request, srcP
 	return run, nil
 }
 
+// Migrates an instance to a different node in a clustered environment, handling Ceph-based instances separately.
 func migrateInstance(s *state.State, r *http.Request, inst instance.Instance, targetNode string, req api.InstancePost, op *operations.Operation) error {
 	// If target isn't the same as the instance's location.
 	if targetNode == inst.Location() {

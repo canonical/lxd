@@ -11,6 +11,7 @@ import (
 var logger *log.Logger
 var logFilePath string = "/tmp/lxddoc.log"
 
+// init sets up a file logger with a specific format, logged messages are prefixed with "LXDDOC:".
 func init() {
 	file, err := os.Create(logFilePath)
 	if err != nil {
@@ -48,6 +49,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+// main sets up command-line flags, executes the root command, and logs success or error messages.
 func main() {
 	rootCmd.Flags().StringSliceVarP(&exclude, "exclude", "e", []string{}, "Path to exclude from the process")
 	rootCmd.Flags().StringVarP(&yamlOutput, "yaml", "y", "lxd-doc.yaml", "Output YAML file containing the generated documentation")

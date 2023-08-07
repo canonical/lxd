@@ -666,6 +666,7 @@ type cmdForksyscall struct {
 	global *cmdGlobal
 }
 
+// Initializes the command for executing seccomp-based container system call operations.
 func (c *cmdForksyscall) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -683,6 +684,7 @@ func (c *cmdForksyscall) Command() *cobra.Command {
 	return cmd
 }
 
+// Placeholder function; syscall command handling is expected to occur in cgo.
 func (c *cmdForksyscall) Run(cmd *cobra.Command, args []string) error {
 	return fmt.Errorf("This command should have been intercepted in cgo")
 }

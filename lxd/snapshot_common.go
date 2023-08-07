@@ -25,6 +25,7 @@ var SnapshotScheduleAliases = map[string]string{
 	"@never":    "",
 }
 
+// Determines if a snapshot based on a given schedule specification is due at the current time.
 func snapshotIsScheduledNow(spec string, subjectID int64) bool {
 	var result = false
 
@@ -39,6 +40,7 @@ func snapshotIsScheduledNow(spec string, subjectID int64) bool {
 	return result
 }
 
+// Converts a given schedule specification into a list of cron-syntax strings for the subject ID.
 func buildCronSpecs(spec string, subjectID int64) []string {
 	var result []string
 
@@ -59,6 +61,7 @@ func buildCronSpecs(spec string, subjectID int64) []string {
 	return result
 }
 
+// Converts the given schedule specification to cron-syntax or an alias string for a particular subject ID.
 func getCronSyntax(spec string, subjectID int64) string {
 	alias, isAlias := SnapshotScheduleAliases[strings.ToLower(spec)]
 	if isAlias {
@@ -78,6 +81,7 @@ func getCronSyntax(spec string, subjectID int64) string {
 	return spec
 }
 
+// Generates obfuscated minute and hour values for a given subject ID for snapshot scheduling.
 func getObfuscatedTimeValuesForSubject(subjectID int64) (string, string) {
 	var minuteResult = "0"
 	var hourResult = "0"
@@ -97,6 +101,7 @@ func getObfuscatedTimeValuesForSubject(subjectID int64) (string, string) {
 	return minuteResult, hourResult
 }
 
+// Checks if a cron schedule matches current time for snapshot scheduling.
 func cronSpecIsNow(spec string) (bool, error) {
 	sched, err := cron.ParseStandard(spec)
 	if err != nil {

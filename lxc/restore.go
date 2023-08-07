@@ -17,6 +17,7 @@ type cmdRestore struct {
 	flagStateful bool
 }
 
+// Command returns a Cobra command for the "restore" subcommand, used to restore instances from snapshots, optionally restoring their running state as well.
 func (c *cmdRestore) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("restore", i18n.G("[<remote>:]<instance> <snapshot>"))
@@ -38,6 +39,7 @@ lxc restore u1 snap0
 	return cmd
 }
 
+// Run restores an instance from a snapshot, optionally restoring its running state as well.
 func (c *cmdRestore) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 

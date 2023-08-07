@@ -83,6 +83,7 @@ func instanceImageTransfer(s *state.State, r *http.Request, projectName string, 
 	return nil
 }
 
+// This function ensures the local availability of an image by importing it from another node if needed.
 func ensureImageIsLocallyAvailable(s *state.State, r *http.Request, img *api.Image, projectName string, instanceType instancetype.Type) error {
 	// Check if the image is available locally or it's on another member.
 	// Ensure we are the only ones operating on this image. Otherwise another instance created at the same
@@ -181,6 +182,7 @@ func instanceCreateFromImage(s *state.State, r *http.Request, img *api.Image, ar
 	return nil
 }
 
+// This function rebuilds an instance from a specified image, ensuring image availability and type validation.
 func instanceRebuildFromImage(s *state.State, r *http.Request, inst instance.Instance, img *api.Image, op *operations.Operation) error {
 	// Validate the type of the image matches the type of the instance.
 	imgType, err := instancetype.New(img.Type)
@@ -205,6 +207,7 @@ func instanceRebuildFromImage(s *state.State, r *http.Request, inst instance.Ins
 	return nil
 }
 
+// This function rebuilds an instance as an empty instance (without using a specific image).
 func instanceRebuildFromEmpty(s *state.State, inst instance.Instance, op *operations.Operation) error {
 	err := inst.Rebuild(nil, op) // Rebuild as empty.
 	if err != nil {
@@ -454,6 +457,7 @@ func instanceLoadNodeProjectAll(ctx context.Context, s *state.State, project str
 	return instances, nil
 }
 
+// This function automatically creates snapshots for a list of instances with specific snapshot name format and expiry date.
 func autoCreateInstanceSnapshots(ctx context.Context, s *state.State, instances []instance.Instance) error {
 	// Make the snapshots.
 	for _, inst := range instances {
@@ -488,6 +492,7 @@ func autoCreateInstanceSnapshots(ctx context.Context, s *state.State, instances 
 
 var instSnapshotsPruneRunning = sync.Map{}
 
+// This function prunes (deletes) expired instance snapshots in a given list.
 func pruneExpiredInstanceSnapshots(ctx context.Context, s *state.State, snapshots []instance.Instance) error {
 	// Find snapshots to delete
 	for _, snapshot := range snapshots {
@@ -513,6 +518,8 @@ func pruneExpiredInstanceSnapshots(ctx context.Context, s *state.State, snapshot
 	return nil
 }
 
+// This function creates a task for handling automatic instance snapshot creation
+// based on schedules and pruning expired snapshots.
 func pruneExpiredAndAutoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	// `f` creates new scheduled instance snapshots and then, prune the expired ones
 	f := func(ctx context.Context) {

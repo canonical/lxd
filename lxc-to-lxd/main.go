@@ -56,6 +56,7 @@ type cmdGlobal struct {
 	flagHelp    bool
 }
 
+// Initializes and runs the migration command-line application.
 func main() {
 	// migrate command (main)
 	migrateCmd := cmdMigrate{}

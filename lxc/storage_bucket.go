@@ -22,6 +22,8 @@ type cmdStorageBucket struct {
 	flagTarget string
 }
 
+// Command returns a Cobra command for managing storage buckets, including subcommands for
+// create, delete, edit, get, list, set, show, unset, and key operations.
 func (c *cmdStorageBucket) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("bucket")
@@ -76,6 +78,7 @@ type cmdStorageBucketCreate struct {
 	storageBucket *cmdStorageBucket
 }
 
+// Command returns a Cobra command for creating new custom storage buckets with options for specifying the target cluster member.
 func (c *cmdStorageBucketCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<pool> <bucket> [key=value...]"))
@@ -88,6 +91,7 @@ func (c *cmdStorageBucketCreate) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command to create a new custom storage bucket with options for specifying the target cluster member and additional key-value configuration.
 func (c *cmdStorageBucketCreate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -175,6 +179,7 @@ type cmdStorageBucketDelete struct {
 	storageBucket *cmdStorageBucket
 }
 
+// Command returns the Cobra command for deleting storage buckets, including options for specifying the target cluster member.
 func (c *cmdStorageBucketDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<pool> <bucket>"))
@@ -188,6 +193,7 @@ func (c *cmdStorageBucketDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command to delete a storage bucket from a specified pool, including options for specifying the target cluster member.
 func (c *cmdStorageBucketDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -237,6 +243,7 @@ type cmdStorageBucketEdit struct {
 	storageBucket *cmdStorageBucket
 }
 
+// Command returns a Cobra command for editing storage bucket configurations as YAML, including the option to specify the target cluster member.
 func (c *cmdStorageBucketEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<pool> <bucket>"))
@@ -251,6 +258,7 @@ func (c *cmdStorageBucketEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// helpTemplate returns the help text template for editing storage bucket configurations in YAML format.
 func (c *cmdStorageBucketEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a YAML representation of a storage bucket.
@@ -264,6 +272,7 @@ func (c *cmdStorageBucketEdit) helpTemplate() string {
 ###   size: "61203283968"`)
 }
 
+// Run executes the command to edit the configurations of a storage bucket, allowing the user to update the bucket's YAML representation using a text editor.
 func (c *cmdStorageBucketEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -370,6 +379,7 @@ type cmdStorageBucketGet struct {
 	flagIsProperty bool
 }
 
+// Command returns a Cobra command for the "get" subcommand, which retrieves values for specific configuration keys of a storage bucket.
 func (c *cmdStorageBucketGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<pool> <bucket> <key>"))
@@ -383,6 +393,7 @@ func (c *cmdStorageBucketGet) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the "get" command, retrieving the value for a specific configuration key of a storage bucket.
 func (c *cmdStorageBucketGet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
@@ -444,6 +455,7 @@ type cmdStorageBucketList struct {
 	flagFormat    string
 }
 
+// Command returns the Cobra command for the "list" command, which lists storage buckets in a storage pool.
 func (c *cmdStorageBucketList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]<pool>"))
@@ -458,6 +470,7 @@ func (c *cmdStorageBucketList) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the "list" command, which retrieves and displays a list of storage buckets in a storage pool.
 func (c *cmdStorageBucketList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
@@ -523,6 +536,7 @@ type cmdStorageBucketSet struct {
 	flagIsProperty bool
 }
 
+// Command returns the "set" command, which is used to set configuration keys for a storage bucket in a storage pool.
 func (c *cmdStorageBucketSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<pool> <bucket> <key>=<value>..."))
@@ -540,6 +554,7 @@ For backward compatibility, a single configuration key may still be set with:
 	return cmd
 }
 
+// Run executes the "set" command, which sets configuration keys for a storage bucket in a storage pool.
 func (c *cmdStorageBucketSet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
@@ -617,6 +632,7 @@ type cmdStorageBucketShow struct {
 	storageBucket *cmdStorageBucket
 }
 
+// Command returns the Cobra command for displaying storage bucket configurations.
 func (c *cmdStorageBucketShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<pool> <bucket>"))
@@ -632,6 +648,7 @@ func (c *cmdStorageBucketShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command to display storage bucket configurations for a given pool and bucket.
 func (c *cmdStorageBucketShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -686,6 +703,7 @@ type cmdStorageBucketUnset struct {
 	flagIsProperty bool
 }
 
+// Command returns the Cobra command for the "unset" subcommand, which is used to unset storage bucket configuration keys.
 func (c *cmdStorageBucketUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<pool> <bucket> <key>"))
@@ -699,6 +717,7 @@ func (c *cmdStorageBucketUnset) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the "storage bucket unset" command by forwarding the arguments to "storage bucket set" with an empty value argument.
 func (c *cmdStorageBucketUnset) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
@@ -720,6 +739,7 @@ type cmdStorageBucketKey struct {
 	flagTarget string
 }
 
+// Command returns a Cobra command for managing storage bucket keys, including create, delete, edit, list, and show operations.
 func (c *cmdStorageBucketKey) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("key")
@@ -759,6 +779,7 @@ type cmdStorageBucketKeyList struct {
 	flagFormat       string
 }
 
+// Command returns a Cobra command for listing storage bucket keys, allowing the user to specify the format and target member.
 func (c *cmdStorageBucketKeyList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]<pool> <bucket>"))
@@ -774,6 +795,7 @@ func (c *cmdStorageBucketKeyList) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command to list storage bucket keys, fetching the keys for the specified bucket and rendering them in the desired format.
 func (c *cmdStorageBucketKeyList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -840,6 +862,7 @@ type cmdStorageBucketKeyCreate struct {
 	flagSecretKey    string
 }
 
+// Command returns a Cobra command for creating a key for a storage bucket, including options for specifying the role, access key, and secret key.
 func (c *cmdStorageBucketKeyCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<pool> <bucket> <key>"))
@@ -855,6 +878,7 @@ func (c *cmdStorageBucketKeyCreate) Command() *cobra.Command {
 	return cmd
 }
 
+// RunAdd executes the command to create a key for a storage bucket, including handling the specified role, access key, and secret key.
 func (c *cmdStorageBucketKeyCreate) RunAdd(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
@@ -918,6 +942,7 @@ type cmdStorageBucketKeyDelete struct {
 	storageBucketKey *cmdStorageBucketKey
 }
 
+// Command returns a Cobra command for the "delete" subcommand, which is used to delete a key from a storage bucket.
 func (c *cmdStorageBucketKeyDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<pool> <bucket> <key>"))
@@ -930,6 +955,7 @@ func (c *cmdStorageBucketKeyDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// RunRemove is the function executed when the "delete" subcommand is run and it deletes a key from a storage bucket.
 func (c *cmdStorageBucketKeyDelete) RunRemove(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
@@ -982,6 +1008,7 @@ type cmdStorageBucketKeyEdit struct {
 	storageBucketKey *cmdStorageBucketKey
 }
 
+// Command returns a Cobra command for the "edit" subcommand, which is used to edit a storage bucket key as YAML.
 func (c *cmdStorageBucketKeyEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<pool> <bucket> <key>"))
@@ -996,6 +1023,7 @@ func (c *cmdStorageBucketKeyEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// helpTemplate returns a YAML template that represents the structure of a storage bucket key configuration.
 func (c *cmdStorageBucketKeyEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a YAML representation of a storage bucket.
@@ -1009,6 +1037,7 @@ func (c *cmdStorageBucketKeyEdit) helpTemplate() string {
 ###   size: "61203283968"`)
 }
 
+// Run performs checks on input arguments, parses server data, and performs update operations on specified storage bucket key.
 func (c *cmdStorageBucketKeyEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
@@ -1117,6 +1146,7 @@ type cmdStorageBucketKeyShow struct {
 	storageBucketKey *cmdStorageBucketKey
 }
 
+// Command sets up the "show" command to display the configuration of a specific storage bucket key.
 func (c *cmdStorageBucketKeyShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<pool> <bucket> <key>"))
@@ -1132,6 +1162,7 @@ func (c *cmdStorageBucketKeyShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Run performs checks on input arguments, parses server data, and displays the configuration of a specific storage bucket key.
 func (c *cmdStorageBucketKeyShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)

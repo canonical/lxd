@@ -38,6 +38,7 @@ type dbTestSuite struct {
 	cleanup func()
 }
 
+// SetupTest initializes a test database and a transaction, and then populates it with predefined data.
 func (s *dbTestSuite) SetupTest() {
 	s.db, s.cleanup = s.CreateTestDb()
 
@@ -48,6 +49,7 @@ func (s *dbTestSuite) SetupTest() {
 	s.Nil(err)
 }
 
+// TearDownTest cleans up resources and data used in the test after completion.
 func (s *dbTestSuite) TearDownTest() {
 	s.cleanup()
 }
@@ -77,10 +79,13 @@ func (s *dbTestSuite) CreateTestTx() (*sql.Tx, func()) {
 	return tx, commit
 }
 
+// TestDBTestSuite executes all tests within the dbTestSuite.
 func TestDBTestSuite(t *testing.T) {
 	suite.Run(t, new(dbTestSuite))
 }
 
+// Test_deleting_a_container_cascades_on_related_tables checks
+// if deleting a container removes all its associated entries from related tables.
 func (s *dbTestSuite) Test_deleting_a_container_cascades_on_related_tables() {
 	var err error
 	var count int
@@ -120,6 +125,8 @@ func (s *dbTestSuite) Test_deleting_a_container_cascades_on_related_tables() {
 	s.Equal(count, 0, "Deleting a container didn't delete the associated container_devices_config!")
 }
 
+// Test_deleting_a_profile_cascades_on_related_tables ensures that deleting a
+// profile removes all its associated entries from related tables.
 func (s *dbTestSuite) Test_deleting_a_profile_cascades_on_related_tables() {
 	var err error
 	var count int
@@ -159,6 +166,7 @@ func (s *dbTestSuite) Test_deleting_a_profile_cascades_on_related_tables() {
 	s.Equal(count, 0, "Deleting a profile didn't delete the related profiles_devices_config!")
 }
 
+// Test_deleting_an_image_cascades_on_related_tables ensures removal of image-related entries upon image deletion.
 func (s *dbTestSuite) Test_deleting_an_image_cascades_on_related_tables() {
 	var err error
 	var count int
@@ -185,6 +193,7 @@ func (s *dbTestSuite) Test_deleting_an_image_cascades_on_related_tables() {
 	s.Equal(count, 0, "Deleting an image didn't delete the related images_properties!")
 }
 
+// Test_ImageGet_finds_image_for_fingerprint checks if the correct image data is fetched using a specific fingerprint.
 func (s *dbTestSuite) Test_ImageGet_finds_image_for_fingerprint() {
 	var err error
 	var result *api.Image
@@ -199,6 +208,7 @@ func (s *dbTestSuite) Test_ImageGet_finds_image_for_fingerprint() {
 	s.Equal(result.UploadedAt.UTC(), time.Unix(1431547176, 0).UTC())
 }
 
+// Test_ImageGet_for_missing_fingerprint validates the error handling when attempting to fetch a non-existent image.
 func (s *dbTestSuite) Test_ImageGet_for_missing_fingerprint() {
 	project := "default"
 	var err error
@@ -207,6 +217,7 @@ func (s *dbTestSuite) Test_ImageGet_for_missing_fingerprint() {
 	s.True(api.StatusErrorCheck(err, http.StatusNotFound))
 }
 
+// Test_ImageExists_true verifies the function correctly identifies the existence of a specified image.
 func (s *dbTestSuite) Test_ImageExists_true() {
 	var err error
 
@@ -215,6 +226,7 @@ func (s *dbTestSuite) Test_ImageExists_true() {
 	s.True(exists)
 }
 
+// Test_ImageExists_false confirms the function accurately reports the non-existence of a specified image.
 func (s *dbTestSuite) Test_ImageExists_false() {
 	var err error
 
@@ -223,6 +235,7 @@ func (s *dbTestSuite) Test_ImageExists_false() {
 	s.False(exists)
 }
 
+// Test_GetImageAlias_alias_exists checks if the function correctly retrieves an existing image alias.
 func (s *dbTestSuite) Test_GetImageAlias_alias_exists() {
 	_ = s.db.Transaction(context.Background(), func(ctx context.Context, tx *ClusterTx) error {
 		_, alias, err := tx.GetImageAlias(ctx, "default", "somealias", true)
@@ -233,6 +246,7 @@ func (s *dbTestSuite) Test_GetImageAlias_alias_exists() {
 	})
 }
 
+// Test_GetImageAlias_alias_does_not_exists ensures the function properly handles a missing image alias request.
 func (s *dbTestSuite) Test_GetImageAlias_alias_does_not_exists() {
 	_ = s.db.Transaction(context.Background(), func(ctx context.Context, tx *ClusterTx) error {
 		_, _, err := tx.GetImageAlias(ctx, "default", "whatever", true)
@@ -242,6 +256,7 @@ func (s *dbTestSuite) Test_GetImageAlias_alias_does_not_exists() {
 	})
 }
 
+// Test_CreateImageAlias validates successful image alias creation and its subsequent retrieval.
 func (s *dbTestSuite) Test_CreateImageAlias() {
 	_ = s.db.Transaction(context.Background(), func(ctx context.Context, tx *ClusterTx) error {
 		err := tx.CreateImageAlias(ctx, "default", "Chaosphere", 1, "Someone will like the name")
@@ -255,6 +270,7 @@ func (s *dbTestSuite) Test_CreateImageAlias() {
 	})
 }
 
+// Test_GetCachedImageSourceFingerprint verifies the fingerprint retrieval of a cached image source.
 func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint() {
 	project := "default"
 	imageID, _, err := s.db.GetImage("fingerprint", cluster.ImageFilter{Project: &project})
@@ -271,6 +287,7 @@ func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint() {
 	})
 }
 
+// Test_GetCachedImageSourceFingerprint_no_match ensures that an error is returned for non-matching cached image source.
 func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint_no_match() {
 	project := "default"
 	imageID, _, err := s.db.GetImage("fingerprint", cluster.ImageFilter{Project: &project})

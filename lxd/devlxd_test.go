@@ -23,6 +23,7 @@ type DevLxdDialer struct {
 	Path string
 }
 
+// DevLxdDial connects to the LXD Unix socket using the provided path and returns a net.Conn.
 func (d DevLxdDialer) DevLxdDial(ctx context.Context, network, path string) (net.Conn, error) {
 	addr, err := net.ResolveUnixAddr("unix", d.Path)
 	if err != nil {
@@ -37,6 +38,7 @@ func (d DevLxdDialer) DevLxdDial(ctx context.Context, network, path string) (net
 	return conn, err
 }
 
+// setupDir sets up a temporary directory for LXD testing.
 func setupDir() error {
 	var err error
 
@@ -60,6 +62,7 @@ func setupDir() error {
 	return os.Setenv("LXD_DIR", testDir)
 }
 
+// setupSocket creates a Unix domain socket listener on a temporary directory for LXD testing.
 func setupSocket() (*net.UnixListener, error) {
 	_ = setupDir()
 	path := filepath.Join(testDir, "test-devlxd-sock")
@@ -76,6 +79,7 @@ func setupSocket() (*net.UnixListener, error) {
 	return listener, nil
 }
 
+// connect establishes a Unix domain socket connection to the specified path.
 func connect(path string) (*net.UnixConn, error) {
 	addr, err := net.ResolveUnixAddr("unix", path)
 	if err != nil {
@@ -90,6 +94,7 @@ func connect(path string) (*net.UnixConn, error) {
 	return conn, nil
 }
 
+// TestCredsSendRecv tests sending and receiving credentials over a Unix domain socket.
 func TestCredsSendRecv(t *testing.T) {
 	result := make(chan int32, 1)
 

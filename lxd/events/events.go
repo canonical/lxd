@@ -147,6 +147,7 @@ func (s *Server) Inject(event api.Event, eventSource EventSource) {
 	}
 }
 
+// Broadcasts an event to all appropriate listeners, considering their project and event type preferences.
 func (s *Server) broadcast(event api.Event, eventSource EventSource) error {
 	sourceInSlice := func(source EventSource, sources []EventSource) bool {
 		for _, i := range sources {

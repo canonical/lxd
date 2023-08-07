@@ -67,6 +67,7 @@ func (l *FancyTLSListener) TrustedProxy(trustedProxy []net.IP) {
 	l.trustedProxy = trustedProxy
 }
 
+// isProxy checks if a given address corresponds to one of the provided proxy IPs.
 func isProxy(addr string, proxies []net.IP) bool {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {

@@ -147,6 +147,8 @@ var storagePoolBucketKeyCmd = APIEndpoint{
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves the list of storage buckets in a specific pool and formats the response based on request type.
 func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -263,6 +265,8 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Fetches and returns a specific storage bucket's details.
 func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -347,6 +351,8 @@ func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Creates a new storage bucket and its corresponding admin key, then returns its location.
 func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -488,6 +494,8 @@ func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Updates the configuration of an existing storage bucket based on a provided request.
 func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -585,6 +593,8 @@ func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Deletes a specified storage bucket from the storage pool.
 func storagePoolBucketDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -717,6 +727,8 @@ func storagePoolBucketDelete(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves the keys associated with a specified storage bucket in the storage pool.
 func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -822,6 +834,8 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Creates a new key for a specific storage bucket in the storage pool.
 func storagePoolBucketKeysPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -897,6 +911,8 @@ func storagePoolBucketKeysPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Deletes a specific key from a given storage bucket in the storage pool.
 func storagePoolBucketKeyDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -980,6 +996,8 @@ func storagePoolBucketKeyDelete(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves the details of a specific key from a given storage bucket in the storage pool.
 func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1080,6 +1098,8 @@ func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Updates the specified key in a given storage bucket within the storage pool.
 func storagePoolBucketKeyPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 

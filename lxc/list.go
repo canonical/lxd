@@ -41,6 +41,7 @@ type cmdList struct {
 	shorthandFilters map[string]func(*api.Instance, *api.InstanceState, string) bool
 }
 
+// Command sets up and returns a Cobra command object for the 'list' sub-command, configuring its usage, description, options, and execution function.
 func (c *cmdList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:] [<filter>...]"))
@@ -160,6 +161,7 @@ func (c *cmdList) dotPrefixMatch(short string, full string) bool {
 	return true
 }
 
+// shouldShow determines whether a given instance matches the provided filters and should be included in the list output.
 func (c *cmdList) shouldShow(filters []string, inst *api.Instance, state *api.InstanceState, initial bool) bool {
 	c.mapShorthandFilters()
 
@@ -232,6 +234,7 @@ func (c *cmdList) shouldShow(filters []string, inst *api.Instance, state *api.In
 	return true
 }
 
+// evaluateShorthandFilter checks if a given instance and its state match the provided shorthand filter key-value pair.
 func (c *cmdList) evaluateShorthandFilter(key string, value string, inst *api.Instance, state *api.InstanceState) bool {
 	const shorthandValueDelimiter = ","
 	shorthandFilterFunction, isShorthandFilter := c.shorthandFilters[strings.ToLower(key)]
@@ -254,6 +257,7 @@ func (c *cmdList) evaluateShorthandFilter(key string, value string, inst *api.In
 	return false
 }
 
+// listInstances retrieves, filters, and displays instances with state and snapshot information based on given filters and columns.
 func (c *cmdList) listInstances(conf *config.Config, d lxd.InstanceServer, instances []api.Instance, filters []string, columns []column) error {
 	threads := 10
 	if len(instances) < threads {
@@ -416,6 +420,7 @@ func (c *cmdList) listInstances(conf *config.Config, d lxd.InstanceServer, insta
 	return c.showInstances(data, filters, columns)
 }
 
+// showInstances filters instances and renders them in a table based on specified columns and output format.
 func (c *cmdList) showInstances(instances []api.InstanceFull, filters []string, columns []column) error {
 	// Generate the table data
 	data := [][]string{}
@@ -446,6 +451,7 @@ func (c *cmdList) showInstances(instances []api.InstanceFull, filters []string, 
 	return cli.RenderTable(c.flagFormat, headers, data, instancesFiltered)
 }
 
+// Run executes the 'list' command, parsing arguments, connecting to the LXD instance server, fetching instance data, filtering, and rendering the output table.
 func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -547,6 +553,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	return c.listInstances(conf, d, instancesFiltered, clientFilters, columns)
 }
 
+// parseColumns interprets the desired columns for output from command-line flags, validates the input, and creates the column definitions for use in rendering the table.
 func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 	columnsShorthandMap := map[rune]column{
 		'4': {i18n.G("IPV4"), c.IP4ColumnData, true, false},
@@ -723,6 +730,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 	return columns, needsData, nil
 }
 
+// getBaseImage extracts the base image ID from an instance's configuration, shortening it if necessary based on the 'long' parameter.
 func (c *cmdList) getBaseImage(cInfo api.InstanceFull, long bool) string {
 	v, ok := cInfo.Config["volatile.base_image"]
 	if !ok {
@@ -736,14 +744,17 @@ func (c *cmdList) getBaseImage(cInfo api.InstanceFull, long bool) string {
 	return v
 }
 
+// baseImageColumnData retrieves the shortened base image ID from an instance's configuration for displaying in a table column.
 func (c *cmdList) baseImageColumnData(cInfo api.InstanceFull) string {
 	return c.getBaseImage(cInfo, false)
 }
 
+// baseImageFullColumnData retrieves the full base image ID from an instance's configuration for displaying in a table column.
 func (c *cmdList) baseImageFullColumnData(cInfo api.InstanceFull) string {
 	return c.getBaseImage(cInfo, true)
 }
 
+// nameColumnData extracts the name of an instance for displaying in a table column.
 func (c *cmdList) nameColumnData(cInfo api.InstanceFull) string {
 	return cInfo.Name
 }
@@ -752,10 +763,12 @@ func (c *cmdList) descriptionColumnData(cInfo api.InstanceFull) string {
 	return cInfo.Description
 }
 
+// statusColumnData retrieves the uppercased status of an instance for displaying in a table column.
 func (c *cmdList) statusColumnData(cInfo api.InstanceFull) string {
 	return strings.ToUpper(cInfo.Status)
 }
 
+// IP4ColumnData retrieves the sorted list of active IPv4 addresses (excluding local and link scope) of an instance for a table column.
 func (c *cmdList) IP4ColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil && cInfo.State.Network != nil {
 		ipv4s := []string{}
@@ -782,6 +795,7 @@ func (c *cmdList) IP4ColumnData(cInfo api.InstanceFull) string {
 	return ""
 }
 
+// IP6ColumnData retrieves the sorted list of active IPv6 addresses (excluding local and link scope) of an instance for a table column.
 func (c *cmdList) IP6ColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil && cInfo.State.Network != nil {
 		ipv6s := []string{}
@@ -808,10 +822,12 @@ func (c *cmdList) IP6ColumnData(cInfo api.InstanceFull) string {
 	return ""
 }
 
+// projectColumnData returns the project name associated with the instance for a table column.
 func (c *cmdList) projectColumnData(cInfo api.InstanceFull) string {
 	return cInfo.Project
 }
 
+// memoryUsageColumnData retrieves the active instance's memory usage in human-readable format for a table column.
 func (c *cmdList) memoryUsageColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil && cInfo.State.Memory.Usage > 0 {
 		return units.GetByteSizeStringIEC(cInfo.State.Memory.Usage, 2)
@@ -820,6 +836,7 @@ func (c *cmdList) memoryUsageColumnData(cInfo api.InstanceFull) string {
 	return ""
 }
 
+// memoryUsagePercentColumnData calculates the percentage of memory used by an active instance relative to its limit for a table column.
 func (c *cmdList) memoryUsagePercentColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil && cInfo.State.Memory.Usage > 0 {
 		if cInfo.ExpandedConfig["limits.memory"] != "" {
@@ -839,6 +856,7 @@ func (c *cmdList) memoryUsagePercentColumnData(cInfo api.InstanceFull) string {
 	return ""
 }
 
+// cpuUsageSecondsColumnData returns the CPU usage time in seconds of an active instance for a table column.
 func (c *cmdList) cpuUsageSecondsColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil && cInfo.State.CPU.Usage > 0 {
 		return fmt.Sprintf("%ds", cInfo.State.CPU.Usage/1000000000)
@@ -847,6 +865,7 @@ func (c *cmdList) cpuUsageSecondsColumnData(cInfo api.InstanceFull) string {
 	return ""
 }
 
+// diskUsageColumnData returns the disk usage of the root device of an instance in IEC format for a table column.
 func (c *cmdList) diskUsageColumnData(cInfo api.InstanceFull) string {
 	rootDisk, _, _ := shared.GetRootDiskDevice(cInfo.ExpandedDevices)
 
@@ -857,6 +876,7 @@ func (c *cmdList) diskUsageColumnData(cInfo api.InstanceFull) string {
 	return ""
 }
 
+// typeColumnData returns the type of an instance, specifying whether it is ephemeral or not for a table column.
 func (c *cmdList) typeColumnData(cInfo api.InstanceFull) string {
 	if cInfo.Type == "" {
 		cInfo.Type = "container"
@@ -869,6 +889,7 @@ func (c *cmdList) typeColumnData(cInfo api.InstanceFull) string {
 	return strings.ToUpper(cInfo.Type)
 }
 
+// numberSnapshotsColumnData returns the count of instance snapshots for a table column.
 func (c *cmdList) numberSnapshotsColumnData(cInfo api.InstanceFull) string {
 	if cInfo.Snapshots != nil {
 		return fmt.Sprintf("%d", len(cInfo.Snapshots))
@@ -877,6 +898,7 @@ func (c *cmdList) numberSnapshotsColumnData(cInfo api.InstanceFull) string {
 	return "0"
 }
 
+// PIDColumnData returns the process ID of an active instance for a table column.
 func (c *cmdList) PIDColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil {
 		return fmt.Sprintf("%d", cInfo.State.Pid)
@@ -885,10 +907,12 @@ func (c *cmdList) PIDColumnData(cInfo api.InstanceFull) string {
 	return ""
 }
 
+// ArchitectureColumnData returns the architecture of the given instance for a table column.
 func (c *cmdList) ArchitectureColumnData(cInfo api.InstanceFull) string {
 	return cInfo.Architecture
 }
 
+// StoragePoolColumnData retrieves the storage pool of the given instance where the root disk is located.
 func (c *cmdList) StoragePoolColumnData(cInfo api.InstanceFull) string {
 	for _, v := range cInfo.ExpandedDevices {
 		if v["type"] == "disk" && v["path"] == "/" {
@@ -899,10 +923,12 @@ func (c *cmdList) StoragePoolColumnData(cInfo api.InstanceFull) string {
 	return ""
 }
 
+// ProfilesColumnData returns a string of instance profiles, each on a new line, for table display.
 func (c *cmdList) ProfilesColumnData(cInfo api.InstanceFull) string {
 	return strings.Join(cInfo.Profiles, "\n")
 }
 
+// CreatedColumnData returns the creation date of the instance in UTC format for table display.
 func (c *cmdList) CreatedColumnData(cInfo api.InstanceFull) string {
 	layout := "2006/01/02 15:04 UTC"
 
@@ -913,6 +939,7 @@ func (c *cmdList) CreatedColumnData(cInfo api.InstanceFull) string {
 	return ""
 }
 
+// LastUsedColumnData returns the last usage date of the instance in UTC format for table display.
 func (c *cmdList) LastUsedColumnData(cInfo api.InstanceFull) string {
 	layout := "2006/01/02 15:04 UTC"
 
@@ -923,6 +950,7 @@ func (c *cmdList) LastUsedColumnData(cInfo api.InstanceFull) string {
 	return ""
 }
 
+// NumberOfProcessesColumnData returns the number of processes running inside the instance for table display.
 func (c *cmdList) NumberOfProcessesColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil {
 		return fmt.Sprintf("%d", cInfo.State.Processes)
@@ -931,26 +959,32 @@ func (c *cmdList) NumberOfProcessesColumnData(cInfo api.InstanceFull) string {
 	return ""
 }
 
+// locationColumnData returns the location of the instance for table display.
 func (c *cmdList) locationColumnData(cInfo api.InstanceFull) string {
 	return cInfo.Location
 }
 
+// matchByType checks if the instance type matches the given query.
 func (c *cmdList) matchByType(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
 	return strings.EqualFold(cInfo.Type, query)
 }
 
+// matchByStatus checks if the instance status matches the given query.
 func (c *cmdList) matchByStatus(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
 	return strings.EqualFold(cInfo.Status, query)
 }
 
+// matchByArchitecture checks if the instance architecture matches the given query.
 func (c *cmdList) matchByArchitecture(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
 	return strings.EqualFold(cInfo.InstancePut.Architecture, query)
 }
 
+// matchByLocation checks if the instance's location matches the given query.
 func (c *cmdList) matchByLocation(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
 	return strings.EqualFold(cInfo.Location, query)
 }
 
+// matchByNet checks if the instance has a network interface with an IP address matching the given query and family.
 func (c *cmdList) matchByNet(cInfo *api.Instance, cState *api.InstanceState, query string, family string) bool {
 	// Skip if no state.
 	if cState == nil {
@@ -992,14 +1026,17 @@ func (c *cmdList) matchByNet(cInfo *api.Instance, cState *api.InstanceState, que
 	return false
 }
 
+// matchByIPV6 checks if the instance has an IPv6 address matching the given query. It uses the matchByNet function with the "ipv6" family.
 func (c *cmdList) matchByIPV6(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
 	return c.matchByNet(cInfo, cState, query, "ipv6")
 }
 
+// matchByIPV4 checks if the instance has an IPv4 address matching the given query. It uses the matchByNet function with the "ipv4" family.
 func (c *cmdList) matchByIPV4(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
 	return c.matchByNet(cInfo, cState, query, "ipv4")
 }
 
+// mapShorthandFilters maps shorthand filter names to their corresponding match functions for filtering instances.
 func (c *cmdList) mapShorthandFilters() {
 	c.shorthandFilters = map[string]func(*api.Instance, *api.InstanceState, string) bool{
 		"type":         c.matchByType,

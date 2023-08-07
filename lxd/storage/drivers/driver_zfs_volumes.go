@@ -1025,6 +1025,7 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 	return d.createVolumeFromMigrationOptimized(vol, conn, volTargetArgs, volumeOnly, preFiller, op)
 }
 
+// Creates a volume from a migration optimized stream.
 func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, volumeOnly bool, preFiller *VolumeFiller, op *operations.Operation) error {
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
@@ -1449,6 +1450,7 @@ func (d *zfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 	return d.deleteVolume(vol, op)
 }
 
+// Deletes a ZFS volume.
 func (d *zfs) deleteVolume(vol Volume, op *operations.Operation) error {
 	// Check that we have a dataset to delete.
 	exists, err := d.datasetExists(d.dataset(vol, false))
@@ -1788,6 +1790,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 	return nil
 }
 
+// Gets the disk path for a ZFS volume dataset.
 func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 	// Shortcut for udev.
 	if shared.PathExists(filepath.Join("/dev/zvol", dataset)) {
@@ -2446,6 +2449,7 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 	return d.migrateVolumeOptimized(vol, conn, volSrcArgs, incrementalStream, op)
 }
 
+// Migrates a volume using ZFS send/receive.
 func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, incremental bool, op *operations.Operation) error {
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
@@ -2545,6 +2549,7 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 	return nil
 }
 
+// Creates a read-only snapshot of a volume for temporary access.
 func (d *zfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
@@ -2871,6 +2876,7 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 	return nil
 }
 
+// Mounts a ZFS snapshot dataset read-only.
 func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountPath string, op *operations.Operation) (revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
@@ -3370,6 +3376,7 @@ func (d *zfs) FillVolumeConfig(vol Volume) error {
 	return nil
 }
 
+// Returns whether the volume is block-backed.
 func (d *zfs) isBlockBacked(vol Volume) bool {
 	return shared.IsTrue(vol.Config()["zfs.block_mode"])
 }

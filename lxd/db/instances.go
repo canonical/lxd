@@ -717,6 +717,7 @@ func (c *ClusterTx) UpdateInstanceConfig(id int, values map[string]string) error
 	return c.configUpdate(id, values, insertSQL, deleteSQL)
 }
 
+// configUpdate handles the insertion, update, or removal of database configuration keys for a given ID.
 func (c *ClusterTx) configUpdate(id int, values map[string]string, insertSQL, deleteSQL string) error {
 	changes := map[string]string{}
 	deletes := []string{}

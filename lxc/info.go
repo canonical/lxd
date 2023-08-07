@@ -26,6 +26,7 @@ type cmdInfo struct {
 	flagTarget    string
 }
 
+// Command constructs a cobra command to display detailed information about a specific LXD instance or the server.
 func (c *cmdInfo) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("info", i18n.G("[<remote>:][<instance>]"))
@@ -47,6 +48,7 @@ lxc info [<remote>:] [--resources]
 	return cmd
 }
 
+// Run parses arguments and calls appropriate handlers to display information about a specified LXD instance or server.
 func (c *cmdInfo) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -82,6 +84,7 @@ func (c *cmdInfo) Run(cmd *cobra.Command, args []string) error {
 	return c.instanceInfo(d, conf.Remotes[remote], cName, c.flagShowLog)
 }
 
+// renderGPU formats and displays detailed information about a specific GPU card.
 func (c *cmdInfo) renderGPU(gpu api.ResourcesGPUCard, prefix string, initial bool) {
 	if initial {
 		fmt.Print(prefix)
@@ -168,6 +171,7 @@ func (c *cmdInfo) renderGPU(gpu api.ResourcesGPUCard, prefix string, initial boo
 	}
 }
 
+// renderNIC formats and prints detailed information about a specific network interface card (NIC).
 func (c *cmdInfo) renderNIC(nic api.ResourcesNetworkCard, prefix string, initial bool) {
 	if initial {
 		fmt.Print(prefix)
@@ -255,6 +259,7 @@ func (c *cmdInfo) renderNIC(nic api.ResourcesNetworkCard, prefix string, initial
 	}
 }
 
+// renderDisk formats and prints detailed information about a specific disk, including its properties and partitions.
 func (c *cmdInfo) renderDisk(disk api.ResourcesStorageDisk, prefix string, initial bool) {
 	if initial {
 		fmt.Print(prefix)
@@ -294,6 +299,7 @@ func (c *cmdInfo) renderDisk(disk api.ResourcesStorageDisk, prefix string, initi
 	}
 }
 
+// renderCPU prints detailed information about a CPU socket including vendor, name, cache details, core specifics, and frequency attributes.
 func (c *cmdInfo) renderCPU(cpu api.ResourcesCPUSocket, prefix string) {
 	if cpu.Vendor != "" {
 		fmt.Printf(prefix+i18n.G("Vendor: %v")+"\n", cpu.Vendor)
@@ -329,6 +335,7 @@ func (c *cmdInfo) renderCPU(cpu api.ResourcesCPUSocket, prefix string) {
 	}
 }
 
+// remoteInfo retrieves and displays detailed information about a remote LXD instance server, covering CPU, memory, GPU, network interfaces, and storage.
 func (c *cmdInfo) remoteInfo(d lxd.InstanceServer) error {
 	// Targeting
 	if c.flagTarget != "" {
@@ -445,6 +452,7 @@ func (c *cmdInfo) remoteInfo(d lxd.InstanceServer) error {
 	return nil
 }
 
+// instanceInfo retrieves and displays detailed information about a specific LXD instance including resources, snapshots, backups, and logs.
 func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name string, showLog bool) error {
 	// Quick checks.
 	if c.flagTarget != "" {

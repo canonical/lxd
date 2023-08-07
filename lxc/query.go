@@ -27,6 +27,7 @@ type cmdQuery struct {
 	flagData     string
 }
 
+// Creates a Cobra command for the "query" command, which sends a raw query to LXD API with specified options and flags.
 func (c *cmdQuery) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("query", i18n.G("[<remote>:]<API path>"))
@@ -47,6 +48,7 @@ func (c *cmdQuery) Command() *cobra.Command {
 	return cmd
 }
 
+// Returns a pretty-printed string representation of the input data using JSON encoding and indentation.
 func (c *cmdQuery) pretty(input any) string {
 	pretty := bytes.NewBufferString("")
 	enc := json.NewEncoder(pretty)
@@ -60,6 +62,8 @@ func (c *cmdQuery) pretty(input any) string {
 	return pretty.String()
 }
 
+// Runs a raw query to the LXD server, performing the specified action on the given API path,
+// and optionally sending input data. Handles different response formats and supports waiting for the operation to complete.
 func (c *cmdQuery) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 

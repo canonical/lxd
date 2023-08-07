@@ -36,6 +36,7 @@ type cmdStorageVolume struct {
 	flagDestinationTarget string
 }
 
+// Command sets up the "volume" command and its subcommands for managing storage volumes.
 func (c *cmdStorageVolume) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("volume")
@@ -131,6 +132,7 @@ Unless specified through a prefix, all volume operations affect "custom" (user c
 	return cmd
 }
 
+// parseVolume splits the volume name into parts based on the type and returns the volume name and type.
 func (c *cmdStorageVolume) parseVolume(defaultType string, name string) (string, string) {
 	fields := strings.SplitN(name, "/", 2)
 	if len(fields) == 1 {
@@ -142,6 +144,7 @@ func (c *cmdStorageVolume) parseVolume(defaultType string, name string) (string,
 	return fields[1], fields[0]
 }
 
+// parseVolumeWithPool splits the volume name into parts based on the pool and returns the volume name and pool name.
 func (c *cmdStorageVolume) parseVolumeWithPool(name string) (string, string) {
 	fields := strings.SplitN(name, "/", 2)
 	if len(fields) == 1 {
@@ -158,6 +161,7 @@ type cmdStorageVolumeAttach struct {
 	storageVolume *cmdStorageVolume
 }
 
+// Command sets up the "attach" command to attach new storage volumes to instances.
 func (c *cmdStorageVolumeAttach) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("attach", i18n.G("[<remote>:]<pool> <volume> <instance> [<device name>] [<path>]"))
@@ -170,6 +174,7 @@ func (c *cmdStorageVolumeAttach) Command() *cobra.Command {
 	return cmd
 }
 
+// Run performs the action of attaching a storage volume to an instance with provided parameters.
 func (c *cmdStorageVolumeAttach) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 5)
@@ -233,6 +238,7 @@ type cmdStorageVolumeAttachProfile struct {
 	storageVolume *cmdStorageVolume
 }
 
+// Command generates a cobra.Command to attach a new storage volume to a profile.
 func (c *cmdStorageVolumeAttachProfile) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("attach-profile", i18n.G("[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"))
@@ -245,6 +251,7 @@ func (c *cmdStorageVolumeAttachProfile) Command() *cobra.Command {
 	return cmd
 }
 
+// Run performs necessary checks, parses arguments, and attaches a new storage volume to a specified profile.
 func (c *cmdStorageVolumeAttachProfile) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 5)
@@ -323,6 +330,7 @@ type cmdStorageVolumeCopy struct {
 	flagRefresh       bool
 }
 
+// Creates a Cobra command for copying storage volumes with various transfer modes, targets, and volume properties.
 func (c *cmdStorageVolumeCopy) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("copy", i18n.G("[<remote>:]<pool>/<volume>[/<snapshot>] [<remote>:]<pool>/<volume>"))
@@ -342,6 +350,7 @@ func (c *cmdStorageVolumeCopy) Command() *cobra.Command {
 	return cmd
 }
 
+// Handles the logic for copying or moving storage volumes between different pools, servers, and potentially clusters with varying transfer modes.
 func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -527,6 +536,7 @@ type cmdStorageVolumeCreate struct {
 	flagContentType string
 }
 
+// Initializes the command to create new custom storage volumes with possible configurations and content types.
 func (c *cmdStorageVolumeCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<pool> <volume> [key=value...]"))
@@ -541,6 +551,7 @@ func (c *cmdStorageVolumeCreate) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the storage volume creation process, parsing the input, generating the volume configuration, and creating the volume on the server.
 func (c *cmdStorageVolumeCreate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -605,6 +616,7 @@ type cmdStorageVolumeDelete struct {
 	storageVolume *cmdStorageVolume
 }
 
+// Generates the command for storage volume deletion, setting up the usage, description, flags, and execution function.
 func (c *cmdStorageVolumeDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<pool> <volume>[/<snapshot>]"))
@@ -619,6 +631,7 @@ func (c *cmdStorageVolumeDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the deletion of a specified storage volume or snapshot, handling input parsing, potential errors, and successful completion message.
 func (c *cmdStorageVolumeDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -681,6 +694,7 @@ type cmdStorageVolumeDetach struct {
 	storageVolume *cmdStorageVolume
 }
 
+// Executes deletion of a storage volume or snapshot with input parsing, error handling, and completion message.
 func (c *cmdStorageVolumeDetach) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("detach", i18n.G("[<remote>:]<pool> <volume> <instance> [<device name>]"))
@@ -693,6 +707,7 @@ func (c *cmdStorageVolumeDetach) Command() *cobra.Command {
 	return cmd
 }
 
+// Detaches a storage volume from an instance, handling argument parsing, volume identification, and device removal.
 func (c *cmdStorageVolumeDetach) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 4)
@@ -763,6 +778,7 @@ type cmdStorageVolumeDetachProfile struct {
 	storageVolume *cmdStorageVolume
 }
 
+// Constructs the command for detaching storage volumes from profiles, defining its usage, description, and execution function.
 func (c *cmdStorageVolumeDetachProfile) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("detach-profile", i18n.G("[<remote:>]<pool> <volume> <profile> [<device name>]"))
@@ -775,6 +791,7 @@ func (c *cmdStorageVolumeDetachProfile) Command() *cobra.Command {
 	return cmd
 }
 
+// Detaches a storage volume from a specified profile, managing device identification and error handling.
 func (c *cmdStorageVolumeDetachProfile) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 4)
@@ -844,6 +861,7 @@ type cmdStorageVolumeEdit struct {
 	storageVolume *cmdStorageVolume
 }
 
+// Sets up the command to edit a storage volume configuration, defining usage, description, example, and the execution function.
 func (c *cmdStorageVolumeEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<pool> [<type>/]<volume>"))
@@ -863,6 +881,7 @@ lxc storage volume edit [<remote>:]<pool> [<type>/]<volume> < volume.yaml
 	return cmd
 }
 
+// Provides a template string representing a YAML configuration of a storage volume for user guidance.
 func (c *cmdStorageVolumeEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a YAML representation of a storage volume.
@@ -877,6 +896,8 @@ func (c *cmdStorageVolumeEdit) helpTemplate() string {
 ###   size: "61203283968"`)
 }
 
+// Updates storage volume configurations by parsing YAML input from the user, either from stdin or
+// via text editor, and applying it to the specified volume or snapshot.
 func (c *cmdStorageVolumeEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -1053,6 +1074,8 @@ type cmdStorageVolumeGet struct {
 	flagIsProperty bool
 }
 
+// Returns a cobra.Command object that gets and displays the value of a specified configuration key
+// for a given storage volume, which could be a volume snapshot.
 func (c *cmdStorageVolumeGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<pool> [<type>/]<volume>[/<snapshot>] <key>"))
@@ -1078,6 +1101,7 @@ lxc storage volume get default virtual-machine/data snapshots.expiry
 	return cmd
 }
 
+// Retrieves and prints the value of a specific configuration key for a given storage volume or snapshot, if available.
 func (c *cmdStorageVolumeGet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
@@ -1168,6 +1192,7 @@ type cmdStorageVolumeInfo struct {
 	storageVolume *cmdStorageVolume
 }
 
+// Creates a Cobra command to show detailed state information for a specific storage volume, including its type and usage.
 func (c *cmdStorageVolumeInfo) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("info", i18n.G("[<remote>:]<pool> [<type>/]<volume>"))
@@ -1190,6 +1215,7 @@ lxc storage volume info default virtual-machine/data
 	return cmd
 }
 
+// Fetches and prints detailed information about a specified storage volume, including its snapshots and backups.
 func (c *cmdStorageVolumeInfo) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -1394,6 +1420,7 @@ type cmdStorageVolumeList struct {
 	defaultColumns string
 }
 
+// Defines the "list" command for storage volumes, allowing users to display volumes based on specific columns, formats, and filters.
 func (c *cmdStorageVolumeList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]<pool> [<filter>...]"))
@@ -1426,6 +1453,7 @@ Column shorthand chars:
 	return cmd
 }
 
+// Executes the "list" command, retrieving and displaying storage volumes based on user-specified arguments and filters.
 func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
@@ -1504,6 +1532,7 @@ func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 	return cli.RenderTable(c.flagFormat, headers, data, rawData)
 }
 
+// Parses the provided columns based on the user's flags, mapping shorthand characters to actual volumeColumn objects for rendering.
 func (c *cmdStorageVolumeList) parseColumns(clustered bool) ([]volumeColumn, error) {
 	columnsShorthandMap := map[rune]volumeColumn{
 		't': {Name: i18n.G("TYPE"), Data: c.typeColumnData},
@@ -1552,6 +1581,7 @@ func (c *cmdStorageVolumeList) parseColumns(clustered bool) ([]volumeColumn, err
 	return columns, nil
 }
 
+// Returns the volume type, marking it as a snapshot if applicable.
 func (c *cmdStorageVolumeList) typeColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {
 	if shared.IsSnapshot(vol.Name) {
 		return fmt.Sprintf("%s (snapshot)", vol.Type)
@@ -1560,14 +1590,17 @@ func (c *cmdStorageVolumeList) typeColumnData(vol api.StorageVolume, state api.S
 	return vol.Type
 }
 
+// Returns the name of the given storage volume.
 func (c *cmdStorageVolumeList) nameColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {
 	return vol.Name
 }
 
+// Returns the description of the given storage volume.
 func (c *cmdStorageVolumeList) descriptionColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {
 	return vol.Description
 }
 
+// Returns the content type of the storage volume, defaulting to "filesystem" if not specified.
 func (c *cmdStorageVolumeList) contentTypeColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {
 	if vol.ContentType == "" {
 		return "filesystem"
@@ -1576,14 +1609,17 @@ func (c *cmdStorageVolumeList) contentTypeColumnData(vol api.StorageVolume, stat
 	return vol.ContentType
 }
 
+// Returns the count of references to the given storage volume as a string.
 func (c *cmdStorageVolumeList) usedByColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {
 	return strconv.Itoa(len(vol.UsedBy))
 }
 
+// Returns the location of the given storage volume.
 func (c *cmdStorageVolumeList) locationColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {
 	return vol.Location
 }
 
+// Returns the usage data of the given storage volume in IEC format.
 func (c *cmdStorageVolumeList) usageColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {
 	if state.Usage != nil {
 		return units.GetByteSizeStringIEC(int64(state.Usage.Used), 2)
@@ -1592,6 +1628,7 @@ func (c *cmdStorageVolumeList) usageColumnData(vol api.StorageVolume, state api.
 	return ""
 }
 
+// Returns the project name associated with the given storage volume.
 func (c *cmdStorageVolumeList) projectColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {
 	return vol.Project
 }
@@ -1604,6 +1641,7 @@ type cmdStorageVolumeMove struct {
 	storageVolumeCopy *cmdStorageVolumeCopy
 }
 
+// Sets up and returns a Cobra command for moving storage volumes between pools.
 func (c *cmdStorageVolumeMove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("move", i18n.G("[<remote>:]<pool>/<volume> [<remote>:]<pool>/<volume>"))
@@ -1621,6 +1659,7 @@ func (c *cmdStorageVolumeMove) Command() *cobra.Command {
 	return cmd
 }
 
+// Validates the command arguments and executes the storage volume move operation.
 func (c *cmdStorageVolumeMove) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -1638,6 +1677,7 @@ type cmdStorageVolumeRename struct {
 	storageVolume *cmdStorageVolume
 }
 
+// Generates a command to rename storage volumes or their snapshots in a specified pool.
 func (c *cmdStorageVolumeRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("[<remote>:]<pool> <old name>[/<old snapshot name>] <new name>[/<new snapshot name>]"))
@@ -1651,6 +1691,7 @@ func (c *cmdStorageVolumeRename) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the rename command for storage volumes and their snapshots, handling arguments and managing the server response.
 func (c *cmdStorageVolumeRename) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
@@ -1753,6 +1794,7 @@ type cmdStorageVolumeSet struct {
 	flagIsProperty bool
 }
 
+// Defines the "set" command, its usage, description, and flags for modifying storage volume configuration keys.
 func (c *cmdStorageVolumeSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<pool> [<type>/]<volume> <key>=<value>..."))
@@ -1779,6 +1821,7 @@ lxc storage volume set default virtual-machine/data snapshots.expiry=7d
 	return cmd
 }
 
+// Updates the specified configuration keys for a given storage volume in the provided storage pool.
 func (c *cmdStorageVolumeSet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
@@ -1897,6 +1940,7 @@ type cmdStorageVolumeShow struct {
 	storageVolume *cmdStorageVolume
 }
 
+// Returns a cobra command that displays the configuration details of a specific storage volume, including snapshot information if applicable.
 func (c *cmdStorageVolumeShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<pool> [<type>/]<volume>[/<snapshot>]"))
@@ -1924,6 +1968,8 @@ lxc storage volume show default virtual-machine/data/snap0
 	return cmd
 }
 
+// Executes the 'show' command for a storage volume, retrieving and displaying the volume's configuration in YAML format,
+// including snapshot information if applicable.
 func (c *cmdStorageVolumeShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -2006,6 +2052,7 @@ type cmdStorageVolumeUnset struct {
 	flagIsProperty bool
 }
 
+// Command to unset configuration keys for a storage volume, removing specified keys from the volume's configuration.
 func (c *cmdStorageVolumeUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<pool> [<type>/]<volume> <key>"))
@@ -2029,6 +2076,7 @@ lxc storage volume unset default virtual-machine/data snapshots.expiry
 	return cmd
 }
 
+// This function performs quick checks, appends an empty argument, and then invokes the "Run" method of the "storageVolumeSet" object.
 func (c *cmdStorageVolumeUnset) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
@@ -2052,6 +2100,7 @@ type cmdStorageVolumeSnapshot struct {
 	flagReuse    bool
 }
 
+// This function performs quick checks, appends an empty argument, and then invokes the "Run" method of the "storageVolumeSet" object.
 func (c *cmdStorageVolumeSnapshot) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("snapshot", i18n.G("[<remote>:]<pool> <volume> [<snapshot>]"))
@@ -2067,6 +2116,7 @@ func (c *cmdStorageVolumeSnapshot) Command() *cobra.Command {
 	return cmd
 }
 
+// This function performs quick checks, appends an empty argument, and then invokes the "Run" method of the "storageVolumeSet" object.
 func (c *cmdStorageVolumeSnapshot) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
@@ -2149,6 +2199,7 @@ type cmdStorageVolumeRestore struct {
 	storageVolume *cmdStorageVolume
 }
 
+// This function performs quick checks, appends an empty argument, and then invokes the "Run" method of the "storageVolumeSet" object.
 func (c *cmdStorageVolumeRestore) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("restore", i18n.G("[<remote>:]<pool> <volume> <snapshot>"))
@@ -2162,6 +2213,7 @@ func (c *cmdStorageVolumeRestore) Command() *cobra.Command {
 	return cmd
 }
 
+// This function performs quick checks, parses the remote, verifies the existence of the storage volume, and updates it for restoration.
 func (c *cmdStorageVolumeRestore) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
@@ -2216,6 +2268,7 @@ type cmdStorageVolumeExport struct {
 	flagCompressionAlgorithm string
 }
 
+// Configures a Cobra command for exporting a custom storage volume with flags for volume-only, optimized storage, compression algorithm, and target.
 func (c *cmdStorageVolumeExport) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("export", i18n.G("[<remote>:]<pool> <volume> [<path>]"))
@@ -2233,6 +2286,8 @@ func (c *cmdStorageVolumeExport) Command() *cobra.Command {
 	return cmd
 }
 
+// This function performs quick checks, connects to the LXD server, creates a storage volume backup with specified options,
+// and exports the backup to a tarball file.
 func (c *cmdStorageVolumeExport) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -2370,6 +2425,7 @@ type cmdStorageVolumeImport struct {
 	flagType string
 }
 
+// Configures a Cobra command for importing backups of custom storage volumes with options for target, import type, and backup file or volume name.
 func (c *cmdStorageVolumeImport) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("import", i18n.G("[<remote>:]<pool> <backup file> [<volume name>]"))
@@ -2386,6 +2442,8 @@ func (c *cmdStorageVolumeImport) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the import of custom storage volumes, including backups or ISO images, with options for target,
+// import type, and volume name, and displays progress.
 func (c *cmdStorageVolumeImport) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 

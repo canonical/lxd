@@ -18,6 +18,7 @@ type cmdForkZFS struct {
 	global *cmdGlobal
 }
 
+// Creates a command to execute ZFS within a sanitized mount namespace.
 func (c *cmdForkZFS) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -34,6 +35,7 @@ func (c *cmdForkZFS) Command() *cobra.Command {
 	return cmd
 }
 
+// Runs a ZFS command in an isolated mount namespace after unmounting LXD sub-mounts.
 func (c *cmdForkZFS) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) < 1 {

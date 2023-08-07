@@ -10,6 +10,7 @@ import (
 	"github.com/canonical/lxd/shared/filter"
 )
 
+// TestValueOf_Instance tests the ValueOf function for specific fields in the instance struct.
 func TestValueOf_Instance(t *testing.T) {
 	date := time.Date(2020, 1, 29, 11, 10, 32, 0, time.UTC)
 	instance := api.Instance{

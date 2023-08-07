@@ -34,6 +34,7 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
+// validates if the given value is a valid port number between 1 and 65536 (inclusive).
 func networkValidPort(value string) error {
 	if value == "" {
 		return nil
@@ -561,6 +562,7 @@ func ForkdnsServersList(networkName string) ([]string, error) {
 	return servers, nil
 }
 
+// generates a random unused IPv4 subnet (CIDR) by checking the routing table and pinging before returning it.
 func randomSubnetV4() (string, error) {
 	for i := 0; i < 100; i++ {
 		cidr := fmt.Sprintf("10.%d.%d.1/24", rand.Intn(255), rand.Intn(255))
@@ -583,6 +585,7 @@ func randomSubnetV4() (string, error) {
 	return "", fmt.Errorf("Failed to automatically find an unused IPv4 subnet, manual configuration required")
 }
 
+// generates a random unused IPv6 subnet (CIDR) by checking the routing table and pinging before returning it.
 func randomSubnetV6() (string, error) {
 	for i := 0; i < 100; i++ {
 		cidr := fmt.Sprintf("fd42:%x:%x:%x::1/64", rand.Intn(65535), rand.Intn(65535), rand.Intn(65535))
@@ -605,6 +608,7 @@ func randomSubnetV6() (string, error) {
 	return "", fmt.Errorf("Failed to automatically find an unused IPv6 subnet, manual configuration required")
 }
 
+// inRoutingTable checks if the given subnet exists in the system's routing table.
 func inRoutingTable(subnet *net.IPNet) bool {
 	filename := "route"
 	if subnet.IP.To4() == nil {
@@ -701,6 +705,7 @@ func pingIP(ctx context.Context, ip net.IP) error {
 	return err
 }
 
+// Concurrently checks if the first and last IP addresses within the given subnet are responsive.
 func pingSubnet(subnet *net.IPNet) bool {
 	var fail bool
 	var failLock sync.Mutex

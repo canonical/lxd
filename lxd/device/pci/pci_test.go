@@ -8,6 +8,7 @@ import (
 	"github.com/canonical/lxd/lxd/device/pci"
 )
 
+// Tests the normalization of different PCI address formats.
 func TestNormaliseAddress(t *testing.T) {
 	cases := map[string]string{
 		"":             "",

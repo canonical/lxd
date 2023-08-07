@@ -9,6 +9,7 @@ type UnsupportedError struct {
 	msg string
 }
 
+// Error returns the error message for an `UnsupportedError` instance.
 func (e UnsupportedError) Error() string {
 	return e.msg
 }

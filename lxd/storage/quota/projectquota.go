@@ -167,6 +167,7 @@ import (
 
 var errNoDevice = fmt.Errorf("Couldn't find backing device for mountpoint")
 
+// Retrieves the device for a given path by parsing system's mount information.
 func devForPath(path string) (string, error) {
 	// Get major/minor
 	var stat unix.Stat_t

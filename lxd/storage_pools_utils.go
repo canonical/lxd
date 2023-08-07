@@ -40,6 +40,7 @@ func storagePoolDBCreate(s *state.State, poolName string, poolDescription string
 	return id, nil
 }
 
+// Validates the specified storage pool configuration for the given pool name and driver type.
 func storagePoolValidate(s *state.State, poolName string, driverName string, config map[string]string) error {
 	poolType, err := storagePools.LoadByType(s, driverName)
 	if err != nil {
@@ -61,6 +62,7 @@ func storagePoolValidate(s *state.State, poolName string, driverName string, con
 	return nil
 }
 
+// Creates a global storage pool and handles rollback in case of failure.
 func storagePoolCreateGlobal(state *state.State, req api.StoragePoolsPost, clientType request.ClientType) error {
 	// Create the database entry.
 	id, err := storagePoolDBCreate(state, req.Name, req.Description, req.Driver, req.Config)

@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/shared/idmap"
 )
 
+// mockStartDaemon creates and initializes a new mock Daemon instance for testing purposes.
 func mockStartDaemon() (*Daemon, error) {
 	d := defaultDaemon()
 	d.os.MockMode = true
@@ -50,6 +51,8 @@ type lxdTestSuite struct {
 
 const lxdTestSuiteDefaultStoragePool string = "lxdTestrunPool"
 
+// SetupTest sets up the test environment with a temporary directory, mock LXD daemon,
+// and default storage pool and profile.
 func (suite *lxdTestSuite) SetupTest() {
 	tmpdir, err := os.MkdirTemp("", "lxd_testrun_")
 	if err != nil {
@@ -103,6 +106,7 @@ func (suite *lxdTestSuite) SetupTest() {
 	suite.Req = require.New(suite.T())
 }
 
+// TearDownTest stops the LXD daemon and removes the temporary directory used for testing.
 func (suite *lxdTestSuite) TearDownTest() {
 	err := suite.d.Stop(context.Background(), unix.SIGQUIT)
 	if err != nil {

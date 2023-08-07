@@ -68,6 +68,8 @@ var storagePoolVolumeTypeStateCmd = APIEndpoint{
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// storagePoolVolumeTypeStateGet returns the current usage state of a storage volume in a storage pool.
 func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 

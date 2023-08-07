@@ -24,6 +24,7 @@ type ProgressRenderer struct {
 	terminal  int
 }
 
+// truncate truncates the input message to fit within the terminal width.
 func (p *ProgressRenderer) truncate(msg string) string {
 	width, _, err := termios.GetSize(int(os.Stdout.Fd()))
 	if err != nil {

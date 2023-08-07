@@ -31,6 +31,7 @@ func portRangesFromSlice(ports []uint64) [][2]uint64 {
 	return portRanges
 }
 
+// Converts a port range to a string format, considering a single port as a special case of a range.
 func portRangeStr(portRange [2]uint64, delimiter string) string {
 	if portRange[1] < 1 {
 		return ""

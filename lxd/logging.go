@@ -50,6 +50,7 @@ func expireLogsTask(state *state.State) (task.Func, task.Schedule) {
 	return f, task.Daily()
 }
 
+// expireLogs cleans up old log files and empty log directories for LXD instances.
 func expireLogs(ctx context.Context, state *state.State) error {
 	// List the instances.
 	instances, err := instance.LoadNodeAll(state, instancetype.Any)

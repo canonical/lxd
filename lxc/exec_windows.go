@@ -21,14 +21,17 @@ type WrappedWriteCloser struct {
 	wrapper io.Writer
 }
 
+// Writes the given byte slice to the underlying WrappedWriteCloser's wrapper.
 func (wwc *WrappedWriteCloser) Write(p []byte) (int, error) {
 	return wwc.wrapper.Write(p)
 }
 
+// Returns a hard-coded terminal type ("dumb") and a boolean value indicating the value exists.
 func (c *cmdExec) getTERM() (string, bool) {
 	return "dumb", true
 }
 
+// Handles interruption signals on a WebSocket control connection and forwards them to the executing program.
 func (c *cmdExec) controlSocketHandler(control *websocket.Conn) {
 	ch := make(chan os.Signal, 10)
 	signal.Notify(ch, os.Interrupt)
@@ -53,6 +56,7 @@ func (c *cmdExec) controlSocketHandler(control *websocket.Conn) {
 	}
 }
 
+// Forwards a given signal from the executing program to the control WebSocket as a JSON message.
 func (c *cmdExec) forwardSignal(control *websocket.Conn, sig windows.Signal) error {
 	logger.Debugf("Forwarding signal: %s", sig)
 

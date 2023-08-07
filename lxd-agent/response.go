@@ -12,14 +12,17 @@ type devLxdResponse struct {
 	ctype   string
 }
 
+// errorResponse creates a new *devLxdResponse with the provided status code and error message.
 func errorResponse(code int, msg string) *devLxdResponse {
 	return &devLxdResponse{msg, code, "raw"}
 }
 
+// okResponse creates a new *devLxdResponse with the provided content and content type, for a successful response.
 func okResponse(ct any, ctype string) *devLxdResponse {
 	return &devLxdResponse{ct, http.StatusOK, ctype}
 }
 
+// smartResponse creates a new *devLxdResponse based on the given error, handling various cases.
 func smartResponse(err error) *devLxdResponse {
 	if err == nil {
 		return okResponse(nil, "")

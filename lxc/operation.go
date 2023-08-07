@@ -16,6 +16,7 @@ type cmdOperation struct {
 	global *cmdGlobal
 }
 
+// Command() orchestrates operation related subcommands (delete, list, show) in a cobra.Command object.
 func (c *cmdOperation) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("operation")
@@ -47,6 +48,7 @@ type cmdOperationDelete struct {
 	operation *cmdOperation
 }
 
+// Command() manages the 'delete' subcommand for canceling/deleting a background operation.
 func (c *cmdOperationDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<operation>"))
@@ -60,6 +62,7 @@ func (c *cmdOperationDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() executes the 'delete' subcommand logic, deleting the specified operation and optionally returning a message.
 func (c *cmdOperationDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -96,6 +99,7 @@ type cmdOperationList struct {
 	flagFormat string
 }
 
+// Command() configures the 'list' subcommand for enumerating background operations in various output formats.
 func (c *cmdOperationList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
@@ -110,6 +114,7 @@ func (c *cmdOperationList) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() executes the 'list' subcommand logic, generating a formatted list of background operations from the specified server.
 func (c *cmdOperationList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
@@ -177,6 +182,7 @@ type cmdOperationShow struct {
 	operation *cmdOperation
 }
 
+// Command() configures the 'show' subcommand to provide detailed information on a specified background operation.
 func (c *cmdOperationShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<operation>"))
@@ -192,6 +198,7 @@ func (c *cmdOperationShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() executes the 'show' subcommand logic, retrieving and displaying detailed information on a specified operation in YAML format.
 func (c *cmdOperationShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)

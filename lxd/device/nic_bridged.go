@@ -1731,6 +1731,7 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 	return &network, nil
 }
 
+// getHostMTU retrieves the Maximum Transmission Unit (MTU) of the host network interface.
 func (d *nicBridged) getHostMTU() (int, error) {
 	// Get MTU of host interface if exists.
 	iface, err := net.InterfaceByName(d.config["host_name"])

@@ -33,6 +33,7 @@ type cmdMigrate struct {
 	flagContainers []string
 }
 
+// Configures the command-line interface for the migration command.
 func (c *cmdMigrate) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "lxc-to-lxd",
@@ -59,6 +60,7 @@ func (c *cmdMigrate) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the migration command, moving containers from LXC to LXD.
 func (c *cmdMigrate) RunE(cmd *cobra.Command, args []string) error {
 	if (len(c.flagContainers) == 0 && !c.flagAll) || (len(c.flagContainers) > 0 && c.flagAll) {
 		fmt.Fprintln(os.Stderr, "You must either pass container names or --all")
@@ -100,6 +102,7 @@ func (c *cmdMigrate) RunE(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// Validates container configuration before migration from LXC to LXD.
 func validateConfig(conf []string, container *liblxc.Container) error {
 	// Checking whether container has already been migrated
 	fmt.Println("Checking whether container has already been migrated")
@@ -163,6 +166,7 @@ func validateConfig(conf []string, container *liblxc.Container) error {
 	return nil
 }
 
+// Converts an LXC container to an LXD container by validating, parsing, and translating configuration, then initiating a migration operation.
 func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storage string,
 	dryRun bool, rsyncArgs string, debug bool) error {
 	// Don't migrate running containers
@@ -482,6 +486,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 	return nil
 }
 
+// Converts LXC network configuration to LXD by translating device types and parameters.
 func convertNetworkConfig(container *liblxc.Container, devices map[string]map[string]string) error {
 	networkDevice := func(network map[string]string) map[string]string {
 		if network == nil {
@@ -559,6 +564,7 @@ func convertNetworkConfig(container *liblxc.Container, devices map[string]map[st
 	return nil
 }
 
+// Transforms LXC storage mounts into LXD device configurations, handling special cases like read-only or optional mounts.
 func convertStorageConfig(conf []string, devices map[string]map[string]string) error {
 	fmt.Println("Processing storage configuration")
 
@@ -617,6 +623,7 @@ func convertStorageConfig(conf []string, devices map[string]map[string]string) e
 	return nil
 }
 
+// Retrieves root filesystem path from LXC configuration, returns error if missing.
 func getRootfs(conf []string) (string, error) {
 	value := getConfig(conf, "lxc.rootfs.path")
 	if value == nil {

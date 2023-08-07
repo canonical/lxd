@@ -14,6 +14,7 @@ type cmdRename struct {
 	global *cmdGlobal
 }
 
+// Command returns a Cobra command for the "rename" subcommand, used to rename instances and snapshots by specifying the current and new names.
 func (c *cmdRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"))
@@ -25,6 +26,7 @@ func (c *cmdRename) Command() *cobra.Command {
 	return cmd
 }
 
+// Run renames instances and snapshots by calling the "move" command with the provided arguments, ensuring that the source and destination remotes are the same.
 func (c *cmdRename) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 

@@ -9,6 +9,7 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 )
 
+// Forwards the HTTP request to the appropriate cluster member based on the provided member name.
 func forwardedResponseToNode(s *state.State, r *http.Request, memberName string) response.Response {
 	// Figure out the address of the target member (which is possibly this very same member).
 	address, err := cluster.ResolveTarget(r.Context(), s, memberName)

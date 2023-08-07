@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// Demonstrates how to use ListenAddresses function with various valid and invalid input scenarios.
 func ExampleListenAddresses() {
 	listenAddressConfigs := []string{
 		"",

@@ -21,6 +21,7 @@ func OperationResponse(op *Operation) response.Response {
 	return &operationResponse{op}
 }
 
+// Starts the operation, generates its render data, and writes the corresponding HTTP response.
 func (r *operationResponse) Render(w http.ResponseWriter) error {
 	err := r.op.Start()
 	if err != nil {
@@ -53,6 +54,7 @@ func (r *operationResponse) Render(w http.ResponseWriter) error {
 	return util.WriteJSON(w, body, debugLogger)
 }
 
+// Returns the ID of the operation or an error message if the operation fails to render.
 func (r *operationResponse) String() string {
 	_, md, err := r.op.Render()
 	if err != nil {
@@ -79,6 +81,7 @@ func ForwardedOperationResponse(project string, op *api.Operation) response.Resp
 	}
 }
 
+// Generates the operation's URL and writes the corresponding HTTP response for a forwarded operation.
 func (r *forwardedOperationResponse) Render(w http.ResponseWriter) error {
 	url := fmt.Sprintf("/%s/operations/%s", version.APIVersion, r.op.ID)
 	if r.project != "" {
@@ -106,6 +109,7 @@ func (r *forwardedOperationResponse) Render(w http.ResponseWriter) error {
 	return util.WriteJSON(w, body, debugLogger)
 }
 
+// Returns the ID of the forwarded operation.
 func (r *forwardedOperationResponse) String() string {
 	return r.op.ID
 }

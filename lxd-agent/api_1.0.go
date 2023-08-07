@@ -37,6 +37,7 @@ var api10 = []APIEndpoint{
 	stateCmd,
 }
 
+// api10Get returns the LXD API server information for API version 1.0.
 func api10Get(d *Daemon, r *http.Request) response.Response {
 	srv := api.ServerUntrusted{
 		APIExtensions: version.APIExtensions,
@@ -73,6 +74,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, fullSrv, fullSrv)
 }
 
+// setConnectionInfo updates the connection information for the LXD API server based on the provided data.
 func setConnectionInfo(d *Daemon, rd io.Reader) error {
 	var data agentAPI.API10Put
 
@@ -91,6 +93,7 @@ func setConnectionInfo(d *Daemon, rd io.Reader) error {
 	return nil
 }
 
+// api10Put updates LXD API connection info, connects to LXD server, and manages devlxd server.
 func api10Put(d *Daemon, r *http.Request) response.Response {
 	err := setConnectionInfo(d, r.Body)
 	if err != nil {
@@ -126,6 +129,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// startDevlxdServer starts the devlxd server and listens on the "/dev" endpoint.
 func startDevlxdServer(d *Daemon) error {
 	d.devlxdMu.Lock()
 	defer d.devlxdMu.Unlock()
@@ -163,6 +167,7 @@ func startDevlxdServer(d *Daemon) error {
 	return nil
 }
 
+// stopDevlxdServer stops the devlxd server and closes the connection.
 func stopDevlxdServer(d *Daemon) error {
 	d.devlxdMu.Lock()
 	d.devlxdRunning = false
@@ -171,6 +176,7 @@ func stopDevlxdServer(d *Daemon) error {
 	return servers["devlxd"].Close()
 }
 
+// getClient creates an HTTP client for LXD server communication over a Unix socket using certificates.
 func getClient(CID uint32, port int, serverCertificate string) (*http.Client, error) {
 	agentCert, err := os.ReadFile("agent.crt")
 	if err != nil {
@@ -190,6 +196,7 @@ func getClient(CID uint32, port int, serverCertificate string) (*http.Client, er
 	return client, nil
 }
 
+// startHTTPServer sets up an HTTP server on vsock with TLS and starts it in a separate goroutine.
 func startHTTPServer(d *Daemon, debug bool) error {
 	// Setup the listener on VM's context ID for inbound connections from LXD.
 	l, err := vsock.Listen(shared.HTTPSDefaultPort, nil)

@@ -28,6 +28,7 @@ type cmdMove struct {
 	flagAllowInconsistent bool
 }
 
+// Command sets up the 'move' command, allowing users to transfer instances within or between LXD servers, optionally renaming and modifying configurations.
 func (c *cmdMove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("move", i18n.G("[<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"))
@@ -69,6 +70,7 @@ lxc move <instance>/<old snapshot name> <instance>/<new snapshot name>
 	return cmd
 }
 
+// Run performs the 'move' command, handling the transfer of instances within or between LXD servers, with additional configuration and condition checks.
 func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 

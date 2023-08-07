@@ -35,6 +35,7 @@ var operationWebsocket = APIEndpoint{
 	Get: APIEndpointAction{Handler: operationWebsocketGet},
 }
 
+// operationDelete cancels a local LXD operation identified by the given ID.
 func operationDelete(d *Daemon, r *http.Request) response.Response {
 	id, err := url.PathUnescape(mux.Vars(r)["id"])
 	if err != nil {
@@ -55,6 +56,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// operationGet retrieves information about a local LXD operation identified by the given ID.
 func operationGet(d *Daemon, r *http.Request) response.Response {
 	id, err := url.PathUnescape(mux.Vars(r)["id"])
 	if err != nil {
@@ -77,6 +79,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, body)
 }
 
+// operationsGet retrieves information about local LXD operations based on the request recursion level.
 func operationsGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
@@ -144,6 +147,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, md)
 }
 
+// operationWebsocketGet establishes a WebSocket connection for the specified local LXD operation.
 func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	id, err := url.PathUnescape(mux.Vars(r)["id"])
 	if err != nil {

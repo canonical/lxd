@@ -379,6 +379,7 @@ func (c *ClusterTx) NetworkErrored(project string, name string) error {
 	return c.networkState(project, name, networkErrored)
 }
 
+// networkState updates the state of a specific network within a given project.
 func (c *ClusterTx) networkState(project string, name string, state NetworkState) error {
 	stmt := "UPDATE networks SET state=? WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?"
 	result, err := c.tx.Exec(stmt, state, project, name)
@@ -677,6 +678,7 @@ func NetworkStateToAPIStatus(state NetworkState) string {
 	}
 }
 
+// networkFillType assigns a string representation to a given network type.
 func networkFillType(network *api.Network, netType NetworkType) {
 	switch netType {
 	case NetworkTypeBridge:
@@ -832,6 +834,7 @@ func updateNetworkDescription(tx *sql.Tx, id int64, description string) error {
 	return err
 }
 
+// networkConfigAdd inserts configuration details of a network into the database.
 func networkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]string) error {
 	str := "INSERT INTO networks_config (network_id, node_id, key, value) VALUES(?, ?, ?, ?)"
 	stmt, err := tx.Prepare(str)

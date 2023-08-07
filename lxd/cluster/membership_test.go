@@ -25,6 +25,7 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
+// TestBootstrap_UnmetPreconditions tests the unmet preconditions for the cluster bootstrap process.
 func TestBootstrap_UnmetPreconditions(t *testing.T) {
 	cases := []struct {
 		setup func(*membershipFixtures)
@@ -84,6 +85,8 @@ func TestBootstrap_UnmetPreconditions(t *testing.T) {
 	}
 }
 
+// TestBootstrap tests the cluster bootstrap process by setting up the necessary environment
+// and verifying the expected state and behavior.
 func TestBootstrap(t *testing.T) {
 	state, cleanup := state.NewTestState(t)
 	defer cleanup()
@@ -270,6 +273,7 @@ func TestAccept(t *testing.T) {
 	assert.Equal(t, "5.6.7.8:666", nodes[1].Address)
 }
 
+// TestJoin tests the process of joining a cluster and verifies the expected state and behavior during the join process.
 func TestJoin(t *testing.T) {
 	// Setup a target node running as leader of a cluster.
 	targetCert := shared.TestingKeyPair()

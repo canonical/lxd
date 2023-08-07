@@ -192,6 +192,7 @@ func (s *Server) Reconfigure(address string, asn uint32, routerID net.IP) error 
 	return s.reconfigure(address, asn, routerID)
 }
 
+// Stops, reconfigures, and restarts the server with a new address, ASN, and router ID.
 func (s *Server) reconfigure(address string, asn uint32, routerID net.IP) error {
 	// Get the old address.
 	oldAddress := s.address
@@ -241,6 +242,7 @@ func (s *Server) AddPrefix(subnet net.IPNet, nexthop net.IP, owner string) error
 	return s.addPrefix(subnet, nexthop, owner)
 }
 
+// Adds a new prefix to the server, configuring the associated nexthop and owner.
 func (s *Server) addPrefix(subnet net.IPNet, nexthop net.IP, owner string) error {
 	// Prepare the prefix.
 	prefixLen, _ := subnet.Mask.Size()
@@ -351,6 +353,7 @@ func (s *Server) RemovePrefix(subnet net.IPNet, nexthop net.IP) error {
 	return s.removePrefix(subnet, nexthop)
 }
 
+// Removes a specific prefix from the server, identified by its subnet and nexthop.
 func (s *Server) removePrefix(subnet net.IPNet, nexthop net.IP) error {
 	found := false
 	for pathUUID, path := range s.paths {
@@ -374,6 +377,7 @@ func (s *Server) removePrefix(subnet net.IPNet, nexthop net.IP) error {
 	return nil
 }
 
+// Deletes a specific path from the BGP server and the local paths map, identified by its UUID.
 func (s *Server) removePrefixByUUID(pathUUID string) error {
 	// Remove it from the BGP server.
 	if s.bgp != nil {
@@ -398,6 +402,7 @@ func (s *Server) AddPeer(address net.IP, asn uint32, password string, holdTime u
 	return s.addPeer(address, asn, password, holdTime)
 }
 
+// Configures and adds a new BGP peer to the server or updates the usage count if the peer already exists.
 func (s *Server) addPeer(address net.IP, asn uint32, password string, holdTime uint64) error {
 	// Look for an existing peer.
 	bgpPeer, bgpPeerExists := s.peers[address.String()]
@@ -505,6 +510,7 @@ func (s *Server) RemovePeer(address net.IP) error {
 	return s.removePeer(address)
 }
 
+// Decreases the usage count of a peer and removes it from the server if it is no longer in use.
 func (s *Server) removePeer(address net.IP) error {
 	// Find the peer.
 	bgpPeer, bgpPeerExists := s.peers[address.String()]

@@ -87,6 +87,7 @@ func DefaultParseRegexp(c Clause) (*regexp.Regexp, error) {
 	return regexp.Compile("(?i)" + regexpValue)
 }
 
+// match evaluates if the object value matches the clause, returning a boolean result.
 func (s ClauseSet) match(c Clause, objValue any) (bool, error) {
 	var valueStr string
 	var valueRegexp *regexp.Regexp

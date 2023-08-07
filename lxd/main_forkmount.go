@@ -662,6 +662,7 @@ type cmdForkmount struct {
 	global *cmdGlobal
 }
 
+// Configures and runs a hidden command suite for all container mount and unmount operations.
 func (c *cmdForkmount) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -707,6 +708,7 @@ func (c *cmdForkmount) Command() *cobra.Command {
 	return cmd
 }
 
+// Errors out if invoked, expecting interception in cgo.
 func (c *cmdForkmount) Run(cmd *cobra.Command, args []string) error {
 	return fmt.Errorf("This command should have been intercepted in cgo")
 }

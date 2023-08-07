@@ -319,6 +319,7 @@ func (h *dnsHandler) getLeaseHostByDNSName(dnsName string) (string, error) {
 	return "", nil
 }
 
+// Placeholder function intended to be intercepted in cgo, does not perform any operation.
 func (c *cmdForkDNS) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -341,6 +342,7 @@ func (c *cmdForkDNS) Command() *cobra.Command {
 	return cmd
 }
 
+// Sets up DNS server, initializes file watcher for server changes, and starts DNS handler.
 func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) < 3 {

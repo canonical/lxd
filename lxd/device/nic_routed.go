@@ -658,6 +658,7 @@ func (d *nicRouted) postStop() error {
 	return nil
 }
 
+// ipHostAddress returns the configured host IP address for the given IP family or defaults to the routed NIC gateway.
 func (d *nicRouted) ipHostAddress(ipFamily string) string {
 	key := fmt.Sprintf("%s.host_address", ipFamily)
 	if d.config[key] != "" {
@@ -667,6 +668,7 @@ func (d *nicRouted) ipHostAddress(ipFamily string) string {
 	return nicRoutedIPGateway[ipFamily]
 }
 
+// isUniqueWithGatewayAutoMode validates that only one 'routed' NIC device on the instance is configured with auto mode for IP gateway.
 func (d *nicRouted) isUniqueWithGatewayAutoMode(instConf instance.ConfigReader) error {
 	instDevs := instConf.ExpandedDevices()
 	for _, k := range []string{"ipv4.gateway", "ipv6.gateway"} {

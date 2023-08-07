@@ -13,6 +13,8 @@ import (
 	"github.com/canonical/lxd/shared"
 )
 
+// TestUpdateFromV38_RaftNodes tests the update process
+// for the "raft_nodes" table in the database schema.
 func TestUpdateFromV38_RaftNodes(t *testing.T) {
 	schema := node.Schema()
 	db, err := schema.ExerciseUpdate(39, func(db *sql.DB) {
@@ -30,6 +32,8 @@ func TestUpdateFromV38_RaftNodes(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TestUpdateFromV36_RaftNodes tests the update process
+// for the "raft_nodes" table in the database schema.
 func TestUpdateFromV36_RaftNodes(t *testing.T) {
 	schema := node.Schema()
 	db, err := schema.ExerciseUpdate(37, nil)

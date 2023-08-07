@@ -6,6 +6,7 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 )
 
+// Illustrates how to prefix instance names based on the project they belong to.
 func ExampleInstance() {
 	prefixed := project.Instance(project.Default, "test")
 	fmt.Println(prefixed)
@@ -16,6 +17,7 @@ func ExampleInstance() {
 	// project_name_test1
 }
 
+// Demonstrates how to extract project and instance names from a prefixed instance identifier.
 func ExampleInstanceParts() {
 	projectName, name := project.InstanceParts("unprefixed")
 	fmt.Println(projectName, name)
@@ -35,6 +37,7 @@ func ExampleInstanceParts() {
 	// proj test1
 }
 
+// Demonstrates how to format a storage volume name with project name prefix.
 func ExampleStorageVolume() {
 	prefixed := project.StorageVolume(project.Default, "test")
 	fmt.Println(prefixed)

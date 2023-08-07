@@ -12,6 +12,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// Parses preseed YAML configuration from stdin for LXD initialization.
 func (c *cmdInit) RunPreseed(cmd *cobra.Command, args []string, d lxd.InstanceServer) (*api.InitPreseed, error) {
 	// Read the YAML
 	bytes, err := io.ReadAll(os.Stdin)

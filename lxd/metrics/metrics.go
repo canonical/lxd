@@ -48,6 +48,7 @@ func (m *MetricSet) Merge(metricSet *MetricSet) {
 	}
 }
 
+// String returns a formatted OpenMetrics string representation of the MetricSet.
 func (m *MetricSet) String() string {
 	var out strings.Builder
 	metricTypes := []MetricType{}

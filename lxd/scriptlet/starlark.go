@@ -16,25 +16,31 @@ type starlarkObject struct {
 	typeName string
 }
 
+// Type returns the type name of the starlark object
 func (s *starlarkObject) Type() string {
 	return s.typeName
 }
 
+// String returns the string representation of the starlark object.
 func (s *starlarkObject) String() string {
 	return s.d.String()
 }
 
+// Freeze marks the starlark object as immutable (no-op).
 func (s *starlarkObject) Freeze() {
 }
 
+// Hash returns an error indicating the object is unhashable.
 func (s *starlarkObject) Hash() (uint32, error) {
 	return 0, fmt.Errorf("Unhashable type %s", s.Type())
 }
 
+// Truth returns the truth value (always true) of the starlark object.
 func (s *starlarkObject) Truth() starlark.Bool {
 	return starlark.True
 }
 
+// Returns a list of the attribute names for the starlark object.
 func (s *starlarkObject) AttrNames() []string {
 	keys := s.d.Keys()
 	keyNames := make([]string, 0, len(keys))
@@ -45,6 +51,7 @@ func (s *starlarkObject) AttrNames() []string {
 	return keyNames
 }
 
+// Returns the value of the attribute with the given name, or an error
 func (s *starlarkObject) Attr(name string) (starlark.Value, error) {
 	field, found, err := s.d.Get(starlark.String(name))
 	if err != nil {

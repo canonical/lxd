@@ -34,6 +34,7 @@ type cmdInit struct {
 	hostname string
 }
 
+// Sets up the "init" command with its flags and run function for configuring the LXD daemon.
 func (c *cmdInit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "init"
@@ -65,6 +66,7 @@ func (c *cmdInit) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the "init" command based on provided flags to configure or join a LXD cluster.
 func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if c.flagAuto && c.flagPreseed {
@@ -245,6 +247,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// Returns the default hostname for LXD based on the provided flag or the system's hostname.
 func (c *cmdInit) defaultHostname() string {
 	if c.hostname != "" {
 		return c.hostname

@@ -33,14 +33,17 @@ type eventsServe struct {
 	s   *state.State
 }
 
+// Render renders events stream to the HTTP response writer via `eventsSocket` function.
 func (r *eventsServe) Render(w http.ResponseWriter) error {
 	return eventsSocket(r.s, r.req, w)
 }
 
+// String Returns a string representation of the eventsServe object, which is "event handler".
 func (r *eventsServe) String() string {
 	return "event handler"
 }
 
+// eventsSocket Handles WebSocket upgrade, connection setup, and event listening for serving live events.
 func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error {
 	// Detect project mode.
 	projectName := queryParam(r, "project")
@@ -184,6 +187,8 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// eventsGet returns a live events response using the eventsServe struct and request-daemon state.
 func eventsGet(d *Daemon, r *http.Request) response.Response {
 	return &eventsServe{req: r, s: d.State()}
 }

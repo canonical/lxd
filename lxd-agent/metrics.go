@@ -30,6 +30,7 @@ var metricsCmd = APIEndpoint{
 	Get: APIEndpointAction{Handler: metricsGet},
 }
 
+// metricsGet fetches system metrics from the Daemon and returns them as a response.
 func metricsGet(d *Daemon, r *http.Request) response.Response {
 	out := metrics.Metrics{}
 
@@ -76,6 +77,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, &out)
 }
 
+// getCPUMetrics reads CPU statistics from /proc/stat and returns them as a map of CPU metrics.
 func getCPUMetrics(d *Daemon) (map[string]metrics.CPUMetrics, error) {
 	stats, err := os.ReadFile("/proc/stat")
 	if err != nil {
@@ -162,6 +164,7 @@ func getCPUMetrics(d *Daemon) (map[string]metrics.CPUMetrics, error) {
 	return out, nil
 }
 
+// getTotalProcesses reads the /proc directory to count the number of running processes (PIDs).
 func getTotalProcesses(d *Daemon) (uint64, error) {
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
@@ -201,6 +204,7 @@ func getTotalProcesses(d *Daemon) (uint64, error) {
 	return pidCount, nil
 }
 
+// getDiskMetrics reads the /proc/diskstats file to gather disk I/O statistics for each block device.
 func getDiskMetrics(d *Daemon) (map[string]metrics.DiskMetrics, error) {
 	diskStats, err := os.ReadFile("/proc/diskstats")
 	if err != nil {
@@ -254,6 +258,7 @@ func getDiskMetrics(d *Daemon) (map[string]metrics.DiskMetrics, error) {
 	return out, nil
 }
 
+// getFilesystemMetrics reads /proc/mounts and gathers filesystem metrics.
 func getFilesystemMetrics(d *Daemon) (map[string]metrics.FilesystemMetrics, error) {
 	mounts, err := os.ReadFile("/proc/mounts")
 	if err != nil {
@@ -300,6 +305,7 @@ func getFilesystemMetrics(d *Daemon) (map[string]metrics.FilesystemMetrics, erro
 	return out, nil
 }
 
+// getMemoryMetrics reads /proc/meminfo and gathers memory-related metrics.
 func getMemoryMetrics(d *Daemon) (metrics.MemoryMetrics, error) {
 	content, err := os.ReadFile("/proc/meminfo")
 	if err != nil {
@@ -373,6 +379,7 @@ func getMemoryMetrics(d *Daemon) (metrics.MemoryMetrics, error) {
 	return out, nil
 }
 
+// getNetworkMetrics retrieves network-related metrics for each network device.
 func getNetworkMetrics(d *Daemon) (map[string]metrics.NetworkMetrics, error) {
 	out := map[string]metrics.NetworkMetrics{}
 

@@ -262,6 +262,7 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 	return state, gateway, address
 }
 
+// Cleanup reversely executes the registered cleanups and closes the servers.
 func (f *heartbeatFixture) Cleanup() {
 	// Run the cleanups in reverse order
 	for i := len(f.cleanups) - 1; i >= 0; i-- {

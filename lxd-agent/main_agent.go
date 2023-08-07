@@ -29,6 +29,7 @@ type cmdAgent struct {
 	global *cmdGlobal
 }
 
+// Command returns the Cobra command for the LXD virtual machine agent.
 func (c *cmdAgent) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "lxd-agent [--debug]"
@@ -45,6 +46,7 @@ func (c *cmdAgent) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the LXD virtual machine agent, performing various setup tasks and starting the HTTP server.
 func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	// Setup logger.
 	err := logger.InitLogger("", "", c.global.flagLogVerbose, c.global.flagLogDebug, nil)

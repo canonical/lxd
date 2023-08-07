@@ -150,6 +150,7 @@ func (c *ClusterTx) imageFill(ctx context.Context, id int, image *api.Image, cre
 	return nil
 }
 
+// imageFillProfiles populates the image's profile list from the associated profiles in the database.
 func (c *ClusterTx) imageFillProfiles(ctx context.Context, id int, image *api.Image, project string) error {
 	// Check which project name to use
 	enabled, err := cluster.ProjectHasProfiles(context.Background(), c.tx, project)
@@ -1179,6 +1180,7 @@ SELECT DISTINCT nodes.address FROM nodes WHERE nodes.address NOT IN (
 	return c.getNodesByImageFingerprint(q, fingerprint, nil)
 }
 
+// getNodesByImageFingerprint retrieves the addresses of online nodes that have a specific image fingerprint.
 func (c *Cluster) getNodesByImageFingerprint(stmt string, fingerprint string, autoUpdate *bool) ([]string, error) {
 	var addresses []string // Addresses of online nodes with the image
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {

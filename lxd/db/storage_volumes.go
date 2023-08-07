@@ -531,6 +531,7 @@ func (c *Cluster) storagePoolVolumeGetTypeID(project string, volumeName string, 
 	return id, nil
 }
 
+// Retrieves the ID of a specific storage volume type within a storage pool, based on project and node.
 func (c *ClusterTx) storagePoolVolumeGetTypeID(ctx context.Context, project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, error) {
 	remoteDrivers := StorageRemoteDriverNames()
 

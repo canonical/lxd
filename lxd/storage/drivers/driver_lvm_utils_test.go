@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// Parses an LXD volume name and returns the snapshot name, if any.
 func Example_lvm_parseLogicalVolumeName() {
 	d := &lvm{}
 	d.name = "pool"

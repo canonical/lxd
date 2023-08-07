@@ -27,6 +27,7 @@ type cmdConfigTrust struct {
 	config *cmdConfig
 }
 
+// Generates a command for managing trusted clients, including adding, editing, listing, removing, and showing trust settings and tokens.
 func (c *cmdConfigTrust) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("trust")
@@ -80,6 +81,7 @@ type cmdConfigTrustAdd struct {
 	flagType       string
 }
 
+// Generates a command for adding a new trusted client, allowing the user to specify certificate details such as type, name, and project restrictions.
 func (c *cmdConfigTrustAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:] [<cert>]"))
@@ -107,6 +109,7 @@ restricted to one or more projects.
 	return cmd
 }
 
+// Executes the command to add a new trusted client, either by generating a token or by loading a certificate file, based on the specified flags and arguments.
 func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 2)
@@ -229,6 +232,7 @@ type cmdConfigTrustEdit struct {
 	configTrust *cmdConfigTrust
 }
 
+// Constructs a command for editing trust configurations as YAML.
 func (c *cmdConfigTrustEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<fingerprint>"))
@@ -241,6 +245,7 @@ func (c *cmdConfigTrustEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// Returns the help template for editing trust configurations as YAML.
 func (c *cmdConfigTrustEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a YAML representation of the certificate.
@@ -249,6 +254,7 @@ func (c *cmdConfigTrustEdit) helpTemplate() string {
 ### Note that the fingerprint is shown but cannot be changed`)
 }
 
+// Runs the command to edit trust configurations, allowing the user to modify the YAML representation of the certificate and update it.
 func (c *cmdConfigTrustEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -342,6 +348,7 @@ type cmdConfigTrustList struct {
 	flagFormat string
 }
 
+// Generates a command to list trusted clients with various formatting options.
 func (c *cmdConfigTrustList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
@@ -356,6 +363,7 @@ func (c *cmdConfigTrustList) Command() *cobra.Command {
 	return cmd
 }
 
+// Retrieves and displays a list of trusted clients with their details, including type, name, common name, fingerprint, issue date, and expiry date.
 func (c *cmdConfigTrustList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
@@ -425,6 +433,7 @@ type cmdConfigTrustListTokens struct {
 	flagFormat string
 }
 
+// Retrieves and displays a list of all active certificate add tokens with their details, including token ID, name, description, and creation date.
 func (c *cmdConfigTrustListTokens) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list-tokens", i18n.G("[<remote>:]"))
@@ -438,6 +447,7 @@ func (c *cmdConfigTrustListTokens) Command() *cobra.Command {
 	return cmd
 }
 
+// Retrieves and displays a list of all active certificate add tokens with their details, including client name, token, and expiry date, if available.
 func (c *cmdConfigTrustListTokens) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
@@ -526,6 +536,7 @@ type cmdConfigTrustRemove struct {
 	configTrust *cmdConfigTrust
 }
 
+// Constructs a command for removing a trusted client specified by its fingerprint.
 func (c *cmdConfigTrustRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<fingerprint>"))
@@ -539,6 +550,7 @@ func (c *cmdConfigTrustRemove) Command() *cobra.Command {
 	return cmd
 }
 
+// Removes the trusted client specified by the provided fingerprint.
 func (c *cmdConfigTrustRemove) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
@@ -573,6 +585,7 @@ type cmdConfigTrustRevokeToken struct {
 	configTrust *cmdConfigTrust
 }
 
+// Revokes the certificate add token associated with the specified name.
 func (c *cmdConfigTrustRevokeToken) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("revoke-token", i18n.G("[<remote>:] <name>"))
@@ -585,6 +598,7 @@ func (c *cmdConfigTrustRevokeToken) Command() *cobra.Command {
 	return cmd
 }
 
+// Revokes the certificate add token associated with the specified member name.
 func (c *cmdConfigTrustRevokeToken) Run(cmd *cobra.Command, args []string) error {
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -644,6 +658,7 @@ type cmdConfigTrustShow struct {
 	configTrust *cmdConfigTrust
 }
 
+// Generates a command to show the trust configurations for a specific fingerprint.
 func (c *cmdConfigTrustShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<fingerprint>"))
@@ -656,6 +671,7 @@ func (c *cmdConfigTrustShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Displays the trust configurations for a specific certificate fingerprint.
 func (c *cmdConfigTrustShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)

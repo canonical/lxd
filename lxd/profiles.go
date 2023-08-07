@@ -140,6 +140,8 @@ var profileCmd = APIEndpoint{
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Fetches and optionally expands profiles in a project based on the request.
 func profilesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -244,6 +246,8 @@ func profileUsedBy(ctx context.Context, tx *db.ClusterTx, profile dbCluster.Prof
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles the creation of a new profile based on the provided request data.
 func profilesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -368,6 +372,8 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Fetches and returns details of a specified profile from the database.
 func profileGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -445,6 +451,8 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Updates the details of an existing profile in the database and notifies cluster nodes of the change.
 func profilePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -563,6 +571,8 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Partially updates the details of an existing profile in the database using provided input.
 func profilePatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -693,6 +703,8 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Renames an existing profile in the database according to the provided new name in the request.
 func profilePost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -773,6 +785,8 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Deletes an existing profile from the database, ensuring it's not in use and not the default profile.
 func profileDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 

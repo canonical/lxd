@@ -17,6 +17,7 @@ type cmdSql struct {
 	global *cmdGlobal
 }
 
+// Execute LXD SQL query against local or global database. Useful for debugging and disaster recovery.
 func (c *cmdSql) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "sql <local|global> <query>"
@@ -56,6 +57,8 @@ func (c *cmdSql) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes LXD SQL queries against the local or global database,
+// including special commands like `.dump` and `.schema`.
 func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 	if len(args) != 2 {
 		_ = cmd.Help()
@@ -151,6 +154,7 @@ func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// sqlPrintSelectResult prints the result of an SQL SELECT query in a formatted table.
 func sqlPrintSelectResult(result internalSQLResult) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAlignment(tablewriter.ALIGN_LEFT)

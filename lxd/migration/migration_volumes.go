@@ -249,6 +249,7 @@ func MatchTypes(offer *MigrationHeader, fallbackType MigrationFSType, ourTypes [
 	return matchedTypes, nil
 }
 
+// progressWrapperRender updates the progress metadata for the given operation with the current progress and speed information.
 func progressWrapperRender(op *operations.Operation, key string, description string, progressInt int64, speedInt int64) {
 	meta := op.Metadata()
 	if meta == nil {

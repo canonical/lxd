@@ -26,6 +26,7 @@ type meminfo struct {
 	HugepagesSize  uint64
 }
 
+// Reads the system memory data from the provided path and parses it into a structured format.
 func parseMeminfo(path string) (*meminfo, error) {
 	memory := meminfo{}
 
@@ -134,6 +135,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 	return &memory, nil
 }
 
+// Retrieves the size of the memory block in bytes from the system memory file path.
 func getMemoryBlockSizeBytes() uint64 {
 	memoryBlockSizePath := filepath.Join(sysDevicesSystemMemory, "block_size_bytes")
 
@@ -155,6 +157,7 @@ func getMemoryBlockSizeBytes() uint64 {
 	return blockSize
 }
 
+// Calculates total memory size by counting online memory blocks and multiplying by the block size.
 func getTotalMemory(sysDevicesBase string) uint64 {
 	blockSize := getMemoryBlockSizeBytes()
 	if blockSize == 0 {

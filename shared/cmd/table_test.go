@@ -17,10 +17,12 @@ type tableSuite struct {
 	suite.Suite
 }
 
+// TestTableSuite runs the test suite for the table functionality.
 func TestTableSuite(t *testing.T) {
 	suite.Run(t, new(tableSuite))
 }
 
+// TestRenderSlice validates table rendering with various data and display configurations.
 func (s *tableSuite) TestRenderSlice() {
 	type TestDataType struct {
 		SomeString  string   `json:"some_string" yaml:"some_string"`

@@ -24,6 +24,7 @@ type ErrDeleteSnapshots struct {
 	Snapshots []string
 }
 
+// Returns an error specifying which snapshots require deletion.
 func (e ErrDeleteSnapshots) Error() string {
 	return fmt.Sprintf("More recent snapshots must be deleted: %+v", e.Snapshots)
 }

@@ -21,6 +21,7 @@ type cmdNetworkZone struct {
 	global *cmdGlobal
 }
 
+// Command() initializes a new Cobra command for managing network zones, adding related subcommands for specific operations.
 func (c *cmdNetworkZone) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("zone")
@@ -77,6 +78,7 @@ type cmdNetworkZoneList struct {
 	flagFormat string
 }
 
+// Command() initializes a new Cobra command to list the available network zones with customizable output format options.
 func (c *cmdNetworkZoneList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
@@ -90,6 +92,7 @@ func (c *cmdNetworkZoneList) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() executes the Cobra command to list network zones, fetching the zones from the server and rendering them in the requested format.
 func (c *cmdNetworkZoneList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
@@ -149,6 +152,7 @@ type cmdNetworkZoneShow struct {
 	networkZone *cmdNetworkZone
 }
 
+// Command() initializes a new Cobra command to display the configurations of a specified network zone.
 func (c *cmdNetworkZoneShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<Zone>"))
@@ -159,6 +163,7 @@ func (c *cmdNetworkZoneShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() executes the Cobra command to display the configurations of a specified network zone, fetching details from the server and printing them in YAML format.
 func (c *cmdNetworkZoneShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -204,6 +209,7 @@ type cmdNetworkZoneGet struct {
 	flagIsProperty bool
 }
 
+// Command() initializes a new Cobra command to retrieve the values of specified configuration keys for a given network zone.
 func (c *cmdNetworkZoneGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<Zone> <key>"))
@@ -215,6 +221,7 @@ func (c *cmdNetworkZoneGet) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() executes the Cobra command to retrieve the value of a specified configuration key for a given network zone from the server and prints it.
 func (c *cmdNetworkZoneGet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -264,6 +271,7 @@ type cmdNetworkZoneCreate struct {
 	networkZone *cmdNetworkZone
 }
 
+// Command() initializes a new Cobra command to create a new network zone with specified configurations.
 func (c *cmdNetworkZoneCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<Zone> [key=value...]"))
@@ -275,6 +283,7 @@ func (c *cmdNetworkZoneCreate) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() executes the Cobra command to create a new network zone, taking in configurations from arguments or stdin, and sending a creation request to the server.
 func (c *cmdNetworkZoneCreate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
@@ -347,6 +356,7 @@ type cmdNetworkZoneSet struct {
 	flagIsProperty bool
 }
 
+// Command() initializes a new Cobra command to set or update configuration keys for a specified network zone.
 func (c *cmdNetworkZoneSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<Zone> <key>=<value>..."))
@@ -363,6 +373,8 @@ For backward compatibility, a single configuration key may still be set with:
 	return cmd
 }
 
+// Run() executes the Cobra command to set or update configuration keys for a specified network zone,
+// fetching the zone details and sending the updated configuration to the server.
 func (c *cmdNetworkZoneSet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -427,6 +439,7 @@ type cmdNetworkZoneUnset struct {
 	flagIsProperty bool
 }
 
+// Command() initializes a new Cobra command to unset or remove specified configuration keys from a network zone.
 func (c *cmdNetworkZoneUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<Zone> <key>"))
@@ -439,6 +452,7 @@ func (c *cmdNetworkZoneUnset) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() removes the specified configuration key from a network zone by appending an empty string to the key and invoking networkZoneSet's Run() function.
 func (c *cmdNetworkZoneUnset) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -458,6 +472,7 @@ type cmdNetworkZoneEdit struct {
 	networkZone *cmdNetworkZone
 }
 
+// Command() initializes a new cobra command for editing network zone configurations using YAML format.
 func (c *cmdNetworkZoneEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<Zone>"))
@@ -469,6 +484,7 @@ func (c *cmdNetworkZoneEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// helpTemplate() provides a help text in YAML format for configuring a network zone.
 func (c *cmdNetworkZoneEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a YAML representation of the network zone.
@@ -484,6 +500,7 @@ func (c *cmdNetworkZoneEdit) helpTemplate() string {
 `)
 }
 
+// Run() lets user edit the configuration of a specified network zone using a text editor, validating and applying changes.
 func (c *cmdNetworkZoneEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -576,6 +593,7 @@ type cmdNetworkZoneDelete struct {
 	networkZone *cmdNetworkZone
 }
 
+// Command() sets up the command to delete specified network zones from the remote.
 func (c *cmdNetworkZoneDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<Zone>"))
@@ -587,6 +605,7 @@ func (c *cmdNetworkZoneDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() executes the deletion of a specific network zone, printing a success message unless quiet mode is active.
 func (c *cmdNetworkZoneDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -625,6 +644,8 @@ type cmdNetworkZoneRecord struct {
 	networkZone *cmdNetworkZone
 }
 
+// Command() sets up the main network zone record command and its subcommands,
+// which include functions to list, show, get, create, set, unset, edit, and delete network zone records.
 func (c *cmdNetworkZoneRecord) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("record")
@@ -681,6 +702,7 @@ type cmdNetworkZoneRecordList struct {
 	flagFormat string
 }
 
+// Command() sets up the 'list' subcommand to display network zone records in various formats such as table, csv, json, yaml, or compact.
 func (c *cmdNetworkZoneRecordList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]<zone>"))
@@ -694,6 +716,7 @@ func (c *cmdNetworkZoneRecordList) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() retrieves and lists the network zone records for a specified network zone in a user-specified format.
 func (c *cmdNetworkZoneRecordList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -752,6 +775,7 @@ type cmdNetworkZoneRecordShow struct {
 	networkZoneRecord *cmdNetworkZoneRecord
 }
 
+// Command() returns a command that shows the configuration of a specific network zone record.
 func (c *cmdNetworkZoneRecordShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<zone> <record>"))
@@ -762,6 +786,7 @@ func (c *cmdNetworkZoneRecordShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() retrieves and displays the configuration of a specified network zone record in YAML format.
 func (c *cmdNetworkZoneRecordShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -804,6 +829,7 @@ type cmdNetworkZoneRecordGet struct {
 	flagIsProperty bool
 }
 
+// Command() sets up the 'get' command to fetch configuration key values from a specified network zone record.
 func (c *cmdNetworkZoneRecordGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<zone> <record> <key>"))
@@ -815,6 +841,7 @@ func (c *cmdNetworkZoneRecordGet) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() fetches and prints a specific configuration key's value from a given network zone record.
 func (c *cmdNetworkZoneRecordGet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
@@ -863,6 +890,7 @@ type cmdNetworkZoneRecordCreate struct {
 	networkZoneRecord *cmdNetworkZoneRecord
 }
 
+// Command() constructs a new command for creating a network zone record with optional key-value configurations.
 func (c *cmdNetworkZoneRecordCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<zone> <record> [key=value...]"))
@@ -874,6 +902,7 @@ func (c *cmdNetworkZoneRecordCreate) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() executes the command to create a network zone record, handling input from terminal or stdin, and optional key-value pairs.
 func (c *cmdNetworkZoneRecordCreate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -945,6 +974,7 @@ type cmdNetworkZoneRecordSet struct {
 	flagIsProperty bool
 }
 
+// Command() returns a cobra.Command object configured to set configuration keys for a network zone record.
 func (c *cmdNetworkZoneRecordSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<zone> <record> <key>=<value>..."))
@@ -958,6 +988,7 @@ func (c *cmdNetworkZoneRecordSet) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() method executes the 'set' command, updating the configuration of a specified network zone record.
 func (c *cmdNetworkZoneRecordSet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
@@ -1021,6 +1052,7 @@ type cmdNetworkZoneRecordUnset struct {
 	flagIsProperty bool
 }
 
+// Command() method sets up the 'unset' command which removes specified keys from the network zone record configuration.
 func (c *cmdNetworkZoneRecordUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<zone> <record> <key>"))
@@ -1032,6 +1064,7 @@ func (c *cmdNetworkZoneRecordUnset) Command() *cobra.Command {
 	return cmd
 }
 
+// Run() method for the 'unset' command which delegates to 'set' command to remove a specified configuration key from a network zone record.
 func (c *cmdNetworkZoneRecordUnset) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
@@ -1051,6 +1084,7 @@ type cmdNetworkZoneRecordEdit struct {
 	networkZoneRecord *cmdNetworkZoneRecord
 }
 
+// Generates the 'edit' command to facilitate editing of network zone record configurations using YAML format.
 func (c *cmdNetworkZoneRecordEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<zone> <record>"))
@@ -1062,6 +1096,7 @@ func (c *cmdNetworkZoneRecordEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// Returns a template string to assist the user in creating or editing a network zone record in YAML format.
 func (c *cmdNetworkZoneRecordEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a YAML representation of the network zone record.
@@ -1077,6 +1112,7 @@ func (c *cmdNetworkZoneRecordEdit) helpTemplate() string {
 `)
 }
 
+// Edits an existing network zone record configuration using an interactive text editor, with changes applied upon editor exit.
 func (c *cmdNetworkZoneRecordEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -1168,6 +1204,7 @@ type cmdNetworkZoneRecordDelete struct {
 	networkZoneRecord *cmdNetworkZoneRecord
 }
 
+// Provides a command to delete a specified network zone record from a given zone.
 func (c *cmdNetworkZoneRecordDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<zone> <record>"))
@@ -1179,6 +1216,7 @@ func (c *cmdNetworkZoneRecordDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// Executes the removal of a specific network zone record from a specified zone.
 func (c *cmdNetworkZoneRecordDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -1218,6 +1256,7 @@ type cmdNetworkZoneRecordEntry struct {
 	flagTTL uint64
 }
 
+// Provides a command to manage (add or remove) entries in a network zone record.
 func (c *cmdNetworkZoneRecordEntry) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("entry")
@@ -1233,6 +1272,7 @@ func (c *cmdNetworkZoneRecordEntry) Command() *cobra.Command {
 	return cmd
 }
 
+// Provides a command to add an entry to a network zone record with optional TTL.
 func (c *cmdNetworkZoneRecordEntry) CommandAdd() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:]<zone> <record> <type> <value>"))
@@ -1244,6 +1284,7 @@ func (c *cmdNetworkZoneRecordEntry) CommandAdd() *cobra.Command {
 	return cmd
 }
 
+// Implements the action of adding a new entry to a network zone record with the provided values.
 func (c *cmdNetworkZoneRecordEntry) RunAdd(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 4, 4)
@@ -1279,6 +1320,7 @@ func (c *cmdNetworkZoneRecordEntry) RunAdd(cmd *cobra.Command, args []string) er
 	return resource.server.UpdateNetworkZoneRecord(resource.name, args[1], netRecord.Writable(), etag)
 }
 
+// Provides a command to remove an entry from a specified network zone record by given type and value.
 func (c *cmdNetworkZoneRecordEntry) CommandRemove() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<zone> <record> <type> <value>"))
@@ -1289,6 +1331,7 @@ func (c *cmdNetworkZoneRecordEntry) CommandRemove() *cobra.Command {
 	return cmd
 }
 
+// Implements the operation to remove a specific entry from a network zone record, identified by type and value.
 func (c *cmdNetworkZoneRecordEntry) RunRemove(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 4, 4)

@@ -75,6 +75,7 @@ func (devices DevicesSortable) Less(i, j int) bool {
 	return a.Name < b.Name
 }
 
+// Switches the position of two devices in a sortable list based on their indices.
 func (devices DevicesSortable) Swap(i, j int) {
 	devices[i], devices[j] = devices[j], devices[i]
 }

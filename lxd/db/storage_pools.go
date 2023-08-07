@@ -349,6 +349,7 @@ func (c *ClusterTx) StoragePoolErrored(name string) error {
 	return c.storagePoolState(name, storagePoolErrored)
 }
 
+// Updates the state of a specified storage pool in the database.
 func (c *ClusterTx) storagePoolState(name string, state StoragePoolState) error {
 	stmt := "UPDATE storage_pools SET state=? WHERE name=?"
 	result, err := c.tx.Exec(stmt, state, name)

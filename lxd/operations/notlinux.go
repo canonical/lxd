@@ -9,6 +9,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// Checks if an operation registration is supported on the platform; returns an error if not.
 func registerDBOperation(op *Operation, opType operationtype.Type) error {
 	if op.state != nil {
 		return fmt.Errorf("registerDBOperation not supported on this platform")
@@ -17,6 +18,7 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 	return nil
 }
 
+// Checks if operation removal is supported on the platform; returns an error if not.
 func removeDBOperation(op *Operation) error {
 	if op.state != nil {
 		return fmt.Errorf("registerDBOperation not supported on this platform")
@@ -25,6 +27,7 @@ func removeDBOperation(op *Operation) error {
 	return nil
 }
 
+// Dispatches an event message associated with the operation, if event dispatching is enabled.
 func (op *Operation) sendEvent(eventMessage any) {
 	if op.events == nil {
 		return

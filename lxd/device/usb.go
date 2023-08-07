@@ -158,6 +158,7 @@ func (d *usb) startContainer() (*deviceConfig.RunConfig, error) {
 	return &runConf, nil
 }
 
+// startVM configures the USB devices for a virtual machine and returns the run configuration.
 func (d *usb) startVM() (*deviceConfig.RunConfig, error) {
 	if d.inst.Type() == instancetype.VM && shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) {
 		return nil, fmt.Errorf("USB devices cannot be used when migration.stateful is enabled")
@@ -287,6 +288,7 @@ func (d *usb) loadUsb() ([]USBEvent, error) {
 	return result, nil
 }
 
+// loadRawValues reads raw attributes of a USB device from sysfs and returns them in a map.
 func (d *usb) loadRawValues(p string) (map[string]string, error) {
 	values := map[string]string{
 		"idVendor":  "",

@@ -9,6 +9,7 @@ import (
 	"github.com/canonical/lxd/shared/filter"
 )
 
+// TestParse_Error tests Parse function's error handling for invalid filter query strings.
 func TestParse_Error(t *testing.T) {
 	cases := map[string]string{
 		"not":                    "incomplete not clause",
@@ -30,6 +31,7 @@ func TestParse_Error(t *testing.T) {
 	}
 }
 
+// TestParse tests the Parse function for parsing a filter query string and verifying the result.
 func TestParse(t *testing.T) {
 	clauses, err := filter.Parse("foo eq \"bar egg\" or not baz eq yuk", filter.QueryOperatorSet())
 	require.NoError(t, err)

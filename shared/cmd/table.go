@@ -69,6 +69,7 @@ func RenderTable(format string, header []string, data [][]string, raw any) error
 	return nil
 }
 
+// getBaseTable creates and configures a table with the given header and data.
 func getBaseTable(header []string, data [][]string) *tablewriter.Table {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)

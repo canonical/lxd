@@ -75,6 +75,7 @@ func (s *DevLXDServer) Send(instanceID int, eventType string, eventMessage any) 
 	return s.broadcast(instanceID, event)
 }
 
+// Broadcasts an event to specific listeners associated with the given instance ID.
 func (s *DevLXDServer) broadcast(instanceID int, event api.Event) error {
 	s.lock.Lock()
 	listeners := s.listeners

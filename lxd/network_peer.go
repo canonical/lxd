@@ -128,6 +128,8 @@ var networkPeerCmd = APIEndpoint{
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves a list of network peers or their URLs, depending on the recursion flag.
 func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -217,6 +219,8 @@ func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Creates a new network peer for the specified network.
 func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -291,6 +295,8 @@ func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Deletes a network peer from the specified network.
 func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -378,6 +384,8 @@ func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Retrieves details of a specific network peer from the specified network.
 func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -494,6 +502,8 @@ func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/PreconditionFailed"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Updates the configuration of a specific network peer in the specified network.
 func networkPeerPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 

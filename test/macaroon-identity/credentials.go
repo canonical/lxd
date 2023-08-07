@@ -10,10 +10,12 @@ type credentialsChecker struct {
 	creds map[string]string
 }
 
+// newCredentialsChecker returns a new instance of credentialsChecker.
 func newCredentialsChecker() credentialsChecker {
 	return credentialsChecker{creds: map[string]string{}}
 }
 
+// Check validates the credentials in the form map.
 func (c *credentialsChecker) Check(form any) bool {
 	m := form.(map[string]any)
 	username := m["username"].(string)
@@ -22,12 +24,14 @@ func (c *credentialsChecker) Check(form any) bool {
 	return ok && pass == password
 }
 
+// AddCreds adds the provided credentials to the internal map.
 func (c *credentialsChecker) AddCreds(creds map[string]string) {
 	for user, pass := range creds {
 		c.creds[user] = pass
 	}
 }
 
+// LoadCreds loads credentials from a CSV file and adds them to the internal map.
 func (c *credentialsChecker) LoadCreds(csvFile string) error {
 	f, err := os.Open(csvFile)
 	if err != nil {

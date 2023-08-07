@@ -14,6 +14,7 @@ type batch struct {
 	createdAt time.Time
 }
 
+// newBatch creates a new batch and adds provided entries to it.
 func newBatch(entries ...entry) *batch {
 	b := &batch{
 		streams:   map[string]*Stream{},

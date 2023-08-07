@@ -25,6 +25,7 @@ type cmdGlobal struct {
 	reportDuration time.Duration
 }
 
+// Establishes LXD connection, prints server info, and prepares report handling.
 func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 	// Connect to LXD
 	srv, err := lxd.ConnectLXDUnix("", nil)
@@ -54,6 +55,7 @@ func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// Adds a report record and writes the report, if reporting is enabled.
 func (c *cmdGlobal) Teardown(cmd *cobra.Command, args []string) error {
 	// Nothing to do with not reporting
 	if c.report == nil {
@@ -78,6 +80,7 @@ func (c *cmdGlobal) Teardown(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// Executes application with command-line arguments.
 func main() {
 	app := &cobra.Command{}
 	app.Use = "lxd-benchmark"

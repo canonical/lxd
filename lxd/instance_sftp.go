@@ -41,6 +41,8 @@ import (
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles SFTP upgrade request for accessing instance files, locally or forwarded to a remote node if remote.
 func instanceSFTPHandler(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -103,10 +105,12 @@ type sftpServeResponse struct {
 	instConn    net.Conn
 }
 
+// The String method returns the string "sftp handler".
 func (r *sftpServeResponse) String() string {
 	return "sftp handler"
 }
 
+// The Render method handles the SFTP connection upgrade, bidirectional data copying, and error handling.
 func (r *sftpServeResponse) Render(w http.ResponseWriter) error {
 	defer func() { _ = r.instConn.Close() }()
 

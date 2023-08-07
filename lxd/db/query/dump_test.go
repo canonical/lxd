@@ -11,6 +11,8 @@ import (
 	"github.com/canonical/lxd/lxd/db/query"
 )
 
+// The `TestDump` function tests the generation of a database dump using the `query.Dump` function,
+// and compares it to the expected dump string.
 func TestDump(t *testing.T) {
 	tx := newTxForDump(t, "local")
 	dump, err := query.Dump(context.Background(), tx, false)
@@ -51,6 +53,8 @@ COMMIT;
 `, dump)
 }
 
+// TestDumpTablePatches checks if the schema and data of the 'patches'
+// table are correctly fetched and matched with expected results.
 func TestDumpTablePatches(t *testing.T) {
 	tx := newTxForDump(t, "local")
 
@@ -70,6 +74,8 @@ func TestDumpTablePatches(t *testing.T) {
 	})
 }
 
+// TestDumpTableConfig validates if the schema of the 'config'
+// table is correctly fetched and matches the expected output.
 func TestDumpTableConfig(t *testing.T) {
 	tx := newTxForDump(t, "local")
 
@@ -83,6 +89,7 @@ func TestDumpTableConfig(t *testing.T) {
 );`, dump["config"][1])
 }
 
+// TestDumpTableStoragePoolsConfig verifies the retrieval and correctness of the 'storage_pools_config' table's schema and data.
 func TestDumpTableStoragePoolsConfig(t *testing.T) {
 	tx := newTxForDump(t, "global")
 	dump, _, err := query.GetEntitiesSchemas(context.Background(), tx)

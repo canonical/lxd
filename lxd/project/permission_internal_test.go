@@ -8,6 +8,7 @@ import (
 	"github.com/canonical/lxd/shared/idmap"
 )
 
+// Tests parsing of host ID map ranges for various modes (uid, gid, both).
 func TestParseHostIDMapRange(t *testing.T) {
 	for _, mode := range []string{"uid", "gid", "both"} {
 		var isUID, isGID bool

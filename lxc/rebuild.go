@@ -20,6 +20,8 @@ type cmdRebuild struct {
 	flagForce bool
 }
 
+// Generates the Cobra command for the "rebuild" command, which is used to rebuild instances by wiping the root disk
+// and re-initializing them using the original image or a specified image or empty instance.
 func (c *cmdRebuild) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rebuild", i18n.G("[<remote>:]<image> [<remote>:]<instance>"))
@@ -34,6 +36,8 @@ func (c *cmdRebuild) Command() *cobra.Command {
 	return cmd
 }
 
+// Rebuilds instances by wiping the root disk and re-initializing them using the original image or a specified image or empty instance.
+// It also handles stopping and starting instances if the "force" flag is set.
 func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 	var name, image, remote, iremote string
 	var err error
@@ -205,6 +209,7 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 	return nil
 }
 
+// Runs the "rebuild" command, which triggers the rebuilding of instances based on the provided arguments and configuration.
 func (c *cmdRebuild) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 	if len(args) == 0 {

@@ -10,6 +10,7 @@ type cmdImport struct {
 	global *cmdGlobal
 }
 
+// Deprecated command now pointing to the "lxd recover" command.
 func (c *cmdImport) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "import"
@@ -21,6 +22,7 @@ func (c *cmdImport) Command() *cobra.Command {
 	return cmd
 }
 
+// Redirects to "lxd recover" when invoked, as this function has been replaced.
 func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 	return fmt.Errorf(`Command has been replaced with "lxd recover"`)
 }

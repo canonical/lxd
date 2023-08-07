@@ -21,6 +21,7 @@ type cmdSnapshot struct {
 	flagReuse    bool
 }
 
+// Command returns the Cobra command for creating instance snapshots, allowing for stateful snapshots and other options.
 func (c *cmdSnapshot) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("snapshot", i18n.G("[<remote>:]<instance> [<snapshot name>]"))
@@ -42,6 +43,7 @@ running state, including process memory state, TCP connections, ...`))
 	return cmd
 }
 
+// Run executes the command to create an instance snapshot, handling options like stateful snapshots, snapshot reuse, and expiration settings.
 func (c *cmdSnapshot) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 

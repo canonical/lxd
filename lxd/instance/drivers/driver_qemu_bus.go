@@ -29,6 +29,7 @@ type qemuBus struct {
 	entries map[string]*qemuBusEntry // Map of qemuBusEntry for a particular shared device.
 }
 
+// allocateRoot allocates a new root port for the QEMU bus.
 func (a *qemuBus) allocateRoot() *qemuBusEntry {
 	if a.rootPort == nil {
 		a.rootPort = &qemuBusEntry{
@@ -64,6 +65,7 @@ func (a *qemuBus) allocateDirect() (string, string, bool) {
 	return a.allocateInternal(busFunctionGroupNone, false)
 }
 
+// allocateInternal allocates an internal device on the QEMU bus and returns the device name, bus address, and whether it's a multi-function group.
 func (a *qemuBus) allocateInternal(multiFunctionGroup string, hotplug bool) (string, string, bool) {
 	if a.name == "ccw" {
 		return "", "", false

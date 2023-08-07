@@ -9,6 +9,7 @@ import (
 	"github.com/canonical/lxd/shared/osarch"
 )
 
+// TestQemuConfigTemplates tests the correctness of the qemuStringifyCfg function by comparing its output against expected configurations.
 func TestQemuConfigTemplates(t *testing.T) {
 	indent := regexp.MustCompile(`(?m)^[ \t]+`)
 

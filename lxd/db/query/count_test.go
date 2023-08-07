@@ -46,6 +46,8 @@ func TestCount(t *testing.T) {
 	}
 }
 
+// The `TestCountAll` function tests the counting of records in different categories
+// using the `query.CountAll` function.
 func TestCountAll(t *testing.T) {
 	tx := newTxForCount(t)
 	defer func() { _ = tx.Rollback() }()

@@ -8,6 +8,7 @@ import (
 	"github.com/canonical/lxd/shared/idmap"
 )
 
+// Tests the addition of root user namespace entries in various ID map scenarios.
 func TestDiskAddRootUserNSEntry(t *testing.T) {
 	// Check adds a combined uid/gid root entry to an empty list.
 	var idmaps []idmap.IdmapEntry

@@ -500,6 +500,7 @@ func (f *Field) InsertColumn(pkg *ast.Package, dbPkg *ast.Package, mapping *Mapp
 	return column, value, nil
 }
 
+// Retrieves the join configuration for a field, prioritizing 'join' over 'leftjoin'.
 func (f Field) JoinConfig() string {
 	join := f.Config.Get("join")
 	if join == "" {

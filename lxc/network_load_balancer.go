@@ -22,6 +22,8 @@ type cmdNetworkLoadBalancer struct {
 	flagTarget string
 }
 
+// Command returns a Cobra command for managing network load balancers, including subcommands for
+// listing, showing, creating, getting, setting, unsetting, editing, and deleting load balancers, managing backends, and managing ports.
 func (c *cmdNetworkLoadBalancer) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("load-balancer")
@@ -82,6 +84,7 @@ type cmdNetworkLoadBalancerList struct {
 	flagFormat string
 }
 
+// This function manages network load balancers, including subcommands for listing, showing, creating, getting, setting, unsetting, editing, and deleting load balancers, managing backends, and managing ports.
 func (c *cmdNetworkLoadBalancerList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]<network>"))
@@ -95,6 +98,7 @@ func (c *cmdNetworkLoadBalancerList) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command to list network load balancers, fetching the load balancer details from the server and rendering them in a table format.
 func (c *cmdNetworkLoadBalancerList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
@@ -162,6 +166,7 @@ type cmdNetworkLoadBalancerShow struct {
 	networkLoadBalancer *cmdNetworkLoadBalancer
 }
 
+// Command returns a Cobra command for showing network load balancer configurations.
 func (c *cmdNetworkLoadBalancerShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<network> <listen_address>"))
@@ -174,6 +179,7 @@ func (c *cmdNetworkLoadBalancerShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Run retrieves and displays the configuration of a network load balancer.
 func (c *cmdNetworkLoadBalancerShow) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -226,6 +232,7 @@ type cmdNetworkLoadBalancerCreate struct {
 	networkLoadBalancer *cmdNetworkLoadBalancer
 }
 
+// Command returns a Cobra command for creating new network load balancers.
 func (c *cmdNetworkLoadBalancerCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<network> <listen_address> [key=value...]"))
@@ -238,6 +245,8 @@ func (c *cmdNetworkLoadBalancerCreate) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command to create a new network load balancer. It parses the arguments, reads YAML input from stdin if available,
+// and creates the load balancer with the specified configuration.
 func (c *cmdNetworkLoadBalancerCreate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -324,6 +333,7 @@ type cmdNetworkLoadBalancerGet struct {
 	flagIsProperty bool
 }
 
+// Command returns a Cobra command for getting values of specific network load balancer configuration keys.
 func (c *cmdNetworkLoadBalancerGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<network> <listen_address> <key>"))
@@ -335,6 +345,7 @@ func (c *cmdNetworkLoadBalancerGet) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command to retrieve the value of a specific network load balancer configuration key.
 func (c *cmdNetworkLoadBalancerGet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
@@ -392,6 +403,7 @@ type cmdNetworkLoadBalancerSet struct {
 	flagIsProperty bool
 }
 
+// Command returns a Cobra command for setting network load balancer keys.
 func (c *cmdNetworkLoadBalancerSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<network> <listen_address> <key>=<value>..."))
@@ -409,6 +421,7 @@ For backward compatibility, a single configuration key may still be set with:
 	return cmd
 }
 
+// Run sets the network load balancer keys by updating the configuration with the provided key-value pairs.
 func (c *cmdNetworkLoadBalancerSet) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
@@ -490,6 +503,7 @@ type cmdNetworkLoadBalancerUnset struct {
 	flagIsProperty bool
 }
 
+// Command returns a Cobra command for unsetting network load balancer configuration keys.
 func (c *cmdNetworkLoadBalancerUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<network> <listen_address> <key>"))
@@ -501,6 +515,7 @@ func (c *cmdNetworkLoadBalancerUnset) Command() *cobra.Command {
 	return cmd
 }
 
+// Run is a helper function that invokes the networkLoadBalancerSet Run function to unset network load balancer configuration keys.
 func (c *cmdNetworkLoadBalancerUnset) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
@@ -520,6 +535,7 @@ type cmdNetworkLoadBalancerEdit struct {
 	networkLoadBalancer *cmdNetworkLoadBalancer
 }
 
+// Command returns a Cobra command for editing network load balancer configurations as YAML.
 func (c *cmdNetworkLoadBalancerEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<network> <listen_address>"))
@@ -532,6 +548,7 @@ func (c *cmdNetworkLoadBalancerEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// helpTemplate returns a string containing the YAML representation and instructions for editing network load balancer configurations.
 func (c *cmdNetworkLoadBalancerEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a YAML representation of the network load balancer.
@@ -555,6 +572,7 @@ func (c *cmdNetworkLoadBalancerEdit) helpTemplate() string {
 ### Note that the listen_address and location cannot be changed.`)
 }
 
+// Run executes the command to edit network load balancer configurations, allowing the user to modify the YAML representation using a text editor.
 func (c *cmdNetworkLoadBalancerEdit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -662,6 +680,7 @@ type cmdNetworkLoadBalancerDelete struct {
 	networkLoadBalancer *cmdNetworkLoadBalancer
 }
 
+// Command returns a Cobra command for deleting network load balancers.
 func (c *cmdNetworkLoadBalancerDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<network> <listen_address>"))
@@ -675,6 +694,7 @@ func (c *cmdNetworkLoadBalancerDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// Run deletes a network load balancer.
 func (c *cmdNetworkLoadBalancerDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
@@ -724,6 +744,7 @@ type cmdNetworkLoadBalancerBackend struct {
 	networkLoadBalancer *cmdNetworkLoadBalancer
 }
 
+// Command returns a Cobra command for managing network load balancer backends.
 func (c *cmdNetworkLoadBalancerBackend) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("backend")
@@ -739,6 +760,7 @@ func (c *cmdNetworkLoadBalancerBackend) Command() *cobra.Command {
 	return cmd
 }
 
+// CommandAdd returns a Cobra command for adding backends to a network load balancer.
 func (c *cmdNetworkLoadBalancerBackend) CommandAdd() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:]<network> <listen_address> <backend_name> <target_address> [<target_port(s)>]"))
@@ -751,6 +773,7 @@ func (c *cmdNetworkLoadBalancerBackend) CommandAdd() *cobra.Command {
 	return cmd
 }
 
+// RunAdd adds a backend to a network load balancer configuration.
 func (c *cmdNetworkLoadBalancerBackend) RunAdd(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 4, 5)
@@ -803,6 +826,7 @@ func (c *cmdNetworkLoadBalancerBackend) RunAdd(cmd *cobra.Command, args []string
 	return client.UpdateNetworkLoadBalancer(resource.name, loadBalancer.ListenAddress, loadBalancer.Writable(), etag)
 }
 
+// CommandRemove returns a Cobra command for removing backends from a network load balancer.
 func (c *cmdNetworkLoadBalancerBackend) CommandRemove() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<network> <listen_address> <backend_name>"))
@@ -815,6 +839,7 @@ func (c *cmdNetworkLoadBalancerBackend) CommandRemove() *cobra.Command {
 	return cmd
 }
 
+// RunRemove removes a backend from a network load balancer based on the provided arguments.
 func (c *cmdNetworkLoadBalancerBackend) RunRemove(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
@@ -889,6 +914,7 @@ type cmdNetworkLoadBalancerPort struct {
 	flagRemoveForce     bool
 }
 
+// Command returns a Cobra command for managing network load balancer ports, including adding and removing ports.
 func (c *cmdNetworkLoadBalancerPort) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("port")
@@ -904,6 +930,7 @@ func (c *cmdNetworkLoadBalancerPort) Command() *cobra.Command {
 	return cmd
 }
 
+// CommandAdd returns a Cobra command for adding ports to a network load balancer.
 func (c *cmdNetworkLoadBalancerPort) CommandAdd() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:]<network> <listen_address> <protocol> <listen_port(s)> <backend_name>[,<backend_name>...]"))
@@ -916,6 +943,7 @@ func (c *cmdNetworkLoadBalancerPort) CommandAdd() *cobra.Command {
 	return cmd
 }
 
+// RunAdd adds ports to a network load balancer by updating its configuration.
 func (c *cmdNetworkLoadBalancerPort) RunAdd(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 5, 5)
@@ -965,6 +993,7 @@ func (c *cmdNetworkLoadBalancerPort) RunAdd(cmd *cobra.Command, args []string) e
 	return client.UpdateNetworkLoadBalancer(resource.name, loadBalancer.ListenAddress, loadBalancer.Writable(), etag)
 }
 
+// CommandRemove returns a Cobra command for removing ports from a network load balancer.
 func (c *cmdNetworkLoadBalancerPort) CommandRemove() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<network> <listen_address> [<protocol>] [<listen_port(s)>]"))
@@ -978,6 +1007,7 @@ func (c *cmdNetworkLoadBalancerPort) CommandRemove() *cobra.Command {
 	return cmd
 }
 
+// RunRemove removes ports from a network load balancer based on the specified filter arguments.
 func (c *cmdNetworkLoadBalancerPort) RunRemove(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 4)

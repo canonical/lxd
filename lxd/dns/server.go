@@ -45,6 +45,7 @@ func (s *Server) Start(address string) error {
 	return s.start(address)
 }
 
+// start initiates the DNS server on the provided address, enabling TCP and UDP handling, and configures TSIG.
 func (s *Server) start(address string) error {
 	// Set default port if needed.
 	address = util.CanonicalNetworkAddress(address, 53)
@@ -91,6 +92,7 @@ func (s *Server) Stop() error {
 	return s.stop()
 }
 
+// stop terminates the running TCP and UDP DNS servers and clears the server address.
 func (s *Server) stop() error {
 	// Skip if no instance.
 	if s.tcpDNS == nil || s.udpDNS == nil {
@@ -115,6 +117,7 @@ func (s *Server) Reconfigure(address string) error {
 	return s.reconfigure(address)
 }
 
+// reconfigure stops the server, then starts it on a new address, with automatic revert on failure.
 func (s *Server) reconfigure(address string) error {
 	// Get the old address.
 	oldAddress := s.address
@@ -155,6 +158,7 @@ func (s *Server) UpdateTSIG() error {
 	return s.updateTSIG()
 }
 
+// updateTSIG retrieves and applies the TSIG secrets for TCP and UDP DNS servers.
 func (s *Server) updateTSIG() error {
 	// Skip if no instance.
 	if s.tcpDNS == nil || s.udpDNS == nil || s.db == nil {

@@ -29,6 +29,7 @@ type cmdConsole struct {
 	flagType    string
 }
 
+// Command sets up the 'console' command, which is used to interact with an instance's console or retrieve its log.
 func (c *cmdConsole) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("console", i18n.G("[<remote>:]<instance>"))
@@ -46,6 +47,7 @@ as well as retrieve past log entries from it.`))
 	return cmd
 }
 
+// sendTermSize sends the current terminal size over a websocket connection to adjust the size of the instance's console.
 func (c *cmdConsole) sendTermSize(control *websocket.Conn) error {
 	width, height, err := termios.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
@@ -94,6 +96,7 @@ func (er stdinMirror) Read(p []byte) (int, error) {
 	return n, err
 }
 
+// Run parses the command line arguments, validates flags, connects to the LXD instance and initiates the instance's console session or displays its console log.
 func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -143,6 +146,7 @@ func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 	return c.Console(d, name)
 }
 
+// Console establishes a console or VGA connection with the specified LXD instance based on the provided flag.
 func (c *cmdConsole) Console(d lxd.InstanceServer, name string) error {
 	if c.flagType == "" {
 		c.flagType = "console"
@@ -158,6 +162,7 @@ func (c *cmdConsole) Console(d lxd.InstanceServer, name string) error {
 	return fmt.Errorf(i18n.G("Unknown console type %q"), c.flagType)
 }
 
+// console attaches the terminal to the console of the specified LXD instance and handles terminal resize events and detach sequence.
 func (c *cmdConsole) console(d lxd.InstanceServer, name string) error {
 	// Configure the terminal
 	cfd := int(os.Stdin.Fd())
@@ -223,6 +228,7 @@ func (c *cmdConsole) console(d lxd.InstanceServer, name string) error {
 	return nil
 }
 
+// vga sets up a remote VGA console for the specified LXD instance, creating a SPICE socket and launching a viewer if available.
 func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 	var err error
 	conf := c.global.conf

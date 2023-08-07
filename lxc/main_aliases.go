@@ -24,6 +24,7 @@ var defaultAliases = map[string]string{
 	"shell": "exec @ARGS@ -- su -l",
 }
 
+// findAlias searches for an alias in a given map of aliases and returns the corresponding alias key, alias value, and a boolean indicating if the alias was found.
 func findAlias(aliases map[string]string, origArgs []string) ([]string, []string, bool) {
 	foundAlias := false
 	aliasKey := []string{}
@@ -48,6 +49,7 @@ func findAlias(aliases map[string]string, origArgs []string) ([]string, []string
 	return aliasKey, aliasValue, foundAlias
 }
 
+// expandAlias expands the given command arguments by replacing any aliases with their corresponding values and replacing referenced arguments.
 func expandAlias(conf *config.Config, args []string) ([]string, bool, error) {
 	var newArgs []string
 	var origArgs []string
@@ -151,6 +153,7 @@ func expandAlias(conf *config.Config, args []string) ([]string, bool, error) {
 	return newArgs, true, nil
 }
 
+// execIfAliases expands and executes the command if aliases are present in the command arguments.
 func execIfAliases() error {
 	args := os.Args
 

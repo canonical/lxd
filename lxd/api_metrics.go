@@ -37,6 +37,7 @@ var metricsCmd = APIEndpoint{
 	Get: APIEndpointAction{Handler: metricsGet, AccessHandler: allowMetrics, AllowUntrusted: true},
 }
 
+// allowMetrics checks API wide open status and applies project access restrictions for containers view.
 func allowMetrics(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -79,6 +80,8 @@ func allowMetrics(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// metricsGet retrieves and caches metrics for the specified project, returning a synchronous response.
 func metricsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -288,6 +291,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponsePlain(true, compress, metricSet.String())
 }
 
+// Collects internal metrics for the daemon, including warnings, operations, uptime, goroutines, and memory stats.
 func internalMetrics(ctx context.Context, daemonStartTime time.Time, tx *db.ClusterTx) *metrics.MetricSet {
 	out := metrics.NewMetricSet(nil)
 

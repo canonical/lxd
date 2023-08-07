@@ -31,6 +31,7 @@ func newDb() *cobra.Command {
 	return cmd
 }
 
+// newDbSchema creates a new Cobra command for generating the database schema by applying updates.
 func newDbSchema() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "schema",
@@ -43,6 +44,7 @@ func newDbSchema() *cobra.Command {
 	return cmd
 }
 
+// newDbMapper creates a new Cobra command for generating code that maps database rows to Go structs.
 func newDbMapper() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "mapper [sub-command]",
@@ -59,6 +61,7 @@ func newDbMapper() *cobra.Command {
 	return cmd
 }
 
+// newDbMapperReset creates a new Cobra command for resetting the target source file and its interface file.
 func newDbMapperReset() *cobra.Command {
 	var target string
 	var build string
@@ -80,6 +83,7 @@ func newDbMapperReset() *cobra.Command {
 	return cmd
 }
 
+// newDbMapperStmt creates a new Cobra command for generating a particular database statement.
 func newDbMapperStmt() *cobra.Command {
 	var target string
 	var database string
@@ -120,6 +124,7 @@ func newDbMapperStmt() *cobra.Command {
 	return cmd
 }
 
+// newDbMapperMethod creates a new Cobra command for generating a particular transaction method and interface signature.
 func newDbMapperMethod() *cobra.Command {
 	var target string
 	var database string
@@ -162,6 +167,7 @@ func newDbMapperMethod() *cobra.Command {
 	return cmd
 }
 
+// parseParams parses string arguments into a map of key-value configuration parameters.
 func parseParams(args []string) (map[string]string, error) {
 	config := map[string]string{}
 	for _, arg := range args {

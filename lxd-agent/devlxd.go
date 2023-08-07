@@ -41,6 +41,7 @@ type devLxdHandler struct {
 	f func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse
 }
 
+// getVsockClient connects to the LXD server over vsock and returns the client instance.
 func getVsockClient(d *Daemon) (lxd.InstanceServer, error) {
 	// Try connecting to LXD server.
 	client, err := getClient(d.serverCID, int(d.serverPort), d.serverCertificate)
@@ -250,6 +251,7 @@ func hoistReq(f func(*Daemon, http.ResponseWriter, *http.Request) *devLxdRespons
 	}
 }
 
+// devLxdAPI creates an HTTP router with handlers to process incoming requests for the specified daemon (`d`).
 func devLxdAPI(d *Daemon) http.Handler {
 	m := mux.NewRouter()
 	m.UseEncodedPath() // Allow encoded values in path segments.

@@ -667,6 +667,7 @@ func (d *lvm) logicalVolumeSize(volDevPath string) (int64, error) {
 	return strconv.ParseInt(output, 10, 64)
 }
 
+// Gets the total and used size of a thin pool volume.
 func (d *lvm) thinPoolVolumeUsage(volDevPath string) (uint64, uint64, error) {
 	args := []string{
 		volDevPath,

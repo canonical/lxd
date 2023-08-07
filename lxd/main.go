@@ -35,6 +35,7 @@ type cmdGlobal struct {
 	flagLogVerbose bool
 }
 
+// Run configures global logging settings and initializes the logger with the specified options.
 func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 	// Configure dqlite to *not* disable internal SQLite locking, since we
 	// use SQLite both through dqlite and through go-dqlite, potentially
@@ -82,6 +83,7 @@ func (c *cmdGlobal) rawArgs(cmd *cobra.Command) []string {
 	return []string{}
 }
 
+// It defines and executing sub-commands with global flags.
 func main() {
 	// daemon command (main)
 	daemonCmd := cmdDaemon{}

@@ -35,6 +35,7 @@ type cmdGlobal struct {
 	flagSubCmds    bool
 }
 
+// usageTemplateSubCmds returns a template string for generating usage information for commands and their subcommands.
 func usageTemplateSubCmds() string {
 	return `Usage:{{if .Runnable}}
   {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
@@ -64,6 +65,7 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 `
 }
 
+// main is the entry point of the LXD command-line client, handling alias execution, command setup, and error handling.
 func main() {
 	// Process aliases
 	err := execIfAliases()
@@ -303,6 +305,8 @@ To easily setup a local LXD server in a virtual machine, consider using: https:/
 	}
 }
 
+// PreRun performs pre-execution setup tasks for the LXD command, including loading configuration,
+// checking server initialization, prompting for passwords, and initializing the logger.
 func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 	var err error
 
@@ -417,6 +421,7 @@ Or for a virtual machine: lxc launch ubuntu:22.04 --vm`)+"\n")
 	return nil
 }
 
+// PostRun performs cleanup tasks after the execution of the LXD command, including saving cookies and OIDC tokens.
 func (c *cmdGlobal) PostRun(cmd *cobra.Command, args []string) error {
 	// Macaroon teardown
 	if c.conf != nil && shared.PathExists(c.confPath) {
@@ -434,6 +439,7 @@ type remoteResource struct {
 	name   string
 }
 
+// ParseServers establishes connections to remote servers, caching them for efficiency, and returns a list of remote resources.
 func (c *cmdGlobal) ParseServers(remotes ...string) ([]remoteResource, error) {
 	servers := map[string]lxd.InstanceServer{}
 	resources := []remoteResource{}
@@ -473,6 +479,7 @@ func (c *cmdGlobal) ParseServers(remotes ...string) ([]remoteResource, error) {
 	return resources, nil
 }
 
+// CheckArgs validates the number of arguments provided to a command against specified minimum and maximum limits.
 func (c *cmdGlobal) CheckArgs(cmd *cobra.Command, args []string, minArgs int, maxArgs int) (bool, error) {
 	if len(args) < minArgs || (maxArgs != -1 && len(args) > maxArgs) {
 		_ = cmd.Help()

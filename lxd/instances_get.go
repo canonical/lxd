@@ -217,6 +217,7 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 //    "500":
 //      $ref: "#/responses/InternalServerError"
 
+// This function tries to get instances data from the database with retries for retriable errors.
 func instancesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -240,6 +241,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 	return response.InternalError(fmt.Errorf("DB is locked"))
 }
 
+// This function retrieves instances data with options for recursion and filtering.
 func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 	resultFullList := []*api.InstanceFull{}
 	resultMu := sync.Mutex{}
@@ -572,6 +574,7 @@ func doContainersGetFromNode(projects []string, node string, allProjects bool, n
 	return containers, err
 }
 
+// This function retrieves full instance data from a remote member with timeout handling.
 func doContainersFullGetFromNode(projects []string, node string, allProjects bool, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, instanceType instancetype.Type) ([]api.InstanceFull, error) {
 	f := func() ([]api.InstanceFull, error) {
 		client, err := cluster.Connect(node, networkCert, serverCert, r, true)

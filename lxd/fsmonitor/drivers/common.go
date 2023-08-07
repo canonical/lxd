@@ -15,6 +15,7 @@ type common struct {
 	prefixPath string
 }
 
+// Initializes common fields of a data provider, including the logger, watch list and path prefix.
 func (d *common) init(logger logger.Logger, path string) {
 	d.logger = logger
 	d.watches = make(map[string]map[string]func(string, string) bool)

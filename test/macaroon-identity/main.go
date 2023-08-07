@@ -11,6 +11,7 @@ type flags struct {
 	CredsFile string
 }
 
+// Initializes and starts the authentication service with flags and credentials.
 func main() {
 	flags := parseFlags()
 	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
@@ -27,6 +28,7 @@ func main() {
 	}
 }
 
+// parseFlags parses command-line flags for the endpoint and credentials file path.
 func parseFlags() *flags {
 	endpoint := flag.String("endpoint", "localhost:8081", "service endpoint")
 	credsFile := flag.String("creds", "credentials.csv", "CSV file with credentials (username and password)")

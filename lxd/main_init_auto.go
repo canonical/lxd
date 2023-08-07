@@ -13,6 +13,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// Performs automatic initialization of the LXD instance server with necessary validations and configurations.
 func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServer, server *api.Server) (*api.InitPreseed, error) {
 	// Quick checks.
 	if c.flagStorageBackend != "" && !shared.StringInSlice(c.flagStorageBackend, storageDrivers.AllDriverNames()) {

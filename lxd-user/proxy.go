@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/shared"
 )
 
+// Generates a TLS configuration using client and server certificates for the given user ID.
 func tlsConfig(uid uint32) (*tls.Config, error) {
 	// Load the client certificate.
 	content, err := os.ReadFile(filepath.Join("users", fmt.Sprintf("%d", uid), "client.crt"))
@@ -47,6 +48,7 @@ func tlsConfig(uid uint32) (*tls.Config, error) {
 	return shared.GetTLSConfigMem(tlsClientCert, tlsClientKey, "", tlsServerCert, false)
 }
 
+// Proxies client connections to LXD server with TLS and user credentials handling.
 func proxyConnection(conn *net.UnixConn) {
 	defer func() {
 		_ = conn.Close()

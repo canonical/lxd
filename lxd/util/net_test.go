@@ -43,6 +43,7 @@ func TestInMemoryNetwork(t *testing.T) {
 	assert.EqualError(t, err, "io: read/write on closed pipe")
 }
 
+// Validates the canonicalization of network addresses.
 func TestCanonicalNetworkAddress(t *testing.T) {
 	cases := map[string]string{
 		"127.0.0.1":                             "127.0.0.1:8443",
@@ -64,6 +65,7 @@ func TestCanonicalNetworkAddress(t *testing.T) {
 	}
 }
 
+// Tests whether the function correctly identifies if one address covers another.
 func TestIsAddressCovered(t *testing.T) {
 	type testCase struct {
 		address1 string

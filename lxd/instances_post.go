@@ -38,6 +38,7 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
+// This function handles image download, caching, and storage budget enforcement for a specific project.
 func ensureDownloadedImageFitWithinBudget(s *state.State, r *http.Request, op *operations.Operation, p api.Project, img *api.Image, imgAlias string, source api.InstanceSource, imgType string) (*api.Image, error) {
 	var autoUpdate bool
 	var err error
@@ -77,6 +78,7 @@ func ensureDownloadedImageFitWithinBudget(s *state.State, r *http.Request, op *o
 	return imgDownloaded, nil
 }
 
+// Function creates a new instance from an image, handling image download, budget enforcement, and instance creation.
 func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []api.Profile, img *api.Image, imgAlias string, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
@@ -136,6 +138,7 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 	return operations.OperationResponse(op)
 }
 
+// Function creates a new instance with no image (from "none") and handles instance creation as empty.
 func createFromNone(s *state.State, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
@@ -186,6 +189,7 @@ func createFromNone(s *state.State, r *http.Request, projectName string, profile
 	return operations.OperationResponse(op)
 }
 
+// Function handles instance creation from migration, whether it's a pull or push migration.
 func createFromMigration(s *state.State, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() && r.Context().Value(request.CtxProtocol) != "cluster" {
 		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
@@ -398,6 +402,7 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 	return operations.OperationResponse(op)
 }
 
+// Function for creating an instance by copying an existing one with options and validations.
 func createFromCopy(s *state.State, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
@@ -559,6 +564,7 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 	return operations.OperationResponse(op)
 }
 
+// Function for creating an instance from a backup file, including pool selection, parsing backup info, and restoring to the target pool.
 func createFromBackup(s *state.State, r *http.Request, projectName string, data io.Reader, pool string, instanceName string) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
@@ -802,6 +808,8 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// Handles instance creation, considering various source types and clustering with instance placement.
 func instancesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1144,6 +1152,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	}
 }
 
+// Finds the appropriate storage pool for instance creation, considering root disk device and profiles.
 func instanceFindStoragePool(s *state.State, projectName string, req *api.InstancesPost) (string, string, string, map[string]string, response.Response) {
 	// Grab the container's root device if one is specified
 	storagePool := ""
@@ -1202,6 +1211,7 @@ func instanceFindStoragePool(s *state.State, projectName string, req *api.Instan
 	return storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, nil
 }
 
+// Performs a cluster-wide migration of a container from a remote node to the local node.
 func clusterCopyContainerInternal(s *state.State, r *http.Request, source instance.Instance, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	name := req.Source.Source
 

@@ -15,6 +15,7 @@ import (
 
 var supportedVolumeTypes = []int{db.StoragePoolVolumeTypeContainer, db.StoragePoolVolumeTypeVM, db.StoragePoolVolumeTypeCustom, db.StoragePoolVolumeTypeImage}
 
+// storagePoolVolumeUpdateUsers updates instances and profiles that use the volume to reflect changes in pool and volume name.
 func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolName string, oldVol *api.StorageVolume, newPoolName string, newVol *api.StorageVolume) error {
 	// Update all instances that are using the volume with a local (non-expanded) device.
 	err := storagePools.VolumeUsedByInstanceDevices(s, oldPoolName, projectName, oldVol, false, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
@@ -133,6 +134,7 @@ func storagePoolVolumeUsedByGet(s *state.State, requestProjectName string, poolN
 	return volumeUsedBy, nil
 }
 
+// storagePoolVolumeBackupLoadByName loads a volume backup from the database and returns a VolumeBackup object.
 func storagePoolVolumeBackupLoadByName(s *state.State, projectName, poolName, backupName string) (*backup.VolumeBackup, error) {
 	b, err := s.DB.Cluster.GetStoragePoolVolumeBackup(projectName, poolName, backupName)
 	if err != nil {

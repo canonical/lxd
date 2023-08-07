@@ -11,6 +11,8 @@ import (
 	"github.com/canonical/lxd/lxd/db/query"
 )
 
+// The `TestSelectConfig` function tests the retrieval of configuration values
+// using the `query.SelectConfig` function.
 func TestSelectConfig(t *testing.T) {
 	tx := newTxForConfig(t)
 	values, err := query.SelectConfig(context.Background(), tx, "test", "")
@@ -18,6 +20,8 @@ func TestSelectConfig(t *testing.T) {
 	assert.Equal(t, map[string]string{"foo": "x", "bar": "zz"}, values)
 }
 
+// The `TestSelectConfig_WithFilters` function tests the retrieval of specific configuration values
+// using the `query.SelectConfig` function with filters applied.
 func TestSelectConfig_WithFilters(t *testing.T) {
 	tx := newTxForConfig(t)
 	values, err := query.SelectConfig(context.Background(), tx, "test", "key=?", "bar")

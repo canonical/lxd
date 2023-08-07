@@ -8,6 +8,7 @@ import (
 	"github.com/canonical/lxd/lxd/config"
 )
 
+// TestAvailableExecutable checks if the AvailableExecutable method correctly identifies existing and non-existing executables.
 func TestAvailableExecutable(t *testing.T) {
 	assert.NoError(t, config.AvailableExecutable("ls"))
 	assert.NoError(t, config.AvailableExecutable("none"))

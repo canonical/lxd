@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// ExampleURL demonstrates the usage of NewURL to create and modify LXD API URLs.
 func ExampleURL() {
 	u := NewURL()
 	fmt.Println(u.Path("1.0", "networks", "name-with-/-in-it"))

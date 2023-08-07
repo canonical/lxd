@@ -11,6 +11,7 @@ import (
 	"github.com/canonical/lxd/shared/filter"
 )
 
+// TestMatch_Instance tests the Match function with various filter queries on an instance.
 func TestMatch_Instance(t *testing.T) {
 	instance := api.Instance{
 		InstancePut: api.InstancePut{
@@ -55,6 +56,7 @@ func TestMatch_Instance(t *testing.T) {
 	}
 }
 
+// TestMatch_Image tests the Match function with various filter queries on an image.
 func TestMatch_Image(t *testing.T) {
 	image := api.Image{
 		ImagePut: api.ImagePut{
