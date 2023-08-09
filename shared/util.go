@@ -329,7 +329,7 @@ func ReaderToChannel(r io.Reader, bufferSize int) <-chan []byte {
 	return ch
 }
 
-// Returns a random base64 encoded string from crypto/rand.
+// Returns a random hex encoded string from crypto/rand.
 func RandomCryptoString() (string, error) {
 	buf := make([]byte, 32)
 	n, err := rand.Read(buf)
