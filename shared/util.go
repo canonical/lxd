@@ -329,7 +329,7 @@ func ReaderToChannel(r io.Reader, bufferSize int) <-chan []byte {
 	return ch
 }
 
-// Returns a random base64 encoded string from crypto/rand.
+// Returns a random hex encoded string from crypto/rand.
 func RandomCryptoString() (string, error) {
 	buf := make([]byte, 32)
 	n, err := rand.Read(buf)
@@ -1340,7 +1340,7 @@ func SplitNTrimSpace(s string, sep string, n int, nilIfEmpty bool) []string {
 	return parts
 }
 
-// JoinTokenDecode decodes a base64 and JSON encode join token.
+// JoinTokenDecode decodes a base64 and JSON encoded join token.
 func JoinTokenDecode(input string) (*api.ClusterMemberJoinToken, error) {
 	joinTokenJSON, err := base64.StdEncoding.DecodeString(input)
 	if err != nil {
