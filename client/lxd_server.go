@@ -63,13 +63,7 @@ func (r *ProtocolLXD) HasExtension(extension string) bool {
 		return true
 	}
 
-	for _, entry := range r.server.APIExtensions {
-		if entry == extension {
-			return true
-		}
-	}
-
-	return false
+	return shared.StringInSlice(extension, r.server.APIExtensions)
 }
 
 // CheckExtension checks if the server has the specified extension.
