@@ -646,6 +646,7 @@ test_basic_usage() {
   # Test rebuilding an instance with an empty file system.
   lxc init testimage c1
   lxc rebuild c1 --empty
+  ! lxc config show c1 | grep -q 'image.*' || false
   lxc delete c1 -f
 
   # Test assigning an empty profile (with no root disk device) to an instance.
