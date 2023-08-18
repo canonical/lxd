@@ -180,4 +180,5 @@ if ("TOPICAL" in os.environ) and (os.environ["TOPICAL"] == "True"):
     tags.add('topical')
 else:
     exclude_patterns.extend(['index_topical.md','security.md','external_resources.md','reference/network_external.md'])
+    redirects["security/index"] = "../explanation/security/"
     tags.add('diataxis')
