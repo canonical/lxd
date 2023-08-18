@@ -48,7 +48,7 @@ The LXD project is sponsored by [Canonical Ltd](https://www.canonical.com).
 - [Release tarballs](https://github.com/canonical/lxd/releases/)
 - [Get support](support.md)
 - [Watch tutorials and announcements on YouTube](https://www.youtube.com/c/LXDvideos)
-- [Discuss on IRC](https://web.libera.chat/#lxd) (see [Getting started with IRC](https://discuss.linuxcontainers.org/t/getting-started-with-irc/11920) if needed)
+- [Discuss on IRC](https://web.libera.chat/#lxd) (see [Getting started with IRC](https://discourse.ubuntu.com/t/getting-started-with-irc/37907) if needed)
 - [Ask and answer questions on the forum](https://discourse.ubuntu.com/c/lxd/)
 
 ```{toctree}
