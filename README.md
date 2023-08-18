@@ -58,7 +58,7 @@ Consider the following aspects to ensure that your LXD installation is secure:
 - Configure your network interfaces to be secure.
 <!-- Include end security -->
 
-See [Security](https://documentation.ubuntu.com/lxd/en/latest/security/) for detailed information.
+See [Security](https://documentation.ubuntu.com/lxd/en/latest/explanation/security/) for detailed information.
 
 **IMPORTANT:**
 <!-- Include start security note -->
