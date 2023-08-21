@@ -309,65 +309,493 @@ func (c *Config) update(values map[string]any) (map[string]string, error) {
 
 // ConfigSchema defines available server configuration keys.
 var ConfigSchema = config.Schema{
-	"acme.ca_url":                    {},
-	"acme.domain":                    {},
-	"acme.email":                     {},
-	"acme.agree_tos":                 {Type: config.Bool, Default: "false"},
-	"backups.compression_algorithm":  {Default: "gzip", Validator: validate.IsCompressionAlgorithm},
-	"cluster.offline_threshold":      {Type: config.Int64, Default: offlineThresholdDefault(), Validator: offlineThresholdValidator},
+	// lxddoc:generate(group=server-acme, key=acme.ca_url)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  default: `https://acme-v02.api.letsencrypt.org/directory`
+	//  shortdesc: Agree to ACME terms of service
+	"acme.ca_url": {},
+
+	// lxddoc:generate(group=server-acme, key=acme.domain)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Domain for which the certificate is issued
+	"acme.domain": {},
+
+	// lxddoc:generate(group=server-acme, key=acme.email)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Email address used for the account registration
+	"acme.email": {},
+
+	// lxddoc:generate(group=server-acme, key=acme.agree_tos)
+	//
+	// ---
+	//  type: bool
+	//  scope: global
+	//  default: `false`
+	//  shortdesc: Agree to ACME terms of service
+	"acme.agree_tos": {Type: config.Bool, Default: "false"},
+
+	// lxddoc:generate(group=server-miscellaneous, key=backups.compression_algorithm)
+	// Possible values are `bzip2`, `gzip`, `lzma`, `xz`, or `none`.
+	// ---
+	//  type: string
+	//  scope: global
+	//  default: `gzip`
+	//  shortdesc: Compression algorithm to use for backups
+	"backups.compression_algorithm": {Default: "gzip", Validator: validate.IsCompressionAlgorithm},
+
+	// lxddoc:generate(group=server-cluster, key=cluster.offline_threshold)
+	// Specify the number of seconds after which an unresponsive member is considered offline.
+	// ---
+	//  type: integer
+	//  scope: global
+	//  default: `20`
+	//  shortdesc: Threshold when an unresponsive member is considered offline
+	"cluster.offline_threshold": {Type: config.Int64, Default: offlineThresholdDefault(), Validator: offlineThresholdValidator},
+	// lxddoc:generate(group=server-cluster, key=cluster.images_minimal_replica)
+	// Specify the minimal number of cluster members that keep a copy of a particular image.
+	// Set this option to `1` for no replication, or to `-1` to replicate images on all members.
+	// ---
+	//  type: integer
+	//  scope: global
+	//  default: `3`
+	//  shortdesc: Number of cluster members that replicate an image
 	"cluster.images_minimal_replica": {Type: config.Int64, Default: "3", Validator: imageMinimalReplicaValidator},
-	"cluster.healing_threshold":      {Type: config.Int64, Default: "0"},
-	"cluster.join_token_expiry":      {Type: config.String, Default: "3H", Validator: expiryValidator},
-	"cluster.max_voters":             {Type: config.Int64, Default: "3", Validator: maxVotersValidator},
-	"cluster.max_standby":            {Type: config.Int64, Default: "2", Validator: maxStandByValidator},
-	"core.metrics_authentication":    {Type: config.Bool, Default: "true"},
-	"core.bgp_asn":                   {Type: config.Int64, Default: "0", Validator: validate.Optional(validate.IsInRange(0, 4294967294))},
-	"core.https_allowed_headers":     {},
-	"core.https_allowed_methods":     {},
-	"core.https_allowed_origin":      {},
+
+	// lxddoc:generate(group=server-cluster, key=cluster.healing_threshold)
+	// Specify the number of seconds after which an offline cluster member is to be evacuated.
+	// To disable evacuating offline members, set this option to `0`.
+	// ---
+	//  type: integer
+	//  scope: global
+	//  default: `0`
+	//  shortdesc: Threshold when to evacuate an offline cluster member
+	"cluster.healing_threshold": {Type: config.Int64, Default: "0"},
+
+	// lxddoc:generate(group=server-cluster, key=cluster.join_token_expiry)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  default: `3H`
+	//  shortdesc: Time after which a cluster join token expires
+	"cluster.join_token_expiry": {Type: config.String, Default: "3H", Validator: expiryValidator},
+
+	// lxddoc:generate(group=server-cluster, key=cluster.max_voters)
+	// Specify the maximum number of cluster members that are assigned the database voter role.
+	// This must be an odd number >= `3`.
+	// ---
+	//  type: integer
+	//  scope: global
+	//  default: `3`
+	//  shortdesc: Number of database voter members
+	"cluster.max_voters": {Type: config.Int64, Default: "3", Validator: maxVotersValidator},
+
+	// lxddoc:generate(group=server-cluster, key=cluster.max_standby)
+	// Specify the maximum number of cluster members that are assigned the database stand-by role.
+	// This must be a number between `0` and `5`.
+	// ---
+	//  type: integer
+	//  scope: global
+	//  default: `2`
+	//  shortdesc: Number of database stand-by members
+	"cluster.max_standby": {Type: config.Int64, Default: "2", Validator: maxStandByValidator},
+
+	// lxddoc:generate(group=server-core, key=core.metrics_authentication)
+	//
+	// ---
+	//  type: bool
+	//  scope: global
+	//  default: `true`
+	//  shortdesc: Whether to enforce authentication on the metrics endpoint
+	"core.metrics_authentication": {Type: config.Bool, Default: "true"},
+
+	// lxddoc:generate(group=server-core, key=core.bgp_asn)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: BGP Autonomous System Number for the local server
+	"core.bgp_asn": {Type: config.Int64, Default: "0", Validator: validate.Optional(validate.IsInRange(0, 4294967294))},
+
+	// lxddoc:generate(group=server-core, key=core.https_allowed_headers)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: `Access-Control-Allow-Headers` HTTP header value
+	"core.https_allowed_headers": {},
+
+	// lxddoc:generate(group=server-core, key=core.https_allowed_methods)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: `Access-Control-Allow-Methods` HTTP header value
+	"core.https_allowed_methods": {},
+
+	// lxddoc:generate(group=server-core, key=core.https_allowed_origin)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: `Access-Control-Allow-Origin` HTTP header value
+	"core.https_allowed_origin": {},
+
+	// lxddoc:generate(group=server-core, key=core.https_allowed_credentials)
+	// If enabled, the `Access-Control-Allow-Credentials` HTTP header value is set to `true`.
+	// ---
+	//  type: bool
+	//  scope: global
+	//  shortdesc: Whether to set `Access-Control-Allow-Credentials`
 	"core.https_allowed_credentials": {Type: config.Bool},
-	"core.https_trusted_proxy":       {},
-	"core.proxy_http":                {},
-	"core.proxy_https":               {},
-	"core.proxy_ignore_hosts":        {},
-	"core.remote_token_expiry":       {Type: config.String, Validator: validate.Optional(expiryValidator)},
-	"core.shutdown_timeout":          {Type: config.Int64, Default: "5"},
-	"core.trust_password":            {Hidden: true, Setter: passwordSetter},
-	"core.trust_ca_certificates":     {Type: config.Bool},
-	"candid.api.key":                 {},
-	"candid.api.url":                 {},
-	"candid.domains":                 {},
-	"candid.expiry":                  {Type: config.Int64, Default: "3600"},
-	"images.auto_update_cached":      {Type: config.Bool, Default: "true"},
-	"images.auto_update_interval":    {Type: config.Int64, Default: "6"},
-	"images.compression_algorithm":   {Default: "gzip", Validator: validate.IsCompressionAlgorithm},
-	"images.default_architecture":    {Validator: validate.Optional(validate.IsArchitecture)},
-	"images.remote_cache_expiry":     {Type: config.Int64, Default: "10"},
-	"instances.nic.host_name":        {Validator: validate.Optional(validate.IsOneOf("random", "mac"))},
-	"instances.placement.scriptlet":  {Validator: validate.Optional(scriptletLoad.InstancePlacementValidate)},
-	"loki.auth.username":             {},
-	"loki.auth.password":             {Hidden: true},
-	"loki.api.ca_cert":               {},
-	"loki.api.url":                   {},
-	"loki.labels":                    {},
-	"loki.loglevel":                  {Validator: logLevelValidator, Default: logrus.InfoLevel.String()},
-	"loki.types":                     {Validator: validate.Optional(validate.IsListOf(validate.IsOneOf("lifecycle", "logging"))), Default: "lifecycle,logging"},
-	"maas.api.key":                   {},
-	"maas.api.url":                   {},
-	"oidc.client.id":                 {},
-	"oidc.issuer":                    {},
-	"oidc.audience":                  {},
-	"rbac.agent.url":                 {},
-	"rbac.agent.username":            {},
-	"rbac.agent.private_key":         {},
-	"rbac.agent.public_key":          {},
-	"rbac.api.expiry":                {Type: config.Int64, Default: "3600"},
-	"rbac.api.key":                   {},
-	"rbac.api.url":                   {},
-	"rbac.expiry":                    {Type: config.Int64, Default: "3600"},
+
+	// lxddoc:generate(group=server-core, key=core.https_trusted_proxy)
+	// Specify a comma-separated list of IP addresses of trusted servers that provide the client's address through the proxy connection header.
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Trusted servers to provide the client's address
+	"core.https_trusted_proxy": {},
+
+	// lxddoc:generate(group=server-core, key=core.proxy_http)
+	// If this option is not specified, LXD falls back to the `HTTP_PROXY` environment variable (if set).
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: HTTP proxy to use
+	"core.proxy_http": {},
+
+	// lxddoc:generate(group=server-core, key=core.proxy_https)
+	// If this option is not specified, LXD falls back to the `HTTPS_PROXY` environment variable (if set).
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: HTTPS proxy to use
+	"core.proxy_https": {},
+
+	// lxddoc:generate(group=server-core, key=core.proxy_ignore_hosts)
+	// Specify this option in a similar format to `NO_PROXY` (for example, `1.2.3.4,1.2.3.5`)
+	//
+	// If this option is not specified, LXD falls back to the `NO_PROXY` environment variable (if set).
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Hosts that don't need the proxy
+	"core.proxy_ignore_hosts": {},
+
+	// lxddoc:generate(group=server-core, key=core.remote_token_expiry)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  default: no expiry
+	//  shortdesc: Time after which a remote add token expires
+	"core.remote_token_expiry": {Type: config.String, Validator: validate.Optional(expiryValidator)},
+
+	// lxddoc:generate(group=server-core, key=core.shutdown_timeout)
+	// Specify the number of minutes to wait for running operations to complete before the LXD server shuts down.
+	// ---
+	//  type: integer
+	//  scope: global
+	//  default: `5`
+	//  shortdesc: How long to wait before shutdown
+	"core.shutdown_timeout": {Type: config.Int64, Default: "5"},
+
+	// lxddoc:generate(group=server-core, key=core.trust_password)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Password to be provided by clients to set up a trust
+	"core.trust_password": {Hidden: true, Setter: passwordSetter},
+
+	// lxddoc:generate(group=server-core, key=core.trust_ca_certificates)
+	//
+	// ---
+	//  type: bool
+	//  scope: global
+	//  shortdesc: Whether to automatically trust clients signed by the CA
+	"core.trust_ca_certificates": {Type: config.Bool},
+
+	// lxddoc:generate(group=server-candid-and-rbac, key=candid.api_key)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  condition: required for HTTP-only servers
+	//  shortdesc: Public key of the Candid server
+	"candid.api.key": {},
+
+	// lxddoc:generate(group=server-candid-and-rbac, key=candid.api_url)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: URL of the external authentication endpoint using Candid
+	"candid.api.url": {},
+
+	// lxddoc:generate(group=server-candid-and-rbac, key=candid.domains)
+	// Specify a comma-separated list of allowed Candid domains.
+	// An empty string means all domains are valid.
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Allowed Candid domains
+	"candid.domains": {},
+
+	// lxddoc:generate(group=server-candid-and-rbac, key=candid.expiry)
+	// Specify the expiry time in seconds.
+	// ---
+	//  type: integer
+	//  scope: global
+	//  default: `3600`
+	//  shortdesc: Candid macaroon expiry
+	"candid.expiry": {Type: config.Int64, Default: "3600"},
+
+	// lxddoc:generate(group=server-images, key=images.auto_update_cached)
+	//
+	// ---
+	//  type: bool
+	//  scope: global
+	//  default: `true`
+	//  shortdesc: Whether to automatically update cached images
+	"images.auto_update_cached": {Type: config.Bool, Default: "true"},
+
+	// lxddoc:generate(group=server-images, key=images.auto_update_interval)
+	// Specify the interval in hours.
+	// To disable looking for updates to cached images, set this option to `0`.
+	// ---
+	//  type: integer
+	//  scope: global
+	//  default: `6`
+	//  shortdesc: Interval at which to look for updates to cached images
+	"images.auto_update_interval": {Type: config.Int64, Default: "6"},
+
+	// lxddoc:generate(group=server-images, key=images.compression_algorithm)
+	// Possible values are `bzip2`, `gzip`, `lzma`, `xz`, or `none`.
+	// ---
+	//  type: string
+	//  scope: global
+	//  default: `gzip`
+	//  shortdesc: Compression algorithm to use for new images
+	"images.compression_algorithm": {Default: "gzip", Validator: validate.IsCompressionAlgorithm},
+
+	// lxddoc:generate(group=server-images, key=images.default_architecture)
+	//
+	// ---
+	//  type: string
+	//  shortdesc: Default architecture to use in a mixed-architecture cluster
+	"images.default_architecture": {Validator: validate.Optional(validate.IsArchitecture)},
+
+	// lxddoc:generate(group=server-images, key=images.remote_cache_expiry)
+	// Specify the number of days after which the unused cached image expires.
+	// ---
+	//  type: integer
+	//  scope: global
+	//  default: `10`
+	//  shortdesc: When an unused cached remote image is flushed
+	"images.remote_cache_expiry": {Type: config.Int64, Default: "10"},
+
+	// lxddoc:generate(group=server-miscellaneous, key=instances.nic.host_name)
+	// Possible values are `random` and `mac`.
+	//
+	// If set to `random`, use the random host interface name as the host name.
+	// If set to `mac`, generate a host name in the form `lxd<mac_address>` (MAC without leading two digits).
+	// ---
+	//  type: string
+	//  scope: global
+	//  default: `random`
+	//  shortdesc: How to set the host name for a NIC
+	"instances.nic.host_name": {Validator: validate.Optional(validate.IsOneOf("random", "mac"))},
+
+	// lxddoc:generate(group=server-miscellaneous, key=instances.placement.scriptlet)
+	// When using custom automatic instance placement logic, this option stores the scriptlet.
+	// See {ref}`clustering-instance-placement-scriptlet` for more information.
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Instance placement scriptlet for automatic instance placement
+	"instances.placement.scriptlet": {Validator: validate.Optional(scriptletLoad.InstancePlacementValidate)},
+
+	// lxddoc:generate(group=server-loki, key=loki.auth.username)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: User name used for Loki authentication
+	"loki.auth.username": {},
+
+	// lxddoc:generate(group=server-loki, key=loki.auth.password)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Password used for Loki authentication
+	"loki.auth.password": {Hidden: true},
+
+	// lxddoc:generate(group=server-loki, key=loki.api.ca_cert)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: CA certificate for the Loki server
+	"loki.api.ca_cert": {},
+
+	// lxddoc:generate(group=server-loki, key=loki.api.url)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: URL to the Loki server
+	"loki.api.url": {},
+
+	// lxddoc:generate(group=server-loki, key=loki.labels)
+	// Specify a comma-separated list of values that should be used as labels for a Loki log entry.
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Labels for a Loki log entry
+	"loki.labels": {},
+	// lxddoc:generate(group=server-loki, key=loki.loglevel)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  default: `info`
+	//  shortdesc: Minimum log level to send to the Loki server
+	"loki.loglevel": {Validator: logLevelValidator, Default: logrus.InfoLevel.String()},
+
+	// lxddoc:generate(group=server-loki, key=loki.types)
+	// Specify a comma-separated list of events to send to the Loki server.
+	// The events can be `lifecycle` and/or `logging`.
+	// ---
+	//  type: string
+	//  scope: global
+	//  default: `lifecycle,logging`
+	//  shortdesc: Events to send to the Loki server
+	"loki.types": {Validator: validate.Optional(validate.IsListOf(validate.IsOneOf("lifecycle", "logging"))), Default: "lifecycle,logging"},
+
+	// lxddoc:generate(group=server-miscellaneous, key=maas.api.key)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: API key to manage MAAS
+	"maas.api.key": {},
+
+	// lxddoc:generate(group=server-miscellaneous, key=maas.api.url)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: URL of the MAAS server
+	"maas.api.url": {},
+
+	// lxddoc:generate(group=server-oidc, key=oidc.client.id)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: OpenID Connect client ID
+	"oidc.client.id": {},
+
+	// lxddoc:generate(group=server-oidc, key=oidc.issuer)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: OpenID Connect Discovery URL for the provider
+	"oidc.issuer": {},
+
+	// lxddoc:generate(group=server-oidc, key=oidc.audience)
+	// This value is required by some providers.
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Expected audience value for the application
+	"oidc.audience": {},
+
+	// lxddoc:generate(group=server-candid-and-rbac, key=rbac.agent.url)
+	// Specify the URL as provided during RBAC registration.
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: URL of the Candid agent
+	"rbac.agent.url": {},
+
+	// lxddoc:generate(group=server-candid-and-rbac, key=rbac.agent.username)
+	// Specify the user name as provided during RBAC registration.
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: User name of the Candid agent
+	"rbac.agent.username": {},
+	// lxddoc:generate(group=server-candid-and-rbac, key=rbac.agent.private_key)
+	// Specify the private key as provided during RBAC registration.
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Private key of the Candid agent
+	"rbac.agent.private_key": {},
+	// lxddoc:generate(group=server-candid-and-rbac, key=rbac.agent.public_key)
+	// Specify the public key as provided during RBAC registration.
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Public key of the Candid agent
+	"rbac.agent.public_key": {},
+	// lxddoc:generate(group=server-candid-and-rbac, key=rbac.api.expiry)
+	// Specify the expiry time in seconds.
+	// ---
+	//  type: integer
+	//  scope: global
+	//  shortdesc: RBAC macaroon expiry
+	"rbac.api.expiry": {Type: config.Int64, Default: "3600"},
+
+	// lxddoc:generate(group=server-candid-and-rbac, key=rbac.api.key)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  condition: required for HTTP-only servers
+	//  shortdesc: Public key of the RBAC server
+	"rbac.api.key": {},
+
+	// lxddoc:generate(group=server-candid-and-rbac, key=rbac.api.url)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: URL of the external RBAC server
+	"rbac.api.url": {},
+	"rbac.expiry":  {Type: config.Int64, Default: "3600"},
 
 	// OVN networking global keys.
-	"network.ovn.integration_bridge":    {Default: "br-int"},
+
+	// lxddoc:generate(group=server-miscellaneous, key=network.ovn.integration_bridge)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  default: `br-int`
+	//  shortdesc: OVS integration bridge to use for OVN networks
+	"network.ovn.integration_bridge": {Default: "br-int"},
+	// lxddoc:generate(group=server-miscellaneous, key=network.ovn.northbound_connection)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  default: `unix:/var/run/ovn/ovnnb_db.sock`
+	//  shortdesc: OVN northbound database connection string
 	"network.ovn.northbound_connection": {Default: "unix:/var/run/ovn/ovnnb_db.sock"},
 }
 

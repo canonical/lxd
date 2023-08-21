@@ -8,6 +8,7 @@ The reference material in this section provides technical descriptions of LXD.
 
 /architectures
 /reference/cluster_member_config
+Configuration option index </config-options>
 Container environment </container-environment>
 /reference/image_format
 /explanation/instance_config

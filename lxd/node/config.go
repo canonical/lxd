@@ -156,33 +156,110 @@ func (c *Config) update(values map[string]any) (map[string]string, error) {
 // ConfigSchema defines available server configuration keys.
 var ConfigSchema = config.Schema{
 	// Network address for this LXD server
+
+	// lxddoc:generate(group=server-core, key=core.https_address)
+	// See {ref}`server-expose`.
+	// ---
+	//  type: string
+	//  scope: local
+	//  shortdesc: Address to bind for the remote API (HTTPS)
 	"core.https_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
 	// Network address for cluster communication
+
+	// lxddoc:generate(group=server-cluster, key=cluster.https_address)
+	// See {ref}`cluster-https-address`.
+	// ---
+	//  type: string
+	//  scope: local
+	//  shortdesc: Address to use for clustering traffic
 	"cluster.https_address": {Validator: validate.Optional(validate.IsListenAddress(true, false, false))},
 
 	// Network address for the BGP server
+
+	// lxddoc:generate(group=server-core, key=core.bgp_address)
+	// See {ref}`network-bgp`.
+	// ---
+	//  type: string
+	//  scope: local
+	//  shortdesc: Address to bind the BGP server to
 	"core.bgp_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
 	// Unique router ID for the BGP server
+
+	// lxddoc:generate(group=server-core, key=core.bgp_routerid)
+	// The identifier must be formatted as an IPv4 address.
+	// ---
+	//  type: string
+	//  scope: local
+	//  shortdesc: A unique identifier for the BGP server
 	"core.bgp_routerid": {Validator: validate.Optional(validate.IsNetworkAddressV4)},
 
 	// Network address for the debug server
+
+	// lxddoc:generate(group=server-core, key=core.debug_address)
+	//
+	// ---
+	//  type: string
+	//  scope: local
+	//  shortdesc: Address to bind the `pprof` debug server to (HTTP)
 	"core.debug_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
 	// Network address for the DNS server
+
+	// lxddoc:generate(group=server-core, key=core.dns_address)
+	// See {ref}`network-dns-server`.
+	// ---
+	//  type: string
+	//  scope: local
+	//  shortdesc: Address to bind the authoritative DNS server to
 	"core.dns_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
 	// Network address for the metrics server
+
+	// lxddoc:generate(group=server-core, key=core.metrics_address)
+	// See {ref}`metrics`.
+	// ---
+	//  type: string
+	//  scope: local
+	//  shortdesc: Address to bind the metrics server to (HTTPS)
 	"core.metrics_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
 	// Network address for the storage buckets server
+
+	// lxddoc:generate(group=server-core, key=core.storage_buckets_address)
+	// See {ref}`howto-storage-buckets`.
+	// ---
+	//  type: string
+	//  scope: local
+	//  shortdesc: Address to bind the storage object server to (HTTPS)
 	"core.storage_buckets_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
 	// MAAS machine this LXD instance is associated with
+
+	// lxddoc:generate(group=server-miscellaneous, key=maas.machine)
+	//
+	// ---
+	//  type: string
+	//  scope: local
+	//  default: host name
+	//  shortdesc: Name of this LXD host in MAAS
 	"maas.machine": {},
 
 	// Storage volumes to store backups/images on
+
+	// lxddoc:generate(group=server-miscellaneous, key=storage.backups_volume)
+	// Specify the volume using the syntax `POOL/VOLUME`.
+	// ---
+	//  type: string
+	//  scope: local
+	//  shortdesc: Volume to use to store backup tarballs
 	"storage.backups_volume": {},
-	"storage.images_volume":  {},
+	// lxddoc:generate(group=server-miscellaneous, key=storage.images_volume)
+	// Specify the volume using the syntax `POOL/VOLUME`.
+	// ---
+	//  type: string
+	//  scope: local
+	//  shortdesc: Volume to use to store the image tarballs
+	"storage.images_volume": {},
 }
