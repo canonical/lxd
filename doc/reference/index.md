@@ -5,6 +5,7 @@ The reference material in this section provides technical descriptions of LXD.
 
 ```{toctree}
 :titlesonly:
+:maxdepth: 2
 
 /architectures
 /reference/cluster_member_config
@@ -13,6 +14,7 @@ Container environment </container-environment>
 /reference/image_format
 /explanation/instance_config
 /internals
+/reference/manpages
 /reference/networks
 Production server settings </reference/server_settings>
 /reference/projects
