@@ -35,6 +35,7 @@ require (
 	github.com/miekg/dns v1.1.55
 	github.com/minio/madmin-go v1.7.5
 	github.com/minio/minio-go/v7 v7.0.61
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/osrg/gobgp/v3 v3.16.0
 	github.com/pborman/uuid v1.2.1
@@ -51,8 +52,8 @@ require (
 	golang.org/x/crypto v0.11.0
 	golang.org/x/oauth2 v0.10.0
 	golang.org/x/sync v0.3.0
-	golang.org/x/sys v0.10.0
-	golang.org/x/term v0.10.0
+	golang.org/x/sys v0.11.0
+	golang.org/x/term v0.11.0
 	golang.org/x/text v0.11.0
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/juju/environschema.v1 v1.0.1
@@ -106,7 +107,6 @@ require (
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
-	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/muhlemmer/gu v0.3.1 // indirect
