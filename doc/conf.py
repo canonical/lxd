@@ -213,27 +213,27 @@ def generate_go_docs(app):
 
     with tempfile.TemporaryDirectory() as tempdir:
         if os.getcwd().endswith("/doc"):
-            lxddocDir = "../lxd/config/generate"
+            lxdMetadataDir = "../lxd/lxd-metadata"
             lxdBaseDir = ".."
             outputBaseDir = ""
         else:
-            lxddocDir = "lxd/config/generate"
+            lxdMetadataDir = "lxd/lxd-metadata"
             lxdBaseDir = "."
             outputBaseDir = "./doc/"
 
-        with pushd(lxddocDir):
+        with pushd(lxdMetadataDir):
             try:
-                subprocess.run(["go", "build", "-o", os.path.join(tempdir, "lxd-doc")], check=True)
+                subprocess.run(["go", "build", "-o", os.path.join(tempdir, "lxd-metadata")], check=True)
             except subprocess.CalledProcessError:
-                raise ValueError("Building lxd-doc failed.")
+                raise ValueError("Building lxd-metadata failed.")
 
         # Generate the documentation
         try:
-            subprocess.run([os.path.join(tempdir, "lxd-doc"), lxdBaseDir, "-y", f"{outputBaseDir}config_options.yaml", "-t", f"{outputBaseDir}config_options.txt"], check=True)
+            subprocess.run([os.path.join(tempdir, "lxd-metadata"), lxdBaseDir, "-y", f"{outputBaseDir}config_options.yaml", "-t", f"{outputBaseDir}config_options.txt"], check=True)
         except subprocess.CalledProcessError:
-            raise ValueError("Generating the codebase documentation failed.")
+            raise ValueError("Generating the codebase metadata failed.")
 
-        print("Codebase documentation generated successfully")
+        print("Codebase metadata generated successfully")
 
 
 def setup(app):
