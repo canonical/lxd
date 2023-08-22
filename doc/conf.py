@@ -253,6 +253,7 @@ linkcheck_ignore = [
     'https://127.0.0.1:8443/1.0',
     'https://web.libera.chat/#lxd'
 ]
+linkcheck_exclude_documents = [r'.*/manpages/.*']
 
 # Setup redirects (https://documatt.gitlab.io/sphinx-reredirects/usage.html)
 redirects = {
