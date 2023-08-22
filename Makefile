@@ -30,7 +30,7 @@ ifeq "$(TAG_SQLITE3)" ""
 	exit 1
 endif
 
-	CGO_ENABLED=0 go install -v -tags lxddoc ./lxd/config/generate
+	CGO_ENABLED=0 go install -v -tags lxd-metadata ./lxd/lxd-metadata
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	CGO_ENABLED=0 go install -v -tags netgo ./lxd-migrate
 	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
@@ -122,8 +122,8 @@ doc-setup:
 
 .PHONY: generate-config
 generate-config:
-	@echo "Generating golang documentation"
-	$(GOPATH)/bin/lxd-doc . -y ./doc/config_options.yaml -t ./doc/config_options.txt
+	@echo "Generating golang metadata for config options"
+	$(GOPATH)/bin/lxd-metadata . -y ./doc/config_options.yaml -t ./doc/config_options.txt
 
 .PHONY: doc
 doc: doc-setup doc-incremental
