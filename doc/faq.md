@@ -20,7 +20,7 @@ You can enable it for remote access by following the instructions in {ref}`serve
 ## When I do a `lxc remote add`, it asks for a password or token?
 
 To be able to access the remote API, clients must authenticate with the LXD server.
-Depending on how the remote server is configured, you must provide either a trust token issued by the server or specify a trust password (if [`core.trust_password`](server-options-core) is set).
+Depending on how the remote server is configured, you must provide either a trust token issued by the server or specify a trust password (if {config:option}`server-core:core.trust_password` is set).
 
 See {ref}`server-authenticate` for instructions on how to authenticate using a trust token (the recommended way), and  {doc}`authentication` for information about other authentication methods.
 
@@ -53,7 +53,7 @@ But that's also the cause of most of the security issues with such privileged co
 ```{youtube} https://www.youtube.com/watch?v=_fCSSEyiGro
 ```
 
-To run Docker inside a LXD container, set the [`security.nesting`](instance-options-security) property of the container to `true`:
+To run Docker inside a LXD container, set the {config:option}`instance-security:security.nesting` property of the container to `true`:
 
     lxc config set <container> security.nesting true
 
