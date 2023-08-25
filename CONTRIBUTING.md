@@ -2,17 +2,31 @@
 
 <!-- Include start contributing -->
 
+The LXD team appreciates contributions to the project, through pull requests, issues on the [GitHub repository](https://github.com/canonical/lxd/issues), or discussions or questions on the [forum](https://discourse.ubuntu.com/c/lxd/126).
+
 Check the following guidelines before contributing to the project.
+
+## Code of Conduct
+
+When contributing, you must adhere to the Code of Conduct, which is available at: [`https://github.com/canonical/lxd/blob/main/CODE_OF_CONDUCT.md`](https://github.com/canonical/lxd/blob/main/CODE_OF_CONDUCT.md)
+
+## License and copyright
+
+By default, any contribution to this project is made under the Apache
+2.0 license.
+
+The author of a change remains the copyright holder of their code
+(no copyright assignment).
 
 ## Pull requests
 
 Changes to this project should be proposed as pull requests on GitHub
 at: [`https://github.com/canonical/lxd`](https://github.com/canonical/lxd)
 
-Proposed changes will then go through code review there and once approved,
+Proposed changes will then go through review there and once approved,
 be merged in the main branch.
 
-## Commit structure
+### Commit structure
 
 Separate commits should be used for:
 
@@ -41,15 +55,7 @@ When updating API (`shared/api`), you may need a commit to update the swagger YA
 This structure makes it easier for contributions to be reviewed and also
 greatly simplifies the process of back-porting fixes to stable branches.
 
-## License and copyright
-
-By default, any contribution to this project is made under the Apache
-2.0 license.
-
-The author of a change remains the copyright holder of their code
-(no copyright assignment).
-
-## Developer Certificate of Origin
+### Developer Certificate of Origin
 
 To improve tracking of contributions to this project we use the DCO 1.1
 and use a "sign-off" procedure for all changes going into the branch.
@@ -107,10 +113,6 @@ Sorry, no anonymous contributions are allowed.
 
 We also require each commit be individually signed-off by their author,
 even when part of a larger set. You may find `git commit -s` useful.
-
-## Code of Conduct
-
-When contributing, you must adhere to the Code of Conduct, which is available at: [`https://github.com/canonical/lxd/blob/main/CODE_OF_CONDUCT.md`](https://github.com/canonical/lxd/blob/main/CODE_OF_CONDUCT.md)
 
 <!-- Include end contributing -->
 
