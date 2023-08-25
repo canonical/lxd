@@ -11,8 +11,13 @@ import (
 var ErrUnknownDriver = fmt.Errorf("Unknown driver")
 
 var authorizers = map[string]func() authorizer{
-	"tls":  func() authorizer { return &tls{} },
-	"rbac": func() authorizer { return &rbac{} },
+	"tls": func() authorizer { return &tls{} },
+	"rbac": func() authorizer {
+		return &rbac{
+			resources:   map[string]string{},
+			permissions: map[string]map[string][]string{},
+		}
+	},
 }
 
 type authorizer interface {
