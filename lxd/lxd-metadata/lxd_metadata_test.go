@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Test the alphabetical sorting of a `lxddoc` YAML structure.
-func TestYAMLSorted(t *testing.T) {
+// Test the alphabetical sorting of a `lxd-metadata` JSON structure.
+func TestJSONSorted(t *testing.T) {
 	projectEntries := map[string][]any{
 		"groupKey1": {
 			map[string]any{
