@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/canonical/lxd/lxd/auth"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -21,7 +22,7 @@ import (
 var networkAllocationsCmd = APIEndpoint{
 	Path: "network-allocations",
 
-	Get: APIEndpointAction{Handler: networkAllocationsGet, AccessHandler: allowProjectPermission("networks", "view")},
+	Get: APIEndpointAction{Handler: networkAllocationsGet, AccessHandler: allowAuthenticated},
 }
 
 // swagger:operation GET /1.0/network-allocations network-allocations network_allocations_get
@@ -71,6 +72,8 @@ var networkAllocationsCmd = APIEndpoint{
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
@@ -114,6 +117,11 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 	result := make([]api.NetworkAllocations, 0)
 
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r, auth.RelationViewer, auth.ObjectTypeNetwork)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Then, get all the networks, their network forwards and their network load balancers.
 	for _, projectName := range projectNames {
 		networkNames, err := d.db.Cluster.GetNetworks(projectName)
@@ -123,6 +131,10 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 		// Get all the networks, their attached instances, their network forwards and their network load balancers.
 		for _, networkName := range networkNames {
+			if !userHasPermission(auth.NetworkObject(projectName, networkName)) {
+				continue
+			}
+
 			n, err := network.LoadByName(d.State(), projectName, networkName)
 			if err != nil {
 				return response.SmartError(fmt.Errorf("Failed loading network %q in project %q: %w", networkName, projectName, err))
