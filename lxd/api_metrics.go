@@ -11,13 +11,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/metrics"
+	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
@@ -34,19 +37,7 @@ var metricsCacheLock sync.Mutex
 var metricsCmd = APIEndpoint{
 	Path: "metrics",
 
-	Get: APIEndpointAction{Handler: metricsGet, AccessHandler: allowMetrics, AllowUntrusted: true},
-}
-
-func allowMetrics(d *Daemon, r *http.Request) response.Response {
-	s := d.State()
-
-	// Check if API is wide open.
-	if !s.GlobalConfig.MetricsAuthentication() {
-		return response.EmptySyncResponse
-	}
-
-	// If not wide open, apply project access restrictions.
-	return allowProjectPermission("containers", "view")(d, r)
+	Get: APIEndpointAction{Handler: metricsGet, AccessHandler: allowAuthenticated, AllowUntrusted: true},
 }
 
 // swagger:operation GET /1.0/metrics metrics metrics_get
@@ -157,7 +148,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	// If all valid, return immediately.
 	if len(projectsToFetch) == 0 {
-		return response.SyncResponsePlain(true, compress, metricSet.String())
+		return getFilteredMetrics(s, r, compress, metricSet)
 	}
 
 	cacheDuration := time.Duration(8) * time.Second
@@ -182,7 +173,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	// If all valid, return immediately.
 	if len(projectsToFetch) == 0 {
-		return response.SyncResponsePlain(true, compress, metricSet.String())
+		return getFilteredMetrics(s, r, compress, metricSet)
 	}
 
 	// Gather information about host interfaces once.
@@ -285,7 +276,40 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	metricsCacheLock.Unlock()
 
-	return response.SyncResponsePlain(true, compress, metricSet.String())
+	return getFilteredMetrics(s, r, compress, metricSet)
+}
+
+func getFilteredMetrics(s *state.State, r *http.Request, compress bool, metricSet *metrics.MetricSet) response.Response {
+	if !s.GlobalConfig.MetricsAuthentication() || s.Authorizer.UserIsAdmin(r) {
+		return response.SyncResponsePlain(true, compress, metricSet.String())
+	}
+
+	// Get instances the user is allowed to view.
+	objects, err := s.Authorizer.ListObjects(r, auth.RelationViewer, auth.ObjectTypeInstance)
+	if err != nil {
+		// Return all metrics if per-object permission is not supported.
+		if errors.Is(err, auth.ErrNotSupported) {
+			return response.SyncResponsePlain(true, compress, metricSet.String())
+		}
+
+		return response.SmartError(err)
+	}
+
+	filteredMetrics := metrics.NewMetricSet(nil)
+
+	for _, o := range objects {
+		projectName, instanceName := project.InstanceParts(o)
+
+		newMetricSet := metricSet.FilterSamples(map[string]string{"project": projectName, "name": instanceName})
+
+		// Filter samples by project and name. These are then returned to the user.
+		filteredMetrics.Merge(newMetricSet)
+	}
+
+	// Filter samples with no labels (internal metrics)
+	filteredMetrics.Merge(metricSet.FilterSamples(nil))
+
+	return response.SyncResponsePlain(true, compress, filteredMetrics.String())
 }
 
 func internalMetrics(ctx context.Context, daemonStartTime time.Time, tx *db.ClusterTx) *metrics.MetricSet {
