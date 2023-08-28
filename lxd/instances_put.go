@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/instance"
@@ -95,10 +96,20 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 
 	action := shared.InstanceAction(req.State.Action)
 
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r, auth.RelationOperator, auth.ObjectTypeInstance)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var names []string
 	var instances []instance.Instance
 	for _, inst := range c {
 		if inst.Project().Name != projectName {
+			continue
+		}
+
+		// Only allow changing the state of instances it has permission for.
+		if !userHasPermission(auth.InstanceObject(inst.Project().Name, inst.Name())) {
 			continue
 		}
 
