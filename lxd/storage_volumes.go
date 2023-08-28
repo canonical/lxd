@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/canonical/lxd/lxd/archive"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
 	lxdCluster "github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
@@ -43,25 +44,25 @@ import (
 var storagePoolVolumesCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/volumes",
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
-	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowAuthenticated},
+	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.RelationStorageVolumeManager)},
 }
 
 var storagePoolVolumesTypeCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/volumes/{type}",
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
-	Post: APIEndpointAction{Handler: storagePoolVolumesTypePost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowAuthenticated},
+	Post: APIEndpointAction{Handler: storagePoolVolumesTypePost, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.RelationStorageVolumeManager)},
 }
 
 var storagePoolVolumeTypeCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}",
 
-	Delete: APIEndpointAction{Handler: storagePoolVolumeDelete, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumePatch, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Post:   APIEndpointAction{Handler: storagePoolVolumePost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Put:    APIEndpointAction{Handler: storagePoolVolumePut, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeDelete, AccessHandler: allowPermission(auth.ObjectTypeStorageVolume, auth.RelationManager)},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeGet, AccessHandler: allowPermission(auth.ObjectTypeStorageVolume, auth.RelationViewer)},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumePatch, AccessHandler: allowPermission(auth.ObjectTypeStorageVolume, auth.RelationManager)},
+	Post:   APIEndpointAction{Handler: storagePoolVolumePost, AccessHandler: allowPermission(auth.ObjectTypeStorageVolume, auth.RelationManager)},
+	Put:    APIEndpointAction{Handler: storagePoolVolumePut, AccessHandler: allowPermission(auth.ObjectTypeStorageVolume, auth.RelationManager)},
 }
 
 // swagger:operation GET /1.0/storage-pools/{poolName}/volumes storage storage_pool_volumes_get
@@ -431,10 +432,21 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return volA.Name < volB.Name
 	})
 
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r, auth.RelationViewer, auth.ObjectTypeStorageVolume)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	if util.IsRecursionRequest(r) {
 		volumes := make([]*api.StorageVolume, 0, len(dbVolumes))
 		for _, dbVol := range dbVolumes {
 			vol := &dbVol.StorageVolume
+
+			volumeName, _, _ := api.GetParentAndSnapshotName(vol.Name)
+
+			if !userHasPermission(auth.StorageVolumeObject(vol.Project, poolName, volumeName, dbVol.Type)) {
+				continue
+			}
 
 			volumeUsedBy, err := storagePoolVolumeUsedByGet(s, requestProjectName, poolName, dbVol)
 			if err != nil {
@@ -450,6 +462,12 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 
 	urls := make([]string, 0, len(dbVolumes))
 	for _, dbVol := range dbVolumes {
+		volumeName, _, _ := api.GetParentAndSnapshotName(dbVol.Name)
+
+		if !userHasPermission(auth.StorageVolumeObject(dbVol.Project, poolName, volumeName, dbVol.Type)) {
+			continue
+		}
+
 		urls = append(urls, dbVol.StorageVolume.URL(version.APIVersion, poolName).String())
 	}
 
@@ -691,14 +709,23 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 	}
 
 	run = func(op *operations.Operation) error {
+		var err error
+
 		if req.Source.Name == "" {
 			// Use an empty operation for this sync response to pass the requestor
 			op := &operations.Operation{}
 			op.SetRequestor(r)
-			return pool.CreateCustomVolume(projectName, req.Name, req.Description, req.Config, contentType, op)
+
+			err = pool.CreateCustomVolume(projectName, req.Name, req.Description, req.Config, contentType, op)
+		} else {
+			err = pool.CreateCustomVolumeFromCopy(projectName, req.Source.Project, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, !req.Source.VolumeOnly, op)
 		}
 
-		return pool.CreateCustomVolumeFromCopy(projectName, req.Source.Project, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, !req.Source.VolumeOnly, op)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 
 	// If no source name supplied then this a volume create operation.
@@ -1041,7 +1068,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Check if user has access to effective storage target project
-		if !s.Authorizer.UserHasPermission(r, targetProjectName, "manage-storage-volumes") {
+		if !s.Authorizer.UserHasPermission(r, targetProjectName, auth.ProjectObject(targetProjectName), auth.RelationStorageVolumeManager) {
 			return response.Forbidden(nil)
 		}
 	}

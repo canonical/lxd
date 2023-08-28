@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -20,7 +21,7 @@ import (
 var storagePoolVolumeTypeStateCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/state",
 
-	Get: APIEndpointAction{Handler: storagePoolVolumeTypeStateGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
+	Get: APIEndpointAction{Handler: storagePoolVolumeTypeStateGet, AccessHandler: allowPermission(auth.ObjectTypeStorageVolume, auth.RelationViewer)},
 }
 
 // swagger:operation GET /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/state storage storage_pool_volume_type_state_get
