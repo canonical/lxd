@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network/acl"
@@ -25,24 +26,24 @@ import (
 var networkACLsCmd = APIEndpoint{
 	Path: "network-acls",
 
-	Get:  APIEndpointAction{Handler: networkACLsGet, AccessHandler: allowProjectPermission("networks", "view")},
-	Post: APIEndpointAction{Handler: networkACLsPost, AccessHandler: allowProjectPermission("networks", "manage-networks")},
+	Get:  APIEndpointAction{Handler: networkACLsGet, AccessHandler: allowAuthenticated},
+	Post: APIEndpointAction{Handler: networkACLsPost, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.RelationNetworkACLManager)},
 }
 
 var networkACLCmd = APIEndpoint{
 	Path: "network-acls/{name}",
 
-	Delete: APIEndpointAction{Handler: networkACLDelete, AccessHandler: allowProjectPermission("networks", "manage-networks")},
-	Get:    APIEndpointAction{Handler: networkACLGet, AccessHandler: allowProjectPermission("networks", "view")},
-	Put:    APIEndpointAction{Handler: networkACLPut, AccessHandler: allowProjectPermission("networks", "manage-networks")},
-	Patch:  APIEndpointAction{Handler: networkACLPut, AccessHandler: allowProjectPermission("networks", "manage-networks")},
-	Post:   APIEndpointAction{Handler: networkACLPost, AccessHandler: allowProjectPermission("networks", "manage-networks")},
+	Delete: APIEndpointAction{Handler: networkACLDelete, AccessHandler: allowPermission(auth.ObjectTypeNetworkACL, auth.RelationManager)},
+	Get:    APIEndpointAction{Handler: networkACLGet, AccessHandler: allowPermission(auth.ObjectTypeNetworkACL, auth.RelationViewer)},
+	Put:    APIEndpointAction{Handler: networkACLPut, AccessHandler: allowPermission(auth.ObjectTypeNetworkACL, auth.RelationManager)},
+	Patch:  APIEndpointAction{Handler: networkACLPut, AccessHandler: allowPermission(auth.ObjectTypeNetworkACL, auth.RelationManager)},
+	Post:   APIEndpointAction{Handler: networkACLPost, AccessHandler: allowPermission(auth.ObjectTypeNetworkACL, auth.RelationManager)},
 }
 
 var networkACLLogCmd = APIEndpoint{
 	Path: "network-acls/{name}/log",
 
-	Get: APIEndpointAction{Handler: networkACLLogGet, AccessHandler: allowProjectPermission("networks", "view")},
+	Get: APIEndpointAction{Handler: networkACLLogGet, AccessHandler: allowPermission(auth.ObjectTypeNetworkACL, auth.RelationViewer)},
 }
 
 // API endpoints.
@@ -155,9 +156,18 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r, auth.RelationViewer, auth.ObjectTypeNetworkACL)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	resultString := []string{}
 	resultMap := []api.NetworkACL{}
 	for _, aclName := range aclNames {
+		if !userHasPermission(auth.NetworkACLObject(projectName, aclName)) {
+			continue
+		}
+
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, aclName))
 		} else {
