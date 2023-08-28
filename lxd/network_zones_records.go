@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network/zone"
@@ -21,17 +22,17 @@ import (
 var networkZoneRecordsCmd = APIEndpoint{
 	Path: "network-zones/{zone}/records",
 
-	Get:  APIEndpointAction{Handler: networkZoneRecordsGet, AccessHandler: allowProjectPermission("networks", "view")},
-	Post: APIEndpointAction{Handler: networkZoneRecordsPost, AccessHandler: allowProjectPermission("networks", "manage-networks")},
+	Get:  APIEndpointAction{Handler: networkZoneRecordsGet, AccessHandler: allowPermission(auth.ObjectTypeNetworkZone, auth.RelationViewer)},
+	Post: APIEndpointAction{Handler: networkZoneRecordsPost, AccessHandler: allowPermission(auth.ObjectTypeNetworkZone, auth.RelationManager)},
 }
 
 var networkZoneRecordCmd = APIEndpoint{
 	Path: "network-zones/{zone}/records/{name}",
 
-	Delete: APIEndpointAction{Handler: networkZoneRecordDelete, AccessHandler: allowProjectPermission("networks", "manage-networks")},
-	Get:    APIEndpointAction{Handler: networkZoneRecordGet, AccessHandler: allowProjectPermission("networks", "view")},
-	Put:    APIEndpointAction{Handler: networkZoneRecordPut, AccessHandler: allowProjectPermission("networks", "manage-networks")},
-	Patch:  APIEndpointAction{Handler: networkZoneRecordPut, AccessHandler: allowProjectPermission("networks", "manage-networks")},
+	Delete: APIEndpointAction{Handler: networkZoneRecordDelete, AccessHandler: allowPermission(auth.ObjectTypeNetworkZone, auth.RelationManager)},
+	Get:    APIEndpointAction{Handler: networkZoneRecordGet, AccessHandler: allowPermission(auth.ObjectTypeNetworkZone, auth.RelationViewer)},
+	Put:    APIEndpointAction{Handler: networkZoneRecordPut, AccessHandler: allowPermission(auth.ObjectTypeNetworkZone, auth.RelationManager)},
+	Patch:  APIEndpointAction{Handler: networkZoneRecordPut, AccessHandler: allowPermission(auth.ObjectTypeNetworkZone, auth.RelationManager)},
 }
 
 // API endpoints.
