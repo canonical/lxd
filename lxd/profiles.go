@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -34,18 +35,18 @@ import (
 var profilesCmd = APIEndpoint{
 	Path: "profiles",
 
-	Get:  APIEndpointAction{Handler: profilesGet, AccessHandler: allowProjectPermission("profiles", "view")},
-	Post: APIEndpointAction{Handler: profilesPost, AccessHandler: allowProjectPermission("profiles", "manage-profiles")},
+	Get:  APIEndpointAction{Handler: profilesGet, AccessHandler: allowAuthenticated},
+	Post: APIEndpointAction{Handler: profilesPost, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.RelationProfileManager)},
 }
 
 var profileCmd = APIEndpoint{
 	Path: "profiles/{name}",
 
-	Delete: APIEndpointAction{Handler: profileDelete, AccessHandler: allowProjectPermission("profiles", "manage-profiles")},
-	Get:    APIEndpointAction{Handler: profileGet, AccessHandler: allowProjectPermission("profiles", "view")},
-	Patch:  APIEndpointAction{Handler: profilePatch, AccessHandler: allowProjectPermission("profiles", "manage-profiles")},
-	Post:   APIEndpointAction{Handler: profilePost, AccessHandler: allowProjectPermission("profiles", "manage-profiles")},
-	Put:    APIEndpointAction{Handler: profilePut, AccessHandler: allowProjectPermission("profiles", "manage-profiles")},
+	Delete: APIEndpointAction{Handler: profileDelete, AccessHandler: allowPermission(auth.ObjectTypeProfile, auth.RelationManager)},
+	Get:    APIEndpointAction{Handler: profileGet, AccessHandler: allowPermission(auth.ObjectTypeProfile, auth.RelationViewer)},
+	Patch:  APIEndpointAction{Handler: profilePatch, AccessHandler: allowPermission(auth.ObjectTypeProfile, auth.RelationManager)},
+	Post:   APIEndpointAction{Handler: profilePost, AccessHandler: allowPermission(auth.ObjectTypeProfile, auth.RelationManager)},
+	Put:    APIEndpointAction{Handler: profilePut, AccessHandler: allowPermission(auth.ObjectTypeProfile, auth.RelationManager)},
 }
 
 // swagger:operation GET /1.0/profiles profiles profiles_get
@@ -150,6 +151,11 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 
 	recursion := util.IsRecursionRequest(r)
 
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r, auth.RelationViewer, auth.ObjectTypeProfile)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
 	var result any
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.ProfileFilter{
@@ -163,6 +169,10 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 
 		apiProfiles := make([]*api.Profile, len(profiles))
 		for i, profile := range profiles {
+			if !userHasPermission(auth.ProfileObject(p.Name, profile.Name)) {
+				continue
+			}
+
 			apiProfiles[i], err = profile.ToAPI(ctx, tx.Tx())
 			if err != nil {
 				return err
