@@ -235,8 +235,8 @@ func allowAuthenticated(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-// allowProjectPermission is a wrapper to check access against the project, its features and RBAC permission.
-func allowProjectPermission(feature string, permission string) func(d *Daemon, r *http.Request) response.Response {
+// allowPermission is a wrapper to check access against a given object, an object being image, instance, network, etc.
+func allowPermission(objectType auth.ObjectType, relation auth.Relation) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		s := d.State()
 
@@ -248,8 +248,44 @@ func allowProjectPermission(feature string, permission string) func(d *Daemon, r
 		// Get the project
 		projectName := projectParam(r)
 
+		// Get full object name
+		var objectName string
+
+		switch objectType {
+		case auth.ObjectTypeImage:
+			name, _ := url.PathUnescape(mux.Vars(r)["fingerprint"])
+			objectName = auth.ImageObject(projectName, name)
+		case auth.ObjectTypeInstance:
+			name, _ := url.PathUnescape(mux.Vars(r)["name"])
+			objectName = auth.InstanceObject(projectName, name)
+		case auth.ObjectTypeNetwork:
+			name, _ := url.PathUnescape(mux.Vars(r)["networkName"])
+			objectName = auth.NetworkObject(projectName, name)
+		case auth.ObjectTypeNetworkACL:
+			name, _ := url.PathUnescape(mux.Vars(r)["name"])
+			objectName = auth.NetworkACLObject(projectName, name)
+		case auth.ObjectTypeNetworkZone:
+			name, _ := url.PathUnescape(mux.Vars(r)["zone"])
+			objectName = auth.NetworkZoneObject(projectName, name)
+		case auth.ObjectTypeProfile:
+			name, _ := url.PathUnescape(mux.Vars(r)["name"])
+			objectName = auth.ProfileObject(projectName, name)
+		case auth.ObjectTypeProject:
+			name, _ := url.PathUnescape(mux.Vars(r)["name"])
+			objectName = auth.ProjectObject(name)
+		case auth.ObjectTypeStorageBucket:
+			poolName, _ := url.PathUnescape(mux.Vars(r)["poolName"])
+			name, _ := url.PathUnescape(mux.Vars(r)["bucketName"])
+			objectName = auth.StorageBucketObject(projectName, poolName, name)
+		case auth.ObjectTypeStorageVolume:
+			poolName, _ := url.PathUnescape(mux.Vars(r)["poolName"])
+			name, _ := url.PathUnescape(mux.Vars(r)["volumeName"])
+			volType, _ := url.PathUnescape(mux.Vars(r)["type"])
+			objectName = auth.StorageVolumeObject(projectName, poolName, name, volType)
+		}
+
 		// Validate whether the user has the needed permission
-		if !s.Authorizer.UserHasPermission(r, projectName, permission) {
+		if !s.Authorizer.UserHasPermission(r, projectName, objectName, relation) {
 			return response.Forbidden(nil)
 		}
 
