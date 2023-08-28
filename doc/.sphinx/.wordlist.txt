@@ -109,6 +109,7 @@ kbit
 KiB
 kibi
 Kibit
+KVM
 lookups
 LTS
 LV
