@@ -1321,6 +1321,7 @@ func (d *Daemon) init() error {
 	d.gateway.HeartbeatOfflineThreshold = d.globalConfig.OfflineThreshold()
 	lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiLabels, lokiLoglevel, lokiTypes := d.globalConfig.LokiServer()
 	oidcIssuer, oidcClientID, oidcAudience := d.globalConfig.OIDCServer()
+	openfgaAPIURL, openfgaAPIToken, openfgaStoreID := d.globalConfig.OpenFGA()
 
 	instancePlacementScriptlet := d.globalConfig.InstancesPlacementScriptlet()
 
@@ -1354,6 +1355,14 @@ func (d *Daemon) init() error {
 	// Setup OIDC authentication.
 	if oidcIssuer != "" && oidcClientID != "" {
 		d.oidcVerifier = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcAudience)
+	}
+
+	// Setup OpenFGA authorization.
+	if openfgaAPIURL != "" && openfgaStoreID != "" {
+		err = d.setupOpenFGA(openfgaAPIURL, openfgaAPIToken, openfgaStoreID)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Setup BGP listener.
@@ -1821,6 +1830,49 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	}
 
 	return err
+}
+
+// Setup OpenFGA.
+func (d *Daemon) setupOpenFGA(apiURL string, apiToken string, storeID string) error {
+	var err error
+
+	if d.authorizer != nil {
+		d.authorizer.StopStatusCheck()
+	}
+
+	if apiURL == "" || apiToken == "" || storeID == "" {
+		// Reset to default authorizer.
+		d.authorizer, err = auth.LoadAuthorizer("tls", nil, logger.Log, nil)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	config := map[string]any{
+		"openfga.api.url":  apiURL,
+		"openfga.api.key":  apiToken,
+		"openfga.store.id": storeID,
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	revert.Add(func() {
+		// Reset to default authorizer.
+		d.authorizer, _ = auth.LoadAuthorizer("tls", nil, logger.Log, nil)
+	})
+
+	openfgaAuthorizer, err := auth.LoadAuthorizer("openfga", config, logger.Log, nil)
+	if err != nil {
+		return err
+	}
+
+	d.authorizer = openfgaAuthorizer
+
+	revert.Success()
+	return nil
 }
 
 // Setup RBAC.

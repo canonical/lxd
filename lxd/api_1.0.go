@@ -732,6 +732,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	acmeDomainChanged := false
 	acmeCAURLChanged := false
 	oidcChanged := false
+	openFGAChanged := false
 
 	for key := range clusterChanged {
 		switch key {
@@ -807,6 +808,8 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			acmeDomainChanged = true
 		case "oidc.issuer", "oidc.client.id", "oidc.audience":
 			oidcChanged = true
+		case "openfga.api.url", "openfga.api.key", "openfga.store.id":
+			openFGAChanged = true
 		}
 	}
 
@@ -972,6 +975,15 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			d.oidcVerifier = nil
 		} else {
 			d.oidcVerifier = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcAudience)
+		}
+	}
+
+	if openFGAChanged {
+		openfgaAPIURL, openfgaAPIToken, openfgaStoreID := d.globalConfig.OpenFGA()
+
+		err := d.setupOpenFGA(openfgaAPIURL, openfgaAPIToken, openfgaStoreID)
+		if err != nil {
+			return err
 		}
 	}
 
