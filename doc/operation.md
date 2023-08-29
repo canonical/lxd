@@ -33,5 +33,6 @@ Add remote servers </remotes>
 Add command aliases </howto/lxc_alias>
 /server
 /architectures
+/reference/manpages
 ```
 ````
