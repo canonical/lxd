@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -257,8 +258,72 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 				projectName = project.Default
 			}
 
-			if !s.Authorizer.UserHasPermission(r, projectName, op.Permission()) {
-				return response.Forbidden(nil)
+			getEntityURI := func(resourceURL api.URL, entityURI string) string {
+				if !resourceURL.Query().Has("project") {
+					return strings.TrimSuffix(entityURI, "?project=%s")
+				}
+
+				return entityURI
+			}
+
+			switch op.Permission() {
+			case auth.RelationImageManager:
+				fingerprint := ""
+
+				for _, resourceURL := range op.Resources()["images"] {
+					_, err := fmt.Sscanf(resourceURL.String(), getEntityURI(resourceURL, dbCluster.EntityURIs[dbCluster.TypeImage]), &fingerprint)
+					if err != nil {
+						return response.SmartError(err)
+					}
+
+					if !s.Authorizer.UserHasPermission(r, projectName, auth.ImageObject(projectName, fingerprint), auth.RelationManager) {
+						return response.Forbidden(nil)
+					}
+				}
+
+			case auth.RelationInstanceManager:
+				instanceName := ""
+
+				for _, resourceURL := range op.Resources()["instances"] {
+					_, err := fmt.Sscanf(resourceURL.String(), getEntityURI(resourceURL, dbCluster.EntityURIs[dbCluster.TypeInstance]), &instanceName)
+					if err != nil {
+						return response.SmartError(err)
+					}
+
+					if !s.Authorizer.UserHasPermission(r, projectName, auth.InstanceObject(projectName, instanceName), auth.RelationManager) {
+						return response.Forbidden(nil)
+					}
+				}
+
+			case auth.RelationInstanceOperator:
+				instanceName := ""
+
+				for _, resourceURL := range op.Resources()["instances"] {
+					_, err := fmt.Sscanf(resourceURL.String(), getEntityURI(resourceURL, dbCluster.EntityURIs[dbCluster.TypeInstance]), &instanceName)
+					if err != nil {
+						return response.SmartError(err)
+					}
+
+					if !s.Authorizer.UserHasPermission(r, projectName, auth.InstanceObject(projectName, instanceName), auth.RelationOperator) {
+						return response.Forbidden(nil)
+					}
+				}
+
+			case auth.RelationStorageVolumeManager:
+				poolName := ""
+				volumeType := ""
+				volumeName := ""
+
+				for _, resourceURL := range op.Resources()["instances"] {
+					_, err := fmt.Sscanf(resourceURL.String(), getEntityURI(resourceURL, dbCluster.EntityURIs[dbCluster.TypeStorageVolume]), &poolName, &volumeType, &volumeName)
+					if err != nil {
+						return response.SmartError(err)
+					}
+
+					if !s.Authorizer.UserHasPermission(r, projectName, auth.StorageVolumeObject(projectName, poolName, volumeName, volumeType), auth.RelationManager) {
+						return response.Forbidden(nil)
+					}
+				}
 			}
 		}
 

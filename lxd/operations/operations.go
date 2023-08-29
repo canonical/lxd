@@ -9,6 +9,7 @@ import (
 
 	"github.com/pborman/uuid"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/request"
@@ -103,7 +104,7 @@ type Operation struct {
 	readonly    bool
 	canceler    *cancel.HTTPRequestCanceller
 	description string
-	permission  string
+	permission  auth.Relation
 	dbOpType    operationtype.Type
 	requestor   *api.EventLifecycleRequestor
 	logger      logger.Logger
@@ -660,7 +661,7 @@ func (op *Operation) SetCanceler(canceler *cancel.HTTPRequestCanceller) {
 }
 
 // Permission returns the operation permission.
-func (op *Operation) Permission() string {
+func (op *Operation) Permission() auth.Relation {
 	return op.permission
 }
 

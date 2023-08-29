@@ -1,5 +1,9 @@
 package operationtype
 
+import (
+	"github.com/canonical/lxd/lxd/auth"
+)
+
 // Type is a numeric code indentifying the type of an Operation.
 type Type int64
 
@@ -199,82 +203,82 @@ func (t Type) Description() string {
 	}
 }
 
-// Permission returns the needed RBAC permission to cancel the operation.
-func (t Type) Permission() string {
+// Permission returns the needed permission to cancel the operation.
+func (t Type) Permission() auth.Relation {
 	switch t {
 	case BackupCreate:
-		return "operate-containers"
+		return auth.RelationInstanceOperator
 	case BackupRename:
-		return "operate-containers"
+		return auth.RelationInstanceOperator
 	case BackupRestore:
-		return "operate-containers"
+		return auth.RelationInstanceOperator
 	case BackupRemove:
-		return "operate-containers"
+		return auth.RelationInstanceOperator
 	case ConsoleShow:
-		return "operate-containers"
+		return auth.RelationInstanceOperator
 	case InstanceFreeze:
-		return "operate-containers"
+		return auth.RelationInstanceOperator
 	case InstanceUnfreeze:
-		return "operate-containers"
+		return auth.RelationInstanceOperator
 	case InstanceStart:
-		return "operate-containers"
+		return auth.RelationInstanceOperator
 	case InstanceStop:
-		return "operate-containers"
+		return auth.RelationInstanceOperator
 	case InstanceRestart:
-		return "operate-containers"
+		return auth.RelationInstanceOperator
 	case CommandExec:
-		return "operate-containers"
+		return auth.RelationInstanceOperator
 	case SnapshotCreate:
-		return "operate-containers"
+		return auth.RelationInstanceOperator
 	case SnapshotRename:
-		return "operate-containers"
+		return auth.RelationInstanceOperator
 	case SnapshotTransfer:
-		return "operate-containers"
+		return auth.RelationInstanceOperator
 	case SnapshotUpdate:
-		return "operate-containers"
+		return auth.RelationInstanceOperator
 	case SnapshotDelete:
-		return "operate-containers"
+		return auth.RelationInstanceOperator
 
 	case InstanceCreate:
-		return "manage-containers"
+		return auth.RelationInstanceManager
 	case InstanceUpdate:
-		return "manage-containers"
+		return auth.RelationInstanceManager
 	case InstanceRename:
-		return "manage-containers"
+		return auth.RelationInstanceManager
 	case InstanceMigrate:
-		return "manage-containers"
+		return auth.RelationInstanceManager
 	case InstanceLiveMigrate:
-		return "manage-containers"
+		return auth.RelationInstanceManager
 	case InstanceDelete:
-		return "manage-containers"
+		return auth.RelationInstanceManager
 	case InstanceRebuild:
-		return "operate-containers"
+		return auth.RelationInstanceOperator
 	case SnapshotRestore:
-		return "manage-containers"
+		return auth.RelationInstanceManager
 
 	case ImageDownload:
-		return "manage-images"
+		return auth.RelationImageManager
 	case ImageDelete:
-		return "manage-images"
+		return auth.RelationImageManager
 	case ImageToken:
-		return "manage-images"
+		return auth.RelationImageManager
 	case ImageRefresh:
-		return "manage-images"
+		return auth.RelationImageManager
 	case ImagesUpdate:
-		return "manage-images"
+		return auth.RelationImageManager
 	case ImagesSynchronize:
-		return "manage-images"
+		return auth.RelationImageManager
 
 	case CustomVolumeSnapshotsExpire:
-		return "operate-volumes"
+		return auth.RelationStorageVolumeManager
 	case CustomVolumeBackupCreate:
-		return "manage-storage-volumes"
+		return auth.RelationStorageVolumeManager
 	case CustomVolumeBackupRemove:
-		return "manage-storage-volumes"
+		return auth.RelationStorageVolumeManager
 	case CustomVolumeBackupRename:
-		return "manage-storage-volumes"
+		return auth.RelationStorageVolumeManager
 	case CustomVolumeBackupRestore:
-		return "manage-storage-volumes"
+		return auth.RelationStorageVolumeManager
 	}
 
 	return ""
