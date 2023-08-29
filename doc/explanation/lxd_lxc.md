@@ -46,7 +46,7 @@ LXD daemon
 LXD client
 : The `lxc` command is a command-line client for LXD, which you can use to interact with the LXD daemon.
   You use the `lxc` command to manage your instances, the server settings, and overall the entities you create in LXD.
-  See `lxc --help` for an overview of all available subcommands.
+  See [`lxc --help`](lxc.md) for an overview of all available subcommands.
 
   The `lxc` tool is not the only client you can use to interact with the LXD daemon.
   You can also use the API, the UI, or a custom LXD client.
