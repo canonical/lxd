@@ -52,6 +52,7 @@ dereferenced
 devtmpfs
 DHCP
 DHCPv
+Diátaxis
 Diffie
 DNS
 DNSSEC
@@ -190,6 +191,7 @@ qgroups
 RADOS
 RBAC
 RBD
+README
 reconfiguring
 requestor
 RESTful
