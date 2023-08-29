@@ -1442,7 +1442,71 @@ func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string)
 			projectName = val
 		}
 
-		if !authorizer.UserHasPermission(r, projectName, "view") {
+		// Strip project query parameter from URL.
+		q := u.Query()
+		q.Del("project")
+		u.RawQuery = q.Encode()
+
+		fields := strings.Split(u.Path, "/")
+
+		var objectName string
+
+		switch fields[2] {
+		case "images":
+			if len(fields) != 4 {
+				break
+			}
+
+			fingerprint := fields[3]
+			objectName = auth.ImageObject(projectName, fingerprint)
+		case "instances":
+			if len(fields) != 4 {
+				break
+			}
+
+			instanceName := fields[3]
+			objectName = auth.InstanceObject(projectName, instanceName)
+		case "networks":
+			if len(fields) != 4 {
+				break
+			}
+
+			networkName := fields[3]
+			objectName = auth.NetworkObject(projectName, networkName)
+		case "profiles":
+			if len(fields) != 4 {
+				break
+			}
+
+			profileName := fields[3]
+			objectName = auth.ProfileObject(projectName, profileName)
+		case "storage-pools":
+			if len(fields) < 5 {
+				break
+			}
+
+			storagePoolName := fields[3]
+
+			switch fields[4] {
+			case "buckets":
+				if len(fields) != 6 {
+					break
+				}
+
+				bucketName := fields[5]
+				objectName = auth.StorageBucketObject(projectName, storagePoolName, bucketName)
+			case "volumes":
+				if len(fields) != 7 {
+					break
+				}
+
+				volumeType := fields[5]
+				volumeName := fields[6]
+				objectName = auth.StorageVolumeObject(projectName, storagePoolName, volumeName, volumeType)
+			}
+		}
+
+		if objectName != "" && !authorizer.UserHasPermission(r, projectName, objectName, auth.RelationViewer) {
 			continue
 		}
 
