@@ -44,7 +44,6 @@ func (c *cmdInit) Command() *cobra.Command {
 
 lxc init ubuntu:22.04 u1 < config.yaml
     Create the instance with configuration from config.yaml`))
-	cmd.Hidden = true
 
 	cmd.RunE = c.Run
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new instance")+"``")
