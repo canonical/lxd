@@ -19,6 +19,7 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	projecthelpers "github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -91,6 +92,14 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
+	unlock := instanceOperationLock(s.ShutdownCtx, projectName, name)
+	revert.Add(func() {
+		unlock()
+	})
+
 	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
@@ -142,6 +151,8 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 
 		// Update container configuration
 		do = func(op *operations.Operation) error {
+			defer unlock()
+
 			args := db.InstanceArgs{
 				Architecture: architecture,
 				Config:       configRaw.Config,
@@ -164,6 +175,8 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	} else {
 		// Snapshot Restore
 		do = func(op *operations.Operation) error {
+			defer unlock()
+
 			return instanceSnapRestore(s, projectName, name, configRaw.Restore, configRaw.Stateful)
 		}
 
@@ -182,6 +195,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
+	revert.Success()
 	return operations.OperationResponse(op)
 }
 
