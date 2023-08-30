@@ -85,10 +85,10 @@ deps:
 	@echo "export LD_LIBRARY_PATH=\"$(RAFT_PATH)/.libs/:$(DQLITE_PATH)/.libs/\""
 	@echo "export CGO_LDFLAGS_ALLOW=\"(-Wl,-wrap,pthread_create)|(-Wl,-z,now)\""
 
-.PHONY: update
-update:
+.PHONY: update-gomod
+update-gomod:
 ifneq "$(LXD_OFFLINE)" ""
-	@echo "The update target cannot be run in offline mode."
+	@echo "The update-gomod target cannot be run in offline mode."
 	exit 1
 endif
 	go get -t -v -d -u ./...
