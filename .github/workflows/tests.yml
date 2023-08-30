@@ -12,6 +12,11 @@ concurrency:
 
 jobs:
   code-tests:
+    env:
+      CGO_CFLAGS: "-I/home/runner/work/lxd/lxd-test/vendor/raft/include/ -I/home/runner/work/lxd/lxd-test/vendor/dqlite/include/"
+      CGO_LDFLAGS: "-L/home/runner/work/lxd/lxd-test/vendor/raft/.libs/ -L/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
+      LD_LIBRARY_PATH: "/home/runner/work/lxd/lxd-test/vendor/raft/.libs/:/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
+      CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
     name: Code tests
     runs-on: ubuntu-22.04
     steps:
@@ -40,23 +45,38 @@ jobs:
             libacl1-dev \
             libcap-dev \
             libdbus-1-dev \
-            libdqlite-dev \
             liblxc-dev \
             lxc-templates \
             libseccomp-dev \
             libselinux-dev \
             libsqlite3-dev \
+            libdqlite0 \
             libtool \
             libudev-dev \
+            libuv1-dev \
             make \
             pkg-config \
-            shellcheck
+            shellcheck \
+            build-essential
 
           python3 -m pip install flake8
 
       - name: Download go dependencies
         run: |
           go mod download
+
+      - name: Make LXD tarball and unpack it
+        env:
+          CUSTOM_VERSION: "test"
+        run: |
+          make dist
+          tar -xzf lxd-test.tar.gz -C ~/work/lxd/
+          rm lxd-test.tar.gz
+
+      - name: Build LXD dependencies
+        run: |
+          cd ~/work/lxd/lxd-test
+          make deps
 
       - name: Run LXD build
         run: |
@@ -68,7 +88,7 @@ jobs:
 
       - name: Unit tests (all)
         run: |
-          sudo go test ./...
+          sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,LD_LIBRARY_PATH go test ./...
 
   system-tests:
     env:
