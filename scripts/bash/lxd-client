@@ -248,7 +248,7 @@ _have lxc && {
         _lxd_names "(STOPPED|FROZEN)"
         ;;
       "exec"|"console"|"stop"|"shell")
-        _lxd_names "RUNNING|READY"
+        _lxd_names "(RUNNING|READY)"
         ;;
       "file")
         COMPREPLY=( $(compgen -W "pull push edit delete mount" -- $cur) )
