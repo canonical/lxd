@@ -12,6 +12,7 @@ var drivers = map[string]func() driver{
 	"cephobject": func() driver { return &cephobject{} },
 	"dir":        func() driver { return &dir{} },
 	"lvm":        func() driver { return &lvm{} },
+	"powerflex":  func() driver { return &powerflex{} },
 	"zfs":        func() driver { return &zfs{} },
 }
 
