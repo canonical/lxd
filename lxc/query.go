@@ -36,7 +36,6 @@ func (c *cmdQuery) Command() *cobra.Command {
 	cmd.Example = cli.FormatSection("", i18n.G(
 		`lxc query -X DELETE --wait /1.0/instances/c1
     Delete local instance "c1".`))
-	cmd.Hidden = true
 
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVar(&c.flagRespWait, "wait", false, i18n.G("Wait for the operation to complete"))
