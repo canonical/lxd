@@ -34,7 +34,7 @@ _have lxc && {
 
     _lxd_projects()
     {
-      COMPREPLY=( $( compgen -W "$( lxc project list --format=csv | cut -d, -f1 )" "$cur" ) )
+      COMPREPLY=( $( compgen -W "$( lxc project list --format=csv | sed 's/,.\+//; s/ (current)$//' )" "$cur" ) )
     }
 
     _lxd_networks()
