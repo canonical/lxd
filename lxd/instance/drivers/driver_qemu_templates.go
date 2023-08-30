@@ -186,8 +186,15 @@ func qemuSerial(opts *qemuSerialOpts) []cfgSection {
 		name: `device "qemu_serial"`,
 		entries: []cfgEntry{
 			{key: "driver", value: "virtserialport"},
-			{key: "name", value: "org.linuxcontainers.lxd"},
+			{key: "name", value: "com.canonical.lxd"},
 			{key: "chardev", value: opts.charDevName},
+			{key: "bus", value: "dev-qemu_serial.0"},
+		},
+	}, {
+		name: `device "qemu_serial_legacy"`,
+		entries: []cfgEntry{
+			{key: "driver", value: "virtserialport"},
+			{key: "name", value: "org.linuxcontainers.lxd"},
 			{key: "bus", value: "dev-qemu_serial.0"},
 		},
 	}, {
