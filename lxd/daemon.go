@@ -1424,7 +1424,7 @@ func (d *Daemon) init() error {
 	if metricsAddress != "" {
 		err = d.endpoints.UpMetrics(metricsAddress)
 		if err != nil {
-			return err
+			logger.Warn("Failed setting up metrics", logger.Ctx{"err": err})
 		}
 	}
 
