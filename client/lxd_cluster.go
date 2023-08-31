@@ -7,8 +7,6 @@ import (
 )
 
 // GetCluster returns information about a cluster
-//
-// If this client is not trusted, the password must be supplied.
 func (r *ProtocolLXD) GetCluster() (*api.Cluster, string, error) {
 	err := r.CheckExtension("clustering")
 	if err != nil {
