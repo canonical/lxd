@@ -111,7 +111,6 @@ _have lxc && {
       core.storage_buckets_address \
       core.syslog_socket \
       core.trust_ca_certificates \
-      core.trust_password \
       cluster.healing_threshold cluster.https_address cluster.images_minimal_replica cluster.join_token_expiry cluster.max_standby cluster.max_voters cluster.offline_threshold \
       images.auto_update_cached images.auto_update_interval \
       images.compression_algorithm images.default_architecture images.remote_cache_expiry \
