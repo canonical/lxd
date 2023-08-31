@@ -228,17 +228,29 @@ func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 
 	if authType == api.AuthenticationMethodTLS {
 		if token != "" {
-			req := api.CertificatesPost{
-				Password: token,
+			req := api.CertificatesPost{}
+
+			if instanceServer.HasExtension("explicit_trust_token") {
+				req.TrustToken = token
+			} else {
+				req.Password = token
 			}
 
 			err = instanceServer.CreateCertificate(req)
 			if err != nil {
 				return nil, "", fmt.Errorf("Failed to create certificate: %w", err)
 			}
+		} else if instanceServer.HasExtension("explicit_trust_token") {
+			fmt.Println("A temporary client certificate was generated, use `lxc config trust add` on the target server.")
+			fmt.Println("")
+
+			fmt.Print("Press ENTER after the certificate was added to the remote server: ")
+			_, err = bufio.NewReader(os.Stdin).ReadString('\n')
+			if err != nil {
+				return nil, "", err
+			}
 		} else {
 			fmt.Println("It is recommended to have this certificate be manually added to LXD through `lxc config trust add` on the target server.\nAlternatively you could use a pre-defined trust password to add it remotely (use of a trust password can be a security issue).")
-
 			fmt.Println("")
 
 			useTrustPassword, err := c.global.asker.AskBool("Would you like to use a trust password? [default=no]: ", "no")
