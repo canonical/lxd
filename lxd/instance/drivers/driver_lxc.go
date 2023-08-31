@@ -1036,7 +1036,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 
 	// Setup environment
 	for k, v := range d.expandedConfig {
-		// lxddoc:generate(group=instance-miscellaneous, key=environment.*)
+		// lxdmeta:generate(entity=instance, group=miscellaneous, key=environment.*)
 		// The specified key/value environment variables are exported to the instance and set for `lxc exec`.
 
 		// ---
@@ -1288,7 +1288,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 
 	// Setup sysctls
 	for k, v := range d.expandedConfig {
-		// lxddoc:generate(group=instance-miscellaneous, key=linux.sysctl.*)
+		// lxdmeta:generate(entity=instance, group=miscellaneous, key=linux.sysctl.*)
 		//
 		// ---
 		//  type: string
