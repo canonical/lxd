@@ -603,7 +603,7 @@ var ConfigSchema = config.Schema{
 	//  type: string
 	//  scope: global
 	//  shortdesc: Password used for Loki authentication
-	"loki.auth.password": {Hidden: true},
+	"loki.auth.password": {},
 
 	// lxdmeta:generate(entities=server; group=loki; key=loki.api.ca_cert)
 	//
