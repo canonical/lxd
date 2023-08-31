@@ -5,9 +5,12 @@ _have lxc && {
     {
       local state=$1
       local keys=$2
+      local project
+      project=$(lxc project list -f csv | sed -n 's/^\([^(]\+\) (current),.*/\1/ p')
+      project=${project:-"default"}
 
-      local cmd="lxc list --format=csv --columns=ns"
-      [ -n "$state" ] && cmd="$cmd | grep -E '$state$'"
+      local cmd="lxc list --format=csv --columns=ns --project $project"
+      [ -n "$state" ] && cmd="$cmd | grep -E ',$state$'"
 
       COMPREPLY=( $( compgen -W \
         "$( eval $cmd | cut -d, -f1 ) $keys" "$cur" )
@@ -31,7 +34,7 @@ _have lxc && {
 
     _lxd_projects()
     {
-      COMPREPLY=( $( compgen -W "$( lxc project list --format=csv | cut -d, -f1 )" "$cur" ) )
+      COMPREPLY=( $( compgen -W "$( lxc project list --format=csv | sed 's/,.\+//; s/ (current)$//' )" "$cur" ) )
     }
 
     _lxd_networks()
@@ -245,7 +248,7 @@ _have lxc && {
         _lxd_names "(STOPPED|FROZEN)"
         ;;
       "exec"|"console"|"stop"|"shell")
-        _lxd_names "RUNNING|READY"
+        _lxd_names "(RUNNING|READY)"
         ;;
       "file")
         COMPREPLY=( $(compgen -W "pull push edit delete mount" -- $cur) )
