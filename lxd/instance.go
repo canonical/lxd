@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
+	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/revert"
@@ -729,4 +730,13 @@ func getSourceImageFromInstanceSource(ctx context.Context, s *state.State, tx *d
 	}
 
 	return sourceImage, nil
+}
+
+// instanceOperationLock acquires a lock for operating on an instance and returns the unlock function.
+func instanceOperationLock(ctx context.Context, projectName string, instanceName string) locking.UnlockFunc {
+	l := logger.AddContext(logger.Ctx{"project": projectName, "instance": instanceName})
+	l.Debug("Acquiring lock for instance")
+	defer l.Debug("Lock acquired for instance")
+
+	return locking.Lock(ctx, fmt.Sprintf("InstanceOperation_%s", project.Instance(projectName, instanceName)))
 }
