@@ -1,0 +1,12 @@
+name: Tests (snap)
+on:
+  - workflow_dispatch
+
+permissions:
+  contents: read
+
+jobs:
+  test-self-hosted-large-container:
+    runs-on: [self-hosted, linux, X64, jammy, large]
+    steps:
+      - uses: actions/checkout@v3
