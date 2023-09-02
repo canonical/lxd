@@ -37,9 +37,6 @@ You can accept the default values for most questions, but make sure to answer th
 - `Are you joining an existing cluster?`
 
   Select **no**.
-- `Setup password authentication on the cluster?`
-
-  Select **no** to use {ref}`authentication tokens <authentication-token>` (recommended) or **yes** to use a {ref}`trust password <authentication-trust-pw>`.
 
 <details>
 <summary>Expand to see a full example for <code>lxd init</code> on the bootstrap server</summary>
@@ -51,7 +48,6 @@ Would you like to use LXD clustering? (yes/no) [default=no]: yes
 What IP address or DNS name should be used to reach this server? [default=192.0.2.101]:
 Are you joining an existing cluster? (yes/no) [default=no]: no
 What member name should be used to identify this server in the cluster? [default=server1]:
-Setup password authentication on the cluster? (yes/no) [default=no]: no
 Do you want to configure a new local storage pool? (yes/no) [default=yes]:
 Name of the storage backend to use (btrfs, dir, lvm, zfs) [default=zfs]:
 Create a new ZFS pool? (yes/no) [default=yes]:
@@ -98,17 +94,10 @@ Basically, the initialization process consists of the following steps:
    - `Are you joining an existing cluster?`
 
      Select **yes**.
-   - `Do you have a join token?`
 
-     Select **yes** if you configured the bootstrap server to use {ref}`authentication tokens <authentication-token>` (recommended) or **no** if you configured it to use a {ref}`trust password <authentication-trust-pw>`.
 1. Authenticate with the cluster.
 
-   There are two alternative methods, depending on which authentication method you choose when configuring the bootstrap server.
-
-   `````{tabs}
-
-   ````{group-tab} Authentication tokens (recommended)
-   If you configured your cluster to use {ref}`authentication tokens <authentication-token>`, you must generate a join token for each new member.
+   Generate a {ref}`join token <authentication-token>` for each new member.
    To do so, run the following command on an existing cluster member (for example, the bootstrap server):
 
        lxc cluster add <new_member_name>
@@ -118,17 +107,6 @@ Basically, the initialization process consists of the following steps:
 
    The join token contains the addresses of the existing online members, as well as a single-use secret and the fingerprint of the cluster certificate.
    This reduces the amount of questions that you must answer during `lxd init`, because the join token can be used to answer these questions automatically.
-   ````
-   ````{group-tab} Trust password
-   If you configured your cluster to use a {ref}`trust password <authentication-trust-pw>`, `lxd init` requires more information about the cluster before it can start the authorization process:
-
-   1. Specify a name for the new cluster member.
-   1. Provide the address of an existing cluster member (the bootstrap server or any other server you have already added).
-   1. Verify the fingerprint for the cluster.
-   1. If the fingerprint is correct, enter the trust password to authorize with the cluster.
-   ````
-
-   `````
 
 1. Confirm that all local data for the server is lost when joining a cluster.
 1. Configure server-specific settings (see {ref}`clustering-member-config` for more information).
@@ -137,10 +115,6 @@ Basically, the initialization process consists of the following steps:
 
 <details>
 <summary>Expand to see full examples for <code>lxd init</code> on additional servers</summary>
-
-`````{tabs}
-
-````{group-tab} Authentication tokens (recommended)
 
 ```{terminal}
 :input: sudo lxd init
@@ -156,32 +130,6 @@ Choose "source" property for storage pool "local":
 Choose "zfs.pool_name" property for storage pool "local":
 Would you like a YAML "lxd init" preseed to be printed? (yes/no) [default=no]:
 ```
-
-````
-````{group-tab} Trust password
-
-```{terminal}
-:input: sudo lxd init
-
-Would you like to use LXD clustering? (yes/no) [default=no]: yes
-What IP address or DNS name should be used to reach this server? [default=192.0.2.102]:
-Are you joining an existing cluster? (yes/no) [default=no]: yes
-Do you have a join token? (yes/no/[token]) [default=no]: no
-What member name should be used to identify this server in the cluster? [default=server2]:
-IP address or FQDN of an existing cluster member (may include port): 192.0.2.101:8443
-Cluster fingerprint: 2915dafdf5c159681a9086f732644fb70680533b0fb9005b8c6e9bca51533113
-You can validate this fingerprint by running "lxc info" locally on an existing cluster member.
-Is this the correct fingerprint? (yes/no/[fingerprint]) [default=no]: yes
-Cluster trust password:
-All existing data is lost when joining a cluster, continue? (yes/no) [default=no] yes
-Choose "size" property for storage pool "local":
-Choose "source" property for storage pool "local":
-Choose "zfs.pool_name" property for storage pool "local":
-Would you like a YAML "lxd init" preseed to be printed? (yes/no) [default=no]:
-```
-
-````
-`````
 
 </details>
 
@@ -202,11 +150,6 @@ You need a different preseed file for every server.
 
 ### Initialize the bootstrap server
 
-The required contents of the preseed file depend on whether you want to use {ref}`authentication tokens <authentication-token>` (recommended) or a {ref}`trust password <authentication-trust-pw>` for authentication.
-
-`````{tabs}
-
-````{group-tab} Authentication tokens (recommended)
 To enable clustering, the preseed file for the bootstrap server must contain the following fields:
 
 ```yaml
@@ -247,66 +190,13 @@ cluster:
   server_name: server1
   enabled: true
 ```
-
-````
-````{group-tab} Trust password
-To enable clustering, the preseed file for the bootstrap server must contain the following fields:
-
-```yaml
-config:
-  core.https_address: <IP_address_and_port>
-  core.trust_password: <trust_password>
-cluster:
-  server_name: <server_name>
-  enabled: true
-```
-
-Here is an example preseed file for the bootstrap server:
-
-```yaml
-config:
-  core.trust_password: the_password
-  core.https_address: 192.0.2.101:8443
-  images.auto_update_interval: 15
-storage_pools:
-- name: default
-  driver: dir
-- name: my-pool
-  driver: zfs
-networks:
-- name: lxdbr0
-  type: bridge
-profiles:
-- name: default
-  devices:
-    root:
-      path: /
-      pool: my-pool
-      type: disk
-    eth0:
-      name: eth0
-      nictype: bridged
-      parent: lxdbr0
-      type: nic
-cluster:
-  server_name: server1
-  enabled: true
-```
-
-````
-`````
 
 See {ref}`preseed-yaml-file-fields` for the complete fields of the preseed YAML file.
 
 ### Join additional servers
 
-The required contents of the preseed files depend on whether you configured the bootstrap server to use {ref}`authentication tokens <authentication-token>` (recommended) or a {ref}`trust password <authentication-trust-pw>` for authentication.
-
 The preseed files for new cluster members require only a `cluster` section with data and configuration values that are specific to the joining server.
 
-`````{tabs}
-
-````{group-tab} Authentication tokens (recommended)
 The preseed file for additional servers must include the following fields:
 
 ```yaml
@@ -338,66 +228,6 @@ cluster:
     value: "zfs"
 
 ```
-
-````
-````{group-tab} Trust password
-The preseed file for additional servers must include the following fields:
-
-```yaml
-cluster:
-  server_name: <server_name>
-  enabled: true
-  cluster_address: <IP_address_of_bootstrap_server>
-  server_address: <IP_address_of_server>
-  cluster_password: <trust_password>
-  cluster_certificate: <certificate> # use this or cluster_certificate_path
-  cluster_certificate_path: <path_to-certificate_file> # use this or cluster_certificate
-```
-
-  To create a YAML-compatible entry for the `cluster_certificate` key, run one the following commands on the bootstrap server:
-
-   - When using the snap: `sed ':a;N;$!ba;s/\n/\n\n/g' /var/snap/lxd/common/lxd/cluster.crt`
-   - Otherwise: `sed ':a;N;$!ba;s/\n/\n\n/g' /var/lib/lxd/cluster.crt`
-
-  Alternatively, copy the `cluster.crt` file from the bootstrap server to the server that you want to join and specify its path in the `cluster_certificate_path` key.
-
-Here is an example preseed file for a new cluster member:
-
-```yaml
-cluster:
-  server_name: server2
-  enabled: true
-  server_address: 192.0.2.102:8443
-  cluster_address: 192.0.2.101:8443
-  cluster_certificate: "-----BEGIN CERTIFICATE-----
-
-opyQ1VRpAg2sV2C4W8irbNqeUsTeZZxhLqp4vNOXXBBrSqUCdPu1JXADV0kavg1l
-
-2sXYoMobyV3K+RaJgsr1OiHjacGiGCQT3YyNGGY/n5zgT/8xI0Dquvja0bNkaf6f
-
-...
-
------END CERTIFICATE-----
-"
-  cluster_password: the_password
-  member_config:
-  - entity: storage-pool
-    name: default
-    key: source
-    value: ""
-  - entity: storage-pool
-    name: my-pool
-    key: source
-    value: ""
-  - entity: storage-pool
-    name: my-pool
-    key: driver
-    value: "zfs"
-
-```
-
-````
-`````
 
 See {ref}`preseed-yaml-file-fields` for the complete fields of the preseed YAML file.
 

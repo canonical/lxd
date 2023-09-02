@@ -8,7 +8,6 @@ The preseed YAML file fields are as follows:
 ```yaml
 config:
   core.https_address: ""
-  core.trust_password: ""
   images.auto_update_interval: 6
 
 networks:

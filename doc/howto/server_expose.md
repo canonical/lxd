@@ -144,7 +144,7 @@ To authenticate a CLI or API client using a trust token, complete the following 
 
        curl -k -s --key "<keyfile_name>" --cert "<crtfile_name>" \
        -X POST https://<server_address>/1.0/certificates \
-       --data '{ "password": "<trust_token>" }'
+       --data '{ "trust_token": "<trust_token>" }'
 
    See [`POST /1.0/certificates?public`](swagger:/certificates/certificates_post_untrusted) for more information.
    ````
