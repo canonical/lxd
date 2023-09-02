@@ -87,6 +87,12 @@ type ClusterPut struct {
 	//
 	// API extension: clustering_join
 	ClusterPassword string `json:"cluster_password" yaml:"cluster_password"`
+
+	// The cluster join token for the cluster you're trying to join
+	// Example: blah
+	//
+	// API extension: explicit_trust_token
+	ClusterToken string `json:"cluster_token" yaml:"cluster_token"`
 }
 
 // ClusterMembersPost represents the fields required to request a join token to add a member to the cluster.
