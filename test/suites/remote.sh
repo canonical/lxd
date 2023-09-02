@@ -1,15 +1,4 @@
 test_remote_url() {
-  # Add remotes using password.
-  # shellcheck disable=2153
-  for url in "${LXD_ADDR}" "https://${LXD_ADDR}"; do
-    lxc_remote remote add test "${url}" --accept-certificate --password foo
-    lxc_remote info test:
-    lxc_remote config trust list | awk '/@/ {print $8}' | while read -r line ; do
-      lxc_remote config trust remove "\"${line}\""
-    done
-    lxc_remote remote remove test
-  done
-
   # Add remotes by setting the token explicitly.
   # shellcheck disable=2153
   for url in "${LXD_ADDR}" "https://${LXD_ADDR}"; do
@@ -26,7 +15,7 @@ test_remote_url() {
   urls="${LXD_DIR}/unix.socket unix:${LXD_DIR}/unix.socket unix://${LXD_DIR}/unix.socket"
 
   # an invalid protocol returns an error
-  ! lxc_remote remote add test "${url}" --accept-certificate --password foo --protocol foo || false
+  ! lxc_remote remote add test "${url}" --accept-certificate --token foo --protocol foo || false
 
   for url in ${urls}; do
     lxc_remote remote add test "${url}"
@@ -98,7 +87,7 @@ test_remote_url_with_token() {
   [ "$(curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" "https://${LXD_ADDR}/1.0/instances" | jq '.error_code')" -eq 403 ]
 
   # Add valid token
-  curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" -X POST -d "{\"password\": ${token}}" "https://${LXD_ADDR}/1.0/certificates"
+  curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" -X POST -d "{\"trust_token\": ${token}}" "https://${LXD_ADDR}/1.0/certificates"
 
   # Check if we can see instances
   [ "$(curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" "https://${LXD_ADDR}/1.0/instances" | jq '.status_code')" -eq 200 ]
@@ -112,7 +101,7 @@ test_remote_url_with_token() {
   token="$(lxc config trust list-tokens -f json | jq '.[].Token')"
 
   # Add valid token but override projects
-  curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" -X POST -d "{\"password\":${token},\"projects\":[\"default\",\"foo\"],\"restricted\":false}" "https://${LXD_ADDR}/1.0/certificates"
+  curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" -X POST -d "{\"trust_token\":${token},\"projects\":[\"default\",\"foo\"],\"restricted\":false}" "https://${LXD_ADDR}/1.0/certificates"
 
   # Check if we can see instances in the foo project
   [ "$(curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" "https://${LXD_ADDR}/1.0/instances?project=foo" | jq '.status_code')" -eq 200 ]
@@ -155,10 +144,11 @@ test_remote_url_with_token() {
 }
 
 test_remote_admin() {
-  ! lxc_remote remote add badpass "${LXD_ADDR}" --accept-certificate --password bad || false
+  ! lxc_remote remote add badpass "${LXD_ADDR}" --accept-certificate --token badtoken || false
   ! lxc_remote list badpass: || false
 
-  lxc_remote remote add foo "${LXD_ADDR}" --accept-certificate --password foo
+  token="$(lxc config trust add --name foo -q)"
+  lxc_remote remote add foo "${LXD_ADDR}" --accept-certificate --token "${token}"
   lxc_remote remote list | grep 'foo'
 
   lxc_remote remote set-default foo
@@ -173,7 +163,7 @@ test_remote_admin() {
   lxc_remote remote set-default local
   lxc_remote remote remove bar
 
-  # This is a test for #91, we expect this to block asking for a password if we
+  # This is a test for #91, we expect this to block asking for a token if we
   # tried to re-add our cert.
   echo y | lxc_remote remote add foo "${LXD_ADDR}"
   lxc_remote remote remove foo
@@ -183,7 +173,8 @@ test_remote_admin() {
   gen_cert client2
 
   # Test for #623
-  lxc_remote remote add test-623 "${LXD_ADDR}" --accept-certificate --password foo
+  token="$(lxc config trust add --name foo -q)"
+  lxc_remote remote add test-623 "${LXD_ADDR}" --accept-certificate --token "${token}"
   lxc_remote remote remove test-623
 
   # now re-add under a different alias
@@ -205,7 +196,8 @@ test_remote_usage() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  lxc_remote remote add lxd2 "${LXD2_ADDR}" --accept-certificate --password foo
+  token="$(LXD_DIR=${LXD2_DIR} lxc config trust add --name foo -q)"
+  lxc_remote remote add lxd2 "${LXD2_ADDR}" --accept-certificate --token "${token}"
 
   # we need a public image on localhost
 

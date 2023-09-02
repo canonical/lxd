@@ -102,9 +102,6 @@ spawn_lxd() {
 
   echo "==> Binding to network"
   LXD_DIR="$lxddir" lxc config set core.https_address "$addr"
-
-  echo "==> Setting trust password"
-  LXD_DIR="$lxddir" lxc config set core.trust_password foo
 }
 
 spawn_lxd 127.0.0.1:18443 "$LXD_DIR"

@@ -60,8 +60,6 @@ spawn_lxd() {
         done
     fi
 
-    echo "==> Setting trust password"
-    LXD_DIR="${lxddir}" lxc config set core.trust_password foo
     if [ -n "${DEBUG:-}" ]; then
         set -x
     fi

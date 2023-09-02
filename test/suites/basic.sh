@@ -656,11 +656,9 @@ test_basic_usage() {
 
   # Test rebuilding an instance with a new image.
   lxc init c1 --empty
-  lxc remote add l1 "${LXD_ADDR}" --accept-certificate --password foo
-  lxc rebuild l1:testimage c1
+  lxc rebuild testimage c1
   lxc start c1
   lxc delete c1 -f
-  lxc remote remove l1
 
   # Test rebuilding an instance with an empty file system.
   lxc init testimage c1
@@ -680,6 +678,8 @@ test_basic_usage() {
   lxc launch testimage c2
   lxc launch testimage c3
 
+  fingerprint="$(lxc config trust ls --format csv | cut -d, -f4)"
+  lxc config trust remove "${fingerprint}"
   lxc delete -f c1 c2 c3
   remaining_instances="$(lxc list --format csv)"
   [ -z "${remaining_instances}" ]
