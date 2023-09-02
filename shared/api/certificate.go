@@ -52,6 +52,12 @@ type CertificatesPost struct {
 	// Example: blah
 	Password string `json:"password" yaml:"password"`
 
+	// Trust token (used to add an untrusted client)
+	// Example: blah
+	//
+	// API extension: explicit_trust_token
+	TrustToken string `json:"trust_token" yaml:"trust_token"`
+
 	// Whether to create a certificate add token
 	// Example: true
 	//
