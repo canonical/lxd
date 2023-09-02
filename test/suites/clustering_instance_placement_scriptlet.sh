@@ -28,14 +28,14 @@ test_clustering_instance_placement_scriptlet() {
   LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_TWO_DIR}"
   ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${poolDriver}"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}" "${poolDriver}"
 
   # Spawn a third node
   setup_clustering_netns 3
   LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_THREE_DIR}"
   ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${poolDriver}"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}" "${poolDriver}"
 
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
 

@@ -1,5 +1,6 @@
 test_storage_volume_snapshots() {
   ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # shellcheck disable=2039,3043
   local LXD_STORAGE_DIR lxd_backend
@@ -8,7 +9,6 @@ test_storage_volume_snapshots() {
   LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
   chmod +x "${LXD_STORAGE_DIR}"
   spawn_lxd "${LXD_STORAGE_DIR}" false
-  lxc remote add test "${LXD_ADDR}" --accept-certificate --password foo
 
   # shellcheck disable=2039,3043
   local storage_pool storage_volume
@@ -160,7 +160,7 @@ test_storage_volume_snapshots() {
   lxc storage volume delete "${storage_pool}" "vol2"
 
   # Check snapshot copy (mode pull, remote).
-  lxc storage volume copy "${storage_pool}/vol1/snap0" "test:${storage_pool}/vol2" --mode pull
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "localhost:${storage_pool}/vol2" --mode pull
   lxc launch testimage "c1"
   lxc storage volume attach "${storage_pool}" "vol2" "c1" /mnt
   lxc exec "c1" -- test -f /mnt/foo
@@ -176,7 +176,7 @@ test_storage_volume_snapshots() {
   lxc storage volume delete "${storage_pool}" "vol2"
 
   # Check snapshot copy (mode push, remote).
-  lxc storage volume copy "${storage_pool}/vol1/snap0" "test:${storage_pool}/vol2" --mode push
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "localhost:${storage_pool}/vol2" --mode push
   lxc launch testimage "c1"
   lxc storage volume attach "${storage_pool}" "vol2" "c1" /mnt
   lxc exec "c1" -- test -f /mnt/foo
@@ -192,7 +192,7 @@ test_storage_volume_snapshots() {
   lxc storage volume delete "${storage_pool}" "vol2"
 
   # Check snapshot copy (mode relay, remote).
-  lxc storage volume copy "${storage_pool}/vol1/snap0" "test:${storage_pool}/vol2" --mode relay
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "localhost:${storage_pool}/vol2" --mode relay
   lxc launch testimage "c1"
   lxc storage volume attach "${storage_pool}" "vol2" "c1" /mnt
   lxc exec "c1" -- test -f /mnt/foo
@@ -211,13 +211,13 @@ test_storage_volume_snapshots() {
 
   # Check snapshot copy between pools (remote).
   lxc storage create "${storage_pool2}" dir
-  lxc storage volume copy "${storage_pool}/vol1/snap0" "test:${storage_pool2}/vol2"
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "localhost:${storage_pool2}/vol2"
   lxc launch testimage "c1"
   lxc storage volume attach "${storage_pool2}" "vol2" "c1" /mnt
   lxc exec "c1" -- test -f /mnt/foo
   lxc delete -f "c1"
   lxc storage volume delete "${storage_pool2}" "vol2"
-  lxc storage volume copy "test:${storage_pool}/vol1/snap0" "${storage_pool2}/vol2"
+  lxc storage volume copy "localhost:${storage_pool}/vol1/snap0" "${storage_pool2}/vol2"
   lxc launch testimage "c1"
   lxc storage volume attach "${storage_pool2}" "vol2" "c1" /mnt
   lxc exec "c1" -- test -f /mnt/foo
@@ -232,8 +232,8 @@ test_storage_volume_snapshots() {
   lxc storage volume delete "${storage_pool}" "vol2"
 
   # Check snapshot volume only copy (remote).
-  ! lxc storage volume copy "${storage_pool}/vol1/snap0" "test:${storage_pool}/vol2" --volume-only || false
-  lxc storage volume copy "${storage_pool}/vol1" "test:${storage_pool}/vol2" --volume-only
+  ! lxc storage volume copy "${storage_pool}/vol1/snap0" "localhost:${storage_pool}/vol2" --volume-only || false
+  lxc storage volume copy "${storage_pool}/vol1" "localhost:${storage_pool}/vol2" --volume-only
   [ "$(lxc query "/1.0/storage-pools/${storage_pool}/volumes/custom/vol2/snapshots" | jq "length == 0")" = "true" ]
   lxc storage volume delete "${storage_pool}" "vol2"
 
@@ -243,8 +243,8 @@ test_storage_volume_snapshots() {
   lxc storage volume delete "${storage_pool}" "vol2"
 
   # Check snapshot refresh (remote).
-  lxc storage volume copy "${storage_pool}/vol1/snap0" "test:${storage_pool}/vol2"
-  lxc storage volume copy "${storage_pool}/vol1/snap0" "test:${storage_pool}/vol2" --refresh
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "localhost:${storage_pool}/vol2"
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "localhost:${storage_pool}/vol2" --refresh
   lxc storage volume delete "${storage_pool}" "vol2"
 
   # Check snapshot copy between projects.
@@ -254,7 +254,7 @@ test_storage_volume_snapshots() {
   lxc storage volume delete "${storage_pool}" "vol1" --project project1
 
   # Check snapshot copy between projects (remote).
-  lxc storage volume copy "${storage_pool}/vol1/snap0" "test:${storage_pool}/vol1" --target-project project1
+  lxc storage volume copy "${storage_pool}/vol1/snap0" "localhost:${storage_pool}/vol1" --target-project project1
   [ "$(lxc query "/1.0/storage-pools/${storage_pool}/volumes?project=project1" | jq "length == 1")" = "true" ]
   lxc storage volume delete "${storage_pool}" "vol1" --project project1
   lxc storage volume delete "${storage_pool}" "vol1"
@@ -264,15 +264,18 @@ test_storage_volume_snapshots() {
   lxc storage volume snapshot "${storage_pool}" "vol1" "snap0"
   ! lxc storage volume show "${storage_pool}" "vol1" | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
   ! lxc storage volume show "${storage_pool}" "vol1/snap0" | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
-  lxc storage volume copy "${storage_pool}/vol1" "test:${storage_pool}/vol1-copy"
-  ! lxc storage volume show "${storage_pool}" "test:${storage_pool}" "vol1-copy" | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
-  [ "$(lxc storage volume show "${storage_pool}" "vol1/snap0" | awk /created_at:/)" = "$(lxc storage volume show "test:${storage_pool}" "vol1-copy/snap0" | awk /created_at:/)" ]
+  lxc storage volume copy "${storage_pool}/vol1" "localhost:${storage_pool}/vol1-copy"
+  ! lxc storage volume show "${storage_pool}" "localhost:${storage_pool}" "vol1-copy" | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  [ "$(lxc storage volume show "${storage_pool}" "vol1/snap0" | awk /created_at:/)" = "$(lxc storage volume show "localhost:${storage_pool}" "vol1-copy/snap0" | awk /created_at:/)" ]
   lxc storage volume delete "${storage_pool}" "vol1"
   lxc storage volume delete "${storage_pool}" "vol1-copy"
 
   lxc project delete "project1"
   lxc storage delete "${storage_pool}"
-  lxc remote remove "test"
+
+  fingerprint="$(lxc config trust ls --format csv | grep foo | cut -d, -f4)"
+  lxc config trust remove "${fingerprint}"
+  lxc remote remove "localhost"
 
   # shellcheck disable=SC2031,2269
   LXD_DIR="${LXD_DIR}"

@@ -3,22 +3,10 @@ test_server_config() {
   spawn_lxd "${LXD_SERVERCONFIG_DIR}" true
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  _server_config_password
   _server_config_access
   _server_config_storage
 
   kill_lxd "${LXD_SERVERCONFIG_DIR}"
-}
-
-_server_config_password() {
-  lxc config set core.trust_password 123456
-
-  config=$(lxc config show)
-  echo "${config}" | grep -q "trust_password"
-  echo "${config}" | grep -q -v "123456"
-
-  lxc config unset core.trust_password
-  lxc config show | grep -q -v "trust_password"
 }
 
 _server_config_access() {

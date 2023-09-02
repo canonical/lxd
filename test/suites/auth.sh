@@ -225,31 +225,22 @@ fine_grained_authorization() {
   lxc auth group permission remove test-group server can_view_warnings
 
   # Check we are not able to view any server config currently.
-  # Here we explicitly use two settings that contain actual passwords.
-  lxc config set core.trust_password foo2
-  lxc config set loki.auth.password bar2
+  # Here we explicitly a setting that contains an actual password.
+  lxc config set loki.auth.password bar
   [ "$(lxc_remote query oidc:/1.0 | jq '.config | length')" = 0 ]
-  [ "$(lxc_remote query oidc:/1.0 | jq -r '.config."core.trust_password"')" = "null" ]
   [ "$(lxc_remote query oidc:/1.0 | jq -r '.config."loki.auth.password"')" = "null" ]
 
   # Check we are not able to set any server config currently.
-  ! lxc_remote config set oidc: core.trust_password foo3 || false
-  ! lxc_remote config set oidc: loki.auth.password bar3 || false
+  ! lxc_remote config set oidc: loki.auth.password bar2 || false
 
   # Add "can_edit" permission to group.
   lxc auth group permission add test-group server can_edit
 
   # Check we can view the server's config.
-  # As the core.trust_password is stored as scrypt value together with its hash, we cannot easily compare it against the original value.
-  [ "$(lxc_remote query oidc:/1.0 | jq -r '.config."core.trust_password"')" != "null" ]
-  [ "$(lxc_remote query oidc:/1.0 | jq -r '.config."loki.auth.password"')" = "bar2" ]
+  [ "$(lxc_remote query oidc:/1.0 | jq -r '.config."loki.auth.password"')" = "bar" ]
 
   # Check we can modify the server's config.
-  lxc_remote config set oidc: core.trust_password foo3
-  lxc_remote config set oidc: loki.auth.password bar3
-
-  # Reset the trust password to prevent side effects.
-  lxc config set core.trust_password foo
+  lxc_remote config set oidc: loki.auth.password bar2
 
   lxc auth group permission remove test-group server can_edit
   lxc config unset loki.auth.password

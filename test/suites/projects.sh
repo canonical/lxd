@@ -521,7 +521,7 @@ test_projects_network() {
   # Create a container in the project
   lxc init -n "${network}" testimage c1
 
-  lxc network show "${network}" |grep -q "/1.0/instances/c1?project=foo"
+  lxc network show "${network}" | grep -q "/1.0/instances/c1?project=foo"
 
   # Delete the container
   lxc delete c1
@@ -754,7 +754,8 @@ test_projects_limits() {
     LXD_REMOTE_ADDR=$(cat "${LXD_REMOTE_DIR}/lxd.addr")
     (LXD_DIR=${LXD_REMOTE_DIR} deps/import-busybox --alias remoteimage --template start --public)
 
-    lxc remote add l2 "${LXD_REMOTE_ADDR}" --accept-certificate --password foo
+    token="$(LXD_DIR=${LXD_REMOTE_DIR} lxc config trust add --name foo -q)"
+    lxc remote add l2 "${LXD_REMOTE_ADDR}" --accept-certificate --token "${token}"
 
     # Relax all constraints except the disk limits, which won't be enough for the
     # image to be downloaded.

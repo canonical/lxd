@@ -45,12 +45,9 @@ profiles:
 EOF
   lxd init --dump > config.yaml
 
-  # XXX: mangle the trust_password field as a workaround
-  sed -i 's/^\( *core.trust_password\): .\+$/\1: true/' config.yaml
 cat <<EOF > expected.yaml
 config:
   core.https_address: 127.0.0.1:9999
-  core.trust_password: true
   images.auto_update_interval: "15"
 networks:
 - config:
