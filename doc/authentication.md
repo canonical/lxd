@@ -51,7 +51,6 @@ You can obtain the list of TLS certificates trusted by a LXD server with [`lxc c
 Trusted clients can be added in either of the following ways:
 
 - {ref}`authentication-add-certs`
-- {ref}`authentication-trust-pw`
 - {ref}`authentication-token`
 
 The workflow to authenticate with the server is similar to that of SSH, where an initial connection to an unknown server triggers a prompt:
@@ -61,8 +60,8 @@ The workflow to authenticate with the server is similar to that of SSH, where an
 1. The server attempts to authenticate the client:
 
    - If the client certificate is in the server's trust store, the connection is granted.
-   - If the client certificate is not in the server's trust store, the server prompts the user for a token or the trust password.
-     If the provided token or trust password matches, the client certificate is added to the server's trust store and the connection is granted.
+   - If the client certificate is not in the server's trust store, the server prompts the user for a token.
+     If the provided token matches, the client certificate is added to the server's trust store and the connection is granted.
      Otherwise, the connection is rejected.
 
 To revoke trust to a client, remove its certificate from the server with [`lxc config trust remove <fingerprint>`](lxc_config_trust_remove.md).
@@ -75,21 +74,13 @@ TLS clients can be restricted to a subset of projects, see {ref}`restricted-tls-
 The preferred way to add trusted clients is to directly add their certificates to the trust store on the server.
 To do so, copy the client certificate to the server and register it using [`lxc config trust add <file>`](lxc_config_trust_add.md).
 
-(authentication-trust-pw)=
-#### Adding client certificates using a trust password
-
-To allow establishing a new trust relationship from the client side, you must set a trust password ({config:option}`server-core:core.trust_password`) for the server. Clients can then add their own certificate to the server's trust store by providing the trust password when prompted.
-
-In a production setup, unset `core.trust_password` after all clients have been added.
-This prevents brute-force attacks trying to guess the password.
-
 (authentication-token)=
 #### Adding client certificates using tokens
 
-You can also add new clients by using tokens. This is a safer way than using the trust password, because tokens expire after a configurable time ({config:option}`server-core:core.remote_token_expiry`) or once they've been used.
+You can also add new clients by using tokens. These tokens expire after a configurable time ({config:option}`server-core:core.remote_token_expiry`) or once they've been used.
 
 To use this method, generate a token for each client by calling [`lxc config trust add`](lxc_config_trust_add.md), which will prompt for the client name.
-The clients can then add their certificates to the server's trust store by providing the generated token when prompted for the trust password.
+The clients can then add their certificates to the server's trust store by providing the generated token.
 
 <!-- Include start NAT authentication -->
 
@@ -98,7 +89,10 @@ If your LXD server is behind NAT, you must specify its external public address w
 
     lxc remote add <name> <IP_address>
 
-When you are prompted for the admin password, specify the generated token.
+When you are prompted for the token, specify the generated token from the previous step.
+Alternatively, use the `--token` flag:
+
+    lxc remote add <name> <IP_address> --token <token>
 
 When generating the token on the server, LXD includes a list of IP addresses that the client can use to access the server.
 However, if the server is behind NAT, these addresses might be local addresses that the client cannot connect to.
