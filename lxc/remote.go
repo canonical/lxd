@@ -247,8 +247,11 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 		return api.StatusErrorf(http.StatusServiceUnavailable, i18n.G("Unavailable remote server")+": %w", err)
 	}
 
-	req := api.CertificatesPost{
-		Password: token,
+	req := api.CertificatesPost{}
+	if d.HasExtension("explicit_trust_token") {
+		req.TrustToken = token
+	} else {
+		req.Password = token
 	}
 
 	err = d.CreateCertificate(req)
@@ -555,23 +558,34 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		if c.flagAuthType == api.AuthenticationMethodTLS {
 			req := api.CertificatesPost{}
 
-			if c.flagToken != "" && d.(lxd.InstanceServer).HasExtension("explicit_trust_token") {
-				req.TrustToken = c.flagToken
-			} else if c.flagPassword == "" {
-				// If the token is not set fallback to prompt for trust password.
-				fmt.Printf(i18n.G("Admin password (or token) for %s:")+" ", server)
-				pwd, err := term.ReadPassword(0)
-				if err != nil {
-					// We got an error, maybe this isn't a terminal, let's try to read it as a file.
-					pwd, err = shared.ReadStdin()
+			if d.(lxd.InstanceServer).HasExtension("explicit_trust_token") {
+				// Prompt for trust token.
+				if c.flagToken == "" {
+					c.flagToken, err = c.global.asker.AskString(fmt.Sprintf(i18n.G("Trust token for %s: "), server), "", nil)
 					if err != nil {
 						return err
 					}
 				}
-				fmt.Println("")
-				req.Password = string(pwd)
+
+				req.TrustToken = c.flagToken
 			} else {
-				req.Password = c.flagPassword
+				// Prompt for trust password if token is not supported by the server.
+				if c.flagPassword == "" {
+					fmt.Printf(i18n.G("Admin password (or token) for %s:")+" ", server)
+					pwd, err := term.ReadPassword(0)
+					if err != nil {
+						// We got an error, maybe this isn't a terminal, let's try to read it as a file.
+						pwd, err = shared.ReadStdin()
+						if err != nil {
+							return err
+						}
+					}
+
+					fmt.Println("")
+					req.Password = string(pwd)
+				} else {
+					req.Password = c.flagPassword
+				}
 			}
 
 			req.Type = api.CertificateTypeClient
