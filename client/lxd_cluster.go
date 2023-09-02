@@ -6,7 +6,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
-// GetCluster returns information about a cluster
+// GetCluster returns information about a cluster.
 func (r *ProtocolLXD) GetCluster() (*api.Cluster, string, error) {
 	err := r.CheckExtension("clustering")
 	if err != nil {
@@ -29,7 +29,7 @@ func (r *ProtocolLXD) UpdateCluster(cluster api.ClusterPut, ETag string) (Operat
 		return nil, err
 	}
 
-	if cluster.ServerAddress != "" || cluster.ClusterPassword != "" || cluster.ClusterToken != "" || len(cluster.MemberConfig) > 0 {
+	if cluster.ServerAddress != "" || cluster.ClusterToken != "" || len(cluster.MemberConfig) > 0 {
 		err := r.CheckExtension("clustering_join")
 		if err != nil {
 			return nil, err
