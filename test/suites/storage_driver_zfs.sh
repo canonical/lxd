@@ -268,6 +268,10 @@ do_storage_driver_zfs() {
   # Turn off block mode
   lxc storage unset lxdtest-"$(basename "${LXD_DIR}")" volume.zfs.block_mode
 
+  # Regular (no block mode) custom storage block volumes shouldn't be allowed to set block.*.
+  ! lxc storage create lxdtest-"$(basename "${LXD_DIR}")" block.filesystem=ext4 || false
+  ! lxc storage create lxdtest-"$(basename "${LXD_DIR}")" block.mount_options=rw || false
+
   # shellcheck disable=SC2031
   kill_lxd "${LXD_STORAGE_DIR}"
 }
