@@ -30,20 +30,40 @@ var UbuntuDailyRemote = Remote{
 	Protocol: "simplestreams",
 }
 
+// UbuntuMinimalRemote is the Ubuntu minimal image server (over simplestreams).
+var UbuntuMinimalRemote = Remote{
+	Addr:     "https://cloud-images.ubuntu.com/minimal/releases/",
+	Static:   true,
+	Public:   true,
+	Protocol: "simplestreams",
+}
+
+// UbuntuMinimalDailyRemote is the Ubuntu daily minimal image server (over simplestreams).
+var UbuntuMinimalDailyRemote = Remote{
+	Addr:     "https://cloud-images.ubuntu.com/minimal/daily/",
+	Static:   true,
+	Public:   true,
+	Protocol: "simplestreams",
+}
+
 // StaticRemotes is the list of remotes which can't be removed
 var StaticRemotes = map[string]Remote{
-	"local":        LocalRemote,
-	"images":       ImagesRemote,
-	"ubuntu":       UbuntuRemote,
-	"ubuntu-daily": UbuntuDailyRemote,
+	"images":               ImagesRemote,
+	"local":                LocalRemote,
+	"ubuntu":               UbuntuRemote,
+	"ubuntu-daily":         UbuntuDailyRemote,
+	"ubuntu-minimal":       UbuntuMinimalRemote,
+	"ubuntu-minimal-daily": UbuntuMinimalDailyRemote,
 }
 
 // DefaultRemotes is the list of default remotes
 var DefaultRemotes = map[string]Remote{
-	"local":        LocalRemote,
-	"images":       ImagesRemote,
-	"ubuntu":       UbuntuRemote,
-	"ubuntu-daily": UbuntuDailyRemote,
+	"images":               ImagesRemote,
+	"local":                LocalRemote,
+	"ubuntu":               UbuntuRemote,
+	"ubuntu-daily":         UbuntuDailyRemote,
+	"ubuntu-minimal":       UbuntuMinimalRemote,
+	"ubuntu-minimal-daily": UbuntuMinimalDailyRemote,
 }
 
 // DefaultConfig is the default configuration
