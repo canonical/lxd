@@ -99,7 +99,7 @@ At the moment, not all configuration options follow this approach.
 ```
 
 The documentation of configuration options is extracted from comments in the Go code.
-Look for comments that start with `lxddoc:generate` in the code.
+Look for comments that start with `lxdmeta:generate` in the code.
 
 When you add or change a configuration option, make sure to include the required documentation comment for it.
 See the [`lxd-metadata` README file](https://github.com/canonical/lxd/blob/main/lxd/lxd-metadata/README.md) for information about the format.

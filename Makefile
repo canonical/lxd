@@ -113,6 +113,11 @@ ifeq "$(LXD_OFFLINE)" ""
 endif
 	swagger generate spec -o doc/rest-api.yaml -w ./lxd -m
 
+.PHONY: update-metadata
+update-metadata: build
+	@echo "Generating golang documentation metadata"
+	$(GOPATH)/bin/lxd-metadata . --json ./lxd/metadata/configuration.json --txt ./doc/config_options.txt
+
 .PHONY: doc-setup
 doc-setup: client
 	@echo "Setting up documentation build environment"
@@ -120,11 +125,6 @@ doc-setup: client
 	. $(SPHINXENV) ; pip install --upgrade -r doc/.sphinx/requirements.txt
 	find doc/reference/manpages/ -name "*.md" -type f -delete
 	rm -Rf doc/html
-
-.PHONY: generate-config
-generate-config:
-	@echo "Generating golang metadata for config options"
-	$(GOPATH)/bin/lxd-metadata . -y ./doc/config_options.yaml -t ./doc/config_options.txt
 
 .PHONY: doc
 doc: doc-setup doc-incremental
