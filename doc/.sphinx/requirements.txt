@@ -16,7 +16,7 @@ pytz
 requests
 six
 snowballstemmer
-Sphinx
+Sphinx==7.1.2
 sphinx-autobuild
 sphinxcontrib-applehelp
 sphinxcontrib-devhelp
@@ -40,3 +40,4 @@ sphinx-copybutton
 gitpython
 wget
 sphinx-notfound-page
+sphinx-remove-toctrees
