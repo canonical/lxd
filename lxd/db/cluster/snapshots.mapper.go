@@ -103,7 +103,7 @@ func getInstanceSnapshots(ctx context.Context, stmt *sql.Stmt, args ...any) ([]I
 	return objects, nil
 }
 
-// getInstanceSnapshots can be used to run handwritten query strings to return a slice of objects.
+// getInstanceSnapshotsRaw can be used to run handwritten query strings to return a slice of objects.
 func getInstanceSnapshotsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]InstanceSnapshot, error) {
 	objects := make([]InstanceSnapshot, 0)
 

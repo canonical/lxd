@@ -92,7 +92,7 @@ func getCertificates(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Certif
 	return objects, nil
 }
 
-// getCertificates can be used to run handwritten query strings to return a slice of objects.
+// getCertificatesRaw can be used to run handwritten query strings to return a slice of objects.
 func getCertificatesRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]Certificate, error) {
 	objects := make([]Certificate, 0)
 

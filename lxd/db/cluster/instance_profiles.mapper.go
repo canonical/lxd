@@ -108,7 +108,7 @@ func getInstanceProfiles(ctx context.Context, stmt *sql.Stmt, args ...any) ([]In
 	return objects, nil
 }
 
-// getInstanceProfiles can be used to run handwritten query strings to return a slice of objects.
+// getInstanceProfilesRaw can be used to run handwritten query strings to return a slice of objects.
 func getInstanceProfilesRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]InstanceProfile, error) {
 	objects := make([]InstanceProfile, 0)
 

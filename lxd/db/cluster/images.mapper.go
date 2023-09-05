@@ -110,7 +110,7 @@ func getImages(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Image, error
 	return objects, nil
 }
 
-// getImages can be used to run handwritten query strings to return a slice of objects.
+// getImagesRaw can be used to run handwritten query strings to return a slice of objects.
 func getImagesRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]Image, error) {
 	objects := make([]Image, 0)
 

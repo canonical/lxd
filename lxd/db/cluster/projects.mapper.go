@@ -92,7 +92,7 @@ func getProjects(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Project, e
 	return objects, nil
 }
 
-// getProjects can be used to run handwritten query strings to return a slice of objects.
+// getProjectsRaw can be used to run handwritten query strings to return a slice of objects.
 func getProjectsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]Project, error) {
 	objects := make([]Project, 0)
 

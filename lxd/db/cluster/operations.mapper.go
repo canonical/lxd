@@ -91,7 +91,7 @@ func getOperations(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Operatio
 	return objects, nil
 }
 
-// getOperations can be used to run handwritten query strings to return a slice of objects.
+// getOperationsRaw can be used to run handwritten query strings to return a slice of objects.
 func getOperationsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]Operation, error) {
 	objects := make([]Operation, 0)
 

@@ -55,7 +55,7 @@ func getConfig(ctx context.Context, stmt *sql.Stmt, parent string, args ...any) 
 	return objects, nil
 }
 
-// getConfig can be used to run handwritten query strings to return a slice of objects.
+// getConfigRaw can be used to run handwritten query strings to return a slice of objects.
 func getConfigRaw(ctx context.Context, tx *sql.Tx, sql string, parent string, args ...any) ([]Config, error) {
 	objects := make([]Config, 0)
 
