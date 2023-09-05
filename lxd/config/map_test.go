@@ -102,13 +102,11 @@ func TestChange(t *testing.T) {
 		"bar": {Setter: upperCase},
 		"egg": {Type: config.Bool},
 		"yuk": {Type: config.Bool, Default: "true"},
-		"xyz": {Hidden: true},
 	}
 
 	values := map[string]string{ // Initial values
 		"foo": "hello",
 		"bar": "x",
-		"xyz": "sekret",
 	}
 
 	cases := []struct {
@@ -135,11 +133,6 @@ func TestChange(t *testing.T) {
 			`bool false values are normalized`,
 			map[string]string{"yuk": "0"},
 			map[string]string{"yuk": "false"},
-		},
-		{
-			`the special value 'true' is a passthrough for hidden keys`,
-			map[string]string{"xyz": "true"},
-			map[string]string{"xyz": "sekret"},
 		},
 		{
 			`multiple values are all mutated`,
@@ -257,19 +250,16 @@ func TestMap_ChangeError(t *testing.T) {
 	}
 }
 
-// A Map dump contains only values that differ from their default. Hidden
-// values are obfuscated.
+// A Map dump contains only values that differ from their default.
 func TestMap_Dump(t *testing.T) {
 	schema := config.Schema{
 		"foo": {},
 		"bar": {Default: "x"},
-		"egg": {Hidden: true},
 	}
 
 	values := map[string]string{
 		"foo": "hello",
 		"bar": "x",
-		"egg": "123",
 	}
 
 	m, err := config.Load(schema, values)
@@ -277,7 +267,6 @@ func TestMap_Dump(t *testing.T) {
 
 	dump := map[string]string{
 		"foo": "hello",
-		"egg": "true",
 	}
 
 	assert.Equal(t, dump, m.Dump())
