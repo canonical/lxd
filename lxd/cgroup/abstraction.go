@@ -971,6 +971,11 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 				continue
 			}
 
+			// Skip loop devices (major dev ID 7) as they are irrelevant.
+			if strings.HasPrefix(fields[0], "7:") {
+				continue
+			}
+
 			if ioMap[partMap[fields[0]]] == nil {
 				ioMap[partMap[fields[0]]] = &IOStats{}
 			}
@@ -998,6 +1003,11 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 			fields := strings.Fields(scanner.Text())
 
 			if len(fields) != 3 {
+				continue
+			}
+
+			// Skip loop devices (major dev ID 7) as they are irrelevant.
+			if strings.HasPrefix(fields[0], "7:") {
 				continue
 			}
 
@@ -1039,6 +1049,11 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 				if strings.Contains(statPart, ":") {
 					// Store the last dev ID as this works around a kernel bug where multiple dev IDs could appear on a single line.
 					devID = statPart
+					continue
+				}
+
+				// Skip loop devices (major dev ID 7) as they are irrelevant.
+				if strings.HasPrefix(devID, "7:") {
 					continue
 				}
 
