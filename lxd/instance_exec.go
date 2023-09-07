@@ -277,6 +277,50 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 		wgEOF.Wait()
 
+		connTimeout := 5 * time.Second
+		connTimeoutCtx, cancel := context.WithTimeout(context.Background(), connTimeout)
+		defer cancel()
+
+		var wgConnClosed sync.WaitGroup
+		wgConnClosed.Add(len(s.conns))
+		s.connsLock.Lock()
+
+		// Wait for the client to disconnect. At this point, the client should already be disconnected,
+		// and the routine should stop almost immediately. However, in some extreme cases, the client
+		// is still reading from the websocket, and closing it would result in lost output.
+		for i := range s.conns {
+			conn = s.conns[i]
+
+			if conn == nil || i == execWSControl {
+				wgConnClosed.Done()
+				continue
+			}
+
+			go func(conn *websocket.Conn) {
+				defer wgConnClosed.Done()
+
+				pingInterval := time.Millisecond * 100
+				t := time.NewTicker(pingInterval)
+				defer t.Stop()
+
+				for {
+					select {
+					case <-t.C:
+						err := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(pingInterval))
+						if err != nil {
+							return
+						}
+
+					case <-connTimeoutCtx.Done():
+						return
+					}
+				}
+			}(conn)
+		}
+
+		s.connsLock.Unlock()
+		wgConnClosed.Wait()
+
 		for _, pty := range ptys {
 			_ = pty.Close()
 		}
@@ -421,7 +465,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 			<-readDone
 			<-writeDone
-			_ = conn.Close()
 		}()
 	} else {
 		wgEOF.Add(len(ttys) - 1)
