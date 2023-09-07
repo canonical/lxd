@@ -212,7 +212,7 @@ func (d *btrfs) Create() error {
 			if shared.PathExists(hostPath) {
 				hostPathFS, _ := filesystem.Detect(hostPath)
 				if hostPathFS != "btrfs" {
-					return fmt.Errorf("Provided path does not reside on a btrfs filesystem")
+					return fmt.Errorf("Provided path does not reside on a btrfs filesystem (detected %s)", hostPathFS)
 				}
 			}
 
@@ -223,7 +223,7 @@ func (d *btrfs) Create() error {
 
 				storagePoolDirFS, _ := filesystem.Detect(shared.VarPath("storage-pools"))
 				if storagePoolDirFS != "btrfs" {
-					return fmt.Errorf("Provided path does not reside on a btrfs filesystem")
+					return fmt.Errorf("Provided path does not reside on a btrfs filesystem (detected %s)", storagePoolDirFS)
 				}
 
 				// Delete the current directory to replace by subvolume.
@@ -416,7 +416,7 @@ func (d *btrfs) Mount() (bool, error) {
 
 			mntSrcFS, _ := filesystem.Detect(mntSrc)
 			if mntSrcFS != "btrfs" {
-				return false, fmt.Errorf("Source path %q isn't btrfs", mntSrc)
+				return false, fmt.Errorf("Source path %q isn't btrfs (detected %s)", mntSrc, mntSrcFS)
 			}
 		}
 	} else {
