@@ -11,6 +11,7 @@ To get started with LXD, see the documentation in this section.
 ```{toctree}
 :maxdepth: 1
 
+Access the documentation </howto/access_documentation>
 Access the UI </howto/access_ui>
 Contribute to LXD </contributing>
 Get support </support>
@@ -49,6 +50,7 @@ You can also find a series of demos and tutorials on YouTube:
 Install LXD </installing>
 Initialize LXD </howto/initialize>
 Access the UI </howto/access_ui>
+Access the documentation </howto/access_documentation>
 Frequently asked </faq>
 Contribute to LXD </contributing>
 Get support </support>
