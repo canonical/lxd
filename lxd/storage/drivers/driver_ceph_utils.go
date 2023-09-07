@@ -46,7 +46,7 @@ var cephVolTypePrefixes = map[VolumeType]string{
 }
 
 // osdPoolExists checks whether a given OSD pool exists.
-func (d *ceph) osdPoolExists() bool {
+func (d *ceph) osdPoolExists() (bool, error) {
 	_, err := shared.RunCommand(
 		"ceph",
 		"--name", fmt.Sprintf("client.%s", d.config["ceph.user.name"]),
@@ -57,7 +57,20 @@ func (d *ceph) osdPoolExists() bool {
 		d.config["ceph.osd.pool_name"],
 		"size")
 
-	return err == nil
+	if err != nil {
+		status, _ := shared.ExitStatus(err)
+		// If the error status code is 2, the pool definitely doesn't exist.
+		if status == 2 {
+			return false, nil
+		}
+
+		// Else, the error status is not 0 or 2,
+		// so we can't be sure if the pool exists or not
+		// as it might be a network issue, an internal ceph issue, etc.
+		return false, err
+	}
+
+	return true, nil
 }
 
 // osdDeletePool destroys an OSD pool.
