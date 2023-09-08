@@ -33,7 +33,7 @@ func NewClient(url string, httpClient http.Client, useragent string) *SimpleStre
 	return &SimpleStreams{
 		http:           &httpClient,
 		url:            url,
-		cachedProducts: map[string]*Products{},
+		cachedProducts: map[string]any{},
 		useragent:      useragent,
 	}
 }
@@ -45,7 +45,7 @@ type SimpleStreams struct {
 	useragent string
 
 	cachedStream   *Stream
-	cachedProducts map[string]*Products
+	cachedProducts map[string]any
 	cachedImages   []api.Image
 	cachedAliases  []extendedAlias
 
@@ -177,7 +177,7 @@ func (s *SimpleStreams) parseStream() (*Stream, error) {
 	return &stream, nil
 }
 
-func (s *SimpleStreams) parseProducts(path string) (*Products, error) {
+func (s *SimpleStreams) parseProducts(path string) (any, error) {
 	if s.cachedProducts[path] != nil {
 		return s.cachedProducts[path], nil
 	}
@@ -187,15 +187,25 @@ func (s *SimpleStreams) parseProducts(path string) (*Products, error) {
 		return nil, err
 	}
 
-	// Parse the idnex
-	products := Products{}
+	// Parse the index, but there are two different formats now
+	if s.url == "https://images.linuxcontainers.org" {
+		products := IncusProducts{}
+		err = json.Unmarshal(body, &products)
+		if err != nil {
+			return nil, fmt.Errorf("Failed decoding Incus products JSON from %q: %w", path, err)
+		}
+
+		s.cachedProducts[path] = &products
+		return &products, nil
+	}
+
+	products := CanonicalProducts{}
 	err = json.Unmarshal(body, &products)
 	if err != nil {
-		return nil, fmt.Errorf("Failed decoding products JSON from %q: %w", path, err)
+		return nil, fmt.Errorf("Failed decoding Canonical LXD products JSON from %q: %w", path, err)
 	}
 
 	s.cachedProducts[path] = &products
-
 	return &products, nil
 }
 
@@ -309,7 +319,16 @@ func (s *SimpleStreams) getImages() ([]api.Image, []extendedAlias, error) {
 			return nil, nil, fmt.Errorf("Failed parsing products: %w", err)
 		}
 
-		streamImages, _ := products.ToLXD()
+		var streamImages []api.Image
+		switch p := products.(type) {
+		case *IncusProducts:
+			streamImages, _ = p.ToLXD()
+		case *CanonicalProducts:
+			streamImages, _ = p.ToLXD()
+		default:
+			return nil, nil, fmt.Errorf("Failed parsing the product image type: %T", products)
+		}
+
 		images = append(images, streamImages...)
 	}
 
@@ -350,7 +369,16 @@ func (s *SimpleStreams) GetFiles(fingerprint string) (map[string]DownloadableFil
 			return nil, err
 		}
 
-		images, downloads := products.ToLXD()
+		var images []api.Image
+		var downloads map[string][][]string
+		switch p := products.(type) {
+		case *IncusProducts:
+			images, downloads = p.ToLXD()
+		case *CanonicalProducts:
+			images, downloads = p.ToLXD()
+		default:
+			return nil, fmt.Errorf("Failed parsing the product image type: %T", products)
+		}
 
 		for _, image := range images {
 			if strings.HasPrefix(image.Fingerprint, fingerprint) {
