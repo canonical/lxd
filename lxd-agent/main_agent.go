@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/lxd/vsock"
 	"github.com/canonical/lxd/shared"
@@ -310,6 +311,9 @@ func (c *cmdAgent) mountHostShares() {
 				logger.Errorf("Failed to create mount target %q", mount.Target)
 				continue // Don't try to mount if mount point can't be created.
 			}
+		} else if filesystem.IsMountPoint(mount.Target) {
+			// Already mounted.
+			continue
 		}
 
 		if mount.FSType == "9p" {
