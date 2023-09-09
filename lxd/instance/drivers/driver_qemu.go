@@ -38,7 +38,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v2"
 
-	lxd "github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/client"
 	agentAPI "github.com/canonical/lxd/lxd-agent/api"
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/cgroup"
@@ -390,6 +390,7 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 	return agent, nil
 }
 
+// getMonitorEventHandler returns a callback to handle QEMU monitor events like agent start or VM shutdown.
 func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) {
 	// Create local variables from instance properties we need so as not to keep references to instance around
 	// after we have returned the callback function.
@@ -765,7 +766,7 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 	return nil
 }
 
-// Restart restart the instance.
+// Restart restarts the instance.
 func (d *qemu) Restart(timeout time.Duration) error {
 	return d.restartCommon(d, timeout)
 }
@@ -775,6 +776,7 @@ func (d *qemu) Rebuild(img *api.Image, op *operations.Operation) error {
 	return d.rebuildCommon(d, img, op)
 }
 
+// ovmfPath returns the OVMF firmware path, using an environment variable or default location.
 func (d *qemu) ovmfPath() string {
 	if os.Getenv("LXD_OVMF_PATH") != "" {
 		return os.Getenv("LXD_OVMF_PATH")
@@ -1756,6 +1758,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	return nil
 }
 
+// setupSEV configures AMD SEV (Secure Encrypted Virtualization) for the qemu instance if supported.
 func (d *qemu) setupSEV(fdFiles *[]*os.File) (*qemuSevOpts, error) {
 	if d.architecture != osarch.ARCH_64BIT_INTEL_X86 {
 		return nil, errors.New("AMD SEV support is only available on x86_64 systems")
@@ -1912,10 +1915,12 @@ func (d *qemu) AgentCertificate() *x509.Certificate {
 	return cert
 }
 
+// architectureSupportsUEFI checks if the provided architecture supports UEFI booting.
 func (d *qemu) architectureSupportsUEFI(arch int) bool {
 	return shared.IntInSlice(arch, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN})
 }
 
+// setupNvram initializes the UEFI NVRAM for the instance using the appropriate firmware template.
 func (d *qemu) setupNvram() error {
 	d.logger.Debug("Generating NVRAM")
 
@@ -1985,6 +1990,7 @@ func (d *qemu) setupNvram() error {
 	return nil
 }
 
+// qemuArchConfig determines the QEMU executable and device model type based on the provided architecture.
 func (d *qemu) qemuArchConfig(arch int) (string, string, error) {
 	if arch == osarch.ARCH_64BIT_INTEL_X86 {
 		path, err := exec.LookPath("qemu-system-x86_64")
@@ -2024,6 +2030,7 @@ func (d *qemu) RegisterDevices() {
 	d.devicesRegister(d)
 }
 
+// saveConnectionInfo writes the agent connection information to the instance's config drive.
 func (d *qemu) saveConnectionInfo(connInfo *agentAPI.API10Put) error {
 	configDrivePath := filepath.Join(d.Path(), "config")
 
@@ -2113,6 +2120,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 	return runConf, nil
 }
 
+// deviceAttachBlockDevice attaches a block device to the QEMU instance using QMP monitor.
 func (d *qemu) deviceAttachBlockDevice(deviceName string, configCopy map[string]string, mount deviceConfig.MountEntryItem) error {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -2133,6 +2141,7 @@ func (d *qemu) deviceAttachBlockDevice(deviceName string, configCopy map[string]
 	return nil
 }
 
+// deviceDetachBlockDevice detaches a block device from the QEMU instance using QMP, with retries on locks.
 func (d *qemu) deviceDetachBlockDevice(deviceName string, rawConfig deviceConfig.Device) error {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -2362,22 +2371,27 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 	return nil
 }
 
+// monitorPath returns the path to the QEMU instance's QMP monitor socket.
 func (d *qemu) monitorPath() string {
 	return filepath.Join(d.LogPath(), "qemu.monitor")
 }
 
+// nvramPath returns the path to the QEMU instance's NVRAM file.
 func (d *qemu) nvramPath() string {
 	return filepath.Join(d.Path(), "qemu.nvram")
 }
 
+// consolePath returns the path to the QEMU instance's console log.
 func (d *qemu) consolePath() string {
 	return filepath.Join(d.LogPath(), "qemu.console")
 }
 
+// spicePath returns the path to the QEMU instance's SPICE socket.
 func (d *qemu) spicePath() string {
 	return filepath.Join(d.LogPath(), "qemu.spice")
 }
 
+// spiceCmdlineConfig returns the SPICE configuration command for the QEMU instance.
 func (d *qemu) spiceCmdlineConfig() string {
 	return fmt.Sprintf("unix=on,disable-ticketing=on,addr=%s", d.spicePath())
 }
@@ -2665,6 +2679,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 	return nil
 }
 
+// templateApplyNow applies instance templates based on the specified trigger and path.
 func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) error {
 	// If there's no metadata, just return.
 	fname := filepath.Join(d.Path(), "metadata.yaml")
@@ -4252,6 +4267,7 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, bus *qemuBus, gpuConfig []devi
 	return nil
 }
 
+// addUSBDeviceConfig configures a USB device for QEMU and returns a function to execute this in the QEMU monitor.
 func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHook, error) {
 	device := map[string]string{
 		"id":     fmt.Sprintf("%s%s", qemuDeviceIDPrefix, usbDev.DeviceName),
@@ -4293,6 +4309,7 @@ func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHoo
 	return monHook, nil
 }
 
+// addTPMDeviceConfig appends TPM device configuration sections to the provided QEMU configuration.
 func (d *qemu) addTPMDeviceConfig(cfg *[]cfgSection, tpmConfig []deviceConfig.RunConfigItem) error {
 	var devName, socketPath string
 
@@ -4313,6 +4330,7 @@ func (d *qemu) addTPMDeviceConfig(cfg *[]cfgSection, tpmConfig []deviceConfig.Ru
 	return nil
 }
 
+// addVmgenDeviceConfig appends VM generation ID device configuration sections to the provided QEMU configuration.
 func (d *qemu) addVmgenDeviceConfig(cfg *[]cfgSection, guid string) error {
 	vmgenIDOpts := qemuVmgenIDOpts{
 		guid: guid,
@@ -4371,7 +4389,7 @@ func (d *qemu) forceStop() error {
 	return nil
 }
 
-// Stop the VM.
+// Stop stops the QEMU instance, optionally saving its state for a stateful stop.
 func (d *qemu) Stop(stateful bool) error {
 	d.logger.Debug("Stop started", logger.Ctx{"stateful": stateful})
 	defer d.logger.Debug("Stop finished", logger.Ctx{"stateful": stateful})
@@ -5436,6 +5454,7 @@ func (d *qemu) updateMemoryLimit(newLimit string) error {
 	return fmt.Errorf("Failed setting memory to %dMiB (currently %dMiB) as it was taking too long", newSizeMB, curSizeMB)
 }
 
+// removeUnixDevices cleans up Unix devices from the instance's device directory.
 func (d *qemu) removeUnixDevices() error {
 	// Check that we indeed have devices to remove.
 	if !shared.PathExists(d.DevicesPath()) {
@@ -5465,6 +5484,7 @@ func (d *qemu) removeUnixDevices() error {
 	return nil
 }
 
+// removeDiskDevices deletes disk devices.
 func (d *qemu) removeDiskDevices() error {
 	// Check that we indeed have devices to remove.
 	if !shared.PathExists(d.DevicesPath()) {
@@ -5497,6 +5517,7 @@ func (d *qemu) removeDiskDevices() error {
 	return nil
 }
 
+// cleanup removes instance artifacts.
 func (d *qemu) cleanup() {
 	// Unmount any leftovers
 	_ = d.removeUnixDevices()
@@ -5551,6 +5572,7 @@ func (d *qemu) cleanupDevices() {
 	}
 }
 
+// init initializes the qemu instance with expanded config.
 func (d *qemu) init() error {
 	// Compute the expanded config and device list.
 	err := d.expandConfig()
@@ -5561,7 +5583,7 @@ func (d *qemu) init() error {
 	return nil
 }
 
-// Delete the instance.
+// Delete removes the qemu instance or its snapshot based on its current state.
 func (d *qemu) Delete(force bool) error {
 	unlock := d.updateBackupFileLock(context.Background())
 	defer unlock()
@@ -5603,7 +5625,7 @@ func (d *qemu) Delete(force bool) error {
 	return nil
 }
 
-// Delete the instance without creating an operation lock.
+// Deletes the instance without creating an operation lock.
 func (d *qemu) delete(force bool) error {
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
@@ -6516,6 +6538,7 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 	return nil
 }
 
+// MigrateReceive manages the receipt of a migrating instance, coordinating transfer and setup.
 func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	d.logger.Info("Migration receive starting")
 	defer d.logger.Info("Migration receive stopped")
@@ -7056,7 +7079,7 @@ func (d *qemu) Console(protocol string) (*os.File, chan error, error) {
 	return file, chDisconnect, nil
 }
 
-// Exec a command inside the instance.
+// Exec runs a command inside the qemu instance using the lxd-agent.
 func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, error) {
 	revert := revert.New()
 	defer revert.Fail()
@@ -7589,6 +7612,7 @@ func (d *qemu) InitPID() int {
 	return pid
 }
 
+// statusCode returns the current status code of the qemu instance.
 func (d *qemu) statusCode() api.StatusCode {
 	// Shortcut to avoid spamming QMP during ongoing operations.
 	op := operationlock.Get(d.Project().Name, d.Name())
@@ -7872,6 +7896,7 @@ func (d *qemu) cpuTopology(limit string) (*cpuTopology, error) {
 	return topology, nil
 }
 
+// devlxdEventSend sends an event to the lxd-agent inside the qemu instance.
 func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]any) error {
 	event := shared.Jmap{}
 	event["type"] = eventType
@@ -7964,6 +7989,7 @@ func (d *qemu) Info() instance.Info {
 	return data
 }
 
+// checkFeatures detects the available QEMU and host capabilities for VM operation.
 func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, error) {
 	monitorPath, err := os.CreateTemp("", "")
 	if err != nil {
@@ -8147,6 +8173,7 @@ func (d *qemu) version() (*version.DottedVersion, error) {
 	return qemuVer, nil
 }
 
+// Metrics retrieves the current metrics for the VM, either from the agent or QEMU directly.
 func (d *qemu) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
 	if !d.IsRunning() {
 		return nil, ErrInstanceIsStopped
@@ -8169,6 +8196,7 @@ func (d *qemu) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, erro
 	return d.getQemuMetrics()
 }
 
+// getAgentMetrics fetches the VM metrics directly from the lxd-agent.
 func (d *qemu) getAgentMetrics() (*metrics.MetricSet, error) {
 	client, err := d.getAgentClient()
 	if err != nil {
@@ -8203,6 +8231,7 @@ func (d *qemu) getAgentMetrics() (*metrics.MetricSet, error) {
 	return metricSet, nil
 }
 
+// getNetworkState retrieves the current network state for the VM.
 func (d *qemu) getNetworkState() (map[string]api.InstanceStateNetwork, error) {
 	networks := map[string]api.InstanceStateNetwork{}
 	for k, m := range d.ExpandedDevices() {
@@ -8239,10 +8268,12 @@ func (d *qemu) getNetworkState() (map[string]api.InstanceStateNetwork, error) {
 	return networks, nil
 }
 
+// agentMetricsEnabled determines if metrics retrieval via the agent is enabled for the VM.
 func (d *qemu) agentMetricsEnabled() bool {
 	return shared.IsTrueOrEmpty(d.expandedConfig["security.agent.metrics"])
 }
 
+// deviceAttachUSB attaches a specified USB device to the VM.
 func (d *qemu) deviceAttachUSB(usbConf deviceConfig.USBDeviceItem) error {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -8263,6 +8294,7 @@ func (d *qemu) deviceAttachUSB(usbConf deviceConfig.USBDeviceItem) error {
 	return nil
 }
 
+// deviceDetachUSB detaches a specified USB device from the VM.
 func (d *qemu) deviceDetachUSB(usbDev deviceConfig.USBDeviceItem) error {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -8302,6 +8334,7 @@ func (d *qemu) blockNodeName(name string) string {
 	return fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, name)
 }
 
+// setCPUs adjusts the number of CPUs for the VM to the given count.
 func (d *qemu) setCPUs(count int) error {
 	if count == 0 {
 		return nil
@@ -8418,6 +8451,7 @@ func (d *qemu) setCPUs(count int) error {
 	return nil
 }
 
+// architectureSupportsCPUHotplug checks if the architecture supports CPU hotplug.
 func (d *qemu) architectureSupportsCPUHotplug() bool {
 	// Check supported features.
 	info := DriverStatuses()[instancetype.VM].Info
