@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"math/rand"
 	"os"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/rsync"
+	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -24,6 +26,8 @@ func init() {
 
 type cmdGlobal struct {
 	cmd *cobra.Command
+
+	asker cli.Asker
 
 	flagHelp    bool
 	flagVersion bool
@@ -93,7 +97,7 @@ func main() {
 	app.Args = cobra.ArbitraryArgs
 
 	// Global flags
-	globalCmd := cmdGlobal{cmd: app}
+	globalCmd := cmdGlobal{cmd: app, asker: cli.NewAsker(bufio.NewReader(os.Stdin))}
 	daemonCmd.global = &globalCmd
 	app.PersistentPreRunE = globalCmd.Run
 	app.PersistentFlags().BoolVar(&globalCmd.flagVersion, "version", false, "Print version number")
