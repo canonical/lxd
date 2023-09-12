@@ -24,7 +24,6 @@ import (
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/version"
 	"github.com/canonical/lxd/shared/ws"
 )
@@ -147,7 +146,7 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 	return nil
 }
 
-func connectTarget(url string, certPath string, keyPath string, authType string, token string) (lxd.InstanceServer, string, error) {
+func (m *cmdMigrate) connectTarget(url string, certPath string, keyPath string, authType string, token string) (lxd.InstanceServer, string, error) {
 	args := lxd.ConnectionArgs{
 		AuthType: authType,
 	}
@@ -274,7 +273,7 @@ func connectTarget(url string, certPath string, keyPath string, authType string,
 
 			fmt.Println("")
 
-			useTrustPassword, err := cli.AskBool("Would you like to use a trust password? [default=no]: ", "no")
+			useTrustPassword, err := m.global.asker.AskBool("Would you like to use a trust password? [default=no]: ", "no")
 			if err != nil {
 				return nil, "", err
 			}
