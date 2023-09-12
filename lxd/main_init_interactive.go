@@ -77,7 +77,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 	}
 
 	// Print the YAML
-	preSeedPrint, err := cli.AskBool("Would you like a YAML \"lxd init\" preseed to be printed? (yes/no) [default=no]: ", "no")
+	preSeedPrint, err := c.global.asker.AskBool("Would you like a YAML \"lxd init\" preseed to be printed? (yes/no) [default=no]: ", "no")
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 }
 
 func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, server *api.Server) error {
-	clustering, err := cli.AskBool("Would you like to use LXD clustering? (yes/no) [default=no]: ", "no")
+	clustering, err := c.global.asker.AskBool("Would you like to use LXD clustering? (yes/no) [default=no]: ", "no")
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 		config.Cluster.Enabled = true
 
 		askForServerName := func() error {
-			config.Cluster.ServerName, err = cli.AskString(fmt.Sprintf("What member name should be used to identify this server in the cluster? [default=%s]: ", c.defaultHostname()), c.defaultHostname(), nil)
+			config.Cluster.ServerName, err = c.global.asker.AskString(fmt.Sprintf("What member name should be used to identify this server in the cluster? [default=%s]: ", c.defaultHostname()), c.defaultHostname(), nil)
 			if err != nil {
 				return err
 			}
@@ -151,7 +151,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 			return nil
 		}
 
-		serverAddress, err := cli.AskString(fmt.Sprintf("What IP address or DNS name should be used to reach this server? [default=%s]: ", address), address, validateServerAddress)
+		serverAddress, err := c.global.asker.AskString(fmt.Sprintf("What IP address or DNS name should be used to reach this server? [default=%s]: ", address), address, validateServerAddress)
 		if err != nil {
 			return err
 		}
@@ -159,7 +159,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 		serverAddress = util.CanonicalNetworkAddress(serverAddress, shared.HTTPSDefaultPort)
 		config.Node.Config["core.https_address"] = serverAddress
 
-		clusterJoin, err := cli.AskBool("Are you joining an existing cluster? (yes/no) [default=no]: ", "no")
+		clusterJoin, err := c.global.asker.AskBool("Are you joining an existing cluster? (yes/no) [default=no]: ", "no")
 		if err != nil {
 			return err
 		}
@@ -197,14 +197,14 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 				return nil
 			}
 
-			clusterJoinToken, err := cli.AskString("Do you have a join token? (yes/no/[token]) [default=no]: ", "no", validInput)
+			clusterJoinToken, err := c.global.asker.AskString("Do you have a join token? (yes/no/[token]) [default=no]: ", "no", validInput)
 			if err != nil {
 				return err
 			}
 
 			if !shared.StringInSlice(strings.ToLower(clusterJoinToken), []string{"no", "n"}) {
 				if shared.StringInSlice(strings.ToLower(clusterJoinToken), []string{"yes", "y"}) {
-					clusterJoinToken, err = cli.AskString("Please provide join token: ", "", validJoinToken)
+					clusterJoinToken, err = c.global.asker.AskString("Please provide join token: ", "", validJoinToken)
 					if err != nil {
 						return err
 					}
@@ -250,7 +250,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 
 				for {
 					// Cluster URL
-					clusterAddress, err := cli.AskString("IP address or FQDN of an existing cluster member (may include port): ", "", nil)
+					clusterAddress, err := c.global.asker.AskString("IP address or FQDN of an existing cluster member (may include port): ", "", nil)
 					if err != nil {
 						return err
 					}
@@ -280,7 +280,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 						return fmt.Errorf("Not yes/no or fingerprint")
 					}
 
-					fingerprintCorrect, err := cli.AskString("Is this the correct fingerprint? (yes/no/[fingerprint]) [default=no]: ", "no", validator)
+					fingerprintCorrect, err := c.global.asker.AskString("Is this the correct fingerprint? (yes/no/[fingerprint]) [default=no]: ", "no", validator)
 					if err != nil {
 						return err
 					}
@@ -298,7 +298,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 			}
 
 			// Confirm wiping
-			clusterWipeMember, err := cli.AskBool("All existing data is lost when joining a cluster, continue? (yes/no) [default=no] ", "no")
+			clusterWipeMember, err := c.global.asker.AskBool("All existing data is lost when joining a cluster, continue? (yes/no) [default=no] ", "no")
 			if err != nil {
 				return err
 			}
@@ -345,7 +345,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 				question := fmt.Sprintf("Choose %s: ", config.Description)
 
 				// Allow for empty values.
-				configValue, err := cli.AskString(question, "", validate.Optional())
+				configValue, err := c.global.asker.AskString(question, "", validate.Optional())
 				if err != nil {
 					return err
 				}
@@ -367,7 +367,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 }
 
 func (c *cmdInit) askMAAS(config *api.InitPreseed, d lxd.InstanceServer) error {
-	maas, err := cli.AskBool("Would you like to connect to a MAAS server? (yes/no) [default=no]: ", "no")
+	maas, err := c.global.asker.AskBool("Would you like to connect to a MAAS server? (yes/no) [default=no]: ", "no")
 	if err != nil {
 		return err
 	}
@@ -376,7 +376,7 @@ func (c *cmdInit) askMAAS(config *api.InitPreseed, d lxd.InstanceServer) error {
 		return nil
 	}
 
-	maasHostname, err := cli.AskString(fmt.Sprintf("What's the name of this host in MAAS? [default=%s]: ", c.defaultHostname()), c.defaultHostname(), nil)
+	maasHostname, err := c.global.asker.AskString(fmt.Sprintf("What's the name of this host in MAAS? [default=%s]: ", c.defaultHostname()), c.defaultHostname(), nil)
 	if err != nil {
 		return err
 	}
@@ -385,12 +385,12 @@ func (c *cmdInit) askMAAS(config *api.InitPreseed, d lxd.InstanceServer) error {
 		config.Node.Config["maas.machine"] = maasHostname
 	}
 
-	config.Node.Config["maas.api.url"], err = cli.AskString("URL of your MAAS server (e.g. http://1.2.3.4:5240/MAAS): ", "", nil)
+	config.Node.Config["maas.api.url"], err = c.global.asker.AskString("URL of your MAAS server (e.g. http://1.2.3.4:5240/MAAS): ", "", nil)
 	if err != nil {
 		return err
 	}
 
-	config.Node.Config["maas.api.key"], err = cli.AskString("API key for your MAAS server: ", "", nil)
+	config.Node.Config["maas.api.key"], err = c.global.asker.AskString("API key for your MAAS server: ", "", nil)
 	if err != nil {
 		return err
 	}
@@ -403,7 +403,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 	localBridgeCreate := false
 
 	if config.Cluster == nil {
-		localBridgeCreate, err = cli.AskBool("Would you like to create a new local network bridge? (yes/no) [default=yes]: ", "yes")
+		localBridgeCreate, err = c.global.asker.AskBool("Would you like to create a new local network bridge? (yes/no) [default=yes]: ", "yes")
 		if err != nil {
 			return err
 		}
@@ -419,14 +419,14 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 			}
 		}
 
-		useExistingInterface, err := cli.AskBool("Would you like to configure LXD to use an existing bridge or host interface? (yes/no) [default=no]: ", "no")
+		useExistingInterface, err := c.global.asker.AskBool("Would you like to configure LXD to use an existing bridge or host interface? (yes/no) [default=no]: ", "no")
 		if err != nil {
 			return err
 		}
 
 		if useExistingInterface {
 			for {
-				interfaceName, err := cli.AskString("Name of the existing bridge or host interface: ", "", nil)
+				interfaceName, err := c.global.asker.AskString("Name of the existing bridge or host interface: ", "", nil)
 				if err != nil {
 					return err
 				}
@@ -449,13 +449,13 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 				}
 
 				if config.Node.Config["maas.api.url"] != nil {
-					maasConnect, err := cli.AskBool("Is this interface connected to your MAAS server? (yes/no) [default=yes]: ", "yes")
+					maasConnect, err := c.global.asker.AskBool("Is this interface connected to your MAAS server? (yes/no) [default=yes]: ", "yes")
 					if err != nil {
 						return err
 					}
 
 					if maasConnect {
-						maasSubnetV4, err := cli.AskString("MAAS IPv4 subnet name for this interface (empty for no subnet): ", "", validate.Optional())
+						maasSubnetV4, err := c.global.asker.AskString("MAAS IPv4 subnet name for this interface (empty for no subnet): ", "", validate.Optional())
 						if err != nil {
 							return err
 						}
@@ -464,7 +464,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 							config.Node.Profiles[0].Devices["eth0"]["maas.subnet.ipv4"] = maasSubnetV4
 						}
 
-						maasSubnetV6, err := cli.AskString("MAAS IPv6 subnet name for this interface (empty for no subnet): ", "", validate.Optional())
+						maasSubnetV6, err := c.global.asker.AskString("MAAS IPv6 subnet name for this interface (empty for no subnet): ", "", validate.Optional())
 						if err != nil {
 							return err
 						}
@@ -478,7 +478,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 				break
 			}
 		} else if config.Cluster != nil && fanKernel {
-			fan, err := cli.AskBool("Would you like to create a new Fan overlay network? (yes/no) [default=yes]: ", "yes")
+			fan, err := c.global.asker.AskBool("Would you like to create a new Fan overlay network? (yes/no) [default=yes]: ", "yes")
 			if err != nil {
 				return err
 			}
@@ -493,7 +493,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 				}
 
 				// Select the underlay
-				networkPost.Config["fan.underlay_subnet"], err = cli.AskString("What subnet should be used as the Fan underlay? [default=auto]: ", "auto", func(value string) error {
+				networkPost.Config["fan.underlay_subnet"], err = c.global.asker.AskString("What subnet should be used as the Fan underlay? [default=auto]: ", "auto", func(value string) error {
 					var err error
 					var subnet *net.IPNet
 
@@ -547,7 +547,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 		net.Project = project.Default
 
 		// Network name
-		net.Name, err = cli.AskString("What should the new bridge be called? [default=lxdbr0]: ", "lxdbr0", func(netName string) error {
+		net.Name, err = c.global.asker.AskString("What should the new bridge be called? [default=lxdbr0]: ", "lxdbr0", func(netName string) error {
 			netType, err := network.LoadByType("bridge")
 			if err != nil {
 				return err
@@ -573,7 +573,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 		}
 
 		// IPv4
-		net.Config["ipv4.address"], err = cli.AskString("What IPv4 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: ", "auto", func(value string) error {
+		net.Config["ipv4.address"], err = c.global.asker.AskString("What IPv4 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: ", "auto", func(value string) error {
 			if shared.StringInSlice(value, []string{"auto", "none"}) {
 				return nil
 			}
@@ -585,7 +585,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 		}
 
 		if !shared.StringInSlice(net.Config["ipv4.address"], []string{"auto", "none"}) {
-			netIPv4UseNAT, err := cli.AskBool("Would you like LXD to NAT IPv4 traffic on your bridge? [default=yes]: ", "yes")
+			netIPv4UseNAT, err := c.global.asker.AskBool("Would you like LXD to NAT IPv4 traffic on your bridge? [default=yes]: ", "yes")
 			if err != nil {
 				return err
 			}
@@ -594,7 +594,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 		}
 
 		// IPv6
-		net.Config["ipv6.address"], err = cli.AskString("What IPv6 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: ", "auto", func(value string) error {
+		net.Config["ipv6.address"], err = c.global.asker.AskString("What IPv6 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: ", "auto", func(value string) error {
 			if shared.StringInSlice(value, []string{"auto", "none"}) {
 				return nil
 			}
@@ -606,7 +606,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 		}
 
 		if !shared.StringInSlice(net.Config["ipv6.address"], []string{"auto", "none"}) {
-			netIPv6UseNAT, err := cli.AskBool("Would you like LXD to NAT IPv6 traffic on your bridge? [default=yes]: ", "yes")
+			netIPv6UseNAT, err := c.global.asker.AskBool("Would you like LXD to NAT IPv6 traffic on your bridge? [default=yes]: ", "yes")
 			if err != nil {
 				return err
 			}
@@ -624,7 +624,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 
 func (c *cmdInit) askStorage(config *api.InitPreseed, d lxd.InstanceServer, server *api.Server) error {
 	if config.Cluster != nil {
-		localStoragePool, err := cli.AskBool("Do you want to configure a new local storage pool? (yes/no) [default=yes]: ", "yes")
+		localStoragePool, err := c.global.asker.AskBool("Do you want to configure a new local storage pool? (yes/no) [default=yes]: ", "yes")
 		if err != nil {
 			return err
 		}
@@ -636,7 +636,7 @@ func (c *cmdInit) askStorage(config *api.InitPreseed, d lxd.InstanceServer, serv
 			}
 		}
 
-		remoteStoragePool, err := cli.AskBool("Do you want to configure a new remote storage pool? (yes/no) [default=no]: ", "no")
+		remoteStoragePool, err := c.global.asker.AskBool("Do you want to configure a new remote storage pool? (yes/no) [default=no]: ", "no")
 		if err != nil {
 			return err
 		}
@@ -651,7 +651,7 @@ func (c *cmdInit) askStorage(config *api.InitPreseed, d lxd.InstanceServer, serv
 		return nil
 	}
 
-	storagePool, err := cli.AskBool("Do you want to configure a new storage pool? (yes/no) [default=yes]: ", "yes")
+	storagePool, err := c.global.asker.AskBool("Do you want to configure a new storage pool? (yes/no) [default=yes]: ", "yes")
 	if err != nil {
 		return err
 	}
@@ -695,7 +695,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 		pool.Config = map[string]string{}
 
 		if poolType == util.PoolTypeAny {
-			pool.Name, err = cli.AskString("Name of the new storage pool [default=default]: ", "default", nil)
+			pool.Name, err = c.global.asker.AskString("Name of the new storage pool [default=default]: ", "default", nil)
 			if err != nil {
 				return err
 			}
@@ -733,7 +733,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 				}
 			}
 
-			pool.Driver, err = cli.AskChoice(fmt.Sprintf("Name of the storage backend to use (%s) [default=%s]: ", strings.Join(availableBackends, ", "), defaultBackend), availableBackends, defaultBackend)
+			pool.Driver, err = c.global.asker.AskChoice(fmt.Sprintf("Name of the storage backend to use (%s) [default=%s]: ", strings.Join(availableBackends, ", "), defaultBackend), availableBackends, defaultBackend)
 			if err != nil {
 				return err
 			}
@@ -749,7 +749,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 
 		// Optimization for btrfs on btrfs
 		if pool.Driver == "btrfs" && backingFs == "btrfs" {
-			btrfsSubvolume, err := cli.AskBool(fmt.Sprintf("Would you like to create a new btrfs subvolume under %s? (yes/no) [default=yes]: ", shared.VarPath("")), "yes")
+			btrfsSubvolume, err := c.global.asker.AskBool(fmt.Sprintf("Would you like to create a new btrfs subvolume under %s? (yes/no) [default=yes]: ", shared.VarPath("")), "yes")
 			if err != nil {
 				return err
 			}
@@ -765,7 +765,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 		if pool.Driver == "zfs" && backingFs == "zfs" {
 			poolName, _ := shared.RunCommand("zpool", "get", "-H", "-o", "value", "name", "rpool")
 			if strings.TrimSpace(poolName) == "rpool" {
-				zfsDataset, err := cli.AskBool("Would you like to create a new zfs dataset under rpool/lxd? (yes/no) [default=yes]: ", "yes")
+				zfsDataset, err := c.global.asker.AskBool("Would you like to create a new zfs dataset under rpool/lxd? (yes/no) [default=yes]: ", "yes")
 				if err != nil {
 					return err
 				}
@@ -778,7 +778,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 			}
 		}
 
-		poolCreate, err := cli.AskBool(fmt.Sprintf("Create a new %s pool? (yes/no) [default=yes]: ", strings.ToUpper(pool.Driver)), "yes")
+		poolCreate, err := c.global.asker.AskBool(fmt.Sprintf("Create a new %s pool? (yes/no) [default=yes]: ", strings.ToUpper(pool.Driver)), "yes")
 		if err != nil {
 			return err
 		}
@@ -786,42 +786,42 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 		if poolCreate {
 			if pool.Driver == "ceph" {
 				// Ask for the name of the cluster
-				pool.Config["ceph.cluster_name"], err = cli.AskString("Name of the existing CEPH cluster [default=ceph]: ", "ceph", nil)
+				pool.Config["ceph.cluster_name"], err = c.global.asker.AskString("Name of the existing CEPH cluster [default=ceph]: ", "ceph", nil)
 				if err != nil {
 					return err
 				}
 
 				// Ask for the name of the osd pool
-				pool.Config["ceph.osd.pool_name"], err = cli.AskString("Name of the OSD storage pool [default=lxd]: ", "lxd", nil)
+				pool.Config["ceph.osd.pool_name"], err = c.global.asker.AskString("Name of the OSD storage pool [default=lxd]: ", "lxd", nil)
 				if err != nil {
 					return err
 				}
 
 				// Ask for the number of placement groups
-				pool.Config["ceph.osd.pg_num"], err = cli.AskString("Number of placement groups [default=32]: ", "32", nil)
+				pool.Config["ceph.osd.pg_num"], err = c.global.asker.AskString("Number of placement groups [default=32]: ", "32", nil)
 				if err != nil {
 					return err
 				}
 			} else if pool.Driver == "cephfs" {
 				// Ask for the name of the cluster
-				pool.Config["cephfs.cluster_name"], err = cli.AskString("Name of the existing CEPHfs cluster [default=ceph]: ", "ceph", nil)
+				pool.Config["cephfs.cluster_name"], err = c.global.asker.AskString("Name of the existing CEPHfs cluster [default=ceph]: ", "ceph", nil)
 				if err != nil {
 					return err
 				}
 
 				// Ask for the name of the cluster
-				pool.Config["source"], err = cli.AskString("Name of the CEPHfs volume: ", "", nil)
+				pool.Config["source"], err = c.global.asker.AskString("Name of the CEPHfs volume: ", "", nil)
 				if err != nil {
 					return err
 				}
 			} else {
-				useEmptyBlockDev, err := cli.AskBool("Would you like to use an existing empty block device (e.g. a disk or partition)? (yes/no) [default=no]: ", "no")
+				useEmptyBlockDev, err := c.global.asker.AskBool("Would you like to use an existing empty block device (e.g. a disk or partition)? (yes/no) [default=no]: ", "no")
 				if err != nil {
 					return err
 				}
 
 				if useEmptyBlockDev {
-					pool.Config["source"], err = cli.AskString("Path to the existing block device: ", "", func(path string) error {
+					pool.Config["source"], err = c.global.asker.AskString("Path to the existing block device: ", "", func(path string) error {
 						if !shared.IsBlockdevPath(path) {
 							return fmt.Errorf("%q is not a block device", path)
 						}
@@ -848,7 +848,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 						defaultSize = 5
 					}
 
-					pool.Config["size"], err = cli.AskString(
+					pool.Config["size"], err = c.global.asker.AskString(
 						fmt.Sprintf("Size in GiB of the new loop device (1GiB minimum) [default=%dGiB]: ", defaultSize),
 						fmt.Sprintf("%dGiB", defaultSize),
 						func(input string) error {
@@ -878,13 +878,13 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 		} else {
 			if pool.Driver == "ceph" {
 				// ask for the name of the cluster
-				pool.Config["ceph.cluster_name"], err = cli.AskString("Name of the existing CEPH cluster [default=ceph]: ", "ceph", nil)
+				pool.Config["ceph.cluster_name"], err = c.global.asker.AskString("Name of the existing CEPH cluster [default=ceph]: ", "ceph", nil)
 				if err != nil {
 					return err
 				}
 
 				// ask for the name of the existing pool
-				pool.Config["source"], err = cli.AskString("Name of the existing OSD storage pool [default=lxd]: ", "lxd", nil)
+				pool.Config["source"], err = c.global.asker.AskString("Name of the existing OSD storage pool [default=lxd]: ", "lxd", nil)
 				if err != nil {
 					return err
 				}
@@ -892,7 +892,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 				pool.Config["ceph.osd.pool_name"] = pool.Config["source"]
 			} else {
 				question := fmt.Sprintf("Name of the existing %s pool or dataset: ", strings.ToUpper(pool.Driver))
-				pool.Config["source"], err = cli.AskString(question, "", nil)
+				pool.Config["source"], err = c.global.asker.AskString(question, "", nil)
 				if err != nil {
 					return err
 				}
@@ -911,7 +911,7 @@ If you wish to use thin provisioning, abort now, install the tools from your Lin
 and make sure that your user can see and run the "thin_check" command before running "lxd init" again.
 
 `)
-				lvmContinueNoThin, err := cli.AskBool("Do you want to continue without thin provisioning? (yes/no) [default=yes]: ", "yes")
+				lvmContinueNoThin, err := c.global.asker.AskBool("Do you want to continue without thin provisioning? (yes/no) [default=yes]: ", "yes")
 				if err != nil {
 					return err
 				}
@@ -947,7 +947,7 @@ they otherwise would.
 
 `)
 
-		shareParentAllocation, err := cli.AskBool("Would you like to have your containers share their parent's allocation? (yes/no) [default=yes]: ", "yes")
+		shareParentAllocation, err := c.global.asker.AskBool("Would you like to have your containers share their parent's allocation? (yes/no) [default=yes]: ", "yes")
 		if err != nil {
 			return err
 		}
@@ -959,7 +959,7 @@ they otherwise would.
 
 	// Network listener
 	if config.Cluster == nil {
-		lxdOverNetwork, err := cli.AskBool("Would you like the LXD server to be available over the network? (yes/no) [default=no]: ", "no")
+		lxdOverNetwork, err := c.global.asker.AskBool("Would you like the LXD server to be available over the network? (yes/no) [default=no]: ", "no")
 		if err != nil {
 			return err
 		}
@@ -973,7 +973,7 @@ they otherwise would.
 				return nil
 			}
 
-			netAddr, err := cli.AskString("Address to bind LXD to (not including port) [default=all]: ", "all", isIPAddress)
+			netAddr, err := c.global.asker.AskString("Address to bind LXD to (not including port) [default=all]: ", "all", isIPAddress)
 			if err != nil {
 				return err
 			}
@@ -986,7 +986,7 @@ they otherwise would.
 				netAddr = fmt.Sprintf("[%s]", netAddr)
 			}
 
-			netPort, err := cli.AskInt(fmt.Sprintf("Port to bind LXD to [default=%d]: ", shared.HTTPSDefaultPort), 1, 65535, fmt.Sprintf("%d", shared.HTTPSDefaultPort), func(netPort int64) error {
+			netPort, err := c.global.asker.AskInt(fmt.Sprintf("Port to bind LXD to [default=%d]: ", shared.HTTPSDefaultPort), 1, 65535, fmt.Sprintf("%d", shared.HTTPSDefaultPort), func(netPort int64) error {
 				address := util.CanonicalNetworkAddressFromAddressAndPort(netAddr, int(netPort), shared.HTTPSDefaultPort)
 
 				if err == nil {
@@ -1013,7 +1013,7 @@ they otherwise would.
 	}
 
 	// Ask if the user wants images to be automatically refreshed
-	imageStaleRefresh, err := cli.AskBool("Would you like stale cached images to be updated automatically? (yes/no) [default=yes]: ", "yes")
+	imageStaleRefresh, err := c.global.asker.AskBool("Would you like stale cached images to be updated automatically? (yes/no) [default=yes]: ", "yes")
 	if err != nil {
 		return err
 	}
