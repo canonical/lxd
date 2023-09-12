@@ -152,7 +152,7 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 		if c.flagName != "" {
 			cert.Name = c.flagName
 		} else {
-			cert.Name, err = cli.AskString(i18n.G("Please provide client name: "), "", nil)
+			cert.Name, err = c.global.asker.AskString(i18n.G("Please provide client name: "), "", nil)
 			if err != nil {
 				return err
 			}
