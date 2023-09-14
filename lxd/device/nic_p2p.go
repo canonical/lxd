@@ -129,7 +129,7 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Apply host-side limits.
-	err = networkSetupHostVethLimits(d.config)
+	err = networkSetupHostVethLimits(&d.deviceCommon, nil, false)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,7 @@ func (d *nicP2P) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	}
 
 	// Apply host-side limits.
-	err = networkSetupHostVethLimits(d.config)
+	err = networkSetupHostVethLimits(&d.deviceCommon, oldConfig, false)
 	if err != nil {
 		return err
 	}

@@ -558,7 +558,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Apply host-side limits.
-	err = networkSetupHostVethLimits(d.config)
+	err = networkSetupHostVethLimits(&d.deviceCommon, nil, true)
 	if err != nil {
 		return nil, err
 	}
@@ -742,7 +742,7 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 		}
 
 		// Apply host-side limits.
-		err = networkSetupHostVethLimits(d.config)
+		err = networkSetupHostVethLimits(&d.deviceCommon, oldConfig, true)
 		if err != nil {
 			return err
 		}
