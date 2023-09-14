@@ -285,3 +285,4 @@ Zettabyte
 ZFS
 zpool
 zpools
+qdisc
