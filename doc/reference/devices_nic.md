@@ -88,6 +88,7 @@ Key                      | Type    | Default           | Managed | Description
 `limits.egress`          | string  | -                 | no      | I/O limit in bit/s for outgoing traffic (various suffixes supported, see {ref}`instances-limit-units`)
 `limits.ingress`         | string  | -                 | no      | I/O limit in bit/s for incoming traffic (various suffixes supported, see {ref}`instances-limit-units`)
 `limits.max`             | string  | -                 | no      | I/O limit in bit/s for both incoming and outgoing traffic (same as setting both `limits.ingress` and `limits.egress`)
+`limits.priority`       | integer | -                 | The `skb->priority` value (32-bit unsigned integer) for outgoing traffic, to be used by the kernel queuing discipline (qdisc) to prioritize network packets (The effect of this value depends on the particular qdisc implementation, for example, `SKBPRIO` or `QFQ`. Consult the kernel qdisc documentation before setting this value.)
 `maas.subnet.ipv4`       | string  | -                 | yes     | MAAS IPv4 subnet to register the instance in
 `maas.subnet.ipv6`       | string  | -                 | yes     | MAAS IPv6 subnet to register the instance in
 `mtu`                    | integer | parent MTU        | yes     | The MTU of the new interface
@@ -354,6 +355,7 @@ Key                     | Type    | Default           | Description
 `limits.egress`         | string  | -                 | I/O limit in bit/s for outgoing traffic (various suffixes supported, see {ref}`instances-limit-units`)
 `limits.ingress`        | string  | -                 | I/O limit in bit/s for incoming traffic (various suffixes supported, see {ref}`instances-limit-units`)
 `limits.max`            | string  | -                 | I/O limit in bit/s for both incoming and outgoing traffic (same as setting both `limits.ingress` and `limits.egress`)
+`limits.priority`       | integer | -                 | The `skb->priority` value (32-bit unsigned integer) for outgoing traffic, to be used by the kernel queuing discipline (qdisc) to prioritize network packets (The effect of this value depends on the particular qdisc implementation, for example, `SKBPRIO` or `QFQ`. Consult the kernel qdisc documentation before setting this value.)
 `mtu`                   | integer | kernel assigned   | The MTU of the new interface
 `name`                  | string  | kernel assigned   | The name of the interface inside the instance
 `queue.tx.length`       | integer | -                 | The transmit queue length for the NIC
@@ -442,6 +444,7 @@ Key                     | Type    | Default           | Description
 `limits.egress`         | string  | -                 | I/O limit in bit/s for outgoing traffic (various suffixes supported, see {ref}`instances-limit-units`)
 `limits.ingress`        | string  | -                 | I/O limit in bit/s for incoming traffic (various suffixes supported, see {ref}`instances-limit-units`)
 `limits.max`            | string  | -                 | I/O limit in bit/s for both incoming and outgoing traffic (same as setting both `limits.ingress` and `limits.egress`)
+`limits.priority`       | integer | -                 | The `skb->priority` value (32-bit unsigned integer) for outgoing traffic, to be used by the kernel queuing discipline (qdisc) to prioritize network packets (The effect of this value depends on the particular qdisc implementation, for example, `SKBPRIO` or `QFQ`. Consult the kernel qdisc documentation before setting this value.)
 `mtu`                   | integer | parent MTU        | The MTU of the new interface
 `name`                  | string  | kernel assigned   | The name of the interface inside the instance
 `parent`                | string  | -                 | The name of the host device to join the instance to
