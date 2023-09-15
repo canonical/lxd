@@ -63,14 +63,6 @@ jobs:
         run: |
           go mod download
 
-      - name: Make LXD tarball and unpack it
-        env:
-          CUSTOM_VERSION: "test"
-        run: |
-          make dist
-          tar -xzf lxd-test.tar.gz -C ~/work/lxd/
-          rm lxd-test.tar.gz
-
       - name: Build LXD dependencies
         run: |
           cd ~/work/lxd/lxd-test
@@ -87,6 +79,14 @@ jobs:
       - name: Unit tests (all)
         run: |
           sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} go test ./...
+
+      - name: Make LXD tarball and unpack it
+        env:
+          CUSTOM_VERSION: "test"
+        run: |
+          make dist
+          tar -xzf lxd-test.tar.gz -C ~/work/lxd/
+          rm lxd-test.tar.gz
 
   system-tests:
     env:
