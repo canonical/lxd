@@ -186,6 +186,10 @@ func (r *rbac) startStatusCheck() {
 
 	go func() {
 		for {
+			if r.ctx.Err() != nil {
+				return
+			}
+
 			if status.LastChange != "" {
 				values := url.Values{}
 				values.Set("last-change", status.LastChange)
