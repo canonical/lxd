@@ -230,6 +230,7 @@ test_basic_usage() {
   ! lxc init testimage -abc || false
   ! lxc init testimage abc- || false
   ! lxc init testimage 1234 || false
+  ! lxc init testimage foo.bar || false
   ! lxc init testimage a_b_c || false
   ! lxc init testimage aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa || false
 
