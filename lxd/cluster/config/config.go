@@ -651,7 +651,7 @@ var ConfigSchema = config.Schema{
 	"loki.api.ca_cert": {},
 
 	// lxdmeta:generate(entity=server, group=loki, key=loki.api.url)
-	//
+	// Specify the protocol, name or IP and port. For example `https://loki.example.com:3100`.
 	// ---
 	//  type: string
 	//  scope: global
