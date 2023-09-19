@@ -388,6 +388,7 @@ var APIExtensions = []string{
 	"disk_initial_volume_configuration",
 	"operation_wait",
 	"cluster_internal_custom_volume_copy",
+	"deployments",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
