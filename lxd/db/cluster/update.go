@@ -106,6 +106,72 @@ var updates = map[int]schema.Update{
 	67: updateFromV66,
 	68: updateFromV67,
 	69: updateFromV68,
+	70: updateFromV69,
+}
+
+// updateFromV69 creates the deployments tables.
+func updateFromV69(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE "deployments" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+    governor_webhook_url TEXT,
+	project_id INTEGER NOT NULL,
+	UNIQUE (project_id, name)
+);
+CREATE TABLE "deployment_configs" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	deployment_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	UNIQUE (deployment_id, key),
+	FOREIGN KEY (deployment_id) REFERENCES "deployments" (id) ON DELETE CASCADE
+);
+CREATE TABLE "deployment_shapes" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	deployment_id INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	scaling_minimum INTEGER NOT NULL,
+	scaling_maximum INTEGER NOT NULL,
+	instance_template TEXT NOT NULL,
+	UNIQUE (deployment_id, name),
+	FOREIGN KEY (deployment_id) REFERENCES "deployments" (id) ON DELETE CASCADE
+);
+CREATE TABLE "deployment_shape_configs" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	deployment_shape_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	UNIQUE (deployment_shape_id, key),
+	FOREIGN KEY (deployment_shape_id) REFERENCES "deployment_shapes" (id) ON DELETE CASCADE
+);
+CREATE TABLE "deployment_shape_instances" (
+	deployment_shape_id INTEGER NOT NULL,
+	instance_id INTEGER,
+	PRIMARY KEY (deployment_shape_id, instance_id),
+	UNIQUE (instance_id),
+	FOREIGN KEY (deployment_shape_id) REFERENCES "deployment_shapes" (id) ON DELETE CASCADE,
+	FOREIGN KEY (instance_id) REFERENCES "instances" (id) ON DELETE CASCADE
+);
+CREATE TABLE "deployment_keys" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	deployment_id INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	certificate_id INTEGER NOT NULL,
+	role TEXT NOT NULL,
+	UNIQUE (deployment_id, name),
+	FOREIGN KEY (deployment_id) REFERENCES "deployments" (id) ON DELETE CASCADE,
+	FOREIGN KEY (certificate_id) REFERENCES "certificates" (id) ON DELETE CASCADE
+);
+`)
+	if err != nil {
+		return fmt.Errorf("Failed creating deployments tables: %w", err)
+	}
+
+	return nil
 }
 
 // updateFromV68 fixes unique index for record name to make it zone specific.
