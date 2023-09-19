@@ -111,6 +111,7 @@ import (
 
 	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
 	"github.com/canonical/lxd/lxd/ip"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/netutils"
 )
 
@@ -196,7 +197,7 @@ func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Rename the interface, set it down, and move into parent netns.
+	// Set interface down, rename it, and move into parent netns.
 	link := &ip.Link{Name: ifName}
 	err = link.SetDown()
 	if err != nil {
@@ -205,6 +206,13 @@ func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
 
 	err = link.SetName(hostName)
 	if err != nil {
+		// If the interface has an altname that matches the target name, this can prevent rename of the
+		// interface, so try removing it and trying the rename again if succeeds.
+		_, altErr := shared.RunCommand("ip", "link", "property", "del", "dev", ifName, "altname", hostName)
+		if altErr == nil {
+			err = link.SetName(hostName)
+		}
+
 		return err
 	}
 
