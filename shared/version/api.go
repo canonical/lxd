@@ -382,6 +382,7 @@ var APIExtensions = []string{
 	"zfs_delegate",
 	"operations_get_query_all_projects",
 	"metadata_configuration",
+	"syslog_socket",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
