@@ -353,6 +353,7 @@ var APIExtensions = []string{
 	"zfs_delegate",
 	"operations_get_query_all_projects",
 	"event_lifecycle_name_and_project",
+	"instances_nic_limits_priority",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
