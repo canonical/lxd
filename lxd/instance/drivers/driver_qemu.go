@@ -3249,19 +3249,21 @@ func (d *qemu) addRootDriveConfig(mountInfo *storagePools.MountInfo, bootIndexes
 	if d.storagePool.Driver().Info().Remote {
 		vol := d.storagePool.GetVolume(storageDrivers.VolumeTypeVM, storageDrivers.ContentTypeBlock, project.Instance(d.project.Name, d.name), nil)
 
-		config := d.storagePool.ToAPI().Config
+		if shared.StringInSlice(d.storagePool.Driver().Info().Name, []string{"ceph", "cephfs"}) {
+			config := d.storagePool.ToAPI().Config
 
-		userName := config["ceph.user.name"]
-		if userName == "" {
-			userName = storageDrivers.CephDefaultUser
+			userName := config["ceph.user.name"]
+			if userName == "" {
+				userName = storageDrivers.CephDefaultUser
+			}
+
+			clusterName := config["ceph.cluster_name"]
+			if clusterName == "" {
+				clusterName = storageDrivers.CephDefaultUser
+			}
+
+			driveConf.DevPath = device.DiskGetRBDFormat(clusterName, userName, config["ceph.osd.pool_name"], vol.Name())
 		}
-
-		clusterName := config["ceph.cluster_name"]
-		if clusterName == "" {
-			clusterName = storageDrivers.CephDefaultUser
-		}
-
-		driveConf.DevPath = device.DiskGetRBDFormat(clusterName, userName, config["ceph.osd.pool_name"], vol.Name())
 	}
 
 	return d.addDriveConfig(bootIndexes, driveConf)
