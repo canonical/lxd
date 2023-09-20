@@ -226,11 +226,11 @@ test_basic_usage() {
   curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/"
   lxc image delete foo-image2
 
-  # Test invalid container names
+  # Test invalid instance names
   ! lxc init testimage -abc || false
   ! lxc init testimage abc- || false
   ! lxc init testimage 1234 || false
-  ! lxc init testimage 12test || false
+  ! lxc init testimage foo.bar || false
   ! lxc init testimage a_b_c || false
   ! lxc init testimage aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa || false
 
