@@ -355,6 +355,7 @@ var APIExtensions = []string{
 	"event_lifecycle_name_and_project",
 	"instances_nic_limits_priority",
 	"operation_wait",
+	"cluster_internal_custom_volume_copy",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
