@@ -73,6 +73,7 @@ type InstanceServer interface {
 	ImageServer
 
 	// Server functions
+	GetSourceImageConnectionInfo(ImageServer, api.Image, *api.InstanceSource) (info *ConnectionInfo, err error)
 	GetMetrics() (metrics string, err error)
 	GetServer() (server *api.Server, ETag string, err error)
 	GetServerResources() (resources *api.Resources, err error)
@@ -91,6 +92,36 @@ type InstanceServer interface {
 	UpdateCertificate(fingerprint string, certificate api.CertificatePut, ETag string) (err error)
 	DeleteCertificate(fingerprint string) (err error)
 	CreateCertificateToken(certificate api.CertificatesPost) (op Operation, err error)
+
+	// Deployment functions ("deployments" API extension)
+	GetDeploymentNames() (names []string, err error)
+	GetDeployments() (deployments []api.Deployment, err error)
+	GetDeployment(deploymentName string) (deployment *api.Deployment, ETag string, err error)
+	CreateDeployment(deployment api.DeploymentsPost) (err error)
+	UpdateDeployment(deploymentName string, deployment api.DeploymentPut, ETag string) (err error)
+	RenameDeployment(deploymentName string, deployment api.DeploymentPost) (err error)
+	DeleteDeployment(deploymentName string) (err error)
+
+	GetDeploymentKeyNames(deploymentName string) (names []string, err error)
+	GetDeploymentKeys(deploymentName string) (deploymentKeys []api.DeploymentKey, err error)
+	GetDeploymentKey(deploymentName string, deploymentKeyName string) (deploymentKey *api.DeploymentKey, ETag string, err error)
+	CreateDeploymentKey(deploymentName string, deploymentKey api.DeploymentKeysPost) (err error)
+	UpdateDeploymentKey(deploymentName string, deploymentKeyName string, deploymentKey api.DeploymentKeyPut, ETag string) (err error)
+	RenameDeploymentKey(deploymentName string, deploymentKeyName string, deploymentKey api.DeploymentKeyPost) (err error)
+	DeleteDeploymentKey(deploymentName string, deploymentKeyName string) (err error)
+
+	GetDeploymentShapeNames(deploymentName string) (deploymentShapeNames []string, err error)
+	GetDeploymentShapes(deploymentName string) (deploymentShapes []api.DeploymentShape, err error)
+	GetDeploymentShape(deploymentName string, deploymentShapeName string) (deploymentShape *api.DeploymentShape, ETag string, err error)
+	CreateDeploymentShape(deploymentName string, deploymentShape api.DeploymentShapesPost) (err error)
+	UpdateDeploymentShape(deploymentName string, deploymentShapeName string, deploymentShape api.DeploymentShapePut, ETag string) (err error)
+	RenameDeploymentShape(deploymentName string, deploymentShapeName string, deploymentShape api.DeploymentShapePost) (err error)
+	DeleteDeploymentShape(deploymentName string, deploymentShapeName string) (err error)
+	AddInstanceToDeploymentShape(deploymentName string, deploymentShapeInstance api.DeploymentInstancesPost) (op RemoteOperation, err error)
+	DeleteInstanceInDeploymentShape(deploymentName string, deploymentShapeName string, instanceName string) (op RemoteOperation, err error)
+	GetInstanceNamesInDeploymentShape(deploymentName string, deploymentShapeName string) (instanceNames []string, err error)
+	GetInstancesInDeploymentShape(deploymentName string, deploymentShapeName string) (instances []api.Instance, err error)
+	UpdateDeploymentInstanceState(deploymentName string, deploymentShapeName string, instanceName string, state api.InstanceStatePut, ETag string) (op Operation, err error)
 
 	// Container functions
 	//
