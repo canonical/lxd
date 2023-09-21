@@ -26,23 +26,21 @@ Migrate existing LXD instances between servers
 
 ````{only} diataxis
 The following how-to guides cover common operations related to migration:
-
-```{toctree}
-:titlesonly:
-
-Import existing machines </howto/import_machines_to_instances>
-Migrate from LXC </howto/migrate_from_lxc>
-Move instances </howto/move_instances>
-```
 ````
 
-````{only} topical
-```{toctree}
+```{filtered-toctree}
+:titlesonly:
+
+:diataxis:Import existing machines </howto/import_machines_to_instances>
+:diataxis:Migrate from LXC </howto/migrate_from_lxc>
+:diataxis:Move instances </howto/move_instances>
+```
+
+```{filtered-toctree}
 :maxdepth: 1
 :hidden:
 
-Move instances </howto/move_instances>
-Import existing machines </howto/import_machines_to_instances>
-Migrate from LXC </howto/migrate_from_lxc>
+:topical:Move instances </howto/move_instances>
+:topical:Import existing machines </howto/import_machines_to_instances>
+:topical:Migrate from LXC </howto/migrate_from_lxc>
 ```
-````

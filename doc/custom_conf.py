@@ -1,5 +1,6 @@
 import datetime
 import os
+import sys
 import subprocess
 import yaml
 from git import Repo
@@ -136,7 +137,8 @@ linkcheck_exclude_documents = [r'.*/manpages/.*']
 custom_extensions = [
     'sphinx.ext.intersphinx',
     'config-options',
-    'sphinx_remove_toctrees'
+    'sphinx_remove_toctrees',
+    'filtered-toc'
 ]
 
 # Add files or directories that should be excluded from processing.
@@ -301,12 +303,16 @@ for folder, subfolders, files in os.walk('.sphinx/deps/manpages'):
 ### End MAN PAGES ###
 
 if ('TOPICAL' in os.environ) and (os.environ['TOPICAL'] == 'True'):
-    root_doc = 'index_topical'
-    custom_excludes.extend(['index.md','tutorial/index.md','howto/index.md','explanation/index.md','reference/index.md','howto/troubleshoot.md'])
-    redirects['index/index'] = '../index_topical/'
-    redirects['index'] = '../index_topical/'
+    custom_excludes.extend(['tutorial/index.md','howto/index.md','explanation/index.md','reference/index.md','howto/troubleshoot.md'])
+    redirects['index_topical/index'] = '../index.html'
+    redirects['index_topical'] = '../index.html'
     custom_tags.append('topical')
+    toc_filter_exclude = ['diataxis']
 else:
-    custom_excludes.extend(['index_topical.md','security.md','external_resources.md','reference/network_external.md'])
+    custom_excludes.extend(['security.md','external_resources.md','reference/network_external.md'])
     redirects['security/index'] = '../explanation/security/'
     custom_tags.append('diataxis')
+    toc_filter_exclude = ['topical']
+
+
+sys.path.append(os.path.abspath('.sphinx/_extensions/'))
