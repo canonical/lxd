@@ -5,21 +5,21 @@ discourse: 9076,15871
 (clustering)=
 # Clustering
 
-````{only} diataxis
+```{only} diataxis
 The following how-to guides cover common operations related to clustering:
+```
 
-```{toctree}
+```{filtered-toctree}
 :titlesonly:
 
-Configure networks </howto/cluster_config_networks>
-Configure storage </howto/cluster_config_storage>
-Form a cluster </howto/cluster_form>
-Manage a cluster </howto/cluster_manage>
-Manage instances </howto/cluster_manage_instance>
-Recover a cluster </howto/cluster_recover>
-Set up cluster groups </howto/cluster_groups>
+:diataxis:Configure networks </howto/cluster_config_networks>
+:diataxis:Configure storage </howto/cluster_config_storage>
+:diataxis:Form a cluster </howto/cluster_form>
+:diataxis:Manage a cluster </howto/cluster_manage>
+:diataxis:Manage instances </howto/cluster_manage_instance>
+:diataxis:Recover a cluster </howto/cluster_recover>
+:diataxis:Set up cluster groups </howto/cluster_groups>
 ```
-````
 
 ## Related topics
 
@@ -29,18 +29,16 @@ Set up cluster groups </howto/cluster_groups>
 {{clustering_ref}}
 ```
 
-````{only} topical
-```{toctree}
+```{filtered-toctree}
 :titlesonly:
 
-/explanation/clustering.md
-Form a cluster </howto/cluster_form>
-Manage a cluster </howto/cluster_manage>
-Recover a cluster </howto/cluster_recover>
-Manage instances </howto/cluster_manage_instance>
-Configure storage </howto/cluster_config_storage>
-Configure networks </howto/cluster_config_networks>
-Set up cluster groups </howto/cluster_groups>
-/reference/cluster_member_config
+:topical:/explanation/clustering.md
+:topical:Form a cluster </howto/cluster_form>
+:topical:Manage a cluster </howto/cluster_manage>
+:topical:Recover a cluster </howto/cluster_recover>
+:topical:Manage instances </howto/cluster_manage_instance>
+:topical:Configure storage </howto/cluster_config_storage>
+:topical:Configure networks </howto/cluster_config_networks>
+:topical:Set up cluster groups </howto/cluster_groups>
+:topical:/reference/cluster_member_config
 ```
-````

@@ -139,12 +139,10 @@ The following features are supported for the `bridge` network type:
 See {ref}`network-bridge-firewall` for instructions on how to troubleshoot firewall issues.
 ```
 
-````{only} topical
-```{toctree}
+```{filtered-toctree}
 :maxdepth: 1
 :hidden:
 
-Integrate with resolved </howto/network_bridge_resolved>
-Configure your firewall </howto/network_bridge_firewalld>
+:topical:Integrate with resolved </howto/network_bridge_resolved>
+:topical:Configure your firewall </howto/network_bridge_firewalld>
 ```
-````

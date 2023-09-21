@@ -82,13 +82,11 @@ The following features are supported for the `ovn` network type:
 - {ref}`network-ovn-peers`
 - {ref}`network-load-balancers`
 
-````{only} topical
-```{toctree}
+```{filtered-toctree}
 :maxdepth: 1
 :hidden:
 
-Set up OVN </howto/network_ovn_setup>
-Create routing relationships </howto/network_ovn_peers>
-Configure network load balancers </howto/network_load_balancers>
+:topical:Set up OVN </howto/network_ovn_setup>
+:topical:Create routing relationships </howto/network_ovn_peers>
+:topical:Configure network load balancers </howto/network_load_balancers>
 ```
-````

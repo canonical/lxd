@@ -1,15 +1,13 @@
 # Internals
 
-````{only} diataxis
-```{toctree}
+```{filtered-toctree}
 :titlesonly:
 
-/daemon-behavior
-/environment
-/syscall-interception
-User namespace setup </userns-idmap>
+:diataxis:/daemon-behavior
+:diataxis:/environment
+:diataxis:/syscall-interception
+:diataxis:User namespace setup </userns-idmap>
 ```
-````
 
 ## Related topics
 
@@ -20,16 +18,13 @@ How-to guides:
 
 ```
 
-
-````{only} topical
-```{toctree}
+```{filtered-toctree}
 :maxdepth: 1
 
-/daemon-behavior
-Debug LXD </debugging>
-/environment
-/syscall-interception
-User namespace setup </userns-idmap>
-Configuration option index </config-options>
+:topical:/daemon-behavior
+:topical:Debug LXD </debugging>
+:topical:/environment
+:topical:/syscall-interception
+:topical:User namespace setup </userns-idmap>
+:topical:Configuration option index </config-options>
 ```
-````

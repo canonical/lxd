@@ -1,3 +1,4 @@
+(troubleshoot)=
 # External resources
 
 ```{toctree}

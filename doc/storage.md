@@ -5,20 +5,20 @@ discourse: 7735
 (storage)=
 # Storage
 
-````{only} diataxis
+```{only} diataxis
 The following how-to guides cover common operations related to storage:
+```
 
-```{toctree}
+```{filtered-toctree}
 :titlesonly:
 
-Back up a volume </howto/storage_backup_volume>
-Create an instance in a pool </howto/storage_create_instance>
-Manage buckets </howto/storage_buckets>
-Manage pools </howto/storage_pools>
-Manage volumes </howto/storage_volumes>
-Move or copy a volume </howto/storage_move_volume>
+:diataxis:Back up a volume </howto/storage_backup_volume>
+:diataxis:Create an instance in a pool </howto/storage_create_instance>
+:diataxis:Manage buckets </howto/storage_buckets>
+:diataxis:Manage pools </howto/storage_pools>
+:diataxis:Manage volumes </howto/storage_volumes>
+:diataxis:Move or copy a volume </howto/storage_move_volume>
 ```
-````
 
 ## Related topics
 
@@ -28,17 +28,15 @@ Move or copy a volume </howto/storage_move_volume>
 {{storage_ref}}
 ```
 
-````{only} topical
-```{toctree}
+```{filtered-toctree}
 :titlesonly:
 
-About storage </explanation/storage>
-Manage pools </howto/storage_pools>
-Create an instance in a pool </howto/storage_create_instance>
-Manage volumes </howto/storage_volumes>
-Move or copy a volume </howto/storage_move_volume>
-Back up a volume </howto/storage_backup_volume>
-Manage buckets </howto/storage_buckets>
-/reference/storage_drivers
+:topical:About storage </explanation/storage>
+:topical:Manage pools </howto/storage_pools>
+:topical:Create an instance in a pool </howto/storage_create_instance>
+:topical:Manage volumes </howto/storage_volumes>
+:topical:Move or copy a volume </howto/storage_move_volume>
+:topical:Back up a volume </howto/storage_backup_volume>
+:topical:Manage buckets </howto/storage_buckets>
+:topical:/reference/storage_drivers
 ```
-````
