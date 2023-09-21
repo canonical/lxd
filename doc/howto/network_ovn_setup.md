@@ -202,14 +202,18 @@ You can now use [lxc monitor](lxc_monitor.md) to see logs from the OVN controlle
     lxc monitor --type=ovn
 
 You can also send the logs to Loki.
-To do so, add the `ovn` value to the {config:option}`server-loki:loki.types` configuration key.
+To do so, add the `ovn` value to the {config:option}`server-loki:loki.types` configuration key, for example:
+
+    lxc config set loki.types=ovn
 
 ```{tip}
 You can include logs for OVN `northd`, OVN north-bound `ovsdb-server`, and OVN south-bound `ovsdb-server` as well.
 To do so, edit `/etc/default/ovn-central`:
 
     OVN_CTL_OPTS=" \
-       --northd-log='-vsyslog:info --syslog-method=unix:/var/snap/lxd/common/lxd/syslog.socket' \
-       --nb-log='-vsyslog:info --syslog-method=unix:/var/snap/lxd/common/lxd/syslog.socket' \
-       --sb-log='-vsyslog:info --syslog-method=unix:/var/snap/lxd/common/lxd/syslog.socket'"
+       --ovn-northd-log='-vsyslog:info --syslog-method=unix:/var/snap/lxd/common/lxd/syslog.socket' \
+       --ovn-nb-log='-vsyslog:info --syslog-method=unix:/var/snap/lxd/common/lxd/syslog.socket' \
+       --ovn-sb-log='-vsyslog:info --syslog-method=unix:/var/snap/lxd/common/lxd/syslog.socket'"
+
+    sudo systemctl restart ovn-central.service
 ```
