@@ -689,14 +689,16 @@ test_projects_limits() {
   lxc profile device set default root size=100MiB
   lxc config device add c2 root disk path="/" pool="${pool}" size=50MiB
 
-  # Can't set the project's disk limit because not all volumes have
-  # the "size" config defined.
-  pool1="lxdtest1-$(basename "${LXD_DIR}")"
-  lxc storage create "${pool1}" lvm size=1GiB
-  lxc storage volume create "${pool1}" v1
-  ! lxc project set p1 limits.disk 1GiB || false
-  lxc storage volume delete "${pool1}" v1
-  lxc storage delete "${pool1}"
+  if [ "${LXD_BACKEND}" = "lvm" ]; then
+    # Can't set the project's disk limit because not all volumes have
+    # the "size" config defined.
+    pool1="lxdtest1-$(basename "${LXD_DIR}")"
+    lxc storage create "${pool1}" lvm size=1GiB
+    lxc storage volume create "${pool1}" v1
+    ! lxc project set p1 limits.disk 1GiB || false
+    lxc storage volume delete "${pool1}" v1
+    lxc storage delete "${pool1}"
+  fi
 
   # Create a custom volume without any size property defined.
   lxc storage volume create "${pool}" v1
@@ -717,13 +719,13 @@ test_projects_limits() {
   # aggregate project's limit is not possible.
   ! lxc profile device set default root size=160MiB || false
   ! lxc config device set c2 root size 110MiB || false
-  ! lxc storage volume set "${pool}" v1 size 110MiB
+  ! lxc storage volume set "${pool}" v1 size 110MiB || false
 
   # Can't create a custom volume without specifying a size.
   ! lxc storage volume create "${pool}" v2 || false
 
   # Disk limits can be updated if they stay within limits.
-  lxc project set p1 limits.disk 200100kB
+  lxc project set p1 limits.disk 204900KiB
   lxc profile device set default root size=90MiB
   lxc config device set c2 root size 60MiB
 
