@@ -273,7 +273,8 @@ func (c *Client) HandleEvent(event api.Event) {
 			if shared.StringInSlice(k, c.cfg.labels) {
 				_, ok := entry.labels[k]
 				if !ok {
-					entry.labels[k] = v
+					// Label names may not contain any hyphens.
+					entry.labels[strings.ReplaceAll(k, "-", "_")] = v
 					delete(context, k)
 				}
 			}
