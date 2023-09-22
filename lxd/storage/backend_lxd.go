@@ -5606,7 +5606,7 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 	}
 
 	// Validate config and create database entry for new storage volume.
-	err = VolumeDBCreate(b, projectName, volName, "", vol.Type(), false, vol.Config(), time.Now(), time.Time{}, vol.ContentType(), true, true)
+	err = VolumeDBCreate(b, projectName, volName, "", vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType(), true, true)
 	if err != nil {
 		return fmt.Errorf("Failed creating database entry for custom volume: %w", err)
 	}
