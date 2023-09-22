@@ -1161,16 +1161,20 @@ func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort,
 			ipStr = append(ipStr, ip.String())
 		}
 
-		var addresses string
-		if opts.MAC != nil && len(ipStr) > 0 {
-			addresses = fmt.Sprintf("%s %s", opts.MAC.String(), strings.Join(ipStr, " "))
+		// Each address argument must be in format "<mac_address> <ip_address>".
+		args = append(args, "--", "lsp-set-addresses", string(portName))
+		if opts.MAC != nil && len(ipStr) > 1 {
+			for _, ip := range ipStr {
+				args = append(args, fmt.Sprintf("%s %s", opts.MAC.String(), ip))
+			}
+		} else if opts.MAC != nil && len(ipStr) > 0 {
+			args = append(args, fmt.Sprintf("%s %s", opts.MAC.String(), "dynamic"))
+			args = append(args, fmt.Sprintf("%s %s", opts.MAC.String(), ipStr[0]))
 		} else if opts.MAC != nil && len(ipStr) <= 0 {
-			addresses = fmt.Sprintf("%s %s", opts.MAC.String(), "dynamic")
+			args = append(args, fmt.Sprintf("%s %s", opts.MAC.String(), "dynamic"))
 		} else {
-			addresses = "dynamic"
+			args = append(args, "dynamic")
 		}
-
-		args = append(args, "--", "lsp-set-addresses", string(portName), addresses)
 
 		if opts.DHCPv4OptsID != "" {
 			args = append(args, "--", "lsp-set-dhcpv4-options", string(portName), string(opts.DHCPv4OptsID))
