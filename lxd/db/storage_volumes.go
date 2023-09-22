@@ -702,22 +702,6 @@ func (c *ClusterTx) GetStorageVolumeNodes(ctx context.Context, poolID int64, pro
 }
 
 // Get the config of a storage volume.
-func (c *Cluster) storageVolumeConfigGet(volumeID int64, isSnapshot bool) (map[string]string, error) {
-	var err error
-	var result map[string]string
-
-	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		result, err = tx.storageVolumeConfigGet(ctx, volumeID, isSnapshot)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
-// Get the config of a storage volume.
 func (c *ClusterTx) storageVolumeConfigGet(ctx context.Context, volumeID int64, isSnapshot bool) (map[string]string, error) {
 	var queryStr string
 	if isSnapshot {
