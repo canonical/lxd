@@ -273,7 +273,8 @@ func (c *Client) HandleEvent(event api.Event) {
 			if shared.StringInSlice(k, c.cfg.labels) {
 				_, ok := entry.labels[k]
 				if !ok {
-					entry.labels[k] = v
+					// Label names may not contain any hyphens.
+					entry.labels[strings.ReplaceAll(k, "-", "_")] = v
 					delete(context, k)
 				}
 			}
@@ -359,7 +360,7 @@ func buildNestedContext(prefix string, m map[string]any) map[string]string {
 	for k, v := range m {
 		t := reflect.TypeOf(v)
 
-		if t.Kind() == reflect.Map {
+		if t != nil && t.Kind() == reflect.Map {
 			for k, v := range buildNestedContext(k, v.(map[string]any)) {
 				if prefix == "" {
 					labels[k] = v
