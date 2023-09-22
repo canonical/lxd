@@ -2316,11 +2316,11 @@ func (n *ovn) setup(update bool) error {
 
 	// Set IPv6 router advertisement settings.
 	if routerIntPortIPv6Net != nil {
-		adressMode := openvswitch.OVNIPv6AddressModeSLAAC
+		addressMode := openvswitch.OVNIPv6AddressModeSLAAC
 		if dhcpV6Subnet != nil {
-			adressMode = openvswitch.OVNIPv6AddressModeDHCPStateless
+			addressMode = openvswitch.OVNIPv6AddressModeDHCPStateless
 			if shared.IsTrue(n.config["ipv6.dhcp.stateful"]) {
-				adressMode = openvswitch.OVNIPv6AddressModeDHCPStateful
+				addressMode = openvswitch.OVNIPv6AddressModeDHCPStateful
 			}
 		}
 
@@ -2330,7 +2330,7 @@ func (n *ovn) setup(update bool) error {
 		}
 
 		err = client.LogicalRouterPortSetIPv6Advertisements(n.getRouterIntPortName(), &openvswitch.OVNIPv6RAOpts{
-			AddressMode:        adressMode,
+			AddressMode:        addressMode,
 			SendPeriodic:       true,
 			DNSSearchList:      n.getDNSSearchList(),
 			RecursiveDNSServer: recursiveDNSServer,
