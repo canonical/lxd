@@ -383,6 +383,7 @@ var APIExtensions = []string{
 	"operations_get_query_all_projects",
 	"metadata_configuration",
 	"syslog_socket",
+	"event_lifecycle_name_and_project",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
