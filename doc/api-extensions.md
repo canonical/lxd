@@ -2079,3 +2079,7 @@ When enabled and a suitable system is in use (requires ZFS 2.2 or higher), the Z
 
 This introduces support for the `all-projects` query parameter for the GET API calls to both `/1.0/operations` and `/1.0/operations?recursion=1`.
 This parameter allows bypassing the project name filter.
+
+## `event_lifecycle_name_and_project`
+
+This adds the fields `Name` and `Project` to `lifecycle` events.
