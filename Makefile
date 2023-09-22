@@ -3,7 +3,7 @@ POFILES=$(wildcard po/*.po)
 MOFILES=$(patsubst %.po,%.mo,$(POFILES))
 LINGUAS=$(basename $(POFILES))
 POTFILE=po/$(DOMAIN).pot
-VERSION=$(shell grep "var Version" shared/version/flex.go | cut -d'"' -f2)
+VERSION=$(or ${CUSTOM_VERSION},$(shell grep "var Version" shared/version/flex.go | cut -d'"' -f2))
 ARCHIVE=lxd-$(VERSION).tar
 HASH := \#
 TAG_SQLITE3=$(shell printf "$(HASH)include <dqlite.h>\nvoid main(){dqlite_node_id n = 1;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "libsqlite3")
@@ -112,12 +112,19 @@ ifeq "$(LXD_OFFLINE)" ""
 endif
 	swagger generate spec -o doc/rest-api.yaml -w ./lxd -m
 
+.PHONY: update-metadata
+update-metadata: build
+	@echo "Generating golang documentation metadata"
+	$(GOPATH)/bin/lxd-metadata . --json ./lxd/metadata/configuration.json --txt ./doc/config_options.txt
+
 .PHONY: doc-setup
-doc-setup:
+doc-setup: client
 	@echo "Setting up documentation build environment"
 	python3 -m venv doc/.sphinx/venv
 	. $(SPHINXENV) ; pip install --upgrade -r doc/.sphinx/requirements.txt
+	find doc/reference/manpages/ -name "*.md" -type f -delete
 	rm -Rf doc/html
+	rm -Rf doc/.sphinx/.doctrees
 
 .PHONY: doc
 doc: doc-setup doc-incremental
@@ -125,7 +132,7 @@ doc: doc-setup doc-incremental
 .PHONY: doc-incremental
 doc-incremental:
 	@echo "Build the documentation"
-	. $(SPHINXENV) ; sphinx-build -c doc/ -b dirhtml doc/ doc/html/ -w doc/.sphinx/warnings.txt
+	. $(SPHINXENV) ; LOCAL_SPHINX_BUILD=True sphinx-build -c doc/ -b dirhtml doc/ doc/html/ -d doc/.sphinx/.doctrees -w doc/.sphinx/warnings.txt
 
 .PHONY: doc-serve
 doc-serve:
@@ -137,11 +144,16 @@ doc-spellcheck: doc
 
 .PHONY: doc-linkcheck
 doc-linkcheck: doc-setup
-	. $(SPHINXENV) ; sphinx-build -c doc/ -b linkcheck doc/ doc/html/
+	. $(SPHINXENV) ; LOCAL_SPHINX_BUILD=True sphinx-build -c doc/ -b linkcheck doc/ doc/html/ -d doc/.sphinx/.doctrees
 
 .PHONY: doc-lint
 doc-lint:
 	doc/.sphinx/.markdownlint/doc-lint.sh
+
+.PHONY: doc-woke
+doc-woke:
+	type woke >/dev/null 2>&1 || { sudo snap install woke; }
+	woke *.md **/*.md -c https://github.com/canonical/Inclusive-naming/raw/main/config.yml
 
 .PHONY: debug
 debug:
@@ -245,17 +257,18 @@ build-mo: $(MOFILES)
 
 .PHONY: static-analysis
 static-analysis:
-ifeq ($(shell command -v golangci-lint 2> /dev/null),)
+ifeq ($(shell command -v golangci-lint),)
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin
 endif
-ifeq ($(shell command -v shellcheck 2> /dev/null),)
+ifeq ($(shell command -v shellcheck),)
 	echo "Please install shellcheck"
 	exit 1
-endif
+else
 ifneq "$(shell shellcheck --version | grep version: | cut -d ' ' -f2)" "0.8.0"
 	@echo "WARN: shellcheck version is not 0.8.0"
 endif
-ifeq ($(shell command -v flake8 2> /dev/null),)
+endif
+ifeq ($(shell command -v flake8),)
 	echo "Please install flake8"
 	exit 1
 endif
@@ -265,6 +278,5 @@ endif
 	shellcheck test/extras/*.sh
 	run-parts --exit-on-error --regex '.sh' test/lint
 
-.PHONY: tags
-tags: *.go lxd/*.go shared/*.go lxc/*.go
-	find . -type f -name '*.go' | xargs gotags > tags
+tags: */*.go
+	find . -type f -name '*.go' | gotags -L - -f tags
