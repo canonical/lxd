@@ -122,7 +122,7 @@ doc-setup: client
 	@echo "Setting up documentation build environment"
 	python3 -m venv doc/.sphinx/venv
 	. $(SPHINXENV) ; pip install --upgrade -r doc/.sphinx/requirements.txt
-	find doc/reference/manpages/ -name "*.md" -type f -delete
+	if [ -d "doc/reference/manpages/" ]; then find doc/reference/manpages/ -name "*.md" -type f -delete; fi
 	rm -Rf doc/html
 	rm -Rf doc/.sphinx/.doctrees
 
