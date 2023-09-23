@@ -87,7 +87,7 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 		if c.flagStorageDevice != "" {
 			pool.Config["source"] = c.flagStorageDevice
 		} else if c.flagStorageLoopSize > 0 {
-			pool.Config["size"] = fmt.Sprintf("%dGB", c.flagStorageLoopSize)
+			pool.Config["size"] = fmt.Sprintf("%dGiB", c.flagStorageLoopSize)
 		} else {
 			pool.Config["source"] = c.flagStoragePool
 		}
