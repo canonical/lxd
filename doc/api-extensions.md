@@ -1654,7 +1654,7 @@ This adds supported storage driver info to server environment info.
 
 ## `event_lifecycle_requestor_address`
 
-Adds a new address field to life-cycle requestor.
+Adds a new address field to `lifecycle` requestor.
 
 ## `resources_gpu_usb`
 
@@ -2289,3 +2289,7 @@ Check the list of {doc}`configuration options </config-options>` to see which co
 ## `syslog_socket`
 
 This introduces a syslog socket that can receive syslog formatted log messages. These can be viewed in the events API and `lxc monitor`, and can be forwarded to Loki. To enable this feature, set `core.syslog_socket` to `true`.
+
+## `event_lifecycle_name_and_project`
+
+This adds the fields `Name` and `Project` to `lifecycle` events.
