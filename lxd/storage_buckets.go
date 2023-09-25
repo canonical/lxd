@@ -20,6 +20,7 @@ import (
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -417,6 +418,11 @@ func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed creating storage bucket admin key: %w", err))
 	}
 
+	err = s.Authorizer.AddStorageBucket(r.Context(), bucketProjectName, poolName, req.Name)
+	if err != nil {
+		logger.Error("Failed to add storage bucket to authorizer", logger.Ctx{"name": req.Name, "pool": poolName, "project": bucketProjectName, "error": err})
+	}
+
 	s.Events.SendLifecycle(bucketProjectName, lifecycle.StorageBucketCreated.Event(pool, bucketProjectName, req.Name, request.CreateRequestor(r), nil))
 
 	u := api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "buckets", req.Name)
@@ -632,6 +638,11 @@ func storagePoolBucketDelete(d *Daemon, r *http.Request) response.Response {
 	err = pool.DeleteBucket(bucketProjectName, bucketName, nil)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed deleting storage bucket: %w", err))
+	}
+
+	err = s.Authorizer.DeleteStorageBucket(r.Context(), bucketProjectName, poolName, bucketName)
+	if err != nil {
+		logger.Error("Failed to add storage bucket to authorizer", logger.Ctx{"name": bucketName, "pool": poolName, "project": bucketProjectName, "error": err})
 	}
 
 	s.Events.SendLifecycle(bucketProjectName, lifecycle.StorageBucketDeleted.Event(pool, bucketProjectName, bucketName, request.CreateRequestor(r), nil))
