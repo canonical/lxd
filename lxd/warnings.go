@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
@@ -31,16 +32,16 @@ import (
 var warningsCmd = APIEndpoint{
 	Path: "warnings",
 
-	Get: APIEndpointAction{Handler: warningsGet},
+	Get: APIEndpointAction{Handler: warningsGet, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
 }
 
 var warningCmd = APIEndpoint{
 	Path: "warnings/{id}",
 
-	Get:    APIEndpointAction{Handler: warningGet},
-	Patch:  APIEndpointAction{Handler: warningPatch},
-	Put:    APIEndpointAction{Handler: warningPut},
-	Delete: APIEndpointAction{Handler: warningDelete},
+	Get:    APIEndpointAction{Handler: warningGet, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
+	Patch:  APIEndpointAction{Handler: warningPatch, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
+	Put:    APIEndpointAction{Handler: warningPut, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
+	Delete: APIEndpointAction{Handler: warningDelete, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
 }
 
 func filterWarnings(warnings []api.Warning, clauses *filter.ClauseSet) ([]api.Warning, error) {
