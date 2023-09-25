@@ -15,13 +15,17 @@ const (
 
 	// DriverRBAC is role-based authorization. It is not compatible with TLS authentication.
 	DriverRBAC string = "rbac"
+
+	// DriverOpenFGA provides fine-grained authorization. It is compatible with any authentication method.
+	DriverOpenFGA string = "openfga"
 )
 
 // ErrUnknownDriver is the "Unknown driver" error.
 var ErrUnknownDriver = fmt.Errorf("Unknown driver")
 
 var authorizers = map[string]func() authorizer{
-	DriverTLS: func() authorizer { return &tls{} },
+	DriverTLS:     func() authorizer { return &tls{} },
+	DriverOpenFGA: func() authorizer { return &fga{} },
 	DriverRBAC: func() authorizer {
 		return &rbac{
 			resources:   map[string]string{},
