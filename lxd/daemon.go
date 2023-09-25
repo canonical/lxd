@@ -714,7 +714,7 @@ func (d *Daemon) init() error {
 	var dbWarnings []dbCluster.Warning
 
 	// Set default authorizer.
-	d.authorizer, err = auth.LoadAuthorizer("tls", nil, logger.Log, nil)
+	d.authorizer, err = auth.LoadAuthorizer(d.shutdownCtx, auth.DriverTLS, logger.Log, d.clientCerts)
 	if err != nil {
 		return err
 	}
@@ -1803,14 +1803,17 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 	var err error
 
 	if d.authorizer != nil {
-		d.authorizer.StopStatusCheck()
+		err := d.authorizer.StopService(d.shutdownCtx)
+		if err != nil {
+			logger.Error("Failed to stop authorizer service", logger.Ctx{"error": err})
+		}
 	}
 
 	if rbacURL == "" || rbacAgentURL == "" || rbacAgentUsername == "" || rbacAgentPrivateKey == "" || rbacAgentPublicKey == "" {
 		d.candidVerifier = nil
 
 		// Reset to default authorizer.
-		d.authorizer, err = auth.LoadAuthorizer("tls", nil, logger.Log, nil)
+		d.authorizer, err = auth.LoadAuthorizer(d.shutdownCtx, auth.DriverTLS, logger.Log, d.clientCerts)
 		if err != nil {
 			return err
 		}
@@ -1821,9 +1824,9 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 	revert := revert.New()
 	defer revert.Fail()
 
-	projectsFunc := func() (map[int64]string, error) {
+	projectsFunc := func(ctx context.Context) (map[int64]string, error) {
 		var result map[int64]string
-		err := d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := d.State().DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 			result, err = dbCluster.GetProjectIDsToNames(ctx, tx.Tx())
 			return err
@@ -1847,18 +1850,21 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 		d.candidVerifier = nil
 
 		// Reset to default authorizer.
-		d.authorizer, _ = auth.LoadAuthorizer("tls", nil, logger.Log, nil)
+		d.authorizer, _ = auth.LoadAuthorizer(d.shutdownCtx, auth.DriverTLS, logger.Log, d.clientCerts)
 	})
 
 	// Load RBAC authorizer
-	rbacAuthorizer, err := auth.LoadAuthorizer("rbac", config, logger.Log, projectsFunc)
+	rbacAuthorizer, err := auth.LoadAuthorizer(d.shutdownCtx, auth.DriverRBAC, logger.Log, d.clientCerts, auth.WithConfig(config), auth.WithProjectsGetFunc(projectsFunc))
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
 		// Stop status check in case candid fails.
-		rbacAuthorizer.StopStatusCheck()
+		err := rbacAuthorizer.StopService(d.shutdownCtx)
+		if err != nil {
+			logger.Error("Failed to stop authorizer service", logger.Ctx{"error": err})
+		}
 	})
 
 	// Enable candid authentication
