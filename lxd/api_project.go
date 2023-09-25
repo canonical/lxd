@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
@@ -35,23 +36,23 @@ var projectsCmd = APIEndpoint{
 	Path: "projects",
 
 	Get:  APIEndpointAction{Handler: projectsGet, AccessHandler: allowAuthenticated},
-	Post: APIEndpointAction{Handler: projectsPost},
+	Post: APIEndpointAction{Handler: projectsPost, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanCreateProjects)},
 }
 
 var projectCmd = APIEndpoint{
 	Path: "projects/{name}",
 
-	Delete: APIEndpointAction{Handler: projectDelete},
-	Get:    APIEndpointAction{Handler: projectGet, AccessHandler: allowAuthenticated},
-	Patch:  APIEndpointAction{Handler: projectPatch, AccessHandler: allowAuthenticated},
-	Post:   APIEndpointAction{Handler: projectPost},
-	Put:    APIEndpointAction{Handler: projectPut, AccessHandler: allowAuthenticated},
+	Delete: APIEndpointAction{Handler: projectDelete, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.EntitlementCanEdit, "name")},
+	Get:    APIEndpointAction{Handler: projectGet, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.EntitlementCanView, "name")},
+	Patch:  APIEndpointAction{Handler: projectPatch, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.EntitlementCanEdit, "name")},
+	Post:   APIEndpointAction{Handler: projectPost, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.EntitlementCanEdit, "name")},
+	Put:    APIEndpointAction{Handler: projectPut, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.EntitlementCanEdit, "name")},
 }
 
 var projectStateCmd = APIEndpoint{
 	Path: "projects/{name}/state",
 
-	Get: APIEndpointAction{Handler: projectStateGet, AccessHandler: allowAuthenticated},
+	Get: APIEndpointAction{Handler: projectStateGet, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.EntitlementCanView, "name")},
 }
 
 // swagger:operation GET /1.0/projects projects projects_get
@@ -139,8 +140,13 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 
 	recursion := util.IsRecursionRequest(r)
 
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, auth.ObjectTypeProject)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
 	var result any
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		projects, err := cluster.GetProjects(ctx, tx.Tx())
 		if err != nil {
 			return err
@@ -148,7 +154,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 
 		filtered := []api.Project{}
 		for _, project := range projects {
-			if !s.Authorizer.UserHasPermission(r, project.Name, "view") {
+			if !userHasPermission(auth.ObjectProject(project.Name)) {
 				continue
 			}
 
@@ -335,7 +341,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed creating project %q: %w", project.Name, err))
 	}
 
-	err = s.Authorizer.AddProject(id, project.Name)
+	err = s.Authorizer.AddProject(r.Context(), id, project.Name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -405,11 +411,6 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Check user permissions
-	if !s.Authorizer.UserHasPermission(r, name, "view") {
-		return response.Forbidden(nil)
-	}
-
 	// Get the database entry
 	var project *api.Project
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -473,11 +474,6 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	// Check user permissions
-	if !s.Authorizer.UserHasPermission(r, name, "manage-projects") {
-		return response.Forbidden(nil)
 	}
 
 	// Get the current data
@@ -564,11 +560,6 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	// Check user permissions
-	if !s.Authorizer.UserHasPermission(r, name, "manage-projects") {
-		return response.Forbidden(nil)
 	}
 
 	// Get the current data
@@ -844,7 +835,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		err = s.Authorizer.RenameProject(id, req.Name)
+		err = s.Authorizer.RenameProject(r.Context(), id, name, req.Name)
 		if err != nil {
 			return err
 		}
@@ -922,7 +913,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = s.Authorizer.DeleteProject(id)
+	err = s.Authorizer.DeleteProject(r.Context(), id, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -973,11 +964,6 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	// Check user permissions.
-	if !s.Authorizer.UserHasPermission(r, name, "view") {
-		return response.Forbidden(nil)
 	}
 
 	// Setup the state struct.
