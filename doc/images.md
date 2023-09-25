@@ -1,19 +1,19 @@
 (images)=
 # Images
 
-````{only} diataxis
+```{only} diataxis
 The following how-to guides cover common operations related to images:
+```
 
-```{toctree}
+```{filtered-toctree}
 :titlesonly:
 
-Associate profiles </howto/images_profiles>
-Copy and import images </howto/images_copy>
-Create images </howto/images_create>
-Manage images </howto/images_manage>
-Use remote images </howto/images_remote>
+:diataxis:Associate profiles </howto/images_profiles>
+:diataxis:Copy and import images </howto/images_copy>
+:diataxis:Create images </howto/images_create>
+:diataxis:Manage images </howto/images_manage>
+:diataxis:Use remote images </howto/images_remote>
 ```
-````
 
 ## Related topics
 
@@ -23,17 +23,15 @@ Use remote images </howto/images_remote>
 {{images_ref}}
 ```
 
-````{only} topical
-```{toctree}
+```{filtered-toctree}
 :maxdepth: 1
 
-/image-handling
-Use remote images </howto/images_remote>
-Manage images </howto/images_manage>
-Copy and import images </howto/images_copy>
-Create images </howto/images_create>
-Associate profiles </howto/images_profiles>
-/reference/remote_image_servers
-/reference/image_format
+:topical:/image-handling
+:topical:Use remote images </howto/images_remote>
+:topical:Manage images </howto/images_manage>
+:topical:Copy and import images </howto/images_copy>
+:topical:Create images </howto/images_create>
+:topical:Associate profiles </howto/images_profiles>
+:topical:/reference/remote_image_servers
+:topical:/reference/image_format
 ```
-````
