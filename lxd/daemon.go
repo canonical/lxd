@@ -502,67 +502,9 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		if trusted {
 			logger.Debug("Handling API request", logCtx)
 
-			// Get user access data.
-			userAccess, err := func() (*auth.UserAccess, error) {
-				ua := &auth.UserAccess{}
-				ua.Admin = true
-
-				// Internal cluster communications.
-				if protocol == "cluster" {
-					return ua, nil
-				}
-
-				// Regular TLS clients.
-				if protocol == api.AuthenticationMethodTLS {
-					certProjects := d.clientCerts.GetProjects()
-
-					// Check if we have restrictions on the key.
-					if certProjects != nil {
-						projects, ok := certProjects[username]
-						if ok {
-							ua.Admin = false
-							ua.Projects = map[string][]string{}
-							for _, projectName := range projects {
-								ua.Projects[projectName] = []string{
-									"view",
-									"manage-containers",
-									"manage-images",
-									"manage-networks",
-									"manage-profiles",
-									"manage-storage-volumes",
-									"operate-containers",
-								}
-							}
-						}
-					}
-
-					return ua, nil
-				}
-
-				// If no external authentication configured, we're done now.
-				if d.candidVerifier == nil || r.RemoteAddr == "@" {
-					return ua, nil
-				}
-
-				// Validate RBAC permissions.
-				ua, err = d.authorizer.UserAccess(username)
-				if err != nil {
-					return nil, err
-				}
-
-				return ua, nil
-			}()
-			if err != nil {
-				logCtx["err"] = err
-				logger.Warn("Rejecting remote API request", logCtx)
-				_ = response.Forbidden(nil).Render(w)
-				return
-			}
-
 			// Add authentication/authorization context data.
 			ctx := context.WithValue(r.Context(), request.CtxUsername, username)
 			ctx = context.WithValue(ctx, request.CtxProtocol, protocol)
-			ctx = context.WithValue(ctx, request.CtxAccess, userAccess)
 
 			// Add forwarded requestor data.
 			if protocol == "cluster" {
