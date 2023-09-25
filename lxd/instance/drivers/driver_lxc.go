@@ -4205,6 +4205,33 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		return newDevType.UpdatableFields(oldDevType)
 	})
 
+	// Prevent adding or updating device initial configuration.
+	if shared.StringPrefixInSlice("initial.", allUpdatedKeys) {
+		for devName, newDev := range addDevices {
+			for k, newVal := range newDev {
+				if !strings.HasPrefix(k, "initial.") {
+					continue
+				}
+
+				oldDev, ok := removeDevices[devName]
+				if !ok {
+					return fmt.Errorf("New device with initial configuration cannot be added once the instance is created")
+				}
+
+				oldVal, ok := oldDev[k]
+				if !ok {
+					return fmt.Errorf("Device initial configuration cannot be added once the instance is created")
+				}
+
+				// If newVal is an empty string it means the initial configuration
+				// has been removed.
+				if newVal != "" && newVal != oldVal {
+					return fmt.Errorf("Device initial configuration cannot be modified once the instance is created")
+				}
+			}
+		}
+	}
+
 	if userRequested {
 		// Look for deleted idmap keys.
 		protectedKeys := []string{
