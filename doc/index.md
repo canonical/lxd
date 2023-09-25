@@ -18,6 +18,8 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 
 ## In this documentation
 
+`````{only} diataxis
+
 ````{grid} 1 1 2 2
 
 ```{grid-item} [Tutorials](tutorial/index)
@@ -46,6 +48,30 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 ```
 
 ````
+
+`````
+
+```{filtered-toctree}
+:titlesonly:
+:maxdepth: 1
+
+:topical:self
+:topical:getting_started
+:topical:Server and client <operation>
+:topical:security
+:topical:instances
+:topical:images
+:topical:storage
+:topical:networks
+:topical:projects
+:topical:clustering
+:topical:production-setup
+:topical:migration
+:topical:restapi_landing
+:topical:Internals & debugging <internals>
+:topical:external_resources
+:topical:Switch to Diataxis navigation <https://documentation.ubuntu.com/lxd/en/latest/>
+```
 
 ---
 
@@ -85,14 +111,14 @@ The LXD project is sponsored by [Canonical Ltd](https://www.canonical.com).
 - [Discuss on IRC](https://web.libera.chat/#lxd) (see [Getting started with IRC](https://discourse.ubuntu.com/t/getting-started-with-irc/37907) if needed)
 - [Ask and answer questions on the forum](https://discourse.ubuntu.com/c/lxd/)
 
-```{toctree}
+```{filtered-toctree}
 :hidden:
 :titlesonly:
 
-self
-tutorial/index
-howto/index
-explanation/index
-reference/index
-Switch to topical navigation <https://documentation.ubuntu.com/lxd/to/latest/index_topical/>
+:diataxis:self
+:diataxis:tutorial/index
+:diataxis:howto/index
+:diataxis:explanation/index
+:diataxis:reference/index
+:diataxis:Switch to topical navigation <https://documentation.ubuntu.com/lxd/to/latest/>
 ```

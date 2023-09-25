@@ -7,18 +7,16 @@ relatedlinks: https://www.youtube.com/watch?v=QyXOOE_4cm0
 
 To get started with LXD, see the documentation in this section.
 
-````{only} diataxis
-```{toctree}
+```{filtered-toctree}
 :maxdepth: 1
 
-Access the documentation </howto/access_documentation>
-Access the UI </howto/access_ui>
-Contribute to LXD </contributing>
-Get support </support>
-Initialize LXD </howto/initialize>
-Install LXD </installing>
+:diataxis:Access the documentation </howto/access_documentation>
+:diataxis:Access the UI </howto/access_ui>
+:diataxis:Contribute to LXD </contributing>
+:diataxis:Get support </support>
+:diataxis:Initialize LXD </howto/initialize>
+:diataxis:Install LXD </installing>
 ```
-````
 
 In addition, the following clip gives a quick and easy introduction for standard use cases:
 
@@ -40,19 +38,17 @@ You can also find a series of demos and tutorials on YouTube:
 {{getting_started_ref}}
 ```
 
-````{only} topical
-```{toctree}
+```{filtered-toctree}
 :maxdepth: 1
 
-/tutorial/first_steps
-/explanation/containers_and_vms
-/requirements
-Install LXD </installing>
-Initialize LXD </howto/initialize>
-Access the UI </howto/access_ui>
-Access the documentation </howto/access_documentation>
-Frequently asked </faq>
-Contribute to LXD </contributing>
-Get support </support>
+:topical:/tutorial/first_steps
+:topical:/explanation/containers_and_vms
+:topical:/requirements
+:topical:Install LXD </installing>
+:topical:Initialize LXD </howto/initialize>
+:topical:Access the UI </howto/access_ui>
+:topical:Access the documentation </howto/access_documentation>
+:topical:Frequently asked </faq>
+:topical:Contribute to LXD </contributing>
+:topical:Get support </support>
 ```
-````
