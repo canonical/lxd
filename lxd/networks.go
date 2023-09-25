@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
@@ -46,30 +47,30 @@ var networkCreateLock sync.Mutex
 var networksCmd = APIEndpoint{
 	Path: "networks",
 
-	Get:  APIEndpointAction{Handler: networksGet, AccessHandler: allowProjectPermission("networks", "view")},
-	Post: APIEndpointAction{Handler: networksPost, AccessHandler: allowProjectPermission("networks", "manage-networks")},
+	Get:  APIEndpointAction{Handler: networksGet, AccessHandler: allowAuthenticated},
+	Post: APIEndpointAction{Handler: networksPost, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.EntitlementCanCreateNetworks)},
 }
 
 var networkCmd = APIEndpoint{
 	Path: "networks/{networkName}",
 
-	Delete: APIEndpointAction{Handler: networkDelete, AccessHandler: allowProjectPermission("networks", "manage-networks")},
-	Get:    APIEndpointAction{Handler: networkGet, AccessHandler: allowProjectPermission("networks", "view")},
-	Patch:  APIEndpointAction{Handler: networkPatch, AccessHandler: allowProjectPermission("networks", "manage-networks")},
-	Post:   APIEndpointAction{Handler: networkPost, AccessHandler: allowProjectPermission("networks", "manage-networks")},
-	Put:    APIEndpointAction{Handler: networkPut, AccessHandler: allowProjectPermission("networks", "manage-networks")},
+	Delete: APIEndpointAction{Handler: networkDelete, AccessHandler: allowPermission(auth.ObjectTypeNetwork, auth.EntitlementCanEdit, "networkName")},
+	Get:    APIEndpointAction{Handler: networkGet, AccessHandler: allowPermission(auth.ObjectTypeNetwork, auth.EntitlementCanView, "networkName")},
+	Patch:  APIEndpointAction{Handler: networkPatch, AccessHandler: allowPermission(auth.ObjectTypeNetwork, auth.EntitlementCanEdit, "networkName")},
+	Post:   APIEndpointAction{Handler: networkPost, AccessHandler: allowPermission(auth.ObjectTypeNetwork, auth.EntitlementCanEdit, "networkName")},
+	Put:    APIEndpointAction{Handler: networkPut, AccessHandler: allowPermission(auth.ObjectTypeNetwork, auth.EntitlementCanEdit, "networkName")},
 }
 
 var networkLeasesCmd = APIEndpoint{
 	Path: "networks/{networkName}/leases",
 
-	Get: APIEndpointAction{Handler: networkLeasesGet, AccessHandler: allowProjectPermission("networks", "view")},
+	Get: APIEndpointAction{Handler: networkLeasesGet, AccessHandler: allowPermission(auth.ObjectTypeNetwork, auth.EntitlementCanView, "networkName")},
 }
 
 var networkStateCmd = APIEndpoint{
 	Path: "networks/{networkName}/state",
 
-	Get: APIEndpointAction{Handler: networkStateGet, AccessHandler: allowProjectPermission("networks", "view")},
+	Get: APIEndpointAction{Handler: networkStateGet, AccessHandler: allowPermission(auth.ObjectTypeNetwork, auth.EntitlementCanView, "networkName")},
 }
 
 // API endpoints
@@ -207,9 +208,18 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, auth.ObjectTypeNetwork)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
 	resultString := []string{}
 	resultMap := []api.Network{}
 	for _, networkName := range networkNames {
+		if !userHasPermission(auth.ObjectNetwork(projectName, networkName)) {
+			continue
+		}
+
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, networkName))
 		} else {
@@ -835,9 +845,12 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, projectName st
 		apiNet.Description = n.Description()
 		apiNet.Type = n.Type()
 
-		if s.Authorizer.UserIsAdmin(r) || s.Authorizer.UserHasPermission(r, projectName, "manage-networks") {
+		err = s.Authorizer.CheckPermission(r.Context(), r, auth.ObjectNetwork(projectName, networkName), auth.EntitlementCanEdit)
+		if err == nil {
 			// Only allow admins to see network config as sensitive info can be stored there.
 			apiNet.Config = n.Config()
+		} else if !api.StatusErrorCheck(err, http.StatusForbidden) {
+			return api.Network{}, err
 		}
 
 		// If no member is specified, we omit the node-specific fields.
