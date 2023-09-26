@@ -52,6 +52,8 @@ type ProtocolLXD struct {
 
 	clusterTarget string
 	project       string
+
+	oidcClient *oidcClient
 }
 
 // Disconnect gets rid of any background goroutines.
@@ -154,6 +156,10 @@ func (r *ProtocolLXD) DoHTTP(req *http.Request) (*http.Response, error) {
 		return r.bakeryClient.Do(req)
 	}
 
+	if r.oidcClient != nil {
+		return r.oidcClient.do(req)
+	}
+
 	return r.http.Do(req)
 }
 
@@ -161,6 +167,7 @@ func (r *ProtocolLXD) DoHTTP(req *http.Request) (*http.Response, error) {
 // User-Agent (if r.httpUserAgent is set).
 // X-LXD-authenticated (if r.requireAuthenticated is set).
 // Bakery authentication header and cookie (if r.bakeryClient is set).
+// OIDC Authorization header (if r.oidcClient is set).
 func (r *ProtocolLXD) addClientHeaders(req *http.Request) {
 	if r.httpUserAgent != "" {
 		req.Header.Set("User-Agent", r.httpUserAgent)
@@ -176,6 +183,10 @@ func (r *ProtocolLXD) addClientHeaders(req *http.Request) {
 		for _, cookie := range r.http.Jar.Cookies(req.URL) {
 			req.AddCookie(cookie)
 		}
+	}
+
+	if r.oidcClient != nil {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", r.oidcClient.getAccessToken()))
 	}
 }
 

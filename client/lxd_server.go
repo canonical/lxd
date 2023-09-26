@@ -116,6 +116,7 @@ func (r *ProtocolLXD) UseProject(name string) InstanceServer {
 		project:              name,
 		eventConns:           make(map[string]*websocket.Conn),  // New project specific listener conns.
 		eventListeners:       make(map[string][]*EventListener), // New project specific listeners.
+		oidcClient:           r.oidcClient,
 	}
 }
 
@@ -139,6 +140,7 @@ func (r *ProtocolLXD) UseTarget(name string) InstanceServer {
 		project:              r.project,
 		eventConns:           make(map[string]*websocket.Conn),  // New target specific listener conns.
 		eventListeners:       make(map[string][]*EventListener), // New target specific listeners.
+		oidcClient:           r.oidcClient,
 		clusterTarget:        name,
 	}
 }
