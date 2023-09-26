@@ -40,7 +40,14 @@ test_container_devices_disk_shift() {
 
   # Test shifted custom volumes
   POOL=$(lxc profile device get default root pool)
+
+  # Cannot set both security.shifted and security.unmapped.
+  ! lxc storage volume create "${POOL}" foo-shift security.shifted=true security.unmapped=true || false
+
   lxc storage volume create "${POOL}" foo-shift security.shifted=true
+
+  # Cannot set both security.shifted and security.unmapped.
+  ! lxc storage volume set "${POOL}" foo-shift security.unmapped=true || false
 
   lxc start foo
   lxc launch testimage foo-priv -c security.privileged=true
