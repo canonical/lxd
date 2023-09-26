@@ -11,6 +11,7 @@ import (
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
@@ -444,7 +445,12 @@ func (d *common) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op
 
 // ValidateBucket validates the supplied bucket name.
 func (d *common) ValidateBucket(bucket Volume) error {
-	match, err := regexp.MatchString(`^[a-z0-9][\-\.a-z0-9]{2,62}$`, bucket.name)
+	projectName, bucketName := project.StorageVolumeParts(bucket.name)
+	if projectName == "" {
+		return fmt.Errorf("Project prefix missing in bucket volume name")
+	}
+
+	match, err := regexp.MatchString(`^[a-z0-9][\-\.a-z0-9]{2,62}$`, bucketName)
 	if err != nil {
 		return err
 	}
