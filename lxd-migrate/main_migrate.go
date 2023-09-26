@@ -172,13 +172,13 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 
 	i := 1
 
-	if shared.StringInSlice("candid", apiServer.AuthMethods) {
+	if shared.ValueInSlice("candid", apiServer.AuthMethods) {
 		fmt.Printf("%d) Candid/RBAC based authentication\n", i)
 		availableAuthMethods = append(availableAuthMethods, authMethodCandid)
 		i++
 	}
 
-	if shared.StringInSlice("tls", apiServer.AuthMethods) {
+	if shared.ValueInSlice("tls", apiServer.AuthMethods) {
 		fmt.Printf("%d) Use a certificate token\n", i)
 		availableAuthMethods = append(availableAuthMethods, authMethodTLSCertificateToken)
 		i++
@@ -189,7 +189,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 		availableAuthMethods = append(availableAuthMethods, authMethodTLSTemporaryCertificate)
 	}
 
-	if len(apiServer.AuthMethods) > 1 || shared.StringInSlice("tls", apiServer.AuthMethods) {
+	if len(apiServer.AuthMethods) > 1 || shared.ValueInSlice("tls", apiServer.AuthMethods) {
 		authMethodInt, err := c.global.asker.AskInt("Please pick an authentication mechanism above: ", 1, int64(i), "", nil)
 		if err != nil {
 			return nil, "", err
@@ -306,7 +306,7 @@ func (c *cmdMigrate) RunInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 			return cmdMigrateData{}, err
 		}
 
-		if shared.StringInSlice(instanceName, instanceNames) {
+		if shared.ValueInSlice(instanceName, instanceNames) {
 			fmt.Printf("Instance %q already exists\n", instanceName)
 			continue
 		}
@@ -343,7 +343,7 @@ func (c *cmdMigrate) RunInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 	if config.InstanceArgs.Type == api.InstanceTypeVM {
 		architectureName, _ := osarch.ArchitectureGetLocal()
 
-		if shared.StringInSlice(architectureName, []string{"x86_64", "aarch64"}) {
+		if shared.ValueInSlice(architectureName, []string{"x86_64", "aarch64"}) {
 			hasSecureBoot, err := c.global.asker.AskBool("Does the VM support UEFI Secure Boot? [default=no]: ", "no")
 			if err != nil {
 				return cmdMigrateData{}, err
@@ -604,7 +604,7 @@ func (c *cmdMigrate) askProfiles(server lxd.InstanceServer, config *cmdMigrateDa
 		profiles := strings.Split(s, " ")
 
 		for _, profile := range profiles {
-			if !shared.StringInSlice(profile, profileNames) {
+			if !shared.ValueInSlice(profile, profileNames) {
 				return fmt.Errorf("Unknown profile %q", profile)
 			}
 		}

@@ -21,7 +21,7 @@ func lxdIsConfigured(client lxd.InstanceServer) (bool, error) {
 		return false, fmt.Errorf("Failed to list networks: %w", err)
 	}
 
-	if !shared.StringInSlice("lxdbr0", networks) {
+	if !shared.ValueInSlice("lxdbr0", networks) {
 		// Couldn't find lxdbr0.
 		return false, nil
 	}
@@ -32,7 +32,7 @@ func lxdIsConfigured(client lxd.InstanceServer) (bool, error) {
 		return false, fmt.Errorf("Failed to list storage pools: %w", err)
 	}
 
-	if !shared.StringInSlice("default", pools) {
+	if !shared.ValueInSlice("default", pools) {
 		// No storage pool found.
 		return false, nil
 	}
@@ -67,7 +67,7 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 		pool.Name = "default"
 
 		// Check if ZFS supported.
-		if shared.StringInSlice("zfs", availableBackends) {
+		if shared.ValueInSlice("zfs", availableBackends) {
 			pool.Driver = "zfs"
 
 			// Check if zsys.
@@ -185,7 +185,7 @@ func lxdSetupUser(uid uint32) error {
 		return fmt.Errorf("Unable to retrieve project list: %w", err)
 	}
 
-	if !shared.StringInSlice(projectName, projects) {
+	if !shared.ValueInSlice(projectName, projects) {
 		// Create the project.
 		err := client.CreateProject(api.ProjectsPost{
 			Name: projectName,

@@ -15,11 +15,11 @@ import (
 
 func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServer, server *api.Server) (*api.InitPreseed, error) {
 	// Quick checks.
-	if c.flagStorageBackend != "" && !shared.StringInSlice(c.flagStorageBackend, storageDrivers.AllDriverNames()) {
+	if c.flagStorageBackend != "" && !shared.ValueInSlice(c.flagStorageBackend, storageDrivers.AllDriverNames()) {
 		return nil, fmt.Errorf("The requested backend '%s' isn't supported by lxd init", c.flagStorageBackend)
 	}
 
-	if c.flagStorageBackend != "" && !shared.StringInSlice(c.flagStorageBackend, util.AvailableStorageDrivers(server.Environment.StorageSupportedDrivers, util.PoolTypeAny)) {
+	if c.flagStorageBackend != "" && !shared.ValueInSlice(c.flagStorageBackend, util.AvailableStorageDrivers(server.Environment.StorageSupportedDrivers, util.PoolTypeAny)) {
 		return nil, fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools)", c.flagStorageBackend)
 	}
 

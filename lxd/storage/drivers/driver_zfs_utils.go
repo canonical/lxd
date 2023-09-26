@@ -338,7 +338,7 @@ func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.V
 		}
 	}
 
-	if shared.StringInSlice("compress", volSrcArgs.MigrationType.Features) {
+	if shared.ValueInSlice("compress", volSrcArgs.MigrationType.Features) {
 		args = append(args, "-c")
 		args = append(args, "-L")
 	}

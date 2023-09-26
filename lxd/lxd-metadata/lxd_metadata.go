@@ -117,7 +117,7 @@ func parse(path string, outputJSONPath string, excludedPaths []string) (*doc, er
 		}
 
 		// Skip excluded paths
-		if shared.StringInSlice(path, excludedPaths) {
+		if shared.ValueInSlice(path, excludedPaths) {
 			if info.IsDir() {
 				log.Printf("Skipping excluded directory: %v", path)
 				return filepath.SkipDir
@@ -176,7 +176,7 @@ func parse(path string, outputJSONPath string, excludedPaths []string) (*doc, er
 					mdKey := mdKVMatch[1]
 					mdValue := mdKVMatch[2]
 					// check that the metadata key is among the expected ones
-					if !shared.StringInSlice(mdKey, mdKeys) {
+					if !shared.ValueInSlice(mdKey, mdKeys) {
 						continue
 					}
 
@@ -355,7 +355,7 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 
 						configContentValueStr, ok := configContentValue.(string)
 						if ok {
-							if (strings.HasSuffix(configContentValueStr, "`") && strings.HasPrefix(configContentValueStr, "`")) || shared.StringInSlice(configContentValueStr, specialChars) {
+							if (strings.HasSuffix(configContentValueStr, "`") && strings.HasPrefix(configContentValueStr, "`")) || shared.ValueInSlice(configContentValueStr, specialChars) {
 								configContentValueStr = fmt.Sprintf("\"%s\"", configContentValueStr)
 							}
 						} else {

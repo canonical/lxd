@@ -131,7 +131,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 			address := util.CanonicalNetworkAddress(value, shared.HTTPSDefaultPort)
 
 			host, _, _ := net.SplitHostPort(address)
-			if shared.StringInSlice(host, []string{"", "[::]", "0.0.0.0"}) {
+			if shared.ValueInSlice(host, []string{"", "[::]", "0.0.0.0"}) {
 				return fmt.Errorf("Invalid IP address or DNS name")
 			}
 
@@ -186,9 +186,9 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 			}
 
 			validInput := func(input string) error {
-				if shared.StringInSlice(strings.ToLower(input), []string{"yes", "y"}) {
+				if shared.ValueInSlice(strings.ToLower(input), []string{"yes", "y"}) {
 					return nil
-				} else if shared.StringInSlice(strings.ToLower(input), []string{"no", "n"}) {
+				} else if shared.ValueInSlice(strings.ToLower(input), []string{"no", "n"}) {
 					return nil
 				} else if validJoinToken(input) != nil {
 					return fmt.Errorf("Not yes/no, or invalid join token")
@@ -202,8 +202,8 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 				return err
 			}
 
-			if !shared.StringInSlice(strings.ToLower(clusterJoinToken), []string{"no", "n"}) {
-				if shared.StringInSlice(strings.ToLower(clusterJoinToken), []string{"yes", "y"}) {
+			if !shared.ValueInSlice(strings.ToLower(clusterJoinToken), []string{"no", "n"}) {
+				if shared.ValueInSlice(strings.ToLower(clusterJoinToken), []string{"yes", "y"}) {
 					clusterJoinToken, err = c.global.asker.AskString("Please provide join token: ", "", validJoinToken)
 					if err != nil {
 						return err
@@ -271,9 +271,9 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 					validator := func(input string) error {
 						if input == certDigest {
 							return nil
-						} else if shared.StringInSlice(strings.ToLower(input), []string{"yes", "y"}) {
+						} else if shared.ValueInSlice(strings.ToLower(input), []string{"yes", "y"}) {
 							return nil
-						} else if shared.StringInSlice(strings.ToLower(input), []string{"no", "n"}) {
+						} else if shared.ValueInSlice(strings.ToLower(input), []string{"no", "n"}) {
 							return nil
 						}
 
@@ -285,7 +285,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 						return err
 					}
 
-					if shared.StringInSlice(strings.ToLower(fingerprintCorrect), []string{"no", "n"}) {
+					if shared.ValueInSlice(strings.ToLower(fingerprintCorrect), []string{"no", "n"}) {
 						return fmt.Errorf("User aborted configuration")
 					}
 
@@ -574,7 +574,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 
 		// IPv4
 		net.Config["ipv4.address"], err = c.global.asker.AskString("What IPv4 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: ", "auto", func(value string) error {
-			if shared.StringInSlice(value, []string{"auto", "none"}) {
+			if shared.ValueInSlice(value, []string{"auto", "none"}) {
 				return nil
 			}
 
@@ -584,7 +584,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 			return err
 		}
 
-		if !shared.StringInSlice(net.Config["ipv4.address"], []string{"auto", "none"}) {
+		if !shared.ValueInSlice(net.Config["ipv4.address"], []string{"auto", "none"}) {
 			netIPv4UseNAT, err := c.global.asker.AskBool("Would you like LXD to NAT IPv4 traffic on your bridge? [default=yes]: ", "yes")
 			if err != nil {
 				return err
@@ -595,7 +595,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 
 		// IPv6
 		net.Config["ipv6.address"], err = c.global.asker.AskString("What IPv6 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: ", "auto", func(value string) error {
-			if shared.StringInSlice(value, []string{"auto", "none"}) {
+			if shared.ValueInSlice(value, []string{"auto", "none"}) {
 				return nil
 			}
 
@@ -605,7 +605,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 			return err
 		}
 
-		if !shared.StringInSlice(net.Config["ipv6.address"], []string{"auto", "none"}) {
+		if !shared.ValueInSlice(net.Config["ipv6.address"], []string{"auto", "none"}) {
 			netIPv6UseNAT, err := c.global.asker.AskBool("Would you like LXD to NAT IPv6 traffic on your bridge? [default=yes]: ", "yes")
 			if err != nil {
 				return err
@@ -681,11 +681,11 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 	}
 
 	defaultStorage := "dir"
-	if backingFs == "btrfs" && shared.StringInSlice("btrfs", availableBackends) {
+	if backingFs == "btrfs" && shared.ValueInSlice("btrfs", availableBackends) {
 		defaultStorage = "btrfs"
-	} else if shared.StringInSlice("zfs", availableBackends) {
+	} else if shared.ValueInSlice("zfs", availableBackends) {
 		defaultStorage = "zfs"
-	} else if shared.StringInSlice("btrfs", availableBackends) {
+	} else if shared.ValueInSlice("btrfs", availableBackends) {
 		defaultStorage = "btrfs"
 	}
 
@@ -726,7 +726,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 		if len(availableBackends) > 1 {
 			defaultBackend := defaultStorage
 			if poolType == util.PoolTypeRemote {
-				if shared.StringInSlice("ceph", availableBackends) {
+				if shared.ValueInSlice("ceph", availableBackends) {
 					defaultBackend = "ceph"
 				} else {
 					defaultBackend = availableBackends[0] // Default to first remote driver.

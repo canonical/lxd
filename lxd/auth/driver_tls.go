@@ -61,5 +61,5 @@ func (a *tls) UserHasPermission(r *http.Request, projectName string, permission 
 		return true
 	}
 
-	return shared.StringInSlice(permission, ua.Projects[projectName])
+	return shared.ValueInSlice(permission, ua.Projects[projectName])
 }

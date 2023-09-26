@@ -153,7 +153,7 @@ func (d zfs) ensureInitialDatasets(warnOnExistingPolicyApplyError bool) error {
 
 	for _, dataset := range d.initialDatasets() {
 		properties := []string{"mountpoint=legacy"}
-		if shared.StringInSlice(dataset, []string{"virtual-machines", "deleted/virtual-machines"}) {
+		if shared.ValueInSlice(dataset, []string{"virtual-machines", "deleted/virtual-machines"}) {
 			properties = append(properties, "volmode=none")
 		}
 
@@ -386,7 +386,7 @@ func (d *zfs) Delete(op *operations.Operation) error {
 	for _, dataset := range datasets {
 		dataset = strings.TrimPrefix(dataset, "/")
 
-		if shared.StringInSlice(dataset, initialDatasets) {
+		if shared.ValueInSlice(dataset, initialDatasets) {
 			continue
 		}
 
