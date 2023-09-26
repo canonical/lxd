@@ -1357,7 +1357,7 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check that the storage volume type is valid.
-	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
+	if !shared.ValueInSlice(volumeType, supportedVolumeTypes) {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
@@ -1477,7 +1477,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check that the storage volume type is valid.
-	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
+	if !shared.ValueInSlice(volumeType, supportedVolumeTypes) {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
@@ -1784,7 +1784,7 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check that the storage volume type is valid.
-	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
+	if !shared.ValueInSlice(volumeType, supportedVolumeTypes) {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
