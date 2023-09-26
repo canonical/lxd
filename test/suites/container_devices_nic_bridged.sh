@@ -2,6 +2,13 @@ test_container_devices_nic_bridged() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
+  firewallDriver=$(lxc info | awk -F ":" '/firewall:/{gsub(/ /, "", $0); print $2}')
+
+  if [ "$firewallDriver" != "xtables" ] && [ "$firewallDriver" != "nftables" ]; then
+    echo "Unrecognised firewall driver: ${firewallDriver}"
+    false
+  fi
+
   vethHostName="veth$$"
   ctName="nt$$"
   ctMAC="0a:92:a7:0d:b7:d9"
