@@ -79,7 +79,7 @@ func (s *DevLXDServer) broadcast(instanceID int, event api.Event) error {
 	s.lock.Lock()
 	listeners := s.listeners
 	for _, listener := range listeners {
-		if !shared.StringInSlice(event.Type, listener.messageTypes) {
+		if !shared.ValueInSlice(event.Type, listener.messageTypes) {
 			continue
 		}
 

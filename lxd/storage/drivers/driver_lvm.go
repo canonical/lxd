@@ -312,7 +312,7 @@ func (d *lvm) Create() error {
 			}
 
 			// Check the tags on the volume group to check it is not already being used by LXD.
-			if shared.StringInSlice(lvmVgPoolMarker, vgTags) {
+			if shared.ValueInSlice(lvmVgPoolMarker, vgTags) {
 				return fmt.Errorf("Volume group %q is already used by LXD", d.config["lvm.vg_name"])
 			}
 		}
@@ -458,7 +458,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 			d.logger.Debug("Volume group removed", logger.Ctx{"vg_name": d.config["lvm.vg_name"]})
 		} else {
 			// Otherwise just remove the lvmVgPoolMarker tag to indicate LXD no longer uses this VG.
-			if shared.StringInSlice(lvmVgPoolMarker, vgTags) {
+			if shared.ValueInSlice(lvmVgPoolMarker, vgTags) {
 				_, err = shared.TryRunCommand("vgchange", "--deltag", lvmVgPoolMarker, d.config["lvm.vg_name"])
 				if err != nil {
 					return fmt.Errorf("Failed to remove marker tag on volume group for the lvm storage pool: %w", err)

@@ -37,7 +37,7 @@ func (m *IdentityClientWrapper) DeclaredIdentity(ctx context.Context, declared m
 		}
 
 		// Check that it was a valid domain
-		if !shared.StringInSlice(fields[1], m.ValidDomains) {
+		if !shared.ValueInSlice(fields[1], m.ValidDomains) {
 			logger.Warnf("Failed candid client authentication: untrusted domain \"%s\"", fields[1])
 			return nil, fmt.Errorf("Untrusted candid domain")
 		}

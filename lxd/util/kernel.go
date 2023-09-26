@@ -73,7 +73,7 @@ func HugepagesPath() (string, error) {
 	}
 
 	if len(matches) > 1 {
-		if shared.StringInSlice("/dev/hugepages", matches) {
+		if shared.ValueInSlice("/dev/hugepages", matches) {
 			return "/dev/hugepages", nil
 		}
 

@@ -1646,7 +1646,7 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 		}
 
 		// If interface doesn't exist inside container, cannot proceed.
-		if !shared.StringInSlice(configCopy["name"], ifaces) {
+		if !shared.ValueInSlice(configCopy["name"], ifaces) {
 			return nil
 		}
 
@@ -2175,7 +2175,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		// Pass any mounts into LXC.
 		if len(runConf.Mounts) > 0 {
 			for _, mount := range runConf.Mounts {
-				if shared.StringInSlice("propagation", mount.Opts) && !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
+				if shared.ValueInSlice("propagation", mount.Opts) && !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
 					return "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), fmt.Errorf("liblxc 3.0 is required for mount propagation configuration"))
 				}
 
@@ -2889,7 +2889,7 @@ func (d *lxc) onStopNS(args map[string]string) error {
 	netns := args["netns"]
 
 	// Validate target.
-	if !shared.StringInSlice(target, []string{"stop", "reboot"}) {
+	if !shared.ValueInSlice(target, []string{"stop", "reboot"}) {
 		d.logger.Error("Container sent invalid target to OnStopNS", logger.Ctx{"target": target})
 		return fmt.Errorf("Invalid stop target %q", target)
 	}
@@ -2912,7 +2912,7 @@ func (d *lxc) onStop(args map[string]string) error {
 	target := args["target"]
 
 	// Validate target
-	if !shared.StringInSlice(target, []string{"stop", "reboot"}) {
+	if !shared.ValueInSlice(target, []string{"stop", "reboot"}) {
 		d.logger.Error("Container sent invalid target to OnStop", logger.Ctx{"target": target})
 		return fmt.Errorf("Invalid stop target: %s", target)
 	}
@@ -4065,11 +4065,11 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	checkedProfiles := []string{}
 	for _, profile := range args.Profiles {
-		if !shared.StringInSlice(profile.Name, profiles) {
+		if !shared.ValueInSlice(profile.Name, profiles) {
 			return fmt.Errorf("Requested profile '%s' doesn't exist", profile.Name)
 		}
 
-		if shared.StringInSlice(profile.Name, checkedProfiles) {
+		if shared.ValueInSlice(profile.Name, checkedProfiles) {
 			return fmt.Errorf("Duplicate profile found in request")
 		}
 
@@ -4172,7 +4172,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	changedConfig := []string{}
 	for key := range oldExpandedConfig {
 		if oldExpandedConfig[key] != d.expandedConfig[key] {
-			if !shared.StringInSlice(key, changedConfig) {
+			if !shared.ValueInSlice(key, changedConfig) {
 				changedConfig = append(changedConfig, key)
 			}
 		}
@@ -4180,7 +4180,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	for key := range d.expandedConfig {
 		if oldExpandedConfig[key] != d.expandedConfig[key] {
-			if !shared.StringInSlice(key, changedConfig) {
+			if !shared.ValueInSlice(key, changedConfig) {
 				changedConfig = append(changedConfig, key)
 			}
 		}
@@ -4242,7 +4242,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		for _, k := range changedConfig {
-			if !shared.StringInSlice(k, protectedKeys) {
+			if !shared.ValueInSlice(k, protectedKeys) {
 				continue
 			}
 
@@ -4288,7 +4288,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// If raw.lxc changed, re-validate the config.
-	if shared.StringInSlice("raw.lxc", changedConfig) && d.expandedConfig["raw.lxc"] != "" {
+	if shared.ValueInSlice("raw.lxc", changedConfig) && d.expandedConfig["raw.lxc"] != "" {
 		// Get a new liblxc instance.
 		cc, err := liblxc.NewContainer(d.name, d.state.OS.LxcPath)
 		if err != nil {
@@ -4307,14 +4307,14 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// If apparmor changed, re-validate the apparmor profile (even if not running).
-	if shared.StringInSlice("raw.apparmor", changedConfig) || shared.StringInSlice("security.nesting", changedConfig) {
+	if shared.ValueInSlice("raw.apparmor", changedConfig) || shared.ValueInSlice("security.nesting", changedConfig) {
 		err = apparmor.InstanceValidate(d.state.OS, d)
 		if err != nil {
 			return fmt.Errorf("Parse AppArmor profile: %w", err)
 		}
 	}
 
-	if shared.StringInSlice("security.idmap.isolated", changedConfig) || shared.StringInSlice("security.idmap.base", changedConfig) || shared.StringInSlice("security.idmap.size", changedConfig) || shared.StringInSlice("raw.idmap", changedConfig) || shared.StringInSlice("security.privileged", changedConfig) {
+	if shared.ValueInSlice("security.idmap.isolated", changedConfig) || shared.ValueInSlice("security.idmap.base", changedConfig) || shared.ValueInSlice("security.idmap.size", changedConfig) || shared.ValueInSlice("raw.idmap", changedConfig) || shared.ValueInSlice("security.privileged", changedConfig) {
 		var idmap *idmap.IdmapSet
 		base := int64(0)
 		if !d.IsPrivileged() {
@@ -4362,7 +4362,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	// Update MAAS (must run after the MAC addresses have been generated).
 	updateMAAS := false
 	for _, key := range []string{"maas.subnet.ipv4", "maas.subnet.ipv6", "ipv4.address", "ipv6.address"} {
-		if shared.StringInSlice(key, allUpdatedKeys) {
+		if shared.ValueInSlice(key, allUpdatedKeys) {
 			updateMAAS = true
 			break
 		}
@@ -5299,7 +5299,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 		// Ensure that only the requested snapshots are included in the migration index header.
 		volSourceArgs.Info.Config.VolumeSnapshots = make([]*api.StorageVolumeSnapshot, 0, len(volSourceArgs.Snapshots))
 		for i := range allSnapshots {
-			if shared.StringInSlice(allSnapshots[i].Name, volSourceArgs.Snapshots) {
+			if shared.ValueInSlice(allSnapshots[i].Name, volSourceArgs.Snapshots) {
 				volSourceArgs.Info.Config.VolumeSnapshots = append(volSourceArgs.Info.Config.VolumeSnapshots, allSnapshots[i])
 			}
 		}
@@ -5382,7 +5382,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 			// Setup rsync options (used for CRIU state transfers).
 			rsyncBwlimit := pool.Driver().Config()["rsync.bwlimit"]
 			rsyncFeatures := respHeader.GetRsyncFeaturesSlice()
-			if !shared.StringInSlice("bidirectional", rsyncFeatures) {
+			if !shared.ValueInSlice("bidirectional", rsyncFeatures) {
 				// If no bi-directional support, assume LXD 3.7 level.
 				// NOTE: Do NOT extend this list of arguments.
 				rsyncFeatures = []string{"xattrs", "delete", "compress"}
@@ -7796,7 +7796,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 
 		// Include all static interface names
 		for _, dev := range d.expandedDevices.Sorted() {
-			if dev.Config["name"] != "" && !shared.StringInSlice(dev.Config["name"], devNames) {
+			if dev.Config["name"] != "" && !shared.ValueInSlice(dev.Config["name"], devNames) {
 				devNames = append(devNames, dev.Config["name"])
 			}
 		}
@@ -7812,7 +7812,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 				continue
 			}
 
-			if fields[2] != "name" || shared.StringInSlice(v, devNames) {
+			if fields[2] != "name" || shared.ValueInSlice(v, devNames) {
 				continue
 			}
 
@@ -7828,7 +7828,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 			interfaces, err := cc.Interfaces()
 			if err == nil {
 				for _, name := range interfaces {
-					if shared.StringInSlice(name, devNames) {
+					if shared.ValueInSlice(name, devNames) {
 						continue
 					}
 
@@ -7847,7 +7847,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 			}
 
 			// Find a free device name
-			if !shared.StringInSlice(name, devNames) {
+			if !shared.ValueInSlice(name, devNames) {
 				return name, nil
 			}
 
@@ -7861,7 +7861,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 	}
 
 	// Fill in the MAC address.
-	if !shared.StringInSlice(nicType, []string{"physical", "ipvlan", "sriov"}) && m["hwaddr"] == "" {
+	if !shared.ValueInSlice(nicType, []string{"physical", "ipvlan", "sriov"}) && m["hwaddr"] == "" {
 		configKey := fmt.Sprintf("volatile.%s.hwaddr", name)
 		volatileHwaddr := d.localConfig[configKey]
 		if volatileHwaddr == "" {

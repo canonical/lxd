@@ -259,7 +259,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, do func(
 			return nil, err
 		}
 
-		if !shared.StringInSlice(part.FormName(), []string{"rootfs", "rootfs.img"}) {
+		if !shared.ValueInSlice(part.FormName(), []string{"rootfs", "rootfs.img"}) {
 			return nil, fmt.Errorf("Invalid multipart image")
 		}
 
