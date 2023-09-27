@@ -100,7 +100,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 			addImage := func(meta *ProductVersionItem, root *ProductVersionItem) error {
 				// Look for deltas
 				deltas := []ProductVersionItem{}
-				if root != nil && shared.StringInSlice(root.FileType, []string{"squashfs", "disk-kvm.img"}) {
+				if root != nil && shared.ValueInSlice(root.FileType, []string{"squashfs", "disk-kvm.img"}) {
 					for _, item := range version.Items {
 						if item.FileType == fmt.Sprintf("%s.vcdiff", root.FileType) {
 							deltas = append(deltas, item)
@@ -244,7 +244,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 					// Locate source image fingerprint
 					var srcFingerprint string
 					for _, item := range srcImage.Items {
-						if !shared.StringInSlice(item.FileType, lxdCompatItems) {
+						if !shared.ValueInSlice(item.FileType, lxdCompatItems) {
 							continue
 						}
 
@@ -274,17 +274,17 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 
 			// Locate a valid LXD image
 			for _, item := range version.Items {
-				if shared.StringInSlice(item.FileType, lxdCompatCombinedItems) {
+				if shared.ValueInSlice(item.FileType, lxdCompatCombinedItems) {
 					err := addImage(&item, nil)
 					if err != nil {
 						continue
 					}
 
 					break // Stop at first compatible item found.
-				} else if shared.StringInSlice(item.FileType, lxdCompatItems) {
+				} else if shared.ValueInSlice(item.FileType, lxdCompatItems) {
 					// Locate the root files
 					for _, subItem := range version.Items {
-						if shared.StringInSlice(subItem.FileType, []string{"disk1.img", "disk-kvm.img", "uefi1.img", "root.tar.xz", "squashfs"}) {
+						if shared.ValueInSlice(subItem.FileType, []string{"disk1.img", "disk-kvm.img", "uefi1.img", "root.tar.xz", "squashfs"}) {
 							err := addImage(&item, &subItem)
 							if err != nil {
 								continue

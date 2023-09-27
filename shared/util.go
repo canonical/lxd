@@ -625,12 +625,14 @@ func HasKey[K comparable, V any](key K, m map[K]V) bool {
 	return found
 }
 
-func StringInSlice(key string, list []string) bool {
+// ValueInSlice returns true if key is in list.
+func ValueInSlice[T comparable](key T, list []T) bool {
 	for _, entry := range list {
 		if entry == key {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -645,9 +647,9 @@ func StringPrefixInSlice(key string, list []string) bool {
 	return false
 }
 
-// RemoveElementsFromStringSlice returns a slice equivalent to removing the given elements from the given list.
+// RemoveElementsFromSlice returns a slice equivalent to removing the given elements from the given list.
 // Elements not present in the list are ignored.
-func RemoveElementsFromStringSlice(list []string, elements ...string) []string {
+func RemoveElementsFromSlice[T comparable](list []T, elements ...T) []T {
 	for i := len(elements) - 1; i >= 0; i-- {
 		element := elements[i]
 		match := false
@@ -677,36 +679,9 @@ func StringHasPrefix(value string, prefixes ...string) bool {
 	return false
 }
 
-func IntInSlice(key int, list []int) bool {
-	for _, entry := range list {
-		if entry == key {
-			return true
-		}
-	}
-	return false
-}
-
-func Int64InSlice(key int64, list []int64) bool {
-	for _, entry := range list {
-		if entry == key {
-			return true
-		}
-	}
-	return false
-}
-
-func Uint64InSlice(key uint64, list []uint64) bool {
-	for _, entry := range list {
-		if entry == key {
-			return true
-		}
-	}
-	return false
-}
-
 // IsTrue returns true if value is "true", "1", "yes" or "on" (case insensitive).
 func IsTrue(value string) bool {
-	return StringInSlice(strings.ToLower(value), []string{"true", "1", "yes", "on"})
+	return ValueInSlice(strings.ToLower(value), []string{"true", "1", "yes", "on"})
 }
 
 // IsTrueOrEmpty returns true if value is empty or if IsTrue() returns true.
@@ -716,7 +691,7 @@ func IsTrueOrEmpty(value string) bool {
 
 // IsFalse returns true if value is "false", "0", "no" or "off" (case insensitive).
 func IsFalse(value string) bool {
-	return StringInSlice(strings.ToLower(value), []string{"false", "0", "no", "off"})
+	return ValueInSlice(strings.ToLower(value), []string{"false", "0", "no", "off"})
 }
 
 // IsFalseOrEmpty returns true if value is empty or if IsFalse() returns true.

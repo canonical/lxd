@@ -95,7 +95,7 @@ func (c *Config) GetInstanceServer(name string) (lxd.InstanceServer, error) {
 	}
 
 	// HTTPs
-	if !shared.StringInSlice(remote.AuthType, []string{"candid", "oidc"}) && (args.TLSClientCert == "" || args.TLSClientKey == "") {
+	if !shared.ValueInSlice(remote.AuthType, []string{"candid", "oidc"}) && (args.TLSClientCert == "" || args.TLSClientKey == "") {
 		return nil, fmt.Errorf("Missing TLS client certificate and key")
 	}
 
@@ -295,7 +295,7 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 	}
 
 	// Stop here if no client certificate involved
-	if remote.Protocol == "simplestreams" || shared.StringInSlice(remote.AuthType, []string{"candid", "oidc"}) {
+	if remote.Protocol == "simplestreams" || shared.ValueInSlice(remote.AuthType, []string{"candid", "oidc"}) {
 		return &args, nil
 	}
 
