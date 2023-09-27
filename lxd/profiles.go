@@ -267,7 +267,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Profile names may not contain slashes"))
 	}
 
-	if shared.StringInSlice(req.Name, []string{".", ".."}) {
+	if shared.ValueInSlice(req.Name, []string{".", ".."}) {
 		return response.BadRequest(fmt.Errorf("Invalid profile name %q", req.Name))
 	}
 
@@ -725,7 +725,7 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Profile names may not contain slashes"))
 	}
 
-	if shared.StringInSlice(req.Name, []string{".", ".."}) {
+	if shared.ValueInSlice(req.Name, []string{".", ".."}) {
 		return response.BadRequest(fmt.Errorf("Invalid profile name %q", req.Name))
 	}
 

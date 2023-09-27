@@ -172,7 +172,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 						continue
 					}
 
-					if column == "key" && shared.StringInSlice(value, keys) {
+					if column == "key" && shared.ValueInSlice(value, keys) {
 						skip = true
 					}
 				}
@@ -195,7 +195,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 					}
 				}
 				key := row[index].(string)
-				if !shared.StringInSlice(key, NodeSpecificNetworkConfig) {
+				if !shared.ValueInSlice(key, NodeSpecificNetworkConfig) {
 					nullNodeID = true
 					break
 				}
@@ -214,7 +214,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 					}
 				}
 				key := row[index].(string)
-				if !shared.StringInSlice(key, NodeSpecificStorageConfig) {
+				if !shared.ValueInSlice(key, NodeSpecificStorageConfig) {
 					nullNodeID = true
 					break
 				}
@@ -229,7 +229,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 				appendNodeID()
 			}
 
-			if shared.StringInSlice(table, preClusteringTablesRequiringProjectID) {
+			if shared.ValueInSlice(table, preClusteringTablesRequiringProjectID) {
 				// These tables have a project_id reference in the new schema.
 				columns = append(columns, "project_id")
 				row = append(row, 1) // Reference the default project.
@@ -252,7 +252,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 			}
 
 			// Also insert the image ID to node ID association.
-			if shared.StringInSlice(table, []string{"images", "networks", "storage_pools"}) {
+			if shared.ValueInSlice(table, []string{"images", "networks", "storage_pools"}) {
 				entity := table[:len(table)-1]
 				err := importNodeAssociation(entity, columns, row, tx)
 				if err != nil {

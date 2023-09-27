@@ -418,7 +418,7 @@ func internalSQLGet(d *Daemon, r *http.Request) response.Response {
 
 	database := r.FormValue("database")
 
-	if !shared.StringInSlice(database, []string{"local", "global"}) {
+	if !shared.ValueInSlice(database, []string{"local", "global"}) {
 		return response.BadRequest(fmt.Errorf("Invalid database"))
 	}
 
@@ -461,7 +461,7 @@ func internalSQLPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	if !shared.StringInSlice(req.Database, []string{"local", "global"}) {
+	if !shared.ValueInSlice(req.Database, []string{"local", "global"}) {
 		return response.BadRequest(fmt.Errorf("Invalid database"))
 	}
 

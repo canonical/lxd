@@ -114,7 +114,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 		for _, storagePool := range config.StoragePools {
 			// New storagePool.
-			if !shared.StringInSlice(storagePool.Name, storagePoolNames) {
+			if !shared.ValueInSlice(storagePool.Name, storagePoolNames) {
 				err := createStoragePool(storagePool)
 				if err != nil {
 					return nil, err
@@ -255,7 +255,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 		for _, project := range config.Projects {
 			// New project.
-			if !shared.StringInSlice(project.Name, projectNames) {
+			if !shared.ValueInSlice(project.Name, projectNames) {
 				err := createProject(project)
 				if err != nil {
 					return nil, err
@@ -359,7 +359,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 		for _, profile := range config.Profiles {
 			// New profile.
-			if !shared.StringInSlice(profile.Name, profileNames) {
+			if !shared.ValueInSlice(profile.Name, profileNames) {
 				err := createProfile(profile)
 				if err != nil {
 					return nil, err

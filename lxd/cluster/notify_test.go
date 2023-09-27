@@ -64,7 +64,7 @@ func TestNewNotifier(t *testing.T) {
 	}
 	require.NoError(t, err)
 	for i := range addresses {
-		assert.True(t, shared.StringInSlice(f.Address(i+1), addresses))
+		assert.True(t, shared.ValueInSlice(f.Address(i+1), addresses))
 	}
 }
 

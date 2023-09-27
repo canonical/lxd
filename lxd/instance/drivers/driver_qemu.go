@@ -398,7 +398,7 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 	state := d.state
 
 	return func(event string, data map[string]any) {
-		if !shared.StringInSlice(event, []string{qmp.EventVMShutdown, qmp.EventAgentStarted}) {
+		if !shared.ValueInSlice(event, []string{qmp.EventVMShutdown, qmp.EventAgentStarted}) {
 			return // Don't bother loading the instance from DB if we aren't going to handle the event.
 		}
 
@@ -1913,7 +1913,7 @@ func (d *qemu) AgentCertificate() *x509.Certificate {
 }
 
 func (d *qemu) architectureSupportsUEFI(arch int) bool {
-	return shared.IntInSlice(arch, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN})
+	return shared.ValueInSlice(arch, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN})
 }
 
 func (d *qemu) setupNvram() error {
@@ -2203,7 +2203,7 @@ func (d *qemu) deviceAttachNIC(deviceName string, configCopy map[string]string, 
 	qemuDev := make(map[string]string)
 
 	// PCIe and PCI require a port device name to hotplug the NIC into.
-	if shared.StringInSlice(qemuBus, []string{"pcie", "pci"}) {
+	if shared.ValueInSlice(qemuBus, []string{"pcie", "pci"}) {
 		pciDevID := qemuPCIDeviceIDStart
 
 		// Iterate through all the instance devices in the same sorted order as is used when allocating the
@@ -2336,7 +2336,7 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 		return err
 	}
 
-	if shared.StringInSlice(qemuBus, []string{"pcie", "pci"}) {
+	if shared.ValueInSlice(qemuBus, []string{"pcie", "pci"}) {
 		// Wait until the device is actually removed (or we timeout waiting).
 		waitDuration := time.Duration(time.Second * time.Duration(10))
 		waitUntil := time.Now().Add(waitDuration)
@@ -2849,7 +2849,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	}
 
 	// Allow disabling the UEFI firmware.
-	if shared.StringInSlice("-bios", rawOptions) || shared.StringInSlice("-kernel", rawOptions) {
+	if shared.ValueInSlice("-bios", rawOptions) || shared.ValueInSlice("-kernel", rawOptions) {
 		d.logger.Warn("Starting VM without default firmware (-bios or -kernel in raw.qemu)")
 	} else if d.architectureSupportsUEFI(d.architecture) {
 		// Open the UEFI NVRAM file and pass it via file descriptor to QEMU.
@@ -3088,7 +3088,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 	// Dynamic devices.
 	base := 0
-	if shared.StringInSlice("-kernel", rawOptions) {
+	if shared.ValueInSlice("-kernel", rawOptions) {
 		base = 1
 	}
 
@@ -3131,7 +3131,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		// Add network device.
 		if len(runConf.NetworkInterface) > 0 {
 			qemuDev := make(map[string]string)
-			if shared.StringInSlice(bus.name, []string{"pcie", "pci"}) {
+			if shared.ValueInSlice(bus.name, []string{"pcie", "pci"}) {
 				// Allocate a PCI(e) port and write it to the config file so QMP can "hotplug" the
 				// NIC into it later.
 				devBus, devAddr, multi := bus.allocate(busFunctionGroupNone)
@@ -3401,7 +3401,7 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 		agentMount.Options = append(agentMount.Options, "trans=virtio,msize=33554432")
 	}
 
-	readonly := shared.StringInSlice("ro", driveConf.Opts)
+	readonly := shared.ValueInSlice("ro", driveConf.Opts)
 
 	// Indicate to agent to mount this readonly. Note: This is purely to indicate to VM guest that this is
 	// readonly, it should *not* be used as a security measure, as the VM guest could remount it R/W.
@@ -3486,7 +3486,7 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 	info := DriverStatuses()[instancetype.VM].Info
 	minVer, _ := version.NewDottedVersion("5.13.0")
 	_, ioUring := info.Features["io_uring"]
-	if shared.StringInSlice(device.DiskIOUring, driveConf.Opts) && ioUring && d.state.OS.KernelVersion.Compare(minVer) >= 0 {
+	if shared.ValueInSlice(device.DiskIOUring, driveConf.Opts) && ioUring && d.state.OS.KernelVersion.Compare(minVer) >= 0 {
 		aioMode = "io_uring"
 	}
 
@@ -3558,7 +3558,7 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 				// Only warn about using writeback cache if the drive image is writable.
 				d.logger.Warn("Using writeback cache I/O", logger.Ctx{"device": driveConf.DevName, "devPath": srcDevPath, "fsType": fsType})
 			}
-		} else if !shared.StringInSlice(device.DiskDirectIO, driveConf.Opts) {
+		} else if !shared.ValueInSlice(device.DiskDirectIO, driveConf.Opts) {
 			// If drive config indicates we need to use unsafe I/O then use it.
 			d.logger.Warn("Using unsafe cache I/O", logger.Ctx{"device": driveConf.DevName, "devPath": srcDevPath})
 			aioMode = "threads"
@@ -3690,7 +3690,7 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 		}
 	}
 
-	readonly := shared.StringInSlice("ro", driveConf.Opts)
+	readonly := shared.ValueInSlice("ro", driveConf.Opts)
 
 	if readonly {
 		blockDev["read-only"] = true
@@ -3835,7 +3835,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 		vectors := 2*queueCount + 2
 		if vectors > 0 {
 			qemuDev["mq"] = "on"
-			if shared.StringInSlice(busName, []string{"pcie", "pci"}) {
+			if shared.ValueInSlice(busName, []string{"pcie", "pci"}) {
 				qemuDev["vectors"] = strconv.Itoa(vectors)
 			}
 		}
@@ -3909,7 +3909,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 				"vhost": vhostNetEnabled,
 			}
 
-			if shared.StringInSlice(busName, []string{"pcie", "pci"}) {
+			if shared.ValueInSlice(busName, []string{"pcie", "pci"}) {
 				qemuDev["driver"] = "virtio-net-pci"
 			} else if busName == "ccw" {
 				qemuDev["driver"] = "virtio-net-ccw"
@@ -4018,7 +4018,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 				"queues":  queues,
 			}
 
-			if shared.StringInSlice(busName, []string{"pcie", "pci"}) {
+			if shared.ValueInSlice(busName, []string{"pcie", "pci"}) {
 				qemuDev["driver"] = "virtio-net-pci"
 			} else if busName == "ccw" {
 				qemuDev["driver"] = "virtio-net-ccw"
@@ -4039,7 +4039,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 		}
 	} else if pciSlotName != "" {
 		// Detect physical passthrough device.
-		if shared.StringInSlice(busName, []string{"pcie", "pci"}) {
+		if shared.ValueInSlice(busName, []string{"pcie", "pci"}) {
 			qemuDev["driver"] = "vfio-pci"
 		} else if busName == "ccw" {
 			qemuDev["driver"] = "vfio-ccw"
@@ -4941,11 +4941,11 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 	checkedProfiles := []string{}
 	for _, profile := range args.Profiles {
-		if !shared.StringInSlice(profile.Name, profiles) {
+		if !shared.ValueInSlice(profile.Name, profiles) {
 			return fmt.Errorf("Requested profile '%s' doesn't exist", profile.Name)
 		}
 
-		if shared.StringInSlice(profile.Name, checkedProfiles) {
+		if shared.ValueInSlice(profile.Name, checkedProfiles) {
 			return fmt.Errorf("Duplicate profile found in request")
 		}
 
@@ -5038,7 +5038,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	changedConfig := []string{}
 	for key := range oldExpandedConfig {
 		if oldExpandedConfig[key] != d.expandedConfig[key] {
-			if !shared.StringInSlice(key, changedConfig) {
+			if !shared.ValueInSlice(key, changedConfig) {
 				changedConfig = append(changedConfig, key)
 			}
 		}
@@ -5046,7 +5046,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 	for key := range d.expandedConfig {
 		if oldExpandedConfig[key] != d.expandedConfig[key] {
-			if !shared.StringInSlice(key, changedConfig) {
+			if !shared.ValueInSlice(key, changedConfig) {
 				changedConfig = append(changedConfig, key)
 			}
 		}
@@ -5125,7 +5125,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// If apparmor changed, re-validate the apparmor profile (even if not running).
-	if shared.StringInSlice("raw.apparmor", changedConfig) {
+	if shared.ValueInSlice("raw.apparmor", changedConfig) {
 		err = apparmor.InstanceValidate(d.state.OS, d)
 		if err != nil {
 			return fmt.Errorf("Parse AppArmor profile: %w", err)
@@ -5172,7 +5172,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 				return d.architectureSupportsCPUHotplug()
 			}
 
-			if shared.StringInSlice(key, liveUpdateKeys) {
+			if shared.ValueInSlice(key, liveUpdateKeys) {
 				return true
 			}
 
@@ -5243,7 +5243,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	// Update MAAS (must run after the MAC addresses have been generated).
 	updateMAAS := false
 	for _, key := range []string{"maas.subnet.ipv4", "maas.subnet.ipv6", "ipv4.address", "ipv6.address"} {
-		if shared.StringInSlice(key, allUpdatedKeys) {
+		if shared.ValueInSlice(key, allUpdatedKeys) {
 			updateMAAS = true
 			break
 		}
@@ -5256,7 +5256,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
-	if d.architectureSupportsUEFI(d.architecture) && (shared.StringInSlice("security.secureboot", changedConfig) || shared.StringInSlice("security.csm", changedConfig)) {
+	if d.architectureSupportsUEFI(d.architecture) && (shared.ValueInSlice("security.secureboot", changedConfig) || shared.ValueInSlice("security.csm", changedConfig)) {
 		// Re-generate the NVRAM.
 		err = d.setupNvram()
 		if err != nil {
@@ -6098,7 +6098,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 		// Ensure that only the requested snapshots are included in the migration index header.
 		volSourceArgs.Info.Config.VolumeSnapshots = make([]*api.StorageVolumeSnapshot, 0, len(volSourceArgs.Snapshots))
 		for i := range allSnapshots {
-			if shared.StringInSlice(allSnapshots[i].Name, volSourceArgs.Snapshots) {
+			if shared.ValueInSlice(allSnapshots[i].Name, volSourceArgs.Snapshots) {
 				volSourceArgs.Info.Config.VolumeSnapshots = append(volSourceArgs.Info.Config.VolumeSnapshots, allSnapshots[i])
 			}
 		}
@@ -7678,7 +7678,7 @@ func (d *qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConf
 	}
 
 	// Fill in the MAC address.
-	if !shared.StringInSlice(nicType, []string{"physical", "ipvlan", "sriov"}) && m["hwaddr"] == "" {
+	if !shared.ValueInSlice(nicType, []string{"physical", "ipvlan", "sriov"}) && m["hwaddr"] == "" {
 		configKey := fmt.Sprintf("volatile.%s.hwaddr", name)
 		volatileHwaddr := d.localConfig[configKey]
 		if volatileHwaddr == "" {
@@ -7781,7 +7781,7 @@ func (d *qemu) cpuTopology(limit string) (*cpuTopology, error) {
 							sockets[cpu.Socket] = []uint64{}
 						}
 
-						if !shared.Uint64InSlice(core.Core, sockets[cpu.Socket]) {
+						if !shared.ValueInSlice(core.Core, sockets[cpu.Socket]) {
 							sockets[cpu.Socket] = append(sockets[cpu.Socket], core.Core)
 						}
 
@@ -7791,7 +7791,7 @@ func (d *qemu) cpuTopology(limit string) (*cpuTopology, error) {
 							cores[core.Core] = []uint64{}
 						}
 
-						if !shared.Uint64InSlice(thread.Thread, cores[core.Core]) {
+						if !shared.ValueInSlice(thread.Thread, cores[core.Core]) {
 							cores[core.Core] = append(cores[core.Core], thread.Thread)
 						}
 
@@ -8100,7 +8100,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 		parts := strings.Split(string(cmdline), " ")
 
 		// Check if SME is enabled in the kernel command line.
-		if shared.StringInSlice("mem_encrypt=on", parts) {
+		if shared.ValueInSlice("mem_encrypt=on", parts) {
 			features["sme"] = struct{}{}
 		}
 
