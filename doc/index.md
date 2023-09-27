@@ -22,7 +22,7 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
     :end-before: <!-- Include end security -->
 ```
 
-See [Security](security.md) for detailed information.
+See {ref}`exp-security` for detailed information.
 
 ````{important}
 % Include content from [../README.md](../README.md)

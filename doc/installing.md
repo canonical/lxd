@@ -137,7 +137,7 @@ To install it:
 
 ````
 
-You can also find native builds of the LXD client on [GitHub](https://github.com/lxc/lxd/actions).
+You can also find native builds of the LXD client on [GitHub](https://github.com/canonical/lxd/actions).
 To download a specific build:
 
 1. Make sure that you are logged into your GitHub account.

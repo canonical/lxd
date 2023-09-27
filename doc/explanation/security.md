@@ -24,6 +24,7 @@ Never use unsupported LXD versions in a production environment.
     :end-before: <!-- Include end supported versions -->
 ```
 
+(security-daemon-access)=
 ## Access to the LXD daemon
 
 LXD is a daemon that can be accessed locally over a Unix socket or, if configured, remotely over a {abbr}`TLS (Transport Layer Security)` socket.
