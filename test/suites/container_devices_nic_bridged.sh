@@ -2,6 +2,13 @@ test_container_devices_nic_bridged() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
+  firewallDriver=$(lxc info | awk -F ":" '/firewall:/{gsub(/ /, "", $0); print $2}')
+
+  if [ "$firewallDriver" != "xtables" ] && [ "$firewallDriver" != "nftables" ]; then
+    echo "Unrecognised firewall driver: ${firewallDriver}"
+    false
+  fi
+
   vethHostName="veth$$"
   ctName="nt$$"
   ctMAC="0a:92:a7:0d:b7:d9"
@@ -88,8 +95,8 @@ test_container_devices_nic_bridged() {
     false
   fi
 
-  # Check profile custom MTU is applied on host side of veth.
-  if ! grep "1400" /sys/class/net/"${vethHostName}"/mtu ; then
+  # Check profile custom MTU doesn't affect the host.
+  if ! grep "1500" /sys/class/net/"${vethHostName}"/mtu ; then
     echo "host veth mtu invalid"
     false
   fi
@@ -157,8 +164,8 @@ test_container_devices_nic_bridged() {
     false
   fi
 
-  # Check custom MTU is applied host-side on hot-plug.
-  if !  grep "1401" /sys/class/net/"${vethHostName}"/mtu ; then
+  # Check custom MTU doesn't affect the host.
+  if ! grep "1500" /sys/class/net/"${vethHostName}"/mtu ; then
     echo "host veth mtu invalid"
     false
   fi
@@ -208,8 +215,8 @@ test_container_devices_nic_bridged() {
     false
   fi
 
-  # Checl profile custom MTU is applied host-side on hot-removal.
-  if ! grep "1400" /sys/class/net/"${vethHostName}"/mtu ; then
+  # Check custom MTU doesn't affect the host.
+  if ! grep "1500" /sys/class/net/"${vethHostName}"/mtu ; then
     echo "host veth mtu invalid"
     false
   fi
@@ -615,6 +622,18 @@ test_container_devices_nic_bridged() {
   lxc start foo
   grep -F "192.0.2.232" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0"
   lxc delete -f foo
+
+  # Test container without extra network configuration can be restored from backup.
+  lxc init testimage foo -p "${ctName}"
+  lxc export foo foo.tar.gz
+  lxc import foo.tar.gz foo2
+  rm foo.tar.gz
+  lxc profile assign foo2 "${ctName}"
+
+  # Test container start will fail due to volatile MAC conflict.
+  lxc config get foo volatile.eth0.hwaddr | grep -Fx "$(lxc config get foo2 volatile.eth0.hwaddr)"
+  ! lxc start foo2 || false
+  lxc delete -f foo foo2
 
   # Check we haven't left any NICS lying around.
   endNicCount=$(find /sys/class/net | wc -l)

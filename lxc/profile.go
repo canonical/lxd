@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"sort"
 	"strings"
@@ -238,6 +239,7 @@ type cmdProfileCopy struct {
 	profile *cmdProfile
 
 	flagTargetProject string
+	flagRefresh       bool
 }
 
 func (c *cmdProfileCopy) Command() *cobra.Command {
@@ -248,6 +250,7 @@ func (c *cmdProfileCopy) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Copy profiles`))
 	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
+	cmd.Flags().BoolVar(&c.flagRefresh, "refresh", false, i18n.G("Update the target profile from the source if it already exists"))
 
 	cmd.RunE = c.Run
 
@@ -284,13 +287,21 @@ func (c *cmdProfileCopy) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if c.flagTargetProject != "" {
+		dest.server = dest.server.UseProject(c.flagTargetProject)
+	}
+
+	// Refresh the profile if requested.
+	if c.flagRefresh {
+		err := dest.server.UpdateProfile(dest.name, profile.Writable(), "")
+		if err == nil || !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return err
+		}
+	}
+
 	newProfile := api.ProfilesPost{
 		ProfilePut: profile.Writable(),
 		Name:       dest.name,
-	}
-
-	if c.flagTargetProject != "" {
-		dest.server = dest.server.UseProject(c.flagTargetProject)
 	}
 
 	return dest.server.CreateProfile(newProfile)
@@ -530,6 +541,8 @@ func (c *cmdProfileEdit) Run(cmd *cobra.Command, args []string) error {
 type cmdProfileGet struct {
 	global  *cmdGlobal
 	profile *cmdProfile
+
+	flagIsProperty bool
 }
 
 func (c *cmdProfileGet) Command() *cobra.Command {
@@ -541,6 +554,7 @@ func (c *cmdProfileGet) Command() *cobra.Command {
 
 	cmd.RunE = c.Run
 
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a profile property"))
 	return cmd
 }
 
@@ -569,7 +583,18 @@ func (c *cmdProfileGet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("%s\n", profile.Config[args[1]])
+	if c.flagIsProperty {
+		w := profile.Writable()
+		res, err := getFieldByJsonTag(&w, args[1])
+		if err != nil {
+			return fmt.Errorf(i18n.G("The property %q does not exist on the profile %q: %v"), args[1], resource.name, err)
+		}
+
+		fmt.Printf("%v\n", res)
+	} else {
+		fmt.Printf("%s\n", profile.Config[args[1]])
+	}
+
 	return nil
 }
 
@@ -766,6 +791,8 @@ func (c *cmdProfileRename) Run(cmd *cobra.Command, args []string) error {
 type cmdProfileSet struct {
 	global  *cmdGlobal
 	profile *cmdProfile
+
+	flagIsProperty bool
 }
 
 func (c *cmdProfileSet) Command() *cobra.Command {
@@ -779,7 +806,7 @@ For backward compatibility, a single configuration key may still be set with:
     lxc profile set [<remote>:]<profile> <key> <value>`))
 
 	cmd.RunE = c.Run
-
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a profile property"))
 	return cmd
 }
 
@@ -814,11 +841,28 @@ func (c *cmdProfileSet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for k, v := range keys {
-		profile.Config[k] = v
+	writable := profile.Writable()
+	if c.flagIsProperty {
+		if cmd.Name() == "unset" {
+			for k := range keys {
+				err := unsetFieldByJsonTag(&writable, k)
+				if err != nil {
+					return fmt.Errorf(i18n.G("Error unsetting property: %v"), err)
+				}
+			}
+		} else {
+			err := unpackKVToWritable(&writable, keys)
+			if err != nil {
+				return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+			}
+		}
+	} else {
+		for k, v := range keys {
+			writable.Config[k] = v
+		}
 	}
 
-	return resource.server.UpdateProfile(resource.name, profile.Writable(), etag)
+	return resource.server.UpdateProfile(resource.name, writable, etag)
 }
 
 // Show.
@@ -879,6 +923,8 @@ type cmdProfileUnset struct {
 	global     *cmdGlobal
 	profile    *cmdProfile
 	profileSet *cmdProfileSet
+
+	flagIsProperty bool
 }
 
 func (c *cmdProfileUnset) Command() *cobra.Command {
@@ -889,6 +935,7 @@ func (c *cmdProfileUnset) Command() *cobra.Command {
 		`Unset profile configuration keys`))
 
 	cmd.RunE = c.Run
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a profile property"))
 
 	return cmd
 }
@@ -899,6 +946,8 @@ func (c *cmdProfileUnset) Run(cmd *cobra.Command, args []string) error {
 	if exit {
 		return err
 	}
+
+	c.profileSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
 	return c.profileSet.Run(cmd, args)

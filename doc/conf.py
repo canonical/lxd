@@ -103,7 +103,8 @@ html_theme_options = {
         "color-highlighted-background": "#EbEbEb",
         "color-link-underline": "var(--color-background-primary)",
         "color-link-underline--hover": "var(--color-background-primary)",
-        "color-version-popup": "#772953"
+        "color-version-popup": "#772953",
+        "color-orange": "#FBDDD2",
     },
     "dark_css_variables": {
         "color-foreground-secondary": "var(--color-foreground-primary)",
@@ -127,7 +128,8 @@ html_theme_options = {
         "color-highlighted-background": "#666",
         "color-link-underline": "var(--color-background-primary)",
         "color-link-underline--hover": "var(--color-background-primary)",
-        "color-version-popup": "#F29879"
+        "color-version-popup": "#F29879",
+        "color-orange": "#E95420",
     },
 }
 
@@ -136,7 +138,9 @@ html_context = {
     "github_version": "stable-5.0",
     "github_folder": "/doc/",
     "github_filetype": "md",
-    "discourse_prefix": "https://discuss.linuxcontainers.org/t/"
+    "discourse_prefix": {
+        "lxc": "https://discuss.linuxcontainers.org/t/",
+        "ubuntu": "https://discourse.ubuntu.com/t/"}
 }
 
 source_suffix = ".md"
@@ -144,7 +148,7 @@ source_suffix = ".md"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['html', 'README.md', '.sphinx']
+exclude_patterns = ['html', 'README.md', '.sphinx', 'config_options_cheat_sheet.md']
 
 # Open Graph configuration
 

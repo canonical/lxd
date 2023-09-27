@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
+	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/revert"
@@ -115,18 +116,18 @@ func ensureImageIsLocallyAvailable(s *state.State, r *http.Request, img *api.Ima
 }
 
 // instanceCreateFromImage creates an instance from a rootfs image.
-func instanceCreateFromImage(s *state.State, r *http.Request, img *api.Image, args db.InstanceArgs, op *operations.Operation) (instance.Instance, error) {
+func instanceCreateFromImage(s *state.State, r *http.Request, img *api.Image, args db.InstanceArgs, op *operations.Operation) error {
 	revert := revert.New()
 	defer revert.Fail()
 
 	// Validate the type of the image matches the type of the instance.
 	imgType, err := instancetype.New(img.Type)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if imgType != args.Type {
-		return nil, fmt.Errorf("Requested image's type %q doesn't match instance type %q", imgType, args.Type)
+		return fmt.Errorf("Requested image's type %q doesn't match instance type %q", imgType, args.Type)
 	}
 
 	// Set the "image.*" keys.
@@ -142,7 +143,7 @@ func instanceCreateFromImage(s *state.State, r *http.Request, img *api.Image, ar
 	// Create the instance.
 	inst, instOp, cleanup, err := instance.CreateInternal(s, args, true)
 	if err != nil {
-		return nil, fmt.Errorf("Failed creating instance record: %w", err)
+		return fmt.Errorf("Failed creating instance record: %w", err)
 	}
 
 	revert.Add(cleanup)
@@ -157,28 +158,28 @@ func instanceCreateFromImage(s *state.State, r *http.Request, img *api.Image, ar
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	pool, err := storagePools.LoadByInstance(s, inst)
 	if err != nil {
-		return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
+		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 
 	err = pool.CreateInstanceFromImage(inst, img.Fingerprint, op)
 	if err != nil {
-		return nil, fmt.Errorf("Failed creating instance from image: %w", err)
+		return fmt.Errorf("Failed creating instance from image: %w", err)
 	}
 
 	revert.Add(func() { _ = inst.Delete(true) })
 
 	err = inst.UpdateBackupFile()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	revert.Success()
-	return inst, nil
+	return nil
 }
 
 // instanceCreateAsCopyOpts options for copying an instance.
@@ -696,4 +697,13 @@ func getSourceImageFromInstanceSource(ctx context.Context, s *state.State, tx *d
 	}
 
 	return sourceImage, nil
+}
+
+// instanceOperationLock acquires a lock for operating on an instance and returns the unlock function.
+func instanceOperationLock(ctx context.Context, projectName string, instanceName string) locking.UnlockFunc {
+	l := logger.AddContext(logger.Ctx{"project": projectName, "instance": instanceName})
+	l.Debug("Acquiring lock for instance")
+	defer l.Debug("Lock acquired for instance")
+
+	return locking.Lock(ctx, fmt.Sprintf("InstanceOperation_%s", project.Instance(projectName, instanceName)))
 }

@@ -19,9 +19,9 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/project"
-	"github.com/canonical/lxd/lxd/rbac"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -79,6 +79,7 @@ var api10 = []APIEndpoint{
 	networkACLCmd,
 	networkACLsCmd,
 	networkACLLogCmd,
+	networkAllocationsCmd,
 	networkForwardCmd,
 	networkForwardsCmd,
 	networkPeerCmd,
@@ -358,7 +359,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	fullSrv.AuthUserName = requestor.Username
 	fullSrv.AuthUserMethod = requestor.Protocol
 
-	if rbac.UserIsAdmin(r) {
+	if s.Authorizer.UserIsAdmin(r) {
 		fullSrv.Config, err = daemonConfigRender(s)
 		if err != nil {
 			return response.InternalError(err)
@@ -557,11 +558,18 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 
 	nodeChanged := map[string]string{}
 	var newNodeConfig *node.Config
+	oldNodeConfig := make(map[string]any)
+
 	err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
 		newNodeConfig, err = node.ConfigLoad(ctx, tx)
 		if err != nil {
 			return fmt.Errorf("Failed to load node config: %w", err)
+		}
+
+		// Keep old config around in case something goes wrong. In that case the config will be reverted.
+		for k, v := range newNodeConfig.Dump() {
+			oldNodeConfig[k] = v
 		}
 
 		// We currently don't allow changing the cluster.https_address once it's set.
@@ -615,6 +623,38 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		}
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
+	revert.Add(func() {
+		for key := range nodeValues {
+			val, ok := oldNodeConfig[key]
+			if !ok {
+				nodeValues[key] = nil
+			} else {
+				nodeValues[key] = val
+			}
+		}
+
+		err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
+			newNodeConfig, err := node.ConfigLoad(ctx, tx)
+			if err != nil {
+				return fmt.Errorf("Failed to load node config: %w", err)
+			}
+
+			_, err = newNodeConfig.Replace(nodeValues)
+			if err != nil {
+				return fmt.Errorf("Failed updating node config: %w", err)
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			logger.Warn("Failed reverting node config", logger.Ctx{"err": err})
+		}
+	})
+
 	// Validate global configuration
 	hasRBAC := false
 	hasCandid := false
@@ -637,11 +677,18 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	// Then deal with cluster wide configuration
 	var clusterChanged map[string]string
 	var newClusterConfig *clusterConfig.Config
+	oldClusterConfig := make(map[string]any)
+
 	err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		newClusterConfig, err = clusterConfig.Load(ctx, tx)
 		if err != nil {
 			return fmt.Errorf("Failed to load cluster config: %w", err)
+		}
+
+		// Keep old config around in case something goes wrong. In that case the config will be reverted.
+		for k, v := range newClusterConfig.Dump() {
+			oldClusterConfig[k] = v
 		}
 
 		if patch {
@@ -660,6 +707,35 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 			return response.SmartError(err)
 		}
 	}
+
+	revert.Add(func() {
+		for key := range req.Config {
+			val, ok := oldClusterConfig[key]
+			if !ok {
+				req.Config[key] = nil
+			} else {
+				req.Config[key] = val
+			}
+		}
+
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			newClusterConfig, err = clusterConfig.Load(ctx, tx)
+			if err != nil {
+				return fmt.Errorf("Failed to load cluster config: %w", err)
+			}
+
+			_, err = newClusterConfig.Replace(req.Config)
+			if err != nil {
+				return fmt.Errorf("Failed updating cluster config: %w", err)
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			logger.Warn("Failed reverting cluster config", logger.Ctx{"err": err})
+		}
+	})
 
 	// Notify the other nodes about changes
 	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
@@ -698,6 +774,8 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	revert.Success()
 
 	s.Events.SendLifecycle(project.Default, lifecycle.ConfigUpdated.Event(request.CreateRequestor(r), nil))
 
@@ -861,13 +939,6 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 
 	if rbacChanged {
 		apiURL, apiKey, apiExpiry, agentURL, agentUsername, agentPrivateKey, agentPublicKey := clusterConfig.RBACServer()
-
-		// Since RBAC seems to have been set up already, we need to disable it temporarily
-		if d.rbac != nil {
-			d.candidVerifier = nil
-			d.rbac.StopStatusCheck()
-			d.rbac = nil
-		}
 
 		err := d.setupRBACServer(apiURL, apiKey, apiExpiry, agentURL, agentUsername, agentPrivateKey, agentPublicKey)
 		if err != nil {

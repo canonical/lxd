@@ -26,6 +26,9 @@ import (
 // cephBlockVolSuffix suffix used for block content type volumes.
 const cephBlockVolSuffix = ".block"
 
+// cephISOVolSuffix suffix used for iso content type volumes.
+const cephISOVolSuffix = ".iso"
+
 const cephVolumeTypeZombieImage = VolumeType("zombie_image")
 
 // CephDefaultCluster represents the default ceph cluster name.
@@ -43,7 +46,7 @@ var cephVolTypePrefixes = map[VolumeType]string{
 }
 
 // osdPoolExists checks whether a given OSD pool exists.
-func (d *ceph) osdPoolExists() bool {
+func (d *ceph) osdPoolExists() (bool, error) {
 	_, err := shared.RunCommand(
 		"ceph",
 		"--name", fmt.Sprintf("client.%s", d.config["ceph.user.name"]),
@@ -54,7 +57,20 @@ func (d *ceph) osdPoolExists() bool {
 		d.config["ceph.osd.pool_name"],
 		"size")
 
-	return err == nil
+	if err != nil {
+		status, _ := shared.ExitStatus(err)
+		// If the error status code is 2, the pool definitely doesn't exist.
+		if status == 2 {
+			return false, nil
+		}
+
+		// Else, the error status is not 0 or 2,
+		// so we can't be sure if the pool exists or not
+		// as it might be a network issue, an internal ceph issue, etc.
+		return false, err
+	}
+
+	return true, nil
 }
 
 // osdDeletePool destroys an OSD pool.
@@ -899,7 +915,7 @@ func (d *ceph) parseParent(parent string) (Volume, string, error) {
 	// Match normal instance volumes.
 	// Looks for volumes like:
 	// pool/container_bar@zombie_snapshot_ce77e971-6c1b-45c0-b193-dba9ec5e7d82
-	reInst, err := regexp.Compile(`^((?:zombie_)?[a-z-]+)_([\w-]+)\.?(block)?@?([-\w]+)?$`)
+	reInst, err := regexp.Compile(`^((?:zombie_)?[a-z-]+)_([\w-]+)\.?(block|iso)?@?([-\w]+)?$`)
 	if err != nil {
 		return vol, "", err
 	}
@@ -910,9 +926,12 @@ func (d *ceph) parseParent(parent string) (Volume, string, error) {
 		vol.pool = poolName
 		vol.name = instRes[2]
 
-		if instRes[3] == "block" {
+		switch instRes[3] {
+		case "block":
 			vol.contentType = ContentTypeBlock
-		} else {
+		case "iso":
+			vol.contentType = ContentTypeISO
+		default:
 			vol.contentType = ContentTypeFS
 		}
 

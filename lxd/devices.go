@@ -1,27 +1,5 @@
 package main
 
-import (
-	"fmt"
-	"os"
-	"path"
-	"path/filepath"
-	"sort"
-	"strconv"
-	"strings"
-
-	"golang.org/x/sys/unix"
-
-	"github.com/canonical/lxd/lxd/cgroup"
-	"github.com/canonical/lxd/lxd/device"
-	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
-	"github.com/canonical/lxd/lxd/instance"
-	"github.com/canonical/lxd/lxd/instance/instancetype"
-	"github.com/canonical/lxd/lxd/resources"
-	"github.com/canonical/lxd/lxd/state"
-	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/logger"
-)
-
 /*
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1
@@ -53,6 +31,28 @@ static int get_hidraw_devinfo(int fd, struct hidraw_devinfo *info)
 
 */
 import "C"
+
+import (
+	"fmt"
+	"os"
+	"path"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+
+	"golang.org/x/sys/unix"
+
+	"github.com/canonical/lxd/lxd/cgroup"
+	"github.com/canonical/lxd/lxd/device"
+	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/resources"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
+)
 
 type deviceTaskCPU struct {
 	id    int64
@@ -314,6 +314,102 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 	return chCPU, chNetwork, chUSB, chUnix, nil
 }
 
+/*
+ * fillFixedInstances fills the `fixedInstances` map with the instances that have been pinned to specific CPUs.
+ * The `fixedInstances` map is a map of CPU IDs to a list of instances that have been pinned to that CPU.
+ * The `targetCpuPool` is a list of CPU IDs that are available for pinning.
+ * The `targetCpuNum` is the number of CPUs that are required for pinning.
+ * The `loadBalancing` flag indicates whether the CPU pinning should be load balanced or not (e.g, NUMA placement when `limits.cpu` is a single number which means
+ * a required number of vCPUs per instance that can be chosen within a CPU pool).
+ */
+func fillFixedInstances(fixedInstances map[int64][]instance.Instance, inst instance.Instance, effectiveCpus []int64, targetCpuPool []int64, targetCpuNum int, loadBalancing bool) {
+	if len(targetCpuPool) < targetCpuNum {
+		diffCount := len(targetCpuPool) - targetCpuNum
+		logger.Warnf("%v CPUs have been required for pinning, but %v CPUs won't be allocated", len(targetCpuPool), -diffCount)
+		targetCpuNum = len(targetCpuPool)
+	}
+
+	// If the `targetCpuPool` has been manually specified (explicit CPU IDs/ranges specified with `limits.cpu`)
+	if len(targetCpuPool) == targetCpuNum && !loadBalancing {
+		for _, nr := range targetCpuPool {
+			if !shared.Int64InSlice(nr, effectiveCpus) {
+				continue
+			}
+
+			_, ok := fixedInstances[nr]
+			if ok {
+				fixedInstances[nr] = append(fixedInstances[nr], inst)
+			} else {
+				fixedInstances[nr] = []instance.Instance{inst}
+			}
+		}
+
+		return
+	}
+
+	// If we need to load-balance the instance across the CPUs of `targetCpuPool` (e.g, NUMA placement),
+	// the heuristic is to sort the `targetCpuPool` by usage (number of instances already pinned to each CPU)
+	// and then assign the instance to the first `desiredCpuNum` least used CPUs.
+	usage := map[int64]deviceTaskCPU{}
+	for _, id := range targetCpuPool {
+		cpu := deviceTaskCPU{}
+		cpu.id = id
+		cpu.strId = fmt.Sprintf("%d", id)
+
+		count := 0
+		_, ok := fixedInstances[id]
+		if ok {
+			count = len(fixedInstances[id])
+		}
+
+		cpu.count = &count
+		usage[id] = cpu
+	}
+
+	sortedUsage := make(deviceTaskCPUs, 0)
+	for _, value := range usage {
+		sortedUsage = append(sortedUsage, value)
+	}
+
+	sort.Sort(sortedUsage)
+	count := 0
+	for _, cpu := range sortedUsage {
+		if count == targetCpuNum {
+			break
+		}
+
+		id := cpu.id
+		_, ok := fixedInstances[id]
+		if ok {
+			fixedInstances[id] = append(fixedInstances[id], inst)
+		} else {
+			fixedInstances[id] = []instance.Instance{inst}
+		}
+
+		count++
+	}
+}
+
+// deviceTaskBalance is used to balance the CPU load across containers running on a host.
+// It first checks if CGroup support is available and returns if it isn't.
+// It then retrieves the effective CPU list (the CPUs that are guaranteed to be online) and isolates any isolated CPUs.
+// After that, it loads all instances of containers running on the node and iterates through them.
+//
+// For each container, it checks its CPU limits and determines whether it is pinned to specific CPUs or can use the load-balancing mechanism.
+// If it is pinned, the function adds it to the fixedInstances map with the CPU numbers it is pinned to.
+// If not, the container will be included in the load-balancing calculation,
+// and the number of CPUs it can use is determined by taking the minimum of its assigned CPUs and the available CPUs. Note that if
+// NUMA placement is enabled (`limits.cpu.nodes` is not empty), we apply a similar load-balancing logic to the `fixedInstances` map
+// with a constraint being the number of vCPUs and the CPU pool being the CPUs pinned to a set of NUMA nodes.
+//
+// Next, the function balance the CPU usage by iterating over all the CPUs and dividing the containers into those that
+// are pinned to a specific CPU and those that are load-balanced. For the pinned containers,
+// it adds them to the pinning map with the CPU number it's pinned to.
+// For the load-balanced containers, it sorts the available CPUs based on their usage count and assigns them to containers
+// in ascending order until the required number of CPUs have been assigned.
+// Finally, the pinning map is used to set the new CPU pinning for each container, updating it to the new balanced state.
+//
+// Overall, this function ensures that the CPU resources of the host are utilized effectively amongst all the containers running on it.
 func deviceTaskBalance(s *state.State) {
 	min := func(x, y int) int {
 		if x < y {
@@ -375,10 +471,41 @@ func deviceTaskBalance(s *state.State) {
 		return
 	}
 
+	// Get CPU topology.
+	cpusTopology, err := resources.GetCPU()
+	if err != nil {
+		logger.Errorf("Unable to load system CPUs information: %v", err)
+		return
+	}
+
+	// Build a map of NUMA node to CPU threads.
+	numaNodeToCPU := make(map[int64][]int64)
+	for _, cpu := range cpusTopology.Sockets {
+		for _, core := range cpu.Cores {
+			for _, thread := range core.Threads {
+				numaNodeToCPU[int64(thread.NUMANode)] = append(numaNodeToCPU[int64(thread.NUMANode)], thread.ID)
+			}
+		}
+	}
+
 	fixedInstances := map[int64][]instance.Instance{}
 	balancedInstances := map[instance.Instance]int{}
 	for _, c := range instances {
 		conf := c.ExpandedConfig()
+		cpuNodes := conf["limits.cpu.nodes"]
+		var numaCpus []int64
+		if cpuNodes != "" {
+			numaNodeSet, err := resources.ParseNumaNodeSet(cpuNodes)
+			if err != nil {
+				logger.Error("Error parsing numa node set", logger.Ctx{"numaNodes": cpuNodes, "err": err})
+				return
+			}
+
+			for _, numaNode := range numaNodeSet {
+				numaCpus = append(numaCpus, numaNodeToCPU[numaNode]...)
+			}
+		}
+
 		cpulimit, ok := conf["limits.cpu"]
 		if !ok || cpulimit == "" {
 			cpulimit = effectiveCpus
@@ -397,7 +524,11 @@ func deviceTaskBalance(s *state.State) {
 		if err == nil {
 			// Load-balance
 			count = min(count, len(cpus))
-			balancedInstances[c] = count
+			if len(numaCpus) > 0 {
+				fillFixedInstances(fixedInstances, c, cpus, numaCpus, count, true)
+			} else {
+				balancedInstances[c] = count
+			}
 		} else {
 			// Pinned
 			containerCpus, err := resources.ParseCpuset(cpulimit)
@@ -405,18 +536,11 @@ func deviceTaskBalance(s *state.State) {
 				return
 			}
 
-			for _, nr := range containerCpus {
-				if !shared.Int64InSlice(nr, cpus) {
-					continue
-				}
-
-				_, ok := fixedInstances[nr]
-				if ok {
-					fixedInstances[nr] = append(fixedInstances[nr], c)
-				} else {
-					fixedInstances[nr] = []instance.Instance{c}
-				}
+			if len(numaCpus) > 0 {
+				logger.Warnf("The pinned CPUs: %v, override the NUMA configuration with the CPUs: %v", containerCpus, numaCpus)
 			}
+
+			fillFixedInstances(fixedInstances, c, cpus, containerCpus, len(containerCpus), false)
 		}
 	}
 
@@ -532,7 +656,9 @@ func deviceNetworkPriority(s *state.State, netif string) {
 	}
 }
 
-func deviceEventListener(s *state.State) {
+// deviceEventListener starts the event listener for resource scheduling.
+// Accepts stateFunc which will be called each time it needs a fresh state.State.
+func deviceEventListener(stateFunc func() *state.State) {
 	chNetlinkCPU, chNetlinkNetwork, chUSB, chUnix, err := deviceNetlinkListener()
 	if err != nil {
 		logger.Errorf("scheduler: Couldn't setup netlink listener: %v", err)
@@ -547,6 +673,8 @@ func deviceEventListener(s *state.State) {
 				continue
 			}
 
+			s := stateFunc()
+
 			if !s.OS.CGInfo.Supports(cgroup.CPUSet, nil) {
 				continue
 			}
@@ -559,7 +687,10 @@ func deviceEventListener(s *state.State) {
 				continue
 			}
 
-			if !s.OS.CGInfo.Supports(cgroup.NetPrio, nil) {
+			s := stateFunc()
+
+			// we want to catch all new devices at the host and process them in networkAutoAttach
+			if e[1] != "add" {
 				continue
 			}
 
@@ -571,14 +702,16 @@ func deviceEventListener(s *state.State) {
 			}
 
 		case e := <-chUSB:
-			device.USBRunHandlers(s, &e)
+			device.USBRunHandlers(stateFunc(), &e)
 		case e := <-chUnix:
-			device.UnixHotplugRunHandlers(s, &e)
+			device.UnixHotplugRunHandlers(stateFunc(), &e)
 		case e := <-cgroup.DeviceSchedRebalance:
 			if len(e) != 3 {
 				logger.Errorf("Scheduler: received an invalid rebalance event")
 				continue
 			}
+
+			s := stateFunc()
 
 			if !s.OS.CGInfo.Supports(cgroup.CPUSet, nil) {
 				continue

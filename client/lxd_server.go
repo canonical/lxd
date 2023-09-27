@@ -55,6 +55,7 @@ func (r *ProtocolLXD) UpdateServer(server api.ServerPut, ETag string) error {
 }
 
 // HasExtension returns true if the server supports a given API extension.
+// Deprecated: Use CheckExtension instead.
 func (r *ProtocolLXD) HasExtension(extension string) bool {
 	// If no cached API information, just assume we're good
 	// This is needed for those rare cases where we must avoid a GetServer call
@@ -62,13 +63,7 @@ func (r *ProtocolLXD) HasExtension(extension string) bool {
 		return true
 	}
 
-	for _, entry := range r.server.APIExtensions {
-		if entry == extension {
-			return true
-		}
-	}
-
-	return false
+	return shared.StringInSlice(extension, r.server.APIExtensions)
 }
 
 // CheckExtension checks if the server has the specified extension.
@@ -121,6 +116,7 @@ func (r *ProtocolLXD) UseProject(name string) InstanceServer {
 		project:              name,
 		eventConns:           make(map[string]*websocket.Conn),  // New project specific listener conns.
 		eventListeners:       make(map[string][]*EventListener), // New project specific listeners.
+		oidcClient:           r.oidcClient,
 	}
 }
 
@@ -144,6 +140,7 @@ func (r *ProtocolLXD) UseTarget(name string) InstanceServer {
 		project:              r.project,
 		eventConns:           make(map[string]*websocket.Conn),  // New target specific listener conns.
 		eventListeners:       make(map[string][]*EventListener), // New target specific listeners.
+		oidcClient:           r.oidcClient,
 		clusterTarget:        name,
 	}
 }

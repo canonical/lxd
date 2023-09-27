@@ -27,6 +27,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 	"github.com/canonical/lxd/shared/ws"
 )
 
@@ -164,13 +165,15 @@ func (s *consoleWs) connectVGA(op *operations.Operation, r *http.Request, w http
 
 		// Mirror the console and websocket.
 		go func() {
-			defer logger.Debug("Finished mirroring websocket to console")
+			l := logger.AddContext(logger.Ctx{"address": conn.RemoteAddr().String()})
 
-			logger.Debug("Started mirroring websocket")
+			defer l.Debug("Finished mirroring websocket to console")
+
+			l.Debug("Started mirroring websocket")
 			readDone, writeDone := ws.Mirror(context.Background(), conn, console)
 
 			<-readDone
-			logger.Debugf("Finished mirroring console to websocket")
+			l.Debug("Finished mirroring console to websocket")
 			<-writeDone
 		}()
 
@@ -277,16 +280,18 @@ func (s *consoleWs) doConsole(op *operations.Operation) error {
 	// Mirror the console and websocket.
 	mirrorDoneCh := make(chan struct{})
 	go func() {
-		defer logger.Debug("Finished mirroring websocket to console")
 		s.connsLock.Lock()
 		conn := s.conns[0]
 		s.connsLock.Unlock()
 
-		logger.Debug("Started mirroring websocket")
+		l := logger.AddContext(logger.Ctx{"address": conn.RemoteAddr().String()})
+		defer l.Debug("Finished mirroring websocket to console")
+
+		l.Debug("Started mirroring websocket")
 		readDone, writeDone := ws.Mirror(context.Background(), conn, console)
 
 		<-readDone
-		logger.Debug("Finished mirroring console to websocket")
+		l.Debug("Finished mirroring console to websocket")
 		<-writeDone
 		close(mirrorDoneCh)
 	}()
@@ -445,7 +450,7 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if client != nil {
-		url := api.NewURL().Path("1.0", "instances", name, "console").Project(projectName)
+		url := api.NewURL().Path(version.APIVersion, "instances", name, "console").Project(projectName)
 		resp, _, err := client.RawQuery("POST", url.String(), post, "")
 		if err != nil {
 			return response.SmartError(err)
@@ -505,8 +510,8 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	ws.height = post.Height
 	ws.protocol = post.Type
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{ws.instance.Name()}
+	resources := map[string][]api.URL{}
+	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", ws.instance.Name())}
 
 	if inst.Type() == instancetype.Container {
 		resources["containers"] = resources["instances"]

@@ -136,7 +136,7 @@ func (c *cmdRemoteAdd) findProject(d lxd.InstanceServer, project string) (string
 				fmt.Println(" - " + name)
 			}
 
-			return cli.AskChoice(i18n.G("Name of the project to use for this remote:")+" ", names, "")
+			return c.global.asker.AskChoice(i18n.G("Name of the project to use for this remote:")+" ", names, "")
 		}
 
 		return "", nil
@@ -786,8 +786,6 @@ func (c *cmdRemoteRename) Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
-
-			rc.Global = false
 		} else {
 			err := os.Rename(oldPath, newPath)
 			if err != nil {
@@ -796,6 +794,7 @@ func (c *cmdRemoteRename) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	rc.Global = false
 	conf.Remotes[args[1]] = rc
 	delete(conf.Remotes, args[0])
 

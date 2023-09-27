@@ -2,37 +2,6 @@
 
 package seccomp
 
-import (
-	"context"
-	"fmt"
-	"io"
-	"net"
-	"os"
-	"path"
-	"regexp"
-	"runtime"
-	"strconv"
-	"strings"
-	"unsafe"
-
-	liblxc "github.com/lxc/go-lxc"
-	"golang.org/x/sys/unix"
-
-	deviceConfig "github.com/canonical/lxd/lxd/device/config"
-	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
-	"github.com/canonical/lxd/lxd/project"
-	"github.com/canonical/lxd/lxd/state"
-	"github.com/canonical/lxd/lxd/ucred"
-	"github.com/canonical/lxd/lxd/util"
-	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/idmap"
-	"github.com/canonical/lxd/shared/linux"
-	"github.com/canonical/lxd/shared/logger"
-	"github.com/canonical/lxd/shared/netutils"
-	"github.com/canonical/lxd/shared/osarch"
-)
-
 /*
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1
@@ -468,6 +437,37 @@ static int handle_bpf_syscall(pid_t pid_target, int notify_fd, int mem_fd,
 #endif
 */
 import "C"
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"net"
+	"os"
+	"path"
+	"regexp"
+	"runtime"
+	"strconv"
+	"strings"
+	"unsafe"
+
+	liblxc "github.com/lxc/go-lxc"
+	"golang.org/x/sys/unix"
+
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/ucred"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/idmap"
+	"github.com/canonical/lxd/shared/linux"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/netutils"
+	"github.com/canonical/lxd/shared/osarch"
+)
 
 const lxdSeccompNotifyMknod = C.LXD_SECCOMP_NOTIFY_MKNOD
 const lxdSeccompNotifyMknodat = C.LXD_SECCOMP_NOTIFY_MKNODAT

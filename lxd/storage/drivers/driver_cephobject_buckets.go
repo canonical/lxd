@@ -15,6 +15,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -89,7 +90,8 @@ func (d *cephobject) CreateBucket(bucket Volume, op *operations.Operation) error
 		}
 	}
 
-	storageBucketName := d.radosgwBucketName(bucket.name)
+	_, bucketName := project.StorageVolumeParts(bucket.name)
+	storageBucketName := d.radosgwBucketName(bucketName)
 
 	// Must be defined before revert so that its not cancelled by time revert.Fail runs.
 	ctx, ctxCancel := context.WithTimeout(context.TODO(), time.Duration(time.Second*30))
@@ -148,7 +150,8 @@ func (d *cephobject) CreateBucket(bucket Volume, op *operations.Operation) error
 
 // setBucketQuota sets the bucket quota.
 func (d *cephobject) setBucketQuota(bucket Volume, quotaSize string) error {
-	storageBucketName := d.radosgwBucketName(bucket.name)
+	_, bucketName := project.StorageVolumeParts(bucket.name)
+	storageBucketName := d.radosgwBucketName(bucketName)
 
 	sizeBytes, err := units.ParseByteSizeString(quotaSize)
 	if err != nil {
@@ -165,7 +168,8 @@ func (d *cephobject) setBucketQuota(bucket Volume, quotaSize string) error {
 
 // DeleteBucket deletes an existing bucket.
 func (d *cephobject) DeleteBucket(bucket Volume, op *operations.Operation) error {
-	storageBucketName := d.radosgwBucketName(bucket.name)
+	_, bucketName := project.StorageVolumeParts(bucket.name)
+	storageBucketName := d.radosgwBucketName(bucketName)
 
 	err := d.radosgwadminBucketDelete(context.TODO(), storageBucketName)
 	if err != nil {
@@ -207,7 +211,8 @@ func (d *cephobject) bucketKeyRadosgwAccessRole(roleName string) (string, error)
 
 // CreateBucket creates a new bucket.
 func (d *cephobject) CreateBucketKey(bucket Volume, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
-	storageBucketName := d.radosgwBucketName(bucket.name)
+	_, bucketName := project.StorageVolumeParts(bucket.name)
+	storageBucketName := d.radosgwBucketName(bucketName)
 
 	accessRole, err := d.bucketKeyRadosgwAccessRole(roleName)
 	if err != nil {
@@ -235,7 +240,8 @@ func (d *cephobject) CreateBucketKey(bucket Volume, keyName string, creds S3Cred
 
 // UpdateBucketKey updates bucket key.
 func (d *cephobject) UpdateBucketKey(bucket Volume, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
-	storageBucketName := d.radosgwBucketName(bucket.name)
+	_, bucketName := project.StorageVolumeParts(bucket.name)
+	storageBucketName := d.radosgwBucketName(bucketName)
 
 	accessRole, err := d.bucketKeyRadosgwAccessRole(roleName)
 	if err != nil {
@@ -270,7 +276,8 @@ func (d *cephobject) UpdateBucketKey(bucket Volume, keyName string, creds S3Cred
 
 // DeleteBucketKey deletes an existing bucket key.
 func (d *cephobject) DeleteBucketKey(bucket Volume, keyName string, op *operations.Operation) error {
-	storageBucketName := d.radosgwBucketName(bucket.name)
+	_, bucketName := project.StorageVolumeParts(bucket.name)
+	storageBucketName := d.radosgwBucketName(bucketName)
 
 	err := d.radosgwadminSubUserDelete(context.TODO(), storageBucketName, keyName)
 	if err != nil {

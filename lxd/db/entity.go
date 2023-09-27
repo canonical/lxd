@@ -285,7 +285,16 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 
 		uri = fmt.Sprintf(cluster.EntityURIs[entityType], pool.Name)
 	case cluster.TypeStorageVolume:
-		args, err := c.GetStoragePoolVolumeWithID(entityID)
+		var args StorageVolumeArgs
+
+		err := c.Transaction(c.closingCtx, func(ctx context.Context, tx *ClusterTx) error {
+			args, err = tx.GetStoragePoolVolumeWithID(ctx, entityID)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
 		if err != nil {
 			return "", fmt.Errorf("Failed to get storage volume: %w", err)
 		}
@@ -297,12 +306,21 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 			return "", fmt.Errorf("Failed to get volume backup: %w", err)
 		}
 
-		instance, err := c.GetStoragePoolVolumeWithID(int(backup.ID))
+		var volume StorageVolumeArgs
+
+		err = c.Transaction(c.closingCtx, func(ctx context.Context, tx *ClusterTx) error {
+			volume, err = tx.GetStoragePoolVolumeWithID(ctx, int(backup.VolumeID))
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
 		if err != nil {
 			return "", fmt.Errorf("Failed to get storage volume: %w", err)
 		}
 
-		uri = fmt.Sprintf(cluster.EntityURIs[entityType], instance.PoolName, instance.Name, backup.Name, instance.ProjectName)
+		uri = fmt.Sprintf(cluster.EntityURIs[entityType], volume.PoolName, volume.TypeName, volume.Name, backup.Name, volume.ProjectName)
 	case cluster.TypeStorageVolumeSnapshot:
 		snapshot, err := c.GetStorageVolumeSnapshotWithID(entityID)
 		if err != nil {

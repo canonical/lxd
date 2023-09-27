@@ -112,7 +112,7 @@ func (c *cmdMigrateData) Render() string {
 
 func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	// Server address
-	serverURL, err := cli.AskString("Please provide LXD server URL: ", "", nil)
+	serverURL, err := c.global.asker.AskString("Please provide LXD server URL: ", "", nil)
 	if err != nil {
 		return nil, "", err
 	}
@@ -134,8 +134,8 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 
 	digest := shared.CertFingerprint(certificate)
 
-	fmt.Printf("Certificate fingerprint: %s\n", digest)
-	fmt.Printf("ok (y/n)? ")
+	fmt.Println("Certificate fingerprint:", digest)
+	fmt.Print("ok (y/n)? ")
 	line, err := shared.ReadStdin()
 	if err != nil {
 		return nil, "", err
@@ -190,7 +190,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	}
 
 	if len(apiServer.AuthMethods) > 1 || shared.StringInSlice("tls", apiServer.AuthMethods) {
-		authMethodInt, err := cli.AskInt("Please pick an authentication mechanism above: ", 1, int64(i), "", nil)
+		authMethodInt, err := c.global.asker.AskInt("Please pick an authentication mechanism above: ", 1, int64(i), "", nil)
 		if err != nil {
 			return nil, "", err
 		}
@@ -203,7 +203,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	var token string
 
 	if authMethod == authMethodTLSCertificate {
-		certPath, err = cli.AskString("Please provide the certificate path: ", "", func(path string) error {
+		certPath, err = c.global.asker.AskString("Please provide the certificate path: ", "", func(path string) error {
 			if !shared.PathExists(path) {
 				return errors.New("File does not exist")
 			}
@@ -214,7 +214,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 			return nil, "", err
 		}
 
-		keyPath, err = cli.AskString("Please provide the keyfile path: ", "", func(path string) error {
+		keyPath, err = c.global.asker.AskString("Please provide the keyfile path: ", "", func(path string) error {
 			if !shared.PathExists(path) {
 				return errors.New("File does not exist")
 			}
@@ -225,7 +225,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 			return nil, "", err
 		}
 	} else if authMethod == authMethodTLSCertificateToken {
-		token, err = cli.AskString("Please provide the certificate token: ", "", func(token string) error {
+		token, err = c.global.asker.AskString("Please provide the certificate token: ", "", func(token string) error {
 			_, err := shared.CertificateTokenDecode(token)
 			if err != nil {
 				return err
@@ -247,7 +247,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 		authType = "tls"
 	}
 
-	return connectTarget(serverURL, certPath, keyPath, authType, token)
+	return c.connectTarget(serverURL, certPath, keyPath, authType, token)
 }
 
 func (c *cmdMigrate) RunInteractive(server lxd.InstanceServer) (cmdMigrateData, error) {
@@ -266,7 +266,7 @@ func (c *cmdMigrate) RunInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 	config.InstanceArgs.Devices = map[string]map[string]string{}
 
 	// Provide instance type
-	instanceType, err := cli.AskInt("Would you like to create a container (1) or virtual-machine (2)?: ", 1, 2, "1", nil)
+	instanceType, err := c.global.asker.AskInt("Would you like to create a container (1) or virtual-machine (2)?: ", 1, 2, "1", nil)
 	if err != nil {
 		return cmdMigrateData{}, err
 	}
@@ -284,7 +284,7 @@ func (c *cmdMigrate) RunInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 	}
 
 	if len(projectNames) > 1 {
-		project, err := cli.AskChoice("Project to create the instance in [default=default]: ", projectNames, "default")
+		project, err := c.global.asker.AskChoice("Project to create the instance in [default=default]: ", projectNames, "default")
 		if err != nil {
 			return cmdMigrateData{}, err
 		}
@@ -301,7 +301,7 @@ func (c *cmdMigrate) RunInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 	}
 
 	for {
-		instanceName, err := cli.AskString("Name of the new instance: ", "", nil)
+		instanceName, err := c.global.asker.AskString("Name of the new instance: ", "", nil)
 		if err != nil {
 			return cmdMigrateData{}, err
 		}
@@ -324,7 +324,7 @@ func (c *cmdMigrate) RunInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 		question = "Please provide the path to a root filesystem: "
 	}
 
-	config.SourcePath, err = cli.AskString(question, "", func(s string) error {
+	config.SourcePath, err = c.global.asker.AskString(question, "", func(s string) error {
 		if !shared.PathExists(s) {
 			return errors.New("Path does not exist")
 		}
@@ -344,13 +344,13 @@ func (c *cmdMigrate) RunInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 		architectureName, _ := osarch.ArchitectureGetLocal()
 
 		if shared.StringInSlice(architectureName, []string{"x86_64", "aarch64"}) {
-			hasSecureBoot, err := cli.AskBool("Does the VM support UEFI Secure Boot? [default=no]: ", "no")
+			hasSecureBoot, err := c.global.asker.AskBool("Does the VM support UEFI Secure Boot? [default=no]: ", "no")
 			if err != nil {
 				return cmdMigrateData{}, err
 			}
 
-			if hasSecureBoot {
-				config.InstanceArgs.Config["security.secureboot"] = "true"
+			if !hasSecureBoot {
+				config.InstanceArgs.Config["security.secureboot"] = "false"
 			}
 		}
 	}
@@ -359,14 +359,14 @@ func (c *cmdMigrate) RunInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 
 	// Additional mounts for containers
 	if config.InstanceArgs.Type == api.InstanceTypeContainer {
-		addMounts, err := cli.AskBool("Do you want to add additional filesystem mounts? [default=no]: ", "no")
+		addMounts, err := c.global.asker.AskBool("Do you want to add additional filesystem mounts? [default=no]: ", "no")
 		if err != nil {
 			return cmdMigrateData{}, err
 		}
 
 		if addMounts {
 			for {
-				path, err := cli.AskString("Please provide a path the filesystem mount path [empty value to continue]: ", "", func(s string) error {
+				path, err := c.global.asker.AskString("Please provide a path the filesystem mount path [empty value to continue]: ", "", func(s string) error {
 					if s != "" {
 						if shared.PathExists(s) {
 							return nil
@@ -393,14 +393,14 @@ func (c *cmdMigrate) RunInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 	}
 
 	for {
-		fmt.Printf("\nInstance to be created:\n")
+		fmt.Println("\nInstance to be created:")
 
 		scanner := bufio.NewScanner(strings.NewReader(config.Render()))
 		for scanner.Scan() {
 			fmt.Printf("  %s\n", scanner.Text())
 		}
 
-		fmt.Printf(`
+		fmt.Print(`
 Additional overrides can be applied at this stage:
 1) Begin the migration with the above configuration
 2) Override profile list
@@ -410,7 +410,7 @@ Additional overrides can be applied at this stage:
 
 `)
 
-		choice, err := cli.AskInt("Please pick one of the options above [default=1]: ", 1, 5, "1", nil)
+		choice, err := c.global.asker.AskInt("Please pick one of the options above [default=1]: ", 1, 5, "1", nil)
 		if err != nil {
 			return cmdMigrateData{}, err
 		}
@@ -595,7 +595,7 @@ func (c *cmdMigrate) askProfiles(server lxd.InstanceServer, config *cmdMigrateDa
 		return err
 	}
 
-	profiles, err := cli.AskString("Which profiles do you want to apply to the instance? (space separated) [default=default, \"-\" for none]: ", "default", func(s string) error {
+	profiles, err := c.global.asker.AskString("Which profiles do you want to apply to the instance? (space separated) [default=default, \"-\" for none]: ", "default", func(s string) error {
 		// This indicates that no profiles should be applied.
 		if s == "-" {
 			return nil
@@ -623,7 +623,7 @@ func (c *cmdMigrate) askProfiles(server lxd.InstanceServer, config *cmdMigrateDa
 }
 
 func (c *cmdMigrate) askConfig(config *cmdMigrateData) error {
-	configs, err := cli.AskString("Please specify config keys and values (key=value ...): ", "", func(s string) error {
+	configs, err := c.global.asker.AskString("Please specify config keys and values (key=value ...): ", "", func(s string) error {
 		if s == "" {
 			return nil
 		}
@@ -641,8 +641,8 @@ func (c *cmdMigrate) askConfig(config *cmdMigrateData) error {
 	}
 
 	for _, entry := range strings.Split(configs, " ") {
-		fields := strings.SplitN(entry, "=", 2)
-		config.InstanceArgs.Config[fields[0]] = fields[1]
+		key, value, _ := strings.Cut(entry, "=")
+		config.InstanceArgs.Config[key] = value
 	}
 
 	return nil
@@ -658,7 +658,7 @@ func (c *cmdMigrate) askStorage(server lxd.InstanceServer, config *cmdMigrateDat
 		return fmt.Errorf("No storage pools available")
 	}
 
-	storagePool, err := cli.AskChoice("Please provide the storage pool to use: ", storagePools, "")
+	storagePool, err := c.global.asker.AskChoice("Please provide the storage pool to use: ", storagePools, "")
 	if err != nil {
 		return err
 	}
@@ -669,13 +669,13 @@ func (c *cmdMigrate) askStorage(server lxd.InstanceServer, config *cmdMigrateDat
 		"path": "/",
 	}
 
-	changeStorageSize, err := cli.AskBool("Do you want to change the storage size? [default=no]: ", "no")
+	changeStorageSize, err := c.global.asker.AskBool("Do you want to change the storage size? [default=no]: ", "no")
 	if err != nil {
 		return err
 	}
 
 	if changeStorageSize {
-		size, err := cli.AskString("Please specify the storage size: ", "", func(s string) error {
+		size, err := c.global.asker.AskString("Please specify the storage size: ", "", func(s string) error {
 			_, err := units.ParseByteSizeString(s)
 			return err
 		})
@@ -695,7 +695,7 @@ func (c *cmdMigrate) askNetwork(server lxd.InstanceServer, config *cmdMigrateDat
 		return err
 	}
 
-	network, err := cli.AskChoice("Please specify the network to use for the instance: ", networks, "")
+	network, err := c.global.asker.AskChoice("Please specify the network to use for the instance: ", networks, "")
 	if err != nil {
 		return err
 	}

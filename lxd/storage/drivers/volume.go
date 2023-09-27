@@ -19,6 +19,9 @@ import (
 // tmpVolSuffix Suffix to use for any temporary volumes created by LXD.
 const tmpVolSuffix = ".lxdtmp"
 
+// isoVolSuffix suffix used for iso content type volumes.
+const isoVolSuffix = ".iso"
+
 // DefaultBlockSize is the default size of block volumes.
 const DefaultBlockSize = "10GiB"
 
@@ -67,6 +70,9 @@ const ContentTypeFS = ContentType("filesystem")
 // ContentTypeBlock indicates the volume will be a block device and its contents and we do not
 // know which filesystem(s) (if any) are in use.
 const ContentTypeBlock = ContentType("block")
+
+// ContentTypeISO indicates the volume will be an ISO which is read-only, and uses the ISO 9660 filesystem.
+const ContentTypeISO = ContentType("iso")
 
 // VolumePostHook function returned from a storage action that should be run later to complete the action.
 type VolumePostHook func(vol Volume) error
@@ -158,7 +164,13 @@ func (v Volume) MountPath() string {
 		return v.mountCustomPath
 	}
 
-	return GetVolumeMountPath(v.pool, v.volType, v.name)
+	volName := v.name
+
+	if v.volType == VolumeTypeCustom && v.contentType == ContentTypeISO {
+		volName = fmt.Sprintf("%s%s", volName, isoVolSuffix)
+	}
+
+	return GetVolumeMountPath(v.pool, v.volType, volName)
 }
 
 // mountLockName returns the lock name to use for mount/unmount operations on a volume.
@@ -465,7 +477,7 @@ func (v Volume) ConfigSize() string {
 
 	// If volume size isn't defined in either volume or pool config, then for block volumes or block-backed
 	// volumes return the defaultBlockSize.
-	if (size == "" || size == "0") && (v.contentType == ContentTypeBlock || v.driver.Info().BlockBacking) {
+	if (size == "" || size == "0") && (v.contentType == ContentTypeBlock || v.IsBlockBacked()) {
 		return DefaultBlockSize
 	}
 

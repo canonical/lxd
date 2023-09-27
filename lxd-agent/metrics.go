@@ -86,12 +86,18 @@ func getCPUMetrics(d *Daemon) (map[string]metrics.CPUMetrics, error) {
 	scanner := bufio.NewScanner(bytes.NewReader(stats))
 
 	for scanner.Scan() {
-		fields := strings.Fields(scanner.Text())
+		line := scanner.Text()
+		fields := strings.Fields(line)
 
 		// Only consider CPU info, skip everything else. Skip aggregated CPU stats since there will
 		// be stats for each individual CPU.
 		if !strings.HasPrefix(fields[0], "cpu") || fields[0] == "cpu" {
 			continue
+		}
+
+		// Validate the number of fields only for lines starting with "cpu".
+		if len(fields) < 9 {
+			return nil, fmt.Errorf("Invalid /proc/stat content: %q", line)
 		}
 
 		stats := metrics.CPUMetrics{}
@@ -214,6 +220,10 @@ func getDiskMetrics(d *Daemon) (map[string]metrics.DiskMetrics, error) {
 		}
 
 		fields := strings.Fields(line)
+		if len(fields) < 10 {
+			return nil, fmt.Errorf("Invalid /proc/diskstats content: %q", line)
+		}
+
 		stats := metrics.DiskMetrics{}
 
 		stats.ReadsCompleted, err = strconv.ParseUint(fields[3], 10, 64)
@@ -256,7 +266,12 @@ func getFilesystemMetrics(d *Daemon) (map[string]metrics.FilesystemMetrics, erro
 	scanner := bufio.NewScanner(bytes.NewReader(mounts))
 
 	for scanner.Scan() {
-		fields := strings.Fields(scanner.Text())
+		line := scanner.Text()
+		fields := strings.Fields(line)
+
+		if len(fields) < 3 {
+			return nil, fmt.Errorf("Invalid /proc/mounts content: %q", line)
+		}
 
 		// Skip uninteresting mounts
 		if shared.StringInSlice(fields[2], defFSTypesExcluded) || defMountPointsExcluded.MatchString(fields[1]) {
@@ -297,7 +312,12 @@ func getMemoryMetrics(d *Daemon) (metrics.MemoryMetrics, error) {
 	scanner := bufio.NewScanner(bytes.NewReader(content))
 
 	for scanner.Scan() {
-		fields := strings.Fields(scanner.Text())
+		line := scanner.Text()
+		fields := strings.Fields(line)
+
+		if len(fields) < 2 {
+			return metrics.MemoryMetrics{}, fmt.Errorf("Invalid /proc/meminfo content: %q", line)
+		}
 
 		fields[0] = strings.TrimRight(fields[0], ":")
 

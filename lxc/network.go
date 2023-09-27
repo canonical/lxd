@@ -72,6 +72,10 @@ func (c *cmdNetwork) Command() *cobra.Command {
 	networkListCmd := cmdNetworkList{global: c.global, network: c}
 	cmd.AddCommand(networkListCmd.Command())
 
+	// List allocations
+	networkListAllocationsCmd := cmdNetworkListAllocations{global: c.global, network: c}
+	cmd.AddCommand(networkListAllocationsCmd.Command())
+
 	// List leases
 	networkListLeasesCmd := cmdNetworkListLeases{global: c.global, network: c}
 	cmd.AddCommand(networkListLeasesCmd.Command())
@@ -701,6 +705,8 @@ func (c *cmdNetworkEdit) Run(cmd *cobra.Command, args []string) error {
 type cmdNetworkGet struct {
 	global  *cmdGlobal
 	network *cmdNetwork
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkGet) Command() *cobra.Command {
@@ -711,6 +717,7 @@ func (c *cmdNetworkGet) Command() *cobra.Command {
 		`Get values for network configuration keys`))
 
 	cmd.Flags().StringVar(&c.network.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a network property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -746,9 +753,19 @@ func (c *cmdNetworkGet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for k, v := range resp.Config {
-		if k == args[1] {
-			fmt.Printf("%s\n", v)
+	if c.flagIsProperty {
+		w := resp.Writable()
+		res, err := getFieldByJsonTag(&w, args[1])
+		if err != nil {
+			return fmt.Errorf(i18n.G("The property %q does not exist on the network %q: %v"), args[1], resource.name, err)
+		}
+
+		fmt.Printf("%v\n", res)
+	} else {
+		for k, v := range resp.Config {
+			if k == args[1] {
+				fmt.Printf("%s\n", v)
+			}
 		}
 	}
 
@@ -1096,6 +1113,8 @@ func (c *cmdNetworkRename) Run(cmd *cobra.Command, args []string) error {
 type cmdNetworkSet struct {
 	global  *cmdGlobal
 	network *cmdNetwork
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkSet) Command() *cobra.Command {
@@ -1109,6 +1128,7 @@ For backward compatibility, a single configuration key may still be set with:
     lxc network set [<remote>:]<network> <key> <value>`))
 
 	cmd.Flags().StringVar(&c.network.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a network property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -1155,11 +1175,28 @@ func (c *cmdNetworkSet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for k, v := range keys {
-		network.Config[k] = v
+	writable := network.Writable()
+	if c.flagIsProperty {
+		if cmd.Name() == "unset" {
+			for k := range keys {
+				err := unsetFieldByJsonTag(&writable, k)
+				if err != nil {
+					return fmt.Errorf(i18n.G("Error unsetting property: %v"), err)
+				}
+			}
+		} else {
+			err := unpackKVToWritable(&writable, keys)
+			if err != nil {
+				return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+			}
+		}
+	} else {
+		for k, v := range keys {
+			writable.Config[k] = v
+		}
 	}
 
-	return client.UpdateNetwork(resource.name, network.Writable(), etag)
+	return client.UpdateNetwork(resource.name, writable, etag)
 }
 
 // Show.
@@ -1228,6 +1265,8 @@ type cmdNetworkUnset struct {
 	global     *cmdGlobal
 	network    *cmdNetwork
 	networkSet *cmdNetworkSet
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkUnset) Command() *cobra.Command {
@@ -1238,6 +1277,7 @@ func (c *cmdNetworkUnset) Command() *cobra.Command {
 		`Unset network configuration keys`))
 
 	cmd.Flags().StringVar(&c.network.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a network property"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -1249,6 +1289,8 @@ func (c *cmdNetworkUnset) Run(cmd *cobra.Command, args []string) error {
 	if exit {
 		return err
 	}
+
+	c.networkSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
 	return c.networkSet.Run(cmd, args)

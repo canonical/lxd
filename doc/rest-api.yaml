@@ -1790,6 +1790,13 @@ definitions:
         title: InstancePut represents the modifiable fields of a LXD instance.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    InstanceRebuildPost:
+        properties:
+            source:
+                $ref: '#/definitions/InstanceSource'
+        title: InstanceRebuildPost indicates how to rebuild an instance.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     InstanceSnapshot:
         properties:
             architecture:
@@ -2059,7 +2066,7 @@ definitions:
             disk:
                 additionalProperties:
                     $ref: '#/definitions/InstanceStateDisk'
-                description: Dict of disk usage
+                description: Disk usage key/value pairs
                 type: object
                 x-go-name: Disk
             memory:
@@ -2067,7 +2074,7 @@ definitions:
             network:
                 additionalProperties:
                     $ref: '#/definitions/InstanceStateNetwork'
-                description: Dict of network usage
+                description: Network usage key/value pairs
                 type: object
                 x-go-name: Network
             pid:
@@ -2105,6 +2112,12 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     InstanceStateDisk:
         properties:
+            total:
+                description: Total size in bytes
+                example: 502239232
+                format: int64
+                type: integer
+                x-go-name: Total
             usage:
                 description: Disk usage in bytes
                 example: 502239232
@@ -2128,6 +2141,12 @@ definitions:
                 format: int64
                 type: integer
                 x-go-name: SwapUsagePeak
+            total:
+                description: Total memory size in bytes
+                example: 12297557
+                format: int64
+                type: integer
+                x-go-name: Total
             usage:
                 description: Memory usage in bytes
                 example: 73248768
@@ -2614,6 +2633,34 @@ definitions:
                 type: string
                 x-go-name: Name
         title: NetworkACLsPost used for creating an ACL.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    NetworkAllocations:
+        description: |-
+            NetworkAllocations used for displaying network addresses used by a consuming entity
+            e.g, instance, network forward, load-balancer, network...
+        properties:
+            addresses:
+                description: The network address of the allocation (in CIDR format)
+                example: 192.0.2.1/24
+                type: string
+                x-go-name: Address
+            hwaddr:
+                description: Hwaddr is the MAC address of the entity consuming the network address
+                type: string
+                x-go-name: Hwaddr
+            nat:
+                description: Whether the entity comes from a network that LXD performs egress source NAT on
+                type: boolean
+                x-go-name: NAT
+            type:
+                description: Type of the entity consuming the network address
+                type: string
+                x-go-name: Type
+            used_by:
+                description: Name of the entity consuming the network address
+                type: string
+                x-go-name: UsedBy
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     NetworkForward:
@@ -4370,6 +4417,8 @@ definitions:
                 example: "2:7"
                 type: string
                 x-go-name: USBAddress
+            vdpa:
+                $ref: '#/definitions/ResourcesNetworkCardVDPA'
             vendor:
                 description: Name of the vendor
                 example: Aquantia Corp.
@@ -4520,6 +4569,19 @@ definitions:
                 x-go-name: VFs
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    ResourcesNetworkCardVDPA:
+        description: ResourceNetworkCardVDPA represents the VDPA configuration of the network card
+        properties:
+            device:
+                description: Device identifier of the VDPA device
+                type: string
+                x-go-name: Device
+            name:
+                description: Name of the VDPA device
+                type: string
+                x-go-name: Name
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesPCI:
         description: ResourcesPCI represents the PCI devices available on the system
         properties:
@@ -4597,7 +4659,7 @@ definitions:
             entries:
                 additionalProperties:
                     type: string
-                description: Dict of vendor provided key/value pairs.
+                description: Vendor provided key/value pairs.
                 example: '{"EC": ""A-5545", "MN": "103C", "V0": "5W PCIeGen2"}'
                 type: object
                 x-go-name: Entries
@@ -5074,6 +5136,18 @@ definitions:
                 readOnly: true
                 type: array
                 x-go-name: AuthMethods
+            auth_user_method:
+                description: The current user login method as seen by LXD
+                example: unix
+                readOnly: true
+                type: string
+                x-go-name: AuthUserMethod
+            auth_user_name:
+                description: The current user username as seen by LXD
+                example: uid=201105
+                readOnly: true
+                type: string
+                x-go-name: AuthUserName
             config:
                 additionalProperties: {}
                 description: Server configuration map (refer to doc/server.md)
@@ -5853,11 +5927,18 @@ definitions:
     StorageVolumeSnapshotPost:
         description: StorageVolumeSnapshotPost represents the fields required to rename/move a LXD storage volume snapshot
         properties:
+            migration:
+                description: Initiate volume snapshot migration
+                example: false
+                type: boolean
+                x-go-name: Migration
             name:
                 description: New snapshot name
                 example: snap1
                 type: string
                 x-go-name: Name
+            target:
+                $ref: '#/definitions/StorageVolumePostTarget'
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     StorageVolumeSnapshotPut:
@@ -10071,6 +10152,52 @@ paths:
             summary: Get the network ACLs
             tags:
                 - network-acls
+    /1.0/network-allocations:
+        get:
+            description: Returns a list of network allocations in use by a LXD deployment.
+            operationId: network_allocations_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Retrieve entities from all projects
+                  in: query
+                  name: all-projects
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        properties:
+                            metadata:
+                                description: List of network allocations used by a consuming entity
+                                items:
+                                    $ref: '#/definitions/NetworkAllocations'
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the network allocations in use (`network`, `network-forward` and `load-balancer` and `instance`)
+            tags:
+                - network-allocations
     /1.0/network-zones:
         get:
             description: Returns a list of network zones (URLs).
@@ -10150,7 +10277,7 @@ paths:
             summary: Add a network zone
             tags:
                 - network-zones
-    /1.0/network-zones/{name}:
+    /1.0/network-zones/{zone}:
         delete:
             description: Removes the network zone.
             operationId: network_zone_delete
@@ -11476,8 +11603,18 @@ paths:
                 - networks
     /1.0/operations:
         get:
-            description: Returns a dict of operation type to operation list (URLs).
+            description: Returns a JSON object of operation type to operation list (URLs).
             operationId: operations_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Retrieve operations from all projects
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:
@@ -11491,7 +11628,7 @@ paths:
                                     items:
                                         type: string
                                     type: array
-                                description: Dict of operation types to operation URLs
+                                description: JSON object of operation types to operation URLs
                                 example: |-
                                     {
                                       "running": [
@@ -11717,6 +11854,16 @@ paths:
         get:
             description: Returns a list of operations (structs).
             operationId: operations_get_recursion1
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Retrieve operations from all projects
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:
@@ -12430,7 +12577,47 @@ paths:
             summary: Add a storage pool
             tags:
                 - storage
-    /1.0/storage-pools/{name}:
+    /1.0/storage-pools/{name}/resources:
+        get:
+            description: Gets the usage information for the storage pool.
+            operationId: storage_pool_resources
+            parameters:
+                - description: Cluster member name
+                  example: lxd01
+                  in: query
+                  name: target
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Hardware resources
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/ResourcesStoragePool'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get storage pool resources information
+            tags:
+                - storage
+    /1.0/storage-pools/{poolName}:
         delete:
             description: Removes the storage pool.
             operationId: storage_pools_delete
@@ -12574,47 +12761,7 @@ paths:
             summary: Update the storage pool
             tags:
                 - storage
-    /1.0/storage-pools/{name}/resources:
-        get:
-            description: Gets the usage information for the storage pool.
-            operationId: storage_pool_resources
-            parameters:
-                - description: Cluster member name
-                  example: lxd01
-                  in: query
-                  name: target
-                  type: string
-            produces:
-                - application/json
-            responses:
-                "200":
-                    description: Hardware resources
-                    schema:
-                        description: Sync response
-                        properties:
-                            metadata:
-                                $ref: '#/definitions/ResourcesStoragePool'
-                            status:
-                                description: Status description
-                                example: Success
-                                type: string
-                            status_code:
-                                description: Status code
-                                example: 200
-                                type: integer
-                            type:
-                                description: Response type
-                                example: sync
-                                type: string
-                        type: object
-                "403":
-                    $ref: '#/responses/Forbidden'
-                "500":
-                    $ref: '#/responses/InternalServerError'
-            summary: Get storage pool resources information
-            tags:
-                - storage
-    /1.0/storage-pools/{name}/volumes:
+    /1.0/storage-pools/{poolName}/volumes:
         get:
             description: Returns a list of storage volumes (URLs).
             operationId: storage_pool_volumes_get
@@ -12714,7 +12861,7 @@ paths:
             summary: Add a storage volume
             tags:
                 - storage
-    /1.0/storage-pools/{name}/volumes/{type}:
+    /1.0/storage-pools/{poolName}/volumes/{type}:
         get:
             description: Returns a list of storage volumes (URLs) (type specific endpoint).
             operationId: storage_pool_volumes_type_get
@@ -12807,7 +12954,7 @@ paths:
             summary: Add a storage volume
             tags:
                 - storage
-    /1.0/storage-pools/{name}/volumes/{type}/{volume}:
+    /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}:
         delete:
             description: Removes the storage volume.
             operationId: storage_pool_volume_type_delete
@@ -12998,7 +13145,7 @@ paths:
             summary: Update the storage volume
             tags:
                 - storage
-    /1.0/storage-pools/{name}/volumes/{type}/{volume}/backups:
+    /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/backups:
         get:
             description: Returns a list of storage volume backups (URLs).
             operationId: storage_pool_volumes_type_backups_get
@@ -13087,7 +13234,7 @@ paths:
             summary: Create a storage volume backup
             tags:
                 - storage
-    /1.0/storage-pools/{name}/volumes/{type}/{volume}/backups/{backup}:
+    /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName}:
         delete:
             consumes:
                 - application/json
@@ -13198,7 +13345,7 @@ paths:
             summary: Rename a storage volume backup
             tags:
                 - storage
-    /1.0/storage-pools/{name}/volumes/{type}/{volume}/backups/{backup}/export:
+    /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName}/export:
         get:
             description: Download the raw backup file from the server.
             operationId: storage_pool_volumes_type_backup_export_get
@@ -13225,7 +13372,7 @@ paths:
             summary: Get the raw backup file
             tags:
                 - storage
-    /1.0/storage-pools/{name}/volumes/{type}/{volume}/backups?recursion=1:
+    /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/backups?recursion=1:
         get:
             description: Returns a list of storage volume backups (structs).
             operationId: storage_pool_volumes_type_backups_get_recursion1
@@ -13273,7 +13420,7 @@ paths:
             summary: Get the storage volume backups
             tags:
                 - storage
-    /1.0/storage-pools/{name}/volumes/{type}/{volume}/snapshots:
+    /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots:
         get:
             description: Returns a list of storage volume snapshots (URLs).
             operationId: storage_pool_volumes_type_snapshots_get
@@ -13362,7 +13509,7 @@ paths:
             summary: Create a storage volume snapshot
             tags:
                 - storage
-    /1.0/storage-pools/{name}/volumes/{type}/{volume}/snapshots/{snapshot}:
+    /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName}:
         delete:
             consumes:
                 - application/json
@@ -13549,7 +13696,7 @@ paths:
             summary: Update the storage volume snapshot
             tags:
                 - storage
-    /1.0/storage-pools/{name}/volumes/{type}/{volume}/snapshots?recursion=1:
+    /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots?recursion=1:
         get:
             description: Returns a list of storage volume snapshots (structs).
             operationId: storage_pool_volumes_type_snapshots_get_recursion1
@@ -13597,7 +13744,7 @@ paths:
             summary: Get the storage volume snapshots
             tags:
                 - storage
-    /1.0/storage-pools/{name}/volumes/{type}/{volume}/state:
+    /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/state:
         get:
             description: Gets a specific storage volume state (usage data).
             operationId: storage_pool_volume_type_state_get
@@ -13642,7 +13789,7 @@ paths:
             summary: Get the storage volume state
             tags:
                 - storage
-    /1.0/storage-pools/{name}/volumes/{type}?recursion=1:
+    /1.0/storage-pools/{poolName}/volumes/{type}?recursion=1:
         get:
             description: Returns a list of storage volumes (structs) (type specific endpoint).
             operationId: storage_pool_volumes_type_get_recursion1
@@ -13690,7 +13837,7 @@ paths:
             summary: Get the storage volumes
             tags:
                 - storage
-    /1.0/storage-pools/{name}/volumes?recursion=1:
+    /1.0/storage-pools/{poolName}/volumes?recursion=1:
         get:
             description: Returns a list of storage volumes (structs).
             operationId: storage_pool_volumes_get_recursion1

@@ -229,8 +229,9 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return pool.CreateCustomVolumeSnapshot(projectName, volumeName, req.Name, expiry, op)
 	}
 
-	resources := map[string][]string{}
-	resources["storage_volumes"] = []string{volumeName}
+	resources := map[string][]api.URL{}
+	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", volumeTypeName, volumeName)}
+	resources["storage_volume_snapshots"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", volumeTypeName, volumeName, "snapshots", req.Name)}
 
 	op, err := operations.OperationCreate(s, projectParam(r), operations.OperationClassTask, operationtype.VolumeSnapshotCreate, resources, nil, snapshot, nil, nil, r)
 	if err != nil {
@@ -416,7 +417,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 				return response.SmartError(err)
 			}
 
-			vol.UsedBy = project.FilterUsedBy(r, volumeUsedBy)
+			vol.UsedBy = project.FilterUsedBy(s.Authorizer, r, volumeUsedBy)
 
 			tmp := &api.StorageVolumeSnapshot{}
 			tmp.Config = vol.Config
@@ -548,6 +549,16 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 		return response.BadRequest(fmt.Errorf("Storage volume names may not contain slashes"))
 	}
 
+	// This is a migration request so send back requested secrets.
+	if req.Migration {
+		req := api.StorageVolumePost{
+			Name:   req.Name,
+			Target: req.Target,
+		}
+
+		return storagePoolVolumeTypePostMigration(s, r, projectParam(r), projectName, poolName, fullSnapshotName, req)
+	}
+
 	// Rename the snapshot.
 	snapshotRename := func(op *operations.Operation) error {
 		pool, err := storagePools.LoadByName(s, poolName)
@@ -558,8 +569,8 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 		return pool.RenameCustomVolumeSnapshot(projectName, fullSnapshotName, req.Name, op)
 	}
 
-	resources := map[string][]string{}
-	resources["storage_volume_snapshots"] = []string{volumeName}
+	resources := map[string][]api.URL{}
+	resources["storage_volume_snapshots"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", volumeTypeName, volumeName, "snapshots", snapshotName)}
 
 	op, err := operations.OperationCreate(s, projectParam(r), operations.OperationClassTask, operationtype.VolumeSnapshotRename, resources, nil, snapshotRename, nil, nil, r)
 	if err != nil {
@@ -1085,8 +1096,8 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 		return pool.DeleteCustomVolumeSnapshot(projectName, fullSnapshotName, op)
 	}
 
-	resources := map[string][]string{}
-	resources["storage_volume_snapshots"] = []string{volumeName}
+	resources := map[string][]api.URL{}
+	resources["storage_volume_snapshots"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", volumeTypeName, volumeName, "snapshots", snapshotName)}
 
 	op, err := operations.OperationCreate(s, projectParam(r), operations.OperationClassTask, operationtype.VolumeSnapshotDelete, resources, nil, snapshotDelete, nil, nil, r)
 	if err != nil {

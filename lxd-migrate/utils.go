@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery"
@@ -23,7 +24,6 @@ import (
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/version"
 	"github.com/canonical/lxd/shared/ws"
 )
@@ -37,9 +37,14 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 		return err
 	}
 
+	abort := func(err error) error {
+		protoSendError(wsControl, err)
+		return err
+	}
+
 	wsFs, err := op.GetWebsocket(opAPI.Metadata[api.SecretNameFilesystem].(string))
 	if err != nil {
-		return err
+		return abort(err)
 	}
 
 	// Setup control struct
@@ -54,7 +59,7 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 		rsyncHasFeature = true
 	}
 
-	header := migration.MigrationHeader{
+	offerHeader := migration.MigrationHeader{
 		RsyncFeatures: &migration.RsyncFeatures{
 			Xattrs:   &rsyncHasFeature,
 			Delete:   &rsyncHasFeature,
@@ -66,42 +71,43 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 	if instanceType == api.InstanceTypeVM {
 		stat, err := os.Stat(filepath.Join(rootfs, "root.img"))
 		if err != nil {
-			return err
+			return abort(err)
 		}
 
 		size := stat.Size()
-		header.VolumeSize = &size
+		offerHeader.VolumeSize = &size
 		rootfs = shared.AddSlash(rootfs)
 	}
 
-	err = migration.ProtoSend(wsControl, &header)
+	err = migration.ProtoSend(wsControl, &offerHeader)
 	if err != nil {
-		protoSendError(wsControl, err)
-		return err
+		return abort(err)
 	}
 
-	err = migration.ProtoRecv(wsControl, &header)
+	var respHeader migration.MigrationHeader
+	err = migration.ProtoRecv(wsControl, &respHeader)
 	if err != nil {
-		protoSendError(wsControl, err)
-		return err
+		return abort(err)
+	}
+
+	rsyncFeaturesOffered := offerHeader.GetRsyncFeaturesSlice()
+	rsyncFeaturesResponse := respHeader.GetRsyncFeaturesSlice()
+
+	if !reflect.DeepEqual(rsyncFeaturesOffered, rsyncFeaturesResponse) {
+		return abort(fmt.Errorf("Offered rsync features (%v) differ from those in the migration response (%v)", rsyncFeaturesOffered, rsyncFeaturesResponse))
 	}
 
 	// Send the filesystem
-	abort := func(err error) error {
-		protoSendError(wsControl, err)
-		return err
-	}
-
 	err = rsyncSend(ctx, wsFs, rootfs, rsyncArgs, instanceType)
 	if err != nil {
-		return abort(err)
+		return abort(fmt.Errorf("Failed sending filesystem volume: %w", err))
 	}
 
 	// Send block volume
 	if instanceType == api.InstanceTypeVM {
 		f, err := os.Open(filepath.Join(rootfs, "root.img"))
 		if err != nil {
-			return err
+			return abort(err)
 		}
 
 		defer func() { _ = f.Close() }()
@@ -116,12 +122,12 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 
 		_, err = io.Copy(conn, f)
 		if err != nil {
-			return err
+			return abort(fmt.Errorf("Failed sending block volume: %w", err))
 		}
 
 		err = conn.Close()
 		if err != nil {
-			return err
+			return abort(err)
 		}
 	}
 
@@ -140,7 +146,7 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 	return nil
 }
 
-func connectTarget(url string, certPath string, keyPath string, authType string, token string) (lxd.InstanceServer, string, error) {
+func (m *cmdMigrate) connectTarget(url string, certPath string, keyPath string, authType string, token string) (lxd.InstanceServer, string, error) {
 	args := lxd.ConnectionArgs{
 		AuthType: authType,
 	}
@@ -267,7 +273,7 @@ func connectTarget(url string, certPath string, keyPath string, authType string,
 
 			fmt.Println("")
 
-			useTrustPassword, err := cli.AskBool("Would you like to use a trust password? [default=no]: ", "no")
+			useTrustPassword, err := m.global.asker.AskBool("Would you like to use a trust password? [default=no]: ", "no")
 			if err != nil {
 				return nil, "", err
 			}

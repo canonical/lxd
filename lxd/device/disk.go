@@ -101,8 +101,30 @@ func (d *disk) CanMigrate() bool {
 	return false
 }
 
+// sourceIsCephFs returns true if the disks source config setting is a CephFS share.
+func (d *disk) sourceIsCephFs() bool {
+	return strings.HasPrefix(d.config["source"], "cephfs:")
+}
+
+// sourceIsCeph returns true if the disks source config setting is a Ceph RBD.
+func (d *disk) sourceIsCeph() bool {
+	return strings.HasPrefix(d.config["source"], "ceph:")
+}
+
 // CanHotPlug returns whether the device can be managed whilst the instance is running.
 func (d *disk) CanHotPlug() bool {
+	// Containers support hot-plugging all disk types.
+	if d.inst.Type() == instancetype.Container {
+		return true
+	}
+
+	// A mount path indicates a filesystem disk being attached, which cannot be hot-plugged for VMs due to
+	// limitations with virtiofs.
+	if d.config["path"] != "" {
+		return false
+	}
+
+	// Block disks can be hot-plugged into VMs.
 	return true
 }
 
@@ -128,7 +150,7 @@ func (d *disk) sourceIsLocalPath(source string) bool {
 		return false
 	}
 
-	if shared.StringHasPrefix(d.config["source"], "ceph:", "cephfs:") {
+	if d.sourceIsCeph() || d.sourceIsCephFs() {
 		return false
 	}
 
@@ -217,7 +239,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	// Check ceph options are only used when ceph or cephfs type source is specified.
-	if !shared.StringHasPrefix(d.config["source"], "ceph:", "cephfs:") && (d.config["ceph.cluster_name"] != "" || d.config["ceph.user_name"] != "") {
+	if !(d.sourceIsCeph() || d.sourceIsCephFs()) && (d.config["ceph.cluster_name"] != "" || d.config["ceph.user_name"] != "") {
 		return fmt.Errorf("Invalid options ceph.cluster_name/ceph.user_name for source %q", d.config["source"])
 	}
 
@@ -314,6 +336,14 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 
 					if d.config["path"] != "" {
 						return fmt.Errorf("Custom block volumes cannot have a path defined")
+					}
+				} else if contentType == db.StoragePoolVolumeContentTypeISO {
+					if instConf.Type() == instancetype.Container {
+						return fmt.Errorf("Custom ISO volumes cannot be used on containers")
+					}
+
+					if d.config["path"] != "" {
+						return fmt.Errorf("Custom ISO volumes cannot have a path defined")
 					}
 				} else if d.config["path"] == "" {
 					return fmt.Errorf("Custom filesystem volumes require a path to be defined")
@@ -423,7 +453,7 @@ func (d *disk) Register() error {
 		}
 
 		// Try to mount the volume that should already be mounted to reinitialise the ref counter.
-		err = d.pool.MountCustomVolume(storageProjectName, d.config["source"], nil)
+		_, err = d.pool.MountCustomVolume(storageProjectName, d.config["source"], nil)
 		if err != nil {
 			return err
 		}
@@ -581,13 +611,26 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		if d.config["pool"] != "" {
 			var err error
 			var revertFunc func()
+			var mountInfo *storagePools.MountInfo
 
-			revertFunc, srcPath, err = d.mountPoolVolume()
+			revertFunc, srcPath, mountInfo, err = d.mountPoolVolume()
 			if err != nil {
 				return nil, diskSourceNotFoundError{msg: "Failed mounting volume", err: err}
 			}
 
 			revert.Add(revertFunc)
+
+			// Handle post hooks.
+			runConf.PostHooks = append(runConf.PostHooks, func() error {
+				for _, hook := range mountInfo.PostHooks {
+					err := hook(d.inst)
+					if err != nil {
+						return err
+					}
+				}
+
+				return nil
+			})
 		}
 
 		// Mount the source in the instance devices directory.
@@ -717,7 +760,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		revert.Success()
 		return &runConf, nil
 	} else if d.config["source"] != "" {
-		if strings.HasPrefix(d.config["source"], "ceph:") {
+		if d.sourceIsCeph() {
 			// Get the pool and volume names.
 			fields := strings.SplitN(d.config["source"], ":", 2)
 			fields = strings.SplitN(fields[1], "/", 2)
@@ -764,9 +807,13 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					return nil, err
 				}
 
+				if contentType == db.StoragePoolVolumeContentTypeISO {
+					mount.FSType = "iso9660"
+				}
+
 				// If the pool is ceph backed and a block device, don't mount it, instead pass config to QEMU instance
 				// to use the built in RBD support.
-				if d.pool.Driver().Info().Name == "ceph" && contentType == db.StoragePoolVolumeContentTypeBlock {
+				if d.pool.Driver().Info().Name == "ceph" && (contentType == db.StoragePoolVolumeContentTypeBlock || contentType == db.StoragePoolVolumeContentTypeISO) {
 					config := d.pool.ToAPI().Config
 					poolName := config["ceph.osd.pool_name"]
 
@@ -780,17 +827,21 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						clusterName = storageDrivers.CephDefaultUser
 					}
 
-					runConf.Mounts = []deviceConfig.MountEntryItem{
-						{
-							DevPath: DiskGetRBDFormat(clusterName, userName, poolName, d.config["source"]),
-							DevName: d.name,
-						},
+					mount := deviceConfig.MountEntryItem{
+						DevPath: DiskGetRBDFormat(clusterName, userName, poolName, d.config["source"]),
+						DevName: d.name,
 					}
+
+					if contentType == db.StoragePoolVolumeContentTypeISO {
+						mount.FSType = "iso9660"
+					}
+
+					runConf.Mounts = []deviceConfig.MountEntryItem{mount}
 
 					return &runConf, nil
 				}
 
-				revertFunc, mount.DevPath, err = d.mountPoolVolume()
+				revertFunc, mount.DevPath, _, err = d.mountPoolVolume()
 				if err != nil {
 					return nil, diskSourceNotFoundError{msg: "Failed mounting volume", err: err}
 				}
@@ -807,7 +858,11 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			// If the source being added is a directory or cephfs share, then we will use the lxd-agent
 			// directory sharing feature to mount the directory inside the VM, and as such we need to
 			// indicate to the VM the target path to mount to.
-			if shared.IsDir(mount.DevPath) || strings.HasPrefix(d.config["source"], "cephfs:") {
+			if shared.IsDir(mount.DevPath) || d.sourceIsCephFs() {
+				if d.config["path"] == "" {
+					return nil, fmt.Errorf(`Missing mount "path" setting`)
+				}
+
 				// Mount the source in the instance devices directory.
 				// This will ensure that if the exported directory configured as readonly that this
 				// takes effect event if using virtio-fs (which doesn't support read only mode) by
@@ -916,6 +971,12 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				revert.Add(func() { _ = f.Close() })
 				runConf.PostHooks = append(runConf.PostHooks, f.Close)
 				runConf.Revert = func() { _ = f.Close() } // Close file on VM start failure.
+
+				// Detect ISO files to set correct FSType before DevPath is encoded below.
+				// This is very important to support Windows ISO images (amongst other).
+				if strings.HasSuffix(mount.DevPath, ".iso") {
+					mount.FSType = "iso9660"
+				}
 
 				// Encode the file descriptor and original srcPath into the DevPath field.
 				mount.DevPath = fmt.Sprintf("%s:%d:%s", DiskFileDescriptorMountPrefix, f.Fd(), mount.DevPath)
@@ -1171,10 +1232,12 @@ func (w *cgroupWriter) Set(version cgroup.Backend, controller string, key string
 }
 
 // mountPoolVolume mounts the pool volume specified in d.config["source"] from pool specified in d.config["pool"]
-// and return the mount path. If the instance type is container volume will be shifted if needed.
-func (d *disk) mountPoolVolume() (func(), string, error) {
+// and return the mount path and MountInfo struct. If the instance type is container volume will be shifted if needed.
+func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error) {
 	revert := revert.New()
 	defer revert.Fail()
+
+	var mountInfo *storagePools.MountInfo
 
 	// Deal with mounting storage volumes created via the storage api. Extract the name of the storage volume
 	// that we are supposed to attach. We assume that the only syntactically valid ways of specifying a
@@ -1184,7 +1247,7 @@ func (d *disk) mountPoolVolume() (func(), string, error) {
 	// Currently, <type> must either be empty or "custom".
 	// We do not yet support instance mounts.
 	if filepath.IsAbs(d.config["source"]) {
-		return nil, "", fmt.Errorf(`When the "pool" property is set "source" must specify the name of a volume, not a path`)
+		return nil, "", nil, fmt.Errorf(`When the "pool" property is set "source" must specify the name of a volume, not a path`)
 	}
 
 	volumeTypeName := ""
@@ -1202,7 +1265,7 @@ func (d *disk) mountPoolVolume() (func(), string, error) {
 	// Check volume type name is custom.
 	switch volumeTypeName {
 	case db.StoragePoolVolumeTypeNameContainer:
-		return nil, "", fmt.Errorf("Using instance storage volumes is not supported")
+		return nil, "", nil, fmt.Errorf("Using instance storage volumes is not supported")
 	case "":
 		// We simply received the name of a storage volume.
 		volumeTypeName = db.StoragePoolVolumeTypeNameCustom
@@ -1210,23 +1273,23 @@ func (d *disk) mountPoolVolume() (func(), string, error) {
 	case db.StoragePoolVolumeTypeNameCustom:
 		break
 	case db.StoragePoolVolumeTypeNameImage:
-		return nil, "", fmt.Errorf("Using image storage volumes is not supported")
+		return nil, "", nil, fmt.Errorf("Using image storage volumes is not supported")
 	default:
-		return nil, "", fmt.Errorf("Unknown storage type prefix %q found", volumeTypeName)
+		return nil, "", nil, fmt.Errorf("Unknown storage type prefix %q found", volumeTypeName)
 	}
 
 	// Only custom volumes can be attached currently.
 	storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, db.StoragePoolVolumeTypeCustom)
 	if err != nil {
-		return nil, "", err
+		return nil, "", nil, err
 	}
 
 	volStorageName := project.StorageVolume(storageProjectName, volumeName)
 	srcPath = storageDrivers.GetVolumeMountPath(d.config["pool"], storageDrivers.VolumeTypeCustom, volStorageName)
 
-	err = d.pool.MountCustomVolume(storageProjectName, volumeName, nil)
+	mountInfo, err = d.pool.MountCustomVolume(storageProjectName, volumeName, nil)
 	if err != nil {
-		return nil, "", fmt.Errorf("Failed mounting storage volume %q of type %q on storage pool %q: %w", volumeName, volumeTypeName, d.pool.Name(), err)
+		return nil, "", nil, fmt.Errorf("Failed mounting storage volume %q of type %q on storage pool %q: %w", volumeName, volumeTypeName, d.pool.Name(), err)
 	}
 
 	revert.Add(func() { _, _ = d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
@@ -1237,30 +1300,30 @@ func (d *disk) mountPoolVolume() (func(), string, error) {
 		return err
 	})
 	if err != nil {
-		return nil, "", fmt.Errorf("Failed to fetch local storage volume record: %w", err)
+		return nil, "", nil, fmt.Errorf("Failed to fetch local storage volume record: %w", err)
 	}
 
 	if d.inst.Type() == instancetype.Container {
 		if dbVolume.ContentType == db.StoragePoolVolumeContentTypeNameFS {
 			err = d.storagePoolVolumeAttachShift(storageProjectName, d.pool.Name(), volumeName, db.StoragePoolVolumeTypeCustom, srcPath)
 			if err != nil {
-				return nil, "", fmt.Errorf("Failed shifting storage volume %q of type %q on storage pool %q: %w", volumeName, volumeTypeName, d.pool.Name(), err)
+				return nil, "", nil, fmt.Errorf("Failed shifting storage volume %q of type %q on storage pool %q: %w", volumeName, volumeTypeName, d.pool.Name(), err)
 			}
 		} else {
-			return nil, "", fmt.Errorf("Only filesystem volumes are supported for containers")
+			return nil, "", nil, fmt.Errorf("Only filesystem volumes are supported for containers")
 		}
 	}
 
-	if dbVolume.ContentType == db.StoragePoolVolumeContentTypeNameBlock {
+	if dbVolume.ContentType == db.StoragePoolVolumeContentTypeNameBlock || dbVolume.ContentType == db.StoragePoolVolumeContentTypeNameISO {
 		srcPath, err = d.pool.GetCustomVolumeDisk(storageProjectName, volumeName)
 		if err != nil {
-			return nil, "", fmt.Errorf("Failed to get disk path: %w", err)
+			return nil, "", nil, fmt.Errorf("Failed to get disk path: %w", err)
 		}
 	}
 
 	cleanup := revert.Clone().Fail // Clone before calling revert.Success() so we can return the Fail func.
 	revert.Success()
-	return cleanup, srcPath, err
+	return cleanup, srcPath, mountInfo, err
 }
 
 // createDevice creates a disk device mount on host.
@@ -1281,7 +1344,7 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 
 	var isFile bool
 	if d.config["pool"] == "" {
-		if strings.HasPrefix(d.config["source"], "cephfs:") {
+		if d.sourceIsCephFs() {
 			// Get fs name and path from d.config.
 			fields := strings.SplitN(d.config["source"], ":", 2)
 			fields = strings.SplitN(fields[1], "/", 2)
@@ -1301,7 +1364,7 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 			fsName = "ceph"
 			srcPath = mntSrcPath
 			isFile = false
-		} else if strings.HasPrefix(d.config["source"], "ceph:") {
+		} else if d.sourceIsCeph() {
 			// Get the pool and volume names.
 			fields := strings.SplitN(d.config["source"], ":", 2)
 			fields = strings.SplitN(fields[1], "/", 2)
@@ -1687,7 +1750,7 @@ func (d *disk) postStop() error {
 		}
 	}
 
-	if strings.HasPrefix(d.config["source"], "ceph:") {
+	if d.sourceIsCeph() {
 		v := d.volatileGet()
 		err := diskCephRbdUnmap(v["ceph_rbd"])
 		if err != nil {

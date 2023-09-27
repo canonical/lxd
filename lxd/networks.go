@@ -27,7 +27,6 @@ import (
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/network/openvswitch"
 	"github.com/canonical/lxd/lxd/project"
-	"github.com/canonical/lxd/lxd/rbac"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/response"
@@ -836,15 +835,15 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, projectName st
 		apiNet.Description = n.Description()
 		apiNet.Type = n.Type()
 
-		if rbac.UserIsAdmin(r) {
+		if s.Authorizer.UserIsAdmin(r) || s.Authorizer.UserHasPermission(r, projectName, "manage-networks") {
 			// Only allow admins to see network config as sensitive info can be stored there.
 			apiNet.Config = n.Config()
+		}
 
-			// If no member is specified, we omit the node-specific fields.
-			if allNodes {
-				for _, key := range db.NodeSpecificNetworkConfig {
-					delete(apiNet.Config, key)
-				}
+		// If no member is specified, we omit the node-specific fields.
+		if allNodes {
+			for _, key := range db.NodeSpecificNetworkConfig {
+				delete(apiNet.Config, key)
 			}
 		}
 	} else if osInfo != nil && shared.IsLoopback(osInfo) {
@@ -879,7 +878,7 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, projectName st
 			return api.Network{}, err
 		}
 
-		apiNet.UsedBy = project.FilterUsedBy(r, usedBy)
+		apiNet.UsedBy = project.FilterUsedBy(s.Authorizer, r, usedBy)
 	}
 
 	if n != nil {
@@ -1471,7 +1470,7 @@ func networkStartup(s *state.State) error {
 				NetworkName: networkName,
 			}
 
-			// Asssume all networks are networkPriorityStandalone initially.
+			// Assume all networks are networkPriorityStandalone initially.
 			initNetworks[networkPriorityStandalone][pn] = struct{}{}
 		}
 	}

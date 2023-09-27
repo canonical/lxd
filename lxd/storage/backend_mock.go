@@ -274,8 +274,8 @@ func (b *mockBackend) GetCustomVolumeUsage(projectName string, volName string) (
 	return 0, nil
 }
 
-func (b *mockBackend) MountCustomVolume(projectName string, volName string, op *operations.Operation) error {
-	return nil
+func (b *mockBackend) MountCustomVolume(projectName string, volName string, op *operations.Operation) (*MountInfo, error) {
+	return nil, nil
 }
 
 func (b *mockBackend) UnmountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error) {
@@ -311,5 +311,9 @@ func (b *mockBackend) BackupCustomVolume(projectName string, volName string, tar
 }
 
 func (b *mockBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) error {
+	return nil
+}
+
+func (b *mockBackend) CreateCustomVolumeFromISO(projectName string, volName string, srcData io.ReadSeeker, size int64, op *operations.Operation) error {
 	return nil
 }

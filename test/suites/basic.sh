@@ -226,11 +226,11 @@ test_basic_usage() {
   curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/"
   lxc image delete foo-image2
 
-  # Test invalid container names
+  # Test invalid instance names
   ! lxc init testimage -abc || false
   ! lxc init testimage abc- || false
   ! lxc init testimage 1234 || false
-  ! lxc init testimage 12test || false
+  ! lxc init testimage foo.bar || false
   ! lxc init testimage a_b_c || false
   ! lxc init testimage aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa || false
 
@@ -566,7 +566,7 @@ test_basic_usage() {
         REBOOTED="true"
         break
       else
-        lxc exec foo reboot || true  # Signal to running old init processs to reboot if not rebooted yet.
+        lxc exec foo reboot || true  # Signal to running old init process to reboot if not rebooted yet.
       fi
     fi
 
@@ -618,4 +618,11 @@ test_basic_usage() {
   lxc storage volume delete bla vol1
   lxc storage volume delete bla vol2
   lxc storage delete bla
+
+  # Test assigning an empty profile (with no root disk device) to an instance.
+  lxc init testimage c1
+  lxc profile create foo
+  ! lxc profile assign c1 foo || false
+  lxc profile delete foo
+  lxc delete -f c1
 }

@@ -173,6 +173,8 @@ type InstanceServer interface {
 	MigrateInstance(name string, instance api.InstancePost) (op Operation, err error)
 	DeleteInstance(name string) (op Operation, err error)
 	UpdateInstances(state api.InstancesPut, ETag string) (op Operation, err error)
+	RebuildInstance(instanceName string, req api.InstanceRebuildPost) (op Operation, err error)
+	RebuildInstanceFromImage(source ImageServer, image api.Image, instanceName string, req api.InstanceRebuildPost) (op RemoteOperation, err error)
 
 	ExecInstance(instanceName string, exec api.InstanceExecPost, args *InstanceExecArgs) (op Operation, err error)
 	ConsoleInstance(instanceName string, console api.InstanceConsolePost, args *InstanceConsoleArgs) (op Operation, err error)
@@ -284,6 +286,9 @@ type InstanceServer interface {
 	RenameNetworkACL(name string, acl api.NetworkACLPost) (err error)
 	DeleteNetworkACL(name string) (err error)
 
+	// Network allocations functions ("network_allocations" API extension)
+	GetNetworkAllocations(allProjects bool) (allocations []api.NetworkAllocations, err error)
+
 	// Network zone functions ("network_dns" API extension)
 	GetNetworkZoneNames() (names []string, err error)
 	GetNetworkZones() (zones []api.NetworkZone, err error)
@@ -302,6 +307,7 @@ type InstanceServer interface {
 	// Operation functions
 	GetOperationUUIDs() (uuids []string, err error)
 	GetOperations() (operations []api.Operation, err error)
+	GetOperationsAllProjects() (operations []api.Operation, err error)
 	GetOperation(uuid string) (op *api.Operation, ETag string, err error)
 	GetOperationWait(uuid string, timeout int) (op *api.Operation, ETag string, err error)
 	GetOperationWaitSecret(uuid string, secret string, timeout int) (op *api.Operation, ETag string, err error)
@@ -385,6 +391,9 @@ type InstanceServer interface {
 	DeleteStoragePoolVolumeBackup(pool string, volName string, name string) (op Operation, err error)
 	GetStoragePoolVolumeBackupFile(pool string, volName string, name string, req *BackupFileRequest) (resp *BackupFileResponse, err error)
 	CreateStoragePoolVolumeFromBackup(pool string, args StoragePoolVolumeBackupArgs) (op Operation, err error)
+
+	// Storage volume ISO import function ("custom_volume_iso" API extension)
+	CreateStoragePoolVolumeFromISO(pool string, args StoragePoolVolumeBackupArgs) (op Operation, err error)
 
 	// Cluster functions ("cluster" API extensions)
 	GetCluster() (cluster *api.Cluster, ETag string, err error)

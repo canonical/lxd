@@ -18,7 +18,8 @@ import (
 
 // MountInfo represents info about the result of a mount operation.
 type MountInfo struct {
-	DiskPath string // The location of the block disk (if supported).
+	DiskPath  string                               // The location of the block disk (if supported).
+	PostHooks []func(inst instance.Instance) error // Hooks to be called following a mount.
 }
 
 // Type represents a LXD storage pool type.
@@ -100,11 +101,12 @@ type Pool interface {
 	DeleteCustomVolume(projectName string, volName string, op *operations.Operation) error
 	GetCustomVolumeDisk(projectName string, volName string) (string, error)
 	GetCustomVolumeUsage(projectName string, volName string) (int64, error)
-	MountCustomVolume(projectName string, volName string, op *operations.Operation) error
+	MountCustomVolume(projectName string, volName string, op *operations.Operation) (*MountInfo, error)
 	UnmountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error)
 	ImportCustomVolume(projectName string, poolVol *backupConfig.Config, op *operations.Operation) (revert.Hook, error)
 	RefreshCustomVolume(projectName string, srcProjectName string, volName, desc string, config map[string]string, srcPoolName, srcVolName string, snapshots bool, op *operations.Operation) error
 	GenerateCustomVolumeBackupConfig(projectName string, volName string, snapshots bool, op *operations.Operation) (*backupConfig.Config, error)
+	CreateCustomVolumeFromISO(projectName string, volName string, srcData io.ReadSeeker, size int64, op *operations.Operation) error
 
 	// Custom volume snapshots.
 	CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, newExpiryDate time.Time, op *operations.Operation) error

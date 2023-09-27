@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/flosch/pongo2"
 	"github.com/gorilla/websocket"
@@ -100,6 +101,32 @@ const qemuBlockDevIDPrefix = "lxd_"
 
 // qemuMigrationNBDExportName is the name of the disk device export by the migration NBD server.
 const qemuMigrationNBDExportName = "lxd_root"
+
+// OVMF firmwares.
+type ovmfFirmware struct {
+	code string
+	vars string
+}
+
+var ovmfGenericFirmwares = []ovmfFirmware{
+	{code: "OVMF_CODE.4MB.fd", vars: "OVMF_VARS.4MB.fd"},
+	{code: "OVMF_CODE.2MB.fd", vars: "OVMF_VARS.2MB.fd"},
+	{code: "OVMF_CODE.fd", vars: "OVMF_VARS.fd"},
+	{code: "OVMF_CODE.fd", vars: "qemu.nvram"},
+}
+
+var ovmfSecurebootFirmwares = []ovmfFirmware{
+	{code: "OVMF_CODE.4MB.fd", vars: "OVMF_VARS.4MB.ms.fd"},
+	{code: "OVMF_CODE.2MB.fd", vars: "OVMF_VARS.2MB.ms.fd"},
+	{code: "OVMF_CODE.fd", vars: "OVMF_VARS.ms.fd"},
+	{code: "OVMF_CODE.fd", vars: "qemu.nvram"},
+}
+
+var ovmfCSMFirmwares = []ovmfFirmware{
+	{code: "OVMF_CODE.4MB.CSM.fd", vars: "OVMF_VARS.4MB.CSM.fd"},
+	{code: "OVMF_CODE.2MB.CSM.fd", vars: "OVMF_VARS.2MB.CSM.fd"},
+	{code: "OVMF_CODE.CSM.fd", vars: "OVMF_VARS.CSM.fd"},
+}
 
 // qemuSparseUSBPorts is the amount of sparse USB ports for VMs.
 // 4 are reserved, and the other 4 can be used for any USB device.
@@ -348,16 +375,10 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 		return nil, err
 	}
 
-	vsockID := d.vsockID() // Default to using the vsock ID that will be used on next start.
-
-	// But if vsock ID from last VM start is present in volatile, then use that.
-	// This allows a running VM to be recovered after DB record deletion and that agent connection still work
-	// after the VM's instance ID has changed.
-	if d.localConfig["volatile.vsock_id"] != "" {
-		volatileVsockID, err := strconv.Atoi(d.localConfig["volatile.vsock_id"])
-		if err == nil {
-			vsockID = volatileVsockID
-		}
+	// Existing vsock ID from volatile.
+	vsockID, err := d.getVsockID()
+	if err != nil {
+		return nil, err
 	}
 
 	agent, err := lxdvsock.HTTPClient(vsockID, shared.HTTPSDefaultPort, clientCert, clientKey, agentCert)
@@ -1057,6 +1078,11 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		return fmt.Errorf("The image used by this instance is incompatible with secureboot. Please set security.secureboot=false on the instance")
 	}
 
+	// Ensure secureboot is turned off when CSM is on
+	if shared.IsTrue(d.expandedConfig["security.csm"]) && shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
+		return fmt.Errorf("Secure boot can't be enabled while CSM is turned on. Please set security.secureboot=false on the instance")
+	}
+
 	// Setup a new operation if needed.
 	if op == nil {
 		op, err = operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStart, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
@@ -1111,11 +1137,30 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 
 	revert.Add(func() { _ = d.unmount() })
 
+	// Define a set of files to open and pass their file descriptors to QEMU command.
+	fdFiles := make([]*os.File, 0)
+
+	// Ensure passed files are closed after start has returned (either because QEMU has started or on error).
+	defer func() {
+		for _, file := range fdFiles {
+			_ = file.Close()
+		}
+	}()
+
+	// New or existing vsock ID from volatile.
+	vsockID, vsockF, err := d.nextVsockID()
+	if err != nil {
+		return err
+	}
+
+	// Add allocated QEMU vhost file descriptor.
+	vsockFD := d.addFileDescriptor(&fdFiles, vsockF)
+
 	volatileSet := make(map[string]string)
 
 	// Update vsock ID in volatile if needed for recovery (do this before UpdateBackupFile() call).
 	oldVsockID := d.localConfig["volatile.vsock_id"]
-	newVsockID := strconv.Itoa(d.vsockID())
+	newVsockID := strconv.FormatUint(uint64(vsockID), 10)
 	if oldVsockID != newVsockID {
 		volatileSet["volatile.vsock_id"] = newVsockID
 	}
@@ -1315,16 +1360,6 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		return err
 	}
 
-	// Define a set of files to open and pass their file descriptors to qemu command.
-	fdFiles := make([]*os.File, 0)
-
-	// Ensure passed files are closed after start has returned (either because qemu has started or on error).
-	defer func() {
-		for _, file := range fdFiles {
-			_ = file.Close()
-		}
-	}()
-
 	// Snapshot if needed.
 	snapName, expiry, err := d.getStartupSnapNameAndExpiry(d)
 	if err != nil {
@@ -1371,7 +1406,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	// Generate the QEMU configuration.
-	confFile, monHooks, err := d.generateQemuConfigFile(cpuInfo, mountInfo, qemuBus, devConfs, &fdFiles)
+	confFile, monHooks, err := d.generateQemuConfigFile(cpuInfo, mountInfo, qemuBus, vsockFD, devConfs, &fdFiles)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -1798,30 +1833,59 @@ func (d *qemu) setupNvram() error {
 
 	defer func() { _ = d.unmount() }()
 
-	srcOvmfFile := filepath.Join(d.ovmfPath(), "OVMF_VARS.fd")
-	if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
-		srcOvmfFile = filepath.Join(d.ovmfPath(), "OVMF_VARS.ms.fd")
+	// Cleanup existing variables.
+	for _, firmwares := range [][]ovmfFirmware{ovmfGenericFirmwares, ovmfSecurebootFirmwares, ovmfCSMFirmwares} {
+		for _, firmware := range firmwares {
+			err := os.Remove(filepath.Join(d.Path(), firmware.vars))
+			if err != nil && !os.IsNotExist(err) {
+				return err
+			}
+		}
 	}
 
-	missingEFIFirmwareErr := fmt.Errorf("Required EFI firmware settings file missing %q", srcOvmfFile)
-
-	if !shared.PathExists(srcOvmfFile) {
-		return missingEFIFirmwareErr
+	// Determine expected firmware.
+	firmwares := ovmfGenericFirmwares
+	if shared.IsTrue(d.expandedConfig["security.csm"]) {
+		firmwares = ovmfCSMFirmwares
+	} else if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
+		firmwares = ovmfSecurebootFirmwares
 	}
 
-	srcOvmfFile, err = filepath.EvalSymlinks(srcOvmfFile)
-	if err != nil {
-		return fmt.Errorf("Failed resolving EFI firmware symlink %q: %w", srcOvmfFile, err)
+	// Find the template file.
+	var ovmfVarsPath string
+	var ovmfVarsName string
+	for _, firmware := range firmwares {
+		varsPath := filepath.Join(d.ovmfPath(), firmware.vars)
+		varsPath, err = filepath.EvalSymlinks(varsPath)
+		if err != nil {
+			continue
+		}
+
+		if shared.PathExists(varsPath) {
+			ovmfVarsPath = varsPath
+			ovmfVarsName = firmware.vars
+			break
+		}
 	}
 
-	if !shared.PathExists(srcOvmfFile) {
-		return missingEFIFirmwareErr
+	if ovmfVarsPath == "" {
+		return fmt.Errorf("Couldn't find one of the required UEFI firmware files: %+v", firmwares)
 	}
 
-	_ = os.Remove(d.nvramPath())
-	err = shared.FileCopy(srcOvmfFile, d.nvramPath())
+	// Copy the template.
+	err = shared.FileCopy(ovmfVarsPath, filepath.Join(d.Path(), ovmfVarsName))
 	if err != nil {
 		return err
+	}
+
+	// Generate a symlink if needed.
+	// This is so qemu.nvram can always be assumed to be the OVMF vars file.
+	// The real file name is then used to determine what firmware must be selected.
+	if !shared.PathExists(d.nvramPath()) {
+		err = os.Symlink(ovmfVarsName, d.nvramPath())
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -1956,10 +2020,6 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 }
 
 func (d *qemu) deviceAttachBlockDevice(deviceName string, configCopy map[string]string, mount deviceConfig.MountEntryItem) error {
-	if mount.FSType == "9p" {
-		return fmt.Errorf("Cannot attach directory while instance is running")
-	}
-
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
@@ -2329,7 +2389,7 @@ func (d *qemu) generateConfigShare() error {
 
 	lxdAgentServiceUnit := `[Unit]
 Description=LXD - agent
-Documentation=https://linuxcontainers.org/lxd
+Documentation=https://documentation.ubuntu.com/lxd/en/latest/
 ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
 Before=cloud-init.target cloud-init.service cloud-init-local.service
 DefaultDependencies=no
@@ -2630,7 +2690,7 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 
 // deviceBootPriorities returns a map keyed on device name containing the boot index to use.
 // Qemu tries to boot devices in order of boot index (lowest first).
-func (d *qemu) deviceBootPriorities() (map[string]int, error) {
+func (d *qemu) deviceBootPriorities(base int) (map[string]int, error) {
 	type devicePrios struct {
 		Name     string
 		BootPrio uint32
@@ -2667,7 +2727,7 @@ func (d *qemu) deviceBootPriorities() (map[string]int, error) {
 
 	sortedDevs := make(map[string]int, len(devices))
 	for bootIndex, dev := range devices {
-		sortedDevs[dev.Name] = bootIndex
+		sortedDevs[dev.Name] = bootIndex + base
 	}
 
 	return sortedDevs, nil
@@ -2675,7 +2735,7 @@ func (d *qemu) deviceBootPriorities() (map[string]int, error) {
 
 // generateQemuConfigFile writes the qemu config file and returns its location.
 // It writes the config file inside the VM's log path.
-func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePools.MountInfo, busName string, devConfs []*deviceConfig.RunConfig, fdFiles *[]*os.File) (string, []monitorHook, error) {
+func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePools.MountInfo, busName string, vsockFD int, devConfs []*deviceConfig.RunConfig, fdFiles *[]*os.File) (string, []monitorHook, error) {
 	var monHooks []monitorHook
 
 	cfg := qemuBase(&qemuBaseOpts{d.Architecture()})
@@ -2705,8 +2765,28 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			return "", nil, fmt.Errorf("Failed opening NVRAM file: %w", err)
 		}
 
+		// Determine expected firmware.
+		firmwares := ovmfGenericFirmwares
+		if shared.IsTrue(d.expandedConfig["security.csm"]) {
+			firmwares = ovmfCSMFirmwares
+		} else if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
+			firmwares = ovmfSecurebootFirmwares
+		}
+
+		var ovmfCode string
+		for _, firmware := range firmwares {
+			if shared.PathExists(filepath.Join(d.Path(), firmware.vars)) {
+				ovmfCode = firmware.code
+				break
+			}
+		}
+
+		if ovmfCode == "" {
+			return "", nil, fmt.Errorf("Unable to locate matching firmware: %+v", firmwares)
+		}
+
 		driveFirmwareOpts := qemuDriveFirmwareOpts{
-			roPath:    filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
+			roPath:    filepath.Join(d.ovmfPath(), ovmfCode),
 			nvramPath: fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, nvRAMFile)),
 		}
 
@@ -2769,6 +2849,12 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 	cfg = append(cfg, qemuTablet(&tabletOpts)...)
 
+	// Existing vsock ID from volatile.
+	vsockID, err := d.getVsockID()
+	if err != nil {
+		return "", nil, err
+	}
+
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	vsockOpts := qemuVsockOpts{
 		dev: qemuDevOpts{
@@ -2777,7 +2863,8 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			devAddr:       devAddr,
 			multifunction: multi,
 		},
-		vsockID: d.vsockID(),
+		vsockFD: vsockFD,
+		vsockID: vsockID,
 	}
 
 	cfg = append(cfg, qemuVsock(&vsockOpts)...)
@@ -2809,7 +2896,16 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		cfg = append(cfg, qemuUSB(&usbOpts)...)
 	}
 
-	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
+	if shared.IsTrue(d.expandedConfig["security.csm"]) {
+		// Allocate a regular entry to keep things aligned normally (avoid NICs getting a different name).
+		_, _, _ = bus.allocate(busFunctionGroupNone)
+
+		// Allocate a direct entry so the SCSI controller can be seen by seabios.
+		devBus, devAddr, multi = bus.allocateDirect()
+	} else {
+		devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
+	}
+
 	scsiOpts := qemuDevOpts{
 		busName:       bus.name,
 		devBus:        devBus,
@@ -2855,7 +2951,16 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		cfg = append(cfg, qemuDriveConfig(&driveConfigVirtioOpts)...)
 	}
 
-	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
+	if shared.IsTrue(d.expandedConfig["security.csm"]) {
+		// Allocate a regular entry to keep things aligned normally (avoid NICs getting a different name).
+		_, _, _ = bus.allocate(busFunctionGroupNone)
+
+		// Allocate a direct entry so the GPU can be seen by seabios.
+		devBus, devAddr, multi = bus.allocateDirect()
+	} else {
+		devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
+	}
+
 	gpuOpts := qemuGpuOpts{
 		dev: qemuDevOpts{
 			busName:       bus.name,
@@ -2869,7 +2974,12 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	cfg = append(cfg, qemuGPU(&gpuOpts)...)
 
 	// Dynamic devices.
-	bootIndexes, err := d.deviceBootPriorities()
+	base := 0
+	if shared.StringInSlice("-kernel", rawOptions) {
+		base = 1
+	}
+
+	bootIndexes, err := d.deviceBootPriorities(base)
 	if err != nil {
 		return "", nil, fmt.Errorf("Error calculating boot indexes: %w", err)
 	}
@@ -3320,24 +3430,31 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 			// If backing FS is ZFS or BTRFS, avoid using direct I/O and use host page cache only.
 			// We've seen ZFS lock up and BTRFS checksum issues when using direct I/O on image files.
 			if fsType == "zfs" || fsType == "btrfs" {
-				if driveConf.FSType != "iso9660" {
-					// Only warn about using writeback cache if the drive image is writable.
-					d.logger.Warn("Using writeback cache I/O", logger.Ctx{"device": driveConf.DevName, "devPath": srcDevPath, "fsType": fsType})
-				}
-
 				aioMode = "threads"
 				cacheMode = "writeback" // Use host cache, with neither O_DSYNC nor O_DIRECT semantics.
+			} else {
+				// Use host cache, with neither O_DSYNC nor O_DIRECT semantics if filesystem
+				// doesn't support Direct I/O.
+				_, err := os.OpenFile(srcDevPath, unix.O_DIRECT|unix.O_RDONLY, 0)
+				if err != nil {
+					cacheMode = "writeback"
+				}
 			}
 
-			// Special case ISO images as cdroms.
-			if strings.HasSuffix(srcDevPath, ".iso") {
-				media = "cdrom"
+			if cacheMode == "writeback" && driveConf.FSType != "iso9660" {
+				// Only warn about using writeback cache if the drive image is writable.
+				d.logger.Warn("Using writeback cache I/O", logger.Ctx{"device": driveConf.DevName, "devPath": srcDevPath, "fsType": fsType})
 			}
 		} else if !shared.StringInSlice(device.DiskDirectIO, driveConf.Opts) {
 			// If drive config indicates we need to use unsafe I/O then use it.
 			d.logger.Warn("Using unsafe cache I/O", logger.Ctx{"device": driveConf.DevName, "devPath": srcDevPath})
 			aioMode = "threads"
 			cacheMode = "unsafe" // Use host cache, but ignore all sync requests from guest.
+		}
+
+		// Special case ISO images as cdroms.
+		if driveConf.FSType == "iso9660" {
+			media = "cdrom"
 		}
 	}
 
@@ -3872,6 +3989,11 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, bus *qemuBus, gpuConfig []devi
 	}
 
 	vgaMode := func() bool {
+		// No VGA mode on mdev.
+		if vgpu != "" {
+			return false
+		}
+
 		// No VGA mode on non-x86.
 		if d.architecture != osarch.ARCH_64BIT_INTEL_X86 {
 			return false
@@ -4798,6 +4920,11 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		if oldErr == nil && newErr == nil && oldRootDev["pool"] != newRootDev["pool"] {
 			return fmt.Errorf("Cannot update root disk device pool name to %q", newRootDev["pool"])
 		}
+
+		// Ensure the instance has a root disk.
+		if newErr != nil {
+			return fmt.Errorf("Invalid root disk device: %w", newErr)
+		}
 	}
 
 	// If apparmor changed, re-validate the apparmor profile (even if not running).
@@ -4822,44 +4949,37 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			"cluster.evacuate",
 			"limits.memory",
 			"security.agent.metrics",
-			"security.secureboot",
+			"security.csm",
 			"security.devlxd",
+			"security.secureboot",
+		}
+
+		liveUpdateKeyPrefixes := []string{
+			"boot.",
+			"cloud-init.",
+			"environment.",
+			"image.",
+			"snapshots.",
+			"user.",
+			"volatile.",
 		}
 
 		isLiveUpdatable := func(key string) bool {
+			// Skip container config keys for VMs
+			_, ok := shared.InstanceConfigKeysContainer[key]
+			if ok {
+				return true
+			}
+
 			if key == "limits.cpu" {
 				return d.architectureSupportsCPUHotplug()
 			}
 
-			if strings.HasPrefix(key, "boot.") {
-				return true
-			}
-
-			if strings.HasPrefix(key, "cloud-init.") {
-				return true
-			}
-
-			if strings.HasPrefix(key, "environment.") {
-				return true
-			}
-
-			if strings.HasPrefix(key, "image.") {
-				return true
-			}
-
-			if strings.HasPrefix(key, "snapshots.") {
-				return true
-			}
-
-			if strings.HasPrefix(key, "user.") {
-				return true
-			}
-
-			if strings.HasPrefix(key, "volatile.") {
-				return true
-			}
-
 			if shared.StringInSlice(key, liveUpdateKeys) {
+				return true
+			}
+
+			if shared.StringHasPrefix(key, liveUpdateKeyPrefixes...) {
 				return true
 			}
 
@@ -4908,6 +5028,9 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 						return fmt.Errorf("Failed updating memory limit: %w", err)
 					}
 				}
+			} else if key == "security.csm" {
+				// Defer rebuilding nvram until next start.
+				d.localConfig["volatile.apply_nvram"] = "true"
 			} else if key == "security.secureboot" {
 				// Defer rebuilding nvram until next start.
 				d.localConfig["volatile.apply_nvram"] = "true"
@@ -4936,7 +5059,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
-	if d.architectureSupportsUEFI(d.architecture) && shared.StringInSlice("security.secureboot", changedConfig) {
+	if d.architectureSupportsUEFI(d.architecture) && (shared.StringInSlice("security.secureboot", changedConfig) || shared.StringInSlice("security.csm", changedConfig)) {
 		// Re-generate the NVRAM.
 		err = d.setupNvram()
 		if err != nil {
@@ -7138,21 +7261,125 @@ func (d *qemu) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 	return nil
 }
 
-// vsockID returns the vsock Context ID for the VM.
-func (d *qemu) vsockID() int {
-	// We use the system's own VsockID as the base.
-	//
-	// This is either "2" for a physical system or the VM's own id if
-	// running inside of a VM.
-	//
-	// To this we add 1 for backward compatibility with prior logic
-	// which would start at id 3 rather than id 2. Removing that offset
-	// would cause conflicts between existing VMs until they're all rebooted.
-	//
-	// We then add the VM's own instance id (1 or higher) to give us a
-	// unique, non-clashing context ID for our guest.
+// reservedVsockID returns true if the given vsockID equals 0, 1 or 2.
+// Those are reserved and we cannot use them.
+func (d *qemu) reservedVsockID(vsockID uint32) bool {
+	return vsockID <= 2
+}
 
-	return int(d.state.OS.VsockID) + 1 + d.id
+// getVsockID returns the vsock Context ID for the VM.
+func (d *qemu) getVsockID() (uint32, error) {
+	existingVsockID, ok := d.localConfig["volatile.vsock_id"]
+	if !ok {
+		return 0, fmt.Errorf("Context ID not set in volatile.vsock_id")
+	}
+
+	vsockID, err := strconv.ParseUint(existingVsockID, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to parse volatile.vsock_id: %q: %w", existingVsockID, err)
+	}
+
+	if d.reservedVsockID(uint32(vsockID)) {
+		return 0, fmt.Errorf("Failed to use reserved vsock Context ID: %q", vsockID)
+	}
+
+	return uint32(vsockID), nil
+}
+
+// acquireVsockID tries to occupy the given vsock Context ID.
+// If the ID is free it returns the corresponding file handle.
+func (d *qemu) acquireVsockID(vsockID uint32) (*os.File, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
+	vsockF, err := os.OpenFile("/dev/vhost-vsock", os.O_RDWR, 0)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to open vhost socket: %w", err)
+	}
+
+	revert.Add(func() { _ = vsockF.Close() })
+
+	// The vsock Context ID cannot be supplied as type uint32.
+	vsockIDInt := int(vsockID)
+
+	// 0x4008AF60 = VHOST_VSOCK_SET_GUEST_CID = _IOW(VHOST_VIRTIO, 0x60, __u64)
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, vsockF.Fd(), 0x4008AF60, uintptr(unsafe.Pointer(&vsockIDInt)))
+	if errno != 0 {
+		if !errors.Is(errno, unix.EADDRINUSE) {
+			return nil, fmt.Errorf("Failed ioctl syscall to vhost socket: %q", errno.Error())
+		}
+
+		// vsock Context ID is already in use.
+		return nil, nil
+	}
+
+	revert.Success()
+	return vsockF, nil
+}
+
+// acquireExistingVsockID tries to acquire an already existing vsock Context ID from volatile.
+// It returns both the acquired ID and opened vsock file handle for QEMU.
+func (d *qemu) acquireExistingVsockID() (uint32, *os.File, error) {
+	vsockID, err := d.getVsockID()
+	if err != nil {
+		return 0, nil, err
+	}
+
+	// Check if the vsockID from last VM start is still not acquired in case the VM was stopped.
+	f, err := d.acquireVsockID(vsockID)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return vsockID, f, nil
+}
+
+// nextVsockID tries to acquire the next free vsock Context ID for the VM.
+// It returns both the acquired ID and opened vsock file handle for QEMU.
+func (d *qemu) nextVsockID() (uint32, *os.File, error) {
+	// Check if vsock ID from last VM start is present in volatile, then use that.
+	// This allows a running VM to be recovered after DB record deletion and that an agent connection still works
+	// after the VM's instance ID has changed.
+	// Continue in case of error since the caller requires a valid vsockID in any case.
+	vsockID, vsockF, _ := d.acquireExistingVsockID()
+	if vsockID != 0 && vsockF != nil {
+		return vsockID, vsockF, nil
+	}
+
+	// Ignore the error from before and start to acquire a new Context ID.
+	instanceUUID := uuid.Parse(d.localConfig["volatile.uuid"])
+	if instanceUUID == nil {
+		return 0, nil, fmt.Errorf("Failed to parse instance UUID from volatile.uuid")
+	}
+
+	r, err := util.GetStableRandomGenerator(instanceUUID.String())
+	if err != nil {
+		return 0, nil, fmt.Errorf("Failed generating stable random seed from instance UUID %q: %w", instanceUUID, err)
+	}
+
+	timeout := time.Now().Add(5 * time.Second)
+
+	// Try to find a new Context ID.
+	for {
+		if time.Now().After(timeout) {
+			return 0, nil, fmt.Errorf("Timeout exceeded whilst trying to acquire the next vsock Context ID")
+		}
+
+		candidateVsockID := r.Uint32()
+
+		if d.reservedVsockID(candidateVsockID) {
+			continue
+		}
+
+		vsockF, err := d.acquireVsockID(candidateVsockID)
+		if err != nil {
+			return 0, nil, err
+		}
+
+		if vsockF != nil {
+			return candidateVsockID, vsockF, nil
+		}
+	}
 }
 
 // InitPID returns the instance's current process ID.
@@ -7481,14 +7708,14 @@ func (d *qemu) Info() instance.Info {
 		return data
 	}
 
-	if !shared.PathExists("/dev/vsock") {
-		data.Error = fmt.Errorf("Vsock support is missing (no /dev/vsock)")
-		return data
-	}
-
 	err := util.LoadModule("vhost_vsock")
 	if err != nil {
 		data.Error = fmt.Errorf("vhost_vsock kernel module not loaded")
+		return data
+	}
+
+	if !shared.PathExists("/dev/vsock") {
+		data.Error = fmt.Errorf("Vsock support is missing (no /dev/vsock)")
 		return data
 	}
 
@@ -7560,7 +7787,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 	}
 
 	if d.architectureSupportsUEFI(hostArch) {
-		qemuArgs = append(qemuArgs, "-bios", filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"))
+		qemuArgs = append(qemuArgs, "-drive", fmt.Sprintf("if=pflash,format=raw,readonly=on,file=%s", filepath.Join(d.ovmfPath(), "OVMF_CODE.fd")))
 	}
 
 	var stderr bytes.Buffer

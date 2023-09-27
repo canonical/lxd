@@ -10,6 +10,9 @@ import (
 	"github.com/canonical/lxd/shared/osarch"
 )
 
+var lxdCompatCombinedItems = []string{"lxd_combined.tar.gz", "incus_combined.tar.gz"}
+var lxdCompatItems = []string{"lxd.tar.xz", "incus.tar.xz"}
+
 // Products represents the base of download.json.
 type Products struct {
 	ContentID string             `json:"content_id"`
@@ -26,6 +29,7 @@ type Product struct {
 	Architecture    string                    `json:"arch"`
 	OperatingSystem string                    `json:"os"`
 	LXDRequirements map[string]string         `json:"lxd_requirements,omitempty"`
+	Requirements    map[string]string         `json:"requirements,omitempty"`
 	Release         string                    `json:"release"`
 	ReleaseCodename string                    `json:"release_codename,omitempty"`
 	ReleaseTitle    string                    `json:"release_title"`
@@ -170,8 +174,14 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 					"description":  description,
 				}
 
-				for lxdReq, lxdReqVal := range product.LXDRequirements {
-					image.Properties["requirements."+lxdReq] = lxdReqVal
+				for _, requirements := range []map[string]string{product.LXDRequirements, product.Requirements} {
+					if requirements != nil {
+						for lxdReq, lxdReqVal := range requirements {
+							image.Properties["requirements."+lxdReq] = lxdReqVal
+						}
+
+						break // Stop at first set of requirements found.
+					}
 				}
 
 				if product.Variant != "" {
@@ -234,7 +244,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 					// Locate source image fingerprint
 					var srcFingerprint string
 					for _, item := range srcImage.Items {
-						if item.FileType != "lxd.tar.xz" {
+						if !shared.StringInSlice(item.FileType, lxdCompatItems) {
 							continue
 						}
 
@@ -264,14 +274,14 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 
 			// Locate a valid LXD image
 			for _, item := range version.Items {
-				if item.FileType == "lxd_combined.tar.gz" {
+				if shared.StringInSlice(item.FileType, lxdCompatCombinedItems) {
 					err := addImage(&item, nil)
 					if err != nil {
 						continue
 					}
-				}
 
-				if item.FileType == "lxd.tar.xz" {
+					break // Stop at first compatible item found.
+				} else if shared.StringInSlice(item.FileType, lxdCompatItems) {
 					// Locate the root files
 					for _, subItem := range version.Items {
 						if shared.StringInSlice(subItem.FileType, []string{"disk1.img", "disk-kvm.img", "uefi1.img", "root.tar.xz", "squashfs"}) {
@@ -281,6 +291,8 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 							}
 						}
 					}
+
+					break // Stop at first compatible item found.
 				}
 			}
 		}

@@ -187,6 +187,10 @@ func (c *Config) GetImageServer(name string) (lxd.ImageServer, error) {
 	return d, nil
 }
 
+// getConnectionArgs retrieves the connection arguments for the specified remote.
+// It constructs the necessary connection arguments based on the remote's configuration, including authentication type,
+// authentication interactors, cookie jar, OIDC tokens, TLS certificates, and client key.
+// The function returns the connection arguments or an error if any configuration is missing or encounters a problem.
 func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 	remote := c.Remotes[name]
 	args := lxd.ConnectionArgs{

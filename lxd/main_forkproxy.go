@@ -1,28 +1,5 @@
 package main
 
-import (
-	"fmt"
-	"io"
-	"net"
-	"os"
-	"os/signal"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
-	"unsafe"
-
-	"github.com/spf13/cobra"
-	"golang.org/x/sys/unix"
-
-	"github.com/canonical/lxd/lxd/daemon"
-	deviceConfig "github.com/canonical/lxd/lxd/device/config"
-	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
-	"github.com/canonical/lxd/lxd/network"
-	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/netutils"
-)
-
 /*
 #include "config.h"
 
@@ -263,6 +240,29 @@ void forkproxy(void)
 */
 import "C"
 
+import (
+	"fmt"
+	"io"
+	"net"
+	"os"
+	"os/signal"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+	"unsafe"
+
+	"github.com/spf13/cobra"
+	"golang.org/x/sys/unix"
+
+	"github.com/canonical/lxd/lxd/daemon"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
+	"github.com/canonical/lxd/lxd/network"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/netutils"
+)
+
 const forkproxyUDSSockFDNum int = C.FORKPROXY_UDS_SOCK_FD_NUM
 
 type cmdForkproxy struct {
@@ -305,7 +305,7 @@ func rearmUDPFd(epFd C.int, connFd C.int) {
 	*(*C.int)(unsafe.Pointer(uintptr(unsafe.Pointer(&ev)) + unsafe.Sizeof(ev.events))) = connFd
 	ret := C.epoll_ctl(epFd, C.EPOLL_CTL_MOD, connFd, &ev)
 	if ret < 0 {
-		fmt.Printf("Error: Failed to add listener fd to epoll instance\n")
+		fmt.Println("Error: Failed to add listener fd to epoll instance")
 	}
 }
 
@@ -327,7 +327,7 @@ func listenerInstance(epFd C.int, lAddr *deviceConfig.ProxyAddress, cAddr *devic
 		go func() {
 			srcConn, err := net.FileConn((*lStruct).f)
 			if err != nil {
-				fmt.Printf("Warning: Failed to re-assemble listener: %s\n", err)
+				fmt.Printf("Warning: Failed to re-assemble listener: %v\n", err)
 				rearmUDPFd(epFd, connFd)
 				return
 			}
@@ -555,7 +555,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		if f == nil {
-			fmt.Printf("Error: Failed to receive fd from listener process\n")
+			fmt.Println("Error: Failed to receive fd from listener process")
 			_ = unix.Close(forkproxyUDSSockFDNum)
 			return err
 		}
@@ -672,7 +672,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 
 		nfds := C.lxc_epoll_wait_nointr(epFd, &events[0], 10, -1)
 		if nfds < 0 {
-			fmt.Printf("Error: Failed to wait on epoll instance\n")
+			fmt.Println("Error: Failed to wait on epoll instance")
 			break
 		}
 
@@ -685,12 +685,12 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 
 			err := listenerInstance(epFd, lAddr, cAddr, curFd, srcConn, args[11] == "true")
 			if err != nil {
-				fmt.Printf("Warning: Failed to prepare new listener instance: %s\n", err)
+				fmt.Printf("Warning: Failed to prepare new listener instance: %v\n", err)
 			}
 		}
 	}
 
-	fmt.Printf("Status: Stopping proxy\n")
+	fmt.Println("Status: Stopping proxy")
 	return nil
 }
 

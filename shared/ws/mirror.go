@@ -12,65 +12,8 @@ import (
 // Mirror takes a websocket and replicates all read/write to a ReadWriteCloser.
 // Returns channels indicating when reads and writes are finished (respectively).
 func Mirror(ctx context.Context, conn *websocket.Conn, rwc io.ReadWriteCloser) (chan struct{}, chan struct{}) {
-	return MirrorWithHooks(ctx, conn, rwc, nil, nil)
-}
-
-// MirrorWithHooks is identical to Mirror but allows for code to be run at the end of the read or write operations.
-// Returns channels indicating when reads and writes are finished (respectively).
-func MirrorWithHooks(ctx context.Context, conn *websocket.Conn, rwc io.ReadWriteCloser, hookRead func(conn *websocket.Conn), hookWrite func(conn *websocket.Conn)) (chan struct{}, chan struct{}) {
-	logger.Debug("Websocket: Started mirror", logger.Ctx{"address": conn.RemoteAddr().String()})
-
-	chRead := make(chan struct{}, 1)
-	chWrite := make(chan struct{}, 1)
-	chDone := make(chan struct{}, 1)
-
-	connRWC := NewWrapper(conn)
-
-	go func() {
-		_, _ = io.Copy(rwc, connRWC)
-		defer close(chWrite)
-
-		// Call the hook.
-		if hookRead != nil {
-			hookRead(conn)
-		}
-	}()
-
-	go func() {
-		_, _ = io.Copy(connRWC, rwc)
-		defer close(chRead)
-
-		// Call the hook.
-		if hookWrite != nil {
-			hookWrite(conn)
-		}
-
-		// Send write barrier.
-		connRWC.Close()
-	}()
-
-	go func() {
-		<-chRead
-		<-chWrite
-		close(chDone)
-
-		// Send close message.
-		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-		_ = conn.WriteMessage(websocket.CloseMessage, closeMsg)
-
-		logger.Debug("Websocket: Stopped mirror", logger.Ctx{"address": conn.RemoteAddr().String()})
-	}()
-
-	go func() {
-		// Handle cancelation.
-		select {
-		case <-ctx.Done():
-		case <-chDone:
-		}
-
-		// Close the ReadWriteCloser on termination.
-		rwc.Close()
-	}()
+	chRead := MirrorRead(ctx, conn, rwc)
+	chWrite := MirrorWrite(ctx, conn, rwc)
 
 	return chRead, chWrite
 }
@@ -88,8 +31,8 @@ func MirrorRead(ctx context.Context, conn *websocket.Conn, rc io.ReadCloser) cha
 	connRWC := NewWrapper(conn)
 
 	go func() {
-		_, _ = io.Copy(connRWC, rc)
 		defer close(chDone)
+		_, _ = io.Copy(connRWC, rc)
 
 		// Send write barrier.
 		connRWC.Close()
@@ -123,12 +66,8 @@ func MirrorWrite(ctx context.Context, conn *websocket.Conn, wc io.WriteCloser) c
 	connRWC := NewWrapper(conn)
 
 	go func() {
-		_, _ = io.Copy(wc, connRWC)
 		defer close(chDone)
-
-		// Send close message.
-		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-		_ = conn.WriteMessage(websocket.CloseMessage, closeMsg)
+		_, _ = io.Copy(wc, connRWC)
 
 		logger.Debug("Websocket: Stopped write mirror", logger.Ctx{"address": conn.RemoteAddr().String()})
 	}()

@@ -88,6 +88,7 @@ Key                                             | Type      | Default           
 :--                                             | :---      | :------           | :----------   | :----------               | :----------
 `limits.cpu`                                    | string    | for VMs: 1 CPU    | yes           | -                         | Number or range of CPUs to expose to the instance; see {ref}`instance-options-limits-cpu`
 `limits.cpu.allowance`                          | string    | `100%`            | yes           | container                 | Controls how much of the CPU can be used: either a percentage (`50%`) for a soft limit or a chunk of time (`25ms/100ms`) for a hard limit; see {ref}`instance-options-limits-cpu-container`
+`limits.cpu.nodes`                              | string    | -                 | yes           | -                         | Comma-separated list of NUMA node IDs or ranges to place the instance CPUs on; see {ref}`instance-options-limits-cpu-container`
 `limits.cpu.priority`                           | integer   | `10` (maximum)    | yes           | container                 | CPU scheduling priority compared to other instances sharing the same CPUs when overcommitting resources (integer between 0 and 10); see {ref}`instance-options-limits-cpu-container`
 `limits.disk.priority`                          | integer   | `5` (medium)      | yes           | -                         | Controls how much priority to give to the instance's I/O requests when under load (integer between 0 and 10)
 `limits.hugepages.64KB`                         | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`) to limit number of 64 KB huge pages; see {ref}`instance-options-limits-hugepages`
@@ -166,6 +167,9 @@ All this allows for very high performance operations in the guest as the guest s
 - When using a percentage value, the limit is a soft limit that is applied only when under load.
   It is used to calculate the scheduler priority for the instance, relative to any other instance that is using the same CPU or CPUs.
   For example, to limit the CPU usage of the container to one CPU when under load, set `limits.cpu.allowance` to `100%`.
+
+`limits.cpu.nodes` can be used to restrict the CPUs that the instance can use to a specific set of NUMA nodes.
+To specify which NUMA nodes to use, set `limits.cpu.nodes` to either a set of NUMA node IDs (for example, `0,1`) or a set of NUMA node ranges (for example, `0-1,2-4`).
 
 `limits.cpu.priority` is another factor that is used to compute the scheduler priority score when a number of instances sharing a set of CPUs have the same percentage of CPU assigned to them.
 

@@ -83,11 +83,19 @@ cleanup() {
     read -r _
   fi
 
-  echo "==> Cleaning up"
+  echo ""
+  echo "df -h output:"
+  df -h
 
-  umount -l "${TEST_DIR}/dev"
-  kill_external_auth_daemon "$TEST_DIR"
-  cleanup_lxds "$TEST_DIR"
+  if [ -n "${GITHUB_ACTIONS:-}" ]; then
+    echo "==> Skipping cleanup (GitHub Action runner detected)"
+  else
+    echo "==> Cleaning up"
+
+    umount -l "${TEST_DIR}/dev"
+    kill_external_auth_daemon "$TEST_DIR"
+    cleanup_lxds "$TEST_DIR"
+  fi
 
   echo ""
   echo ""
@@ -214,6 +222,7 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_shutdown_nodes "clustering shutdown"
     run_test test_clustering_projects "clustering projects"
     run_test test_clustering_update_cert "clustering update cert"
+    run_test test_clustering_update_cert_reversion "clustering update cert reversion"
     run_test test_clustering_address "clustering address"
     run_test test_clustering_image_replication "clustering image replication"
     run_test test_clustering_dns "clustering DNS"
@@ -224,6 +233,7 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_failure_domains "clustering failure domains"
     run_test test_clustering_image_refresh "clustering image refresh"
     run_test test_clustering_evacuation "clustering evacuation"
+    run_test test_clustering_move "clustering move"
     run_test test_clustering_edit_configuration "clustering config edit"
     run_test test_clustering_remove_members "clustering config remove members"
     run_test test_clustering_autotarget "clustering autotarget member"
@@ -275,6 +285,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_image_prefer_cached "image prefer cached"
     run_test test_image_import_dir "import image from directory"
     run_test test_image_refresh "image refresh"
+    run_test test_image_acl "image acl"
     run_test test_cloud_init "cloud-init"
     run_test test_exec "exec"
     run_test test_concurrent_exec "concurrent exec"
@@ -286,6 +297,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_snap_volume_db_recovery "snapshot volume database record recovery"
     run_test test_config_profiles "profiles and configuration"
     run_test test_config_edit "container configuration edit"
+    run_test test_property "container property"
     run_test test_config_edit_container_snapshot_pool_config "container and snapshot volume configuration edit"
     run_test test_container_metadata "manage container metadata and templates"
     run_test test_container_snapshot_config "container snapshot configuration"
@@ -301,6 +313,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_devlxd "/dev/lxd"
     run_test test_fuidshift "fuidshift"
     run_test test_migration "migration"
+    run_test test_lxc_to_lxd "LXC to LXD"
     run_test test_fdleak "fd leak"
     run_test test_storage "storage"
     run_test test_storage_volume_snapshots "storage volume snapshots"
@@ -309,6 +322,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_init_preseed "lxd init preseed"
     run_test test_storage_profiles "storage profiles"
     run_test test_container_recover "container recover"
+    run_test test_get_operations "test_get_operations"
     run_test test_storage_volume_attach "attaching storage volumes"
     run_test test_storage_driver_btrfs "btrfs storage driver"
     run_test test_storage_driver_ceph "ceph storage driver"
@@ -326,6 +340,8 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_backup_volume_export "backup volume export"
     run_test test_backup_volume_rename_delete "backup volume rename and delete"
     run_test test_backup_different_instance_uuid "backup instance and check instance UUIDs"
+    run_test test_backup_volume_expiry "backup volume expiry"
+    run_test test_backup_export_import_recover "backup export, import, and recovery"
     run_test test_container_local_cross_pool_handling "container local cross pool handling"
     run_test test_incremental_copy "incremental container copy"
     run_test test_profiles_project_default "profiles in default project"
@@ -335,6 +351,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_filtering "API filtering"
     run_test test_warnings "Warnings"
     run_test test_metrics "Metrics"
+    run_test test_storage_volume_recover "Recover storage volumes"
 fi
 
 # shellcheck disable=SC2034

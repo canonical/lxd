@@ -346,6 +346,12 @@ var APIExtensions = []string{
 	"storage_pool_loop_resize",
 	"migration_vm_live",
 	"auth_user",
+	"instances_state_total",
+	"numa_cpu_placement",
+	"network_allocations",
+	"storage_api_remote_volume_snapshot_copy",
+	"zfs_delegate",
+	"operations_get_query_all_projects",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

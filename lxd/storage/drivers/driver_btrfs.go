@@ -32,9 +32,11 @@ type btrfs struct {
 func (d *btrfs) load() error {
 	// Register the patches.
 	d.patches = map[string]func() error{
-		"storage_lvm_skipactivation":          nil,
-		"storage_missing_snapshot_records":    nil,
-		"storage_delete_old_snapshot_records": nil,
+		"storage_lvm_skipactivation":                         nil,
+		"storage_missing_snapshot_records":                   nil,
+		"storage_delete_old_snapshot_records":                nil,
+		"storage_zfs_drop_block_volume_filesystem_extension": nil,
+		"storage_prefix_bucket_names_with_project":           nil,
 	}
 
 	// Done if previously loaded.
@@ -103,20 +105,10 @@ func (d *btrfs) Info() Info {
 	}
 }
 
-// Create is called during pool creation and is effectively using an empty driver struct.
-// WARNING: The Create() function cannot rely on any of the struct attributes being set.
-func (d *btrfs) Create() error {
-	// Store the provided source as we are likely to be mangling it.
-	d.config["volatile.initial_source"] = d.config["source"]
-
-	revert := revert.New()
-	defer revert.Fail()
-
+// FillConfig populates the storage pool's configuration file with the default values.
+func (d *btrfs) FillConfig() error {
 	loopPath := loopFilePath(d.name)
 	if d.config["source"] == "" || d.config["source"] == loopPath {
-		// Create a loop based pool.
-		d.config["source"] = loopPath
-
 		// Pick a default size of the loop file if not specified.
 		if d.config["size"] == "" {
 			defaultSize, err := loopFileSizeDefault()
@@ -126,6 +118,32 @@ func (d *btrfs) Create() error {
 
 			d.config["size"] = fmt.Sprintf("%dGiB", defaultSize)
 		}
+	} else {
+		// Unset size property since it's irrelevant.
+		d.config["size"] = ""
+	}
+
+	return nil
+}
+
+// Create is called during pool creation and is effectively using an empty driver struct.
+// WARNING: The Create() function cannot rely on any of the struct attributes being set.
+func (d *btrfs) Create() error {
+	// Store the provided source as we are likely to be mangling it.
+	d.config["volatile.initial_source"] = d.config["source"]
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	err := d.FillConfig()
+	if err != nil {
+		return err
+	}
+
+	loopPath := loopFilePath(d.name)
+	if d.config["source"] == "" || d.config["source"] == loopPath {
+		// Create a loop based pool.
+		d.config["source"] = loopPath
 
 		// Create the loop file itself.
 		size, err := units.ParseByteSizeString(d.config["size"])
@@ -146,9 +164,6 @@ func (d *btrfs) Create() error {
 			return fmt.Errorf("Failed to format sparse file: %w", err)
 		}
 	} else if shared.IsBlockdevPath(d.config["source"]) {
-		// Unset size property since it's irrelevant.
-		d.config["size"] = ""
-
 		// Wipe if requested.
 		if shared.IsTrue(d.config["source.wipe"]) {
 			err := wipeBlockHeaders(d.config["source"])
@@ -177,9 +192,6 @@ func (d *btrfs) Create() error {
 			d.config["source"] = devUUID
 		}
 	} else if d.config["source"] != "" {
-		// Unset size property since it's irrelevant.
-		d.config["size"] = ""
-
 		hostPath := shared.HostPath(d.config["source"])
 		if d.isSubvolume(hostPath) {
 			// Existing btrfs subvolume.
@@ -200,7 +212,7 @@ func (d *btrfs) Create() error {
 			if shared.PathExists(hostPath) {
 				hostPathFS, _ := filesystem.Detect(hostPath)
 				if hostPathFS != "btrfs" {
-					return fmt.Errorf("Provided path does not reside on a btrfs filesystem")
+					return fmt.Errorf("Provided path does not reside on a btrfs filesystem (detected %s)", hostPathFS)
 				}
 			}
 
@@ -211,7 +223,7 @@ func (d *btrfs) Create() error {
 
 				storagePoolDirFS, _ := filesystem.Detect(shared.VarPath("storage-pools"))
 				if storagePoolDirFS != "btrfs" {
-					return fmt.Errorf("Provided path does not reside on a btrfs filesystem")
+					return fmt.Errorf("Provided path does not reside on a btrfs filesystem (detected %s)", storagePoolDirFS)
 				}
 
 				// Delete the current directory to replace by subvolume.
@@ -404,7 +416,7 @@ func (d *btrfs) Mount() (bool, error) {
 
 			mntSrcFS, _ := filesystem.Detect(mntSrc)
 			if mntSrcFS != "btrfs" {
-				return false, fmt.Errorf("Source path %q isn't btrfs", mntSrc)
+				return false, fmt.Errorf("Source path %q isn't btrfs (detected %s)", mntSrc, mntSrcFS)
 			}
 		}
 	} else {
@@ -480,7 +492,7 @@ func (d *btrfs) MigrationTypes(contentType ContentType, refresh bool, copySnapsh
 	if d.state.OS.RunningInUserNS {
 		var transportType migration.MigrationFSType
 
-		if contentType == ContentTypeBlock {
+		if IsContentBlock(contentType) {
 			transportType = migration.MigrationFSType_BLOCK_AND_RSYNC
 		} else {
 			transportType = migration.MigrationFSType_RSYNC
@@ -494,7 +506,7 @@ func (d *btrfs) MigrationTypes(contentType ContentType, refresh bool, copySnapsh
 		}
 	}
 
-	if contentType == ContentTypeBlock {
+	if IsContentBlock(contentType) {
 		return []migration.Type{
 			{
 				FSType:   migration.MigrationFSType_BTRFS,

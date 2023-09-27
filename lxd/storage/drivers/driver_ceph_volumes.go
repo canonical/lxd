@@ -180,7 +180,7 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 			var err error
 			var devPath string
 
-			if vol.contentType == ContentTypeBlock {
+			if IsContentBlock(vol.contentType) {
 				// Get the device path.
 				devPath, err = d.GetVolumeDiskPath(vol)
 				if err != nil {
@@ -568,7 +568,7 @@ func (d *ceph) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vo
 		return err
 	}
 
-	// Handle zfs send/receive migration.
+	// Handle rbd migration.
 	if len(volTargetArgs.Snapshots) > 0 {
 		// Create the parent directory.
 		err := createParentSnapshotDirIfMissing(d.name, vol.volType, vol.name)
@@ -1052,7 +1052,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 
 // GetVolumeDiskPath returns the location of a root disk block device.
 func (d *ceph) GetVolumeDiskPath(vol Volume) (string, error) {
-	if vol.IsVMBlock() || (vol.volType == VolumeTypeCustom && vol.contentType == ContentTypeBlock) {
+	if vol.IsVMBlock() || (vol.volType == VolumeTypeCustom && IsContentBlock(vol.contentType)) {
 		_, devPath, err := d.getRBDMappedDevPath(vol, false)
 		return devPath, err
 	}
@@ -1118,7 +1118,10 @@ func (d *ceph) ListVolumes() ([]Volume, error) {
 		}
 
 		contentType := ContentTypeFS
-		if volType == VolumeTypeVM || isBlock {
+		if volType == VolumeTypeCustom && strings.HasSuffix(volName, cephISOVolSuffix) {
+			contentType = ContentTypeISO
+			volName = strings.TrimSuffix(volName, cephISOVolSuffix)
+		} else if volType == VolumeTypeVM || isBlock {
 			contentType = ContentTypeBlock
 			volName = strings.TrimSuffix(volName, cephBlockVolSuffix)
 		}

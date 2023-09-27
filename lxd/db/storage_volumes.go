@@ -70,21 +70,26 @@ WHERE storage_volumes.type = ?
 }
 
 // GetStoragePoolVolumeWithID returns the volume with the given ID.
-func (c *Cluster) GetStoragePoolVolumeWithID(volumeID int) (StorageVolumeArgs, error) {
+func (c *ClusterTx) GetStoragePoolVolumeWithID(ctx context.Context, volumeID int) (StorageVolumeArgs, error) {
 	var response StorageVolumeArgs
 
 	stmt := `
-SELECT storage_volumes.id, storage_volumes.name, storage_volumes.description, storage_pools.name, storage_pools.type, projects.name
+SELECT
+	storage_volumes.id,
+	storage_volumes.name,
+	storage_volumes.description,
+	storage_volumes.type,
+	IFNULL(storage_volumes.node_id, -1),
+	storage_pools.name,
+	projects.name
 FROM storage_volumes
 JOIN storage_pools ON storage_pools.id = storage_volumes.storage_pool_id
 JOIN projects ON projects.id = storage_volumes.project_id
+LEFT JOIN nodes ON nodes.id = storage_volumes.node_id
 WHERE storage_volumes.id = ?
 `
 
-	inargs := []any{volumeID}
-	outargs := []any{&response.ID, &response.Name, &response.Description, &response.PoolName, &response.Type, &response.ProjectName}
-
-	err := dbQueryRowScan(c, stmt, inargs, outargs)
+	err := c.tx.QueryRowContext(ctx, stmt, volumeID).Scan(&response.ID, &response.Name, &response.Description, &response.Type, &response.NodeID, &response.PoolName, &response.ProjectName)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return StorageVolumeArgs{}, api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
@@ -93,7 +98,7 @@ WHERE storage_volumes.id = ?
 		return StorageVolumeArgs{}, err
 	}
 
-	response.Config, err = c.storageVolumeConfigGet(response.ID, false)
+	response.Config, err = c.storageVolumeConfigGet(ctx, response.ID, false)
 	if err != nil {
 		return StorageVolumeArgs{}, err
 	}
@@ -591,12 +596,14 @@ var StoragePoolVolumeTypeNames = map[int]string{
 const (
 	StoragePoolVolumeContentTypeFS = iota
 	StoragePoolVolumeContentTypeBlock
+	StoragePoolVolumeContentTypeISO
 )
 
 // Content type names.
 const (
 	StoragePoolVolumeContentTypeNameFS    string = "filesystem"
 	StoragePoolVolumeContentTypeNameBlock string = "block"
+	StoragePoolVolumeContentTypeNameISO   string = "iso"
 )
 
 // StorageVolumeArgs is a value object holding all db-related details about a
@@ -694,22 +701,6 @@ func (c *ClusterTx) GetStorageVolumeNodes(ctx context.Context, poolID int64, pro
 	}
 
 	return nodes, nil
-}
-
-// Get the config of a storage volume.
-func (c *Cluster) storageVolumeConfigGet(volumeID int64, isSnapshot bool) (map[string]string, error) {
-	var err error
-	var result map[string]string
-
-	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		result, err = tx.storageVolumeConfigGet(ctx, volumeID, isSnapshot)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
 }
 
 // Get the config of a storage volume.
@@ -876,6 +867,8 @@ func storagePoolVolumeContentTypeToName(contentType int) (string, error) {
 		return StoragePoolVolumeContentTypeNameFS, nil
 	case StoragePoolVolumeContentTypeBlock:
 		return StoragePoolVolumeContentTypeNameBlock, nil
+	case StoragePoolVolumeContentTypeISO:
+		return StoragePoolVolumeContentTypeNameISO, nil
 	}
 
 	return "", fmt.Errorf("Invalid storage volume content type")

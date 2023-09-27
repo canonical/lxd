@@ -16,10 +16,13 @@ lxd-migrate/lxd-migrate
 lxd-user/lxd-user
 test/devlxd-client/devlxd-client
 test/macaroon-identity/macaroon-identity
+test/syscall/sysinfo/sysinfo
 
 # Sphinx
 doc/html/
+doc/reference/manpages/**/*.md
 doc/.sphinx/deps/
+doc/.sphinx/.doctrees/
 doc/.sphinx/themes/
 doc/.sphinx/venv/
 doc/.sphinx/warnings.txt

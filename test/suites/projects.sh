@@ -320,8 +320,15 @@ test_projects_profiles() {
 
   # Try project copy
   lxc project create foo
+  lxc profile set --project default default user.x z
   lxc profile copy --project default --target-project foo default bar
+  # copy to an existing profile without --refresh should fail
+  ! lxc profile copy --project default --target-project foo default bar
+  lxc profile copy --project default --target-project foo default bar --refresh
+  lxc profile get --project foo bar user.x | grep -q 'z'
+  lxc profile copy --project default --target-project foo default bar-non-existent --refresh
   lxc profile delete bar --project foo
+  lxc profile delete bar-non-existent --project foo
   lxc project delete foo
 }
 
@@ -682,14 +689,16 @@ test_projects_limits() {
   lxc profile device set default root size=100MiB
   lxc config device add c2 root disk path="/" pool="${pool}" size=50MiB
 
-  # Can't set the project's disk limit because not all volumes have
-  # the "size" config defined.
-  pool1="lxdtest1-$(basename "${LXD_DIR}")"
-  lxc storage create "${pool1}" lvm size=1GiB
-  lxc storage volume create "${pool1}" v1
-  ! lxc project set p1 limits.disk 1GiB || false
-  lxc storage volume delete "${pool1}" v1
-  lxc storage delete "${pool1}"
+  if [ "${LXD_BACKEND}" = "lvm" ]; then
+    # Can't set the project's disk limit because not all volumes have
+    # the "size" config defined.
+    pool1="lxdtest1-$(basename "${LXD_DIR}")"
+    lxc storage create "${pool1}" lvm size=1GiB
+    lxc storage volume create "${pool1}" v1
+    ! lxc project set p1 limits.disk 1GiB || false
+    lxc storage volume delete "${pool1}" v1
+    lxc storage delete "${pool1}"
+  fi
 
   # Create a custom volume without any size property defined.
   lxc storage volume create "${pool}" v1
@@ -766,6 +775,39 @@ test_projects_limits() {
   lxc image delete testimage
   lxc profile delete unrestricted
 
+  lxc project switch default
+  lxc project delete p1
+
+  # Start with clean project.
+  lxc project create p1
+  lxc project switch p1
+
+  # Relaxing restricted.containers.lowlevel to 'allow' makes it possible set
+  # low-level keys.
+  lxc project set p1 restricted.containers.lowlevel allow
+
+  # Add a root device to the default profile of the project and import an image.
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+  lxc profile device add default root disk path="/" pool="${pool}"
+
+  deps/import-busybox --project p1 --alias testimage
+
+  # Create a couple of containers in the project.
+  lxc init testimage c1 -c limits.memory=1GiB
+  lxc init testimage c2 -c limits.memory=1GiB
+
+  lxc export c1
+  lxc delete c1
+
+  # Configure a valid project memory limit.
+  lxc project set p1 limits.memory 1GiB
+
+  # Can't import the backup as it would exceed the 1GiB project memory limit.
+  ! lxc import c1.tar.gz || false
+
+  rm c1.tar.gz
+  lxc delete c2
+  lxc image delete testimage
   lxc project switch default
   lxc project delete p1
 

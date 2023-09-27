@@ -320,6 +320,8 @@ func (c *cmdNetworkPeerCreate) Run(cmd *cobra.Command, args []string) error {
 type cmdNetworkPeerGet struct {
 	global      *cmdGlobal
 	networkPeer *cmdNetworkPeer
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkPeerGet) Command() *cobra.Command {
@@ -329,6 +331,7 @@ func (c *cmdNetworkPeerGet) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Get values for network peer configuration keys"))
 	cmd.RunE = c.Run
 
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a network peer property"))
 	return cmd
 }
 
@@ -362,9 +365,19 @@ func (c *cmdNetworkPeerGet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for k, v := range peer.Config {
-		if k == args[2] {
-			fmt.Printf("%s\n", v)
+	if c.flagIsProperty {
+		w := peer.Writable()
+		res, err := getFieldByJsonTag(&w, args[2])
+		if err != nil {
+			return fmt.Errorf(i18n.G("The property %q does not exist on the network peer %q: %v"), args[2], resource.name, err)
+		}
+
+		fmt.Printf("%v\n", res)
+	} else {
+		for k, v := range peer.Config {
+			if k == args[2] {
+				fmt.Printf("%s\n", v)
+			}
 		}
 	}
 
@@ -375,6 +388,8 @@ func (c *cmdNetworkPeerGet) Run(cmd *cobra.Command, args []string) error {
 type cmdNetworkPeerSet struct {
 	global      *cmdGlobal
 	networkPeer *cmdNetworkPeer
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkPeerSet) Command() *cobra.Command {
@@ -388,6 +403,7 @@ For backward compatibility, a single configuration key may still be set with:
     lxc network set [<remote>:]<network> <peer_name> <key> <value>`))
 	cmd.RunE = c.Run
 
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a network peer property"))
 	return cmd
 }
 
@@ -432,11 +448,28 @@ func (c *cmdNetworkPeerSet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for k, v := range keys {
-		peer.Config[k] = v
+	writable := peer.Writable()
+	if c.flagIsProperty {
+		if cmd.Name() == "unset" {
+			for k := range keys {
+				err := unsetFieldByJsonTag(&writable, k)
+				if err != nil {
+					return fmt.Errorf(i18n.G("Error unsetting property: %v"), err)
+				}
+			}
+		} else {
+			err := unpackKVToWritable(&writable, keys)
+			if err != nil {
+				return fmt.Errorf(i18n.G("Error setting properties: %v"), err)
+			}
+		}
+	} else {
+		for k, v := range keys {
+			writable.Config[k] = v
+		}
 	}
 
-	return client.UpdateNetworkPeer(resource.name, peer.Name, peer.Writable(), etag)
+	return client.UpdateNetworkPeer(resource.name, peer.Name, writable, etag)
 }
 
 // Unset.
@@ -444,6 +477,8 @@ type cmdNetworkPeerUnset struct {
 	global         *cmdGlobal
 	networkPeer    *cmdNetworkPeer
 	networkPeerSet *cmdNetworkPeerSet
+
+	flagIsProperty bool
 }
 
 func (c *cmdNetworkPeerUnset) Command() *cobra.Command {
@@ -453,6 +488,7 @@ func (c *cmdNetworkPeerUnset) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Unset network peer keys"))
 	cmd.RunE = c.Run
 
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a network peer property"))
 	return cmd
 }
 
@@ -462,6 +498,8 @@ func (c *cmdNetworkPeerUnset) Run(cmd *cobra.Command, args []string) error {
 	if exit {
 		return err
 	}
+
+	c.networkPeerSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
 	return c.networkPeerSet.Run(cmd, args)

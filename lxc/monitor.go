@@ -43,7 +43,6 @@ lxc monitor --pretty --type=logging --loglevel=info
 
 lxc monitor --type=lifecycle
     Only show lifecycle events.`))
-	cmd.Hidden = true
 
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVar(&c.flagPretty, "pretty", false, i18n.G("Pretty rendering (short for --format=pretty)"))

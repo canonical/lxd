@@ -420,7 +420,7 @@ files for the container via `nofile`. The format is `limits.kernel.[limit name]`
 
 This adds support for renaming custom storage volumes.
 
-## `external_authentication`
+## `macaroon_authentication`
 
 This adds support for external authentication via Macaroons.
 
@@ -765,7 +765,7 @@ and `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly>` 
 
 ## `container_copy_project`
 
-Introduces a `project` field to the container source dict, allowing for
+Introduces a `project` field to the container source JSON object, allowing for
 copy/move of containers between projects.
 
 ## `clustering_server_address`
@@ -1047,7 +1047,7 @@ redirect file-system mounts to their fuse implementation. To this end, set e.g.
 
 This allows for existing a Ceph RBD or CephFS to be directly connected to a LXD container.
 
-## `virtual_machines`
+## `virtual-machines`
 
 Add virtual machine support.
 
@@ -1687,6 +1687,9 @@ The following network configurations keys (`bridge` and `physical`):
 * `bgp.peers.<name>.address`
 * `bgp.peers.<name>.asn`
 * `bgp.peers.<name>.password`
+
+The `nexthop` configuration keys (`bridge`):
+
 * `bgp.ipv4.nexthop`
 * `bgp.ipv6.nexthop`
 
@@ -2046,3 +2049,33 @@ This also adds the `CRIUType_VM_QEMU` value of `3` for the migration `CRIUType` 
 
 ## `auth_user`
 Add current user details to the main API endpoint.
+
+## `instances_state_total`
+This extension adds a new `total` field to `InstanceStateDisk` and `InstanceStateMemory`, both part of the instance's state API.
+
+## `numa_cpu_placement`
+This adds the possibility to place a set of CPUs in a desired set of NUMA nodes.
+
+This adds the following new configuration key:
+
+* `limits.cpu.nodes` : (string) comma-separated list of NUMA node IDs or NUMA node ID ranges to place the CPUs (chosen with a dynamic value of `limits.cpu`) in.
+
+## `network_allocations`
+This adds the possibility to list a LXD deployment's network allocations.
+
+Through the `lxc network list-allocations` command and the `--project <PROJECT> | --all-projects` flags,
+you can list all the used IP addresses, hardware addresses (for instances), resource URIs and whether it uses NAT for
+each `instance`, `network`, and `network forward`.
+
+## `storage_api_remote_volume_snapshot_copy`
+
+This allows copying storage volume snapshots to and from remotes.
+
+## `zfs_delegate`
+This implements a new `zfs.delegate` volume Boolean for volumes on a ZFS storage driver.
+When enabled and a suitable system is in use (requires ZFS 2.2 or higher), the ZFS dataset will be delegated to the container, allowing for its use through the `zfs` command line tool.
+
+## `operations_get_query_all_projects`
+
+This introduces support for the `all-projects` query parameter for the GET API calls to both `/1.0/operations` and `/1.0/operations?recursion=1`.
+This parameter allows bypassing the project name filter.

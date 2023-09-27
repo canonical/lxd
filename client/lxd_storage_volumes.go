@@ -362,9 +362,31 @@ func (r *ProtocolLXD) MigrateStoragePoolVolume(pool string, volume api.StorageVo
 		return nil, fmt.Errorf("Can't ask for a rename through MigrateStoragePoolVolume")
 	}
 
+	var req any
+	var path string
+
+	srcVolParentName, srcVolSnapName, srcIsSnapshot := api.GetParentAndSnapshotName(volume.Name)
+	if srcIsSnapshot {
+		err := r.CheckExtension("storage_api_remote_volume_snapshot_copy")
+		if err != nil {
+			return nil, err
+		}
+
+		// Set the actual name of the snapshot without delimiter.
+		req = api.StorageVolumeSnapshotPost{
+			Name:      srcVolSnapName,
+			Migration: volume.Migration,
+			Target:    volume.Target,
+		}
+
+		path = api.NewURL().Path("storage-pools", pool, "volumes", "custom", srcVolParentName, "snapshots", srcVolSnapName).String()
+	} else {
+		req = volume
+		path = api.NewURL().Path("storage-pools", pool, "volumes", "custom", volume.Name).String()
+	}
+
 	// Send the request
-	path := fmt.Sprintf("/storage-pools/%s/volumes/custom/%s", url.PathEscape(pool), volume.Name)
-	op, _, err := r.queryOperation("POST", path, volume, "")
+	op, _, err := r.queryOperation("POST", path, req, "")
 	if err != nil {
 		return nil, err
 	}
@@ -431,6 +453,8 @@ func (r *ProtocolLXD) tryMigrateStoragePoolVolume(source InstanceServer, pool st
 	return &rop, nil
 }
 
+// tryCreateStoragePoolVolume attempts to create a storage volume in the specified storage pool.
+// It will try to do this on every server in the provided list of urls, and waits for the creation to be complete.
 func (r *ProtocolLXD) tryCreateStoragePoolVolume(pool string, req api.StorageVolumesPost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("The source server isn't listening on the network")
@@ -531,6 +555,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 		return nil, fmt.Errorf("Failed to get destination connection info: %w", err)
 	}
 
+	// Copy the storage pool volume locally.
 	if destInfo.URL == sourceInfo.URL && destInfo.SocketPath == sourceInfo.SocketPath && (volume.Location == r.clusterTarget || (volume.Location == "none" && r.clusterTarget == "")) {
 		// Project handling
 		if destInfo.Project != sourceInfo.Project {
@@ -941,6 +966,64 @@ func (r *ProtocolLXD) GetStoragePoolVolumeBackupFile(pool string, volName string
 	resp.Size = size
 
 	return &resp, nil
+}
+
+// CreateStoragePoolVolumeFromISO creates a custom volume from an ISO file.
+func (r *ProtocolLXD) CreateStoragePoolVolumeFromISO(pool string, args StoragePoolVolumeBackupArgs) (Operation, error) {
+	err := r.CheckExtension("custom_volume_iso")
+	if err != nil {
+		return nil, err
+	}
+
+	path := fmt.Sprintf("/storage-pools/%s/volumes/custom", url.PathEscape(pool))
+
+	// Prepare the HTTP request.
+	reqURL, err := r.setQueryAttributes(fmt.Sprintf("%s/1.0%s", r.httpBaseURL.String(), path))
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", reqURL, args.BackupFile)
+	if err != nil {
+		return nil, err
+	}
+
+	if args.Name == "" {
+		return nil, fmt.Errorf("Missing volume name")
+	}
+
+	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("X-LXD-name", args.Name)
+	req.Header.Set("X-LXD-type", "iso")
+
+	// Send the request.
+	resp, err := r.DoHTTP(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = resp.Body.Close() }()
+
+	// Handle errors.
+	response, _, err := lxdParseResponse(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get to the operation.
+	respOperation, err := response.MetadataAsOperation()
+	if err != nil {
+		return nil, err
+	}
+
+	// Setup an Operation wrapper.
+	op := operation{
+		Operation: *respOperation,
+		r:         r,
+		chActive:  make(chan bool),
+	}
+
+	return &op, nil
 }
 
 // CreateStoragePoolVolumeFromBackup creates a custom volume from a backup file.

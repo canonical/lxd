@@ -3,6 +3,7 @@ package drivers
 import (
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -677,24 +678,24 @@ func BTRFSSubVolumesGet(path string) ([]string, error) {
 		path = path + "/"
 	}
 
-	// Unprivileged users can't get to fs internals
-	_ = filepath.Walk(path, func(fpath string, fi os.FileInfo, err error) error {
+	// Unprivileged users can't get to fs internals.
+	_ = filepath.WalkDir(path, func(fpath string, entry fs.DirEntry, err error) error {
 		// Skip walk errors
 		if err != nil {
 			return nil
 		}
 
-		// Ignore the base path
+		// Ignore the base path.
 		if strings.TrimRight(fpath, "/") == strings.TrimRight(path, "/") {
 			return nil
 		}
 
-		// Subvolumes can only be directories
-		if !fi.IsDir() {
+		// Subvolumes can only be directories.
+		if !entry.IsDir() {
 			return nil
 		}
 
-		// Check if a btrfs subvolume
+		// Check if a btrfs subvolume.
 		if btrfsIsSubVolume(fpath) {
 			result = append(result, strings.TrimPrefix(fpath, path))
 		}
@@ -705,6 +706,7 @@ func BTRFSSubVolumesGet(path string) ([]string, error) {
 	return result, nil
 }
 
+// Deprecated: Use IsSubvolume from the Btrfs driver instead.
 // btrfsIsSubvolume checks if a given path is a subvolume.
 func btrfsIsSubVolume(subvolPath string) bool {
 	fs := unix.Stat_t{}
@@ -818,7 +820,7 @@ func loopFileSizeDefault() (uint64, error) {
 func loopDeviceSetup(sourcePath string) (string, error) {
 	out, err := shared.RunCommand("losetup", "--find", "--nooverlap", "--direct-io=on", "--show", sourcePath)
 	if err != nil {
-		if strings.Contains(err.Error(), "direct io") {
+		if strings.Contains(err.Error(), "direct io") || strings.Contains(err.Error(), "Invalid argument") {
 			out, err = shared.RunCommand("losetup", "--find", "--nooverlap", "--show", sourcePath)
 			if err != nil {
 				return "", err
@@ -868,4 +870,9 @@ func wipeBlockHeaders(path string) error {
 	}
 
 	return nil
+}
+
+// IsContentBlock returns true if the content type is either block or iso.
+func IsContentBlock(contentType ContentType) bool {
+	return contentType == ContentTypeBlock || contentType == ContentTypeISO
 }

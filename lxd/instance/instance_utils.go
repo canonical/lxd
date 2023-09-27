@@ -1050,6 +1050,11 @@ func NextSnapshotName(s *state.State, inst Instance, defaultPattern string) (str
 	return pattern, nil
 }
 
+// temporaryName concatenates the move prefix and instUUID for a temporary instance.
+func temporaryName(instUUID string) string {
+	return fmt.Sprintf("lxd-move-of-%s", instUUID)
+}
+
 // MoveTemporaryName returns a name derived from the instance's volatile.uuid, to use when moving an instance
 // across pools or cluster members which can be used for the naming the temporary copy before deleting the original
 // instance and renaming the copy to the original name.
@@ -1064,7 +1069,7 @@ func MoveTemporaryName(inst Instance) (string, error) {
 		}
 	}
 
-	return fmt.Sprintf("lxd-move-of-%s", instUUID), nil
+	return temporaryName(instUUID), nil
 }
 
 // IsSameLogicalInstance returns true if the supplied Instance and db.Instance have the same project and name or
@@ -1075,11 +1080,23 @@ func IsSameLogicalInstance(inst Instance, dbInst *db.InstanceArgs) bool {
 		return true
 	}
 
-	// Instance UUID is expected to be globally unique (which then allows for the *temporary* existence of
-	// duplicate instances of different names with the same volatile.uuid in order to accommodate moving
-	// instances between projects and storage pools without triggering duplicate resource errors).
+	// Don't trigger duplicate resource errors for temporary copies.
 	if dbInst.Config["volatile.uuid"] == inst.LocalConfig()["volatile.uuid"] {
-		return true
+		// Accommodate moving instances between storage pools.
+		// Check temporary copy against source.
+		if dbInst.Name == temporaryName(inst.LocalConfig()["volatile.uuid"]) {
+			return true
+		}
+
+		// Check source against temporary copy.
+		if inst.Name() == temporaryName(dbInst.Config["volatile.uuid"]) {
+			return true
+		}
+
+		// Accommodate moving instances between projects.
+		if dbInst.Project != inst.Project().Name {
+			return true
+		}
 	}
 
 	return false

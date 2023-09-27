@@ -76,20 +76,140 @@ var HugePageSizeSuffix = [...]string{"64KB", "1MB", "2MB", "1GB"}
 
 // InstanceConfigKeysAny is a map of config key to validator. (keys applying to containers AND virtual machines).
 var InstanceConfigKeysAny = map[string]func(value string) error{
-	"boot.autostart":             validate.Optional(validate.IsBool),
-	"boot.autostart.delay":       validate.Optional(validate.IsInt64),
-	"boot.autostart.priority":    validate.Optional(validate.IsInt64),
-	"boot.stop.priority":         validate.Optional(validate.IsInt64),
+	// lxddoc:generate(group=instance-boot, key=boot.autostart)
+	//
+	// ---
+	//  type: bool
+	//  liveupdate: no
+	//  shortdesc: Controls whether to always start the instance when LXD starts (if not set, restore the last state)
+	"boot.autostart": validate.Optional(validate.IsBool),
+	// lxddoc:generate(group=instance-boot, key=boot.autostart.delay)
+	//
+	// ---
+	//  type: integer
+	//  default: 0
+	//  liveupdate: no
+	//  shortdesc: Number of seconds to wait after the instance started before starting the next one
+	"boot.autostart.delay": validate.Optional(validate.IsInt64),
+	// lxddoc:generate(group=instance-boot, key=boot.autostart.priority)
+	//
+	// ---
+	//  type: integer
+	//  default: 0
+	//  liveupdate: no
+	//  shortdesc: What order to start the instances in (starting with the highest value)
+	"boot.autostart.priority": validate.Optional(validate.IsInt64),
+	// lxddoc:generate(group=instance-boot, key=boot.stop.priority)
+	//
+	// ---
+	//  type: integer
+	//  default: 0
+	//  liveupdate: no
+	//  shortdesc: What order to shut down the instances in (starting with the highest value)
+	"boot.stop.priority": validate.Optional(validate.IsInt64),
+	// lxddoc:generate(group=instance-boot, key=boot.host_shutdown_timeout)
+	//
+	// ---
+	//  type: integer
+	//  default: 30
+	//  liveupdate: yes
+	//  shortdesc: Seconds to wait for the instance to shut down before it is force-stopped
 	"boot.host_shutdown_timeout": validate.Optional(validate.IsInt64),
 
+	// lxddoc:generate(group=instance-cloud-init, key=cloud-init.network-config)
+	//
+	// ---
+	//  type: string
+	//  default: `DHCP on eth0`
+	//  liveupdate: no
+	//  condition: If supported by image
+	//  shortdesc: Network configuration for `cloud-init` (content is used as seed value)
 	"cloud-init.network-config": validate.Optional(validate.IsYAML),
-	"cloud-init.user-data":      validate.Optional(validate.IsCloudInitUserData),
-	"cloud-init.vendor-data":    validate.Optional(validate.IsCloudInitUserData),
+	// lxddoc:generate(group=instance-cloud-init, key=cloud-init.user-data)
+	//
+	// ---
+	//  type: string
+	//  default: `#cloud-config`
+	//  liveupdate: no
+	//  condition: If supported by image
+	//  shortdesc: User data for `cloud-init` (content is used as seed value)
+	"cloud-init.user-data": validate.Optional(validate.IsCloudInitUserData),
+	// lxddoc:generate(group=instance-cloud-init, key=cloud-init.vendor-data)
+	//
+	// ---
+	//  type: string
+	//  default: `#cloud-config`
+	//  liveupdate: no
+	//  condition: If supported by image
+	//  shortdesc: Vendor data for `cloud-init` (content is used as seed value)
+	"cloud-init.vendor-data": validate.Optional(validate.IsCloudInitUserData),
 
+	// lxddoc:generate(group=instance-cloud-init, key=user.network-config)
+	//
+	// ---
+	//  type: string
+	//  default: `DHCP on eth0`
+	//  liveupdate: no
+	//  condition: If supported by image
+	//  shortdesc: Legacy version of `cloud-init.network-config`
+
+	// lxddoc:generate(group=instance-cloud-init, key=user.user-data)
+	//
+	// ---
+	//  type: string
+	//  default: `#cloud-config`
+	//  liveupdate: no
+	//  condition: If supported by image
+	//  shortdesc: Legacy version of `cloud-init.user-data`
+
+	// lxddoc:generate(group=instance-cloud-init, key=user.vendor-data)
+	//
+	// ---
+	//  type: string
+	//  default: `#cloud-config`
+	//  liveupdate: no
+	//  condition: If supported by image
+	//  shortdesc: Legacy version of `cloud-init.vendor-data`
+
+	// lxddoc:generate(group=instance-miscellaneous, key=cluster.evacuate)
+	//
+	// ---
+	//  type: string
+	//  default: `auto`
+	//  liveupdate: no
+	//  shortdesc: Controls what to do when evacuating the instance (`auto`, `migrate`, `live-migrate`, or `stop`)
 	"cluster.evacuate": validate.Optional(validate.IsOneOf("auto", "migrate", "live-migrate", "stop")),
 
-	"limits.cpu":           validate.Optional(validate.IsValidCPUSet),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.cpu)
+	//
+	// ---
+	//  type: string
+	//  default: for VMs: 1 CPU
+	//  liveupdate: yes
+	//  shortdesc: Number or range of CPUs to expose to the instance; see {ref}`instance-options-limits-cpu`
+	"limits.cpu": validate.Optional(validate.IsValidCPUSet),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.cpu.nodes)
+	//
+	// ---
+	//  type: string
+	//  liveupdate: yes
+	//  shortdesc: Comma-separated list of NUMA node IDs or ranges to place the instance CPUs on; see {ref}`instance-options-limits-cpu-container`
+	"limits.cpu.nodes": validate.Optional(validate.IsValidCPUSet),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.disk.priority)
+	//
+	// ---
+	//  type: integer
+	//  default: `5` (medium)
+	//  liveupdate: yes
+	//  shortdesc: Controls how much priority to give to the instance’s I/O requests when under load (integer between 0 and 10)
 	"limits.disk.priority": validate.Optional(validate.IsPriority),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.memory)
+	//
+	// ---
+	//  type: string
+	//  default: for VMs: `1Gib`
+	//  liveupdate: yes
+	//  shortdesc: Percentage of the host's memory or fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`)
 	"limits.memory": func(value string) error {
 		if value == "" {
 			return nil
@@ -119,18 +239,65 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 
 		return nil
 	},
+	// lxddoc:generate(group=instance-resource-limits, key=limits.network.priority)
+	//
+	// ---
+	//  type: integer
+	//  default: `0` (minimum)
+	//  liveupdate: yes
+	//  shortdesc: Controls how much priority to give to the instance’s network requests when under load (integer between 0 and 10)
 	"limits.network.priority": validate.Optional(validate.IsPriority),
 
 	// Caller is responsible for full validation of any raw.* value.
+
+	// lxddoc:generate(group=instance-raw, key=raw.apparmor)
+	//
+	// ---
+	//  type: blob
+	//  liveupdate: yes
+	//  shortdesc: AppArmor profile entries to be appended to the generated profile
 	"raw.apparmor": validate.IsAny,
-	"raw.idmap":    validate.IsAny,
+	// lxddoc:generate(group=instance-raw, key=raw.idmap)
+	//
+	// ---
+	//  type: blob
+	//  liveupdate: no
+	//  condition: unprivileged container
+	//  shortdesc: Raw idmap configuration (for example, `both 1000 1000`)
+	"raw.idmap": validate.IsAny,
 
 	"security.devlxd":            validate.Optional(validate.IsBool),
 	"security.protection.delete": validate.Optional(validate.IsBool),
 
-	"snapshots.schedule":         validate.Optional(validate.IsCron([]string{"@hourly", "@daily", "@midnight", "@weekly", "@monthly", "@annually", "@yearly", "@startup", "@never"})),
+	// lxddoc:generate(group=instance-snapshots, key=snapshots.schedule)
+	//
+	// ---
+	//  type: string
+	//  liveupdate: no
+	//  shortdesc: Cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or empty to disable automatic snapshots (the default)
+	"snapshots.schedule": validate.Optional(validate.IsCron([]string{"@hourly", "@daily", "@midnight", "@weekly", "@monthly", "@annually", "@yearly", "@startup", "@never"})),
+	// lxddoc:generate(group=instance-snapshots, key=snapshots.schedule.stopped)
+	//
+	// ---
+	//  type: bool
+	//  default: `false`
+	//  liveupdate: no
+	//  shortdesc: Controls whether to automatically snapshot stopped instances
 	"snapshots.schedule.stopped": validate.Optional(validate.IsBool),
-	"snapshots.pattern":          validate.IsAny,
+	// lxddoc:generate(group=instance-snapshots, key=snapshots.pattern)
+	//
+	// ---
+	//  type: string
+	//  default: `snap%d`
+	//  liveupdate: no
+	//  shortdesc: Pongo2 template string that represents the snapshot name (used for scheduled snapshots and unnamed snapshots); see {ref}`instance-options-snapshots-names`
+	"snapshots.pattern": validate.IsAny,
+	// lxddoc:generate(group=instance-snapshots, key=snapshots.expiry)
+	//
+	// ---
+	//  type: string
+	//  liveupdate: no
+	//  shortdesc: Controls when snapshots are to be deleted (expects an expression like `1M 2H 3d 4w 5m 6y`)
 	"snapshots.expiry": func(value string) error {
 		// Validate expression
 		_, err := GetExpiry(time.Time{}, value)
@@ -150,6 +317,14 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 
 // InstanceConfigKeysContainer is a map of config key to validator. (keys applying to containers only).
 var InstanceConfigKeysContainer = map[string]func(value string) error{
+	// lxddoc:generate(group=instance-resource-limits, key=limits.cpu.allowance)
+	//
+	// ---
+	//  type: string
+	//  default: 100%
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Controls how much of the CPU can be used: either a percentage (`50%`) for a soft limit or a chunk of time (`25ms/100ms`) for a hard limit; see {ref}`instance-options-limits-cpu-container`
 	"limits.cpu.allowance": func(value string) error {
 		if value == "" {
 			return nil
@@ -183,30 +358,174 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 
 		return nil
 	},
-	"limits.cpu.priority":   validate.Optional(validate.IsPriority),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.cpu.priority)
+	//
+	// ---
+	//  type: integer
+	//  default: `10` (maximum)
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: CPU scheduling priority compared to other instances sharing the same CPUs when overcommitting resources (integer between 0 and 10); see {ref}`instance-options-limits-cpu-container`
+	"limits.cpu.priority": validate.Optional(validate.IsPriority),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.hugepages.64KB)
+	//
+	// ---
+	//  type: string
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`) to limit number of 64 KB huge pages; see {ref}`instance-options-limits-hugepages`
 	"limits.hugepages.64KB": validate.Optional(validate.IsSize),
-	"limits.hugepages.1MB":  validate.Optional(validate.IsSize),
-	"limits.hugepages.2MB":  validate.Optional(validate.IsSize),
-	"limits.hugepages.1GB":  validate.Optional(validate.IsSize),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.hugepages.1MB)
+	//
+	// ---
+	//  type: string
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`) to limit number of 1 MB huge pages; see {ref}`instance-options-limits-hugepages`
+	"limits.hugepages.1MB": validate.Optional(validate.IsSize),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.hugepages.2MB)
+	//
+	// ---
+	//  type: string
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`) to limit number of 2 MB huge pages; see {ref}`instance-options-limits-hugepages`
+	"limits.hugepages.2MB": validate.Optional(validate.IsSize),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.hugepages.1GB)
+	//
+	// ---
+	//  type: string
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`) to limit number of 1 GB huge pages; see {ref}`instance-options-limits-hugepages`
+	"limits.hugepages.1GB": validate.Optional(validate.IsSize),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.memory.enforce)
+	//
+	// ---
+	//  type: string
+	//  default: `hard`
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: If `hard`, the instance cannot exceed its memory limit; if `soft`, the instance can exceed its memory limit when extra host memory is available
 	"limits.memory.enforce": validate.Optional(validate.IsOneOf("soft", "hard")),
 
-	"limits.memory.swap":          validate.Optional(validate.IsBool),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.memory.swap)
+	//
+	// ---
+	//  type: bool
+	//  default: `true`
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Controls whether to encourage/discourage swapping less used pages for this instance
+	"limits.memory.swap": validate.Optional(validate.IsBool),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.memory.swap.priority)
+	//
+	// ---
+	//  type: integer
+	//  default: `10` (maximum)
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Prevents the instance from being swapped to disk (integer between 0 and 10; the higher the value, the less likely the instance is to be swapped to disk)
 	"limits.memory.swap.priority": validate.Optional(validate.IsPriority),
-	"limits.processes":            validate.Optional(validate.IsInt64),
+	// lxddoc:generate(group=instance-resource-limits, key=limits.processes)
+	//
+	// ---
+	//  type: integer
+	//  default: -(max)
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Maximum number of processes that can run in the instance
+	"limits.processes": validate.Optional(validate.IsInt64),
 
+	// lxddoc:generate(group=instance-miscellaneous, key=linux.kernel_modules)
+	//
+	// ---
+	//  type: string
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Comma-separated list of kernel modules to load before starting the instance
 	"linux.kernel_modules": validate.IsAny,
 
-	"migration.incremental.memory":            validate.Optional(validate.IsBool),
+	// lxddoc:generate(group=instance-migration, key=migration.incremental.memory)
+	//
+	// ---
+	//  type: bool
+	//  default: `false`
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Controls whether to use incremental memory transfer of the instance’s memory to reduce downtime
+	"migration.incremental.memory": validate.Optional(validate.IsBool),
+	// lxddoc:generate(group=instance-migration, key=migration.incremental.memory.iterations)
+	//
+	// ---
+	//  type: integer
+	//  default: `10`
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Maximum number of transfer operations to go through before stopping the instance
 	"migration.incremental.memory.iterations": validate.Optional(validate.IsUint32),
-	"migration.incremental.memory.goal":       validate.Optional(validate.IsUint32),
+	// lxddoc:generate(group=instance-migration, key=migration.incremental.memory.goal)
+	//
+	// ---
+	//  type: integer
+	//  default: `70`
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Percentage of memory to have in sync before stopping the instance
+	"migration.incremental.memory.goal": validate.Optional(validate.IsUint32),
 
-	"nvidia.runtime":             validate.Optional(validate.IsBool),
+	// lxddoc:generate(group=instance-nvidia, key=nvidia.runtime)
+	//
+	// ---
+	//  type: bool
+	//  default: `false`
+	//  liveupdate: no
+	//  condition: container
+	//  shortdesc: Controls whether to pass the host NVIDIA and CUDA runtime libraries into the instance
+	"nvidia.runtime": validate.Optional(validate.IsBool),
+	// lxddoc:generate(group=instance-nvidia, key=nvidia.driver.capabilities)
+	//
+	// ---
+	//  type: string
+	//  default: `compute,utility`
+	//  liveupdate: no
+	//  condition: container
+	//  shortdesc: What driver capabilities the instance needs (sets `libnvidia-container NVIDIA_DRIVER_CAPABILITIES`)
 	"nvidia.driver.capabilities": validate.IsAny,
-	"nvidia.require.cuda":        validate.IsAny,
-	"nvidia.require.driver":      validate.IsAny,
+	// lxddoc:generate(group=instance-nvidia, key=nvidia.require.cuda)
+	//
+	// ---
+	//  type: string
+	//  liveupdate: no
+	//  condition: container
+	//  shortdesc: Version expression for the required CUDA version (sets `libnvidia-container NVIDIA_REQUIRE_CUDA`)
+	"nvidia.require.cuda": validate.IsAny,
+	// lxddoc:generate(group=instance-nvidia, key=nvidia.require.driver)
+	//
+	// ---
+	//  type: string
+	//  liveupdate: no
+	//  condition: container
+	//  shortdesc: Version expression for the required driver version (sets `libnvidia-container NVIDIA_REQUIRE_DRIVER`)
+	"nvidia.require.driver": validate.IsAny,
 
 	// Caller is responsible for full validation of any raw.* value.
-	"raw.lxc":     validate.IsAny,
+
+	// lxddoc:generate(group=instance-raw, key=raw.lxc)
+	//
+	// ---
+	//  type: blob
+	//  liveupdate: no
+	//  condition: container
+	//  shortdesc: Raw LXC configuration to be appended to the generated one
+	"raw.lxc": validate.IsAny,
+	// lxddoc:generate(group=instance-raw, key=raw.seccomp)
+	//
+	// ---
+	//  type: blob
+	//  liveupdate: no
+	//  condition: container
+	//  shortdesc: Raw Seccomp configuration
 	"raw.seccomp": validate.IsAny,
 
 	"security.devlxd.images": validate.Optional(validate.IsBool),
@@ -245,17 +564,63 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 
 // InstanceConfigKeysVM is a map of config key to validator. (keys applying to VM only).
 var InstanceConfigKeysVM = map[string]func(value string) error{
+	// lxddoc:generate(group=instance-resource-limits, key=limits.memory.hugepages)
+	//
+	// ---
+	//  type: bool
+	//  default: `false`
+	//  liveupdate: no
+	//  condition: virtual machine
+	//  shortdesc: Controls whether to back the instance using huge pages rather than regular system memory
 	"limits.memory.hugepages": validate.Optional(validate.IsBool),
 
+	// lxddoc:generate(group=instance-migration, key=migration.stateful)
+	//
+	// ---
+	//  type: bool
+	//  default: `false`
+	//  liveupdate: no
+	//  condition: virtual machine
+	//  shortdesc: Controls whether to allow for stateful stop/start and snapshots (enabling this prevents the use of some features that are incompatible with it)
 	"migration.stateful": validate.Optional(validate.IsBool),
 
 	// Caller is responsible for full validation of any raw.* value.
-	"raw.qemu":      validate.IsAny,
+
+	// lxddoc:generate(group=instance-raw, key=raw.qemu)
+	//
+	// ---
+	//  type: blob
+	//  liveupdate: no
+	//  condition: virtual machine
+	//  shortdesc: Raw QEMU configuration to be appended to the generated command line
+	"raw.qemu": validate.IsAny,
+	// lxddoc:generate(group=instance-raw, key=raw.qemu.conf)
+	//
+	// ---
+	//  type: blob
+	//  liveupdate: no
+	//  condition: virtual machine
+	//  shortdesc: Addition/override to the generated `qemu.conf` file (see {ref}`instance-options-qemu`)
 	"raw.qemu.conf": validate.IsAny,
 
 	"security.agent.metrics": validate.Optional(validate.IsBool),
 	"security.secureboot":    validate.Optional(validate.IsBool),
 
+	// lxddoc:generate(group=instance-miscellaneous, key=user.*)
+	//
+	// ---
+	//  type: string
+	//  liveupdate: no
+	//  shortdesc: Free-form user key/value storage (can be used in search)
+
+	// lxddoc:generate(group=instance-miscellaneous, key=agent.nic_config)
+	//
+	// ---
+	//  type: bool
+	//  default: `false`
+	//  liveupdate: no
+	//  condition: virtual machine
+	//  shortdesc: Controls whether to set the name and MTU of the default network interfaces to be the same as the instance devices (this happens automatically for containers)
 	"agent.nic_config": validate.Optional(validate.IsBool),
 
 	"volatile.apply_nvram": validate.Optional(validate.IsBool),

@@ -20,9 +20,11 @@ type dir struct {
 func (d *dir) load() error {
 	// Register the patches.
 	d.patches = map[string]func() error{
-		"storage_lvm_skipactivation":          nil,
-		"storage_missing_snapshot_records":    nil,
-		"storage_delete_old_snapshot_records": nil,
+		"storage_lvm_skipactivation":                         nil,
+		"storage_missing_snapshot_records":                   nil,
+		"storage_delete_old_snapshot_records":                nil,
+		"storage_zfs_drop_block_volume_filesystem_extension": nil,
+		"storage_prefix_bucket_names_with_project":           nil,
 	}
 
 	return nil
@@ -46,12 +48,22 @@ func (d *dir) Info() Info {
 	}
 }
 
-// Create is called during pool creation and is effectively using an empty driver struct.
-// WARNING: The Create() function cannot rely on any of the struct attributes being set.
-func (d *dir) Create() error {
+// FillConfig populates the storage pool's configuration file with the default values.
+func (d *dir) FillConfig() error {
 	// Set default source if missing.
 	if d.config["source"] == "" {
 		d.config["source"] = GetPoolMountPath(d.name)
+	}
+
+	return nil
+}
+
+// Create is called during pool creation and is effectively using an empty driver struct.
+// WARNING: The Create() function cannot rely on any of the struct attributes being set.
+func (d *dir) Create() error {
+	err := d.FillConfig()
+	if err != nil {
+		return err
 	}
 
 	sourcePath := shared.HostPath(d.config["source"])

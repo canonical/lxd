@@ -11,6 +11,7 @@ import (
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
@@ -200,7 +201,7 @@ func (d *common) MigrationTypes(contentType ContentType, refresh bool, copySnaps
 		rsyncFeatures = []string{"xattrs", "delete", "compress", "bidirectional"}
 	}
 
-	if contentType == ContentTypeBlock {
+	if IsContentBlock(contentType) {
 		transportType = migration.MigrationFSType_BLOCK_AND_RSYNC
 	} else {
 		transportType = migration.MigrationFSType_RSYNC
@@ -382,6 +383,16 @@ func (d *common) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Ope
 	return false, ErrNotSupported
 }
 
+// CanDelegateVolume checks whether the volume can be delegated.
+func (d *common) CanDelegateVolume(vol Volume) bool {
+	return false
+}
+
+// DelegateVolume delegates a volume.
+func (d *common) DelegateVolume(vol Volume, pid int) error {
+	return nil
+}
+
 // RenameVolume renames the volume and all related filesystem entries.
 func (d *common) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
 	return ErrNotSupported
@@ -434,7 +445,12 @@ func (d *common) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op
 
 // ValidateBucket validates the supplied bucket name.
 func (d *common) ValidateBucket(bucket Volume) error {
-	match, err := regexp.MatchString(`^[a-z0-9][\-\.a-z0-9]{2,62}$`, bucket.name)
+	projectName, bucketName := project.StorageVolumeParts(bucket.name)
+	if projectName == "" {
+		return fmt.Errorf("Project prefix missing in bucket volume name")
+	}
+
+	match, err := regexp.MatchString(`^[a-z0-9][\-\.a-z0-9]{2,62}$`, bucketName)
 	if err != nil {
 		return err
 	}

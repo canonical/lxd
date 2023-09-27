@@ -59,6 +59,9 @@ func HugepagesPath() (string, error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		cols := strings.Fields(line)
+		if len(cols) < 3 {
+			continue
+		}
 
 		if cols[2] == "hugetlbfs" {
 			matches = append(matches, cols[1])

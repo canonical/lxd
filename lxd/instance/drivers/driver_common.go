@@ -38,13 +38,13 @@ import (
 )
 
 // ErrExecCommandNotFound indicates the command is not found.
-var ErrExecCommandNotFound = fmt.Errorf("Command not found")
+var ErrExecCommandNotFound = api.StatusErrorf(http.StatusBadRequest, "Command not found")
 
 // ErrExecCommandNotExecutable indicates the command is not executable.
-var ErrExecCommandNotExecutable = fmt.Errorf("Command not executable")
+var ErrExecCommandNotExecutable = api.StatusErrorf(http.StatusBadRequest, "Command not executable")
 
 // ErrInstanceIsStopped indicates that the instance is stopped.
-var ErrInstanceIsStopped error = fmt.Errorf("The instance is already stopped")
+var ErrInstanceIsStopped error = api.StatusErrorf(http.StatusBadRequest, "The instance is already stopped")
 
 // deviceManager is an interface that allows managing device lifecycle.
 type deviceManager interface {
@@ -988,7 +988,9 @@ func (d *common) warningsDelete() error {
 	return nil
 }
 
-// canMigrate returns whether the instance can be migrated.
+// canMigrate determines if the given instance can be migrated and whether the migration
+// can be live. In "auto" mode, the function checks each attached device of the instance
+// to ensure they are all migratable.
 func (d *common) canMigrate(inst instance.Instance) (bool, bool) {
 	// Check policy for the instance.
 	config := d.ExpandedConfig()
@@ -1015,10 +1017,12 @@ func (d *common) canMigrate(inst instance.Instance) (bool, bool) {
 	for deviceName, rawConfig := range d.ExpandedDevices() {
 		dev, err := device.New(inst, d.state, deviceName, rawConfig, volatileGet, volatileSet)
 		if err != nil {
+			logger.Warn("Instance will not be migrated due to a device error", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "device": dev.Name(), "err": err})
 			return false, false
 		}
 
 		if !dev.CanMigrate() {
+			logger.Warn("Instance will not be migrated because its device cannot be migrated", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "device": dev.Name()})
 			return false, false
 		}
 	}

@@ -16,7 +16,6 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/db/warningtype"
-	"github.com/canonical/lxd/lxd/filter"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
@@ -25,6 +24,7 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/task"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/filter"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -44,18 +44,23 @@ var warningCmd = APIEndpoint{
 	Delete: APIEndpointAction{Handler: warningDelete},
 }
 
-func filterWarnings(warnings []api.Warning, clauses []filter.Clause) []api.Warning {
+func filterWarnings(warnings []api.Warning, clauses *filter.ClauseSet) ([]api.Warning, error) {
 	filtered := []api.Warning{}
 
 	for _, warning := range warnings {
-		if !filter.Match(warning, clauses) {
+		match, err := filter.Match(warning, *clauses)
+		if err != nil {
+			return nil, err
+		}
+
+		if !match {
 			continue
 		}
 
 		filtered = append(filtered, warning)
 	}
 
-	return filtered
+	return filtered, nil
 }
 
 // swagger:operation GET /1.0/warnings warnings warnings_get
@@ -156,14 +161,10 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Parse filter value
-	var clauses []filter.Clause
-
 	filterStr := r.FormValue("filter")
-	if filterStr != "" {
-		clauses, err = filter.Parse(filterStr)
-		if err != nil {
-			return response.SmartError(fmt.Errorf("Failed to filter warnings: %w", err))
-		}
+	clauses, err := filter.Parse(filterStr, filter.QueryOperatorSet())
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to filter warnings: %w", err))
 	}
 
 	// Parse the project field
@@ -199,10 +200,16 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	var filters []api.Warning
 	if recursion == 0 {
 		var resultList []string
 
-		for _, w := range filterWarnings(warnings, clauses) {
+		filters, err = filterWarnings(warnings, clauses)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		for _, w := range filters {
 			url := fmt.Sprintf("/%s/warnings/%s", version.APIVersion, w.UUID)
 			resultList = append(resultList, url)
 		}
@@ -210,8 +217,15 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SyncResponse(true, resultList)
 	}
 
+	if filters == nil {
+		filters, err = filterWarnings(warnings, clauses)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
 	// Return detailed list of warning
-	return response.SyncResponse(true, filterWarnings(warnings, clauses))
+	return response.SyncResponse(true, filters)
 }
 
 // swagger:operation GET /1.0/warnings/{uuid} warnings warning_get

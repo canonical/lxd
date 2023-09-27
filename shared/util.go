@@ -85,7 +85,7 @@ func PathIsEmpty(path string) (bool, error) {
 	defer func() { _ = f.Close() }()
 
 	// read in ONLY one file
-	_, err = f.Readdir(1)
+	_, err = f.ReadDir(1)
 
 	// and if the file is EOF... well, the dir is empty.
 	if err == io.EOF {
@@ -326,7 +326,7 @@ func ReaderToChannel(r io.Reader, bufferSize int) <-chan []byte {
 	return ch
 }
 
-// Returns a random base64 encoded string from crypto/rand.
+// Returns a random hex encoded string from crypto/rand.
 func RandomCryptoString() (string, error) {
 	buf := make([]byte, 32)
 	n, err := rand.Read(buf)
@@ -628,6 +628,17 @@ func StringInSlice(key string, list []string) bool {
 			return true
 		}
 	}
+	return false
+}
+
+// StringPrefixInSlice returns true if any element in the list has the given prefix.
+func StringPrefixInSlice(key string, list []string) bool {
+	for _, entry := range list {
+		if strings.HasPrefix(entry, key) {
+			return true
+		}
+	}
+
 	return false
 }
 
@@ -996,11 +1007,11 @@ func RunCommandInheritFds(ctx context.Context, filesInherit []*os.File, name str
 	return stdout, err
 }
 
-// RunCommandCLocale runs a command with a LANG=C.UTF-8 and LANGUAGE=en environment set with optional arguments and
+// RunCommandCLocale runs a command with a LC_ALL=C.UTF-8 and LANGUAGE=en environment set with optional arguments and
 // returns stdout. If the command fails to start or returns a non-zero exit code then an error is
 // returned containing the output of stderr.
 func RunCommandCLocale(name string, arg ...string) (string, error) {
-	stdout, _, err := RunCommandSplit(context.TODO(), append(os.Environ(), "LANG=C.UTF-8", "LANGUAGE=en"), nil, name, arg...)
+	stdout, _, err := RunCommandSplit(context.TODO(), append(os.Environ(), "LC_ALL=C.UTF-8", "LANGUAGE=en"), nil, name, arg...)
 	return stdout, err
 }
 
@@ -1096,7 +1107,7 @@ func SetProgressMetadata(metadata map[string]any, stage, displayPrefix string, p
 
 func DownloadFileHash(ctx context.Context, httpClient *http.Client, useragent string, progress func(progress ioprogress.ProgressData), canceler *cancel.HTTPRequestCanceller, filename string, url string, hash string, hashFunc hash.Hash, target io.WriteSeeker) (int64, error) {
 	// Always seek to the beginning
-	_, _ = target.Seek(0, 0)
+	_, _ = target.Seek(0, io.SeekStart)
 
 	var req *http.Request
 	var err error
@@ -1326,7 +1337,7 @@ func SplitNTrimSpace(s string, sep string, n int, nilIfEmpty bool) []string {
 	return parts
 }
 
-// JoinTokenDecode decodes a base64 and JSON encode join token.
+// JoinTokenDecode decodes a base64 and JSON encoded join token.
 func JoinTokenDecode(input string) (*api.ClusterMemberJoinToken, error) {
 	joinTokenJSON, err := base64.StdEncoding.DecodeString(input)
 	if err != nil {
@@ -1356,4 +1367,16 @@ func JoinTokenDecode(input string) (*api.ClusterMemberJoinToken, error) {
 	}
 
 	return &j, nil
+}
+
+// TargetDetect returns either target node or group based on the provided prefix:
+// An invocation with `target=h1` returns "h1", "" and `target=@g1` returns "", "g1".
+func TargetDetect(target string) (targetNode string, targetGroup string) {
+	if strings.HasPrefix(target, "@") {
+		targetGroup = strings.TrimPrefix(target, "@")
+	} else {
+		targetNode = target
+	}
+
+	return
 }

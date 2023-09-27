@@ -226,6 +226,8 @@ config:
 storage_pools:
 - name: default
   driver: dir
+- name: my-pool
+  driver: zfs
 networks:
 - name: lxdbr0
   type: bridge
@@ -234,7 +236,7 @@ profiles:
   devices:
     root:
       path: /
-      pool: default
+      pool: my-pool
       type: disk
     eth0:
       name: eth0
@@ -269,6 +271,8 @@ config:
 storage_pools:
 - name: default
   driver: dir
+- name: my-pool
+  driver: zfs
 networks:
 - name: lxdbr0
   type: bridge
@@ -277,7 +281,7 @@ profiles:
   devices:
     root:
       path: /
-      pool: default
+      pool: my-pool
       type: disk
     eth0:
       name: eth0
@@ -322,6 +326,15 @@ cluster:
     name: default
     key: source
     value: ""
+  - entity: storage-pool
+    name: my-pool
+    key: source
+    value: ""
+  - entity: storage-pool
+    name: my-pool
+    key: driver
+    value: "zfs"
+
 ```
 
 ````
@@ -370,6 +383,15 @@ opyQ1VRpAg2sV2C4W8irbNqeUsTeZZxhLqp4vNOXXBBrSqUCdPu1JXADV0kavg1l
     name: default
     key: source
     value: ""
+  - entity: storage-pool
+    name: my-pool
+    key: source
+    value: ""
+  - entity: storage-pool
+    name: my-pool
+    key: driver
+    value: "zfs"
+
 ```
 
 ````
@@ -377,19 +399,21 @@ opyQ1VRpAg2sV2C4W8irbNqeUsTeZZxhLqp4vNOXXBBrSqUCdPu1JXADV0kavg1l
 
 ## Use MicroCloud
 
-```{youtube} https://www.youtube.com/watch?v=ZSZoLnp-Ip0
+```{youtube} https://www.youtube.com/watch?v=iWZYUU8lX5A
 ```
 
-Instead of setting up your LXD cluster manually, you can use [MicroCloud](https://snapcraft.io/microcloud) to get a fully highly available LXD cluster with Ceph storage up and running.
+Instead of setting up your LXD cluster manually, you can use [MicroCloud](https://microcloud.is/) to get a fully highly available LXD cluster with OVN and with Ceph storage up and running.
 
 To install the required snaps, run the following command:
 
-    snap install lxd microceph microcloud
+    snap install lxd microceph microovn microcloud
 
 Then start the bootstrapping process with the following command:
 
     microcloud init
 
-During the initialization process, MicroCloud detects the other servers, sets up a cluster and prompts you to add disks to Ceph.
+During the initialization process, MicroCloud detects the other servers, sets up OVN networking and prompts you to add disks to Ceph.
 
-When the initialization is complete, you’ll have both a Ceph and a LXD cluster, and LXD itself will have been configured with both networking and storage suitable for use in a cluster.
+When the initialization is complete, you’ll have an OVN cluster, a Ceph cluster and a LXD cluster, and LXD itself will have been configured with both networking and storage suitable for use in a cluster.
+
+See the [MicroCloud documentation](https://canonical-microcloud.readthedocs-hosted.com/en/latest/) for more information.

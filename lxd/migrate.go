@@ -1,6 +1,6 @@
 // Package migration provides the primitives for migration in LXD.
 //
-// See https://github.com/canonical/lxd/blob/master/specs/migration.md for a complete
+// See https://github.com/canonical/lxd/blob/main/doc/migration.md for a complete
 // description.
 
 package main
@@ -78,7 +78,9 @@ func (c *migrationFields) recv(m proto.Message) error {
 
 func (c *migrationFields) disconnect() {
 	c.controlLock.Lock()
-	conn, _ := c.conns[api.SecretNameControl].WebSocket(context.TODO())
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Second)
+	defer cancel()
+	conn, _ := c.conns[api.SecretNameControl].WebSocket(ctx)
 	if conn != nil {
 		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 		_ = conn.SetWriteDeadline(time.Now().Add(time.Second * 30))

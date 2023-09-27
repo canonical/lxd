@@ -18,11 +18,6 @@
  */
 package main
 
-import (
-	// Used by cgo
-	_ "github.com/canonical/lxd/lxd/include"
-)
-
 /*
 #include "config.h"
 
@@ -362,3 +357,8 @@ __attribute__((constructor)) void init(void) {
 }
 */
 import "C"
+
+import (
+	// Used by cgo
+	_ "github.com/canonical/lxd/lxd/include"
+)

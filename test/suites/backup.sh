@@ -1,3 +1,61 @@
+test_storage_volume_recover() {
+  LXD_IMPORT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_IMPORT_DIR}"
+  spawn_lxd "${LXD_IMPORT_DIR}" true
+
+  poolName=$(lxc profile device get default root pool)
+  poolDriver=$(lxc storage show "${poolName}" | awk '/^driver:/ {print $2}')
+
+  # Create custom block volume.
+  lxc storage volume create "${poolName}" vol1 --type=block
+
+  # Delete database entry of the created custom block volume.
+  lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='vol1'"
+
+  # Ensure the custom block volume is no longer listed.
+  ! lxc storage volume show "${poolName}" vol1 || false
+
+  if [ "$poolDriver" = "zfs" ]; then
+    # Create filesystem volume.
+    lxc storage volume create "${poolName}" vol3
+
+    # Create block_mode enabled volume.
+    lxc storage volume create "${poolName}" vol4 zfs.block_mode=true size=200MiB
+
+    # Delete database entries of the created custom volumes.
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='vol3'"
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='vol4'"
+
+    # Ensure the custom volumes are no longer listed.
+    ! lxc storage volume show "${poolName}" vol3 || false
+    ! lxc storage volume show "${poolName}" vol4 || false
+  fi
+
+  # Recover custom block volume.
+  cat <<EOF | lxd recover
+no
+yes
+yes
+EOF
+
+  # Ensure custom storage volume has been recovered.
+  lxc storage volume show "${poolName}" vol1 | grep -q 'content_type: block'
+
+  if [ "$poolDriver" = "zfs" ]; then
+    # Ensure custom storage volumes have been recovered.
+    lxc storage volume show "${poolName}" vol3| grep -q 'content_type: filesystem'
+    lxc storage volume show "${poolName}" vol4| grep -q 'content_type: filesystem'
+
+    # Cleanup
+    lxc storage volume delete "${poolName}" vol3
+    lxc storage volume delete "${poolName}" vol4
+  fi
+
+  # Cleanup
+  lxc storage volume delete "${poolName}" vol1
+  shutdown_lxd "${LXD_DIR}"
+}
+
 test_container_recover() {
   LXD_IMPORT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_IMPORT_DIR}"
@@ -22,7 +80,7 @@ test_container_recover() {
     lxc project switch test
 
     # Basic no-op check.
-    cat <<EOF | lxd recover | grep "No unknown volumes found. Nothing to do."
+    cat <<EOF | lxd recover | grep "No unknown storage pools or volumes found. Nothing to do."
 no
 yes
 EOF
@@ -807,4 +865,63 @@ test_backup_different_instance_uuid() {
   fi
 
   lxc delete -f c1
+}
+
+test_backup_volume_expiry() {
+  poolName=$(lxc profile device get default root pool)
+
+  # Create custom volume.
+  lxc storage volume create "${poolName}" vol1
+
+  # Create storage volume backups using the API directly.
+  # The first one is created with an expiry date, the second one never expires.
+  lxc query -X POST -d '{\"expires_at\":\"2023-07-17T00:00:00Z\"}' /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups
+  lxc query -X POST -d '{}' /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups
+
+  # Check that both backups are listed.
+  [ "$(lxc query /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups | jq '.[]' | wc -l)" -eq 2 ]
+
+  # Restart LXD which will trigger the task which removes expired volume backups.
+  shutdown_lxd "${LXD_DIR}"
+  respawn_lxd "${LXD_DIR}" true
+
+  # Check that there's only one backup remaining.
+  [ "$(lxc query /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups | jq '.[]' | wc -l)" -eq 1 ]
+
+  # Cleanup.
+  lxc storage volume delete "${poolName}" vol1
+}
+
+test_backup_export_import_recover() {
+  (
+    set -e
+
+    poolName=$(lxc profile device get default root pool)
+
+    ensure_import_testimage
+    ensure_has_localhost_remote "${LXD_ADDR}"
+
+    # Create and export an instance.
+    lxc launch testimage c1
+    lxc export c1 "${LXD_DIR}/c1.tar.gz"
+    lxc rm -f c1
+
+    # Import instance and remove no longer required tarball.
+    lxc import "${LXD_DIR}/c1.tar.gz" c2
+    rm "${LXD_DIR}/c1.tar.gz"
+
+    # Remove imported instance enteries from database.
+    lxd sql global "delete from instances where name = 'c2'"
+    lxd sql global "delete from storage_volumes where name = 'c2'"
+
+    # Recover removed instance.
+    cat <<EOF | lxd recover
+no
+yes
+yes
+EOF
+
+    # Remove recovered instance.
+    lxc rm -f c2
+  )
 }

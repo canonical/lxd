@@ -26,9 +26,11 @@ type cephfs struct {
 func (d *cephfs) load() error {
 	// Register the patches.
 	d.patches = map[string]func() error{
-		"storage_lvm_skipactivation":          nil,
-		"storage_missing_snapshot_records":    nil,
-		"storage_delete_old_snapshot_records": nil,
+		"storage_lvm_skipactivation":                         nil,
+		"storage_missing_snapshot_records":                   nil,
+		"storage_delete_old_snapshot_records":                nil,
+		"storage_zfs_drop_block_volume_filesystem_extension": nil,
+		"storage_prefix_bucket_names_with_project":           nil,
 	}
 
 	// Done if previously loaded.
@@ -87,9 +89,27 @@ func (d *cephfs) Info() Info {
 	}
 }
 
+// FillConfig populates the storage pool's configuration file with the default values.
+func (d *cephfs) FillConfig() error {
+	if d.config["cephfs.cluster_name"] == "" {
+		d.config["cephfs.cluster_name"] = CephDefaultCluster
+	}
+
+	if d.config["cephfs.user.name"] == "" {
+		d.config["cephfs.user.name"] = CephDefaultUser
+	}
+
+	return nil
+}
+
 // Create is called during pool creation and is effectively using an empty driver struct.
 // WARNING: The Create() function cannot rely on any of the struct attributes being set.
 func (d *cephfs) Create() error {
+	err := d.FillConfig()
+	if err != nil {
+		return err
+	}
+
 	// Config validation.
 	if d.config["source"] == "" {
 		return fmt.Errorf("Missing required source name/path")
@@ -97,15 +117,6 @@ func (d *cephfs) Create() error {
 
 	if d.config["cephfs.path"] != "" && d.config["cephfs.path"] != d.config["source"] {
 		return fmt.Errorf("cephfs.path must match the source")
-	}
-
-	// Set default properties if missing.
-	if d.config["cephfs.cluster_name"] == "" {
-		d.config["cephfs.cluster_name"] = CephDefaultCluster
-	}
-
-	if d.config["cephfs.user.name"] == "" {
-		d.config["cephfs.user.name"] = CephDefaultUser
 	}
 
 	d.config["cephfs.path"] = d.config["source"]

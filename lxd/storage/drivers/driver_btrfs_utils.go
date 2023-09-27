@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -18,6 +19,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
@@ -27,6 +29,9 @@ import (
 // Errors.
 var errBtrfsNoQuota = fmt.Errorf("Quotas disabled on filesystem")
 var errBtrfsNoQGroup = fmt.Errorf("Unable to find quota group")
+
+// btrfsISOVolSuffix suffix used for iso content type volumes.
+const btrfsISOVolSuffix = ".iso"
 
 // setReceivedUUID sets the "Received UUID" field on a subvolume with the given path using ioctl.
 func setReceivedUUID(path string, UUID string) error {
@@ -86,38 +91,39 @@ func (d *btrfs) isSubvolume(path string) bool {
 }
 
 func (d *btrfs) getSubvolumes(path string) ([]string, error) {
-	result := []string{}
+	poolMountPath := GetPoolMountPath(d.name)
+	if !strings.HasPrefix(path, poolMountPath+"/") {
+		return nil, fmt.Errorf("%q is outside pool mount path %q", path, poolMountPath)
+	}
+
+	path = strings.TrimPrefix(path, poolMountPath+"/")
 
 	// Make sure the path has a trailing slash.
 	if !strings.HasSuffix(path, "/") {
 		path = path + "/"
 	}
 
-	// Walk through the entire tree looking for subvolumes.
-	err := filepath.Walk(path, func(fpath string, fi os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Ignore the base path.
-		if strings.TrimRight(fpath, "/") == strings.TrimRight(path, "/") {
-			return nil
-		}
-
-		// Subvolumes can only be directories.
-		if !fi.IsDir() {
-			return nil
-		}
-
-		// Check if a subvolume.
-		if d.isSubvolume(fpath) {
-			result = append(result, strings.TrimPrefix(fpath, path))
-		}
-
-		return nil
-	})
+	var stdout bytes.Buffer
+	err := shared.RunCommandWithFds(d.state.ShutdownCtx, nil, &stdout, "btrfs", "subvolume", "list", poolMountPath)
 	if err != nil {
 		return nil, err
+	}
+
+	result := []string{}
+
+	scanner := bufio.NewScanner(&stdout)
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+
+		if len(fields) != 9 {
+			continue
+		}
+
+		if !strings.HasPrefix(fields[8], path) {
+			continue
+		}
+
+		result = append(result, strings.TrimPrefix(fields[8], path))
 	}
 
 	return result, nil
@@ -125,13 +131,22 @@ func (d *btrfs) getSubvolumes(path string) ([]string, error) {
 
 // snapshotSubvolume creates a snapshot of the specified path at the dest supplied. If recursion is true and
 // sub volumes are found below the path then they are created at the relative location in dest.
-func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) error {
-	// Single subvolume deletion.
+func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) (revert.Hook, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Single subvolume creation.
 	snapshot := func(path string, dest string) error {
 		_, err := shared.RunCommand("btrfs", "subvolume", "snapshot", path, dest)
 		if err != nil {
 			return err
 		}
+
+		revert.Add(func() {
+			// Don't delete recursive since there already is a revert hook
+			// for each subvolume that got created.
+			_ = d.deleteSubvolume(dest, false)
+		})
 
 		return nil
 	}
@@ -139,7 +154,7 @@ func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) erro
 	// First snapshot the root.
 	err := snapshot(path, dest)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Now snapshot all subvolumes of the root.
@@ -147,7 +162,7 @@ func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) erro
 		// Get the subvolumes list.
 		subSubVols, err := d.getSubvolumes(path)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		sort.Strings(subSubVols)
@@ -160,12 +175,14 @@ func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) erro
 
 			err := snapshot(filepath.Join(path, subSubVol), subSubVolSnapPath)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
 
-	return nil
+	cleanup := revert.Clone().Fail
+	revert.Success()
+	return cleanup, nil
 }
 
 func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
@@ -187,43 +204,45 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 		return err
 	}
 
+	// Try and ensure volume is writable to possibility of destroy failing.
 	err := d.setSubvolumeReadonlyProperty(rootPath, false)
 	if err != nil {
-		return fmt.Errorf("Failed setting subvolume writable %q: %w", rootPath, err)
+		d.logger.Warn("Failed setting subvolume writable", logger.Ctx{"path": rootPath, "err": err})
 	}
 
 	// Attempt to delete the root subvol itself (short path).
 	err = destroy(rootPath)
 	if err == nil {
 		return nil
+	} else if !recursion {
+		return fmt.Errorf("Failed deleting subvolume %q: %w", rootPath, err)
 	}
 
-	// Delete subsubvols.
-	if recursion {
-		// Get the subvolumes list.
-		subSubVols, err := d.getSubvolumes(rootPath)
+	// Delete subsubvols as recursion enabled.
+
+	// Get the subvolumes list.
+	subSubVols, err := d.getSubvolumes(rootPath)
+	if err != nil {
+		return err
+	}
+
+	// Perform a first pass and ensure all sub volumes are writable.
+	sort.Sort(sort.StringSlice(subSubVols))
+	for _, subSubVol := range subSubVols {
+		subSubVolPath := filepath.Join(rootPath, subSubVol)
+		err = d.setSubvolumeReadonlyProperty(subSubVolPath, false)
 		if err != nil {
-			return err
+			d.logger.Warn("Failed setting subvolume writable", logger.Ctx{"path": subSubVolPath, "err": err})
 		}
+	}
 
-		// Perform a first pass and ensure all sub volumes are writable.
-		sort.Sort(sort.StringSlice(subSubVols))
-		for _, subSubVol := range subSubVols {
-			subSubVolPath := filepath.Join(rootPath, subSubVol)
-			err = d.setSubvolumeReadonlyProperty(subSubVolPath, false)
-			if err != nil {
-				return fmt.Errorf("Failed setting subvolume writable %q: %w", subSubVolPath, err)
-			}
-		}
-
-		// Perform a second pass to delete subvolumes.
-		sort.Sort(sort.Reverse(sort.StringSlice(subSubVols)))
-		for _, subSubVol := range subSubVols {
-			subSubVolPath := filepath.Join(rootPath, subSubVol)
-			err := destroy(subSubVolPath)
-			if err != nil {
-				return fmt.Errorf("Failed deleting subvolume %q: %w", subSubVolPath, err)
-			}
+	// Perform a second pass to delete subvolumes.
+	sort.Sort(sort.Reverse(sort.StringSlice(subSubVols)))
+	for _, subSubVol := range subSubVols {
+		subSubVolPath := filepath.Join(rootPath, subSubVol)
+		err := destroy(subSubVolPath)
+		if err != nil {
+			return fmt.Errorf("Failed deleting subvolume %q: %w", subSubVolPath, err)
 		}
 	}
 

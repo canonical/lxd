@@ -21,6 +21,9 @@ const (
 	// zfsBlockVolSuffix suffix used for block content type volumes.
 	zfsBlockVolSuffix = ".block"
 
+	// zfsISOVolSuffix suffix used for iso content type volumes.
+	zfsISOVolSuffix = ".iso"
+
 	// zfsMinBlockSize is a minimum value for recordsize and volblocksize properties.
 	zfsMinBlocksize = 512
 
@@ -34,12 +37,14 @@ const (
 func (d *zfs) dataset(vol Volume, deleted bool) string {
 	name, snapName, _ := api.GetParentAndSnapshotName(vol.name)
 
-	if vol.volType == VolumeTypeImage && d.isBlockBacked(vol) {
+	if vol.volType == VolumeTypeImage && vol.contentType == ContentTypeFS && d.isBlockBacked(vol) {
 		name = fmt.Sprintf("%s_%s", name, vol.ConfigBlockFilesystem())
 	}
 
 	if (vol.volType == VolumeTypeVM || vol.volType == VolumeTypeImage) && vol.contentType == ContentTypeBlock {
 		name = fmt.Sprintf("%s%s", name, zfsBlockVolSuffix)
+	} else if vol.volType == VolumeTypeCustom && vol.contentType == ContentTypeISO {
+		name = fmt.Sprintf("%s%s", name, zfsISOVolSuffix)
 	}
 
 	if snapName != "" {
@@ -169,8 +174,8 @@ func (d *zfs) getClones(dataset string) ([]string, error) {
 	return clones, nil
 }
 
-func (d *zfs) getDatasets(dataset string) ([]string, error) {
-	out, err := shared.RunCommand("zfs", "get", "-H", "-r", "-o", "name", "name", dataset)
+func (d *zfs) getDatasets(dataset string, types string) ([]string, error) {
+	out, err := shared.RunCommand("zfs", "get", "-H", "-r", "-o", "name", "-t", types, "name", dataset)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +188,6 @@ func (d *zfs) getDatasets(dataset string) ([]string, error) {
 		}
 
 		line = strings.TrimPrefix(line, dataset)
-		line = strings.TrimPrefix(line, "/")
 		children = append(children, line)
 	}
 
@@ -252,12 +256,35 @@ func (d *zfs) getDatasetProperty(dataset string, key string) (string, error) {
 	return strings.TrimSpace(output), nil
 }
 
+func (d *zfs) getDatasetProperties(dataset string, keys ...string) (map[string]string, error) {
+	output, err := shared.RunCommand("zfs", "get", "-H", "-p", "-o", "property,value", strings.Join(keys, ","), dataset)
+	if err != nil {
+		return nil, err
+	}
+
+	props := make(map[string]string, len(keys))
+
+	for _, row := range strings.Split(output, "\n") {
+		prop := strings.Split(row, "\t")
+
+		if len(prop) < 2 {
+			continue
+		}
+
+		key := prop[0]
+		val := prop[1]
+		props[key] = val
+	}
+
+	return props, nil
+}
+
 // version returns the ZFS version based on package or kernel module version.
 func (d *zfs) version() (string, error) {
 	// This function is only really ever relevant on Ubuntu as the only
 	// distro that ships out of sync tools and kernel modules
 	out, err := shared.RunCommand("dpkg-query", "--showformat=${Version}", "--show", "zfsutils-linux")
-	if err == nil {
+	if out != "" && err == nil {
 		return strings.TrimSpace(string(out)), nil
 	}
 
@@ -291,11 +318,38 @@ func (d *zfs) initialDatasets() []string {
 	return entries
 }
 
+func (d *zfs) needsRecursion(dataset string) bool {
+	// Ignore snapshots for the test.
+	dataset = strings.Split(dataset, "@")[0]
+
+	entries, err := d.getDatasets(dataset, "filesystem,volume")
+	if err != nil {
+		return false
+	}
+
+	if len(entries) == 0 {
+		return false
+	}
+
+	return true
+}
+
 func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.VolumeSourceArgs, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTracker) error {
 	defer func() { _ = conn.Close() }()
 
 	// Assemble zfs send command.
 	args := []string{"send"}
+
+	// Check if nesting is required.
+	// We only want to use recursion (and possible raw) mode if required as it can interfere with ZFS encryption.
+	if d.needsRecursion(dataset) {
+		args = append(args, "-R")
+
+		if zfsRaw {
+			args = append(args, "-w")
+		}
+	}
+
 	if shared.StringInSlice("compress", volSrcArgs.MigrationType.Features) {
 		args = append(args, "-c")
 		args = append(args, "-L")
@@ -445,4 +499,18 @@ func (d *zfs) datasetHeader(vol Volume, snapshots []string) (*ZFSMetaDataHeader,
 
 func (d *zfs) randomVolumeName(vol Volume) string {
 	return fmt.Sprintf("%s_%s", vol.name, uuid.New())
+}
+
+func (d *zfs) delegateDataset(vol Volume, pid int) error {
+	_, err := shared.RunCommand("zfs", "zone", fmt.Sprintf("/proc/%d/ns/user", pid), d.dataset(vol, false))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ZFSSupportsDelegation returns true if the ZFS version on the system supports user namespace delegation.
+func ZFSSupportsDelegation() bool {
+	return zfsDelegate
 }

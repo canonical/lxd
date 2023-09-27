@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 
 	"github.com/gorilla/websocket"
@@ -209,6 +210,132 @@ func (r *ProtocolLXD) UpdateInstances(state api.InstancesPut, ETag string) (Oper
 	}
 
 	return op, nil
+}
+
+// rebuildInstance initiates a rebuild of a given instance on the LXD Protocol server and returns the corresponding operation or an error.
+func (r *ProtocolLXD) rebuildInstance(instanceName string, instance api.InstanceRebuildPost) (Operation, error) {
+	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
+	if err != nil {
+		return nil, err
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/rebuild?project=%s", path, url.PathEscape(instanceName), r.project), instance, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
+// tryRebuildInstance attempts to rebuild a specific instance on multiple target servers identified by their URLs.
+// It runs the rebuild process asynchronously and returns a RemoteOperation to monitor the progress and any errors.
+func (r *ProtocolLXD) tryRebuildInstance(instanceName string, req api.InstanceRebuildPost, urls []string, op Operation) (RemoteOperation, error) {
+	if len(urls) == 0 {
+		return nil, fmt.Errorf("The source server isn't listening on the network")
+	}
+
+	rop := remoteOperation{
+		chDone: make(chan bool),
+	}
+
+	operation := req.Source.Operation
+
+	// Forward targetOp to remote op
+	go func() {
+		success := false
+		var errors []remoteOperationResult
+		for _, serverURL := range urls {
+			if operation == "" {
+				req.Source.Server = serverURL
+			} else {
+				req.Source.Operation = fmt.Sprintf("%s/1.0/operations/%s", serverURL, url.PathEscape(operation))
+			}
+
+			op, err := r.rebuildInstance(instanceName, req)
+			if err != nil {
+				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
+				continue
+			}
+
+			rop.handlerLock.Lock()
+			rop.targetOp = op
+			rop.handlerLock.Unlock()
+
+			for _, handler := range rop.handlers {
+				_, _ = rop.targetOp.AddHandler(handler)
+			}
+
+			err = rop.targetOp.Wait()
+			if err != nil {
+				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
+				if shared.IsConnectionError(err) {
+					continue
+				}
+
+				break
+			}
+
+			success = true
+			break
+		}
+
+		if !success {
+			rop.err = remoteOperationError("Failed instance rebuild", errors)
+			if op != nil {
+				_ = op.Cancel()
+			}
+		}
+
+		close(rop.chDone)
+	}()
+
+	return &rop, nil
+}
+
+// RebuildInstanceFromImage rebuilds an instance from an image.
+func (r *ProtocolLXD) RebuildInstanceFromImage(source ImageServer, image api.Image, instanceName string, req api.InstanceRebuildPost) (RemoteOperation, error) {
+	err := r.CheckExtension("instances_rebuild")
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := r.getSourceImageConnectionInfo(source, image, &req.Source)
+	if err != nil {
+		return nil, err
+	}
+
+	if info == nil {
+		op, err := r.rebuildInstance(instanceName, req)
+		if err != nil {
+			return nil, err
+		}
+
+		rop := remoteOperation{
+			targetOp: op,
+			chDone:   make(chan bool),
+		}
+
+		// Forward targetOp to remote op
+		go func() {
+			rop.err = rop.targetOp.Wait()
+			close(rop.chDone)
+		}()
+
+		return &rop, nil
+	}
+
+	return r.tryRebuildInstance(instanceName, req, info.Addresses, nil)
+}
+
+// RebuildInstance rebuilds an instance as empty.
+func (r *ProtocolLXD) RebuildInstance(instanceName string, instance api.InstanceRebuildPost) (op Operation, err error) {
+	err = r.CheckExtension("instances_rebuild")
+	if err != nil {
+		return nil, err
+	}
+
+	return r.rebuildInstance(instanceName, instance)
 }
 
 // GetInstancesFull returns a list of instances including snapshots, backups and state.
@@ -496,6 +623,8 @@ func (r *ProtocolLXD) CreateInstance(instance api.InstancesPost) (Operation, err
 	return op, nil
 }
 
+// tryCreateInstance attempts to create a new instance on multiple target servers specified by their URLs.
+// It runs the instance creation asynchronously and returns a RemoteOperation to monitor the progress and any errors.
 func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("The source server isn't listening on the network")
@@ -856,6 +985,8 @@ func (r *ProtocolLXD) RenameInstance(name string, instance api.InstancePost) (Op
 	return op, nil
 }
 
+// tryMigrateInstance attempts to migrate a specific instance from a source server to one of the target URLs.
+// The function runs the migration operation asynchronously and returns a RemoteOperation to track the progress and handle any errors.
 func (r *ProtocolLXD) tryMigrateInstance(source InstanceServer, name string, req api.InstancePost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("The target server isn't listening on the network")
@@ -1011,6 +1142,63 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 			values := value.(map[string]any)
 			for k, v := range values {
 				fds[k] = v.(string)
+			}
+		}
+
+		if exec.RecordOutput && (args.Stdout != nil || args.Stderr != nil) {
+			err = op.Wait()
+			if err != nil {
+				return nil, err
+			}
+
+			opAPI = op.Get()
+			outputFiles := map[string]string{}
+			outputs, ok := opAPI.Metadata["output"].(map[string]any)
+			if ok {
+				for k, v := range outputs {
+					outputFiles[k] = v.(string)
+				}
+			}
+
+			if outputFiles["1"] != "" {
+				reader, _ := r.getInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["1"]))
+				if args.Stdout != nil {
+					_, errCopy := io.Copy(args.Stdout, reader)
+					// Regardless of errCopy value, we want to delete the file after a copy operation
+					errDelete := r.deleteInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["1"]))
+					if errDelete != nil {
+						return nil, errDelete
+					}
+
+					if errCopy != nil {
+						return nil, fmt.Errorf("Could not copy the content of the exec output log file to stdout: %w", err)
+					}
+				}
+
+				err = r.deleteInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["1"]))
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			if outputFiles["2"] != "" {
+				reader, _ := r.getInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["2"]))
+				if args.Stderr != nil {
+					_, errCopy := io.Copy(args.Stderr, reader)
+					errDelete := r.deleteInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["1"]))
+					if errDelete != nil {
+						return nil, errDelete
+					}
+
+					if errCopy != nil {
+						return nil, fmt.Errorf("Could not copy the content of the exec output log file to stderr: %w", err)
+					}
+				}
+
+				err = r.deleteInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["2"]))
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 
@@ -1974,6 +2162,71 @@ func (r *ProtocolLXD) DeleteInstanceLogfile(name string, filename string) error 
 	return nil
 }
 
+// getInstanceExecOutputLogFile returns the content of the requested exec logfile.
+//
+// Note that it's the caller's responsibility to close the returned ReadCloser.
+func (r *ProtocolLXD) getInstanceExecOutputLogFile(name string, filename string) (io.ReadCloser, error) {
+	err := r.CheckExtension("container_exec_recording")
+	if err != nil {
+		return nil, err
+	}
+
+	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
+	if err != nil {
+		return nil, err
+	}
+
+	// Prepare the HTTP request
+	url := fmt.Sprintf("%s/1.0%s/%s/logs/exec-output/%s", r.httpBaseURL.String(), path, url.PathEscape(name), url.PathEscape(filename))
+
+	url, err = r.setQueryAttributes(url)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Send the request
+	resp, err := r.DoHTTP(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check the return value for a cleaner error
+	if resp.StatusCode != http.StatusOK {
+		_, _, err := lxdParseResponse(resp)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return resp.Body, nil
+}
+
+// deleteInstanceExecOutputLogFiles deletes the requested exec logfile.
+func (r *ProtocolLXD) deleteInstanceExecOutputLogFile(instanceName string, filename string) error {
+	err := r.CheckExtension("container_exec_recording")
+	if err != nil {
+		return err
+	}
+
+	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
+	if err != nil {
+		return err
+	}
+
+	// Send the request
+	_, _, err = r.query("DELETE", fmt.Sprintf("%s/%s/logs/exec-output/%s", path, url.PathEscape(instanceName), url.PathEscape(filename)), nil, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // GetInstanceMetadata returns instance metadata.
 func (r *ProtocolLXD) GetInstanceMetadata(name string) (*api.ImageMetadata, string, error) {
 	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
@@ -2206,8 +2459,8 @@ func (r *ProtocolLXD) ConsoleInstance(instanceName string, console api.InstanceC
 
 	// And attach stdin and stdout to it
 	go func() {
-		ws.MirrorRead(context.Background(), conn, args.Terminal)
-		<-ws.MirrorWrite(context.Background(), conn, args.Terminal)
+		_, writeDone := ws.Mirror(context.Background(), conn, args.Terminal)
+		<-writeDone
 		_ = conn.Close()
 	}()
 
@@ -2293,8 +2546,7 @@ func (r *ProtocolLXD) ConsoleInstanceDynamic(instanceName string, console api.In
 		}
 
 		// Attach reader/writer.
-		readDone, writeDone := ws.Mirror(context.Background(), conn, rwc)
-		<-readDone
+		_, writeDone := ws.Mirror(context.Background(), conn, rwc)
 		<-writeDone
 		_ = conn.Close()
 

@@ -164,16 +164,7 @@ test_config_profiles() {
   lxc profile assign foo onenic
   lxc profile create unconfined
 
-  # Look at the LXC version to decide whether to use the new
-  # or the new config key for apparmor.
-  lxc_version=$(lxc info | awk '/driver_version:/ {print $NF}')
-  lxc_major=$(echo "${lxc_version}" | cut -d. -f1)
-  lxc_minor=$(echo "${lxc_version}" | cut -d. -f2)
-  if [ "${lxc_major}" -lt 2 ] || { [ "${lxc_major}" = "2" ] && [ "${lxc_minor}" -lt "1" ]; }; then
-      lxc profile set unconfined raw.lxc "lxc.aa_profile=unconfined"
-  else
-      lxc profile set unconfined raw.lxc "lxc.apparmor.profile=unconfined"
-  fi
+  lxc profile set unconfined raw.lxc "lxc.apparmor.profile=unconfined"
 
   lxc profile assign foo onenic,unconfined
 
@@ -266,7 +257,7 @@ test_config_profiles() {
 
 test_config_edit() {
     if ! tty -s; then
-        echo "==> SKIP: Test requires a terminal"
+        echo "==> SKIP: test_config_edit requires a terminal"
         return
     fi
 
@@ -285,6 +276,62 @@ test_config_edit() {
     ! echo "${output}" | grep "expanded" || false
 
     lxc delete foo
+}
+
+test_property() {
+  ensure_import_testimage
+
+  lxc init testimage foo -s "lxdtest-$(basename "${LXD_DIR}")"
+
+  # Set a property of an instance
+  lxc config set foo description="a new description" --property
+  # Check that the property is set
+  lxc config show foo | grep -q "description: a new description"
+
+  # Unset a property of an instance
+  lxc config unset foo description --property
+  # Check that the property is unset
+  ! lxc config show foo | grep -q "description: a new description" || false
+
+  # Set a property of an instance (bool)
+  lxc config set foo ephemeral=true --property
+  # Check that the property is set
+  lxc config show foo | grep -q "ephemeral: true"
+
+  # Unset a property of an instance (bool)
+  lxc config unset foo ephemeral --property
+  # Check that the property is unset (i.e false)
+  lxc config show foo | grep -q "ephemeral: false"
+
+  # Create a snap of the instance to set its expiration timestamp
+  lxc snapshot foo s1
+  lxc config set foo/s1 expires_at="2024-03-23T17:38:37.753398689-04:00" --property
+  lxc config get foo/s1 expires_at --property | grep -q "2024-03-23 17:38:37.753398689 -0400 -0400"
+  lxc config show foo/s1 | grep -q "expires_at: 2024-03-23T17:38:37.753398689-04:00"
+  lxc config unset foo/s1 expires_at --property
+  lxc config show foo/s1 | grep -q "expires_at: 0001-01-01T00:00:00Z"
+
+
+  # Create a storage volume, create a volume snapshot and set its expiration timestamp
+  # shellcheck disable=2039,3043
+  local storage_pool
+  storage_pool="lxdtest-$(basename "${LXD_DIR}")"
+  storage_volume="${storage_pool}-vol"
+
+  lxc storage volume create "${storage_pool}" "${storage_volume}"
+  lxc launch testimage c1 -s "${storage_pool}"
+
+  # This will create a snapshot named 'snap0'
+  lxc storage volume snapshot "${storage_pool}" "${storage_volume}"
+
+  lxc storage volume set "${storage_pool}" "${storage_volume}"/snap0 expires_at="2024-03-23T17:38:37.753398689-04:00" --property
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'expires_at: 2024-03-23T17:38:37.753398689-04:00'
+  lxc storage volume unset "${storage_pool}" "${storage_volume}"/snap0 expires_at --property
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'expires_at: 0001-01-01T00:00:00Z'
+
+  lxc delete -f c1
+  lxc storage volume delete "${storage_pool}" "${storage_volume}"
+  lxc delete -f foo
 }
 
 test_config_edit_container_snapshot_pool_config() {
@@ -342,7 +389,7 @@ test_container_metadata() {
 
 test_container_snapshot_config() {
     if ! tty -s; then
-        echo "==> SKIP: Test requires a terminal"
+        echo "==> SKIP: test_container_snapshot_config requires a terminal"
         return
     fi
 

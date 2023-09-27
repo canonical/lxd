@@ -17,15 +17,14 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
-	"github.com/canonical/lxd/lxd/filter"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/project"
-	"github.com/canonical/lxd/lxd/rbac"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/filter"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -258,12 +257,9 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 
 	// Parse filter value.
 	filterStr := r.FormValue("filter")
-	var clauses []filter.Clause
-	if filterStr != "" {
-		clauses, err = filter.Parse(filterStr)
-		if err != nil {
-			return nil, fmt.Errorf("Invalid filter: %w", err)
-		}
+	clauses, err := filter.Parse(filterStr, filter.QueryOperatorSet())
+	if err != nil {
+		return nil, fmt.Errorf("Invalid filter: %w", err)
 	}
 
 	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
@@ -290,7 +286,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 			}
 
 			for _, project := range projects {
-				if !rbac.UserHasPermission(r, project.Name, "view") {
+				if !s.Authorizer.UserHasPermission(r, project.Name, "view") {
 					continue
 				}
 
@@ -321,6 +317,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 				StatusCode: api.Error,
 				Location:   inst.Location,
 				Project:    inst.Project,
+				Type:       inst.Type.String(),
 			},
 		}
 
@@ -489,7 +486,10 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 
 	// Filter result list if needed.
 	if clauses != nil {
-		resultFullList = instance.FilterFull(resultFullList, clauses)
+		resultFullList, err = instance.FilterFull(resultFullList, *clauses)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if recursion == 0 {

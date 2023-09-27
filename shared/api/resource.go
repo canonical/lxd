@@ -404,6 +404,11 @@ type ResourcesNetworkCard struct {
 	// SRIOV information (when supported by the card)
 	SRIOV *ResourcesNetworkCardSRIOV `json:"sriov,omitempty" yaml:"sriov,omitempty"`
 
+	// vDPA information (when supported by the card)
+	//
+	// API extension: ovn_nic_acceleration_vdpa
+	VDPA *ResourcesNetworkCardVDPA `json:"vdpa,omitempty" yaml:"vdpa,omitempty"`
+
 	// NUMA node the card is a part of
 	// Example: 0
 	NUMANode uint64 `json:"numa_node" yaml:"numa_node"`
@@ -549,6 +554,19 @@ type ResourcesNetworkCardSRIOV struct {
 	// List of VFs (as additional Network devices)
 	// Example: null
 	VFs []ResourcesNetworkCard `json:"vfs" yaml:"vfs"`
+}
+
+// ResourceNetworkCardVDPA represents the VDPA configuration of the network card
+//
+// swagger:model
+//
+// API extension: ovn_nic_acceleration_vdpa.
+type ResourcesNetworkCardVDPA struct {
+	// Name of the VDPA device
+	Name string `json:"name" yaml:"name"`
+
+	// Device identifier of the VDPA device
+	Device string `json:"device" yaml:"device"`
 }
 
 // ResourcesStorage represents the local storage
@@ -951,7 +969,7 @@ type ResourcesPCIVPD struct {
 	// Example: HP Ethernet 1Gb 4-port 331i Adapter
 	ProductName string `json:"product_name,omitempty" yaml:"product_name,omitempty"`
 
-	// Dict of vendor provided key/value pairs.
+	// Vendor provided key/value pairs.
 	// Example: {"EC": ""A-5545", "MN": "103C", "V0": "5W PCIeGen2"}
 	Entries map[string]string `json:"entries,omitempty" yaml:"entries,omitempty"`
 }

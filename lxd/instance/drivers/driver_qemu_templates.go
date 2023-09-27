@@ -299,7 +299,8 @@ func qemuRNG(opts *qemuDevOpts) []cfgSection {
 
 type qemuVsockOpts struct {
 	dev     qemuDevOpts
-	vsockID int
+	vsockFD int
+	vsockID uint32
 }
 
 func qemuVsock(opts *qemuVsockOpts) []cfgSection {
@@ -313,7 +314,8 @@ func qemuVsock(opts *qemuVsockOpts) []cfgSection {
 		name:    `device "qemu_vsock"`,
 		comment: "Vsock",
 		entries: append(qemuDeviceEntries(&entriesOpts),
-			cfgEntry{key: "guest-cid", value: fmt.Sprintf("%d", opts.vsockID)}),
+			cfgEntry{key: "guest-cid", value: fmt.Sprintf("%d", opts.vsockID)},
+			cfgEntry{key: "vhostfd", value: fmt.Sprintf("%d", opts.vsockFD)}),
 	}}
 }
 

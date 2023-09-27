@@ -135,16 +135,16 @@ var internalBGPStateCmd = APIEndpoint{
 
 type internalImageOptimizePost struct {
 	Image api.Image `json:"image" yaml:"image"`
-	Pool  string    `json:"pool" yaml:"pool"`
+	Pool  string    `json:"pool"  yaml:"pool"`
 }
 
 type internalWarningCreatePost struct {
-	Location       string `json:"location" yaml:"location"`
-	Project        string `json:"project" yaml:"project"`
+	Location       string `json:"location"         yaml:"location"`
+	Project        string `json:"project"          yaml:"project"`
 	EntityTypeCode int    `json:"entity_type_code" yaml:"entity_type_code"`
-	EntityID       int    `json:"entity_id" yaml:"entity_id"`
-	TypeCode       int    `json:"type_code" yaml:"type_code"`
-	Message        string `json:"message" yaml:"message"`
+	EntityID       int    `json:"entity_id"        yaml:"entity_id"`
+	TypeCode       int    `json:"type_code"        yaml:"type_code"`
+	Message        string `json:"message"          yaml:"message"`
 }
 
 // internalCreateWarning creates a warning, and is used for testing only.
@@ -235,7 +235,7 @@ func internalShutdown(d *Daemon, r *http.Request) response.Response {
 	logger.Info("Asked to shutdown by API", logger.Ctx{"force": force})
 
 	if d.State().ShutdownCtx.Err() != nil {
-		return response.SmartError(fmt.Errorf("Shutdown already in progress"))
+		return response.SmartError(api.StatusErrorf(http.StatusTooManyRequests, "Shutdown already in progress"))
 	}
 
 	forceCtx, forceCtxCancel := context.WithCancel(context.Background())
@@ -397,7 +397,7 @@ type internalSQLDump struct {
 
 type internalSQLQuery struct {
 	Database string `json:"database" yaml:"database"`
-	Query    string `json:"query" yaml:"query"`
+	Query    string `json:"query"    yaml:"query"`
 }
 
 type internalSQLBatch struct {
@@ -405,9 +405,9 @@ type internalSQLBatch struct {
 }
 
 type internalSQLResult struct {
-	Type         string   `json:"type" yaml:"type"`
-	Columns      []string `json:"columns" yaml:"columns"`
-	Rows         [][]any  `json:"rows" yaml:"rows"`
+	Type         string   `json:"type"          yaml:"type"`
+	Columns      []string `json:"columns"       yaml:"columns"`
+	Rows         [][]any  `json:"rows"          yaml:"rows"`
 	RowsAffected int64    `json:"rows_affected" yaml:"rows_affected"`
 }
 

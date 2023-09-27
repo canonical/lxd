@@ -32,7 +32,6 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
-	"github.com/canonical/lxd/lxd/filter"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -47,6 +46,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/filter"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
@@ -157,7 +157,7 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 			return fmt.Errorf("tar2sqfs: %v (%v)", err, strings.TrimSpace(string(output)))
 		}
 		// Replay the result to outfile
-		_, err = tempfile.Seek(0, 0)
+		_, err = tempfile.Seek(0, io.SeekStart)
 		if err != nil {
 			return err
 		}
@@ -550,7 +550,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		defer func() { _ = os.Remove(imageTarf.Name()) }()
 
 		// Parse the POST data
-		_, err = post.Seek(0, 0)
+		_, err = post.Seek(0, io.SeekStart)
 		if err != nil {
 			return nil, err
 		}
@@ -644,7 +644,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 			return nil, err
 		}
 	} else {
-		_, err = post.Seek(0, 0)
+		_, err = post.Seek(0, io.SeekStart)
 		if err != nil {
 			return nil, err
 		}
@@ -952,7 +952,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Is this a container request?
-	_, err = post.Seek(0, 0)
+	_, err = post.Seek(0, io.SeekStart)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -993,7 +993,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	if !imageUpload && shared.StringInSlice(req.Source.Type, []string{"container", "instance", "virtual-machine", "snapshot"}) {
 		name := req.Source.Name
 		if name != "" {
-			_, err = post.Seek(0, 0)
+			_, err = post.Seek(0, io.SeekStart)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -1145,7 +1145,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 		return nil, "unknown", err
 	}
 
-	_, err = r.Seek(0, 0)
+	_, err = r.Seek(0, io.SeekStart)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1241,7 +1241,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	return &result, imageType, nil
 }
 
-func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectName string, public bool, clauses []filter.Clause) (any, error) {
+func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectName string, public bool, clauses *filter.ClauseSet) (any, error) {
 	mustLoadObjects := recursion || clauses != nil
 
 	fingerprints, err := tx.GetImagesFingerprints(ctx, projectName, public)
@@ -1267,8 +1267,15 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 				continue
 			}
 
-			if clauses != nil && !filter.Match(*image, clauses) {
-				continue
+			if clauses != nil {
+				match, err := filter.Match(*image, *clauses)
+				if err != nil {
+					return nil, err
+				}
+
+				if !match {
+					continue
+				}
 			}
 
 			if recursion {
@@ -1496,13 +1503,9 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 	filterStr := r.FormValue("filter")
 	public := d.checkTrustedClient(r) != nil || allowProjectPermission("images", "view")(d, r) != response.EmptySyncResponse
 
-	var err error
-	var clauses []filter.Clause
-	if filterStr != "" {
-		clauses, err = filter.Parse(filterStr)
-		if err != nil {
-			return response.SmartError(fmt.Errorf("Invalid filter: %w", err))
-		}
+	clauses, err := filter.Parse(filterStr, filter.QueryOperatorSet())
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Invalid filter: %w", err))
 	}
 
 	var result any
@@ -2289,8 +2292,8 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 		}
 
 		allImages = make(map[string][]dbCluster.Image, len(images))
-		for i := range images {
-			allImages[images[i].Fingerprint] = append(allImages[images[i].Fingerprint], images[i])
+		for _, image := range images {
+			allImages[image.Fingerprint] = append(allImages[image.Fingerprint], image)
 		}
 
 		return nil
@@ -2537,8 +2540,8 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	resources := map[string][]string{}
-	resources["images"] = []string{imgInfo.Fingerprint}
+	resources := map[string][]api.URL{}
+	resources["images"] = []api.URL{*api.NewURL().Path(version.APIVersion, "images", imgInfo.Fingerprint)}
 
 	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.ImageDelete, resources, nil, do, nil, nil, r)
 	if err != nil {
@@ -2602,7 +2605,7 @@ func imageValidSecret(s *state.State, r *http.Request, projectName string, finge
 			continue
 		}
 
-		if !shared.StringInSlice(fmt.Sprintf("/1.0/images/%s", fingerprint), opImages) {
+		if !shared.StringPrefixInSlice(api.NewURL().Path(version.APIVersion, "images", fingerprint).String(), opImages) {
 			continue
 		}
 
@@ -4303,8 +4306,8 @@ func createTokenResponse(s *state.State, r *http.Request, projectName string, fi
 
 	meta["secret"] = secret
 
-	resources := map[string][]string{}
-	resources["images"] = []string{fingerprint}
+	resources := map[string][]api.URL{}
+	resources["images"] = []api.URL{*api.NewURL().Path(version.APIVersion, "images", fingerprint)}
 
 	op, err := operations.OperationCreate(s, projectName, operations.OperationClassToken, operationtype.ImageToken, resources, meta, nil, nil, nil, r)
 	if err != nil {

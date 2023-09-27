@@ -808,7 +808,7 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 				return err
 			}
 
-			_, err = rootfs.(*os.File).Seek(0, 0)
+			_, err = rootfs.(*os.File).Seek(0, io.SeekStart)
 			if err != nil {
 				return err
 			}

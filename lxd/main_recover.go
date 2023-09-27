@@ -10,7 +10,6 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared/api"
-	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/validate"
 )
 
@@ -58,7 +57,7 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Failed getting existing storage pools: %w", err)
 	}
 
-	fmt.Print("This LXD server currently has the following storage pools:\n")
+	fmt.Println("This LXD server currently has the following storage pools:")
 	for _, existingPool := range existingPools {
 		fmt.Printf(" - %s (backend=%q, source=%q)\n", existingPool.Name, existingPool.Driver, existingPool.Config["source"])
 	}
@@ -72,7 +71,7 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 		var supportedDriverNames []string
 
 		for {
-			addUnknownPool, err := cli.AskBool("Would you like to recover another storage pool? (yes/no) [default=no]: ", "no")
+			addUnknownPool, err := c.global.asker.AskBool("Would you like to recover another storage pool? (yes/no) [default=no]: ", "no")
 			if err != nil {
 				return err
 			}
@@ -94,7 +93,7 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 				},
 			}
 
-			unknownPool.Name, err = cli.AskString("Name of the storage pool: ", "", validate.Required(func(value string) error {
+			unknownPool.Name, err = c.global.asker.AskString("Name of the storage pool: ", "", validate.Required(func(value string) error {
 				if value == "" {
 					return fmt.Errorf("Pool name cannot be empty")
 				}
@@ -111,19 +110,19 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 				return err
 			}
 
-			unknownPool.Driver, err = cli.AskString(fmt.Sprintf("Name of the storage backend (%s): ", strings.Join(supportedDriverNames, ", ")), "", validate.IsOneOf(supportedDriverNames...))
+			unknownPool.Driver, err = c.global.asker.AskString(fmt.Sprintf("Name of the storage backend (%s): ", strings.Join(supportedDriverNames, ", ")), "", validate.IsOneOf(supportedDriverNames...))
 			if err != nil {
 				return err
 			}
 
-			unknownPool.Config["source"], err = cli.AskString("Source of the storage pool (block device, volume group, dataset, path, ... as applicable): ", "", validate.IsNotEmpty)
+			unknownPool.Config["source"], err = c.global.asker.AskString("Source of the storage pool (block device, volume group, dataset, path, ... as applicable): ", "", validate.IsNotEmpty)
 			if err != nil {
 				return err
 			}
 
 			for {
 				var configKey, configValue string
-				_, _ = cli.AskString("Additional storage pool configuration property (KEY=VALUE, empty when done): ", "", validate.Optional(func(value string) error {
+				_, _ = c.global.asker.AskString("Additional storage pool configuration property (KEY=VALUE, empty when done): ", "", validate.Optional(func(value string) error {
 					configParts := strings.SplitN(value, "=", 2)
 					if len(configParts) < 2 {
 						return fmt.Errorf("Config option should be in the format KEY=VALUE")
@@ -146,7 +145,7 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Printf("The recovery process will be scanning the following storage pools:\n")
+	fmt.Println("The recovery process will be scanning the following storage pools:")
 	for _, p := range existingPools {
 		fmt.Printf(" - EXISTING: %q (backend=%q, source=%q)\n", p.Name, p.Driver, p.Config["source"])
 	}
@@ -155,7 +154,7 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 		fmt.Printf(" - NEW: %q (backend=%q, source=%q)\n", p.Name, p.Driver, p.Config["source"])
 	}
 
-	proceed, err := cli.AskBool("Would you like to continue with scanning for lost volumes? (yes/no) [default=yes]: ", "yes")
+	proceed, err := c.global.asker.AskBool("Would you like to continue with scanning for lost volumes? (yes/no) [default=yes]: ", "yes")
 	if err != nil {
 		return err
 	}
@@ -164,7 +163,7 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Print("Scanning for unknown volumes...\n")
+	fmt.Println("Scanning for unknown volumes...")
 
 	// Send /internal/recover/validate request to LXD.
 	reqValidate := internalRecoverValidatePost{
@@ -194,24 +193,30 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("Failed parsing validation response: %w", err)
 		}
 
+		if len(unknownPools) > 0 {
+			fmt.Println("The following unknown storage pools have been found:")
+			for _, unknownPool := range unknownPools {
+				fmt.Printf(" - Storage pool %q of type %q\n", unknownPool.Name, unknownPool.Driver)
+			}
+		}
+
 		if len(res.UnknownVolumes) > 0 {
-			fmt.Print("The following unknown volumes have been found:\n")
+			fmt.Println("The following unknown volumes have been found:")
 			for _, unknownVol := range res.UnknownVolumes {
 				fmt.Printf(" - %s %q on pool %q in project %q (includes %d snapshots)\n", cases.Title(language.English).String(unknownVol.Type), unknownVol.Name, unknownVol.Pool, unknownVol.Project, unknownVol.SnapshotCount)
 			}
 		}
 
 		if len(res.DependencyErrors) > 0 {
-			fmt.Print("You are currently missing the following:\n")
-
+			fmt.Println("You are currently missing the following:")
 			for _, depErr := range res.DependencyErrors {
 				fmt.Printf(" - %s\n", depErr)
 			}
 
-			_, _ = cli.AskString("Please create those missing entries and then hit ENTER: ", "", validate.Optional())
+			_, _ = c.global.asker.AskString("Please create those missing entries and then hit ENTER: ", "", validate.Optional())
 		} else {
-			if len(res.UnknownVolumes) <= 0 {
-				fmt.Print("No unknown volumes found. Nothing to do.\n")
+			if len(unknownPools) == 0 && len(res.UnknownVolumes) == 0 {
+				fmt.Println("No unknown storage pools or volumes found. Nothing to do.")
 				return nil
 			}
 
@@ -219,7 +224,7 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	proceed, err = cli.AskBool("Would you like those to be recovered? (yes/no) [default=no]: ", "no")
+	proceed, err = c.global.asker.AskBool("Would you like those to be recovered? (yes/no) [default=no]: ", "no")
 	if err != nil {
 		return err
 	}
@@ -228,7 +233,7 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Print("Starting recovery...\n")
+	fmt.Println("Starting recovery...")
 
 	// Send /internal/recover/import request to LXD.
 	// Don't lint next line with gosimple. It says we should convert reqValidate directly to an internalRecoverImportPost

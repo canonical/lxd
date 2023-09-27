@@ -667,18 +667,17 @@ test_clustering_storage() {
     ! stat "${LXD_TWO_SOURCE}/containers" || false
   fi
 
-  # Define storage pools on the two nodes
+  # Set up node-specific storage pool keys for the selected backend.
   driver_config=""
-  if [ "${poolDriver}" = "btrfs" ]; then
+  if [ "${poolDriver}" = "btrfs" ] || [ "${poolDriver}" = "lvm" ] || [ "${poolDriver}" = "zfs" ]; then
       driver_config="size=1GiB"
   fi
-  if [ "${poolDriver}" = "zfs" ]; then
-      driver_config="size=1GiB"
-  fi
+
   if [ "${poolDriver}" = "ceph" ]; then
       driver_config="source=lxdtest-$(basename "${TEST_DIR}")-pool1"
   fi
 
+  # Define storage pools on the two nodes
   driver_config_node1="${driver_config}"
   driver_config_node2="${driver_config}"
 
@@ -776,14 +775,45 @@ test_clustering_storage() {
     LXD_DIR="${LXD_TWO_DIR}" lxc start egg
     LXD_DIR="${LXD_ONE_DIR}" lxc stop egg --force
     LXD_DIR="${LXD_ONE_DIR}" lxc delete egg
+  fi
 
+  # If the driver has the same per-node storage pool config (e.g. size), make sure it's included in the
+  # member_config, and actually added to a joining node so we can validate it.
+  if [ "${poolDriver}" = "zfs" ] || [ "${poolDriver}" = "btrfs" ] || [ "${poolDriver}" = "ceph" ] || [ "${poolDriver}" = "lvm" ]; then
     # Spawn a third node
     setup_clustering_netns 3
     LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
     chmod +x "${LXD_THREE_DIR}"
     ns3="${prefix}3"
-    spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${poolDriver}"
+    LXD_NETNS="${ns3}" spawn_lxd "${LXD_THREE_DIR}" false
 
+    key=$(echo "${driver_config}" | cut -d'=' -f1)
+    value=$(echo "${driver_config}" | cut -d'=' -f2-)
+
+    # Set member_config to match `spawn_lxd_and_join_cluster` for 'data' and `driver_config` for 'pool1'.
+    member_config="{\"entity\": \"storage-pool\",\"name\":\"pool1\",\"key\":\"${key}\",\"value\":\"${value}\"}"
+    if [ "${poolDriver}" = "zfs" ] || [ "${poolDriver}" = "btrfs" ] || [ "${poolDriver}" = "lvm" ] ; then
+      member_config="{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"size\",\"value\":\"1GiB\"},${member_config}"
+    fi
+
+    # Manually send the join request.
+    cert=$(sed ':a;N;$!ba;s/\n/\\n/g' "${LXD_ONE_DIR}/cluster.crt")
+    op=$(curl --unix-socket "${LXD_THREE_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"node3\",\"enabled\":true,\"member_config\":[${member_config}],\"server_address\":\"10.1.1.103:8443\",\"cluster_address\":\"10.1.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_password\":\"sekret\"}" | jq -r .operation)
+    curl --unix-socket "${LXD_THREE_DIR}/unix.socket" "lxd${op}/wait"
+
+    # Ensure that node-specific config appears on all nodes,
+    # regardless of the pool being created before or after the node joined.
+    for n in node1 node2 node3 ; do
+      LXD_DIR="${LXD_ONE_DIR}" lxc storage get pool1 "${key}" --target "${n}" | grep -q "${value}"
+    done
+
+    # Other storage backends will be finished with the third node, so we can remove it.
+    if [ "${poolDriver}" != "ceph" ]; then
+      LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node3 --yes
+    fi
+  fi
+
+  if [ "${poolDriver}" = "ceph" ]; then
     # Move the container to node3, renaming it
     LXD_DIR="${LXD_TWO_DIR}" lxc move foo bar --target node3
     LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -q "Location: node3"
@@ -1543,6 +1573,98 @@ test_clustering_update_cert() {
 
   cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}" || false
   cmp -s "${LXD_TWO_DIR}/cluster.key" "${key_path}" || false
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -q "server_name: node2"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
+
+test_clustering_update_cert_reversion() {
+  # shellcheck disable=2039,3043
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  # Bootstrap a node to steal its certs
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  cert_path=$(mktemp -p "${TEST_DIR}" XXX)
+  key_path=$(mktemp -p "${TEST_DIR}" XXX)
+
+  # Save the certs
+  cp "${LXD_ONE_DIR}/cluster.crt" "${cert_path}"
+  cp "${LXD_ONE_DIR}/cluster.key" "${key_path}"
+
+  # Tear down the instance
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  teardown_clustering_netns
+  teardown_clustering_bridge
+  kill_lxd "${LXD_ONE_DIR}"
+
+  # Set up again
+  setup_clustering_bridge
+
+  # Bootstrap the first node
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # quick check
+  ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
+  ! cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}" || false
+
+  # Add a newline at the end of each line. YAML as weird rules..
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
+
+  # Spawn a third node
+  setup_clustering_netns 3
+  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_THREE_DIR}"
+  ns3="${prefix}3"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
+
+  # Shutdown third node
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  kill_lxd "${LXD_THREE_DIR}"
+
+  # Send update request
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster update-cert "${cert_path}" "${key_path}" -q || false
+
+  ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
+  ! cmp -s "${LXD_TWO_DIR}/cluster.crt" "${cert_path}" || false
+
+  ! cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}" || false
+  ! cmp -s "${LXD_TWO_DIR}/cluster.key" "${key_path}" || false
 
   LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -q "server_name: node2"
   LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -q "server_name: node1"
@@ -2688,7 +2810,8 @@ test_clustering_image_refresh() {
 
   # Wait for the image to be refreshed
   for pid in ${pids}; do
-    wait "${pid}"
+    # Don't fail if PID isn't available as the process could be done already.
+    wait "${pid}" || true
   done
 
   if [ "${poolDriver}" != "dir" ]; then
@@ -2725,7 +2848,8 @@ test_clustering_image_refresh() {
 
   # Wait for the image to be refreshed
   for pid in ${pids}; do
-    wait "${pid}"
+    # Don't fail if PID isn't available as the process could be done already.
+    wait "${pid}" || true
   done
 
   LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="foo"' | grep "${old_fingerprint}"
@@ -2750,7 +2874,8 @@ test_clustering_image_refresh() {
 
   # Wait for the image to be refreshed
   for pid in ${pids}; do
-    wait "${pid}"
+    # Don't fail if PID isn't available as the process could be done already.
+    wait "${pid}" || true
   done
 
   pids=""
@@ -3127,59 +3252,106 @@ test_clustering_remove_members() {
   ns2="${prefix}2"
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
 
-  # Ensure successful communication
-  LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -q "server_name: node2"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -q "server_name: node1"
-
-  # Remove the leader, via the stand-by node
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster rm node1
-
-  # Ensure the remaining node is working
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -q "node1" || false
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -q "node2"
-
-  # Previous leader should no longer be clustered
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list || false
-
-  # Spawn a third node, joining the cluster with node2
+  # Spawn a three node
   setup_clustering_netns 3
   LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_THREE_DIR}"
   ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 2 "${LXD_THREE_DIR}"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
 
-  # Ensure successful communication
-  LXD_DIR="${LXD_TWO_DIR}" lxc info --target node3 | grep -q "server_name: node3"
-  LXD_DIR="${LXD_THREE_DIR}" lxc info --target node2 | grep -q "server_name: node2"
+  # Spawn a four node
+  setup_clustering_netns 4
+  LXD_FOUR_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_FOUR_DIR}"
+  ns4="${prefix}4"
+  spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_FOUR_DIR}"
 
-  # Remove the third node, via itself
-  LXD_DIR="${LXD_THREE_DIR}" lxc cluster rm node3
+  # Spawn a five node
+  setup_clustering_netns 5
+  LXD_FIVE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_FIVE_DIR}"
+  ns5="${prefix}5"
+  spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 1 "${LXD_FIVE_DIR}"
 
-  # Ensure only node2 is left in the cluster
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster ls | grep -q node2
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc cluster ls -f csv | grep -qv node2 || false
+  # Spawn a sixth node
+  setup_clustering_netns 6
+  LXD_SIX_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_SIX_DIR}"
+  ns6="${prefix}6"
+  spawn_lxd_and_join_cluster "${ns6}" "${bridge}" "${cert}" 6 1 "${LXD_SIX_DIR}"
 
-  # Ensure clustering is disabled (no output) on node1 and node3
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster ls | grep -qv "." || false
-  ! LXD_DIR="${LXD_THREE_DIR}" lxc cluster ls | grep -qv "." || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -q "server_name: node2"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_THREE_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_FOUR_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_FIVE_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_SIX_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+
+  # stop node 6
+  shutdown_lxd "${LXD_SIX_DIR}"
+
+  # Remove node2 node3 node4 node5
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster rm node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster rm node3
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster rm node4
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster rm node5
+
+  # Ensure the remaining node is working and node2, node3, node4,node5 successful reomve from cluster
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node2" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node3" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node4" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node5" || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node1"
+
+  # Start node 6
+  LXD_NETNS="${ns6}" respawn_lxd "${LXD_SIX_DIR}" true
+
+  # make sure node6 is a spare ndoe
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node6"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node6 | grep -qE "\- database-standy$|\- database-leader$|\- database$" || false
+
+  # waite for leader update table raft_node of local database by heartbeat
+  sleep 10s
+
+  # Remove the leader, via the spare node
+  LXD_DIR="${LXD_SIX_DIR}" lxc cluster rm node1
+
+  # Ensure the remaining node is working and node1 had successful remove
+  ! LXD_DIR="${LXD_SIX_DIR}" lxc cluster list | grep -q "node1" || false
+  LXD_DIR="${LXD_SIX_DIR}" lxc cluster list | grep -q "node6"
+
+  # Check whether node6 is changed from a spare node to a leader node.
+  LXD_DIR="${LXD_SIX_DIR}" lxc cluster show node6 | grep -q "\- database-leader$"
+  LXD_DIR="${LXD_SIX_DIR}" lxc cluster show node6 | grep -q "\- database$"
+
+  # Spawn a sixth node
+  setup_clustering_netns 7
+  LXD_SEVEN_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_SEVEN_DIR}"
+  ns7="${prefix}7"
+  spawn_lxd_and_join_cluster "${ns7}" "${bridge}" "${cert}" 7 6 "${LXD_SEVEN_DIR}"
+
+  # Ensure the remaining node is working by join a new node7
+  LXD_DIR="${LXD_SIX_DIR}" lxc info --target node7 | grep -q "server_name: node7"
+  LXD_DIR="${LXD_SEVEN_DIR}" lxc info --target node6 | grep -q "server_name: node6"
 
   # Clean up
-  daemon_pid1=$(cat "${LXD_ONE_DIR}/lxd.pid")
   shutdown_lxd "${LXD_ONE_DIR}"
-
-  daemon_pid2=$(cat "${LXD_TWO_DIR}/lxd.pid")
   shutdown_lxd "${LXD_TWO_DIR}"
-
-  daemon_pid3=$(cat "${LXD_THREE_DIR}/lxd.pid")
   shutdown_lxd "${LXD_THREE_DIR}"
-
-  wait "${daemon_pid1}"
-  wait "${daemon_pid2}"
-  wait "${daemon_pid3}"
+  shutdown_lxd "${LXD_FOUR_DIR}"
+  shutdown_lxd "${LXD_FIVE_DIR}"
+  shutdown_lxd "${LXD_SIX_DIR}"
+  shutdown_lxd "${LXD_SEVEN_DIR}"
 
   rm -f "${LXD_ONE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_FOUR_DIR}/unix.socket"
+  rm -f "${LXD_FIVE_DIR}/unix.socket"
+  rm -f "${LXD_SIX_DIR}/unix.socket"
+  rm -f "${LXD_SEVEN_DIR}/unix.socket"
+
 
   teardown_clustering_netns
   teardown_clustering_bridge
@@ -3187,6 +3359,10 @@ test_clustering_remove_members() {
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_FOUR_DIR}"
+  kill_lxd "${LXD_FIVE_DIR}"
+  kill_lxd "${LXD_SIX_DIR}"
+  kill_lxd "${LXD_SEVEN_DIR}"
 }
 
 test_clustering_autotarget() {
@@ -3292,6 +3468,16 @@ test_clustering_groups() {
   lxc cluster group create cluster:foobar
   [ "$(lxc query cluster:/1.0/cluster/groups/foobar | jq '.members | length')" -eq 0 ]
 
+  # Copy both description and members from default group
+  lxc cluster group show cluster:default | lxc cluster group edit cluster:foobar
+  [ "$(lxc query cluster:/1.0/cluster/groups/foobar | jq '.description == "Default cluster group"')" = "true" ]
+  [ "$(lxc query cluster:/1.0/cluster/groups/foobar | jq '.members | length')" -eq 3 ]
+
+  # Delete all members from new group
+  lxc cluster group remove cluster:node1 foobar
+  lxc cluster group remove cluster:node2 foobar
+  lxc cluster group remove cluster:node3 foobar
+
   # Add second node to new group. Node2 will now belong to both groups.
   lxc cluster group assign cluster:node2 default,foobar
   [ "$(lxc query cluster:/1.0/cluster/members/node2 | jq 'any(.groups[] == "default"; .)')" = "true" ]
@@ -3313,6 +3499,20 @@ test_clustering_groups() {
 
   lxc cluster group create cluster:foobar2
   lxc cluster group assign cluster:node3 default,foobar2
+
+  # Create a new group "newgroup"
+  lxc cluster group create cluster:newgroup
+  [ "$(lxc query cluster:/1.0/cluster/groups/newgroup | jq '.members | length')" -eq 0 ]
+
+  # Add node1 to the "newgroup" group
+  lxc cluster group add cluster:node1 newgroup
+  [ "$(lxc query cluster:/1.0/cluster/members/node1 | jq 'any(.groups[] == "newgroup"; .)')" = "true" ]
+
+  # remove node1 from "newgroup"
+  lxc cluster group remove cluster:node1 newgroup
+
+  # delete cluster group "newgroup"
+  lxc cluster group delete cluster:newgroup
 
   # With these settings:
   # - node1 will receive instances unless a different node is directly targeted (not via group)
@@ -3475,6 +3675,7 @@ test_clustering_events() {
   # Restart instance generating restart lifecycle event.
   LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
   LXD_DIR="${LXD_THREE_DIR}" lxc restart -f c2
+  sleep 2
 
   # Check events were distributed.
   for i in 1 2 3; do
@@ -3493,7 +3694,7 @@ test_clustering_events() {
     grep -Fc "cluster-member-updated" "${TEST_DIR}/node${i}.log" | grep -Fx 2
   done
 
-  sleep 1 # Wait for notification heartbeat to distribute new roles.
+  sleep 2 # Wait for notification heartbeat to distribute new roles.
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: hub-server"
   LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F "server_event_mode: hub-server"
   LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
@@ -3503,6 +3704,7 @@ test_clustering_events() {
   # Restart instance generating restart lifecycle event.
   LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
   LXD_DIR="${LXD_THREE_DIR}" lxc restart -f c2
+  sleep 2
 
   # Check events were distributed.
   for i in 1 2 3; do
@@ -3536,9 +3738,11 @@ test_clustering_events() {
   # Restart instance generating restart lifecycle event.
   LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
   LXD_DIR="${LXD_THREE_DIR}" lxc restart -f c2
+  sleep 2
 
   # Check events were distributed.
   for i in 1 2 3; do
+    cat "${TEST_DIR}/node${i}.log"
     grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log" | grep -Fx 6
   done
 
@@ -3547,7 +3751,7 @@ test_clustering_events() {
   LXD_DIR="${LXD_FOUR_DIR}" lxc cluster role add node4 event-hub
   LXD_DIR="${LXD_FIVE_DIR}" lxc cluster role add node5 event-hub
 
-  sleep 1 # Wait for notification heartbeat to distribute new roles.
+  sleep 2 # Wait for notification heartbeat to distribute new roles.
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
   LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F "server_event_mode: hub-client"
   LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
@@ -3567,10 +3771,11 @@ test_clustering_events() {
   # Confirm that local operations are not blocked by having no event hubs running, but that events are not being
   # distributed.
   LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
-  sleep 1
-  grep -Fc "instance-restarted" "${TEST_DIR}/node1.log"
+  sleep 2
+
   grep -Fc "instance-restarted" "${TEST_DIR}/node1.log" | grep -Fx 7
   for i in 2 3; do
+    cat "${TEST_DIR}/node${i}.log"
     grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log" | grep -Fx 6
   done
 

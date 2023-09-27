@@ -52,6 +52,8 @@ type ProtocolLXD struct {
 
 	clusterTarget string
 	project       string
+
+	oidcClient *oidcClient
 }
 
 // Disconnect gets rid of any background goroutines.
@@ -102,6 +104,8 @@ func (r *ProtocolLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 	return &info, nil
 }
 
+// isSameServer compares the calling ProtocolLXD object with the provided server object to check if they are the same server.
+// It verifies the equality based on their connection information (Protocol, Certificate, Project, and Target).
 func (r *ProtocolLXD) isSameServer(server Server) bool {
 	// Short path checking if the two structs are identical.
 	if r == server {
@@ -152,6 +156,10 @@ func (r *ProtocolLXD) DoHTTP(req *http.Request) (*http.Response, error) {
 		return r.bakeryClient.Do(req)
 	}
 
+	if r.oidcClient != nil {
+		return r.oidcClient.do(req)
+	}
+
 	return r.http.Do(req)
 }
 
@@ -159,6 +167,7 @@ func (r *ProtocolLXD) DoHTTP(req *http.Request) (*http.Response, error) {
 // User-Agent (if r.httpUserAgent is set).
 // X-LXD-authenticated (if r.requireAuthenticated is set).
 // Bakery authentication header and cookie (if r.bakeryClient is set).
+// OIDC Authorization header (if r.oidcClient is set).
 func (r *ProtocolLXD) addClientHeaders(req *http.Request) {
 	if r.httpUserAgent != "" {
 		req.Header.Set("User-Agent", r.httpUserAgent)
@@ -174,6 +183,10 @@ func (r *ProtocolLXD) addClientHeaders(req *http.Request) {
 		for _, cookie := range r.http.Jar.Cookies(req.URL) {
 			req.AddCookie(cookie)
 		}
+	}
+
+	if r.oidcClient != nil {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", r.oidcClient.getAccessToken()))
 	}
 }
 
@@ -232,6 +245,8 @@ func lxdParseResponse(resp *http.Response) (*api.Response, string, error) {
 	return &response, etag, nil
 }
 
+// rawQuery is a method that sends an HTTP request to the LXD server with the provided method, URL, data, and ETag.
+// It processes the request based on the data's type and handles the HTTP response, returning parsed results or an error if it occurs.
 func (r *ProtocolLXD) rawQuery(method string, url string, data any, ETag string) (*api.Response, string, error) {
 	var req *http.Request
 	var err error
@@ -345,6 +360,8 @@ func (r *ProtocolLXD) query(method string, path string, data any, ETag string) (
 	return r.rawQuery(method, url, data, ETag)
 }
 
+// queryStruct sends a query to the LXD server, then converts the response metadata into the specified target struct.
+// The function logs the retrieved data, returns the etag of the response, and handles any errors during this process.
 func (r *ProtocolLXD) queryStruct(method string, path string, data any, ETag string, target any) (string, error) {
 	resp, etag, err := r.query(method, path, data, ETag)
 	if err != nil {
@@ -363,6 +380,8 @@ func (r *ProtocolLXD) queryStruct(method string, path string, data any, ETag str
 	return etag, nil
 }
 
+// queryOperation sends a query to the LXD server and then converts the response metadata into an Operation object.
+// It sets up an early event listener, performs the query, processes the response, and manages the lifecycle of the event listener.
 func (r *ProtocolLXD) queryOperation(method string, path string, data any, ETag string) (Operation, string, error) {
 	// Attempt to setup an early event listener
 	listener, err := r.GetEvents()
@@ -405,6 +424,8 @@ func (r *ProtocolLXD) queryOperation(method string, path string, data any, ETag 
 	return &op, etag, nil
 }
 
+// rawWebsocket creates a websocket connection to the provided URL using the underlying HTTP transport of the ProtocolLXD receiver.
+// It sets up the request headers, manages the connection handshake, sets TCP timeouts, and handles any errors that may occur during these operations.
 func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 	// Grab the http transport handler
 	httpTransport, err := r.getUnderlyingHTTPTransport()
@@ -450,6 +471,8 @@ func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 	return conn, nil
 }
 
+// websocket generates a websocket URL based on the provided path and the base URL of the ProtocolLXD receiver.
+// It then leverages the rawWebsocket method to establish and return a websocket connection to the generated URL.
 func (r *ProtocolLXD) websocket(path string) (*websocket.Conn, error) {
 	// Generate the URL
 	var url string

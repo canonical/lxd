@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/canonical/lxd/lxd/filter"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/filter"
 )
 
 func TestMatch_Instance(t *testing.T) {
@@ -46,9 +46,10 @@ func TestMatch_Instance(t *testing.T) {
 
 	for s := range cases {
 		t.Run(s, func(t *testing.T) {
-			f, err := filter.Parse(s)
+			f, err := filter.Parse(s, filter.QueryOperatorSet())
 			require.NoError(t, err)
-			match := filter.Match(instance, f)
+			match, err := filter.Match(instance, *f)
+			require.NoError(t, err)
 			assert.Equal(t, cases[s], match)
 		})
 	}
@@ -72,9 +73,10 @@ func TestMatch_Image(t *testing.T) {
 
 	for s := range cases {
 		t.Run(s, func(t *testing.T) {
-			f, err := filter.Parse(s)
+			f, err := filter.Parse(s, filter.QueryOperatorSet())
 			require.NoError(t, err)
-			match := filter.Match(image, f)
+			match, err := filter.Match(image, *f)
+			require.NoError(t, err)
 			assert.Equal(t, cases[s], match)
 		})
 	}

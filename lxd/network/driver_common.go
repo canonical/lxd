@@ -529,14 +529,14 @@ func (n *common) bgpValidationRules(config map[string]string) (map[string]func(v
 	rules := map[string]func(value string) error{}
 	for k := range config {
 		// BGP keys have the peer name in their name, extract the suffix.
-		if !strings.HasPrefix(k, "bgp.") {
+		if !strings.HasPrefix(k, "bgp.peers.") {
 			continue
 		}
 
 		// Validate remote name in key.
 		fields := strings.Split(k, ".")
 		if len(fields) != 4 {
-			return nil, fmt.Errorf("Invalid network configuration key: %s", k)
+			return nil, fmt.Errorf("Invalid network configuration key: %q", k)
 		}
 
 		bgpKey := fields[3]
@@ -760,6 +760,10 @@ func (n *common) bgpGetPeers(config map[string]string) []string {
 func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwardPut) ([]*forwardPortMap, error) {
 	if listenAddress == nil {
 		return nil, fmt.Errorf("Invalid listen address")
+	}
+
+	if listenAddress.IsUnspecified() {
+		return nil, fmt.Errorf("Cannot use unspecified address: %q", listenAddress.String())
 	}
 
 	listenIsIP4 := listenAddress.To4() != nil

@@ -30,6 +30,9 @@ const genericVolumeBlockExtension = "img"
 // genericVolumeDiskFile used to indicate the file name used for block volume disk files.
 const genericVolumeDiskFile = "root.img"
 
+// genericISOVolumeSuffix suffix used for generic iso content type volumes.
+const genericISOVolumeSuffix = ".iso"
+
 // genericVFSGetResources is a generic GetResources implementation for VFS-only drivers.
 func genericVFSGetResources(d Driver) (*api.ResourcesStoragePool, error) {
 	// Get the VFS information
@@ -257,14 +260,14 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 
 	// Send volume to target (ensure local volume is mounted if needed).
 	return vol.MountTask(func(mountPath string, op *operations.Operation) error {
-		if vol.contentType != ContentTypeBlock || vol.volType != VolumeTypeCustom {
+		if !IsContentBlock(vol.contentType) || vol.volType != VolumeTypeCustom {
 			err := sendFSVol(vol, conn, mountPath)
 			if err != nil {
 				return err
 			}
 		}
 
-		if vol.IsVMBlock() || (vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom) {
+		if vol.IsVMBlock() || (IsContentBlock(vol.contentType) && vol.volType == VolumeTypeCustom) {
 			err := sendBlockVol(vol, conn)
 			if err != nil {
 				return err
@@ -279,7 +282,7 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 // initVolume is run against the main volume (not the snapshots) and is often used for quota initialization.
 func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (revert.Hook, error), vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	// Check migration transport type matches volume type.
-	if vol.contentType == ContentTypeBlock {
+	if IsContentBlock(vol.contentType) {
 		if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_BLOCK_AND_RSYNC {
 			return ErrNotSupported
 		}
@@ -306,7 +309,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 			wrapper = migration.ProgressTracker(op, "fs_progress", volName)
 		}
 
-		d.Logger().Debug("Receiving filesystem volume started", logger.Ctx{"volName": volName, "path": path})
+		d.Logger().Debug("Receiving filesystem volume started", logger.Ctx{"volName": volName, "path": path, "features": volTargetArgs.MigrationType.Features})
 		defer d.Logger().Debug("Receiving filesystem volume stopped", logger.Ctx{"volName": volName, "path": path})
 
 		return rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
@@ -354,7 +357,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 		path := shared.AddSlash(mountPath)
 		pathBlock := ""
 
-		if vol.IsVMBlock() || (vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom) {
+		if vol.IsVMBlock() || (IsContentBlock(vol.contentType) && vol.volType == VolumeTypeCustom) {
 			pathBlock, err = d.GetVolumeDiskPath(vol)
 			if err != nil {
 				return fmt.Errorf("Error getting VM block volume disk path: %w", err)
@@ -402,7 +405,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 			}
 		}
 
-		if vol.contentType != ContentTypeBlock || vol.volType != VolumeTypeCustom {
+		if !IsContentBlock(vol.contentType) || vol.volType != VolumeTypeCustom {
 			// Receive main volume.
 			err = recvFSVol(vol.name, conn, path)
 			if err != nil {
@@ -411,7 +414,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 		}
 
 		// Receive the final main volume sync if needed.
-		if volTargetArgs.Live && (vol.contentType != ContentTypeBlock || vol.volType != VolumeTypeCustom) {
+		if volTargetArgs.Live && (!IsContentBlock(vol.contentType) || vol.volType != VolumeTypeCustom) {
 			d.Logger().Debug("Starting main volume final sync", logger.Ctx{"volName": vol.name, "path": path})
 			err = recvFSVol(vol.name, conn, path)
 			if err != nil {
@@ -427,7 +430,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 		}
 
 		// Receive the block volume next (if needed).
-		if vol.IsVMBlock() || (vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom) {
+		if vol.IsVMBlock() || (IsContentBlock(vol.contentType) && vol.volType == VolumeTypeCustom) {
 			err = recvBlockVol(vol.name, conn, pathBlock)
 			if err != nil {
 				return err
@@ -460,7 +463,7 @@ func genericVFSHasVolume(vol Volume) (bool, error) {
 
 // genericVFSGetVolumeDiskPath is a generic GetVolumeDiskPath implementation for VFS-only drivers.
 func genericVFSGetVolumeDiskPath(vol Volume) (string, error) {
-	if vol.contentType != ContentTypeBlock {
+	if !IsContentBlock(vol.contentType) {
 		return "", ErrNotSupported
 	}
 
@@ -704,7 +707,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 
 			// Extract filesystem volume.
 			d.Logger().Debug(fmt.Sprintf("Unpacking %s filesystem volume", volTypeName), logger.Ctx{"source": srcPrefix, "target": mountPath, "args": fmt.Sprintf("%+v", args)})
-			_, err := srcData.Seek(0, 0)
+			_, err := srcData.Seek(0, io.SeekStart)
 			if err != nil {
 				return err
 			}
@@ -801,7 +804,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 	defer revert.Fail()
 
 	// Find the compression algorithm used for backup source data.
-	_, err := srcData.Seek(0, 0)
+	_, err := srcData.Seek(0, io.SeekStart)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1097,14 +1100,21 @@ func genericVFSListVolumes(d Driver) ([]Volume, error) {
 		}
 
 		for _, ent := range ents {
+			volName := ent.Name()
+
 			contentType := ContentTypeFS
 			if volType == VolumeTypeVM {
 				contentType = ContentTypeBlock
-			} else if volType == VolumeTypeCustom && shared.PathExists(filepath.Join(volTypePath, ent.Name(), genericVolumeDiskFile)) {
-				contentType = ContentTypeBlock
+			} else if volType == VolumeTypeCustom && shared.PathExists(filepath.Join(volTypePath, volName, genericVolumeDiskFile)) {
+				if strings.HasSuffix(ent.Name(), genericISOVolumeSuffix) {
+					contentType = ContentTypeISO
+					volName = strings.TrimSuffix(volName, genericISOVolumeSuffix)
+				} else {
+					contentType = ContentTypeBlock
+				}
 			}
 
-			vols = append(vols, NewVolume(d, poolName, volType, contentType, ent.Name(), make(map[string]string), poolConfig))
+			vols = append(vols, NewVolume(d, poolName, volType, contentType, volName, make(map[string]string), poolConfig))
 		}
 	}
 
