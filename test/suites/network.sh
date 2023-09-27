@@ -95,6 +95,9 @@ test_network() {
   lxc network list-allocations | grep -e "${net_ipv4}" -e "${net_ipv6}"
   lxc network list-allocations | grep -e "/1.0/networks/lxdt$$" -e "/1.0/instances/nettest"
   lxc network list-allocations | grep -e "${v4_addr}" -e "${v6_addr}"
+  lxc network list-allocations localhost: | grep -e "${net_ipv4}" -e "${net_ipv6}"
+  lxc network list-allocations localhost: | grep -e "/1.0/networks/lxdt$$" -e "/1.0/instances/nettest"
+  lxc network list-allocations localhost: | grep -e "${v4_addr}" -e "${v6_addr}"
 
   lxc delete nettest -f
   lxc network delete lxdt$$
