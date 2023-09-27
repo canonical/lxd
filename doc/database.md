@@ -62,8 +62,8 @@ against the local or global database, you can use the `lxd sql` command (run
 
 You should only need to do that in order to recover from broken updates or bugs.
 Please consult the LXD team first (creating a [GitHub
-issue](https://github.com/lxc/lxd/issues/new) or
-[forum](https://discuss.linuxcontainers.org/) post).
+issue](https://github.com/canonical/lxd/issues/new) or
+[forum](https://discourse.ubuntu.com/c/lxd/) post).
 
 ## Running custom queries at LXD daemon startup
 

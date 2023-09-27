@@ -1,28 +1,28 @@
 
-# LXD
 
-<!-- Include start LXD intro -->
+# LXD
 
 LXD is a modern, secure and powerful system container and virtual machine manager.
 
-It provides a unified experience for running and managing full Linux systems inside containers or virtual machines. LXD supplies images for a [wide number of Linux distributions](https://images.linuxcontainers.org) and is built around a very powerful, yet pretty simple, REST API. LXD scales from one instance on a single machine to a cluster in a full data center rack, making it suitable for running workloads both for development and in production.
+<!-- Include start LXD intro -->
+
+It provides a unified experience for running and managing full Linux systems inside containers or virtual machines. LXD supports images for a large number of Linux distributions (official Ubuntu images and images provided by the community) and is built around a very powerful, yet pretty simple, REST API. LXD scales from one instance on a single machine to a cluster in a full data center rack, making it suitable for running workloads both for development and in production.
 
 LXD allows you to easily set up a system that feels like a small private cloud. You can run any type of workload in an efficient way while keeping your resources optimized.
 
 You should consider using LXD if you want to containerize different environments or run virtual machines, or in general run and manage your infrastructure in a cost-effective way.
 
+
+<!-- Include end LXD intro -->
+
 ## Get started
 
 See [Getting started](https://documentation.ubuntu.com/lxd/en/stable-5.0/getting_started/) in the LXD documentation for installation instructions and first steps.
-This interactive demo guides you through the basic steps of using LXD and shows how to launch and inspect your first instances, update the configuration, work with commands and files inside an instance and create snapshots.
-
-Then, if you want to run LXD locally, take a look at our [getting started guide](https://linuxcontainers.org/lxd/getting-started-cli/) for installation instructions.
 
 - Release announcements: [`https://discourse.ubuntu.com/c/lxd/news/`](https://discourse.ubuntu.com/c/lxd/news/)
 - Release tarballs: [`https://github.com/canonical/lxd/releases/`](https://github.com/canonical/lxd/releases/)
 - Documentation: [`https://documentation.ubuntu.com/lxd/en/stable-5.0/`](https://documentation.ubuntu.com/lxd/en/stable-5.0/)
 
-<!-- Include end LXD intro -->
 
 ## Status
 
@@ -64,7 +64,7 @@ Consider the following aspects to ensure that your LXD installation is secure:
 - Configure your network interfaces to be secure.
 <!-- Include end security -->
 
-See [Security](https://documentation.ubuntu.com/lxd/en/stable-5.0/security/) for detailed information.
+See [Security](https://documentation.ubuntu.com/lxd/en/stable-5.0/explanation/security/) for detailed information.
 
 **IMPORTANT:**
 <!-- Include start security note -->
@@ -89,7 +89,7 @@ A discussion forum is available at: [`https://discourse.ubuntu.com/c/lxd/`](http
 
 ### IRC
 
-If you prefer live discussions, you can find us in [`#lxd`](https://web.libera.chat/#lxd) on `irc.libera.chat`. See [Getting started with IRC](https://discuss.linuxcontainers.org/t/getting-started-with-irc/11920) if needed.
+If you prefer live discussions, you can find us in [`#lxd`](https://web.libera.chat/#lxd) on `irc.libera.chat`. See [Getting started with IRC](https://discourse.ubuntu.com/t/getting-started-with-irc/37907) if needed.
 
 ### Commercial support
 
