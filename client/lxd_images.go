@@ -421,9 +421,14 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 		w := multipart.NewWriter(pw)
 
 		go func() {
+			var ioErr error
 			defer func() {
-				w.Close()
-				pw.Close()
+				cerr := w.Close()
+				if ioErr == nil && cerr != nil {
+					ioErr = cerr
+				}
+
+				_ = pw.CloseWithError(ioErr)
 			}()
 
 			// Metadata file
