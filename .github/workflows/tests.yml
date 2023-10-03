@@ -398,9 +398,10 @@ jobs:
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
           LAUNCHPAD_LXD_BOT_KEY: ${{ secrets.LAUNCHPAD_LXD_BOT_KEY }}
         run: |
+          mkdir -m 0700 -p ~/.ssh/
           ssh-agent -a "${SSH_AUTH_SOCK}" > /dev/null
           ssh-add - <<< "${{ secrets.LAUNCHPAD_LXD_BOT_KEY }}"
-          mkdir -m 0700 -p ~/.ssh/
+          ssh-add -L > ~/.ssh/id_ed25519.pub
           # In ephemeral environments like GitHub Action runners, relying on TOFU isn't providing any security
           # so require the key obtained by `ssh-keyscan` to match the expected hash from https://help.launchpad.net/SSHFingerprints
           ssh-keyscan git.launchpad.net >> ~/.ssh/known_hosts
@@ -424,6 +425,9 @@ jobs:
           git config --global transfer.fsckobjects true
           git config --global user.name "Canonical LXD Bot"
           git config --global user.email "lxd@lists.canonical.com"
+          git config --global commit.gpgsign true
+          git config --global gpg.format "ssh"
+          git config --global user.signingkey ~/.ssh/id_ed25519.pub
           localRev="$(git rev-parse HEAD)"
           go install github.com/canonical/lxd-ci/lxd-snapcraft@latest
           git clone -b "${TARGET}" git+ssh://lxdbot@git.launchpad.net/~canonical-lxd/lxd ~/lxd-pkg-snap-lp
