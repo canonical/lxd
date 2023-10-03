@@ -423,7 +423,7 @@ jobs:
           set -x
           git config --global user.name "Canonical LXD Bot"
           git config --global user.email "lxd@lists.canonical.com"
-          localRev=$(git rev-parse HEAD)
+          localRev="$(git rev-parse HEAD)"
           go install github.com/canonical/lxd-ci/lxd-snapcraft@latest
           git clone -b "${TARGET}" git+ssh://lxdbot@git.launchpad.net/~canonical-lxd/lxd ~/lxd-pkg-snap-lp
           cd ~/lxd-pkg-snap-lp
