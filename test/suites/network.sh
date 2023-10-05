@@ -5,16 +5,16 @@ test_network() {
   lxc init testimage nettest
 
   # Test DNS resolution of instance names
-  lxc network create lxdbr0
-  lxc launch testimage 0abc -n lxdbr0
-  lxc launch testimage def0 -n lxdbr0
-  v4_addr="$(lxc network get lxdbr0 ipv4.address | cut -d/ -f1)"
+  lxc network create lxdt$$
+  lxc launch testimage 0abc -n lxdt$$
+  lxc launch testimage def0 -n lxdt$$
+  v4_addr="$(lxc network get lxdt$$ ipv4.address | cut -d/ -f1)"
   sleep 2
   dig @"${v4_addr}" 0abc.lxd
   dig @"${v4_addr}" def0.lxd
   lxc delete -f 0abc
   lxc delete -f def0
-  lxc network delete lxdbr0
+  lxc network delete lxdt$$
 
   # Standard bridge with random subnet and a bunch of options
   lxc network create lxdt$$
