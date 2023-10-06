@@ -1654,7 +1654,7 @@ This adds supported storage driver info to server environment info.
 
 ## `event_lifecycle_requestor_address`
 
-Adds a new address field to life-cycle requestor.
+Adds a new address field to `lifecycle` requestor.
 
 ## `resources_gpu_usb`
 
@@ -2079,3 +2079,12 @@ When enabled and a suitable system is in use (requires ZFS 2.2 or higher), the Z
 
 This introduces support for the `all-projects` query parameter for the GET API calls to both `/1.0/operations` and `/1.0/operations?recursion=1`.
 This parameter allows bypassing the project name filter.
+
+## `event_lifecycle_name_and_project`
+
+This adds the fields `Name` and `Project` to `lifecycle` events.
+
+## `instances_nic_limits_priority`
+
+This introduces a new per-NIC `limits.priority` option that works with both cgroup1 and cgroup2 unlike the deprecated `limits.network.priority` instance setting, which only worked with cgroup1.
+
