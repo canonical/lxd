@@ -204,7 +204,7 @@ func (r *ProtocolLXD) UpdateInstances(state api.InstancesPut, ETag string) (Oper
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("PUT", fmt.Sprintf("%s?%s", path, v.Encode()), state, ETag)
+	op, _, err := r.queryOperation("PUT", fmt.Sprintf("%s?%s", path, v.Encode()), state, ETag, true)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +220,7 @@ func (r *ProtocolLXD) rebuildInstance(instanceName string, instance api.Instance
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/rebuild", path, url.PathEscape(instanceName)), instance, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/rebuild", path, url.PathEscape(instanceName)), instance, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -534,7 +534,7 @@ func (r *ProtocolLXD) CreateInstanceFromBackup(args InstanceBackupArgs) (Operati
 
 	if args.PoolName == "" && args.Name == "" {
 		// Send the request
-		op, _, err := r.queryOperation("POST", path, args.BackupFile, "")
+		op, _, err := r.queryOperation("POST", path, args.BackupFile, "", true)
 		if err != nil {
 			return nil, err
 		}
@@ -615,7 +615,7 @@ func (r *ProtocolLXD) CreateInstance(instance api.InstancesPost) (Operation, err
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", path, instance, "")
+	op, _, err := r.queryOperation("POST", path, instance, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -956,7 +956,7 @@ func (r *ProtocolLXD) UpdateInstance(name string, instance api.InstancePut, ETag
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("PUT", fmt.Sprintf("%s/%s", path, url.PathEscape(name)), instance, ETag)
+	op, _, err := r.queryOperation("PUT", fmt.Sprintf("%s/%s", path, url.PathEscape(name)), instance, ETag, true)
 	if err != nil {
 		return nil, err
 	}
@@ -977,7 +977,7 @@ func (r *ProtocolLXD) RenameInstance(name string, instance api.InstancePost) (Op
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s", path, url.PathEscape(name)), instance, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s", path, url.PathEscape(name)), instance, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -1073,7 +1073,7 @@ func (r *ProtocolLXD) MigrateInstance(name string, instance api.InstancePost) (O
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s", path, url.PathEscape(name)), instance, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s", path, url.PathEscape(name)), instance, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -1089,7 +1089,7 @@ func (r *ProtocolLXD) DeleteInstance(name string) (Operation, error) {
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("%s/%s", path, url.PathEscape(name)), nil, "")
+	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("%s/%s", path, url.PathEscape(name)), nil, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -1125,7 +1125,7 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", uri, exec, "")
+	op, _, err := r.queryOperation("POST", uri, exec, "", false)
 	if err != nil {
 		return nil, err
 	}
@@ -1679,7 +1679,7 @@ func (r *ProtocolLXD) CreateInstanceSnapshot(instanceName string, snapshot api.I
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/snapshots", path, url.PathEscape(instanceName)), snapshot, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/snapshots", path, url.PathEscape(instanceName)), snapshot, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -1926,7 +1926,7 @@ func (r *ProtocolLXD) RenameInstanceSnapshot(instanceName string, name string, i
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/snapshots/%s", path, url.PathEscape(instanceName), url.PathEscape(name)), instance, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/snapshots/%s", path, url.PathEscape(instanceName), url.PathEscape(name)), instance, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -2002,7 +2002,7 @@ func (r *ProtocolLXD) MigrateInstanceSnapshot(instanceName string, name string, 
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/snapshots/%s", path, url.PathEscape(instanceName), url.PathEscape(name)), instance, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/snapshots/%s", path, url.PathEscape(instanceName), url.PathEscape(name)), instance, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -2018,7 +2018,7 @@ func (r *ProtocolLXD) DeleteInstanceSnapshot(instanceName string, name string) (
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("%s/%s/snapshots/%s", path, url.PathEscape(instanceName), url.PathEscape(name)), nil, "")
+	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("%s/%s/snapshots/%s", path, url.PathEscape(instanceName), url.PathEscape(name)), nil, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -2038,7 +2038,7 @@ func (r *ProtocolLXD) UpdateInstanceSnapshot(instanceName string, name string, i
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("PUT", fmt.Sprintf("%s/%s/snapshots/%s", path, url.PathEscape(instanceName), url.PathEscape(name)), instance, ETag)
+	op, _, err := r.queryOperation("PUT", fmt.Sprintf("%s/%s/snapshots/%s", path, url.PathEscape(instanceName), url.PathEscape(name)), instance, ETag, true)
 	if err != nil {
 		return nil, err
 	}
@@ -2080,7 +2080,7 @@ func (r *ProtocolLXD) UpdateInstanceState(name string, state api.InstanceStatePu
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("PUT", fmt.Sprintf("%s/%s/state", path, url.PathEscape(name)), state, ETag)
+	op, _, err := r.queryOperation("PUT", fmt.Sprintf("%s/%s/state", path, url.PathEscape(name)), state, ETag, true)
 	if err != nil {
 		return nil, err
 	}
@@ -2403,7 +2403,7 @@ func (r *ProtocolLXD) ConsoleInstance(instanceName string, console api.InstanceC
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/console", path, url.PathEscape(instanceName)), console, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/console", path, url.PathEscape(instanceName)), console, "", false)
 	if err != nil {
 		return nil, err
 	}
@@ -2491,7 +2491,7 @@ func (r *ProtocolLXD) ConsoleInstanceDynamic(instanceName string, console api.In
 	}
 
 	// Send the request.
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/console", path, url.PathEscape(instanceName)), console, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/console", path, url.PathEscape(instanceName)), console, "", true)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -2697,7 +2697,7 @@ func (r *ProtocolLXD) CreateInstanceBackup(instanceName string, backup api.Insta
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/backups", path, url.PathEscape(instanceName)), backup, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/backups", path, url.PathEscape(instanceName)), backup, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -2717,7 +2717,7 @@ func (r *ProtocolLXD) RenameInstanceBackup(instanceName string, name string, bac
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/backups/%s", path, url.PathEscape(instanceName), url.PathEscape(name)), backup, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/backups/%s", path, url.PathEscape(instanceName), url.PathEscape(name)), backup, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -2737,7 +2737,7 @@ func (r *ProtocolLXD) DeleteInstanceBackup(instanceName string, name string) (Op
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("%s/%s/backups/%s", path, url.PathEscape(instanceName), url.PathEscape(name)), nil, "")
+	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("%s/%s/backups/%s", path, url.PathEscape(instanceName), url.PathEscape(name)), nil, "", true)
 	if err != nil {
 		return nil, err
 	}
