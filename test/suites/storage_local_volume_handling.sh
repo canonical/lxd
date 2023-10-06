@@ -114,6 +114,10 @@ test_storage_local_volume_handling() {
     lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol3
     lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol3 user.foo | grep -Fx "snap0"
 
+    # Rename custom volume using `lxc storage volume move`
+    lxc storage volume move "lxdtest-$(basename "${LXD_DIR}")-${driver}1"/vol1 "lxdtest-$(basename "${LXD_DIR}")-${driver}1"/vol4
+    lxc storage volume move "lxdtest-$(basename "${LXD_DIR}")-${driver}1"/vol4 "lxdtest-$(basename "${LXD_DIR}")-${driver}1"/vol1
+
     lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1
     lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol2
     lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol3
