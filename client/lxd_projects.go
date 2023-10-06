@@ -115,7 +115,7 @@ func (r *ProtocolLXD) RenameProject(name string, project api.ProjectPost) (Opera
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/projects/%s", url.PathEscape(name)), project, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/projects/%s", url.PathEscape(name)), project, "", true)
 	if err != nil {
 		return nil, err
 	}
