@@ -215,7 +215,7 @@ func (r *ProtocolLXD) RawWebsocket(path string) (*websocket.Conn, error) {
 // RawOperation allows direct querying of a LXD API endpoint returning
 // background operations.
 func (r *ProtocolLXD) RawOperation(method string, path string, data any, ETag string) (Operation, string, error) {
-	return r.queryOperation(method, path, data, ETag)
+	return r.queryOperation(method, path, data, ETag, true)
 }
 
 // Internal functions.
@@ -381,12 +381,14 @@ func (r *ProtocolLXD) queryStruct(method string, path string, data any, ETag str
 }
 
 // queryOperation sends a query to the LXD server and then converts the response metadata into an Operation object.
-// It sets up an early event listener, performs the query, processes the response, and manages the lifecycle of the event listener.
-func (r *ProtocolLXD) queryOperation(method string, path string, data any, ETag string) (Operation, string, error) {
-	// Attempt to setup an early event listener
-	listener, err := r.GetEvents()
-	if err != nil {
-		listener = nil
+// If useEventListener is true it will set up an early event listener and manage its lifecycle.
+// If useEventListener is false, it will not set up an event listener and calls to Operation.Wait will use the operations API instead.
+// In this case the returned Operation will error if the user calls Operation.AddHandler or Operation.RemoveHandler.
+func (r *ProtocolLXD) queryOperation(method string, path string, data any, ETag string, useEventListener bool) (Operation, string, error) {
+	// Attempt to setup an early event listener if requested.
+	var listener *EventListener
+	if useEventListener {
+		listener, _ = r.GetEvents()
 	}
 
 	// Send the query
@@ -411,10 +413,11 @@ func (r *ProtocolLXD) queryOperation(method string, path string, data any, ETag 
 
 	// Setup an Operation wrapper
 	op := operation{
-		Operation: *respOperation,
-		r:         r,
-		listener:  listener,
-		chActive:  make(chan bool),
+		Operation:    *respOperation,
+		r:            r,
+		listener:     listener,
+		chActive:     make(chan bool),
+		skipListener: !useEventListener,
 	}
 
 	// Log the data

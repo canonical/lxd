@@ -90,7 +90,7 @@ func (r *ProtocolLXD) CreateContainerFromBackup(args ContainerBackupArgs) (Opera
 
 	if args.PoolName == "" {
 		// Send the request
-		op, _, err := r.queryOperation("POST", "/containers", args.BackupFile, "")
+		op, _, err := r.queryOperation("POST", "/containers", args.BackupFile, "", true)
 		if err != nil {
 			return nil, err
 		}
@@ -155,7 +155,7 @@ func (r *ProtocolLXD) CreateContainer(container api.ContainersPost) (Operation, 
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", "/containers", container, "")
+	op, _, err := r.queryOperation("POST", "/containers", container, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -505,7 +505,7 @@ func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Contain
 // UpdateContainer updates the container definition.
 func (r *ProtocolLXD) UpdateContainer(name string, container api.ContainerPut, ETag string) (Operation, error) {
 	// Send the request
-	op, _, err := r.queryOperation("PUT", fmt.Sprintf("/containers/%s", url.PathEscape(name)), container, ETag)
+	op, _, err := r.queryOperation("PUT", fmt.Sprintf("/containers/%s", url.PathEscape(name)), container, ETag, true)
 	if err != nil {
 		return nil, err
 	}
@@ -521,7 +521,7 @@ func (r *ProtocolLXD) RenameContainer(name string, container api.ContainerPost) 
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s", url.PathEscape(name)), container, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s", url.PathEscape(name)), container, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -598,7 +598,7 @@ func (r *ProtocolLXD) MigrateContainer(name string, container api.ContainerPost)
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s", url.PathEscape(name)), container, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s", url.PathEscape(name)), container, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -609,7 +609,7 @@ func (r *ProtocolLXD) MigrateContainer(name string, container api.ContainerPost)
 // DeleteContainer requests that LXD deletes the container.
 func (r *ProtocolLXD) DeleteContainer(name string) (Operation, error) {
 	// Send the request
-	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("/containers/%s", url.PathEscape(name)), nil, "")
+	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("/containers/%s", url.PathEscape(name)), nil, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -632,7 +632,7 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/exec", url.PathEscape(containerName)), exec, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/exec", url.PathEscape(containerName)), exec, "", false)
 	if err != nil {
 		return nil, err
 	}
@@ -961,7 +961,7 @@ func (r *ProtocolLXD) CreateContainerSnapshot(containerName string, snapshot api
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/snapshots", url.PathEscape(containerName)), snapshot, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/snapshots", url.PathEscape(containerName)), snapshot, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -1193,7 +1193,7 @@ func (r *ProtocolLXD) RenameContainerSnapshot(containerName string, name string,
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/snapshots/%s", url.PathEscape(containerName), url.PathEscape(name)), container, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/snapshots/%s", url.PathEscape(containerName), url.PathEscape(name)), container, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -1266,7 +1266,7 @@ func (r *ProtocolLXD) MigrateContainerSnapshot(containerName string, name string
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/snapshots/%s", url.PathEscape(containerName), url.PathEscape(name)), container, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/snapshots/%s", url.PathEscape(containerName), url.PathEscape(name)), container, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -1277,7 +1277,7 @@ func (r *ProtocolLXD) MigrateContainerSnapshot(containerName string, name string
 // DeleteContainerSnapshot requests that LXD deletes the container snapshot.
 func (r *ProtocolLXD) DeleteContainerSnapshot(containerName string, name string) (Operation, error) {
 	// Send the request
-	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("/containers/%s/snapshots/%s", url.PathEscape(containerName), url.PathEscape(name)), nil, "")
+	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("/containers/%s/snapshots/%s", url.PathEscape(containerName), url.PathEscape(name)), nil, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -1293,7 +1293,7 @@ func (r *ProtocolLXD) UpdateContainerSnapshot(containerName string, name string,
 
 	// Send the request
 	op, _, err := r.queryOperation("PUT", fmt.Sprintf("/containers/%s/snapshots/%s",
-		url.PathEscape(containerName), url.PathEscape(name)), container, ETag)
+		url.PathEscape(containerName), url.PathEscape(name)), container, ETag, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1317,7 +1317,7 @@ func (r *ProtocolLXD) GetContainerState(name string) (*api.ContainerState, strin
 // UpdateContainerState updates the container to match the requested state.
 func (r *ProtocolLXD) UpdateContainerState(name string, state api.ContainerStatePut, ETag string) (Operation, error) {
 	// Send the request
-	op, _, err := r.queryOperation("PUT", fmt.Sprintf("/containers/%s/state", url.PathEscape(name)), state, ETag)
+	op, _, err := r.queryOperation("PUT", fmt.Sprintf("/containers/%s/state", url.PathEscape(name)), state, ETag, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1522,7 +1522,7 @@ func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.Contain
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/console", url.PathEscape(containerName)), console, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/console", url.PathEscape(containerName)), console, "", false)
 	if err != nil {
 		return nil, err
 	}
@@ -1698,7 +1698,7 @@ func (r *ProtocolLXD) CreateContainerBackup(containerName string, backup api.Con
 
 	// Send the request
 	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/backups",
-		url.PathEscape(containerName)), backup, "")
+		url.PathEscape(containerName)), backup, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -1714,7 +1714,7 @@ func (r *ProtocolLXD) RenameContainerBackup(containerName string, name string, b
 
 	// Send the request
 	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/backups/%s",
-		url.PathEscape(containerName), url.PathEscape(name)), backup, "")
+		url.PathEscape(containerName), url.PathEscape(name)), backup, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -1730,7 +1730,7 @@ func (r *ProtocolLXD) DeleteContainerBackup(containerName string, name string) (
 
 	// Send the request
 	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("/containers/%s/backups/%s",
-		url.PathEscape(containerName), url.PathEscape(name)), nil, "")
+		url.PathEscape(containerName), url.PathEscape(name)), nil, "", true)
 	if err != nil {
 		return nil, err
 	}
