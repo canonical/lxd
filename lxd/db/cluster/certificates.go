@@ -63,6 +63,8 @@ func (cert *Certificate) ToAPIType() string {
 		return api.CertificateTypeServer
 	case certificate.TypeMetrics:
 		return api.CertificateTypeMetrics
+	case certificate.TypeDeployments:
+		return api.CertificateTypeDeployment
 	}
 
 	return api.CertificateTypeUnknown

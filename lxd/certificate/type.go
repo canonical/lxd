@@ -18,6 +18,9 @@ const TypeServer = Type(2)
 // TypeMetrics indicates a metrics certificate type.
 const TypeMetrics = Type(3)
 
+// CertificateTypeDeployments indicates a deployment certificate type.
+const TypeDeployments = Type(4)
+
 // FromAPIType converts an API type to the equivalent Type.
 func FromAPIType(apiType string) (Type, error) {
 	switch apiType {
@@ -27,6 +30,8 @@ func FromAPIType(apiType string) (Type, error) {
 		return TypeServer, nil
 	case api.CertificateTypeMetrics:
 		return TypeMetrics, nil
+	case api.CertificateTypeDeployment:
+		return TypeDeployments, nil
 	}
 
 	return -1, fmt.Errorf("Invalid certificate type")
