@@ -11,6 +11,7 @@ After installing LXD, make sure you have a `lxd` group on your system.
 Users in this group can interact with LXD.
 See {ref}`installing-manage-access` for instructions.
 
+(installing-release)=
 ## Choose your release
 
 % Include content from [support.md](support.md)
