@@ -115,7 +115,7 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Validate flags.
-	if !shared.ValueInSlice(c.flagType, []string{"client", "metrics"}) {
+	if !shared.ValueInSlice(c.flagType, []string{"client", "metrics", "deployments"}) {
 		return fmt.Errorf(i18n.G("Unknown certificate type %q"), c.flagType)
 	}
 
@@ -134,6 +134,10 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 
 	if c.flagType == "metrics" && !resource.server.HasExtension("metrics") {
 		return errors.New("The server doesn't implement metrics")
+	}
+
+	if c.flagType == "deployments" && !resource.server.HasExtension("deployments") {
+		return errors.New("The server doesn't implement deployments")
 	}
 
 	cert := api.CertificatesPost{}
@@ -191,6 +195,12 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		cert.Type = api.CertificateTypeMetrics
+	} else if c.flagType == "deployments" {
+		if cert.Token {
+			return fmt.Errorf(i18n.G("Cannot use deployments type certificate when using a token"))
+		}
+
+		cert.Type = api.CertificateTypeDeployment
 	}
 
 	cert.Restricted = c.flagRestricted
