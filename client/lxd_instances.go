@@ -300,7 +300,7 @@ func (r *ProtocolLXD) RebuildInstanceFromImage(source ImageServer, image api.Ima
 		return nil, err
 	}
 
-	info, err := r.getSourceImageConnectionInfo(source, image, &req.Source)
+	info, err := r.GetSourceImageConnectionInfo(source, image, &req.Source)
 	if err != nil {
 		return nil, err
 	}
@@ -691,7 +691,7 @@ func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op
 
 // CreateInstanceFromImage is a convenience function to make it easier to create a instance from an existing image.
 func (r *ProtocolLXD) CreateInstanceFromImage(source ImageServer, image api.Image, req api.InstancesPost) (RemoteOperation, error) {
-	info, err := r.getSourceImageConnectionInfo(source, image, &req.Source)
+	info, err := r.GetSourceImageConnectionInfo(source, image, &req.Source)
 	if err != nil {
 		return nil, err
 	}

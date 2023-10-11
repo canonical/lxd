@@ -508,10 +508,10 @@ func (r *ProtocolLXD) getUnderlyingHTTPTransport() (*http.Transport, error) {
 	}
 }
 
-// getSourceImageConnectionInfo returns the connection information for the source image.
+// GetSourceImageConnectionInfo returns the connection information for the source image.
 // The returned `info` is nil if the source image is local. In this process, the `instSrc`
 // is also updated with the minimal source fields.
-func (r *ProtocolLXD) getSourceImageConnectionInfo(source ImageServer, image api.Image, instSrc *api.InstanceSource) (info *ConnectionInfo, err error) {
+func (r *ProtocolLXD) GetSourceImageConnectionInfo(source ImageServer, image api.Image, instSrc *api.InstanceSource) (info *ConnectionInfo, err error) {
 	// Set the minimal source fields
 	instSrc.Type = "image"
 
