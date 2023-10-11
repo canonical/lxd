@@ -120,7 +120,7 @@ func ensureImageIsLocallyAvailable(s *state.State, r *http.Request, img *api.Ima
 }
 
 // instanceCreateFromImage creates an instance from a rootfs image.
-func instanceCreateFromImage(s *state.State, r *http.Request, img *api.Image, args db.InstanceArgs, op *operations.Operation) error {
+func instanceCreateFromImage(s *state.State, r *http.Request, img *api.Image, args db.InstanceArgs, deploymentName string, deploymentShapeName string, op *operations.Operation) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -180,6 +180,21 @@ func instanceCreateFromImage(s *state.State, r *http.Request, img *api.Image, ar
 	err = inst.UpdateBackupFile()
 	if err != nil {
 		return err
+	}
+
+	if deploymentName != "" && deploymentShapeName != "" {
+		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			// Create the deployed instance record.
+			err = tx.CreateDeploymentShapeInstance(ctx, deploymentName, int64(inst.ID()), deploymentShapeName)
+			if err != nil {
+				return fmt.Errorf("Failed to create the instance %s in the deployment %s in deployment shape %s: %w", inst.Name(), deploymentName, deploymentShapeName, err)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()

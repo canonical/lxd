@@ -77,7 +77,7 @@ func ensureDownloadedImageFitWithinBudget(s *state.State, r *http.Request, op *o
 	return imgDownloaded, nil
 }
 
-func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []api.Profile, img *api.Image, imgAlias string, req *api.InstancesPost) response.Response {
+func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []api.Profile, img *api.Image, imgAlias string, req *api.InstancesPost, deploymentName string, deploymentShapeName string) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
 	}
@@ -120,19 +120,31 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 			return err
 		}
 
-		return instanceCreateFromImage(s, r, img, args, op)
+		return instanceCreateFromImage(s, r, img, args, deploymentName, deploymentShapeName, op)
 	}
 
 	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name)}
+	if deploymentName != "" && deploymentShapeName != "" {
+		resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "deployment", deploymentName, "shape", deploymentShapeName, "instances", req.Name)}
+	} else {
+		resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", req.Name)}
+	}
 
 	if dbType == instancetype.Container {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, p.Name, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
-	if err != nil {
-		return response.InternalError(err)
+	var op *operations.Operation
+	if deploymentName != "" && deploymentShapeName != "" {
+		op, err = operations.OperationCreate(s, p.Name, operations.OperationClassTask, operationtype.DeploymentInstanceCreate, resources, nil, run, nil, nil, r)
+		if err != nil {
+			return response.InternalError(err)
+		}
+	} else {
+		op, err = operations.OperationCreate(s, p.Name, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
+		if err != nil {
+			return response.InternalError(err)
+		}
 	}
 
 	return operations.OperationResponse(op)
@@ -762,51 +774,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	return operations.OperationResponse(op)
 }
 
-// swagger:operation POST /1.0/instances instances instances_post
-//
-//	Create a new instance
-//
-//	Creates a new instance on LXD.
-//	Depending on the source, this can create an instance from an existing
-//	local image, remote image, existing local instance or snapshot, remote
-//	migration stream or backup file.
-//
-//	---
-//	consumes:
-//	  - application/json
-//	produces:
-//	  - application/json
-//	parameters:
-//	  - in: query
-//	    name: project
-//	    description: Project name
-//	    type: string
-//	    example: default
-//	  - in: query
-//	    name: target
-//	    description: Cluster member
-//	    type: string
-//	    example: default
-//	  - in: body
-//	    name: instance
-//	    description: Instance request
-//	    required: false
-//	    schema:
-//	      $ref: "#/definitions/InstancesPost"
-//	  - in: body
-//	    name: raw_backup
-//	    description: Raw backup file
-//	    required: false
-//	responses:
-//	  "202":
-//	    $ref: "#/responses/Operation"
-//	  "400":
-//	    $ref: "#/responses/BadRequest"
-//	  "403":
-//	    $ref: "#/responses/Forbidden"
-//	  "500":
-//	    $ref: "#/responses/InternalServerError"
-func instancesPost(d *Daemon, r *http.Request) response.Response {
+func instancesPostCommon(d *Daemon, r *http.Request, deploymentName string, deploymentShapeName string) response.Response {
 	s := d.State()
 
 	targetProjectName := request.ProjectParam(r)
@@ -1136,7 +1104,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 	switch req.Source.Type {
 	case "image":
-		return createFromImage(s, r, *targetProject, profiles, sourceImage, sourceImageRef, &req)
+		return createFromImage(s, r, *targetProject, profiles, sourceImage, sourceImageRef, &req, deploymentName, deploymentShapeName)
 	case "none":
 		return createFromNone(s, r, targetProjectName, profiles, &req)
 	case "migration":
@@ -1146,6 +1114,54 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %s", req.Source.Type))
 	}
+}
+
+// swagger:operation POST /1.0/instances instances instances_post
+//
+//	Create a new instance
+//
+//	Creates a new instance on LXD.
+//	Depending on the source, this can create an instance from an existing
+//	local image, remote image, existing local instance or snapshot, remote
+//	migration stream or backup file.
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: query
+//	    name: target
+//	    description: Cluster member
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: instance
+//	    description: Instance request
+//	    required: false
+//	    schema:
+//	      $ref: "#/definitions/InstancesPost"
+//	  - in: body
+//	    name: raw_backup
+//	    description: Raw backup file
+//	    required: false
+//	responses:
+//	  "202":
+//	    $ref: "#/responses/Operation"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func instancesPost(d *Daemon, r *http.Request) response.Response {
+	return instancesPostCommon(d, r, "", "")
 }
 
 func instanceFindStoragePool(s *state.State, projectName string, req *api.InstancesPost) (string, string, string, map[string]string, response.Response) {
