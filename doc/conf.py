@@ -89,6 +89,7 @@ if not 'conf_py_path' in html_context and 'github_folder' in html_context:
 linkcheck_anchors_ignore_for_url = [
     r'https://github\.com/.*'
 ]
+linkcheck_anchors_ignore_for_url.extend(custom_linkcheck_anchors_ignore_for_url)
 
 for tag in custom_tags:
     tags.add(tag)
