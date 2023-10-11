@@ -1358,3 +1358,48 @@ func TargetDetect(target string) (targetNode string, targetGroup string) {
 
 	return
 }
+
+// IsZero returns true if the object is zero.
+func IsZero(obj any) bool {
+	var rec func(v reflect.Value, visited map[reflect.Type]bool) bool
+	rec = func(v reflect.Value, visited map[reflect.Type]bool) bool {
+		if v.Kind() == reflect.Ptr {
+			v = v.Elem()
+		}
+
+		if v.Kind() == reflect.Struct {
+			if visited[v.Type()] {
+				return true // Avoid infinite recursion
+			}
+
+			visited[v.Type()] = true
+		}
+
+		switch v.Kind() {
+		case reflect.Func, reflect.Map, reflect.Slice:
+			return v.IsNil()
+		case reflect.Array:
+			for i := 0; i < v.Len(); i++ {
+				if !rec(v.Index(i), visited) {
+					return false
+				}
+			}
+
+			return true
+		case reflect.Struct:
+			for i := 0; i < v.NumField(); i++ {
+				if !rec(v.Field(i), visited) {
+					return false
+				}
+			}
+
+			return true
+		default:
+			// Compare other types directly:
+			z := reflect.Zero(v.Type())
+			return v.Interface() == z.Interface()
+		}
+	}
+
+	return rec(reflect.ValueOf(obj), make(map[reflect.Type]bool))
+}

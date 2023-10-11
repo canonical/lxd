@@ -254,3 +254,31 @@ func TestRemoveElementsFromStringSlice(t *testing.T) {
 		assert.ElementsMatch(t, tt.expectedList, gotList)
 	}
 }
+
+func TestStructsAreZero(t *testing.T) {
+	type Inner struct {
+		Field1 int
+		Field2 string
+	}
+
+	type Outer struct {
+		FieldA int
+		FieldB Inner
+	}
+
+	instance1 := Outer{}
+
+	instance2 := Outer{
+		FieldA: 5,
+	}
+
+	instance3 := Outer{
+		FieldB: Inner{
+			Field1: 10,
+		},
+	}
+
+	assert.True(t, IsZero(instance1))
+	assert.False(t, IsZero(instance2))
+	assert.False(t, IsZero(instance3))
+}
