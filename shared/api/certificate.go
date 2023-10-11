@@ -15,6 +15,9 @@ const CertificateTypeServer = "server"
 // CertificateTypeMetrics indicates a metrics certificate type.
 const CertificateTypeMetrics = "metrics"
 
+// CertificateTypeDeployment indicates a deployments certificate type.
+const CertificateTypeDeployment = "deployments"
+
 // CertificateTypeUnknown indicates an unknown certificate type.
 const CertificateTypeUnknown = "unknown"
 
