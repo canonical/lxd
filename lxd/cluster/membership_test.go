@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/db"
@@ -130,7 +131,7 @@ func TestBootstrap(t *testing.T) {
 	// The cluster certificate is in place.
 	assert.True(t, shared.PathExists(filepath.Join(state.OS.VarDir, "cluster.crt")))
 
-	trustedCerts := func() map[dbCluster.CertificateType]map[string]x509.Certificate {
+	trustedCerts := func() map[certificate.Type]map[string]x509.Certificate {
 		return nil
 	}
 
@@ -288,9 +289,9 @@ func TestJoin(t *testing.T) {
 	altServerCert := shared.TestingAltKeyPair()
 	trustedAltServerCert, _ := x509.ParseCertificate(altServerCert.KeyPair().Certificate[0])
 
-	trustedCerts := func() map[dbCluster.CertificateType]map[string]x509.Certificate {
-		return map[dbCluster.CertificateType]map[string]x509.Certificate{
-			dbCluster.CertificateTypeServer: {
+	trustedCerts := func() map[certificate.Type]map[string]x509.Certificate {
+		return map[certificate.Type]map[string]x509.Certificate{
+			certificate.TypeServer: {
 				altServerCert.Fingerprint(): *trustedAltServerCert,
 			},
 		}

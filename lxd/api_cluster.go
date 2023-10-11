@@ -18,6 +18,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
@@ -660,7 +661,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		for _, trustedCert := range trustedCerts {
 			if trustedCert.Type == api.CertificateTypeServer {
-				dbType, err := dbCluster.CertificateAPITypeToDBType(trustedCert.Type)
+				dbType, err := certificate.FromAPIType(trustedCert.Type)
 				if err != nil {
 					return err
 				}

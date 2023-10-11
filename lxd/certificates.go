@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
@@ -37,7 +38,7 @@ import (
 )
 
 type certificateCache struct {
-	Certificates map[dbCluster.CertificateType]map[string]x509.Certificate
+	Certificates map[certificate.Type]map[string]x509.Certificate
 	Projects     map[string][]string
 	Lock         sync.Mutex
 }
@@ -188,7 +189,7 @@ func updateCertificateCache(d *Daemon) {
 
 	logger.Debug("Refreshing trusted certificate cache")
 
-	newCerts := map[dbCluster.CertificateType]map[string]x509.Certificate{}
+	newCerts := map[certificate.Type]map[string]x509.Certificate{}
 	newProjects := map[string][]string{}
 
 	var certs []*api.Certificate
@@ -240,7 +241,7 @@ func updateCertificateCache(d *Daemon) {
 		}
 
 		// Add server certs to list of certificates to store in local database to allow cluster restart.
-		if dbCert.Type == dbCluster.CertificateTypeServer {
+		if dbCert.Type == certificate.TypeServer {
 			localCerts = append(localCerts, dbCert)
 		}
 	}
@@ -265,7 +266,7 @@ func updateCertificateCache(d *Daemon) {
 func updateCertificateCacheFromLocal(d *Daemon) error {
 	logger.Debug("Refreshing local trusted certificate cache")
 
-	newCerts := map[dbCluster.CertificateType]map[string]x509.Certificate{}
+	newCerts := map[certificate.Type]map[string]x509.Certificate{}
 
 	var dbCerts []dbCluster.Certificate
 	var err error
@@ -601,7 +602,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	dbReqType, err := dbCluster.CertificateAPITypeToDBType(req.Type)
+	dbReqType, err := certificate.FromAPIType(req.Type)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -964,7 +965,7 @@ func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificateP
 	s := d.State()
 
 	if clientType == clusterRequest.ClientTypeNormal {
-		reqDBType, err := dbCluster.CertificateAPITypeToDBType(req.Type)
+		reqDBType, err := certificate.FromAPIType(req.Type)
 		if err != nil {
 			return response.BadRequest(err)
 		}
