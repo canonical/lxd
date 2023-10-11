@@ -16,6 +16,8 @@ lxd-migrate/lxd-migrate
 lxd-user/lxd-user
 test/devlxd-client/devlxd-client
 test/rbac/rbac
+test/rest-governor-client/rest-governor-client
+test/macaroon-identity/macaroon-identity
 test/syscall/sysinfo/sysinfo
 
 # Sphinx
