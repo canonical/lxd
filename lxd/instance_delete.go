@@ -45,6 +45,10 @@ import (
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instanceDelete(d *Daemon, r *http.Request) response.Response {
+	return instanceDeleteCommon(d, r, "", "")
+}
+
+func instanceDeleteCommon(d *Daemon, r *http.Request, deploymentName string, deploymentShapeName string) response.Response {
 	// Don't mess with instance while in setup mode.
 	<-d.waitReady.Done()
 
@@ -89,10 +93,19 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	resources := map[string][]api.URL{}
-	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
+	if deploymentName != "" && deploymentShapeName != "" {
+		resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "deployments", deploymentName, "shapes", deploymentShapeName, "instances", name)}
+	} else {
+		resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
+	}
 
 	if inst.Type() == instancetype.Container {
 		resources["containers"] = resources["instances"]
+	}
+
+	if deploymentName != "" && deploymentShapeName != "" {
+		resources["deployment"] = []api.URL{*api.NewURL().Path(version.APIVersion, "deployments", deploymentName)}
+		resources["deployment_shapes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "deployments", deploymentName, "shapes", deploymentShapeName)}
 	}
 
 	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceDelete, resources, nil, rmct, nil, nil, r)
