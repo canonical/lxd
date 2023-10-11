@@ -375,6 +375,45 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 		}
 	}
 
+	// Validate deployment certificates.
+	if shared.StringHasPrefix(r.URL.Path, "/1.0/deployments", "/1.0/events", "/1.0/operations") || r.URL.Path == fmt.Sprintf("/%s", version.APIVersion) {
+		for _, i := range r.TLS.PeerCertificates {
+			trusted, username := util.CheckTrustState(*i, trustedCerts[certificate.TypeDeployments], d.endpoints.NetworkCert(), false)
+			if trusted {
+				// Get the associated deployment key to inject the role into the request context.
+				fingerprint := shared.CertFingerprint(i)
+
+				// Get the certificate db entry by fingerprint, get its id a search for the associated deployment key (foreign key relationship).
+				err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+					dbCert, err := dbCluster.GetCertificate(ctx, tx.Tx(), fingerprint)
+					if err != nil {
+						return err
+					}
+
+					filter := db.DeploymentKeyFilter{CertificateID: &dbCert.ID}
+					dbDeploymentKey, err := tx.GetDeploymentKeys(ctx, filter)
+					if err != nil {
+						return err
+					}
+
+					if len(dbDeploymentKey) != 1 {
+						return fmt.Errorf("Failed to get deployment key for certificate")
+					}
+
+					role := dbDeploymentKey[0].Role
+					r = r.WithContext(context.WithValue(r.Context(), request.CtxDeploymentKeyRole, role))
+
+					return nil
+				})
+				if err != nil {
+					return false, "", "", nil
+				}
+
+				return true, username, "tls", nil
+			}
+		}
+	}
+
 	for _, i := range r.TLS.PeerCertificates {
 		trusted, username := util.CheckTrustState(*i, trustedCerts[certificate.TypeClient], d.endpoints.NetworkCert(), trustCACertificates)
 		if trusted {

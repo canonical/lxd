@@ -28,6 +28,9 @@ const (
 
 	// CtxForwardedProtocol is the forwarded protocol field in request context.
 	CtxForwardedProtocol CtxKey = "forwarded_protocol"
+
+	// CtxDeploymentKeyRole is the deployment key role field in request context.
+	CtxDeploymentKeyRole CtxKey = "deployment_key_role"
 )
 
 // Headers.
