@@ -198,6 +198,7 @@ reconfiguring
 requestor
 RESTful
 RHEL
+rollout
 rootfs
 RSA
 rST
