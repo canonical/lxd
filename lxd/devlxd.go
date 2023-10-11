@@ -1,7 +1,11 @@
 package main
 
 import (
+	"context"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"net"
 	"net/http"
@@ -12,10 +16,14 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/cluster"
+	"github.com/canonical/lxd/lxd/db"
+	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/deployments"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -262,6 +270,79 @@ var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, c instance.
 	return response.DevLxdResponse(http.StatusOK, c.ExpandedDevices(), "json", c.Type() == instancetype.VM)
 }}
 
+var devlxdDeploymentInstances = devLxdHandler{"/1.0/deployments/{deploymentName}/instances", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+	}
+
+	if r.Method == "POST" {
+		s := d.State()
+
+		projectName := request.ProjectParam(r)
+		deploymentName, err := url.PathUnescape(mux.Vars(r)["deploymentName"])
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// admin-level is required to create an instance in a deployment.
+		askedPermission := deployments.DeploymentKeyPermission(0)
+		askedPermission |= deployments.DKRead
+		askedPermission |= deployments.DKWrite
+
+		err = checkDeploymentRole(s, r, projectName, deploymentName, askedPermission)
+		if err != nil {
+			return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "role not authenticated"), c.Type() == instancetype.VM)
+		}
+
+		resp := deploymentInstancesPost(d, r)
+		err = resp.Render(w)
+		if err != nil {
+			return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
+		}
+
+		return response.DevLxdResponse(http.StatusOK, "", "raw", c.Type() == instancetype.VM)
+	}
+
+	return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusMethodNotAllowed, fmt.Sprintf("method %q not allowed", r.Method)), c.Type() == instancetype.VM)
+}}
+
+var devlxdDeploymentInstance = devLxdHandler{"/1.0/deployments/{deploymentName}/shapes/{deploymentShapeName}/instances/{instanceName}", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+	}
+
+	s := d.State()
+
+	projectName := request.ProjectParam(r)
+	deploymentName, err := url.PathUnescape(mux.Vars(r)["deploymentName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if r.Method == "DELETE" {
+		// admin-level is required to delete an instance in a deployment.
+		askedPermission := deployments.DeploymentKeyPermission(0)
+		askedPermission |= deployments.DKRead
+		askedPermission |= deployments.DKWrite
+
+		err := checkDeploymentRole(s, r, projectName, deploymentName, askedPermission)
+		if err != nil {
+			return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "role not authenticated"), c.Type() == instancetype.VM)
+		}
+
+		resp := deploymentInstanceDelete(d, r)
+		err = resp.Render(w)
+		if err != nil {
+			return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
+		}
+
+		return response.DevLxdResponse(http.StatusOK, "", "raw", c.Type() == instancetype.VM)
+
+	}
+
+	return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusMethodNotAllowed, fmt.Sprintf("method %q not allowed", r.Method)), c.Type() == instancetype.VM)
+}}
+
 var handlers = []devLxdHandler{
 	{"/", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 		return response.DevLxdResponse(http.StatusOK, []string{"/1.0"}, "json", c.Type() == instancetype.VM)
@@ -273,6 +354,169 @@ var handlers = []devLxdHandler{
 	devlxdEventsGet,
 	devlxdImageExport,
 	devlxdDevicesGet,
+	devlxdDeploymentInstances,
+	devlxdDeploymentInstance,
+}
+
+// extractKIDFromToken extracts the KID from a token.
+// For a Deployment related use case, the KID is the deployment key name.
+func extractKIDFromToken(token string) (string, error) {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return "", fmt.Errorf("token is malformed")
+	}
+
+	headerEncoded := parts[0]
+	headerDecoded, err := base64.RawURLEncoding.DecodeString(headerEncoded)
+	if err != nil {
+		return "", err
+	}
+
+	var header map[string]interface{}
+	err = json.Unmarshal(headerDecoded, &header)
+	if err != nil {
+		return "", err
+	}
+
+	kid, ok := header["kid"].(string)
+	if !ok {
+		return "", fmt.Errorf("kid is not a string")
+	}
+
+	return kid, nil
+}
+
+// checkDeploymentRole checks that the user has the required permission to do an action on a deployment.
+func checkDeploymentRole(s *state.State, r *http.Request, projectName string, deploymentName string, askedPermission deployments.DeploymentKeyPermission) (err error) {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		return fmt.Errorf("Authorization header is missing")
+	}
+
+	rawToken := strings.TrimPrefix(authHeader, "Bearer ")
+	kid, err := extractKIDFromToken(rawToken)
+	if err != nil {
+		return fmt.Errorf("Invalid token: %w", err)
+	}
+
+	// Get the deployment key from the database.
+
+	deploymentWithKey, err := deployments.LoadByName(s, projectName, deploymentName, true)
+	if err != nil {
+		return fmt.Errorf("Failed loading deployment: %w (KID: %q)", err, kid)
+	}
+
+	// check that the deployment's key name matches the KID.
+	if kid != deploymentWithKey.InfoDeploymentKey().Name {
+		return fmt.Errorf("KID: %q, doesn't match the deployment's key", kid)
+	}
+
+	var certPEM string
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		filter := db.DeploymentKeyFilter{DeploymentKeyName: &kid}
+		dbDeploymentKeys, err := tx.GetDeploymentKeys(ctx, filter)
+		if err != nil {
+			return err
+		}
+
+		if len(dbDeploymentKeys) != 1 {
+			return fmt.Errorf("Failed to get deployment key for certificate")
+		}
+
+		dbDeploymentKey := dbDeploymentKeys[0]
+
+		dbCert, err := dbCluster.GetCertificate(ctx, tx.Tx(), dbDeploymentKey.CertificateFingerprint)
+		if err != nil {
+			return err
+		}
+
+		certPEM = dbCert.Certificate
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	block, _ := pem.Decode([]byte(certPEM))
+	if block == nil || block.Type != "CERTIFICATE" {
+		return fmt.Errorf("failed to decode PEM block containing certificate")
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return fmt.Errorf("failed to parse certificate: %v", err)
+	}
+
+	// Verify the token with the deployment key access key.
+	// The underlying 'exp', 'iat' and 'nbf' claims are automatically checked by the `Parse` method.
+	//
+	// We won't use any other custom claims for now
+	// to not add too much security layers, so we don't need to read the 'verifiedToken' output.
+	switch cert.PublicKeyAlgorithm {
+	case x509.RSA:
+		rsaAccessKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(certPEM))
+		if err != nil {
+			return fmt.Errorf("Failed parsing deployment key access key: %w (KID: %q)", err, kid)
+		}
+
+		_, err = jwt.Parse(rawToken, func(token *jwt.Token) (any, error) {
+			_, ok := token.Method.(*jwt.SigningMethodRSA)
+			if !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			}
+
+			return rsaAccessKey, nil
+		})
+		if err != nil {
+			return fmt.Errorf("Failed verifying token: %w (KID: %q)", err, kid)
+		}
+
+	case x509.ECDSA:
+		ecdsaAccessKey, err := jwt.ParseECPublicKeyFromPEM([]byte(certPEM))
+		if err != nil {
+			return fmt.Errorf("Failed parsing deployment key access key: %w (KID: %q)", err, kid)
+		}
+
+		_, err = jwt.Parse(rawToken, func(token *jwt.Token) (any, error) {
+			_, ok := token.Method.(*jwt.SigningMethodECDSA)
+			if !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			}
+
+			return ecdsaAccessKey, nil
+		})
+		if err != nil {
+			return fmt.Errorf("Failed verifying token: %w (KID: %q)", err, kid)
+		}
+
+	case x509.Ed25519:
+		ed25519AccessKey, err := jwt.ParseEdPublicKeyFromPEM([]byte(certPEM))
+		if err != nil {
+			return fmt.Errorf("Failed parsing deployment key access key: %w (KID: %q)", err, kid)
+		}
+
+		_, err = jwt.Parse(rawToken, func(token *jwt.Token) (any, error) {
+			_, ok := token.Method.(*jwt.SigningMethodEd25519)
+			if !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			}
+
+			return ed25519AccessKey, nil
+		})
+		if err != nil {
+			return fmt.Errorf("Failed verifying token: %w (KID: %q)", err, kid)
+		}
+
+	default:
+		return fmt.Errorf("Unsupported public key algorithm: %v", cert.PublicKeyAlgorithm)
+	}
+
+	// Lastly, check that the user has permission to do the action.
+	if !deploymentWithKey.Permission().HasPermission(askedPermission) {
+		return fmt.Errorf("Deployment key doesn't have the required permission to do that action (KID: %q)", kid)
+	}
+
+	return nil
 }
 
 func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request) {
