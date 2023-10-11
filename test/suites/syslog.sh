@@ -1,9 +1,4 @@
 test_syslog_socket() {
-  LXD_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  export LXD_DIR
-  chmod +x "${LXD_DIR}"
-  spawn_lxd "${LXD_DIR}" true
-
   lxc config set core.syslog_socket=true
   lxc monitor --type=ovn > "${TEST_DIR}/ovn.log" &
   monitorOVNPID=$!
@@ -16,5 +11,5 @@ test_syslog_socket() {
   grep -qF "type: ovn" "${TEST_DIR}/ovn.log"
   grep -qF "unix:/var/run/openvswitch/br-int.mgmt: connected" "${TEST_DIR}/ovn.log"
 
-  shutdown_lxd "${LXD_DIR}"
+  lxc config unset core.syslog_socket
 }
