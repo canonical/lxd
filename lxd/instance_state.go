@@ -140,31 +140,45 @@ func instanceState(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instanceStatePut(d *Daemon, r *http.Request) response.Response {
+	_, resp, _ := instanceStatePutCommon(d, r)
+	return resp
+}
+
+func deploymentInstanceStop(d *Daemon, r *http.Request) (*operations.Operation, error) {
+	op, _, err := instanceStatePutCommon(d, r)
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
+func instanceStatePutCommon(d *Daemon, r *http.Request) (*operations.Operation, response.Response, error) {
 	s := d.State()
 
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
-		return response.SmartError(err)
+		return nil, response.SmartError(err), err
 	}
 
 	projectName := request.ProjectParam(r)
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
-		return response.SmartError(err)
+		return nil, response.SmartError(err), err
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return nil, response.BadRequest(fmt.Errorf("Invalid instance name")), err
 	}
 
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
-		return response.SmartError(err)
+		return nil, response.SmartError(err), err
 	}
 
 	if resp != nil {
-		return resp
+		return nil, resp, err
 	}
 
 	req := api.InstanceStatePut{}
@@ -173,12 +187,12 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	req.Timeout = -1
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		return response.BadRequest(err)
+		return nil, response.BadRequest(err), err
 	}
 
 	// Check if the cluster member is evacuated.
 	if s.DB.Cluster.LocalNodeIsEvacuated() && req.Action != "stop" {
-		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
+		return nil, response.Forbidden(fmt.Errorf("Cluster member is evacuated")), err
 	}
 
 	// Don't mess with instances while in setup mode.
@@ -186,13 +200,13 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 
 	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
-		return response.SmartError(err)
+		return nil, response.SmartError(err), err
 	}
 
 	// Actually perform the change.
 	opType, err := instanceActionToOptype(req.Action)
 	if err != nil {
-		return response.BadRequest(err)
+		return nil, response.BadRequest(err), err
 	}
 
 	do := func(op *operations.Operation) error {
@@ -205,10 +219,10 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
 	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, opType, resources, nil, do, nil, nil, r)
 	if err != nil {
-		return response.InternalError(err)
+		return nil, response.InternalError(err), err
 	}
 
-	return operations.OperationResponse(op)
+	return op, operations.OperationResponse(op), nil
 }
 
 func instanceActionToOptype(action string) (operationtype.Type, error) {
