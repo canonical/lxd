@@ -16,6 +16,7 @@ To get started with LXD, see the documentation in this section.
 :diataxis:Get support </support>
 :diataxis:Initialize LXD </howto/initialize>
 :diataxis:Install LXD </installing>
+:diataxis:Manage the snap </howto/snap>
 ```
 
 In addition, the following clip gives a quick and easy introduction for standard use cases:
@@ -46,6 +47,7 @@ You can also find a series of demos and tutorials on YouTube:
 :topical:/requirements
 :topical:Install LXD </installing>
 :topical:Initialize LXD </howto/initialize>
+:topical:Manage the snap </howto/snap>
 :topical:Access the UI </howto/access_ui>
 :topical:Access the documentation </howto/access_documentation>
 :topical:Frequently asked </faq>
