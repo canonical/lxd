@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
@@ -69,7 +70,7 @@ func TestImportPreClusteringData(t *testing.T) {
 		cert := certs[0]
 		assert.Equal(t, 1, cert.ID)
 		assert.Equal(t, "abcd:efgh", cert.Fingerprint)
-		assert.Equal(t, cluster.CertificateTypeClient, cert.Type)
+		assert.Equal(t, certificate.TypeClient, cert.Type)
 		assert.Equal(t, "foo", cert.Name)
 		assert.Equal(t, "FOO", cert.Certificate)
 		return nil

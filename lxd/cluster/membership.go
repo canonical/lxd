@@ -13,6 +13,7 @@ import (
 	"github.com/canonical/go-dqlite/app"
 	"github.com/canonical/go-dqlite/client"
 
+	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/node"
@@ -181,7 +182,7 @@ func EnsureServerCertificateTrusted(serverName string, serverCert *shared.CertIn
 
 	dbCert := cluster.Certificate{
 		Fingerprint: fingerprint,
-		Type:        cluster.CertificateTypeServer, // Server type for intra-member communication.
+		Type:        certificate.TypeServer, // Server type for intra-member communication.
 		Name:        serverName,
 		Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: serverCertx509.Raw})),
 	}
@@ -191,11 +192,11 @@ func EnsureServerCertificateTrusted(serverName string, serverCert *shared.CertIn
 	ctx := context.Background()
 	existingCert, _ := cluster.GetCertificate(ctx, tx.Tx(), dbCert.Fingerprint)
 	if existingCert != nil {
-		if existingCert.Name != dbCert.Name && existingCert.Type == cluster.CertificateTypeServer {
+		if existingCert.Name != dbCert.Name && existingCert.Type == certificate.TypeServer {
 			// Don't alter an existing server certificate that has our fingerprint but not our name.
 			// Something is wrong as this shouldn't happen.
 			return fmt.Errorf("Existing server certificate with different name %q already in trust store", existingCert.Name)
-		} else if existingCert.Name != dbCert.Name && existingCert.Type != cluster.CertificateTypeServer {
+		} else if existingCert.Name != dbCert.Name && existingCert.Type != certificate.TypeServer {
 			// Ensure that if a client certificate already exists that matches our fingerprint, that it
 			// has the correct name and type for cluster operation, to allow us to associate member
 			// server names to certificate names.
@@ -1057,7 +1058,7 @@ func Purge(c *db.Cluster, name string) error {
 			return fmt.Errorf("Failed to remove member %q: %w", name, err)
 		}
 
-		err = cluster.DeleteCertificates(context.Background(), tx.Tx(), name, cluster.CertificateTypeServer)
+		err = cluster.DeleteCertificates(context.Background(), tx.Tx(), name, certificate.TypeServer)
 		if err != nil {
 			return fmt.Errorf("Failed to remove member %q certificate from trust store: %w", name, err)
 		}
