@@ -58,6 +58,7 @@ See {ref}`authentication-rbac` for detailed information.
 
 To use RBAC to confine a project, go to the respective project in the RBAC interface and assign RBAC roles to the different users or groups as required.
 
+(projects-confine-users)=
 ## Confine projects to specific LXD users
 
 ```{youtube} https://www.youtube.com/watch?v=6O0q3rSWr8A
