@@ -230,6 +230,8 @@ func UsedBy(ctx context.Context, s *state.State, pool Pool, firstOnly bool, memb
 				if firstOnly {
 					return nil
 				}
+
+				break
 			}
 		}
 
