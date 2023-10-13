@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 
-	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/refcount"
@@ -416,7 +415,7 @@ func (v Volume) NewVMBlockFilesystemVolume() Volume {
 		newConf["size"] = v.config["size.state"]
 	} else {
 		// Fallback to the default VM filesystem size.
-		newConf["size"] = deviceConfig.DefaultVMBlockFilesystemSize
+		newConf["size"] = v.driver.Info().DefaultVMBlockFilesystemSize
 	}
 
 	vol := NewVolume(v.driver, v.pool, v.volType, ContentTypeFS, v.name, newConf, v.poolConfig)
