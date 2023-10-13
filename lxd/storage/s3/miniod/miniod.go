@@ -92,7 +92,11 @@ func (p *Process) Stop(ctx context.Context) error {
 		return nil
 	}
 
-	spawnUnlock := locking.Lock(context.TODO(), fmt.Sprintf("%s%s", minioLockPrefix, p.bucketName))
+	spawnUnlock, err := locking.Lock(context.TODO(), fmt.Sprintf("%s%s", minioLockPrefix, p.bucketName))
+	if err != nil {
+		return err
+	}
+
 	defer spawnUnlock()
 
 	defer p.cancel.Cancel()
@@ -161,7 +165,11 @@ func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, e
 	bucketName := bucketVol.Name()
 
 	// Prevent concurrent spawning of same bucket.
-	spawnUnlock := locking.Lock(context.TODO(), fmt.Sprintf("%s%s", minioLockPrefix, bucketName))
+	spawnUnlock, err := locking.Lock(context.TODO(), fmt.Sprintf("%s%s", minioLockPrefix, bucketName))
+	if err != nil {
+		return nil, err
+	}
+
 	defer spawnUnlock()
 
 	// Check if there is an existing running minio process for the bucket, and if so return it.
@@ -346,9 +354,13 @@ func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, e
 }
 
 // Get returns an existing MinIO process if it exists.
-func Get(bucketName string) *Process {
+func Get(bucketName string) (*Process, error) {
 	// Wait for any ongoing spawn of the bucket process to finish.
-	spawnUnlock := locking.Lock(context.TODO(), fmt.Sprintf("%s%s", minioLockPrefix, bucketName))
+	spawnUnlock, err := locking.Lock(context.TODO(), fmt.Sprintf("%s%s", minioLockPrefix, bucketName))
+	if err != nil {
+		return nil, err
+	}
+
 	defer spawnUnlock()
 
 	// Check if there is an existing running minio process for the bucket, and if so return it.
@@ -361,10 +373,10 @@ func Get(bucketName string) *Process {
 		minioProc.transactions++
 		minios[bucketName] = minioProc
 
-		return minioProc
+		return minioProc, nil
 	}
 
-	return nil
+	return nil, nil
 }
 
 // StopAll stops all MinIO processes cleanly.
