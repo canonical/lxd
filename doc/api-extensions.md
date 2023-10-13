@@ -2087,3 +2087,9 @@ This adds the fields `Name` and `Project` to `lifecycle` events.
 ## `instances_nic_limits_priority`
 
 This introduces a new per-NIC `limits.priority` option that works with both cgroup1 and cgroup2 unlike the deprecated `limits.network.priority` instance setting, which only worked with cgroup1.
+
+## `operation_wait`
+
+This API extension indicates that the `/1.0/operations/{id}/wait` endpoint exists on the server. This indicates to the client
+that the endpoint can be used to wait for an operation to complete rather than waiting for an operation event via the
+`/1.0/events` endpoint.
