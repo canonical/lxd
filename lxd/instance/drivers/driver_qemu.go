@@ -2487,8 +2487,7 @@ func (d *qemu) generateConfigShare() error {
 	lxdAgentServiceUnit := `[Unit]
 Description=LXD - agent
 Documentation=https://documentation.ubuntu.com/lxd/en/latest/
-ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
-Before=cloud-init.target cloud-init.service cloud-init-local.service
+Before=multi-user.target cloud-init.target cloud-init.service cloud-init-local.service
 DefaultDependencies=no
 
 [Service]
@@ -2500,9 +2499,6 @@ Restart=on-failure
 RestartSec=5s
 StartLimitInterval=60
 StartLimitBurst=10
-
-[Install]
-WantedBy=multi-user.target
 `
 
 	err = os.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent.service"), []byte(lxdAgentServiceUnit), 0400)
@@ -2562,7 +2558,12 @@ chown -R root:root "${PREFIX}"
 		return err
 	}
 
-	lxdAgentRules := `ACTION=="add", SYMLINK=="virtio-ports/org.linuxcontainers.lxd", TAG+="systemd", ACTION=="add", RUN+="/bin/systemctl start lxd-agent.service"`
+	lxdAgentRules := `SYMLINK=="virtio-ports/com.canonical.lxd", TAG+="systemd", ENV{SYSTEMD_WANTS}+="lxd-agent.service"
+
+# Legacy.
+SYMLINK=="virtio-ports/org.linuxcontainers.lxd", TAG+="systemd", ENV{SYSTEMD_WANTS}+="lxd-agent.service"
+`
+
 	err = os.WriteFile(filepath.Join(configDrivePath, "udev", "99-lxd-agent.rules"), []byte(lxdAgentRules), 0400)
 	if err != nil {
 		return err
