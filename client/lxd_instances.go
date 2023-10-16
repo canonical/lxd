@@ -1224,8 +1224,8 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 
 				// And attach stdin and stdout to it
 				go func() {
-					ws.MirrorRead(context.Background(), conn, args.Stdin)
-					<-ws.MirrorWrite(context.Background(), conn, args.Stdout)
+					ws.MirrorRead(conn, args.Stdin)
+					<-ws.MirrorWrite(conn, args.Stdout)
 					_ = conn.Close()
 
 					if args.DataDone != nil {
@@ -1250,7 +1250,7 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 				}
 
 				conns = append(conns, conn)
-				dones[0] = ws.MirrorRead(context.Background(), conn, args.Stdin)
+				dones[0] = ws.MirrorRead(conn, args.Stdin)
 			}
 
 			// Handle stdout
@@ -1261,7 +1261,7 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 				}
 
 				conns = append(conns, conn)
-				dones[1] = ws.MirrorWrite(context.Background(), conn, args.Stdout)
+				dones[1] = ws.MirrorWrite(conn, args.Stdout)
 			}
 
 			// Handle stderr
@@ -1272,7 +1272,7 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 				}
 
 				conns = append(conns, conn)
-				dones[2] = ws.MirrorWrite(context.Background(), conn, args.Stderr)
+				dones[2] = ws.MirrorWrite(conn, args.Stderr)
 			}
 
 			// Wait for everything to be done
@@ -2461,7 +2461,7 @@ func (r *ProtocolLXD) ConsoleInstance(instanceName string, console api.InstanceC
 
 	// And attach stdin and stdout to it
 	go func() {
-		_, writeDone := ws.Mirror(context.Background(), conn, args.Terminal)
+		_, writeDone := ws.Mirror(conn, args.Terminal)
 		<-writeDone
 		_ = conn.Close()
 	}()
@@ -2548,7 +2548,7 @@ func (r *ProtocolLXD) ConsoleInstanceDynamic(instanceName string, console api.In
 		}
 
 		// Attach reader/writer.
-		_, writeDone := ws.Mirror(context.Background(), conn, rwc)
+		_, writeDone := ws.Mirror(conn, rwc)
 		<-writeDone
 		_ = conn.Close()
 
