@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -170,7 +169,7 @@ func (s *consoleWs) connectVGA(op *operations.Operation, r *http.Request, w http
 			defer l.Debug("Finished mirroring websocket to console")
 
 			l.Debug("Started mirroring websocket")
-			readDone, writeDone := ws.Mirror(context.Background(), conn, console)
+			readDone, writeDone := ws.Mirror(conn, console)
 
 			<-readDone
 			l.Debug("Finished mirroring console to websocket")
@@ -288,7 +287,7 @@ func (s *consoleWs) doConsole(op *operations.Operation) error {
 		defer l.Debug("Finished mirroring websocket to console")
 
 		l.Debug("Started mirroring websocket")
-		readDone, writeDone := ws.Mirror(context.Background(), conn, console)
+		readDone, writeDone := ws.Mirror(conn, console)
 
 		<-readDone
 		l.Debug("Finished mirroring console to websocket")
