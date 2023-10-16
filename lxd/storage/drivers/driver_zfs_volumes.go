@@ -2071,7 +2071,11 @@ func (d *zfs) deactivateVolume(vol Volume) (bool, error) {
 
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.
 func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
-	unlock := vol.MountLock()
+	unlock, err := vol.MountLock()
+	if err != nil {
+		return err
+	}
+
 	defer unlock()
 
 	revert := revert.New()
@@ -2170,10 +2174,13 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 // UnmountVolume unmounts volume if mounted and not in use. Returns true if this unmounted the volume.
 // keepBlockDev indicates if backing block device should be not be deactivated when volume is unmounted.
 func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
-	unlock := vol.MountLock()
+	unlock, err := vol.MountLock()
+	if err != nil {
+		return false, err
+	}
+
 	defer unlock()
 
-	var err error
 	ourUnmount := false
 	dataset := d.dataset(vol, false)
 	mountPath := vol.MountPath()
@@ -2874,10 +2881,14 @@ func (d *zfs) DeleteVolumeSnapshot(vol Volume, op *operations.Operation) error {
 
 // MountVolumeSnapshot simulates mounting a volume snapshot.
 func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
-	unlock := snapVol.MountLock()
+	unlock, err := snapVol.MountLock()
+	if err != nil {
+		return err
+	}
+
 	defer unlock()
 
-	_, err := d.mountVolumeSnapshot(snapVol, d.dataset(snapVol, false), snapVol.MountPath(), op)
+	_, err = d.mountVolumeSnapshot(snapVol, d.dataset(snapVol, false), snapVol.MountPath(), op)
 	if err != nil {
 		return err
 	}
@@ -3074,10 +3085,13 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 
 // UnmountVolume simulates unmounting a volume snapshot.
 func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
-	unlock := snapVol.MountLock()
+	unlock, err := snapVol.MountLock()
+	if err != nil {
+		return false, err
+	}
+
 	defer unlock()
 
-	var err error
 	ourUnmount := false
 	mountPath := snapVol.MountPath()
 	snapshotDataset := d.dataset(snapVol, false)

@@ -2859,7 +2859,11 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 
 	// Lock this operation to ensure that the only one snapshot is made at the time.
 	// Other operations will wait for this one to finish.
-	unlock := locking.Lock(context.TODO(), drivers.OperationLockName("CreateInstanceSnapshot", b.name, vol.Type(), contentType, src.Name()))
+	unlock, err := locking.Lock(context.TODO(), drivers.OperationLockName("CreateInstanceSnapshot", b.name, vol.Type(), contentType, src.Name()))
+	if err != nil {
+		return err
+	}
+
 	defer unlock()
 
 	err = b.driver.CreateVolumeSnapshot(vol, op)
@@ -3230,7 +3234,11 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	// We need to lock this operation to ensure that the image is not being created multiple times.
 	// Uses a lock name of "EnsureImage_<fingerprint>" to avoid deadlocking with CreateVolume below that also
 	// establishes a lock on the volume type & name if it needs to mount the volume before filling.
-	unlock := locking.Lock(context.TODO(), drivers.OperationLockName("EnsureImage", b.name, drivers.VolumeTypeImage, "", fingerprint))
+	unlock, err := locking.Lock(context.TODO(), drivers.OperationLockName("EnsureImage", b.name, drivers.VolumeTypeImage, "", fingerprint))
+	if err != nil {
+		return err
+	}
+
 	defer unlock()
 
 	// Load image info from database.
@@ -3463,7 +3471,11 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 	defer l.Debug("DeleteImage finished")
 
 	// We need to lock this operation to ensure that the image is not being deleted multiple times.
-	unlock := locking.Lock(context.TODO(), drivers.OperationLockName("DeleteImage", b.name, drivers.VolumeTypeImage, "", fingerprint))
+	unlock, err := locking.Lock(context.TODO(), drivers.OperationLockName("DeleteImage", b.name, drivers.VolumeTypeImage, "", fingerprint))
+	if err != nil {
+		return err
+	}
+
 	defer unlock()
 
 	// Load the storage volume in order to get the volume config which is needed for some drivers.
@@ -3720,7 +3732,11 @@ func (b *lxdBackend) UpdateBucket(projectName string, bucketName string, bucket 
 	if len(changedConfig) > 0 && !userOnly {
 		if memberSpecific {
 			// Stop MinIO process if running so volume can be resized if needed.
-			minioProc := miniod.Get(curBucketVol.Name())
+			minioProc, err := miniod.Get(curBucketVol.Name())
+			if err != nil {
+				return err
+			}
+
 			if minioProc != nil {
 				err = minioProc.Stop(context.Background())
 				if err != nil {
@@ -3783,7 +3799,11 @@ func (b *lxdBackend) DeleteBucket(projectName string, bucketName string, op *ope
 		// Handle common MinIO implementation for local storage drivers.
 
 		// Stop MinIO process if running.
-		minioProc := miniod.Get(bucketVolName)
+		minioProc, err := miniod.Get(bucketVolName)
+		if err != nil {
+			return err
+		}
+
 		if minioProc != nil {
 			err = minioProc.Stop(context.Background())
 			if err != nil {
@@ -3792,7 +3812,7 @@ func (b *lxdBackend) DeleteBucket(projectName string, bucketName string, op *ope
 		}
 
 		vol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, nil)
-		err := b.driver.DeleteVolume(vol, op)
+		err = b.driver.DeleteVolume(vol, op)
 		if err != nil {
 			return err
 		}
@@ -5558,7 +5578,11 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 
 	// Lock this operation to ensure that the only one snapshot is made at the time.
 	// Other operations will wait for this one to finish.
-	unlock := locking.Lock(context.TODO(), drivers.OperationLockName("CreateCustomVolumeSnapshot", b.name, vol.Type(), contentType, volName))
+	unlock, err := locking.Lock(context.TODO(), drivers.OperationLockName("CreateCustomVolumeSnapshot", b.name, vol.Type(), contentType, volName))
+	if err != nil {
+		return err
+	}
+
 	defer unlock()
 
 	// Create the snapshot on the storage device.
