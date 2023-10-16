@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/shared"
@@ -84,18 +85,19 @@ func (d *lvm) load() error {
 // Info returns info about the driver and its environment.
 func (d *lvm) Info() Info {
 	return Info{
-		Name:              "lvm",
-		Version:           lvmVersion,
-		OptimizedImages:   d.usesThinpool(), // Only thinpool pools support optimized images.
-		PreservesInodes:   false,
-		Remote:            d.isRemote(),
-		VolumeTypes:       []VolumeType{VolumeTypeBucket, VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
-		BlockBacking:      true,
-		RunningCopyFreeze: true,
-		DirectIO:          true,
-		IOUring:           true,
-		MountedRoot:       false,
-		Buckets:           true,
+		Name:                         "lvm",
+		Version:                      lvmVersion,
+		DefaultVMBlockFilesystemSize: deviceConfig.DefaultVMBlockFilesystemSize,
+		OptimizedImages:              d.usesThinpool(), // Only thinpool pools support optimized images.
+		PreservesInodes:              false,
+		Remote:                       d.isRemote(),
+		VolumeTypes:                  []VolumeType{VolumeTypeBucket, VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
+		BlockBacking:                 true,
+		RunningCopyFreeze:            true,
+		DirectIO:                     true,
+		IOUring:                      true,
+		MountedRoot:                  false,
+		Buckets:                      true,
 	}
 }
 
