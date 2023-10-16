@@ -411,7 +411,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 			if s.instance.Type() == instancetype.Container {
 				// For containers, we are running the command via the local LXD managed PTY and so
 				// need to use the same PTY handle for both read and write.
-				readDone, writeDone = ws.Mirror(conn, ptys[0])
+				readDone, writeDone = ws.Mirror(conn, shared.NewExecWrapper(waitAttachedChildIsDead, ptys[0]))
 			} else {
 				readDone = ws.MirrorRead(conn, ptys[execWSStdout])
 				writeDone = ws.MirrorWrite(conn, ttys[execWSStdin])
