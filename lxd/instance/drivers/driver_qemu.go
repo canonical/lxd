@@ -1061,7 +1061,11 @@ func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
 
 // Start starts the instance.
 func (d *qemu) Start(stateful bool) error {
-	unlock := d.updateBackupFileLock(context.Background())
+	unlock, err := d.updateBackupFileLock(context.Background())
+	if err != nil {
+		return err
+	}
+
 	defer unlock()
 
 	return d.start(stateful, nil)
@@ -4588,7 +4592,11 @@ func (d *qemu) snapshot(name string, expiry time.Time, stateful bool) error {
 
 // Snapshot takes a new snapshot.
 func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
-	unlock := d.updateBackupFileLock(context.Background())
+	unlock, err := d.updateBackupFileLock(context.Background())
+	if err != nil {
+		return err
+	}
+
 	defer unlock()
 
 	return d.snapshot(name, expiry, stateful)
@@ -4716,7 +4724,11 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 
 // Rename the instance. Accepts an argument to enable applying deferred TemplateTriggerRename.
 func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
-	unlock := d.updateBackupFileLock(context.Background())
+	unlock, err := d.updateBackupFileLock(context.Background())
+	if err != nil {
+		return err
+	}
+
 	defer unlock()
 
 	oldName := d.Name()
@@ -4729,7 +4741,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	d.logger.Info("Renaming instance", ctxMap)
 
 	// Quick checks.
-	err := instance.ValidName(newName, d.IsSnapshot())
+	err = instance.ValidName(newName, d.IsSnapshot())
 	if err != nil {
 		return err
 	}
@@ -4883,7 +4895,11 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 
 // Update the instance config.
 func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
-	unlock := d.updateBackupFileLock(context.Background())
+	unlock, err := d.updateBackupFileLock(context.Background())
+	if err != nil {
+		return err
+	}
+
 	defer unlock()
 
 	// Setup a new operation.
@@ -5563,7 +5579,11 @@ func (d *qemu) init() error {
 
 // Delete the instance.
 func (d *qemu) Delete(force bool) error {
-	unlock := d.updateBackupFileLock(context.Background())
+	unlock, err := d.updateBackupFileLock(context.Background())
+	if err != nil {
+		return err
+	}
+
 	defer unlock()
 
 	// Setup a new operation.
