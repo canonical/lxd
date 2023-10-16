@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
@@ -75,17 +76,18 @@ func (d *cephfs) isRemote() bool {
 // Info returns the pool driver information.
 func (d *cephfs) Info() Info {
 	return Info{
-		Name:              "cephfs",
-		Version:           cephfsVersion,
-		OptimizedImages:   false,
-		PreservesInodes:   false,
-		Remote:            d.isRemote(),
-		VolumeTypes:       []VolumeType{VolumeTypeCustom},
-		VolumeMultiNode:   true,
-		BlockBacking:      false,
-		RunningCopyFreeze: false,
-		DirectIO:          true,
-		MountedRoot:       true,
+		Name:                         "cephfs",
+		Version:                      cephfsVersion,
+		DefaultVMBlockFilesystemSize: deviceConfig.DefaultVMBlockFilesystemSize,
+		OptimizedImages:              false,
+		PreservesInodes:              false,
+		Remote:                       d.isRemote(),
+		VolumeTypes:                  []VolumeType{VolumeTypeCustom},
+		VolumeMultiNode:              true,
+		BlockBacking:                 false,
+		RunningCopyFreeze:            false,
+		DirectIO:                     true,
+		MountedRoot:                  true,
 	}
 }
 
