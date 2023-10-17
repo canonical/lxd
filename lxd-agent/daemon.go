@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/canonical/lxd/lxd/events"
-	"github.com/canonical/lxd/lxd/vsock"
 )
 
 // A Daemon can respond to requests from a shared client.
@@ -31,11 +30,8 @@ type Daemon struct {
 func newDaemon(debug, verbose bool) *Daemon {
 	lxdEvents := events.NewServer(debug, verbose, nil)
 
-	cid, _ := vsock.ContextID()
-
 	return &Daemon{
 		events:      lxdEvents,
 		chConnected: make(chan struct{}),
-		localCID:    cid,
 	}
 }
