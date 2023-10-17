@@ -16,8 +16,6 @@ type Daemon struct {
 	serverPort        uint32
 	serverCertificate string
 
-	localCID uint32
-
 	// The channel which is used to indicate that the lxd-agent was able to connect to LXD.
 	chConnected chan struct{}
 
