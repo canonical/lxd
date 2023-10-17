@@ -2516,7 +2516,7 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 	}
 
 	// Ensure the backup file reflects current config.
-	err = b.UpdateInstanceBackupFile(inst, op)
+	err = b.UpdateInstanceBackupFile(inst, snapshots, op)
 	if err != nil {
 		return err
 	}
@@ -2943,7 +2943,7 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 	})
 
 	// Ensure the backup file reflects current config.
-	err = b.UpdateInstanceBackupFile(inst, op)
+	err = b.UpdateInstanceBackupFile(inst, true, op)
 	if err != nil {
 		return err
 	}
@@ -5934,7 +5934,7 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 }
 
 // UpdateInstanceBackupFile writes the instance's config to the backup.yaml file on the storage device.
-func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operations.Operation) error {
+func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots bool, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 	l.Debug("UpdateInstanceBackupFile started")
 	defer l.Debug("UpdateInstanceBackupFile finished")
@@ -5944,7 +5944,7 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operat
 		return nil
 	}
 
-	config, err := b.GenerateInstanceBackupConfig(inst, true, op)
+	config, err := b.GenerateInstanceBackupConfig(inst, snapshots, op)
 	if err != nil {
 		return err
 	}
