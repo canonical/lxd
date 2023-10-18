@@ -11,9 +11,6 @@ test_remote_url() {
 
   # shellcheck disable=2153
   urls="${LXD_DIR}/unix.socket unix:${LXD_DIR}/unix.socket unix://${LXD_DIR}/unix.socket"
-  if [ -z "${LXD_OFFLINE:-}" ]; then
-    urls="images.linuxcontainers.org https://images.linuxcontainers.org ${urls}"
-  fi
 
   # an invalid protocol returns an error
   ! lxc_remote remote add test "${url}" --accept-certificate --password foo --protocol foo || false
@@ -22,6 +19,14 @@ test_remote_url() {
     lxc_remote remote add test "${url}"
     lxc_remote remote remove test
   done
+
+  # Check that we can add simplestream remotes with valid certs without confirmation
+  if [ -z "${LXD_OFFLINE:-}" ]; then
+    lxc_remote remote add ubuntu1 https://cloud-images.ubuntu.com/releases --protocol=simplestreams
+    lxc_remote remote add ubuntu2 https://cloud-images.ubuntu.com:443/releases --protocol=simplestreams
+    lxc_remote remote remove ubuntu1
+    lxc_remote remote remove ubuntu2
+  fi
 }
 
 test_remote_url_with_token() {
@@ -169,14 +174,6 @@ test_remote_admin() {
   if [ "$(lxc_remote config trust list | wc -l)" -ne 7 ]; then
     echo "wrong number of certs"
     false
-  fi
-
-  # Check that we can add domains with valid certs without confirmation:
-  if [ -z "${LXD_OFFLINE:-}" ]; then
-    lxc_remote remote add images1 images.linuxcontainers.org
-    lxc_remote remote add images2 images.linuxcontainers.org:443
-    lxc_remote remote remove images1
-    lxc_remote remote remove images2
   fi
 }
 
