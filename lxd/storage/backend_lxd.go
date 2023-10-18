@@ -218,16 +218,9 @@ func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operat
 
 	revert.Add(func() { _ = b.driver.Delete(op) })
 
-	// Mount the storage pool.
-	ourMount, err := b.driver.Mount()
+	_, err = b.driver.Mount()
 	if err != nil {
 		return err
-	}
-
-	// We expect the caller of create to mount the pool if needed, so we should unmount after
-	// storage struct has been created.
-	if ourMount {
-		defer func() { _, _ = b.driver.Unmount() }()
 	}
 
 	// Create the directory structure.

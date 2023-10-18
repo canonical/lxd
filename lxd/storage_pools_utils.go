@@ -113,12 +113,6 @@ func storagePoolCreateLocal(state *state.State, poolID int64, req api.StoragePoo
 
 	revert.Add(func() { _ = pool.Delete(clientType, nil) })
 
-	// Mount the pool.
-	_, err = pool.Mount()
-	if err != nil {
-		return nil, err
-	}
-
 	// In case the storage pool config was changed during the pool creation, we need to update the database to
 	// reflect this change. This can e.g. happen, when we create a loop file image. This means we append ".img"
 	// to the path the user gave us and update the config in the storage callback. So diff the config here to
