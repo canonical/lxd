@@ -3,7 +3,6 @@ package device
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -31,7 +30,7 @@ func validatePCIDevice(address string) error {
 func checkAttachedRunningProcesses(devicePath string) ([]string, error) {
 	var processes []string
 	procDir := "/proc"
-	files, err := ioutil.ReadDir(procDir)
+	files, err := os.ReadDir(procDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read /proc directory: %w", err)
 	}
