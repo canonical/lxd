@@ -663,9 +663,19 @@ test_clustering_storage() {
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume copy pool1/vol1 pool1/vol1 --target=node1 --destination-target=node2
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume copy pool1/vol1 pool1/vol1 --target=node1 --destination-target=node2 --refresh
 
+    # Check renaming storage volume works.
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create pool1 vol2 --target=node1
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume move pool1/vol2 pool1/vol3 --target=node1
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show pool1 vol3 | grep -q node1
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume move pool1/vol3 pool1/vol2 --target=node1 --destination-target=node2
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show pool1 vol2 | grep -q node2
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume rename pool1 vol2 vol3 --target=node2
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show pool1 vol3 | grep -q node2
+
     # Delete pool and check cleaned up.
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete pool1 vol1 --target=node1
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete pool1 vol1 --target=node2
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete pool1 vol3 --target=node2
     LXD_DIR="${LXD_TWO_DIR}" lxc storage delete pool1
     ! stat "${LXD_ONE_SOURCE}/containers" || false
     ! stat "${LXD_TWO_SOURCE}/containers" || false
