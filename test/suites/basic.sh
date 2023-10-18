@@ -655,4 +655,13 @@ test_basic_usage() {
   ! lxc profile assign c1 foo || false
   lxc profile delete foo
   lxc delete -f c1
+
+  # Multiple ephemeral instances delete
+  lxc launch testimage c1
+  lxc launch testimage c2
+  lxc launch testimage c3
+
+  lxc delete -f c1 c2 c3
+  remaining_instances="$(lxc list --format csv)"
+  [ -z "${remaining_instances}" ]
 }
