@@ -74,3 +74,9 @@ func (u *URL) WithQuery(key string, value string) *URL {
 
 	return u
 }
+
+// GetPath returns the path of the URL. It serves as an alternative for String() call, which in addition to
+// returning the path also escapes it causing some paths to be escaped twice.
+func (u *URL) GetPath() string {
+	return u.URL.Path
+}
