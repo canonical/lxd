@@ -710,9 +710,6 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			}
 		}
 
-		// Update cached trusted certificates.
-		s.UpdateCertificateCache()
-
 		// Update local setup and possibly join the raft dqlite cluster.
 		nodes := make([]db.RaftNode, len(info.RaftNodes))
 		for i, node := range info.RaftNodes {
@@ -725,6 +722,9 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		if err != nil {
 			return err
 		}
+
+		// Update cached trusted certificates.
+		s.UpdateCertificateCache()
 
 		// Start clustering tasks.
 		d.startClusterTasks()
