@@ -7,7 +7,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -285,7 +284,7 @@ func parse(path string, outputJSONPath string, excludedPaths []string) (*doc, er
 			return nil, fmt.Errorf("Error while writing the JSON project documentation: %v", err)
 		}
 
-		err := ioutil.WriteFile(outputJSONPath, buf.Bytes(), 0644)
+		err := os.WriteFile(outputJSONPath, buf.Bytes(), 0644)
 		if err != nil {
 			return nil, fmt.Errorf("Error while writing the JSON project documentation: %v", err)
 		}
@@ -317,7 +316,7 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 	specialChars := []string{"", "*", "_", "#", "+", "-", ".", "!", "no", "yes"}
 
 	// read the JSON file which is the source of truth for the generation of the .txt file
-	jsonData, err := ioutil.ReadFile(inputJSONPath)
+	jsonData, err := os.ReadFile(inputJSONPath)
 	if err != nil {
 		return err
 	}
@@ -421,7 +420,7 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 		}
 	}
 
-	err = ioutil.WriteFile(outputTxtPath, buffer.Bytes(), 0644)
+	err = os.WriteFile(outputTxtPath, buffer.Bytes(), 0644)
 	if err != nil {
 		return fmt.Errorf("Error while writing the Markdown project documentation: %v", err)
 	}

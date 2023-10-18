@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -3929,7 +3928,7 @@ func (b *lxdBackend) recoverMinIOKeys(projectName string, bucketName string, op 
 
 	defer iamReader.Close()
 
-	iamBytes, err := ioutil.ReadAll(iamReader)
+	iamBytes, err := io.ReadAll(iamReader)
 	if err != nil {
 		return nil, err
 	}
@@ -3954,7 +3953,7 @@ func (b *lxdBackend) recoverMinIOKeys(projectName string, bucketName string, op 
 
 		defer f.Close()
 
-		fContent, err := ioutil.ReadAll(f)
+		fContent, err := io.ReadAll(f)
 		if err != nil {
 			return nil, err
 		}
