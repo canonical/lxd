@@ -1230,6 +1230,30 @@ func (d *Daemon) init() error {
 		version.UserAgentFeatures([]string{"cluster"})
 	}
 
+	// Load server name and config before patches run (so they can access them from d.State()).
+	err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		config, err := clusterConfig.Load(ctx, tx)
+		if err != nil {
+			return err
+		}
+
+		// Get the local node (will be used if clustered).
+		serverName, err := tx.GetLocalNodeName(ctx)
+		if err != nil {
+			return err
+		}
+
+		d.globalConfigMu.Lock()
+		d.serverName = serverName
+		d.globalConfig = config
+		d.globalConfigMu.Unlock()
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
 	// Mount the storage pools.
 	logger.Infof("Initializing storage pools")
 	err = storageStartup(d.State(), false)
@@ -1262,6 +1286,30 @@ func (d *Daemon) init() error {
 		return err
 	}
 
+	// Load server name and config after patches run (in case its been changed).
+	err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		config, err := clusterConfig.Load(ctx, tx)
+		if err != nil {
+			return err
+		}
+
+		// Get the local node (will be used if clustered).
+		serverName, err := tx.GetLocalNodeName(ctx)
+		if err != nil {
+			return err
+		}
+
+		d.globalConfigMu.Lock()
+		d.serverName = serverName
+		d.globalConfig = config
+		d.globalConfigMu.Unlock()
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
 	// Get daemon configuration.
 	bgpAddress := d.localConfig.BGPAddress()
 	bgpRouterID := d.localConfig.BGPRouterID()
@@ -1285,29 +1333,6 @@ func (d *Daemon) init() error {
 	maasAPIURL := ""
 	maasAPIKey := ""
 	maasMachine := d.localConfig.MAASMachine()
-
-	err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-		config, err := clusterConfig.Load(ctx, tx)
-		if err != nil {
-			return err
-		}
-
-		// Get the local node (will be used if clustered).
-		serverName, err := tx.GetLocalNodeName(ctx)
-		if err != nil {
-			return err
-		}
-
-		d.globalConfigMu.Lock()
-		d.serverName = serverName
-		d.globalConfig = config
-		d.globalConfigMu.Unlock()
-
-		return nil
-	})
-	if err != nil {
-		return err
-	}
 
 	// Get specific config keys.
 	d.globalConfigMu.Lock()
