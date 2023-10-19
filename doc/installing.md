@@ -160,6 +160,13 @@ command -v snap >/dev/null || sudo apt-get install snapd
 sudo snap install --classic go
 ```
 
+```{note}
+If you use the `liblxc-dev` package and get compile time errors when building the `go-lxc` module,
+ensure that the value for `LXC_DEVEL` is `0` for your `liblxc` build. To check that, look at `/usr/include/lxc/version.h`.
+If the `LXC_DEVEL` value is `1`, replace it with `0` to work around the problem. It's a packaging bug, and
+we are aware of it for Ubuntu 22.04/22.10. Ubuntu 23.04/23.10 does not have this problem.
+```
+
 There are a few storage drivers for LXD besides the default `dir` driver.
 Installing these tools adds a bit to initramfs and may slow down your
 host boot, but are needed if you'd like to use a particular driver:
