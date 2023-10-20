@@ -93,7 +93,7 @@ cleanup() {
     echo "==> Cleaning up"
 
     umount -l "${TEST_DIR}/dev"
-    kill_external_auth_daemon "$TEST_DIR"
+    kill_rbac_daemon "$TEST_DIR"
     cleanup_lxds "$TEST_DIR"
   fi
 
@@ -138,7 +138,7 @@ spawn_lxd "${LXD_DIR}" true
 LXD_ADDR=$(cat "${LXD_DIR}/lxd.addr")
 export LXD_ADDR
 
-start_external_auth_daemon "${LXD_DIR}"
+start_rbac_daemon "${LXD_DIR}"
 
 run_test() {
   TEST_CURRENT=${1}
