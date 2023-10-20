@@ -141,9 +141,9 @@ To install it:
 
 You can also find native builds of the LXD client on [GitHub](https://github.com/canonical/lxd/actions):
 
-- [LXD client for Linux](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxc)
-- [LXD client for Windows](https://github.com/canonical/lxd/releases/latest/download/bin.windows.lxc.exe)
-- [LXD client for macOS](https://github.com/canonical/lxd/releases/latest/download/bin.macos.lxc)
+- LXD client for Linux: [`bin.linux.lxc.aarch64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxc.aarch64), [`bin.linux.lxc.x86_64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxc.x86_64)
+- LXD client for Windows: [`bin.windows.lxc.aarch64.exe`](https://github.com/canonical/lxd/releases/latest/download/bin.windows.lxc.aarch64.exe), [`bin.windows.lxc.x86_64.exe`](https://github.com/canonical/lxd/releases/latest/download/bin.windows.lxc.x86_64.exe)
+- LXD client for macOS: [`bin.macos.lxc.aarch64`](https://github.com/canonical/lxd/releases/latest/download/bin.macos.lxc.aarch64), [`bin.macos.lxc.x86_64`](https://github.com/canonical/lxd/releases/latest/download/bin.macos.lxc.x86_64)
 
 To download a specific build:
 

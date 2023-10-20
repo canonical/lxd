@@ -26,7 +26,7 @@ Clustering (see {ref}`exp-clustering` and {ref}`cluster-form`)
   The default answer is `no`, which means clustering is not enabled.
   If you answer `yes`, you can either connect to an existing cluster or create one.
 
-MAAS support (see [`maas.io`](https://maas.io/) and [MAAS - How to manage VM hosts](https://maas.io/docs/install-with-lxd))
+MAAS support (see [`maas.io`](https://maas.io/) and [MAAS - Setting up LXD for VMs](https://maas.io/docs/setting-up-lxd-for-vms))
 : MAAS is an open-source tool that lets you build a data center from bare-metal servers.
 
   The default answer is `no`, which means MAAS support is not enabled.
