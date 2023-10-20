@@ -5567,9 +5567,9 @@ definitions:
     x-go-package: github.com/lxc/lxd/shared/api
 info:
   contact:
-        email: lxd@lists.canonical.com
+    email: lxd@lists.canonical.com
     name: LXD upstream
-        url: https://github.com/canonical/lxd
+    url: https://github.com/canonical/lxd
   description: |-
     This is the REST API used by all LXD clients.
     Internal endpoints aren't included in this documentation.
