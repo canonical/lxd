@@ -16,7 +16,7 @@ import (
 	"github.com/pborman/uuid"
 )
 
-const formURL string = "/form"
+const formURL string = "/auth/form"
 
 type loginResponse struct {
 	Token *httpbakery.DischargeToken `json:"token"`
@@ -55,7 +55,9 @@ func newAuthService(listenAddr string, logger *log.Logger) *authService {
 			Key:     key,
 			Checker: httpbakery.ThirdPartyCaveatCheckerFunc(s.thirdPartyChecker),
 		})
-	discharger.AddMuxHandlers(mux, "/")
+	discharger.AddMuxHandlers(mux, "/auth")
+
+	setRBACHandlers(mux)
 	return &s
 }
 
