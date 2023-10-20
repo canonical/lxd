@@ -1,9 +1,9 @@
 # Test helper for external authentication
 
-start_external_auth_daemon() {
+start_rbac_daemon() {
 
     (
-        cd macaroon-identity || return
+        cd rbac || return
         # Use -buildvcs=false here to prevent git complaining about untrusted directory when tests are run as root.
         go build -v -buildvcs=false ./...
     )
@@ -16,15 +16,16 @@ user1,pass1
 user2,pass2
 EOF
 
-    macaroon-identity/macaroon-identity -endpoint "localhost:$tcp_port" -creds "$credentials_file" &
+    endpoint="127.0.0.1:${tcp_port}"
+    rbac/rbac -endpoint "${endpoint}" -creds "$credentials_file" &
     set +x
-    echo $! > "${TEST_DIR}/macaroon-identity.pid"
-    echo "http://localhost:$tcp_port" > "${TEST_DIR}/macaroon-identity.endpoint"
+    echo $! > "${TEST_DIR}/rbac.pid"
+    echo "${endpoint}" > "${TEST_DIR}/rbac.addr"
 }
 
-kill_external_auth_daemon() {
+kill_rbac_daemon() {
     # shellcheck disable=SC2039,3043
-    local pidfile="$1/macaroon-identity.pid"
+    local pidfile="$1/rbac.pid"
     kill "$(cat "$pidfile")" || true
-    rm -f macaroon-identity/macaroon-identity
+    rm -f rbac/rbac
 }
