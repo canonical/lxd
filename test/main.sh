@@ -337,6 +337,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_resources "resources"
     run_test test_kernel_limits "kernel limits"
     run_test test_macaroon_auth "macaroon authentication"
+    run_test test_rbac "RBAC authorization and Candid Auth"
     run_test test_console "console"
     run_test test_query "query"
     run_test test_storage_local_volume_handling "storage local volume handling"
