@@ -275,10 +275,13 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	},
 
 	// lxdmeta:generate(entity=instance, group=resource-limits, key=limits.network.priority)
+	// ```{important}
+	// This option is deprecated. Use the per-NIC `limits.priority` option instead.
+	// ```
+	//
 	// Controls how much priority to give to the instance's network requests when under load.
 	//
 	// Specify an integer between 0 and 10.
-	// This option is deprecated. Use the per-NIC `limits.priority` option instead.
 	// ---
 	//  type: integer
 	//  defaultdesc: `0` (minimum)
