@@ -3,7 +3,9 @@ package config
 import (
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"runtime"
@@ -78,6 +80,12 @@ func (c *Config) GetInstanceServer(name string) (lxd.InstanceServer, error) {
 	if strings.HasPrefix(remote.Addr, "unix:") {
 		d, err := lxd.ConnectLXDUnix(strings.TrimPrefix(strings.TrimPrefix(remote.Addr, "unix:"), "//"), args)
 		if err != nil {
+			var netErr *net.OpError
+
+			if errors.As(err, &netErr) {
+				return nil, fmt.Errorf("The LXD daemon doesn't appear to be started (socket path: %s)", netErr.Addr)
+			}
+
 			return nil, err
 		}
 
