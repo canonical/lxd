@@ -70,7 +70,6 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 :topical:restapi_landing
 :topical:Internals & debugging <internals>
 :topical:external_resources
-:topical:Switch to Diataxis navigation <https://documentation.ubuntu.com/lxd/en/latest/>
 ```
 
 ---
@@ -120,5 +119,4 @@ The LXD project is sponsored by [Canonical Ltd](https://www.canonical.com).
 :diataxis:howto/index
 :diataxis:explanation/index
 :diataxis:reference/index
-:diataxis:Switch to topical navigation <https://documentation.ubuntu.com/lxd/to/latest/>
 ```
