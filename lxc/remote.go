@@ -326,6 +326,18 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		conf.Remotes[server] = config.Remote{Addr: addr, Public: true, Protocol: c.flagProtocol}
+
+		// Check that the server is reachable before saving the config
+		d, err := conf.GetImageServer(server)
+		if err != nil {
+			return err
+		}
+
+		_, err = d.GetImages()
+		if err != nil {
+			return err
+		}
+
 		return conf.SaveConfig(c.global.confPath)
 	} else if c.flagProtocol != "lxd" {
 		return fmt.Errorf(i18n.G("Invalid protocol: %s"), c.flagProtocol)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -152,7 +153,42 @@ func (s *SimpleStreams) cachedDownload(path string) ([]byte, error) {
 	return body, nil
 }
 
+func (s *SimpleStreams) checkURLConnectivity() error {
+	fullAddr, err := shared.JoinUrls(s.url, "streams/v1/index.json")
+	if err != nil {
+		return err
+	}
+
+	dialURL, err := url.Parse(fullAddr)
+	if err != nil {
+		return err
+	}
+
+	testClient := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	resp, err := testClient.Head(dialURL.String())
+	if err != nil {
+		return fmt.Errorf("Failed checking url connectivity: %w", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("Failed checking url connectivity: got status code %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
 func (s *SimpleStreams) parseStream() (*Stream, error) {
+	// We always want to check for malformed / unreachable URLs before parsing the index
+	err := s.checkURLConnectivity()
+	if err != nil {
+		return nil, err
+	}
+
 	if s.cachedStream != nil {
 		return s.cachedStream, nil
 	}
@@ -165,7 +201,7 @@ func (s *SimpleStreams) parseStream() (*Stream, error) {
 
 	pathURL, _ := shared.JoinUrls(s.url, path)
 
-	// Parse the idnex
+	// Parse the index
 	stream := Stream{}
 	err = json.Unmarshal(body, &stream)
 	if err != nil {
@@ -187,7 +223,7 @@ func (s *SimpleStreams) parseProducts(path string) (*Products, error) {
 		return nil, err
 	}
 
-	// Parse the idnex
+	// Parse the index
 	products := Products{}
 	err = json.Unmarshal(body, &products)
 	if err != nil {
