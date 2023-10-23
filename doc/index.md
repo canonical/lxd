@@ -44,7 +44,7 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 
 ```{grid-item} [Explanation](explanation/index)
 
-**Discussion and clarification** of key topics
+**Discussion and clarification** of key topics, for example, {ref}`Security <security>`
 ```
 
 ````
@@ -70,28 +70,7 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 :topical:restapi_landing
 :topical:Internals & debugging <internals>
 :topical:external_resources
-:topical:Switch to Diataxis navigation <https://documentation.ubuntu.com/lxd/en/latest/>
 ```
-
----
-
-## Security
-
-% Include content from [../README.md](../README.md)
-```{include} ../README.md
-    :start-after: <!-- Include start security -->
-    :end-before: <!-- Include end security -->
-```
-
-See {ref}`security` for detailed information.
-
-````{important}
-% Include content from [../README.md](../README.md)
-```{include} ../README.md
-    :start-after: <!-- Include start security note -->
-    :end-before: <!-- Include end security note -->
-```
-````
 
 ---
 
@@ -120,5 +99,4 @@ The LXD project is sponsored by [Canonical Ltd](https://www.canonical.com).
 :diataxis:howto/index
 :diataxis:explanation/index
 :diataxis:reference/index
-:diataxis:Switch to topical navigation <https://documentation.ubuntu.com/lxd/to/latest/>
 ```
