@@ -44,7 +44,7 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 
 ```{grid-item} [Explanation](explanation/index)
 
-**Discussion and clarification** of key topics
+**Discussion and clarification** of key topics, for example, {ref}`Security <security>`
 ```
 
 ````
@@ -71,26 +71,6 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 :topical:Internals & debugging <internals>
 :topical:external_resources
 ```
-
----
-
-## Security
-
-% Include content from [../README.md](../README.md)
-```{include} ../README.md
-    :start-after: <!-- Include start security -->
-    :end-before: <!-- Include end security -->
-```
-
-See {ref}`security` for detailed information.
-
-````{important}
-% Include content from [../README.md](../README.md)
-```{include} ../README.md
-    :start-after: <!-- Include start security note -->
-    :end-before: <!-- Include end security note -->
-```
-````
 
 ---
 
