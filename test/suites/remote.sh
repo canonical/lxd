@@ -26,6 +26,11 @@ test_remote_url() {
     lxc_remote remote add ubuntu2 https://cloud-images.ubuntu.com:443/releases --protocol=simplestreams
     lxc_remote remote remove ubuntu1
     lxc_remote remote remove ubuntu2
+
+    # a connectivity issue returns an error
+    ! lxc_remote remote add ubuntu1 https://cloud-images.ubuntu.com:1234/releases --protocol=simplestreams || false
+    # a non-existent url path returns an error
+    ! lxc_remote remote add ubuntu2 https://cloud-images.ubuntu.com/nonexisting/releases/ --protocol=simplestreams || false
   fi
 }
 
