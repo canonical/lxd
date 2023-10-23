@@ -1243,7 +1243,7 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 			}
 		} else {
 			// Handle non-interactive sessions
-			dones := make(map[int]chan struct{})
+			dones := make(map[int]chan error)
 			conns := []*websocket.Conn{}
 
 			// Handle stdin
