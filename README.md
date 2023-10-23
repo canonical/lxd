@@ -52,7 +52,7 @@ Consider the following aspects to ensure that your LXD installation is secure:
 - Keep your operating system up-to-date and install all available security patches.
 - Use only supported LXD versions (LTS releases or monthly feature releases).
 - Restrict access to the LXD daemon and the remote API.
-- Do not use privileged containers unless required. If you use privileged containers, put appropriate security measures in place. See the [LXC security page](https://linuxcontainers.org/lxc/security/) for more information.
+- Do not use privileged containers unless required. If you use privileged containers, put appropriate security measures in place. See the [LXD security page](https://documentation.ubuntu.com/lxd/en/latest/explanation/security/) for more information.
 - Configure your network interfaces to be secure.
 <!-- Include end security -->
 
