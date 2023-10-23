@@ -1142,15 +1142,22 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 					return nil, err
 				}
 			} else {
-				if d.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) && shared.IsFalse(memorySwap) {
+				if d.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) {
 					err = cg.SetMemoryLimit(valueInt)
 					if err != nil {
 						return nil, err
 					}
 
-					err = cg.SetMemorySwapLimit(0)
-					if err != nil {
-						return nil, err
+					if shared.IsFalse(memorySwap) {
+						err = cg.SetMemorySwapLimit(0)
+						if err != nil {
+							return nil, err
+						}
+					} else {
+						err = cg.SetMemorySwapLimit(valueInt)
+						if err != nil {
+							return nil, err
+						}
 					}
 				} else {
 					err = cg.SetMemoryLimit(valueInt)
@@ -4546,17 +4553,25 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 						return err
 					}
 				} else {
-					if d.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) && shared.IsFalse(memorySwap) {
+					if d.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) {
 						err = cg.SetMemoryLimit(memoryInt)
 						if err != nil {
 							revertMemory()
 							return err
 						}
 
-						err = cg.SetMemorySwapLimit(0)
-						if err != nil {
-							revertMemory()
-							return err
+						if shared.IsFalse(memorySwap) {
+							err = cg.SetMemorySwapLimit(0)
+							if err != nil {
+								revertMemory()
+								return err
+							}
+						} else {
+							err = cg.SetMemorySwapLimit(memoryInt)
+							if err != nil {
+								revertMemory()
+								return err
+							}
 						}
 					} else {
 						err = cg.SetMemoryLimit(memoryInt)
