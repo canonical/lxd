@@ -7,7 +7,6 @@ import (
 
 	"github.com/juju/gomaasapi"
 
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -116,7 +115,7 @@ func (c *Controller) getDomain(inst Instance) string {
 	fields := strings.Split(c.machine.FQDN(), ".")
 	domain := strings.Join(fields[1:], ".")
 
-	if inst.Project().Name == project.Default {
+	if inst.Project().Name == api.ProjectDefaultName {
 		return domain
 	}
 
