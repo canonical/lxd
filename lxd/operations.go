@@ -17,7 +17,6 @@ import (
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -254,7 +253,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 		projectName := op.Project()
 		if op.Permission() != "" {
 			if projectName == "" {
-				projectName = project.Default
+				projectName = api.ProjectDefaultName
 			}
 
 			if !s.Authorizer.UserHasPermission(r, projectName, op.Permission()) {
@@ -478,7 +477,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 			api.StatusErrorf(http.StatusBadRequest, "Cannot specify a project when requesting all projects"),
 		)
 	} else if !allProjects && projectName == "" {
-		projectName = project.Default
+		projectName = api.ProjectDefaultName
 	}
 
 	localOperationURLs := func() (shared.Jmap, error) {

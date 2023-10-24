@@ -19,7 +19,6 @@ import (
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
@@ -271,7 +270,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 	if allProjects && projectName != "" {
 		return nil, api.StatusErrorf(http.StatusBadRequest, "Cannot specify a project when requesting all projects")
 	} else if !allProjects && projectName == "" {
-		projectName = project.Default
+		projectName = api.ProjectDefaultName
 	}
 
 	// Get the list and location of all instances.
