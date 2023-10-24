@@ -88,7 +88,7 @@ func NewClient(ctx context.Context, url *url.URL, username string, password stri
 	}
 
 	if caCert != "" {
-		tlsConfig, err := shared.GetTLSConfigMem("", "", caCert, "", true)
+		tlsConfig, err := shared.GetTLSConfigMem("", "", caCert, "", false)
 		if err != nil {
 			return nil
 		}
