@@ -178,7 +178,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 		i++
 	}
 
-	if shared.ValueInSlice("tls", apiServer.AuthMethods) {
+	if shared.ValueInSlice(api.AuthenticationMethodTLS, apiServer.AuthMethods) {
 		fmt.Printf("%d) Use a certificate token\n", i)
 		availableAuthMethods = append(availableAuthMethods, authMethodTLSCertificateToken)
 		i++
@@ -189,7 +189,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 		availableAuthMethods = append(availableAuthMethods, authMethodTLSTemporaryCertificate)
 	}
 
-	if len(apiServer.AuthMethods) > 1 || shared.ValueInSlice("tls", apiServer.AuthMethods) {
+	if len(apiServer.AuthMethods) > 1 || shared.ValueInSlice(api.AuthenticationMethodTLS, apiServer.AuthMethods) {
 		authMethodInt, err := c.global.asker.AskInt("Please pick an authentication mechanism above: ", 1, int64(i), "", nil)
 		if err != nil {
 			return nil, "", err
@@ -244,7 +244,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	case authMethodCandid:
 		authType = api.AuthenticationMethodCandid
 	case authMethodTLSCertificate, authMethodTLSTemporaryCertificate, authMethodTLSCertificateToken:
-		authType = "tls"
+		authType = api.AuthenticationMethodTLS
 	}
 
 	return c.connectTarget(serverURL, certPath, keyPath, authType, token)

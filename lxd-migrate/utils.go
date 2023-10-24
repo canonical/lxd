@@ -153,7 +153,7 @@ func (m *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 
 	clientFingerprint := ""
 
-	if authType == "tls" {
+	if authType == api.AuthenticationMethodTLS {
 		var clientCrt []byte
 		var clientKey []byte
 
@@ -258,7 +258,7 @@ func (m *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 		return c, "", nil
 	}
 
-	if authType == "tls" {
+	if authType == api.AuthenticationMethodTLS {
 		if token != "" {
 			req := api.CertificatesPost{
 				Password: token,
