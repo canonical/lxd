@@ -11,7 +11,6 @@ import (
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/instance"
-	"github.com/canonical/lxd/lxd/project"
 	lxdRequest "github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
@@ -221,7 +220,7 @@ func isClusterNotification(r *http.Request) bool {
 func projectParam(request *http.Request) string {
 	projectParam := queryParam(request, "project")
 	if projectParam == "" {
-		projectParam = project.Default
+		projectParam = api.ProjectDefaultName
 	}
 
 	return projectParam

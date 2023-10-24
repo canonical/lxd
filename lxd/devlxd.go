@@ -18,7 +18,6 @@ import (
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -380,7 +379,7 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 			parts := strings.Split(string(cmdline), " ")
 			name := strings.TrimSuffix(parts[len(parts)-1], "\x00")
 
-			projectName := project.Default
+			projectName := api.ProjectDefaultName
 			if strings.Contains(name, "_") {
 				fields := strings.SplitN(name, "_", 2)
 				projectName = fields[0]
