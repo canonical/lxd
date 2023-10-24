@@ -11,7 +11,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/ip"
 	"github.com/canonical/lxd/lxd/network"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -60,9 +59,9 @@ func (d *nicPhysical) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		// If network property is specified, lookup network settings and apply them to the device's config.
-		// project.Default is used here as physical networks don't support projects.
+		// api.ProjectDefaultName is used here as physical networks don't support projects.
 		var err error
-		d.network, err = network.LoadByName(d.state, project.Default, d.config["network"])
+		d.network, err = network.LoadByName(d.state, api.ProjectDefaultName, d.config["network"])
 		if err != nil {
 			return fmt.Errorf("Error loading network config for %q: %w", d.config["network"], err)
 		}
