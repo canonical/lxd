@@ -14,7 +14,6 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/network/acl"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
@@ -474,7 +473,7 @@ func (n *common) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 
 // notifyDependentNetworks allows any dependent networks to apply changes to themselves when this network changes.
 func (n *common) notifyDependentNetworks(changedKeys []string) {
-	if n.Project() != project.Default {
+	if n.Project() != api.ProjectDefaultName {
 		return // Only networks in the default project can be used as dependent networks.
 	}
 
