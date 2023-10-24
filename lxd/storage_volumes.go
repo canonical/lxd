@@ -862,7 +862,7 @@ func doVolumeMigration(s *state.State, r *http.Request, requestProjectName strin
 		}
 	}
 
-	config, err := shared.GetTLSConfig("", "", "", cert)
+	config, err := shared.GetTLSConfig(cert)
 	if err != nil {
 		return response.InternalError(err)
 	}
