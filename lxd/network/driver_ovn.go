@@ -384,7 +384,7 @@ func (n *ovn) Validate(config map[string]string) error {
 	}
 
 	// Get uplink routes.
-	_, uplink, _, err := n.state.DB.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
+	_, uplink, _, err := n.state.DB.Cluster.GetNetworkInAnyState(api.ProjectDefaultName, uplinkNetworkName)
 	if err != nil {
 		return fmt.Errorf("Failed to load uplink network %q: %w", uplinkNetworkName, err)
 	}
@@ -858,7 +858,7 @@ func (n *ovn) getLogicalRouterPeerPortName(peerNetworkID int64) openvswitch.OVNR
 // during the initial creation of the logical network.
 func (n *ovn) setupUplinkPort(routerMAC net.HardwareAddr) (*ovnUplinkVars, error) {
 	// Uplink network must be in default project.
-	uplinkNet, err := LoadByName(n.state, project.Default, n.config["network"])
+	uplinkNet, err := LoadByName(n.state, api.ProjectDefaultName, n.config["network"])
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading uplink network %q: %w", n.config["network"], err)
 	}
@@ -1135,7 +1135,7 @@ func (n *ovn) uplinkAllocateIP(ipRanges []*shared.IPRange, allAllocated []net.IP
 // startUplinkPort performs any network start up logic needed to connect the uplink connection to OVN.
 func (n *ovn) startUplinkPort() error {
 	// Uplink network must be in default project.
-	uplinkNet, err := LoadByName(n.state, project.Default, n.config["network"])
+	uplinkNet, err := LoadByName(n.state, api.ProjectDefaultName, n.config["network"])
 	if err != nil {
 		return fmt.Errorf("Failed loading uplink network %q: %w", n.config["network"], err)
 	}
@@ -1477,7 +1477,7 @@ func (n *ovn) checkUplinkUse() (bool, error) {
 func (n *ovn) deleteUplinkPort() error {
 	// Uplink network must be in default project.
 	if n.config["network"] != "" {
-		uplinkNet, err := LoadByName(n.state, project.Default, n.config["network"])
+		uplinkNet, err := LoadByName(n.state, api.ProjectDefaultName, n.config["network"])
 		if err != nil {
 			return fmt.Errorf("Failed loading uplink network %q: %w", n.config["network"], err)
 		}
@@ -1727,7 +1727,7 @@ func (n *ovn) allowedUplinkNetworks(p *api.Project) ([]string, error) {
 
 	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Uplink networks are always from the default project.
-		networks, err := tx.GetCreatedNetworksByProject(ctx, project.Default)
+		networks, err := tx.GetCreatedNetworksByProject(ctx, api.ProjectDefaultName)
 		if err != nil {
 			return fmt.Errorf("Failed getting uplink networks: %w", err)
 		}
@@ -2763,7 +2763,7 @@ func (n *ovn) Start() error {
 	revert.Add(func() { n.setUnavailable() })
 
 	// Check that uplink network is available.
-	if n.config["network"] != "" && !IsAvailable(project.Default, n.config["network"]) {
+	if n.config["network"] != "" && !IsAvailable(api.ProjectDefaultName, n.config["network"]) {
 		return fmt.Errorf("Uplink network %q is unavailable", n.config["network"])
 	}
 
@@ -3210,7 +3210,7 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 	var p *api.Project
 
 	// Get uplink routes.
-	_, uplink, _, err := n.state.DB.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
+	_, uplink, _, err := n.state.DB.Cluster.GetNetworkInAnyState(api.ProjectDefaultName, n.config["network"])
 	if err != nil {
 		return fmt.Errorf("Failed to load uplink network %q: %w", n.config["network"], err)
 	}
@@ -3985,7 +3985,7 @@ func (n *ovn) InstanceDevicePortStop(ovsExternalOVNPort openvswitch.OVNSwitchPor
 	}
 
 	// Load uplink network config.
-	_, uplink, _, err := n.state.DB.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
+	_, uplink, _, err := n.state.DB.Cluster.GetNetworkInAnyState(api.ProjectDefaultName, n.config["network"])
 	if err != nil {
 		return fmt.Errorf("Failed to load uplink network %q: %w", n.config["network"], err)
 	}
@@ -4504,7 +4504,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 		}
 
 		// Get uplink routes.
-		_, uplink, _, err := n.state.DB.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
+		_, uplink, _, err := n.state.DB.Cluster.GetNetworkInAnyState(api.ProjectDefaultName, n.config["network"])
 		if err != nil {
 			return fmt.Errorf("Failed to load uplink network %q: %w", n.config["network"], err)
 		}
@@ -4815,7 +4815,7 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 		}
 
 		// Get uplink routes.
-		_, uplink, _, err := n.state.DB.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
+		_, uplink, _, err := n.state.DB.Cluster.GetNetworkInAnyState(api.ProjectDefaultName, n.config["network"])
 		if err != nil {
 			return fmt.Errorf("Failed to load uplink network %q: %w", n.config["network"], err)
 		}
