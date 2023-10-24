@@ -15,7 +15,6 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/network/openvswitch"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
@@ -126,28 +125,28 @@ func (d *common) usedBy(firstOnly bool) ([]string, error) {
 		switch u := usageType.(type) {
 		case db.InstanceArgs:
 			uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, u.Name)
-			if u.Project != project.Default {
+			if u.Project != api.ProjectDefaultName {
 				uri += fmt.Sprintf("?project=%s", u.Project)
 			}
 
 			usedBy = append(usedBy, uri)
 		case *api.Network:
 			uri := fmt.Sprintf("/%s/networks/%s", version.APIVersion, u.Name)
-			if d.projectName != project.Default {
+			if d.projectName != api.ProjectDefaultName {
 				uri += fmt.Sprintf("?project=%s", d.projectName)
 			}
 
 			usedBy = append(usedBy, uri)
 		case dbCluster.Profile:
 			uri := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, u.Name)
-			if u.Project != project.Default {
+			if u.Project != api.ProjectDefaultName {
 				uri += fmt.Sprintf("?project=%s", u.Project)
 			}
 
 			usedBy = append(usedBy, uri)
 		case *api.NetworkACL:
 			uri := fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, u.Name)
-			if d.projectName != project.Default {
+			if d.projectName != api.ProjectDefaultName {
 				uri += fmt.Sprintf("?project=%s", d.projectName)
 			}
 
