@@ -67,6 +67,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/idmap"
 	"github.com/canonical/lxd/shared/logger"
@@ -340,7 +341,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 			return false, "", "", err
 		}
 
-		return true, userName, "oidc", nil
+		return true, userName, api.AuthenticationMethodOIDC, nil
 	} else if d.candidVerifier != nil && d.candidVerifier.IsRequest(r) {
 		info, err := d.candidVerifier.Auth(r)
 		if err != nil {
