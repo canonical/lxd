@@ -19,9 +19,9 @@ import (
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -337,7 +337,7 @@ func TestJoin(t *testing.T) {
 
 	err = cluster.Bootstrap(targetState, targetGateway, "buzz")
 	require.NoError(t, err)
-	_, err = targetState.DB.Cluster.GetNetworks(project.Default)
+	_, err = targetState.DB.Cluster.GetNetworks(api.ProjectDefaultName)
 	require.NoError(t, err)
 
 	// Setup a joining node
