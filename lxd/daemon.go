@@ -67,6 +67,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/idmap"
 	"github.com/canonical/lxd/shared/logger"
@@ -340,7 +341,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 			return false, "", "", err
 		}
 
-		return true, userName, "oidc", nil
+		return true, userName, api.AuthenticationMethodOIDC, nil
 	} else if d.candidVerifier != nil && d.candidVerifier.IsRequest(r) {
 		info, err := d.candidVerifier.Auth(r)
 		if err != nil {
@@ -349,11 +350,11 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 
 		if info != nil && info.Identity != nil {
 			// Valid identity macaroon found.
-			return true, info.Identity.Id(), "candid", nil
+			return true, info.Identity.Id(), api.AuthenticationMethodCandid, nil
 		}
 
 		// Valid macaroon with no identity information.
-		return true, "", "candid", nil
+		return true, "", api.AuthenticationMethodCandid, nil
 	}
 
 	// Validate normal TLS access.
@@ -364,7 +365,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 		for _, i := range r.TLS.PeerCertificates {
 			trusted, username := util.CheckTrustState(*i, trustedCerts[certificate.TypeMetrics], d.endpoints.NetworkCert(), trustCACertificates)
 			if trusted {
-				return true, username, "tls", nil
+				return true, username, api.AuthenticationMethodTLS, nil
 			}
 		}
 	}
@@ -372,7 +373,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 	for _, i := range r.TLS.PeerCertificates {
 		trusted, username := util.CheckTrustState(*i, trustedCerts[certificate.TypeClient], d.endpoints.NetworkCert(), trustCACertificates)
 		if trusted {
-			return true, username, "tls", nil
+			return true, username, api.AuthenticationMethodTLS, nil
 		}
 	}
 
@@ -483,7 +484,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		// Reject internal queries to remote, non-cluster, clients
 		if version == "internal" && !shared.ValueInSlice(protocol, []string{"unix", "cluster"}) {
 			// Except for the initial cluster accept request (done over trusted TLS)
-			if !trusted || c.Path != "cluster/accept" || protocol != "tls" {
+			if !trusted || c.Path != "cluster/accept" || protocol != api.AuthenticationMethodTLS {
 				logger.Warn("Rejecting remote internal API request", logger.Ctx{"ip": r.RemoteAddr})
 				_ = response.Forbidden(nil).Render(w)
 				return
@@ -512,7 +513,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 				}
 
 				// Regular TLS clients.
-				if protocol == "tls" {
+				if protocol == api.AuthenticationMethodTLS {
 					certProjects := d.clientCerts.GetProjects()
 
 					// Check if we have restrictions on the key.
