@@ -350,11 +350,11 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 
 		if info != nil && info.Identity != nil {
 			// Valid identity macaroon found.
-			return true, info.Identity.Id(), "candid", nil
+			return true, info.Identity.Id(), api.AuthenticationMethodCandid, nil
 		}
 
 		// Valid macaroon with no identity information.
-		return true, "", "candid", nil
+		return true, "", api.AuthenticationMethodCandid, nil
 	}
 
 	// Validate normal TLS access.
