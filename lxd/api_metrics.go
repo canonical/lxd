@@ -17,6 +17,7 @@ import (
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/metrics"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -82,7 +83,7 @@ func allowMetrics(d *Daemon, r *http.Request) response.Response {
 func metricsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName := queryParam(r, "project")
+	projectName := request.QueryParam(r, "project")
 	compress := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")
 
 	// Forward if requested.

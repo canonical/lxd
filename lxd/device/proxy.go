@@ -27,6 +27,7 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/linux"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/subprocess"
@@ -135,7 +136,7 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 			// Default project always has networks feature so don't bother loading the project config
 			// in that case.
 			instProject := d.inst.Project()
-			if instProject.Name != project.Default && shared.IsTrue(instProject.Config["features.networks"]) {
+			if instProject.Name != api.ProjectDefaultName && shared.IsTrue(instProject.Config["features.networks"]) {
 				// Prevent use of NAT mode on non-default projects with networks feature.
 				// This is because OVN networks don't allow the host to communicate directly with
 				// instance NICs and so DNAT rules on the host won't work.
