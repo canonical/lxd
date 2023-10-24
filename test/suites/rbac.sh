@@ -130,4 +130,12 @@ EOF
 
   lxc storage delete s1
   lxc delete c1 -f
+
+  # Unset RBAC configuration.
+  lxc config unset rbac.api.key
+  lxc config unset rbac.api.url
+  lxc config unset rbac.agent.url
+  lxc config unset rbac.agent.private_key
+  lxc config unset rbac.agent.public_key
+  lxc config unset rbac.agent.username
 }
