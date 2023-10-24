@@ -468,8 +468,8 @@ func operationCancel(s *state.State, r *http.Request, projectName string, op *ap
 func operationsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName := queryParam(r, "project")
-	allProjects := shared.IsTrue(queryParam(r, "all-projects"))
+	projectName := request.QueryParam(r, "project")
+	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
 	recursion := util.IsRecursionRequest(r)
 
 	if allProjects && projectName != "" {

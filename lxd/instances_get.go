@@ -19,6 +19,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
@@ -264,7 +265,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
 
 	// Detect project mode.
-	projectName := queryParam(r, "project")
+	projectName := request.QueryParam(r, "project")
 	allProjects := shared.IsTrue(r.FormValue("all-projects"))
 
 	if allProjects && projectName != "" {

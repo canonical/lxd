@@ -28,6 +28,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/state"
@@ -289,7 +290,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	targetMember := queryParam(r, "target")
+	targetMember := request.QueryParam(r, "target")
 	memberSpecific := targetMember != ""
 
 	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
@@ -325,8 +326,8 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Detect project mode.
-	requestProjectName := queryParam(r, "project")
-	allProjects := shared.IsTrue(queryParam(r, "all-projects"))
+	requestProjectName := request.QueryParam(r, "project")
+	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
 
 	if allProjects && requestProjectName != "" {
 		return response.SmartError(api.StatusErrorf(http.StatusBadRequest, "Cannot specify a project when requesting all projects"))
@@ -540,7 +541,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	projectName, err := project.StorageVolumeProject(s.DB.Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
+	projectName, err := project.StorageVolumeProject(s.DB.Cluster, request.ProjectParam(r), db.StoragePoolVolumeTypeCustom)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -553,10 +554,10 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 	// If we're getting binary content, process separately.
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
 		if r.Header.Get("X-LXD-type") == "iso" {
-			return createStoragePoolVolumeFromISO(s, r, projectParam(r), projectName, r.Body, poolName, r.Header.Get("X-LXD-name"))
+			return createStoragePoolVolumeFromISO(s, r, request.ProjectParam(r), projectName, r.Body, poolName, r.Header.Get("X-LXD-name"))
 		}
 
-		return createStoragePoolVolumeFromBackup(s, r, projectParam(r), projectName, r.Body, poolName, r.Header.Get("X-LXD-name"))
+		return createStoragePoolVolumeFromBackup(s, r, request.ProjectParam(r), projectName, r.Body, poolName, r.Header.Get("X-LXD-name"))
 	}
 
 	req := api.StorageVolumesPost{}
@@ -625,15 +626,15 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 
 	switch req.Source.Type {
 	case "":
-		return doVolumeCreateOrCopy(s, r, projectParam(r), projectName, poolName, &req)
+		return doVolumeCreateOrCopy(s, r, request.ProjectParam(r), projectName, poolName, &req)
 	case "copy":
 		if dbVolume != nil {
-			return doCustomVolumeRefresh(s, r, projectParam(r), projectName, poolName, &req)
+			return doCustomVolumeRefresh(s, r, request.ProjectParam(r), projectName, poolName, &req)
 		}
 
-		return doVolumeCreateOrCopy(s, r, projectParam(r), projectName, poolName, &req)
+		return doVolumeCreateOrCopy(s, r, request.ProjectParam(r), projectName, poolName, &req)
 	case "migration":
-		return doVolumeMigration(s, r, projectParam(r), projectName, poolName, &req)
+		return doVolumeMigration(s, r, request.ProjectParam(r), projectName, poolName, &req)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %q", req.Source.Type))
 	}
@@ -802,7 +803,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 		req.ContentType = db.StoragePoolVolumeContentTypeNameFS
 	}
 
-	projectName, err := project.StorageVolumeProject(s.DB.Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
+	projectName, err := project.StorageVolumeProject(s.DB.Cluster, request.ProjectParam(r), db.StoragePoolVolumeTypeCustom)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -835,11 +836,11 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 
 	switch req.Source.Type {
 	case "":
-		return doVolumeCreateOrCopy(s, r, projectParam(r), projectName, poolName, &req)
+		return doVolumeCreateOrCopy(s, r, request.ProjectParam(r), projectName, poolName, &req)
 	case "copy":
-		return doVolumeCreateOrCopy(s, r, projectParam(r), projectName, poolName, &req)
+		return doVolumeCreateOrCopy(s, r, request.ProjectParam(r), projectName, poolName, &req)
 	case "migration":
-		return doVolumeMigration(s, r, projectParam(r), projectName, poolName, &req)
+		return doVolumeMigration(s, r, request.ProjectParam(r), projectName, poolName, &req)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %q", req.Source.Type))
 	}
@@ -1016,7 +1017,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Renaming storage volumes of type %q is not allowed", volumeTypeName))
 	}
 
-	projectName, err := project.StorageVolumeProject(s.DB.Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
+	projectName, err := project.StorageVolumeProject(s.DB.Cluster, request.ProjectParam(r), db.StoragePoolVolumeTypeCustom)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1074,7 +1075,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 
 	// This is a migration request so send back requested secrets.
 	if req.Migration {
-		return storagePoolVolumeTypePostMigration(s, r, projectParam(r), projectName, srcPoolName, volumeName, req)
+		return storagePoolVolumeTypePostMigration(s, r, request.ProjectParam(r), projectName, srcPoolName, volumeName, req)
 	}
 
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
@@ -1361,7 +1362,7 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	requestProjectName := projectParam(r)
+	requestProjectName := request.ProjectParam(r)
 	volumeProjectName, err := project.StorageVolumeProject(s.DB.Cluster, requestProjectName, volumeType)
 	if err != nil {
 		return response.SmartError(err)
@@ -1447,7 +1448,7 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName := projectParam(r)
+	projectName := request.ProjectParam(r)
 	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
 	if err != nil {
 		return response.SmartError(err)
@@ -1650,7 +1651,7 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	projectName, err := project.StorageVolumeProject(s.DB.Cluster, projectParam(r), volumeType)
+	projectName, err := project.StorageVolumeProject(s.DB.Cluster, request.ProjectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1777,7 +1778,7 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	requestProjectName := projectParam(r)
+	requestProjectName := request.ProjectParam(r)
 	volumeProjectName, err := project.StorageVolumeProject(s.DB.Cluster, requestProjectName, volumeType)
 	if err != nil {
 		return response.SmartError(err)

@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -59,7 +60,7 @@ import (
 func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	targetProjectName := projectParam(r)
+	targetProjectName := request.ProjectParam(r)
 
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
