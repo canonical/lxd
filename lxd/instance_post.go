@@ -19,6 +19,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
@@ -75,7 +76,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	projectName := projectParam(r)
+	projectName := request.ProjectParam(r)
 
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -99,7 +100,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	var targetMemberInfo *db.NodeInfo
 	var candidateMembers []db.NodeInfo
 
-	target := queryParam(r, "target")
+	target := request.QueryParam(r, "target")
 	if !clustered && target != "" {
 		return response.BadRequest(fmt.Errorf("Target only allowed when clustered"))
 	}

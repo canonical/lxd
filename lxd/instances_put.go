@@ -13,6 +13,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -73,7 +74,7 @@ func coalesceErrors(local bool, errors map[string]error) error {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instancesPut(d *Daemon, r *http.Request) response.Response {
-	projectName := projectParam(r)
+	projectName := request.ProjectParam(r)
 
 	// Don't mess with instances while in setup mode.
 	<-d.waitReady.Done()
