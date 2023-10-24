@@ -69,14 +69,14 @@ testloopmounts() {
   umount -l "${TEST_DIR}/mnt"
   lxc start foo
   lxc config device add foo mnt disk source="${lpath}" path=/mnt
-  lxc exec foo stat /mnt/hello
+  lxc exec foo -- stat /mnt/hello
   # Note - we need to add a set_running_config_item to lxc
   # or work around its absence somehow.  Once that's done, we
   # can run the following two lines:
-  #lxc exec foo reboot
-  #lxc exec foo stat /mnt/hello
+  #lxc exec foo -- reboot
+  #lxc exec foo -- stat /mnt/hello
   lxc restart foo --force
-  lxc exec foo stat /mnt/hello
+  lxc exec foo -- stat /mnt/hello
   lxc config device remove foo mnt
   ensure_fs_unmounted "fs should have been hot-unmounted"
   lxc restart foo --force
