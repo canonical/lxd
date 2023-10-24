@@ -121,7 +121,8 @@ linkcheck_ignore = [
     'https://web.libera.chat/#lxd',
     'http://localhost:8001',
     r'/lxd/en/latest/api/.*',
-    r'/api/.*'
+    r'/api/.*',
+    r'https://maas\.io/docs/.*'
     ]
 
 # Pages on which to ignore anchors
