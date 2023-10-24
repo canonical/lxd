@@ -191,7 +191,7 @@ func (m *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 
 		args.TLSClientCert = string(clientCrt)
 		args.TLSClientKey = string(clientKey)
-	} else if authType == "candid" {
+	} else if authType == api.AuthenticationMethodCandid {
 		args.AuthInteractor = []httpbakery.Interactor{
 			form.Interactor{Filler: schemaform.IOFiller{}},
 			httpbakery.WebBrowserInteractor{
@@ -242,7 +242,7 @@ func (m *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 		}
 	}
 
-	if authType == "candid" {
+	if authType == api.AuthenticationMethodCandid {
 		c.RequireAuthenticated(false)
 	}
 
