@@ -9,7 +9,6 @@ import (
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/ip"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -83,7 +82,7 @@ func (n *physical) checkParentUse(ourConfig map[string]string) (bool, error) {
 	}
 
 	for projectName, networks := range projectNetworks {
-		if projectName != project.Default {
+		if projectName != api.ProjectDefaultName {
 			continue // Only default project networks can possibly reference a physical interface.
 		}
 
