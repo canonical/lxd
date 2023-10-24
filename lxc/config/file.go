@@ -8,6 +8,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // LoadConfig reads the configuration from the config path; if the path does
@@ -28,7 +29,7 @@ func LoadConfig(path string) (*Config, error) {
 
 	for k, r := range c.Remotes {
 		if !r.Public && r.AuthType == "" {
-			r.AuthType = "tls"
+			r.AuthType = api.AuthenticationMethodTLS
 			c.Remotes[k] = r
 		}
 	}
