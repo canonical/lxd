@@ -6,7 +6,6 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -21,9 +20,9 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 
 	// Only retrieve networks in the default project as the preseed format doesn't support creating
 	// projects at this time.
-	networks, err := d.UseProject(project.Default).GetNetworks()
+	networks, err := d.UseProject(api.ProjectDefaultName).GetNetworks()
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve current server network configuration for project %q: %w", project.Default, err)
+		return fmt.Errorf("Failed to retrieve current server network configuration for project %q: %w", api.ProjectDefaultName, err)
 	}
 
 	for _, network := range networks {
@@ -37,7 +36,7 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 		networksPost.Description = network.Description
 		networksPost.Name = network.Name
 		networksPost.Type = network.Type
-		networksPost.Project = project.Default
+		networksPost.Project = api.ProjectDefaultName
 
 		config.Networks = append(config.Networks, networksPost)
 	}

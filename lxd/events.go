@@ -9,7 +9,6 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/events"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -43,16 +42,16 @@ func (r *eventsServe) String() string {
 
 func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error {
 	// Detect project mode.
-	projectName := queryParam(r, "project")
-	allProjects := shared.IsTrue(queryParam(r, "all-projects"))
+	projectName := request.QueryParam(r, "project")
+	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
 
 	if allProjects && projectName != "" {
 		return api.StatusErrorf(http.StatusBadRequest, "Cannot specify a project when requesting all projects")
 	} else if !allProjects && projectName == "" {
-		projectName = project.Default
+		projectName = api.ProjectDefaultName
 	}
 
-	if !allProjects && projectName != project.Default {
+	if !allProjects && projectName != api.ProjectDefaultName {
 		_, err := s.DB.GetProject(context.Background(), projectName)
 		if err != nil {
 			return err

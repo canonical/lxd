@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -182,10 +181,10 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 		// Populate default project if not specified for backwards compatbility with earlier
 		// preseed dump files.
 		if config.Networks[i].Project == "" {
-			config.Networks[i].Project = project.Default
+			config.Networks[i].Project = api.ProjectDefaultName
 		}
 
-		if config.Networks[i].Project != project.Default {
+		if config.Networks[i].Project != api.ProjectDefaultName {
 			continue
 		}
 
@@ -274,7 +273,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 	// Apply networks in non-default projects after project config applied (so that their projects exist).
 	for i := range config.Networks {
-		if config.Networks[i].Project == project.Default {
+		if config.Networks[i].Project == api.ProjectDefaultName {
 			continue
 		}
 

@@ -131,7 +131,7 @@ func instanceLogsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	projectName := projectParam(r)
+	projectName := request.ProjectParam(r)
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
@@ -215,7 +215,7 @@ func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	projectName := projectParam(r)
+	projectName := request.ProjectParam(r)
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
@@ -299,7 +299,7 @@ func instanceLogDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	projectName := projectParam(r)
+	projectName := request.ProjectParam(r)
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
@@ -411,7 +411,7 @@ func instanceExecOutputsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	projectName := projectParam(r)
+	projectName := request.ProjectParam(r)
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
@@ -516,7 +516,7 @@ func instanceExecOutputGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	projectName := projectParam(r)
+	projectName := request.ProjectParam(r)
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
@@ -616,7 +616,7 @@ func instanceExecOutputDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	projectName := projectParam(r)
+	projectName := request.ProjectParam(r)
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)

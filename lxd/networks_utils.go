@@ -4,8 +4,8 @@ import (
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/network"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -25,8 +25,8 @@ func networkAutoAttach(cluster *db.Cluster, devName string) error {
 func networkUpdateForkdnsServersTask(s *state.State, heartbeatData *cluster.APIHeartbeat) error {
 	logger.Debug("Refreshing forkdns servers")
 
-	// Use project.Default here as forkdns (fan bridge) networks don't support projects.
-	projectName := project.Default
+	// Use api.ProjectDefaultName here as forkdns (fan bridge) networks don't support projects.
+	projectName := api.ProjectDefaultName
 
 	// Get a list of managed networks
 	networks, err := s.DB.Cluster.GetCreatedNetworks(projectName)

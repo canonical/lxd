@@ -18,7 +18,6 @@ import (
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -168,7 +167,7 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Parse the project field
-	projectName := queryParam(r, "project")
+	projectName := request.QueryParam(r, "project")
 
 	var warnings []api.Warning
 	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -388,9 +387,9 @@ func warningPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if status == warningtype.StatusAcknowledged {
-		s.Events.SendLifecycle(project.Default, lifecycle.WarningAcknowledged.Event(id, request.CreateRequestor(r), nil))
+		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.WarningAcknowledged.Event(id, request.CreateRequestor(r), nil))
 	} else {
-		s.Events.SendLifecycle(project.Default, lifecycle.WarningReset.Event(id, request.CreateRequestor(r), nil))
+		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.WarningReset.Event(id, request.CreateRequestor(r), nil))
 	}
 
 	return response.EmptySyncResponse
@@ -430,7 +429,7 @@ func warningDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(project.Default, lifecycle.WarningDeleted.Event(id, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.WarningDeleted.Event(id, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }

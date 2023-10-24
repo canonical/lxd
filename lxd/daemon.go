@@ -251,7 +251,7 @@ func allowProjectPermission(feature string, permission string) func(d *Daemon, r
 		}
 
 		// Get the project
-		projectName := projectParam(r)
+		projectName := request.ProjectParam(r)
 
 		// Validate whether the user has the needed permission
 		if !s.Authorizer.UserHasPermission(r, projectName, permission) {

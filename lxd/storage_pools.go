@@ -271,7 +271,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 
 	ctx := logger.Ctx{}
 
-	targetNode := queryParam(r, "target")
+	targetNode := request.QueryParam(r, "target")
 	if targetNode != "" {
 		ctx["target"] = targetNode
 	}
@@ -358,7 +358,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	s.Events.SendLifecycle(project.Default, lc)
+	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 	return resp
 }
@@ -590,7 +590,7 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	memberSpecific := false
-	if queryParam(r, "target") != "" {
+	if request.QueryParam(r, "target") != "" {
 		memberSpecific = true
 	}
 
@@ -688,7 +688,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	targetNode := queryParam(r, "target")
+	targetNode := request.QueryParam(r, "target")
 	clustered, err := cluster.Enabled(s.DB.Node)
 	if err != nil {
 		return response.SmartError(err)
@@ -758,7 +758,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 		ctx["target"] = targetNode
 	}
 
-	s.Events.SendLifecycle(project.Default, lifecycle.StoragePoolUpdated.Event(pool.Name(), requestor, ctx))
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.StoragePoolUpdated.Event(pool.Name(), requestor, ctx))
 
 	return response
 }
@@ -1000,7 +1000,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	s.Events.SendLifecycle(project.Default, lifecycle.StoragePoolDeleted.Event(pool.Name(), requestor, nil))
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.StoragePoolDeleted.Event(pool.Name(), requestor, nil))
 
 	return response.EmptySyncResponse
 }

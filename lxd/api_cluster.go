@@ -32,7 +32,6 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/operations"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/revert"
@@ -381,7 +380,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 			return err
 		}
 
-		s.Events.SendLifecycle(projectParam(r), lifecycle.ClusterEnabled.Event(req.ServerName, op.Requestor(), nil))
+		s.Events.SendLifecycle(request.ProjectParam(r), lifecycle.ClusterEnabled.Event(req.ServerName, op.Requestor(), nil))
 
 		return nil
 	}
@@ -816,7 +815,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		// Update the cert cache again to add client and metric certs to the cache.
 		s.UpdateCertificateCache()
 
-		s.Events.SendLifecycle(projectParam(r), lifecycle.ClusterMemberAdded.Event(req.ServerName, op.Requestor(), nil))
+		s.Events.SendLifecycle(request.ProjectParam(r), lifecycle.ClusterMemberAdded.Event(req.ServerName, op.Requestor(), nil))
 
 		revert.Success()
 		return nil
@@ -875,7 +874,7 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 	}
 
 	requestor := request.CreateRequestor(r)
-	s.Events.SendLifecycle(projectParam(r), lifecycle.ClusterDisabled.Event(req.ServerName, requestor, nil))
+	s.Events.SendLifecycle(request.ProjectParam(r), lifecycle.ClusterDisabled.Event(req.ServerName, requestor, nil))
 
 	// Stop database cluster connection.
 	d.gateway.Kill()
@@ -977,7 +976,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 	}
 
 	for _, p := range projects {
-		if shared.IsFalseOrEmpty(p.Config["features.networks"]) && p.Name != project.Default {
+		if shared.IsFalseOrEmpty(p.Config["features.networks"]) && p.Name != api.ProjectDefaultName {
 			// Skip non-default projects that can't have their own networks so we don't try
 			// and add the same default project networks twice.
 			continue
@@ -1016,7 +1015,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 
 			// Apply the node-specific config supplied by the user for networks in the default project.
 			// At this time project specific networks don't have node specific config options.
-			if p.Name == project.Default {
+			if p.Name == api.ProjectDefaultName {
 				for _, config := range memberConfig {
 					if config.Entity != "network" {
 						continue
@@ -1339,7 +1338,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	// Remove any existing join tokens for the requested cluster member, this way we only ever have one active
 	// join token for each potential new member, and it has the most recent active members list for joining.
 	// This also ensures any historically unused (but potentially published) join tokens are removed.
-	ops, err := operationsGetByType(s, r, project.Default, operationtype.ClusterJoinToken)
+	ops, err := operationsGetByType(s, r, api.ProjectDefaultName, operationtype.ClusterJoinToken)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed getting cluster join token operations: %w", err))
 	}
@@ -1357,7 +1356,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 		if opServerName == req.ServerName {
 			// Join token operation matches requested server name, so lets cancel it.
 			logger.Warn("Cancelling duplicate join token operation", logger.Ctx{"operation": op.ID, "serverName": opServerName})
-			err = operationCancel(s, r, project.Default, op)
+			err = operationCancel(s, r, api.ProjectDefaultName, op)
 			if err != nil {
 				return response.InternalError(fmt.Errorf("Failed to cancel operation %q: %w", op.ID, err))
 			}
@@ -1390,12 +1389,12 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]api.URL{}
 	resources["cluster"] = []api.URL{}
 
-	op, err := operations.OperationCreate(s, project.Default, operations.OperationClassToken, operationtype.ClusterJoinToken, resources, meta, nil, nil, nil, r)
+	op, err := operations.OperationCreate(s, api.ProjectDefaultName, operations.OperationClassToken, operationtype.ClusterJoinToken, resources, meta, nil, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	s.Events.SendLifecycle(projectParam(r), lifecycle.ClusterTokenCreated.Event("members", op.Requestor(), nil))
+	s.Events.SendLifecycle(request.ProjectParam(r), lifecycle.ClusterTokenCreated.Event("members", op.Requestor(), nil))
 
 	return operations.OperationResponse(op)
 }
@@ -1741,7 +1740,7 @@ func updateClusterNode(s *state.State, gateway *cluster.Gateway, r *http.Request
 	}
 
 	requestor := request.CreateRequestor(r)
-	s.Events.SendLifecycle(projectParam(r), lifecycle.ClusterMemberUpdated.Event(name, requestor, nil))
+	s.Events.SendLifecycle(request.ProjectParam(r), lifecycle.ClusterMemberUpdated.Event(name, requestor, nil))
 
 	return response.EmptySyncResponse
 }
@@ -1876,7 +1875,7 @@ func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 	d.globalConfigMu.Unlock()
 
 	requestor := request.CreateRequestor(r)
-	s.Events.SendLifecycle(projectParam(r), lifecycle.ClusterMemberRenamed.Event(req.ServerName, requestor, logger.Ctx{"old_name": memberName}))
+	s.Events.SendLifecycle(request.ProjectParam(r), lifecycle.ClusterMemberRenamed.Event(req.ServerName, requestor, logger.Ctx{"old_name": memberName}))
 
 	return response.EmptySyncResponse
 }
@@ -2134,7 +2133,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	s.Events.SendLifecycle(projectParam(r), lifecycle.ClusterMemberRemoved.Event(name, requestor, nil))
+	s.Events.SendLifecycle(request.ProjectParam(r), lifecycle.ClusterMemberRemoved.Event(name, requestor, nil))
 
 	return response.EmptySyncResponse
 }
@@ -2197,7 +2196,7 @@ func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	s.Events.SendLifecycle(projectParam(r), lifecycle.ClusterCertificateUpdated.Event("certificate", requestor, nil))
+	s.Events.SendLifecycle(request.ProjectParam(r), lifecycle.ClusterCertificateUpdated.Event("certificate", requestor, nil))
 
 	return response.EmptySyncResponse
 }
@@ -3630,7 +3629,7 @@ func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 
 	requestor := request.CreateRequestor(r)
 	lc := lifecycle.ClusterGroupCreated.Event(req.Name, requestor, nil)
-	s.Events.SendLifecycle(project.Default, lc)
+	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
@@ -3939,7 +3938,7 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 
 	requestor := request.CreateRequestor(r)
 	lc := lifecycle.ClusterGroupRenamed.Event(req.Name, requestor, logger.Ctx{"old_name": name})
-	s.Events.SendLifecycle(project.Default, lc)
+	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
@@ -4064,7 +4063,7 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	s.Events.SendLifecycle(project.Default, lifecycle.ClusterGroupUpdated.Event(name, requestor, logger.Ctx{"description": req.Description, "members": req.Members}))
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterGroupUpdated.Event(name, requestor, logger.Ctx{"description": req.Description, "members": req.Members}))
 
 	return response.EmptySyncResponse
 }
@@ -4243,7 +4242,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	s.Events.SendLifecycle(project.Default, lifecycle.ClusterGroupUpdated.Event(name, requestor, logger.Ctx{"description": req.Description, "members": req.Members}))
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterGroupUpdated.Event(name, requestor, logger.Ctx{"description": req.Description, "members": req.Members}))
 
 	return response.EmptySyncResponse
 }
