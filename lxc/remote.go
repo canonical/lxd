@@ -497,7 +497,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 		return conf.SaveConfig(c.global.confPath)
 	}
 
-	if c.flagAuthType == "candid" {
+	if c.flagAuthType == api.AuthenticationMethodCandid {
 		d.(lxd.InstanceServer).RequireAuthenticated(false)
 	}
 
@@ -511,13 +511,13 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 	if c.flagAuthType == "" {
 		if !srv.Public && shared.ValueInSlice(api.AuthenticationMethodOIDC, srv.AuthMethods) {
 			c.flagAuthType = api.AuthenticationMethodOIDC
-		} else if !srv.Public && shared.ValueInSlice("candid", srv.AuthMethods) {
-			c.flagAuthType = "candid"
+		} else if !srv.Public && shared.ValueInSlice(api.AuthenticationMethodCandid, srv.AuthMethods) {
+			c.flagAuthType = api.AuthenticationMethodCandid
 		} else {
 			c.flagAuthType = "tls"
 		}
 
-		if shared.ValueInSlice(c.flagAuthType, []string{api.AuthenticationMethodOIDC, "candid"}) {
+		if shared.ValueInSlice(c.flagAuthType, []string{api.AuthenticationMethodOIDC, api.AuthenticationMethodCandid}) {
 			// Update the remote configuration
 			remote := conf.Remotes[server]
 			remote.AuthType = c.flagAuthType
@@ -711,7 +711,7 @@ func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		if rc.AuthType == "candid" && rc.Domain != "" {
+		if rc.AuthType == api.AuthenticationMethodCandid && rc.Domain != "" {
 			rc.AuthType = fmt.Sprintf("%s (%s)", rc.AuthType, rc.Domain)
 		}
 
