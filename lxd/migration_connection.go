@@ -37,7 +37,7 @@ func setupWebsocketDialer(certificate string) (*websocket.Dialer, error) {
 		}
 	}
 
-	config, err := shared.GetTLSConfig("", "", "", cert)
+	config, err := shared.GetTLSConfig(cert)
 	if err != nil {
 		return nil, fmt.Errorf("Failed configuring TLS: %w", err)
 	}
