@@ -12,24 +12,22 @@ test_devlxd() {
   ! lxc exec devlxd -- test -S /dev/lxd/sock || false
   lxc config unset devlxd security.devlxd
   lxc exec devlxd -- test -S /dev/lxd/sock
-  lxc file push "devlxd-client/devlxd-client" devlxd/bin/
-
-  lxc exec devlxd chmod +x /bin/devlxd-client
+  lxc file push --mode 0755 "devlxd-client/devlxd-client" devlxd/bin/
 
   lxc config set devlxd user.foo bar
-  lxc exec devlxd devlxd-client user.foo | grep bar
+  lxc exec devlxd -- devlxd-client user.foo | grep bar
 
   lxc config set devlxd user.foo "bar %s bar"
-  lxc exec devlxd devlxd-client user.foo | grep "bar %s bar"
+  lxc exec devlxd -- devlxd-client user.foo | grep "bar %s bar"
 
   lxc config set devlxd security.nesting true
-  ! lxc exec devlxd devlxd-client security.nesting | grep true || false
+  ! lxc exec devlxd -- devlxd-client security.nesting | grep true || false
 
   cmd=$(unset -f lxc; command -v lxc)
-  ${cmd} exec devlxd devlxd-client monitor-websocket > "${TEST_DIR}/devlxd-websocket.log" &
+  ${cmd} exec devlxd -- devlxd-client monitor-websocket > "${TEST_DIR}/devlxd-websocket.log" &
   client_websocket=$!
 
-  ${cmd} exec devlxd devlxd-client monitor-stream > "${TEST_DIR}/devlxd-stream.log" &
+  ${cmd} exec devlxd -- devlxd-client monitor-stream > "${TEST_DIR}/devlxd-stream.log" &
   client_stream=$!
 
   (
@@ -92,7 +90,7 @@ EOF
 
   # Check device configs are available and that NIC hwaddr is available even if volatile.
   hwaddr=$(lxc config get devlxd volatile.eth0.hwaddr)
-  lxc exec devlxd devlxd-client devices | jq -r .eth0.hwaddr | grep -Fx "${hwaddr}"
+  lxc exec devlxd -- devlxd-client devices | jq -r .eth0.hwaddr | grep -Fx "${hwaddr}"
 
   lxc delete devlxd --force
 
