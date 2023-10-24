@@ -149,7 +149,7 @@ test_basic_usage() {
   lxc publish bar --alias=foo-image --alias=foo-image2
   lxc launch testimage baz
   # change the container filesystem so the resulting image is different
-  lxc exec baz touch /somefile
+  lxc exec baz -- touch /somefile
   lxc stop baz --force
   # publishing another image with same alias should fail
   ! lxc publish baz --alias=foo-image || false
@@ -171,7 +171,7 @@ test_basic_usage() {
   lxc publish bar --alias=foo-image --alias=foo-image2
   lxc launch testimage baz
   # change the container filesystem so the resulting image is different
-  lxc exec baz touch /somefile
+  lxc exec baz -- touch /somefile
   lxc stop baz --force
   # publishing another image with same aliases
   lxc publish baz --alias=foo-image --alias=foo-image2 --reuse
@@ -377,10 +377,10 @@ test_basic_usage() {
 
   # cycle it a few times
   lxc start foo
-  mac1=$(lxc exec foo cat /sys/class/net/eth0/address)
+  mac1=$(lxc exec foo -- cat /sys/class/net/eth0/address)
   lxc stop foo --force
   lxc start foo
-  mac2=$(lxc exec foo cat /sys/class/net/eth0/address)
+  mac2=$(lxc exec foo -- cat /sys/class/net/eth0/address)
 
   if [ -n "${mac1}" ] && [ -n "${mac2}" ] && [ "${mac1}" != "${mac2}" ]; then
     echo "==> MAC addresses didn't match across restarts (${mac1} vs ${mac2})"
@@ -412,9 +412,9 @@ test_basic_usage() {
   [ "$(lxc exec foo --user 1234 --group 5678 --cwd /blah -- pwd)" = "/blah" ] || false
 
   # check that we can set the environment
-  lxc exec foo pwd | grep /root
-  lxc exec --env BEST_BAND=meshuggah foo env | grep meshuggah
-  lxc exec foo ip link show | grep eth0
+  lxc exec foo -- pwd | grep /root
+  lxc exec --env BEST_BAND=meshuggah foo -- env | grep meshuggah
+  lxc exec foo -- ip link show | grep eth0
 
   # check that we can get the return code for a non- wait-for-websocket exec
   op=$(my_curl -X POST "https://${LXD_ADDR}/1.0/containers/foo/exec" -d '{"command": ["echo", "test"], "environment": {}, "wait-for-websocket": false, "interactive": false}' | jq -r .operation)
@@ -424,11 +424,11 @@ test_basic_usage() {
   echo abc > "${LXD_DIR}/in"
 
   lxc file push "${LXD_DIR}/in" foo/root/
-  lxc exec foo /bin/cat /root/in | grep abc
+  lxc exec foo -- /bin/cat /root/in | grep -xF abc
   lxc exec foo -- /bin/rm -f root/in
 
   lxc file push "${LXD_DIR}/in" foo/root/in1
-  lxc exec foo /bin/cat /root/in1 | grep abc
+  lxc exec foo -- /bin/cat /root/in1 | grep -xF abc
   lxc exec foo -- /bin/rm -f root/in1
 
   # test lxc file edit doesn't change target file's owner and permissions
@@ -442,10 +442,10 @@ test_basic_usage() {
   # make sure stdin is chowned to our container root uid (Issue #590)
   [ -t 0 ] && [ -t 1 ] && lxc exec foo -- chown 1000:1000 /proc/self/fd/0
 
-  echo foo | lxc exec foo tee /tmp/foo
+  echo foo | lxc exec foo -- tee /tmp/foo
 
   # Detect regressions/hangs in exec
-  sum=$(ps aux | tee "${LXD_DIR}/out" | lxc exec foo md5sum | cut -d' ' -f1)
+  sum=$(ps aux | tee "${LXD_DIR}/out" | lxc exec foo -- md5sum | cut -d' ' -f1)
   [ "${sum}" = "$(md5sum "${LXD_DIR}/out" | cut -d' ' -f1)" ]
   rm "${LXD_DIR}/out"
 
@@ -566,7 +566,7 @@ test_basic_usage() {
         REBOOTED="true"
         break
       else
-        lxc exec foo reboot || true  # Signal to running old init process to reboot if not rebooted yet.
+        lxc exec foo -- reboot || true  # Signal to running old init process to reboot if not rebooted yet.
       fi
     fi
 
