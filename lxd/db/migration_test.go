@@ -18,7 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
-	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/shared/api"
 )
 
 func TestLoadPreClusteringData(t *testing.T) {
@@ -88,10 +88,10 @@ func TestImportPreClusteringData(t *testing.T) {
 	require.NoError(t, err)
 
 	// networks
-	networks, err := c.GetNetworks(project.Default)
+	networks, err := c.GetNetworks(api.ProjectDefaultName)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"lxcbr0"}, networks)
-	id, network, _, err := c.GetNetworkInAnyState(project.Default, "lxcbr0")
+	id, network, _, err := c.GetNetworkInAnyState(api.ProjectDefaultName, "lxcbr0")
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 	assert.Equal(t, "true", network.Config["ipv4.nat"])

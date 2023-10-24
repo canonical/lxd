@@ -14,7 +14,6 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -429,9 +428,9 @@ func TestGetInstancesByMemberAddress(t *testing.T) {
 	assert.Equal(
 		t,
 		map[string][]db.Instance{
-			"":            {{ID: 2, Project: project.Default, Name: "c2", Location: "none"}},
-			"1.2.3.4:666": {{ID: 1, Project: project.Default, Name: "c1", Location: "node2"}, {ID: 4, Project: project.Default, Name: "c4", Location: "node2"}},
-			"0.0.0.0":     {{ID: 3, Project: project.Default, Name: "c3", Location: "node3"}},
+			"":            {{ID: 2, Project: api.ProjectDefaultName, Name: "c2", Location: "none"}},
+			"1.2.3.4:666": {{ID: 1, Project: api.ProjectDefaultName, Name: "c1", Location: "node2"}, {ID: 4, Project: api.ProjectDefaultName, Name: "c4", Location: "node2"}},
+			"0.0.0.0":     {{ID: 3, Project: api.ProjectDefaultName, Name: "c3", Location: "node3"}},
 		}, result)
 }
 
