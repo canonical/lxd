@@ -385,7 +385,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 	// Finally, actually add the remote, almost...  If the remote is a private
 	// HTTPS server then we need to ensure we have a client certificate before
 	// adding the remote server.
-	if rScheme != "unix" && !c.flagPublic && (c.flagAuthType == "tls" || c.flagAuthType == "") {
+	if rScheme != "unix" && !c.flagPublic && (c.flagAuthType == api.AuthenticationMethodTLS || c.flagAuthType == "") {
 		if !conf.HasClientCertificate() {
 			fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
 			err = conf.GenerateClientCertificate()
@@ -412,7 +412,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		remote := conf.Remotes[server]
-		remote.AuthType = "tls"
+		remote.AuthType = api.AuthenticationMethodTLS
 
 		// Handle project.
 		project, err := c.findProject(d.(lxd.InstanceServer), c.flagProject)
@@ -497,7 +497,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 		return conf.SaveConfig(c.global.confPath)
 	}
 
-	if c.flagAuthType == "candid" {
+	if c.flagAuthType == api.AuthenticationMethodCandid {
 		d.(lxd.InstanceServer).RequireAuthenticated(false)
 	}
 
@@ -509,15 +509,15 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 
 	// If not specified, the preferred order of authentication is 1) OIDC 2) Candid 3) TLS.
 	if c.flagAuthType == "" {
-		if !srv.Public && shared.ValueInSlice("oidc", srv.AuthMethods) {
-			c.flagAuthType = "oidc"
-		} else if !srv.Public && shared.ValueInSlice("candid", srv.AuthMethods) {
-			c.flagAuthType = "candid"
+		if !srv.Public && shared.ValueInSlice(api.AuthenticationMethodOIDC, srv.AuthMethods) {
+			c.flagAuthType = api.AuthenticationMethodOIDC
+		} else if !srv.Public && shared.ValueInSlice(api.AuthenticationMethodCandid, srv.AuthMethods) {
+			c.flagAuthType = api.AuthenticationMethodCandid
 		} else {
-			c.flagAuthType = "tls"
+			c.flagAuthType = api.AuthenticationMethodTLS
 		}
 
-		if shared.ValueInSlice(c.flagAuthType, []string{"oidc", "candid"}) {
+		if shared.ValueInSlice(c.flagAuthType, []string{api.AuthenticationMethodOIDC, api.AuthenticationMethodCandid}) {
 			// Update the remote configuration
 			remote := conf.Remotes[server]
 			remote.AuthType = c.flagAuthType
@@ -555,7 +555,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 
 	// Check if additional authentication is required.
 	if srv.Auth != "trusted" {
-		if c.flagAuthType == "tls" {
+		if c.flagAuthType == api.AuthenticationMethodTLS {
 			// Prompt for trust password
 			if c.flagPassword == "" {
 				fmt.Printf(i18n.G("Admin password (or token) for %s:")+" ", server)
@@ -597,7 +597,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("Server doesn't trust us after authentication"))
 		}
 
-		if c.flagAuthType == "tls" {
+		if c.flagAuthType == api.AuthenticationMethodTLS {
 			fmt.Println(i18n.G("Client certificate now trusted by server:"), server)
 		}
 	}
@@ -707,11 +707,11 @@ func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 			} else if rc.Protocol == "simplestreams" {
 				rc.AuthType = "none"
 			} else {
-				rc.AuthType = "tls"
+				rc.AuthType = api.AuthenticationMethodTLS
 			}
 		}
 
-		if rc.AuthType == "candid" && rc.Domain != "" {
+		if rc.AuthType == api.AuthenticationMethodCandid && rc.Domain != "" {
 			rc.AuthType = fmt.Sprintf("%s (%s)", rc.AuthType, rc.Domain)
 		}
 

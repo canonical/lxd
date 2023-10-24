@@ -20,6 +20,7 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // Remote holds details for communication with a remote daemon.
@@ -103,7 +104,7 @@ func (c *Config) GetInstanceServer(name string) (lxd.InstanceServer, error) {
 	}
 
 	// HTTPs
-	if !shared.ValueInSlice(remote.AuthType, []string{"candid", "oidc"}) && (args.TLSClientCert == "" || args.TLSClientKey == "") {
+	if !shared.ValueInSlice(remote.AuthType, []string{api.AuthenticationMethodCandid, api.AuthenticationMethodOIDC}) && (args.TLSClientCert == "" || args.TLSClientKey == "") {
 		return nil, fmt.Errorf("Missing TLS client certificate and key")
 	}
 
@@ -208,7 +209,7 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 		AuthType:  remote.AuthType,
 	}
 
-	if args.AuthType == "candid" {
+	if args.AuthType == api.AuthenticationMethodCandid {
 		args.AuthInteractor = []httpbakery.Interactor{
 			form.Interactor{Filler: schemaform.IOFiller{}},
 			httpbakery.WebBrowserInteractor{
@@ -257,7 +258,7 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 		}
 
 		args.CookieJar = c.cookieJars[name]
-	} else if args.AuthType == "oidc" {
+	} else if args.AuthType == api.AuthenticationMethodOIDC {
 		if c.oidcTokens == nil {
 			c.oidcTokens = map[string]*oidc.Tokens[*oidc.IDTokenClaims]{}
 		}
@@ -303,7 +304,7 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 	}
 
 	// Stop here if no client certificate involved
-	if remote.Protocol == "simplestreams" || shared.ValueInSlice(remote.AuthType, []string{"candid", "oidc"}) {
+	if remote.Protocol == "simplestreams" || shared.ValueInSlice(remote.AuthType, []string{api.AuthenticationMethodCandid, api.AuthenticationMethodOIDC}) {
 		return &args, nil
 	}
 

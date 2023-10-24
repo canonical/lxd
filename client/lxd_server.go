@@ -34,7 +34,7 @@ func (r *ProtocolLXD) GetServer() (*api.Server, string, error) {
 
 	if !server.Public && len(server.AuthMethods) == 0 {
 		// TLS is always available for LXD servers
-		server.AuthMethods = []string{"tls"}
+		server.AuthMethods = []string{api.AuthenticationMethodTLS}
 	}
 
 	// Add the value to the cache

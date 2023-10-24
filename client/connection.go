@@ -16,6 +16,7 @@ import (
 	"github.com/zitadel/oidc/v2/pkg/oidc"
 
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/simplestreams"
 )
@@ -332,7 +333,7 @@ func httpsLXD(ctx context.Context, requestURL string, args *ConnectionArgs) (Ins
 		eventListeners:     make(map[string][]*EventListener),
 	}
 
-	if shared.ValueInSlice(args.AuthType, []string{"candid", "oidc"}) {
+	if shared.ValueInSlice(args.AuthType, []string{api.AuthenticationMethodCandid, api.AuthenticationMethodOIDC}) {
 		server.RequireAuthenticated(true)
 	}
 
@@ -347,9 +348,9 @@ func httpsLXD(ctx context.Context, requestURL string, args *ConnectionArgs) (Ins
 	}
 
 	server.http = httpClient
-	if args.AuthType == "candid" {
+	if args.AuthType == api.AuthenticationMethodCandid {
 		server.setupBakeryClient()
-	} else if args.AuthType == "oidc" {
+	} else if args.AuthType == api.AuthenticationMethodOIDC {
 		server.setupOIDCClient(args.OIDCTokens)
 	}
 
