@@ -387,6 +387,7 @@ var APIExtensions = []string{
 	"instances_nic_limits_priority",
 	"disk_initial_volume_configuration",
 	"operation_wait",
+	"cluster_internal_custom_volume_copy",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

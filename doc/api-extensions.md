@@ -2312,3 +2312,9 @@ no effect on existing devices.
 This API extension indicates that the `/1.0/operations/{id}/wait` endpoint exists on the server. This indicates to the client
 that the endpoint can be used to wait for an operation to complete rather than waiting for an operation event via the
 `/1.0/events` endpoint.
+
+## `cluster_internal_custom_volume_copy`
+
+This extension adds support for copying and moving custom storage volumes within a cluster with a single API call.
+Calling `POST /1.0/storage-pools/<pool>/custom?target=<target>` will copy the custom volume specified in the `source` part of the request.
+Calling `POST /1.0/storage-pools/<pool>/custom/<volume>?target=<target>` will move the custom volume from the source, specified in the `source` part of the request, to the target.
