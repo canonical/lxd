@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pborman/uuid"
+	"github.com/google/uuid"
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/backup"
@@ -94,7 +94,7 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 			// be restored in the future and a new cached image volume will be created instead.
 			if volSizeBytes != poolVolSizeBytes {
 				d.logger.Debug("Renaming deleted cached image volume so that regeneration is used", logger.Ctx{"fingerprint": vol.Name()})
-				randomVol := NewVolume(d, d.name, deletedVol.volType, deletedVol.contentType, strings.Replace(uuid.New(), "-", "", -1), deletedVol.config, deletedVol.poolConfig)
+				randomVol := NewVolume(d, d.name, deletedVol.volType, deletedVol.contentType, strings.Replace(uuid.New().String(), "-", "", -1), deletedVol.config, deletedVol.poolConfig)
 				err = renameVolume(d.getRBDVolumeName(deletedVol, "", false, true), d.getRBDVolumeName(randomVol, "", false, true))
 				if err != nil {
 					return err
@@ -400,7 +400,7 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 			snapshotName := "readonly"
 
 			if srcVol.volType != VolumeTypeImage {
-				snapshotName = fmt.Sprintf("zombie_snapshot_%s", uuid.New())
+				snapshotName = fmt.Sprintf("zombie_snapshot_%s", uuid.New().String())
 
 				if srcVol.IsSnapshot() {
 					srcParentName, srcSnapOnlyName, _ := api.GetParentAndSnapshotName(srcVol.name)
@@ -1433,7 +1433,7 @@ func (d *ceph) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mi
 		wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
 	}
 
-	runningSnapName := fmt.Sprintf("migration-send-%s", uuid.New())
+	runningSnapName := fmt.Sprintf("migration-send-%s", uuid.New().String())
 
 	err := d.rbdCreateVolumeSnapshot(vol, runningSnapName)
 	if err != nil {
