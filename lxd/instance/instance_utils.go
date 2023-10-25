@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -1197,4 +1198,98 @@ func SnapshotProtobufToInstanceArgs(s *state.State, inst Instance, snap *migrati
 	}
 
 	return &args, nil
+}
+
+// AllowedInstanceDevices checks whether custom block volumes are allowed to be attached to the given instance.
+// This is done by checking whether the provided devices are already attached to other instances.
+func AllowedInstanceDevices(s *state.State, instanceID int, projectName string, devices ...deviceConfig.Devices) error {
+	volumeDevices := make(map[int64][]cluster.Device)
+
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var allDevices []cluster.Device
+
+		instances, err := cluster.GetInstances(ctx, tx.Tx(), cluster.InstanceFilter{Project: &projectName})
+		if err != nil {
+			return err
+		}
+
+		typeDisk := cluster.TypeDisk
+
+		for _, instance := range instances {
+			instanceDevices, err := cluster.GetInstanceDevices(ctx, tx.Tx(), instance.ID, cluster.DeviceFilter{Type: &typeDisk})
+			if err != nil {
+				return err
+			}
+
+			// Since this restriction only applies to custom volumes, check if the device is a storage
+			// volume by checking the pool and source config keys.
+			for _, device := range instanceDevices {
+				if device.Config["pool"] == "" || device.Config["source"] == "" {
+					continue
+				}
+
+				allDevices = append(allDevices, device)
+			}
+		}
+
+		if len(allDevices) == 0 {
+			return nil
+		}
+
+		// Retrieve all custom block volumes whose "security.shared" key is not true. These volumes may
+		// only be attached to a single instance at a time.
+		for _, device := range allDevices {
+			poolID, err := tx.GetStoragePoolID(ctx, device.Config["pool"])
+			if err != nil {
+				return err
+			}
+
+			vol, err := tx.GetStoragePoolVolume(ctx, poolID, projectName, db.StoragePoolVolumeTypeCustom, device.Config["source"], false)
+			if err != nil {
+				return err
+			}
+
+			if vol.ContentType != db.StoragePoolVolumeContentTypeNameBlock {
+				continue
+			}
+
+			if shared.IsTrue(vol.Config["security.shared"]) {
+				continue
+			}
+
+			volumeDevices[vol.ID] = append(volumeDevices[vol.ID], device)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("Failed getting devices: %w", err)
+	}
+
+	if len(volumeDevices) == 0 {
+		return nil
+	}
+
+	for _, device := range devices {
+		clusterDevices, err := cluster.APIToDevices(device.CloneNative())
+		if err != nil {
+			return err
+		}
+
+		for _, device := range clusterDevices {
+			for _, devices := range volumeDevices {
+				if !reflect.DeepEqual(devices[0].Config, device.Config) {
+					continue
+				}
+
+				if len(devices) > 1 {
+					// We cannot attach the custom volume as it's attached to other instances, and
+					// is not marked as shared.
+					return fmt.Errorf("Cannot attach custom volume %q as security.shared is false", device.Config["source"])
+				}
+			}
+		}
+	}
+
+	return nil
 }
