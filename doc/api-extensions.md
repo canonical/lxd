@@ -2321,3 +2321,9 @@ Calling `POST /1.0/storage-pools/<pool>/custom/<volume>?target=<target>` will mo
 
 ## `disk_io_bus`
 This introduces a new `io.bus` property to disk devices which can be used to override the bus the disk is attached to.
+
+## `shared_custom_block_volumes`
+
+This adds a new configuration key `security.shared` to custom block volumes.
+If unset or `false`, the custom block volume cannot be attached to multiple instances.
+This feature was added to prevent data loss which can happen when custom block volumes are attached to multiple instances at once.

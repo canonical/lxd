@@ -389,6 +389,7 @@ var APIExtensions = []string{
 	"operation_wait",
 	"cluster_internal_custom_volume_copy",
 	"disk_io_bus",
+	"shared_custom_block_volumes",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
