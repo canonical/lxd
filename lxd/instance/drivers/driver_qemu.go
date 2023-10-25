@@ -1061,6 +1061,12 @@ func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
 		}
 	}
 
+	// Check whether custom block volumes with "security.shared" disabled are not attached to multiple instances.
+	err = instance.AllowedInstanceDevices(d.state, d.id, d.project.Name, d.expandedDevices)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -5221,6 +5227,12 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		if err != nil {
 			return fmt.Errorf("Parse AppArmor profile: %w", err)
 		}
+	}
+
+	// Check whether custom block volumes with "security.shared" disabled are not attached to multiple instances.
+	err = instance.AllowedInstanceDevices(d.state, d.id, d.project.Name, addDevices, updateDevices)
+	if err != nil {
+		return err
 	}
 
 	isRunning := d.IsRunning()
