@@ -989,6 +989,12 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 		return nil, nil, nil, fmt.Errorf("Failed initialising instance: %w", err)
 	}
 
+	// Check whether custom block volumes with "security.shared" disabled are not attached to multiple instances.
+	err = AllowedInstanceDevices(s, inst.ID(), inst.Project().Name, args.Devices)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
 	revert.Add(cleanup)
 
 	// Wipe any existing log for this instance name.
