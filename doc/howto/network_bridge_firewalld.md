@@ -67,14 +67,12 @@ For example:
     sudo firewall-cmd --zone=trusted --change-interface=lxdbr0 --permanent
     sudo firewall-cmd --reload
 
-<!-- Include start warning -->
-
 ```{warning}
+<!-- Include start warning -->
 The commands given above show a simple example configuration.
 Depending on your use case, you might need more advanced rules and the example configuration might inadvertently introduce a security risk.
-```
-
 <!-- Include end warning -->
+```
 
 ### UFW: Add rules for the bridge
 
@@ -93,11 +91,30 @@ For example:
     sudo ufw route allow in on lxdbr0
     sudo ufw route allow out on lxdbr0
 
+````{warning}
 % Repeat warning from above
 ```{include} network_bridge_firewalld.md
     :start-after: <!-- Include start warning -->
     :end-before: <!-- Include end warning -->
 ```
+
+Here's an example for more restrictive firewall rules that limit access from the guests to the host to only DHCP and DNS and allow all outbound connections:
+
+```
+# allow the guest to get an IP from the LXD host
+sudo ufw allow in on lxdbr0 to any port 67 proto udp
+sudo ufw allow in on lxdbr0 to any port 547 proto udp
+
+# allow the guest to resolve host names from the LXD host
+sudo ufw allow in on lxdbr0 to any port 53
+
+# allow the guest to have access to outbound connections
+CIDR4="$(lxc network get lxdbr0 ipv4.address | sed 's|\.[0-9]\+/|.0/|')"
+CIDR6="$(lxc network get lxdbr0 ipv6.address | sed 's|:[0-9]\+/|:/|')"
+sudo ufw route allow in on lxdbr0 from "${CIDR4}"
+sudo ufw route allow in on lxdbr0 from "${CIDR6}"
+```
+````
 
 (network-lxd-docker)=
 ## Prevent connectivity issues with LXD and Docker
