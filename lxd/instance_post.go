@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -343,8 +344,9 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		// Server-side project migration.
 		if req.Project != "" {
 			// Check if user has access to target project
-			if !s.Authorizer.UserHasPermission(r, req.Project, "manage-containers") {
-				return response.Forbidden(nil)
+			err := s.Authorizer.CheckPermission(r.Context(), r, auth.ObjectProject(req.Project), auth.EntitlementCanCreateInstances)
+			if err != nil {
+				return response.SmartError(err)
 			}
 
 			// Setup the instance move operation.

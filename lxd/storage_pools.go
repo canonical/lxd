@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
@@ -35,16 +36,16 @@ var storagePoolsCmd = APIEndpoint{
 	Path: "storage-pools",
 
 	Get:  APIEndpointAction{Handler: storagePoolsGet, AccessHandler: allowAuthenticated},
-	Post: APIEndpointAction{Handler: storagePoolsPost},
+	Post: APIEndpointAction{Handler: storagePoolsPost, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanCreateStoragePools)},
 }
 
 var storagePoolCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}",
 
-	Delete: APIEndpointAction{Handler: storagePoolDelete},
-	Get:    APIEndpointAction{Handler: storagePoolGet, AccessHandler: allowAuthenticated},
-	Patch:  APIEndpointAction{Handler: storagePoolPatch},
-	Put:    APIEndpointAction{Handler: storagePoolPut},
+	Delete: APIEndpointAction{Handler: storagePoolDelete, AccessHandler: allowPermission(auth.ObjectTypeStoragePool, auth.EntitlementCanEdit, "poolName")},
+	Get:    APIEndpointAction{Handler: storagePoolGet, AccessHandler: allowPermission(auth.ObjectTypeStoragePool, auth.EntitlementCanView, "poolName")},
+	Patch:  APIEndpointAction{Handler: storagePoolPatch, AccessHandler: allowPermission(auth.ObjectTypeStoragePool, auth.EntitlementCanEdit, "poolName")},
+	Put:    APIEndpointAction{Handler: storagePoolPut, AccessHandler: allowPermission(auth.ObjectTypeStoragePool, auth.EntitlementCanEdit, "poolName")},
 }
 
 // swagger:operation GET /1.0/storage-pools storage storage_pools_get
@@ -154,6 +155,11 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	hasEditPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanEdit, auth.ObjectTypeStoragePool)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
 	resultString := []string{}
 	resultMap := []api.StoragePool{}
 	for _, poolName := range poolNames {
@@ -174,7 +180,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 			poolAPI := pool.ToAPI()
 			poolAPI.UsedBy = project.FilterUsedBy(s.Authorizer, r, poolUsedBy)
 
-			if !s.Authorizer.UserIsAdmin(r) {
+			if !hasEditPermission(auth.ObjectStoragePool(poolName)) {
 				// Don't allow non-admins to see pool config as sensitive info can be stored there.
 				poolAPI.Config = nil
 			}
@@ -356,6 +362,12 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.SmartError(err)
 		}
+	}
+
+	// Add the storage pool to the authorizer.
+	err = s.Authorizer.AddStoragePool(r.Context(), req.Name)
+	if err != nil {
+		logger.Error("Failed to add storage pool to authorizer", logger.Ctx{"name": pool.Name, "error": err})
 	}
 
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
@@ -609,9 +621,12 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	poolAPI := pool.ToAPI()
 	poolAPI.UsedBy = project.FilterUsedBy(s.Authorizer, r, poolUsedBy)
 
-	if !s.Authorizer.UserIsAdmin(r) {
+	err = s.Authorizer.CheckPermission(r.Context(), r, auth.ObjectStoragePool(poolName), auth.EntitlementCanEdit)
+	if err != nil && api.StatusErrorCheck(err, http.StatusForbidden) {
 		// Don't allow non-admins to see pool config as sensitive info can be stored there.
 		poolAPI.Config = nil
+	} else if err != nil {
+		return response.SmartError(err)
 	}
 
 	// If no member is specified and the daemon is clustered, we omit the node-specific fields.
@@ -997,6 +1012,12 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	err = dbStoragePoolDeleteAndUpdateCache(s, pool.Name())
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	// Remove the storage pool from the authorizer.
+	err = s.Authorizer.DeleteStoragePool(r.Context(), pool.Name())
+	if err != nil {
+		logger.Error("Failed to remove storage pool from authorizer", logger.Ctx{"name": pool.Name(), "error": err})
 	}
 
 	requestor := request.CreateRequestor(r)

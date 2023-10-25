@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network"
@@ -22,17 +23,17 @@ import (
 var networkLoadBalancersCmd = APIEndpoint{
 	Path: "networks/{networkName}/load-balancers",
 
-	Get:  APIEndpointAction{Handler: networkLoadBalancersGet, AccessHandler: allowProjectPermission("networks", "view")},
-	Post: APIEndpointAction{Handler: networkLoadBalancersPost, AccessHandler: allowProjectPermission("networks", "manage-networks")},
+	Get:  APIEndpointAction{Handler: networkLoadBalancersGet, AccessHandler: allowPermission(auth.ObjectTypeNetwork, auth.EntitlementCanView, "networkName")},
+	Post: APIEndpointAction{Handler: networkLoadBalancersPost, AccessHandler: allowPermission(auth.ObjectTypeNetwork, auth.EntitlementCanEdit, "networkName")},
 }
 
 var networkLoadBalancerCmd = APIEndpoint{
 	Path: "networks/{networkName}/load-balancers/{listenAddress}",
 
-	Delete: APIEndpointAction{Handler: networkLoadBalancerDelete, AccessHandler: allowProjectPermission("networks", "manage-networks")},
-	Get:    APIEndpointAction{Handler: networkLoadBalancerGet, AccessHandler: allowProjectPermission("networks", "view")},
-	Put:    APIEndpointAction{Handler: networkLoadBalancerPut, AccessHandler: allowProjectPermission("networks", "manage-networks")},
-	Patch:  APIEndpointAction{Handler: networkLoadBalancerPut, AccessHandler: allowProjectPermission("networks", "manage-networks")},
+	Delete: APIEndpointAction{Handler: networkLoadBalancerDelete, AccessHandler: allowPermission(auth.ObjectTypeNetwork, auth.EntitlementCanEdit, "networkName")},
+	Get:    APIEndpointAction{Handler: networkLoadBalancerGet, AccessHandler: allowPermission(auth.ObjectTypeNetwork, auth.EntitlementCanView, "networkName")},
+	Put:    APIEndpointAction{Handler: networkLoadBalancerPut, AccessHandler: allowPermission(auth.ObjectTypeNetwork, auth.EntitlementCanEdit, "networkName")},
+	Patch:  APIEndpointAction{Handler: networkLoadBalancerPut, AccessHandler: allowPermission(auth.ObjectTypeNetwork, auth.EntitlementCanEdit, "networkName")},
 }
 
 // API endpoints

@@ -232,30 +232,34 @@ type APIEndpointAction struct {
 	AllowUntrusted bool
 }
 
-// allowAuthenticated is an AccessHandler which allows all requests.
-// This function doesn't do anything itself, except return the EmptySyncResponse that allows the request to
-// proceed. However in order to access any API route you must be authenticated, unless the handler's AllowUntrusted
-// property is set to true or you are an admin.
+// allowAuthenticated is an AccessHandler which allows only authenticated requests. This should be used in conjunction
+// with further access control within the handler (e.g. to filter resources the user is able to view/edit).
 func allowAuthenticated(d *Daemon, r *http.Request) response.Response {
+	err := d.checkTrustedClient(r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	return response.EmptySyncResponse
 }
 
-// allowProjectPermission is a wrapper to check access against the project, its features and RBAC permission.
-func allowProjectPermission(feature string, permission string) func(d *Daemon, r *http.Request) response.Response {
+// allowPermission is a wrapper to check access against a given object, an object being an image, instance, network, etc.
+// Mux vars should be passed in so that the object we are checking can be created. For example, a certificate object requires
+// a fingerprint, the mux var for certificate fingerprints is "fingerprint", so that string should be passed in.
+// Mux vars should always be passed in with the same order they appear in the API route.
+func allowPermission(objectType auth.ObjectType, entitlement auth.Entitlement, muxVars ...string) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
-		s := d.State()
-
-		// Shortcut for speed
-		if s.Authorizer.UserIsAdmin(r) {
-			return response.EmptySyncResponse
+		objectName, err := auth.ObjectFromRequest(r, objectType, muxVars...)
+		if err != nil {
+			return response.InternalError(fmt.Errorf("Failed to create authentication object: %w", err))
 		}
 
-		// Get the project
-		projectName := request.ProjectParam(r)
+		s := d.State()
 
 		// Validate whether the user has the needed permission
-		if !s.Authorizer.UserHasPermission(r, projectName, permission) {
-			return response.Forbidden(nil)
+		err = s.Authorizer.CheckPermission(r.Context(), r, objectName, entitlement)
+		if err != nil {
+			return response.SmartError(err)
 		}
 
 		return response.EmptySyncResponse
@@ -502,67 +506,9 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		if trusted {
 			logger.Debug("Handling API request", logCtx)
 
-			// Get user access data.
-			userAccess, err := func() (*auth.UserAccess, error) {
-				ua := &auth.UserAccess{}
-				ua.Admin = true
-
-				// Internal cluster communications.
-				if protocol == "cluster" {
-					return ua, nil
-				}
-
-				// Regular TLS clients.
-				if protocol == api.AuthenticationMethodTLS {
-					certProjects := d.clientCerts.GetProjects()
-
-					// Check if we have restrictions on the key.
-					if certProjects != nil {
-						projects, ok := certProjects[username]
-						if ok {
-							ua.Admin = false
-							ua.Projects = map[string][]string{}
-							for _, projectName := range projects {
-								ua.Projects[projectName] = []string{
-									"view",
-									"manage-containers",
-									"manage-images",
-									"manage-networks",
-									"manage-profiles",
-									"manage-storage-volumes",
-									"operate-containers",
-								}
-							}
-						}
-					}
-
-					return ua, nil
-				}
-
-				// If no external authentication configured, we're done now.
-				if d.candidVerifier == nil || r.RemoteAddr == "@" {
-					return ua, nil
-				}
-
-				// Validate RBAC permissions.
-				ua, err = d.authorizer.UserAccess(username)
-				if err != nil {
-					return nil, err
-				}
-
-				return ua, nil
-			}()
-			if err != nil {
-				logCtx["err"] = err
-				logger.Warn("Rejecting remote API request", logCtx)
-				_ = response.Forbidden(nil).Render(w)
-				return
-			}
-
 			// Add authentication/authorization context data.
 			ctx := context.WithValue(r.Context(), request.CtxUsername, username)
 			ctx = context.WithValue(ctx, request.CtxProtocol, protocol)
-			ctx = context.WithValue(ctx, request.CtxAccess, userAccess)
 
 			// Add forwarded requestor data.
 			if protocol == "cluster" {
@@ -646,10 +592,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 					return resp
 				}
 			} else if !action.AllowUntrusted {
-				// Require admin privileges
-				if !d.authorizer.UserIsAdmin(r) {
-					return response.Forbidden(nil)
-				}
+				return response.Forbidden(nil)
 			}
 
 			return action.Handler(d, r)
@@ -772,7 +715,7 @@ func (d *Daemon) init() error {
 	var dbWarnings []dbCluster.Warning
 
 	// Set default authorizer.
-	d.authorizer, err = auth.LoadAuthorizer("tls", nil, logger.Log, nil)
+	d.authorizer, err = auth.LoadAuthorizer(d.shutdownCtx, auth.DriverTLS, logger.Log, d.clientCerts)
 	if err != nil {
 		return err
 	}
@@ -1861,14 +1804,17 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 	var err error
 
 	if d.authorizer != nil {
-		d.authorizer.StopStatusCheck()
+		err := d.authorizer.StopService(d.shutdownCtx)
+		if err != nil {
+			logger.Error("Failed to stop authorizer service", logger.Ctx{"error": err})
+		}
 	}
 
 	if rbacURL == "" || rbacAgentURL == "" || rbacAgentUsername == "" || rbacAgentPrivateKey == "" || rbacAgentPublicKey == "" {
 		d.candidVerifier = nil
 
 		// Reset to default authorizer.
-		d.authorizer, err = auth.LoadAuthorizer("tls", nil, logger.Log, nil)
+		d.authorizer, err = auth.LoadAuthorizer(d.shutdownCtx, auth.DriverTLS, logger.Log, d.clientCerts)
 		if err != nil {
 			return err
 		}
@@ -1879,9 +1825,9 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 	revert := revert.New()
 	defer revert.Fail()
 
-	projectsFunc := func() (map[int64]string, error) {
+	projectsFunc := func(ctx context.Context) (map[int64]string, error) {
 		var result map[int64]string
-		err := d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := d.State().DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 			result, err = dbCluster.GetProjectIDsToNames(ctx, tx.Tx())
 			return err
@@ -1905,18 +1851,21 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 		d.candidVerifier = nil
 
 		// Reset to default authorizer.
-		d.authorizer, _ = auth.LoadAuthorizer("tls", nil, logger.Log, nil)
+		d.authorizer, _ = auth.LoadAuthorizer(d.shutdownCtx, auth.DriverTLS, logger.Log, d.clientCerts)
 	})
 
 	// Load RBAC authorizer
-	rbacAuthorizer, err := auth.LoadAuthorizer("rbac", config, logger.Log, projectsFunc)
+	rbacAuthorizer, err := auth.LoadAuthorizer(d.shutdownCtx, auth.DriverRBAC, logger.Log, d.clientCerts, auth.WithConfig(config), auth.WithProjectsGetFunc(projectsFunc))
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
 		// Stop status check in case candid fails.
-		rbacAuthorizer.StopStatusCheck()
+		err := rbacAuthorizer.StopService(d.shutdownCtx)
+		if err != nil {
+			logger.Error("Failed to stop authorizer service", logger.Ctx{"error": err})
+		}
 	})
 
 	// Enable candid authentication
