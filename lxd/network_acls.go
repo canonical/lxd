@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network/acl"
@@ -25,24 +26,24 @@ import (
 var networkACLsCmd = APIEndpoint{
 	Path: "network-acls",
 
-	Get:  APIEndpointAction{Handler: networkACLsGet, AccessHandler: allowProjectPermission("networks", "view")},
-	Post: APIEndpointAction{Handler: networkACLsPost, AccessHandler: allowProjectPermission("networks", "manage-networks")},
+	Get:  APIEndpointAction{Handler: networkACLsGet, AccessHandler: allowAuthenticated},
+	Post: APIEndpointAction{Handler: networkACLsPost, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.EntitlementCanCreateNetworkACLs)},
 }
 
 var networkACLCmd = APIEndpoint{
 	Path: "network-acls/{name}",
 
-	Delete: APIEndpointAction{Handler: networkACLDelete, AccessHandler: allowProjectPermission("networks", "manage-networks")},
-	Get:    APIEndpointAction{Handler: networkACLGet, AccessHandler: allowProjectPermission("networks", "view")},
-	Put:    APIEndpointAction{Handler: networkACLPut, AccessHandler: allowProjectPermission("networks", "manage-networks")},
-	Patch:  APIEndpointAction{Handler: networkACLPut, AccessHandler: allowProjectPermission("networks", "manage-networks")},
-	Post:   APIEndpointAction{Handler: networkACLPost, AccessHandler: allowProjectPermission("networks", "manage-networks")},
+	Delete: APIEndpointAction{Handler: networkACLDelete, AccessHandler: allowPermission(auth.ObjectTypeNetworkACL, auth.EntitlementCanEdit, "name")},
+	Get:    APIEndpointAction{Handler: networkACLGet, AccessHandler: allowPermission(auth.ObjectTypeNetworkACL, auth.EntitlementCanView, "name")},
+	Put:    APIEndpointAction{Handler: networkACLPut, AccessHandler: allowPermission(auth.ObjectTypeNetworkACL, auth.EntitlementCanEdit, "name")},
+	Patch:  APIEndpointAction{Handler: networkACLPut, AccessHandler: allowPermission(auth.ObjectTypeNetworkACL, auth.EntitlementCanEdit, "name")},
+	Post:   APIEndpointAction{Handler: networkACLPost, AccessHandler: allowPermission(auth.ObjectTypeNetworkACL, auth.EntitlementCanEdit, "name")},
 }
 
 var networkACLLogCmd = APIEndpoint{
 	Path: "network-acls/{name}/log",
 
-	Get: APIEndpointAction{Handler: networkACLLogGet, AccessHandler: allowProjectPermission("networks", "view")},
+	Get: APIEndpointAction{Handler: networkACLLogGet, AccessHandler: allowPermission(auth.ObjectTypeNetworkACL, auth.EntitlementCanView, "name")},
 }
 
 // API endpoints.
@@ -155,9 +156,18 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, auth.ObjectTypeNetworkACL)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	resultString := []string{}
 	resultMap := []api.NetworkACL{}
 	for _, aclName := range aclNames {
+		if !userHasPermission(auth.ObjectNetworkACL(projectName, aclName)) {
+			continue
+		}
+
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, aclName))
 		} else {
@@ -243,6 +253,11 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	err = s.Authorizer.AddNetworkACL(r.Context(), projectName, req.Name)
+	if err != nil {
+		logger.Error("Failed to add network ACL to authorizer", logger.Ctx{"name": req.Name, "project": projectName, "error": err})
+	}
+
 	lc := lifecycle.NetworkACLCreated.Event(netACL, request.CreateRequestor(r), nil)
 	s.Events.SendLifecycle(projectName, lc)
 
@@ -294,6 +309,11 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 	err = netACL.Delete()
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	err = s.Authorizer.DeleteNetworkACL(r.Context(), projectName, aclName)
+	if err != nil {
+		logger.Error("Failed to remove network ACL from authorizer", logger.Ctx{"name": aclName, "project": projectName, "error": err})
 	}
 
 	s.Events.SendLifecycle(projectName, lifecycle.NetworkACLDeleted.Event(netACL, request.CreateRequestor(r), nil))
@@ -555,6 +575,11 @@ func networkACLPost(d *Daemon, r *http.Request) response.Response {
 	err = netACL.Rename(req.Name)
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	err = s.Authorizer.RenameNetworkACL(r.Context(), projectName, aclName, req.Name)
+	if err != nil {
+		logger.Error("Failed to rename network ACL in authorizer", logger.Ctx{"old_name": aclName, "new_name": req.Name, "project": projectName, "error": err})
 	}
 
 	lc := lifecycle.NetworkACLRenamed.Event(netACL, request.CreateRequestor(r), logger.Ctx{"old_name": aclName})

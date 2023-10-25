@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -34,18 +35,18 @@ import (
 var profilesCmd = APIEndpoint{
 	Path: "profiles",
 
-	Get:  APIEndpointAction{Handler: profilesGet, AccessHandler: allowProjectPermission("profiles", "view")},
-	Post: APIEndpointAction{Handler: profilesPost, AccessHandler: allowProjectPermission("profiles", "manage-profiles")},
+	Get:  APIEndpointAction{Handler: profilesGet, AccessHandler: allowAuthenticated},
+	Post: APIEndpointAction{Handler: profilesPost, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.EntitlementCanCreateProfiles)},
 }
 
 var profileCmd = APIEndpoint{
 	Path: "profiles/{name}",
 
-	Delete: APIEndpointAction{Handler: profileDelete, AccessHandler: allowProjectPermission("profiles", "manage-profiles")},
-	Get:    APIEndpointAction{Handler: profileGet, AccessHandler: allowProjectPermission("profiles", "view")},
-	Patch:  APIEndpointAction{Handler: profilePatch, AccessHandler: allowProjectPermission("profiles", "manage-profiles")},
-	Post:   APIEndpointAction{Handler: profilePost, AccessHandler: allowProjectPermission("profiles", "manage-profiles")},
-	Put:    APIEndpointAction{Handler: profilePut, AccessHandler: allowProjectPermission("profiles", "manage-profiles")},
+	Delete: APIEndpointAction{Handler: profileDelete, AccessHandler: allowPermission(auth.ObjectTypeProfile, auth.EntitlementCanEdit, "name")},
+	Get:    APIEndpointAction{Handler: profileGet, AccessHandler: allowPermission(auth.ObjectTypeProfile, auth.EntitlementCanView, "name")},
+	Patch:  APIEndpointAction{Handler: profilePatch, AccessHandler: allowPermission(auth.ObjectTypeProfile, auth.EntitlementCanEdit, "name")},
+	Post:   APIEndpointAction{Handler: profilePost, AccessHandler: allowPermission(auth.ObjectTypeProfile, auth.EntitlementCanEdit, "name")},
+	Put:    APIEndpointAction{Handler: profilePut, AccessHandler: allowPermission(auth.ObjectTypeProfile, auth.EntitlementCanEdit, "name")},
 }
 
 // swagger:operation GET /1.0/profiles profiles profiles_get
@@ -150,6 +151,11 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 
 	recursion := util.IsRecursionRequest(r)
 
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, auth.ObjectTypeProfile)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
 	var result any
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.ProfileFilter{
@@ -161,19 +167,24 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		apiProfiles := make([]*api.Profile, len(profiles))
-		for i, profile := range profiles {
-			apiProfiles[i], err = profile.ToAPI(ctx, tx.Tx())
+		apiProfiles := make([]*api.Profile, 0, len(profiles))
+		for _, profile := range profiles {
+			if !userHasPermission(auth.ObjectProfile(p.Name, profile.Name)) {
+				continue
+			}
+
+			apiProfile, err := profile.ToAPI(ctx, tx.Tx())
 			if err != nil {
 				return err
 			}
 
-			apiProfiles[i].UsedBy, err = profileUsedBy(ctx, tx, profile)
+			apiProfile.UsedBy, err = profileUsedBy(ctx, tx, profile)
 			if err != nil {
 				return err
 			}
 
-			apiProfiles[i].UsedBy = project.FilterUsedBy(s.Authorizer, r, apiProfiles[i].UsedBy)
+			apiProfile.UsedBy = project.FilterUsedBy(s.Authorizer, r, apiProfile.UsedBy)
+			apiProfiles = append(apiProfiles, apiProfile)
 		}
 
 		if recursion {
@@ -319,6 +330,11 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Error inserting %q into database: %w", req.Name, err))
+	}
+
+	err = s.Authorizer.AddProfile(r.Context(), p.Name, req.Name)
+	if err != nil {
+		logger.Error("Failed to add profile to authorizer", logger.Ctx{"name": req.Name, "project": p.Name, "error": err})
 	}
 
 	requestor := request.CreateRequestor(r)
@@ -742,6 +758,11 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	err = s.Authorizer.RenameProfile(r.Context(), p.Name, name, req.Name)
+	if err != nil {
+		logger.Error("Failed to rename profile in authorizer", logger.Ctx{"old_name": name, "new_name": req.Name, "project": p.Name, "error": err})
+	}
+
 	requestor := request.CreateRequestor(r)
 	lc := lifecycle.ProfileRenamed.Event(req.Name, p.Name, requestor, logger.Ctx{"old_name": name})
 	s.Events.SendLifecycle(p.Name, lc)
@@ -809,6 +830,11 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	err = s.Authorizer.DeleteProfile(r.Context(), p.Name, name)
+	if err != nil {
+		logger.Error("Failed to remove profile from authorizer", logger.Ctx{"name": name, "project": p.Name, "error": err})
 	}
 
 	requestor := request.CreateRequestor(r)

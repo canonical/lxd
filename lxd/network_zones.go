@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network/zone"
@@ -16,23 +17,24 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
 
 var networkZonesCmd = APIEndpoint{
 	Path: "network-zones",
 
-	Get:  APIEndpointAction{Handler: networkZonesGet, AccessHandler: allowProjectPermission("networks", "view")},
-	Post: APIEndpointAction{Handler: networkZonesPost, AccessHandler: allowProjectPermission("networks", "manage-networks")},
+	Get:  APIEndpointAction{Handler: networkZonesGet, AccessHandler: allowAuthenticated},
+	Post: APIEndpointAction{Handler: networkZonesPost, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.EntitlementCanCreateNetworkZones)},
 }
 
 var networkZoneCmd = APIEndpoint{
 	Path: "network-zones/{zone}",
 
-	Delete: APIEndpointAction{Handler: networkZoneDelete, AccessHandler: allowProjectPermission("networks", "manage-networks")},
-	Get:    APIEndpointAction{Handler: networkZoneGet, AccessHandler: allowProjectPermission("networks", "view")},
-	Put:    APIEndpointAction{Handler: networkZonePut, AccessHandler: allowProjectPermission("networks", "manage-networks")},
-	Patch:  APIEndpointAction{Handler: networkZonePut, AccessHandler: allowProjectPermission("networks", "manage-networks")},
+	Delete: APIEndpointAction{Handler: networkZoneDelete, AccessHandler: allowPermission(auth.ObjectTypeNetworkZone, auth.EntitlementCanEdit, "zone")},
+	Get:    APIEndpointAction{Handler: networkZoneGet, AccessHandler: allowPermission(auth.ObjectTypeNetworkZone, auth.EntitlementCanView, "zone")},
+	Put:    APIEndpointAction{Handler: networkZonePut, AccessHandler: allowPermission(auth.ObjectTypeNetworkZone, auth.EntitlementCanEdit, "zone")},
+	Patch:  APIEndpointAction{Handler: networkZonePut, AccessHandler: allowPermission(auth.ObjectTypeNetworkZone, auth.EntitlementCanEdit, "zone")},
 }
 
 // API endpoints.
@@ -145,9 +147,18 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, auth.ObjectTypeNetworkZone)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
 	resultString := []string{}
 	resultMap := []api.NetworkZone{}
 	for _, zoneName := range zoneNames {
+		if !userHasPermission(auth.ObjectNetworkZone(projectName, zoneName)) {
+			continue
+		}
+
 		if !recursion {
 			resultString = append(resultString, api.NewURL().Path(version.APIVersion, "network-zones", zoneName).String())
 		} else {
@@ -234,6 +245,11 @@ func networkZonesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	err = s.Authorizer.AddNetworkZone(r.Context(), projectName, req.Name)
+	if err != nil {
+		logger.Error("Failed to add network zone to authorizer", logger.Ctx{"name": req.Name, "project": projectName, "error": err})
+	}
+
 	lc := lifecycle.NetworkZoneCreated.Event(netzone, request.CreateRequestor(r), nil)
 	s.Events.SendLifecycle(projectName, lc)
 
@@ -285,6 +301,11 @@ func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 	err = netzone.Delete()
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	err = s.Authorizer.DeleteNetworkZone(r.Context(), projectName, zoneName)
+	if err != nil {
+		logger.Error("Failed to remove network zone from authorizer", logger.Ctx{"name": zoneName, "project": projectName, "error": err})
 	}
 
 	s.Events.SendLifecycle(projectName, lifecycle.NetworkZoneDeleted.Event(netzone, request.CreateRequestor(r), nil))
