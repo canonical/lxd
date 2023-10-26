@@ -1116,6 +1116,10 @@ func instancesPostCommon(d *Daemon, r *http.Request, deploymentName string, depl
 	}
 }
 
+func deploymentInstanceCreate(d *Daemon, r *http.Request, deploymentName string, deploymentShapeName string) response.Response {
+	return instancesPostCommon(d, r, deploymentName, deploymentShapeName)
+}
+
 // swagger:operation POST /1.0/instances instances instances_post
 //
 //	Create a new instance
