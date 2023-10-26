@@ -29,6 +29,7 @@ const (
 	EntitlementCanCreateStorageBuckets Entitlement = "can_create_storage_buckets"
 	EntitlementCanViewOperations       Entitlement = "can_view_operations"
 	EntitlementCanViewEvents           Entitlement = "can_view_events"
+	EntitlementCanCreateDeployments    Entitlement = "can_create_deployments"
 
 	// Instance entitlements.
 	EntitlementCanUpdateState   Entitlement = "can_update_state"
@@ -40,41 +41,59 @@ const (
 	// Instance and storage volume entitlements.
 	EntitlementCanManageSnapshots Entitlement = "can_manage_snapshots"
 	EntitlementCanManageBackups   Entitlement = "can_manage_backups"
+
+	// Deployment entitlements.
+	EntitlementCanAccessDeploymentKeys   Entitlement = "can_access_deployment_keys"
+	EntitlementCanCreateDeploymentKeys   Entitlement = "can_create_deployment_keys"
+	EntitlementCanAccessDeploymentShapes Entitlement = "can_access_deployment_shapes"
+	EntitlementCanCreateDeploymentShapes Entitlement = "can_create_deployment_shapes"
+
+	// Deployment shape entitlements.
+	EntitlementCanAccessDeployedInstances Entitlement = "can_access_deployed_instances"
+	EntitlementCanDeployInstances         Entitlement = "can_deploy_instances"
 )
 
 // ObjectType is a type of resource within LXD.
 type ObjectType string
 
 const (
-	ObjectTypeUser          ObjectType = "user"
-	ObjectTypeServer        ObjectType = "server"
-	ObjectTypeCertificate   ObjectType = "certificate"
-	ObjectTypeStoragePool   ObjectType = "storage_pool"
-	ObjectTypeProject       ObjectType = "project"
-	ObjectTypeImage         ObjectType = "image"
-	ObjectTypeImageAlias    ObjectType = "image_alias"
-	ObjectTypeInstance      ObjectType = "instance"
-	ObjectTypeNetwork       ObjectType = "network"
-	ObjectTypeNetworkACL    ObjectType = "network_acl"
-	ObjectTypeNetworkZone   ObjectType = "network_zone"
-	ObjectTypeProfile       ObjectType = "profile"
-	ObjectTypeStorageBucket ObjectType = "storage_bucket"
-	ObjectTypeStorageVolume ObjectType = "storage_volume"
+	ObjectTypeUser                    ObjectType = "user"
+	ObjectTypeServer                  ObjectType = "server"
+	ObjectTypeCertificate             ObjectType = "certificate"
+	ObjectTypeStoragePool             ObjectType = "storage_pool"
+	ObjectTypeProject                 ObjectType = "project"
+	ObjectTypeImage                   ObjectType = "image"
+	ObjectTypeImageAlias              ObjectType = "image_alias"
+	ObjectTypeInstance                ObjectType = "instance"
+	ObjectTypeNetwork                 ObjectType = "network"
+	ObjectTypeNetworkACL              ObjectType = "network_acl"
+	ObjectTypeNetworkZone             ObjectType = "network_zone"
+	ObjectTypeProfile                 ObjectType = "profile"
+	ObjectTypeStorageBucket           ObjectType = "storage_bucket"
+	ObjectTypeStorageVolume           ObjectType = "storage_volume"
+	ObjectTypeDeployment              ObjectType = "deployment"
+	ObjectTypeDeploymentShape         ObjectType = "deployment_shape"
+	ObjectTypeDeploymentShapeInstance ObjectType = "deployment_shape_instance"
+	ObjectTypeDeploymentKey           ObjectType = "deployment_key"
 )
 
 // Permission is a type representation of general permission levels in LXD. Used with TLS and RBAC drivers.
 type Permission string
 
 const (
-	PermissionAdmin                Permission = "admin"
-	PermissionView                 Permission = "view"
-	PermissionManageProjects       Permission = "manage-projects"
-	PermissionManageInstances      Permission = "manage-containers"
-	PermissionManageImages         Permission = "manage-images"
-	PermissionManageNetworks       Permission = "manage-networks"
-	PermissionManageProfiles       Permission = "manage-profiles"
-	PermissionManageStorageVolumes Permission = "manage-storage-volumes"
-	PermissionOperateInstances     Permission = "operate-containers"
+	PermissionAdmin                          Permission = "admin"
+	PermissionView                           Permission = "view"
+	PermissionManageProjects                 Permission = "manage-projects"
+	PermissionManageInstances                Permission = "manage-containers"
+	PermissionManageImages                   Permission = "manage-images"
+	PermissionManageNetworks                 Permission = "manage-networks"
+	PermissionManageProfiles                 Permission = "manage-profiles"
+	PermissionManageStorageVolumes           Permission = "manage-storage-volumes"
+	PermissionManageDeployments              Permission = "manage-deployments"
+	PermissionManageDeploymentShapes         Permission = "manage-deployment-shapes"
+	PermissionManageDeploymentKeys           Permission = "manage-deployment-keys"
+	PermissionManageDeploymentShapeInstances Permission = "manage-deployment-shape-instances"
+	PermissionOperateInstances               Permission = "operate-containers"
 )
 
 const (

@@ -101,20 +101,24 @@ type objectValidator struct {
 }
 
 var objectValidators = map[ObjectType]objectValidator{
-	ObjectTypeUser:          {nIdentifierElements: 1, requireProject: false},
-	ObjectTypeServer:        {nIdentifierElements: 1, requireProject: false},
-	ObjectTypeCertificate:   {nIdentifierElements: 1, requireProject: false},
-	ObjectTypeStoragePool:   {nIdentifierElements: 1, requireProject: false},
-	ObjectTypeProject:       {nIdentifierElements: 0, requireProject: true},
-	ObjectTypeImage:         {nIdentifierElements: 1, requireProject: true},
-	ObjectTypeImageAlias:    {nIdentifierElements: 1, requireProject: true},
-	ObjectTypeInstance:      {nIdentifierElements: 1, requireProject: true},
-	ObjectTypeNetwork:       {nIdentifierElements: 1, requireProject: true},
-	ObjectTypeNetworkACL:    {nIdentifierElements: 1, requireProject: true},
-	ObjectTypeNetworkZone:   {nIdentifierElements: 1, requireProject: true},
-	ObjectTypeProfile:       {nIdentifierElements: 1, requireProject: true},
-	ObjectTypeStorageBucket: {nIdentifierElements: 2, requireProject: true},
-	ObjectTypeStorageVolume: {nIdentifierElements: 3, requireProject: true},
+	ObjectTypeUser:                    {nIdentifierElements: 1, requireProject: false},
+	ObjectTypeServer:                  {nIdentifierElements: 1, requireProject: false},
+	ObjectTypeCertificate:             {nIdentifierElements: 1, requireProject: false},
+	ObjectTypeStoragePool:             {nIdentifierElements: 1, requireProject: false},
+	ObjectTypeProject:                 {nIdentifierElements: 0, requireProject: true},
+	ObjectTypeImage:                   {nIdentifierElements: 1, requireProject: true},
+	ObjectTypeImageAlias:              {nIdentifierElements: 1, requireProject: true},
+	ObjectTypeInstance:                {nIdentifierElements: 1, requireProject: true},
+	ObjectTypeNetwork:                 {nIdentifierElements: 1, requireProject: true},
+	ObjectTypeNetworkACL:              {nIdentifierElements: 1, requireProject: true},
+	ObjectTypeNetworkZone:             {nIdentifierElements: 1, requireProject: true},
+	ObjectTypeProfile:                 {nIdentifierElements: 1, requireProject: true},
+	ObjectTypeStorageBucket:           {nIdentifierElements: 2, requireProject: true},
+	ObjectTypeStorageVolume:           {nIdentifierElements: 3, requireProject: true},
+	ObjectTypeDeployment:              {nIdentifierElements: 1, requireProject: true},
+	ObjectTypeDeploymentKey:           {nIdentifierElements: 2, requireProject: true},
+	ObjectTypeDeploymentShape:         {nIdentifierElements: 2, requireProject: true},
+	ObjectTypeDeploymentShapeInstance: {nIdentifierElements: 3, requireProject: true},
 }
 
 // NewObject returns an Object of the given type. The passed in arguments must be in the correct
@@ -279,6 +283,26 @@ func ObjectStorageBucket(projectName string, poolName string, bucketName string)
 
 func ObjectStorageVolume(projectName string, poolName string, volumeType string, volumeName string) Object {
 	object, _ := NewObject(ObjectTypeStorageVolume, projectName, poolName, volumeType, volumeName)
+	return object
+}
+
+func ObjectDeployment(projectName string, deploymentName string) Object {
+	object, _ := NewObject(ObjectTypeDeployment, projectName, deploymentName)
+	return object
+}
+
+func ObjectDeploymentShape(projectName string, deploymentName string, deploymentShapeName string) Object {
+	object, _ := NewObject(ObjectTypeDeploymentShape, projectName, deploymentName, deploymentShapeName)
+	return object
+}
+
+func ObjectDeploymentKey(projectName string, deploymentName string, deploymentKeyName string) Object {
+	object, _ := NewObject(ObjectTypeDeploymentKey, projectName, deploymentName, deploymentKeyName)
+	return object
+}
+
+func ObjectDeploymentShapeInstance(projectName string, deploymentName string, deploymentShapeName string, instanceName string) Object {
+	object, _ := NewObject(ObjectTypeDeploymentShapeInstance, projectName, deploymentName, deploymentShapeName, instanceName)
 	return object
 }
 

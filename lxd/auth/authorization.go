@@ -95,6 +95,21 @@ type Authorizer interface {
 
 	AddStorageBucket(ctx context.Context, projectName string, storagePoolName string, storageBucketName string) error
 	DeleteStorageBucket(ctx context.Context, projectName string, storagePoolName string, storageBucketName string) error
+
+	AddDeployment(ctx context.Context, projectName string, deploymentName string) error
+	DeleteDeployment(ctx context.Context, projectName string, deploymentName string) error
+	RenameDeployment(ctx context.Context, projectName string, oldDeploymentName string, newDeploymentName string) error
+
+	AddDeploymentKey(ctx context.Context, projectName string, deploymentName string, deploymentKeyName string) error
+	DeleteDeploymentKey(ctx context.Context, projectName string, deploymentName string, deploymentKeyName string) error
+	RenameDeploymentKey(ctx context.Context, projectName string, deploymentName string, oldDeploymentKeyName string, newDeploymentKeyName string) error
+
+	AddDeploymentShape(ctx context.Context, projectName string, deploymentName string, deploymentShapeName string) error
+	DeleteDeploymentShape(ctx context.Context, projectName string, deploymentName string, deploymentShapeName string) error
+	RenameDeploymentShape(ctx context.Context, projectName string, deploymentName string, oldDeploymentShapeName string, newDeploymentShapeName string) error
+
+	AddDeploymentShapeInstance(ctx context.Context, projectName string, deploymentName string, deploymentShapeName string, instanceName string) error
+	DeleteDeploymentShapeInstance(ctx context.Context, projectName string, deploymentName string, deploymentShapeName string, instanceName string) error
 }
 
 // Opts is used as part of the LoadAuthorizer function so that only the relevant configuration fields are passed into a
@@ -107,18 +122,22 @@ type Opts struct {
 
 // Resources represents a set of current API resources as Object slices for use when loading an Authorizer.
 type Resources struct {
-	CertificateObjects       []Object
-	StoragePoolObjects       []Object
-	ProjectObjects           []Object
-	ImageObjects             []Object
-	ImageAliasObjects        []Object
-	InstanceObjects          []Object
-	NetworkObjects           []Object
-	NetworkACLObjects        []Object
-	NetworkZoneObjects       []Object
-	ProfileObjects           []Object
-	StoragePoolVolumeObjects []Object
-	StorageBucketObjects     []Object
+	CertificateObjects             []Object
+	StoragePoolObjects             []Object
+	ProjectObjects                 []Object
+	ImageObjects                   []Object
+	ImageAliasObjects              []Object
+	InstanceObjects                []Object
+	NetworkObjects                 []Object
+	NetworkACLObjects              []Object
+	NetworkZoneObjects             []Object
+	ProfileObjects                 []Object
+	StoragePoolVolumeObjects       []Object
+	StorageBucketObjects           []Object
+	DeploymentObjects              []Object
+	DeploymentKeyObjects           []Object
+	DeploymentShapeObjects         []Object
+	DeploymentShapeInstanceObjects []Object
 }
 
 // WithConfig can be passed into LoadAuthorizer to pass in driver specific configuration.

@@ -288,3 +288,58 @@ func (c *commonAuthorizer) AddStorageBucket(ctx context.Context, projectName str
 func (c *commonAuthorizer) DeleteStorageBucket(ctx context.Context, projectName string, storagePoolName string, storageBucketName string) error {
 	return nil
 }
+
+// AddDeployment is a no-op.
+func (c *commonAuthorizer) AddDeployment(ctx context.Context, projectName string, deploymentName string) error {
+	return nil
+}
+
+// DeleteDeployment is a no-op.
+func (c *commonAuthorizer) DeleteDeployment(ctx context.Context, projectName string, deploymentName string) error {
+	return nil
+}
+
+// RenameDeployment is a no-op.
+func (c *commonAuthorizer) RenameDeployment(ctx context.Context, projectName string, oldDeploymentName string, newDeploymentName string) error {
+	return nil
+}
+
+// AddDeploymentKey is a no-op.
+func (c *commonAuthorizer) AddDeploymentKey(ctx context.Context, projectName string, deploymentName string, deploymentKeyName string) error {
+	return nil
+}
+
+// DeleteDeploymentKey is a no-op.
+func (c *commonAuthorizer) DeleteDeploymentKey(ctx context.Context, projectName string, deploymentName string, deploymentKeyName string) error {
+	return nil
+}
+
+// RenameDeploymentKey is a no-op.
+func (c *commonAuthorizer) RenameDeploymentKey(ctx context.Context, projectName string, deploymentName string, oldDeploymentKeyName string, newDeploymentKeyName string) error {
+	return nil
+}
+
+// AddDeploymentShape is a no-op.
+func (c *commonAuthorizer) AddDeploymentShape(ctx context.Context, projectName string, deploymentName string, deploymentShapeName string) error {
+	return nil
+}
+
+// DeleteDeploymentShape is a no-op.
+func (c *commonAuthorizer) DeleteDeploymentShape(ctx context.Context, projectName string, deploymentName string, deploymentShapeName string) error {
+	return nil
+}
+
+// RenameDeploymentShape is a no-op.
+func (c *commonAuthorizer) RenameDeploymentShape(ctx context.Context, projectName string, deploymentName string, oldDeploymentShapeName string, newDeploymentShapeName string) error {
+	return nil
+}
+
+// AddDeploymentShapeInstance is a no-op.
+func (c *commonAuthorizer) AddDeploymentShapeInstance(ctx context.Context, projectName string, deploymentName string, deploymentShapeName string, instanceName string) error {
+	return nil
+}
+
+// DeleteDeploymentShapeInstance is a no-op.
+func (c *commonAuthorizer) DeleteDeploymentShapeInstance(ctx context.Context, projectName string, deploymentName string, deploymentShapeName string, instanceName string) error {
+	return nil
+}

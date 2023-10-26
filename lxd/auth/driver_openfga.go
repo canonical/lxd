@@ -771,6 +771,173 @@ func (f *fga) DeleteStorageBucket(ctx context.Context, projectName string, stora
 	return f.updateTuples(ctx, nil, deletions)
 }
 
+// AddDeployment is a no-op.
+func (f *fga) AddDeployment(ctx context.Context, projectName string, deploymentName string) error {
+	writes := []client.ClientTupleKey{
+		{
+			User:     ObjectProject(projectName).String(),
+			Relation: relationProject,
+			Object:   ObjectDeployment(projectName, deploymentName).String(),
+		},
+	}
+
+	return f.updateTuples(ctx, writes, nil)
+}
+
+// DeleteDeployment is a no-op.
+func (f *fga) DeleteDeployment(ctx context.Context, projectName string, deploymentName string) error {
+	deletions := []client.ClientTupleKey{
+		{
+			User:     ObjectProject(projectName).String(),
+			Relation: relationProject,
+			Object:   ObjectDeployment(projectName, deploymentName).String(),
+		},
+	}
+
+	return f.updateTuples(ctx, nil, deletions)
+}
+
+// RenameDeployment is a no-op.
+func (f *fga) RenameDeployment(ctx context.Context, projectName string, oldDeploymentName string, newDeploymentName string) error {
+	writes := []client.ClientTupleKey{
+		{
+			User:     ObjectProject(projectName).String(),
+			Relation: relationProject,
+			Object:   ObjectDeployment(projectName, newDeploymentName).String(),
+		},
+	}
+
+	deletions := []client.ClientTupleKey{
+		{
+			User:     ObjectProject(projectName).String(),
+			Relation: relationProject,
+			Object:   ObjectDeployment(projectName, oldDeploymentName).String(),
+		},
+	}
+
+	return f.updateTuples(ctx, writes, deletions)
+}
+
+// AddDeploymentKey is a no-op.
+func (f *fga) AddDeploymentKey(ctx context.Context, projectName string, deploymentName string, deploymentKeyName string) error {
+	writes := []client.ClientTupleKey{
+		{
+			User:     ObjectProject(projectName).String(),
+			Relation: relationProject,
+			Object:   ObjectDeploymentKey(projectName, deploymentName, deploymentKeyName).String(),
+		},
+	}
+
+	return f.updateTuples(ctx, writes, nil)
+}
+
+// DeleteDeploymentKey is a no-op.
+func (f *fga) DeleteDeploymentKey(ctx context.Context, projectName string, deploymentName string, deploymentKeyName string) error {
+	deletions := []client.ClientTupleKey{
+		{
+			User:     ObjectProject(projectName).String(),
+			Relation: relationProject,
+			Object:   ObjectDeploymentKey(projectName, deploymentName, deploymentKeyName).String(),
+		},
+	}
+
+	return f.updateTuples(ctx, nil, deletions)
+}
+
+// RenameDeploymentKey is a no-op.
+func (f *fga) RenameDeploymentKey(ctx context.Context, projectName string, deploymentName string, oldDeploymentKeyName string, newDeploymentKeyName string) error {
+	writes := []client.ClientTupleKey{
+		{
+			User:     ObjectProject(projectName).String(),
+			Relation: relationProject,
+			Object:   ObjectDeploymentKey(projectName, deploymentName, newDeploymentKeyName).String(),
+		},
+	}
+
+	deletions := []client.ClientTupleKey{
+		{
+			User:     ObjectProject(projectName).String(),
+			Relation: relationProject,
+			Object:   ObjectDeploymentKey(projectName, deploymentName, oldDeploymentKeyName).String(),
+		},
+	}
+
+	return f.updateTuples(ctx, writes, deletions)
+}
+
+// AddDeploymentShape is a no-op.
+func (f *fga) AddDeploymentShape(ctx context.Context, projectName string, deploymentName string, deploymentShapeName string) error {
+	writes := []client.ClientTupleKey{
+		{
+			User:     ObjectProject(projectName).String(),
+			Relation: relationProject,
+			Object:   ObjectDeploymentShape(projectName, deploymentName, deploymentShapeName).String(),
+		},
+	}
+
+	return f.updateTuples(ctx, writes, nil)
+}
+
+// DeleteDeploymentShape is a no-op.
+func (f *fga) DeleteDeploymentShape(ctx context.Context, projectName string, deploymentName string, deploymentShapeName string) error {
+	deletions := []client.ClientTupleKey{
+		{
+			User:     ObjectProject(projectName).String(),
+			Relation: relationProject,
+			Object:   ObjectDeploymentShape(projectName, deploymentName, deploymentShapeName).String(),
+		},
+	}
+
+	return f.updateTuples(ctx, nil, deletions)
+}
+
+// RenameDeploymentShape is a no-op.
+func (f *fga) RenameDeploymentShape(ctx context.Context, projectName string, deploymentName string, oldDeploymentShapeName string, newDeploymentShapeName string) error {
+	writes := []client.ClientTupleKey{
+		{
+			User:     ObjectProject(projectName).String(),
+			Relation: relationProject,
+			Object:   ObjectDeploymentShape(projectName, deploymentName, newDeploymentShapeName).String(),
+		},
+	}
+
+	deletions := []client.ClientTupleKey{
+		{
+			User:     ObjectProject(projectName).String(),
+			Relation: relationProject,
+			Object:   ObjectDeploymentShape(projectName, deploymentName, oldDeploymentShapeName).String(),
+		},
+	}
+
+	return f.updateTuples(ctx, writes, deletions)
+}
+
+// AddDeploymentShapeInstance is a no-op.
+func (f *fga) AddDeploymentShapeInstance(ctx context.Context, projectName string, deploymentName string, deploymentShapeName string, instanceName string) error {
+	writes := []client.ClientTupleKey{
+		{
+			User:     ObjectProject(projectName).String(),
+			Relation: relationProject,
+			Object:   ObjectDeploymentShapeInstance(projectName, deploymentName, deploymentShapeName, instanceName).String(),
+		},
+	}
+
+	return f.updateTuples(ctx, writes, nil)
+}
+
+// DeleteDeploymentShapeInstance is a no-op.
+func (f *fga) DeleteDeploymentShapeInstance(ctx context.Context, projectName string, deploymentName string, deploymentShapeName string, instanceName string) error {
+	deletions := []client.ClientTupleKey{
+		{
+			User:     ObjectProject(projectName).String(),
+			Relation: relationProject,
+			Object:   ObjectDeploymentShapeInstance(projectName, deploymentName, deploymentShapeName, instanceName).String(),
+		},
+	}
+
+	return f.updateTuples(ctx, nil, deletions)
+}
+
 func (f *fga) updateTuples(ctx context.Context, writes []client.ClientTupleKey, deletions []client.ClientTupleKey) error {
 	if len(writes) == 0 && len(deletions) == 0 {
 		return nil
@@ -985,6 +1152,10 @@ func (f *fga) syncResources(ctx context.Context, resources Resources) error {
 	localProjectObjects = append(localProjectObjects, resources.ProfileObjects...)
 	localProjectObjects = append(localProjectObjects, resources.StoragePoolVolumeObjects...)
 	localProjectObjects = append(localProjectObjects, resources.StorageBucketObjects...)
+	localProjectObjects = append(localProjectObjects, resources.DeploymentObjects...)
+	localProjectObjects = append(localProjectObjects, resources.DeploymentKeyObjects...)
+	localProjectObjects = append(localProjectObjects, resources.DeploymentShapeObjects...)
+	localProjectObjects = append(localProjectObjects, resources.DeploymentShapeInstanceObjects...)
 
 	// Perform a diff on the project resource objects.
 	err = diffObjects(relationProject, remoteProjectResourceObjectStrs, localProjectObjects)

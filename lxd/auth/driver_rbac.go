@@ -756,6 +756,8 @@ func (r *rbac) relationToPermission(object Object, entitlement Entitlement) (Per
 			return PermissionManageStorageVolumes, nil
 		case EntitlementCanCreateStorageBuckets:
 			return PermissionManageStorageVolumes, nil
+		case EntitlementCanCreateDeployments:
+			return PermissionManageDeployments, nil
 		case EntitlementCanViewOperations:
 			return PermissionView, nil
 		case EntitlementCanViewEvents:
@@ -848,6 +850,50 @@ func (r *rbac) relationToPermission(object Object, entitlement Entitlement) (Per
 			return PermissionManageStorageVolumes, nil
 		case EntitlementCanManageSnapshots:
 			return PermissionManageStorageVolumes, nil
+		case EntitlementCanView:
+			return PermissionView, nil
+		}
+
+	case ObjectTypeDeployment:
+		switch entitlement {
+		case EntitlementCanEdit:
+			return PermissionManageDeployments, nil
+		case EntitlementCanView:
+			return PermissionView, nil
+		case EntitlementCanAccessDeploymentKeys:
+			return PermissionView, nil
+		case EntitlementCanCreateDeploymentKeys:
+			return PermissionManageDeploymentKeys, nil
+		case EntitlementCanAccessDeploymentShapes:
+			return PermissionView, nil
+		case EntitlementCanCreateDeploymentShapes:
+			return PermissionManageDeploymentShapes, nil
+		}
+
+	case ObjectTypeDeploymentShape:
+		switch entitlement {
+		case EntitlementCanEdit:
+			return PermissionManageDeploymentShapes, nil
+		case EntitlementCanView:
+			return PermissionView, nil
+		case EntitlementCanAccessDeployedInstances:
+			return PermissionView, nil
+		case EntitlementCanDeployInstances:
+			return PermissionManageDeploymentShapeInstances, nil
+		}
+
+	case ObjectTypeDeploymentKey:
+		switch entitlement {
+		case EntitlementCanEdit:
+			return PermissionManageDeploymentKeys, nil
+		case EntitlementCanView:
+			return PermissionView, nil
+		}
+
+	case ObjectTypeDeploymentShapeInstance:
+		switch entitlement {
+		case EntitlementCanEdit:
+			return PermissionManageDeploymentShapeInstances, nil
 		case EntitlementCanView:
 			return PermissionView, nil
 		}
