@@ -642,7 +642,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 		return response.Conflict(fmt.Errorf("Volume by that name already exists"))
 	}
 
-	target := queryParam(r, "target")
+	target := request.QueryParam(r, "target")
 
 	// Check if we need to switch to migration
 	clustered, err := lxdCluster.Enabled(s.DB.Node)
@@ -1152,7 +1152,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 
 	r.Body = shared.BytesReadCloser{Buf: &buf}
 
-	target := queryParam(r, "target")
+	target := request.QueryParam(r, "target")
 
 	// Check if clustered.
 	clustered, err := lxdCluster.Enabled(s.DB.Node)
