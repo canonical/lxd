@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pborman/uuid"
+	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -75,7 +75,7 @@ func (s *Server) AddListener(projectName string, allProjects bool, connection Ev
 			EventListenerConnection: connection,
 			messageTypes:            messageTypes,
 			done:                    cancel.New(context.Background()),
-			id:                      uuid.New(),
+			id:                      uuid.New().String(),
 			recvFunc:                recvFunc,
 		},
 
