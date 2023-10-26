@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pborman/uuid"
+	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/events"
@@ -134,7 +134,7 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 	// Main attributes
 	op := Operation{}
 	op.projectName = projectName
-	op.id = uuid.New()
+	op.id = uuid.New().String()
 	op.description = opType.Description()
 	op.permission = opType.Permission()
 	op.dbOpType = opType
