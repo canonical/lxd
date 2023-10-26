@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pborman/uuid"
+	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/db"
@@ -1185,7 +1185,7 @@ func (d *common) getRootDiskDevice() (string, map[string]string, error) {
 
 // resetInstanceID generates a new UUID and puts it in volatile.
 func (d *common) resetInstanceID() error {
-	err := d.VolatileSet(map[string]string{"volatile.cloud-init.instance-id": uuid.New()})
+	err := d.VolatileSet(map[string]string{"volatile.cloud-init.instance-id": uuid.New().String()})
 	if err != nil {
 		return fmt.Errorf("Failed to set volatile.cloud-init.instance-id: %w", err)
 	}
