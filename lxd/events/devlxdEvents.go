@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pborman/uuid"
+	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -40,7 +40,7 @@ func (s *DevLXDServer) AddListener(instanceID int, connection EventListenerConne
 			EventListenerConnection: connection,
 			messageTypes:            messageTypes,
 			done:                    cancel.New(context.Background()),
-			id:                      uuid.New(),
+			id:                      uuid.New().String(),
 		},
 		instanceID: instanceID,
 	}
