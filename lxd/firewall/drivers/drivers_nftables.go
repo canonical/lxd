@@ -11,7 +11,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/pborman/uuid"
+	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/shared"
@@ -97,7 +97,7 @@ func (d Nftables) Compat() (bool, error) {
 	}
 
 	// Check that nftables works at all (some kernels let you list ruleset despite missing support).
-	testTable := fmt.Sprintf("lxd_test_%s", uuid.New())
+	testTable := fmt.Sprintf("lxd_test_%s", uuid.New().String())
 
 	_, err = shared.RunCommandCLocale("nft", "create", "table", testTable)
 	if err != nil {
