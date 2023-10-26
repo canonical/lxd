@@ -13,10 +13,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/minio/madmin-go"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	"github.com/pborman/uuid"
 
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/operations"
@@ -202,8 +202,8 @@ func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, e
 		bucketName:   bucketName,
 		transactions: 1,
 		url:          api.NewURL().Scheme("http").Host(fmt.Sprintf("%s:%d", minioHost, listenPort)).URL,
-		username:     minioAdminUser, // Persistent admin user required to keep config between restarts.
-		password:     uuid.New(),     // Random admin password for service.
+		username:     minioAdminUser,      // Persistent admin user required to keep config between restarts.
+		password:     uuid.New().String(), // Random admin password for service.
 		cancel:       cancel.New(context.Background()),
 	}
 

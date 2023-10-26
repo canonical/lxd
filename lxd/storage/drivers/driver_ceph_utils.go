@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pborman/uuid"
+	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/response"
@@ -679,7 +679,7 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 				return 1, nil
 			}
 
-			newVolumeName := fmt.Sprintf("%s_%s", vol.name, uuid.New())
+			newVolumeName := fmt.Sprintf("%s_%s", vol.name, uuid.New().String())
 			err := d.rbdMarkVolumeDeleted(vol, newVolumeName)
 			if err != nil {
 				return -1, err
@@ -861,7 +861,7 @@ func (d *ceph) deleteVolumeSnapshot(vol Volume, snapshotName string) (int, error
 			return -1, err
 		}
 
-		newSnapshotName := fmt.Sprintf("zombie_snapshot_%s", uuid.New())
+		newSnapshotName := fmt.Sprintf("zombie_snapshot_%s", uuid.New().String())
 		err = d.rbdRenameVolumeSnapshot(vol, snapshotName, newSnapshotName)
 		if err != nil {
 			return -1, err
