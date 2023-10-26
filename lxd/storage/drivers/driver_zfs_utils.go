@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pborman/uuid"
+	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/shared"
@@ -49,13 +49,13 @@ func (d *zfs) dataset(vol Volume, deleted bool) string {
 
 	if snapName != "" {
 		if deleted {
-			name = fmt.Sprintf("%s@deleted-%s", name, uuid.New())
+			name = fmt.Sprintf("%s@deleted-%s", name, uuid.New().String())
 		} else {
 			name = fmt.Sprintf("%s@snapshot-%s", name, snapName)
 		}
 	} else if deleted {
 		if vol.volType != VolumeTypeImage {
-			name = uuid.New()
+			name = uuid.New().String()
 		}
 
 		return filepath.Join(d.config["zfs.pool_name"], "deleted", string(vol.volType), name)
@@ -486,7 +486,7 @@ func (d *zfs) datasetHeader(vol Volume, snapshots []string) (*ZFSMetaDataHeader,
 }
 
 func (d *zfs) randomVolumeName(vol Volume) string {
-	return fmt.Sprintf("%s_%s", vol.name, uuid.New())
+	return fmt.Sprintf("%s_%s", vol.name, uuid.New().String())
 }
 
 func (d *zfs) delegateDataset(vol Volume, pid int) error {
