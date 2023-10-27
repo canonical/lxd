@@ -144,6 +144,16 @@ const (
 	GoOtherSysBytes
 	// GoNextGCBytes represents the number of heap bytes when next garbage collection will take place.
 	GoNextGCBytes
+	// ServerInfo contains information about the LXD server.
+	ServerInfo
+	// KernelFeaturesInfo contains available kernel features.
+	KernelFeaturesInfo
+	// LXCFeaturesInfo contains information about LXC features.
+	LXCFeaturesInfo
+	// StorageDriverInfo contains information about the available storage drivers.
+	StorageDriverInfo
+	// InstanceDriverInfo contains information about the available instance drivers.
+	InstanceDriverInfo
 )
 
 // MetricNames associates a metric type to its name.
@@ -212,6 +222,11 @@ var MetricNames = map[MetricType]string{
 	ProcsTotal:                  "lxd_procs_total",
 	UptimeSeconds:               "lxd_uptime_seconds",
 	WarningsTotal:               "lxd_warnings_total",
+	ServerInfo:                  "lxd_server_info",
+	KernelFeaturesInfo:          "lxd_kernel_features_info",
+	LXCFeaturesInfo:             "lxd_lxc_features_info",
+	StorageDriverInfo:           "lxd_storage_driver_info",
+	InstanceDriverInfo:          "lxd_instance_driver_info",
 }
 
 // MetricHeaders represents the metric headers which contain help messages as specified by OpenMetrics.
@@ -280,4 +295,9 @@ var MetricHeaders = map[MetricType]string{
 	ProcsTotal:                  "# HELP lxd_procs_total The number of running processes.",
 	UptimeSeconds:               "# HELP lxd_uptime_seconds The daemon uptime in seconds.",
 	WarningsTotal:               "# HELP lxd_warnings_total The number of active warnings.",
+	ServerInfo:                  "# HELP lxd_server_info Information about the LXD server.",
+	KernelFeaturesInfo:          "# HELP lxd_kernel_features_info Information regarding available kernel features.",
+	LXCFeaturesInfo:             "# HELP lxd_lxc_features_info contains information about LXC features.",
+	StorageDriverInfo:           "# HELP lxd_storage_driver_info Information about available storage drivers.",
+	InstanceDriverInfo:          "# HELP lxd_instance_driver_info Information about the available instance drivers.",
 }

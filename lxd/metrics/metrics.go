@@ -101,6 +101,8 @@ func (m *MetricSet) String() string {
 			metricTypeName = "counter"
 		} else if strings.HasSuffix(MetricNames[metricType], "_bytes") {
 			metricTypeName = "gauge"
+		} else if strings.HasSuffix(MetricNames[metricType], "_info") {
+			metricTypeName = "info"
 		}
 
 		// Add TYPE message as specified by OpenMetrics

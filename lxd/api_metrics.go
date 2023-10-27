@@ -7,11 +7,13 @@ import (
 	"net"
 	"net/http"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance"
@@ -24,6 +26,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
 type metricsCacheEntry struct {
@@ -125,6 +128,9 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	// LXD server information
+	metricSet.Merge(serverMetrics(s, projectName))
 
 	// invalidProjectFilters returns project filters which are either not in cache or have expired.
 	invalidProjectFilters := func(projectNames []string) []dbCluster.InstanceFilter {
@@ -362,6 +368,86 @@ func internalMetrics(ctx context.Context, daemonStartTime time.Time, tx *db.Clus
 	out.AddSamples(metrics.GoStackInuseBytes, metrics.Sample{Value: float64(ms.StackInuse)})
 	out.AddSamples(metrics.GoStackSysBytes, metrics.Sample{Value: float64(ms.StackSys)})
 	out.AddSamples(metrics.GoSysBytes, metrics.Sample{Value: float64(ms.Sys)})
+
+	return out
+}
+
+func serverMetrics(s *state.State, projectName string) *metrics.MetricSet {
+	serverInfo := map[string]string{
+		"version":             version.Version,
+		"os_name":             s.OS.ReleaseInfo["NAME"],
+		"os_version":          s.OS.ReleaseInfo["VERSION_ID"],
+		"firewall":            s.Firewall.String(),
+		"kernel_architecture": s.OS.Uname.Machine,
+		"kernel_version":      s.OS.Uname.Release,
+	}
+
+	clustered, err := cluster.Enabled(s.DB.Node)
+	if err == nil {
+		serverInfo["clustered"] = strconv.FormatBool(clustered)
+	}
+
+	certificate := string(s.Endpoints.NetworkPublicKey())
+	var certificateFingerprint string
+	if certificate != "" {
+		certificateFingerprint, err = shared.CertFingerprintStr(certificate)
+		if err == nil {
+			serverInfo["certificate_fingerprint"] = certificateFingerprint
+		}
+	}
+
+	out := metrics.NewMetricSet(nil)
+
+	out.AddSamples(metrics.ServerInfo, metrics.Sample{Labels: serverInfo, Value: 1})
+
+	// Kernel features
+	kernelFeatures := map[string]string{
+		"netnsid_getifaddrs":        fmt.Sprintf("%v", s.OS.NetnsGetifaddrs),
+		"uevent_injection":          fmt.Sprintf("%v", s.OS.UeventInjection),
+		"unpriv_fscaps":             fmt.Sprintf("%v", s.OS.VFS3Fscaps),
+		"seccomp_listener":          fmt.Sprintf("%v", s.OS.SeccompListener),
+		"seccomp_listener_continue": fmt.Sprintf("%v", s.OS.SeccompListenerContinue),
+		"shiftfs":                   fmt.Sprintf("%v", s.OS.Shiftfs),
+		"idmapped_mounts":           fmt.Sprintf("%v", s.OS.IdmappedMounts),
+	}
+
+	out.AddSamples(metrics.KernelFeaturesInfo, metrics.Sample{Labels: kernelFeatures, Value: 1})
+
+	// LXC features
+	if s.OS.LXCFeatures != nil {
+		lxcFeatures := make(map[string]string)
+
+		for k, v := range s.OS.LXCFeatures {
+			lxcFeatures[k] = fmt.Sprintf("%v", v)
+		}
+
+		out.AddSamples(metrics.LXCFeaturesInfo, metrics.Sample{Labels: lxcFeatures, Value: 1})
+	}
+
+	// Storage driver info
+	storageDriverInfo := make(map[string]string)
+
+	supportedStorageDrivers, _ := readStoragePoolDriversCache()
+	for _, driver := range supportedStorageDrivers {
+		storageDriverInfo[driver.Name] = driver.Version
+	}
+
+	out.AddSamples(metrics.StorageDriverInfo, metrics.Sample{Labels: storageDriverInfo, Value: 1})
+
+	// Instance driver info
+	instanceDriverInfo := make(map[string]string)
+
+	drivers := instanceDrivers.DriverStatuses()
+	for _, driver := range drivers {
+		// Only report the supported drivers.
+		if !driver.Supported {
+			continue
+		}
+
+		instanceDriverInfo[driver.Info.Name] = driver.Info.Version
+	}
+
+	out.AddSamples(metrics.InstanceDriverInfo, metrics.Sample{Labels: instanceDriverInfo, Value: 1})
 
 	return out
 }
