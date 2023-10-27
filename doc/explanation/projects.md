@@ -68,7 +68,7 @@ Client certificates
   A client that connects using a restricted certificate can see only the project or projects that the client has been granted access to.
 
 RBAC authentication
-: If you use {ref}`authentication-rbac`, you can assign roles to users or groups both on a global and on a project basis.
+: If you use {ref}`authorization-rbac`, you can assign roles to users or groups both on a global and on a project basis.
   The roles define what a user is allowed to do within the project.
   This way, you can configure which users are allowed to see, use, or manage each project.
 
