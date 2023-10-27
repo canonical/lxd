@@ -741,16 +741,6 @@ func (d *disk) detectVMPoolMountOpts() []string {
 		opts = append(opts, DiskIOUring)
 	}
 
-	// Allow the user to override the bus.
-	if d.config["io.bus"] != "" {
-		opts = append(opts, fmt.Sprintf("bus=%s", d.config["io.bus"]))
-	}
-
-	// Allow the user to override the caching mode.
-	if d.config["io.cache"] != "" {
-		opts = append(opts, fmt.Sprintf("cache=%s", d.config["io.cache"]))
-	}
-
 	return opts
 }
 
@@ -761,6 +751,19 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Handle user overrides.
+	opts := []string{}
+
+	// Allow the user to override the bus.
+	if d.config["io.bus"] != "" {
+		opts = append(opts, fmt.Sprintf("bus=%s", d.config["io.bus"]))
+	}
+
+	// Allow the user to override the caching mode.
+	if d.config["io.cache"] != "" {
+		opts = append(opts, fmt.Sprintf("cache=%s", d.config["io.cache"]))
+	}
+
 	if shared.IsRootDiskDevice(d.config) {
 		// Handle previous requests for setting new quotas.
 		err := d.applyDeferredQuota()
@@ -768,11 +771,13 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			return nil, err
 		}
 
+		opts = append(opts, d.detectVMPoolMountOpts()...)
+
 		runConf.Mounts = []deviceConfig.MountEntryItem{
 			{
 				TargetPath: d.config["path"], // Indicator used that this is the root device.
 				DevName:    d.name,
-				Opts:       d.detectVMPoolMountOpts(),
+				Opts:       opts,
 			},
 		}
 
@@ -800,6 +805,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				DevPath: fmt.Sprintf("%s:%d:%s", DiskFileDescriptorMountPrefix, f.Fd(), isoPath),
 				DevName: d.name,
 				FSType:  "iso9660",
+				Opts:    opts,
 			},
 		}
 
@@ -815,6 +821,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				{
 					DevPath: DiskGetRBDFormat(clusterName, userName, fields[0], fields[1]),
 					DevName: d.name,
+					Opts:    opts,
 				},
 			}
 		} else {
@@ -824,6 +831,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			mount := deviceConfig.MountEntryItem{
 				DevPath: shared.HostPath(d.config["source"]),
 				DevName: d.name,
+				Opts:    opts,
 			}
 
 			// Mount the pool volume and update srcPath to mount path so it can be recognised as dir
@@ -876,6 +884,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					mount := deviceConfig.MountEntryItem{
 						DevPath: DiskGetRBDFormat(clusterName, userName, poolName, d.config["source"]),
 						DevName: d.name,
+						Opts:    opts,
 					}
 
 					if contentType == db.StoragePoolVolumeContentTypeISO {
@@ -894,7 +903,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 				revert.Add(revertFunc)
 
-				mount.Opts = d.detectVMPoolMountOpts()
+				mount.Opts = append(mount.Opts, d.detectVMPoolMountOpts()...)
 			}
 
 			if shared.IsTrue(d.config["readonly"]) {
