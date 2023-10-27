@@ -18,6 +18,7 @@ import (
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
@@ -342,6 +343,28 @@ func internalMetrics(ctx context.Context, daemonStartTime time.Time, tx *db.Clus
 	} else {
 		// Total number of operations
 		out.AddSamples(metrics.OperationsTotal, metrics.Sample{Value: float64(len(operations))})
+	}
+
+	instances, err := dbCluster.GetInstances(ctx, tx.Tx())
+	if err != nil {
+		logger.Warn("Failed to get instances", logger.Ctx{"err": err})
+	} else {
+		all := make(map[string]map[string]int)
+
+		// Total number of instances, both running and stopped.
+		for _, inst := range instances {
+			_, ok := all[inst.Project]
+			if !ok {
+				all[inst.Project] = make(map[string]int)
+			}
+
+			all[inst.Project][inst.Type.String()]++
+		}
+
+		for project, instanceCount := range all {
+			out.AddSamples(metrics.Containers, metrics.Sample{Labels: map[string]string{"project": project}, Value: float64(instanceCount[instancetype.Container.String()])})
+			out.AddSamples(metrics.VMs, metrics.Sample{Labels: map[string]string{"project": project}, Value: float64(instanceCount[instancetype.VM.String()])})
+		}
 	}
 
 	// Daemon uptime

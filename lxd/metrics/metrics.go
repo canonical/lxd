@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/shared"
 )
 
 // NewMetricSet returns a new MetricSet.
@@ -91,6 +92,15 @@ func (m *MetricSet) String() string {
 		return int(metricTypes[i]) < int(metricTypes[j])
 	})
 
+	gaugeMetrics := []MetricType{
+		ProcsTotal,
+		CPUs,
+		GoGoroutines,
+		GoHeapObjects,
+		Containers,
+		VMs,
+	}
+
 	for _, metricType := range metricTypes {
 		// Add HELP message as specified by OpenMetrics
 		_, err := out.WriteString(MetricHeaders[metricType] + "\n")
@@ -101,7 +111,7 @@ func (m *MetricSet) String() string {
 		metricTypeName := ""
 
 		// ProcsTotal is a gauge according to the OpenMetrics spec as its value can decrease.
-		if metricType == ProcsTotal || metricType == CPUs || metricType == GoGoroutines || metricType == GoHeapObjects {
+		if shared.ValueInSlice(metricType, gaugeMetrics) {
 			metricTypeName = "gauge"
 		} else if strings.HasSuffix(MetricNames[metricType], "_total") || strings.HasSuffix(MetricNames[metricType], "_seconds") {
 			metricTypeName = "counter"

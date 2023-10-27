@@ -154,6 +154,10 @@ const (
 	StorageDriverInfo
 	// InstanceDriverInfo contains information about the available instance drivers.
 	InstanceDriverInfo
+	// Containers represents the container count.
+	Containers
+	// VMs represents the VM count.
+	VMs
 )
 
 // MetricNames associates a metric type to its name.
@@ -227,6 +231,8 @@ var MetricNames = map[MetricType]string{
 	LXCFeaturesInfo:             "lxd_lxc_features_info",
 	StorageDriverInfo:           "lxd_storage_driver_info",
 	InstanceDriverInfo:          "lxd_instance_driver_info",
+	Containers:                  "lxd_containers",
+	VMs:                         "lxd_vms",
 }
 
 // MetricHeaders represents the metric headers which contain help messages as specified by OpenMetrics.
@@ -300,4 +306,6 @@ var MetricHeaders = map[MetricType]string{
 	LXCFeaturesInfo:             "# HELP lxd_lxc_features_info contains information about LXC features.",
 	StorageDriverInfo:           "# HELP lxd_storage_driver_info Information about available storage drivers.",
 	InstanceDriverInfo:          "# HELP lxd_instance_driver_info Information about the available instance drivers.",
+	Containers:                  "# HELP lxd_containers The number of containers.",
+	VMs:                         "# HELP lxd_vms The number of virtual machines.",
 }
