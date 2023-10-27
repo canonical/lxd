@@ -311,6 +311,15 @@ func getFilteredMetrics(s *state.State, r *http.Request, compress bool, metricSe
 		return response.SyncResponsePlain(true, compress, metricSet.String())
 	}
 
+	// Filter by project name and instance name.
+	metricSet.FilterSamples(userHasPermission)
+
+	userHasPermission, err = s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, auth.ObjectTypeProject)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Filter by project only.
 	metricSet.FilterSamples(userHasPermission)
 
 	return response.SyncResponsePlain(true, compress, metricSet.String())
