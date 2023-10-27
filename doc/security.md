@@ -6,4 +6,5 @@
 
 explanation/security
 authentication
+authorization
 Expose LXD to the network <howto/server_expose>
