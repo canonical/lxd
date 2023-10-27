@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/drivers/qmp"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/metrics"
@@ -66,7 +67,8 @@ func (d *qemu) getQemuMetrics() (*metrics.MetricSet, error) {
 		}
 	}
 
-	metricSet, err := metrics.MetricSetFromAPI(&out, map[string]string{"project": d.project.Name, "name": d.name, "type": instancetype.VM.String()})
+	// The running state is hard-coded here as if we've made it to this point, the VM is running.
+	metricSet, err := metrics.MetricSetFromAPI(&out, map[string]string{"project": d.project.Name, "name": d.name, "type": instancetype.VM.String(), "state": instance.PowerStateRunning})
 	if err != nil {
 		return nil, err
 	}

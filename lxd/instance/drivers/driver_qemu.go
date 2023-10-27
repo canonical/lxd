@@ -8230,7 +8230,8 @@ func (d *qemu) getAgentMetrics() (*metrics.MetricSet, error) {
 		return nil, err
 	}
 
-	metricSet, err := metrics.MetricSetFromAPI(&m, map[string]string{"project": d.project.Name, "name": d.name, "type": instancetype.VM.String()})
+	// The running state is hard-coded here as if we've made it to this point, the VM is running.
+	metricSet, err := metrics.MetricSetFromAPI(&m, map[string]string{"project": d.project.Name, "name": d.name, "type": instancetype.VM.String(), "state": instance.PowerStateRunning})
 	if err != nil {
 		return nil, err
 	}
