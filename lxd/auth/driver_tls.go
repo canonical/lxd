@@ -172,5 +172,18 @@ func (t *tls) certificateDetails(fingerprint string) (certificate.Type, bool, []
 		return certificate.TypeMetrics, false, nil, nil
 	}
 
+	// If not a client cert or a metrics cert, could be a deployment cert.
+	deploymentCerts := certs[certificate.TypeDeployments]
+	_, ok = deploymentCerts[fingerprint]
+	if ok {
+		projectNames, ok := projects[fingerprint]
+		if !ok {
+			// Certificate is not restricted.
+			return certificate.TypeClient, true, nil, nil
+		}
+
+		return certificate.TypeDeployments, false, projectNames, nil
+	}
+
 	return -1, false, nil, api.StatusErrorf(http.StatusForbidden, "Client certificate not found")
 }
