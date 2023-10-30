@@ -43,7 +43,7 @@ test_certificate_edit() {
 
   FINGERPRINT="$(lxc config trust list --format csv | cut -d, -f4)"
 
-  # Try replacing the own certificate with a new one.
+  # Try replacing the old certificate with a new one.
   # This should succeed as the user is listed as an admin.
   curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" -X PATCH -d "{\"certificate\":\"$(sed ':a;N;$!ba;s/\n/\\n/g' "${LXD_CONF}/client.crt.new")\"}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}"
 
@@ -65,11 +65,11 @@ test_certificate_edit() {
   # a normal user instead of an admin.
   lxc config trust show "${FINGERPRINT}" | sed -e "s/projects: \[\]/projects: \[blah\]/" | lxc config trust edit "${FINGERPRINT}"
 
-  # Try replacing the own certificate with the old one.
-  # This should succeed as well as the own certificate may be changed.
+  # Try replacing the new certificate with the old one.
+  # This should succeed as well as the certificate may be changed.
   curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" -X PATCH -d "{\"certificate\":\"$(sed ':a;N;$!ba;s/\n/\\n/g' "${LXD_CONF}/client.crt.bak")\"}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}"
 
-  # Move new certificate and key to LXD_CONF and back up old ones.
+  # Move new certificate and key to LXD_CONF.
   mv "${LXD_CONF}/client.crt.bak" "${LXD_CONF}/client.crt"
   mv "${LXD_CONF}/client.key.bak" "${LXD_CONF}/client.key"
 
