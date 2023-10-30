@@ -1,6 +1,6 @@
 module github.com/canonical/lxd
 
-go 1.20
+go 1.21
 
 require (
 	github.com/Rican7/retry v0.3.1
@@ -38,7 +38,7 @@ require (
 	github.com/minio/minio-go/v7 v7.0.63
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/openfga/go-sdk v0.2.3
+	github.com/openfga/go-sdk v0.2.2
 	github.com/osrg/gobgp/v3 v3.20.0
 	github.com/pkg/sftp v1.13.6
 	github.com/pkg/xattr v0.4.9

@@ -92,7 +92,9 @@ ifneq "$(LXD_OFFLINE)" ""
 	exit 1
 endif
 	go get -t -v -d -u ./...
-	go mod tidy
+	go get github.com/openfga/go-sdk@v0.2.2
+	go mod tidy -go=1.21
+	go get toolchain@none
 	@echo "Dependencies updated"
 
 .PHONY: update-protobuf
