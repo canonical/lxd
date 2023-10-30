@@ -10,8 +10,9 @@ test_metrics() {
   # c1 metrics should show as the container is running
   lxc query "/1.0/metrics" | grep "name=\"c1\""
 
-  # c2 metrics should not exist as it's not running
-  ! lxc query "/1.0/metrics" | grep "name=\"c2\"" || false
+  # c2 metrics should show the container as stopped
+  lxc query "/1.0/metrics" | grep "name=\"c2\""
+  lxc query "/1.0/metrics" | grep "name=\"c2\"" | grep "state=\"STOPPED\""
 
   # create new certificate
   openssl req -x509 -newkey rsa:2048 -keyout "${TEST_DIR}/metrics.key" -nodes -out "${TEST_DIR}/metrics.crt" -subj "/CN=lxd.local"
@@ -25,8 +26,8 @@ test_metrics() {
   # c1 metrics should show as the container is running
   curl -k -s --cert "${TEST_DIR}/metrics.crt" --key "${TEST_DIR}/metrics.key" -X GET "https://${LXD_ADDR}/1.0/metrics" | grep "name=\"c1\""
 
-  # c2 metrics should not exist as it's not running
-  ! curl -k -s --cert "${TEST_DIR}/metrics.crt" --key "${TEST_DIR}/metrics.key" -X GET "https://${LXD_ADDR}/1.0/metrics" | grep "name=\"c2\"" || false
+  # c2 metrics should show the container as stopped
+  curl -k -s --cert "${TEST_DIR}/metrics.crt" --key "${TEST_DIR}/metrics.key" -X GET "https://${LXD_ADDR}/1.0/metrics" | grep "name=\"c2\"" | grep "state=\"STOPPED\""
 
   # make sure nothing else can be done with this certificate
   curl -k -s --cert "${TEST_DIR}/metrics.crt" --key "${TEST_DIR}/metrics.key" -X GET "https://${LXD_ADDR}/1.0/instances" | grep "\"error_code\":403"
@@ -38,8 +39,8 @@ test_metrics() {
   # c1 metrics should show as the container is running
   curl -k -s --cert "${TEST_DIR}/metrics.crt" --key "${TEST_DIR}/metrics.key" -X GET "https://${metrics_addr}/1.0/metrics" | grep "name=\"c1\""
 
-  # c2 metrics should not exist as it's not running
-  ! curl -k -s --cert "${TEST_DIR}/metrics.crt" --key "${TEST_DIR}/metrics.key" -X GET "https://${metrics_addr}/1.0/metrics" | grep "name=\"c2\"" || false
+  # c2 metrics should show the container as stopped
+  curl -k -s --cert "${TEST_DIR}/metrics.crt" --key "${TEST_DIR}/metrics.key" -X GET "https://${metrics_addr}/1.0/metrics" | grep "name=\"c2\"" | grep "state=\"STOPPED\""
 
   # make sure no other endpoint is available
   curl -k -s --cert "${TEST_DIR}/metrics.crt" --key "${TEST_DIR}/metrics.key" -X GET "https://${metrics_addr}/1.0/instances" | grep "\"error_code\":404"
