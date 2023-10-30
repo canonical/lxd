@@ -66,7 +66,7 @@ The workflow to authenticate with the server is similar to that of SSH, where an
      If the provided token or trust password matches, the client certificate is added to the server's trust store and the connection is granted.
      Otherwise, the connection is rejected.
 
-It is possible to restrict a TLS clients access to LXD via {ref}`authorization-tls`.
+It is possible to restrict a TLS client's access to LXD via {ref}`authorization-tls`.
 To revoke trust to a client, remove its certificate from the server with [`lxc config trust remove <fingerprint>`](lxc_config_trust_remove.md).
 
 (authentication-add-certs)=

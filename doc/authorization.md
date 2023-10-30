@@ -1,7 +1,7 @@
 (authorization)=
 # Authorization
 
-When interacting with LXD over the Unix socket, clients have full access to LXD API.
+When interacting with LXD over the Unix socket, clients have full access to the LXD API.
 However, it is possible to restrict user access to the LXD API when communicating via remote HTTPS (see {ref}`server-expose` for instructions).
 There are three supported authorization methods:
 
@@ -29,19 +29,19 @@ This authorization method is always used if a client authenticates with TLS, reg
 
 LXD supports integrating with the Canonical RBAC service, which is included in the [Ubuntu Pro](https://ubuntu.com/pro) subscription.
 {abbr}`RBAC (Role Based Access Control)` can be used to limit what an API client is allowed to do on LXD.
-This authorization method may only be used with {ref}`authentication-candid`.
+This authorization method can only be used with {ref}`authentication-candid`.
 
 In such a setup, authentication happens through Candid, while the RBAC service maintains roles to user/group relationships.
 Roles can be assigned to individual projects, to all projects or to the entire LXD instance.
 
 The meaning of the roles when applied to a project is as follows:
 
-- auditor: Read-only access to the project
-- user: Ability to do normal life cycle actions (start, stop, ...),
+- `auditor`: Read-only access to the project
+- `user`: Ability to do normal life cycle actions (start, stop, ...),
   execute commands in the instances, attach to console, manage snapshots, ...
-- operator: All of the above + the ability to create, re-configure and
+- `operator`: All of the above + the ability to create, re-configure and
   delete instances and images
-- admin: All of the above + the ability to reconfigure the project itself
+- `admin`: All of the above + the ability to reconfigure the project itself
 
 To enable RBAC for your LXD server, set the [`rbac.*`](server-options-candid-rbac) server configuration options, which are a superset of the `candid.*` ones and allow for LXD to integrate with the RBAC service.
 
@@ -66,9 +66,9 @@ LXD will connect to the OpenFGA server, write the {ref}`openfga-model`, and quer
 (openfga-model)=
 ### OpenFGA model
 
-With OpenFGA, access to a particular API resource is determined by the users relationship to it.
+With OpenFGA, access to a particular API resource is determined by the user's relationship to it.
 These relationships are determined by an [OpenFGA authorization model](https://openfga.dev/docs/concepts#what-is-an-authorization-model).
-The LXD OpenFGA authorization model describes API resources in terms of their relationship to other resources, and a relationship a user or group may have with that resource.
+The LXD OpenFGA authorization model describes API resources in terms of their relationship to other resources, and a relationship a user or group might have with that resource.
 Some convenient relations have also been built into the model:
 
 - `server -> admin`: Full access to LXD.
@@ -95,10 +95,11 @@ Users that you do not trust with root access to the host should not be granted t
 - `storage_pool -> can_edit`
 - `project -> manager`
 
-Remaining relations may be granted, however you must apply appropriate {ref}`project-restrictions`.
+The remaining relations may be granted.
+However, you must apply appropriate {ref}`project-restrictions`.
 ```
 
-The full LXD OpenFGA authorization model is shown below.
+The full LXD OpenFGA authorization model is defined in `lxd/auth/driver_openfga_model.openfga`:
 
 ```{literalinclude} ../lxd/auth/driver_openfga_model.openfga
 ---

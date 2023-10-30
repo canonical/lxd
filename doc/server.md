@@ -9,6 +9,8 @@ The following options are available:
 - {ref}`server-options-core`
 - {ref}`server-options-acme`
 - {ref}`server-options-candid-rbac`
+- {ref}`server-options-oidc`
+- {ref}`server-options-openfga`
 - {ref}`server-options-cluster`
 - {ref}`server-options-images`
 - {ref}`server-options-loki`
