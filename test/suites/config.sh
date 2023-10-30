@@ -233,6 +233,13 @@ test_config_profiles() {
     false
   fi
 
+  # Test unsetting config keys
+  lxc config set core.metrics_authentication false
+  [ "$(lxc config get core.metrics_authentication)" = "false" ]
+
+  lxc config unset core.metrics_authentication
+  [ -z "$(lxc config get core.metrics_authentication)" ]
+
   testunixdevs
 
   testloopmounts
