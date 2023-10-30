@@ -2041,6 +2041,70 @@ func (d *Daemon) setupOpenFGA(apiURL string, apiToken string, storeID string, au
 			return err
 		}
 
+		err = query.Scan(ctx, tx.Tx(), "SELECT deployments.name, projects.name FROM deployments JOIN projects ON projects.id=deployments.project_id", func(scan func(dest ...any) error) error {
+			var deploymentName string
+			var projectName string
+			err := scan(&deploymentName, &projectName)
+			if err != nil {
+				return err
+			}
+
+			resources.DeploymentObjects = append(resources.DeploymentObjects, auth.ObjectDeployment(projectName, deploymentName))
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		err = query.Scan(ctx, tx.Tx(), "SELECT dk.name, d.name, p.name FROM deployment_keys AS dk JOIN deployments AS d ON dk.deployment_id=d.id JOIN projects AS p ON p.id=d.project_id", func(scan func(dest ...any) error) error {
+			var deploymentKeyName string
+			var deploymentName string
+			var projectName string
+			err := scan(&deploymentKeyName, &deploymentName, &projectName)
+			if err != nil {
+				return err
+			}
+
+			resources.DeploymentKeyObjects = append(resources.DeploymentKeyObjects, auth.ObjectDeploymentKey(projectName, deploymentName, deploymentKeyName))
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		err = query.Scan(ctx, tx.Tx(), "SELECT s.name, d.name, p.name FROM deployment_shapes AS s JOIN deployments AS d ON s.deployment_id=d.id JOIN projects AS p ON p.id=d.project_id", func(scan func(dest ...any) error) error {
+			var deploymentShapeName string
+			var deploymentName string
+			var projectName string
+			err := scan(&deploymentShapeName, &deploymentName, &projectName)
+			if err != nil {
+				return err
+			}
+
+			resources.DeploymentShapeObjects = append(resources.DeploymentShapeObjects, auth.ObjectDeploymentShape(projectName, deploymentName, deploymentShapeName))
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		err = query.Scan(ctx, tx.Tx(), "SELECT i.name, s.name, d.name, p.name FROM instances AS i JOIN deployment_shape_instances AS di ON i.id=di.instance_id JOIN deployment_shapes AS s ON di.deployment_shape_id=s.id JOIN deployments AS d ON s.deployment_id=d.id JOIN projects AS p ON p.id=d.project_id", func(scan func(dest ...any) error) error {
+			var instanceName string
+			var deploymentShapeName string
+			var deploymentName string
+			var projectName string
+			err := scan(&instanceName, &deploymentShapeName, &deploymentName, &projectName)
+			if err != nil {
+				return err
+			}
+
+			resources.DeploymentShapeInstanceObjects = append(resources.DeploymentShapeInstanceObjects, auth.ObjectDeploymentShapeInstance(projectName, deploymentName, deploymentShapeName, instanceName))
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
 		return nil
 	})
 	if err != nil {
