@@ -2,7 +2,7 @@ test_tls_restrictions() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  FINGERPRINT=$(lxc config trust list --format csv | cut -d, -f4)
+  FINGERPRINT="$(lxc config trust list --format csv | cut -d, -f4)"
 
   # Validate admin rights with no restrictions
   lxc_remote project create localhost:blah
@@ -41,14 +41,14 @@ test_certificate_edit() {
     -keyout "${LXD_CONF}/client.key.new" -out "${LXD_CONF}/client.crt.new" \
     -days 3650 -subj "/CN=test.local"
 
-  FINGERPRINT=$(lxc config trust list --format csv | cut -d, -f4)
+  FINGERPRINT="$(lxc config trust list --format csv | cut -d, -f4)"
 
   # Try replacing the own certificate with a new one.
   # This should succeed as the user is listed as an admin.
   curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" -X PATCH -d "{\"certificate\":\"$(sed ':a;N;$!ba;s/\n/\\n/g' "${LXD_CONF}/client.crt.new")\"}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}"
 
   # Record new fingerprint
-  FINGERPRINT=$(lxc config trust list --format csv | cut -d, -f4)
+  FINGERPRINT="$(lxc config trust list --format csv | cut -d, -f4)"
 
   # Move new certificate and key to LXD_CONF and back up old files.
   mv "${LXD_CONF}/client.crt" "${LXD_CONF}/client.crt.bak"
@@ -74,7 +74,7 @@ test_certificate_edit() {
   mv "${LXD_CONF}/client.key.bak" "${LXD_CONF}/client.key"
 
   # Record new fingerprint
-  FINGERPRINT=$(lxc config trust list --format csv | cut -d, -f4)
+  FINGERPRINT="$(lxc config trust list --format csv | cut -d, -f4)"
 
   # Trying to change other fields should fail as a non-admin.
   ! lxc_remote config trust show "${FINGERPRINT}" | sed -e "s/restricted: true/restricted: false/" | lxc_remote config trust edit localhost:"${FINGERPRINT}" || false
