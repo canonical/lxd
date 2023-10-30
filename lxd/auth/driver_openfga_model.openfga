@@ -46,6 +46,7 @@ type project
     define can_create_profiles: [user, group#member] or operator or operator from server
     define can_create_storage_volumes: [user, group#member] or operator or operator from server
     define can_create_storage_buckets: [user, group#member] or operator or operator from server
+    define can_create_deployments: [user, group#member] or operator or operator from server
     define can_view_operations: [user, group#member] or viewer
     define can_view_events: [user, group#member] or viewer
 type image
@@ -102,6 +103,32 @@ type storage_volume
     define can_manage_snapshots: [user, group#member] or can_edit
     define can_manage_backups: [user, group#member] or can_edit
 type storage_bucket
+  relations
+    define project: [project]
+    define can_edit: [user, group#member] or operator from project
+    define can_view: [user, group#member] or can_edit or viewer from project
+type deployment
+  relations
+    define project: [project]
+    define can_edit: [user, group#member] or operator from project
+    define can_view: [user, group#member] or can_edit or viewer from project
+    define can_access_deployment_keys: [user, group#member] or can_edit or viewer from project
+    define can_create_deployment_keys: [user, group#member] or operator from project
+    define can_access_deployment_shapes: [user, group#member] or can_edit or viewer from project
+    define can_create_deployment_shapes: [user, group#member] or operator from project
+type deployment_shape
+  relations
+    define project: [project]
+    define can_edit: [user, group#member] or operator from project
+    define can_view: [user, group#member] or can_edit or viewer from project
+    define can_access_deployed_instances: [user, group#member] or viewer from project
+    define can_deploy_instances: [user, group#member] or can_edit or viewer from project
+type deployment_key
+  relations
+    define project: [project]
+    define can_edit: [user, group#member] or operator from project
+    define can_view: [user, group#member] or can_edit or viewer from project
+type deployment_shape_instance
   relations
     define project: [project]
     define can_edit: [user, group#member] or operator from project
