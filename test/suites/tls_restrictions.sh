@@ -2,6 +2,19 @@ test_tls_restrictions() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
+  gen_cert_and_key "${LXD_CONF}/metrics.key" "${LXD_CONF}/metrics.crt" "metrics.local"
+
+  # Ensure type=metrics certificates cannot access anything besides /1.0/metrics.
+  curl -k -s --cert "${LXD_CONF}/metrics.crt" --key "${LXD_CONF}/metrics.key" "https://${LXD_ADDR}/1.0/metrics" | grep -F '"error_code":403'
+  lxc config trust add "${LXD_CONF}/metrics.crt" --type=metrics
+  curl -k -s --cert "${LXD_CONF}/metrics.crt" --key "${LXD_CONF}/metrics.key" "https://${LXD_ADDR}/1.0/metrics" | grep -Fx '# EOF'
+
+  curl -k -s --cert "${LXD_CONF}/metrics.crt" --key "${LXD_CONF}/metrics.key" "https://${LXD_ADDR}/1.0/certificates" | grep -F '"error_code":403'
+
+  # Cleanup type=metrics certificate.
+  METRICS_FINGERPRINT="$(lxc config trust list --format csv | grep -F metrics.local | cut -d, -f4)"
+  lxc config trust remove "${METRICS_FINGERPRINT}"
+
   FINGERPRINT="$(lxc config trust list --format csv | cut -d, -f4)"
 
   # Validate admin rights with no restrictions
