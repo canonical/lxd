@@ -710,7 +710,7 @@ var ConfigSchema = config.Schema{
 	// ---
 	// type: string
 	// scope: global
-	// shortdesc: API token of OpenFGA server
+	// shortdesc: API token of the OpenFGA server
 	"openfga.api.token": {Hidden: true},
 
 	// lxdmeta:generate(entity=server, group=openfga, key=openfga.api.url)
@@ -718,7 +718,7 @@ var ConfigSchema = config.Schema{
 	// ---
 	// type: string
 	// scope: global
-	// shortdesc: URL of OpenFGA server
+	// shortdesc: URL of the OpenFGA server
 	"openfga.api.url": {},
 
 	// lxdmeta:generate(entity=server, group=openfga, key=openfga.store.id)
@@ -726,7 +726,7 @@ var ConfigSchema = config.Schema{
 	// ---
 	// type: string
 	// scope: global
-	// shortdesc: ID of OpenFGA permission store.
+	// shortdesc: ID of the OpenFGA permission store
 	"openfga.store.id": {},
 
 	// lxdmeta:generate(entity=server, group=openfga, key=openfga.store.model_id)
@@ -734,7 +734,7 @@ var ConfigSchema = config.Schema{
 	// ---
 	// type: string
 	// scope: global
-	// shortdesc: ID of OpenFGA authorization model.
+	// shortdesc: ID of the OpenFGA authorization model
 	"openfga.store.model_id": {},
 
 	// lxdmeta:generate(entity=server, group=oidc, key=oidc.client.id)
