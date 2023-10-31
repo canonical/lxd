@@ -33,7 +33,11 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v4
         with:
-          go-version: 1.18.x
+          go-version: 1.19.x
+
+      - name: Check compatible min Go version
+        run: |
+          go mod tidy -go=1.19
 
       - name: Install dependencies
         run: |
@@ -89,7 +93,7 @@ jobs:
 
       - name: Unit tests (all)
         run: |
-          sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} go test ./...
+          sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" go test ./...
 
   system-tests:
     env:
@@ -106,7 +110,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.18.x"]
+        go: ["1.19.x"]
         suite: ["cluster", "standalone"]
         backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
         include:
@@ -269,7 +273,7 @@ jobs:
       fail-fast: false
       matrix:
         go:
-          - 1.18.x
+          - 1.19.x
         os:
           - ubuntu-latest
           - macos-latest
@@ -330,6 +334,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.19.x
 
       - name: Install dependencies
         run: |
@@ -392,7 +401,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v4
         with:
-          go-version: 1.18.x
+          go-version: 1.19.x
 
       - name: Trigger Launchpad snap build
         env:
