@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -254,6 +255,16 @@ type HTTPTransporter interface {
 
 func openBrowser(url string) error {
 	var err error
+
+	browser := os.Getenv("BROWSER")
+	if browser != "" {
+		if browser == "none" {
+			return nil
+		}
+
+		err = exec.Command(browser, url).Start()
+		return err
+	}
 
 	switch runtime.GOOS {
 	case "linux":
