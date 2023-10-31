@@ -19,7 +19,7 @@ However, this tool does not migrate any of the LXC container configuration.
 If you're using the snap, the `lxc-to-lxd` is automatically installed.
 It is available as `lxd.lxc-to-lxd`.
 
-Otherwise, make sure that you have `go` (version 1.18 or later) installed and get the tool with the following command:
+Otherwise, make sure that you have `go` ({ref}`requirements-go`) installed and get the tool with the following command:
 
     go install github.com/canonical/lxd/lxc-to-lxd@latest
 
