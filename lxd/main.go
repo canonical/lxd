@@ -2,9 +2,7 @@ package main
 
 import (
 	"bufio"
-	"math/rand"
 	"os"
-	"time"
 
 	"github.com/canonical/go-dqlite"
 	"github.com/spf13/cobra"
@@ -18,11 +16,6 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
-
-// Initialize the random number generator.
-func init() {
-	rand.Seed(time.Now().UTC().UnixNano())
-}
 
 type cmdGlobal struct {
 	cmd *cobra.Command
