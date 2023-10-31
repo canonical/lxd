@@ -20,7 +20,7 @@ jobs:
       CGO_LDFLAGS: "-L/home/runner/work/lxd/lxd-test/vendor/raft/.libs/ -L/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
       LD_LIBRARY_PATH: "/home/runner/work/lxd/lxd-test/vendor/raft/.libs/:/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
-    name: Code tests
+    name: Code
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -119,7 +119,7 @@ jobs:
       LXD_OFFLINE: "1"
       LXD_TMPFS: "1"
       LXD_REQUIRED_TESTS: "test_storage_buckets"
-    name: System tests
+    name: System
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
@@ -325,7 +325,7 @@ jobs:
           sudo --preserve-env=PATH,GOPATH,GITHUB_ACTIONS,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,LXD_SHIFTFS_DISABLE LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
 
   client:
-    name: Client tests
+    name: Client
     strategy:
       fail-fast: false
       matrix:
@@ -395,7 +395,7 @@ jobs:
           path: bin/
 
   documentation:
-    name: Documentation tests
+    name: Documentation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
