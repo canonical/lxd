@@ -240,6 +240,11 @@ test_config_profiles() {
   lxc config unset core.metrics_authentication
   [ -z "$(lxc config get core.metrics_authentication)" ]
 
+  # Validate user.* keys
+  ! lxc config set user.⍾ foo || false
+  lxc config set user.foo bar
+  lxc config unset user.foo
+
   testunixdevs
 
   testloopmounts
