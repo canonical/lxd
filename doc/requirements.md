@@ -1,6 +1,7 @@
 (requirements)=
 # Requirements
 
+(requirements-go)=
 ## Go
 
 LXD requires Go 1.21.1 or higher and is only tested with the Golang compiler.
