@@ -1,6 +1,6 @@
 ---
 discourse: 8767,7519,9281
-relatedlinks: https://ubuntu.com/blog/lxd-virtual-machines-an-overview
+relatedlinks: '[LXD&#32;virtual&#32;machines:&#32;an&#32;overview](https://ubuntu.com/blog/lxd-virtual-machines-an-overview)'
 ---
 
 (expl-instances)=
