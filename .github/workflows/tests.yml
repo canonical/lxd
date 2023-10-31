@@ -405,6 +405,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.21.x
+
       - name: Install dependencies
         run: |
           sudo apt-get install aspell aspell-en
