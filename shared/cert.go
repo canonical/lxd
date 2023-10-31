@@ -73,14 +73,19 @@ func KeyPairAndCA(dir, prefix string, kind CertKind, addHosts bool) (*CertInfo, 
 	}
 
 	crlFilename := filepath.Join(dir, "ca.crl")
-	var crl *pkix.CertificateList
+	var crl *x509.RevocationList
 	if PathExists(crlFilename) {
 		data, err := os.ReadFile(crlFilename)
 		if err != nil {
 			return nil, err
 		}
 
-		crl, err = x509.ParseCRL(data)
+		derData, _ := pem.Decode(data)
+		if derData == nil || derData.Type != "X509 CRL" {
+			return nil, fmt.Errorf("Failed to decode %q file", crlFilename)
+		}
+
+		crl, err = x509.ParseRevocationList(derData.Bytes)
 		if err != nil {
 			return nil, err
 		}
@@ -116,7 +121,7 @@ func KeyPairFromRaw(certificate []byte, key []byte) (*CertInfo, error) {
 type CertInfo struct {
 	keypair tls.Certificate
 	ca      *x509.Certificate
-	crl     *pkix.CertificateList
+	crl     *x509.RevocationList
 }
 
 // KeyPair returns the public/private key pair.
@@ -174,7 +179,7 @@ func (c *CertInfo) Fingerprint() string {
 }
 
 // CRL returns the certificate revocation list.
-func (c *CertInfo) CRL() *pkix.CertificateList {
+func (c *CertInfo) CRL() *x509.RevocationList {
 	return c.crl
 }
 
