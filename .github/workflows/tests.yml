@@ -55,6 +55,13 @@ jobs:
         run: |
           go mod tidy -go=1.20
 
+      - name: Check compat with Go 1.21
+        run: |
+          go mod tidy -go=1.21
+
+          # `go test` doesn't (yet) understand the toolchain line from go.mod
+          go get toolchain@none
+
       - name: Install dependencies
         run: |
           sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
