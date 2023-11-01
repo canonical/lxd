@@ -36,10 +36,7 @@ test_certificate_edit() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Generate a certificate
-  openssl req -x509 -newkey ec \
-    -pkeyopt ec_paramgen_curve:secp384r1 -sha384 -nodes \
-    -keyout "${LXD_CONF}/client.key.new" -out "${LXD_CONF}/client.crt.new" \
-    -days 3650 -subj "/CN=test.local"
+  gen_cert_and_key "${LXD_CONF}/client.key.new" "${LXD_CONF}/client.crt.new" "test.local"
 
   FINGERPRINT="$(lxc config trust list --format csv | cut -d, -f4)"
 
