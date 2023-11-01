@@ -157,7 +157,7 @@ To download a specific build:
 Follow these instructions if you want to build and install LXD from the source code.
 
 We recommend having the latest versions of `liblxc` (>= 4.0.0 required)
-available for LXD development. Additionally, LXD requires Golang 1.18 or
+available for LXD development. Additionally, LXD requires Golang 1.21.1 or
 later to work. On Ubuntu, you can get those with:
 
 ```bash

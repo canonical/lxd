@@ -293,7 +293,7 @@ ifeq ($(shell command -v staticcheck),)
 	(cd / ; go install -v -x honnef.co/go/tools/cmd/staticcheck@latest)
 endif
 	# To get advance notice of deprecated function usage, consider running:
-	#   sed -i 's/^go 1\.[0-9]\+$/go 1.18/' go.mod
+	#   sed -i 's/^go 1\.[0-9]\+$/go 1.22/' go.mod
 	# before 'make staticcheck'.
 
 	# Run staticcheck against all the dirs containing Go files.

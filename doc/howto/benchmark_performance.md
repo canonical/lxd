@@ -14,11 +14,11 @@ If you run this tool repeatedly with different configurations, you can compare t
 
 ## Get the tool
 
-If you’re using the snap, the benchmarking tool is automatically installed.
+If you're using the snap, the benchmarking tool is automatically installed.
 It is available as `lxd.benchmark`.
 
 Otherwise, if you have installed LXD through your distribution's package manager or built from source, the tool should be available as `lxd-benchmark`.
-If it isn't, make sure that you have `go` (version 1.18 or later) installed and install the tool with the following command:
+If it isn't, make sure that you have `go` (version 1.21.1 or later) installed and install the tool with the following command:
 
     go install github.com/canonical/lxd/lxd-benchmark@latest
 
