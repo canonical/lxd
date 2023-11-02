@@ -101,6 +101,10 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 }
 
 func instanceRefreshTypes(ctx context.Context, s *state.State) error {
+	if !s.GlobalConfig.RefreshInstanceTypes() {
+		return nil
+	}
+
 	// Attempt to download the new definitions
 	downloadParse := func(filename string, target any) error {
 		url := fmt.Sprintf("https://images.linuxcontainers.org/meta/instance-types/%s", filename)
