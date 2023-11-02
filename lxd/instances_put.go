@@ -136,7 +136,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 			}
 
 		case shared.Unfreeze:
-			if inst.IsRunning() {
+			if !inst.IsFrozen() {
 				continue
 			}
 		}
