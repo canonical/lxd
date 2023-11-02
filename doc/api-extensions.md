@@ -2321,3 +2321,8 @@ Calling `POST /1.0/storage-pools/<pool>/custom/<volume>?target=<target>` will mo
 
 ## `disk_io_bus`
 This introduces a new `io.bus` property to disk devices which can be used to override the bus the disk is attached to.
+
+## `refresh_instance_types`
+
+This extension adds the ability to disable refreshing instance types by setting `core.refresh_instance_types` to false.
+If disabled, instance types will still be available as they are embedded in LXD.
