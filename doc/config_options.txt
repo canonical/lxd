@@ -1578,6 +1578,13 @@ Specify this option in a similar format to `NO_PROXY` (for example, `1.2.3.4,1.2
 If this option is not specified, LXD falls back to the `NO_PROXY` environment variable (if set).
 ```
 
+```{config:option} core.refresh_instance_types server-core
+:scope: "global"
+:shortdesc: "Whether to refresh instance types regularly."
+:type: "bool"
+
+```
+
 ```{config:option} core.remote_token_expiry server-core
 :defaultdesc: "no expiry"
 :scope: "global"

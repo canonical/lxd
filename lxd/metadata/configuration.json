@@ -1722,6 +1722,14 @@
 						}
 					},
 					{
+						"core.refresh_instance_types": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "Whether to refresh instance types regularly.",
+							"type": "bool"
+						}
+					},
+					{
 						"core.remote_token_expiry": {
 							"defaultdesc": "no expiry",
 							"longdesc": "",
