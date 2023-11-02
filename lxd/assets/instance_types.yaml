@@ -1,0 +1,486 @@
+aws:
+  c1.medium:
+    cpu: 2
+    mem: 1.7
+  c1.xlarge:
+    cpu: 8
+    mem: 7
+  c3.2xlarge:
+    cpu: 8
+    mem: 15
+  c3.4xlarge:
+    cpu: 16
+    mem: 30
+  c3.8xlarge:
+    cpu: 32
+    mem: 60
+  c3.large:
+    cpu: 2
+    mem: 3.75
+  c3.xlarge:
+    cpu: 4
+    mem: 7.5
+  c4.2xlarge:
+    cpu: 8
+    mem: 15
+  c4.4xlarge:
+    cpu: 16
+    mem: 30
+  c4.8xlarge:
+    cpu: 36
+    mem: 60
+  c4.large:
+    cpu: 2
+    mem: 3.75
+  c4.xlarge:
+    cpu: 4
+    mem: 7.5
+  c5.2xlarge:
+    cpu: 8
+    mem: 16
+  c5.4xlarge:
+    cpu: 16
+    mem: 32
+  c5.9xlarge:
+    cpu: 36
+    mem: 72
+  c5.18xlarge:
+    cpu: 72
+    mem: 144
+  c5.large:
+    cpu: 2
+    mem: 4
+  c5.xlarge:
+    cpu: 4
+    mem: 8
+  cc2.8xlarge:
+    cpu: 32
+    mem: 60.5
+  cg1.4xlarge:
+    cpu: 16
+    mem: 22.5
+  cr1.8xlarge:
+    cpu: 32
+    mem: 244
+  d2.2xlarge:
+    cpu: 8
+    mem: 61
+  d2.4xlarge:
+    cpu: 16
+    mem: 122
+  d2.8xlarge:
+    cpu: 36
+    mem: 244
+  d2.xlarge:
+    cpu: 4
+    mem: 30.5
+  f1.2xlarge:
+    cpu: 8
+    mem: 122
+  f1.16xlarge:
+    cpu: 64
+    mem: 976
+  g2.2xlarge:
+    cpu: 8
+    mem: 15
+  g2.8xlarge:
+    cpu: 32
+    mem: 60
+  g3.4xlarge:
+    cpu: 16
+    mem: 122
+  g3.8xlarge:
+    cpu: 32
+    mem: 244
+  g3.16xlarge:
+    cpu: 64
+    mem: 488
+  hi1.4xlarge:
+    cpu: 16
+    mem: 60.5
+  hs1.8xlarge:
+    cpu: 16
+    mem: 117
+  i2.2xlarge:
+    cpu: 8
+    mem: 61
+  i2.4xlarge:
+    cpu: 16
+    mem: 122
+  i2.8xlarge:
+    cpu: 32
+    mem: 244
+  i2.xlarge:
+    cpu: 4
+    mem: 30.5
+  i3.2xlarge:
+    cpu: 8
+    mem: 61
+  i3.4xlarge:
+    cpu: 16
+    mem: 122
+  i3.8xlarge:
+    cpu: 32
+    mem: 244
+  i3.16xlarge:
+    cpu: 64
+    mem: 488
+  i3.large:
+    cpu: 2
+    mem: 15.25
+  i3.xlarge:
+    cpu: 4
+    mem: 30.5
+  m1.large:
+    cpu: 2
+    mem: 7.5
+  m1.medium:
+    cpu: 1
+    mem: 3.75
+  m1.small:
+    cpu: 1
+    mem: 1.7
+  m1.xlarge:
+    cpu: 4
+    mem: 15
+  m2.2xlarge:
+    cpu: 4
+    mem: 34.2
+  m2.4xlarge:
+    cpu: 8
+    mem: 68.4
+  m2.xlarge:
+    cpu: 2
+    mem: 17.1
+  m3.2xlarge:
+    cpu: 8
+    mem: 30
+  m3.large:
+    cpu: 2
+    mem: 7.5
+  m3.medium:
+    cpu: 1
+    mem: 3.75
+  m3.xlarge:
+    cpu: 4
+    mem: 15
+  m4.2xlarge:
+    cpu: 8
+    mem: 32
+  m4.4xlarge:
+    cpu: 16
+    mem: 64
+  m4.10xlarge:
+    cpu: 40
+    mem: 160
+  m4.16xlarge:
+    cpu: 64
+    mem: 256
+  m4.large:
+    cpu: 2
+    mem: 8
+  m4.xlarge:
+    cpu: 4
+    mem: 16
+  p2.8xlarge:
+    cpu: 32
+    mem: 488
+  p2.16xlarge:
+    cpu: 64
+    mem: 732
+  p2.xlarge:
+    cpu: 4
+    mem: 61
+  r3.2xlarge:
+    cpu: 8
+    mem: 61
+  r3.4xlarge:
+    cpu: 16
+    mem: 122
+  r3.8xlarge:
+    cpu: 32
+    mem: 244
+  r3.large:
+    cpu: 2
+    mem: 15.25
+  r3.xlarge:
+    cpu: 4
+    mem: 30.5
+  r4.2xlarge:
+    cpu: 8
+    mem: 61
+  r4.4xlarge:
+    cpu: 16
+    mem: 122
+  r4.8xlarge:
+    cpu: 32
+    mem: 244
+  r4.16xlarge:
+    cpu: 64
+    mem: 488
+  r4.large:
+    cpu: 2
+    mem: 15.25
+  r4.xlarge:
+    cpu: 4
+    mem: 30.5
+  t1.micro:
+    cpu: 1
+    mem: 0.613
+  t2.2xlarge:
+    cpu: 8
+    mem: 32
+  t2.large:
+    cpu: 2
+    mem: 8
+  t2.medium:
+    cpu: 2
+    mem: 4
+  t2.micro:
+    cpu: 1
+    mem: 1
+  t2.nano:
+    cpu: 1
+    mem: 0.5
+  t2.small:
+    cpu: 1
+    mem: 2
+  t2.xlarge:
+    cpu: 4
+    mem: 16
+  t3.2xlarge:
+    cpu: 8
+    mem: 32
+  t3.large:
+    cpu: 2
+    mem: 8
+  t3.medium:
+    cpu: 2
+    mem: 4
+  t3.micro:
+    cpu: 2
+    mem: 1
+  t3.nano:
+    cpu: 2
+    mem: 0.5
+  t3.small:
+    cpu: 2
+    mem: 2
+  t3.xlarge:
+    cpu: 4
+    mem: 16
+  x1.16xlarge:
+    cpu: 64
+    mem: 976
+  x1.32xlarge:
+    cpu: 128
+    mem: 1952
+azure:
+  A5:
+    cpu: 2
+    mem: 14
+  A6:
+    cpu: 4
+    mem: 28
+  A7:
+    cpu: 8
+    mem: 56
+  A8:
+    cpu: 8
+    mem: 56
+  A9:
+    cpu: 16
+    mem: 112
+  A10:
+    cpu: 8
+    mem: 56
+  A11:
+    cpu: 16
+    mem: 112
+  ExtraLarge:
+    cpu: 8
+    mem: 14
+  ExtraSmall:
+    cpu: 1
+    mem: 0.768
+  Large:
+    cpu: 4
+    mem: 7
+  Medium:
+    cpu: 2
+    mem: 3.5
+  Small:
+    cpu: 1
+    mem: 1.75
+  Standard_A1_v2:
+    cpu: 1
+    mem: 2
+  Standard_A2_v2:
+    cpu: 2
+    mem: 4
+  Standard_A2m_v2:
+    cpu: 2
+    mem: 16
+  Standard_A4_v2:
+    cpu: 4
+    mem: 8
+  Standard_A4m_v2:
+    cpu: 4
+    mem: 32
+  Standard_A8_v2:
+    cpu: 8
+    mem: 16
+  Standard_A8m_v2:
+    cpu: 8
+    mem: 64
+  Standard_D1:
+    cpu: 1
+    mem: 3.5
+  Standard_D1_v2:
+    cpu: 1
+    mem: 3.5
+  Standard_D2:
+    cpu: 2
+    mem: 7
+  Standard_D2_v2:
+    cpu: 2
+    mem: 7
+  Standard_D3:
+    cpu: 4
+    mem: 14
+  Standard_D3_v2:
+    cpu: 4
+    mem: 14
+  Standard_D4:
+    cpu: 8
+    mem: 28
+  Standard_D4_v2:
+    cpu: 8
+    mem: 28
+  Standard_D5_v2:
+    cpu: 16
+    mem: 56
+  Standard_D11:
+    cpu: 2
+    mem: 14
+  Standard_D11_v2:
+    cpu: 2
+    mem: 14
+  Standard_D12:
+    cpu: 4
+    mem: 28
+  Standard_D12_v2:
+    cpu: 4
+    mem: 28
+  Standard_D13:
+    cpu: 8
+    mem: 56
+  Standard_D13_v2:
+    cpu: 8
+    mem: 56
+  Standard_D14:
+    cpu: 16
+    mem: 112
+  Standard_D14_v2:
+    cpu: 16
+    mem: 112
+  Standard_D15_v2:
+    cpu: 20
+    mem: 140
+  Standard_G1:
+    cpu: 2
+    mem: 28
+  Standard_G2:
+    cpu: 4
+    mem: 56
+  Standard_G3:
+    cpu: 8
+    mem: 112
+  Standard_G4:
+    cpu: 16
+    mem: 224
+  Standard_G5:
+    cpu: 32
+    mem: 448
+  Standard_H8:
+    cpu: 8
+    mem: 56
+  Standard_H8m:
+    cpu: 8
+    mem: 112
+  Standard_H16:
+    cpu: 16
+    mem: 112
+  Standard_H16m:
+    cpu: 16
+    mem: 224
+  Standard_H16mr:
+    cpu: 16
+    mem: 224
+  Standard_H16r:
+    cpu: 16
+    mem: 112
+gce:
+  f1-micro:
+    cpu: 0.2
+    mem: 0.6
+  g1-small:
+    cpu: 0.5
+    mem: 1.7
+  n1-highcpu-2:
+    cpu: 2
+    mem: 1.8
+  n1-highcpu-4:
+    cpu: 4
+    mem: 3.6
+  n1-highcpu-8:
+    cpu: 8
+    mem: 7.2
+  n1-highcpu-16:
+    cpu: 16
+    mem: 14.4
+  n1-highcpu-32:
+    cpu: 32
+    mem: 28.8
+  n1-highcpu-64:
+    cpu: 64
+    mem: 57.6
+  n1-highmem-2:
+    cpu: 2
+    mem: 13
+  n1-highmem-4:
+    cpu: 4
+    mem: 26
+  n1-highmem-8:
+    cpu: 8
+    mem: 52
+  n1-highmem-16:
+    cpu: 16
+    mem: 104
+  n1-highmem-32:
+    cpu: 32
+    mem: 208
+  n1-highmem-64:
+    cpu: 64
+    mem: 416
+  n1-standard-1:
+    cpu: 1
+    mem: 3.75
+  n1-standard-2:
+    cpu: 2
+    mem: 7.5
+  n1-standard-4:
+    cpu: 4
+    mem: 15
+  n1-standard-8:
+    cpu: 8
+    mem: 30
+  n1-standard-16:
+    cpu: 16
+    mem: 60
+  n1-standard-32:
+    cpu: 32
+    mem: 120
+  n1-standard-64:
+    cpu: 64
+    mem: 240

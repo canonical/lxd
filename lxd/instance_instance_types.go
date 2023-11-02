@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"io"
 	"net/http"
@@ -21,6 +22,9 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
+//go:embed assets/instance_types.yaml
+var content []byte
+
 type instanceType struct {
 	// Amount of CPUs (can be a fraction)
 	CPU float32 `yaml:"cpu"`
@@ -30,6 +34,13 @@ type instanceType struct {
 }
 
 var instanceTypes map[string]map[string]*instanceType
+
+func init() {
+	err := yaml.Unmarshal(content, &instanceTypes)
+	if err != nil {
+		panic(err)
+	}
+}
 
 func instanceSaveCache() error {
 	if instanceTypes == nil {
