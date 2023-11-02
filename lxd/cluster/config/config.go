@@ -273,6 +273,11 @@ func (c *Config) OpenFGA() (apiURL string, apiToken string, storeID string, auth
 	return c.m.GetString("openfga.api.url"), c.m.GetString("openfga.api.token"), c.m.GetString("openfga.store.id"), c.m.GetString("openfga.store.model_id")
 }
 
+// RefreshInstanceTypes returns true if the instance types are to be refreshed regularly.
+func (c *Config) RefreshInstanceTypes() bool {
+	return c.m.GetBool("core.refresh_instance_types")
+}
+
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]any {
@@ -496,6 +501,14 @@ var ConfigSchema = config.Schema{
 	//  scope: global
 	//  shortdesc: Hosts that don't need the proxy
 	"core.proxy_ignore_hosts": {},
+
+	// lxdmeta:generate(entity=server, group=core, key=core.refresh_instance_types)
+	//
+	// ---
+	//  type: bool
+	//  scope: global
+	//  shortdesc: Whether to refresh instance types regularly.
+	"core.refresh_instance_types": {Type: config.Bool, Default: "true"},
 
 	// lxdmeta:generate(entity=server, group=core, key=core.remote_token_expiry)
 	//
