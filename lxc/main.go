@@ -227,6 +227,10 @@ For help with any of those, simply call them with --help.`))
 	restoreCmd := cmdRestore{global: &globalCmd}
 	app.AddCommand(restoreCmd.Command())
 
+	// resume sub-command
+	resumeCmd := cmdResume{global: &globalCmd}
+	app.AddCommand(resumeCmd.Command())
+
 	// snapshot sub-command
 	snapshotCmd := cmdSnapshot{global: &globalCmd}
 	app.AddCommand(snapshotCmd.Command())
