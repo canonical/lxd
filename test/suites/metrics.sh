@@ -49,5 +49,8 @@ test_metrics() {
   lxc config set core.metrics_authentication=false
   curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep "name=\"c1\""
 
+  # Filesystem metrics should contain instance type
+  curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep "lxd_filesystem_avail_bytes" | grep "type=\"container\""
+
   lxc delete -f c1 c2
 }
