@@ -2087,4 +2087,3 @@ This adds the fields `Name` and `Project` to `lifecycle` events.
 ## `instances_nic_limits_priority`
 
 This introduces a new per-NIC `limits.priority` option that works with both cgroup1 and cgroup2 unlike the deprecated `limits.network.priority` instance setting, which only worked with cgroup1.
-
