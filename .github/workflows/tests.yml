@@ -49,7 +49,11 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v4
         with:
-          go-version: 1.18.x
+          go-version: 1.21.x
+
+      - name: Check compatible min Go version
+        run: |
+          go mod tidy -go=1.21.1
 
       - name: Install dependencies
         run: |
@@ -124,7 +128,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.18.x"]
+        go: ["1.21.x"]
         suite: ["cluster", "standalone"]
         backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
         include:
@@ -330,7 +334,7 @@ jobs:
       fail-fast: false
       matrix:
         go:
-          - 1.18.x
+          - 1.21.x
         os:
           - ubuntu-latest
           - macos-latest
@@ -464,7 +468,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v4
         with:
-          go-version: 1.18.x
+          go-version: 1.21.x
 
       - name: Trigger Launchpad snap build
         env:
