@@ -61,28 +61,25 @@ test_pki() {
 
     # Add remote using the correct password.
     # This should work because the client certificate is signed by the CA.
-    lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password=foo
+    token="$(LXD_DIR=${LXD5_DIR} lxc config trust add --name foo -q)"
+    lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password "${token}"
     lxc_remote config trust ls pki-lxd: | grep lxd-client
+    fingerprint="$(lxc_remote config trust ls pki-lxd: --format csv | cut -d, -f4)"
+    lxc_remote config trust remove pki-lxd:"${fingerprint}"
     lxc_remote remote remove pki-lxd
 
     # Add remote using a CA-signed client certificate, and not providing a password.
     # This should succeed and tests that the CA trust is working, as adding the client certificate to the trust
-    # store without a trust password would normally fail.
+    # store without a token would normally fail.
     LXD_DIR=${LXD5_DIR} lxc config set core.trust_ca_certificates true
     lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate
-    lxc_remote config trust ls pki-lxd: | grep lxd-client
+    ! lxc_remote config trust ls pki-lxd: | grep lxd-client || false
     lxc_remote remote remove pki-lxd
 
-    # Add remote using a CA-signed client certificate, and providing an incorrect password.
-    # This should succeed as is the same as the test above but with an incorrect password rather than no password.
+    # Add remote using a CA-signed client certificate, and providing an incorrect token.
+    # This should succeed as is the same as the test above but with an incorrect token rather than no token.
     lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password=bar
-    lxc_remote config trust ls pki-lxd: | grep lxd-client
-
-    # Try removing the fingerprint.
-    # This should succeed as the admin can delete all certificates.
-    fingerprint="$(lxc_remote config trust ls pki-lxd: --format csv | cut -d, -f4)"
-    lxc_remote config trust rm pki-lxd:"${fingerprint}"
-
+    ! lxc_remote config trust ls pki-lxd: | grep lxd-client || false
     lxc_remote remote remove pki-lxd
 
     # Replace the client certificate with a revoked certificate in the CRL.
