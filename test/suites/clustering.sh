@@ -434,7 +434,7 @@ test_clustering_containers() {
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node2 || false
 
   # Exec a command in the container via node1
-  LXD_DIR="${LXD_ONE_DIR}" lxc exec foo ls / | grep -q proc
+  LXD_DIR="${LXD_ONE_DIR}" lxc exec foo -- ls / | grep -qxF proc
 
   # Pull, push and delete files from the container via node1
   ! LXD_DIR="${LXD_ONE_DIR}" lxc file pull foo/non-existing-file "${TEST_DIR}/non-existing-file" || false
@@ -1506,8 +1506,8 @@ used_by:
 EOF
   ) | LXD_DIR="${LXD_TWO_DIR}" lxc profile edit web
 
-  LXD_DIR="${LXD_TWO_DIR}" lxc exec c1 ls /mnt | grep -q hello
-  LXD_DIR="${LXD_TWO_DIR}" lxc exec c2 ls /mnt | grep -q hello
+  LXD_DIR="${LXD_TWO_DIR}" lxc exec c1 -- ls /mnt | grep -qxF hello
+  LXD_DIR="${LXD_TWO_DIR}" lxc exec c2 -- ls /mnt | grep -qxF hello
 
   LXD_DIR="${LXD_TWO_DIR}" lxc stop c1 --force
   LXD_DIR="${LXD_ONE_DIR}" lxc stop c2 --force
