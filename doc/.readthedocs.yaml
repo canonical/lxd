@@ -13,6 +13,9 @@ build:
     python: "3.11"
   jobs:
     pre_build:
+      # lxc can be compiled with 1.20 but requires mangling go.mod
+      - go mod tidy -go=1.20
+      - go get toolchain@none
       - go build -o lxc.bin ./lxc
 
 # Build documentation in the docs/ directory with Sphinx
