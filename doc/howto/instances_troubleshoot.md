@@ -78,7 +78,7 @@ Console log:
 Now that the container has started, you can check it and see that things are not running as well as expected:
 
 ```{terminal}
-:input: lxc exec systemd bash
+:input: lxc exec systemd -- bash
 
 [root@systemd ~]# ls
 [root@systemd ~]# mount

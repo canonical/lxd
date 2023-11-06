@@ -12,24 +12,22 @@ test_devlxd() {
   ! lxc exec devlxd -- test -S /dev/lxd/sock || false
   lxc config unset devlxd security.devlxd
   lxc exec devlxd -- test -S /dev/lxd/sock
-  lxc file push "devlxd-client/devlxd-client" devlxd/bin/
-
-  lxc exec devlxd chmod +x /bin/devlxd-client
+  lxc file push --mode 0755 "devlxd-client/devlxd-client" devlxd/bin/
 
   lxc config set devlxd user.foo bar
-  lxc exec devlxd devlxd-client user.foo | grep bar
+  lxc exec devlxd -- devlxd-client user.foo | grep bar
 
   lxc config set devlxd user.foo "bar %s bar"
-  lxc exec devlxd devlxd-client user.foo | grep "bar %s bar"
+  lxc exec devlxd -- devlxd-client user.foo | grep "bar %s bar"
 
   lxc config set devlxd security.nesting true
-  ! lxc exec devlxd devlxd-client security.nesting | grep true || false
+  ! lxc exec devlxd -- devlxd-client security.nesting | grep true || false
 
   cmd=$(unset -f lxc; command -v lxc)
-  ${cmd} exec devlxd devlxd-client monitor-websocket > "${TEST_DIR}/devlxd-websocket.log" &
+  ${cmd} exec devlxd -- devlxd-client monitor-websocket > "${TEST_DIR}/devlxd-websocket.log" &
   client_websocket=$!
 
-  ${cmd} exec devlxd devlxd-client monitor-stream > "${TEST_DIR}/devlxd-stream.log" &
+  ${cmd} exec devlxd -- devlxd-client monitor-stream > "${TEST_DIR}/devlxd-stream.log" &
   client_stream=$!
 
   (
@@ -95,13 +93,13 @@ EOF
 
   # Test instance Ready state
   lxc info devlxd | grep -q 'Status: RUNNING'
-  lxc exec devlxd devlxd-client ready-state true
+  lxc exec devlxd -- devlxd-client ready-state true
   [ "$(lxc config get devlxd volatile.last_state.ready)" = "true" ]
 
   grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log" | grep -Fx 1
 
   lxc info devlxd | grep -q 'Status: READY'
-  lxc exec devlxd devlxd-client ready-state false
+  lxc exec devlxd -- devlxd-client ready-state false
   [ "$(lxc config get devlxd volatile.last_state.ready)" = "false" ]
 
   grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log" | grep -Fx 1
@@ -119,7 +117,7 @@ EOF
   lxc monitor --type=lifecycle > "${TEST_DIR}/devlxd.log" &
   monitorDevlxdPID=$!
 
-  lxc exec devlxd devlxd-client ready-state true
+  lxc exec devlxd -- devlxd-client ready-state true
   [ "$(lxc config get devlxd volatile.last_state.ready)" = "true" ]
 
   grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log" | grep -Fx 1
@@ -128,14 +126,14 @@ EOF
   [ "$(lxc config get devlxd volatile.last_state.ready)" = "false" ]
 
   lxc start devlxd
-  lxc exec devlxd devlxd-client ready-state true
+  lxc exec devlxd -- devlxd-client ready-state true
   [ "$(lxc config get devlxd volatile.last_state.ready)" = "true" ]
 
   grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log" | grep -Fx 2
 
   # Check device configs are available and that NIC hwaddr is available even if volatile.
   hwaddr=$(lxc config get devlxd volatile.eth0.hwaddr)
-  lxc exec devlxd devlxd-client devices | jq -r .eth0.hwaddr | grep -Fx "${hwaddr}"
+  lxc exec devlxd -- devlxd-client devices | jq -r .eth0.hwaddr | grep -Fx "${hwaddr}"
 
   lxc delete devlxd --force
   kill -9 ${monitorDevlxdPID} || true

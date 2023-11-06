@@ -173,7 +173,7 @@ See the linked YouTube video for the complete tutorial using four machines.
        lxc launch ubuntu:22.04 c3 --network my-ovn
        lxc launch ubuntu:22.04 c4 --network my-ovn
        lxc list
-       lxc exec c4 bash
+       lxc exec c4 -- bash
        ping <IP of c1>
        ping <nameserver>
        ping6 -n www.example.com
