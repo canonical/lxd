@@ -444,6 +444,10 @@ test_basic_usage() {
 
   echo foo | lxc exec foo -- tee /tmp/foo
 
+  # test exec with/without "--" separator
+  lxc exec foo -- true
+  lxc exec foo true
+
   # Detect regressions/hangs in exec
   sum=$(ps aux | tee "${LXD_DIR}/out" | lxc exec foo -- md5sum | cut -d' ' -f1)
   [ "${sum}" = "$(md5sum "${LXD_DIR}/out" | cut -d' ' -f1)" ]
