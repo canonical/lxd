@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2023-11-05 22:14+0000\n"
+"POT-Creation-Date: 2023-11-07 10:34+0100\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -2337,6 +2337,16 @@ msgstr "Il nome del container è: %s"
 #, c-format
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
+
+#: lxc/delete.go:168
+#, fuzzy, c-format
+msgid "Failed deleting instance %q in project %q: %w"
+msgstr "Il nome del container è: %s"
+
+#: lxc/delete.go:110
+#, fuzzy, c-format
+msgid "Failed deleting instance snapshot %q in project %q: %w"
+msgstr "Il nome del container è: %s"
 
 #: lxc/file.go:1174
 #, fuzzy, c-format
@@ -5612,7 +5622,7 @@ msgstr ""
 msgid "Stopping instance failed!"
 msgstr ""
 
-#: lxc/delete.go:134
+#: lxc/delete.go:139
 #, fuzzy, c-format
 msgid "Stopping the instance failed: %s"
 msgstr "errore di processamento degli alias %s\n"
@@ -5778,7 +5788,7 @@ msgstr "La periferica esiste già"
 msgid "The direction argument must be one of: ingress, egress"
 msgstr ""
 
-#: lxc/delete.go:118
+#: lxc/delete.go:123
 msgid "The instance is currently running, stop it first or pass --force"
 msgstr ""
 
