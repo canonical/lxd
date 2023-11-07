@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2023-11-05 22:14+0000\n"
+"POT-Creation-Date: 2023-11-07 10:34+0100\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -2385,6 +2385,16 @@ msgstr "インスタンスの SFTP への接続に失敗しました: %w"
 #, c-format
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr "証明書追加トークンのトークン変換操作に失敗しました: %w"
+
+#: lxc/delete.go:168
+#, fuzzy, c-format
+msgid "Failed deleting instance %q in project %q: %w"
+msgstr "クライアント %q に対する SFTP インスタンスの接続に失敗しました: %v"
+
+#: lxc/delete.go:110
+#, fuzzy, c-format
+msgid "Failed deleting instance snapshot %q in project %q: %w"
+msgstr "インスタンスのスナップショットの存在確認に失敗しました \"%s:%s\": %w"
 
 #: lxc/file.go:1174
 #, c-format
@@ -5862,7 +5872,7 @@ msgstr "実行中の場合、インスタンスを停止します"
 msgid "Stopping instance failed!"
 msgstr "インスタンスの停止に失敗しました！"
 
-#: lxc/delete.go:134
+#: lxc/delete.go:139
 #, c-format
 msgid "Stopping the instance failed: %s"
 msgstr "インスタンスの停止に失敗しました: %s"
@@ -6026,7 +6036,7 @@ msgstr "デバイスはすでに存在します"
 msgid "The direction argument must be one of: ingress, egress"
 msgstr "direction 引数は次のいずれかでなければなりません: ingress, egress"
 
-#: lxc/delete.go:118
+#: lxc/delete.go:123
 msgid "The instance is currently running, stop it first or pass --force"
 msgstr "インスタンスは実行中です。先に停止させるか、--force を指定してください"
 
