@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2023-11-07 10:34+0100\n"
+"POT-Creation-Date: 2023-11-08 11:11+0100\n"
 "PO-Revision-Date: 2022-03-10 15:08+0000\n"
 "Last-Translator: Renato dos Santos <renato.santos@wplex.com.br>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -606,17 +606,17 @@ msgstr "- Partição %d"
 msgid "- Port %d (%s)"
 msgstr ""
 
-#: lxc/action.go:219
+#: lxc/action.go:243
 #, fuzzy
 msgid "--console can't be used while forcing instance shutdown"
 msgstr "--refresh só pode ser usado com containers"
 
-#: lxc/action.go:368
+#: lxc/action.go:392
 #, fuzzy
 msgid "--console can't be used with --all"
 msgstr "--refresh só pode ser usado com containers"
 
-#: lxc/action.go:372
+#: lxc/action.go:396
 #, fuzzy
 msgid "--console only works with a single instance"
 msgstr "Configuração chave/valor para aplicar ao novo contêiner"
@@ -1045,7 +1045,7 @@ msgstr "Propriedade ruim: %s"
 msgid "Bond:"
 msgstr ""
 
-#: lxc/action.go:147 lxc/action.go:324
+#: lxc/action.go:169 lxc/action.go:348
 msgid "Both --all and instance name given"
 msgstr ""
 
@@ -1816,23 +1816,23 @@ msgstr ""
 msgid "Delete warning"
 msgstr ""
 
-#: lxc/action.go:32 lxc/action.go:53 lxc/action.go:75 lxc/action.go:98
-#: lxc/alias.go:23 lxc/alias.go:60 lxc/alias.go:110 lxc/alias.go:159
-#: lxc/alias.go:214 lxc/cluster.go:29 lxc/cluster.go:122 lxc/cluster.go:206
-#: lxc/cluster.go:255 lxc/cluster.go:306 lxc/cluster.go:367 lxc/cluster.go:439
-#: lxc/cluster.go:471 lxc/cluster.go:521 lxc/cluster.go:604 lxc/cluster.go:689
-#: lxc/cluster.go:804 lxc/cluster.go:880 lxc/cluster.go:982 lxc/cluster.go:1061
-#: lxc/cluster.go:1168 lxc/cluster.go:1189 lxc/cluster_group.go:30
-#: lxc/cluster_group.go:84 lxc/cluster_group.go:157 lxc/cluster_group.go:214
-#: lxc/cluster_group.go:266 lxc/cluster_group.go:382 lxc/cluster_group.go:456
-#: lxc/cluster_group.go:529 lxc/cluster_group.go:577 lxc/cluster_group.go:631
-#: lxc/cluster_role.go:23 lxc/cluster_role.go:50 lxc/cluster_role.go:106
-#: lxc/config.go:32 lxc/config.go:95 lxc/config.go:380 lxc/config.go:513
-#: lxc/config.go:730 lxc/config.go:854 lxc/config_device.go:24
-#: lxc/config_device.go:78 lxc/config_device.go:208 lxc/config_device.go:285
-#: lxc/config_device.go:356 lxc/config_device.go:450 lxc/config_device.go:548
-#: lxc/config_device.go:555 lxc/config_device.go:668 lxc/config_device.go:741
-#: lxc/config_metadata.go:27 lxc/config_metadata.go:55
+#: lxc/action.go:32 lxc/action.go:53 lxc/action.go:75 lxc/action.go:97
+#: lxc/action.go:120 lxc/alias.go:23 lxc/alias.go:60 lxc/alias.go:110
+#: lxc/alias.go:159 lxc/alias.go:214 lxc/cluster.go:29 lxc/cluster.go:122
+#: lxc/cluster.go:206 lxc/cluster.go:255 lxc/cluster.go:306 lxc/cluster.go:367
+#: lxc/cluster.go:439 lxc/cluster.go:471 lxc/cluster.go:521 lxc/cluster.go:604
+#: lxc/cluster.go:689 lxc/cluster.go:804 lxc/cluster.go:880 lxc/cluster.go:982
+#: lxc/cluster.go:1061 lxc/cluster.go:1168 lxc/cluster.go:1189
+#: lxc/cluster_group.go:30 lxc/cluster_group.go:84 lxc/cluster_group.go:157
+#: lxc/cluster_group.go:214 lxc/cluster_group.go:266 lxc/cluster_group.go:382
+#: lxc/cluster_group.go:456 lxc/cluster_group.go:529 lxc/cluster_group.go:577
+#: lxc/cluster_group.go:631 lxc/cluster_role.go:23 lxc/cluster_role.go:50
+#: lxc/cluster_role.go:106 lxc/config.go:32 lxc/config.go:95 lxc/config.go:380
+#: lxc/config.go:513 lxc/config.go:730 lxc/config.go:854
+#: lxc/config_device.go:24 lxc/config_device.go:78 lxc/config_device.go:208
+#: lxc/config_device.go:285 lxc/config_device.go:356 lxc/config_device.go:450
+#: lxc/config_device.go:548 lxc/config_device.go:555 lxc/config_device.go:668
+#: lxc/config_device.go:741 lxc/config_metadata.go:27 lxc/config_metadata.go:55
 #: lxc/config_metadata.go:180 lxc/config_template.go:27
 #: lxc/config_template.go:67 lxc/config_template.go:110
 #: lxc/config_template.go:152 lxc/config_template.go:240
@@ -2530,7 +2530,7 @@ msgstr "Forçar alocação de pseudo-terminal"
 msgid "Force removing a member, even if degraded"
 msgstr ""
 
-#: lxc/action.go:135
+#: lxc/action.go:157
 #, fuzzy
 msgid "Force the instance to stop"
 msgstr "Ignorar o estado do container"
@@ -2878,7 +2878,7 @@ msgstr ""
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 
-#: lxc/main.go:390
+#: lxc/main.go:394
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -2896,7 +2896,7 @@ msgstr ""
 msgid "Ignore copy errors for volatile files"
 msgstr ""
 
-#: lxc/action.go:126
+#: lxc/action.go:148
 #, fuzzy
 msgid "Ignore the instance state"
 msgstr "Ignorar o estado do container"
@@ -2935,7 +2935,7 @@ msgstr ""
 msgid "Image refreshed successfully!"
 msgstr ""
 
-#: lxc/action.go:130 lxc/launch.go:41
+#: lxc/action.go:152 lxc/launch.go:41
 #, fuzzy
 msgid "Immediately attach to the console"
 msgstr "Anexar interfaces de rede aos perfis"
@@ -3102,7 +3102,7 @@ msgstr ""
 msgid "Invalid new snapshot name, parent volume must be the same as source"
 msgstr ""
 
-#: lxc/main.go:487
+#: lxc/main.go:491
 msgid "Invalid number of arguments"
 msgstr ""
 
@@ -4090,7 +4090,7 @@ msgstr ""
 msgid "Must run as root to import from directory"
 msgstr ""
 
-#: lxc/action.go:233
+#: lxc/action.go:257
 msgid "Must supply instance name for: "
 msgstr ""
 
@@ -4442,7 +4442,7 @@ msgstr ""
 msgid "Partitions:"
 msgstr ""
 
-#: lxc/main.go:353
+#: lxc/main.go:357
 #, c-format
 msgid "Password for %s: "
 msgstr ""
@@ -4990,12 +4990,12 @@ msgstr ""
 msgid "Resources:"
 msgstr ""
 
-#: lxc/action.go:74
+#: lxc/action.go:96
 #, fuzzy
 msgid "Restart instances"
 msgstr "Editar arquivos no container"
 
-#: lxc/action.go:75
+#: lxc/action.go:97
 msgid ""
 "Restart instances\n"
 "\n"
@@ -5036,6 +5036,11 @@ msgstr "Nome de membro do cluster"
 msgid "Restrict the certificate to one or more projects"
 msgstr ""
 
+#: lxc/action.go:74 lxc/action.go:75
+#, fuzzy
+msgid "Resume instances"
+msgstr "Editar arquivos no container"
+
 #: lxc/console.go:43
 msgid "Retrieve the instance's console log"
 msgstr ""
@@ -5063,7 +5068,7 @@ msgstr ""
 msgid "Run again a specific project"
 msgstr ""
 
-#: lxc/action.go:121
+#: lxc/action.go:143
 msgid "Run against all instances"
 msgstr ""
 
@@ -5508,7 +5513,7 @@ msgstr "Editar configurações do container ou do servidor como YAML"
 msgid "Show instance or server information"
 msgstr "Editar configurações do container ou do servidor como YAML"
 
-#: lxc/main.go:265 lxc/main.go:266
+#: lxc/main.go:269 lxc/main.go:270
 msgid "Show less common commands"
 msgstr ""
 
@@ -5664,7 +5669,7 @@ msgstr ""
 msgid "Socket %d:"
 msgstr ""
 
-#: lxc/action.go:401
+#: lxc/action.go:425
 #, fuzzy, c-format
 msgid "Some instances failed to %s"
 msgstr "Dispositivo %s adicionado a %s"
@@ -5700,7 +5705,7 @@ msgstr ""
 msgid "Status: %s"
 msgstr ""
 
-#: lxc/action.go:97 lxc/action.go:98
+#: lxc/action.go:119 lxc/action.go:120
 msgid "Stop instances"
 msgstr ""
 
@@ -5774,7 +5779,7 @@ msgstr ""
 msgid "Storage volume moved successfully!"
 msgstr ""
 
-#: lxc/action.go:124
+#: lxc/action.go:146
 #, fuzzy
 msgid "Store the instance state"
 msgstr "Ignorar o estado do container"
@@ -6030,7 +6035,7 @@ msgstr ""
 msgid "This LXD server is not available on the network"
 msgstr "A importação de diretório não está disponível nessa plataforma"
 
-#: lxc/main.go:287
+#: lxc/main.go:291
 msgid ""
 "This client hasn't been configured to use a remote LXD server yet.\n"
 "As your platform can't run native Linux instances, you must connect to a "
@@ -6046,7 +6051,7 @@ msgstr ""
 msgid "Threads:"
 msgstr ""
 
-#: lxc/action.go:136
+#: lxc/action.go:158
 msgid "Time to wait for the instance to shutdown cleanly"
 msgstr ""
 
@@ -6066,7 +6071,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
-#: lxc/main.go:395
+#: lxc/main.go:399
 msgid ""
 "To start your first container, try: lxc launch ubuntu:22.04\n"
 "Or for a virtual machine: lxc launch ubuntu:22.04 --vm"
@@ -6126,7 +6131,7 @@ msgstr "Editar arquivos no container"
 msgid "Transmit policy"
 msgstr ""
 
-#: lxc/action.go:287 lxc/launch.go:110
+#: lxc/action.go:311 lxc/launch.go:110
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -6764,7 +6769,8 @@ msgstr "Editar templates de arquivo do container"
 msgid "[<remote>:]<instance> [<snapshot name>]"
 msgstr ""
 
-#: lxc/action.go:30 lxc/action.go:51 lxc/action.go:73 lxc/action.go:96
+#: lxc/action.go:30 lxc/action.go:51 lxc/action.go:73 lxc/action.go:95
+#: lxc/action.go:118
 msgid "[<remote>:]<instance> [[<remote>:]<instance>...]"
 msgstr ""
 
@@ -7224,7 +7230,7 @@ msgstr ""
 msgid "enabled"
 msgstr ""
 
-#: lxc/action.go:393
+#: lxc/action.go:417
 #, c-format
 msgid "error: %v"
 msgstr ""
