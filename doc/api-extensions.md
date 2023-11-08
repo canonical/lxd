@@ -849,7 +849,7 @@ This effectively gives us:
 * `volatile.idmap.next` => Next on-disk idmap
 
 This is required to implement environments where the on-disk map isn't
-changed but the kernel map is (e.g. `shiftfs`).
+changed but the kernel map is (e.g. `idmapped mounts`).
 
 ## `event_location`
 
@@ -950,7 +950,7 @@ elevated permissions.
 
 ## `container_disk_shift`
 
-Adds the `shift` property on `disk` devices which controls the use of the `shiftfs` overlay.
+Adds the `shift` property on `disk` devices which controls the use of the `idmapped mounts` overlay.
 
 ## `storage_shifted`
 
@@ -960,7 +960,7 @@ Setting it to `true` will allow multiple isolated containers to attach the
 same storage volume while keeping the file system writable from all of
 them.
 
-This makes use of `shiftfs` as an overlay file system.
+This makes use of `idmapped mounts` as an overlay file system.
 
 ## `resources_infiniband`
 
