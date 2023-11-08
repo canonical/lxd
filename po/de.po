@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2023-11-07 10:34+0100\n"
+"POT-Creation-Date: 2023-11-08 07:19+0000\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Krombel <krombel@krombel.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -2491,7 +2491,7 @@ msgstr ""
 msgid "Failed to close server cert file %q: %w"
 msgstr "Akzeptiere Zertifikat"
 
-#: lxc/move.go:284 lxc/move.go:360 lxc/move.go:412
+#: lxc/move.go:273 lxc/move.go:349
 #, fuzzy, c-format
 msgid "Failed to connect to cluster member: %w"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -3922,12 +3922,12 @@ msgstr ""
 msgid "Memory:"
 msgstr ""
 
-#: lxc/move.go:302 lxc/move.go:374 lxc/move.go:426
+#: lxc/move.go:291 lxc/move.go:364
 #, c-format
 msgid "Migration API failure: %w"
 msgstr ""
 
-#: lxc/move.go:327 lxc/move.go:379 lxc/move.go:431
+#: lxc/move.go:316 lxc/move.go:369
 #, c-format
 msgid "Migration operation failure: %w"
 msgstr ""
@@ -5974,19 +5974,14 @@ msgstr ""
 msgid "The --instance-only flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:204
+#: lxc/move.go:209
 #, fuzzy
-msgid "The --mode flag can't be used with --storage"
+msgid "The --mode flag can't be used with --storage or --target-project"
 msgstr "--refresh kann nur mit Containern verwendet werden"
 
 #: lxc/move.go:179
 msgid "The --mode flag can't be used with --target"
 msgstr ""
-
-#: lxc/move.go:220
-#, fuzzy
-msgid "The --mode flag can't be used with --target-project"
-msgstr "--refresh kann nur mit Containern verwendet werden"
 
 #: lxc/console.go:125
 msgid "The --show-log flag is only supported for by 'console' output type"
@@ -6138,7 +6133,7 @@ msgstr ""
 msgid "The server doesn't implement the newer v2 resources API"
 msgstr ""
 
-#: lxc/move.go:289
+#: lxc/move.go:278
 msgid "The source LXD server is not clustered"
 msgstr ""
 
@@ -6254,7 +6249,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/copy.go:338 lxc/move.go:307
+#: lxc/copy.go:338 lxc/move.go:296
 #, fuzzy, c-format
 msgid "Transferring instance: %s"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -6692,7 +6687,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "You must specify a destination instance name"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/copy.go:84 lxc/move.go:273 lxc/move.go:349 lxc/move.go:401
+#: lxc/copy.go:84 lxc/move.go:262 lxc/move.go:338
 #, fuzzy
 msgid "You must specify a source instance name"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
@@ -8255,6 +8250,10 @@ msgstr ""
 #: lxc/image.go:1115
 msgid "yes"
 msgstr ""
+
+#, fuzzy
+#~ msgid "The --mode flag can't be used with --storage"
+#~ msgstr "--refresh kann nur mit Containern verwendet werden"
 
 #, fuzzy
 #~ msgid "Failed to get the new instance name"
