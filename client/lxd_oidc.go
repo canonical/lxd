@@ -13,7 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery"
 	"github.com/zitadel/oidc/v2/pkg/client/rp"
 	httphelper "github.com/zitadel/oidc/v2/pkg/http"
 	"github.com/zitadel/oidc/v2/pkg/oidc"
@@ -219,14 +218,12 @@ func (o *oidcClient) authenticate(issuer string, clientID string, audience strin
 		return err
 	}
 
-	fmt.Printf("Code: %s\n\n", resp.UserCode)
-
 	u, _ := url.Parse(resp.VerificationURIComplete)
 
-	err = httpbakery.OpenWebBrowser(u)
-	if err != nil {
-		return err
-	}
+	fmt.Printf("URL: %s\n", u.String())
+	fmt.Printf("Code: %s\n\n", resp.UserCode)
+
+	_ = openBrowser(u.String())
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT)
 	defer stop()

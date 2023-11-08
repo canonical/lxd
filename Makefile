@@ -93,6 +93,9 @@ ifneq "$(LXD_OFFLINE)" ""
 endif
 	go get -t -v -d -u ./...
 	go mod tidy
+
+	cd test/mini-oidc && go get -t -v -d -u ./...
+	cd test/mini-oidc && go mod tidy --go=1.20
 	@echo "Dependencies updated"
 
 .PHONY: update-protobuf
