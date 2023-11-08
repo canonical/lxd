@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2023-11-07 10:34+0100\n"
+"POT-Creation-Date: 2023-11-08 07:19+0000\n"
 "PO-Revision-Date: 2022-03-10 15:09+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Ukrainian <https://hosted.weblate.org/projects/linux-"
@@ -2119,7 +2119,7 @@ msgstr ""
 msgid "Failed to close server cert file %q: %w"
 msgstr ""
 
-#: lxc/move.go:284 lxc/move.go:360 lxc/move.go:412
+#: lxc/move.go:273 lxc/move.go:349
 #, c-format
 msgid "Failed to connect to cluster member: %w"
 msgstr ""
@@ -3443,12 +3443,12 @@ msgstr ""
 msgid "Memory:"
 msgstr ""
 
-#: lxc/move.go:302 lxc/move.go:374 lxc/move.go:426
+#: lxc/move.go:291 lxc/move.go:364
 #, c-format
 msgid "Migration API failure: %w"
 msgstr ""
 
-#: lxc/move.go:327 lxc/move.go:379 lxc/move.go:431
+#: lxc/move.go:316 lxc/move.go:369
 #, c-format
 msgid "Migration operation failure: %w"
 msgstr ""
@@ -5372,16 +5372,12 @@ msgstr ""
 msgid "The --instance-only flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:204
-msgid "The --mode flag can't be used with --storage"
+#: lxc/move.go:209
+msgid "The --mode flag can't be used with --storage or --target-project"
 msgstr ""
 
 #: lxc/move.go:179
 msgid "The --mode flag can't be used with --target"
-msgstr ""
-
-#: lxc/move.go:220
-msgid "The --mode flag can't be used with --target-project"
 msgstr ""
 
 #: lxc/console.go:125
@@ -5530,7 +5526,7 @@ msgstr ""
 msgid "The server doesn't implement the newer v2 resources API"
 msgstr ""
 
-#: lxc/move.go:289
+#: lxc/move.go:278
 msgid "The source LXD server is not clustered"
 msgstr ""
 
@@ -5642,7 +5638,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/copy.go:338 lxc/move.go:307
+#: lxc/copy.go:338 lxc/move.go:296
 #, c-format
 msgid "Transferring instance: %s"
 msgstr ""
@@ -6040,7 +6036,7 @@ msgstr ""
 msgid "You must specify a destination instance name"
 msgstr ""
 
-#: lxc/copy.go:84 lxc/move.go:273 lxc/move.go:349 lxc/move.go:401
+#: lxc/copy.go:84 lxc/move.go:262 lxc/move.go:338
 msgid "You must specify a source instance name"
 msgstr ""
 

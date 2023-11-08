@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2023-11-07 10:34+0100\n"
+"POT-Creation-Date: 2023-11-08 07:19+0000\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -2440,7 +2440,7 @@ msgstr "リモートの追加に失敗しました"
 msgid "Failed to close server cert file %q: %w"
 msgstr "サーバー証明書ファイル %q のクローズに失敗しました: %w"
 
-#: lxc/move.go:284 lxc/move.go:360 lxc/move.go:412
+#: lxc/move.go:273 lxc/move.go:349
 #, c-format
 msgid "Failed to connect to cluster member: %w"
 msgstr "クラスタメンバへの接続に失敗しました: %w"
@@ -3967,12 +3967,12 @@ msgstr "メモリ消費量:"
 msgid "Memory:"
 msgstr "メモリ:"
 
-#: lxc/move.go:302 lxc/move.go:374 lxc/move.go:426
+#: lxc/move.go:291 lxc/move.go:364
 #, c-format
 msgid "Migration API failure: %w"
 msgstr "マイグレーション API が失敗しました: %w"
 
-#: lxc/move.go:327 lxc/move.go:379 lxc/move.go:431
+#: lxc/move.go:316 lxc/move.go:369
 #, c-format
 msgid "Migration operation failure: %w"
 msgstr "マイグレーションが失敗しました: %w"
@@ -6000,17 +6000,14 @@ msgstr "ターゲットのパスはディレクトリでなければなりませ
 msgid "The --instance-only flag can't be used with --target"
 msgstr "--instance-only と --target は同時に指定できません"
 
-#: lxc/move.go:204
-msgid "The --mode flag can't be used with --storage"
-msgstr "--mode と --storage は同時に指定できません"
+#: lxc/move.go:209
+#, fuzzy
+msgid "The --mode flag can't be used with --storage or --target-project"
+msgstr "--mode と --target-project は同時に指定できません"
 
 #: lxc/move.go:179
 msgid "The --mode flag can't be used with --target"
 msgstr "--mode と --target は同時に指定できません"
-
-#: lxc/move.go:220
-msgid "The --mode flag can't be used with --target-project"
-msgstr "--mode と --target-project は同時に指定できません"
 
 #: lxc/console.go:125
 msgid "The --show-log flag is only supported for by 'console' output type"
@@ -6163,7 +6160,7 @@ msgstr ""
 msgid "The server doesn't implement the newer v2 resources API"
 msgstr "サーバには新しい v2 resource API が実装されていません"
 
-#: lxc/move.go:289
+#: lxc/move.go:278
 msgid "The source LXD server is not clustered"
 msgstr "移動元の LXD サーバはクラスタに属していません"
 
@@ -6294,7 +6291,7 @@ msgstr "転送モード。pull, push, relay のいずれか。"
 msgid "Transferring image: %s"
 msgstr "イメージを転送中: %s"
 
-#: lxc/copy.go:338 lxc/move.go:307
+#: lxc/copy.go:338 lxc/move.go:296
 #, c-format
 msgid "Transferring instance: %s"
 msgstr "インスタンスを転送中: %s"
@@ -6712,7 +6709,7 @@ msgstr "--mode と同時に -t または -T は指定できません"
 msgid "You must specify a destination instance name"
 msgstr "コピー元のインスタンス名を指定してください"
 
-#: lxc/copy.go:84 lxc/move.go:273 lxc/move.go:349 lxc/move.go:401
+#: lxc/copy.go:84 lxc/move.go:262 lxc/move.go:338
 msgid "You must specify a source instance name"
 msgstr "コピー元のインスタンス名を指定してください"
 
@@ -7842,6 +7839,9 @@ msgstr "y"
 #: lxc/image.go:1115
 msgid "yes"
 msgstr "yes"
+
+#~ msgid "The --mode flag can't be used with --storage"
+#~ msgstr "--mode と --storage は同時に指定できません"
 
 #~ msgid "Failed to get the new instance name"
 #~ msgstr "新しいインスタンス名が取得できません"
