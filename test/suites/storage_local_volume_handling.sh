@@ -41,6 +41,7 @@ test_storage_local_volume_handling() {
 
     driver="${lxd_backend}"
     pool="${pool_base}-${driver}"
+    project="${pool_base}-project"
     pool_opts=
 
     if [ "$driver" = "btrfs" ] || [ "$driver" = "zfs" ]; then
@@ -120,6 +121,14 @@ test_storage_local_volume_handling() {
     lxc storage volume move "${pool}1/vol1" "${pool}1/vol4"
     lxc storage volume move "${pool}1/vol4" "${pool}1/vol1"
 
+    # Move volume between projects
+    lxc project create "${project}"
+    lxc storage volume move "${pool}1/vol1" "${pool}1/vol1" --project default --target-project "${project}"
+    lxc storage volume show "${pool}1" vol1 --project "${project}"
+    lxc storage volume move "${pool}1/vol1" "${pool}1/vol1" --project "${project}" --target-project default
+    lxc storage volume show "${pool}1" vol1 --project default
+
+    lxc project delete "${project}"
     lxc storage volume delete "${pool}1" vol1
     lxc storage volume delete "${pool}1" vol2
     lxc storage volume delete "${pool}1" vol3
