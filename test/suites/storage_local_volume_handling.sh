@@ -14,31 +14,33 @@ test_storage_local_volume_handling() {
     set -e
     # shellcheck disable=2030
     LXD_DIR="${LXD_STORAGE_DIR}"
+    pool_base="lxdtest-$(basename "${LXD_DIR}")"
 
     if storage_backend_available "btrfs"; then
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-btrfs" btrfs size=1GiB
+      lxc storage create "${pool_base}-btrfs" btrfs size=1GiB
     fi
 
     if storage_backend_available "ceph"; then
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-ceph" ceph volume.size=25MiB ceph.osd.pg_num=16
+      lxc storage create "${pool_base}-ceph" ceph volume.size=25MiB ceph.osd.pg_num=16
       if [ -n "${LXD_CEPH_CEPHFS:-}" ]; then
-        lxc storage create "lxdtest-$(basename "${LXD_DIR}")-cephfs" cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")-cephfs"
+        lxc storage create "${pool_base}-cephfs" cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")-cephfs"
       fi
     fi
 
-    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-dir" dir
+    lxc storage create "${pool_base}-dir" dir
 
     if storage_backend_available "lvm"; then
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-lvm" lvm volume.size=25MiB
+      lxc storage create "${pool_base}-lvm" lvm volume.size=25MiB
     fi
 
     if storage_backend_available "zfs"; then
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-zfs" zfs size=1GiB
+      lxc storage create "${pool_base}-zfs" zfs size=1GiB
     fi
 
     # Test all combinations of our storage drivers
 
     driver="${lxd_backend}"
+    pool="${pool_base}-${driver}"
     pool_opts=
 
     if [ "$driver" = "btrfs" ] || [ "$driver" = "zfs" ]; then
@@ -55,77 +57,77 @@ test_storage_local_volume_handling() {
 
     if [ -n "${pool_opts}" ]; then
       # shellcheck disable=SC2086
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-${driver}1" "${driver}" $pool_opts
+      lxc storage create "${pool}1" "${driver}" $pool_opts
     else
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-${driver}1" "${driver}"
+      lxc storage create "${pool}1" "${driver}"
     fi
 
-    lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1
-    lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1 user.foo=snap0
-    lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1 snapshots.expiry=1H
+    lxc storage volume create "${pool}" vol1
+    lxc storage volume set "${pool}" vol1 user.foo=snap0
+    lxc storage volume set "${pool}" vol1 snapshots.expiry=1H
 
     # This will create the snapshot vol1/snap0
-    lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1
+    lxc storage volume snapshot "${pool}" vol1
 
     # This will create the snapshot vol1/snap1
-    lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1 user.foo=snap1
-    lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1
-    lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1 user.foo=postsnap1
+    lxc storage volume set "${pool}" vol1 user.foo=snap1
+    lxc storage volume snapshot "${pool}" vol1
+    lxc storage volume set "${pool}" vol1 user.foo=postsnap1
 
     # Copy volume with snapshots in same pool
-    lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1copy"
+    lxc storage volume copy "${pool}/vol1" "${pool}/vol1copy"
 
     # Ensure the target snapshots are there
-    lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1copy/snap0
-    lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1copy/snap1
+    lxc storage volume show "${pool}" vol1copy/snap0
+    lxc storage volume show "${pool}" vol1copy/snap1
 
     # Check snapshot volume config was copied
-    lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1copy user.foo | grep -Fx "postsnap1"
-    lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1copy/snap0 user.foo | grep -Fx "snap0"
-    lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1copy/snap1 user.foo | grep -Fx "snap1"
-    lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1copy
+    lxc storage volume get "${pool}" vol1copy user.foo | grep -Fx "postsnap1"
+    lxc storage volume get "${pool}" vol1copy/snap0 user.foo | grep -Fx "snap0"
+    lxc storage volume get "${pool}" vol1copy/snap1 user.foo | grep -Fx "snap1"
+    lxc storage volume delete "${pool}" vol1copy
 
     # Copy volume with snapshots in different pool
-    lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol1"
+    lxc storage volume copy "${pool}/vol1" "${pool}1/vol1"
 
     # Ensure the target snapshots are there
-    lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1/snap0
-    lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1/snap1
+    lxc storage volume show "${pool}1" vol1/snap0
+    lxc storage volume show "${pool}1" vol1/snap1
 
     # Check snapshot volume config was copied
-    lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1 user.foo | grep -Fx "postsnap1"
-    lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1/snap0 user.foo | grep -Fx "snap0"
-    lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1/snap1 user.foo | grep -Fx "snap1"
+    lxc storage volume get "${pool}1" vol1 user.foo | grep -Fx "postsnap1"
+    lxc storage volume get "${pool}1" vol1/snap0 user.foo | grep -Fx "snap0"
+    lxc storage volume get "${pool}1" vol1/snap1 user.foo | grep -Fx "snap1"
 
     # Copy volume only
-    lxc storage volume copy --volume-only "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol2"
+    lxc storage volume copy --volume-only "${pool}/vol1" "${pool}1/vol2"
 
     # Ensure the target snapshots are not there
-    ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol2/snap0 || false
-    ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol2/snap1 || false
+    ! lxc storage volume show "${pool}1" vol2/snap0 || false
+    ! lxc storage volume show "${pool}1" vol2/snap1 || false
 
     # Check snapshot volume config was copied
-    lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol2 user.foo | grep -Fx "postsnap1"
+    lxc storage volume get "${pool}1" vol2 user.foo | grep -Fx "postsnap1"
 
     # Copy snapshot to volume
-    lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1/snap0" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol3"
+    lxc storage volume copy "${pool}/vol1/snap0" "${pool}1/vol3"
 
     # Check snapshot volume config was copied from snapshot
-    lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol3
-    lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol3 user.foo | grep -Fx "snap0"
+    lxc storage volume show "${pool}1" vol3
+    lxc storage volume get "${pool}1" vol3 user.foo | grep -Fx "snap0"
 
     # Rename custom volume using `lxc storage volume move`
-    lxc storage volume move "lxdtest-$(basename "${LXD_DIR}")-${driver}1"/vol1 "lxdtest-$(basename "${LXD_DIR}")-${driver}1"/vol4
-    lxc storage volume move "lxdtest-$(basename "${LXD_DIR}")-${driver}1"/vol4 "lxdtest-$(basename "${LXD_DIR}")-${driver}1"/vol1
+    lxc storage volume move "${pool}1/vol1" "${pool}1/vol4"
+    lxc storage volume move "${pool}1/vol4" "${pool}1/vol1"
 
-    lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1
-    lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol2
-    lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol3
-    lxc storage volume move "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol1"
-    ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1 || false
-    lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1
-    lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1
-    lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1"
+    lxc storage volume delete "${pool}1" vol1
+    lxc storage volume delete "${pool}1" vol2
+    lxc storage volume delete "${pool}1" vol3
+    lxc storage volume move "${pool}/vol1" "${pool}1/vol1"
+    ! lxc storage volume show "${pool}" vol1 || false
+    lxc storage volume show "${pool}1" vol1
+    lxc storage volume delete "${pool}1" vol1
+    lxc storage delete "${pool}1"
 
     for source_driver in "btrfs" "ceph" "cephfs" "dir" "lvm" "zfs"; do
       for target_driver in "btrfs" "ceph" "cephfs" "dir" "lvm" "zfs"; do
@@ -133,134 +135,137 @@ test_storage_local_volume_handling() {
         if [ "$source_driver" != "$target_driver" ] \
             && ([ "$lxd_backend" = "$source_driver" ] || ([ "$lxd_backend" = "ceph" ] && [ "$source_driver" = "cephfs" ] && [ -n "${LXD_CEPH_CEPHFS:-}" ])) \
             && storage_backend_available "$source_driver" && storage_backend_available "$target_driver"; then
+          source_pool="${pool_base}-${source_driver}"
+          target_pool="${pool_base}-${target_driver}"
+
           # source_driver -> target_driver
-          lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
+          lxc storage volume create "${source_pool}" vol1
           # This will create the snapshot vol1/snap0
-          lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
+          lxc storage volume snapshot "${source_pool}" vol1
           # Copy volume with snapshots
-          lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol1"
+          lxc storage volume copy "${source_pool}/vol1" "${target_pool}/vol1"
           # Ensure the target snapshot is there
-          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1/snap0
+          lxc storage volume show "${target_pool}" vol1/snap0
           # Copy volume only
-          lxc storage volume copy --volume-only "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol2"
+          lxc storage volume copy --volume-only "${source_pool}/vol1" "${target_pool}/vol2"
           # Copy snapshot to volume
-          lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol1/snap0" "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol3"
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol2
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol3
-          lxc storage volume move "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol1"
-          ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1 || false
-          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1
+          lxc storage volume copy "${source_pool}/vol1/snap0" "${target_pool}/vol3"
+          lxc storage volume delete "${target_pool}" vol1
+          lxc storage volume delete "${target_pool}" vol2
+          lxc storage volume delete "${target_pool}" vol3
+          lxc storage volume move "${source_pool}/vol1" "${target_pool}/vol1"
+          ! lxc storage volume show "${source_pool}" vol1 || false
+          lxc storage volume show "${target_pool}" vol1
+          lxc storage volume delete "${target_pool}" vol1
 
           # target_driver -> source_driver
-          lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1
-          lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol1"
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
+          lxc storage volume create "${target_pool}" vol1
+          lxc storage volume copy "${target_pool}/vol1" "${source_pool}/vol1"
+          lxc storage volume delete "${source_pool}" vol1
 
-          lxc storage volume move "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol1"
-          ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1 || false
-          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
+          lxc storage volume move "${target_pool}/vol1" "${source_pool}/vol1"
+          ! lxc storage volume show "${target_pool}" vol1 || false
+          lxc storage volume show "${source_pool}" vol1
+          lxc storage volume delete "${source_pool}" vol1
 
           if [ "${source_driver}" = "cephfs" ] || [ "${target_driver}" = "cephfs" ]; then
             continue
           fi
 
           # create custom block volume without snapshots
-          lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1 --type=block size=4194304
-          lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol1"
-          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1 | grep -q 'content_type: block'
+          lxc storage volume create "${source_pool}" vol1 --type=block size=4194304
+          lxc storage volume copy "${source_pool}/vol1" "${target_pool}/vol1"
+          lxc storage volume show "${target_pool}" vol1 | grep -q 'content_type: block'
 
           # create custom block volume with a snapshot
-          lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol2 --type=block size=4194304
-          lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol2
-          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol2/snap0 | grep -q 'content_type: block'
+          lxc storage volume create "${source_pool}" vol2 --type=block size=4194304
+          lxc storage volume snapshot "${source_pool}" vol2
+          lxc storage volume show "${source_pool}" vol2/snap0 | grep -q 'content_type: block'
 
           # restore snapshot
-          lxc storage volume restore "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol2 snap0
-          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol2 | grep -q 'content_type: block'
+          lxc storage volume restore "${source_pool}" vol2 snap0
+          lxc storage volume show "${source_pool}" vol2 | grep -q 'content_type: block'
 
           # copy with snapshots
-          lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol2" "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol2"
-          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol2 | grep -q 'content_type: block'
-          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol2/snap0 | grep -q 'content_type: block'
+          lxc storage volume copy "${source_pool}/vol2" "${target_pool}/vol2"
+          lxc storage volume show "${target_pool}" vol2 | grep -q 'content_type: block'
+          lxc storage volume show "${target_pool}" vol2/snap0 | grep -q 'content_type: block'
 
           # copy without snapshots
-          lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol2" "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol3" --volume-only
-          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol3 | grep -q 'content_type: block'
-          ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol3/snap0 | grep -q 'content_type: block' || false
+          lxc storage volume copy "${source_pool}/vol2" "${target_pool}/vol3" --volume-only
+          lxc storage volume show "${target_pool}" vol3 | grep -q 'content_type: block'
+          ! lxc storage volume show "${target_pool}" vol3/snap0 | grep -q 'content_type: block' || false
 
           # move images
-          lxc storage volume move "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol2" "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol4"
-          ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol2 | grep -q 'content_type: block' || false
-          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol4 | grep -q 'content_type: block'
-          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol4/snap0 | grep -q 'content_type: block'
+          lxc storage volume move "${source_pool}/vol2" "${target_pool}/vol4"
+          ! lxc storage volume show "${source_pool}" vol2 | grep -q 'content_type: block' || false
+          lxc storage volume show "${target_pool}" vol4 | grep -q 'content_type: block'
+          lxc storage volume show "${target_pool}" vol4/snap0 | grep -q 'content_type: block'
 
           # check refreshing volumes
 
           # create storage volume with user config differing over snapshots
-          lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol5 --type=block size=4194304
-          lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol5 user.foo=snap0vol5
-          lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol5
-          lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol5 user.foo=snap1vol5
-          lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol5
-          lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol5 user.foo=snapremovevol5
-          lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol5 snapremove
-          lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol5 user.foo=postsnap1vol5
+          lxc storage volume create "${source_pool}" vol5 --type=block size=4194304
+          lxc storage volume set "${source_pool}" vol5 user.foo=snap0vol5
+          lxc storage volume snapshot "${source_pool}" vol5
+          lxc storage volume set "${source_pool}" vol5 user.foo=snap1vol5
+          lxc storage volume snapshot "${source_pool}" vol5
+          lxc storage volume set "${source_pool}" vol5 user.foo=snapremovevol5
+          lxc storage volume snapshot "${source_pool}" vol5 snapremove
+          lxc storage volume set "${source_pool}" vol5 user.foo=postsnap1vol5
 
           # create storage volume with user config differing over snapshots and additional snapshot than vol5
-          lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol6 --type=block size=4194304
-          lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol6 user.foo=snap0vol6
-          lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol6
-          lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol6 user.foo=snap1vol6
-          lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol6
-          lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol6 user.foo=snap2vol6
-          lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol6
-          lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol6 user.foo=postsnap1vol6
+          lxc storage volume create "${source_pool}" vol6 --type=block size=4194304
+          lxc storage volume set "${source_pool}" vol6 user.foo=snap0vol6
+          lxc storage volume snapshot "${source_pool}" vol6
+          lxc storage volume set "${source_pool}" vol6 user.foo=snap1vol6
+          lxc storage volume snapshot "${source_pool}" vol6
+          lxc storage volume set "${source_pool}" vol6 user.foo=snap2vol6
+          lxc storage volume snapshot "${source_pool}" vol6
+          lxc storage volume set "${source_pool}" vol6 user.foo=postsnap1vol6
 
           # copy to new volume destination with refresh flag
-          lxc storage volume copy --refresh "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol5" "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol5"
+          lxc storage volume copy --refresh "${source_pool}/vol5" "${target_pool}/vol5"
 
           # check snapshot volumes (including config) were copied
-          lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5 user.foo | grep -Fx "postsnap1vol5"
-          lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5/snap0 user.foo | grep -Fx "snap0vol5"
-          lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5/snap1 user.foo | grep -Fx "snap1vol5"
-          lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5/snapremove user.foo | grep -Fx "snapremovevol5"
+          lxc storage volume get "${target_pool}" vol5 user.foo | grep -Fx "postsnap1vol5"
+          lxc storage volume get "${target_pool}" vol5/snap0 user.foo | grep -Fx "snap0vol5"
+          lxc storage volume get "${target_pool}" vol5/snap1 user.foo | grep -Fx "snap1vol5"
+          lxc storage volume get "${target_pool}" vol5/snapremove user.foo | grep -Fx "snapremovevol5"
 
           # incremental copy to existing volume destination with refresh flag
-          lxc storage volume copy --refresh "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol6" "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol5"
+          lxc storage volume copy --refresh "${source_pool}/vol6" "${target_pool}/vol5"
 
           # check snapshot volumes (including config) was overridden from new source and that missing snapshot is
           # present and that the missing snapshot has been removed.
           # Note: Due to a known issue we are currently only diffing the snapshots by name, so infact existing
           # snapshots of the same name won't be overwritten even if their config or contents is different.
-          lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5 user.foo | grep -Fx "postsnap1vol5"
-          lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5/snap0 user.foo | grep -Fx "snap0vol5"
-          lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5/snap1 user.foo | grep -Fx "snap1vol5"
-          lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5/snap2 user.foo | grep -Fx "snap2vol6"
-          ! lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5/snapremove user.foo || false
+          lxc storage volume get "${target_pool}" vol5 user.foo | grep -Fx "postsnap1vol5"
+          lxc storage volume get "${target_pool}" vol5/snap0 user.foo | grep -Fx "snap0vol5"
+          lxc storage volume get "${target_pool}" vol5/snap1 user.foo | grep -Fx "snap1vol5"
+          lxc storage volume get "${target_pool}" vol5/snap2 user.foo | grep -Fx "snap2vol6"
+          ! lxc storage volume get "${target_pool}" vol5/snapremove user.foo || false
 
           # copy ISO custom volumes
           truncate -s 25MiB foo.iso
-          lxc storage volume import "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" ./foo.iso iso1
-          lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${source_driver}"/iso1 "lxdtest-$(basename "${LXD_DIR}")-${target_driver}"/iso1
-          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" iso1 | grep -q 'content_type: iso'
-          lxc storage volume move "lxdtest-$(basename "${LXD_DIR}")-${source_driver}"/iso1 "lxdtest-$(basename "${LXD_DIR}")-${target_driver}"/iso2
-          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" iso2 | grep -q 'content_type: iso'
-          ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" iso1 || false
+          lxc storage volume import "${source_pool}" ./foo.iso iso1
+          lxc storage volume copy "${source_pool}/iso1" "${target_pool}/iso1"
+          lxc storage volume show "${target_pool}" iso1 | grep -q 'content_type: iso'
+          lxc storage volume move "${source_pool}/iso1" "${target_pool}/iso2"
+          lxc storage volume show "${target_pool}" iso2 | grep -q 'content_type: iso'
+          ! lxc storage volume show "${source_pool}" iso1 || false
 
           # clean up
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol2
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol3
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol4
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol5
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol6
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" iso1
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" iso2
+          lxc storage volume delete "${source_pool}" vol1
+          lxc storage volume delete "${target_pool}" vol1
+          lxc storage volume delete "${target_pool}" vol2
+          lxc storage volume delete "${target_pool}" vol3
+          lxc storage volume delete "${target_pool}" vol4
+          lxc storage volume delete "${source_pool}" vol5
+          lxc storage volume delete "${target_pool}" vol5
+          lxc storage volume delete "${source_pool}" vol6
+          lxc storage volume delete "${target_pool}" iso1
+          lxc storage volume delete "${target_pool}" iso2
           rm -f foo.iso
         fi
       done
