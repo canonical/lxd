@@ -1287,10 +1287,6 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 				}
 
 				if fds["0"] != "" {
-					if args.Stdin != nil {
-						_ = args.Stdin.Close()
-					}
-
 					// Empty the stdin channel but don't block on it as
 					// stdin may be stuck in Read()
 					go func() {
