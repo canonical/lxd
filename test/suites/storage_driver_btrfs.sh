@@ -156,6 +156,29 @@ test_storage_driver_btrfs() {
     lxc profile device remove default root
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool1"
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool2"
+
+    # Test creating storage pool from exiting btrfs subvolume
+    truncate -s 200M testpool.img
+    mkfs.btrfs -f testpool.img
+    basepath="$(pwd)/mnt"
+    mkdir -p "${basepath}"
+    mount testpool.img "${basepath}"
+    btrfs subvolume create "${basepath}/foo"
+    btrfs subvolume create "${basepath}/foo/bar"
+
+    # This should fail as the source itself has subvolumes.
+    ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" btrfs source="${basepath}/foo" || false
+
+    # This should work as the provided subvolume is empty.
+    btrfs subvolume delete "${basepath}/foo/bar"
+    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" btrfs source="${basepath}/foo"
+    lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool1"
+
+    sleep 1
+
+    umount "${basepath}"
+    rmdir "${basepath}"
+    rm -f testpool.img
   )
 
   # shellcheck disable=SC2031
