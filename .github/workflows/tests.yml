@@ -182,10 +182,14 @@ jobs:
 
       - name: Install Go (tip)
         run: |
-          curl -sSfL https://storage.googleapis.com/go-build-snap/go/linux-amd64/$(git ls-remote https://github.com/golang/go.git HEAD | awk '{print $1;}').tar.gz -o gotip.tar.gz
+          set -eux
+          HEAD="$(git ls-remote https://github.com/golang/go.git HEAD | awk '{print $1}')"
+          # Tarballs can take time to become available
+          curl --retry 3 --retry-all-errors --retry-delay 30 -sSfL "https://storage.googleapis.com/go-build-snap/go/linux-amd64/${HEAD}.tar.gz" -o gotip.tar.gz
           ls -lah gotip.tar.gz
           mkdir -p ~/sdk/gotip
           tar -C ~/sdk/gotip -xzf gotip.tar.gz
+          rm gotip.tar.gz
           ~/sdk/gotip/bin/go version
           echo "PATH=$HOME/go/bin:$HOME/sdk/gotip/bin/:$PATH" >> $GITHUB_ENV
         if: matrix.go == 'tip'
