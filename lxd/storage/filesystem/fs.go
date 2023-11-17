@@ -222,3 +222,35 @@ func ResolveMountOptions(options []string) (uintptr, string) {
 
 	return mountFlags, strings.Join(mountOptions, ",")
 }
+
+// GetMountinfo tracks down the mount entry for the path and returns all MountInfo fields.
+func GetMountinfo(path string) ([]string, error) {
+	stat := &unix.Statx_t{}
+	err := unix.Statx(0, path, 0, 0, stat)
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := os.Open("/proc/self/mountinfo")
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = f.Close() }()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		tokens := strings.Fields(line)
+		if len(tokens) < 5 {
+			continue
+		}
+
+		if tokens[0] == fmt.Sprintf("%d", stat.Mnt_id) {
+			return tokens, nil
+		}
+	}
+
+	return nil, fmt.Errorf("No mountinfo entry found")
+}
