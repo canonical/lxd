@@ -280,6 +280,7 @@ func (c *cmdInfo) renderDisk(disk api.ResourcesStorageDisk, prefix string, initi
 	}
 
 	fmt.Printf(prefix+i18n.G("Read-Only: %v")+"\n", disk.ReadOnly)
+	fmt.Printf(prefix+i18n.G("Mounted: %v")+"\n", disk.Mounted)
 	fmt.Printf(prefix+i18n.G("Removable: %v")+"\n", disk.Removable)
 
 	if len(disk.Partitions) != 0 {
@@ -289,6 +290,7 @@ func (c *cmdInfo) renderDisk(disk api.ResourcesStorageDisk, prefix string, initi
 			fmt.Printf(prefix+"    "+i18n.G("ID: %s")+"\n", partition.ID)
 			fmt.Printf(prefix+"    "+i18n.G("Device: %s")+"\n", partition.Device)
 			fmt.Printf(prefix+"    "+i18n.G("Read-Only: %v")+"\n", partition.ReadOnly)
+			fmt.Printf(prefix+"    "+i18n.G("Mounted: %v")+"\n", partition.Mounted)
 			fmt.Printf(prefix+"    "+i18n.G("Size: %s")+"\n", units.GetByteSizeStringIEC(int64(partition.Size), 2))
 		}
 	}
