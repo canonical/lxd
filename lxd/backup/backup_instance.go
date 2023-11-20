@@ -1,10 +1,12 @@
 package backup
 
 import (
+	"context"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
@@ -92,7 +94,9 @@ func (b *InstanceBackup) Rename(newName string) error {
 	}
 
 	// Rename the database record.
-	err = b.state.DB.Cluster.RenameInstanceBackup(b.name, newName)
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.RenameInstanceBackup(ctx, b.name, newName)
+	})
 	if err != nil {
 		return err
 	}
@@ -126,7 +130,9 @@ func (b *InstanceBackup) Delete() error {
 	}
 
 	// Remove the database record.
-	err := b.state.DB.Cluster.DeleteInstanceBackup(b.name)
+	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.DeleteInstanceBackup(ctx, b.name)
+	})
 	if err != nil {
 		return err
 	}
