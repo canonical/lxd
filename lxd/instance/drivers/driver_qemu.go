@@ -1926,15 +1926,9 @@ func (d *qemu) architectureSupportsUEFI(arch int) bool {
 }
 
 func (d *qemu) setupNvram() error {
+	var err error
+
 	d.logger.Debug("Generating NVRAM")
-
-	// Mount the instance's config volume.
-	_, err := d.mount()
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = d.unmount() }()
 
 	// Cleanup existing variables.
 	for _, firmwares := range [][]ovmfFirmware{ovmfGenericFirmwares, ovmfSecurebootFirmwares, ovmfCSMFirmwares} {
@@ -2886,6 +2880,17 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		if ovmfCode == "" {
 			return "", nil, fmt.Errorf("Unable to locate matching firmware: %+v", firmwares)
+		}
+
+		// As 2MB firmware was deprecated in the LXD snap we have to regenerate NVRAM for VMs which used the 2MB one.
+		if shared.InSnap() && !strings.Contains(ovmfCode, "4MB") {
+			err = d.setupNvram()
+			if err != nil {
+				return "", nil, err
+			}
+
+			// force to use a 4MB firmware
+			ovmfCode = firmwares[0].code
 		}
 
 		driveFirmwareOpts := qemuDriveFirmwareOpts{
@@ -5348,6 +5353,19 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	if d.architectureSupportsUEFI(d.architecture) && (shared.ValueInSlice("security.secureboot", changedConfig) || shared.ValueInSlice("security.csm", changedConfig)) {
+		// setupNvram() requires instance's config volume to be mounted.
+		// The easiest way to detect that is to check if instance is running.
+		// TODO: extend storage API to be able to check if volume is already mounted?
+		if !isRunning {
+			// Mount the instance's config volume.
+			_, err := d.mount()
+			if err != nil {
+				return err
+			}
+
+			defer func() { _ = d.unmount() }()
+		}
+
 		// Re-generate the NVRAM.
 		err = d.setupNvram()
 		if err != nil {
@@ -8092,7 +8110,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 	}
 
 	if d.architectureSupportsUEFI(hostArch) {
-		qemuArgs = append(qemuArgs, "-drive", fmt.Sprintf("if=pflash,format=raw,readonly=on,file=%s", filepath.Join(d.ovmfPath(), "OVMF_CODE.fd")))
+		qemuArgs = append(qemuArgs, "-drive", fmt.Sprintf("if=pflash,format=raw,readonly=on,file=%s", filepath.Join(d.ovmfPath(), ovmfGenericFirmwares[0].code)))
 	}
 
 	var stderr bytes.Buffer
