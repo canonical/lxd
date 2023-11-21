@@ -1926,15 +1926,9 @@ func (d *qemu) architectureSupportsUEFI(arch int) bool {
 }
 
 func (d *qemu) setupNvram() error {
+	var err error
+
 	d.logger.Debug("Generating NVRAM")
-
-	// Mount the instance's config volume.
-	_, err := d.mount()
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = d.unmount() }()
 
 	// Cleanup existing variables.
 	for _, firmwares := range [][]ovmfFirmware{ovmfGenericFirmwares, ovmfSecurebootFirmwares, ovmfCSMFirmwares} {
@@ -5283,6 +5277,19 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	if d.architectureSupportsUEFI(d.architecture) && (shared.ValueInSlice("security.secureboot", changedConfig) || shared.ValueInSlice("security.csm", changedConfig)) {
+		// setupNvram() requires instance's config volume to be mounted.
+		// The easiest way to detect that is to check if instance is running.
+		// TODO: extend storage API to be able to check if volume is already mounted?
+		if !isRunning {
+			// Mount the instance's config volume.
+			_, err := d.mount()
+			if err != nil {
+				return err
+			}
+
+			defer func() { _ = d.unmount() }()
+		}
+
 		// Re-generate the NVRAM.
 		err = d.setupNvram()
 		if err != nil {
