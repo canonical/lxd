@@ -2882,6 +2882,17 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			return "", nil, fmt.Errorf("Unable to locate matching firmware: %+v", firmwares)
 		}
 
+		// As 2MB firmware was deprecated in the LXD snap we have to regenerate NVRAM for VMs which used the 2MB one.
+		if shared.InSnap() && !strings.Contains(ovmfCode, "4MB") {
+			err = d.setupNvram()
+			if err != nil {
+				return "", nil, err
+			}
+
+			// force to use a 4MB firmware
+			ovmfCode = firmwares[0].code
+		}
+
 		driveFirmwareOpts := qemuDriveFirmwareOpts{
 			roPath:    filepath.Join(d.ovmfPath(), ovmfCode),
 			nvramPath: fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, nvRAMFile)),
@@ -8034,7 +8045,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 	}
 
 	if d.architectureSupportsUEFI(hostArch) {
-		qemuArgs = append(qemuArgs, "-drive", fmt.Sprintf("if=pflash,format=raw,readonly=on,file=%s", filepath.Join(d.ovmfPath(), "OVMF_CODE.fd")))
+		qemuArgs = append(qemuArgs, "-drive", fmt.Sprintf("if=pflash,format=raw,readonly=on,file=%s", filepath.Join(d.ovmfPath(), ovmfGenericFirmwares[0].code)))
 	}
 
 	var stderr bytes.Buffer
