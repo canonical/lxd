@@ -51,6 +51,13 @@
 						}
 					},
 					{
+						"boot.debug_edk2": {
+							"longdesc": "The instance should use a debug version of the `edk2`.\nA log file can be found in `$LXD_DIR/logs/\u003cinstance_name\u003e/edk2.log`.",
+							"shortdesc": "Enable debug version of the `edk2`",
+							"type": "bool"
+						}
+					},
+					{
 						"boot.host_shutdown_timeout": {
 							"defaultdesc": "\"30\"",
 							"liveupdate": "yes",
@@ -912,7 +919,7 @@
 						"volatile.apply_nvram": {
 							"longdesc": "",
 							"shortdesc": "Whether to regenerate VM NVRAM the next time the instance starts",
-							"type": "string"
+							"type": "bool"
 						}
 					},
 					{

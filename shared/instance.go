@@ -1044,7 +1044,7 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	// lxdmeta:generate(entity=instance, group=volatile, key=volatile.apply_nvram)
 	//
 	// ---
-	//  type: string
+	//  type: bool
 	//  shortdesc: Whether to regenerate VM NVRAM the next time the instance starts
 	"volatile.apply_nvram": validate.Optional(validate.IsBool),
 
@@ -1054,6 +1054,14 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	//  type: string
 	//  shortdesc: Instance `vsock ID` used as of last start
 	"volatile.vsock_id": validate.Optional(validate.IsInt64),
+
+	// lxdmeta:generate(entity=instance, group=boot, key=boot.debug_edk2)
+	// The instance should use a debug version of the `edk2`.
+	// A log file can be found in `$LXD_DIR/logs/<instance_name>/edk2.log`.
+	// ---
+	//  type: bool
+	//  shortdesc: Enable debug version of the `edk2`
+	"boot.debug_edk2": validate.Optional(validate.IsBool),
 }
 
 // ConfigKeyChecker returns a function that will check whether or not
