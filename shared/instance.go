@@ -1044,7 +1044,7 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	// lxdmeta:generate(entity=instance, group=volatile, key=volatile.apply_nvram)
 	//
 	// ---
-	//  type: string
+	//  type: bool
 	//  shortdesc: Whether to regenerate VM NVRAM the next time the instance starts
 	"volatile.apply_nvram": validate.Optional(validate.IsBool),
 
