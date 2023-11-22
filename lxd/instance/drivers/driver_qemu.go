@@ -109,6 +109,9 @@ type ovmfFirmware struct {
 	vars string
 }
 
+// Debug version of the "default" firmware.
+var ovmfDebugFirmware = "OVMF_CODE.4MB.debug.fd"
+
 var ovmfGenericFirmwares = []ovmfFirmware{
 	{code: "OVMF_CODE.4MB.fd", vars: "OVMF_VARS.4MB.fd"},
 	{code: "OVMF_CODE.2MB.fd", vars: "OVMF_VARS.2MB.fd"},
@@ -1446,6 +1449,14 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		"-spice", d.spiceCmdlineConfig(),
 		"-pidfile", d.pidFilePath(),
 		"-D", d.LogFilePath(),
+	}
+
+	// If user wants to run with debug version of edk2
+	if shared.IsTrue(d.localConfig["boot.debug_edk2"]) {
+		// Here we ask the Qemu to redirect debug console output from I/O port to the file.
+		// 0x402 is the default PcdDebugIoPort value in the edk2.
+		// This I/O port is used by DebugLib in the edk2 to print debug messages.
+		qemuCmd = append(qemuCmd, "-debugcon", "file:"+d.EDK2LogFilePath(), "-global", "isa-debugcon.iobase=0x402")
 	}
 
 	// If stateful, restore now.
@@ -2891,6 +2902,11 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 			// force to use a 4MB firmware
 			ovmfCode = firmwares[0].code
+		}
+
+		// Use debug version of firmware. (Only works for "default" (4MB, no CSM) firmware flavor)
+		if shared.IsTrue(d.localConfig["boot.debug_edk2"]) && ovmfCode == ovmfGenericFirmwares[0].code {
+			ovmfCode = ovmfDebugFirmware
 		}
 
 		driveFirmwareOpts := qemuDriveFirmwareOpts{
@@ -7771,6 +7787,11 @@ func (d *qemu) statusCode() api.StatusCode {
 // State returns the instance's state code.
 func (d *qemu) State() string {
 	return strings.ToUpper(d.statusCode().String())
+}
+
+// EDK2LogFilePath returns the instance's edk2 log path. Only for edk2 debug version.
+func (d *qemu) EDK2LogFilePath() string {
+	return filepath.Join(d.LogPath(), "edk2.log")
 }
 
 // EarlyLogFilePath returns the instance's early log path.
