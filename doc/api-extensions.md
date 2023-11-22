@@ -2099,3 +2099,8 @@ that the endpoint can be used to wait for an operation to complete rather than w
 This extension adds support for copying and moving custom storage volumes within a cluster with a single API call.
 Calling `POST /1.0/storage-pools/<pool>/custom?target=<target>` will copy the custom volume specified in the `source` part of the request.
 Calling `POST /1.0/storage-pools/<pool>/custom/<volume>?target=<target>` will move the custom volume from the source, specified in the `source` part of the request, to the target.
+
+## `instance_move_config`
+
+This API extension provides the ability to use flags `--profile`, `--no-profile`, `--device`, and `--config`
+when moving an instance between projects and/or storage pools.
