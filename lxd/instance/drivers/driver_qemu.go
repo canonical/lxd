@@ -8110,7 +8110,13 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 	}
 
 	if d.architectureSupportsUEFI(hostArch) {
-		qemuArgs = append(qemuArgs, "-drive", fmt.Sprintf("if=pflash,format=raw,readonly=on,file=%s", filepath.Join(d.ovmfPath(), ovmfGenericFirmwares[0].code)))
+		ovmfCode := "OVMF_CODE.fd"
+
+		if shared.InSnap() {
+			ovmfCode = ovmfGenericFirmwares[0].code
+		}
+
+		qemuArgs = append(qemuArgs, "-drive", fmt.Sprintf("if=pflash,format=raw,readonly=on,file=%s", filepath.Join(d.ovmfPath(), ovmfCode)))
 	}
 
 	var stderr bytes.Buffer
