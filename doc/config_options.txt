@@ -40,6 +40,13 @@ The number of seconds to wait after the instance started before starting the nex
 The instance with the highest value is started first.
 ```
 
+```{config:option} boot.debug_edk2 instance-boot
+:shortdesc: "Enable debug version of the `edk2`"
+:type: "bool"
+The instance should use a debug version of the `edk2`.
+A log file can be found in `$LXD_DIR/logs/<instance_name>/edk2.log`.
+```
+
 ```{config:option} boot.host_shutdown_timeout instance-boot
 :defaultdesc: "30"
 :liveupdate: "yes"
