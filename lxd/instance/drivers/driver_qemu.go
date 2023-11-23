@@ -2484,6 +2484,9 @@ func (d *qemu) generateConfigShare() error {
 		return err
 	}
 
+	// Systemd unit for lxd-agent. It ensures the lxd-agent is copied from the shared filesystem before it is
+	// started. The service is triggered dynamically via udev rules when certain virtio-ports are detected,
+	// rather than being enabled at boot.
 	lxdAgentServiceUnit := `[Unit]
 Description=LXD - agent
 Documentation=https://documentation.ubuntu.com/lxd/en/latest/
@@ -2506,6 +2509,9 @@ StartLimitBurst=10
 		return err
 	}
 
+	// Setup script for lxd-agent that is executed by the lxd-agent systemd unit before lxd-agent is started.
+	// The script sets up a temporary mount point, copies data from the mount (including lxd-agent binary),
+	// and then unmounts it. It also ensures appropriate permissions for the LXD agent's runtime directory.
 	lxdAgentSetupScript := `#!/bin/sh
 set -eu
 PREFIX="/run/lxd_agent"
@@ -2552,12 +2558,12 @@ chown -R root:root "${PREFIX}"
 		return err
 	}
 
-	// Udev rules
 	err = os.MkdirAll(filepath.Join(configDrivePath, "udev"), 0500)
 	if err != nil {
 		return err
 	}
 
+	// Udev rules to start the lxd-agent.service when QEMU serial devices (symlinks in virtio-ports) appear.
 	lxdAgentRules := `SYMLINK=="virtio-ports/com.canonical.lxd", TAG+="systemd", ENV{SYSTEMD_WANTS}+="lxd-agent.service"
 
 # Legacy.
