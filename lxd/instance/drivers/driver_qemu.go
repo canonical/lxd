@@ -2552,14 +2552,11 @@ mkdir -p "${PREFIX}/.mnt"
 mount_virtiofs || mount_9p || fail "Couldn't mount virtiofs or 9p, failing."
 
 # Copy the data.
-cp -Ra "${PREFIX}/.mnt/"* "${PREFIX}"
+cp -Ra --no-preserve=ownership "${PREFIX}/.mnt/"* "${PREFIX}"
 
 # Unmount the temporary mount.
 umount "${PREFIX}/.mnt"
 rmdir "${PREFIX}/.mnt"
-
-# Fix up permissions.
-chown -R root:root "${PREFIX}"
 `
 
 	err = os.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-setup"), []byte(lxdAgentSetupScript), 0500)
