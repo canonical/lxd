@@ -75,7 +75,7 @@ func restServer(d *Daemon) *http.Server {
 		ua := r.Header.Get("User-Agent")
 		if uiEnabled && strings.Contains(ua, "Gecko") {
 			// Web browser handling.
-			http.Redirect(w, r, "/ui/", 301)
+			http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
 		} else {
 			// Normal client handling.
 			_ = response.SyncResponse(true, []string{"/1.0"}).Render(w)

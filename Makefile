@@ -83,14 +83,18 @@ deps:
 	@echo "export LD_LIBRARY_PATH=\"$(RAFT_PATH)/.libs/:$(DQLITE_PATH)/.libs/\""
 	@echo "export CGO_LDFLAGS_ALLOW=\"(-Wl,-wrap,pthread_create)|(-Wl,-z,now)\""
 
-.PHONY: update
-update:
+.PHONY: update-gomod
+update-gomod:
 ifneq "$(LXD_OFFLINE)" ""
-	@echo "The update target cannot be run in offline mode."
+	@echo "The update-gomod target cannot be run in offline mode."
 	exit 1
 endif
 	go get -t -v -d -u ./...
-	go mod tidy
+	go get github.com/mdlayher/socket@v0.4.1
+	go get github.com/openfga/go-sdk@v0.2.2
+	go mod tidy --go=1.19
+	go get toolchain@none
+
 	@echo "Dependencies updated"
 
 .PHONY: update-protobuf
@@ -277,6 +281,18 @@ endif
 	shellcheck --shell sh test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh
 	shellcheck test/extras/*.sh
 	run-parts --exit-on-error --regex '.sh' test/lint
+
+.PHONY: staticcheck
+staticcheck:
+ifeq ($(shell command -v staticcheck),)
+	(cd / ; go install -v -x honnef.co/go/tools/cmd/staticcheck@latest)
+endif
+	# To get advance notice of deprecated function usage, consider running:
+	#   sed -i 's/^go 1\.[0-9]\+$/go 1.20/' go.mod
+	# before 'make staticcheck'.
+
+	# Run staticcheck against all the dirs containing Go files.
+	staticcheck $$(git ls-files *.go | sed 's|^|./|; s|/[^/]\+\.go$$||' | sort -u)
 
 tags: */*.go
 	find . -type f -name '*.go' | gotags -L - -f tags
