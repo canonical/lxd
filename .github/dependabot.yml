@@ -5,3 +5,4 @@ updates:
     labels: []
     schedule:
       interval: "weekly"
+    target-branch: "stable-5.0"
