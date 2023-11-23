@@ -76,6 +76,9 @@ type State struct {
 	// Local server name.
 	ServerName string
 
+	// Local server UUID.
+	ServerUUID string
+
 	// Local server start time.
 	StartTime time.Time
 
