@@ -4,11 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/ws"
 )
 
@@ -99,5 +102,54 @@ func eventsPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
+	// Handle device related actions locally.
+	go eventsProcess(event)
+
 	return response.SyncResponse(true, nil)
+}
+
+func eventsProcess(event api.Event) {
+	// We currently only need to react to device events.
+	if event.Type != "device" {
+		return
+	}
+
+	type deviceEvent struct {
+		Action string            `json:"action"`
+		Config map[string]string `json:"config"`
+		Name   string            `json:"name"`
+	}
+
+	e := deviceEvent{}
+	err := json.Unmarshal(event.Metadata, &e)
+	if err != nil {
+		return
+	}
+
+	// Only care about device additions, we don't try to handle remove.
+	if e.Action != "added" {
+		return
+	}
+
+	// We only handle disk hotplug.
+	if e.Config["type"] != "disk" {
+		return
+	}
+
+	// And only for path based devices.
+	if e.Config["path"] == "" {
+		return
+	}
+
+	// Attempt to perform the mount.
+	mntSource := fmt.Sprintf("lxd_%s", e.Name)
+
+	_ = os.MkdirAll(e.Config["path"], 0755)
+	_, err = shared.RunCommand("mount", "-t", "virtiofs", mntSource, e.Config["path"])
+	if err != nil {
+		logger.Infof("Failed to mount hotplug %q (Type: %q) to %q", mntSource, "virtiofs", e.Config["path"])
+		return
+	}
+
+	logger.Infof("Mounted hotplug %q (Type: %q) to %q", mntSource, "virtiofs", e.Config["path"])
 }
