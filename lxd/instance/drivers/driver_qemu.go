@@ -2591,7 +2591,8 @@ fi
 rm -f /lib/systemd/system/lxd-agent-9p.service \
     /lib/systemd/system/lxd-agent-virtiofs.service \
     /etc/systemd/system/multi-user.target.wants/lxd-agent-9p.service \
-    /etc/systemd/system/multi-user.target.wants/lxd-agent-virtiofs.service
+    /etc/systemd/system/multi-user.target.wants/lxd-agent-virtiofs.service \
+    /etc/systemd/system/multi-user.target.wants/lxd-agent.service
 
 # Install the units.
 cp udev/99-lxd-agent.rules /lib/udev/rules.d/
