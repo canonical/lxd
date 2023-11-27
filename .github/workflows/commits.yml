@@ -27,6 +27,7 @@ jobs:
       env:
         TARGET: ${{ github.event.pull_request.base.ref }}
         TITLE: ${{ github.event.pull_request.title }}
+      if: ${{ github.actor != 'dependabot[bot]' }}
       run: |
         set -eux
         TARGET_FROM_PR_TITLE="$(echo "${TITLE}" | sed -n 's/.*(\(stable-[0-9]\.[0-9]\))$/\1/p')"
