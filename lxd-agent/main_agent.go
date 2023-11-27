@@ -237,8 +237,8 @@ func (c *cmdAgent) startStatusNotifier(ctx context.Context, chConnected <-chan s
 
 // writeStatus writes a status code to the vserial ring buffer used to detect agent status on host.
 func (c *cmdAgent) writeStatus(status string) error {
-	if shared.PathExists("/dev/virtio-ports/org.linuxcontainers.lxd") {
-		vSerial, err := os.OpenFile("/dev/virtio-ports/org.linuxcontainers.lxd", os.O_RDWR, 0600)
+	if shared.PathExists("/dev/virtio-ports/com.canonical.lxd") {
+		vSerial, err := os.OpenFile("/dev/virtio-ports/com.canonical.lxd", os.O_RDWR, 0600)
 		if err != nil {
 			return err
 		}

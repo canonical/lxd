@@ -2495,11 +2495,13 @@ func (d *qemu) generateConfigShare() error {
 		return err
 	}
 
+	// Systemd unit for lxd-agent. It ensures the lxd-agent is copied from the shared filesystem before it is
+	// started. The service is triggered dynamically via udev rules when certain virtio-ports are detected,
+	// rather than being enabled at boot.
 	lxdAgentServiceUnit := `[Unit]
 Description=LXD - agent
 Documentation=https://documentation.ubuntu.com/lxd/en/latest/
-ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
-Before=cloud-init.target cloud-init.service cloud-init-local.service
+Before=multi-user.target cloud-init.target cloud-init.service cloud-init-local.service
 DefaultDependencies=no
 
 [Service]
@@ -2511,9 +2513,6 @@ Restart=on-failure
 RestartSec=5s
 StartLimitInterval=60
 StartLimitBurst=10
-
-[Install]
-WantedBy=multi-user.target
 `
 
 	err = os.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent.service"), []byte(lxdAgentServiceUnit), 0400)
@@ -2521,6 +2520,9 @@ WantedBy=multi-user.target
 		return err
 	}
 
+	// Setup script for lxd-agent that is executed by the lxd-agent systemd unit before lxd-agent is started.
+	// The script sets up a temporary mount point, copies data from the mount (including lxd-agent binary),
+	// and then unmounts it. It also ensures appropriate permissions for the LXD agent's runtime directory.
 	lxdAgentSetupScript := `#!/bin/sh
 set -eu
 PREFIX="/run/lxd_agent"
@@ -2567,13 +2569,18 @@ chown -R root:root "${PREFIX}"
 		return err
 	}
 
-	// Udev rules
 	err = os.MkdirAll(filepath.Join(configDrivePath, "udev"), 0500)
 	if err != nil {
 		return err
 	}
 
-	lxdAgentRules := `ACTION=="add", SYMLINK=="virtio-ports/org.linuxcontainers.lxd", TAG+="systemd", ACTION=="add", RUN+="/bin/systemctl start lxd-agent.service"`
+	// Udev rules to start the lxd-agent.service when QEMU serial devices (symlinks in virtio-ports) appear.
+	lxdAgentRules := `SYMLINK=="virtio-ports/com.canonical.lxd", TAG+="systemd", ENV{SYSTEMD_WANTS}+="lxd-agent.service"
+
+# Legacy.
+SYMLINK=="virtio-ports/org.linuxcontainers.lxd", TAG+="systemd", ENV{SYSTEMD_WANTS}+="lxd-agent.service"
+`
+
 	err = os.WriteFile(filepath.Join(configDrivePath, "udev", "99-lxd-agent.rules"), []byte(lxdAgentRules), 0400)
 	if err != nil {
 		return err
@@ -2595,7 +2602,8 @@ fi
 rm -f /lib/systemd/system/lxd-agent-9p.service \
     /lib/systemd/system/lxd-agent-virtiofs.service \
     /etc/systemd/system/multi-user.target.wants/lxd-agent-9p.service \
-    /etc/systemd/system/multi-user.target.wants/lxd-agent-virtiofs.service
+    /etc/systemd/system/multi-user.target.wants/lxd-agent-virtiofs.service \
+    /etc/systemd/system/multi-user.target.wants/lxd-agent.service
 
 # Install the units.
 cp udev/99-lxd-agent.rules /lib/udev/rules.d/
