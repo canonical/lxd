@@ -2529,12 +2529,12 @@ PREFIX="/run/lxd_agent"
 
 # Functions.
 mount_virtiofs() {
-    mount -t virtiofs config "${PREFIX}/.mnt" >/dev/null 2>&1
+    mount -t virtiofs config "${PREFIX}/.mnt" -o ro >/dev/null 2>&1
 }
 
 mount_9p() {
-    /sbin/modprobe 9pnet_virtio >/dev/null 2>&1 || true
-    /bin/mount -t 9p config "${PREFIX}/.mnt" -o access=0,trans=virtio,size=1048576 >/dev/null 2>&1
+    modprobe 9pnet_virtio >/dev/null 2>&1 || true
+    mount -t 9p config "${PREFIX}/.mnt" -o ro,access=0,trans=virtio,size=1048576 >/dev/null 2>&1
 }
 
 fail() {
@@ -2547,21 +2547,18 @@ fail() {
 # Setup the mount target.
 umount -l "${PREFIX}" >/dev/null 2>&1 || true
 mkdir -p "${PREFIX}"
-mount -t tmpfs tmpfs "${PREFIX}" -o mode=0700,size=50M
+mount -t tmpfs tmpfs "${PREFIX}" -o mode=0700,nodev,nosuid,noatime,size=25M
 mkdir -p "${PREFIX}/.mnt"
 
 # Try virtiofs first.
 mount_virtiofs || mount_9p || fail "Couldn't mount virtiofs or 9p, failing."
 
 # Copy the data.
-cp -Ra "${PREFIX}/.mnt/"* "${PREFIX}"
+cp -Ra --no-preserve=ownership "${PREFIX}/.mnt/"* "${PREFIX}"
 
 # Unmount the temporary mount.
 umount "${PREFIX}/.mnt"
 rmdir "${PREFIX}/.mnt"
-
-# Fix up permissions.
-chown -R root:root "${PREFIX}"
 `
 
 	err = os.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-setup"), []byte(lxdAgentSetupScript), 0500)
