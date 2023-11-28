@@ -1459,6 +1459,11 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		qemuCmd = append(qemuCmd, "-debugcon", "file:"+d.EDK2LogFilePath(), "-global", "isa-debugcon.iobase=0x402")
 	}
 
+	// This feature specific to the snap-shipped CSM edk2 version, because we have a custom patch to make it work.
+	if shared.InSnap() && shared.IsTrue(d.expandedConfig["security.csm"]) {
+		qemuCmd = append(qemuCmd, "-fw_cfg", "name=opt/com.canonical.lxd/force_csm,string=yes")
+	}
+
 	// If stateful, restore now.
 	if stateful {
 		if !d.stateful {
