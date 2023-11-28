@@ -1328,6 +1328,11 @@ func getInstanceLimits(instance api.Instance, keys []string, skipUnset bool) (ma
 			if instance.Type == instancetype.VM.String() {
 				sizeStateValue, ok := device["size.state"]
 				if !ok {
+					// TODO: In case the VMs storage drivers config drive size isn't the default,
+					// the limits accounting will be incorrect.
+					// This applies for the PowerFlex storage driver whose config drive size
+					// is 8 GB as set in the DefaultVMPowerFlexBlockFilesystemSize variable.
+					// See https://github.com/canonical/lxd/issues/12567
 					sizeStateValue = deviceconfig.DefaultVMBlockFilesystemSize
 				}
 
