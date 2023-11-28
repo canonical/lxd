@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/revert"
@@ -116,18 +117,19 @@ func (d *zfs) load() error {
 // Info returns info about the driver and its environment.
 func (d *zfs) Info() Info {
 	info := Info{
-		Name:              "zfs",
-		Version:           zfsVersion,
-		OptimizedImages:   true,
-		OptimizedBackups:  true,
-		PreservesInodes:   true,
-		Remote:            d.isRemote(),
-		VolumeTypes:       []VolumeType{VolumeTypeBucket, VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
-		BlockBacking:      shared.IsTrue(d.config["volume.zfs.block_mode"]),
-		RunningCopyFreeze: false,
-		DirectIO:          zfsDirectIO,
-		MountedRoot:       false,
-		Buckets:           true,
+		Name:                         "zfs",
+		Version:                      zfsVersion,
+		DefaultVMBlockFilesystemSize: deviceConfig.DefaultVMBlockFilesystemSize,
+		OptimizedImages:              true,
+		OptimizedBackups:             true,
+		PreservesInodes:              true,
+		Remote:                       d.isRemote(),
+		VolumeTypes:                  []VolumeType{VolumeTypeBucket, VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
+		BlockBacking:                 shared.IsTrue(d.config["volume.zfs.block_mode"]),
+		RunningCopyFreeze:            false,
+		DirectIO:                     zfsDirectIO,
+		MountedRoot:                  false,
+		Buckets:                      true,
 	}
 
 	return info
