@@ -24,6 +24,11 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
+// clusterBusyError is returned by dqlite if attempting attempting to join a cluster at the same time as a role-change.
+// This error tells us we can retry and probably join the cluster or fail due to something else.
+// The error code here is SQLITE_BUSY.
+var clusterBusyError = fmt.Errorf("a configuration change is already in progress (5)")
+
 // Bootstrap turns a non-clustered LXD instance into the first (and leader)
 // node of a new LXD cluster.
 //
@@ -431,9 +436,27 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	logger.Info("Adding node to cluster", logger.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
 	ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	err = client.Add(ctx, info.NodeInfo)
-	if err != nil {
-		return fmt.Errorf("Failed to join cluster: %w", err)
+
+	// Repeatedly try to join in case the cluster is busy with a role-change.
+	joined := false
+	for !joined {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("Failed to join cluster: %w", ctx.Err())
+		default:
+			err = client.Add(ctx, info.NodeInfo)
+			if err != nil && err.Error() == clusterBusyError.Error() {
+				// If the cluster is busy with a role change, sleep a second and then keep trying to join.
+				time.Sleep(1 * time.Second)
+				continue
+			}
+
+			if err != nil {
+				return fmt.Errorf("Failed to join cluster: %w", err)
+			}
+
+			joined = true
+		}
 	}
 
 	// Make sure we can actually connect to the cluster database through
