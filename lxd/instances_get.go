@@ -263,7 +263,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 		return nil, fmt.Errorf("Invalid filter: %w", err)
 	}
 
-	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
+	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil && len(clauses.Clauses) > 0)
 
 	// Detect project mode.
 	projectName := request.QueryParam(r, "project")
@@ -502,7 +502,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 	})
 
 	// Filter result list if needed.
-	if clauses != nil {
+	if clauses != nil && len(clauses.Clauses) > 0 {
 		resultFullList, err = instance.FilterFull(resultFullList, *clauses)
 		if err != nil {
 			return nil, err
