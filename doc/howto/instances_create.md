@@ -109,7 +109,7 @@ In this scenario, use the following command to create an empty VM:
 
 The second step is to import an ISO image that can later be attached to the VM as a storage volume:
 
-    lxc storage volume import <path-to-image.iso> iso-volume --type=iso
+    lxc storage volume import <pool> <path-to-image.iso> iso-volume --type=iso
 
 Lastly, you need to attach the custom ISO volume to the VM using the following command:
 
