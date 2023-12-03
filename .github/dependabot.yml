@@ -7,12 +7,26 @@ updates:
       interval: "weekly"
 
   # XXX: check on other (non-default) stable branches
+  - package-ecosystem: "gomod"
+    directory: "/"
+    labels: []
+    schedule:
+      interval: "weekly"
+    target-branch: "stable-5.0"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     labels: []
     schedule:
       interval: "weekly"
     target-branch: "stable-5.0"
+
+  - package-ecosystem: "gomod"
+    directory: "/"
+    labels: []
+    schedule:
+      interval: "weekly"
+    target-branch: "stable-4.0"
 
   - package-ecosystem: "github-actions"
     directory: "/"
