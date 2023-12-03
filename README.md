@@ -85,7 +85,10 @@ If you prefer live discussions, you can find us in [`#lxd`](https://web.libera.c
 
 ### Commercial support
 
-Commercial support for LXD can be obtained through [Canonical Ltd](https://www.canonical.com).
+Commercial support for LXD is available through [Ubuntu Pro](https://ubuntu.com/support) (Ubuntu Pro (Infra-only) or full Ubuntu Pro).
+The support covers all LTS versions for five years starting from the day of the release.
+
+See the [full service description](https://ubuntu.com/legal/ubuntu-pro-description) for detailed information about what support Ubuntu Pro provides.
 
 ## Documentation
 
