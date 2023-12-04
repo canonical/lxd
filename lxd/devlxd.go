@@ -15,7 +15,6 @@ import (
 	"github.com/gorilla/mux"
 	"golang.org/x/sys/unix"
 
-	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -185,15 +184,12 @@ var devlxdAPIHandler = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance
 	s := d.State()
 
 	if r.Method == "GET" {
-		clustered, err := cluster.Enabled(s.DB.Node)
-		if err != nil {
-			return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
-		}
-
 		var location string
-		if clustered {
+		if d.serverClustered {
 			location = c.Location()
 		} else {
+			var err error
+
 			location, err = os.Hostname()
 			if err != nil {
 				return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
