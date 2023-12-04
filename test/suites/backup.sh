@@ -43,8 +43,8 @@ EOF
 
   if [ "$poolDriver" = "zfs" ]; then
     # Ensure custom storage volumes have been recovered.
-    lxc storage volume show "${poolName}" vol3| grep -q 'content_type: filesystem'
-    lxc storage volume show "${poolName}" vol4| grep -q 'content_type: filesystem'
+    lxc storage volume show "${poolName}" vol3 | grep -q 'content_type: filesystem'
+    lxc storage volume show "${poolName}" vol4 | grep -q 'content_type: filesystem'
 
     # Cleanup
     lxc storage volume delete "${poolName}" vol3
@@ -53,7 +53,7 @@ EOF
 
   # Cleanup
   lxc storage volume delete "${poolName}" vol1
-  shutdown_lxd "${LXD_DIR}"
+  shutdown_lxd "${LXD_IMPORT_DIR}"
 }
 
 test_container_recover() {

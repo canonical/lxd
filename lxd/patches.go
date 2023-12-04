@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -226,7 +227,7 @@ func patchClusteringServerCertTrust(name string, d *Daemon) error {
 		trustedServerCerts := make(map[string]*dbCluster.Certificate)
 
 		for _, c := range dbCerts {
-			if c.Type == dbCluster.CertificateTypeServer {
+			if c.Type == certificate.TypeServer {
 				trustedServerCerts[c.Name] = &c
 			}
 		}
@@ -983,10 +984,6 @@ func patchStorageZfsUnsetInvalidBlockSettings(_ string, d *Daemon) error {
 
 	for pool, volumes := range poolVolumes {
 		for _, vol := range volumes {
-			if vol.Location != s.ServerName {
-				continue
-			}
-
 			config := vol.Config
 
 			if shared.IsTrue(config["zfs.block_mode"]) {

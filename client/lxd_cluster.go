@@ -35,7 +35,7 @@ func (r *ProtocolLXD) UpdateCluster(cluster api.ClusterPut, ETag string) (Operat
 		}
 	}
 
-	op, _, err := r.queryOperation("PUT", "/cluster", cluster, "")
+	op, _, err := r.queryOperation("PUT", "/cluster", cluster, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func (r *ProtocolLXD) CreateClusterMember(member api.ClusterMembersPost) (Operat
 		return nil, fmt.Errorf("The server is missing the required \"clustering_join_token\" API extension")
 	}
 
-	op, _, err := r.queryOperation("POST", "/cluster/members", member, "")
+	op, _, err := r.queryOperation("POST", "/cluster/members", member, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func (r *ProtocolLXD) UpdateClusterMemberState(name string, state api.ClusterMem
 		return nil, fmt.Errorf("The server is missing the required \"clustering_evacuation\" API extension")
 	}
 
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/cluster/members/%s/state", name), state, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/cluster/members/%s/state", name), state, "", true)
 	if err != nil {
 		return nil, err
 	}

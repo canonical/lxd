@@ -18,8 +18,9 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/lxd/auth/candid"
+	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/cluster"
+	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -660,7 +661,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		for _, trustedCert := range trustedCerts {
 			if trustedCert.Type == api.CertificateTypeServer {
-				dbType, err := dbCluster.CertificateAPITypeToDBType(trustedCert.Type)
+				dbType, err := certificate.FromAPIType(trustedCert.Type)
 				if err != nil {
 					return err
 				}
@@ -739,30 +740,34 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			return err
 		}
 
-		// Connect to MAAS
-		url, key := s.GlobalConfig.MAASController()
-		machine := nodeConfig.MAASMachine()
-		err = d.setupMAASController(url, key, machine)
+		// Get the current (updated) config.
+		var currentClusterConfig *clusterConfig.Config
+		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			currentClusterConfig, err = clusterConfig.Load(ctx, tx)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
 		if err != nil {
 			return err
 		}
 
-		// Handle external authentication/RBAC
-		candidAPIURL, candidAPIKey, candidExpiry, candidDomains := s.GlobalConfig.CandidServer()
-		rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey := s.GlobalConfig.RBACServer()
+		d.globalConfigMu.Lock()
+		d.localConfig = nodeConfig
+		d.globalConfig = currentClusterConfig
+		d.globalConfigMu.Unlock()
 
-		if rbacAPIURL != "" {
-			err = d.setupRBACServer(rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey)
-			if err != nil {
-				return err
-			}
+		existingConfigDump := currentClusterConfig.Dump()
+		changes := make(map[string]string, len(existingConfigDump))
+		for k, v := range existingConfigDump {
+			changes[k], _ = v.(string)
 		}
 
-		if candidAPIURL != "" {
-			d.candidVerifier, err = candid.NewVerifier(candidAPIURL, candidAPIKey, candidExpiry, candidDomains)
-			if err != nil {
-				return err
-			}
+		err = doApi10UpdateTriggers(d, nil, changes, nodeConfig, currentClusterConfig)
+		if err != nil {
+			return err
 		}
 
 		// Start up networks so any post-join changes can be applied now that we have a Node ID.

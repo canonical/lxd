@@ -2757,7 +2757,11 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 
 	// Lock this operation to ensure that the only one snapshot is made at the time.
 	// Other operations will wait for this one to finish.
-	unlock := locking.Lock(context.TODO(), drivers.OperationLockName("CreateInstanceSnapshot", b.name, vol.Type(), contentType, src.Name()))
+	unlock, err := locking.Lock(context.TODO(), drivers.OperationLockName("CreateInstanceSnapshot", b.name, vol.Type(), contentType, src.Name()))
+	if err != nil {
+		return err
+	}
+
 	defer unlock()
 
 	err = b.driver.CreateVolumeSnapshot(vol, op)
@@ -3128,7 +3132,11 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	// We need to lock this operation to ensure that the image is not being created multiple times.
 	// Uses a lock name of "EnsureImage_<fingerprint>" to avoid deadlocking with CreateVolume below that also
 	// establishes a lock on the volume type & name if it needs to mount the volume before filling.
-	unlock := locking.Lock(context.TODO(), drivers.OperationLockName("EnsureImage", b.name, drivers.VolumeTypeImage, "", fingerprint))
+	unlock, err := locking.Lock(context.TODO(), drivers.OperationLockName("EnsureImage", b.name, drivers.VolumeTypeImage, "", fingerprint))
+	if err != nil {
+		return err
+	}
+
 	defer unlock()
 
 	// Load image info from database.
@@ -3295,7 +3303,11 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 	defer l.Debug("DeleteImage finished")
 
 	// We need to lock this operation to ensure that the image is not being deleted multiple times.
-	unlock := locking.Lock(context.TODO(), drivers.OperationLockName("DeleteImage", b.name, drivers.VolumeTypeImage, "", fingerprint))
+	unlock, err := locking.Lock(context.TODO(), drivers.OperationLockName("DeleteImage", b.name, drivers.VolumeTypeImage, "", fingerprint))
+	if err != nil {
+		return err
+	}
+
 	defer unlock()
 
 	// Load the storage volume in order to get the volume config which is needed for some drivers.
@@ -4159,11 +4171,6 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 			return fmt.Errorf("Custom volume 'block.filesystem' property cannot be changed")
 		}
 
-		// Check that security.unmapped and security.shifted aren't set together.
-		if shared.IsTrue(newConfig["security.unmapped"]) && shared.IsTrue(newConfig["security.shifted"]) {
-			return fmt.Errorf("security.unmapped and security.shifted are mutually exclusive")
-		}
-
 		// Check for config changing that is not allowed when running instances are using it.
 		if changedConfig["security.shifted"] != "" {
 			err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &curVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
@@ -4580,7 +4587,11 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 
 	// Lock this operation to ensure that the only one snapshot is made at the time.
 	// Other operations will wait for this one to finish.
-	unlock := locking.Lock(context.TODO(), drivers.OperationLockName("CreateCustomVolumeSnapshot", b.name, vol.Type(), contentType, volName))
+	unlock, err := locking.Lock(context.TODO(), drivers.OperationLockName("CreateCustomVolumeSnapshot", b.name, vol.Type(), contentType, volName))
+	if err != nil {
+		return err
+	}
+
 	defer unlock()
 
 	// Create the snapshot on the storage device.

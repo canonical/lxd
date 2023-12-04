@@ -30,6 +30,22 @@ jobs:
         uses: actions/dependency-review-action@v3
         if: github.event_name == 'pull_request'
 
+      # XXX: `make static-analysis` also run shellcheck but this one provides
+      #      useful feedback in the PR through github-code-scanning bot
+      - id: ShellCheck
+        name: Differential ShellCheck
+        uses: redhat-plumbers-in-action/differential-shellcheck@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+        if: github.event_name == 'pull_request'
+
+      - name: Upload artifact with ShellCheck defects in SARIF format
+        uses: actions/upload-artifact@v3
+        with:
+          name: Differential ShellCheck SARIF
+          path: ${{ steps.ShellCheck.outputs.sarif }}
+        if: github.event_name == 'pull_request'
+
       - name: Install Go
         uses: actions/setup-go@v4
         with:
@@ -128,6 +144,31 @@ jobs:
             backend: dir
 
     steps:
+      - name: Performance tuning
+        run: |
+          set -eux
+          # optimize ext4 FSes for performance, not reliability
+          for fs in $(findmnt --noheading --type ext4 --list --uniq | awk '{print $1}'); do
+            # nombcache and data=writeback cannot be changed on remount
+            sudo mount -o remount,noatime,barrier=0,commit=6000 "${fs}"
+          done
+
+          # disable dpkg from calling sync()
+          echo "force-unsafe-io" | sudo tee /etc/dpkg/dpkg.cfg.d/force-unsafe-io
+
+      - name: Reclaim some space
+        run: |
+          # This was inspired from https://github.com/easimon/maximize-build-space
+          set -eux
+          df -h /
+          # dotnet
+          sudo rm -rf /usr/share/dotnet
+          # android
+          sudo rm -rf /usr/local/lib/android
+          # haskell
+          sudo rm -rf /opt/ghc
+          df -h /
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -232,9 +273,8 @@ jobs:
             exit 1
           fi
 
-          sudo apt-get install --no-install-recommends -y ceph-common
           sudo snap install microceph --edge
-          sleep 5
+          sudo apt-get install --no-install-recommends -y ceph-common
           sudo microceph cluster bootstrap
           sudo microceph.ceph config set global osd_pool_default_size 1
           sudo microceph.ceph config set global mon_allow_pool_delete true
@@ -257,6 +297,15 @@ jobs:
           sudo microceph.ceph fs new cephfs cephfs_meta cephfs_data
           sudo microceph.ceph fs ls
           sleep 30
+          sudo microceph.ceph status
+          # Wait until there are no more "unkowns" pgs
+          for _ in $(seq 60); do
+            if sudo microceph.ceph pg stat | grep -wF unknown; then
+              sleep 1
+            else
+              break
+            fi
+          done
           sudo microceph.ceph status
           sudo rm -f /snap/bin/rbd
 
@@ -293,18 +342,27 @@ jobs:
         run: |
             mkdir bin
 
-      - name: Build static lxc
+      - name: Build static lxc (x86_64)
         env:
           CGO_ENABLED: 0
+          GOARCH: amd64
         run: |
-          go build -o bin ./lxc
+          go build -o bin/lxc.x86_64 ./lxc
+
+      - name: Build static lxc (aarch64)
+        env:
+          CGO_ENABLED: 0
+          GOARCH: arm64
+        run: |
+          go build -o bin/lxc.aarch64 ./lxc
 
       - name: Build static lxd-migrate
         if: runner.os == 'Linux'
         env:
           CGO_ENABLED: 0
         run: |
-          go build -o bin ./lxd-migrate
+          GOARCH=amd64 go build -o bin/lxd-migrate.x86_64 ./lxd-migrate
+          GOARCH=arm64 go build -o bin/lxd-migrate.aarch64 ./lxd-migrate
 
       - name: Unit tests (client)
         env:
@@ -390,9 +448,11 @@ jobs:
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
           LAUNCHPAD_LXD_BOT_KEY: ${{ secrets.LAUNCHPAD_LXD_BOT_KEY }}
         run: |
+          set -eux
+          mkdir -m 0700 -p ~/.ssh/
           ssh-agent -a "${SSH_AUTH_SOCK}" > /dev/null
           ssh-add - <<< "${{ secrets.LAUNCHPAD_LXD_BOT_KEY }}"
-          mkdir -m 0700 -p ~/.ssh/
+          ssh-add -L > ~/.ssh/id_ed25519.pub
           # In ephemeral environments like GitHub Action runners, relying on TOFU isn't providing any security
           # so require the key obtained by `ssh-keyscan` to match the expected hash from https://help.launchpad.net/SSHFingerprints
           ssh-keyscan git.launchpad.net >> ~/.ssh/known_hosts
@@ -412,10 +472,14 @@ jobs:
               "stable-5.0": "5.0-edge",
             }')[github.ref_name] }}
         run: |
-          set -x
+          set -eux
+          git config --global transfer.fsckobjects true
           git config --global user.name "Canonical LXD Bot"
           git config --global user.email "lxd@lists.canonical.com"
-          localRev=$(git rev-parse HEAD)
+          git config --global commit.gpgsign true
+          git config --global gpg.format "ssh"
+          git config --global user.signingkey ~/.ssh/id_ed25519.pub
+          localRev="$(git rev-parse HEAD)"
           go install github.com/canonical/lxd-ci/lxd-snapcraft@latest
           git clone -b "${TARGET}" git+ssh://lxdbot@git.launchpad.net/~canonical-lxd/lxd ~/lxd-pkg-snap-lp
           cd ~/lxd-pkg-snap-lp
