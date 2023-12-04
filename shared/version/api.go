@@ -390,6 +390,7 @@ var APIExtensions = []string{
 	"cluster_internal_custom_volume_copy",
 	"disk_io_bus",
 	"storage_cephfs_create_missing",
+	"instance_move_config",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
