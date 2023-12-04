@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2023-11-08 07:19+0000\n"
+"POT-Creation-Date: 2023-12-01 11:57+0100\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -1015,7 +1015,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr "不適切なキー/値のペア: %s"
 
-#: lxc/copy.go:138 lxc/init.go:216 lxc/project.go:129
+#: lxc/copy.go:138 lxc/init.go:216 lxc/move.go:380 lxc/project.go:129
 #, fuzzy, c-format
 msgid "Bad key=value pair: %q"
 msgstr "不適切な キー=値 のペア: %s"
@@ -1115,7 +1115,7 @@ msgstr "キャッシュ済: %s"
 msgid "Caches:"
 msgstr "キャッシュ:"
 
-#: lxc/move.go:116
+#: lxc/move.go:117
 msgid "Can't override configuration or profiles in local rename"
 msgstr "ローカル上のリネームでは、設定やプロファイルの上書きはできません"
 
@@ -1291,7 +1291,7 @@ msgstr "クラスターメンバー %s がグループ %s から削除されま�
 
 #: lxc/config.go:101 lxc/config.go:385 lxc/config.go:528 lxc/config.go:734
 #: lxc/config.go:857 lxc/copy.go:60 lxc/info.go:45 lxc/init.go:56
-#: lxc/move.go:65 lxc/network.go:300 lxc/network.go:723 lxc/network.go:792
+#: lxc/move.go:66 lxc/network.go:300 lxc/network.go:723 lxc/network.go:792
 #: lxc/network.go:1134 lxc/network.go:1219 lxc/network.go:1283
 #: lxc/network_forward.go:170 lxc/network_forward.go:234
 #: lxc/network_forward.go:406 lxc/network_forward.go:529
@@ -1368,7 +1368,7 @@ msgstr "新しいインスタンスに適用するキー/値の設定"
 msgid "Config key/value to apply to the new project"
 msgstr "新しいプロジェクトに適用するキー/値の設定"
 
-#: lxc/move.go:57
+#: lxc/move.go:58
 msgid "Config key/value to apply to the target instance"
 msgstr "移動先のインスタンスに適用するキー/値の設定"
 
@@ -1402,7 +1402,7 @@ msgstr "コンテンツタイプ: %s"
 msgid "Control: %s (%s)"
 msgstr "コントロール: %s (%s)"
 
-#: lxc/copy.go:58 lxc/move.go:63
+#: lxc/copy.go:58 lxc/move.go:64
 msgid "Copy a stateful instance stateless"
 msgstr "ステートフルなインスタンスをステートレスにコピーします"
 
@@ -1477,7 +1477,7 @@ msgstr "インスタンスをコピーします。スナップショットはコ
 msgid "Copy the volume without its snapshots"
 msgstr "ボリュームをコピーします (スナップショットはコピーしません)"
 
-#: lxc/copy.go:61 lxc/image.go:157 lxc/move.go:66 lxc/profile.go:252
+#: lxc/copy.go:61 lxc/image.go:157 lxc/move.go:67 lxc/profile.go:252
 #: lxc/storage_volume.go:338
 msgid "Copy to a project different from the source"
 msgstr "コピー／移動元とは異なるプロジェクトにコピーします"
@@ -1826,7 +1826,7 @@ msgstr "警告を削除します"
 #: lxc/image_alias.go:24 lxc/image_alias.go:60 lxc/image_alias.go:107
 #: lxc/image_alias.go:152 lxc/image_alias.go:255 lxc/import.go:28
 #: lxc/info.go:33 lxc/init.go:42 lxc/launch.go:24 lxc/list.go:49 lxc/main.go:82
-#: lxc/manpage.go:22 lxc/monitor.go:33 lxc/move.go:36 lxc/network.go:32
+#: lxc/manpage.go:22 lxc/monitor.go:33 lxc/move.go:37 lxc/network.go:32
 #: lxc/network.go:135 lxc/network.go:220 lxc/network.go:293 lxc/network.go:372
 #: lxc/network.go:422 lxc/network.go:507 lxc/network.go:592 lxc/network.go:720
 #: lxc/network.go:789 lxc/network.go:912 lxc/network.go:1005
@@ -2440,7 +2440,7 @@ msgstr "リモートの追加に失敗しました"
 msgid "Failed to close server cert file %q: %w"
 msgstr "サーバー証明書ファイル %q のクローズに失敗しました: %w"
 
-#: lxc/move.go:273 lxc/move.go:349
+#: lxc/move.go:291 lxc/move.go:367
 #, c-format
 msgid "Failed to connect to cluster member: %w"
 msgstr "クラスタメンバへの接続に失敗しました: %w"
@@ -2892,7 +2892,7 @@ msgstr "設定されている自動でのインスタンスの有効期限設定
 msgid "Ignore any configured auto-expiry for the storage volume"
 msgstr "設定されている自動でのストレージボリュームの有効期限設定を無視します"
 
-#: lxc/copy.go:64 lxc/move.go:67
+#: lxc/copy.go:64 lxc/move.go:68
 msgid "Ignore copy errors for volatile files"
 msgstr "コピー中にファイルが更新された場合のエラーを無視します"
 
@@ -3098,11 +3098,11 @@ msgid ""
 msgstr ""
 "'%s' は不正な名前です。空文字列は maxWidth を指定しているときのみ指定できます"
 
-#: lxc/move.go:134 lxc/storage_volume.go:1745
+#: lxc/move.go:135 lxc/storage_volume.go:1745
 msgid "Invalid new snapshot name"
 msgstr "不適切な新しいスナップショット名"
 
-#: lxc/move.go:130
+#: lxc/move.go:131
 msgid "Invalid new snapshot name, parent must be the same as source"
 msgstr ""
 "新しいスナップショット名が不正です。親のスナップショット名はソースと同じでな"
@@ -3967,12 +3967,12 @@ msgstr "メモリ消費量:"
 msgid "Memory:"
 msgstr "メモリ:"
 
-#: lxc/move.go:291 lxc/move.go:364
+#: lxc/move.go:309 lxc/move.go:423
 #, c-format
 msgid "Migration API failure: %w"
 msgstr "マイグレーション API が失敗しました: %w"
 
-#: lxc/move.go:316 lxc/move.go:369
+#: lxc/move.go:334 lxc/move.go:428
 #, c-format
 msgid "Migration operation failure: %w"
 msgstr "マイグレーションが失敗しました: %w"
@@ -4171,11 +4171,11 @@ msgstr ""
 msgid "Mount files from instances"
 msgstr "インスタンスからファイルをマウントします"
 
-#: lxc/move.go:35
+#: lxc/move.go:36
 msgid "Move instances within or in between LXD servers"
 msgstr "LXD サーバ内もしくはサーバ間でインスタンスを移動します"
 
-#: lxc/move.go:36
+#: lxc/move.go:37
 msgid ""
 "Move instances within or in between LXD servers\n"
 "\n"
@@ -4206,7 +4206,7 @@ msgstr ""
 msgid "Move storage volumes between pools"
 msgstr "プール間でストレージボリュームを移動します"
 
-#: lxc/move.go:61
+#: lxc/move.go:62
 msgid "Move the instance without its snapshots"
 msgstr "インスタンスを移動します。スナップショットは移動しません"
 
@@ -4428,7 +4428,7 @@ msgstr "新しいエイリアスを定義する"
 msgid "New aliases to add to the image"
 msgstr "イメージに新しいエイリアスを追加します"
 
-#: lxc/copy.go:53 lxc/init.go:51 lxc/move.go:58
+#: lxc/copy.go:53 lxc/init.go:51 lxc/move.go:59
 msgid "New key/value to apply to a specific device"
 msgstr "指定するデバイスに適用する新しいキー/値"
 
@@ -4713,7 +4713,7 @@ msgstr "新しいイメージに適用するプロファイル"
 msgid "Profile to apply to the new instance"
 msgstr "新しいインスタンスに適用するプロファイル"
 
-#: lxc/move.go:59
+#: lxc/move.go:60
 msgid "Profile to apply to the target instance"
 msgstr "移動先のインスタンスに適用するプロファイル"
 
@@ -5912,7 +5912,7 @@ msgstr "ストレージプール %s を削除しました"
 msgid "Storage pool %s pending on member %s"
 msgstr "ストレージプール %s はメンバ %s 上でペンディング状態です"
 
-#: lxc/copy.go:59 lxc/import.go:35 lxc/init.go:54 lxc/move.go:64
+#: lxc/copy.go:59 lxc/import.go:35 lxc/init.go:54 lxc/move.go:65
 msgid "Storage pool name"
 msgstr "ストレージプール名"
 
@@ -5996,16 +5996,16 @@ msgstr "ターゲットのパスと --listen オプションは同時に指定�
 msgid "Target path must be a directory"
 msgstr "ターゲットのパスはディレクトリでなければなりません"
 
-#: lxc/move.go:167
+#: lxc/move.go:168
 msgid "The --instance-only flag can't be used with --target"
 msgstr "--instance-only と --target は同時に指定できません"
 
-#: lxc/move.go:209
+#: lxc/move.go:206 lxc/move.go:227
 #, fuzzy
 msgid "The --mode flag can't be used with --storage or --target-project"
 msgstr "--mode と --target-project は同時に指定できません"
 
-#: lxc/move.go:179
+#: lxc/move.go:180
 msgid "The --mode flag can't be used with --target"
 msgstr "--mode と --target は同時に指定できません"
 
@@ -6013,15 +6013,15 @@ msgstr "--mode と --target は同時に指定できません"
 msgid "The --show-log flag is only supported for by 'console' output type"
 msgstr "--show-log フラグは 'console' アウトプットタイプの時だけ使えます"
 
-#: lxc/move.go:171
+#: lxc/move.go:172
 msgid "The --storage flag can't be used with --target"
 msgstr "--storage と --target は同時に指定できません"
 
-#: lxc/move.go:175
+#: lxc/move.go:176
 msgid "The --target-project flag can't be used with --target"
 msgstr "--target-project と --target は同時に指定できません"
 
-#: lxc/move.go:191
+#: lxc/move.go:192
 msgid "The destination LXD server is not clustered"
 msgstr "移動先の LXD サーバはクラスタに属していません"
 
@@ -6160,7 +6160,7 @@ msgstr ""
 msgid "The server doesn't implement the newer v2 resources API"
 msgstr "サーバには新しい v2 resource API が実装されていません"
 
-#: lxc/move.go:278
+#: lxc/move.go:296
 msgid "The source LXD server is not clustered"
 msgstr "移動元の LXD サーバはクラスタに属していません"
 
@@ -6282,7 +6282,7 @@ msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpu
 msgid "Transfer mode. One of pull, push or relay"
 msgstr "転送モード。pull, push, relay のいずれか"
 
-#: lxc/move.go:62
+#: lxc/move.go:63
 msgid "Transfer mode. One of pull, push or relay."
 msgstr "転送モード。pull, push, relay のいずれか。"
 
@@ -6291,7 +6291,7 @@ msgstr "転送モード。pull, push, relay のいずれか。"
 msgid "Transferring image: %s"
 msgstr "イメージを転送中: %s"
 
-#: lxc/copy.go:338 lxc/move.go:296
+#: lxc/copy.go:338 lxc/move.go:314
 #, c-format
 msgid "Transferring instance: %s"
 msgstr "インスタンスを転送中: %s"
@@ -6412,7 +6412,7 @@ msgstr "未知の出力タイプ: %q"
 msgid "Unset a cluster member's configuration keys"
 msgstr "クラスターメンバーの設定を削除します"
 
-#: lxc/move.go:60
+#: lxc/move.go:61
 msgid "Unset all profiles on the target instance"
 msgstr "移動先のインスタンスのすべてのプロファイルを削除します"
 
@@ -6709,7 +6709,7 @@ msgstr "--mode と同時に -t または -T は指定できません"
 msgid "You must specify a destination instance name"
 msgstr "コピー元のインスタンス名を指定してください"
 
-#: lxc/copy.go:84 lxc/move.go:262 lxc/move.go:338
+#: lxc/copy.go:84 lxc/move.go:280 lxc/move.go:356
 msgid "You must specify a source instance name"
 msgstr "コピー元のインスタンス名を指定してください"
 
@@ -6950,7 +6950,7 @@ msgstr "[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
 msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
 msgstr "[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
 
-#: lxc/move.go:33
+#: lxc/move.go:34
 msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
 msgstr ""
 "[<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
@@ -7601,7 +7601,7 @@ msgstr ""
 "lxc monitor --type=lifecycle\n"
 "    lifecycle イベントのみを表示します。"
 
-#: lxc/move.go:46
+#: lxc/move.go:47
 msgid ""
 "lxc move [<remote>:]<source instance> [<remote>:][<destination instance>] [--"
 "instance-only]\n"
