@@ -481,8 +481,8 @@ github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLA
 github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d/go.mod h1:YUTz3bUH2ZwIWBy3CJBeOBEugqcmXREj14T+iG/4k4U=
 github.com/olekukonko/tablewriter v0.0.5 h1:P2Ga83D34wi1o9J6Wh1mRuqd4mF/x/lgBS7N7AbDhec=
 github.com/olekukonko/tablewriter v0.0.5/go.mod h1:hPp6KlRPjbx+hW8ykQs1w3UBbZlj6HuIJcUGPhkA7kY=
-github.com/osrg/gobgp/v3 v3.20.0 h1:U0dhaAo0QHscQQ+vTrnX2Rak9vaKnJ3aQDM5mAEeIEw=
-github.com/osrg/gobgp/v3 v3.20.0/go.mod h1:4fbscYpsCk14EO16nTWAdJyErO4MbAZ2zLJmsmeXu/k=
+github.com/osrg/gobgp/v3 v3.21.0 h1:OCjDIz2duA36tLoQElm8S2ZfxClPqcM9B4SfIlfYQTI=
+github.com/osrg/gobgp/v3 v3.21.0/go.mod h1:4fbscYpsCk14EO16nTWAdJyErO4MbAZ2zLJmsmeXu/k=
 github.com/pascaldekloe/goe v0.0.0-20180627143212-57f6aae5913c/go.mod h1:lzWF7FIEvWOWxwDKqyGYQf6ZUaNfKdP144TG7ZOy1lc=
 github.com/pborman/uuid v1.2.1 h1:+ZZIw58t/ozdjRaXh/3awHfmWRbzYxJoAdNJxe/3pvw=
 github.com/pborman/uuid v1.2.1/go.mod h1:X/NO0urCmaxf9VXbdlT7C2Yzkj2IKimNn4k+gtPdI/k=
