@@ -136,7 +136,8 @@ type Daemon struct {
 	globalConfigMu sync.Mutex
 
 	// Cluster.
-	serverName string
+	serverName      string
+	serverClustered bool
 
 	// Authorization.
 	authorizer auth.Authorizer
@@ -395,6 +396,7 @@ func (d *Daemon) State() *state.State {
 		GlobalConfig:           globalConfig,
 		LocalConfig:            localConfig,
 		ServerName:             d.serverName,
+		ServerClustered:        d.serverClustered,
 		StartTime:              d.startTime,
 		Authorizer:             d.authorizer,
 	}
@@ -969,14 +971,14 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	clustered, err := cluster.Enabled(d.db.Node)
+	d.serverClustered, err = cluster.Enabled(d.db.Node)
 	if err != nil {
 		return fmt.Errorf("Failed checking if clustered: %w", err)
 	}
 
 	// Detect if clustered, but not yet upgraded to per-server client certificates.
 	certificates := d.clientCerts.GetCertificates()
-	if clustered && len(certificates[certificate.TypeServer]) < 1 {
+	if d.serverClustered && len(certificates[certificate.TypeServer]) < 1 {
 		// If the cluster has not yet upgraded to per-server client certificates (by running patch
 		// patchClusteringServerCertTrust) then temporarily use the network (cluster) certificate as client
 		// certificate, and cause us to trust it for use as client certificate from the other members.
@@ -1083,7 +1085,7 @@ func (d *Daemon) init() error {
 		store := d.gateway.NodeStore()
 
 		contextTimeout := 30 * time.Second
-		if !clustered {
+		if !d.serverClustered {
 			// FIXME: this is a workaround for #5234. We set a very
 			// high timeout when we're not clustered, since there's
 			// actually no networking involved.
@@ -1167,7 +1169,7 @@ func (d *Daemon) init() error {
 	}
 
 	// Setup the user-agent.
-	if clustered {
+	if d.serverClustered {
 		version.UserAgentFeatures([]string{"cluster"})
 	}
 
@@ -1478,7 +1480,7 @@ func (d *Daemon) init() error {
 	}
 
 	// Start cluster tasks if needed.
-	if clustered {
+	if d.serverClustered {
 		d.startClusterTasks()
 	}
 

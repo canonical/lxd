@@ -176,11 +176,6 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 
 	recursion := util.IsRecursionRequest(r)
 
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Get list of managed networks (that may or may not have network interfaces on the host).
 	networkNames, err := s.DB.Cluster.GetNetworks(projectName)
 	if err != nil {
@@ -213,7 +208,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, networkName))
 		} else {
-			net, err := doNetworkGet(s, r, clustered, projectName, reqProject.Config, networkName)
+			net, err := doNetworkGet(s, r, s.ServerClustered, projectName, reqProject.Config, networkName)
 			if err != nil {
 				continue
 			}
@@ -771,13 +766,8 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	allNodes := false
-	if clustered && request.QueryParam(r, "target") == "" {
+	if s.ServerClustered && request.QueryParam(r, "target") == "" {
 		allNodes = true
 	}
 
@@ -971,12 +961,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// If we are clustered, also notify all other nodes, if any.
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if clustered {
+	if s.ServerClustered {
 		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
 		if err != nil {
 			return response.SmartError(err)
@@ -1044,12 +1029,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	//        serving node should typically do the database job, so the
 	//        network is not yet renamed inthe db when the notified node
 	//        runs network.Start).
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if clustered {
+	if s.ServerClustered {
 		return response.BadRequest(fmt.Errorf("Renaming clustered network not supported"))
 	}
 
@@ -1199,10 +1179,6 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	targetNode := request.QueryParam(r, "target")
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	if targetNode == "" && n.Status() != api.NetworkStatusCreated {
 		return response.BadRequest(fmt.Errorf("Cannot update network global config when not in created state"))
@@ -1214,7 +1190,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	// If no target node is specified and the daemon is clustered, we omit the node-specific fields so that
 	// the e-tag can be generated correctly. This is because the GET request used to populate the request
 	// will also remove node-specific keys when no target is specified.
-	if targetNode == "" && clustered {
+	if targetNode == "" && s.ServerClustered {
 		for _, key := range db.NodeSpecificNetworkConfig {
 			delete(etagConfig, key)
 		}
@@ -1236,7 +1212,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 
 	// In clustered mode, we differentiate between node specific and non-node specific config keys based on
 	// whether the user has specified a target to apply the config to.
-	if clustered {
+	if s.ServerClustered {
 		if targetNode == "" {
 			// If no target is specified, then ensure only non-node-specific config keys are changed.
 			for k := range req.Config {
@@ -1258,7 +1234,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	response := doNetworkUpdate(projectName, n, req, targetNode, clientType, r.Method, clustered)
+	response := doNetworkUpdate(projectName, n, req, targetNode, clientType, r.Method, s.ServerClustered)
 
 	requestor := request.CreateRequestor(r)
 	s.Events.SendLifecycle(projectName, lifecycle.NetworkUpdated.Event(n, requestor, nil))
