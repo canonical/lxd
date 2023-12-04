@@ -8,7 +8,7 @@ replace golang.org/x/net => golang.org/x/net v0.0.0-20211020060615-d418f374d309
 
 require (
 	github.com/Rican7/retry v0.3.1
-	github.com/armon/go-proxyproto v0.0.0-20210323213023-7e956b284f0a
+	github.com/armon/go-proxyproto v0.1.0
 	github.com/canonical/candid v1.11.0
 	github.com/canonical/go-dqlite v1.10.3-0.20220216095006-3300b906d18c
 	github.com/digitalocean/go-qemu v0.0.0-20210326154740-ac9e0b687001
