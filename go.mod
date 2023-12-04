@@ -28,7 +28,7 @@ require (
 	github.com/jochenvg/go-udev v0.0.0-20171110120927-d6b62d56d37b
 	github.com/juju/gomaasapi v0.0.0-20200602032615-aa561369c767
 	github.com/juju/persistent-cookiejar v0.0.0-20171026135701-d5e5a8405ef9
-	github.com/juju/schema v1.0.1-0.20190814234152-1f8aaeef0989
+	github.com/juju/schema v1.2.0
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/mattn/go-colorable v0.1.12
 	github.com/mattn/go-sqlite3 v1.14.12
