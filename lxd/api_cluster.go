@@ -364,6 +364,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 		// Update server name.
 		d.globalConfigMu.Lock()
 		d.serverName = req.ServerName
+		d.serverClustered = true
 		d.globalConfigMu.Unlock()
 
 		// Start clustering tasks
@@ -449,12 +450,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		return response.BadRequest(fmt.Errorf("No target cluster member certificate provided"))
 	}
 
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if clustered {
+	if s.ServerClustered {
 		return response.BadRequest(fmt.Errorf("This server is already clustered"))
 	}
 
@@ -475,12 +471,12 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		// First try to listen to the provided address. If we fail, we
 		// won't actually update the database config.
-		err = s.Endpoints.NetworkUpdateAddress(req.ServerAddress)
+		err := s.Endpoints.NetworkUpdateAddress(req.ServerAddress)
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		err := s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		err = s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 			config, err = node.ConfigLoad(ctx, tx)
 			if err != nil {
 				return fmt.Errorf("Failed to load cluster config: %w", err)
@@ -512,6 +508,8 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		// Update the cluster.https_address config key.
 		err := s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+			var err error
+
 			config, err = node.ConfigLoad(ctx, tx)
 			if err != nil {
 				return fmt.Errorf("Failed to load cluster config: %w", err)
@@ -548,7 +546,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		// If the user has provided a cluster password, setup the trust
 		// relationship by adding our own certificate to the cluster.
 		if req.ClusterPassword != "" {
-			err = cluster.SetupTrust(serverCert, req.ServerName, req.ClusterAddress, req.ClusterCertificate, req.ClusterPassword)
+			err := cluster.SetupTrust(serverCert, req.ServerName, req.ClusterAddress, req.ClusterCertificate, req.ClusterPassword)
 			if err != nil {
 				return fmt.Errorf("Failed to setup cluster trust: %w", err)
 			}
@@ -556,7 +554,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		// Now we are in the remote trust store, ensure our name and type are correct to allow the cluster
 		// to associate our member name to the server certificate.
-		err = cluster.UpdateTrust(serverCert, req.ServerName, req.ClusterAddress, req.ClusterCertificate)
+		err := cluster.UpdateTrust(serverCert, req.ServerName, req.ClusterAddress, req.ClusterCertificate)
 		if err != nil {
 			return fmt.Errorf("Failed to update cluster trust: %w", err)
 		}
@@ -581,10 +579,12 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		// Update server name.
 		d.globalConfigMu.Lock()
 		d.serverName = req.ServerName
+		d.serverClustered = true
 		d.globalConfigMu.Unlock()
 		revert.Add(func() {
 			d.globalConfigMu.Lock()
 			d.serverName = ""
+			d.serverClustered = false
 			d.globalConfigMu.Unlock()
 		})
 
@@ -1285,12 +1285,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if !clustered {
+	if !s.ServerClustered {
 		return response.BadRequest(fmt.Errorf("This server is not clustered"))
 	}
 
@@ -2565,12 +2560,7 @@ func changeMemberRole(s *state.State, r *http.Request, address string, nodes []d
 // Try to handover the role of this member to another one.
 func handoverMemberRole(s *state.State, gateway *cluster.Gateway) error {
 	// If we aren't clustered, there's nothing to do.
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return err
-	}
-
-	if !clustered {
+	if !s.ServerClustered {
 		return nil
 	}
 
@@ -3580,19 +3570,14 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if !clustered {
+	if !s.ServerClustered {
 		return response.BadRequest(fmt.Errorf("This server is not clustered"))
 	}
 
 	req := api.ClusterGroupsPost{}
 
 	// Parse the request.
-	err = json.NewDecoder(r.Body).Decode(&req)
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -3718,12 +3703,7 @@ func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if !clustered {
+	if !s.ServerClustered {
 		return response.BadRequest(fmt.Errorf("This server is not clustered"))
 	}
 
@@ -3731,7 +3711,9 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 
 	var result any
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
 		if recursion {
 			clusterGroups, err := dbCluster.GetClusterGroups(ctx, tx.Tx())
 			if err != nil {
@@ -3816,12 +3798,7 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if !clustered {
+	if !s.ServerClustered {
 		return response.BadRequest(fmt.Errorf("This server is not clustered"))
 	}
 
@@ -3897,12 +3874,7 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(errors.New(`The "default" group cannot be renamed`))
 	}
 
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if !clustered {
+	if !s.ServerClustered {
 		return response.BadRequest(fmt.Errorf("This server is not clustered"))
 	}
 
@@ -3981,12 +3953,7 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if !clustered {
+	if !s.ServerClustered {
 		return response.BadRequest(fmt.Errorf("This server is not clustered"))
 	}
 
@@ -4106,12 +4073,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if !clustered {
+	if !s.ServerClustered {
 		return response.BadRequest(fmt.Errorf("This server is not clustered"))
 	}
 
