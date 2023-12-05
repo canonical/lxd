@@ -15,6 +15,7 @@ The following authentication methods are supported:
 - {ref}`authentication-tls-certs`
 - {ref}`authentication-openid`
 - {ref}`authentication-candid`
+- {ref}`authentication-rbac`
 
 (authentication-tls-certs)=
 ## TLS client certificates
@@ -66,8 +67,14 @@ The workflow to authenticate with the server is similar to that of SSH, where an
      If the provided token or trust password matches, the client certificate is added to the server's trust store and the connection is granted.
      Otherwise, the connection is rejected.
 
-It is possible to restrict a TLS client's access to LXD via {ref}`authorization-tls`.
 To revoke trust to a client, remove its certificate from the server with [`lxc config trust remove <fingerprint>`](lxc_config_trust_remove.md).
+
+It's possible to restrict a TLS client to one or multiple projects.
+In this case, the client will also be prevented from performing global configuration changes or altering the configuration (limits, restrictions) of the projects it's allowed access to.
+
+To restrict access, use [`lxc config trust edit <fingerprint>`](lxc_config_trust_edit.md).
+Set the `restricted` key to `true` and specify a list of projects to restrict the client to.
+If the list of projects is empty, the client will not be allowed access to any of them.
 
 (authentication-add-certs)=
 #### Adding trusted certificates to the server
@@ -135,18 +142,18 @@ Note that the generated certificates are not automatically trusted. You must sti
 
 LXD supports using [OpenID Connect](https://openid.net/connect/) to authenticate users through an {abbr}`OIDC (OpenID Connect)` Identity Provider.
 
+```{note}
+OpenID Connect authentication is currently under development.
+Starting with LXD 5.13, authentication through OpenID Connect is supported, but there is no user role handling in place so far.
+Any user that authenticates through the configured OIDC Identity Provider gets full access to LXD.
+```
+
 To configure LXD to use OIDC authentication, set the [`oidc.*`](server-options-oidc) server configuration options.
 Your OIDC provider must be configured to enable the [Device Authorization Grant](https://oauth.net/2/device-flow/) type.
 
 To add a remote pointing to a LXD server configured with OIDC authentication, run [`lxc remote add <remote_name> <remote_address>`](lxc_remote_add.md).
 You are then prompted to authenticate through your web browser, where you must confirm the device code that LXD uses.
 The LXD client then retrieves and stores the access and refresh tokens and provides those to LXD for all interactions.
-
-```{important}
-Any user that authenticates through the configured OIDC Identity Provider gets full access to LXD.
-To restrict user access, you must also configure {ref}`authorization`.
-Currently, the only authorization method that is compatible with OIDC is {ref}`authorization-openfga`.
-```
 
 (authentication-candid)=
 ## Candid-based authentication
@@ -167,11 +174,34 @@ The token is stored as cookie and is presented by the client at each request to 
 
 For instructions on how to set up Candid-based authentication, see the [Candid authentication for LXD](https://ubuntu.com/tutorials/candid-authentication-lxd) tutorial.
 
-```{important}
-Any user that authenticates via Candid gets full access to LXD.
-To restrict user access, you must also configure {ref}`authorization`.
-Candid is compatible with {ref}`authorization-rbac` and {ref}`authorization-openfga`.
+(authentication-rbac)=
+## Role Based Access Control (RBAC)
+
+```{youtube} https://www.youtube.com/watch?v=VE60AbJHT6E
 ```
+
+LXD supports integrating with the Canonical RBAC service, which is included in the [Ubuntu Pro](https://ubuntu.com/pro) subscription.
+Combined with Candid-based authentication, {abbr}`RBAC (Role Based Access Control)` can be used to limit what an API client is allowed to do on LXD.
+
+In such a setup, authentication happens through Candid, while the RBAC service maintains roles to user/group relationships.
+Roles can be assigned to individual projects, to all projects or to the entire LXD instance.
+
+The meaning of the roles when applied to a project is as follows:
+
+- auditor: Read-only access to the project
+- user: Ability to do normal life cycle actions (start, stop, ...),
+        execute commands in the instances, attach to console, manage snapshots, ...
+- operator: All of the above + the ability to create, re-configure and
+            delete instances and images
+- admin: All of the above + the ability to reconfigure the project itself
+
+```{important}
+In an unrestricted project, only the `auditor` and the `user` roles are suitable for users that you wouldn't trust with root access to the host.
+
+In a {ref}`restricted project <project-restrictions>`, the `operator` role is safe to use as well if configured appropriately.
+```
+
+To enable RBAC for your LXD server, set the [`rbac.*`](server-options-candid-rbac) server configuration options, which are a superset of the `candid.*` ones and allow for LXD to integrate with the RBAC service.
 
 (authentication-server-certificate)=
 ## TLS server certificate
