@@ -76,9 +76,3 @@ const (
 	PermissionManageStorageVolumes Permission = "manage-storage-volumes"
 	PermissionOperateInstances     Permission = "operate-containers"
 )
-
-const (
-	relationServer  = "server"
-	relationProject = "project"
-	relationUser    = "user"
-)

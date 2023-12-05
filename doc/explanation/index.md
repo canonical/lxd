@@ -7,7 +7,6 @@ The explanatory guides in this section introduce you to the concepts used in LXD
 :titlesonly:
 
 About authentication </authentication>
-About authorization </authorization>
 /explanation/clustering
 /explanation/containers_and_vms
 /image-handling

@@ -1,7 +1,3 @@
-cert_fingerprint() {
-  openssl x509 -noout -fingerprint -sha256 -in "${1}" | sed 's/.*=//; s/://g; s/\(.*\)/\L\1/'
-}
-
 # Generate a short lived ecdsa (self-signed) cert and key
 # using the NIST curve P-384 and SHA384 hash for signature
 # to match what LXD generates by default.
