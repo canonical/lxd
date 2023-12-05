@@ -15,11 +15,15 @@ test_container_devices_disk() {
 }
 
 test_container_devices_disk_shift() {
+  # shellcheck disable=2039,3043
+  local lxd_backend
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
   if [ -n "${LXD_IDMAPPED_MOUNTS_DISABLE:-}" ]; then
     return
   fi
 
-  if [ "${LXD_BACKEND}" = "zfs" ]; then
+  if [ "${lxd_backend}" = "zfs" ]; then
     # ZFS 2.2 is required for idmapped mounts support.
     zfs_version=$(zfs --version | grep -m 1 '^zfs-' | cut -d '-' -f 2)
     if [ "$(printf '%s\n' "$zfs_version" "2.2" | sort -V | head -n1)" = "$zfs_version" ]; then
