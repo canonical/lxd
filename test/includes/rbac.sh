@@ -16,7 +16,7 @@ user1,pass1
 user2,pass2
 EOF
 
-    endpoint="$(hostname -I | cut -d' ' -f1):${tcp_port}"
+    endpoint="127.0.0.1:${tcp_port}"
     rbac/rbac -endpoint "${endpoint}" -creds "$credentials_file" &
     set +x
     echo $! > "${TEST_DIR}/rbac.pid"
