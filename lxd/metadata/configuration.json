@@ -1196,7 +1196,7 @@
 					{
 						"restricted.devices.disk": {
 							"defaultdesc": "`managed`",
-							"longdesc": "Possible values are `allow`, `block`, or `managed`.\n\n- When set to `block`, this option prevents using all disk devices except the root one.\n- When set to `managed`, this option allows using disk devices only if `pool=` is set.\n- When set to `allow`, there is no restriction on which disk devices can be used.",
+							"longdesc": "Possible values are `allow`, `block`, or `managed`.\n\n- When set to `block`, this option prevents using all disk devices except the root one.\n- When set to `managed`, this option allows using disk devices only if `pool=` is set.\n- When set to `allow`, there is no restriction on which disk devices can be used.\n\n  ```{important}\n  When allowing all disk devices, make sure to set\n  {config:option}`project-restricted:restricted.devices.disk.paths` to a list of\n  path prefixes that you want to allow.\n  If you do not restrict the allowed paths, users can attach any disk device, including\n  shifted devices (`disk` devices with [`shift`](devices-disk-options) set to `true`),\n  which can be used to gain root access to the system.\n  ```",
 							"shortdesc": "Which disk devices can be used",
 							"type": "string"
 						}
