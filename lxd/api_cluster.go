@@ -696,7 +696,8 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			}
 		}
 
-		// Update cached trusted certificates.
+		// Update cached trusted certificates (this adds the server certificates we collected above) so that we are able to join.
+		// Client and metric type certificates from the cluster we are joining will not be added until later.
 		s.UpdateCertificateCache()
 
 		// Update local setup and possibly join the raft dqlite cluster.
@@ -797,6 +798,9 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		if err != nil {
 			logger.Warn("Failed to sync images")
 		}
+
+		// Update the cert cache again to add client and metric certs to the cache.
+		s.UpdateCertificateCache()
 
 		s.Events.SendLifecycle(projectParam(r), lifecycle.ClusterMemberAdded.Event(req.ServerName, op.Requestor(), nil))
 

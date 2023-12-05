@@ -137,7 +137,12 @@ To install it:
 
 ````
 
-You can also find native builds of the LXD client on [GitHub](https://github.com/canonical/lxd/actions).
+You can also find native builds of the LXD client on [GitHub](https://github.com/canonical/lxd/actions):
+
+- LXD client for Linux: [`bin.linux.lxc.aarch64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxc.aarch64), [`bin.linux.lxc.x86_64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxc.x86_64)
+- LXD client for Windows: [`bin.windows.lxc.aarch64.exe`](https://github.com/canonical/lxd/releases/latest/download/bin.windows.lxc.aarch64.exe), [`bin.windows.lxc.x86_64.exe`](https://github.com/canonical/lxd/releases/latest/download/bin.windows.lxc.x86_64.exe)
+- LXD client for macOS: [`bin.macos.lxc.aarch64`](https://github.com/canonical/lxd/releases/latest/download/bin.macos.lxc.aarch64), [`bin.macos.lxc.x86_64`](https://github.com/canonical/lxd/releases/latest/download/bin.macos.lxc.x86_64)
+
 To download a specific build:
 
 1. Make sure that you are logged into your GitHub account.
@@ -158,6 +163,13 @@ sudo apt update
 sudo apt install acl attr autoconf automake dnsmasq-base git libacl1-dev libcap-dev liblxc1 liblxc-dev libsqlite3-dev libtool libudev-dev liblz4-dev libuv1-dev make pkg-config rsync squashfs-tools tar tcl xz-utils ebtables
 command -v snap >/dev/null || sudo apt-get install snapd
 sudo snap install --classic go
+```
+
+```{note}
+If you use the `liblxc-dev` package and get compile time errors when building the `go-lxc` module,
+ensure that the value for `LXC_DEVEL` is `0` for your `liblxc` build. To check that, look at `/usr/include/lxc/version.h`.
+If the `LXC_DEVEL` value is `1`, replace it with `0` to work around the problem. It's a packaging bug, and
+we are aware of it for Ubuntu 22.04/22.10. Ubuntu 23.04/23.10 does not have this problem.
 ```
 
 There are a few storage drivers for LXD besides the default `dir` driver.

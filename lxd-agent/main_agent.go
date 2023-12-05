@@ -18,7 +18,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/util"
-	"github.com/canonical/lxd/lxd/vsock"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -135,31 +134,6 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to start HTTP server: %w", err)
 	}
-
-	// Check context ID periodically, and restart the HTTP server if needed.
-	go func() {
-		for range time.Tick(30 * time.Second) {
-			cid, err := vsock.ContextID()
-			if err != nil {
-				continue
-			}
-
-			if d.localCID == cid {
-				continue
-			}
-
-			// Restart server
-			servers["http"].Close()
-
-			err = startHTTPServer(d, c.global.flagLogDebug)
-			if err != nil {
-				errChan <- err
-			}
-
-			// Update context ID.
-			d.localCID = cid
-		}
-	}()
 
 	// Check whether we should start the devlxd server in the early setup. This way, /dev/lxd/sock
 	// will be available for any systemd services starting after the lxd-agent.

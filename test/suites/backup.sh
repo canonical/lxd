@@ -904,7 +904,7 @@ test_backup_export_import_recover() {
     # Create and export an instance.
     lxc launch testimage c1
     lxc export c1 "${LXD_DIR}/c1.tar.gz"
-    lxc rm -f c1
+    lxc delete -f c1
 
     # Import instance and remove no longer required tarball.
     lxc import "${LXD_DIR}/c1.tar.gz" c2
@@ -924,4 +924,28 @@ EOF
     # Remove recovered instance.
     lxc rm -f c2
   )
+}
+
+test_backup_export_import_instance_only() {
+  poolName=$(lxc profile device get default root pool)
+
+  ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
+  # Create an instance with snapshot.
+  lxc init testimage c1
+  lxc snapshot c1
+
+  # Export the instance and remove it.
+  lxc export c1 "${LXD_DIR}/c1.tar.gz" --instance-only
+  lxc delete -f c1
+
+  # Import the instance from tarball.
+  lxc import "${LXD_DIR}/c1.tar.gz"
+
+  # Verify imported instance has no snapshots.
+  [ "$(lxc query "/1.0/storage-pools/${poolName}/volumes/container/c1/snapshots" | jq "length == 0")" = "true" ]
+
+  rm "${LXD_DIR}/c1.tar.gz"
+  lxc delete -f c1
 }
