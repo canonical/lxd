@@ -3514,8 +3514,14 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 			volumeName = volName
 		}
 
+		// Identify the right content type.
+		rbdContentType := storageDrivers.ContentTypeBlock
+		if driveConf.FSType == "iso9660" {
+			rbdContentType = storageDrivers.ContentTypeISO
+		}
+
 		// Get the RBD image name.
-		vol := storageDrivers.NewVolume(nil, "", volumeType, storageDrivers.ContentTypeBlock, volumeName, nil, nil)
+		vol := storageDrivers.NewVolume(nil, "", volumeType, rbdContentType, volumeName, nil, nil)
 		rbdImageName := storageDrivers.CephGetRBDImageName(vol, "", false)
 
 		// Parse the options (ceph credentials).
