@@ -210,7 +210,7 @@ func (c *ClusterTx) GetStoragePoolVolumes(ctx context.Context, poolID int64, mem
 			return err
 		}
 
-		vol.Type, err = StoragePoolVolumeTypeToName(volumeType)
+		vol.Type, err = storagePoolVolumeTypeToName(volumeType)
 		if err != nil {
 			return err
 		}
@@ -848,8 +848,8 @@ func storageVolumeConfigClear(tx *sql.Tx, volumeID int64, isSnapshot bool) error
 	return nil
 }
 
-// StoragePoolVolumeTypeToName converts a volume integer type code to its human-readable name.
-func StoragePoolVolumeTypeToName(volumeType int) (string, error) {
+// Convert a volume integer type code to its human-readable name.
+func storagePoolVolumeTypeToName(volumeType int) (string, error) {
 	switch volumeType {
 	case StoragePoolVolumeTypeContainer:
 		return StoragePoolVolumeTypeNameContainer, nil
