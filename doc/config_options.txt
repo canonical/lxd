@@ -1829,33 +1829,3 @@ This value is required by some providers.
 ```
 
 <!-- config group server-oidc end -->
-<!-- config group server-openfga start -->
-```{config:option} openfga.api.token server-openfga
-:scope: "global"
-:shortdesc: "API token of the OpenFGA server"
-:type: "string"
-
-```
-
-```{config:option} openfga.api.url server-openfga
-:scope: "global"
-:shortdesc: "URL of the OpenFGA server"
-:type: "string"
-
-```
-
-```{config:option} openfga.store.id server-openfga
-:scope: "global"
-:shortdesc: "ID of the OpenFGA permission store"
-:type: "string"
-
-```
-
-```{config:option} openfga.store.model_id server-openfga
-:scope: "global"
-:shortdesc: "ID of the OpenFGA authorization model"
-:type: "string"
-
-```
-
-<!-- config group server-openfga end -->
