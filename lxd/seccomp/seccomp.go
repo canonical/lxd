@@ -2100,9 +2100,9 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 	// idmap shift
 	fullSrcPath := filepath.Join(fmt.Sprintf("/proc/%d/root/", args.pid), args.source)
 	if shared.PathExists(fullSrcPath) {
-		args.idmapType = s.MountSyscallShift(c, fullSrcPath, args.fstype)
+		args.idmapType = s.MountSyscallShift(c, fullSrcPath)
 	} else {
-		args.idmapType = s.MountSyscallShift(c, args.source, args.fstype)
+		args.idmapType = s.MountSyscallShift(c, args.source)
 	}
 
 	// unsigned long mountflags
@@ -2475,8 +2475,8 @@ func (s *Server) MountSyscallValid(c Instance, args *MountArgs) (bool, string) {
 	return false, ""
 }
 
-// MountSyscallShift checks whether this mount syscall needs shiftfs.
-func (s *Server) MountSyscallShift(c Instance, path string, fsType string) idmap.IdmapStorageType {
+// MountSyscallShift checks whether this mount syscall needs shifting.
+func (s *Server) MountSyscallShift(c Instance, path string) idmap.IdmapStorageType {
 	if shared.IsTrue(c.ExpandedConfig()["security.syscalls.intercept.mount.shift"]) {
 		diskIdmap, err := c.DiskIdmap()
 		if err != nil {
@@ -2484,7 +2484,7 @@ func (s *Server) MountSyscallShift(c Instance, path string, fsType string) idmap
 		}
 
 		if diskIdmap == nil {
-			return c.IdmappedStorage(path, fsType)
+			return c.IdmappedStorage(path, "none")
 		}
 	}
 
