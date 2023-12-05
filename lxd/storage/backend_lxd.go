@@ -28,6 +28,7 @@ import (
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -1692,6 +1693,14 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 	if err != nil {
 		return err
 	}
+
+	// We need to lock this operation to ensure the image is not deleted while instance is being created.
+	unlock, err := locking.Lock(b.state.ShutdownCtx, drivers.OperationLockName("CreateInstanceFromImage", b.name, drivers.VolumeTypeImage, "", fingerprint))
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
 
 	// Leave reverting on failure to caller, they are expected to call DeleteInstance().
 
@@ -3467,6 +3476,18 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 	l := b.logger.AddContext(logger.Ctx{"fingerprint": fingerprint})
 	l.Debug("DeleteImage started")
 	defer l.Debug("DeleteImage finished")
+
+	if op == nil || op.Type() != operationtype.InstanceCreate {
+		// Ensure instance cannot be create from the image that is about to be deleted. Obtain this lock
+		// only if operation is not of type InstanceCreate. Otherwise, we can get stuck in deadlock because
+		// during instance creation from image, we may need to replace the image volume.
+		unlock, err := locking.Lock(b.state.ShutdownCtx, drivers.OperationLockName("CreateInstanceFromImage", b.name, drivers.VolumeTypeImage, "", fingerprint))
+		if err != nil {
+			return err
+		}
+
+		defer unlock()
+	}
 
 	// We need to lock this operation to ensure that the image is not being deleted multiple times.
 	unlock, err := locking.Lock(context.TODO(), drivers.OperationLockName("DeleteImage", b.name, drivers.VolumeTypeImage, "", fingerprint))
