@@ -268,11 +268,6 @@ func (c *Config) ClusterHealingThreshold() time.Duration {
 	return healingThreshold
 }
 
-// OpenFGA returns all OpenFGA settings need to interact with an OpenFGA server.
-func (c *Config) OpenFGA() (apiURL string, apiToken string, storeID string, authorizationModelID string) {
-	return c.m.GetString("openfga.api.url"), c.m.GetString("openfga.api.token"), c.m.GetString("openfga.store.id"), c.m.GetString("openfga.store.model_id")
-}
-
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]any {
@@ -704,38 +699,6 @@ var ConfigSchema = config.Schema{
 	//  scope: global
 	//  shortdesc: URL of the MAAS server
 	"maas.api.url": {},
-
-	// lxdmeta:generate(entity=server, group=openfga, key=openfga.api.token)
-	//
-	// ---
-	// type: string
-	// scope: global
-	// shortdesc: API token of the OpenFGA server
-	"openfga.api.token": {Hidden: true},
-
-	// lxdmeta:generate(entity=server, group=openfga, key=openfga.api.url)
-	//
-	// ---
-	// type: string
-	// scope: global
-	// shortdesc: URL of the OpenFGA server
-	"openfga.api.url": {},
-
-	// lxdmeta:generate(entity=server, group=openfga, key=openfga.store.id)
-	//
-	// ---
-	// type: string
-	// scope: global
-	// shortdesc: ID of the OpenFGA permission store
-	"openfga.store.id": {},
-
-	// lxdmeta:generate(entity=server, group=openfga, key=openfga.store.model_id)
-	//
-	// ---
-	// type: string
-	// scope: global
-	// shortdesc: ID of the OpenFGA authorization model
-	"openfga.store.model_id": {},
 
 	// lxdmeta:generate(entity=server, group=oidc, key=oidc.client.id)
 	//
