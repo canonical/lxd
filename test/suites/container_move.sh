@@ -15,18 +15,20 @@ test_container_move() {
   lxc profile create "${profile}" --project "${project}"
   lxc profile device add "${profile}" root disk pool="${pool2}" path=/ --project "${project}"
 
-  # Move to different project with same profile (root disk device is retained).
+  # Move to different project with same profile (root disk device and profile are retained).
   lxc init "${image}" c1
   lxc move c1 --target-project "${project}"
-  [ "$(lxc ls --project ${project} --format csv --columns n)" = "c1" ]         # Verify new project.
-  [ "$(lxc config device get c1 root pool --project ${project})" = "${pool}" ] # Verify same pool (new local device).
+  [ "$(lxc ls --project ${project} --format csv --columns n)" = "c1" ]                          # Verify new project.
+  [ "$(lxc config device get c1 root pool --project ${project})" = "${pool}" ]                  # Verify same pool (new local device).
+  [ "$(lxc ls --project "${project}" -c nP -f csv | awk -F, '/c1/ { print $2 }')" = "default" ] # Verify profile is retained.
   lxc delete -f c1 --project "${project}"
 
   # Move to different project with no profiles (root disk device is retained).
   lxc init "${image}" c2
   lxc move c2 --target-project "${project}" --no-profiles
-  [ "$(lxc ls --project ${project} --format csv --columns n)" = "c2" ]         # Verify new project.
-  [ "$(lxc config device get c2 root pool --project ${project})" = "${pool}" ] # Verify same pool (new local device).
+  [ "$(lxc ls --project ${project} --format csv --columns n)" = "c2" ]                    # Verify new project.
+  [ "$(lxc config device get c2 root pool --project ${project})" = "${pool}" ]            # Verify same pool (new local device).
+  [ "$(lxc ls --project "${project}" -c nP -f csv | awk -F, '/c2/ { print $2 }')" = "" ]  # Verify no profiles are applied.
   lxc delete -f c2 --project "${project}"
 
   # Move to different project with new profiles (root disk device is retained).
