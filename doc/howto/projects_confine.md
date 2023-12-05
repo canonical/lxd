@@ -54,7 +54,7 @@ However, it does not confine the client to this project.
 ```
 
 If you are using the Canonical RBAC service, the RBAC roles define what operations a user with that role can carry out.
-See {ref}`authorization-rbac` for detailed information.
+See {ref}`authentication-rbac` for detailed information.
 
 To use RBAC to confine a project, go to the respective project in the RBAC interface and assign RBAC roles to the different users or groups as required.
 
