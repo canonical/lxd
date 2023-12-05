@@ -392,6 +392,7 @@ var APIExtensions = []string{
 	"storage_cephfs_create_missing",
 	"instance_move_config",
 	"ovn_ssl_config",
+	"init_preseed_storage_volumes",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

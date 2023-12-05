@@ -2333,3 +2333,6 @@ when moving an instance between projects and/or storage pools.
 ## `ovn_ssl_config`
 This introduces new server configuration keys to provide the SSL CA and client key pair to access the OVN databases.
 The new configuration keys are `network.ovn.ca_cert`, `network.ovn.client_cert` and `network.ovn.client_key`.
+
+## `init_preseed_storage_volumes`
+This API extension provides the ability to configure storage volumes in preseed init.
