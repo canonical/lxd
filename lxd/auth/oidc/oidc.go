@@ -15,7 +15,7 @@ import (
 	"github.com/zitadel/oidc/v2/pkg/oidc"
 	"github.com/zitadel/oidc/v2/pkg/op"
 
-	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/lxd/response"
 )
 
 const (
@@ -190,71 +190,27 @@ func (o *Verifier) Logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &refreshCookie)
 }
 
+// Callback is a http.HandlerFunc which implements the code exchange required on the /oidc/callback endpoint.
 func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
-	// Get the provider.
-	provider, err := o.getProvider(r)
+	err := o.ensureConfig(r.Host)
 	if err != nil {
+		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("OIDC callback failed: %w", err).Error()).Render(w)
 		return
 	}
 
 	handler := rp.CodeExchangeHandler(func(w http.ResponseWriter, r *http.Request, tokens *oidc.Tokens[*oidc.IDTokenClaims], state string, rp rp.RelyingParty) {
-		// Access token.
-		accessCookie := http.Cookie{
-			Name:     "oidc_access",
-			Value:    tokens.AccessToken,
-			Path:     "/",
-			Secure:   true,
-			HttpOnly: false,
-			SameSite: http.SameSiteStrictMode,
-		}
-
-		http.SetCookie(w, &accessCookie)
-
-		// Refresh token.
-		if tokens.RefreshToken != "" {
-			refreshCookie := http.Cookie{
-				Name:     "oidc_refresh",
-				Value:    tokens.RefreshToken,
-				Path:     "/",
-				Secure:   true,
-				HttpOnly: false,
-				SameSite: http.SameSiteStrictMode,
-			}
-
-			http.SetCookie(w, &refreshCookie)
+		err := o.setCookies(w, tokens.IDToken, tokens.RefreshToken, false)
+		if err != nil {
+			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to set login information: %w", err).Error()).Render(w)
+			return
 		}
 
 		// Send to the UI.
 		// NOTE: Once the UI does the redirection on its own, we may be able to use the referer here instead.
 		http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
-	}, provider)
+	}, o.relyingParty)
 
 	handler(w, r)
-}
-
-// VerifyAccessToken is a wrapper around op.VerifyAccessToken which avoids having to deal with Go generics elsewhere. It validates the access token (issuer, signature and expiration).
-func (o *Verifier) VerifyAccessToken(ctx context.Context, token string) (*oidc.AccessTokenClaims, error) {
-	var err error
-
-	if o.accessTokenVerifier == nil {
-		o.accessTokenVerifier, err = getAccessTokenVerifier(o.issuer)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	claims, err := op.VerifyAccessToken[*oidc.AccessTokenClaims](ctx, token, o.accessTokenVerifier)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check that the token includes the configured audience.
-	audience := claims.GetAudience()
-	if o.audience != "" && !shared.ValueInSlice(o.audience, audience) {
-		return nil, fmt.Errorf("Provided OIDC token doesn't allow the configured audience")
-	}
-
-	return claims, nil
 }
 
 // WriteHeaders writes the OIDC configuration as HTTP headers so the client can initatiate the device code flow.
