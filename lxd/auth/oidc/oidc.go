@@ -56,102 +56,39 @@ func (e AuthError) Unwrap() error {
 	return e.Err
 }
 
-// Auth extracts the token, validates it and returns the user information.
+// Auth extracts OIDC tokens from the request, verifies them, and returns the subject.
 func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Request) (string, error) {
-	var token string
+	err := o.ensureConfig(r.Host)
+	if err != nil {
+		return "", fmt.Errorf("Authorization failed: %w", err)
+	}
 
-	auth := r.Header.Get("Authorization")
-	if auth != "" {
-		// When a client wants to authenticate, it needs to set the Authorization HTTP header like this:
+	authorizationHeader := r.Header.Get("Authorization")
+
+	idToken, refreshToken, err := o.getCookies(r)
+	if err != nil {
+		// Cookies are present but we failed to decrypt them. They may have been tampered with, so delete them to force
+		// the user to log in again.
+		_ = o.setCookies(w, "", "", true)
+		return "", fmt.Errorf("Failed to retrieve login information: %w", err)
+	}
+
+	if authorizationHeader != "" {
+		// When a command line client wants to authenticate, it needs to set the Authorization HTTP header like this:
 		//    Authorization Bearer <access_token>
-		// If set correctly, LXD will attempt to verify the access token, and grant access if it's valid.
-		// If the verification fails, LXD will return an InvalidToken error. The client should then either use its refresh token to get a new valid access token, or log in again.
-		// If the Authorization header is missing, LXD returns an AuthenticationRequired error.
-		// Both returned errors contain information which are needed for the client to authenticate.
-		parts := strings.Split(auth, "Bearer ")
+		parts := strings.Split(authorizationHeader, "Bearer ")
 		if len(parts) != 2 {
 			return "", &AuthError{fmt.Errorf("Bad authorization token, expected a Bearer token")}
 		}
 
-		token = parts[1]
-	} else {
-		// When not using a Bearer token, fetch the equivalent from a cookie and move on with it.
-		cookie, err := r.Cookie("oidc_access")
-		if err != nil {
-			return "", &AuthError{err}
-		}
-
-		token = cookie.Value
+		// Bearer tokens should always be access tokens.
+		return o.authenticateAccessToken(ctx, parts[1])
+	} else if idToken != "" || refreshToken != "" {
+		// When authenticating via the UI, we expect that there will be ID and refresh tokens present in the request cookies.
+		return o.authenticateIDToken(ctx, w, idToken, refreshToken)
 	}
 
-	if o.accessTokenVerifier == nil {
-		var err error
-
-		o.accessTokenVerifier, err = getAccessTokenVerifier(o.issuer)
-		if err != nil {
-			return "", &AuthError{err}
-		}
-	}
-
-	claims, err := o.VerifyAccessToken(ctx, token)
-	if err != nil {
-		// See if we can refresh the access token.
-		cookie, cookieErr := r.Cookie("oidc_refresh")
-		if cookieErr != nil {
-			return "", &AuthError{err}
-		}
-
-		// Get the provider.
-		provider, err := o.getProvider(r)
-		if err != nil {
-			return "", &AuthError{err}
-		}
-
-		// Attempt the refresh.
-		tokens, err := rp.RefreshAccessToken(provider, cookie.Value, "", "")
-		if err != nil {
-			return "", &AuthError{err}
-		}
-
-		// Validate the refreshed token.
-		claims, err = o.VerifyAccessToken(ctx, tokens.AccessToken)
-		if err != nil {
-			return "", &AuthError{err}
-		}
-
-		// Update the access token cookie.
-		accessCookie := http.Cookie{
-			Name:     "oidc_access",
-			Value:    tokens.AccessToken,
-			Path:     "/",
-			Secure:   true,
-			HttpOnly: false,
-			SameSite: http.SameSiteStrictMode,
-		}
-
-		http.SetCookie(w, &accessCookie)
-
-		// Update the refresh token cookie.
-		if tokens.RefreshToken != "" {
-			refreshCookie := http.Cookie{
-				Name:     "oidc_refresh",
-				Value:    tokens.RefreshToken,
-				Path:     "/",
-				Secure:   true,
-				HttpOnly: false,
-				SameSite: http.SameSiteStrictMode,
-			}
-
-			http.SetCookie(w, &refreshCookie)
-		}
-	}
-
-	user, ok := claims.Claims["email"]
-	if ok && user != nil && user.(string) != "" {
-		return user.(string), nil
-	}
-
-	return claims.Subject, nil
+	return "", AuthError{Err: errors.New("No OIDC tokens provided")}
 }
 
 // authenticateAccessToken verifies the access token and checks that the configured audience is present the in access
