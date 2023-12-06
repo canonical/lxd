@@ -87,6 +87,23 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 		return response.BadRequest(err)
 	}
 
+	// Fail fast if instance with the given name already exists.
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		instanceNames, err := tx.GetInstanceNames(ctx, p.Name)
+		if err != nil {
+			return err
+		}
+
+		if shared.ValueInSlice(req.Name, instanceNames) {
+			return fmt.Errorf("Instance %q already exists", req.Name)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
 	run := func(op *operations.Operation) error {
 		devices := deviceConfig.NewDevices(req.Devices)
 
