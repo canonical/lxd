@@ -2,6 +2,7 @@ package oidc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -301,6 +302,73 @@ func getAccessTokenVerifier(issuer string) (op.AccessTokenVerifier, error) {
 	keySet := rp.NewRemoteKeySet(http.DefaultClient, discoveryConfig.JwksURI)
 
 	return op.NewAccessTokenVerifier(issuer, keySet), nil
+}
+
+// getCookies gets the ID and refresh tokens from the request cookies.
+func (*Verifier) getCookies(r *http.Request) (idToken string, refreshToken string, err error) {
+	idTokenCookie, err := r.Cookie(cookieNameIDToken)
+	if err != nil && !errors.Is(err, http.ErrNoCookie) {
+		return "", "", fmt.Errorf("Failed to get ID token cookie from request: %w", err)
+	}
+
+	if idTokenCookie != nil {
+		idToken = idTokenCookie.Value
+	}
+
+	refreshTokenCookie, err := r.Cookie(cookieNameRefreshToken)
+	if err != nil && !errors.Is(err, http.ErrNoCookie) {
+		return "", "", fmt.Errorf("Failed to get refresh token cookie from request: %w", err)
+	}
+
+	if refreshTokenCookie != nil {
+		refreshToken = refreshTokenCookie.Value
+	}
+
+	return idToken, refreshToken, nil
+}
+
+// setCookies sets the ID and refresh tokens in the HTTP response. Cookies are only set if they are
+// non-empty. If delete is true, the values are set to empty strings and the cookie expiry is set to unix zero time.
+func (*Verifier) setCookies(w http.ResponseWriter, idToken string, refreshToken string, delete bool) error {
+	if idToken != "" || delete {
+		idTokenCookie := http.Cookie{
+			Name:     cookieNameIDToken,
+			Path:     "/",
+			Secure:   true,
+			HttpOnly: true,
+			SameSite: http.SameSiteStrictMode,
+		}
+
+		if delete {
+			idTokenCookie.Value = ""
+			idTokenCookie.Expires = time.Unix(0, 0)
+		} else {
+			idTokenCookie.Value = idToken
+		}
+
+		http.SetCookie(w, &idTokenCookie)
+	}
+
+	if refreshToken != "" || delete {
+		refreshTokenCookie := http.Cookie{
+			Name:     cookieNameRefreshToken,
+			Path:     "/",
+			Secure:   true,
+			HttpOnly: true,
+			SameSite: http.SameSiteStrictMode,
+		}
+
+		if delete {
+			refreshTokenCookie.Value = ""
+			refreshTokenCookie.Expires = time.Unix(0, 0)
+		} else {
+			refreshTokenCookie.Value = refreshToken
+		}
+
+		http.SetCookie(w, &refreshTokenCookie)
+	}
+
+	return nil
 }
 
 // NewVerifier returns a Verifier.
