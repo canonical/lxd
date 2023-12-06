@@ -29,11 +29,17 @@ const (
 // Verifier holds all information needed to verify an access token offline.
 type Verifier struct {
 	accessTokenVerifier op.AccessTokenVerifier
+	relyingParty        rp.RelyingParty
 
 	clientID  string
 	issuer    string
 	audience  string
 	cookieKey []byte
+
+	// host is used for setting a valid callback URL when setting the relyingParty.
+	// When creating the relyingParty, the OIDC library performs discovery (e.g. it calls the /well-known/oidc-configuration endpoint).
+	// We don't want to perform this on every request, so we only do it when the request host changes.
+	host string
 }
 
 // AuthError represents an authentication error.
@@ -274,34 +280,66 @@ func (o *Verifier) IsRequest(r *http.Request) bool {
 	return false
 }
 
-func (o *Verifier) getProvider(r *http.Request) (rp.RelyingParty, error) {
-	cookieHandler := httphelper.NewCookieHandler(o.cookieKey, o.cookieKey, httphelper.WithUnsecure())
+// ensureConfig ensures that the relyingParty and accessTokenVerifier fields of the Verifier are non-nil. Additionally,
+// if the given host is different from the Verifier host we reset the relyingParty to ensure the callback URL is set
+// correctly.
+func (o *Verifier) ensureConfig(host string) error {
+	if o.relyingParty == nil || host != o.host {
+		err := o.setRelyingParty(host)
+		if err != nil {
+			return err
+		}
+
+		o.host = host
+	}
+
+	if o.accessTokenVerifier == nil {
+		err := o.setAccessTokenVerifier()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// setRelyingParty sets the relyingParty on the Verifier. The host argument is used to set a valid callback URL.
+func (o *Verifier) setRelyingParty(host string) error {
+	cookieHandler := httphelper.NewCookieHandler(o.cookieKey, o.cookieKey)
 	options := []rp.Option{
 		rp.WithCookieHandler(cookieHandler),
 		rp.WithVerifierOpts(rp.WithIssuedAtOffset(5 * time.Second)),
 		rp.WithPKCE(cookieHandler),
 	}
 
-	oidcScopes := []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess}
+	oidcScopes := []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, oidc.ScopeEmail}
 
-	provider, err := rp.NewRelyingPartyOIDC(o.issuer, o.clientID, "", fmt.Sprintf("https://%s/oidc/callback", r.Host), oidcScopes, options...)
+	relyingParty, err := rp.NewRelyingPartyOIDC(o.issuer, o.clientID, "", fmt.Sprintf("https://%s/oidc/callback", host), oidcScopes, options...)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("Failed to get OIDC relying party: %w", err)
 	}
 
-	return provider, nil
+	o.relyingParty = relyingParty
+	return nil
 }
 
-// getAccessTokenVerifier calls the OIDC discovery endpoint in order to get the issuer's remote keys which are needed to create an access token verifier.
-func getAccessTokenVerifier(issuer string) (op.AccessTokenVerifier, error) {
-	discoveryConfig, err := client.Discover(issuer, http.DefaultClient)
-	if err != nil {
-		return nil, fmt.Errorf("Failed calling OIDC discovery endpoint: %w", err)
+// setAccessTokenVerifier sets the accessTokenVerifier on the Verifier. It uses the oidc.KeySet from the relyingParty if
+// it is set, otherwise it calls the discovery endpoint (/.well-known/openid-configuration).
+func (o *Verifier) setAccessTokenVerifier() error {
+	var keySet oidc.KeySet
+	if o.relyingParty != nil {
+		keySet = o.relyingParty.IDTokenVerifier().KeySet()
+	} else {
+		discoveryConfig, err := client.Discover(o.issuer, http.DefaultClient)
+		if err != nil {
+			return fmt.Errorf("Failed calling OIDC discovery endpoint: %w", err)
+		}
+
+		keySet = rp.NewRemoteKeySet(http.DefaultClient, discoveryConfig.JwksURI)
 	}
 
-	keySet := rp.NewRemoteKeySet(http.DefaultClient, discoveryConfig.JwksURI)
-
-	return op.NewAccessTokenVerifier(issuer, keySet), nil
+	o.accessTokenVerifier = op.NewAccessTokenVerifier(o.issuer, keySet)
+	return nil
 }
 
 // getCookies gets the ID and refresh tokens from the request cookies.
@@ -379,7 +417,6 @@ func NewVerifier(issuer string, clientid string, audience string) (*Verifier, er
 	}
 
 	verifier := &Verifier{issuer: issuer, clientID: clientid, audience: audience, cookieKey: cookieKey}
-	verifier.accessTokenVerifier, _ = getAccessTokenVerifier(issuer)
 
 	return verifier, nil
 }
