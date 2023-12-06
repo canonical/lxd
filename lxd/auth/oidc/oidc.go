@@ -17,6 +17,14 @@ import (
 	"github.com/canonical/lxd/shared"
 )
 
+const (
+	// cookieNameIDToken is the identifier used to set and retrieve the identity token.
+	cookieNameIDToken = "oidc_identity"
+
+	// cookieNameRefreshToken is the identifier used to set and retrieve the refresh token.
+	cookieNameRefreshToken = "oidc_refresh"
+)
+
 // Verifier holds all information needed to verify an access token offline.
 type Verifier struct {
 	accessTokenVerifier op.AccessTokenVerifier
