@@ -164,30 +164,15 @@ func (o *Verifier) Login(w http.ResponseWriter, r *http.Request) {
 	handler(w, r)
 }
 
+// Logout deletes the ID and refresh token cookies and redirects the user to the login page.
 func (o *Verifier) Logout(w http.ResponseWriter, r *http.Request) {
-	// Access token.
-	accessCookie := http.Cookie{
-		Name:     "oidc_access",
-		Path:     "/",
-		Secure:   true,
-		HttpOnly: false,
-		SameSite: http.SameSiteStrictMode,
-		Expires:  time.Unix(0, 0),
+	err := o.setCookies(w, "", "", true)
+	if err != nil {
+		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to delete login information: %w", err).Error()).Render(w)
+		return
 	}
 
-	http.SetCookie(w, &accessCookie)
-
-	// Refresh token.
-	refreshCookie := http.Cookie{
-		Name:     "oidc_refresh",
-		Path:     "/",
-		Secure:   true,
-		HttpOnly: false,
-		SameSite: http.SameSiteStrictMode,
-		Expires:  time.Unix(0, 0),
-	}
-
-	http.SetCookie(w, &refreshCookie)
+	http.Redirect(w, r, "/ui/login/", http.StatusFound)
 }
 
 // Callback is a http.HandlerFunc which implements the code exchange required on the /oidc/callback endpoint.
