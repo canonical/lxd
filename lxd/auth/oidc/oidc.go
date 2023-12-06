@@ -153,6 +153,50 @@ func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	return claims.Subject, nil
 }
 
+// authenticateIDToken verifies the identity token and returns the ID token subject. If no identity token is given (or
+// verification fails) it will attempt to refresh the ID token.
+func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWriter, idToken string, refreshToken string) (string, error) {
+	var claims *oidc.IDTokenClaims
+	var err error
+	if idToken != "" {
+		// Try to verify the ID token.
+		claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParty.IDTokenVerifier())
+		if err == nil {
+			return claims.Subject, nil
+		}
+	}
+
+	// If ID token verification failed (or it wasn't provided, try refreshing the token).
+	tokens, err := rp.RefreshAccessToken(o.relyingParty, refreshToken, "", "")
+	if err != nil {
+		return "", AuthError{Err: fmt.Errorf("Failed to refresh ID tokens: %w", err)}
+	}
+
+	idTokenAny := tokens.Extra("id_token")
+	if idTokenAny == nil {
+		return "", AuthError{Err: errors.New("ID tokens missing from OIDC refresh response")}
+	}
+
+	idToken, ok := idTokenAny.(string)
+	if !ok {
+		return "", AuthError{Err: errors.New("Malformed ID tokens in OIDC refresh response")}
+	}
+
+	// Verify the refreshed ID token.
+	claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParty.IDTokenVerifier())
+	if err != nil {
+		return "", AuthError{Err: fmt.Errorf("Failed to verify refreshed ID token: %w", err)}
+	}
+
+	// Update the cookies.
+	err = o.setCookies(w, idToken, tokens.RefreshToken, false)
+	if err != nil {
+		return "", fmt.Errorf("Failed to update login cookies: %w", err)
+	}
+
+	return claims.Subject, nil
+}
+
 // Login is a http.Handler than initiates the login flow for the UI.
 func (o *Verifier) Login(w http.ResponseWriter, r *http.Request) {
 	err := o.ensureConfig(r.Host)
