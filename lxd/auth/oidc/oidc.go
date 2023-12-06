@@ -16,6 +16,7 @@ import (
 	"github.com/zitadel/oidc/v2/pkg/op"
 
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/shared"
 )
 
 const (
@@ -148,6 +149,24 @@ func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	user, ok := claims.Claims["email"]
 	if ok && user != nil && user.(string) != "" {
 		return user.(string), nil
+	}
+
+	return claims.Subject, nil
+}
+
+// authenticateAccessToken verifies the access token and checks that the configured audience is present the in access
+// token claims. We do not attempt to refresh access tokens as this is performed client side. The access token subject
+// is returned if no error occurs.
+func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken string) (string, error) {
+	claims, err := op.VerifyAccessToken[*oidc.AccessTokenClaims](ctx, accessToken, o.accessTokenVerifier)
+	if err != nil {
+		return "", AuthError{Err: fmt.Errorf("Failed to verify access token: %w", err)}
+	}
+
+	// Check that the token includes the configured audience.
+	audience := claims.GetAudience()
+	if o.audience != "" && !shared.ValueInSlice(o.audience, audience) {
+		return "", AuthError{Err: fmt.Errorf("Provided OIDC token doesn't allow the configured audience")}
 	}
 
 	return claims.Subject, nil
