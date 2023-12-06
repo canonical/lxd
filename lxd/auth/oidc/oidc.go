@@ -153,14 +153,15 @@ func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	return claims.Subject, nil
 }
 
+// Login is a http.Handler than initiates the login flow for the UI.
 func (o *Verifier) Login(w http.ResponseWriter, r *http.Request) {
-	// Get the provider.
-	provider, err := o.getProvider(r)
+	err := o.ensureConfig(r.Host)
 	if err != nil {
+		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Login failed: %w", err).Error()).Render(w)
 		return
 	}
 
-	handler := rp.AuthURLHandler(func() string { return uuid.New().String() }, provider, rp.WithURLParam("audience", o.audience))
+	handler := rp.AuthURLHandler(func() string { return uuid.New().String() }, o.relyingParty, rp.WithURLParam("audience", o.audience))
 	handler(w, r)
 }
 
