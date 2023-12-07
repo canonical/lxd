@@ -1133,7 +1133,13 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 
 	opAPI := op.Get()
 
-	// Process additional arguments
+	// Ensure args are not nil.
+	if args == nil {
+		args = &InstanceExecArgs{}
+	}
+
+	// NOTE: This check is here just to prevent mess in git diff becaue removing this check
+	// changes the indentation of the below code.
 	if args != nil {
 		// Parse the fds
 		fds := map[string]string{}
