@@ -169,7 +169,11 @@ func stopDevlxdServer(d *Daemon) error {
 	d.devlxdRunning = false
 	d.devlxdMu.Unlock()
 
-	return servers["devlxd"].Close()
+	if servers["devlxd"] != nil {
+		return servers["devlxd"].Close()
+	}
+
+	return nil
 }
 
 func getClient(CID uint32, port int, serverCertificate string) (*http.Client, error) {
