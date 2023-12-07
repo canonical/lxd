@@ -48,10 +48,12 @@ type AuthError struct {
 	Err error
 }
 
+// Error implements the error interface for AuthError.
 func (e AuthError) Error() string {
 	return fmt.Sprintf("Failed to authenticate: %s", e.Err.Error())
 }
 
+// Unwrap implements the xerrors.Wrapper interface for AuthError.
 func (e AuthError) Unwrap() error {
 	return e.Err
 }
