@@ -1138,6 +1138,12 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 		args = &InstanceExecArgs{}
 	}
 
+	// Ensure Stdout is not nil. Otherwise, connection will be terminated
+	// immediately because there is nothing to wait for on the client's side.
+	if args.Stdout == nil {
+		args.Stdout = discard{}
+	}
+
 	// NOTE: This check is here just to prevent mess in git diff becaue removing this check
 	// changes the indentation of the below code.
 	if args != nil {
@@ -2917,5 +2923,15 @@ func (r *ProtocolLXD) proxyMigration(targetOp *operation, targetSecrets map[stri
 		}
 	}()
 
+	return nil
+}
+
+type discard struct{}
+
+func (discard) Write(p []byte) (int, error) {
+	return len(p), nil
+}
+
+func (discard) Close() error {
 	return nil
 }
