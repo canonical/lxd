@@ -294,8 +294,20 @@ func (d *lvm) commonVolumeRules() map[string]func(value string) error {
 	return map[string]func(value string) error{
 		"block.mount_options": validate.IsAny,
 		"block.filesystem":    validate.Optional(validate.IsOneOf(blockBackedAllowedFilesystems...)),
-		"lvm.stripes":         validate.Optional(validate.IsUint32),
-		"lvm.stripes.size":    validate.Optional(validate.IsSize),
+		// lxdmeta:generate(entities=storage-lvm; group=volume-conf; key=lvm.stripes)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: same as `volume.lvm.stripes`
+		//  shortdesc: Number of stripes to use for new volumes (or thin pool volume)
+		"lvm.stripes": validate.Optional(validate.IsUint32),
+		// lxdmeta:generate(entities=storage-lvm; group=volume-conf; key=lvm.stripes.size)
+		// The size must be at least 4096 bytes, and a multiple of 512 bytes.
+		// ---
+		//  type: string
+		//  defaultdesc: same as `volume.lvm.stripes.size`
+		//  shortdesc: Size of stripes to use
+		"lvm.stripes.size": validate.Optional(validate.IsSize),
 	}
 }
 
