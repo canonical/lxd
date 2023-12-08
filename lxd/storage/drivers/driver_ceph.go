@@ -289,16 +289,69 @@ func (d *ceph) Delete(op *operations.Operation) error {
 // Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
 func (d *ceph) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"ceph.cluster_name":       validate.IsAny,
-		"ceph.osd.force_reuse":    validate.Optional(validate.IsBool), // Deprecated, should not be used.
-		"ceph.osd.pg_num":         validate.IsAny,
-		"ceph.osd.pool_name":      validate.IsAny,
+		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.cluster_name)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: `ceph`
+		//  shortdesc: Name of the Ceph cluster in which to create new storage pools
+		"ceph.cluster_name":    validate.IsAny,
+		"ceph.osd.force_reuse": validate.Optional(validate.IsBool), // Deprecated, should not be used.
+		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.osd.pg_num)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: `32`
+		//  shortdesc: Number of placement groups for the OSD storage pool
+		"ceph.osd.pg_num": validate.IsAny,
+		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.osd.pool_name)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: name of the pool
+		//  shortdesc: Name of the OSD storage pool
+		"ceph.osd.pool_name": validate.IsAny,
+		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.osd.data_pool_name)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Name of the OSD data pool
 		"ceph.osd.data_pool_name": validate.IsAny,
-		"ceph.rbd.clone_copy":     validate.Optional(validate.IsBool),
-		"ceph.rbd.du":             validate.Optional(validate.IsBool),
-		"ceph.rbd.features":       validate.IsAny,
-		"ceph.user.name":          validate.IsAny,
-		"volatile.pool.pristine":  validate.IsAny,
+		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.rbd.clone_copy)
+		// Enable this option to use RBD lightweight clones rather than full dataset copies.
+		// ---
+		//  type: bool
+		//  defaultdesc: `true`
+		//  shortdesc: Whether to use RBD lightweight clones
+		"ceph.rbd.clone_copy": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.rbd.du)
+		// This option specifies whether to use RBD `du` to obtain disk usage data for stopped instances.
+		// ---
+		//  type: bool
+		//  defaultdesc: `true`
+		//  shortdesc: Whether to use RBD `du`
+		"ceph.rbd.du": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.rbd.features)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: `layering`
+		//  shortdesc: Comma-separated list of RBD features to enable on the volumes
+		"ceph.rbd.features": validate.IsAny,
+		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.user.name)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: `admin`
+		//  shortdesc: The Ceph user to use when creating storage pools and volumes
+		"ceph.user.name": validate.IsAny,
+		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=volatile.pool.pristine)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: `true`
+		//  shortdesc: Whether the pool was empty on creation time
+		"volatile.pool.pristine": validate.IsAny,
 	}
 
 	return d.validatePool(config, rules, d.commonVolumeRules())
