@@ -631,7 +631,7 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/exec", url.PathEscape(containerName)), exec, "", false)
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/exec", url.PathEscape(containerName)), exec, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -1527,7 +1527,7 @@ func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.Contain
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/console", url.PathEscape(containerName)), console, "", false)
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/console", url.PathEscape(containerName)), console, "", true)
 	if err != nil {
 		return nil, err
 	}

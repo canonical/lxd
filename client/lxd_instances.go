@@ -1125,8 +1125,7 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 	}
 
 	// Send the request
-	useEventListener := r.CheckExtension("operation_wait") != nil
-	op, _, err := r.queryOperation("POST", uri, exec, "", useEventListener)
+	op, _, err := r.queryOperation("POST", uri, exec, "", true)
 	if err != nil {
 		return nil, err
 	}
