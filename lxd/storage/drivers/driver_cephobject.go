@@ -96,12 +96,44 @@ func (d *cephobject) Info() Info {
 // Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
 func (d *cephobject) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"cephobject.cluster_name":               validate.IsAny,
-		"cephobject.user.name":                  validate.IsAny,
-		"cephobject.radosgw.endpoint":           validate.Optional(validate.IsRequestURL),
+		// lxdmeta:generate(entities=storage-cephobject; group=pool-conf; key=cephobject.cluster_name)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: The Ceph cluster to use
+		"cephobject.cluster_name": validate.IsAny,
+		// lxdmeta:generate(entities=storage-cephobject; group=pool-conf; key=cephobject.user.name)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: `admin`
+		//  shortdesc: The Ceph user to use
+		"cephobject.user.name": validate.IsAny,
+		// lxdmeta:generate(entities=storage-cephobject; group=pool-conf; key=cephobject.radosgw.endpoint)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: URL of the `radosgw` gateway process
+		"cephobject.radosgw.endpoint": validate.Optional(validate.IsRequestURL),
+		// lxdmeta:generate(entities=storage-cephobject; group=pool-conf; key=cephobject.radosgw.endpoint_cert_file)
+		// Specify the path to the file that contains the TLS client certificate.
+		// ---
+		//  type: string
+		//  shortdesc: TLS client certificate to use for endpoint communication
 		"cephobject.radosgw.endpoint_cert_file": validate.Optional(validate.IsAbsFilePath),
-		"cephobject.bucket.name_prefix":         validate.Optional(validate.IsAny),
-		"volatile.pool.pristine":                validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=storage-cephobject; group=pool-conf; key=cephobject.bucket.name_prefix)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Prefix to add to bucket names in Ceph
+		"cephobject.bucket.name_prefix": validate.Optional(validate.IsAny),
+		// lxdmeta:generate(entities=storage-cephobject; group=pool-conf; key=volatile.pool.pristine)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: `true`
+		//  shortdesc: Whether the `radosgw` `lxd-admin` user existed at creation time
+		"volatile.pool.pristine": validate.Optional(validate.IsBool),
 	}
 
 	return d.validatePool(config, rules, nil)
