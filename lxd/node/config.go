@@ -162,7 +162,7 @@ func (c *Config) update(values map[string]any) (map[string]string, error) {
 var ConfigSchema = config.Schema{
 	// Network address for this LXD server
 
-	// lxdmeta:generate(entity=server, group=core, key=core.https_address)
+	// lxdmeta:generate(entities=server; group=core; key=core.https_address)
 	// See {ref}`server-expose`.
 	// ---
 	//  type: string
@@ -172,7 +172,7 @@ var ConfigSchema = config.Schema{
 
 	// Network address for cluster communication
 
-	// lxdmeta:generate(entity=server, group=cluster, key=cluster.https_address)
+	// lxdmeta:generate(entities=server; group=cluster; key=cluster.https_address)
 	// See {ref}`cluster-https-address`.
 	// ---
 	//  type: string
@@ -182,7 +182,7 @@ var ConfigSchema = config.Schema{
 
 	// Network address for the BGP server
 
-	// lxdmeta:generate(entity=server, group=core, key=core.bgp_address)
+	// lxdmeta:generate(entities=server; group=core; key=core.bgp_address)
 	// See {ref}`network-bgp`.
 	// ---
 	//  type: string
@@ -192,7 +192,7 @@ var ConfigSchema = config.Schema{
 
 	// Unique router ID for the BGP server
 
-	// lxdmeta:generate(entity=server, group=core, key=core.bgp_routerid)
+	// lxdmeta:generate(entities=server; group=core; key=core.bgp_routerid)
 	// The identifier must be formatted as an IPv4 address.
 	// ---
 	//  type: string
@@ -202,7 +202,7 @@ var ConfigSchema = config.Schema{
 
 	// Network address for the debug server
 
-	// lxdmeta:generate(entity=server, group=core, key=core.debug_address)
+	// lxdmeta:generate(entities=server; group=core; key=core.debug_address)
 	//
 	// ---
 	//  type: string
@@ -212,7 +212,7 @@ var ConfigSchema = config.Schema{
 
 	// Network address for the DNS server
 
-	// lxdmeta:generate(entity=server, group=core, key=core.dns_address)
+	// lxdmeta:generate(entities=server; group=core; key=core.dns_address)
 	// See {ref}`network-dns-server`.
 	// ---
 	//  type: string
@@ -222,7 +222,7 @@ var ConfigSchema = config.Schema{
 
 	// Network address for the metrics server
 
-	// lxdmeta:generate(entity=server, group=core, key=core.metrics_address)
+	// lxdmeta:generate(entities=server; group=core; key=core.metrics_address)
 	// See {ref}`metrics`.
 	// ---
 	//  type: string
@@ -232,7 +232,7 @@ var ConfigSchema = config.Schema{
 
 	// Network address for the storage buckets server
 
-	// lxdmeta:generate(entity=server, group=core, key=core.storage_buckets_address)
+	// lxdmeta:generate(entities=server; group=core; key=core.storage_buckets_address)
 	// See {ref}`howto-storage-buckets`.
 	// ---
 	//  type: string
@@ -242,7 +242,7 @@ var ConfigSchema = config.Schema{
 
 	// Syslog socket
 
-	// lxdmeta:generate(entity=server, group=core, key=core.syslog_socket)
+	// lxdmeta:generate(entities=server; group=core; key=core.syslog_socket)
 	// Set this option to `true` to enable the syslog unixgram socket to receive log messages from external processes.
 	// ---
 	//  type: bool
@@ -253,7 +253,7 @@ var ConfigSchema = config.Schema{
 
 	// MAAS machine this LXD instance is associated with
 
-	// lxdmeta:generate(entity=server, group=miscellaneous, key=maas.machine)
+	// lxdmeta:generate(entities=server; group=miscellaneous; key=maas.machine)
 	//
 	// ---
 	//  type: string
@@ -264,14 +264,14 @@ var ConfigSchema = config.Schema{
 
 	// Storage volumes to store backups/images on
 
-	// lxdmeta:generate(entity=server, group=miscellaneous, key=storage.backups_volume)
+	// lxdmeta:generate(entities=server; group=miscellaneous; key=storage.backups_volume)
 	// Specify the volume using the syntax `POOL/VOLUME`.
 	// ---
 	//  type: string
 	//  scope: local
 	//  shortdesc: Volume to use to store backup tarballs
 	"storage.backups_volume": {},
-	// lxdmeta:generate(entity=server, group=miscellaneous, key=storage.images_volume)
+	// lxdmeta:generate(entities=server; group=miscellaneous; key=storage.images_volume)
 	// Specify the volume using the syntax `POOL/VOLUME`.
 	// ---
 	//  type: string
