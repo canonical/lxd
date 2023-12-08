@@ -6693,6 +6693,11 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 	// Check whether we are allowed to create volumes.
 	req := api.StorageVolumesPost{
 		Name: volName,
+		StorageVolumePut: api.StorageVolumePut{
+			Config: map[string]string{
+				"size": fmt.Sprintf("%d", size),
+			},
+		},
 	}
 
 	err := b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -6708,11 +6713,7 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
 
-	config := map[string]string{
-		"size": fmt.Sprintf("%d", size),
-	}
-
-	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentTypeISO, volStorageName, config)
+	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentTypeISO, volStorageName, req.Config)
 
 	volExists, err := b.driver.HasVolume(vol)
 	if err != nil {
