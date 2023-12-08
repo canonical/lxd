@@ -365,14 +365,69 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 // Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
 func (d *cephfs) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"cephfs.cluster_name":    validate.IsAny,
-		"cephfs.fscache":         validate.Optional(validate.IsBool),
-		"cephfs.path":            validate.IsAny,
-		"cephfs.user.name":       validate.IsAny,
-		"cephfs.create_missing":  validate.Optional(validate.IsBool),
-		"cephfs.osd_pg_num":      validate.Optional(validate.IsInt64),
-		"cephfs.meta_pool":       validate.IsAny,
-		"cephfs.data_pool":       validate.IsAny,
+		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.cluster_name)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: `ceph`
+		//  shortdesc: Name of the Ceph cluster that contains the CephFS file system
+		"cephfs.cluster_name": validate.IsAny,
+		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.fscache)
+		//
+		// ---
+		//  type: bool
+		//  defaultdesc: `false`
+		//  shortdesc: Enable use of kernel `fscache` and `cachefilesd`
+		"cephfs.fscache": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.path)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: `/`
+		//  shortdesc: The base path for the CephFS mount
+		"cephfs.path": validate.IsAny,
+		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.user.name)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: `admin`
+		//  shortdesc: The Ceph user to use
+		"cephfs.user.name": validate.IsAny,
+		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.create_missing)
+		// Use this option if the CephFS file system does not exist yet.
+		// LXD will then automatically create the file system and the missing data and metadata OSD pools.
+		// ---
+		//  type: bool
+		//  defaultdesc: `false`
+		//  shortdesc: Automatically create the CephFS file system
+		"cephfs.create_missing": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.osd_pg_num)
+		// This option specifies the number of OSD pool placement groups (`pg_num`) to use
+		// when creating a missing OSD pool.
+		// ---
+		//  type: string
+		//  shortdesc: Number of placement groups when creating missing OSD pools
+		"cephfs.osd_pg_num": validate.Optional(validate.IsInt64),
+		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.meta_pool)
+		// This option specifies the name for the file metadata OSD pool that should be used when
+		// creating a file system automatically.
+		// ---
+		//  type: string
+		//  shortdesc: Metadata OSD pool name
+		"cephfs.meta_pool": validate.IsAny,
+		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=cephfs.data_pool)
+		// This option specifies the name for the data OSD pool that should be used when creating
+		// a file system automatically.
+		// ---
+		//  type: string
+		//  shortdesc: Data OSD pool name
+		"cephfs.data_pool": validate.IsAny,
+		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=volatile.pool.pristine)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: `true`
+		//  shortdesc: Whether the CephFS file system was empty on creation time
 		"volatile.pool.pristine": validate.IsAny,
 	}
 
