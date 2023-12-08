@@ -431,8 +431,22 @@ func (d *zfs) Delete(op *operations.Operation) error {
 // Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
 func (d *zfs) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"size":          validate.Optional(validate.IsSize),
+		"size": validate.Optional(validate.IsSize),
+		// lxdmeta:generate(entities=storage-zfs; group=pool-conf; key=zfs.pool_name)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: name of the pool
+		//  shortdesc: Name of the zpool
 		"zfs.pool_name": validate.IsAny,
+		// lxdmeta:generate(entities=storage-zfs; group=pool-conf; key=zfs.clone_copy)
+		// Set this option to `true` or `false` to enable or disable using ZFS lightweight clones rather
+		// than full dataset copies.
+		// Set the option to `rebase` to copy based on the initial image.
+		// ---
+		//  type: string
+		//  defaultdesc: `true`
+		//  shortdesc: Whether to use ZFS lightweight clones
 		"zfs.clone_copy": validate.Optional(func(value string) error {
 			if value == "rebase" {
 				return nil
@@ -440,6 +454,12 @@ func (d *zfs) Validate(config map[string]string) error {
 
 			return validate.IsBool(value)
 		}),
+		// lxdmeta:generate(entities=storage-zfs; group=pool-conf; key=zfs.export)
+		//
+		// ---
+		//  type: bool
+		//  defaultdesc: `true`
+		//  shortdesc: Disable zpool export while an unmount is being performed
 		"zfs.export": validate.Optional(validate.IsBool),
 	}
 
