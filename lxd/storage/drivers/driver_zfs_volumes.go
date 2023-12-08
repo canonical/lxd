@@ -1512,14 +1512,73 @@ func (d *zfs) HasVolume(vol Volume) (bool, error) {
 // commonVolumeRules returns validation rules which are common for pool and volume.
 func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 	return map[string]func(value string) error{
-		"block.filesystem":     validate.Optional(validate.IsOneOf(blockBackedAllowedFilesystems...)),
-		"block.mount_options":  validate.IsAny,
-		"zfs.block_mode":       validate.Optional(validate.IsBool),
-		"zfs.blocksize":        validate.Optional(ValidateZfsBlocksize),
+		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=block.filesystem)
+		// Valid options are: `btrfs`, `ext4`, `xfs`
+		// If not set, `ext4` is assumed.
+		// ---
+		//  type: string
+		//  condition: block-based volume with content type `filesystem` (`zfs.block_mode` enabled)
+		//  defaultdesc: same as `volume.block.filesystem`
+		//  shortdesc: File system of the storage volume
+		"block.filesystem": validate.Optional(validate.IsOneOf(blockBackedAllowedFilesystems...)),
+		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=block.mount_options)
+		//
+		// ---
+		//  type: string
+		//  condition: block-based volume with content type `filesystem` (`zfs.block_mode` enabled)
+		//  defaultdesc: same as `volume.block.mount_options`
+		//  shortdesc: Mount options for block-backed file system volumes
+		"block.mount_options": validate.IsAny,
+		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.block_mode)
+		// `zfs.block_mode` can be set only for custom storage volumes.
+		// To enable ZFS block mode for all storage volumes in the pool, including instance volumes,
+		// use `volume.zfs.block_mode`.
+		// ---
+		//  type: bool
+		//  defaultdesc: same as `volume.zfs.block_mode`
+		//  shortdesc: Whether to use a formatted `zvol` rather than a dataset
+		"zfs.block_mode": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.blocksize)
+		// The size must be between 512 bytes and 16 MiB and must be a power of 2.
+		// For a block volume, a maximum value of 128 KiB will be used even if a higher value is set.
+		//
+		// Depending on the value of {config:option}`storage-zfs-volume-conf:zfs.block_mode`,
+		// the specified size is used to set either `volblocksize` or `recordsize` in ZFS.
+		// ---
+		//  type: string
+		//  defaultdesc: same as `volume.zfs.blocksize`
+		//  shortdesc: Size of the ZFS block
+		"zfs.blocksize": validate.Optional(ValidateZfsBlocksize),
+		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.remove_snapshots)
+		//
+		// ---
+		//  type: bool
+		//  defaultdesc: same as `volume.zfs.remove_snapshots` or `false`
+		//  shortdesc: Remove snapshots as needed
 		"zfs.remove_snapshots": validate.Optional(validate.IsBool),
-		"zfs.reserve_space":    validate.Optional(validate.IsBool),
-		"zfs.use_refquota":     validate.Optional(validate.IsBool),
-		"zfs.delegate":         validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.reserve_space)
+		//
+		// ---
+		//  type: bool
+		//  defaultdesc: same as `volume.zfs.reserve_space` or `false`
+		//  shortdesc: Use `reservation`/`refreservation` along with `quota`/`refquota`
+		"zfs.reserve_space": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.use_refquota)
+		//
+		// ---
+		//  type: bool
+		//  defaultdesc: same as `volume.zfs.use_refquota` or `false`
+		//  shortdesc: Use `refquota` instead of `quota` for space
+		"zfs.use_refquota": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=storage-zfs; group=volume-conf; key=zfs.delegate)
+		// This option controls whether to delegate the ZFS dataset and anything underneath it to the
+		// container or containers that use it. This allows using the `zfs` command in the container.
+		// ---
+		//  type: bool
+		//  condition: ZFS 2.2 or higher
+		//  defaultdesc: same as `volume.zfs.delegate`
+		//  shortdesc: Whether to delegate the ZFS dataset
+		"zfs.delegate": validate.Optional(validate.IsBool),
 	}
 }
 
