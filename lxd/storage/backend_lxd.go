@@ -2224,8 +2224,16 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 		return err
 	}
 
-	// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
-	snapshots, err := b.state.DB.Cluster.GetInstanceSnapshotsNames(inst.Project().Name, inst.Name())
+	var snapshots []string
+
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
+		snapshots, err = tx.GetInstanceSnapshotsNames(ctx, inst.Project().Name, inst.Name())
+
+		return err
+	})
 	if err != nil {
 		return err
 	}
@@ -6537,13 +6545,25 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 
 	projectName, instName := project.InstanceParts(vol.Name())
 
-	// Check if an entry for the instance already exists in the DB.
-	instID, err := b.state.DB.Cluster.GetInstanceID(projectName, instName)
-	if err != nil && !response.IsNotFoundError(err) {
-		return err
-	}
+	var instID int
+	var instSnapshots []string
 
-	instSnapshots, err := b.state.DB.Cluster.GetInstanceSnapshotsNames(projectName, instName)
+	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		// Check if an entry for the instance already exists in the DB.
+		instID, err = tx.GetInstanceID(ctx, projectName, instName)
+		if err != nil && !response.IsNotFoundError(err) {
+			return err
+		}
+
+		instSnapshots, err = tx.GetInstanceSnapshotsNames(ctx, projectName, instName)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	if err != nil {
 		return err
 	}
@@ -6862,8 +6882,16 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 		return nil, err
 	}
 
-	// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
-	snapshots, err := b.state.DB.Cluster.GetInstanceSnapshotsNames(inst.Project().Name, inst.Name())
+	var snapshots []string
+
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
+		snapshots, err = tx.GetInstanceSnapshotsNames(ctx, inst.Project().Name, inst.Name())
+
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
