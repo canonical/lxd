@@ -66,7 +66,7 @@ Hold updates
       sudo snap refresh lxd --cohort="+"
       sudo snap refresh --hold lxd
 
-  See [Hold refreshes](https://snapcraft.io/docs/keeping-snaps-up-to-date#heading--hold) in the snap documentation for detailed information about holding snap updates.
+  See [Hold refreshes](https://snapcraft.io/docs/managing-updates#heading--hold) in the snap documentation for detailed information about holding snap updates.
 
 Specify a refresh window
 : Depending on your setup, you might want your snaps to update regularly, but only at specific times that don't disturb normal operation.
@@ -81,7 +81,7 @@ Specify a refresh window
   You can use a similar mechanism (setting `refresh.hold`) to hold snap updates as well.
   However, in this case the snaps will be refreshed after 90 days, irrespective of the value of `refresh.hold`.
 
-  See [Control updates with system options](https://snapcraft.io/docs/keeping-snaps-up-to-date#heading--settings) in the snap documentation for detailed information.
+  See [Control updates with system options](https://snapcraft.io/docs/managing-updates#heading--refresh-hold) in the snap documentation for detailed information.
 
 #### Keep cluster members in sync
 
