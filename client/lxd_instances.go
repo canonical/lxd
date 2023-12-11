@@ -1099,6 +1099,11 @@ func (r *ProtocolLXD) DeleteInstance(name string) (Operation, error) {
 
 // ExecInstance requests that LXD spawns a command inside the instance.
 func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPost, args *InstanceExecArgs) (Operation, error) {
+	// Ensure args are equivalent to empty InstanceExecArgs.
+	if args == nil {
+		args = &InstanceExecArgs{}
+	}
+
 	if exec.RecordOutput {
 		if !r.HasExtension("container_exec_recording") {
 			return nil, fmt.Errorf("The server is missing the required \"container_exec_recording\" API extension")
