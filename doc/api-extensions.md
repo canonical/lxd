@@ -2104,3 +2104,9 @@ Calling `POST /1.0/storage-pools/<pool>/custom/<volume>?target=<target>` will mo
 
 This API extension provides the ability to use flags `--profile`, `--no-profile`, `--device`, and `--config`
 when moving an instance between projects and/or storage pools.
+
+## `server_instance_type_info`
+
+This API extension enables querying a server's supported instance types.
+When querying the `/1.0` endpoint, a new field named `instance_types` is added to the retrieved data.
+This field indicates which instance types are supported by the server.
