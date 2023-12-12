@@ -320,6 +320,12 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		} else {
 			env.DriverVersion = driver.Info.Version
 		}
+
+		// Add supported instance types.
+		instType := driver.Info.Type.String()
+		if !shared.StringInSlice(instType, env.InstanceTypes) {
+			env.InstanceTypes = append(env.InstanceTypes, instType)
+		}
 	}
 
 	if s.OS.LXCFeatures != nil {
