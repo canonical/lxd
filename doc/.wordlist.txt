@@ -2,6 +2,7 @@ AAAA
 ABI
 ACL
 ACLs
+AGPLv
 AIO
 allocator
 AMD
