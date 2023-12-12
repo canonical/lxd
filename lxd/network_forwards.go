@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
+	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/project"
@@ -161,7 +163,13 @@ func networkForwardsGet(d *Daemon, r *http.Request) response.Response {
 	memberSpecific := false // Get forwards for all cluster members.
 
 	if util.IsRecursionRequest(r) {
-		records, err := s.DB.Cluster.GetNetworkForwards(r.Context(), n.ID(), memberSpecific)
+		var records map[int64]*api.NetworkForward
+
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			records, err = tx.GetNetworkForwards(ctx, n.ID(), memberSpecific)
+
+			return err
+		})
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed loading network forwards: %w", err))
 		}
@@ -174,7 +182,13 @@ func networkForwardsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SyncResponse(true, forwards)
 	}
 
-	listenAddresses, err := s.DB.Cluster.GetNetworkForwardListenAddresses(n.ID(), memberSpecific)
+	var listenAddresses map[int64]string
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		listenAddresses, err = tx.GetNetworkForwardListenAddresses(ctx, n.ID(), memberSpecific)
+
+		return err
+	})
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network forwards: %w", err))
 	}
@@ -426,7 +440,13 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 	targetMember := request.QueryParam(r, "target")
 	memberSpecific := targetMember != ""
 
-	_, forward, err := s.DB.Cluster.GetNetworkForward(r.Context(), n.ID(), memberSpecific, listenAddress)
+	var forward *api.NetworkForward
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_, forward, err = tx.GetNetworkForward(ctx, n.ID(), memberSpecific, listenAddress)
+
+		return err
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -551,7 +571,13 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 	memberSpecific := targetMember != ""
 
 	if r.Method == http.MethodPatch {
-		_, forward, err := s.DB.Cluster.GetNetworkForward(r.Context(), n.ID(), memberSpecific, listenAddress)
+		var forward *api.NetworkForward
+
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			_, forward, err = tx.GetNetworkForward(ctx, n.ID(), memberSpecific, listenAddress)
+
+			return err
+		})
 		if err != nil {
 			return response.SmartError(err)
 		}
