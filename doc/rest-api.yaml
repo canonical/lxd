@@ -6217,8 +6217,8 @@ info:
         certificates with a macaroon based (candid) authentication method also
         supported.
     license:
-        name: Apache-2.0
-        url: https://www.apache.org/licenses/LICENSE-2.0
+        name: AGPLv3
+        url: https://www.gnu.org/licenses/agpl-3.0.en.html
     title: LXD external REST API
     version: "1.0"
 paths:

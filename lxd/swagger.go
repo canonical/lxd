@@ -10,7 +10,7 @@
 // supported.
 //
 //	Version: 1.0
-//	License: Apache-2.0 https://www.apache.org/licenses/LICENSE-2.0
+//	License: AGPLv3 https://www.gnu.org/licenses/agpl-3.0.en.html
 //	Contact: LXD upstream <lxd@lists.canonical.com> https://github.com/canonical/lxd
 //
 // swagger:meta
