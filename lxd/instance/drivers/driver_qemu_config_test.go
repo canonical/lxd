@@ -204,7 +204,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			addr = "00.0"
 			`,
 		}, {
-			qemuDevOpts{"ccw", "qemu_pcie2", "00.2", true},
+			qemuDevOpts{"ccw", "devBus", "busAddr", true},
 			`# SCSI controller
 			[device "qemu_scsi"]
 			driver = "virtio-scsi-ccw"
@@ -230,7 +230,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			multifunction = "on"
 			`,
 		}, {
-			qemuDevOpts{"ccw", "qemu_pcie0", "00.0", false},
+			qemuDevOpts{"ccw", "devBus", "busAddr", false},
 			`# Balloon driver
 			[device "qemu_balloon"]
 			driver = "virtio-balloon-ccw"
@@ -259,7 +259,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			rng = "qemu_rng"
 			`,
 		}, {
-			qemuDevOpts{"ccw", "qemu_pcie0", "00.1", true},
+			qemuDevOpts{"ccw", "devBus", "busAddr", true},
 			`# Random number generator
 			[object "qemu_rng"]
 			qom-type = "rng-random"
@@ -292,7 +292,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			vhostfd = "4"
 			`,
 		}, {
-			qemuVsockOpts{qemuDevOpts{"ccw", "qemu_pcie0", "00.4", false}, 4, 3},
+			qemuVsockOpts{qemuDevOpts{"ccw", "devBus", "busAddr", false}, 4, 3},
 			`# Vsock
 			[device "qemu_vsock"]
 			driver = "vhost-vsock-ccw"
@@ -361,12 +361,12 @@ func TestQemuConfigTemplates(t *testing.T) {
 			addr = "00.0"
 			multifunction = "on"`,
 		}, {
-			qemuDevOpts{"ccw", "qemu_pcie3", "00.0", false},
+			qemuDevOpts{"ccw", "devBus", "busAddr", false},
 			`# Input
 			[device "qemu_keyboard"]
 			driver = "virtio-keyboard-ccw"`,
 		}, {
-			qemuDevOpts{"ccw", "qemu_pcie3", "00.0", true},
+			qemuDevOpts{"ccw", "devBus", "busAddr", true},
 			`# Input
 			[device "qemu_keyboard"]
 			driver = "virtio-keyboard-ccw"
@@ -391,7 +391,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			multifunction = "on"
 			`,
 		}, {
-			qemuDevOpts{"ccw", "qemu_pcie0", "00.3", true},
+			qemuDevOpts{"ccw", "devBus", "busAddr", true},
 			`# Input
 			[device "qemu_tablet"]
 			driver = "virtio-tablet-ccw"
@@ -781,7 +781,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			chardev = "qemu_config"`,
 		}, {
 			qemuDriveConfigOpts{
-				dev:      qemuDevOpts{"ccw", "qemu_pcie0", "00.0", false},
+				dev:      qemuDevOpts{"ccw", "devBus", "busAddr", false},
 				path:     "/var/virtio-fs",
 				protocol: "virtio-fs",
 			},
@@ -796,7 +796,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			chardev = "qemu_config"`,
 		}, {
 			qemuDriveConfigOpts{
-				dev:      qemuDevOpts{"ccw", "qemu_pcie0", "00.0", true},
+				dev:      qemuDevOpts{"ccw", "devBus", "busAddr", true},
 				path:     "/dev/9p",
 				protocol: "9p",
 			},
@@ -814,7 +814,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			fsdev = "qemu_config"`,
 		}, {
 			qemuDriveConfigOpts{
-				dev:      qemuDevOpts{"ccw", "qemu_pcie0", "00.0", true},
+				dev:      qemuDevOpts{"ccw", "devBus", "busAddr", true},
 				path:     "/dev/9p",
 				protocol: "invalid",
 			},
@@ -872,7 +872,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			chardev = "lxd_vfs"`,
 		}, {
 			qemuDriveDirOpts{
-				dev:      qemuDevOpts{"ccw", "qemu_pcie0", "00.0", true},
+				dev:      qemuDevOpts{"ccw", "devBus", "busAddr", true},
 				path:     "/dev/vio",
 				devName:  "vfs",
 				mountTag: "vtag",
@@ -890,7 +890,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			chardev = "lxd_vfs"`,
 		}, {
 			qemuDriveDirOpts{
-				dev:      qemuDevOpts{"ccw", "qemu_pcie0", "00.0", false},
+				dev:      qemuDevOpts{"ccw", "devBus", "busAddr", false},
 				devName:  "stub2",
 				mountTag: "mtag2",
 				protocol: "9p",
@@ -909,7 +909,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			fsdev = "lxd_stub2"`,
 		}, {
 			qemuDriveDirOpts{
-				dev:      qemuDevOpts{"ccw", "qemu_pcie0", "00.0", true},
+				dev:      qemuDevOpts{"ccw", "devBus", "busAddr", true},
 				path:     "/dev/9p",
 				protocol: "invalid",
 			},
@@ -938,7 +938,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			host = "host-slot"`,
 		}, {
 			qemuPCIPhysicalOpts{
-				dev:         qemuDevOpts{"ccw", "qemu_pcie2", "00.2", true},
+				dev:         qemuDevOpts{"ccw", "devBus", "busAddr", true},
 				devName:     "physical-ccw-name",
 				pciSlotName: "host-slot-ccw",
 			},
@@ -971,7 +971,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			host = "gpu-slot"`,
 		}, {
 			qemuGPUDevPhysicalOpts{
-				dev:         qemuDevOpts{"ccw", "qemu_pcie1", "00.0", true},
+				dev:         qemuDevOpts{"ccw", "devBus", "busAddr", true},
 				devName:     "gpu-name",
 				pciSlotName: "gpu-slot",
 				vga:         true,
