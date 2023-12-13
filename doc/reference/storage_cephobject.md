@@ -65,17 +65,16 @@ The following configuration options are available for storage pools that use the
 (storage-cephobject-pool-config)=
 ### Storage pool configuration
 
-Key                                      | Type                          | Default | Description
-:--                                      | :---                          | :------ | :----------
-`cephobject.bucket.name_prefix`          | string                        | -       | Prefix to add to bucket names in Ceph
-`cephobject.cluster_name`                | string                        | `ceph`  | The Ceph cluster to use
-`cephobject.radosgw.endpoint`            | string                        | -       | URL of the `radosgw` gateway process
-`cephobject.radosgw.endpoint_cert_file`  | string                        | -       | Path to the file containing the TLS client certificate to use for endpoint communication
-`cephobject.user.name`                   | string                        | `admin` | The Ceph user to use
-`volatile.pool.pristine`                 | string                        | `true`  | Whether the `radosgw` `lxd-admin` user existed at creation time
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group storage-cephobject-pool-conf start -->
+    :end-before: <!-- config group storage-cephobject-pool-conf end -->
+```
 
 ### Storage bucket configuration
 
-Key    | Type   | Default                | Description
-:--    | :---   | :------                | :----------
-`size` | string | -                      | Quota of the storage bucket
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group storage-cephobject-bucket-conf start -->
+    :end-before: <!-- config group storage-cephobject-bucket-conf end -->
+```
