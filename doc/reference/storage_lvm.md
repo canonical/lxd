@@ -25,10 +25,10 @@ The `lvm` driver in LXD uses logical volumes for images, and volume snapshots fo
 
 LXD assumes that it has full control over the volume group.
 Therefore, you should not maintain any file system entities that are not owned by LXD in an LVM volume group, because LXD might delete them.
-However, if you need to reuse an existing volume group (for example, because your setup has only one volume group), you can do so by setting the [`lvm.vg.force_reuse`](storage-lvm-pool-config) configuration.
+However, if you need to reuse an existing volume group (for example, because your setup has only one volume group), you can do so by setting the {config:option}`storage-lvm-pool-conf:lvm.vg.force_reuse` configuration.
 
 By default, LVM storage pools use an LVM thin pool and create logical volumes for all LXD storage entities (images, instances and custom volumes) in there.
-This behavior can be changed by setting [`lvm.use_thinpool`](storage-lvm-pool-config) to `false` when you create the pool.
+This behavior can be changed by setting {config:option}`storage-lvm-pool-conf:lvm.use_thinpool` to `false` when you create the pool.
 In this case, LXD uses "normal" logical volumes for all storage entities that are not snapshots.
 Note that this entails serious performance and space reductions for the `lvm` driver (close to the `dir` driver both in speed and storage usage).
 The reason for this is that most storage operations must fall back to using `rsync`, because logical volumes that are not thin pools do not support snapshots of snapshots.

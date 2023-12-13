@@ -42,7 +42,7 @@ For storage volumes, use the {ref}`Ceph <storage-ceph>` or {ref}`CephFS <storage
 You must set up a `radosgw` environment beforehand and ensure that its HTTP/HTTPS endpoint URL is reachable from the LXD server or servers.
 See [Manual Deployment](https://docs.ceph.com/en/latest/install/manual-deployment/) for information on how to set up a Ceph cluster and [Ceph Object Gateway](https://docs.ceph.com/en/latest/radosgw/) on how to set up a `radosgw` environment.
 
-The `radosgw` URL can be specified at pool creation time using the [`cephobject.radosgw.endpoint`](storage-cephobject-pool-config) option.
+The `radosgw` URL can be specified at pool creation time using the {config:option}`storage-cephobject-pool-conf:cephobject.radosgw.endpoint` option.
 
 LXD uses the `radosgw-admin` command to manage buckets. So this command must be available and operational on the LXD servers.
 
