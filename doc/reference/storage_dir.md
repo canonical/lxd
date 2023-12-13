@@ -28,26 +28,21 @@ The following configuration options are available for storage pools that use the
 
 ### Storage pool configuration
 
-Key                           | Type                          | Default                                 | Description
-:--                           | :---                          | :------                                 | :----------
-`rsync.bwlimit`               | string                        | `0` (no limit)                          | The upper limit to be placed on the socket I/O when `rsync` must be used to transfer storage entities
-`rsync.compression`           | bool                          | `true`                                  | Whether to use compression while migrating storage pools
-`source`                      | string                        | -                                       | Path to an existing directory
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group storage-dir-pool-conf start -->
+    :end-before: <!-- config group storage-dir-pool-conf end -->
+```
 
 {{volume_configuration}}
 
 ### Storage volume configuration
 
-Key                     | Type      | Condition                 | Default                                        | Description
-:--                     | :---      | :--------                 | :------                                        | :----------
-`security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or `false`   | {{enable_ID_shifting}}
-`security.unmapped`     | bool      | custom volume             | same as `volume.security.unmapped` or `false`  | Disable ID mapping for the volume
-`size`                  | string    | appropriate driver        | same as `volume.size`                          | Size/quota of the storage volume
-`snapshots.expiry`      | string    | custom volume             | same as `volume.snapshots.expiry`              | {{snapshot_expiry_format}}
-`snapshots.pattern`     | string    | custom volume             | same as `volume.snapshots.pattern` or `snap%d` | {{snapshot_pattern_format}} [^*]
-`snapshots.schedule`    | string    | custom volume             | same as `volume.snapshots.schedule`            | {{snapshot_schedule_format}}
-
-[^*]: {{snapshot_pattern_detail}}
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group storage-dir-volume-conf start -->
+    :end-before: <!-- config group storage-dir-volume-conf end -->
+```
 
 ### Storage bucket configuration
 

@@ -42,7 +42,7 @@ That driver can also be used for custom storage volumes with content type `files
     :end-before: <!-- Include end Ceph driver cluster -->
 ```
 
-You can either create the CephFS file system that you want to use beforehand and specify it through the [`source`](storage-cephfs-pool-config) option, or specify the [`cephfs.create_missing`](storage-cephfs-pool-config) option to automatically create the file system and the data and metadata OSD pools (with the names given in [`cephfs.data_pool`](storage-cephfs-pool-config) and [`cephfs.meta_pool`](storage-cephfs-pool-config)).
+You can either create the CephFS file system that you want to use beforehand and specify it through the {config:option}`storage-cephfs-pool-conf:source` option, or specify the {config:option}`storage-cephfs-pool-conf:cephfs.create_missing` option to automatically create the file system and the data and metadata OSD pools (with the names given in {config:option}`storage-cephfs-pool-conf:cephfs.data_pool` and {config:option}`storage-cephfs-pool-conf:cephfs.meta_pool`).
 
 % Include content from [storage_ceph.md](storage_ceph.md)
 ```{include} storage_ceph.md
@@ -65,30 +65,18 @@ The following configuration options are available for storage pools that use the
 (storage-cephfs-pool-config)=
 ### Storage pool configuration
 
-Key                           | Type                          | Default                                 | Description
-:--                           | :---                          | :------                                 | :----------
-`cephfs.cluster_name`         | string                        | `ceph`                                  | Name of the Ceph cluster that contains the CephFS file system
-`cephfs.create_missing`       | bool                          | `false`                                 | Create the file system and the missing data and metadata OSD pools
-`cephfs.data_pool`            | string                        | -                                       | Data OSD pool name to create for the file system
-`cephfs.fscache`              | bool                          | `false`                                 | Enable use of kernel `fscache` and `cachefilesd`
-`cephfs.meta_pool`            | string                        | -                                       | Metadata OSD pool name to create for the file system
-`cephfs.osd_pg_num`           | string                        | -                                       | OSD pool `pg_num` to use when creating missing OSD pools
-`cephfs.path`                 | string                        | `/`                                     | The base path for the CephFS mount
-`cephfs.user.name`            | string                        | `admin`                                 | The Ceph user to use
-`source`                      | string                        | -                                       | Existing CephFS file system or file system path to use
-`volatile.pool.pristine`      | string                        | `true`                                  | Whether the CephFS file system was empty on creation time
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group storage-cephfs-pool-conf start -->
+    :end-before: <!-- config group storage-cephfs-pool-conf end -->
+```
 
 {{volume_configuration}}
 
 ### Storage volume configuration
 
-Key                     | Type      | Condition                 | Default                                        | Description
-:--                     | :---      | :--------                 | :------                                        | :----------
-`security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or `false`   | {{enable_ID_shifting}}
-`security.unmapped`     | bool      | custom volume             | same as `volume.security.unmapped` or `false`  | Disable ID mapping for the volume
-`size`                  | string    | appropriate driver        | same as `volume.size`                          | Size/quota of the storage volume
-`snapshots.expiry`      | string    | custom volume             | same as `volume.snapshots.expiry`              | {{snapshot_expiry_format}}
-`snapshots.pattern`     | string    | custom volume             | same as `volume.snapshots.pattern` or `snap%d` | {{snapshot_pattern_format}} [^*]
-`snapshots.schedule`    | string    | custom volume             | same as `volume.snapshots.schedule`            | {{snapshot_schedule_format}}
-
-[^*]: {{snapshot_pattern_detail}}
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group storage-cephfs-volume-conf start -->
+    :end-before: <!-- config group storage-cephfs-volume-conf end -->
+```
