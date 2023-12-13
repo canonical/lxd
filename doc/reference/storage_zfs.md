@@ -66,9 +66,9 @@ Restoring from older snapshots
   After determining the correct snapshot, you can {ref}`remove the newer snapshots <storage-edit-snapshots>` so that the snapshot you need is the latest one and you can restore it.
 
   Alternatively, you can configure LXD to automatically discard the newer snapshots during restore.
-  To do so, set the [`zfs.remove_snapshots`](storage-zfs-vol-config) configuration for the volume (or the corresponding `volume.zfs.remove_snapshots` configuration on the storage pool for all volumes in the pool).
+  To do so, set the {config:option}`storage-zfs-volume-conf:zfs.remove_snapshots` configuration for the volume (or the corresponding `volume.zfs.remove_snapshots` configuration on the storage pool for all volumes in the pool).
 
-  Note, however, that if [`zfs.clone_copy`](storage-zfs-pool-config) is set to `true`, instance copies use ZFS snapshots too.
+  Note, however, that if {config:option}`storage-zfs-pool-conf:zfs.clone_copy` is set to `true`, instance copies use ZFS snapshots too.
   In that case, you cannot restore an instance to a snapshot taken before the last copy without having to also delete all its descendants.
   If this is not an option, you can copy the wanted snapshot into a new instance and then delete the old instance.
   You will, however, lose any other snapshots the instance might have had.
@@ -87,9 +87,9 @@ ZFS provides two different quota properties: `quota` and `refquota`.
 `refquota` restricts only the size of the data in the {spellexception}`dataset`, not its snapshots and clones.
 
 By default, LXD uses the `quota` property when you set up a quota for your storage volume.
-If you want to use the `refquota` property instead, set the [`zfs.use_refquota`](storage-zfs-vol-config) configuration for the volume (or the corresponding `volume.zfs.use_refquota` configuration on the storage pool for all volumes in the pool).
+If you want to use the `refquota` property instead, set the {config:option}`storage-zfs-volume-conf:zfs.use_refquota` configuration for the volume (or the corresponding `volume.zfs.use_refquota` configuration on the storage pool for all volumes in the pool).
 
-You can also set the [`zfs.use_reserve_space`](storage-zfs-vol-config) (or `volume.zfs.use_reserve_space`) configuration to use ZFS `reservation` or `refreservation` along with `quota` or `refquota`.
+You can also set the {config:option}`storage-zfs-volume-conf:zfs.reserve_space` (or `volume.zfs.reserve_space`) configuration to use ZFS `reservation` or `refreservation` along with `quota` or `refquota`.
 
 ## Configuration options
 

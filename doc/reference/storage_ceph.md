@@ -38,7 +38,7 @@ Ceph block devices are also called *RBD images*, and you can create *snapshots* 
 ```{note}
 To use the Ceph RBD driver, you must specify it as `ceph`.
 This is slightly misleading, because it uses only Ceph RBD (block storage) functionality, not full Ceph functionality.
-For storage volumes with content type `filesystem` (images, containers and custom file-system volumes), the `ceph` driver uses Ceph RBD images with a file system on top (see [`block.filesystem`](storage-ceph-vol-config)).
+For storage volumes with content type `filesystem` (images, containers and custom file-system volumes), the `ceph` driver uses Ceph RBD images with a file system on top (see {config:option}`storage-ceph-volume-conf:block.filesystem`).
 
 Alternatively, you can use the {ref}`CephFS <storage-cephfs>` driver to create storage volumes with content type `filesystem`.
 ```
@@ -80,7 +80,7 @@ Using an OSD pool of type "erasure"
 : To use a Ceph OSD pool of type "erasure", you must create the OSD pool beforehand.
   You must also create a separate OSD pool of type "replicated" that will be used for storing metadata.
   This is required because Ceph RBD does not support `omap`.
-  To specify which pool is "erasure coded", set the [`ceph.osd.data_pool_name`](storage-ceph-pool-config) configuration option to the erasure coded pool name and the [`source`](storage-ceph-pool-config) configuration option to the replicated pool name.
+  To specify which pool is "erasure coded", set the {config:option}`storage-ceph-pool-conf:ceph.osd.data_pool_name` configuration option to the erasure coded pool name and the {config:option}`storage-ceph-pool-conf:source` configuration option to the replicated pool name.
 
 ## Configuration options
 
