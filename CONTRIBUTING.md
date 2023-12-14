@@ -16,7 +16,7 @@ By default, any contribution to this project is made under AGPLv3.
 
 All contributors must sign the [Canonical contributor license agreement](https://ubuntu.com/legal/contributors), which gives Canonical permission to use the contributions. The author of a change remains the copyright holder of their code (no copyright assignment).
 
-All contributions made by Canonical are AGPLv3. Others may be under the Apache 2.0 license.
+All contributions made by Canonical are AGPLv3. Others may be under the Apache 2.0 license (this applies to contributions made before 12 December 2023, and contributions that are marked as Apache 2 in their commit message).
 
 ## Pull requests
 
