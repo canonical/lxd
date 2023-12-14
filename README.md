@@ -94,7 +94,7 @@ See the [full service description](https://ubuntu.com/legal/ubuntu-pro-descripti
 
 The official documentation is available at: [`https://documentation.ubuntu.com/lxd/en/latest/`](https://documentation.ubuntu.com/lxd/en/latest/)
 
-You can find additional resources on the [website](https://ubuntu.com/lxd), on [YouTube](https://www.youtube.com/channel/UCuP6xPt0WTeZu32CkQPpbvA) and in the [Tutorials section](https://discourse.ubuntu.com/c/lxd/tutorials/) in the forum.
+You can find additional resources on the [website](https://canonical.com/lxd), on [YouTube](https://www.youtube.com/channel/UCuP6xPt0WTeZu32CkQPpbvA) and in the [Tutorials section](https://discourse.ubuntu.com/c/lxd/tutorials/) in the forum.
 
 <!-- Include end support -->
 

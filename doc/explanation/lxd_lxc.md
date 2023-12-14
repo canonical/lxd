@@ -14,7 +14,7 @@ LXD and LXC are two distinct implementations of Linux containers.
 [LXC](https://linuxcontainers.org/lxc/introduction/) is a low-level user space interface for the Linux kernel containment features.
 It consists of tools (`lxc-*` commands), templates, and library and language bindings.
 
-[LXD](https://ubuntu.com/lxd) is a more intuitive and user-friendly tool aimed at making it easy to work with Linux containers.
+[LXD](https://canonical.com/lxd) is a more intuitive and user-friendly tool aimed at making it easy to work with Linux containers.
 It is an alternative to LXC's tools and distribution template system, with the added features that come from being controllable over the network.
 Under the hood, LXD uses LXC to create and manage the containers.
 
