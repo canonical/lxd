@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"crypto/sha1"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
@@ -28,10 +28,10 @@ import (
 	"unsafe"
 
 	"github.com/flosch/pongo2"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/kballard/go-shellquote"
 	"github.com/mdlayher/vsock"
-	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
@@ -1024,7 +1024,13 @@ func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
 			return err
 		}
 
-		stateDiskSizeStr := deviceConfig.DefaultVMBlockFilesystemSize
+		// Don't access d.storagePool directly since it isn't populated at this stage.
+		pool, err := d.getStoragePool()
+		if err != nil {
+			return err
+		}
+
+		stateDiskSizeStr := pool.Driver().Info().DefaultVMBlockFilesystemSize
 		if rootDiskDevice["size.state"] != "" {
 			stateDiskSizeStr = rootDiskDevice["size.state"]
 		}
@@ -1172,7 +1178,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// Generate UUID if not present (do this before UpdateBackupFile() call).
 	instUUID := d.localConfig["volatile.uuid"]
 	if instUUID == "" {
-		instUUID = uuid.New()
+		instUUID = uuid.New().String()
 		volatileSet["volatile.uuid"] = instUUID
 	}
 
@@ -1827,15 +1833,9 @@ func (d *qemu) architectureSupportsUEFI(arch int) bool {
 }
 
 func (d *qemu) setupNvram() error {
+	var err error
+
 	d.logger.Debug("Generating NVRAM")
-
-	// Mount the instance's config volume.
-	_, err := d.mount()
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = d.unmount() }()
 
 	// Cleanup existing variables.
 	for _, firmwares := range [][]ovmfFirmware{ovmfGenericFirmwares, ovmfSecurebootFirmwares, ovmfCSMFirmwares} {
@@ -2423,12 +2423,12 @@ PREFIX="/run/lxd_agent"
 
 # Functions.
 mount_virtiofs() {
-    mount -t virtiofs config "${PREFIX}/.mnt" >/dev/null 2>&1
+    mount -t virtiofs config "${PREFIX}/.mnt" -o ro >/dev/null 2>&1
 }
 
 mount_9p() {
-    /sbin/modprobe 9pnet_virtio >/dev/null 2>&1 || true
-    /bin/mount -t 9p config "${PREFIX}/.mnt" -o access=0,trans=virtio,size=1048576 >/dev/null 2>&1
+    modprobe 9pnet_virtio >/dev/null 2>&1 || true
+    mount -t 9p config "${PREFIX}/.mnt" -o ro,access=0,trans=virtio,size=1048576 >/dev/null 2>&1
 }
 
 fail() {
@@ -2441,21 +2441,18 @@ fail() {
 # Setup the mount target.
 umount -l "${PREFIX}" >/dev/null 2>&1 || true
 mkdir -p "${PREFIX}"
-mount -t tmpfs tmpfs "${PREFIX}" -o mode=0700,size=50M
+mount -t tmpfs tmpfs "${PREFIX}" -o mode=0700,nodev,nosuid,noatime,size=25M
 mkdir -p "${PREFIX}/.mnt"
 
 # Try virtiofs first.
 mount_virtiofs || mount_9p || fail "Couldn't mount virtiofs or 9p, failing."
 
 # Copy the data.
-cp -Ra "${PREFIX}/.mnt/"* "${PREFIX}"
+cp -Ra --no-preserve=ownership "${PREFIX}/.mnt/"* "${PREFIX}"
 
 # Unmount the temporary mount.
 umount "${PREFIX}/.mnt"
 rmdir "${PREFIX}/.mnt"
-
-# Fix up permissions.
-chown -R root:root "${PREFIX}"
 `
 
 	err = os.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-setup"), []byte(lxdAgentSetupScript), 0500)
@@ -3258,19 +3255,21 @@ func (d *qemu) addRootDriveConfig(mountInfo *storagePools.MountInfo, bootIndexes
 	if d.storagePool.Driver().Info().Remote {
 		vol := d.storagePool.GetVolume(storageDrivers.VolumeTypeVM, storageDrivers.ContentTypeBlock, project.Instance(d.project.Name, d.name), nil)
 
-		config := d.storagePool.ToAPI().Config
+		if shared.StringInSlice(d.storagePool.Driver().Info().Name, []string{"ceph", "cephfs"}) {
+			config := d.storagePool.ToAPI().Config
 
-		userName := config["ceph.user.name"]
-		if userName == "" {
-			userName = storageDrivers.CephDefaultUser
+			userName := config["ceph.user.name"]
+			if userName == "" {
+				userName = storageDrivers.CephDefaultUser
+			}
+
+			clusterName := config["ceph.cluster_name"]
+			if clusterName == "" {
+				clusterName = storageDrivers.CephDefaultUser
+			}
+
+			driveConf.DevPath = device.DiskGetRBDFormat(clusterName, userName, config["ceph.osd.pool_name"], vol.Name())
 		}
-
-		clusterName := config["ceph.cluster_name"]
-		if clusterName == "" {
-			clusterName = storageDrivers.CephDefaultUser
-		}
-
-		driveConf.DevPath = device.DiskGetRBDFormat(clusterName, userName, config["ceph.osd.pool_name"], vol.Name())
 	}
 
 	return d.addDriveConfig(bootIndexes, driveConf)
@@ -3455,11 +3454,11 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 			aioMode = "threads"
 			cacheMode = "unsafe" // Use host cache, but ignore all sync requests from guest.
 		}
+	}
 
-		// Special case ISO images as cdroms.
-		if driveConf.FSType == "iso9660" {
-			media = "cdrom"
-		}
+	// Special case ISO images as cdroms.
+	if driveConf.FSType == "iso9660" {
+		media = "cdrom"
 	}
 
 	// Check if the user has overridden the cache mode.
@@ -3521,8 +3520,14 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 			volumeName = volName
 		}
 
+		// Identify the right content type.
+		rbdContentType := storageDrivers.ContentTypeBlock
+		if driveConf.FSType == "iso9660" {
+			rbdContentType = storageDrivers.ContentTypeISO
+		}
+
 		// Get the RBD image name.
-		vol := storageDrivers.NewVolume(nil, "", volumeType, storageDrivers.ContentTypeBlock, volumeName, nil, nil)
+		vol := storageDrivers.NewVolume(nil, "", volumeType, rbdContentType, volumeName, nil, nil)
 		rbdImageName := storageDrivers.CephGetRBDImageName(vol, "", false)
 
 		// Parse the options (ceph credentials).
@@ -4746,7 +4751,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// Set sane defaults for unset keys.
 	if args.Project == "" {
-		args.Project = project.Default
+		args.Project = api.ProjectDefaultName
 	}
 
 	if args.Architecture == 0 {
@@ -5076,6 +5081,19 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	if d.architectureSupportsUEFI(d.architecture) && (shared.StringInSlice("security.secureboot", changedConfig) || shared.StringInSlice("security.csm", changedConfig)) {
+		// setupNvram() requires instance's config volume to be mounted.
+		// The easiest way to detect that is to check if instance is running.
+		// TODO: extend storage API to be able to check if volume is already mounted?
+		if !isRunning {
+			// Mount the instance's config volume.
+			_, err := d.mount()
+			if err != nil {
+				return err
+			}
+
+			defer func() { _ = d.unmount() }()
+		}
+
 		// Re-generate the NVRAM.
 		err = d.setupNvram()
 		if err != nil {
@@ -7367,9 +7385,9 @@ func (d *qemu) nextVsockID() (uint32, *os.File, error) {
 	}
 
 	// Ignore the error from before and start to acquire a new Context ID.
-	instanceUUID := uuid.Parse(d.localConfig["volatile.uuid"])
-	if instanceUUID == nil {
-		return 0, nil, fmt.Errorf("Failed to parse instance UUID from volatile.uuid")
+	instanceUUID, err := uuid.Parse(d.localConfig["volatile.uuid"])
+	if err != nil {
+		return 0, nil, fmt.Errorf("Failed to parse instance UUID from volatile.uuid: %w", err)
 	}
 
 	r, err := util.GetStableRandomGenerator(instanceUUID.String())
@@ -8065,14 +8083,14 @@ func (d *qemu) deviceDetachUSB(usbDev deviceConfig.USBDeviceItem) error {
 // Block node names may only be up to 31 characters long, so use a hash if longer.
 func (d *qemu) blockNodeName(name string) string {
 	if len(name) > 27 {
-		// If the name is too long, hash it as SHA-1 (20 bytes).
-		// Then encode the SHA-1 binary hash as Base64 Raw URL format (maximum 27 characters).
-		// Raw URL avoids the use of "+" character and the padding "=" character which QEMU doesn't allow,
-		// and keeps the length to 27 characters.
-		hash := sha1.New()
+		// If the name is too long, hash it as SHA-256 (32 bytes).
+		// Then encode the SHA-256 binary hash as Base64 Raw URL format and trim down to 27 chars.
+		// Raw URL avoids the use of "+" character and the padding "=" character which QEMU doesn't allow.
+		hash := sha256.New()
 		hash.Write([]byte(name))
 		binaryHash := hash.Sum(nil)
 		name = base64.RawURLEncoding.EncodeToString(binaryHash)
+		name = name[0:27]
 	}
 
 	// Apply the lxd_ prefix.

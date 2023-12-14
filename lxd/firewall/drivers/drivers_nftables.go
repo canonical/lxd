@@ -11,7 +11,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/pborman/uuid"
+	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/shared"
@@ -97,7 +97,7 @@ func (d Nftables) Compat() (bool, error) {
 	}
 
 	// Check that nftables works at all (some kernels let you list ruleset despite missing support).
-	testTable := fmt.Sprintf("lxd_test_%s", uuid.New())
+	testTable := fmt.Sprintf("lxd_test_%s", uuid.New().String())
 
 	_, err = shared.RunCommandCLocale("nft", "create", "table", testTable)
 	if err != nil {
@@ -992,10 +992,8 @@ func (d Nftables) NetworkApplyForwards(networkName string, rules []AddressForwar
 				rule.TargetPorts = rule.ListenPorts
 			case 1:
 				// Single target port specified, OK.
-				break
 			case len(rule.ListenPorts):
 				// One-to-one match with listen ports, OK.
-				break
 			default:
 				return fmt.Errorf("Invalid rule %d, mismatch between listen port(s) and target port(s) count", ruleIndex)
 			}

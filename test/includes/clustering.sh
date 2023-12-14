@@ -8,7 +8,6 @@ setup_clustering_bridge() {
   ip link add "${name}" up type bridge
   ip addr add 10.1.1.1/16 dev "${name}"
 
-  # shellcheck disable=SC2039
   iptables -w -t nat -A POSTROUTING -s 10.1.0.0/16 -d 0.0.0.0/0 -j MASQUERADE
   echo 1 > /proc/sys/net/ipv4/ip_forward
 }
@@ -110,7 +109,7 @@ teardown_clustering_netns() {
 }
 
 spawn_lxd_and_bootstrap_cluster() {
-  # shellcheck disable=2039,3043
+  # shellcheck disable=SC2039,SC3043
   local LXD_NETNS
 
   set -e
@@ -200,7 +199,7 @@ EOF
 }
 
 spawn_lxd_and_join_cluster() {
-  # shellcheck disable=2039,2034,3043
+  # shellcheck disable=SC2039,SC3043
   local LXD_NETNS
 
   set -e
@@ -291,7 +290,7 @@ EOF
 }
 
 respawn_lxd_cluster_member() {
-  # shellcheck disable=2039,2034,3043
+  # shellcheck disable=SC2039,SC2034,SC3043
   local LXD_NETNS
 
   set -e

@@ -13,10 +13,10 @@ import (
 	"github.com/go-macaroon-bakery/macaroon-bakery/v3/bakery/checkers"
 	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery"
 	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery/form"
-	"github.com/pborman/uuid"
+	"github.com/google/uuid"
 )
 
-const formURL string = "/form"
+const formURL string = "/auth/form"
 
 type loginResponse struct {
 	Token *httpbakery.DischargeToken `json:"token"`
@@ -55,7 +55,9 @@ func newAuthService(listenAddr string, logger *log.Logger) *authService {
 			Key:     key,
 			Checker: httpbakery.ThirdPartyCaveatCheckerFunc(s.thirdPartyChecker),
 		})
-	discharger.AddMuxHandlers(mux, "/")
+	discharger.AddMuxHandlers(mux, "/auth")
+
+	setRBACHandlers(mux)
 	return &s
 }
 
@@ -140,7 +142,7 @@ func (s *authService) formHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *authService) getRandomToken() string {
-	uuid := []byte(uuid.New()[0:24])
+	uuid := []byte(uuid.New().String()[0:24])
 	return base64.StdEncoding.EncodeToString(uuid)
 }
 

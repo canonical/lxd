@@ -23,7 +23,6 @@ import (
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
-	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -864,7 +863,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 				// filesystem volume as well, allowing a former quota to be removed from both
 				// volumes.
 				if vmStateSize == "" && size != "" {
-					vmStateSize = deviceConfig.DefaultVMBlockFilesystemSize
+					vmStateSize = b.driver.Info().DefaultVMBlockFilesystemSize
 				}
 
 				l.Debug("Applying filesystem volume quota from root disk config", logger.Ctx{"size.state": vmStateSize})
@@ -1655,7 +1654,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		}
 
 		// Try and load existing volume config on this storage pool so we can compare filesystems if needed.
-		imgDBVol, err := VolumeDBGet(b, project.Default, fingerprint, drivers.VolumeTypeImage)
+		imgDBVol, err := VolumeDBGet(b, api.ProjectDefaultName, fingerprint, drivers.VolumeTypeImage)
 		if err != nil {
 			return err
 		}
@@ -2531,7 +2530,7 @@ func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, vmSta
 		// this will also pass empty quota for the config filesystem volume as well, allowing a former
 		// quota to be removed from both volumes.
 		if vmStateSize == "" && size != "" {
-			vmStateSize = deviceConfig.DefaultVMBlockFilesystemSize
+			vmStateSize = b.driver.Info().DefaultVMBlockFilesystemSize
 		}
 
 		fsVol := vol.NewVMBlockFilesystemVolume()
@@ -3154,7 +3153,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	}
 
 	// Try and load any existing volume config on this storage pool so we can compare filesystems if needed.
-	imgDBVol, err := VolumeDBGet(b, project.Default, fingerprint, drivers.VolumeTypeImage)
+	imgDBVol, err := VolumeDBGet(b, api.ProjectDefaultName, fingerprint, drivers.VolumeTypeImage)
 	if err != nil && !response.IsNotFoundError(err) {
 		return err
 	}
@@ -3268,12 +3267,12 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	defer revert.Fail()
 
 	// Validate config and create database entry for new storage volume.
-	err = VolumeDBCreate(b, project.Default, fingerprint, "", drivers.VolumeTypeImage, false, imgVol.Config(), time.Time{}, contentType, false, false)
+	err = VolumeDBCreate(b, api.ProjectDefaultName, fingerprint, "", drivers.VolumeTypeImage, false, imgVol.Config(), time.Time{}, contentType, false, false)
 	if err != nil {
 		return err
 	}
 
-	revert.Add(func() { _ = VolumeDBDelete(b, project.Default, fingerprint, drivers.VolumeTypeImage) })
+	revert.Add(func() { _ = VolumeDBDelete(b, api.ProjectDefaultName, fingerprint, drivers.VolumeTypeImage) })
 
 	err = b.driver.CreateVolume(imgVol, &volFiller, op)
 	if err != nil {
@@ -3286,7 +3285,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	if volFiller.Size != 0 {
 		imgVol.Config()["volatile.rootfs.size"] = fmt.Sprintf("%d", volFiller.Size)
 
-		err = b.state.DB.Cluster.UpdateStoragePoolVolume(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, b.id, "", imgVol.Config())
+		err = b.state.DB.Cluster.UpdateStoragePoolVolume(api.ProjectDefaultName, fingerprint, db.StoragePoolVolumeTypeImage, b.id, "", imgVol.Config())
 		if err != nil {
 			return err
 		}
@@ -3311,7 +3310,7 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 	defer unlock()
 
 	// Load the storage volume in order to get the volume config which is needed for some drivers.
-	imgDBVol, err := VolumeDBGet(b, project.Default, fingerprint, drivers.VolumeTypeImage)
+	imgDBVol, err := VolumeDBGet(b, api.ProjectDefaultName, fingerprint, drivers.VolumeTypeImage)
 	if err != nil {
 		return err
 	}
@@ -3341,12 +3340,12 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 		}
 	}
 
-	err = VolumeDBDelete(b, project.Default, fingerprint, vol.Type())
+	err = VolumeDBDelete(b, api.ProjectDefaultName, fingerprint, vol.Type())
 	if err != nil {
 		return err
 	}
 
-	b.state.Events.SendLifecycle(project.Default, lifecycle.StorageVolumeDeleted.Event(vol, string(vol.Type()), project.Default, op, nil))
+	b.state.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.StorageVolumeDeleted.Event(vol, string(vol.Type()), api.ProjectDefaultName, op, nil))
 
 	return nil
 }
@@ -3410,7 +3409,7 @@ func (b *lxdBackend) UpdateImage(fingerprint, newDesc string, newConfig map[stri
 	l.Debug("UpdateImage started")
 	defer l.Debug("UpdateImage finished")
 
-	return b.updateVolumeDescriptionOnly(project.Default, fingerprint, drivers.VolumeTypeImage, newDesc, newConfig, op)
+	return b.updateVolumeDescriptionOnly(api.ProjectDefaultName, fingerprint, drivers.VolumeTypeImage, newDesc, newConfig, op)
 }
 
 // CreateCustomVolume creates an empty custom volume.
@@ -5621,6 +5620,11 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 	// Check whether we are allowed to create volumes.
 	req := api.StorageVolumesPost{
 		Name: volName,
+		StorageVolumePut: api.StorageVolumePut{
+			Config: map[string]string{
+				"size": fmt.Sprintf("%d", size),
+			},
+		},
 	}
 
 	err := b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -5636,11 +5640,7 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
 
-	config := map[string]string{
-		"size": fmt.Sprintf("%d", size),
-	}
-
-	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentTypeISO, volStorageName, config)
+	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentTypeISO, volStorageName, req.Config)
 
 	volExists, err := b.driver.HasVolume(vol)
 	if err != nil {
@@ -5706,7 +5706,7 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 		Name: srcBackup.Name,
 	}
 
-	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return project.AllowVolumeCreation(tx, srcBackup.Project, req)
 	})
 	if err != nil {

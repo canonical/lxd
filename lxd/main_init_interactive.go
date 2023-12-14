@@ -16,7 +16,6 @@ import (
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/network"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -487,7 +486,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 				// Define the network
 				networkPost := api.InitNetworksProjectPost{}
 				networkPost.Name = "lxdfan0"
-				networkPost.Project = project.Default
+				networkPost.Project = api.ProjectDefaultName
 				networkPost.Config = map[string]string{
 					"bridge.mode": "fan",
 				}
@@ -544,7 +543,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 		// Define the network
 		net := api.InitNetworksProjectPost{}
 		net.Config = map[string]string{}
-		net.Project = project.Default
+		net.Project = api.ProjectDefaultName
 
 		// Network name
 		net.Name, err = c.global.asker.AskString("What should the new bridge be called? [default=lxdbr0]: ", "lxdbr0", func(netName string) error {

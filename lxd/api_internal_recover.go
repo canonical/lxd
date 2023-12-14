@@ -9,7 +9,6 @@ import (
 
 	"github.com/canonical/lxd/lxd/backup"
 	backupConfig "github.com/canonical/lxd/lxd/backup/config"
-	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
@@ -130,11 +129,6 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 		return response.SmartError(fmt.Errorf("Failed getting validate dependency check info: %w", err))
 	}
 
-	isClustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	res := internalRecoverValidateResult{}
 
 	revert := revert.New()
@@ -162,7 +156,7 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 			if response.IsNotFoundError(err) {
 				// If the pool DB record doesn't exist, and we are clustered, then don't proceed
 				// any further as we do not support pool DB record recovery when clustered.
-				if isClustered {
+				if s.ServerClustered {
 					return response.BadRequest(fmt.Errorf("Storage pool recovery not supported when clustered"))
 				}
 

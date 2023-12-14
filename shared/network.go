@@ -97,38 +97,17 @@ func finalizeTLSConfig(tlsConfig *tls.Config, tlsRemoteCert *x509.Certificate) {
 	}
 }
 
-func GetTLSConfig(tlsClientCertFile string, tlsClientKeyFile string, tlsClientCAFile string, tlsRemoteCert *x509.Certificate) (*tls.Config, error) {
+func GetTLSConfig(tlsRemoteCert *x509.Certificate) (*tls.Config, error) {
 	tlsConfig := InitTLSConfig()
 
-	// Client authentication
-	if tlsClientCertFile != "" && tlsClientKeyFile != "" {
-		cert, err := tls.LoadX509KeyPair(tlsClientCertFile, tlsClientKeyFile)
-		if err != nil {
-			return nil, err
-		}
-
-		tlsConfig.Certificates = []tls.Certificate{cert}
-	}
-
-	if tlsClientCAFile != "" {
-		caCertificates, err := os.ReadFile(tlsClientCAFile)
-		if err != nil {
-			return nil, err
-		}
-
-		caPool := x509.NewCertPool()
-		caPool.AppendCertsFromPEM(caCertificates)
-
-		tlsConfig.RootCAs = caPool
-	}
-
 	finalizeTLSConfig(tlsConfig, tlsRemoteCert)
+
 	return tlsConfig, nil
 }
 
 func GetTLSConfigMem(tlsClientCert string, tlsClientKey string, tlsClientCA string, tlsRemoteCertPEM string, insecureSkipVerify bool) (*tls.Config, error) {
 	tlsConfig := InitTLSConfig()
-	tlsConfig.InsecureSkipVerify = insecureSkipVerify
+
 	// Client authentication
 	if tlsClientCert != "" && tlsClientKey != "" {
 		cert, err := tls.X509KeyPair([]byte(tlsClientCert), []byte(tlsClientKey))
@@ -162,6 +141,11 @@ func GetTLSConfigMem(tlsClientCert string, tlsClientKey string, tlsClientCA stri
 	}
 
 	finalizeTLSConfig(tlsConfig, tlsRemoteCert)
+
+	// Only skip TLS verification if no remote certificate is available.
+	if tlsRemoteCert == nil {
+		tlsConfig.InsecureSkipVerify = insecureSkipVerify
+	}
 
 	return tlsConfig, nil
 }

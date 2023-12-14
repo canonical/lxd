@@ -166,10 +166,8 @@ test_security_protection() {
 
   # Respawn LXD with kernel ID shifting support disabled to force manual shifting.
   shutdown_lxd "${LXD_DIR}"
-  lxdShiftfsDisable=${LXD_SHIFTFS_DISABLE:-}
   lxdIdmappedMountsDisable=${LXD_IDMAPPED_MOUNTS_DISABLE:-}
 
-  export LXD_SHIFTFS_DISABLE=1
   export LXD_IDMAPPED_MOUNTS_DISABLE=1
   respawn_lxd "${LXD_DIR}" true
 
@@ -199,7 +197,6 @@ test_security_protection() {
 
   # Respawn LXD to restore default kernel shifting support.
   shutdown_lxd "${LXD_DIR}"
-  export LXD_SHIFTFS_DISABLE="${lxdShiftfsDisable}"
   export LXD_IDMAPPED_MOUNTS_DISABLE="${lxdIdmappedMountsDisable}"
 
   respawn_lxd "${LXD_DIR}" true

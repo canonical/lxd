@@ -169,17 +169,12 @@ var networkStateCmd = APIEndpoint{
 func networksGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	recursion := util.IsRecursionRequest(r)
-
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	// Get list of managed networks (that may or may not have network interfaces on the host).
 	networkNames, err := s.DB.Cluster.GetNetworks(projectName)
@@ -188,7 +183,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get list of actual network interfaces on the host as well if the effective project is Default.
-	if projectName == project.Default {
+	if projectName == api.ProjectDefaultName {
 		ifaces, err := net.Interfaces()
 		if err != nil {
 			return response.InternalError(err)
@@ -213,7 +208,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, networkName))
 		} else {
-			net, err := doNetworkGet(s, r, clustered, projectName, reqProject.Config, networkName)
+			net, err := doNetworkGet(s, r, s.ServerClustered, projectName, reqProject.Config, networkName)
 			if err != nil {
 				continue
 			}
@@ -270,7 +265,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 func networksPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -297,7 +292,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if req.Type == "" {
-		if projectName != project.Default {
+		if projectName != api.ProjectDefaultName {
 			req.Type = "ovn" // Only OVN networks are allowed inside network enabled projects.
 		} else {
 			req.Type = "bridge" // Default to bridge for non-network enabled projects.
@@ -319,12 +314,12 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	netTypeInfo := netType.Info()
-	if projectName != project.Default && !netTypeInfo.Projects {
+	if projectName != api.ProjectDefaultName && !netTypeInfo.Projects {
 		return response.BadRequest(fmt.Errorf("Network type does not support non-default projects"))
 	}
 
 	// Check if project has limits.network and if so check we are allowed to create another network.
-	if projectName != project.Default && reqProject.Config != nil && reqProject.Config["limits.networks"] != "" {
+	if projectName != api.ProjectDefaultName && reqProject.Config != nil && reqProject.Config["limits.networks"] != "" {
 		networksLimit, err := strconv.Atoi(reqProject.Config["limits.networks"])
 		if err != nil {
 			return response.InternalError(fmt.Errorf("Invalid project limits.network value: %w", err))
@@ -365,7 +360,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	targetNode := queryParam(r, "target")
+	targetNode := request.QueryParam(r, "target")
 	if targetNode != "" {
 		if !netTypeInfo.NodeSpecificConfig {
 			return response.BadRequest(fmt.Errorf("Network type %q does not support member specific config", netType.Type()))
@@ -761,7 +756,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -771,13 +766,8 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	allNodes := false
-	if clustered && queryParam(r, "target") == "" {
+	if s.ServerClustered && request.QueryParam(r, "target") == "" {
 		allNodes = true
 	}
 
@@ -807,7 +797,7 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, projectName st
 	}
 
 	// Don't allow retrieving info about the local server interfaces when not using default project.
-	if projectName != project.Default && n == nil {
+	if projectName != api.ProjectDefaultName && n == nil {
 		return api.Network{}, api.StatusErrorf(http.StatusNotFound, "Network not found")
 	}
 
@@ -921,7 +911,7 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, projectName st
 func networkDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -971,12 +961,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// If we are clustered, also notify all other nodes, if any.
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if clustered {
+	if s.ServerClustered {
 		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
 		if err != nil {
 			return response.SmartError(err)
@@ -1044,16 +1029,11 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	//        serving node should typically do the database job, so the
 	//        network is not yet renamed inthe db when the notified node
 	//        runs network.Start).
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if clustered {
+	if s.ServerClustered {
 		return response.BadRequest(fmt.Errorf("Renaming clustered network not supported"))
 	}
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1177,7 +1157,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1198,11 +1178,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
-	targetNode := queryParam(r, "target")
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
+	targetNode := request.QueryParam(r, "target")
 
 	if targetNode == "" && n.Status() != api.NetworkStatusCreated {
 		return response.BadRequest(fmt.Errorf("Cannot update network global config when not in created state"))
@@ -1214,7 +1190,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	// If no target node is specified and the daemon is clustered, we omit the node-specific fields so that
 	// the e-tag can be generated correctly. This is because the GET request used to populate the request
 	// will also remove node-specific keys when no target is specified.
-	if targetNode == "" && clustered {
+	if targetNode == "" && s.ServerClustered {
 		for _, key := range db.NodeSpecificNetworkConfig {
 			delete(etagConfig, key)
 		}
@@ -1236,7 +1212,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 
 	// In clustered mode, we differentiate between node specific and non-node specific config keys based on
 	// whether the user has specified a target to apply the config to.
-	if clustered {
+	if s.ServerClustered {
 		if targetNode == "" {
 			// If no target is specified, then ensure only non-node-specific config keys are changed.
 			for k := range req.Config {
@@ -1258,7 +1234,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	response := doNetworkUpdate(projectName, n, req, targetNode, clientType, r.Method, clustered)
+	response := doNetworkUpdate(projectName, n, req, targetNode, clientType, r.Method, s.ServerClustered)
 
 	requestor := request.CreateRequestor(r)
 	s.Events.SendLifecycle(projectName, lifecycle.NetworkUpdated.Event(n, requestor, nil))
@@ -1404,7 +1380,7 @@ func doNetworkUpdate(projectName string, n network.Network, req api.NetworkPut, 
 func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1774,7 +1750,7 @@ func networkStateGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}

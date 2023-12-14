@@ -7,8 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -75,17 +77,18 @@ func (d *cephfs) isRemote() bool {
 // Info returns the pool driver information.
 func (d *cephfs) Info() Info {
 	return Info{
-		Name:              "cephfs",
-		Version:           cephfsVersion,
-		OptimizedImages:   false,
-		PreservesInodes:   false,
-		Remote:            d.isRemote(),
-		VolumeTypes:       []VolumeType{VolumeTypeCustom},
-		VolumeMultiNode:   true,
-		BlockBacking:      false,
-		RunningCopyFreeze: false,
-		DirectIO:          true,
-		MountedRoot:       true,
+		Name:                         "cephfs",
+		Version:                      cephfsVersion,
+		DefaultVMBlockFilesystemSize: deviceConfig.DefaultVMBlockFilesystemSize,
+		OptimizedImages:              false,
+		PreservesInodes:              false,
+		Remote:                       d.isRemote(),
+		VolumeTypes:                  []VolumeType{VolumeTypeCustom},
+		VolumeMultiNode:              true,
+		BlockBacking:                 false,
+		RunningCopyFreeze:            false,
+		DirectIO:                     true,
+		MountedRoot:                  true,
 	}
 }
 
@@ -105,6 +108,9 @@ func (d *cephfs) FillConfig() error {
 // Create is called during pool creation and is effectively using an empty driver struct.
 // WARNING: The Create() function cannot rely on any of the struct attributes being set.
 func (d *cephfs) Create() error {
+	revert := revert.New()
+	defer revert.Fail()
+
 	err := d.FillConfig()
 	if err != nil {
 		return err
@@ -129,9 +135,109 @@ func (d *cephfs) Create() error {
 		fsPath = fields[1]
 	}
 
-	// Check that the filesystem exists.
-	if !d.fsExists(d.config["cephfs.cluster_name"], d.config["cephfs.user.name"], fsName) {
-		return fmt.Errorf("The requested '%v' CEPHFS doesn't exist", fsName)
+	// If the filesystem already exists, disallow keys associated to creating the filesystem.
+	fsExists, err := d.fsExists(d.config["cephfs.cluster_name"], d.config["cephfs.user.name"], fsName)
+	if err != nil {
+		return fmt.Errorf("Failed to check if %q CephFS exists: %w", fsName, err)
+	}
+
+	if fsExists {
+		for _, key := range []string{"create_missing", "osd_pg_num", "meta_pool", "data_pool"} {
+			cephfsSourceKey := fmt.Sprintf("cephfs.%s", key)
+			if d.config[cephfsSourceKey] != "" {
+				return fmt.Errorf("Invalid config key %q: CephFS filesystem already exists", cephfsSourceKey)
+			}
+		}
+	} else {
+		createMissing := shared.IsTrue(d.config["cephfs.create_missing"])
+		if !createMissing {
+			return fmt.Errorf("The requested %q CephFS doesn't exist", fsName)
+		}
+
+		// Set the pg_num to 32 because we need to specify something, but ceph will automatically change it if necessary.
+		pgNum := d.config["cephfs.osd_pg_num"]
+		if pgNum == "" {
+			d.config["cephfs.osd_pg_num"] = "32"
+		}
+
+		// Create the meta and data pools if necessary.
+		for _, key := range []string{"cephfs.meta_pool", "cephfs.data_pool"} {
+			pool := d.config[key]
+
+			if pool == "" {
+				return fmt.Errorf("Missing required key %q for creating cephfs osd pool", key)
+			}
+
+			osdPoolExists, err := d.osdPoolExists(d.config["cephfs.cluster_name"], d.config["cephfs.user.name"], pool)
+			if err != nil {
+				return fmt.Errorf("Failed to check if %q OSD Pool exists: %w", pool, err)
+			}
+
+			if !osdPoolExists {
+				// Create new osd pool.
+				_, err := shared.RunCommand("ceph",
+					"--name", fmt.Sprintf("client.%s", d.config["cephfs.user.name"]),
+					"--cluster", d.config["cephfs.cluster_name"],
+					"osd",
+					"pool",
+					"create",
+					pool,
+					d.config["cephfs.osd_pg_num"],
+				)
+				if err != nil {
+					return fmt.Errorf("Failed to create ceph OSD pool %q: %w", pool, err)
+				}
+
+				revert.Add(func() {
+					// Delete the OSD pool.
+					_, _ = shared.RunCommand("ceph",
+						"--name", fmt.Sprintf("client.%s", d.config["cephfs.user.name"]),
+						"--cluster", d.config["cephfs.cluster_name"],
+						"osd",
+						"pool",
+						"delete",
+						pool,
+						pool,
+						"--yes-i-really-really-mean-it",
+					)
+				})
+			}
+		}
+
+		// Create the filesystem.
+		_, err := shared.RunCommand("ceph",
+			"--name", fmt.Sprintf("client.%s", d.config["cephfs.user.name"]),
+			"--cluster", d.config["cephfs.cluster_name"],
+			"fs",
+			"new",
+			fsName,
+			d.config["cephfs.meta_pool"],
+			d.config["cephfs.data_pool"],
+		)
+		if err != nil {
+			return fmt.Errorf("Failed to create CephFS %q: %w", fsName, err)
+		}
+
+		revert.Add(func() {
+			// Set the FS to fail so that we can remove it.
+			_, _ = shared.RunCommand("ceph",
+				"--name", fmt.Sprintf("client.%s", d.config["cephfs.user.name"]),
+				"--cluster", d.config["cephfs.cluster_name"],
+				"fs",
+				"fail",
+				fsName,
+			)
+
+			// Delete the FS.
+			_, _ = shared.RunCommand("ceph",
+				"--name", fmt.Sprintf("client.%s", d.config["cephfs.user.name"]),
+				"--cluster", d.config["cephfs.cluster_name"],
+				"fs",
+				"rm",
+				fsName,
+				"--yes-i-really-mean-it",
+			)
+		})
 	}
 
 	// Create a temporary mountpoint.
@@ -178,8 +284,10 @@ func (d *cephfs) Create() error {
 	// Check that the existing path is empty.
 	ok, _ := shared.PathIsEmpty(filepath.Join(mountPoint, fsPath))
 	if !ok {
-		return fmt.Errorf("Only empty CEPHFS paths can be used as a LXD storage pool")
+		return fmt.Errorf("Only empty CephFS paths can be used as a LXD storage pool")
 	}
+
+	revert.Success()
 
 	return nil
 }

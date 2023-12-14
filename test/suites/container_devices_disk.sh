@@ -15,27 +15,46 @@ test_container_devices_disk() {
 }
 
 test_container_devices_disk_shift() {
-  if ! grep -q shiftfs /proc/filesystems || [ -n "${LXD_SHIFTFS_DISABLE:-}" ]; then
+  # shellcheck disable=2039,3043
+  local lxd_backend
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
+  if [ -n "${LXD_IDMAPPED_MOUNTS_DISABLE:-}" ]; then
     return
   fi
 
-  # Test basic shiftfs
+  if [ "${lxd_backend}" = "zfs" ]; then
+    # ZFS 2.2 is required for idmapped mounts support.
+    zfs_version=$(zfs --version | grep -m 1 '^zfs-' | cut -d '-' -f 2)
+    if [ "$(printf '%s\n' "$zfs_version" "2.2" | sort -V | head -n1)" = "$zfs_version" ]; then
+      if [ "$zfs_version" != "2.2" ]; then
+        echo "ZFS version is less than 2.2. Skipping idmapped mounts tests."
+        return
+      else
+        echo "ZFS version is 2.2. Idmapped mounts are supported with ZFS."
+      fi
+    else
+      echo "ZFS version is greater than 2.2. Idmapped mounts are supported with ZFS."
+    fi
+  fi
+
+  # Test basic shifting
   mkdir -p "${TEST_DIR}/shift-source"
   touch "${TEST_DIR}/shift-source/a"
   chown 123:456 "${TEST_DIR}/shift-source/a"
 
   lxc start foo
-  lxc config device add foo shiftfs disk source="${TEST_DIR}/shift-source" path=/mnt
+  lxc config device add foo idmapped_mount disk source="${TEST_DIR}/shift-source" path=/mnt
   [ "$(lxc exec foo -- stat /mnt/a -c '%u:%g')" = "65534:65534" ] || false
-  lxc config device remove foo shiftfs
+  lxc config device remove foo idmapped_mount
 
-  lxc config device add foo shiftfs disk source="${TEST_DIR}/shift-source" path=/mnt shift=true
+  lxc config device add foo idmapped_mount disk source="${TEST_DIR}/shift-source" path=/mnt shift=true
   [ "$(lxc exec foo -- stat /mnt/a -c '%u:%g')" = "123:456" ] || false
 
   lxc stop foo -f
   lxc start foo
   [ "$(lxc exec foo -- stat /mnt/a -c '%u:%g')" = "123:456" ] || false
-  lxc config device remove foo shiftfs
+  lxc config device remove foo idmapped_mount
   lxc stop foo -f
 
   # Test shifted custom volumes

@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 
@@ -11,7 +10,6 @@ import (
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/instance"
-	"github.com/canonical/lxd/lxd/project"
 	lxdRequest "github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
@@ -215,37 +213,6 @@ func setCORSHeaders(rw http.ResponseWriter, req *http.Request, config *clusterCo
 // taken on this node as well.
 func isClusterNotification(r *http.Request) bool {
 	return r.Header.Get("User-Agent") == request.UserAgentNotifier
-}
-
-// projectParam returns the project query parameter from the given request or "default" if parameter is not set.
-func projectParam(request *http.Request) string {
-	projectParam := queryParam(request, "project")
-	if projectParam == "" {
-		projectParam = project.Default
-	}
-
-	return projectParam
-}
-
-// Extract the given query parameter directly from the URL, never from an
-// encoded body.
-func queryParam(request *http.Request, key string) string {
-	var values url.Values
-	var err error
-
-	if request.URL != nil {
-		values, err = url.ParseQuery(request.URL.RawQuery)
-		if err != nil {
-			logger.Warnf("Failed to parse query string %q: %v", request.URL.RawQuery, err)
-			return ""
-		}
-	}
-
-	if values == nil {
-		values = make(url.Values)
-	}
-
-	return values.Get(key)
 }
 
 type uiHttpDir struct {

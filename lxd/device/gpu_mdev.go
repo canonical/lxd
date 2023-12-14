@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/pborman/uuid"
+	"github.com/google/uuid"
 
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	pcidev "github.com/canonical/lxd/lxd/device/pci"
@@ -124,7 +124,7 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 
 		// Create the vGPU.
 		if mdevUUID == "" || !shared.PathExists(fmt.Sprintf("/sys/bus/pci/devices/%s/%s", pciAddress, mdevUUID)) {
-			mdevUUID = uuid.New()
+			mdevUUID = uuid.New().String()
 
 			err = os.WriteFile(filepath.Join(fmt.Sprintf("/sys/bus/pci/devices/%s/mdev_supported_types/%s/create", pciAddress, d.config["mdev"])), []byte(mdevUUID), 0200)
 			if err != nil {

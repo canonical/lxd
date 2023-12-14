@@ -25,9 +25,9 @@ import (
 
 	"github.com/checkpoint-restore/go-criu/v6/crit"
 	"github.com/flosch/pongo2"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	liblxc "github.com/lxc/go-lxc"
-	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
@@ -1142,15 +1142,22 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 					return nil, err
 				}
 			} else {
-				if d.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) && shared.IsFalse(memorySwap) {
+				if d.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) {
 					err = cg.SetMemoryLimit(valueInt)
 					if err != nil {
 						return nil, err
 					}
 
-					err = cg.SetMemorySwapLimit(0)
-					if err != nil {
-						return nil, err
+					if shared.IsFalse(memorySwap) {
+						err = cg.SetMemorySwapLimit(0)
+						if err != nil {
+							return nil, err
+						}
+					} else {
+						err = cg.SetMemorySwapLimit(valueInt)
+						if err != nil {
+							return nil, err
+						}
 					}
 				} else {
 					err = cg.SetMemoryLimit(valueInt)
@@ -2019,7 +2026,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Generate UUID if not present (do this before UpdateBackupFile() call).
 	instUUID := d.localConfig["volatile.uuid"]
 	if instUUID == "" {
-		instUUID = uuid.New()
+		instUUID = uuid.New().String()
 		volatileSet["volatile.uuid"] = instUUID
 	}
 
@@ -4044,7 +4051,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// Set sane defaults for unset keys
 	if args.Project == "" {
-		args.Project = project.Default
+		args.Project = api.ProjectDefaultName
 	}
 
 	if args.Architecture == 0 {
@@ -4546,17 +4553,25 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 						return err
 					}
 				} else {
-					if d.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) && shared.IsFalse(memorySwap) {
+					if d.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) {
 						err = cg.SetMemoryLimit(memoryInt)
 						if err != nil {
 							revertMemory()
 							return err
 						}
 
-						err = cg.SetMemorySwapLimit(0)
-						if err != nil {
-							revertMemory()
-							return err
+						if shared.IsFalse(memorySwap) {
+							err = cg.SetMemorySwapLimit(0)
+							if err != nil {
+								revertMemory()
+								return err
+							}
+						} else {
+							err = cg.SetMemorySwapLimit(memoryInt)
+							if err != nil {
+								revertMemory()
+								return err
+							}
 						}
 					} else {
 						err = cg.SetMemoryLimit(memoryInt)
@@ -8410,7 +8425,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 		FSType     string
 	}
 
-	out := metrics.NewMetricSet(map[string]string{"project": d.project.Name, "name": d.name})
+	out := metrics.NewMetricSet(nil)
 
 	mounts, err := os.ReadFile("/proc/mounts")
 	if err != nil {

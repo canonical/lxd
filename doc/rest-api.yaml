@@ -1662,6 +1662,32 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     InstancePost:
         properties:
+            Config:
+                additionalProperties:
+                    type: string
+                description: Instance configuration file.
+                example:
+                    security.nesting: "true"
+                type: object
+            Devices:
+                additionalProperties:
+                    additionalProperties:
+                        type: string
+                    type: object
+                description: Instance devices.
+                example:
+                    root:
+                        path: /
+                        pool: default
+                        type: disk
+                type: object
+            Profiles:
+                description: List of profiles applied to the instance.
+                example:
+                    - default
+                items:
+                    type: string
+                type: array
             allow_inconsistent:
                 description: AllowInconsistent allow inconsistent copies when migrating.
                 example: false
@@ -5827,6 +5853,8 @@ definitions:
                 example: foo
                 type: string
                 x-go-name: Project
+            source:
+                $ref: '#/definitions/StorageVolumeSource'
             target:
                 $ref: '#/definitions/StorageVolumePostTarget'
             volume_only:
@@ -5981,6 +6009,11 @@ definitions:
                 example: X509 PEM certificate
                 type: string
                 x-go-name: Certificate
+            location:
+                description: What cluster member this record was found on
+                example: lxd01
+                type: string
+                x-go-name: Location
             mode:
                 description: Whether to use pull or push mode (for migration)
                 example: pull

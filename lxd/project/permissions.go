@@ -1170,8 +1170,8 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 	// If the project has the profiles feature enabled, we use its own
 	// profiles to expand the instances configs, otherwise we use the
 	// profiles from the default project.
-	defaultProject := Default
-	if projectName == Default || shared.IsTrue(project.Config["features.profiles"]) {
+	defaultProject := api.ProjectDefaultName
+	if projectName == api.ProjectDefaultName || shared.IsTrue(project.Config["features.profiles"]) {
 		profilesFilter.Project = &projectName
 	} else {
 		profilesFilter.Project = &defaultProject
@@ -1250,7 +1250,7 @@ func expandInstancesConfigAndDevices(instances []api.Instance, profiles []api.Pr
 }
 
 // Sum of the effective values for the given limits across all project
-// enties (instances and custom volumes).
+// entities (instances and custom volumes).
 func getTotalsAcrossProjectEntities(info *projectInfo, keys []string, skipUnset bool) (map[string]int64, error) {
 	totals := map[string]int64{}
 
@@ -1328,6 +1328,11 @@ func getInstanceLimits(instance api.Instance, keys []string, skipUnset bool) (ma
 			if instance.Type == instancetype.VM.String() {
 				sizeStateValue, ok := device["size.state"]
 				if !ok {
+					// TODO: In case the VMs storage drivers config drive size isn't the default,
+					// the limits accounting will be incorrect.
+					// This applies for the PowerFlex storage driver whose config drive size
+					// is 8 GB as set in the DefaultVMPowerFlexBlockFilesystemSize variable.
+					// See https://github.com/canonical/lxd/issues/12567
 					sizeStateValue = deviceconfig.DefaultVMBlockFilesystemSize
 				}
 
@@ -1426,7 +1431,7 @@ func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string)
 	// Filter the entries.
 	usedBy := []string{}
 	for _, entry := range entries {
-		projectName := Default
+		projectName := api.ProjectDefaultName
 
 		// Try to parse the query part of the URL.
 		u, err := url.Parse(entry)

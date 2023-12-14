@@ -64,13 +64,13 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 	var remote lxd.ImageServer
 	var info *api.Image
 
-	// Default protocol is LXD. Copy so that local modifications aren't propgated to args.
+	// Default protocol is LXD. Copy so that local modifications aren't propagated to args.
 	protocol := args.Protocol
 	if protocol == "" {
 		protocol = "lxd"
 	}
 
-	// Copy so that local modifications aren't propgated to args.
+	// Copy so that local modifications aren't propagated to args.
 	alias := args.Alias
 
 	// Default the fingerprint to the alias string we received

@@ -113,7 +113,7 @@ func HTTPClient(certificate string, proxy proxyFunc) (*http.Client, error) {
 		}
 	}
 
-	tlsConfig, err := shared.GetTLSConfig("", "", "", cert)
+	tlsConfig, err := shared.GetTLSConfig(cert)
 	if err != nil {
 		return nil, err
 	}
@@ -170,6 +170,10 @@ func CheckTrustState(cert x509.Certificate, trustedCerts map[string]x509.Certifi
 			crl := networkCert.CRL()
 
 			if crl != nil {
+				if crl.CheckSignatureFrom(ca) != nil {
+					return false, "" // CRL not signed by CA
+				}
+
 				for _, revoked := range crl.RevokedCertificates {
 					if cert.SerialNumber.Cmp(revoked.SerialNumber) == 0 {
 						return false, "" // Certificate is revoked, so not trusted anymore.

@@ -104,7 +104,7 @@ test_storage_volume_snapshots() {
   lxc launch testimage "c1"
   lxc storage volume create "${storage_pool}" "vol1"
   lxc storage volume attach "${storage_pool}" "vol1" "c1" /mnt
-  lxc exec "c1" touch /mnt/foo
+  lxc exec "c1" -- touch /mnt/foo
   lxc delete -f "c1"
   lxc storage volume snapshot "${storage_pool}" "vol1" "snap0"
   lxc storage volume copy "${storage_pool}/vol1/snap0" "${storage_pool}/vol2" --mode pull

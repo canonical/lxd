@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/flosch/pongo2"
+	"github.com/google/uuid"
 	liblxc "github.com/lxc/go-lxc"
-	"github.com/pborman/uuid"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/backup"
@@ -26,11 +26,11 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
 	"github.com/canonical/lxd/lxd/migration"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/seccomp"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/sys"
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/idmap"
@@ -725,7 +725,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 
 	// Set default values.
 	if args.Project == "" {
-		args.Project = project.Default
+		args.Project = api.ProjectDefaultName
 	}
 
 	if args.Profiles == nil {
@@ -744,7 +744,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 	}
 
 	if args.Config["volatile.uuid"] == "" {
-		args.Config["volatile.uuid"] = uuid.New()
+		args.Config["volatile.uuid"] = uuid.New().String()
 	}
 
 	args.Config["volatile.uuid.generation"] = args.Config["volatile.uuid"]
@@ -773,7 +773,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 		// Existing instances will keep using their instance name as instance-id to
 		// avoid triggering cloud-init on upgrade.
 		if args.Config["volatile.cloud-init.instance-id"] == "" {
-			args.Config["volatile.cloud-init.instance-id"] = uuid.New()
+			args.Config["volatile.cloud-init.instance-id"] = uuid.New().String()
 		}
 	}
 
@@ -1050,9 +1050,18 @@ func NextSnapshotName(s *state.State, inst Instance, defaultPattern string) (str
 	return pattern, nil
 }
 
-// temporaryName concatenates the move prefix and instUUID for a temporary instance.
-func temporaryName(instUUID string) string {
-	return fmt.Sprintf("lxd-move-of-%s", instUUID)
+// temporaryName returns the temporary instance name using a stable random generator.
+// The returned string is a valid DNS name.
+func temporaryName(instUUID string) (string, error) {
+	r, err := util.GetStableRandomGenerator(instUUID)
+	if err != nil {
+		return "", err
+	}
+
+	// The longest temporary name is lxd-move-18446744073709551615 which has a length
+	// of 30 characters since 18446744073709551615 is the biggest value for an uint64.
+	// The prefix is attached to have a valid DNS name that doesn't start with numbers.
+	return fmt.Sprintf("lxd-move-%d", r.Uint64()), nil
 }
 
 // MoveTemporaryName returns a name derived from the instance's volatile.uuid, to use when moving an instance
@@ -1062,14 +1071,14 @@ func temporaryName(instUUID string) string {
 func MoveTemporaryName(inst Instance) (string, error) {
 	instUUID := inst.LocalConfig()["volatile.uuid"]
 	if instUUID == "" {
-		instUUID = uuid.New()
+		instUUID = uuid.New().String()
 		err := inst.VolatileSet(map[string]string{"volatile.uuid": instUUID})
 		if err != nil {
-			return "", fmt.Errorf("Failed generating instance UUID: %w", err)
+			return "", fmt.Errorf("Failed setting volatile.uuid to %s: %w", instUUID, err)
 		}
 	}
 
-	return temporaryName(instUUID), nil
+	return temporaryName(instUUID)
 }
 
 // IsSameLogicalInstance returns true if the supplied Instance and db.Instance have the same project and name or
@@ -1084,12 +1093,22 @@ func IsSameLogicalInstance(inst Instance, dbInst *db.InstanceArgs) bool {
 	if dbInst.Config["volatile.uuid"] == inst.LocalConfig()["volatile.uuid"] {
 		// Accommodate moving instances between storage pools.
 		// Check temporary copy against source.
-		if dbInst.Name == temporaryName(inst.LocalConfig()["volatile.uuid"]) {
+		tempName, err := temporaryName(inst.LocalConfig()["volatile.uuid"])
+		if err != nil {
+			return false
+		}
+
+		if dbInst.Name == tempName {
 			return true
 		}
 
 		// Check source against temporary copy.
-		if inst.Name() == temporaryName(dbInst.Config["volatile.uuid"]) {
+		tempName, err = temporaryName(dbInst.Config["volatile.uuid"])
+		if err != nil {
+			return false
+		}
+
+		if inst.Name() == tempName {
 			return true
 		}
 

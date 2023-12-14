@@ -18,7 +18,6 @@ import (
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/node"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/revert"
@@ -234,14 +233,9 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// When clustered, use the node name, otherwise use the hostname.
 	var serverName string
-	if clustered {
+	if s.ServerClustered {
 		serverName = s.ServerName
 	} else {
 		hostname, err := os.Hostname()
@@ -274,7 +268,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 	projectName := r.FormValue("project")
 	if projectName == "" {
-		projectName = project.Default
+		projectName = api.ProjectDefaultName
 	}
 
 	env := api.ServerEnvironment{
@@ -291,7 +285,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		Server:                 "lxd",
 		ServerPid:              os.Getpid(),
 		ServerVersion:          version.Version,
-		ServerClustered:        clustered,
+		ServerClustered:        s.ServerClustered,
 		ServerEventMode:        string(cluster.ServerEventMode()),
 		ServerName:             serverName,
 		Firewall:               s.Firewall.String(),
@@ -551,16 +545,11 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		}
 	}
 
-	clustered, err := cluster.Enabled(s.DB.Node)
-	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to check for cluster state: %w", err))
-	}
-
 	nodeChanged := map[string]string{}
 	var newNodeConfig *node.Config
 	oldNodeConfig := make(map[string]any)
 
-	err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
+	err := s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
 		newNodeConfig, err = node.ConfigLoad(ctx, tx)
 		if err != nil {
@@ -573,7 +562,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		}
 
 		// We currently don't allow changing the cluster.https_address once it's set.
-		if clustered {
+		if s.ServerClustered {
 			curConfig, err := tx.Config(ctx)
 			if err != nil {
 				return fmt.Errorf("Cannot fetch node config from database: %w", err)
@@ -777,7 +766,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 
 	revert.Success()
 
-	s.Events.SendLifecycle(project.Default, lifecycle.ConfigUpdated.Event(request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ConfigUpdated.Event(request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
