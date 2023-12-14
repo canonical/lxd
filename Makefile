@@ -14,6 +14,8 @@ SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
 GOMIN=1.23.3
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
 DQLITE_BRANCH=master
+OVN_MINVER=23.03.0
+OVS_MINVER=2.15.0
 
 ifneq "$(wildcard vendor)" ""
 	DQLITE_PATH=$(CURDIR)/vendor/dqlite
@@ -136,6 +138,19 @@ endif
 		fi;\
 	fi
 
+
+.PHONY: update-ovsdb
+update-ovsdb:
+	go install github.com/ovn-org/libovsdb/cmd/modelgen@main
+	rm -Rf lxd/network/openvswitch/schema
+	mkdir lxd/network/openvswitch/schema
+	curl -s https://raw.githubusercontent.com/ovn-org/ovn/v$(OVN_MINVER)/ovn-nb.ovsschema -o lxd/network/openvswitch/schema/ovn-nb.json
+	curl -s https://raw.githubusercontent.com/ovn-org/ovn/v$(OVN_MINVER)/ovn-sb.ovsschema -o lxd/network/openvswitch/schema/ovn-sb.json
+	curl -s https://raw.githubusercontent.com/openvswitch/ovs/v$(OVS_MINVER)/vswitchd/vswitch.ovsschema -o lxd/network/openvswitch/schema/ovs.json
+	modelgen -o lxd/network/openvswitch/schema/ovn-nb lxd/network/openvswitch/schema/ovn-nb.json
+	modelgen -o lxd/network/openvswitch/schema/ovn-sb lxd/network/openvswitch/schema/ovn-sb.json
+	modelgen -o lxd/network/openvswitch/schema/ovs lxd/network/openvswitch/schema/ovs.json
+	rm lxd/network/openvswitch/schema/*.json
 
 .PHONY: update-protobuf
 update-protobuf:
