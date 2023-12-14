@@ -1,7 +1,7 @@
+canonical-sphinx-extensions
 furo
 gitpython
 linkify-it-py
-lxd-sphinx-extensions
 myst-parser
 pyspelling
 sphinx

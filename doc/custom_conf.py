@@ -144,9 +144,9 @@ linkcheck_exclude_documents = [r'.*/manpages/.*']
 # Add extensions
 custom_extensions = [
     'sphinx.ext.intersphinx',
-    'config-options',
+    'canonical.config-options',
     'sphinx_remove_toctrees',
-    'filtered-toc'
+    'canonical.filtered-toc'
 ]
 
 # Add files or directories that should be excluded from processing.
