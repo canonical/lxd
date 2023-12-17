@@ -60,6 +60,7 @@ ISO file
 
       lxc config device add <instance_name> <device_name> disk source=<file_path_on_host>
 
+(vm-cloud-init-config)=
 VM `cloud-init`
 : You can generate a `cloud-init` configuration ISO from the {config:option}`instance-cloud-init:cloud-init.vendor-data` and {config:option}`instance-cloud-init:cloud-init.user-data` configuration keys and attach it to a virtual machine.
   The `cloud-init` that is running inside the VM then detects the drive on boot and applies the configuration.
@@ -69,6 +70,22 @@ VM `cloud-init`
   To add such a device, use the following command:
 
       lxc config device add <instance_name> <device_name> disk source=cloud-init:config
+
+  Adding such configuration disk might be needed if the VM image used includes `cloud-init` but not the `lxd-agent`. This is the case of official Ubuntu images prior to `20.04`. On such images, the following steps will enable the LXD agent and thus provide the ability to `lxc exec` into the VM:
+
+    lxc init ubuntu-daily:18.04 --vm u1
+    lxc config device add u1 config disk source=cloud-init:config
+    lxc config set u1 cloud-init.user-data - << EOF
+    #cloud-config
+    runcmd:
+      - mount -t 9p config /mnt
+      - cd /mnt
+      - ./install.sh
+      - cd /
+      - umount /mnt
+      - systemctl start lxd-agent  # XXX: causes a reboot
+    EOF
+    lxc start --console u1
 
 (devices-disk-initial-config)=
 ## Initial volume configuration for instance root disk devices
