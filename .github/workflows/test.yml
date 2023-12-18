@@ -57,7 +57,7 @@ jobs:
           go build -o bin ./lxd-p2c
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: matrix.go == '1.17.x'
         continue-on-error: true
         with:
