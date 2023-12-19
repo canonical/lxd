@@ -145,11 +145,11 @@ ifeq ($(shell command -v modelgen),)
 	(cd / ; go install github.com/ovn-org/libovsdb/cmd/modelgen@main)
 endif
 
-	rm -Rf lxd/network/openvswitch/schema
-	mkdir lxd/network/openvswitch/schema
-	curl -s https://raw.githubusercontent.com/openvswitch/ovs/v$(OVS_MINVER)/vswitchd/vswitch.ovsschema -o lxd/network/openvswitch/schema/ovs.json
-	modelgen -o lxd/network/openvswitch/schema/ovs lxd/network/openvswitch/schema/ovs.json
-	rm lxd/network/openvswitch/schema/*.json
+	rm -Rf lxd/network/ovs/schema
+	mkdir lxd/network/ovs/schema
+	curl -s https://raw.githubusercontent.com/openvswitch/ovs/v$(OVS_MINVER)/vswitchd/vswitch.ovsschema -o lxd/network/ovs/schema/ovs.json
+	modelgen -o lxd/network/ovs/schema/ovs lxd/network/ovs/schema/ovs.json
+	rm lxd/network/ovs/schema/*.json
 
 	rm -Rf lxd/network/ovn/schema
 	mkdir lxd/network/ovn/schema
