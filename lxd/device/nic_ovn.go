@@ -21,8 +21,8 @@ import (
 	"github.com/canonical/lxd/lxd/ip"
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/network/acl"
-	"github.com/canonical/lxd/lxd/network/openvswitch"
 	"github.com/canonical/lxd/lxd/network/ovn"
+	"github.com/canonical/lxd/lxd/network/ovs"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/util"
@@ -449,7 +449,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		delete(saveData, "host_name") // Nested NICs don't have a host side interface.
 	} else {
 		if d.config["acceleration"] == "sriov" {
-			ovs := openvswitch.NewOVS()
+			ovs := ovs.NewOVS()
 			if !ovs.HardwareOffloadingEnabled() {
 				return nil, fmt.Errorf("SR-IOV acceleration requires hardware offloading be enabled in OVS")
 			}
@@ -496,7 +496,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 			integrationBridgeNICName = vfRepresentor
 			peerName = vfDev
 		} else if d.config["acceleration"] == "vdpa" {
-			ovs := openvswitch.NewOVS()
+			ovs := ovs.NewOVS()
 			if !ovs.HardwareOffloadingEnabled() {
 				return nil, fmt.Errorf("SR-IOV acceleration requires hardware offloading be enabled in OVS")
 			}
@@ -614,7 +614,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
 
 	// Get local chassis ID for chassis group.
-	ovs := openvswitch.NewOVS()
+	ovs := ovs.NewOVS()
 	chassisID, err := ovs.ChassisID()
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting OVS Chassis ID: %w", err)
@@ -835,7 +835,7 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 	var err error
 
 	networkVethFillFromVolatile(d.config, v)
-	ovs := openvswitch.NewOVS()
+	ovs := ovs.NewOVS()
 
 	integrationBridgeNICName := d.config["host_name"]
 	if d.config["acceleration"] == "sriov" || d.config["acceleration"] == "vdpa" {
@@ -1119,7 +1119,7 @@ func (d *nicOVN) setupHostNIC(hostName string, ovnPortName ovn.OVNSwitchPort) (r
 	// Attach host side veth interface to bridge.
 	integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
 
-	ovs := openvswitch.NewOVS()
+	ovs := ovs.NewOVS()
 	err = ovs.BridgePortAdd(integrationBridge, hostName, true)
 	if err != nil {
 		return nil, err

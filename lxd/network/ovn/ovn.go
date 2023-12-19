@@ -15,9 +15,9 @@ import (
 	ovsdbModel "github.com/ovn-org/libovsdb/model"
 
 	"github.com/canonical/lxd/lxd/linux"
-	"github.com/canonical/lxd/lxd/network/openvswitch"
 	ovnNB "github.com/canonical/lxd/lxd/network/ovn/schema/ovn-nb"
 	ovnSB "github.com/canonical/lxd/lxd/network/ovn/schema/ovn-sb"
+	"github.com/canonical/lxd/lxd/network/ovs"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 )
@@ -26,7 +26,7 @@ import (
 func NewOVN(s *state.State) (*OVN, error) {
 	// Get database connection strings.
 	nbConnection := s.GlobalConfig.NetworkOVNNorthboundConnection()
-	sbConnection, err := openvswitch.NewOVS().OVNSouthboundDBRemoteAddress()
+	sbConnection, err := ovs.NewOVS().OVNSouthboundDBRemoteAddress()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get OVN southbound connection string: %w", err)
 	}

@@ -28,8 +28,8 @@ import (
 	"github.com/canonical/lxd/lxd/ip"
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/network/acl"
-	"github.com/canonical/lxd/lxd/network/openvswitch"
 	networkOVN "github.com/canonical/lxd/lxd/network/ovn"
+	"github.com/canonical/lxd/lxd/network/ovs"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -920,7 +920,7 @@ func (n *ovn) getUnderlayInfo() (uint32, net.IP, error) {
 		return 0, fmt.Errorf("No matching interface found for OVN enscapsulation IP %q", findIP.String())
 	}
 
-	ovs := openvswitch.NewOVS()
+	ovs := ovs.NewOVS()
 	encapIP, err := ovs.OVNEncapIP()
 	if err != nil {
 		return 0, nil, fmt.Errorf("Failed getting OVN enscapsulation IP from OVS: %w", err)
@@ -1570,7 +1570,7 @@ func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string
 	}
 
 	// Create uplink OVS bridge if needed.
-	ovs := openvswitch.NewOVS()
+	ovs := ovs.NewOVS()
 	err = ovs.BridgeAdd(vars.ovsBridge, true, nil, 0)
 	if err != nil {
 		return fmt.Errorf("Failed to create uplink OVS bridge %q: %w", vars.ovsBridge, err)
@@ -1602,7 +1602,7 @@ func (n *ovn) startUplinkPortBridgeOVS(uplinkNet Network, bridgeDevice string) e
 	defer revert.Fail()
 
 	// If uplink is an openvswitch bridge, have OVN logical provider connect directly to it.
-	ovs := openvswitch.NewOVS()
+	ovs := ovs.NewOVS()
 	err := ovs.OVNBridgeMappingAdd(bridgeDevice, uplinkNet.Name())
 	if err != nil {
 		return fmt.Errorf("Failed to associate uplink OVS bridge %q to OVN provider %q: %w", bridgeDevice, uplinkNet.Name(), err)
@@ -1683,7 +1683,7 @@ func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
 	}
 
 	// Detect if uplink interface is a OVS bridge.
-	ovs := openvswitch.NewOVS()
+	ovs := ovs.NewOVS()
 	isOVSBridge, _ := ovs.BridgeExists(uplinkHostName)
 	if isOVSBridge {
 		return n.startUplinkPortBridgeOVS(uplinkNet, uplinkHostName)
@@ -1827,7 +1827,7 @@ func (n *ovn) deleteUplinkPortBridgeNative(uplinkNet Network) error {
 		if !uplinkUsed {
 			removeVeths = true
 
-			ovs := openvswitch.NewOVS()
+			ovs := ovs.NewOVS()
 			err = ovs.OVNBridgeMappingDelete(vars.ovsBridge, uplinkNet.Name())
 			if err != nil {
 				return err
@@ -1873,7 +1873,7 @@ func (n *ovn) deleteUplinkPortBridgeOVS(uplinkNet Network, ovsBridge string) err
 
 	// Remove uplink OVS bridge mapping if not in use by other OVN networks.
 	if !uplinkUsed {
-		ovs := openvswitch.NewOVS()
+		ovs := ovs.NewOVS()
 		err = ovs.OVNBridgeMappingDelete(ovsBridge, uplinkNet.Name())
 		if err != nil {
 			return err
@@ -1894,8 +1894,8 @@ func (n *ovn) deleteUplinkPortPhysical(uplinkNet Network) error {
 	}
 
 	// Detect if uplink interface is a OVS bridge.
-	ovs := openvswitch.NewOVS()
-	isOVSBridge, _ := ovs.BridgeExists(uplinkHostName)
+	vswitch := ovs.NewOVS()
+	isOVSBridge, _ := vswitch.BridgeExists(uplinkHostName)
 	if isOVSBridge {
 		return n.deleteUplinkPortBridgeOVS(uplinkNet, uplinkHostName)
 	}
@@ -1915,13 +1915,12 @@ func (n *ovn) deleteUplinkPortPhysical(uplinkNet Network) error {
 		if !uplinkUsed {
 			releaseIF = true
 
-			ovs := openvswitch.NewOVS()
-			err = ovs.OVNBridgeMappingDelete(vars.ovsBridge, uplinkNet.Name())
+			err = vswitch.OVNBridgeMappingDelete(vars.ovsBridge, uplinkNet.Name())
 			if err != nil {
 				return err
 			}
 
-			err = ovs.BridgeDelete(vars.ovsBridge)
+			err = vswitch.BridgeDelete(vars.ovsBridge)
 			if err != nil {
 				return err
 			}
@@ -2821,7 +2820,7 @@ func (n *ovn) addChassisGroupEntry() error {
 	}
 
 	// Get local chassis ID for chassis group.
-	ovs := openvswitch.NewOVS()
+	ovs := ovs.NewOVS()
 	chassisID, err := ovs.ChassisID()
 	if err != nil {
 		return fmt.Errorf("Failed getting OVS Chassis ID: %w", err)
@@ -2886,7 +2885,7 @@ func (n *ovn) deleteChassisGroupEntry() error {
 	}
 
 	// Remove local chassis from chassis group.
-	ovs := openvswitch.NewOVS()
+	ovs := ovs.NewOVS()
 	chassisID, err := ovs.ChassisID()
 	if err != nil {
 		return fmt.Errorf("Failed getting OVS Chassis ID: %w", err)
