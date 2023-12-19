@@ -144,15 +144,20 @@ update-ovsdb:
 ifeq ($(shell command -v modelgen),)
 	(cd / ; go install github.com/ovn-org/libovsdb/cmd/modelgen@main)
 endif
+
 	rm -Rf lxd/network/openvswitch/schema
 	mkdir lxd/network/openvswitch/schema
-	curl -s https://raw.githubusercontent.com/ovn-org/ovn/v$(OVN_MINVER)/ovn-nb.ovsschema -o lxd/network/openvswitch/schema/ovn-nb.json
-	curl -s https://raw.githubusercontent.com/ovn-org/ovn/v$(OVN_MINVER)/ovn-sb.ovsschema -o lxd/network/openvswitch/schema/ovn-sb.json
 	curl -s https://raw.githubusercontent.com/openvswitch/ovs/v$(OVS_MINVER)/vswitchd/vswitch.ovsschema -o lxd/network/openvswitch/schema/ovs.json
-	modelgen -o lxd/network/openvswitch/schema/ovn-nb lxd/network/openvswitch/schema/ovn-nb.json
-	modelgen -o lxd/network/openvswitch/schema/ovn-sb lxd/network/openvswitch/schema/ovn-sb.json
 	modelgen -o lxd/network/openvswitch/schema/ovs lxd/network/openvswitch/schema/ovs.json
 	rm lxd/network/openvswitch/schema/*.json
+
+	rm -Rf lxd/network/ovn/schema
+	mkdir lxd/network/ovn/schema
+	curl -s https://raw.githubusercontent.com/ovn-org/ovn/v$(OVN_MINVER)/ovn-nb.ovsschema -o lxd/network/ovn/schema/ovn-nb.json
+	curl -s https://raw.githubusercontent.com/ovn-org/ovn/v$(OVN_MINVER)/ovn-sb.ovsschema -o lxd/network/ovn/schema/ovn-sb.json
+	modelgen -o lxd/network/ovn/schema/ovn-nb lxd/network/ovn/schema/ovn-nb.json
+	modelgen -o lxd/network/ovn/schema/ovn-sb lxd/network/ovn/schema/ovn-sb.json
+	rm lxd/network/ovn/schema/*.json
 
 .PHONY: update-protobuf
 update-protobuf:
