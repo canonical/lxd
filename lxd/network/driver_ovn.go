@@ -29,6 +29,7 @@ import (
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/network/acl"
 	"github.com/canonical/lxd/lxd/network/openvswitch"
+	networkOVN "github.com/canonical/lxd/lxd/network/ovn"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -131,7 +132,7 @@ func (n *ovn) State() (*api.NetworkState, error) {
 		})
 	}
 
-	client, err := openvswitch.NewOVN(n.state)
+	client, err := networkOVN.NewOVN(n.state)
 	if err != nil {
 		return nil, err
 	}
@@ -971,23 +972,23 @@ func (n *ovn) getNetworkPrefix() string {
 }
 
 // getChassisGroup returns OVN chassis group name to use.
-func (n *ovn) getChassisGroupName() openvswitch.OVNChassisGroup {
-	return openvswitch.OVNChassisGroup(n.getNetworkPrefix())
+func (n *ovn) getChassisGroupName() networkOVN.OVNChassisGroup {
+	return networkOVN.OVNChassisGroup(n.getNetworkPrefix())
 }
 
 // getRouterName returns OVN logical router name to use.
-func (n *ovn) getRouterName() openvswitch.OVNRouter {
-	return openvswitch.OVNRouter(fmt.Sprintf("%s-lr", n.getNetworkPrefix()))
+func (n *ovn) getRouterName() networkOVN.OVNRouter {
+	return networkOVN.OVNRouter(fmt.Sprintf("%s-lr", n.getNetworkPrefix()))
 }
 
 // getRouterExtPortName returns OVN logical router external port name to use.
-func (n *ovn) getRouterExtPortName() openvswitch.OVNRouterPort {
-	return openvswitch.OVNRouterPort(fmt.Sprintf("%s-lrp-ext", n.getRouterName()))
+func (n *ovn) getRouterExtPortName() networkOVN.OVNRouterPort {
+	return networkOVN.OVNRouterPort(fmt.Sprintf("%s-lrp-ext", n.getRouterName()))
 }
 
 // getRouterIntPortName returns OVN logical router internal port name to use.
-func (n *ovn) getRouterIntPortName() openvswitch.OVNRouterPort {
-	return openvswitch.OVNRouterPort(fmt.Sprintf("%s-lrp-int", n.getRouterName()))
+func (n *ovn) getRouterIntPortName() networkOVN.OVNRouterPort {
+	return networkOVN.OVNRouterPort(fmt.Sprintf("%s-lrp-int", n.getRouterName()))
 }
 
 // getRouterMAC returns OVN router MAC address to use for ports. Uses a stable seed to return stable random MAC.
@@ -1083,27 +1084,27 @@ func (n *ovn) getDNSSearchList() []string {
 }
 
 // getExtSwitchName returns OVN  logical external switch name.
-func (n *ovn) getExtSwitchName() openvswitch.OVNSwitch {
-	return openvswitch.OVNSwitch(fmt.Sprintf("%s-ls-ext", n.getNetworkPrefix()))
+func (n *ovn) getExtSwitchName() networkOVN.OVNSwitch {
+	return networkOVN.OVNSwitch(fmt.Sprintf("%s-ls-ext", n.getNetworkPrefix()))
 }
 
 // getExtSwitchRouterPortName returns OVN logical external switch router port name.
-func (n *ovn) getExtSwitchRouterPortName() openvswitch.OVNSwitchPort {
-	return openvswitch.OVNSwitchPort(fmt.Sprintf("%s-lsp-router", n.getExtSwitchName()))
+func (n *ovn) getExtSwitchRouterPortName() networkOVN.OVNSwitchPort {
+	return networkOVN.OVNSwitchPort(fmt.Sprintf("%s-lsp-router", n.getExtSwitchName()))
 }
 
 // getExtSwitchProviderPortName returns OVN logical external switch provider port name.
-func (n *ovn) getExtSwitchProviderPortName() openvswitch.OVNSwitchPort {
-	return openvswitch.OVNSwitchPort(fmt.Sprintf("%s-lsp-provider", n.getExtSwitchName()))
+func (n *ovn) getExtSwitchProviderPortName() networkOVN.OVNSwitchPort {
+	return networkOVN.OVNSwitchPort(fmt.Sprintf("%s-lsp-provider", n.getExtSwitchName()))
 }
 
 // getIntSwitchName returns OVN logical internal switch name.
-func (n *ovn) getIntSwitchName() openvswitch.OVNSwitch {
+func (n *ovn) getIntSwitchName() networkOVN.OVNSwitch {
 	return acl.OVNIntSwitchName(n.id)
 }
 
 // getIntSwitchRouterPortName returns OVN logical internal switch router port name.
-func (n *ovn) getIntSwitchRouterPortName() openvswitch.OVNSwitchPort {
+func (n *ovn) getIntSwitchRouterPortName() networkOVN.OVNSwitchPort {
 	return acl.OVNIntSwitchRouterPortName(n.id)
 }
 
@@ -1113,13 +1114,13 @@ func (n *ovn) getIntSwitchInstancePortPrefix() string {
 }
 
 // getLoadBalancerName returns OVN load balancer name to use for a listen address.
-func (n *ovn) getLoadBalancerName(listenAddress string) openvswitch.OVNLoadBalancer {
-	return openvswitch.OVNLoadBalancer(fmt.Sprintf("%s-lb-%s", n.getNetworkPrefix(), listenAddress))
+func (n *ovn) getLoadBalancerName(listenAddress string) networkOVN.OVNLoadBalancer {
+	return networkOVN.OVNLoadBalancer(fmt.Sprintf("%s-lb-%s", n.getNetworkPrefix(), listenAddress))
 }
 
 // getLogicalRouterPeerPortName returns OVN logical router port name to use for a peer connection.
-func (n *ovn) getLogicalRouterPeerPortName(peerNetworkID int64) openvswitch.OVNRouterPort {
-	return openvswitch.OVNRouterPort(fmt.Sprintf("%s-lrp-peer-net%d", n.getRouterName(), peerNetworkID))
+func (n *ovn) getLogicalRouterPeerPortName(peerNetworkID int64) networkOVN.OVNRouterPort {
+	return networkOVN.OVNRouterPort(fmt.Sprintf("%s-lrp-peer-net%d", n.getRouterName(), peerNetworkID))
 }
 
 // setupUplinkPort initialises the uplink connection. Returns the derived ovnUplinkVars settings used
@@ -2135,7 +2136,7 @@ func (n *ovn) setup(update bool) error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	client, err := openvswitch.NewOVN(n.state)
+	client, err := networkOVN.NewOVN(n.state)
 	if err != nil {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -2391,7 +2392,7 @@ func (n *ovn) setup(update bool) error {
 		defaultIPv4Route := net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, 32)}
 		defaultIPv6Route := net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)}
 		deleteRoutes := []net.IPNet{defaultIPv4Route, defaultIPv6Route}
-		defaultRoutes := make([]openvswitch.OVNRouterRoute, 0, 2)
+		defaultRoutes := make([]networkOVN.OVNRouterRoute, 0, 2)
 
 		if routerIntPortIPv4Net != nil {
 			// If l3only mode is enabled then each instance IPv4 will get its own /32 route added when
@@ -2399,7 +2400,7 @@ func (n *ovn) setup(update bool) error {
 			// subnet escaping onto the uplink network we add a less specific discard route for the
 			// whole internal subnet.
 			if shared.IsTrue(n.config["ipv4.l3only"]) {
-				defaultRoutes = append(defaultRoutes, openvswitch.OVNRouterRoute{
+				defaultRoutes = append(defaultRoutes, networkOVN.OVNRouterRoute{
 					Prefix:  *routerIntPortIPv4Net,
 					Discard: true,
 				})
@@ -2414,7 +2415,7 @@ func (n *ovn) setup(update bool) error {
 			// subnet escaping onto the uplink network we add a less specific discard route for the
 			// whole internal subnet.
 			if shared.IsTrue(n.config["ipv6.l3only"]) {
-				defaultRoutes = append(defaultRoutes, openvswitch.OVNRouterRoute{
+				defaultRoutes = append(defaultRoutes, networkOVN.OVNRouterRoute{
 					Prefix:  *routerIntPortIPv6Net,
 					Discard: true,
 				})
@@ -2424,7 +2425,7 @@ func (n *ovn) setup(update bool) error {
 		}
 
 		if uplinkNet.routerExtGwIPv4 != nil {
-			defaultRoutes = append(defaultRoutes, openvswitch.OVNRouterRoute{
+			defaultRoutes = append(defaultRoutes, networkOVN.OVNRouterRoute{
 				Prefix:  defaultIPv4Route,
 				NextHop: uplinkNet.routerExtGwIPv4,
 				Port:    n.getRouterExtPortName(),
@@ -2432,7 +2433,7 @@ func (n *ovn) setup(update bool) error {
 		}
 
 		if uplinkNet.routerExtGwIPv6 != nil {
-			defaultRoutes = append(defaultRoutes, openvswitch.OVNRouterRoute{
+			defaultRoutes = append(defaultRoutes, networkOVN.OVNRouterRoute{
 				Prefix:  defaultIPv6Route,
 				NextHop: uplinkNet.routerExtGwIPv6,
 				Port:    n.getRouterExtPortName(),
@@ -2503,7 +2504,7 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	// Setup IP allocation config on logical switch.
-	err = client.LogicalSwitchSetIPAllocation(n.getIntSwitchName(), &openvswitch.OVNIPAllocationOpts{
+	err = client.LogicalSwitchSetIPAllocation(n.getIntSwitchName(), &networkOVN.OVNIPAllocationOpts{
 		PrefixIPv4:  routerIntPortIPv4Net,
 		PrefixIPv6:  routerIntPortIPv6Net,
 		ExcludeIPv4: dhcpReserveIPv4s,
@@ -2544,7 +2545,7 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	// Configure DHCP option sets.
-	var dhcpv4UUID, dhcpv6UUID openvswitch.OVNDHCPOptionsUUID
+	var dhcpv4UUID, dhcpv6UUID networkOVN.OVNDHCPOptionsUUID
 	dhcpV4Subnet := n.DHCPv4Subnet()
 	dhcpV6Subnet := n.DHCPv6Subnet()
 
@@ -2556,7 +2557,7 @@ func (n *ovn) setup(update bool) error {
 		}
 
 		// DHCP option records to delete if DHCP is being disabled.
-		var deleteDHCPRecords []openvswitch.OVNDHCPOptionsUUID
+		var deleteDHCPRecords []networkOVN.OVNDHCPOptionsUUID
 
 		for _, existingOpt := range existingOpts {
 			if existingOpt.CIDR.IP.To4() == nil {
@@ -2594,7 +2595,7 @@ func (n *ovn) setup(update bool) error {
 			dhcpV4Netmask = "255.255.255.255"
 		}
 
-		err = client.LogicalSwitchDHCPv4OptionsSet(n.getIntSwitchName(), dhcpv4UUID, dhcpV4Subnet, &openvswitch.OVNDHCPv4Opts{
+		err = client.LogicalSwitchDHCPv4OptionsSet(n.getIntSwitchName(), dhcpv4UUID, dhcpV4Subnet, &networkOVN.OVNDHCPv4Opts{
 			ServerID:           routerIntPortIPv4,
 			ServerMAC:          routerMAC,
 			Router:             routerIntPortIPv4,
@@ -2611,7 +2612,7 @@ func (n *ovn) setup(update bool) error {
 
 	// Create DHCPv6 options for internal switch.
 	if dhcpV6Subnet != nil {
-		err = client.LogicalSwitchDHCPv6OptionsSet(n.getIntSwitchName(), dhcpv6UUID, dhcpV6Subnet, &openvswitch.OVNDHCPv6Opts{
+		err = client.LogicalSwitchDHCPv6OptionsSet(n.getIntSwitchName(), dhcpv6UUID, dhcpV6Subnet, &networkOVN.OVNDHCPv6Opts{
 			ServerID:           routerMAC,
 			RecursiveDNSServer: uplinkNet.dnsIPv6,
 			DNSSearchList:      n.getDNSSearchList(),
@@ -2623,11 +2624,11 @@ func (n *ovn) setup(update bool) error {
 
 	// Set IPv6 router advertisement settings.
 	if routerIntPortIPv6Net != nil {
-		adressMode := openvswitch.OVNIPv6AddressModeSLAAC
+		adressMode := networkOVN.OVNIPv6AddressModeSLAAC
 		if dhcpV6Subnet != nil {
-			adressMode = openvswitch.OVNIPv6AddressModeDHCPStateless
+			adressMode = networkOVN.OVNIPv6AddressModeDHCPStateless
 			if shared.IsTrue(n.config["ipv6.dhcp.stateful"]) {
-				adressMode = openvswitch.OVNIPv6AddressModeDHCPStateful
+				adressMode = networkOVN.OVNIPv6AddressModeDHCPStateful
 			}
 		}
 
@@ -2636,7 +2637,7 @@ func (n *ovn) setup(update bool) error {
 			recursiveDNSServer = uplinkNet.dnsIPv6[0] // OVN only supports 1 RA DNS server.
 		}
 
-		err = client.LogicalRouterPortSetIPv6Advertisements(n.getRouterIntPortName(), &openvswitch.OVNIPv6RAOpts{
+		err = client.LogicalRouterPortSetIPv6Advertisements(n.getRouterIntPortName(), &networkOVN.OVNIPv6RAOpts{
 			AddressMode:        adressMode,
 			SendPeriodic:       true,
 			DNSSearchList:      n.getDNSSearchList(),
@@ -2723,12 +2724,12 @@ func (n *ovn) setup(update bool) error {
 // Optionally excludePeers takes a list of peer network IDs to exclude from the router policy. This is useful
 // when removing a peer connection as it allows the security policy to be removed from OVN for that peer before the
 // peer connection has been removed from the database.
-func (n *ovn) logicalRouterPolicySetup(client *openvswitch.OVN, excludePeers ...int64) error {
+func (n *ovn) logicalRouterPolicySetup(client *networkOVN.OVN, excludePeers ...int64) error {
 	extRouterPort := n.getRouterExtPortName()
 	intRouterPort := n.getRouterIntPortName()
 	addrSetPrefix := acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID())
 
-	policies := []openvswitch.OVNRouterPolicy{
+	policies := []networkOVN.OVNRouterPolicy{
 		{
 			// Allow IPv6 packets arriving from internal router port with valid source address.
 			Priority: ovnRouterPolicyPeerAllowPriority,
@@ -2764,11 +2765,11 @@ func (n *ovn) logicalRouterPolicySetup(client *openvswitch.OVN, excludePeers ...
 
 		// Associate the rules with the local peering port so we can identify them later if needed.
 		comment := n.getLogicalRouterPeerPortName(targetOVNNet.ID())
-		policies = append(policies, openvswitch.OVNRouterPolicy{
+		policies = append(policies, networkOVN.OVNRouterPolicy{
 			Priority: ovnRouterPolicyPeerDropPriority,
 			Match:    fmt.Sprintf(`(inport == "%s" && ip6 && ip6.src == $%s_ip6) // %s`, extRouterPort, targetAddrSetPrefix, comment),
 			Action:   "drop",
-		}, openvswitch.OVNRouterPolicy{
+		}, networkOVN.OVNRouterPolicy{
 			Priority: ovnRouterPolicyPeerDropPriority,
 			Match:    fmt.Sprintf(`(inport == "%s" && ip4 && ip4.src == $%s_ip4) // %s`, extRouterPort, targetAddrSetPrefix, comment),
 			Action:   "drop",
@@ -2786,7 +2787,7 @@ func (n *ovn) logicalRouterPolicySetup(client *openvswitch.OVN, excludePeers ...
 // ensureNetworkPortGroup ensures that the network level port group (used for classifying NICs connected to this
 // network as internal) exists.
 func (n *ovn) ensureNetworkPortGroup(projectID int64) error {
-	client, err := openvswitch.NewOVN(n.state)
+	client, err := networkOVN.NewOVN(n.state)
 	if err != nil {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -2814,7 +2815,7 @@ func (n *ovn) ensureNetworkPortGroup(projectID int64) error {
 // The chassis priority value is a stable-random value derived from chassis group name and node ID. This is so we
 // don't end up using the same chassis for the primary uplink chassis for all OVN networks in a cluster.
 func (n *ovn) addChassisGroupEntry() error {
-	client, err := openvswitch.NewOVN(n.state)
+	client, err := networkOVN.NewOVN(n.state)
 	if err != nil {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -2879,7 +2880,7 @@ func (n *ovn) addChassisGroupEntry() error {
 
 // deleteChassisGroupEntry deletes an entry for the local OVS chassis from the OVN logical network's chassis group.
 func (n *ovn) deleteChassisGroupEntry() error {
-	client, err := openvswitch.NewOVN(n.state)
+	client, err := networkOVN.NewOVN(n.state)
 	if err != nil {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -2909,7 +2910,7 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 	}
 
 	if clientType == request.ClientTypeNormal {
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := networkOVN.NewOVN(n.state)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -2997,7 +2998,7 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 			return err
 		}
 
-		loadBalancers := make([]openvswitch.OVNLoadBalancer, 0, len(forwardListenAddresses)+len(loadBalancerListenAddresses))
+		loadBalancers := make([]networkOVN.OVNLoadBalancer, 0, len(forwardListenAddresses)+len(loadBalancerListenAddresses))
 		for _, listenAddress := range forwardListenAddresses {
 			loadBalancers = append(loadBalancers, n.getLoadBalancerName(listenAddress))
 		}
@@ -3311,10 +3312,10 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 			return fmt.Errorf("Failed getting network ACL IDs for security ACL update: %w", err)
 		}
 
-		addChangeSet := map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID{}
-		removeChangeSet := map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID{}
+		addChangeSet := map[networkOVN.OVNPortGroup][]networkOVN.OVNSwitchPortUUID{}
+		removeChangeSet := map[networkOVN.OVNPortGroup][]networkOVN.OVNSwitchPortUUID{}
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := networkOVN.NewOVN(n.state)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -3507,8 +3508,8 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 }
 
 // getInstanceDevicePortName returns the switch port name to use for an instance device.
-func (n *ovn) getInstanceDevicePortName(instanceUUID string, deviceName string) openvswitch.OVNSwitchPort {
-	return openvswitch.OVNSwitchPort(fmt.Sprintf("%s-%s-%s", n.getIntSwitchInstancePortPrefix(), instanceUUID, deviceName))
+func (n *ovn) getInstanceDevicePortName(instanceUUID string, deviceName string) networkOVN.OVNSwitchPort {
+	return networkOVN.OVNSwitchPort(fmt.Sprintf("%s-%s-%s", n.getIntSwitchInstancePortPrefix(), instanceUUID, deviceName))
 }
 
 // instanceDevicePortRoutesParse parses the instance NIC device config for internal routes and external routes.
@@ -3662,7 +3663,7 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, deviceName string, devi
 	revert := revert.New()
 	defer revert.Fail()
 
-	client, err := openvswitch.NewOVN(n.state)
+	client, err := networkOVN.NewOVN(n.state)
 	if err != nil {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -3711,7 +3712,7 @@ func (n *ovn) hasDHCPv4Reservation(dhcpReservations []shared.IPRange, ip net.IP)
 // InstanceDevicePortStart sets up an instance device port to the internal logical switch.
 // Accepts a list of ACLs being removed from the NIC device (if called as part of a NIC update).
 // Returns the logical switch port name.
-func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, error) {
+func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACLsRemove []string) (networkOVN.OVNSwitchPort, error) {
 	if opts.InstanceUUID == "" {
 		return "", fmt.Errorf("Instance UUID is required")
 	}
@@ -3743,7 +3744,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	revert := revert.New()
 	defer revert.Fail()
 
-	client, err := openvswitch.NewOVN(n.state)
+	client, err := networkOVN.NewOVN(n.state)
 	if err != nil {
 		return "", fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -3758,7 +3759,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 	dhcpv4Subnet := n.DHCPv4Subnet()
 	dhcpv6Subnet := n.DHCPv6Subnet()
-	var dhcpV4ID, dhcpv6ID openvswitch.OVNDHCPOptionsUUID
+	var dhcpV4ID, dhcpv6ID networkOVN.OVNDHCPOptionsUUID
 
 	if dhcpv4Subnet != nil || dhcpv6Subnet != nil {
 		// Find existing DHCP options set for IPv4 and IPv6 and update them instead of adding sets.
@@ -3827,7 +3828,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 	instancePortName := n.getInstanceDevicePortName(opts.InstanceUUID, opts.DeviceName)
 
-	var nestedPortParentName openvswitch.OVNSwitchPort
+	var nestedPortParentName networkOVN.OVNSwitchPort
 	var nestedPortVLAN uint16
 	if opts.DeviceConfig["nested"] != "" {
 		nestedPortParentName = n.getInstanceDevicePortName(opts.InstanceUUID, opts.DeviceConfig["nested"])
@@ -3842,7 +3843,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	// Add port with mayExist set to true, so that if instance port exists, we don't fail and continue below
 	// to configure the port as needed. This is required because the port is created when the NIC is added, but
 	// we need to ensure it is present at start up as well in case it was deleted since the NIC was added.
-	err = client.LogicalSwitchPortAdd(n.getIntSwitchName(), instancePortName, &openvswitch.OVNSwitchPortOpts{
+	err = client.LogicalSwitchPortAdd(n.getIntSwitchName(), instancePortName, &networkOVN.OVNSwitchPortOpts{
 		DHCPv4OptsID: dhcpV4ID,
 		DHCPv6OptsID: dhcpv6ID,
 		MAC:          mac,
@@ -3960,7 +3961,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		}
 	}
 
-	routes := make([]openvswitch.OVNRouterRoute, 0, len(internalRoutes)+len(externalRoutes))
+	routes := make([]networkOVN.OVNRouterRoute, 0, len(internalRoutes)+len(externalRoutes))
 
 	// In l3only mode we add the instance port's IPs as static routes to the router.
 	if shared.IsTrue(n.config["ipv4.l3only"]) && dnsIPv4 != nil {
@@ -3984,7 +3985,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 			return "", fmt.Errorf("Cannot add static route for %q as target IP is not set", internalRoute.String())
 		}
 
-		routes = append(routes, openvswitch.OVNRouterRoute{
+		routes = append(routes, networkOVN.OVNRouterRoute{
 			Prefix:  *internalRoute,
 			NextHop: targetIP,
 			Port:    n.getRouterIntPortName(),
@@ -4002,7 +4003,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 			return "", fmt.Errorf("Cannot add static route for %q as target IP is not set", externalRoute.String())
 		}
 
-		routes = append(routes, openvswitch.OVNRouterRoute{
+		routes = append(routes, networkOVN.OVNRouterRoute{
 			Prefix:  *externalRoute,
 			NextHop: targetIP,
 			Port:    n.getRouterIntPortName(),
@@ -4068,7 +4069,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		err = n.forPeers(func(targetOVNNet *ovn) error {
 			targetRouterName := targetOVNNet.getRouterName()
 			targetRouterPort := targetOVNNet.getLogicalRouterPeerPortName(n.ID())
-			targetRouterRoutes := make([]openvswitch.OVNRouterRoute, 0, len(routes))
+			targetRouterRoutes := make([]networkOVN.OVNRouterRoute, 0, len(routes))
 			for _, route := range routes {
 				nexthop := routerIntPortIPv4
 				if route.Prefix.IP.To4() == nil {
@@ -4079,7 +4080,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 					continue // Skip routes that cannot be supported by local router.
 				}
 
-				targetRouterRoutes = append(targetRouterRoutes, openvswitch.OVNRouterRoute{
+				targetRouterRoutes = append(targetRouterRoutes, networkOVN.OVNRouterRoute{
 					Prefix:  route.Prefix,
 					NextHop: nexthop,
 					Port:    targetRouterPort,
@@ -4111,8 +4112,8 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	}
 
 	// Apply Security ACL port group settings.
-	addChangeSet := map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID{}
-	removeChangeSet := map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID{}
+	addChangeSet := map[networkOVN.OVNPortGroup][]networkOVN.OVNSwitchPortUUID{}
+	removeChangeSet := map[networkOVN.OVNPortGroup][]networkOVN.OVNSwitchPortUUID{}
 
 	// Get logical port UUID.
 	portUUID, err := client.LogicalSwitchPortUUID(instancePortName)
@@ -4245,7 +4246,7 @@ func (n *ovn) InstanceDevicePortIPs(instanceUUID string, deviceName string) ([]n
 		return nil, fmt.Errorf("Instance UUID is required")
 	}
 
-	client, err := openvswitch.NewOVN(n.state)
+	client, err := networkOVN.NewOVN(n.state)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -4266,7 +4267,7 @@ func (n *ovn) InstanceDevicePortIPs(instanceUUID string, deviceName string) ([]n
 func (n *ovn) InstanceDevicePortRemove(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error {
 	instancePortName := n.getInstanceDevicePortName(instanceUUID, deviceName)
 
-	client, err := openvswitch.NewOVN(n.state)
+	client, err := networkOVN.NewOVN(n.state)
 	if err != nil {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -4649,7 +4650,7 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 	if shared.ValueInSlice("ovn.ingress_mode", changedKeys) {
 		n.logger.Debug("Applying ingress mode changes from uplink network to instance NICs", logger.Ctx{"uplink": uplinkName})
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := networkOVN.NewOVN(n.state)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -4731,13 +4732,13 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 }
 
 // forwardFlattenVIPs flattens forwards into format compatible with OVN load balancers.
-func (n *ovn) forwardFlattenVIPs(listenAddress net.IP, defaultTargetAddress net.IP, portMaps []*forwardPortMap) []openvswitch.OVNLoadBalancerVIP {
-	var vips []openvswitch.OVNLoadBalancerVIP
+func (n *ovn) forwardFlattenVIPs(listenAddress net.IP, defaultTargetAddress net.IP, portMaps []*forwardPortMap) []networkOVN.OVNLoadBalancerVIP {
+	var vips []networkOVN.OVNLoadBalancerVIP
 
 	if defaultTargetAddress != nil {
-		vips = append(vips, openvswitch.OVNLoadBalancerVIP{
+		vips = append(vips, networkOVN.OVNLoadBalancerVIP{
 			ListenAddress: listenAddress,
-			Targets:       []openvswitch.OVNLoadBalancerTarget{{Address: defaultTargetAddress}},
+			Targets:       []networkOVN.OVNLoadBalancerTarget{{Address: defaultTargetAddress}},
 		})
 	}
 
@@ -4756,11 +4757,11 @@ func (n *ovn) forwardFlattenVIPs(listenAddress net.IP, defaultTargetAddress net.
 				targetPort = portMap.target.ports[i]
 			}
 
-			vips = append(vips, openvswitch.OVNLoadBalancerVIP{
+			vips = append(vips, networkOVN.OVNLoadBalancerVIP{
 				ListenAddress: listenAddress,
 				Protocol:      portMap.protocol,
 				ListenPort:    lp,
-				Targets: []openvswitch.OVNLoadBalancerTarget{
+				Targets: []networkOVN.OVNLoadBalancerTarget{
 					{
 						Address: portMap.target.address,
 						Port:    targetPort,
@@ -4864,7 +4865,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 			return nil, err
 		}
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := networkOVN.NewOVN(n.state)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -4892,7 +4893,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 
 		vips := n.forwardFlattenVIPs(net.ParseIP(forward.ListenAddress), net.ParseIP(forward.Config["target_address"]), portMaps)
 
-		err = client.LoadBalancerApply(n.getLoadBalancerName(forward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, vips...)
+		err = client.LoadBalancerApply(n.getLoadBalancerName(forward.ListenAddress), []networkOVN.OVNRouter{n.getRouterName()}, vips...)
 		if err != nil {
 			return nil, fmt.Errorf("Failed applying OVN load balancer: %w", err)
 		}
@@ -4968,13 +4969,13 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 			return nil // Nothing has changed.
 		}
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := networkOVN.NewOVN(n.state)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
 
 		vips := n.forwardFlattenVIPs(net.ParseIP(newForward.ListenAddress), net.ParseIP(newForward.Config["target_address"]), portMaps)
-		err = client.LoadBalancerApply(n.getLoadBalancerName(newForward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, vips...)
+		err = client.LoadBalancerApply(n.getLoadBalancerName(newForward.ListenAddress), []networkOVN.OVNRouter{n.getRouterName()}, vips...)
 		if err != nil {
 			return fmt.Errorf("Failed applying OVN load balancer: %w", err)
 		}
@@ -4984,7 +4985,7 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 			portMaps, err := n.forwardValidate(net.ParseIP(curForward.ListenAddress), curForward.Writable())
 			if err == nil {
 				vips := n.forwardFlattenVIPs(net.ParseIP(curForward.ListenAddress), net.ParseIP(curForward.Config["target_address"]), portMaps)
-				_ = client.LoadBalancerApply(n.getLoadBalancerName(curForward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, vips...)
+				_ = client.LoadBalancerApply(n.getLoadBalancerName(curForward.ListenAddress), []networkOVN.OVNRouter{n.getRouterName()}, vips...)
 				_ = n.forwardBGPSetupPrefixes()
 			}
 		})
@@ -5045,7 +5046,7 @@ func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType)
 			return err
 		}
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := networkOVN.NewOVN(n.state)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -5086,12 +5087,12 @@ func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType)
 }
 
 // loadBalancerFlattenVIPs flattens port maps into format compatible with OVN load balancers.
-func (n *ovn) loadBalancerFlattenVIPs(listenAddress net.IP, portMaps []*loadBalancerPortMap) []openvswitch.OVNLoadBalancerVIP {
-	var vips []openvswitch.OVNLoadBalancerVIP
+func (n *ovn) loadBalancerFlattenVIPs(listenAddress net.IP, portMaps []*loadBalancerPortMap) []networkOVN.OVNLoadBalancerVIP {
+	var vips []networkOVN.OVNLoadBalancerVIP
 
 	for _, portMap := range portMaps {
 		for i, lp := range portMap.listenPorts {
-			vip := openvswitch.OVNLoadBalancerVIP{
+			vip := networkOVN.OVNLoadBalancerVIP{
 				ListenAddress: listenAddress,
 				Protocol:      portMap.protocol,
 				ListenPort:    lp,
@@ -5110,7 +5111,7 @@ func (n *ovn) loadBalancerFlattenVIPs(listenAddress net.IP, portMaps []*loadBala
 					targetPort = target.ports[i]
 				}
 
-				vip.Targets = append(vip.Targets, openvswitch.OVNLoadBalancerTarget{
+				vip.Targets = append(vip.Targets, networkOVN.OVNLoadBalancerTarget{
 					Address: target.address,
 					Port:    targetPort,
 				})
@@ -5214,7 +5215,7 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 			return nil, err
 		}
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := networkOVN.NewOVN(n.state)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -5242,7 +5243,7 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 
 		vips := n.loadBalancerFlattenVIPs(net.ParseIP(loadBalancer.ListenAddress), portMaps)
 
-		err = client.LoadBalancerApply(n.getLoadBalancerName(loadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, vips...)
+		err = client.LoadBalancerApply(n.getLoadBalancerName(loadBalancer.ListenAddress), []networkOVN.OVNRouter{n.getRouterName()}, vips...)
 		if err != nil {
 			return nil, fmt.Errorf("Failed applying OVN load balancer: %w", err)
 		}
@@ -5318,14 +5319,14 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 			return nil // Nothing has changed.
 		}
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := networkOVN.NewOVN(n.state)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
 
 		vips := n.loadBalancerFlattenVIPs(net.ParseIP(newLoadBalancer.ListenAddress), portMaps)
 
-		err = client.LoadBalancerApply(n.getLoadBalancerName(newLoadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, vips...)
+		err = client.LoadBalancerApply(n.getLoadBalancerName(newLoadBalancer.ListenAddress), []networkOVN.OVNRouter{n.getRouterName()}, vips...)
 		if err != nil {
 			return fmt.Errorf("Failed applying OVN load balancer: %w", err)
 		}
@@ -5335,7 +5336,7 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 			portMaps, err := n.loadBalancerValidate(net.ParseIP(curLoadBalancer.ListenAddress), curLoadBalancer.Writable())
 			if err == nil {
 				vips := n.loadBalancerFlattenVIPs(net.ParseIP(curLoadBalancer.ListenAddress), portMaps)
-				_ = client.LoadBalancerApply(n.getLoadBalancerName(curLoadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, vips...)
+				_ = client.LoadBalancerApply(n.getLoadBalancerName(curLoadBalancer.ListenAddress), []networkOVN.OVNRouter{n.getRouterName()}, vips...)
 				_ = n.forwardBGPSetupPrefixes()
 			}
 		})
@@ -5396,7 +5397,7 @@ func (n *ovn) LoadBalancerDelete(listenAddress string, clientType request.Client
 			return err
 		}
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := networkOVN.NewOVN(n.state)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -5591,7 +5592,7 @@ func (n *ovn) PeerCreate(peer api.NetworkPeersPost) error {
 			return fmt.Errorf("Only peerings in %q state can be setup", api.NetworkStatusCreated)
 		}
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := networkOVN.NewOVN(n.state)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -5659,13 +5660,13 @@ func (n *ovn) PeerCreate(peer api.NetworkPeersPost) error {
 
 // peerGetLocalOpts returns peering options prefilled with local router and local NIC routes config.
 // It can then be modified with the target peering network options.
-func (n *ovn) peerGetLocalOpts(localNICRoutes []net.IPNet) (*openvswitch.OVNRouterPeering, error) {
+func (n *ovn) peerGetLocalOpts(localNICRoutes []net.IPNet) (*networkOVN.OVNRouterPeering, error) {
 	localRouterPortMAC, err := n.getRouterMAC()
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting router MAC address: %w", err)
 	}
 
-	opts := openvswitch.OVNRouterPeering{
+	opts := networkOVN.OVNRouterPeering{
 		LocalRouter:        n.getRouterName(),
 		LocalRouterPortMAC: localRouterPortMAC,
 		TargetRouterRoutes: localNICRoutes, // Pre-fill with local NIC routes.
@@ -5706,7 +5707,7 @@ func (n *ovn) peerGetLocalOpts(localNICRoutes []net.IPNet) (*openvswitch.OVNRout
 
 // peerSetup applies the network peering configuration to both networks.
 // Accepts an OVN client, a target OVN network, and a set of OVNRouterPeering options pre-filled with local config.
-func (n *ovn) peerSetup(client *openvswitch.OVN, targetOVNNet *ovn, opts openvswitch.OVNRouterPeering) error {
+func (n *ovn) peerSetup(client *networkOVN.OVN, targetOVNNet *ovn, opts networkOVN.OVNRouterPeering) error {
 	targetRouterMAC, err := targetOVNNet.getRouterMAC()
 	if err != nil {
 		return fmt.Errorf("Failed getting target router MAC address: %w", err)
@@ -5880,14 +5881,14 @@ func (n *ovn) PeerDelete(peerName string) error {
 			return fmt.Errorf("Target network is not ovn interface type")
 		}
 
-		opts := openvswitch.OVNRouterPeering{
+		opts := networkOVN.OVNRouterPeering{
 			LocalRouter:      n.getRouterName(),
 			LocalRouterPort:  n.getLogicalRouterPeerPortName(targetOVNNet.ID()),
 			TargetRouter:     targetOVNNet.getRouterName(),
 			TargetRouterPort: targetOVNNet.getLogicalRouterPeerPortName(n.ID()),
 		}
 
-		client, err := openvswitch.NewOVN(n.state)
+		client, err := networkOVN.NewOVN(n.state)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
