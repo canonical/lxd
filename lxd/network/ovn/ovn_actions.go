@@ -1,4 +1,4 @@
-package openvswitch
+package ovn
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 
 	"github.com/ovn-org/libovsdb/ovsdb"
 
-	ovnNB "github.com/canonical/lxd/lxd/network/openvswitch/schema/ovn-nb"
+	ovnNB "github.com/canonical/lxd/lxd/network/ovn/schema/ovn-nb"
 	"github.com/canonical/lxd/shared"
 )
 
