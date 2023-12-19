@@ -36,7 +36,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   /sys/class/                               r,
   /sys/devices/**                           r,
   /sys/module/vhost/**                      r,
-  /{,usr/}bin/qemu*                         mrix,
+  /{,usr/}bin/qemu-system-*                 mrix,
   {{ .ovmfPath }}/OVMF_CODE.fd              kr,
   {{ .ovmfPath }}/OVMF_CODE.*.fd            kr,
   /usr/share/qemu/**                        kr,
@@ -75,7 +75,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   # The binary itself (for nesting)
   /var/snap/lxd/common/lxd.debug            mr,
   /snap/lxd/*/bin/lxd                       mr,
-  /snap/lxd/*/bin/qemu*                     mrix,
+  /snap/lxd/*/bin/qemu-system-*             mrix,
   /snap/lxd/*/share/qemu/**                 kr,
 
   # Snap-specific paths
