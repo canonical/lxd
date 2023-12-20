@@ -50,13 +50,8 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .rootPath }}/etc/group                 r,
   @{PROC}/version                           r,
 
-  # Used by qemu for live migration NBD server and client
+  # Used by qemu for live migration NBD server and client or when in a container
   unix (bind, listen, accept, send, receive, connect) type=stream,
-
-  # Used by qemu when inside a container
-{{- if .userns }}
-  unix (send, receive) type=stream,
-{{- end }}
 
   # Instance specific paths
   {{ .logPath }}/** rwk,
