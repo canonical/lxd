@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	ovsClient "github.com/ovn-org/libovsdb/client"
 	"github.com/ovn-org/libovsdb/ovsdb"
 
 	ovnNB "github.com/canonical/lxd/lxd/network/ovn/schema/ovn-nb"
@@ -1532,23 +1533,22 @@ func (o *NB) ChassisGroupChassisDelete(haChassisGroupName OVNChassisGroup, chass
 // PortGroupInfo returns the port group UUID or empty string if port doesn't exist, and whether the port group has
 // any ACL rules defined on it.
 func (o *NB) PortGroupInfo(portGroupName OVNPortGroup) (OVNPortGroupUUID, bool, error) {
-	groupInfo, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,name,acl", "find", "port_group",
-		fmt.Sprintf("name=%s", string(portGroupName)),
-	)
+	ctx := context.TODO()
+
+	pg := &ovnNB.PortGroup{
+		Name: string(portGroupName),
+	}
+
+	err := o.client.Get(ctx, pg)
 	if err != nil {
+		if err == ovsClient.ErrNotFound {
+			return "", false, nil
+		}
+
 		return "", false, err
 	}
 
-	groupParts := shared.SplitNTrimSpace(groupInfo, ",", 3, true)
-	if len(groupParts) == 3 {
-		if groupParts[1] == string(portGroupName) {
-			aclParts := shared.SplitNTrimSpace(groupParts[2], ",", -1, true)
-
-			return OVNPortGroupUUID(groupParts[0]), len(aclParts) > 0, nil
-		}
-	}
-
-	return "", false, nil
+	return OVNPortGroupUUID(pg.UUID), len(pg.ACLs) > 0, nil
 }
 
 // PortGroupAdd creates a new port group and optionally adds logical switch ports to the group.
