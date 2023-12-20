@@ -93,7 +93,6 @@ ifneq "$(LXD_OFFLINE)" ""
 endif
 	go get -t -v -d -u ./...
 	go get github.com/mdlayher/socket@v0.4.1
-	go get github.com/openfga/go-sdk@v0.2.2
 	go mod tidy --go=1.20
 	go get toolchain@none
 
