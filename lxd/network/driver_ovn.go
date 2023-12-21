@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/mdlayher/netx/eui64"
+	ovsClient "github.com/ovn-org/libovsdb/client"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/cluster"
@@ -3933,12 +3934,12 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		// Retry a few times in case port has not yet allocated dynamic IPs.
 		for i := 0; i < 5; i++ {
 			dynamicIPs, err = ovnnb.LogicalSwitchPortDynamicIPs(instancePortName)
-			if err != nil {
+			if err == nil {
+				if len(dynamicIPs) > 0 {
+					break
+				}
+			} else if err != ovsClient.ErrNotFound {
 				return "", err
-			}
-
-			if len(dynamicIPs) > 0 {
-				break
 			}
 
 			time.Sleep(100 * time.Millisecond)
