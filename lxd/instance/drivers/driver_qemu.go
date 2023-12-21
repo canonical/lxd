@@ -8588,6 +8588,11 @@ func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]any) er
 
 	client, err := d.getAgentClient()
 	if err != nil {
+		// Don't fail if the VM simply doesn't have an agent.
+		if err == errQemuAgentOffline {
+			return nil
+		}
+
 		return err
 	}
 
