@@ -14,7 +14,7 @@ SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
 GOMIN=1.23.3
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
 DQLITE_BRANCH=master
-OVN_MINVER=23.03.0
+OVN_MINVER=22.03.0
 OVS_MINVER=2.15.0
 
 ifneq "$(wildcard vendor)" ""
