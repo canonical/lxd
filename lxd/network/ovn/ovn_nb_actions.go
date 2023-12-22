@@ -9,6 +9,7 @@ import (
 	"time"
 
 	ovsClient "github.com/ovn-org/libovsdb/client"
+	ovsModel "github.com/ovn-org/libovsdb/model"
 	"github.com/ovn-org/libovsdb/ovsdb"
 
 	ovnNB "github.com/canonical/lxd/lxd/network/ovn/schema/ovn-nb"
@@ -1474,8 +1475,11 @@ func (o *NB) ChassisGroupChassisAdd(haChassisGroupName OVNChassisGroup, chassisI
 		operations = append(operations, createOps...)
 
 		// Add the HA Chassis to the group.
-		haGroup.HaChassis = append(haGroup.HaChassis, "chassis")
-		updateOps, err := o.client.Where(haGroup).Update(haGroup)
+		updateOps, err := o.client.Where(haGroup).Mutate(haGroup, ovsModel.Mutation{
+			Field:   haGroup.HaChassis,
+			Mutator: ovsdb.MutateOperationInsert,
+			Value:   []string{haChassis.UUID},
+		})
 		if err != nil {
 			return err
 		}
