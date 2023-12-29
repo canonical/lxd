@@ -1210,6 +1210,14 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 			return validate.IsAny, nil
 		}
 
+		if strings.HasSuffix(key, ".bus") {
+			return validate.IsAny, nil
+		}
+
+		if strings.HasSuffix(key, ".device") {
+			return validate.IsAny, nil
+		}
+
 		if strings.HasSuffix(key, ".uuid") {
 			return validate.IsAny, nil
 		}
