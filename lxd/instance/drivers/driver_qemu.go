@@ -2462,7 +2462,7 @@ func (d *qemu) deviceStop(dev device.Device, instanceRunning bool, _ string) err
 			}
 		}
 
-		// Detach USB drom running instance.
+		// Detach USB from running instance.
 		if configCopy["type"] == "usb" && runConf != nil {
 			for _, usbDev := range runConf.USBDevice {
 				err = d.deviceDetachUSB(usbDev)
