@@ -371,50 +371,53 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 	// and this is the first time the client has been run by the user, then check to see
 	// if LXD has been properly configured.  Don't display the message if the var path
 	// does not exist (LXD not installed), as the user may be targeting a remote daemon.
-	if !c.flagForceLocal && shared.PathExists(shared.VarPath("")) && !shared.PathExists(c.confPath) {
+	if !c.flagForceLocal && !shared.PathExists(c.confPath) {
 		// Create the config dir so that we don't get in here again for this user.
 		err = os.MkdirAll(c.conf.ConfigDir, 0750)
 		if err != nil {
 			return err
 		}
 
-		// Attempt to connect to the local server
-		runInit := true
-		d, err := lxd.ConnectLXDUnix("", nil)
-		if err == nil {
-			// Check if server is initialized.
-			info, _, err := d.GetServer()
-			if err == nil && info.Environment.Storage != "" {
-				runInit = false
-			}
-
-			// Detect usable project.
-			names, err := d.GetProjectNames()
+		// Handle local servers.
+		if shared.PathExists(shared.VarPath("")) {
+			// Attempt to connect to the local server
+			runInit := true
+			d, err := lxd.ConnectLXDUnix("", nil)
 			if err == nil {
-				if len(names) == 1 && names[0] != "default" {
-					remote := c.conf.Remotes["local"]
-					remote.Project = names[0]
-					c.conf.Remotes["local"] = remote
+				// Check if server is initialized.
+				info, _, err := d.GetServer()
+				if err == nil && info.Environment.Storage != "" {
+					runInit = false
+				}
+
+				// Detect usable project.
+				names, err := d.GetProjectNames()
+				if err == nil {
+					if len(names) == 1 && names[0] != "default" {
+						remote := c.conf.Remotes["local"]
+						remote.Project = names[0]
+						c.conf.Remotes["local"] = remote
+					}
 				}
 			}
-		}
 
-		flush := false
-		if runInit {
-			msg := i18n.G("If this is your first time running LXD on this machine, you should also run: lxd init")
-			fmt.Fprintln(os.Stderr, msg)
-			flush = true
-		}
+			flush := false
+			if runInit {
+				msg := i18n.G("If this is your first time running LXD on this machine, you should also run: lxd init")
+				fmt.Fprintln(os.Stderr, msg)
+				flush = true
+			}
 
-		if !shared.ValueInSlice(cmd.Name(), []string{"init", "launch"}) {
-			msg := i18n.G(`To start your first container, try: lxc launch ubuntu:24.04
+			if !shared.ValueInSlice(cmd.Name(), []string{"init", "launch"}) {
+				msg := i18n.G(`To start your first container, try: lxc launch ubuntu:24.04
 Or for a virtual machine: lxc launch ubuntu:24.04 --vm`)
-			fmt.Fprintln(os.Stderr, msg)
-			flush = true
-		}
+				fmt.Fprintln(os.Stderr, msg)
+				flush = true
+			}
 
-		if flush {
-			fmt.Fprintf(os.Stderr, "\n")
+			if flush {
+				fmt.Fprintf(os.Stderr, "\n")
+			}
 		}
 
 		// And save the initial configuration
