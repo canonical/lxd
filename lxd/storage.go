@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -48,7 +50,15 @@ func storageStartup(s *state.State, forceCheck bool) error {
 	// Update the storage drivers supported and used cache in api_1.0.go.
 	storagePoolDriversCacheUpdate(s)
 
-	poolNames, err := s.DB.Cluster.GetCreatedStoragePoolNames()
+	var poolNames []string
+
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		poolNames, err = tx.GetCreatedStoragePoolNames(ctx)
+
+		return err
+	})
 	if err != nil {
 		if response.IsNotFoundError(err) {
 			logger.Debug("No existing storage pools detected")
@@ -162,7 +172,16 @@ func storagePoolDriversCacheUpdate(s *state.State) {
 	// copy-on-write semantics without locking in the read case seems
 	// appropriate. (Should be cheaper then querying the db all the time,
 	// especially if we keep adding more storage drivers.)
-	drivers, err := s.DB.Cluster.GetStoragePoolDrivers()
+
+	var drivers []string
+
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		drivers, err = tx.GetStoragePoolDrivers(ctx)
+
+		return err
+	})
 	if err != nil && !response.IsNotFoundError(err) {
 		return
 	}
