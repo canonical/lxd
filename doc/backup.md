@@ -80,12 +80,15 @@ Instances and storage volumes are backed up in a very similar way (because when 
 See {ref}`instances-backup` and {ref}`howto-storage-backup-volume` for detailed information.
 The following sections give a brief summary of the options you have for backing up instances and volumes.
 
+(secondary-backup-server)=
 #### Secondary backup LXD server
 
 LXD supports copying and moving instances and storage volumes between two hosts.
 See {ref}`move-instances` and {ref}`howto-storage-move-volume` for instructions.
 
 So if you have a spare server, you can regularly copy your instances and storage volumes to that secondary server to back them up.
+Use the `--refresh` flag to update the copies (see {ref}`storage-optimized-volume-transfer` for the benefits).
+
 If needed, you can either switch over to the secondary server or copy your instances or storage volumes back from it.
 
 If you use the secondary server as a pure storage server, it doesn't need to be as powerful as your main LXD server.
