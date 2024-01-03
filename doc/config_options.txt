@@ -549,7 +549,7 @@ If specified, the idmap used for this instance is unique among instances that ha
 :liveupdate: "no"
 :shortdesc: "Whether to run the instance in privileged mode"
 :type: "bool"
-
+See {ref}`container-security` for more information.
 ```
 
 ```{config:option} security.protection.delete instance-security
