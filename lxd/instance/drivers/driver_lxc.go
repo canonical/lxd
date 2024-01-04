@@ -1704,6 +1704,15 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 	reverter := revert.New()
 	defer reverter.Fail()
+
+	// Connect to files API.
+	files, err := d.FileSFTP()
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = files.Close() }()
+
 	for _, mount := range mounts {
 		if mount.DevPath != "" {
 			flags := 0
@@ -1727,35 +1736,113 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 				}
 			}
 
+			_, err = files.Lstat(mount.TargetPath)
+			if err != nil {
+				absTargetPath := mount.TargetPath
+				if !strings.HasPrefix(mount.TargetPath, "/") {
+					absTargetPath = fmt.Sprintf("/%s", mount.TargetPath)
+				}
+
+				encodedPath, err := shared.EncodeRemoteAbsPathWithNonExistingDir(files, absTargetPath)
+				if err != nil {
+					return fmt.Errorf("Failed to encode remote path: %w", err)
+				}
+
+				err = d.deviceVolatileSetFunc(mount.DevName)(map[string]string{"last_state.created": encodedPath}) // We want to store the absolute path.
+				if err != nil {
+					return fmt.Errorf("Error updating volatile for the device: %w", err)
+				}
+			}
+
 			// Mount it into the container.
-			err := d.insertMount(mount.DevPath, mount.TargetPath, mount.FSType, flags, idmapType)
+			err = d.insertMount(mount.DevPath, mount.TargetPath, mount.FSType, flags, idmapType)
 			if err != nil {
 				return fmt.Errorf("Failed to add mount for device inside container: %s", err)
 			}
 		} else {
-			relativeTargetPath := strings.TrimPrefix(mount.TargetPath, "/")
-
-			// Connect to files API.
-			files, err := d.FileSFTP()
-			if err != nil {
-				return err
-			}
-
-			reverter.Add(func() { _ = files.Close() })
-
-			_, err = files.Lstat(relativeTargetPath)
+			_, err = files.Lstat(mount.TargetPath)
 			if err == nil {
-				err := d.removeMount(mount.TargetPath)
+				err = d.removeMount(mount.TargetPath)
 				if err != nil {
-					return fmt.Errorf("Error unmounting the device path inside container: %s", err)
+					return fmt.Errorf("Error unmounting the device path inside container: %w", err)
 				}
 
-				err = files.Remove(relativeTargetPath)
+				removeTargetFiles := false
+
+				// Check if the target path hasn't been created by LXD
+				mountConf := d.deviceVolatileGetFunc(mount.DevName)()
+				targetPath := mountConf["last_state.created"]
+				absMountTargetPath := mount.TargetPath
+				if !strings.HasPrefix(mount.TargetPath, "/") {
+					absMountTargetPath = fmt.Sprintf("/%s", mount.TargetPath)
+				}
+
+				encodedTargetPath, err := shared.EncodeRemoteAbsPathWithNonExistingDir(files, absMountTargetPath)
 				if err != nil {
-					// Only warn here and don't fail as removing a directory
-					// mount may fail if there was already files inside
-					// directory before it was mouted over preventing delete.
-					d.logger.Warn("Could not remove the device path inside container", logger.Ctx{"err": err})
+					return fmt.Errorf("Failed to encode remote path: %w", err)
+				}
+
+				if filepath.Clean(targetPath) == filepath.Clean(encodedTargetPath) {
+					removeTargetFiles = true
+				}
+
+				if removeTargetFiles {
+					// Check if the path stored for the `last_state.created` volatile key
+					// contains the '/./' marker, which indicates that the left part of the path
+					// exists and the right part did not exist at the time of its creation during the mount.
+					// In this case, we should remove <left_part>/<first_component_of_right_part> instead of the full path.
+					if strings.Contains(targetPath, "/./") {
+						formerlyExistingPathPart, formerlyNonExistingPart := shared.DecodeRemoteAbsPathWithNonExistingDir(targetPath)
+						// Take the first component of the non-existing part.
+						parts := strings.Split(formerlyNonExistingPart, "/")
+						if len(parts) > 0 {
+							if formerlyExistingPathPart == "" {
+								formerlyExistingPathPart = "/"
+							}
+
+							// SFTP doesn't support recursive directory removal (and it would be unsafe to use in this context anyway), so we need to remove the
+							// directory tree from the deepest level to the top.
+							for i := 0; i < len(parts); i++ {
+								pathToRemove := filepath.Clean(filepath.Join(formerlyExistingPathPart, strings.Join(parts[:len(parts)-i], "/")))
+								fi, err := files.Lstat(pathToRemove)
+								if err != nil {
+									return fmt.Errorf("Failed to stat path to be removed %q: %w", pathToRemove, err)
+								}
+
+								if fi.IsDir() {
+									entries, err := files.ReadDir(pathToRemove)
+									if err != nil {
+										return fmt.Errorf("Failed to read directory entries: %w", err)
+									}
+
+									if len(entries) > 0 {
+										d.logger.Warn("Could not remove the device path inside container because a directory that needs to be removed is not empty", logger.Ctx{"entres": entries})
+										break
+									}
+								}
+
+								err = files.Remove(pathToRemove)
+								if err != nil {
+									d.logger.Warn("Could not remove the device path inside container", logger.Ctx{"err": err})
+									break
+								}
+							}
+						}
+					} else {
+						err = files.Remove(targetPath)
+						if err != nil {
+							// Only warn here and don't fail as removing a directory
+							// mount may fail if there was already files inside
+							// directory before it was mouted over preventing delete.
+							d.logger.Warn("Could not remove the device path inside container", logger.Ctx{"err": err})
+						}
+					}
+				} else {
+					// Remove option from the device.
+					err = d.deviceVolatileSetFunc(mount.DevName)(map[string]string{"last_state.created": ""})
+					if err != nil {
+						return fmt.Errorf("Error updating volatile for the device: %w", err)
+					}
 				}
 			}
 
