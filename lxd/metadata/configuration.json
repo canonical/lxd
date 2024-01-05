@@ -2728,6 +2728,13 @@
 			"volatile": {
 				"keys": [
 					{
+						"volatile.\u003cdisk_dev_name\u003e.last_state.created": {
+							"longdesc": "If mounting a host directory through a `disk` device creates the target directory, this option contains the path of this newly created target directory.\nFor example, if the target directory is `/opt` and `/opt` already exists in the instance, this key is not set.\nHowever, if the target directory is `/opt/foo` and `/opt/foo` doesn't exist in the instance, this key is set to `/opt/foo`.",
+							"shortdesc": "Path of the directory created from mounting a `disk` device",
+							"type": "string"
+						}
+					},
+					{
 						"volatile.\u003cname\u003e.apply_quota": {
 							"longdesc": "The disk quota is applied the next time the instance starts.",
 							"shortdesc": "Disk quota",
