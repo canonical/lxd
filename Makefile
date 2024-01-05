@@ -138,12 +138,17 @@ doc-setup: client
 	rm -Rf doc/.sphinx/.doctrees
 
 .PHONY: doc
-doc: doc-setup doc-incremental
+doc: doc-setup doc-incremental doc-objects
 
 .PHONY: doc-incremental
 doc-incremental:
 	@echo "Build the documentation"
 	. $(SPHINXENV) ; LOCAL_SPHINX_BUILD=True sphinx-build -c doc/ -b dirhtml doc/ doc/html/ -d doc/.sphinx/.doctrees -w doc/.sphinx/warnings.txt
+
+.PHONY: doc-objects
+doc-objects:
+	# provide a decoded version of objects.inv to the UI
+	. $(SPHINXENV); cd doc/html; python3 -m sphinx.ext.intersphinx 'objects.inv' > objects.inv.txt
 
 .PHONY: doc-serve
 doc-serve:
