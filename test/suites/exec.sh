@@ -79,3 +79,19 @@ test_concurrent_exec() {
   lxc stop "${name}" --force
   lxc delete "${name}"
 }
+
+test_exec_exit_code() {
+  ensure_import_testimage
+  lxc launch testimage x1
+
+  lxc exec x1 -- true || exitCode=$?
+  [ "${exitCode:-0}" -eq 0 ]
+
+  lxc exec x1 -- false || exitCode=$?
+  [ "${exitCode:-0}" -eq 1 ]
+
+  lxc exec x1 -- invalid-command || exitCode=$?
+  [ "${exitCode:-0}" -eq 127 ]
+
+  lxc delete --force x1
+}
