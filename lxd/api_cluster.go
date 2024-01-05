@@ -370,6 +370,10 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 		d.globalConfigMu.Unlock()
 
 		d.events.SetLocalLocation(d.serverName)
+
+		// Refresh the state.
+		s = d.State()
+
 		// Start clustering tasks
 		d.startClusterTasks()
 
@@ -796,6 +800,9 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		if err != nil {
 			return err
 		}
+
+		// Refresh the state.
+		s = d.State()
 
 		// Start up networks so any post-join changes can be applied now that we have a Node ID.
 		logger.Debug("Starting networks after cluster join")
