@@ -262,7 +262,11 @@ func TestCreateStoragePoolVolume_Snapshot(t *testing.T) {
 	require.NoError(t, err)
 
 	config = map[string]string{"k": "v"}
-	_, err = clusterDB.CreateStorageVolumeSnapshot("default", "v1/snap0", "", 1, poolID, config, time.Now(), time.Time{})
+	err = clusterDB.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_, err = tx.CreateStorageVolumeSnapshot(ctx, "default", "v1/snap0", "", 1, poolID, config, time.Now(), time.Time{})
+
+		return err
+	})
 	require.NoError(t, err)
 
 	n := clusterDB.GetNextStorageVolumeSnapshotIndex("p1", "v1", 1, "snap%d")
