@@ -432,6 +432,7 @@ var APIExtensions = []string{
 	"network_zones_all_projects",
 	"instance_root_volume_attachment",
 	"projects_limits_uplink_ips",
+	"disk_state_created",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
