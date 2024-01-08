@@ -22,16 +22,15 @@ type Group struct {
 // Add a new task to the group, returning its index.
 func (g *Group) Add(f Func, schedule Schedule) *Task {
 	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	i := len(g.tasks)
 	g.tasks = append(g.tasks, Task{
 		f:        f,
 		schedule: schedule,
 		reset:    make(chan struct{}, 16), // Buffered to not block senders
 	})
+	t := &g.tasks[len(g.tasks)-1] // Get the task we added to g.tasks.
+	g.mu.Unlock()
 
-	return &g.tasks[i]
+	return t
 }
 
 // Start all the tasks in the group.
