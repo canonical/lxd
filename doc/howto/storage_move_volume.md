@@ -19,7 +19,7 @@ Use the following command to copy a custom storage volume:
     lxc storage volume copy <source_pool_name>/<source_volume_name> <target_pool_name>/<target_volume_name>
 
 Add the `--volume-only` flag to copy only the volume and skip any snapshots that the volume might have.
-If the volume already exists in the target location, use the `--refresh` flag to update the copy.
+If the volume already exists in the target location, use the `--refresh` flag to update the copy (see {ref}`storage-optimized-volume-transfer` for the benefits).
 
 Specify the same pool as the source and target pool to copy the volume within the same storage pool.
 You must specify different volume names for source and target in this case.
@@ -67,6 +67,8 @@ You can add the `--mode` flag to choose a transfer mode, depending on your netwo
 
 `relay`
 : Pull the storage volume from the source server to the local client, and then push it to the target server.
+
+If the volume already exists in the target location, use the `--refresh` flag to update the copy (see {ref}`storage-optimized-volume-transfer` for the benefits).
 
 (storage-move-instance)=
 ## Move instance storage volumes to another pool
