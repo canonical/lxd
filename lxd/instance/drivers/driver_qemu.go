@@ -6962,7 +6962,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 			targetSnapshotsComparable = append(targetSnapshotsComparable, storagePools.ComparableSnapshot{
 				Name:         targetSnapName,
-				CreationDate: targetSnap.CreationDate(),
+				CreationDate: time.Unix(targetSnap.CreationDate().Unix(), 0),
 			})
 		}
 
