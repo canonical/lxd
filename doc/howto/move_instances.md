@@ -20,6 +20,10 @@ Alternatively, you can use the [`lxc copy`](lxc_copy.md) command if you want to 
 
     lxc copy [<source_remote>:]<source_instance_name> <target_remote>:[<target_instance_name>]
 
+```{tip}
+If the volume already exists in the target location, use the `--refresh` flag to update the copy (see {ref}`storage-optimized-volume-transfer` for the benefits).
+```
+
 In both cases, you don't need to specify the source remote if it is your default remote, and you can leave out the target instance name if you want to use the same instance name.
 If you want to move the instance to a specific cluster member, specify it with the `--target` flag.
 In this case, do not specify the source and target remote.

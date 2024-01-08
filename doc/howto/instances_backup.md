@@ -150,4 +150,4 @@ In that case, either delete the existing instance before importing the backup or
 
 You can copy an instance to a secondary backup server to back it up.
 
-See {ref}`move-instances` for instructions.
+See {ref}`secondary-backup-server` for more information, and {ref}`move-instances` for instructions.
