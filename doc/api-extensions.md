@@ -2690,3 +2690,9 @@ This adds PCI device hotplugging for VMs.
 
 ## `device_patch_removal`
 The `PATCH /1.0/instances/{name}` endpoint allows removing an instance device by setting its value to `null` in the devices map.
+
+## `disk_state_created`
+
+This API extension provides the ability to check if a target directory was created within the instance file system at mount time.
+If a host directory is mounted to an existing instance directory (e.g., `/opt`), the target directory won't be removed upon unmounting.
+However, if LXD creates a target directory during the mount, like `/new_dir`, it will be deleted when the device is unmounted.
