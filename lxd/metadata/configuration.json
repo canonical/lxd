@@ -571,7 +571,7 @@
 							"condition": "container",
 							"defaultdesc": "`false`",
 							"liveupdate": "no",
-							"longdesc": "",
+							"longdesc": "See {ref}`container-security` for more information.",
 							"shortdesc": "Whether to run the instance in privileged mode",
 							"type": "bool"
 						}

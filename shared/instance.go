@@ -718,7 +718,7 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	"security.nesting": validate.Optional(validate.IsBool),
 
 	// lxdmeta:generate(entity=instance, group=security, key=security.privileged)
-	//
+	// See {ref}`container-security` for more information.
 	// ---
 	//  type: bool
 	//  defaultdesc: `false`

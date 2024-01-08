@@ -1,3 +1,7 @@
+---
+relatedlinks: https://linuxcontainers.org/lxc/security/
+---
+
 (exp-security)=
 (security)=
 # About security
@@ -66,15 +70,34 @@ In addition, you should set firewall rules to allow access to the LXD port only 
 
 LXD containers can use a wide range of features for security.
 
+Also see the [LXC security page](https://linuxcontainers.org/lxc/security/) on `linuxcontainers.org` for details on LXC container security and the applied kernel features.
+
+### Unprivileged containers
+
 By default, containers are *unprivileged*, meaning that they operate inside a user namespace, restricting the abilities of users in the container to that of regular users on the host with limited privileges on the devices that the container owns.
 
+Unprivileged containers are safe by design: The container UID 0 is mapped to an unprivileged user outside of the container.
+It has extra rights only on resources that it owns itself.
+
+This mechanism ensures that most security issues (for example, container escape or resource abuse) that might occur in a container apply just as well to a random unprivileged user, which means they are a generic kernel security bug rather than a LXD issue.
+
+```{tip}
 If data sharing between containers isn't needed, you can enable {config:option}`instance-security:security.idmap.isolated`, which will use non-overlapping UID/GID maps for each container, preventing potential {abbr}`DoS (Denial of Service)` attacks on other containers.
+```
+
+### Privileged containers
 
 LXD can also run *privileged* containers.
-Note, however, that those aren't root safe, and a user with root access in such a container will be able to DoS the host as well as find ways to escape confinement.
+In privileged containers, the container UID 0 is mapped to the host's UID 0.
 
-More details on container security and the kernel features we use can be found on the
-[LXC security page](https://linuxcontainers.org/lxc/security/).
+Such privileged containers are not root-safe, and a user with root access in such a container will be able to DoS the host as well as find ways to escape confinement.
+
+LXC applies some protection measures to privileged containers to prevent accidental damage of the host (where damage is defined as things like reconfiguring host hardware, reconfiguring the host kernel, or accessing the host file system).
+This protection of the host and prevention of escape is achieved through mandatory access control (`apparmor`, `selinux`), Seccomp filters, dropping of capabilities, and namespaces.
+These measures are valuable when running trusted workloads, but they do not make privileged containers root-safe.
+
+Therefore, you should not use privileged containers unless required.
+If you use them, make sure to put appropriate security measures in place.
 
 ### Container name leakage
 
