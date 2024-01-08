@@ -105,14 +105,13 @@ func (g *Group) Stop(timeout time.Duration) error {
 	select {
 	case <-ctx.Done():
 		g.mu.Lock()
-		defer g.mu.Unlock()
-
 		running := []string{}
 		for i, value := range g.running {
 			if value {
 				running = append(running, strconv.Itoa(i))
 			}
 		}
+		g.mu.Unlock()
 
 		return fmt.Errorf("Task(s) still running: IDs %v", running)
 	case <-graceful:
