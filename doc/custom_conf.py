@@ -62,7 +62,7 @@ html_favicon = '.sphinx/_static/favicon.ico'
 html_context = {
 
     # Change to the link to your product website (without "https://")
-    'product_page': 'ubuntu.com/lxd',
+    'product_page': 'canonical.com/lxd',
 
     # Add your product tag to ".sphinx/_static" and change the path
     # here (start with "_static"), default is the circle of friends
@@ -144,9 +144,9 @@ linkcheck_exclude_documents = [r'.*/manpages/.*']
 # Add extensions
 custom_extensions = [
     'sphinx.ext.intersphinx',
-    'config-options',
+    'canonical.config-options',
     'sphinx_remove_toctrees',
-    'filtered-toc'
+    'canonical.filtered-toc'
 ]
 
 # Add files or directories that should be excluded from processing.
