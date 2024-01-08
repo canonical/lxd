@@ -39,7 +39,6 @@ func (g *Group) Start(ctx context.Context) {
 	// concurrent calls to Start() or Add(0) don't race. This ensures all tasks in this group
 	// are started based on a consistent snapshot of g.running and g.tasks.
 	g.mu.Lock()
-	defer g.mu.Unlock()
 
 	ctx, g.cancel = context.WithCancel(ctx)
 	g.wg.Add(len(g.tasks))
@@ -59,16 +58,17 @@ func (g *Group) Start(ctx context.Context) {
 		go func(i int) {
 			task.loop(ctx)
 
-			// Ensure running map is updated before wait group Done() is called.
-			g.mu.Lock()
-			defer g.mu.Unlock()
-
 			if g.running != nil {
+				// Ensure running map is updated before wait group Done() is called.
+				g.mu.Lock()
 				g.running[i] = false
+				g.mu.Unlock()
 				g.wg.Done()
 			}
 		}(i)
 	}
+
+	g.mu.Unlock()
 }
 
 // Stop all tasks in the group.
