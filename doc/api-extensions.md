@@ -2520,3 +2520,18 @@ contains the total available logical CPUs available when LXD started.
 ## `vm_limits_cpu_pin_strategy`
 
 Adds a new {config:option}`instance-resource-limits:limits.cpu.pin_strategy` configuration option for virtual machines. This option controls the CPU pinning strategy. When set to `none`, CPU auto pinning is disabled. When set to `auto`, CPU auto pinning is enabled.
+
+## `storage_bucket_backup`
+
+Add storage bucket backup support.
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/storage-pools/<pool>/buckets/<bucket>/backups`
+* `POST /1.0/storage-pools/<pool>/buckets/<bucket>/backups`
+
+* `GET /1.0/storage-pools/<pool>/buckets/<bucket>/backups/<name>`
+* `POST /1.0/storage-pools/<pool>/buckets/<bucket>/backups/<name>`
+* `DELETE /1.0/storage-pools/<pool>/buckets/<bucket>/backups/<name>`
+
+* `GET /1.0/storage-pools/<pool>/buckets/<bucket>/backups/<name>/export`
