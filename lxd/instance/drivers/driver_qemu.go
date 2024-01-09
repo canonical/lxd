@@ -2148,7 +2148,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 
 			for i, mount := range runConf.Mounts {
 				if mount.FSType == "9p" {
-					mountTag, err := d.deviceAttachPath(dev.Name())
+					mountTag, err := d.deviceAttachPath(dev.Name(), mount)
 					if err != nil {
 						return nil, err
 					}
@@ -2182,7 +2182,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 	return runConf, nil
 }
 
-func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) {
+func (d *qemu) deviceAttachPath(deviceName string, mount deviceConfig.MountEntryItem) (mountTag string, err error) {
 	deviceID := qemuDeviceNameOrID(qemuDeviceIDPrefix, deviceName, "-virtio-fs", qemuDeviceIDMaxLength)
 	mountTag = qemuDeviceNameOrID(qemuDeviceNamePrefix, deviceName, "", qemuDeviceNameMaxLength)
 
@@ -2285,6 +2285,32 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 		return "", fmt.Errorf("Failed to add the virtiofs device: %w", err)
 	}
 
+	// Connect to files API.
+	files, err := d.FileSFTP()
+	if err != nil {
+		return "", err
+	}
+
+	defer func() { _ = files.Close() }()
+
+	_, err = files.Lstat(mount.TargetPath)
+	if err != nil {
+		absTargetPath := mount.TargetPath
+		if !strings.HasPrefix(mount.TargetPath, "/") {
+			absTargetPath = fmt.Sprintf("/%s", mount.TargetPath)
+		}
+
+		encodedPath, err := shared.EncodeRemoteAbsPathWithNonExistingDir(files, absTargetPath)
+		if err != nil {
+			return "", fmt.Errorf("Failed to encode remote path: %w", err)
+		}
+
+		err = d.deviceVolatileSetFunc(mount.DevName)(map[string]string{"last_state.created": encodedPath})
+		if err != nil {
+			return "", fmt.Errorf("Error updating volatile for the device: %w", err)
+		}
+	}
+
 	reverter.Success()
 	return mountTag, nil
 }
@@ -2309,7 +2335,29 @@ func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error 
 	return nil
 }
 
-func (d *qemu) deviceDetachPath(deviceName string) error {
+func (d *qemu) unmountPath(deviceName string, rawConfig deviceConfig.Device) error {
+	// First, cleanly unmount the path inside the VM.
+	volatileMountConf := d.deviceVolatileGetFunc(deviceName)()
+	err := d.devlxdDeviceRemove("disk", deviceName, rawConfig, volatileMountConf)
+	if err != nil {
+		return err
+	}
+
+	// Then, remove the volatile key if the path has changed.
+	targetPath := rawConfig["path"]
+	lastPath, ok := volatileMountConf["last_state.created"]
+	if !ok || targetPath != lastPath {
+		// Remove option from the mount.
+		err = d.deviceVolatileSetFunc(deviceName)(map[string]string{"last_state.created": ""})
+		if err != nil {
+			return fmt.Errorf("Error updating volatile for the device: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (d *qemu) deviceDetachPath(deviceName string, rawConfig deviceConfig.Device) error {
 	deviceID := qemuDeviceNameOrID(qemuDeviceIDPrefix, deviceName, "-virtio-fs", qemuDeviceIDMaxLength)
 
 	// Check if the agent is running.
@@ -2339,6 +2387,12 @@ func (d *qemu) deviceDetachPath(deviceName string) error {
 		if time.Now().After(waitUntil) {
 			return fmt.Errorf("Failed to detach path device after %v", waitDuration)
 		}
+	}
+
+	// We still need to remove the virtiofs mount inside the VM.
+	err = d.unmountPath(deviceName, rawConfig)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -2490,7 +2544,7 @@ func (d *qemu) deviceStop(dev device.Device, instanceRunning bool, _ string) err
 		// Detach disk from running instance.
 		if configCopy["type"] == "disk" {
 			if configCopy["path"] != "" {
-				err = d.deviceDetachPath(dev.Name())
+				err = d.deviceDetachPath(dev.Name(), configCopy)
 				if err != nil {
 					return err
 				}
