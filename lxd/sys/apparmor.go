@@ -71,9 +71,9 @@ func (s *OS) initAppArmor() []cluster.Warning {
 
 	/* Detect AppArmor confinment */
 	profile := util.AppArmorProfile()
-	if profile != "unconfined" && profile != "" {
+	if profile != "unconfined" && profile != "" && !strings.HasSuffix(profile, "(unconfined)") {
 		if s.AppArmorAvailable {
-			logger.Warnf("Per-container AppArmor profiles are disabled because LXD is already protected by AppArmor")
+			logger.Warnf("Per-container AppArmor profiles are disabled because LXD is already protected by AppArmor via profile %q", profile)
 		}
 
 		s.AppArmorConfined = true
