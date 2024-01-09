@@ -500,8 +500,6 @@ func (c *cmdProjectList) run(cmd *cobra.Command, args []string) error {
 		remote = args[0]
 	}
 
-	remoteName := strings.TrimSuffix(remote, ":")
-
 	resources, err := c.global.ParseServers(remote)
 	if err != nil {
 		return err
@@ -515,9 +513,10 @@ func (c *cmdProjectList) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	currentProject := conf.Remotes[remoteName].Project
-	if currentProject == "" {
-		currentProject = "default"
+	// Get the current project.
+	info, err := resource.server.GetConnectionInfo()
+	if err != nil {
+		return err
 	}
 
 	data := [][]string{}
@@ -553,7 +552,7 @@ func (c *cmdProjectList) run(cmd *cobra.Command, args []string) error {
 		}
 
 		name := project.Name
-		if name == currentProject {
+		if name == info.Project {
 			name = fmt.Sprintf("%s (%s)", name, i18n.G("current"))
 		}
 
