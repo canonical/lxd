@@ -19,6 +19,13 @@ type Group struct {
 	mu      sync.Mutex
 }
 
+// NewGroup returns new initialised Group.
+func NewGroup() *Group {
+	return &Group{
+		running: make(map[int]bool),
+	}
+}
+
 // Add a new task to the group, returning its index.
 func (g *Group) Add(f Func, schedule Schedule) *Task {
 	g.mu.Lock()
