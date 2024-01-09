@@ -13,7 +13,7 @@ import (
 // function to reset the task's state. See Group.Stop() and Group.Reset() for
 // more details.
 func Start(ctx context.Context, f Func, schedule Schedule) (func(time.Duration) error, func()) {
-	group := Group{}
+	group := NewGroup()
 	task := group.Add(f, schedule)
 	group.Start(ctx)
 
