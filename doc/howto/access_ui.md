@@ -19,7 +19,7 @@ Complete the following steps to access the LXD web UI:
 
 1. Enable the UI in the snap:
 
-       snap set lxd ui.enable=true
+       sudo snap set lxd ui.enable=true
        sudo systemctl reload snap.lxd.daemon
 
 1. Make sure that your LXD server is {ref}`exposed to the network <server-expose>`.
