@@ -24,7 +24,7 @@ profile "{{.name}}" {
   {{ .backupsPath }}/** rw,
   {{ .imagesPath }}/** r,
 
-  signal (receive) set=("term") peer=unconfined,
+  signal (receive) set=("term"),
 
   # Capabilities
   capability chown,
