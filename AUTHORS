@@ -1,8 +1,8 @@
 Unless mentioned otherwise in a specific file's header, the code in this
-project is released under AGPLv3.
-It may contain some contributions that are licensed under the Apache 2
+project is released under AGPL-3.0-only.
+It may contain some contributions that are licensed under the Apache-2.0
 license (this applies to contributions made before 12 December 2023, and
-contributions that are marked as Apache 2 in their commit message).
+contributions that are marked as Apache-2.0 in their commit message).
 
 The list of authors and contributors can be retrieved from the git
 commit history and in some cases, the file headers.

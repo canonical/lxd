@@ -76,7 +76,7 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 
 ## Project and community
 
-LXD is free software and released under [AGPLv3](https://www.gnu.org/licenses/agpl-3.0.en.html) (it may contain some contributions that are licensed under the Apache 2 license, see [License and copyright](contributing)).
+LXD is free software and released under [AGPL-3.0-only](https://www.gnu.org/licenses/agpl-3.0.en.html) (it may contain some contributions that are licensed under the Apache-2.0 license, see [License and copyright](contributing)).
 It’s an open source project that warmly welcomes community projects, contributions, suggestions, fixes and constructive feedback.
 
 The LXD project is sponsored by [Canonical Ltd](https://www.canonical.com).
