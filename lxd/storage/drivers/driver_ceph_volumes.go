@@ -644,7 +644,192 @@ func (d *ceph) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser
 
 // RefreshVolume updates an existing volume to match the state of another.
 func (d *ceph) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
-	return genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
+	// Copy volumes with content type filesystem using the generic approach.
+	if vol.contentType == ContentTypeFS {
+		return genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
+	}
+
+	// Refresh the VMs filesystem volume too.
+	// This will recursively call this function again and fall back to the generic way of refreshing.
+	if srcVol.IsVMBlock() {
+		// Ensure that the volume's snapshots are also replaced with their filesystem counterpart.
+		var srcFsVolSnapshots []Volume
+		for _, snapshot := range srcVol.Snapshots {
+			srcFsVolSnapshots = append(srcFsVolSnapshots, snapshot.NewVMBlockFilesystemVolume())
+		}
+
+		var fsVolSnapshots []Volume
+		for _, snapshot := range vol.Snapshots {
+			fsVolSnapshots = append(fsVolSnapshots, snapshot.NewVMBlockFilesystemVolume())
+		}
+
+		srcFsVolCopy := NewVolumeCopy(srcVol.NewVMBlockFilesystemVolume(), srcFsVolSnapshots...)
+		fsVolCopy := NewVolumeCopy(vol.NewVMBlockFilesystemVolume(), fsVolSnapshots...)
+
+		err := d.RefreshVolume(fsVolCopy, srcFsVolCopy, refreshSnapshots, allowInconsistent, op)
+		if err != nil {
+			return err
+		}
+	}
+
+	var lastCommonSnapshotName string
+	lastCommonSnapshotIndex := d.findLastCommonSnapshotIndex(vol.Snapshots, refreshSnapshots)
+	if lastCommonSnapshotIndex >= 0 {
+		_, lastCommonSnapshotName, _ = api.GetParentAndSnapshotName(vol.Snapshots[lastCommonSnapshotIndex].name)
+	}
+
+	if lastCommonSnapshotName != "" {
+		// Remove all snapshots from the target that will get refreshed.
+		// Those are all the snapshots after the last common snapshot.
+		lastCommonSnapshotFound := false
+		for _, targetSnapshot := range vol.Snapshots {
+			_, targetSnapshotName, _ := api.GetParentAndSnapshotName(targetSnapshot.name)
+			if targetSnapshotName == lastCommonSnapshotName {
+				// The last common snapshot was found.
+				// Continue the loop and start to delete all of the following snapshots.
+				lastCommonSnapshotFound = true
+				continue
+			}
+
+			// Delete all of the snapshots after the last common snapshot.
+			if lastCommonSnapshotFound {
+				ok, err := d.hasVolume(d.getRBDVolumeName(vol.Volume, fmt.Sprintf("snapshot_%s", targetSnapshotName), false, false))
+				if err != nil {
+					return err
+				}
+
+				// The snapshot does not exist on the target.
+				if !ok {
+					continue
+				}
+
+				// Delete the snapshot if its order is out of sync.
+				// This happens if not the latest snapshot on the target side gets deleted and requires refresh.
+				// The VMs filesystem volume snapshot will not be deleted.
+				// It already got refreshed using the generic approach.
+				_, err = d.deleteVolumeSnapshot(vol.Volume, fmt.Sprintf("snapshot_%s", targetSnapshotName))
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		// Before syncing the snapshots restore the target to the last common snapshot.
+		// This is required so that the target volume is at the exact same state as the source volume.
+		// We can then use the Ceph RBD export-diff/import-diff functions to create the delta
+		// between the latest snapshot and source volume and apply it on the target volume.
+		// The VMs filesystem volume will not be restored.
+		// It already got refreshed using the generic approach.
+		err := d.restoreVolume(vol.Volume, vol.Snapshots[lastCommonSnapshotIndex], op)
+		if err != nil {
+			return err
+		}
+	} else {
+		// There isn't a common snapshot on the target volume.
+		// Delete the volume as we will create a new sparse copy.
+		// The VMs filesystem volume will not be deleted.
+		// It already got refreshed using the generic approach.
+		_, err := d.deleteVolume(vol.Volume)
+		if err != nil {
+			return err
+		}
+
+		// Recreate the volume.
+		// A filler is not required since the source diff will be applied.
+		// The snapshots will get synced at a later step.
+		// If the volume is of type snapshot, it will get recreated later from copy.
+		if !srcVol.IsSnapshot() {
+			// The VMs filesystem volume will not be recreated.
+			// It already got refreshed using the generic approach.
+			err := d.rbdCreateVolume(vol.Volume, vol.ConfigSize())
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if srcVol.IsSnapshot() {
+		// The target volume was just deleted.
+		// Simply copy the source volume again to the target.
+		return d.CreateVolumeFromCopy(vol, srcVol, allowInconsistent, op)
+	}
+
+	// Refreshes the targetVol by applying the sourceVol.
+	// sourceVol can either be a volume or snapshot.
+	// The optional sourceParentSnap can be provided to refresh only the diff between sourceSnap and sourceParentSnap.
+	refresh := func(sourceVol Volume, targetVol Volume, sourceParentSnap string) error {
+		// If sourceVol is a snapshot append the prefix to the snapshots name to match the name of the actual snapshot.
+		_, sourceSnapName, _ := api.GetParentAndSnapshotName(sourceVol.Name())
+		if sourceSnapName != "" {
+			sourceSnapName = fmt.Sprintf("snapshot_%s", sourceSnapName)
+		}
+
+		fullSourceSnapName := d.getRBDVolumeName(sourceVol, sourceSnapName, false, true)
+		fullTargetVolName := d.getRBDVolumeName(targetVol, "", false, true)
+
+		return d.copyVolumeDiff(fullSourceSnapName, fullTargetVolName, sourceParentSnap)
+	}
+
+	var lastSnap string
+
+	// Create all missing snapshots on the target using an incremental stream.
+	// Iterate over the source volume's snashots to be able to use them directly for the refresh.
+	// If snapshots should be refreshed, the lists of source and target snapshots are equal.
+	if len(refreshSnapshots) > 0 {
+		lastCommonSnapshotFound := false
+
+		for i, sourceSnapshot := range srcVol.Snapshots {
+			_, sourceSnapshotName, _ := api.GetParentAndSnapshotName(sourceSnapshot.name)
+			if sourceSnapshotName == lastCommonSnapshotName {
+				// The last common snapshot was found.
+				// Continue the loop and start to refresh all of the following snapshots.
+				lastCommonSnapshotFound = true
+				continue
+			}
+
+			// Skip this snapshot if the last common one hasn't been found.
+			// In case there is no last common snapshot start refreshing from the first snapshot onwards.
+			if !lastCommonSnapshotFound && lastCommonSnapshotName != "" {
+				continue
+			}
+
+			var sourceParentSnapshotName string
+
+			// If the sourceSnap doesn't have any parent we cannot set srcParentSnapName.
+			// In this case the first snapshot gets transferred completely without being able to create a diff.
+			// This also happens if the snapshot doesn't yet exist on the target.
+			if i > 0 {
+				_, sourceParentSnapshotName, _ = api.GetParentAndSnapshotName(vol.Snapshots[i-1].name)
+				sourceParentSnapshotName = fmt.Sprintf("snapshot_%s", sourceParentSnapshotName)
+			}
+
+			lastSnap = sourceParentSnapshotName
+
+			err := refresh(sourceSnapshot, vol.Volume, sourceParentSnapshotName)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// A diff to the latest snapshot can only be created if the source and target volume
+	// have at least one common snapshot.
+	// Also when refreshing only the instance, take the last common snapshot to create
+	// the smallest possible diff.
+	// After refreshing the snapshots, the last common snapshot has now been changed to the latest one present on the target.
+	if len(vol.Snapshots) > 0 {
+		_, lastCommonSnapshotName, _ := api.GetParentAndSnapshotName(vol.Snapshots[len(vol.Snapshots)-1].name)
+		lastSnap = fmt.Sprintf("snapshot_%s", lastCommonSnapshotName)
+	}
+
+	// Apply the diff on the target volume.
+	// If commonSnap is set only the diff from the last common snapshot gets refreshed.
+	err := refresh(srcVol.Volume, vol.Volume, lastSnap)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then
