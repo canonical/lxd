@@ -184,7 +184,13 @@ func daemonStorageValidate(s *state.State, target string) error {
 		return err
 	}
 
-	snapshots, err := s.DB.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(api.ProjectDefaultName, volumeName, cluster.StoragePoolVolumeTypeCustom, poolID)
+	var snapshots []db.StorageVolumeArgs
+
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		snapshots, err = tx.GetLocalStoragePoolVolumeSnapshotsWithType(ctx, api.ProjectDefaultName, volumeName, cluster.StoragePoolVolumeTypeCustom, poolID)
+
+		return err
+	})
 	if err != nil {
 		return fmt.Errorf("Unable to load storage volume snapshots %q in %q project: %w", target, api.ProjectDefaultName, err)
 	}
