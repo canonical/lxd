@@ -164,12 +164,6 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.BadRequest(err)
 	}
 
-	// Get a snapshot name.
-	if req.Name == "" {
-		i := s.DB.Cluster.GetNextStorageVolumeSnapshotIndex(poolName, volumeName, volumeType, "snap%d")
-		req.Name = fmt.Sprintf("snap%d", i)
-	}
-
 	// Check that this isn't a restricted volume
 	used, err := storagePools.VolumeUsedByDaemon(s, poolName, volumeName)
 	if err != nil {
@@ -186,13 +180,44 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.SmartError(err)
 	}
 
+	var parentDBVolume *db.StorageVolume
+	var parentVolumeArgs db.StorageVolumeArgs
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get the parent volume so we can get the config.
+		parentDBVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), projectName, volumeType, volumeName, true)
+		if err != nil {
+			return err
+		}
+
+		// We will need the parent volume config to determine the snapshot name.
+		if req.Name == "" {
+			parentVolumeArgs, err = tx.GetStoragePoolVolumeWithID(ctx, int(parentDBVolume.ID))
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if req.Name == "" {
+		snapName, err := volumeDetermineNextSnapshotName(s, parentVolumeArgs, "snap%d")
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		req.Name = snapName
+	}
+
 	// Validate the snapshot name using same rule as pool name.
 	err = pool.ValidateName(req.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
 
-	var parentDBVolume *db.StorageVolume
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Ensure that the snapshot doesn't already exist.
 		snapDBVolume, err := tx.GetStoragePoolVolume(ctx, pool.ID(), projectName, volumeType, fmt.Sprintf("%s/%s", volumeName, req.Name), true)
@@ -200,12 +225,6 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 			return err
 		} else if snapDBVolume != nil {
 			return api.StatusErrorf(http.StatusConflict, "Snapshot %q already in use", req.Name)
-		}
-
-		// Get the parent volume so we can get the config.
-		parentDBVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), projectName, volumeType, volumeName, true)
-		if err != nil {
-			return err
 		}
 
 		return nil
