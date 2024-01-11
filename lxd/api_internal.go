@@ -143,12 +143,12 @@ type internalImageOptimizePost struct {
 }
 
 type internalWarningCreatePost struct {
-	Location   string      `json:"location"         yaml:"location"`
-	Project    string      `json:"project"          yaml:"project"`
+	Location   string      `json:"location"    yaml:"location"`
+	Project    string      `json:"project"     yaml:"project"`
 	EntityType entity.Type `json:"entity_type" yaml:"entity_type"`
-	EntityID   int         `json:"entity_id"        yaml:"entity_id"`
-	TypeCode   int         `json:"type_code"        yaml:"type_code"`
-	Message    string      `json:"message"          yaml:"message"`
+	EntityID   int         `json:"entity_id"   yaml:"entity_id"`
+	TypeCode   int         `json:"type_code"   yaml:"type_code"`
+	Message    string      `json:"message"     yaml:"message"`
 }
 
 // internalCreateWarning creates a warning, and is used for testing only.
@@ -185,7 +185,9 @@ func internalCreateWarning(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	err = d.State().DB.Cluster.UpsertWarning(req.Location, req.Project, req.EntityType, req.EntityID, warningtype.Type(req.TypeCode), req.Message)
+	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.UpsertWarning(ctx, req.Location, req.Project, req.EntityType, req.EntityID, warningtype.Type(req.TypeCode), req.Message)
+	})
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to create warning: %w", err))
 	}

@@ -90,7 +90,9 @@ func storageStartup(s *state.State, forceCheck bool) error {
 		_, err = pool.Mount()
 		if err != nil {
 			logger.Error("Failed mounting storage pool", logger.Ctx{"pool": poolName, "err": err})
-			_ = s.DB.Cluster.UpsertWarningLocalNode("", entity.TypeStoragePool, int(pool.ID()), warningtype.StoragePoolUnvailable, err.Error())
+			_ = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				return tx.UpsertWarningLocalNode(ctx, "", entity.TypeStoragePool, int(pool.ID()), warningtype.StoragePoolUnvailable, err.Error())
+			})
 
 			return false
 		}
