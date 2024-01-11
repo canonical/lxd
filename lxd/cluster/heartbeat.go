@@ -186,7 +186,9 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 			logger.Warn("Failed heartbeat", logger.Ctx{"remote": address, "err": err})
 
 			if ctx.Err() == nil {
-				err = hbState.cluster.UpsertWarningLocalNode("", entity.TypeNode, int(nodeID), warningtype.OfflineClusterMember, err.Error())
+				err = hbState.cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+					return tx.UpsertWarningLocalNode(ctx, "", entity.TypeNode, int(nodeID), warningtype.OfflineClusterMember, err.Error())
+				})
 				if err != nil {
 					logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 				}
