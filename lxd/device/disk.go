@@ -327,7 +327,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		//  required: no
 		//  condition: virtual machine
 		//  shortdesc: Bus for the device
-		"io.bus": validate.Optional(validate.IsOneOf("virtio-scsi", "nvme")),
+		"io.bus": validate.Optional(validate.IsOneOf("nvme", "virtio-blk", "virtio-scsi")),
 	}
 
 	err := d.config.Validate(rules)
