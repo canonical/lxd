@@ -413,6 +413,7 @@ var APIExtensions = []string{
 	"instance_create_start",
 	"instance_protection_start",
 	"devlxd_images_vm",
+	"disk_io_bus_virtio_blk",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
