@@ -84,6 +84,7 @@ Click the instance name to go to the instance detail page, which contains detail
 ```
 ````
 
+(instances-manage-start)=
 ## Start an instance
 
 ````{tabs}
