@@ -14,6 +14,7 @@ storage_btrfs
 storage_cephfs
 storage_cephobject
 storage_ceph
+storage_powerflex
 storage_dir
 storage_lvm
 storage_zfs
@@ -26,22 +27,22 @@ See the corresponding pages for driver-specific information and configuration op
 
 Where possible, LXD uses the advanced features of each storage system to optimize operations.
 
-Feature                                     | Directory | Btrfs | LVM     | ZFS     | Ceph RBD | CephFS | Ceph Object
-:---                                        | :---      | :---  | :---    | :---    | :---     | :---   | :---
-{ref}`storage-optimized-image-storage`      | no        | yes   | yes     | yes     | yes      | n/a    | n/a
-Optimized instance creation                 | no        | yes   | yes     | yes     | yes      | n/a    | n/a
-Optimized snapshot creation                 | no        | yes   | yes     | yes     | yes      | yes    | n/a
-Optimized image transfer                    | no        | yes   | no      | yes     | yes      | n/a    | n/a
-{ref}`storage-optimized-volume-transfer`    | no        | yes   | no      | yes     | yes      | n/a    | n/a
-{ref}`storage-optimized-volume-refresh`     | no        | yes   | yes[^1] | yes     | no       | n/a    | n/a
-Copy on write                               | no        | yes   | yes     | yes     | yes      | yes    | n/a
-Block based                                 | no        | no    | yes     | no      | yes      | no     | n/a
-Instant cloning                             | no        | yes   | yes     | yes     | yes      | yes    | n/a
-Storage driver usable inside a container    | yes       | yes   | no      | yes[^2] | no       | n/a    | n/a
-Restore from older snapshots (not latest)   | yes       | yes   | yes     | no      | yes      | yes    | n/a
-Storage quotas                              | yes[^3]   | yes   | yes     | yes     | yes      | yes    | yes
-Available on `lxd init`                     | yes       | yes   | yes     | yes     | yes      | no     | no
-Object storage                              | yes       | yes   | yes     | yes     | no       | no     | yes
+Feature                                     | Directory | Btrfs | LVM     | ZFS     | Ceph RBD | CephFS | Ceph Object | Dell PowerFlex
+:---                                        | :---      | :---  | :---    | :---    | :---     | :---   | :---        | :---
+{ref}`storage-optimized-image-storage`      | no        | yes   | yes     | yes     | yes      | n/a    | n/a         | no
+Optimized instance creation                 | no        | yes   | yes     | yes     | yes      | n/a    | n/a         | no
+Optimized snapshot creation                 | no        | yes   | yes     | yes     | yes      | yes    | n/a         | yes
+Optimized image transfer                    | no        | yes   | no      | yes     | yes      | n/a    | n/a         | no
+{ref}`storage-optimized-volume-transfer`    | no        | yes   | no      | yes     | yes      | n/a    | n/a         | no
+{ref}`storage-optimized-volume-refresh`     | no        | yes   | yes[^1] | yes     | no       | n/a    | n/a         | no
+Copy on write                               | no        | yes   | yes     | yes     | yes      | yes    | n/a         | yes
+Block based                                 | no        | no    | yes     | no      | yes      | no     | n/a         | yes
+Instant cloning                             | no        | yes   | yes     | yes     | yes      | yes    | n/a         | no
+Storage driver usable inside a container    | yes       | yes   | no      | yes[^2] | no       | n/a    | n/a         | no
+Restore from older snapshots (not latest)   | yes       | yes   | yes     | no      | yes      | yes    | n/a         | yes
+Storage quotas                              | yes[^3]   | yes   | yes     | yes     | yes      | yes    | yes         | yes
+Available on `lxd init`                     | yes       | yes   | yes     | yes     | yes      | no     | no          | no
+Object storage                              | yes       | yes   | yes     | yes     | no       | no     | yes         | no
 
 [^1]: Requires [`lvm.use_thinpool`](storage-lvm-pool-config) to be enabled. Only when refreshing local volumes.
 [^2]: Requires [`zfs.delegate`](storage-zfs-vol-config) to be enabled.
@@ -55,7 +56,7 @@ Object storage                              | yes       | yes   | yes     | yes 
 (storage-optimized-image-storage)=
 ### Optimized image storage
 
-All storage drivers except for the directory driver have some kind of optimized image storage format.
+Most of the storage drivers have some kind of optimized image storage format.
 To make instance creation near instantaneous, LXD clones a pre-made image volume when creating an instance rather than unpacking the image tarball from scratch.
 
 To prevent preparing such a volume on a storage pool that might never be used with that image, the volume is generated on demand.
