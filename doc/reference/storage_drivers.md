@@ -26,24 +26,26 @@ See the corresponding pages for driver-specific information and configuration op
 
 Where possible, LXD uses the advanced features of each storage system to optimize operations.
 
-Feature                                     | Directory | Btrfs | LVM   | ZFS     | Ceph RBD | CephFS | Ceph Object
-:---                                        | :---      | :---  | :---  | :---    | :---     | :---   | :---
-{ref}`storage-optimized-image-storage`      | no        | yes   | yes   | yes     | yes      | n/a    | n/a
-Optimized instance creation                 | no        | yes   | yes   | yes     | yes      | n/a    | n/a
-Optimized snapshot creation                 | no        | yes   | yes   | yes     | yes      | yes    | n/a
-Optimized image transfer                    | no        | yes   | no    | yes     | yes      | n/a    | n/a
-{ref}`storage-optimized-volume-transfer`    | no        | yes   | no    | yes     | yes      | n/a    | n/a
-Copy on write                               | no        | yes   | yes   | yes     | yes      | yes    | n/a
-Block based                                 | no        | no    | yes   | no      | yes      | no     | n/a
-Instant cloning                             | no        | yes   | yes   | yes     | yes      | yes    | n/a
-Storage driver usable inside a container    | yes       | yes   | no    | yes[^1] | no       | n/a    | n/a
-Restore from older snapshots (not latest)   | yes       | yes   | yes   | no      | yes      | yes    | n/a
-Storage quotas                              | yes[^2]   | yes   | yes   | yes     | yes      | yes    | yes
-Available on `lxd init`                     | yes       | yes   | yes   | yes     | yes      | no     | no
-Object storage                              | yes       | yes   | yes   | yes     | no       | no     | yes
+Feature                                     | Directory | Btrfs | LVM     | ZFS     | Ceph RBD | CephFS | Ceph Object
+:---                                        | :---      | :---  | :---    | :---    | :---     | :---   | :---
+{ref}`storage-optimized-image-storage`      | no        | yes   | yes     | yes     | yes      | n/a    | n/a
+Optimized instance creation                 | no        | yes   | yes     | yes     | yes      | n/a    | n/a
+Optimized snapshot creation                 | no        | yes   | yes     | yes     | yes      | yes    | n/a
+Optimized image transfer                    | no        | yes   | no      | yes     | yes      | n/a    | n/a
+{ref}`storage-optimized-volume-transfer`    | no        | yes   | no      | yes     | yes      | n/a    | n/a
+{ref}`storage-optimized-volume-refresh`     | no        | yes   | yes[^1] | yes     | no       | n/a    | n/a
+Copy on write                               | no        | yes   | yes     | yes     | yes      | yes    | n/a
+Block based                                 | no        | no    | yes     | no      | yes      | no     | n/a
+Instant cloning                             | no        | yes   | yes     | yes     | yes      | yes    | n/a
+Storage driver usable inside a container    | yes       | yes   | no      | yes[^2] | no       | n/a    | n/a
+Restore from older snapshots (not latest)   | yes       | yes   | yes     | no      | yes      | yes    | n/a
+Storage quotas                              | yes[^3]   | yes   | yes     | yes     | yes      | yes    | yes
+Available on `lxd init`                     | yes       | yes   | yes     | yes     | yes      | no     | no
+Object storage                              | yes       | yes   | yes     | yes     | no       | no     | yes
 
-[^1]: Requires [`zfs.delegate`](storage-zfs-vol-config) to be enabled.
-[^2]: % Include content from [storage_dir.md](storage_dir.md)
+[^1]: Requires [`lvm.use_thinpool`](storage-lvm-pool-config) to be enabled. Only when refreshing local volumes.
+[^2]: Requires [`zfs.delegate`](storage-zfs-vol-config) to be enabled.
+[^3]: % Include content from [storage_dir.md](storage_dir.md)
 
       ```{include} storage_dir.md
          :start-after: <!-- Include start dir quotas -->
@@ -67,9 +69,15 @@ Btrfs, ZFS and Ceph RBD have an internal send/receive mechanism that allows for 
 LXD uses this optimized transfer when transferring instances and snapshots between storage pools that use the same storage driver, if the storage driver supports optimized transfer and the optimized transfer is actually quicker.
 Otherwise, LXD uses `rsync` to transfer container and file system volumes, or raw block transfer to transfer virtual machine and custom block volumes.
 
-The optimized transfer uses the underlying storage driver's native functionality for transferring data, which is usually faster than using `rsync`.
-However, the full potential of the optimized transfer becomes apparent when refreshing a copy of an instance or custom volume that uses periodic snapshots.
-With optimized transfer, LXD bases the refresh on the latest snapshot, which means:
+The optimized transfer uses the underlying storage driver's native functionality for transferring data, which is usually faster than using `rsync` or raw block transfer.
+
+(storage-optimized-volume-refresh)=
+### Optimized volume refresh
+
+The full potential of the optimized transfer becomes apparent when refreshing a copy of an instance or custom volume that uses periodic snapshots.
+If the optimized transfer isn't supported by the driver or its implementation of volume refresh, instead of the delta, the entire volume including its snapshot(s) will be copied using either `rsync` or raw block transfer. LXD will try to keep the overhead low by transferring only the volume itself or any snapshots that are missing on the target.
+
+When optimized refresh is available for an instance or custom volume, LXD bases the refresh on the latest snapshot, which means:
 
 - When you take a first snapshot and refresh the copy, the transfer will take roughly the same time as a full copy.
   LXD transfers the new snapshot and the difference between the snapshot and the main volume.
@@ -78,9 +86,9 @@ With optimized transfer, LXD bases the refresh on the latest snapshot, which mea
 - When refreshing without a new snapshot, LXD transfers only the differences between the main volume and the latest snapshot on the target.
   This transfer is usually faster than using `rsync` (as long as the latest snapshot is not too outdated).
 
-On the other hand, refreshing copies of instances without snapshots (either because the instance doesn't have any snapshots or because the refresh uses the `--instance-only` flag) would actually be slower than using `rsync`.
+On the other hand, refreshing copies of instances without snapshots (either because the instance doesn't have any snapshots or because the refresh uses the `--instance-only` flag) would actually be slower than using `rsync` or raw block transfer.
 In such cases, the optimized transfer would transfer the difference between the (non-existent) latest snapshot and the main volume, thus the full volume.
-Therefore, LXD uses `rsync` instead of the optimized transfer for refreshes without snapshots.
+Therefore, LXD uses `rsync` or raw block transfer instead of the optimized transfer for refreshes without snapshots.
 
 ## Recommended setup
 
