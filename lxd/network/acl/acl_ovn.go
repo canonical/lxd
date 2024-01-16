@@ -832,7 +832,7 @@ func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvsw
 	// Find alls ACLs that are either directly referred to by OVN entities (networks, instance/profile NICs)
 	// or indirectly by being referred to by a ruleset of another ACL that is itself in use by OVN entities.
 	// For the indirectly referred to ACLs, store a list of the ACLs that are referring to it.
-	err = UsedBy(s, aclProjectName, func(matchedACLNames []string, usageType any, nicName string, nicConfig map[string]string) error {
+	err = UsedBy(s, aclProjectName, func(ctx context.Context, tx *db.ClusterTx, matchedACLNames []string, usageType any, nicName string, nicConfig map[string]string) error {
 		switch u := usageType.(type) {
 		case db.InstanceArgs:
 			ignoreInst, isIgnoreInst := ignoreUsageType.(instance.Instance)
@@ -848,14 +848,7 @@ func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvsw
 				return nil
 			}
 
-			var netID int64
-			var network *api.Network
-
-			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				netID, network, _, err = tx.GetNetworkInAnyState(ctx, aclProjectName, nicConfig["network"])
-
-				return err
-			})
+			netID, network, _, err := tx.GetNetworkInAnyState(ctx, aclProjectName, nicConfig["network"])
 			if err != nil {
 				return fmt.Errorf("Failed to load network %q: %w", nicConfig["network"], err)
 			}
@@ -884,13 +877,7 @@ func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvsw
 			}
 
 			if u.Type == "ovn" {
-				var netID int64
-
-				err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-					netID, _, _, err = tx.GetNetworkInAnyState(ctx, aclProjectName, u.Name)
-
-					return err
-				})
+				netID, _, _, err := tx.GetNetworkInAnyState(ctx, aclProjectName, u.Name)
 				if err != nil {
 					return fmt.Errorf("Failed to load network %q: %w", nicConfig["network"], err)
 				}
@@ -917,14 +904,7 @@ func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvsw
 				return nil
 			}
 
-			var netID int64
-			var network *api.Network
-
-			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				netID, network, _, err = tx.GetNetworkInAnyState(ctx, aclProjectName, nicConfig["network"])
-
-				return err
-			})
+			netID, network, _, err := tx.GetNetworkInAnyState(ctx, aclProjectName, nicConfig["network"])
 			if err != nil {
 				return fmt.Errorf("Failed to load network %q: %w", nicConfig["network"], err)
 			}
