@@ -589,7 +589,7 @@ func instancePostMigration(s *state.State, inst instance.Instance, newName strin
 	return nil
 }
 
-// Move a non-ceph container to another cluster node.
+// Move a non-ceph instance to another cluster node. Source and target members must be online.
 func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, srcMember db.NodeInfo, newMember db.NodeInfo, stateful bool, allowInconsistent bool) (func(op *operations.Operation) error, error) {
 	srcMemberOffline := srcMember.IsOffline(s.GlobalConfig.OfflineThreshold())
 
@@ -600,7 +600,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 	}
 
 	// Save the original value of the "volatile.apply_template" config key,
-	// since we'll want to preserve it in the copied container.
+	// since we'll want to preserve it in the copied instance.
 	origVolatileApplyTemplate := srcInst.LocalConfig()["volatile.apply_template"]
 
 	// Check we can convert the instance to the volume types needed.
