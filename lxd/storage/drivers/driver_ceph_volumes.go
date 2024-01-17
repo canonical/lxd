@@ -484,7 +484,7 @@ func (d *ceph) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 
 		lastSnap = fmt.Sprintf("snapshot_%s", snap)
 		sourceVolumeName := d.getRBDVolumeName(srcVol.Volume, lastSnap, false, true)
-		err = d.copyWithSnapshots(sourceVolumeName, targetVolumeName, prev)
+		err = d.copyVolumeDiff(sourceVolumeName, targetVolumeName, prev)
 		if err != nil {
 			return err
 		}
@@ -505,7 +505,7 @@ func (d *ceph) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 	// Copy snapshot.
 	sourceVolumeName := d.getRBDVolumeName(srcVol.Volume, "", false, true)
 
-	err = d.copyWithSnapshots(sourceVolumeName, targetVolumeName, lastSnap)
+	err = d.copyVolumeDiff(sourceVolumeName, targetVolumeName, lastSnap)
 	if err != nil {
 		return err
 	}
