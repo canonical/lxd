@@ -956,7 +956,16 @@ func migrateInstance(s *state.State, r *http.Request, inst instance.Instance, ta
 		return err
 	}
 
-	// Check if we are migrating a ceph-based instance.
+	// In case of live migration, only root disk can be migrated.
+	if req.Live && inst.IsRunning() {
+		for _, rawConfig := range inst.ExpandedDevices() {
+			if rawConfig["type"] == "disk" && !shared.IsRootDiskDevice(rawConfig) {
+				return fmt.Errorf("Cannot live migrate instance with attached custom volume")
+			}
+		}
+	}
+
+	// Retrieve storage pool of the source instance.
 	srcPool, err := storagePools.LoadByInstance(s, inst)
 	if err != nil {
 		return fmt.Errorf("Failed loading instance storage pool: %w", err)
