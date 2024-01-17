@@ -1814,8 +1814,8 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/StorageVolumePut"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -1900,60 +1900,65 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Use an empty operation for this sync response to pass the requestor
-	op := &operations.Operation{}
-	op.SetRequestor(r)
-
-	if volumeType == db.StoragePoolVolumeTypeCustom {
-		// Restore custom volume from snapshot if requested. This should occur first
-		// before applying config changes so that changes are applied to the
-		// restored volume.
-		if req.Restore != "" {
-			err = pool.RestoreCustomVolume(projectName, dbVolume.Name, req.Restore, op)
-			if err != nil {
-				return response.SmartError(err)
-			}
-		}
-
-		// Handle custom volume update requests.
-		// Only apply changes during a snapshot restore if a non-nil config is supplied to avoid clearing
-		// the volume's config if only restoring snapshot.
-		if req.Config != nil || req.Restore == "" {
-			// Possibly check if project limits are honored.
-			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return project.AllowVolumeUpdate(tx, projectName, volumeName, req, dbVolume.Config)
-			})
-			if err != nil {
-				return response.SmartError(err)
+	run := func(op *operations.Operation) error {
+		if volumeType == db.StoragePoolVolumeTypeCustom {
+			// Restore custom volume from snapshot if requested. This should occur first
+			// before applying config changes so that changes are applied to the
+			// restored volume.
+			if req.Restore != "" {
+				err = pool.RestoreCustomVolume(projectName, dbVolume.Name, req.Restore, op)
+				if err != nil {
+					return err
+				}
 			}
 
-			err = pool.UpdateCustomVolume(projectName, dbVolume.Name, req.Description, req.Config, op)
-			if err != nil {
-				return response.SmartError(err)
+			// Handle custom volume update requests.
+			// Only apply changes during a snapshot restore if a non-nil config is supplied to avoid clearing
+			// the volume's config if only restoring snapshot.
+			if req.Config != nil || req.Restore == "" {
+				// Possibly check if project limits are honored.
+				err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+					return project.AllowVolumeUpdate(tx, projectName, volumeName, req, dbVolume.Config)
+				})
+				if err != nil {
+					return err
+				}
+
+				err = pool.UpdateCustomVolume(projectName, dbVolume.Name, req.Description, req.Config, op)
+				if err != nil {
+					return err
+				}
 			}
-		}
-	} else if volumeType == db.StoragePoolVolumeTypeContainer || volumeType == db.StoragePoolVolumeTypeVM {
-		inst, err := instance.LoadByProjectAndName(s, projectName, dbVolume.Name)
-		if err != nil {
-			return response.SmartError(err)
+		} else if volumeType == db.StoragePoolVolumeTypeContainer || volumeType == db.StoragePoolVolumeTypeVM {
+			inst, err := instance.LoadByProjectAndName(s, projectName, dbVolume.Name)
+			if err != nil {
+				return err
+			}
+
+			// Handle instance volume update requests.
+			err = pool.UpdateInstance(inst, req.Description, req.Config, op)
+			if err != nil {
+				return err
+			}
+		} else if volumeType == db.StoragePoolVolumeTypeImage {
+			// Handle image update requests.
+			err = pool.UpdateImage(dbVolume.Name, req.Description, req.Config, op)
+			if err != nil {
+				return err
+			}
+		} else {
+			return fmt.Errorf("Invalid volume type")
 		}
 
-		// Handle instance volume update requests.
-		err = pool.UpdateInstance(inst, req.Description, req.Config, op)
-		if err != nil {
-			return response.SmartError(err)
-		}
-	} else if volumeType == db.StoragePoolVolumeTypeImage {
-		// Handle image update requests.
-		err = pool.UpdateImage(dbVolume.Name, req.Description, req.Config, op)
-		if err != nil {
-			return response.SmartError(err)
-		}
-	} else {
-		return response.SmartError(fmt.Errorf("Invalid volume type"))
+		return nil
 	}
 
-	return response.EmptySyncResponse
+	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.VolumeUpdate, nil, nil, run, nil, nil, r)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation PATCH /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName} storage storage_pool_volume_type_patch
