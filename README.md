@@ -43,6 +43,19 @@ macOS               | [Homebrew](https://formulae.brew.sh/formula/lxc)  | `brew 
 
 For more instructions on installing LXD for a wide variety of Linux distributions and operating systems, and to install LXD from source, see [How to install LXD](https://documentation.ubuntu.com/lxd/en/latest/installing/) in the documentation.
 
+## Client SDK packages
+
+The LXD project provides SDK client packages for interacting with LXD servers from your own software.
+
+These SDKs are licensed as Apache-2.0.
+
+Language  | URL
+---       | ---
+Go        | https://pkg.go.dev/github.com/canonical/lxd/client
+Python    | https://github.com/canonical/pylxd
+
+For more information on using the LXD API, see [REST API](https://documentation.ubuntu.com/lxd/en/latest/restapi_landing/) in the documentation.
+
 ## Security
 
 <!-- Include start security -->
