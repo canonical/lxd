@@ -88,7 +88,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid instance name"))
 	}
 
-	// Flag indicating whether the node running the container is offline.
+	// Flag indicating whether the node running the instance is offline.
 	sourceNodeOffline := false
 
 	var targetProject *api.Project
@@ -164,7 +164,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	// Cases 1. and 2. are the ones for which the conditional will be true
 	// and we'll either forward the request or load the instance.
 	if target == "" || !sourceNodeOffline {
-		// Handle requests targeted to a container on a different node.
+		// Handle requests targeted to an instance on a different node.
 		resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 		if err != nil {
 			return response.SmartError(err)
