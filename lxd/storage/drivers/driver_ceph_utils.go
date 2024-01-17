@@ -589,10 +589,12 @@ func (d *ceph) rbdListVolumeSnapshots(vol Volume) ([]string, error) {
 	return snapshots, nil
 }
 
-// copyWithSnapshots creates a non-sparse copy of a container including its snapshots.
+// copyVolumeDiff creates a sparse copy of a volume by exporting and importing the diff
+// between `sourceVolumeName` and its optional `sourceParentSnapshot` onto `targetVolumeName`.
 // This does not introduce a dependency relation between the source RBD storage
 // volume and the target RBD storage volume.
-func (d *ceph) copyWithSnapshots(sourceVolumeName string, targetVolumeName string, sourceParentSnapshot string) error {
+// Unlike the classic RBD export only the modified sectors on the RBD storage volume get copied.
+func (d *ceph) copyVolumeDiff(sourceVolumeName string, targetVolumeName string, sourceParentSnapshot string) error {
 	args := []string{
 		"export-diff",
 		"--id", d.config["ceph.user.name"],
