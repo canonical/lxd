@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 )
