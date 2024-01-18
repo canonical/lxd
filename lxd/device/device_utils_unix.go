@@ -10,10 +10,10 @@ import (
 	"golang.org/x/sys/unix"
 
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/idmap"
 	"github.com/canonical/lxd/shared/logger"
 )
 

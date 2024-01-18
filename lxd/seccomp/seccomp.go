@@ -455,6 +455,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/idmap"
 	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
@@ -462,7 +463,6 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/idmap"
 	"github.com/canonical/lxd/shared/linux"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/netutils"
