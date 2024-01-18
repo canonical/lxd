@@ -10,8 +10,8 @@ import (
 	"github.com/canonical/lxd/shared/osarch"
 )
 
-var lxdCompatCombinedItems = []string{"lxd_combined.tar.gz", "incus_combined.tar.gz"}
-var lxdCompatItems = []string{"lxd.tar.xz", "incus.tar.xz"}
+var lxdCompatCombinedItems = []string{"lxd_combined.tar.gz"}
+var lxdCompatItems = []string{"lxd.tar.xz"}
 
 // Products represents the base of download.json.
 type Products struct {
