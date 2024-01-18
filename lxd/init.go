@@ -283,6 +283,77 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 		}
 	}
 
+	// Apply storage volumes configuration.
+	applyStorageVolume := func(storageVolume api.InitStorageVolumesProjectPost) error {
+		// Get the current storageVolume.
+		currentStorageVolume, etag, err := d.UseProject(storageVolume.Project).GetStoragePoolVolume(storageVolume.Pool, storageVolume.Type, storageVolume.Name)
+
+		if err != nil {
+			// Create the storage volume if it doesn't exist.
+			err := d.UseProject(storageVolume.Project).CreateStoragePoolVolume(storageVolume.Pool, storageVolume.StorageVolumesPost)
+			if err != nil {
+				return fmt.Errorf("Failed to create storage volume %q in project %q on pool %q: %w", storageVolume.Name, storageVolume.Project, storageVolume.Pool, err)
+			}
+
+			// Setup reverter.
+			revert.Add(func() {
+				_ = d.UseProject(storageVolume.Project).DeleteStoragePoolVolume(storageVolume.Pool, storageVolume.Type, storageVolume.Name)
+			})
+		} else {
+			// Quick check.
+			if currentStorageVolume.Type != storageVolume.Type {
+				return fmt.Errorf("Storage volume %q in project %q is of type %q instead of %q", currentStorageVolume.Name, storageVolume.Project, currentStorageVolume.Type, storageVolume.Type)
+			}
+
+			// Setup reverter.
+			revert.Add(func() {
+				_ = d.UseProject(storageVolume.Project).UpdateStoragePoolVolume(storageVolume.Pool, currentStorageVolume.Type, currentStorageVolume.Name, currentStorageVolume.Writable(), "")
+			})
+
+			// Prepare the update.
+			newStorageVolume := api.StorageVolumePut{}
+			err = shared.DeepCopy(currentStorageVolume.Writable(), &newStorageVolume)
+			if err != nil {
+				return fmt.Errorf("Failed to copy configuration of storage volume %q in project %q: %w", storageVolume.Name, storageVolume.Project, err)
+			}
+
+			// Description override.
+			if storageVolume.Description != "" {
+				newStorageVolume.Description = storageVolume.Description
+			}
+
+			// Config overrides.
+			for k, v := range storageVolume.Config {
+				newStorageVolume.Config[k] = fmt.Sprintf("%v", v)
+			}
+
+			// Apply it.
+			err = d.UseProject(storageVolume.Project).UpdateStoragePoolVolume(storageVolume.Pool, storageVolume.Type, currentStorageVolume.Name, newStorageVolume, etag)
+			if err != nil {
+				return fmt.Errorf("Failed to update storage volume %q in project %q: %w", storageVolume.Name, storageVolume.Project, err)
+			}
+		}
+
+		return nil
+	}
+
+	// Apply storage volumes in the default project before other projects config.
+	for i := range config.StorageVolumes {
+		// Populate default project if not specified.
+		if config.StorageVolumes[i].Project == "" {
+			config.StorageVolumes[i].Project = api.ProjectDefaultName
+		}
+		// Populate default type if not specified.
+		if config.StorageVolumes[i].Type == "" {
+			config.StorageVolumes[i].Type = "custom"
+		}
+
+		err := applyStorageVolume(config.StorageVolumes[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Apply profile configuration.
 	if config.Profiles != nil && len(config.Profiles) > 0 {
 		// Get the list of profiles.
