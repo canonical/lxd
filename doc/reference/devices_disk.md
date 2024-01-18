@@ -88,6 +88,7 @@ You can also set an initial configuration directly when creating an instance. Fo
 
 Note that you cannot use initial volume configurations with custom volume options or to set the volume's size.
 
+(devices-disk-options)=
 ## Device options
 
 `disk` devices have the following device options:

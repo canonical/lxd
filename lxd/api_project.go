@@ -1342,6 +1342,15 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		// - When set to `block`, this option prevents using all disk devices except the root one.
 		// - When set to `managed`, this option allows using disk devices only if `pool=` is set.
 		// - When set to `allow`, there is no restriction on which disk devices can be used.
+		//
+		//   ```{important}
+		//   When allowing all disk devices, make sure to set
+		//   {config:option}`project-restricted:restricted.devices.disk.paths` to a list of
+		//   path prefixes that you want to allow.
+		//   If you do not restrict the allowed paths, users can attach any disk device, including
+		//   shifted devices (`disk` devices with [`shift`](devices-disk-options) set to `true`),
+		//   which can be used to gain root access to the system.
+		//   ```
 		// ---
 		//  type: string
 		//  defaultdesc: `managed`
