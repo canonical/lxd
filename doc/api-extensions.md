@@ -435,7 +435,7 @@ This adds support to interact with the container console device and console log.
 ## `restrict_devlxd`
 
 A new `security.devlxd` container configuration key was introduced.
-The key controls whether the `/dev/lxd` interface is made available to the container.
+The key controls whether the `/dev/lxd` interface is made available to the instance.
 If set to `false`, this effectively prevents the container from interacting with the LXD daemon.
 
 ## `migration_pre_copy`
