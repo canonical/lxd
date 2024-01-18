@@ -229,4 +229,25 @@ EOF
   [ "$(stat -c '%u:%g' "/proc/${PID}/root/d")" = "$((UID_BASE+29)):$((GID_BASE+29))" ]
 
   lxc delete idmap --force
+
+  # Respawn LXD with kernel ID shifting support disabled to force manual shifting.
+  shutdown_lxd "${LXD_DIR}"
+  lxdIdmappedMountsDisable=${LXD_IDMAPPED_MOUNTS_DISABLE:-}
+
+  export LXD_IDMAPPED_MOUNTS_DISABLE=1
+  respawn_lxd "${LXD_DIR}" true
+
+  lxc launch testimage c1 -c raw.idmap="both 1000 1000"
+  lxc stop c1 --force
+  TEST_FILE="${TEST_DIR}/raw_idmap_test_file"
+  touch "${TEST_FILE}"
+  lxc file push "${TEST_FILE}" c1/root/
+  rm -f "${TEST_FILE}"
+  lxc delete c1
+
+  # Respawn LXD to restore default kernel shifting support.
+  shutdown_lxd "${LXD_DIR}"
+  export LXD_IDMAPPED_MOUNTS_DISABLE="${lxdIdmappedMountsDisable}"
+
+  respawn_lxd "${LXD_DIR}" true
 }
