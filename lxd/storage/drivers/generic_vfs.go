@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/canonical/lxd/lxd/archive"
+	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/revert"
@@ -19,7 +20,6 @@ import (
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/instancewriter"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 )
