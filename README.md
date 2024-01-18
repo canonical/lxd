@@ -10,7 +10,6 @@ LXD allows you to easily set up a system that feels like a small private cloud. 
 
 You should consider using LXD if you want to containerize different environments or run virtual machines, or in general run and manage your infrastructure in a cost-effective way.
 
-
 <!-- Include end LXD intro -->
 
 ## Get started
@@ -20,7 +19,6 @@ See [Getting started](https://documentation.ubuntu.com/lxd/en/latest/getting_sta
 - Release announcements: [`https://discourse.ubuntu.com/c/lxd/news/`](https://discourse.ubuntu.com/c/lxd/news/)
 - Release tarballs: [`https://github.com/canonical/lxd/releases/`](https://github.com/canonical/lxd/releases/)
 - Documentation: [`https://documentation.ubuntu.com/lxd/en/latest/`](https://documentation.ubuntu.com/lxd/en/latest/)
-
 
 ## Status
 
@@ -69,7 +67,6 @@ Consider the following aspects to ensure that your LXD installation is secure:
 - Do not use privileged containers unless required. If you use privileged containers, put appropriate security measures in place.
   <!-- Include end security -->
   See [Container security](https://documentation.ubuntu.com/lxd/en/latest/explanation/security/#container-security) for more information.
-
 
 See [Security](https://documentation.ubuntu.com/lxd/en/latest/explanation/security/) for detailed information.
 
