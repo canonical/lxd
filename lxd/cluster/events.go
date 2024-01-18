@@ -9,10 +9,10 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/endpoints"
 	"github.com/canonical/lxd/lxd/events"
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 // eventHubMinHosts is the minimum number of members that must have the event-hub role to trigger switching into

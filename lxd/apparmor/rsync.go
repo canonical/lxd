@@ -10,9 +10,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 var rsyncProfileTpl = template.Must(template.New("rsyncProfile").Parse(`#include <tunables/global>

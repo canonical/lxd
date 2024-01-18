@@ -13,8 +13,8 @@ import (
 	bgpServer "github.com/osrg/gobgp/v3/pkg/server"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 // Server represents a BGP server instance.
