@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
@@ -16,7 +17,6 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/instancewriter"
 	"github.com/canonical/lxd/shared/logger"
 )
 

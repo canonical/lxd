@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/revert"
@@ -16,7 +17,6 @@ import (
 	"github.com/canonical/lxd/lxd/storage/quota"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/instancewriter"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/units"
 )
