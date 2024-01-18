@@ -623,39 +623,6 @@ func deviceTaskBalance(s *state.State) {
 	}
 }
 
-func deviceNetworkPriority(s *state.State, netif string) {
-	// Don't bother running when CGroup support isn't there
-	if !s.OS.CGInfo.Supports(cgroup.NetPrio, nil) {
-		return
-	}
-
-	instances, err := instance.LoadNodeAll(s, instancetype.Container)
-	if err != nil {
-		return
-	}
-
-	for _, c := range instances {
-		// Extract the current priority
-		networkPriority := c.ExpandedConfig()["limits.network.priority"]
-		if networkPriority == "" {
-			continue
-		}
-
-		networkInt, err := strconv.Atoi(networkPriority)
-		if err != nil {
-			continue
-		}
-
-		// Set the value for the new interface
-		cg, err := c.CGroup()
-		if err != nil {
-			continue
-		}
-
-		_ = cg.SetNetIfPrio(fmt.Sprintf("%s %d", netif, networkInt))
-	}
-}
-
 // deviceEventListener starts the event listener for resource scheduling.
 // Accepts stateFunc which will be called each time it needs a fresh state.State.
 func deviceEventListener(stateFunc func() *state.State) {
@@ -695,7 +662,6 @@ func deviceEventListener(stateFunc func() *state.State) {
 			}
 
 			logger.Debugf("Scheduler: network: %s has been added: updating network priorities", e[0])
-			deviceNetworkPriority(s, e[0])
 			err = networkAutoAttach(s.DB.Cluster, e[0])
 			if err != nil {
 				logger.Warn("Failed to auto-attach network", logger.Ctx{"err": err})
