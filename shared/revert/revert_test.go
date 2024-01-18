@@ -3,7 +3,7 @@ package revert_test
 import (
 	"fmt"
 
-	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 func ExampleReverter_fail() {
