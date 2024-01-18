@@ -2770,7 +2770,6 @@ cp udev/99-lxd-agent.rules /lib/udev/rules.d/
 cp systemd/lxd-agent.service /lib/systemd/system/
 cp systemd/lxd-agent-setup /lib/systemd/
 systemctl daemon-reload
-systemctl enable lxd-agent.service
 
 echo ""
 echo "LXD agent has been installed, reboot to confirm setup."

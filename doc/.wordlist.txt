@@ -94,6 +94,7 @@ hotplug
 hotplugged
 hotplugging
 HTTPS
+HWE
 ICMP
 IPAM
 idmap
