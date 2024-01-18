@@ -7,6 +7,7 @@ package cluster
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -17,11 +18,16 @@ import (
 
 var _ = api.ServerEnvironment{}
 
+var operationID = RegisterStmt(`
+SELECT operations.id FROM operations
+  WHERE operations.uuid = ?
+`)
+
 var operationObjects = RegisterStmt(`
 SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
-  ORDER BY operations.id, operations.uuid
+  ORDER BY operations.uuid
 `)
 
 var operationObjectsByNodeID = RegisterStmt(`
@@ -29,7 +35,7 @@ SELECT operations.id, operations.uuid, nodes.address AS node_address, operations
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.node_id = ? )
-  ORDER BY operations.id, operations.uuid
+  ORDER BY operations.uuid
 `)
 
 var operationObjectsByID = RegisterStmt(`
@@ -37,7 +43,7 @@ SELECT operations.id, operations.uuid, nodes.address AS node_address, operations
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.id = ? )
-  ORDER BY operations.id, operations.uuid
+  ORDER BY operations.uuid
 `)
 
 var operationObjectsByUUID = RegisterStmt(`
@@ -45,12 +51,17 @@ SELECT operations.id, operations.uuid, nodes.address AS node_address, operations
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.uuid = ? )
-  ORDER BY operations.id, operations.uuid
+  ORDER BY operations.uuid
 `)
 
 var operationCreateOrReplace = RegisterStmt(`
 INSERT OR REPLACE INTO operations (uuid, project_id, node_id, type)
  VALUES (?, ?, ?, ?)
+`)
+
+var operationCreate = RegisterStmt(`
+INSERT INTO operations (uuid, project_id, node_id, type)
+  VALUES (?, ?, ?, ?)
 `)
 
 var operationDeleteByUUID = RegisterStmt(`
@@ -245,6 +256,84 @@ func CreateOrReplaceOperation(ctx context.Context, tx *sql.Tx, object Operation)
 	stmt, err := Stmt(tx, operationCreateOrReplace)
 	if err != nil {
 		return -1, fmt.Errorf("Failed to get \"operationCreateOrReplace\" prepared statement: %w", err)
+	}
+
+	// Execute the statement.
+	result, err := stmt.Exec(args...)
+	if err != nil {
+		return -1, fmt.Errorf("Failed to create \"operations\" entry: %w", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return -1, fmt.Errorf("Failed to fetch \"operations\" entry ID: %w", err)
+	}
+
+	return id, nil
+}
+
+// GetOperationID return the ID of the operation with the given key.
+// generator: operation ID
+func GetOperationID(ctx context.Context, tx *sql.Tx, uuid string) (int64, error) {
+	stmt, err := Stmt(tx, operationID)
+	if err != nil {
+		return -1, fmt.Errorf("Failed to get \"operationID\" prepared statement: %w", err)
+	}
+
+	row := stmt.QueryRowContext(ctx, uuid)
+	var id int64
+	err = row.Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return -1, api.StatusErrorf(http.StatusNotFound, "Operation not found")
+	}
+
+	if err != nil {
+		return -1, fmt.Errorf("Failed to get \"operations\" ID: %w", err)
+	}
+
+	return id, nil
+}
+
+// OperationExists checks if a operation with the given key exists.
+// generator: operation Exists
+func OperationExists(ctx context.Context, tx *sql.Tx, uuid string) (bool, error) {
+	_, err := GetOperationID(ctx, tx, uuid)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return true, nil
+}
+
+// CreateOperation adds a new operation to the database.
+// generator: operation Create
+func CreateOperation(ctx context.Context, tx *sql.Tx, object Operation) (int64, error) {
+	// Check if a operation with the same key exists.
+	exists, err := OperationExists(ctx, tx, object.UUID)
+	if err != nil {
+		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
+	}
+
+	if exists {
+		return -1, api.StatusErrorf(http.StatusConflict, "This \"operations\" entry already exists")
+	}
+
+	args := make([]any, 4)
+
+	// Populate the statement arguments.
+	args[0] = object.UUID
+	args[1] = object.ProjectID
+	args[2] = object.NodeID
+	args[3] = object.Type
+
+	// Prepared statement to use.
+	stmt, err := Stmt(tx, operationCreate)
+	if err != nil {
+		return -1, fmt.Errorf("Failed to get \"operationCreate\" prepared statement: %w", err)
 	}
 
 	// Execute the statement.
