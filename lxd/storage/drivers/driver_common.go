@@ -13,11 +13,11 @@ import (
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 type common struct {

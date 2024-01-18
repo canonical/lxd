@@ -12,10 +12,10 @@ import (
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/storage/s3/miniod"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 // VolumeUsage contains the used and total size of a volume.

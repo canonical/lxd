@@ -37,7 +37,6 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/response"
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
@@ -49,6 +48,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
 )
 

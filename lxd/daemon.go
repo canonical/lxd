@@ -54,7 +54,6 @@ import (
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/rsync"
 	scriptletLoad "github.com/canonical/lxd/lxd/scriptlet/load"
 	"github.com/canonical/lxd/lxd/seccomp"
@@ -72,6 +71,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
 
