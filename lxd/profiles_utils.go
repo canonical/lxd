@@ -11,7 +11,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -44,13 +43,13 @@ func doProfileUpdate(s *state.State, p api.Project, profileName string, id int64
 
 	// Check if the root disk device's pool would be changed or removed and prevent that if there are instances
 	// using that root disk device.
-	oldProfileRootDiskDeviceKey, oldProfileRootDiskDevice, _ := shared.GetRootDiskDevice(profile.Devices)
-	_, newProfileRootDiskDevice, _ := shared.GetRootDiskDevice(req.Devices)
+	oldProfileRootDiskDeviceKey, oldProfileRootDiskDevice, _ := instancetype.GetRootDiskDevice(profile.Devices)
+	_, newProfileRootDiskDevice, _ := instancetype.GetRootDiskDevice(req.Devices)
 	if len(insts) > 0 && oldProfileRootDiskDevice["pool"] != "" && newProfileRootDiskDevice["pool"] == "" || (oldProfileRootDiskDevice["pool"] != newProfileRootDiskDevice["pool"]) {
 		// Check for instances using the device.
 		for _, inst := range insts {
 			// Check if the device is locally overridden.
-			k, v, _ := shared.GetRootDiskDevice(inst.Devices.CloneNative())
+			k, v, _ := instancetype.GetRootDiskDevice(inst.Devices.CloneNative())
 			if k != "" && v["pool"] != "" {
 				continue
 			}
