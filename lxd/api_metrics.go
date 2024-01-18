@@ -16,6 +16,7 @@ import (
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
@@ -204,6 +205,35 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	allProjectInstances := make(map[string]map[instancetype.Type]int)
+
+	// Total number of instances, both running and stopped.
+	for _, instance := range instances {
+		_, ok := allProjectInstances[instance.Project().Name]
+		if !ok {
+			allProjectInstances[instance.Project().Name] = make(map[instancetype.Type]int)
+		}
+
+		allProjectInstances[instance.Project().Name][instance.Type()]++
+	}
+
+	for project, instanceCountMap := range allProjectInstances {
+		metricSet.AddSamples(
+			metrics.Containers,
+			metrics.Sample{
+				Labels: map[string]string{"project": project},
+				Value:  float64(instanceCountMap[instancetype.Container]),
+			},
+		)
+		metricSet.AddSamples(
+			metrics.VMs,
+			metrics.Sample{
+				Labels: map[string]string{"project": project},
+				Value:  float64(instanceCountMap[instancetype.VM]),
+			},
+		)
+	}
+
 	// Prepare temporary metrics storage.
 	newMetrics := make(map[string]*metrics.MetricSet, len(projectsToFetch))
 	newMetricsLock := sync.Mutex{}
@@ -305,6 +335,15 @@ func getFilteredMetrics(s *state.State, r *http.Request, compress bool, metricSe
 		return response.SyncResponsePlain(true, compress, metricSet.String())
 	}
 
+	// Filter by project name and instance name.
+	metricSet.FilterSamples(userHasPermission)
+
+	userHasPermission, err = s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, auth.ObjectTypeProject)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Filter by project only.
 	metricSet.FilterSamples(userHasPermission)
 
 	return response.SyncResponsePlain(true, compress, metricSet.String())

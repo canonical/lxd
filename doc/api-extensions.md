@@ -2336,3 +2336,7 @@ The new configuration keys are `network.ovn.ca_cert`, `network.ovn.client_cert` 
 
 ## `init_preseed_storage_volumes`
 This API extension provides the ability to configure storage volumes in preseed init.
+
+## `metrics_instances_count`
+
+This extends the metrics to include the containers and virtual machines counts. Instances are counted irrespective of their state.

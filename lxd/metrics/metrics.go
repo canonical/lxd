@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/shared"
 )
 
 // NewMetricSet returns a new MetricSet.
@@ -22,19 +23,25 @@ func NewMetricSet(labels map[string]string) *MetricSet {
 	return &out
 }
 
-// FilterSamples filters the existing MetricSet using the given permission checker. Samples not containing "project" and
-// "name" labels are skipped.
+// FilterSamples filters the existing MetricSet using the given permission checker. Samples not containing the "project" label are skipped.
 func (m *MetricSet) FilterSamples(permissionChecker func(object auth.Object) bool) {
 	for metricType, samples := range m.set {
 		allowedSamples := make([]Sample, 0, len(samples))
 		for _, s := range samples {
 			projectName := s.Labels["project"]
 			instanceName := s.Labels["name"]
-			if projectName == "" || instanceName == "" {
+			if projectName == "" {
 				continue
 			}
 
-			hasPermission := permissionChecker(auth.ObjectInstance(projectName, instanceName))
+			var hasPermission bool
+
+			if instanceName != "" {
+				hasPermission = permissionChecker(auth.ObjectInstance(projectName, instanceName))
+			} else {
+				hasPermission = permissionChecker(auth.ObjectProject(projectName))
+			}
+
 			if hasPermission {
 				allowedSamples = append(allowedSamples, s)
 			}
@@ -95,6 +102,15 @@ func (m *MetricSet) String() string {
 		return int(metricTypes[i]) < int(metricTypes[j])
 	})
 
+	gaugeMetrics := []MetricType{
+		ProcsTotal,
+		CPUs,
+		GoGoroutines,
+		GoHeapObjects,
+		Containers,
+		VMs,
+	}
+
 	for _, metricType := range metricTypes {
 		// Add HELP message as specified by OpenMetrics
 		_, err := out.WriteString(MetricHeaders[metricType] + "\n")
@@ -105,7 +121,7 @@ func (m *MetricSet) String() string {
 		metricTypeName := ""
 
 		// ProcsTotal is a gauge according to the OpenMetrics spec as its value can decrease.
-		if metricType == ProcsTotal || metricType == CPUs || metricType == GoGoroutines || metricType == GoHeapObjects {
+		if shared.ValueInSlice(metricType, gaugeMetrics) {
 			metricTypeName = "gauge"
 		} else if strings.HasSuffix(MetricNames[metricType], "_total") || strings.HasSuffix(MetricNames[metricType], "_seconds") {
 			metricTypeName = "counter"
