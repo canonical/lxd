@@ -13,12 +13,12 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/revert"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/idmap"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/subprocess"
 )

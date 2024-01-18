@@ -13,11 +13,11 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/idmap"
 	"github.com/canonical/lxd/shared/logger"
 )
 
