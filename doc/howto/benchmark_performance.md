@@ -71,8 +71,8 @@ For example:
   - Description
 * - `lxd.benchmark init --count 10 --privileged`
   - Create ten privileged containers that use the latest Ubuntu image.
-* - `lxd.benchmark init --count 20 --parallel 4 images:alpine/edge`
-  - Create 20 containers that use the Alpine Edge image, using four parallel threads.
+* - `lxd.benchmark init --count 20 --parallel 4 ubuntu-minimal:22.04`
+  - Create 20 containers that use the Ubuntu Minimal 22.04 image, using four parallel threads.
 * - `lxd.benchmark init 2d21da400963`
   - Create one container that uses the local image with the fingerprint `2d21da400963`.
 * - `lxd.benchmark init --count 10 ubuntu`
