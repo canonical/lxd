@@ -12,11 +12,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 
+	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/rsync"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/linux"
 	"github.com/canonical/lxd/shared/ws"
 )
 
