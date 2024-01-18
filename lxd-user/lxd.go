@@ -8,10 +8,10 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 func lxdIsConfigured(client lxd.InstanceServer) (bool, error) {
