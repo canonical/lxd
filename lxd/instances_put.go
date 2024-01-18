@@ -15,7 +15,6 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -94,7 +93,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	action := shared.InstanceAction(req.State.Action)
+	action := instancetype.InstanceAction(req.State.Action)
 
 	var names []string
 	var instances []instance.Instance
@@ -104,27 +103,27 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		}
 
 		switch action {
-		case shared.Freeze:
+		case instancetype.Freeze:
 			if !inst.IsRunning() {
 				continue
 			}
 
-		case shared.Restart:
+		case instancetype.Restart:
 			if !inst.IsRunning() {
 				continue
 			}
 
-		case shared.Start:
+		case instancetype.Start:
 			if inst.IsRunning() {
 				continue
 			}
 
-		case shared.Stop:
+		case instancetype.Stop:
 			if !inst.IsRunning() {
 				continue
 			}
 
-		case shared.Unfreeze:
+		case instancetype.Unfreeze:
 			if inst.IsRunning() {
 				continue
 			}

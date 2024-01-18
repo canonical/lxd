@@ -27,6 +27,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/operations"
@@ -230,7 +231,7 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 
 	for pool, config := range pools {
 		for key := range config {
-			if strings.HasPrefix(key, shared.ConfigVolatilePrefix) {
+			if strings.HasPrefix(key, instancetype.ConfigVolatilePrefix) {
 				continue
 			}
 
@@ -247,7 +248,7 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 
 	for network, config := range networks {
 		for key := range config {
-			if strings.HasPrefix(key, shared.ConfigVolatilePrefix) {
+			if strings.HasPrefix(key, instancetype.ConfigVolatilePrefix) {
 				continue
 			}
 

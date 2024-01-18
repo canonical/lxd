@@ -490,12 +490,12 @@ func instancePostMigration(s *state.State, inst instance.Instance, newName strin
 	// profiles in the target project. If the new root disk device differs from the existing
 	// one, add the existing one as a local device to the instance (we don't want to move root
 	// disk device if not necessary, as this is an expensive operation).
-	rootDevKey, rootDev, err := shared.GetRootDiskDevice(localDevices.CloneNative())
-	if err != nil && !errors.Is(err, shared.ErrNoRootDisk) {
+	rootDevKey, rootDev, err := instancetype.GetRootDiskDevice(localDevices.CloneNative())
+	if err != nil && !errors.Is(err, instancetype.ErrNoRootDisk) {
 		return err
-	} else if errors.Is(err, shared.ErrNoRootDisk) {
+	} else if errors.Is(err, instancetype.ErrNoRootDisk) {
 		// Find currently applied root disk device from expanded devices.
-		rootDevKey, rootDev, err = shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+		rootDevKey, rootDev, err = instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 		if err != nil {
 			return err
 		}
@@ -505,7 +505,7 @@ func instancePostMigration(s *state.State, inst instance.Instance, newName strin
 		// precedence.
 		var profileRootDev map[string]string
 		for i := len(apiProfiles) - 1; i >= 0; i-- {
-			_, profileRootDev, err = shared.GetRootDiskDevice(apiProfiles[i].Devices)
+			_, profileRootDev, err = instancetype.GetRootDiskDevice(apiProfiles[i].Devices)
 			if err == nil {
 				break
 			}
@@ -930,7 +930,7 @@ func migrateInstance(s *state.State, r *http.Request, inst instance.Instance, ta
 	// In case of live migration, only root disk can be migrated.
 	if req.Live && inst.IsRunning() {
 		for _, rawConfig := range inst.ExpandedDevices() {
-			if rawConfig["type"] == "disk" && !shared.IsRootDiskDevice(rawConfig) {
+			if rawConfig["type"] == "disk" && !instancetype.IsRootDiskDevice(rawConfig) {
 				return fmt.Errorf("Cannot live migrate instance with attached custom volume")
 			}
 		}

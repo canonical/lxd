@@ -1264,7 +1264,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 
 	// Hugepages
 	if d.state.OS.CGInfo.Supports(cgroup.Hugetlb, cg) {
-		for i, key := range shared.HugePageSizeKeys {
+		for i, key := range instancetype.HugePageSizeKeys {
 			value := d.expandedConfig[key]
 			if value != "" {
 				value, err := units.ParseByteSizeString(value)
@@ -1272,7 +1272,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 					return nil, err
 				}
 
-				err = cg.SetHugepagesLimit(shared.HugePageSizeSuffix[i], value)
+				err = cg.SetHugepagesLimit(instancetype.HugePageSizeSuffix[i], value)
 				if err != nil {
 					return nil, err
 				}
@@ -4265,8 +4265,8 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		// Validate root device
-		_, oldRootDev, oldErr := shared.GetRootDiskDevice(oldExpandedDevices.CloneNative())
-		_, newRootDev, newErr := shared.GetRootDiskDevice(d.expandedDevices.CloneNative())
+		_, oldRootDev, oldErr := instancetype.GetRootDiskDevice(oldExpandedDevices.CloneNative())
+		_, newRootDev, newErr := instancetype.GetRootDiskDevice(d.expandedDevices.CloneNative())
 		if oldErr == nil && newErr == nil && oldRootDev["pool"] != newRootDev["pool"] {
 			return fmt.Errorf("Cannot update root disk device pool name to %q", newRootDev["pool"])
 		}
@@ -6064,7 +6064,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		// disk device so we can simply retrieve it from the expanded devices.
 		parentStoragePool := ""
 		parentExpandedDevices := d.ExpandedDevices()
-		parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices.CloneNative())
+		parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := instancetype.GetRootDiskDevice(parentExpandedDevices.CloneNative())
 		if parentLocalRootDiskDeviceKey != "" {
 			parentStoragePool = parentLocalRootDiskDevice["pool"]
 		}
@@ -6093,7 +6093,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					// disk device for the snapshot comes from a profile on the
 					// new instance as well we don't need to do anything.
 					if snapArgs.Devices != nil {
-						snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapArgs.Devices.CloneNative())
+						snapLocalRootDiskDeviceKey, _, _ := instancetype.GetRootDiskDevice(snapArgs.Devices.CloneNative())
 						if snapLocalRootDiskDeviceKey != "" {
 							snapArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 						}
@@ -7815,7 +7815,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 
 		// Include all currently allocated interface names
 		for k, v := range d.expandedConfig {
-			if !strings.HasPrefix(k, shared.ConfigVolatilePrefix) {
+			if !strings.HasPrefix(k, instancetype.ConfigVolatilePrefix) {
 				continue
 			}
 

@@ -1,4 +1,4 @@
-package shared
+package instancetype
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
 )
@@ -300,7 +300,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	//  shortdesc: Controls when snapshots are to be deleted (expects an expression like `1M 2H 3d 4w 5m 6y`)
 	"snapshots.expiry": func(value string) error {
 		// Validate expression
-		_, err := GetExpiry(time.Time{}, value)
+		_, err := shared.GetExpiry(time.Time{}, value)
 		return err
 	},
 
@@ -633,20 +633,20 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 // syntactic checking of the value, semantic and usage checking must
 // be done by the caller.  User defined keys are always considered to
 // be valid, e.g. user.* and environment.* keys.
-func ConfigKeyChecker(key string, instanceType instancetype.Type) (func(value string) error, error) {
+func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, error) {
 	f, ok := InstanceConfigKeysAny[key]
 	if ok {
 		return f, nil
 	}
 
-	if instanceType == instancetype.Any || instanceType == instancetype.Container {
+	if instanceType == Any || instanceType == Container {
 		f, ok := InstanceConfigKeysContainer[key]
 		if ok {
 			return f, nil
 		}
 	}
 
-	if instanceType == instancetype.Any || instanceType == instancetype.VM {
+	if instanceType == Any || instanceType == VM {
 		f, ok := InstanceConfigKeysVM[key]
 		if ok {
 			return f, nil
@@ -728,7 +728,7 @@ func ConfigKeyChecker(key string, instanceType instancetype.Type) (func(value st
 		return validate.IsAny, nil
 	}
 
-	if (instanceType == instancetype.Any || instanceType == instancetype.Container) &&
+	if (instanceType == Any || instanceType == Container) &&
 		strings.HasPrefix(key, "linux.sysctl.") {
 		return validate.IsAny, nil
 	}

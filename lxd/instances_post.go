@@ -423,7 +423,7 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 
 		if serverName != source.Location() {
 			// Check if we are copying from a ceph-based container.
-			_, rootDevice, _ := shared.GetRootDiskDevice(source.ExpandedDevices().CloneNative())
+			_, rootDevice, _ := instancetype.GetRootDiskDevice(source.ExpandedDevices().CloneNative())
 			sourcePoolName := rootDevice["pool"]
 
 			destPoolName, _, _, _, resp := instanceFindStoragePool(s, targetProject, req)
@@ -456,7 +456,7 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 	}
 
 	for key, value := range sourceConfig {
-		if !shared.InstanceIncludeWhenCopying(key, false) {
+		if !instancetype.InstanceIncludeWhenCopying(key, false) {
 			logger.Debug("Skipping key from copy source", logger.Ctx{"key": key, "sourceProject": source.Project().Name, "sourceInstance": source.Name(), "project": targetProject, "instance": req.Name})
 			continue
 		}
@@ -672,7 +672,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 			return response.InternalError(fmt.Errorf("Failed to get default profile: %w", err))
 		}
 
-		_, v, err := shared.GetRootDiskDevice(profile.Devices)
+		_, v, err := instancetype.GetRootDiskDevice(profile.Devices)
 		if err != nil {
 			return response.InternalError(fmt.Errorf("Failed to get root disk device: %w", err))
 		}
@@ -1112,7 +1112,7 @@ func instanceFindStoragePool(s *state.State, projectName string, req *api.Instan
 	storagePool := ""
 	storagePoolProfile := ""
 
-	localRootDiskDeviceKey, localRootDiskDevice, _ := shared.GetRootDiskDevice(req.Devices)
+	localRootDiskDeviceKey, localRootDiskDevice, _ := instancetype.GetRootDiskDevice(req.Devices)
 	if localRootDiskDeviceKey != "" {
 		storagePool = localRootDiskDevice["pool"]
 	}
@@ -1136,7 +1136,7 @@ func instanceFindStoragePool(s *state.State, projectName string, req *api.Instan
 				return "", "", "", nil, response.SmartError(err)
 			}
 
-			k, v, _ := shared.GetRootDiskDevice(p.Devices)
+			k, v, _ := instancetype.GetRootDiskDevice(p.Devices)
 			if k != "" && v["pool"] != "" {
 				// Keep going as we want the last one in the profile chain
 				storagePool = v["pool"]
