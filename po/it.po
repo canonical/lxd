@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2023-12-01 11:57+0100\n"
+"POT-Creation-Date: 2024-01-18 19:58+0100\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -620,11 +620,11 @@ msgstr ""
 msgid "--expanded cannot be used with a server"
 msgstr ""
 
-#: lxc/copy.go:155
+#: lxc/copy.go:156
 msgid "--instance-only can't be passed when the source is a snapshot"
 msgstr ""
 
-#: lxc/copy.go:89
+#: lxc/copy.go:90
 msgid "--no-profiles cannot be used with --refresh"
 msgstr ""
 
@@ -632,7 +632,7 @@ msgstr ""
 msgid "--project cannot be used with the query command"
 msgstr ""
 
-#: lxc/copy.go:166
+#: lxc/copy.go:167
 msgid "--refresh can only be used with instances"
 msgstr ""
 
@@ -857,7 +857,7 @@ msgstr "il remote %s non esiste"
 msgid "Alias name missing"
 msgstr "Nome dell'alias mancante"
 
-#: lxc/publish.go:242
+#: lxc/publish.go:243
 #, fuzzy, c-format
 msgid "Aliases already exists: %s"
 msgstr "il remote %s esiste già"
@@ -1000,12 +1000,12 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:138 lxc/init.go:216 lxc/move.go:380 lxc/project.go:129
+#: lxc/copy.go:139 lxc/init.go:216 lxc/move.go:380 lxc/project.go:129
 #, fuzzy, c-format
 msgid "Bad key=value pair: %q"
 msgstr "Proprietà errata: %s"
 
-#: lxc/publish.go:179 lxc/storage.go:130 lxc/storage_volume.go:578
+#: lxc/publish.go:180 lxc/storage.go:130 lxc/storage_volume.go:578
 #, c-format
 msgid "Bad key=value pair: %s"
 msgstr ""
@@ -1270,7 +1270,7 @@ msgid "Cluster member %s removed from group %s"
 msgstr ""
 
 #: lxc/config.go:101 lxc/config.go:385 lxc/config.go:528 lxc/config.go:734
-#: lxc/config.go:857 lxc/copy.go:60 lxc/info.go:45 lxc/init.go:56
+#: lxc/config.go:857 lxc/copy.go:61 lxc/info.go:45 lxc/init.go:56
 #: lxc/move.go:66 lxc/network.go:300 lxc/network.go:723 lxc/network.go:792
 #: lxc/network.go:1134 lxc/network.go:1219 lxc/network.go:1283
 #: lxc/network_forward.go:170 lxc/network_forward.go:234
@@ -1328,7 +1328,7 @@ msgid ""
 "For help with any of those, simply call them with --help."
 msgstr ""
 
-#: lxc/publish.go:39
+#: lxc/publish.go:40
 msgid "Compression algorithm to use (`none` for uncompressed)"
 msgstr ""
 
@@ -1336,7 +1336,7 @@ msgstr ""
 msgid "Compression algorithm to use (none for uncompressed)"
 msgstr ""
 
-#: lxc/copy.go:52 lxc/init.go:49
+#: lxc/copy.go:53 lxc/init.go:49
 msgid "Config key/value to apply to the new instance"
 msgstr ""
 
@@ -1378,7 +1378,7 @@ msgstr "Aggiornamento automatico: %s"
 msgid "Control: %s (%s)"
 msgstr ""
 
-#: lxc/copy.go:58 lxc/move.go:64
+#: lxc/copy.go:59 lxc/move.go:64
 msgid "Copy a stateful instance stateless"
 msgstr ""
 
@@ -1398,11 +1398,11 @@ msgid ""
 "It requires the source to be an alias and for it to be public."
 msgstr ""
 
-#: lxc/copy.go:39
+#: lxc/copy.go:40
 msgid "Copy instances within or in between LXD servers"
 msgstr ""
 
-#: lxc/copy.go:40
+#: lxc/copy.go:41
 msgid ""
 "Copy instances within or in between LXD servers\n"
 "\n"
@@ -1430,7 +1430,7 @@ msgstr ""
 msgid "Copy storage volumes"
 msgstr ""
 
-#: lxc/copy.go:57
+#: lxc/copy.go:58
 msgid "Copy the instance without its snapshots"
 msgstr ""
 
@@ -1438,7 +1438,7 @@ msgstr ""
 msgid "Copy the volume without its snapshots"
 msgstr ""
 
-#: lxc/copy.go:61 lxc/image.go:157 lxc/move.go:67 lxc/profile.go:252
+#: lxc/copy.go:62 lxc/image.go:157 lxc/move.go:67 lxc/profile.go:252
 #: lxc/storage_volume.go:338
 msgid "Copy to a project different from the source"
 msgstr ""
@@ -1614,7 +1614,7 @@ msgstr ""
 msgid "Create storage pools"
 msgstr ""
 
-#: lxc/copy.go:62 lxc/init.go:57
+#: lxc/copy.go:63 lxc/init.go:57
 msgid "Create the instance with no profiles applied"
 msgstr ""
 
@@ -1789,7 +1789,7 @@ msgstr ""
 #: lxc/config_template.go:300 lxc/config_trust.go:34 lxc/config_trust.go:87
 #: lxc/config_trust.go:236 lxc/config_trust.go:350 lxc/config_trust.go:432
 #: lxc/config_trust.go:534 lxc/config_trust.go:580 lxc/config_trust.go:651
-#: lxc/console.go:36 lxc/copy.go:40 lxc/delete.go:31 lxc/exec.go:41
+#: lxc/console.go:36 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:41
 #: lxc/export.go:32 lxc/file.go:78 lxc/file.go:118 lxc/file.go:167
 #: lxc/file.go:237 lxc/file.go:459 lxc/file.go:967 lxc/image.go:37
 #: lxc/image.go:145 lxc/image.go:312 lxc/image.go:363 lxc/image.go:490
@@ -1839,7 +1839,7 @@ msgstr ""
 #: lxc/profile.go:802 lxc/profile.go:878 lxc/profile.go:934 lxc/project.go:29
 #: lxc/project.go:93 lxc/project.go:158 lxc/project.go:221 lxc/project.go:349
 #: lxc/project.go:410 lxc/project.go:523 lxc/project.go:580 lxc/project.go:659
-#: lxc/project.go:690 lxc/project.go:743 lxc/project.go:802 lxc/publish.go:32
+#: lxc/project.go:690 lxc/project.go:743 lxc/project.go:802 lxc/publish.go:33
 #: lxc/query.go:34 lxc/rebuild.go:27 lxc/remote.go:33 lxc/remote.go:88
 #: lxc/remote.go:628 lxc/remote.go:664 lxc/remote.go:752 lxc/remote.go:823
 #: lxc/remote.go:878 lxc/remote.go:916 lxc/rename.go:21 lxc/restore.go:24
@@ -2151,7 +2151,7 @@ msgstr ""
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr ""
 
-#: lxc/copy.go:55 lxc/init.go:52
+#: lxc/copy.go:56 lxc/init.go:52
 msgid "Ephemeral instance"
 msgstr ""
 
@@ -2165,7 +2165,7 @@ msgstr ""
 msgid "Error decoding data: %v"
 msgstr ""
 
-#: lxc/publish.go:233
+#: lxc/publish.go:234
 #, c-format
 msgid "Error retrieving aliases: %w"
 msgstr ""
@@ -2422,7 +2422,7 @@ msgstr ""
 msgid "Failed to listen for connection: %w"
 msgstr "Accetta certificato"
 
-#: lxc/copy.go:360
+#: lxc/copy.go:361
 #, c-format
 msgid "Failed to refresh target instance '%s': %v"
 msgstr ""
@@ -2805,7 +2805,7 @@ msgstr ""
 msgid "If an instance is running, stop it and then rebuild it"
 msgstr ""
 
-#: lxc/publish.go:41
+#: lxc/publish.go:42
 msgid "If the image alias already exists, delete and create a new one"
 msgstr ""
 
@@ -2827,7 +2827,7 @@ msgstr ""
 msgid "Ignore any configured auto-expiry for the storage volume"
 msgstr ""
 
-#: lxc/copy.go:64 lxc/move.go:68
+#: lxc/copy.go:65 lxc/move.go:68
 msgid "Ignore copy errors for volatile files"
 msgstr ""
 
@@ -2844,7 +2844,7 @@ msgstr ""
 msgid "Image copied successfully!"
 msgstr ""
 
-#: lxc/publish.go:40
+#: lxc/publish.go:41
 msgid "Image expiration date (format: rfc3339)"
 msgstr ""
 
@@ -2938,7 +2938,7 @@ msgstr ""
 msgid "Instance disconnected for client %q"
 msgstr ""
 
-#: lxc/publish.go:79
+#: lxc/publish.go:80
 msgid "Instance name is mandatory"
 msgstr ""
 
@@ -2951,7 +2951,7 @@ msgstr "Il nome del container è: %s"
 msgid "Instance path cannot be used in SSH SFTP listener mode"
 msgstr ""
 
-#: lxc/publish.go:346
+#: lxc/publish.go:347
 #, c-format
 msgid "Instance published with fingerprint: %s"
 msgstr ""
@@ -3532,7 +3532,7 @@ msgstr ""
 msgid "Make image public"
 msgstr ""
 
-#: lxc/publish.go:36
+#: lxc/publish.go:37
 msgid "Make the image public"
 msgstr ""
 
@@ -3764,12 +3764,12 @@ msgstr ""
 msgid "Memory:"
 msgstr ""
 
-#: lxc/move.go:309 lxc/move.go:423
+#: lxc/move.go:309 lxc/move.go:422
 #, c-format
 msgid "Migration API failure: %w"
 msgstr ""
 
-#: lxc/move.go:334 lxc/move.go:428
+#: lxc/move.go:334 lxc/move.go:427
 #, c-format
 msgid "Migration operation failure: %w"
 msgstr ""
@@ -4211,7 +4211,7 @@ msgstr ""
 msgid "Network zone record %s deleted"
 msgstr ""
 
-#: lxc/publish.go:37
+#: lxc/publish.go:38
 msgid "New alias to define at target"
 msgstr ""
 
@@ -4219,7 +4219,7 @@ msgstr ""
 msgid "New aliases to add to the image"
 msgstr ""
 
-#: lxc/copy.go:53 lxc/init.go:51 lxc/move.go:59
+#: lxc/copy.go:54 lxc/init.go:51 lxc/move.go:59
 msgid "New key/value to apply to a specific device"
 msgstr ""
 
@@ -4389,7 +4389,7 @@ msgstr "Password amministratore per %s: "
 msgid "Pause instances"
 msgstr "Creazione del container in corso"
 
-#: lxc/copy.go:63
+#: lxc/copy.go:64
 msgid "Perform an incremental copy"
 msgstr ""
 
@@ -4501,7 +4501,7 @@ msgstr ""
 msgid "Profile to apply to the new image"
 msgstr "non tutti i profili dell'origine esistono nella destinazione"
 
-#: lxc/copy.go:54 lxc/init.go:50
+#: lxc/copy.go:55 lxc/init.go:50
 msgid "Profile to apply to the new instance"
 msgstr ""
 
@@ -4645,11 +4645,11 @@ msgstr ""
 msgid "Public: %s"
 msgstr ""
 
-#: lxc/publish.go:31 lxc/publish.go:32
+#: lxc/publish.go:32 lxc/publish.go:33
 msgid "Publish instances as images"
 msgstr ""
 
-#: lxc/publish.go:252
+#: lxc/publish.go:253
 #, fuzzy, c-format
 msgid "Publishing instance: %s"
 msgstr "Creazione del container in corso"
@@ -4720,7 +4720,7 @@ msgstr ""
 msgid "Refresh images"
 msgstr ""
 
-#: lxc/copy.go:382
+#: lxc/copy.go:383
 #, fuzzy, c-format
 msgid "Refreshing instance: %s"
 msgstr "Creazione del container in corso"
@@ -5614,11 +5614,11 @@ msgstr ""
 msgid "Stop instances"
 msgstr ""
 
-#: lxc/publish.go:38
+#: lxc/publish.go:39
 msgid "Stop the instance if currently running"
 msgstr ""
 
-#: lxc/publish.go:141
+#: lxc/publish.go:142
 msgid "Stopping instance failed!"
 msgstr ""
 
@@ -5662,7 +5662,7 @@ msgstr ""
 msgid "Storage pool %s pending on member %s"
 msgstr ""
 
-#: lxc/copy.go:59 lxc/import.go:35 lxc/init.go:54 lxc/move.go:65
+#: lxc/copy.go:60 lxc/import.go:35 lxc/init.go:54 lxc/move.go:65
 msgid "Storage pool name"
 msgstr ""
 
@@ -5788,7 +5788,7 @@ msgstr ""
 msgid "The instance is currently running, stop it first or pass --force"
 msgstr ""
 
-#: lxc/publish.go:110
+#: lxc/publish.go:111
 msgid ""
 "The instance is currently running. Use --force to have it stopped and "
 "restarted"
@@ -5920,7 +5920,7 @@ msgstr ""
 msgid "The specified device doesn't match the network"
 msgstr ""
 
-#: lxc/publish.go:83
+#: lxc/publish.go:84
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
 
@@ -5976,7 +5976,7 @@ msgid ""
 msgstr ""
 
 #: lxc/config.go:293 lxc/config.go:474 lxc/config.go:681 lxc/config.go:773
-#: lxc/copy.go:130 lxc/info.go:336 lxc/network.go:821 lxc/storage.go:446
+#: lxc/copy.go:131 lxc/info.go:336 lxc/network.go:821 lxc/storage.go:446
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 
@@ -6007,7 +6007,7 @@ msgstr ""
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr ""
 
-#: lxc/copy.go:56
+#: lxc/copy.go:57
 msgid "Transfer mode. One of pull, push or relay"
 msgstr ""
 
@@ -6020,7 +6020,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/copy.go:338 lxc/move.go:314
+#: lxc/copy.go:339 lxc/move.go:314
 #, fuzzy, c-format
 msgid "Transferring instance: %s"
 msgstr "Creazione del container in corso"
@@ -6430,12 +6430,12 @@ msgstr ""
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr ""
 
-#: lxc/copy.go:101
+#: lxc/copy.go:102
 #, fuzzy
 msgid "You must specify a destination instance name"
 msgstr "Occorre specificare un nome di container come origine"
 
-#: lxc/copy.go:84 lxc/move.go:280 lxc/move.go:356
+#: lxc/copy.go:85 lxc/move.go:280 lxc/move.go:356
 #, fuzzy
 msgid "You must specify a source instance name"
 msgstr "Occorre specificare un nome di container come origine"
@@ -6723,7 +6723,7 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
 msgstr "Creazione del container in corso"
 
-#: lxc/publish.go:30
+#: lxc/publish.go:31
 #, fuzzy
 msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
 msgstr "Creazione del container in corso"
@@ -7100,7 +7100,7 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:]<project> <new-name>"
 msgstr "Creazione del container in corso"
 
-#: lxc/copy.go:37
+#: lxc/copy.go:38
 #, fuzzy
 msgid "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
 msgstr "Creazione del container in corso"
