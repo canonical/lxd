@@ -348,20 +348,41 @@ func (r *ProtocolLXD) DeleteStoragePoolVolumeSnapshot(pool string, volumeType st
 }
 
 // UpdateStoragePoolVolumeSnapshot updates the volume to match the provided StoragePoolVolume struct.
-func (r *ProtocolLXD) UpdateStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshotName string, volume api.StorageVolumeSnapshotPut, ETag string) error {
+func (r *ProtocolLXD) UpdateStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshotName string, volume api.StorageVolumeSnapshotPut, ETag string) (Operation, error) {
 	err := r.CheckExtension("storage_api_volume_snapshots")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Send the request
 	path := fmt.Sprintf("/storage-pools/%s/volumes/%s/%s/snapshots/%s", url.PathEscape(pool), url.PathEscape(volumeType), url.PathEscape(volumeName), url.PathEscape(snapshotName))
-	_, _, err = r.queryOperation("PUT", path, volume, ETag, true)
-	if err != nil {
-		return err
+	var op Operation
+
+	if r.CheckExtension("storage_volume_async_update") == nil {
+		op, _, err = r.queryOperation("PUT", path, volume, ETag, true)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// If server does not support asynchronous update, wait for the result and wrap
+		// it into the completed operation.
+		resp, _, err := r.query("PUT", path, volume, ETag)
+		if err != nil {
+			return nil, err
+		}
+
+		respOp := api.Operation{
+			StatusCode: api.StatusCode(resp.StatusCode),
+			Err:        resp.Error,
+		}
+
+		op = &operation{
+			r:         r,
+			Operation: respOp,
+		}
 	}
 
-	return nil
+	return op, nil
 }
 
 // MigrateStoragePoolVolume requests that LXD prepares for a storage volume migration.
