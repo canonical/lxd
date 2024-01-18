@@ -179,10 +179,6 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 }}
 
 var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
-	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
-		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
-	}
-
 	location := "none"
 
 	if d.serverClustered {
