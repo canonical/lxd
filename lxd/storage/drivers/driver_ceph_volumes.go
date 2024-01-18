@@ -1798,21 +1798,16 @@ func (d *ceph) RestoreVolume(vol Volume, snapshotName string, op *operations.Ope
 		return err
 	}
 
-	snapVol, err := vol.NewSnapshot(snapshotName)
-	if err != nil {
-		return err
-	}
-
 	// Map the RBD volume.
-	devPath, err := d.rbdMapVolume(snapVol)
+	devPath, err := d.rbdMapVolume(vol)
 	if err != nil {
 		return err
 	}
 
-	defer func() { _ = d.rbdUnmapVolume(snapVol, true) }()
+	defer func() { _ = d.rbdUnmapVolume(vol, true) }()
 
 	// Re-generate the UUID.
-	err = d.generateUUID(snapVol.ConfigBlockFilesystem(), devPath)
+	err = d.generateUUID(vol.ConfigBlockFilesystem(), devPath)
 	if err != nil {
 		return err
 	}
