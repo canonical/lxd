@@ -11,7 +11,7 @@ import (
 )
 
 func TestGroup_Add(t *testing.T) {
-	group := &task.Group{}
+	group := task.NewGroup()
 	ok := make(chan struct{})
 	f := func(context.Context) { close(ok) }
 	group.Add(f, task.Every(time.Second))
@@ -23,7 +23,7 @@ func TestGroup_Add(t *testing.T) {
 }
 
 func TestGroup_StopUngracefully(t *testing.T) {
-	group := &task.Group{}
+	group := task.NewGroup()
 
 	// Create a task function that blocks.
 	ok := make(chan struct{})
