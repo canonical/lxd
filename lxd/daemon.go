@@ -1276,6 +1276,8 @@ func (d *Daemon) init() error {
 		return err
 	}
 
+	d.events.SetLocalLocation(d.serverName)
+
 	// Setup and load the server's UUID file.
 	// Use os.VarDir to allow setting up the uuid file also in the test suite.
 	var serverUUID string
@@ -1354,6 +1356,8 @@ func (d *Daemon) init() error {
 	if err != nil {
 		return err
 	}
+
+	d.events.SetLocalLocation(d.serverName)
 
 	// Get daemon configuration.
 	bgpAddress := d.localConfig.BGPAddress()
