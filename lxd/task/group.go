@@ -12,26 +12,32 @@ import (
 //
 // All tasks in a group will be started and stopped at the same time.
 type Group struct {
-	cancel  func()
+	cancel  context.CancelFunc
 	wg      sync.WaitGroup
 	tasks   []Task
 	running map[int]bool
 	mu      sync.Mutex
 }
 
+// NewGroup returns new initialised Group.
+func NewGroup() *Group {
+	return &Group{
+		running: make(map[int]bool),
+	}
+}
+
 // Add a new task to the group, returning its index.
 func (g *Group) Add(f Func, schedule Schedule) *Task {
 	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	i := len(g.tasks)
 	g.tasks = append(g.tasks, Task{
 		f:        f,
 		schedule: schedule,
 		reset:    make(chan struct{}, 16), // Buffered to not block senders
 	})
+	t := &g.tasks[len(g.tasks)-1] // Get the task we added to g.tasks.
+	g.mu.Unlock()
 
-	return &g.tasks[i]
+	return t
 }
 
 // Start all the tasks in the group.
@@ -40,14 +46,9 @@ func (g *Group) Start(ctx context.Context) {
 	// concurrent calls to Start() or Add(0) don't race. This ensures all tasks in this group
 	// are started based on a consistent snapshot of g.running and g.tasks.
 	g.mu.Lock()
-	defer g.mu.Unlock()
 
 	ctx, g.cancel = context.WithCancel(ctx)
 	g.wg.Add(len(g.tasks))
-
-	if g.running == nil {
-		g.running = make(map[int]bool)
-	}
 
 	for i := range g.tasks {
 		if g.running[i] {
@@ -62,14 +63,13 @@ func (g *Group) Start(ctx context.Context) {
 
 			// Ensure running map is updated before wait group Done() is called.
 			g.mu.Lock()
-			defer g.mu.Unlock()
-
-			if g.running != nil {
-				g.running[i] = false
-				g.wg.Done()
-			}
+			g.running[i] = false
+			g.mu.Unlock()
+			g.wg.Done()
 		}(i)
 	}
+
+	g.mu.Unlock()
 }
 
 // Stop all tasks in the group.
@@ -106,14 +106,13 @@ func (g *Group) Stop(timeout time.Duration) error {
 	select {
 	case <-ctx.Done():
 		g.mu.Lock()
-		defer g.mu.Unlock()
-
 		running := []string{}
 		for i, value := range g.running {
 			if value {
 				running = append(running, strconv.Itoa(i))
 			}
 		}
+		g.mu.Unlock()
 
 		return fmt.Errorf("Task(s) still running: IDs %v", running)
 	case <-graceful:
