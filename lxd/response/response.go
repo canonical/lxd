@@ -12,9 +12,11 @@ import (
 	"time"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/ucred"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/tcp"
 )
 
 var debug bool
@@ -401,6 +403,16 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 
 	// For a single file, return it inline
 	if len(r.files) == 1 {
+		remoteConn := ucred.GetConnFromContext(r.req.Context())
+		remoteTCP, _ := tcp.ExtractConn(remoteConn)
+		if remoteTCP != nil {
+			// Apply TCP timeouts if remote connection is TCP (rather than Unix).
+			err := tcp.SetTimeouts(remoteTCP, 10*time.Second)
+			if err != nil {
+				return api.StatusErrorf(http.StatusInternalServerError, "Failed setting TCP timeouts on remote connection: %v", err)
+			}
+		}
+
 		var rs io.ReadSeeker
 		var mt time.Time
 		var sz int64
