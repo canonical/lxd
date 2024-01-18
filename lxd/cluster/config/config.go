@@ -805,7 +805,7 @@ var ConfigSchema = config.Schema{
 	//  shortdesc: OVN northbound database connection string
 	"network.ovn.northbound_connection": {Default: "unix:/var/run/ovn/ovnnb_db.sock"},
 
-	// lxdmeta:generate(entity=server, group=miscellaneous, key=network.ovn.ca_cert)
+	// lxdmeta:generate(entities=server; group=miscellaneous; key=network.ovn.ca_cert)
 	//
 	// ---
 	//  type: string
@@ -814,7 +814,7 @@ var ConfigSchema = config.Schema{
 	//  shortdesc: OVN SSL certificate authority
 	"network.ovn.ca_cert": {Default: ""},
 
-	// lxdmeta:generate(entity=server, group=miscellaneous, key=network.ovn.client_cert)
+	// lxdmeta:generate(entities=server; group=miscellaneous; key=network.ovn.client_cert)
 	//
 	// ---
 	//  type: string
@@ -823,7 +823,7 @@ var ConfigSchema = config.Schema{
 	//  shortdesc: OVN SSL client certificate
 	"network.ovn.client_cert": {Default: ""},
 
-	// lxdmeta:generate(entity=server, group=miscellaneous, key=network.ovn.client_key)
+	// lxdmeta:generate(entities=server; group=miscellaneous; key=network.ovn.client_key)
 	//
 	// ---
 	//  type: string
