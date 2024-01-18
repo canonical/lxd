@@ -11,6 +11,7 @@ test_init_preseed() {
     LXD_DIR=${LXD_INIT_DIR}
 
     storage_pool="lxdtest-$(basename "${LXD_DIR}")-data"
+    storage_volume="${storage_pool}-volume"
     # In case we're running against the ZFS backend, let's test
     # creating a zfs storage pool, otherwise just use dir.
     if [ "$lxd_backend" = "zfs" ]; then
@@ -36,6 +37,9 @@ storage_pools:
   driver: $driver
   config:
     source: $source
+storage_volumes:
+- name: ${storage_volume}
+  pool: ${storage_pool}
 networks:
 - name: lxdt$$
   type: bridge
@@ -66,6 +70,7 @@ EOF
     lxc network list | grep -q "lxdt$$"
     lxc storage list | grep -q "${storage_pool}"
     lxc storage show "${storage_pool}" | grep -q "$source"
+    lxc storage volume list "${storage_pool}" | grep -q "${storage_volume}"
     lxc profile list | grep -q "test-profile"
     lxc profile show default | grep -q "pool: ${storage_pool}"
     lxc profile show test-profile | grep -q "limits.memory: 2GiB"
@@ -74,6 +79,7 @@ EOF
     printf 'config: {}\ndevices: {}' | lxc profile edit default
     lxc profile delete test-profile
     lxc network delete lxdt$$
+    lxc storage volume delete "${storage_pool}" "${storage_volume}"
     lxc storage delete "${storage_pool}"
 
     if [ "$lxd_backend" = "zfs" ]; then
