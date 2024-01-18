@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/linux"
 )
 
 // OVNRouter OVN router name.

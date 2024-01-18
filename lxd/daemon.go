@@ -44,6 +44,7 @@ import (
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/firewall"
 	"github.com/canonical/lxd/lxd/fsmonitor"
+	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -53,7 +54,6 @@ import (
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/rsync"
 	scriptletLoad "github.com/canonical/lxd/lxd/scriptlet/load"
 	"github.com/canonical/lxd/lxd/seccomp"
@@ -70,8 +70,8 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
-	"github.com/canonical/lxd/shared/idmap"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
 

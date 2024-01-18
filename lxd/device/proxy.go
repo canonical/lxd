@@ -23,14 +23,14 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/ip"
+	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/subprocess"
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/linux"
 	"github.com/canonical/lxd/shared/logger"
-	"github.com/canonical/lxd/shared/subprocess"
 	"github.com/canonical/lxd/shared/validate"
 )
 

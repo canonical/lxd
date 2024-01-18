@@ -30,13 +30,13 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/response"
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
@@ -46,9 +46,9 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/instancewriter"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
 )
 
@@ -590,7 +590,7 @@ func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(instanceType instance
 
 // applyInstanceRootDiskOverrides applies the instance's root disk config to the volume's config.
 func (b *lxdBackend) applyInstanceRootDiskOverrides(inst instance.Instance, vol *drivers.Volume) error {
-	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	_, rootDiskConf, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 	if err != nil {
 		return err
 	}
@@ -613,7 +613,7 @@ func (b *lxdBackend) applyInstanceRootDiskOverrides(inst instance.Instance, vol 
 
 // applyInstanceRootDiskInitialValues applies the instance's root disk initial config to the volume's config.
 func (b *lxdBackend) applyInstanceRootDiskInitialValues(inst instance.Instance, volConfig map[string]string) error {
-	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	_, rootDiskConf, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 	if err != nil {
 		return err
 	}
@@ -2574,7 +2574,7 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (*VolumeUsage, err
 	val.Used = size
 
 	// Get the total size.
-	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	_, rootDiskConf, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 	if err != nil {
 		return nil, err
 	}

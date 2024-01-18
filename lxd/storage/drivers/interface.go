@@ -5,13 +5,13 @@ import (
 	"net/url"
 
 	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/instancewriter"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 // driver is the extended internal interface.

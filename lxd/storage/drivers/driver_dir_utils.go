@@ -3,9 +3,9 @@ package drivers
 import (
 	"fmt"
 
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/storage/quota"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
 )
 

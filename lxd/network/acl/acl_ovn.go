@@ -12,11 +12,11 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/network/openvswitch"
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/validate"
 )
 

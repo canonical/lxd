@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 // Helper to initialize node-specific entities on a LXD instance using the

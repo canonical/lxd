@@ -23,19 +23,19 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
 	"github.com/canonical/lxd/lxd/migration"
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/seccomp"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/idmap"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -75,7 +75,7 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 	}
 
 	for k, v := range config {
-		if instanceType == instancetype.Any && !expanded && strings.HasPrefix(k, shared.ConfigVolatilePrefix) {
+		if instanceType == instancetype.Any && !expanded && strings.HasPrefix(k, instancetype.ConfigVolatilePrefix) {
 			return fmt.Errorf("Volatile keys can only be set on instances")
 		}
 
@@ -153,7 +153,7 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 }
 
 func validConfigKey(os *sys.OS, key string, value string, instanceType instancetype.Type) error {
-	f, err := shared.ConfigKeyChecker(key, instanceType)
+	f, err := instancetype.ConfigKeyChecker(key, instanceType)
 	if err != nil {
 		return err
 	}

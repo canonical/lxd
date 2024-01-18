@@ -16,9 +16,9 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
 
