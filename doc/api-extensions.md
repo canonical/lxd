@@ -2351,3 +2351,8 @@ This field indicates which instance types are supported by the server.
 
 Adds a `mounted` field to disk resources that LXD discovers on the system, reporting whether that disk or partition is
 mounted.
+
+## `storage_volume_async_update`
+
+This extension enables asynchronous execution of storage volume and storage volume snapshot updates,
+replacing the previous synchronous approach.
