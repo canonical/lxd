@@ -35,6 +35,17 @@ test_storage_volume_snapshots() {
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'name: snap0'
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'expires_at: 0001-01-01T00:00:00Z'
 
+  # Use the 'snapshots.pattern' option to change the snapshot name
+  lxc storage volume set "${storage_pool}" "${storage_volume}" snapshots.pattern='test%d'
+  # This will create a snapshot named 'test0' and 'test1'
+  lxc storage volume snapshot "${storage_pool}" "${storage_volume}"
+  lxc storage volume snapshot "${storage_pool}" "${storage_volume}"
+  lxc storage volume list "${storage_pool}" |  grep "${storage_volume}/test0"
+  lxc storage volume list "${storage_pool}" |  grep "${storage_volume}/test1"
+  lxc storage volume rm "${storage_pool}" "${storage_volume}/test0"
+  lxc storage volume rm "${storage_pool}" "${storage_volume}/test1"
+  lxc storage volume unset "${storage_pool}" "${storage_volume}" snapshots.pattern
+
   # edit volume snapshot description
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed 's/^description:.*/description: foo/' | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0"
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -q 'description: foo'
