@@ -421,8 +421,38 @@ var ErrHostIdIsSubId = fmt.Errorf("Host id is in the range of subids")
  * new idmap intersects with in the process.
  */
 func (m *IdmapSet) AddSafe(i IdmapEntry) error {
+	/*
+	 * doAddSafe() can't properly handle mappings that
+	 * both UID and GID, because in this case the "i" idmapping
+	 * will be inserted twice which may result to a further bugs and issues.
+	 * Simplest solution is to split a "both" mapping into two separate ones
+	 * one for UIDs and another one for GIDs.
+	 */
+	newUidIdmapEntry := i
+	newUidIdmapEntry.Isgid = false
+	err := m.doAddSafe(newUidIdmapEntry)
+	if err != nil {
+		return err
+	}
+
+	newGidIdmapEntry := i
+	newGidIdmapEntry.Isuid = false
+	err = m.doAddSafe(newGidIdmapEntry)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *IdmapSet) doAddSafe(i IdmapEntry) error {
 	result := []IdmapEntry{}
 	added := false
+
+	if !i.Isuid && !i.Isgid {
+		return nil
+	}
+
 	for _, e := range m.Idmap {
 		if !e.Intersects(i) {
 			result = append(result, e)
