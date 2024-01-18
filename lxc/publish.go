@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -126,7 +127,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 
 			// Stop the instance.
 			req := api.InstanceStatePut{
-				Action:  string(shared.Stop),
+				Action:  string(instancetype.Stop),
 				Timeout: -1,
 				Force:   true,
 			}
@@ -143,7 +144,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 
 			// Start the instance back up on exit.
 			defer func() {
-				req.Action = string(shared.Start)
+				req.Action = string(instancetype.Start)
 				op, err = s.UpdateInstanceState(cName, req, "")
 				if err != nil {
 					return
