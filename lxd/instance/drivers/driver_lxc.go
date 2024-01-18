@@ -8189,11 +8189,14 @@ func (d *lxc) Info() instance.Info {
 }
 
 func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
-	out := metrics.NewMetricSet(map[string]string{"project": d.project.Name, "name": d.name, "type": instancetype.Container.String()})
+	state := instance.PowerStateStopped
+	isRunning := d.IsRunning()
 
-	if !d.IsRunning() {
-		return nil, ErrInstanceIsStopped
+	if isRunning {
+		state = instance.PowerStateRunning
 	}
+
+	out := metrics.NewMetricSet(map[string]string{"project": d.project.Name, "name": d.name, "type": instancetype.Container.String(), "state": state})
 
 	cc, err := d.initLXC(false)
 	if err != nil {
@@ -8216,7 +8219,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 
 	// Get memory stats.
 	memStats, err := cg.GetMemoryStats()
-	if err != nil {
+	if err != nil && isRunning {
 		d.logger.Warn("Failed to get memory stats", logger.Ctx{"err": err})
 	} else {
 		for k, v := range memStats {
@@ -8258,7 +8261,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 
 	// Get memory usage.
 	memoryUsage, err := cg.GetMemoryUsage()
-	if err != nil {
+	if err != nil && isRunning {
 		d.logger.Warn("Failed to get memory usage", logger.Ctx{"err": err})
 	}
 
@@ -8270,7 +8273,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 
 	// Get oom kills.
 	oomKills, err := cg.GetOOMKills()
-	if err != nil {
+	if err != nil && isRunning {
 		d.logger.Warn("Failed to get oom kills", logger.Ctx{"err": err})
 	}
 
@@ -8279,7 +8282,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	// Handle swap.
 	if d.state.OS.CGInfo.Supports(cgroup.MemorySwapUsage, cg) {
 		swapUsage, err := cg.GetMemorySwapUsage()
-		if err != nil {
+		if err != nil && isRunning {
 			d.logger.Warn("Failed to get swap usage", logger.Ctx{"err": err})
 		} else {
 			out.AddSamples(metrics.MemorySwapBytes, metrics.Sample{Value: float64(swapUsage)})
@@ -8288,7 +8291,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 
 	// Get CPU stats
 	usage, err := cg.GetCPUAcctUsageAll()
-	if err != nil {
+	if err != nil && isRunning {
 		d.logger.Warn("Failed to get CPU usage", logger.Ctx{"err": err})
 	} else {
 		for cpu, stats := range usage {
@@ -8301,7 +8304,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 
 	// Get CPUs.
 	CPUs, err := cg.GetEffectiveCPUs()
-	if err != nil {
+	if err != nil && isRunning {
 		d.logger.Warn("Failed to get CPUs", logger.Ctx{"err": err})
 	} else {
 		out.AddSamples(metrics.CPUs, metrics.Sample{Value: float64(CPUs)})
@@ -8309,7 +8312,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 
 	// Get disk stats
 	diskStats, err := cg.GetIOStats()
-	if err != nil {
+	if err != nil && isRunning {
 		d.logger.Warn("Failed to get disk stats", logger.Ctx{"err": err})
 	} else {
 		for disk, stats := range diskStats {
@@ -8324,7 +8327,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 
 	// Get filesystem stats
 	fsStats, err := d.getFSStats()
-	if err != nil {
+	if err != nil && isRunning {
 		d.logger.Warn("Failed to get fs stats", logger.Ctx{"err": err})
 	} else {
 		out.Merge(fsStats)
@@ -8348,7 +8351,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 
 	// Get number of processes
 	pids, err := d.processesState(d.InitPID())
-	if err != nil {
+	if err != nil && isRunning {
 		d.logger.Warn("Failed to get total number of processes", logger.Ctx{"err": err})
 	} else {
 		out.AddSamples(metrics.ProcsTotal, metrics.Sample{Value: float64(pids)})

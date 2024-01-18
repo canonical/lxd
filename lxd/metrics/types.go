@@ -144,6 +144,10 @@ const (
 	GoOtherSysBytes
 	// GoNextGCBytes represents the number of heap bytes when next garbage collection will take place.
 	GoNextGCBytes
+	// Containers represents the container count.
+	Containers
+	// VMs represents the VM count.
+	VMs
 )
 
 // MetricNames associates a metric type to its name.
@@ -212,6 +216,8 @@ var MetricNames = map[MetricType]string{
 	ProcsTotal:                  "lxd_procs_total",
 	UptimeSeconds:               "lxd_uptime_seconds",
 	WarningsTotal:               "lxd_warnings_total",
+	Containers:                  "lxd_containers",
+	VMs:                         "lxd_vms",
 }
 
 // MetricHeaders represents the metric headers which contain help messages as specified by OpenMetrics.
@@ -280,4 +286,6 @@ var MetricHeaders = map[MetricType]string{
 	ProcsTotal:                  "# HELP lxd_procs_total The number of running processes.",
 	UptimeSeconds:               "# HELP lxd_uptime_seconds The daemon uptime in seconds.",
 	WarningsTotal:               "# HELP lxd_warnings_total The number of active warnings.",
+	Containers:                  "# HELP lxd_containers The number of containers.",
+	VMs:                         "# HELP lxd_vms The number of virtual machines.",
 }
