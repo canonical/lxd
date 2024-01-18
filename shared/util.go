@@ -27,10 +27,10 @@ import (
 
 	"github.com/flosch/pongo2"
 
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/ioprogress"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
 )
 
