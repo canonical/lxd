@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"reflect"
 	"sort"
 	"strconv"
@@ -37,6 +36,7 @@ type config struct {
 	username  string
 	password  string
 	labels    []string
+	instance  string
 	logLevel  string
 	timeout   time.Duration
 	types     []string
@@ -60,7 +60,7 @@ type Client struct {
 }
 
 // NewClient returns a Client.
-func NewClient(ctx context.Context, url *url.URL, username string, password string, caCert string, labels []string, logLevel string, types []string) *Client {
+func NewClient(ctx context.Context, url *url.URL, username string, password string, caCert string, instance string, logLevel string, labels []string, types []string) *Client {
 	client := Client{
 		cfg: config{
 			batchSize: 10 * 1024,
@@ -68,6 +68,7 @@ func NewClient(ctx context.Context, url *url.URL, username string, password stri
 			caCert:    caCert,
 			username:  username,
 			password:  password,
+			instance:  instance,
 			labels:    labels,
 			logLevel:  logLevel,
 			timeout:   10 * time.Second,
@@ -226,17 +227,12 @@ func (c *Client) HandleEvent(event api.Event) {
 		return
 	}
 
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = "none"
-	}
-
 	entry := entry{
 		labels: LabelSet{
 			"app":      "lxd",
 			"type":     event.Type,
 			"location": event.Location,
-			"instance": hostname,
+			"instance": c.cfg.instance,
 		},
 		Entry: Entry{
 			Timestamp: event.Timestamp,
