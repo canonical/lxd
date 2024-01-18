@@ -64,6 +64,7 @@ import (
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
+	"github.com/canonical/lxd/lxd/subprocess"
 	pongoTemplate "github.com/canonical/lxd/lxd/template"
 	"github.com/canonical/lxd/lxd/util"
 	lxdvsock "github.com/canonical/lxd/lxd/vsock"
@@ -73,7 +74,6 @@ import (
 	"github.com/canonical/lxd/shared/instancewriter"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
-	"github.com/canonical/lxd/shared/subprocess"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/version"
 )
