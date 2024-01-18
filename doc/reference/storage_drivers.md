@@ -33,20 +33,22 @@ Feature                                     | Directory | Btrfs | LVM     | ZFS 
 Optimized instance creation                 | no        | yes   | yes     | yes     | yes      | n/a    | n/a         | no
 Optimized snapshot creation                 | no        | yes   | yes     | yes     | yes      | yes    | n/a         | yes
 Optimized image transfer                    | no        | yes   | no      | yes     | yes      | n/a    | n/a         | no
-{ref}`storage-optimized-volume-transfer`    | no        | yes   | no      | yes     | yes      | n/a    | n/a         | no
-{ref}`storage-optimized-volume-refresh`     | no        | yes   | yes[^1] | yes     | no       | n/a    | n/a         | no
+{ref}`storage-optimized-volume-transfer`    | no        | yes   | no      | yes     | yes[^1]  | n/a    | n/a         | no
+{ref}`storage-optimized-volume-refresh`     | no        | yes   | yes[^2] | yes     | yes[^3]  | n/a    | n/a         | no
 Copy on write                               | no        | yes   | yes     | yes     | yes      | yes    | n/a         | yes
 Block based                                 | no        | no    | yes     | no      | yes      | no     | n/a         | yes
 Instant cloning                             | no        | yes   | yes     | yes     | yes      | yes    | n/a         | no
-Storage driver usable inside a container    | yes       | yes   | no      | yes[^2] | no       | n/a    | n/a         | no
+Storage driver usable inside a container    | yes       | yes   | no      | yes[^4] | no       | n/a    | n/a         | no
 Restore from older snapshots (not latest)   | yes       | yes   | yes     | no      | yes      | yes    | n/a         | yes
-Storage quotas                              | yes[^3]   | yes   | yes     | yes     | yes      | yes    | yes         | yes
+Storage quotas                              | yes[^5]   | yes   | yes     | yes     | yes      | yes    | yes         | yes
 Available on `lxd init`                     | yes       | yes   | yes     | yes     | yes      | no     | no          | no
 Object storage                              | yes       | yes   | yes     | yes     | no       | no     | yes         | no
 
-[^1]: Requires [`lvm.use_thinpool`](storage-lvm-pool-config) to be enabled. Only when refreshing local volumes.
-[^2]: Requires [`zfs.delegate`](storage-zfs-vol-config) to be enabled.
-[^3]: % Include content from [storage_dir.md](storage_dir.md)
+[^1]: Volumes of type `block` will fall back to non-optimized transfer when migrating to an older LXD server that doesn't yet support the `RBD_AND_RSYNC` migration type.
+[^2]: Requires [`lvm.use_thinpool`](storage-lvm-pool-config) to be enabled. Only when refreshing local volumes.
+[^3]: Only for volumes of type `block`.
+[^4]: Requires [`zfs.delegate`](storage-zfs-vol-config) to be enabled.
+[^5]: % Include content from [storage_dir.md](storage_dir.md)
 
       ```{include} storage_dir.md
          :start-after: <!-- Include start dir quotas -->
