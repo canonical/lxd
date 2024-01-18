@@ -11,11 +11,11 @@ import (
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/resources"
 	scriptletLoad "github.com/canonical/lxd/lxd/scriptlet/load"
 	"github.com/canonical/lxd/lxd/state"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	apiScriptlet "github.com/canonical/lxd/shared/api/scriptlet"
 	"github.com/canonical/lxd/shared/logger"
@@ -215,7 +215,7 @@ func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, 
 		}
 
 		// Parse root disk size.
-		_, rootDiskConfig, err := shared.GetRootDiskDevice(req.Devices)
+		_, rootDiskConfig, err := instancetype.GetRootDiskDevice(req.Devices)
 		if err == nil {
 			rootDiskSizeStr := rootDiskConfig["size"]
 
