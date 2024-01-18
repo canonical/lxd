@@ -62,6 +62,16 @@ Python    | https://github.com/canonical/pylxd
 
 For more information on using the LXD API, see [REST API](https://documentation.ubuntu.com/lxd/en/latest/restapi_landing/) in the documentation.
 
+## Tools for managing LXD
+
+If you are looking for tools (beyond `lxc` CLI) to manage LXD at scale (from single server to wide clusters), the following projects can be useful:
+
+Tool                        | Link
+---                         | ---
+Ansible - connection plugin | https://galaxy.ansible.com/ui/repo/published/community/general/content/connection/lxd/
+Ansible - inventory plugin  | https://galaxy.ansible.com/ui/repo/published/community/general/content/inventory/lxd/
+Terraform provider          | https://registry.terraform.io/providers/terraform-lxd/lxd
+
 ## Security
 
 <!-- Include start security -->
