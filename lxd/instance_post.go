@@ -92,7 +92,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid instance name"))
 	}
 
-	// Flag indicating whether the node running the container is offline.
+	// Flag indicating whether the node running the instance is offline.
 	sourceNodeOffline := false
 
 	var targetProject *api.Project
@@ -168,7 +168,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	// Cases 1. and 2. are the ones for which the conditional will be true
 	// and we'll either forward the request or load the instance.
 	if target == "" || !sourceNodeOffline {
-		// Handle requests targeted to a container on a different node.
+		// Handle requests targeted to an instance on a different node.
 		resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 		if err != nil {
 			return response.SmartError(err)
@@ -618,7 +618,7 @@ func instancePostMigration(s *state.State, inst instance.Instance, newName strin
 	return nil
 }
 
-// Move a non-ceph container to another cluster node.
+// Move a non-ceph instance to another cluster node. Source and target members must be online.
 func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, srcMember db.NodeInfo, newMember db.NodeInfo, stateful bool, allowInconsistent bool) (func(op *operations.Operation) error, error) {
 	srcMemberOffline := srcMember.IsOffline(s.GlobalConfig.OfflineThreshold())
 
@@ -629,7 +629,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 	}
 
 	// Save the original value of the "volatile.apply_template" config key,
-	// since we'll want to preserve it in the copied container.
+	// since we'll want to preserve it in the copied instance.
 	origVolatileApplyTemplate := srcInst.LocalConfig()["volatile.apply_template"]
 
 	// Check we can convert the instance to the volume types needed.
@@ -956,7 +956,16 @@ func migrateInstance(s *state.State, r *http.Request, inst instance.Instance, ta
 		return err
 	}
 
-	// Check if we are migrating a ceph-based instance.
+	// In case of live migration, only root disk can be migrated.
+	if req.Live && inst.IsRunning() {
+		for _, rawConfig := range inst.ExpandedDevices() {
+			if rawConfig["type"] == "disk" && !shared.IsRootDiskDevice(rawConfig) {
+				return fmt.Errorf("Cannot live migrate instance with attached custom volume")
+			}
+		}
+	}
+
+	// Retrieve storage pool of the source instance.
 	srcPool, err := storagePools.LoadByInstance(s, inst)
 	if err != nil {
 		return fmt.Errorf("Failed loading instance storage pool: %w", err)
