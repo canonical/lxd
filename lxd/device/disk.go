@@ -19,18 +19,18 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/project"
-	"github.com/canonical/lxd/lxd/revert"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/idmap"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
 )
@@ -366,7 +366,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			}
 
 			if len(initialConfig) > 0 {
-				if !shared.IsRootDiskDevice(d.config) {
+				if !instancetype.IsRootDiskDevice(d.config) {
 					return fmt.Errorf("Non-root disk device cannot contain initial.* configuration")
 				}
 
@@ -576,7 +576,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 	defer revert.Fail()
 
 	// Deal with a rootfs.
-	if shared.IsRootDiskDevice(d.config) {
+	if instancetype.IsRootDiskDevice(d.config) {
 		// Set the rootfs path.
 		rootfs := deviceConfig.RootFSEntryItem{
 			Path: d.inst.RootfsPath(),
@@ -764,7 +764,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		opts = append(opts, fmt.Sprintf("cache=%s", d.config["io.cache"]))
 	}
 
-	if shared.IsRootDiskDevice(d.config) {
+	if instancetype.IsRootDiskDevice(d.config) {
 		// Handle previous requests for setting new quotas.
 		err := d.applyDeferredQuota()
 		if err != nil {
@@ -1066,14 +1066,14 @@ func (d *disk) postStart() error {
 
 // Update applies configuration changes to a started device.
 func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
-	if d.inst.Type() == instancetype.VM && !shared.IsRootDiskDevice(d.config) {
+	if d.inst.Type() == instancetype.VM && !instancetype.IsRootDiskDevice(d.config) {
 		return fmt.Errorf("Non-root disks not supported for VMs")
 	}
 
-	if shared.IsRootDiskDevice(d.config) {
+	if instancetype.IsRootDiskDevice(d.config) {
 		// Make sure we have a valid root disk device (and only one).
 		expandedDevices := d.inst.ExpandedDevices()
-		newRootDiskDeviceKey, _, err := shared.GetRootDiskDevice(expandedDevices.CloneNative())
+		newRootDiskDeviceKey, _, err := instancetype.GetRootDiskDevice(expandedDevices.CloneNative())
 		if err != nil {
 			return fmt.Errorf("Detect root disk device: %w", err)
 		}
@@ -1081,7 +1081,7 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		// Retrieve the first old root disk device key, even if there are duplicates.
 		oldRootDiskDeviceKey := ""
 		for k, v := range oldDevices {
-			if shared.IsRootDiskDevice(v) {
+			if instancetype.IsRootDiskDevice(v) {
 				oldRootDiskDeviceKey = k
 				break
 			}
@@ -1170,7 +1170,7 @@ func (d *disk) applyDeferredQuota() error {
 // applyQuota attempts to resize the instance root disk to the specified size.
 // If remount is true, attempts to unmount first before resizing and then mounts again afterwards.
 func (d *disk) applyQuota(remount bool) error {
-	rootDisk, _, err := shared.GetRootDiskDevice(d.inst.ExpandedDevices().CloneNative())
+	rootDisk, _, err := instancetype.GetRootDiskDevice(d.inst.ExpandedDevices().CloneNative())
 	if err != nil {
 		return fmt.Errorf("Detect root disk device: %w", err)
 	}

@@ -13,11 +13,11 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/project"
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 // Instance driver definitions.
@@ -123,7 +123,7 @@ func validDevices(state *state.State, p api.Project, instanceType instancetype.T
 
 	if len(expandedDevices) > 0 {
 		// Check we have a root disk if in expanded validation mode.
-		_, _, err := shared.GetRootDiskDevice(expandedDevices.CloneNative())
+		_, _, err := instancetype.GetRootDiskDevice(expandedDevices.CloneNative())
 		if err != nil {
 			return fmt.Errorf("Failed detecting root disk device: %w", err)
 		}

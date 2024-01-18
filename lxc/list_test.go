@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
@@ -157,22 +158,22 @@ const shorthand = "46abcdDefFlmMnNpPsStuL"
 const alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 func TestColumns(t *testing.T) {
-	keys := make([]string, 0, len(shared.InstanceConfigKeysAny)+len(shared.InstanceConfigKeysContainer)+len(shared.InstanceConfigKeysVM))
-	for k := range shared.InstanceConfigKeysAny {
+	keys := make([]string, 0, len(instancetype.InstanceConfigKeysAny)+len(instancetype.InstanceConfigKeysContainer)+len(instancetype.InstanceConfigKeysVM))
+	for k := range instancetype.InstanceConfigKeysAny {
 		keys = append(keys, k)
 
 		// Test compatibility with 'config:' prefix.
 		keys = append(keys, "config:"+k)
 	}
 
-	for k := range shared.InstanceConfigKeysContainer {
+	for k := range instancetype.InstanceConfigKeysContainer {
 		keys = append(keys, k)
 
 		// Test compatibility with 'config:' prefix.
 		keys = append(keys, "config:"+k)
 	}
 
-	for k := range shared.InstanceConfigKeysVM {
+	for k := range instancetype.InstanceConfigKeysVM {
 		keys = append(keys, k)
 
 		// Test compatibility with 'config:' prefix.
@@ -215,11 +216,11 @@ func TestColumns(t *testing.T) {
 			randString(buffer)
 		case 3:
 			if rand.Intn(2) == 0 {
-				buffer.WriteString(shared.ConfigVolatilePrefix)
+				buffer.WriteString(instancetype.ConfigVolatilePrefix)
 				randString(buffer)
 				buffer.WriteString(".hwaddr")
 			} else {
-				buffer.WriteString(shared.ConfigVolatilePrefix)
+				buffer.WriteString(instancetype.ConfigVolatilePrefix)
 				randString(buffer)
 				buffer.WriteString(".name")
 			}

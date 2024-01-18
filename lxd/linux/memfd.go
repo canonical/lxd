@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 // CreateMemfd creates a new memfd for the provided byte slice.

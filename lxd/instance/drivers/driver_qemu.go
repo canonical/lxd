@@ -52,6 +52,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/drivers/qmp"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
+	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/migration"
@@ -60,21 +61,20 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/response"
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
+	"github.com/canonical/lxd/lxd/subprocess"
 	pongoTemplate "github.com/canonical/lxd/lxd/template"
 	"github.com/canonical/lxd/lxd/util"
 	lxdvsock "github.com/canonical/lxd/lxd/vsock"
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/instancewriter"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
-	"github.com/canonical/lxd/shared/subprocess"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -5399,8 +5399,8 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		// Validate root device
-		_, oldRootDev, oldErr := shared.GetRootDiskDevice(oldExpandedDevices.CloneNative())
-		_, newRootDev, newErr := shared.GetRootDiskDevice(d.expandedDevices.CloneNative())
+		_, oldRootDev, oldErr := instancetype.GetRootDiskDevice(oldExpandedDevices.CloneNative())
+		_, newRootDev, newErr := instancetype.GetRootDiskDevice(d.expandedDevices.CloneNative())
 		if oldErr == nil && newErr == nil && oldRootDev["pool"] != newRootDev["pool"] {
 			return fmt.Errorf("Cannot update root disk device pool name to %q", newRootDev["pool"])
 		}
@@ -5450,7 +5450,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 		isLiveUpdatable := func(key string) bool {
 			// Skip container config keys for VMs
-			_, ok := shared.InstanceConfigKeysContainer[key]
+			_, ok := instancetype.InstanceConfigKeysContainer[key]
 			if ok {
 				return true
 			}
@@ -7125,7 +7125,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		// disk device so we can simply retrieve it from the expanded devices.
 		parentStoragePool := ""
 		parentExpandedDevices := d.ExpandedDevices()
-		parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices.CloneNative())
+		parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := instancetype.GetRootDiskDevice(parentExpandedDevices.CloneNative())
 		if parentLocalRootDiskDeviceKey != "" {
 			parentStoragePool = parentLocalRootDiskDevice["pool"]
 		}
@@ -7154,7 +7154,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					// comes from a profile on the new instance as well we don't need to do
 					// anything.
 					if snapArgs.Devices != nil {
-						snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapArgs.Devices.CloneNative())
+						snapLocalRootDiskDeviceKey, _, _ := instancetype.GetRootDiskDevice(snapArgs.Devices.CloneNative())
 						if snapLocalRootDiskDeviceKey != "" {
 							snapArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 						}

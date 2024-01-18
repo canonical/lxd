@@ -31,7 +31,6 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
@@ -39,6 +38,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
 )
 
@@ -909,7 +909,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 // device will be added, if the root disk config in the current profiles matches the effective backup.yaml config.
 func internalImportRootDevicePopulate(instancePoolName string, localDevices map[string]map[string]string, expandedDevices map[string]map[string]string, profiles []api.Profile) {
 	// First, check if localDevices from backup.yaml has a root disk.
-	rootName, _, _ := shared.GetRootDiskDevice(localDevices)
+	rootName, _, _ := instancetype.GetRootDiskDevice(localDevices)
 	if rootName != "" {
 		localDevices[rootName]["pool"] = instancePoolName
 
@@ -917,11 +917,11 @@ func internalImportRootDevicePopulate(instancePoolName string, localDevices map[
 	}
 
 	// Next check if expandedDevices from backup.yaml has a root disk.
-	expandedRootName, expandedRootConfig, _ := shared.GetRootDiskDevice(expandedDevices)
+	expandedRootName, expandedRootConfig, _ := instancetype.GetRootDiskDevice(expandedDevices)
 
 	// Extract root disk from expanded profile devices.
 	profileExpandedDevices := db.ExpandInstanceDevices(deviceConfig.NewDevices(localDevices), profiles)
-	profileExpandedRootName, profileExpandedRootConfig, _ := shared.GetRootDiskDevice(profileExpandedDevices.CloneNative())
+	profileExpandedRootName, profileExpandedRootConfig, _ := instancetype.GetRootDiskDevice(profileExpandedDevices.CloneNative())
 
 	// Record whether we need to add a new local disk device.
 	addLocalDisk := false
