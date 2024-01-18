@@ -11,8 +11,8 @@ import (
 
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
+	"github.com/canonical/lxd/lxd/subprocess"
 	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/subprocess"
 	"github.com/canonical/lxd/shared/version"
 )
 

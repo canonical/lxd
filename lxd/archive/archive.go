@@ -13,11 +13,11 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/apparmor"
+	"github.com/canonical/lxd/lxd/subprocess"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
-	"github.com/canonical/lxd/shared/subprocess"
 )
 
 type nullWriteCloser struct {

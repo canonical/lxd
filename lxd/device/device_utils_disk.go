@@ -18,9 +18,9 @@ import (
 	"github.com/canonical/lxd/lxd/revert"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
+	"github.com/canonical/lxd/lxd/subprocess"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/osarch"
-	"github.com/canonical/lxd/shared/subprocess"
 )
 
 // RBDFormatPrefix is the prefix used in disk paths to identify RBD.
