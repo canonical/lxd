@@ -9,8 +9,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/idmap"
 	"github.com/canonical/lxd/shared/logger"
 )
 
