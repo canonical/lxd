@@ -10,7 +10,6 @@ LXD allows you to easily set up a system that feels like a small private cloud. 
 
 You should consider using LXD if you want to containerize different environments or run virtual machines, or in general run and manage your infrastructure in a cost-effective way.
 
-
 <!-- Include end LXD intro -->
 
 ## Get started
@@ -20,7 +19,6 @@ See [Getting started](https://documentation.ubuntu.com/lxd/en/latest/getting_sta
 - Release announcements: [`https://discourse.ubuntu.com/c/lxd/news/`](https://discourse.ubuntu.com/c/lxd/news/)
 - Release tarballs: [`https://github.com/canonical/lxd/releases/`](https://github.com/canonical/lxd/releases/)
 - Documentation: [`https://documentation.ubuntu.com/lxd/en/latest/`](https://documentation.ubuntu.com/lxd/en/latest/)
-
 
 ## Status
 
@@ -56,6 +54,16 @@ Python    | https://github.com/canonical/pylxd
 
 For more information on using the LXD API, see [REST API](https://documentation.ubuntu.com/lxd/en/latest/restapi_landing/) in the documentation.
 
+## Tools for managing LXD
+
+If you are looking for tools (beyond `lxc` CLI) to manage LXD at scale (from single server to wide clusters), the following projects can be useful:
+
+Tool                        | Link
+---                         | ---
+Ansible - connection plugin | https://galaxy.ansible.com/ui/repo/published/community/general/content/connection/lxd/
+Ansible - inventory plugin  | https://galaxy.ansible.com/ui/repo/published/community/general/content/inventory/lxd/
+Terraform provider          | https://registry.terraform.io/providers/terraform-lxd/lxd
+
 ## Security
 
 <!-- Include start security -->
@@ -69,7 +77,6 @@ Consider the following aspects to ensure that your LXD installation is secure:
 - Do not use privileged containers unless required. If you use privileged containers, put appropriate security measures in place.
   <!-- Include end security -->
   See [Container security](https://documentation.ubuntu.com/lxd/en/latest/explanation/security/#container-security) for more information.
-
 
 See [Security](https://documentation.ubuntu.com/lxd/en/latest/explanation/security/) for detailed information.
 
