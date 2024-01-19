@@ -128,7 +128,7 @@ var vmSecurebootFirmwares = []vmFirmware{
 
 // Only valid for x86_64.
 var vmLegacyFirmwares = []vmFirmware{
-	{code: "seabios.bin", vars: "seabios.bin"},
+	{code: "bios-256k.bin", vars: "bios-256k.bin"},
 	{code: "OVMF_CODE.4MB.CSM.fd", vars: "OVMF_VARS.4MB.CSM.fd"},
 	{code: "OVMF_CODE.2MB.CSM.fd", vars: "OVMF_VARS.2MB.CSM.fd"},
 	{code: "OVMF_CODE.CSM.fd", vars: "OVMF_VARS.CSM.fd"},
