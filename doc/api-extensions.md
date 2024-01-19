@@ -2428,3 +2428,10 @@ and joining an existing cluster.
 ## `instance_import_conversion`
 
 Adds the ability to convert images from different formats (e.g. VMDK or QCow2) into RAW image format and import them as LXD instances.
+
+## `instance_create_start`
+
+Adds a `start` field to the `POST /1.0/instances` API which when set
+to `true` will have the instance automatically start upon creation.
+
+In this scenario, the creation and startup is part of a single background operation.
