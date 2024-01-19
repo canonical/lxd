@@ -125,6 +125,12 @@ type Operation struct {
 	events *events.Server
 }
 
+// ClusterLockMetadata represents metadata included in the cluster lock operation.
+// This carries the lock name which is used to generate a UUID particular to the lock.
+type ClusterLockMetadata struct {
+	Name string
+}
+
 // OperationCreate creates a new operation and returns it. If it cannot be
 // created, it returns an error.
 func OperationCreate(s *state.State, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error, r *http.Request) (*Operation, error) {
@@ -154,12 +160,23 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 		op.SetEventServer(s.Events)
 	}
 
-	newMetadata, err := shared.ParseMetadata(opMetadata)
-	if err != nil {
-		return nil, err
-	}
+	// There can only be one ClusterLock for each name, so generate a constant UUID based on the lock name.
+	if opType == operationtype.ClusterLock {
+		metadata, ok := opMetadata.(ClusterLockMetadata)
+		if !ok {
+			return nil, fmt.Errorf("Invalid metadata for cluster lock operation")
+		}
 
-	op.metadata = newMetadata
+		op.id = uuid.NewSHA1(uuid.Nil, []byte(metadata.Name)).String()
+		op.metadata = map[string]any{"name": metadata.Name}
+	} else {
+		newMetadata, err := shared.ParseMetadata(opMetadata)
+		if err != nil {
+			return nil, err
+		}
+
+		op.metadata = newMetadata
+	}
 
 	// Callback functions
 	op.onRun = onRun
@@ -188,10 +205,11 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 		op.SetRequestor(r)
 	}
 
-	err = registerDBOperation(&op, opType)
+	err := registerDBOperation(&op, opType)
 	if err != nil {
 		return nil, err
 	}
+
 	operationsLock.Lock()
 	operations[op.id] = &op
 	operationsLock.Unlock()

@@ -33,7 +33,18 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 			opInfo.ProjectID = &projectID
 		}
 
-		_, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), opInfo)
+		var err error
+		if opType == operationtype.ClusterLock {
+			if !op.state.ServerClustered {
+				return fmt.Errorf("Unable to create cluster lock operation. LXD is not clustered")
+			}
+
+			// Only allow a single ClusterLock operation at a time.
+			_, err = cluster.CreateOperation(ctx, tx.Tx(), opInfo)
+		} else {
+			_, err = cluster.CreateOrReplaceOperation(ctx, tx.Tx(), opInfo)
+		}
+
 		return err
 	})
 	if err != nil {
