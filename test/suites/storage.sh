@@ -66,8 +66,25 @@ test_storage() {
       fi
       lxc delete --force uuid1
       lxc delete --force uuid2
-      lxc image delete testimage
 
+      # Test UUID re-generation in case of restore.
+      lxc init testimage uuid1 -s "${POOL}"
+      lxc snapshot uuid1
+      lxc start uuid1
+      if [ "$lxd_backend" = "lvm" ]; then
+        uuid="$(blkid -s UUID -o value -p /dev/"${POOL}"/containers_uuid1)"
+      elif [ "$lxd_backend" = "ceph" ]; then
+        uuid="$(blkid -s UUID -o value -p /dev/rbd/"${POOL}"/container_uuid1)"
+      fi
+      lxc restore uuid1 snap0
+      if [ "$lxd_backend" = "lvm" ]; then
+        [ "$(blkid -s UUID -o value -p /dev/"${POOL}"/containers_uuid1)" != "$uuid" ]
+      elif [ "$lxd_backend" = "ceph" ]; then
+        [ "$(blkid -s UUID -o value -p /dev/rbd/"${POOL}"/container_uuid1)" != "$uuid" ]
+      fi
+      lxc delete --force uuid1
+
+      lxc image delete testimage
       lxc storage delete "$btrfs_storage_pool"
   fi
   ensure_import_testimage
