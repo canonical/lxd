@@ -394,6 +394,7 @@ var APIExtensions = []string{
 	"ovn_ssl_config",
 	"init_preseed_storage_volumes",
 	"metrics_instances_count",
+	"server_instance_type_info",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

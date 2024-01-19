@@ -26,6 +26,12 @@ type ServerEnvironment struct {
 	// Example: 4.0.7 | 5.2.0
 	DriverVersion string `json:"driver_version" yaml:"driver_version"`
 
+	// List of supported instance types
+	// Example: ["container", "virtual-machine"]
+	//
+	// API extension: server_instance_type_info
+	InstanceTypes []string `json:"instance_types" yaml:"instance_types"`
+
 	// Current firewall driver
 	// Example: nftables
 	//
