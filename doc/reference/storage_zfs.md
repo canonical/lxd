@@ -66,9 +66,9 @@ Restoring from older snapshots
   After determining the correct snapshot, you can {ref}`remove the newer snapshots <storage-edit-snapshots>` so that the snapshot you need is the latest one and you can restore it.
 
   Alternatively, you can configure LXD to automatically discard the newer snapshots during restore.
-  To do so, set the [`zfs.remove_snapshots`](storage-zfs-vol-config) configuration for the volume (or the corresponding `volume.zfs.remove_snapshots` configuration on the storage pool for all volumes in the pool).
+  To do so, set the {config:option}`storage-zfs-volume-conf:zfs.remove_snapshots` configuration for the volume (or the corresponding `volume.zfs.remove_snapshots` configuration on the storage pool for all volumes in the pool).
 
-  Note, however, that if [`zfs.clone_copy`](storage-zfs-pool-config) is set to `true`, instance copies use ZFS snapshots too.
+  Note, however, that if {config:option}`storage-zfs-pool-conf:zfs.clone_copy` is set to `true`, instance copies use ZFS snapshots too.
   In that case, you cannot restore an instance to a snapshot taken before the last copy without having to also delete all its descendants.
   If this is not an option, you can copy the wanted snapshot into a new instance and then delete the old instance.
   You will, however, lose any other snapshots the instance might have had.
@@ -87,9 +87,9 @@ ZFS provides two different quota properties: `quota` and `refquota`.
 `refquota` restricts only the size of the data in the {spellexception}`dataset`, not its snapshots and clones.
 
 By default, LXD uses the `quota` property when you set up a quota for your storage volume.
-If you want to use the `refquota` property instead, set the [`zfs.use_refquota`](storage-zfs-vol-config) configuration for the volume (or the corresponding `volume.zfs.use_refquota` configuration on the storage pool for all volumes in the pool).
+If you want to use the `refquota` property instead, set the {config:option}`storage-zfs-volume-conf:zfs.use_refquota` configuration for the volume (or the corresponding `volume.zfs.use_refquota` configuration on the storage pool for all volumes in the pool).
 
-You can also set the [`zfs.use_reserve_space`](storage-zfs-vol-config) (or `volume.zfs.use_reserve_space`) configuration to use ZFS `reservation` or `refreservation` along with `quota` or `refquota`.
+You can also set the {config:option}`storage-zfs-volume-conf:zfs.reserve_space` (or `volume.zfs.reserve_space`) configuration to use ZFS `reservation` or `refreservation` along with `quota` or `refquota`.
 
 ## Configuration options
 
@@ -98,43 +98,29 @@ The following configuration options are available for storage pools that use the
 (storage-zfs-pool-config)=
 ### Storage pool configuration
 
-Key                           | Type                          | Default                                 | Description
-:--                           | :---                          | :------                                 | :----------
-`size`                        | string                        | auto (20% of free disk space, >= 5 GiB and <= 30 GiB) | Size of the storage pool when creating loop-based pools (in bytes, suffixes supported, can be increased to grow storage pool)
-`source`                      | string                        | -                                       | Path to an existing block device, loop file or ZFS dataset/pool
-`source.wipe`                 | bool                          | `false`                                 | Wipe the block device specified in `source` prior to creating the storage pool
-`zfs.clone_copy`              | string                        | `true`                                  | Whether to use ZFS lightweight clones rather than full {spellexception}`dataset` copies (Boolean), or `rebase` to copy based on the initial image
-`zfs.export`                  | bool                          | `true`                                  | Disable zpool export while unmount performed
-`zfs.pool_name`               | string                        | name of the pool                        | Name of the zpool
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group storage-zfs-pool-conf start -->
+    :end-before: <!-- config group storage-zfs-pool-conf end -->
+```
 
 {{volume_configuration}}
 
 (storage-zfs-vol-config)=
 ### Storage volume configuration
 
-Key                     | Type      | Condition                 | Default                                        | Description
-:--                     | :---      | :--------                 | :------                                        | :----------
-`block.filesystem`      | string    | block-based volume with content type `filesystem` (`zfs.block_mode` enabled) | same as `volume.block.filesystem`              | {{block_filesystem}}
-`block.mount_options`   | string    | block-based volume with content type `filesystem` (`zfs.block_mode` enabled) | same as `volume.block.mount_options`           | Mount options for block-backed file system volumes
-`security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or `false`   | {{enable_ID_shifting}}
-`security.unmapped`     | bool      | custom volume             | same as `volume.security.unmapped` or `false`  | Disable ID mapping for the volume
-`size`                  | string    |                           | same as `volume.size`                          | Size/quota of the storage volume
-`snapshots.expiry`      | string    | custom volume             | same as `volume.snapshots.expiry`              | {{snapshot_expiry_format}}
-`snapshots.pattern`     | string    | custom volume             | same as `volume.snapshots.pattern` or `snap%d` | {{snapshot_pattern_format}} [^*]
-`snapshots.schedule`    | string    | custom volume             | same as `snapshots.schedule`                   | {{snapshot_schedule_format}}
-`zfs.blocksize`         | string    |                           | same as `volume.zfs.blocksize`                 | Size of the ZFS block in range from 512 to 16 MiB (must be power of 2) - for block volume, a maximum value of 128 KiB will be used even if a higher value is set
-`zfs.block_mode`        | bool      |                           | same as `volume.zfs.block_mode`                | Whether to use a formatted `zvol` rather than a {spellexception}`dataset` (`zfs.block_mode` can be set only for custom storage volumes; use `volume.zfs.block_mode` to enable ZFS block mode for all storage volumes in the pool, including instance volumes)
-`zfs.delegate`          | bool      | ZFS 2.2 or higher         | same as `volume.zfs.delegate`                  | Controls whether to delegate the ZFS dataset and anything underneath it to the container(s) using it. Allows the use of the `zfs` command in the container.
-`zfs.remove_snapshots`  | bool      |                           | same as `volume.zfs.remove_snapshots` or `false` | Remove snapshots as needed
-`zfs.use_refquota`      | bool      |                           | same as `volume.zfs.use_refquota` or `false`   | Use `refquota` instead of `quota` for space
-`zfs.reserve_space`     | bool      |                           | same as `volume.zfs.reserve_space` or `false`  | Use `reservation`/`refreservation` along with `quota`/`refquota`
-
-[^*]: {{snapshot_pattern_detail}}
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group storage-zfs-volume-conf start -->
+    :end-before: <!-- config group storage-zfs-volume-conf end -->
+```
 
 ### Storage bucket configuration
 
 To enable storage buckets for local storage pool drivers and allow applications to access the buckets via the S3 protocol, you must configure the {config:option}`server-core:core.storage_buckets_address` server setting.
 
-Key                     | Type      | Condition                 | Default                                        | Description
-:--                     | :---      | :--------                 | :------                                        | :----------
-`size`                  | string    | appropriate driver        | same as `volume.size`                          | Size/quota of the storage bucket
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group storage-zfs-bucket-conf start -->
+    :end-before: <!-- config group storage-zfs-bucket-conf end -->
+```

@@ -51,7 +51,7 @@ Therefore, you should never use VMs with Btrfs storage pools.
 
 If you really need to use VMs with Btrfs storage pools, set the instance root disk's [`size.state`](devices-disk) property to twice the size of the root disk's size.
 This configuration allows all blocks in the disk image file to be rewritten without reaching the qgroup quota.
-The [`btrfs.mount_options=compress-force`](storage-btrfs-pool-config) storage pool option can also avoid this scenario, because a side effect of enabling compression is to reduce the maximum extent size such that block rewrites don't cause as much storage to be double-tracked.
+Setting the {config:option}`storage-btrfs-pool-conf:btrfs.mount_options` storage pool option to `compress-force` can also avoid this scenario, because a side effect of enabling compression is to reduce the maximum extent size such that block rewrites don't cause as much storage to be double-tracked.
 However, this is a storage pool option, and it therefore affects all volumes on the pool.
 ```
 
@@ -62,32 +62,28 @@ The following configuration options are available for storage pools that use the
 (storage-btrfs-pool-config)=
 ### Storage pool configuration
 
-Key                             | Type      | Default                    | Description
-:--                             | :---      | :------                    | :----------
-`btrfs.mount_options`           | string    | `user_subvol_rm_allowed`   | Mount options for block devices
-`size`                          | string    | auto (20% of free disk space, >= 5 GiB and <= 30 GiB) | Size of the storage pool when creating loop-based pools (in bytes, suffixes supported, can be increased to grow storage pool)
-`source`                        | string    | -                          | Path to an existing block device, loop file or Btrfs subvolume
-`source.wipe`                   | bool      | `false`                    | Wipe the block device specified in `source` prior to creating the storage pool
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group storage-btrfs-pool-conf start -->
+    :end-before: <!-- config group storage-btrfs-pool-conf end -->
+```
 
 {{volume_configuration}}
 
 ### Storage volume configuration
 
-Key                     | Type      | Condition                 | Default                                       | Description
-:--                     | :---      | :--------                 | :------                                       | :----------
-`security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or `false`  | {{enable_ID_shifting}}
-`security.unmapped`     | bool      | custom volume             | same as `volume.security.unmapped` or `false` | Disable ID mapping for the volume
-`size`                  | string    | appropriate driver        | same as `volume.size`                         | Size/quota of the storage volume
-`snapshots.expiry`      | string    | custom volume             | same as `volume.snapshots.expiry`             | {{snapshot_expiry_format}}
-`snapshots.pattern`     | string    | custom volume             | same as `volume.snapshots.pattern` or `snap%d`| {{snapshot_pattern_format}} [^*]
-`snapshots.schedule`    | string    | custom volume             | same as `volume.snapshots.schedule`           | {{snapshot_schedule_format}}
-
-[^*]: {{snapshot_pattern_detail}}
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group storage-btrfs-volume-conf start -->
+    :end-before: <!-- config group storage-btrfs-volume-conf end -->
+```
 
 ### Storage bucket configuration
 
 To enable storage buckets for local storage pool drivers and allow applications to access the buckets via the S3 protocol, you must configure the {config:option}`server-core:core.storage_buckets_address` server setting.
 
-Key                     | Type      | Condition                 | Default                                        | Description
-:--                     | :---      | :--------                 | :------                                        | :----------
-`size`                  | string    | appropriate driver        | same as `volume.size`                          | Size/quota of the storage bucket
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group storage-btrfs-bucket-conf start -->
+    :end-before: <!-- config group storage-btrfs-bucket-conf end -->
+```

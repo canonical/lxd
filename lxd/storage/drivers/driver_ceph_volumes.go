@@ -833,7 +833,22 @@ func (d *ceph) FillVolumeConfig(vol Volume) error {
 // commonVolumeRules returns validation rules which are common for pool and volume.
 func (d *ceph) commonVolumeRules() map[string]func(value string) error {
 	return map[string]func(value string) error{
-		"block.filesystem":    validate.Optional(validate.IsOneOf(blockBackedAllowedFilesystems...)),
+		// lxdmeta:generate(entities=storage-ceph,storage-lvm; group=volume-conf; key=block.filesystem)
+		// Valid options are: `btrfs`, `ext4`, `xfs`
+		// If not set, `ext4` is assumed.
+		// ---
+		//  type: string
+		//  condition: block-based volume with content type `filesystem`
+		//  defaultdesc: same as `volume.block.filesystem`
+		//  shortdesc: File system of the storage volume
+		"block.filesystem": validate.Optional(validate.IsOneOf(blockBackedAllowedFilesystems...)),
+		// lxdmeta:generate(entities=storage-ceph,storage-lvm; group=volume-conf; key=block.mount_options)
+		//
+		// ---
+		//  type: string
+		//  condition: block-based volume with content type `filesystem`
+		//  defaultdesc: same as `volume.block.mount_options`
+		//  shortdesc: Mount options for block-backed file system volumes
 		"block.mount_options": validate.IsAny,
 	}
 }
