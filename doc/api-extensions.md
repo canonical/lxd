@@ -2340,3 +2340,9 @@ This API extension provides the ability to configure storage volumes in preseed 
 ## `metrics_instances_count`
 
 This extends the metrics to include the containers and virtual machines counts. Instances are counted irrespective of their state.
+
+## `server_instance_type_info`
+
+This API extension enables querying a server's supported instance types.
+When querying the `/1.0` endpoint, a new field named `instance_types` is added to the retrieved data.
+This field indicates which instance types are supported by the server.

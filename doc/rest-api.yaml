@@ -5292,6 +5292,15 @@ definitions:
                 example: nftables
                 type: string
                 x-go-name: Firewall
+            instance_types:
+                description: List of supported instance types
+                example:
+                    - container
+                    - virtual-machine
+                items:
+                    type: string
+                type: array
+                x-go-name: InstanceTypes
             kernel:
                 description: OS kernel name
                 example: Linux
