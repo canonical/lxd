@@ -103,31 +103,32 @@ const qemuBlockDevIDPrefix = "lxd_"
 // qemuMigrationNBDExportName is the name of the disk device export by the migration NBD server.
 const qemuMigrationNBDExportName = "lxd_root"
 
-// OVMF firmwares.
-type ovmfFirmware struct {
+// VM firmwares.
+type vmFirmware struct {
 	code string
 	vars string
 }
 
 // Debug version of the "default" firmware.
-var ovmfDebugFirmware = "OVMF_CODE.4MB.debug.fd"
+var vmDebugFirmware = "OVMF_CODE.4MB.debug.fd"
 
-var ovmfGenericFirmwares = []ovmfFirmware{
+var vmGenericFirmwares = []vmFirmware{
 	{code: "OVMF_CODE.4MB.fd", vars: "OVMF_VARS.4MB.fd"},
 	{code: "OVMF_CODE.2MB.fd", vars: "OVMF_VARS.2MB.fd"},
 	{code: "OVMF_CODE.fd", vars: "OVMF_VARS.fd"},
 	{code: "OVMF_CODE.fd", vars: "qemu.nvram"},
 }
 
-var ovmfSecurebootFirmwares = []ovmfFirmware{
+var vmSecurebootFirmwares = []vmFirmware{
 	{code: "OVMF_CODE.4MB.fd", vars: "OVMF_VARS.4MB.ms.fd"},
 	{code: "OVMF_CODE.2MB.fd", vars: "OVMF_VARS.2MB.ms.fd"},
 	{code: "OVMF_CODE.fd", vars: "OVMF_VARS.ms.fd"},
 	{code: "OVMF_CODE.fd", vars: "qemu.nvram"},
 }
 
-var ovmfCSMFirmwares = []ovmfFirmware{
-	{code: "seabios.bin", vars: "seabios.bin"},
+// Only valid for x86_64.
+var vmLegacyFirmwares = []vmFirmware{
+	{code: "bios-256k.bin", vars: "bios-256k.bin"},
 	{code: "OVMF_CODE.4MB.CSM.fd", vars: "OVMF_VARS.4MB.CSM.fd"},
 	{code: "OVMF_CODE.2MB.CSM.fd", vars: "OVMF_VARS.2MB.CSM.fd"},
 	{code: "OVMF_CODE.CSM.fd", vars: "OVMF_VARS.CSM.fd"},
@@ -784,12 +785,27 @@ func (d *qemu) Rebuild(img *api.Image, op *operations.Operation) error {
 	return d.rebuildCommon(d, img, op)
 }
 
-func (d *qemu) ovmfPath() string {
-	if os.Getenv("LXD_OVMF_PATH") != "" {
-		return os.Getenv("LXD_OVMF_PATH")
+func (*qemu) fwPath(filename string) string {
+	qemuFwPathsArr, err := util.GetQemuFwPaths()
+	if err != nil {
+		return ""
 	}
 
-	return "/usr/share/OVMF"
+	// GetQemuFwPaths resolves symlinks for us, but we still need EvalSymlinks() in here,
+	// because filename itself can be a symlink.
+	for _, path := range qemuFwPathsArr {
+		filePath := filepath.Join(path, filename)
+		filePath, err := filepath.EvalSymlinks(filePath)
+		if err != nil {
+			continue
+		}
+
+		if shared.PathExists(filePath) {
+			return filePath
+		}
+	}
+
+	return ""
 }
 
 // killQemuProcess kills specified process. Optimistically attempts to wait for the process to fully exit, but does
@@ -1104,9 +1120,21 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		return fmt.Errorf("The image used by this instance is incompatible with secureboot. Please set security.secureboot=false on the instance")
 	}
 
-	// Ensure secureboot is turned off when CSM is on
-	if shared.IsTrue(d.expandedConfig["security.csm"]) && shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
-		return fmt.Errorf("Secure boot can't be enabled while CSM is turned on. Please set security.secureboot=false on the instance")
+	if shared.IsTrue(d.expandedConfig["security.csm"]) {
+		// Ensure CSM is turned off for all arches except x86_64
+		if d.architecture != osarch.ARCH_64BIT_INTEL_X86 {
+			return fmt.Errorf("CSM can be enabled for x86_64 architecture only. Please set security.csm=false on the instance")
+		}
+
+		// Having boot.debug_edk2 enabled contradicts with enabling CSM
+		if shared.IsTrue(d.localConfig["boot.debug_edk2"]) {
+			return fmt.Errorf("CSM can not be enabled together with boot.debug_edk2. Please set one of them to false")
+		}
+
+		// Ensure secureboot is turned off when CSM is on
+		if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
+			return fmt.Errorf("Secure boot can't be enabled while CSM is turned on. Please set security.secureboot=false on the instance")
+		}
 	}
 
 	// Setup a new operation if needed.
@@ -1231,7 +1259,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		return err
 	}
 
-	// Copy OVMF settings firmware to nvram file if needed.
+	// Copy VM firmware settings firmware to nvram file if needed.
 	// This firmware file can be modified by the VM so it must be copied from the defaults.
 	if d.architectureSupportsUEFI(d.architecture) && (!shared.PathExists(d.nvramPath()) || shared.IsTrue(d.localConfig["volatile.apply_nvram"])) {
 		err = d.setupNvram()
@@ -1464,11 +1492,6 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		// 0x402 is the default PcdDebugIoPort value in the edk2.
 		// This I/O port is used by DebugLib in the edk2 to print debug messages.
 		qemuCmd = append(qemuCmd, "-debugcon", "file:"+d.EDK2LogFilePath(), "-global", "isa-debugcon.iobase=0x402")
-	}
-
-	// This feature specific to the snap-shipped CSM edk2 version, because we have a custom patch to make it work.
-	if shared.InSnap() && shared.IsTrue(d.expandedConfig["security.csm"]) {
-		qemuCmd = append(qemuCmd, "-fw_cfg", "name=opt/com.canonical.lxd/force_csm,string=yes")
 	}
 
 	// If stateful, restore now.
@@ -1954,7 +1977,7 @@ func (d *qemu) setupNvram() error {
 	d.logger.Debug("Generating NVRAM")
 
 	// Cleanup existing variables.
-	for _, firmwares := range [][]ovmfFirmware{ovmfGenericFirmwares, ovmfSecurebootFirmwares, ovmfCSMFirmwares} {
+	for _, firmwares := range [][]vmFirmware{vmGenericFirmwares, vmSecurebootFirmwares, vmLegacyFirmwares} {
 		for _, firmware := range firmwares {
 			err := os.Remove(filepath.Join(d.Path(), firmware.vars))
 			if err != nil && !os.IsNotExist(err) {
@@ -1964,45 +1987,41 @@ func (d *qemu) setupNvram() error {
 	}
 
 	// Determine expected firmware.
-	firmwares := ovmfGenericFirmwares
+	firmwares := vmGenericFirmwares
 	if shared.IsTrue(d.expandedConfig["security.csm"]) {
-		firmwares = ovmfCSMFirmwares
+		firmwares = vmLegacyFirmwares
 	} else if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
-		firmwares = ovmfSecurebootFirmwares
+		firmwares = vmSecurebootFirmwares
 	}
 
 	// Find the template file.
-	var ovmfVarsPath string
-	var ovmfVarsName string
+	var vmfVarsPath string
+	var vmfVarsName string
 	for _, firmware := range firmwares {
-		varsPath := filepath.Join(d.ovmfPath(), firmware.vars)
-		varsPath, err = filepath.EvalSymlinks(varsPath)
-		if err != nil {
-			continue
-		}
+		varsPath := d.fwPath(firmware.vars)
 
-		if shared.PathExists(varsPath) {
-			ovmfVarsPath = varsPath
-			ovmfVarsName = firmware.vars
+		if varsPath != "" {
+			vmfVarsPath = varsPath
+			vmfVarsName = firmware.vars
 			break
 		}
 	}
 
-	if ovmfVarsPath == "" {
-		return fmt.Errorf("Couldn't find one of the required UEFI firmware files: %+v", firmwares)
+	if vmfVarsPath == "" {
+		return fmt.Errorf("Couldn't find one of the required firmware files: %+v", firmwares)
 	}
 
 	// Copy the template.
-	err = shared.FileCopy(ovmfVarsPath, filepath.Join(d.Path(), ovmfVarsName))
+	err = shared.FileCopy(vmfVarsPath, filepath.Join(d.Path(), vmfVarsName))
 	if err != nil {
 		return err
 	}
 
 	// Generate a symlink if needed.
-	// This is so qemu.nvram can always be assumed to be the OVMF vars file.
+	// This is so qemu.nvram can always be assumed to be the VM firmware vars file.
 	// The real file name is then used to determine what firmware must be selected.
 	if !shared.PathExists(d.nvramPath()) {
-		err = os.Symlink(ovmfVarsName, d.nvramPath())
+		err = os.Symlink(vmfVarsName, d.nvramPath())
 		if err != nil {
 			return err
 		}
@@ -3041,43 +3060,51 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		}
 
 		// Determine expected firmware.
-		firmwares := ovmfGenericFirmwares
+		firmwares := vmGenericFirmwares
 		if shared.IsTrue(d.expandedConfig["security.csm"]) {
-			firmwares = ovmfCSMFirmwares
+			firmwares = vmLegacyFirmwares
 		} else if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
-			firmwares = ovmfSecurebootFirmwares
+			firmwares = vmSecurebootFirmwares
 		}
 
-		var ovmfCode string
+		var vmfCode string
 		for _, firmware := range firmwares {
 			if shared.PathExists(filepath.Join(d.Path(), firmware.vars)) {
-				ovmfCode = firmware.code
+				vmfCode = firmware.code
 				break
 			}
 		}
 
-		if ovmfCode == "" {
+		if vmfCode == "" {
 			return "", nil, fmt.Errorf("Unable to locate matching firmware: %+v", firmwares)
 		}
 
 		// As 2MB firmware was deprecated in the LXD snap we have to regenerate NVRAM for VMs which used the 2MB one.
-		if shared.InSnap() && !strings.Contains(ovmfCode, "4MB") {
+		// As EDK2-based CSM firmwares were deprecated in the LXD snap we want to force VMs to start using SeaBIOS directly.
+		isOVMF2MB := (strings.Contains(vmfCode, "OVMF") && !strings.Contains(vmfCode, "4MB"))
+		isOVMFCSM := (strings.Contains(vmfCode, "OVMF") && strings.Contains(vmfCode, "CSM"))
+		if shared.InSnap() && (isOVMF2MB || isOVMFCSM) {
 			err = d.setupNvram()
 			if err != nil {
 				return "", nil, err
 			}
 
-			// force to use a 4MB firmware
-			ovmfCode = firmwares[0].code
+			// force to use a top-priority firmware
+			vmfCode = firmwares[0].code
 		}
 
 		// Use debug version of firmware. (Only works for "default" (4MB, no CSM) firmware flavor)
-		if shared.IsTrue(d.localConfig["boot.debug_edk2"]) && ovmfCode == ovmfGenericFirmwares[0].code {
-			ovmfCode = ovmfDebugFirmware
+		if shared.IsTrue(d.localConfig["boot.debug_edk2"]) && vmfCode == vmGenericFirmwares[0].code {
+			vmfCode = vmDebugFirmware
+		}
+
+		fwPath := d.fwPath(vmfCode)
+		if fwPath == "" {
+			return "", nil, fmt.Errorf("Unable to locate the file for firmware %q", vmfCode)
 		}
 
 		driveFirmwareOpts := qemuDriveFirmwareOpts{
-			roPath:    filepath.Join(d.ovmfPath(), ovmfCode),
+			roPath:    fwPath,
 			nvramPath: fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, nvRAMFile)),
 		}
 
@@ -8346,13 +8373,18 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 	}
 
 	if d.architectureSupportsUEFI(hostArch) {
-		ovmfCode := "OVMF_CODE.fd"
+		vmfCode := "OVMF_CODE.fd"
 
 		if shared.InSnap() {
-			ovmfCode = ovmfGenericFirmwares[0].code
+			vmfCode = vmGenericFirmwares[0].code
 		}
 
-		qemuArgs = append(qemuArgs, "-drive", fmt.Sprintf("if=pflash,format=raw,readonly=on,file=%s", filepath.Join(d.ovmfPath(), ovmfCode)))
+		fwPath := d.fwPath(vmfCode)
+		if fwPath == "" {
+			return nil, fmt.Errorf("Unable to locate the file for firmware %q", vmfCode)
+		}
+
+		qemuArgs = append(qemuArgs, "-drive", fmt.Sprintf("if=pflash,format=raw,readonly=on,file=%s", fwPath))
 	}
 
 	var stderr bytes.Buffer

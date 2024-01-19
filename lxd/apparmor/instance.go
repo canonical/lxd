@@ -182,12 +182,7 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 			return "", err
 		}
 
-		ovmfPath := "/usr/share/OVMF"
-		if os.Getenv("LXD_OVMF_PATH") != "" {
-			ovmfPath = os.Getenv("LXD_OVMF_PATH")
-		}
-
-		ovmfPath, err = filepath.EvalSymlinks(ovmfPath)
+		qemuFwPathsArr, err := util.GetQemuFwPaths()
 		if err != nil {
 			return "", err
 		}
@@ -209,7 +204,7 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 			"rootPath":    rootPath,
 			"snap":        shared.InSnap(),
 			"userns":      sysOS.RunningInUserNS,
-			"ovmfPath":    ovmfPath,
+			"qemuFwPaths": qemuFwPathsArr,
 		})
 		if err != nil {
 			return "", err

@@ -311,3 +311,5 @@ ZFS
 zpool
 zpools
 qdisc
+firmware
+SeaBIOS

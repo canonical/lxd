@@ -36,6 +36,7 @@ Name                            | Description
 `LXD_LXC_TEMPLATE_CONFIG`       | Path to the LXC template configuration directory
 `LXD_SECURITY_APPARMOR`         | If set to `false`, forces AppArmor off
 `LXD_UNPRIVILEGED_ONLY`         | If set to `true`, enforces that only unprivileged containers can be created. Note that any privileged containers that have been created before setting LXD_UNPRIVILEGED_ONLY will continue to be privileged. To use this option effectively it should be set when the LXD daemon is first set up.
-`LXD_OVMF_PATH`                 | Path to an OVMF build including `OVMF_CODE.fd` and `OVMF_VARS.ms.fd`
+`LXD_OVMF_PATH`                 | Path to an OVMF build including `OVMF_CODE.fd` and `OVMF_VARS.ms.fd` (deprecated, please use `LXD_QEMU_FW_PATH` instead)
+`LXD_QEMU_FW_PATH`              | Path (or `:` separated list of paths) to firmware (OVMF, SeaBIOS) to be used by QEMU
 `LXD_IDMAPPED_MOUNTS_DISABLE`   | Disable idmapped mounts support (useful when testing traditional UID shifting)
 `LXD_DEVMONITOR_DIR`            | Path to be monitored by the device monitor. This is primarily for testing.
