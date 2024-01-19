@@ -32,7 +32,7 @@ if ! git show-ref --quiet "refs/heads/${target_branch}" --quiet >/dev/null 2>&1;
 fi
 
 # Gets the most recent commit hash from the target branch.
-rev="$(git log "origin/${target_branch}" --oneline --no-abbrev-commit -n1 | cut -d' ' -f1)"
+rev="$(git log --max-count=1 --format=%H "origin/${target_branch}")"
 if [ -z "${rev}" ]; then
   echo "No revision found for the tip of the target branch, aborting."
   false
