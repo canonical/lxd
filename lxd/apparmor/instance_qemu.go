@@ -39,8 +39,6 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   /sys/module/vhost/**                      r,
   /tmp/lxd_sev_*                            r,
   /{,usr/}bin/qemu-system-*                 mrix,
-  {{ .ovmfPath }}/OVMF_CODE.fd              kr,
-  {{ .ovmfPath }}/OVMF_CODE.*.fd            kr,
   /usr/share/qemu/**                        kr,
   /usr/share/seabios/**                     kr,
   owner @{PROC}/@{pid}/cpuset               r,
@@ -91,6 +89,15 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   # Entries from LD_LIBRARY_PATH
 {{range $index, $element := .libraryPath}}
   {{$element}}/** mr,
+{{- end }}
+{{- end }}
+
+{{if .qemuFwPaths -}}
+  # Entries from LXD_OVMF_PATH or LXD_QEMU_FW_PATH
+{{range $index, $element := .qemuFwPaths}}
+  {{$element}}/OVMF_CODE.fd   kr,
+  {{$element}}/OVMF_CODE.*.fd kr,
+  {{$element}}/*bios*.bin     kr,
 {{- end }}
 {{- end }}
 
