@@ -4808,6 +4808,11 @@ definitions:
                 example: INTEL SSDPEKKW256G7
                 type: string
                 x-go-name: Model
+            mounted:
+                description: Mounted status of the disk
+                example: true
+                type: boolean
+                x-go-name: Mounted
             numa_node:
                 description: NUMA node the disk is a part of
                 example: 0
@@ -4882,6 +4887,11 @@ definitions:
                 example: nvme0n1p1
                 type: string
                 x-go-name: ID
+            mounted:
+                description: Mounted status of the partition.
+                example: true
+                type: boolean
+                x-go-name: Mounted
             partition:
                 description: Partition number
                 example: 1

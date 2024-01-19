@@ -609,6 +609,10 @@ type ResourcesStorageDisk struct {
 	// Example: false
 	ReadOnly bool `json:"read_only" yaml:"read_only"`
 
+	// Mounted status of the disk
+	// Example: true
+	Mounted bool `json:"mounted" yaml:"mounted"`
+
 	// Total size of the disk (bytes)
 	// Example: 256060514304
 	Size uint64 `json:"size" yaml:"size"`
@@ -702,6 +706,10 @@ type ResourcesStorageDiskPartition struct {
 	// Partition number
 	// Example: 1
 	Partition uint64 `json:"partition" yaml:"partition"`
+
+	// Mounted status of the partition.
+	// Example: true
+	Mounted bool `json:"mounted" yaml:"mounted"`
 }
 
 // ResourcesMemory represents the memory resources available on the system
