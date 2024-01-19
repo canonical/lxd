@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2023-12-01 11:57+0100\n"
+"POT-Creation-Date: 2024-01-18 19:58+0100\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -614,11 +614,11 @@ msgstr "--empty はイメージ名と同時に指定できません"
 msgid "--expanded cannot be used with a server"
 msgstr "--expanded はサーバーでは使えません"
 
-#: lxc/copy.go:155
+#: lxc/copy.go:156
 msgid "--instance-only can't be passed when the source is a snapshot"
 msgstr "--instance-only はコピー元がスナップショットの場合は指定できません"
 
-#: lxc/copy.go:89
+#: lxc/copy.go:90
 msgid "--no-profiles cannot be used with --refresh"
 msgstr "--no-profiles と --refresh は同時に指定できません"
 
@@ -626,7 +626,7 @@ msgstr "--no-profiles と --refresh は同時に指定できません"
 msgid "--project cannot be used with the query command"
 msgstr "--project は query コマンドでは使えません"
 
-#: lxc/copy.go:166
+#: lxc/copy.go:167
 msgid "--refresh can only be used with instances"
 msgstr "--refresh はインスタンスの場合のみ使えます"
 
@@ -867,7 +867,7 @@ msgstr "エイリアス %s は存在しません"
 msgid "Alias name missing"
 msgstr "エイリアスを指定してください"
 
-#: lxc/publish.go:242
+#: lxc/publish.go:243
 #, fuzzy, c-format
 msgid "Aliases already exists: %s"
 msgstr "エイリアス %s は既に存在します"
@@ -1015,12 +1015,12 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr "不適切なキー/値のペア: %s"
 
-#: lxc/copy.go:138 lxc/init.go:216 lxc/move.go:380 lxc/project.go:129
+#: lxc/copy.go:139 lxc/init.go:216 lxc/move.go:380 lxc/project.go:129
 #, fuzzy, c-format
 msgid "Bad key=value pair: %q"
 msgstr "不適切な キー=値 のペア: %s"
 
-#: lxc/publish.go:179 lxc/storage.go:130 lxc/storage_volume.go:578
+#: lxc/publish.go:180 lxc/storage.go:130 lxc/storage_volume.go:578
 #, c-format
 msgid "Bad key=value pair: %s"
 msgstr "不適切な キー=値 のペア: %s"
@@ -1290,7 +1290,7 @@ msgid "Cluster member %s removed from group %s"
 msgstr "クラスターメンバー %s がグループ %s から削除されました"
 
 #: lxc/config.go:101 lxc/config.go:385 lxc/config.go:528 lxc/config.go:734
-#: lxc/config.go:857 lxc/copy.go:60 lxc/info.go:45 lxc/init.go:56
+#: lxc/config.go:857 lxc/copy.go:61 lxc/info.go:45 lxc/init.go:56
 #: lxc/move.go:66 lxc/network.go:300 lxc/network.go:723 lxc/network.go:792
 #: lxc/network.go:1134 lxc/network.go:1219 lxc/network.go:1283
 #: lxc/network_forward.go:170 lxc/network_forward.go:234
@@ -1352,7 +1352,7 @@ msgstr ""
 "LXD の機能のすべてが、以下の色々なコマンドから操作できます。\n"
 "コマンドのヘルプは、--help をコマンドに付けて実行するだけです。"
 
-#: lxc/publish.go:39
+#: lxc/publish.go:40
 msgid "Compression algorithm to use (`none` for uncompressed)"
 msgstr "圧縮アルゴリズムを指定します: (圧縮しない場合は `none`)"
 
@@ -1360,7 +1360,7 @@ msgstr "圧縮アルゴリズムを指定します: (圧縮しない場合は `n
 msgid "Compression algorithm to use (none for uncompressed)"
 msgstr "使用する圧縮アルゴリズムを指定します (圧縮しない場合は none)"
 
-#: lxc/copy.go:52 lxc/init.go:49
+#: lxc/copy.go:53 lxc/init.go:49
 msgid "Config key/value to apply to the new instance"
 msgstr "新しいインスタンスに適用するキー/値の設定"
 
@@ -1402,7 +1402,7 @@ msgstr "コンテンツタイプ: %s"
 msgid "Control: %s (%s)"
 msgstr "コントロール: %s (%s)"
 
-#: lxc/copy.go:58 lxc/move.go:64
+#: lxc/copy.go:59 lxc/move.go:64
 msgid "Copy a stateful instance stateless"
 msgstr "ステートフルなインスタンスをステートレスにコピーします"
 
@@ -1426,11 +1426,11 @@ msgstr ""
 "自動更新フラグは、このイメージを最新に保つようにサーバに指示します。\n"
 "ソースはエイリアスで、かつパブリックである必要があります。"
 
-#: lxc/copy.go:39
+#: lxc/copy.go:40
 msgid "Copy instances within or in between LXD servers"
 msgstr "LXD サーバ内で、またはサーバ間でインスタンスをコピーします"
 
-#: lxc/copy.go:40
+#: lxc/copy.go:41
 msgid ""
 "Copy instances within or in between LXD servers\n"
 "\n"
@@ -1469,7 +1469,7 @@ msgstr "プロファイルをコピーします"
 msgid "Copy storage volumes"
 msgstr "ストレージボリュームをコピーします"
 
-#: lxc/copy.go:57
+#: lxc/copy.go:58
 msgid "Copy the instance without its snapshots"
 msgstr "インスタンスをコピーします。スナップショットはコピーしません"
 
@@ -1477,7 +1477,7 @@ msgstr "インスタンスをコピーします。スナップショットはコ
 msgid "Copy the volume without its snapshots"
 msgstr "ボリュームをコピーします (スナップショットはコピーしません)"
 
-#: lxc/copy.go:61 lxc/image.go:157 lxc/move.go:67 lxc/profile.go:252
+#: lxc/copy.go:62 lxc/image.go:157 lxc/move.go:67 lxc/profile.go:252
 #: lxc/storage_volume.go:338
 msgid "Copy to a project different from the source"
 msgstr "コピー／移動元とは異なるプロジェクトにコピーします"
@@ -1648,7 +1648,7 @@ msgstr "プロジェクトを作成します"
 msgid "Create storage pools"
 msgstr "ストレージプールを作成します"
 
-#: lxc/copy.go:62 lxc/init.go:57
+#: lxc/copy.go:63 lxc/init.go:57
 msgid "Create the instance with no profiles applied"
 msgstr "プロファイルを適用しないインスタンスを作成します"
 
@@ -1817,7 +1817,7 @@ msgstr "警告を削除します"
 #: lxc/config_template.go:300 lxc/config_trust.go:34 lxc/config_trust.go:87
 #: lxc/config_trust.go:236 lxc/config_trust.go:350 lxc/config_trust.go:432
 #: lxc/config_trust.go:534 lxc/config_trust.go:580 lxc/config_trust.go:651
-#: lxc/console.go:36 lxc/copy.go:40 lxc/delete.go:31 lxc/exec.go:41
+#: lxc/console.go:36 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:41
 #: lxc/export.go:32 lxc/file.go:78 lxc/file.go:118 lxc/file.go:167
 #: lxc/file.go:237 lxc/file.go:459 lxc/file.go:967 lxc/image.go:37
 #: lxc/image.go:145 lxc/image.go:312 lxc/image.go:363 lxc/image.go:490
@@ -1867,7 +1867,7 @@ msgstr "警告を削除します"
 #: lxc/profile.go:802 lxc/profile.go:878 lxc/profile.go:934 lxc/project.go:29
 #: lxc/project.go:93 lxc/project.go:158 lxc/project.go:221 lxc/project.go:349
 #: lxc/project.go:410 lxc/project.go:523 lxc/project.go:580 lxc/project.go:659
-#: lxc/project.go:690 lxc/project.go:743 lxc/project.go:802 lxc/publish.go:32
+#: lxc/project.go:690 lxc/project.go:743 lxc/project.go:802 lxc/publish.go:33
 #: lxc/query.go:34 lxc/rebuild.go:27 lxc/remote.go:33 lxc/remote.go:88
 #: lxc/remote.go:628 lxc/remote.go:664 lxc/remote.go:752 lxc/remote.go:823
 #: lxc/remote.go:878 lxc/remote.go:916 lxc/rename.go:21 lxc/restore.go:24
@@ -2187,7 +2187,7 @@ msgstr "TTLを指定します"
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr "環境変数を設定します (例: HOME=/home/foo)"
 
-#: lxc/copy.go:55 lxc/init.go:52
+#: lxc/copy.go:56 lxc/init.go:52
 msgid "Ephemeral instance"
 msgstr "Ephemeral インスタンス"
 
@@ -2201,7 +2201,7 @@ msgstr "イメージの取得中: %s"
 msgid "Error decoding data: %v"
 msgstr "イメージの取得中: %s"
 
-#: lxc/publish.go:233
+#: lxc/publish.go:234
 #, fuzzy, c-format
 msgid "Error retrieving aliases: %w"
 msgstr "イメージの取得中: %s"
@@ -2470,7 +2470,7 @@ msgstr "プロジェクトが見つけられませんでした: %w"
 msgid "Failed to listen for connection: %w"
 msgstr "コネクションのリッスンに失敗しました: %w"
 
-#: lxc/copy.go:360
+#: lxc/copy.go:361
 #, c-format
 msgid "Failed to refresh target instance '%s': %v"
 msgstr "コピー先のインスタンス '%s' のリフレッシュに失敗しました: %v"
@@ -2865,7 +2865,7 @@ msgstr "ISSUE DATE"
 msgid "If an instance is running, stop it and then rebuild it"
 msgstr ""
 
-#: lxc/publish.go:41
+#: lxc/publish.go:42
 #, fuzzy
 msgid "If the image alias already exists, delete and create a new one"
 msgstr ""
@@ -2892,7 +2892,7 @@ msgstr "設定されている自動でのインスタンスの有効期限設定
 msgid "Ignore any configured auto-expiry for the storage volume"
 msgstr "設定されている自動でのストレージボリュームの有効期限設定を無視します"
 
-#: lxc/copy.go:64 lxc/move.go:68
+#: lxc/copy.go:65 lxc/move.go:68
 msgid "Ignore copy errors for volatile files"
 msgstr "コピー中にファイルが更新された場合のエラーを無視します"
 
@@ -2908,7 +2908,7 @@ msgstr "イメージは更新済みです。"
 msgid "Image copied successfully!"
 msgstr "イメージのコピーが成功しました!"
 
-#: lxc/publish.go:40
+#: lxc/publish.go:41
 msgid "Image expiration date (format: rfc3339)"
 msgstr "イメージの失効日（フォーマット: rfc3339）"
 
@@ -3007,7 +3007,7 @@ msgstr "インスタンスが切断されました"
 msgid "Instance disconnected for client %q"
 msgstr "クライアント %q に対するインスタンスが切断されました"
 
-#: lxc/publish.go:79
+#: lxc/publish.go:80
 msgid "Instance name is mandatory"
 msgstr "インスタンス名を指定する必要があります"
 
@@ -3020,7 +3020,7 @@ msgstr "インスタンス名: %s"
 msgid "Instance path cannot be used in SSH SFTP listener mode"
 msgstr "SSH SFTP リスナーモードではインスタンスのパスを使用できません"
 
-#: lxc/publish.go:346
+#: lxc/publish.go:347
 #, c-format
 msgid "Instance published with fingerprint: %s"
 msgstr "インスタンスは以下のフィンガープリントで publish されます: %s"
@@ -3733,7 +3733,7 @@ msgstr "MTU: %d"
 msgid "Make image public"
 msgstr "イメージを public にする"
 
-#: lxc/publish.go:36
+#: lxc/publish.go:37
 msgid "Make the image public"
 msgstr "イメージを public にする"
 
@@ -3967,12 +3967,12 @@ msgstr "メモリ消費量:"
 msgid "Memory:"
 msgstr "メモリ:"
 
-#: lxc/move.go:309 lxc/move.go:423
+#: lxc/move.go:309 lxc/move.go:422
 #, c-format
 msgid "Migration API failure: %w"
 msgstr "マイグレーション API が失敗しました: %w"
 
-#: lxc/move.go:334 lxc/move.go:428
+#: lxc/move.go:334 lxc/move.go:427
 #, c-format
 msgid "Migration operation failure: %w"
 msgstr "マイグレーションが失敗しました: %w"
@@ -4420,7 +4420,7 @@ msgstr "ネットワークゾーンレコード %s を作成しました"
 msgid "Network zone record %s deleted"
 msgstr "ネットワークゾーンレコード %s を削除しました"
 
-#: lxc/publish.go:37
+#: lxc/publish.go:38
 msgid "New alias to define at target"
 msgstr "新しいエイリアスを定義する"
 
@@ -4428,7 +4428,7 @@ msgstr "新しいエイリアスを定義する"
 msgid "New aliases to add to the image"
 msgstr "イメージに新しいエイリアスを追加します"
 
-#: lxc/copy.go:53 lxc/init.go:51 lxc/move.go:59
+#: lxc/copy.go:54 lxc/init.go:51 lxc/move.go:59
 msgid "New key/value to apply to a specific device"
 msgstr "指定するデバイスに適用する新しいキー/値"
 
@@ -4597,7 +4597,7 @@ msgstr "%s のパスワード: "
 msgid "Pause instances"
 msgstr "インスタンスを一時停止します"
 
-#: lxc/copy.go:63
+#: lxc/copy.go:64
 msgid "Perform an incremental copy"
 msgstr "インクリメンタルコピーを実行します"
 
@@ -4709,7 +4709,7 @@ msgstr "プロファイル名 %s を %s に変更しました"
 msgid "Profile to apply to the new image"
 msgstr "新しいイメージに適用するプロファイル"
 
-#: lxc/copy.go:54 lxc/init.go:50
+#: lxc/copy.go:55 lxc/init.go:50
 msgid "Profile to apply to the new instance"
 msgstr "新しいインスタンスに適用するプロファイル"
 
@@ -4855,11 +4855,11 @@ msgstr "Public なイメージサーバとして設定します"
 msgid "Public: %s"
 msgstr "パブリック: %s"
 
-#: lxc/publish.go:31 lxc/publish.go:32
+#: lxc/publish.go:32 lxc/publish.go:33
 msgid "Publish instances as images"
 msgstr "インスタンスをイメージとして出力します"
 
-#: lxc/publish.go:252
+#: lxc/publish.go:253
 #, c-format
 msgid "Publishing instance: %s"
 msgstr "インスタンスの出力中: %s"
@@ -4929,7 +4929,7 @@ msgstr "既存のストレージボリュームのコピーの再読込と更新
 msgid "Refresh images"
 msgstr "イメージを更新します"
 
-#: lxc/copy.go:382
+#: lxc/copy.go:383
 #, c-format
 msgid "Refreshing instance: %s"
 msgstr "インスタンスの更新中: %s"
@@ -5864,11 +5864,11 @@ msgstr "状態: %s"
 msgid "Stop instances"
 msgstr "インスタンスを停止します"
 
-#: lxc/publish.go:38
+#: lxc/publish.go:39
 msgid "Stop the instance if currently running"
 msgstr "実行中の場合、インスタンスを停止します"
 
-#: lxc/publish.go:141
+#: lxc/publish.go:142
 msgid "Stopping instance failed!"
 msgstr "インスタンスの停止に失敗しました！"
 
@@ -5912,7 +5912,7 @@ msgstr "ストレージプール %s を削除しました"
 msgid "Storage pool %s pending on member %s"
 msgstr "ストレージプール %s はメンバ %s 上でペンディング状態です"
 
-#: lxc/copy.go:59 lxc/import.go:35 lxc/init.go:54 lxc/move.go:65
+#: lxc/copy.go:60 lxc/import.go:35 lxc/init.go:54 lxc/move.go:65
 msgid "Storage pool name"
 msgstr "ストレージプール名"
 
@@ -6037,7 +6037,7 @@ msgstr "direction 引数は次のいずれかでなければなりません: ing
 msgid "The instance is currently running, stop it first or pass --force"
 msgstr "インスタンスは実行中です。先に停止させるか、--force を指定してください"
 
-#: lxc/publish.go:110
+#: lxc/publish.go:111
 msgid ""
 "The instance is currently running. Use --force to have it stopped and "
 "restarted"
@@ -6173,7 +6173,7 @@ msgstr "指定したデバイスが存在しません"
 msgid "The specified device doesn't match the network"
 msgstr "指定したデバイスはネットワークとマッチしません"
 
-#: lxc/publish.go:83
+#: lxc/publish.go:84
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
 "publish 先にはイメージ名は指定できません。\"--alias\" オプションを使ってくだ"
@@ -6245,7 +6245,7 @@ msgstr ""
 "仮想マシンの場合は \"lxc launch ubuntu:22.04 --vm\" と実行してみてください"
 
 #: lxc/config.go:293 lxc/config.go:474 lxc/config.go:681 lxc/config.go:773
-#: lxc/copy.go:130 lxc/info.go:336 lxc/network.go:821 lxc/storage.go:446
+#: lxc/copy.go:131 lxc/info.go:336 lxc/network.go:821 lxc/storage.go:446
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 "--target オプションは、コピー先のリモートサーバがクラスタに属していなければな"
@@ -6278,7 +6278,7 @@ msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpu
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpull)。"
 
-#: lxc/copy.go:56
+#: lxc/copy.go:57
 msgid "Transfer mode. One of pull, push or relay"
 msgstr "転送モード。pull, push, relay のいずれか"
 
@@ -6291,7 +6291,7 @@ msgstr "転送モード。pull, push, relay のいずれか。"
 msgid "Transferring image: %s"
 msgstr "イメージを転送中: %s"
 
-#: lxc/copy.go:338 lxc/move.go:314
+#: lxc/copy.go:339 lxc/move.go:314
 #, c-format
 msgid "Transferring instance: %s"
 msgstr "インスタンスを転送中: %s"
@@ -6704,12 +6704,12 @@ msgstr "-t と -T は同時に指定できません"
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr "--mode と同時に -t または -T は指定できません"
 
-#: lxc/copy.go:101
+#: lxc/copy.go:102
 #, fuzzy
 msgid "You must specify a destination instance name"
 msgstr "コピー元のインスタンス名を指定してください"
 
-#: lxc/copy.go:84 lxc/move.go:280 lxc/move.go:356
+#: lxc/copy.go:85 lxc/move.go:280 lxc/move.go:356
 msgid "You must specify a source instance name"
 msgstr "コピー元のインスタンス名を指定してください"
 
@@ -6946,7 +6946,7 @@ msgstr "[<remote>:]<instance>[/<path>] [<target path>]"
 msgid "[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
 msgstr "[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
 
-#: lxc/publish.go:30
+#: lxc/publish.go:31
 msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
 msgstr "[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
 
@@ -7270,7 +7270,7 @@ msgstr "[<remote>:]<project> <key>=<value>..."
 msgid "[<remote>:]<project> <new-name>"
 msgstr "[<remote>:]<project> <new-name>"
 
-#: lxc/copy.go:37
+#: lxc/copy.go:38
 #, fuzzy
 msgid "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
 msgstr "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"

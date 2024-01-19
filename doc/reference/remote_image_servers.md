@@ -32,12 +32,6 @@ The [`lxc`](lxc.md) CLI command comes pre-configured with the following default 
 
   See [`cloud-images.ubuntu.com/minimal/daily`](https://cloud-images.ubuntu.com/minimal/daily/) for an overview of available images.
 
-`images:`
-: This server provides unofficial images for a variety of Linux distributions.
-  The images are maintained by the [Linux Containers](https://linuxcontainers.org/) team and are built to be compact and minimal.
-
-  See [`images.linuxcontainers.org`](https://images.linuxcontainers.org) for an overview of available images.
-
 (remote-image-server-types)=
 ## Remote server types
 

@@ -7,13 +7,6 @@ var LocalRemote = Remote{
 	Public: false,
 }
 
-// ImagesRemote is the community image server (over simplestreams).
-var ImagesRemote = Remote{
-	Addr:     "https://images.linuxcontainers.org",
-	Public:   true,
-	Protocol: "simplestreams",
-}
-
 // UbuntuRemote is the Ubuntu image server (over simplestreams).
 var UbuntuRemote = Remote{
 	Addr:     "https://cloud-images.ubuntu.com/releases",
@@ -57,7 +50,6 @@ var StaticRemotes = map[string]Remote{
 
 // DefaultRemotes is the list of default remotes.
 var DefaultRemotes = map[string]Remote{
-	"images":               ImagesRemote,
 	"local":                LocalRemote,
 	"ubuntu":               UbuntuRemote,
 	"ubuntu-daily":         UbuntuDailyRemote,
