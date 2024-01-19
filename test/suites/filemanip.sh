@@ -127,6 +127,31 @@ test_filemanip() {
     lxc delete idmap --force
   fi
 
+  # Test lxc file create.
+
+  # Create a new empty file.
+  lxc file create filemanip/tmp/create-test
+  [ -z "$(lxc exec filemanip --project=test -- cat /tmp/create-test)" ]
+
+  # This fails because the parent directory doesn't exist.
+  ! lxc file create filemanip/tmp/create-test-dir/foo || false
+
+  # Create foo along with the parent directory.
+  lxc file create --create-dirs filemanip/tmp/create-test-dir/foo
+  [ -z "$(lxc exec filemanip --project=test -- cat /tmp/create-test-dir/foo)" ]
+
+  # Create directory using --type flag.
+  lxc file create --type=directory filemanip/tmp/create-test-dir/sub-dir
+  lxc exec filemanip --project=test -- test -d /tmp/create-test-dir/sub-dir
+
+  # Create directory using trailing "/".
+  lxc file create filemanip/tmp/create-test-dir/sub-dir-1/
+  lxc exec filemanip --project=test -- test -d /tmp/create-test-dir/sub-dir-1
+
+  # Create symlink.
+  lxc file create --type=symlink filemanip/tmp/create-symlink foo
+  [ "$(lxc exec filemanip --project=test -- readlink /tmp/create-symlink)" = "foo" ]
+
   # Test SFTP functionality.
   cmd=$(unset -f lxc; command -v lxc)
   $cmd file mount filemanip --listen=127.0.0.1:2022 --no-auth &
