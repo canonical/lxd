@@ -27,7 +27,7 @@ if [ -z "${target_branch}" ]; then
 fi
 
 # Fetch the reference if it doesn't exist (Github uses a shallow clone).
-if ! git show-ref --quiet "refs/heads/${target_branch}" --quiet >/dev/null 2>&1; then
+if ! git show-ref --quiet "refs/heads/${target_branch}" >/dev/null 2>&1; then
     git fetch origin "${target_branch}"
 fi
 
