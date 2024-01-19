@@ -75,6 +75,7 @@ const (
 	RenewServerCertificate
 	RemoveExpiredTokens
 	ClusterHeal
+	ClusterLock
 )
 
 // Description return a human-readable description of the operation type.
@@ -198,6 +199,8 @@ func (t Type) Description() string {
 		return "Remove expired tokens"
 	case ClusterHeal:
 		return "Healing cluster"
+	case ClusterLock:
+		return "Cluster is locked"
 	default:
 		return "Executing operation"
 	}
