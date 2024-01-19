@@ -188,14 +188,13 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 		op.SetRequestor(r)
 	}
 
-	operationsLock.Lock()
-	operations[op.id] = &op
-	operationsLock.Unlock()
-
 	err = registerDBOperation(&op, opType)
 	if err != nil {
 		return nil, err
 	}
+	operationsLock.Lock()
+	operations[op.id] = &op
+	operationsLock.Unlock()
 
 	op.logger.Debug("New operation")
 	_, md, _ := op.Render()
