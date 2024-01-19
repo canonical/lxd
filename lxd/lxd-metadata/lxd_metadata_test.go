@@ -8,9 +8,9 @@ import (
 
 // Test the alphabetical sorting of a `lxd-metadata` JSON structure.
 func TestJSONSorted(t *testing.T) {
-	projectEntries := make(map[string]any)
-	projectEntries["entityKey1"] = map[string]any{
-		"groupKey1": map[string]any{
+	projectEntries := make(map[string]map[string]map[string][]any)
+	projectEntries["entityKey1"] = map[string]map[string][]any{
+		"groupKey1": {
 			"keys": []any{
 				map[string]any{
 					"a.core.server.test.b": map[string]string{
@@ -34,8 +34,8 @@ func TestJSONSorted(t *testing.T) {
 		},
 	}
 
-	projectEntries["entityKey2"] = map[string]any{
-		"groupKey2": map[string]any{
+	projectEntries["entityKey2"] = map[string]map[string][]any{
+		"groupKey2": {
 			"keys": []any{
 				map[string]any{
 					"000.111.222": map[string]string{
@@ -59,9 +59,9 @@ func TestJSONSorted(t *testing.T) {
 		},
 	}
 
-	sortedProjectEntries := make(map[string]any)
-	sortedProjectEntries["entityKey1"] = map[string]any{
-		"groupKey1": map[string]any{
+	sortedProjectEntries := make(map[string]map[string]map[string][]any)
+	sortedProjectEntries["entityKey1"] = map[string]map[string][]any{
+		"groupKey1": {
 			"keys": []any{
 				map[string]any{
 					"a.core.server.test.b": map[string]string{
@@ -85,8 +85,8 @@ func TestJSONSorted(t *testing.T) {
 		},
 	}
 
-	sortedProjectEntries["entityKey2"] = map[string]any{
-		"groupKey2": map[string]any{
+	sortedProjectEntries["entityKey2"] = map[string]map[string][]any{
+		"groupKey2": {
 			"keys": []any{
 				map[string]any{
 					"000.111.222": map[string]string{
