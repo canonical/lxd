@@ -21,11 +21,11 @@ import (
 
 var (
 	globalLxdDocRegex   = regexp.MustCompile(`(?m)lxdmeta:generate\((.*)\)([\S\s]+)\s+---\n([\S\s]+)`)
-	lxdDocMetadataRegex = regexp.MustCompile(`(?m)([^,\s]+)=([^,\s]+)`)
+	lxdDocMetadataRegex = regexp.MustCompile(`(?m)([^;\s]+)=([^;\s]+)`)
 	lxdDocDataRegex     = regexp.MustCompile(`(?m)([\S]+):[\s]+([\S \"\']+)`)
 )
 
-var mdKeys []string = []string{"entity", "group", "key"}
+var mdKeys = []string{"entities", "group", "key"}
 
 // IterableAny is a generic type that represents a type or an iterable container.
 type IterableAny interface {
@@ -34,7 +34,7 @@ type IterableAny interface {
 
 // doc is the structure of the JSON file that contains the generated configuration metadata.
 type doc struct {
-	Configs map[string]any `json:"configs"`
+	Configs map[string]map[string]map[string][]any `json:"configs"`
 }
 
 // detectType detects the type of a string and returns the corresponding value.
@@ -69,10 +69,10 @@ func detectType(s string) any {
 }
 
 // sortConfigKeys alphabetically sorts the entries by key (config option key) within each config group in an entity.
-func sortConfigKeys(projectEntries map[string]any) {
-	for _, entityValue := range projectEntries {
-		for _, groupValue := range entityValue.(map[string]any) {
-			configEntries := groupValue.(map[string]any)["keys"].([]any)
+func sortConfigKeys(allEntries map[string]map[string]map[string][]any) {
+	for _, entityValue := range allEntries {
+		for _, groupValue := range entityValue {
+			configEntries := groupValue["keys"]
 			sort.Slice(configEntries, func(i, j int) bool {
 				// Get the only key for each map element in the slice
 				var keyI, keyJ string
@@ -109,7 +109,7 @@ func getSortedKeysFromMap[K string, V IterableAny](m map[K]V) []K {
 func parse(path string, outputJSONPath string, excludedPaths []string) (*doc, error) {
 	jsonDoc := &doc{}
 	docKeys := make(map[string]struct{}, 0)
-	projectEntries := make(map[string]any)
+	allEntries := make(map[string]map[string]map[string][]any)
 	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -144,13 +144,9 @@ func parse(path string, outputJSONPath string, excludedPaths []string) (*doc, er
 			return err
 		}
 
-		fileEntries := make([]map[string]any, 0)
-
 		// Loop in comment groups
 		for _, cg := range f.Comments {
 			s := cg.Text()
-			entry := make(map[string]any)
-			groupKeyEntry := make(map[string]any)
 			for _, match := range globalLxdDocRegex.FindAllStringSubmatch(s, -1) {
 				// check that the match contains the expected number of groups
 				if len(match) != 4 {
@@ -178,7 +174,7 @@ func parse(path string, outputJSONPath string, excludedPaths []string) (*doc, er
 						continue
 					}
 
-					if mdKey == "entity" {
+					if mdKey == "entities" {
 						entityKey = mdValue
 					}
 
@@ -193,14 +189,29 @@ func parse(path string, outputJSONPath string, excludedPaths []string) (*doc, er
 					metadataMap[mdKey] = mdValue
 				}
 
-				// Check that this metadata is not already present
-				mdKeyHash := fmt.Sprintf("%s/%s/%s", entityKey, groupKey, simpleKey)
-				_, ok := docKeys[mdKeyHash]
-				if ok {
-					return fmt.Errorf("Duplicate key '%s' found at %s", mdKeyHash, fset.Position(cg.Pos()).String())
+				// There can be multiple entities for a given group
+				entities := strings.Split(metadataMap["entities"], ",")
+				uniqueEntities := make(map[string]struct{})
+				// Avoid letting the user define the same entity multiple times per comment
+				for _, entity := range entities {
+					_, ok := uniqueEntities[entity]
+					if ok {
+						return fmt.Errorf("Duplicate entity '%s' found at %s", entity, fset.Position(cg.Pos()).String())
+					}
+
+					uniqueEntities[entity] = struct{}{}
 				}
 
-				docKeys[mdKeyHash] = struct{}{}
+				for entityKey = range uniqueEntities {
+					// Check that this metadata is not already present
+					mdKeyHash := fmt.Sprintf("%s/%s/%s", entityKey, groupKey, simpleKey)
+					_, ok := docKeys[mdKeyHash]
+					if ok {
+						return fmt.Errorf("Duplicate key '%s' found at %s", mdKeyHash, fset.Position(cg.Pos()).String())
+					}
+
+					docKeys[mdKeyHash] = struct{}{}
+				}
 
 				configKeyEntry := make(map[string]any)
 				configKeyEntry[metadataMap["key"]] = make(map[string]any)
@@ -213,49 +224,29 @@ func parse(path string, outputJSONPath string, excludedPaths []string) (*doc, er
 					configKeyEntry[metadataMap["key"]].(map[string]any)[dataKVMatch[1]] = detectType(dataKVMatch[2])
 				}
 
-				_, ok = groupKeyEntry[metadataMap["group"]]
-				if ok {
-					_, ok = groupKeyEntry[metadataMap["group"]].(map[string]any)["keys"]
+				// There can be multiple entities for a given group
+				for entityKey := range uniqueEntities {
+					_, ok := allEntries[entityKey]
 					if ok {
-						groupKeyEntry[metadataMap["group"]].(map[string]any)["keys"] = append(
-							groupKeyEntry[metadataMap["group"]].(map[string]any)["keys"].([]any),
-							configKeyEntry,
-						)
-					} else {
-						groupKeyEntry[metadataMap["group"]].(map[string]any)["keys"] = []any{configKeyEntry}
-					}
-				} else {
-					groupKeyEntry[metadataMap["group"]] = make(map[string]any)
-					groupKeyEntry[metadataMap["group"]].(map[string]any)["keys"] = []any{configKeyEntry}
-				}
-
-				entry[metadataMap["entity"]] = groupKeyEntry
-			}
-
-			if len(entry) > 0 {
-				fileEntries = append(fileEntries, entry)
-			}
-		}
-
-		// Update projectEntries
-		for _, entry := range fileEntries {
-			for entityKey, entityValue := range entry {
-				_, ok := projectEntries[entityKey]
-				if !ok {
-					projectEntries[entityKey] = entityValue
-				} else {
-					for groupKey, groupValue := range entityValue.(map[string]any) {
-						_, ok := projectEntries[entityKey].(map[string]any)[groupKey]
-						if !ok {
-							projectEntries[entityKey].(map[string]any)[groupKey] = groupValue
+						_, ok := allEntries[entityKey][groupKey]
+						if ok {
+							_, ok := allEntries[entityKey][groupKey]["keys"]
+							if ok {
+								allEntries[entityKey][groupKey]["keys"] = append(allEntries[entityKey][groupKey]["keys"], configKeyEntry)
+							} else {
+								allEntries[entityKey][groupKey]["keys"] = make([]any, 0)
+								allEntries[entityKey][groupKey]["keys"] = []any{configKeyEntry}
+							}
 						} else {
-							// merge the config keys
-							configKeys := groupValue.(map[string]any)["keys"].([]any)
-							projectEntries[entityKey].(map[string]any)[groupKey].(map[string]any)["keys"] = append(
-								projectEntries[entityKey].(map[string]any)[groupKey].(map[string]any)["keys"].([]any),
-								configKeys...,
-							)
+							allEntries[entityKey][groupKey] = make(map[string][]any, 0)
+							allEntries[entityKey][groupKey]["keys"] = make([]any, 0)
+							allEntries[entityKey][groupKey]["keys"] = []any{configKeyEntry}
 						}
+					} else {
+						allEntries[entityKey] = make(map[string]map[string][]any)
+						allEntries[entityKey][groupKey] = make(map[string][]any, 0)
+						allEntries[entityKey][groupKey]["keys"] = make([]any, 0)
+						allEntries[entityKey][groupKey]["keys"] = []any{configKeyEntry}
 					}
 				}
 			}
@@ -269,8 +260,8 @@ func parse(path string, outputJSONPath string, excludedPaths []string) (*doc, er
 	}
 
 	// sort the config keys alphabetically
-	sortConfigKeys(projectEntries)
-	jsonDoc.Configs = projectEntries
+	sortConfigKeys(allEntries)
+	jsonDoc.Configs = allEntries
 	data, err := json.MarshalIndent(jsonDoc, "", "\t")
 	if err != nil {
 		return nil, fmt.Errorf("Error while marshaling project documentation: %v", err)
@@ -332,11 +323,11 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 	buffer := bytes.NewBufferString("// Code generated by lxd-metadata; DO NOT EDIT.\n\n")
 	for _, entityKey := range sortedEntityKeys {
 		entityEntries := jsonDoc.Configs[entityKey]
-		sortedGroupKeys := getSortedKeysFromMap(entityEntries.(map[string]any))
+		sortedGroupKeys := getSortedKeysFromMap(entityEntries)
 		for _, groupKey := range sortedGroupKeys {
-			groupEntries := entityEntries.(map[string]any)[groupKey]
+			groupEntries := entityEntries[groupKey]
 			buffer.WriteString(fmt.Sprintf("<!-- config group %s-%s start -->\n", entityKey, groupKey))
-			for _, configEntry := range groupEntries.(map[string]any)["keys"].([]any) {
+			for _, configEntry := range groupEntries["keys"] {
 				for configKey, configContent := range configEntry.(map[string]any) {
 					// There is only one key-value pair in each map
 					kvBuffer := bytes.NewBufferString("")
