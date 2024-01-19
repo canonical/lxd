@@ -410,6 +410,7 @@ var APIExtensions = []string{
 	"explicit_trust_token",
 	"shared_custom_block_volumes",
 	"instance_import_conversion",
+	"instance_create_start",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
