@@ -784,12 +784,27 @@ func (d *qemu) Rebuild(img *api.Image, op *operations.Operation) error {
 	return d.rebuildCommon(d, img, op)
 }
 
-func (d *qemu) ovmfPath() string {
-	if os.Getenv("LXD_OVMF_PATH") != "" {
-		return os.Getenv("LXD_OVMF_PATH")
+func (*qemu) fwPath(filename string) string {
+	qemuFwPathsArr, err := util.GetQemuFwPaths()
+	if err != nil {
+		return ""
 	}
 
-	return "/usr/share/OVMF"
+	// GetQemuFwPaths resolves symlinks for us, but we still need EvalSymlinks() in here,
+	// because filename itself can be a symlink.
+	for _, path := range qemuFwPathsArr {
+		filePath := filepath.Join(path, filename)
+		filePath, err := filepath.EvalSymlinks(filePath)
+		if err != nil {
+			continue
+		}
+
+		if shared.PathExists(filePath) {
+			return filePath
+		}
+	}
+
+	return ""
 }
 
 // killQemuProcess kills specified process. Optimistically attempts to wait for the process to fully exit, but does
@@ -1970,13 +1985,9 @@ func (d *qemu) setupNvram() error {
 	var ovmfVarsPath string
 	var ovmfVarsName string
 	for _, firmware := range firmwares {
-		varsPath := filepath.Join(d.ovmfPath(), firmware.vars)
-		varsPath, err = filepath.EvalSymlinks(varsPath)
-		if err != nil {
-			continue
-		}
+		varsPath := d.fwPath(firmware.vars)
 
-		if shared.PathExists(varsPath) {
+		if varsPath != "" {
 			ovmfVarsPath = varsPath
 			ovmfVarsName = firmware.vars
 			break
@@ -3074,8 +3085,13 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			ovmfCode = ovmfDebugFirmware
 		}
 
+		fwPath := d.fwPath(ovmfCode)
+		if fwPath == "" {
+			return "", nil, fmt.Errorf("Unable to locate the file for firmware %q", ovmfCode)
+		}
+
 		driveFirmwareOpts := qemuDriveFirmwareOpts{
-			roPath:    filepath.Join(d.ovmfPath(), ovmfCode),
+			roPath:    fwPath,
 			nvramPath: fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, nvRAMFile)),
 		}
 
@@ -8350,7 +8366,12 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 			ovmfCode = ovmfGenericFirmwares[0].code
 		}
 
-		qemuArgs = append(qemuArgs, "-drive", fmt.Sprintf("if=pflash,format=raw,readonly=on,file=%s", filepath.Join(d.ovmfPath(), ovmfCode)))
+		fwPath := d.fwPath(ovmfCode)
+		if fwPath == "" {
+			return nil, fmt.Errorf("Unable to locate the file for firmware %q", ovmfCode)
+		}
+
+		qemuArgs = append(qemuArgs, "-drive", fmt.Sprintf("if=pflash,format=raw,readonly=on,file=%s", fwPath))
 	}
 
 	var stderr bytes.Buffer
