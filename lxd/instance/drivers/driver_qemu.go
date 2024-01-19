@@ -126,6 +126,7 @@ var vmSecurebootFirmwares = []vmFirmware{
 	{code: "OVMF_CODE.fd", vars: "qemu.nvram"},
 }
 
+// Only valid for x86_64.
 var vmLegacyFirmwares = []vmFirmware{
 	{code: "seabios.bin", vars: "seabios.bin"},
 	{code: "OVMF_CODE.4MB.CSM.fd", vars: "OVMF_VARS.4MB.CSM.fd"},
@@ -1119,9 +1120,21 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		return fmt.Errorf("The image used by this instance is incompatible with secureboot. Please set security.secureboot=false on the instance")
 	}
 
-	// Ensure secureboot is turned off when CSM is on
-	if shared.IsTrue(d.expandedConfig["security.csm"]) && shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
-		return fmt.Errorf("Secure boot can't be enabled while CSM is turned on. Please set security.secureboot=false on the instance")
+	if shared.IsTrue(d.expandedConfig["security.csm"]) {
+		// Ensure CSM is turned off for all arches except x86_64
+		if d.architecture != osarch.ARCH_64BIT_INTEL_X86 {
+			return fmt.Errorf("CSM can be enabled for x86_64 architecture only. Please set security.csm=false on the instance")
+		}
+
+		// Having boot.debug_edk2 enabled contradicts with enabling CSM
+		if shared.IsTrue(d.localConfig["boot.debug_edk2"]) {
+			return fmt.Errorf("CSM can not be enabled together with boot.debug_edk2. Please set one of them to false")
+		}
+
+		// Ensure secureboot is turned off when CSM is on
+		if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
+			return fmt.Errorf("Secure boot can't be enabled while CSM is turned on. Please set security.secureboot=false on the instance")
+		}
 	}
 
 	// Setup a new operation if needed.
