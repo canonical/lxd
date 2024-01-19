@@ -1466,11 +1466,6 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		qemuCmd = append(qemuCmd, "-debugcon", "file:"+d.EDK2LogFilePath(), "-global", "isa-debugcon.iobase=0x402")
 	}
 
-	// This feature specific to the snap-shipped CSM edk2 version, because we have a custom patch to make it work.
-	if shared.InSnap() && shared.IsTrue(d.expandedConfig["security.csm"]) {
-		qemuCmd = append(qemuCmd, "-fw_cfg", "name=opt/com.canonical.lxd/force_csm,string=yes")
-	}
-
 	// If stateful, restore now.
 	if stateful {
 		if !d.stateful {
@@ -1989,7 +1984,7 @@ func (d *qemu) setupNvram() error {
 	}
 
 	if ovmfVarsPath == "" {
-		return fmt.Errorf("Couldn't find one of the required UEFI firmware files: %+v", firmwares)
+		return fmt.Errorf("Couldn't find one of the required firmware files: %+v", firmwares)
 	}
 
 	// Copy the template.
@@ -3061,13 +3056,16 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		}
 
 		// As 2MB firmware was deprecated in the LXD snap we have to regenerate NVRAM for VMs which used the 2MB one.
-		if shared.InSnap() && !strings.Contains(ovmfCode, "4MB") {
+		// As EDK2-based CSM firmwares were deprecated in the LXD snap we want to force VMs to start using SeaBIOS directly.
+		isOVMF2MB := (strings.Contains(ovmfCode, "OVMF") && !strings.Contains(ovmfCode, "4MB"))
+		isOVMFCSM := (strings.Contains(ovmfCode, "OVMF") && strings.Contains(ovmfCode, "CSM"))
+		if shared.InSnap() && (isOVMF2MB || isOVMFCSM) {
 			err = d.setupNvram()
 			if err != nil {
 				return "", nil, err
 			}
 
-			// force to use a 4MB firmware
+			// force to use a top-priority firmware
 			ovmfCode = firmwares[0].code
 		}
 
