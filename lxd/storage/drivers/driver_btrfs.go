@@ -315,7 +315,13 @@ func (d *btrfs) Delete(op *operations.Operation) error {
 // Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
 func (d *btrfs) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"size":                validate.Optional(validate.IsSize),
+		"size": validate.Optional(validate.IsSize),
+		// lxdmeta:generate(entities=storage-btrfs; group=pool-conf; key=btrfs.mount_options)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: `user_subvol_rm_allowed`
+		//  shortdesc: Mount options for block devices
 		"btrfs.mount_options": validate.IsAny,
 	}
 

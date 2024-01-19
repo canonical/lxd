@@ -430,19 +430,90 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 	rules := map[string]func(string) error{
 		// Note: size should not be modifiable for non-custom volumes and should be checked
 		// in the relevant volume update functions.
+
+		// lxdmeta:generate(entities=storage-btrfs,storage-lvm,storage-zfs; group=pool-conf; key=size)
+		//
+		// When creating loop-based pools, specify the size in bytes ({ref}`suffixes <instances-limit-units>` are supported).
+		// You can increase the size to grow the storage pool.
+		//
+		// The default (`auto`) creates a storage pool that uses 20% of the free disk space,
+		// with a minimum of 5 GiB and a maximum of 30 GiB.
+		// ---
+		//  type: string
+		//  defaultdesc: auto (20% of free disk space, >= 5 GiB and <= 30 GiB)
+		//  shortdesc: Size of the storage pool (for loop-based pools)
+
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs; group=volume-conf; key=size)
+		//
+		// ---
+		//  type: string
+		//  condition: appropriate driver
+		//  defaultdesc: same as `volume.size`
+		//  shortdesc: Size/quota of the storage volume
+
+		// lxdmeta:generate(entities=storage-cephobject; group=bucket-conf; key=size)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Quota of the storage bucket
+
+		// lxdmeta:generate(entities=storage-btrfs,storage-lvm,storage-zfs; group=bucket-conf; key=size)
+		//
+		// ---
+		//  type: string
+		//  condition: appropriate driver
+		//  defaultdesc: same as `volume.size`
+		//  shortdesc: Size/quota of the storage bucket
 		"size": validate.Optional(validate.IsSize),
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs; group=volume-conf; key=snapshots.expiry)
+		// Specify an expression like `1M 2H 3d 4w 5m 6y`.
+		// ---
+		//  type: string
+		//  condition: custom volume
+		//  defaultdesc: same as `volume.snapshots.expiry`
+		//  shortdesc: When snapshots are to be deleted
 		"snapshots.expiry": func(value string) error {
 			// Validate expression
 			_, err := shared.GetExpiry(time.Time{}, value)
 			return err
 		},
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs; group=volume-conf; key=snapshots.schedule)
+		// Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
+		// ---
+		//  type: string
+		//  condition: custom volume
+		//  defaultdesc: same as `snapshots.schedule`
+		//  shortdesc: Schedule for automatic volume snapshots
 		"snapshots.schedule": validate.Optional(validate.IsCron([]string{"@hourly", "@daily", "@midnight", "@weekly", "@monthly", "@annually", "@yearly"})),
-		"snapshots.pattern":  validate.IsAny,
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs; group=volume-conf; key=snapshots.pattern)
+		// You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.
+		//
+		// {{snapshot_pattern_detail}}
+		// ---
+		//  type: string
+		//  condition: custom volume
+		//  defaultdesc: same as `volume.snapshots.pattern` or `snap%d`
+		//  shortdesc: Template for the snapshot name
+		"snapshots.pattern": validate.IsAny,
 	}
 
 	// security.shifted and security.unmapped are only relevant for custom filesystem volumes.
 	if (vol == nil) || (vol != nil && vol.Type() == drivers.VolumeTypeCustom && vol.ContentType() == drivers.ContentTypeFS) {
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs; group=volume-conf; key=security.shifted)
+		// Enabling this option allows attaching the volume to multiple isolated instances.
+		// ---
+		//  type: bool
+		//  condition: custom volume
+		//  defaultdesc: same as `volume.security.shifted` or `false`
+		//  shortdesc: Enable ID shifting overlay
 		rules["security.shifted"] = validate.Optional(validate.IsBool)
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs; group=volume-conf; key=security.unmapped)
+		//
+		// ---
+		//  type: bool
+		//  condition: custom volume
+		//  defaultdesc: same as `volume.security.unmappped` or `false`
+		//  shortdesc: Disable ID mapping for the volume
 		rules["security.unmapped"] = validate.Optional(validate.IsBool)
 	}
 
@@ -452,11 +523,66 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 // validatePoolCommonRules returns a map of pool config rules common to all drivers.
 func validatePoolCommonRules() map[string]func(string) error {
 	rules := map[string]func(string) error{
-		"source":                  validate.IsAny,
+		// lxdmeta:generate(entities=storage-btrfs; group=pool-conf; key=source)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Path to an existing block device, loop file, or Btrfs subvolume
+
+		// lxdmeta:generate(entities=storage-cephfs; group=pool-conf; key=source)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Existing CephFS file system or file system path to use
+
+		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=source)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Existing OSD storage pool to use
+
+		// lxdmeta:generate(entities=storage-dir; group=pool-conf; key=source)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Path to an existing directory
+
+		// lxdmeta:generate(entities=storage-lvm; group=pool-conf; key=source)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Path to an existing block device, loop file, or LVM volume group
+
+		// lxdmeta:generate(entities=storage-zfs; group=pool-conf; key=source)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Path to an existing block device, loop file, or ZFS dataset/pool
+		"source": validate.IsAny,
+		// lxdmeta:generate(entities=storage-btrfs,storage-lvm,storage-zfs; group=pool-conf; key=source.wipe)
+		// Set this option to `true` to wipe the block device specified in `source`
+		// prior to creating the storage pool.
+		// ---
+		//  type: bool
+		//  defaultdesc: `false`
+		//  shortdesc: Whether to wipe the block device before creating the pool
 		"source.wipe":             validate.Optional(validate.IsBool),
 		"volatile.initial_source": validate.IsAny,
-		"rsync.bwlimit":           validate.Optional(validate.IsSize),
-		"rsync.compression":       validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=storage-dir,storage-lvm; group=pool-conf; key=rsync.bwlimit)
+		// When `rsync` must be used to transfer storage entities, this option specifies the upper limit
+		// to be placed on the socket I/O.
+		// ---
+		//  type: string
+		//  defaultdesc: `0` (no limit)
+		//  shortdesc: Upper limit on the socket I/O for `rsync`
+		"rsync.bwlimit": validate.Optional(validate.IsSize),
+		// lxdmeta:generate(entities=storage-dir,storage-lvm; group=pool-conf; key=rsync.compression)
+		//
+		// ---
+		//  type: bool
+		//  defaultdesc: `true`
+		//  shortdesc: Whether to use compression while migrating storage pools
+		"rsync.compression": validate.Optional(validate.IsBool),
 	}
 
 	// Add to pool config rules (prefixed with volume.*) which are common for pool and volume.

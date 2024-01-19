@@ -2,7 +2,7 @@
 # How to configure storage for a cluster
 
 All members of a cluster must have identical storage pools.
-The only configuration keys that may differ between pools on different members are [`source`](storage-drivers), [`size`](storage-drivers), [`zfs.pool_name`](storage-zfs-pool-config), [`lvm.thinpool_name`](storage-lvm-pool-config) and [`lvm.vg_name`](storage-lvm-pool-config).
+The only configuration keys that may differ between pools on different members are [`source`](storage-drivers), [`size`](storage-drivers), {config:option}`storage-zfs-pool-conf:zfs.pool_name`, {config:option}`storage-lvm-pool-conf:lvm.thinpool_name` and {config:option}`storage-lvm-pool-conf:lvm.vg_name`.
 See {ref}`clustering-member-config` for more information.
 
 LXD creates a default `local` storage pool for each cluster member during initialization.
