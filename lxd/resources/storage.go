@@ -2,6 +2,7 @@ package resources
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,6 +19,7 @@ var devDiskByPath = "/dev/disk/by-path"
 var devDiskByID = "/dev/disk/by-id"
 var runUdevData = "/run/udev/data"
 var sysClassBlock = "/sys/class/block"
+var procSelfMountInfo = "/proc/self/mountinfo"
 
 func storageAddDriveInfo(devicePath string, disk *api.ResourcesStorageDisk) error {
 	// Attempt to open the device path
@@ -135,6 +137,25 @@ func GetStorage() (*api.ResourcesStorage, error) {
 		entries, err := os.ReadDir(sysClassBlock)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to list %q: %w", sysClassBlock, err)
+		}
+
+		// Get information about what's mounted.
+		mountInfo, err := os.ReadFile(procSelfMountInfo)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to read %q: %w", procSelfMountInfo, err)
+		}
+
+		mountedIDs := map[string]bool{}
+		scanner := bufio.NewScanner(bytes.NewReader(mountInfo))
+		for scanner.Scan() {
+			line := scanner.Text()
+			fields := strings.Fields(line)
+
+			if len(fields) < 3 {
+				return nil, fmt.Errorf("Invalid %q content: %q", procSelfMountInfo, line)
+			}
+
+			mountedIDs[fields[2]] = true
 		}
 
 		// Iterate and add to our list
@@ -276,6 +297,9 @@ func GetStorage() (*api.ResourcesStorage, error) {
 				}
 			}
 
+			// Set the mounted status of the disk.
+			disk.Mounted = mountedIDs[disk.Device]
+
 			// Look for partitions
 			disk.Partitions = []api.ResourcesStorageDiskPartition{}
 			for _, subEntry := range entries {
@@ -309,6 +333,14 @@ func GetStorage() (*api.ResourcesStorage, error) {
 				}
 
 				partition.Device = strings.TrimSpace(string(partitionDev))
+
+				// Set the mounted status of the partition.
+				partition.Mounted = mountedIDs[partition.Device]
+
+				// If the disk has a mounted partition, consider the disk mounted as well.
+				if partition.Mounted {
+					disk.Mounted = true
+				}
 
 				// Read-only
 				partitionRo, err := readUint(filepath.Join(subEntryPath, "ro"))
