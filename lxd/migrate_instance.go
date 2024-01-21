@@ -152,7 +152,10 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	})
 	if err != nil {
 		l.Error("Failed migration on source", logger.Ctx{"err": err})
-		return fmt.Errorf("Failed migration on source: %w", err)
+
+		errMsg := fmt.Errorf("Failed migration on source: %w", err)
+		s.sendControl(errMsg)
+		return errMsg
 	}
 
 	return nil
@@ -283,7 +286,10 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 	})
 	if err != nil {
 		l.Error("Failed migration on target", logger.Ctx{"err": err})
-		return fmt.Errorf("Failed migration on target: %w", err)
+
+		errMsg := fmt.Errorf("Failed migration on target: %w", err)
+		c.sendControl(errMsg)
+		return errMsg
 	}
 
 	return nil
