@@ -155,7 +155,7 @@ scrape_configs:
       #      is not covered by the certificate (not in the SAN list)
       server_name: 'foo'
 ```
-```{note}
+````{note}
 * The `scrape_interval` is assumed to be 15s by the Grafana Prometheus data source by default.
 If you decide to use a different `scrape_interval` value, you must change it in both the Prometheus configuration and the Grafana Prometheus data source configuration.
 Otherwise the Grafana `$__rate_interval` value will be calculated incorrectly and possibly cause a `no data` response in queries using it.
