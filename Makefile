@@ -143,7 +143,7 @@ doc-serve:
 
 .PHONY: doc-spellcheck
 doc-spellcheck: doc
-	. $(SPHINXENV) ; python3 -m pyspelling -c doc/.sphinx/.spellcheck.yaml
+	. $(SPHINXENV) ; python3 -m pyspelling -c doc/.sphinx/spellingcheck.yaml -j $(shell nproc)
 
 .PHONY: doc-linkcheck
 doc-linkcheck: doc-setup
