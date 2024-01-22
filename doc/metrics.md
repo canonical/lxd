@@ -161,9 +161,9 @@ If you decide to use a different `scrape_interval` value, you must change it in 
 Otherwise the Grafana `$__rate_interval` value will be calculated incorrectly and possibly cause a `no data` response in queries using it.
 
 * The `server_name` must be specified if the LXD server certificate does not contain the same host name as used in the `targets` list.
-To verify this, open `server.crt` and check the Subject Alternative Name (SAN) section.
+  To verify this, open `server.crt` and check the Subject Alternative Name (SAN) section.
 
-For example, assume that `server.crt` has the following content:
+  For example, assume that `server.crt` has the following content:
 
 ```{terminal}
 :input: openssl x509 -noout -text -in /var/snap/prometheus/common/tls/server.crt
