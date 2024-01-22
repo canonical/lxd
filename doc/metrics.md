@@ -137,6 +137,10 @@ To do so, edit `/var/snap/prometheus/current/prometheus.yml` (if you are using t
 Here's what the configuration needs to look like:
 
 ```yaml
+global:
+  # How frequently to scrape targets by default. The Prometheus default value is 1m.
+  scrape_interval: 15s
+
 scrape_configs:
   - job_name: lxd
     metrics_path: '/1.0/metrics'
@@ -150,6 +154,12 @@ scrape_configs:
       # XXX: server_name is required if the target name
       #      is not covered by the certificate (not in the SAN list)
       server_name: 'foo'
+```
+```{note}
+The `scrape_interval` is assumed to be 15s by the Grafana Prometheus data source by default.
+
+When using a different `scrape_interval` value, change it too in the Grafana Prometheus data source configuration.
+Otherwise the Grafana `$__rate_interval` value will be calculated incorrectly and possibly cause a `no data` response in queries using it.
 ```
 
 ````{note}
@@ -173,6 +183,10 @@ Since the Subject Alternative Name (SAN) list doesn't include the host name prov
 Here is an example of a `prometheus.yml` configuration where multiple jobs are used to scrape the metrics of multiple LXD servers:
 
 ```yaml
+global:
+  # How frequently to scrape targets by default. The Prometheus default value is 1m.
+  scrape_interval: 15s
+
 scrape_configs:
   # abydos, langara and orilla are part of a single cluster (called `hdc` here)
   # initially bootstrapped by abydos which is why all 3 targets
