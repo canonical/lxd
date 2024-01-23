@@ -73,7 +73,7 @@ func (r *ProtocolLXD) CreateStoragePoolBucket(poolName string, bucket api.Storag
 	u := api.NewURL().Path("storage-pools", poolName, "buckets")
 
 	// Send the request and get the resulting key info (including generated keys).
-	if r.HasExtension("storage_buckets_create_credentials") {
+	if r.CheckExtension("storage_buckets_create_credentials") == nil {
 		var newKey api.StorageBucketKey
 		_, err = r.queryStruct("POST", u.String(), bucket, "", &newKey)
 		if err != nil {
