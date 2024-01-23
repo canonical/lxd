@@ -82,14 +82,15 @@ func (r *ProtocolLXD) IsClustered() bool {
 
 // GetServerResources returns the resources available to a given LXD server.
 func (r *ProtocolLXD) GetServerResources() (*api.Resources, error) {
-	if !r.HasExtension("resources") {
-		return nil, fmt.Errorf("The server is missing the required \"resources\" API extension")
+	err := r.CheckExtension("resources")
+	if err != nil {
+		return nil, err
 	}
 
 	resources := api.Resources{}
 
 	// Fetch the raw value
-	_, err := r.queryStruct("GET", "/resources", nil, "", &resources)
+	_, err = r.queryStruct("GET", "/resources", nil, "", &resources)
 	if err != nil {
 		return nil, err
 	}
@@ -153,8 +154,9 @@ func (r *ProtocolLXD) IsAgent() bool {
 // GetMetrics returns the text OpenMetrics data.
 func (r *ProtocolLXD) GetMetrics() (string, error) {
 	// Check that the server supports it.
-	if !r.HasExtension("metrics") {
-		return "", fmt.Errorf("The server is missing the required \"metrics\" API extension")
+	err := r.CheckExtension("metrics")
+	if err != nil {
+		return "", err
 	}
 
 	// Prepare the request.
