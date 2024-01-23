@@ -157,25 +157,25 @@ scrape_configs:
 ```
 
 ````{note}
-* The `scrape_interval` is assumed to be 15s by the Grafana Prometheus data source by default.
-If you decide to use a different `scrape_interval` value, you must change it in both the Prometheus configuration and the Grafana Prometheus data source configuration.
-Otherwise the Grafana `$__rate_interval` value will be calculated incorrectly and possibly cause a `no data` response in queries using it.
+* By default, the Grafana Prometheus data source assumes the `scrape_interval` to be 15 seconds.
+  If you decide to use a different `scrape_interval` value, you must change it in both the Prometheus configuration and the Grafana Prometheus data source configuration.
+  Otherwise, the Grafana `$__rate_interval` value will be calculated incorrectly, which might cause a `no data` response in queries that use it.
 
-* The `server_name` must be specified if the Incus server certificate does not contain the same host name as used in the `targets` list.
-To verify this, open `server.crt` and check the Subject Alternative Name (SAN) section.
+* The `server_name` must be specified if the LXD server certificate does not contain the same host name as used in the `targets` list.
+  To verify this, open `server.crt` and check the Subject Alternative Name (SAN) section.
 
-For example, assume that `server.crt` has the following content:
+  For example, assume that `server.crt` has the following content:
 
-```{terminal}
-:input: openssl x509 -noout -text -in /var/snap/prometheus/common/tls/server.crt
+  ```{terminal}
+  :input: openssl x509 -noout -text -in /var/snap/prometheus/common/tls/server.crt
 
-...
-            X509v3 Subject Alternative Name:
-                DNS:foo, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
-...
-```
+  ...
+              X509v3 Subject Alternative Name:
+                  DNS:foo, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+  ...
+  ```
 
-Since the Subject Alternative Name (SAN) list doesn't include the host name provided in the `targets` list (`foo.example.com`), you must override the name used for comparison using the `server_name` directive.
+  Since the Subject Alternative Name (SAN) list doesn't include the host name provided in the `targets` list (`foo.example.com`), you must override the name used for comparison using the `server_name` directive.
 ````
 
 Here is an example of a `prometheus.yml` configuration where multiple jobs are used to scrape the metrics of multiple LXD servers:
