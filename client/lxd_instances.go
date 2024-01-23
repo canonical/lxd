@@ -790,7 +790,7 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 
 		if args.AllowInconsistent {
 			if !r.HasExtension("instance_allow_inconsistent_copy") {
-				return nil, fmt.Errorf("The source server is missing the required \"instance_allow_inconsistent_copy\" API extension")
+				return nil, fmt.Errorf("The target server is missing the required \"instance_allow_inconsistent_copy\" API extension")
 			}
 		}
 
