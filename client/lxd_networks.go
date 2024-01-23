@@ -9,14 +9,15 @@ import (
 
 // GetNetworkNames returns a list of network names.
 func (r *ProtocolLXD) GetNetworkNames() ([]string, error) {
-	if !r.HasExtension("network") {
-		return nil, fmt.Errorf("The server is missing the required \"network\" API extension")
+	err := r.CheckExtension("network")
+	if err != nil {
+		return nil, err
 	}
 
 	// Fetch the raw values.
 	urls := []string{}
 	baseURL := "/networks"
-	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
+	_, err = r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -27,14 +28,15 @@ func (r *ProtocolLXD) GetNetworkNames() ([]string, error) {
 
 // GetNetworks returns a list of Network struct.
 func (r *ProtocolLXD) GetNetworks() ([]api.Network, error) {
-	if !r.HasExtension("network") {
-		return nil, fmt.Errorf("The server is missing the required \"network\" API extension")
+	err := r.CheckExtension("network")
+	if err != nil {
+		return nil, err
 	}
 
 	networks := []api.Network{}
 
 	// Fetch the raw value
-	_, err := r.queryStruct("GET", "/networks?recursion=1", nil, "", &networks)
+	_, err = r.queryStruct("GET", "/networks?recursion=1", nil, "", &networks)
 	if err != nil {
 		return nil, err
 	}
@@ -44,8 +46,9 @@ func (r *ProtocolLXD) GetNetworks() ([]api.Network, error) {
 
 // GetNetwork returns a Network entry for the provided name.
 func (r *ProtocolLXD) GetNetwork(name string) (*api.Network, string, error) {
-	if !r.HasExtension("network") {
-		return nil, "", fmt.Errorf("The server is missing the required \"network\" API extension")
+	err := r.CheckExtension("network")
+	if err != nil {
+		return nil, "", err
 	}
 
 	network := api.Network{}
@@ -61,14 +64,15 @@ func (r *ProtocolLXD) GetNetwork(name string) (*api.Network, string, error) {
 
 // GetNetworkLeases returns a list of Network struct.
 func (r *ProtocolLXD) GetNetworkLeases(name string) ([]api.NetworkLease, error) {
-	if !r.HasExtension("network_leases") {
-		return nil, fmt.Errorf("The server is missing the required \"network_leases\" API extension")
+	err := r.CheckExtension("network_leases")
+	if err != nil {
+		return nil, err
 	}
 
 	leases := []api.NetworkLease{}
 
 	// Fetch the raw value
-	_, err := r.queryStruct("GET", fmt.Sprintf("/networks/%s/leases", url.PathEscape(name)), nil, "", &leases)
+	_, err = r.queryStruct("GET", fmt.Sprintf("/networks/%s/leases", url.PathEscape(name)), nil, "", &leases)
 	if err != nil {
 		return nil, err
 	}
@@ -78,14 +82,15 @@ func (r *ProtocolLXD) GetNetworkLeases(name string) ([]api.NetworkLease, error) 
 
 // GetNetworkState returns metrics and information on the running network.
 func (r *ProtocolLXD) GetNetworkState(name string) (*api.NetworkState, error) {
-	if !r.HasExtension("network_state") {
-		return nil, fmt.Errorf("The server is missing the required \"network_state\" API extension")
+	err := r.CheckExtension("network_state")
+	if err != nil {
+		return nil, err
 	}
 
 	state := api.NetworkState{}
 
 	// Fetch the raw value
-	_, err := r.queryStruct("GET", fmt.Sprintf("/networks/%s/state", url.PathEscape(name)), nil, "", &state)
+	_, err = r.queryStruct("GET", fmt.Sprintf("/networks/%s/state", url.PathEscape(name)), nil, "", &state)
 	if err != nil {
 		return nil, err
 	}
@@ -95,12 +100,13 @@ func (r *ProtocolLXD) GetNetworkState(name string) (*api.NetworkState, error) {
 
 // CreateNetwork defines a new network using the provided Network struct.
 func (r *ProtocolLXD) CreateNetwork(network api.NetworksPost) error {
-	if !r.HasExtension("network") {
-		return fmt.Errorf("The server is missing the required \"network\" API extension")
+	err := r.CheckExtension("network")
+	if err != nil {
+		return err
 	}
 
 	// Send the request
-	_, _, err := r.query("POST", "/networks", network, "")
+	_, _, err = r.query("POST", "/networks", network, "")
 	if err != nil {
 		return err
 	}
@@ -110,12 +116,13 @@ func (r *ProtocolLXD) CreateNetwork(network api.NetworksPost) error {
 
 // UpdateNetwork updates the network to match the provided Network struct.
 func (r *ProtocolLXD) UpdateNetwork(name string, network api.NetworkPut, ETag string) error {
-	if !r.HasExtension("network") {
-		return fmt.Errorf("The server is missing the required \"network\" API extension")
+	err := r.CheckExtension("network")
+	if err != nil {
+		return err
 	}
 
 	// Send the request
-	_, _, err := r.query("PUT", fmt.Sprintf("/networks/%s", url.PathEscape(name)), network, ETag)
+	_, _, err = r.query("PUT", fmt.Sprintf("/networks/%s", url.PathEscape(name)), network, ETag)
 	if err != nil {
 		return err
 	}
@@ -125,12 +132,13 @@ func (r *ProtocolLXD) UpdateNetwork(name string, network api.NetworkPut, ETag st
 
 // RenameNetwork renames an existing network entry.
 func (r *ProtocolLXD) RenameNetwork(name string, network api.NetworkPost) error {
-	if !r.HasExtension("network") {
-		return fmt.Errorf("The server is missing the required \"network\" API extension")
+	err := r.CheckExtension("network")
+	if err != nil {
+		return err
 	}
 
 	// Send the request
-	_, _, err := r.query("POST", fmt.Sprintf("/networks/%s", url.PathEscape(name)), network, "")
+	_, _, err = r.query("POST", fmt.Sprintf("/networks/%s", url.PathEscape(name)), network, "")
 	if err != nil {
 		return err
 	}
@@ -140,12 +148,13 @@ func (r *ProtocolLXD) RenameNetwork(name string, network api.NetworkPost) error 
 
 // DeleteNetwork deletes an existing network.
 func (r *ProtocolLXD) DeleteNetwork(name string) error {
-	if !r.HasExtension("network") {
-		return fmt.Errorf("The server is missing the required \"network\" API extension")
+	err := r.CheckExtension("network")
+	if err != nil {
+		return err
 	}
 
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/networks/%s", url.PathEscape(name)), nil, "")
+	_, _, err = r.query("DELETE", fmt.Sprintf("/networks/%s", url.PathEscape(name)), nil, "")
 	if err != nil {
 		return err
 	}
