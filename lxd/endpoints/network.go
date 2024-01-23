@@ -36,7 +36,7 @@ func (e *Endpoints) NetworkCert() *shared.CertInfo {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
-	return e.cert
+	return shared.NewCertInfo(e.cert.KeyPair(), e.cert.CA(), e.cert.CRL())
 }
 
 // NetworkAddress returns the network address of the network endpoint, or an
