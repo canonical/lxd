@@ -1113,6 +1113,8 @@ func (c *cmdClusterEvacuate) Command() *cobra.Command {
 	cmd.Short = i18n.G("Evacuate cluster member")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Evacuate cluster member`))
 
+	cmd.Flags().BoolVar(&c.action.flagForce, "force", false, i18n.G(`Force evacuation without user confirmation`)+"``")
+
 	return cmd
 }
 
@@ -1132,13 +1134,14 @@ func (c *cmdClusterRestore) Command() *cobra.Command {
 	cmd.Short = i18n.G("Restore cluster member")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Restore cluster member`))
 
+	cmd.Flags().BoolVar(&c.action.flagForce, "force", false, i18n.G(`Force restoration without user confirmation`)+"``")
+
 	return cmd
 }
 
 func (c *cmdClusterEvacuateAction) Command(action string) *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.RunE = c.Run
-	cmd.Flags().BoolVar(&c.flagForce, "force", false, i18n.G(`Force evacuation without user confirmation`)+"``")
 
 	return cmd
 }
