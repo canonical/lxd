@@ -135,7 +135,7 @@ doc: doc-setup doc-incremental
 .PHONY: doc-incremental
 doc-incremental:
 	@echo "Build the documentation"
-	. $(SPHINXENV) ; LOCAL_SPHINX_BUILD=True sphinx-build -c doc/ -b dirhtml doc/ doc/html/ -d doc/.sphinx/.doctrees -w doc/.sphinx/warnings.txt
+	. $(SPHINXENV) ; LOCAL_SPHINX_BUILD=True sphinx-build -c doc/ -b dirhtml doc/ doc/html/ -d doc/.sphinx/.doctrees -w doc/.sphinx/warnings.txt -j auto
 
 .PHONY: doc-serve
 doc-serve:
@@ -147,7 +147,7 @@ doc-spellcheck: doc
 
 .PHONY: doc-linkcheck
 doc-linkcheck: doc-setup
-	. $(SPHINXENV) ; LOCAL_SPHINX_BUILD=True sphinx-build -c doc/ -b linkcheck doc/ doc/html/ -d doc/.sphinx/.doctrees
+	. $(SPHINXENV) ; LOCAL_SPHINX_BUILD=True sphinx-build -c doc/ -b linkcheck doc/ doc/html/ -d doc/.sphinx/.doctrees -j auto
 
 .PHONY: doc-lint
 doc-lint:
