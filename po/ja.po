@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-01-19 14:34+0000\n"
+"POT-Creation-Date: 2024-01-24 18:09-0500\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -898,7 +898,7 @@ msgstr "アーキテクチャ: %s"
 msgid "Architecture: %v"
 msgstr "アーキテクチャ: %v"
 
-#: lxc/cluster.go:1222
+#: lxc/cluster.go:1224
 #, c-format
 msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr ""
@@ -1800,7 +1800,7 @@ msgstr "警告を削除します"
 #: lxc/cluster.go:255 lxc/cluster.go:306 lxc/cluster.go:367 lxc/cluster.go:439
 #: lxc/cluster.go:471 lxc/cluster.go:521 lxc/cluster.go:604 lxc/cluster.go:689
 #: lxc/cluster.go:804 lxc/cluster.go:880 lxc/cluster.go:982 lxc/cluster.go:1061
-#: lxc/cluster.go:1168 lxc/cluster.go:1189 lxc/cluster_group.go:30
+#: lxc/cluster.go:1168 lxc/cluster.go:1190 lxc/cluster_group.go:30
 #: lxc/cluster_group.go:84 lxc/cluster_group.go:157 lxc/cluster_group.go:214
 #: lxc/cluster_group.go:266 lxc/cluster_group.go:382 lxc/cluster_group.go:456
 #: lxc/cluster_group.go:529 lxc/cluster_group.go:577 lxc/cluster_group.go:631
@@ -2240,7 +2240,7 @@ msgstr "テンプレートファイル更新のエラー: %s"
 msgid "Evacuate cluster member"
 msgstr "クラスターのメンバーを待避させます"
 
-#: lxc/cluster.go:1247
+#: lxc/cluster.go:1249
 #, c-format
 msgid "Evacuating cluster member: %s"
 msgstr "クラスターメンバーを待避させています: %s"
@@ -2504,11 +2504,11 @@ msgstr "情報表示のフィルタリングはまだサポートされていま
 msgid "Fingerprint: %s"
 msgstr "証明書のフィンガープリント: %s"
 
-#: lxc/cluster.go:1170
+#: lxc/cluster.go:1171
 msgid "Force a particular evacuation action"
 msgstr "特定の待避アクションを強制します"
 
-#: lxc/cluster.go:1197
+#: lxc/cluster.go:1170
 msgid "Force evacuation without user confirmation"
 msgstr "ユーザーの確認なしで強制的に待避させます"
 
@@ -2519,6 +2519,11 @@ msgstr "強制的に擬似端末を割り当てます"
 #: lxc/cluster.go:525
 msgid "Force removing a member, even if degraded"
 msgstr "degraded 状態であっても強制的にメンバを削除します"
+
+#: lxc/cluster.go:1192
+#, fuzzy
+msgid "Force restoration without user confirmation"
+msgstr "ユーザーの確認なしで強制的に待避させます"
 
 #: lxc/action.go:135
 msgid "Force the instance to stop"
@@ -4000,7 +4005,7 @@ msgstr "証明書のフィンガープリントがありません"
 msgid "Missing cluster group name"
 msgstr "クラスターグループ名がありません"
 
-#: lxc/cluster.go:722 lxc/cluster.go:1218 lxc/cluster_group.go:116
+#: lxc/cluster.go:722 lxc/cluster.go:1220 lxc/cluster_group.go:116
 #: lxc/cluster_group.go:481 lxc/cluster_group.go:655 lxc/cluster_role.go:73
 #: lxc/cluster_role.go:129
 msgid "Missing cluster member name"
@@ -5142,7 +5147,7 @@ msgstr ""
 "\n"
 "\"lxc pause\" の反対のコマンドは \"lxc start\" です。"
 
-#: lxc/cluster.go:1188 lxc/cluster.go:1189
+#: lxc/cluster.go:1189 lxc/cluster.go:1190
 msgid "Restore cluster member"
 msgstr "クラスターメンバーをリストアします"
 
@@ -5164,7 +5169,7 @@ msgstr ""
 msgid "Restore storage volume snapshots"
 msgstr "スナップショットからストレージボリュームをリストアします"
 
-#: lxc/cluster.go:1245
+#: lxc/cluster.go:1247
 #, c-format
 msgid "Restoring cluster member: %s"
 msgstr "クラスターメンバーをリストアしています: %s"
@@ -6967,7 +6972,7 @@ msgstr ""
 "[<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/<snapshot>]...]"
 
 #: lxc/cluster.go:204 lxc/cluster.go:253 lxc/cluster.go:518 lxc/cluster.go:980
-#: lxc/cluster.go:1166 lxc/cluster.go:1187
+#: lxc/cluster.go:1166 lxc/cluster.go:1188
 msgid "[<remote>:]<member>"
 msgstr "[<remote>:]<member>"
 
