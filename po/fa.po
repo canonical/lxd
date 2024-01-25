@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-01-19 14:34+0000\n"
+"POT-Creation-Date: 2024-01-24 18:09-0500\n"
 "PO-Revision-Date: 2022-03-10 15:09+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Persian <https://hosted.weblate.org/projects/linux-containers/"
@@ -647,7 +647,7 @@ msgstr ""
 msgid "Architecture: %v"
 msgstr ""
 
-#: lxc/cluster.go:1222
+#: lxc/cluster.go:1224
 #, c-format
 msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr ""
@@ -1512,7 +1512,7 @@ msgstr ""
 #: lxc/cluster.go:255 lxc/cluster.go:306 lxc/cluster.go:367 lxc/cluster.go:439
 #: lxc/cluster.go:471 lxc/cluster.go:521 lxc/cluster.go:604 lxc/cluster.go:689
 #: lxc/cluster.go:804 lxc/cluster.go:880 lxc/cluster.go:982 lxc/cluster.go:1061
-#: lxc/cluster.go:1168 lxc/cluster.go:1189 lxc/cluster_group.go:30
+#: lxc/cluster.go:1168 lxc/cluster.go:1190 lxc/cluster_group.go:30
 #: lxc/cluster_group.go:84 lxc/cluster_group.go:157 lxc/cluster_group.go:214
 #: lxc/cluster_group.go:266 lxc/cluster_group.go:382 lxc/cluster_group.go:456
 #: lxc/cluster_group.go:529 lxc/cluster_group.go:577 lxc/cluster_group.go:631
@@ -1933,7 +1933,7 @@ msgstr ""
 msgid "Evacuate cluster member"
 msgstr ""
 
-#: lxc/cluster.go:1247
+#: lxc/cluster.go:1249
 #, c-format
 msgid "Evacuating cluster member: %s"
 msgstr ""
@@ -2182,11 +2182,11 @@ msgstr ""
 msgid "Fingerprint: %s"
 msgstr ""
 
-#: lxc/cluster.go:1170
+#: lxc/cluster.go:1171
 msgid "Force a particular evacuation action"
 msgstr ""
 
-#: lxc/cluster.go:1197
+#: lxc/cluster.go:1170
 msgid "Force evacuation without user confirmation"
 msgstr ""
 
@@ -2196,6 +2196,10 @@ msgstr ""
 
 #: lxc/cluster.go:525
 msgid "Force removing a member, even if degraded"
+msgstr ""
+
+#: lxc/cluster.go:1192
+msgid "Force restoration without user confirmation"
 msgstr ""
 
 #: lxc/action.go:135
@@ -3475,7 +3479,7 @@ msgstr ""
 msgid "Missing cluster group name"
 msgstr ""
 
-#: lxc/cluster.go:722 lxc/cluster.go:1218 lxc/cluster_group.go:116
+#: lxc/cluster.go:722 lxc/cluster.go:1220 lxc/cluster_group.go:116
 #: lxc/cluster_group.go:481 lxc/cluster_group.go:655 lxc/cluster_role.go:73
 #: lxc/cluster_role.go:129
 msgid "Missing cluster member name"
@@ -4585,7 +4589,7 @@ msgid ""
 "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr ""
 
-#: lxc/cluster.go:1188 lxc/cluster.go:1189
+#: lxc/cluster.go:1189 lxc/cluster.go:1190
 msgid "Restore cluster member"
 msgstr ""
 
@@ -4604,7 +4608,7 @@ msgstr ""
 msgid "Restore storage volume snapshots"
 msgstr ""
 
-#: lxc/cluster.go:1245
+#: lxc/cluster.go:1247
 #, c-format
 msgid "Restoring cluster member: %s"
 msgstr ""
@@ -6287,7 +6291,7 @@ msgid ""
 msgstr ""
 
 #: lxc/cluster.go:204 lxc/cluster.go:253 lxc/cluster.go:518 lxc/cluster.go:980
-#: lxc/cluster.go:1166 lxc/cluster.go:1187
+#: lxc/cluster.go:1166 lxc/cluster.go:1188
 msgid "[<remote>:]<member>"
 msgstr ""
 
