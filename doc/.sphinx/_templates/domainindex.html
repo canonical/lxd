@@ -52,7 +52,14 @@
         {% if page %}<a href="{{ pathto(page)|e }}#{{ anchor }}">{% endif -%}
             <code class="xref">{{ name|e }}</code>
             {%- if page %}</a>{% endif %}
-        {%- if extra %} <em>({{ extra|e }})</em>{% endif -%}
+      <!-- ru-fu: extra has HTML for config options -->
+      {%- if extra %}
+        {% if indextitle == "Configuration options" %}
+          ({{ extra|safe }})
+        {% else %}
+          <em>({{ extra|e }})</em>
+        {% endif -%}
+      {% endif -%}
     </td><td>{% if qualifier %}<strong>{{ qualifier|e }}:</strong>{% endif %}
     <em>{{ description|e }}</em></td>
   </tr>
