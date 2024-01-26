@@ -1245,6 +1245,17 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 			return validate.IsAny, nil
 		}
 
+		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<disk_dev_name>.last_state.created)
+		// If mounting a host directory through a `disk` device creates the target directory, this option contains the path of this newly created target directory.
+		// For example, if the target directory is `/opt` and `/opt` already exists in the instance, this key is not set.
+		// However, if the target directory is `/opt/foo` and `/opt/foo` doesn't exist in the instance, this key is set to `/opt/foo`.
+		// ---
+		//  type: string
+		//  shortdesc: Path of the directory created from mounting a `disk` device
+		if strings.HasSuffix(key, ".last_state.created") {
+			return validate.IsAny, nil
+		}
+
 		if strings.HasSuffix(key, ".driver") {
 			return validate.IsAny, nil
 		}
