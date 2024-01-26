@@ -17,12 +17,15 @@ import (
 	"time"
 
 	"github.com/canonical/lxd/shared"
+
+	"gopkg.in/yaml.v2"
 )
 
 var (
 	globalLxdDocRegex   = regexp.MustCompile(`(?m)lxdmeta:generate\((.*)\)([\S\s]+)\s+---\n([\S\s]+)`)
 	lxdDocMetadataRegex = regexp.MustCompile(`(?m)([^;\s]+)=([^;\s]+)`)
 	lxdDocDataRegex     = regexp.MustCompile(`(?m)([\S]+):[\s]+([\S \"\']+)`)
+	tpl                 = regexp.MustCompile(`{{(\S*?)}}`)
 )
 
 var mdKeys = []string{"entities", "group", "key"}
@@ -106,10 +109,43 @@ func getSortedKeysFromMap[K string, V IterableAny](m map[K]V) []K {
 	return keys
 }
 
-func parse(path string, outputJSONPath string, excludedPaths []string) (*doc, error) {
+// renderString replaces the keys in a string with their corresponding values from a substitution database.
+func renderString(db map[string]string, s string) string {
+	if db == nil {
+		return s
+	}
+
+	return tpl.ReplaceAllStringFunc(s, func(match string) string {
+		key := strings.Trim(match, "{} ") // Remove the curly braces and any spaces
+		val, ok := db[key]
+		if ok {
+			return val
+		}
+
+		return match
+	})
+}
+
+func parse(path string, outputJSONPath string, excludedPaths []string, substitutionDBPath string) (*doc, error) {
 	jsonDoc := &doc{}
 	docKeys := make(map[string]struct{}, 0)
 	allEntries := make(map[string]map[string]map[string][]any)
+
+	var substitutionRules map[string]string
+	if substitutionDBPath != "" {
+		// Load the substitution rules
+		data, err := os.ReadFile(substitutionDBPath)
+		if err != nil {
+			return nil, fmt.Errorf("Error reading substitution database: %v", err)
+		}
+
+		substitutionRules = make(map[string]string)
+		err = yaml.Unmarshal(data, &substitutionRules)
+		if err != nil {
+			return nil, fmt.Errorf("Error unmarshaling substitution database: %v", err)
+		}
+	}
+
 	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -215,7 +251,7 @@ func parse(path string, outputJSONPath string, excludedPaths []string) (*doc, er
 
 				configKeyEntry := make(map[string]any)
 				configKeyEntry[metadataMap["key"]] = make(map[string]any)
-				configKeyEntry[metadataMap["key"]].(map[string]any)["longdesc"] = strings.TrimLeft(longdesc, "\n\t\v\f\r")
+				configKeyEntry[metadataMap["key"]].(map[string]any)["longdesc"] = renderString(substitutionRules, strings.TrimLeft(longdesc, "\n\t\v\f\r"))
 				for _, dataKVMatch := range lxdDocDataRegex.FindAllStringSubmatch(data, -1) {
 					if len(dataKVMatch) != 3 {
 						continue
