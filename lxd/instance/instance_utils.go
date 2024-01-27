@@ -487,13 +487,13 @@ func BackupLoadByName(s *state.State, project, name string) (*backup.InstanceBac
 	// Get the backup database record
 	args, err := s.DB.Cluster.GetInstanceBackup(project, name)
 	if err != nil {
-		return nil, fmt.Errorf("Load backup from database: %w", err)
+		return nil, err
 	}
 
 	// Load the instance it belongs to
 	instance, err := LoadByID(s, args.InstanceID)
 	if err != nil {
-		return nil, fmt.Errorf("Load instance from database: %w", err)
+		return nil, err
 	}
 
 	return backup.NewInstanceBackup(s, instance, args.ID, name, args.CreationDate, args.ExpiryDate, args.InstanceOnly, args.OptimizedStorage), nil
