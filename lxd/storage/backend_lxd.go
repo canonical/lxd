@@ -7831,7 +7831,7 @@ func (b *lxdBackend) BackupBucket(projectName string, bucketName string, tarWrit
 	}
 
 	bucketURL := b.GetBucketURL(bucket.Name)
-	transferManager := s3.NewTransferManager(bucketURL, backupKey.AccessKey, backupKey.SecretKey)
+	transferManager := s3.NewTransferManager(bucketURL, b.state, backupKey.AccessKey, backupKey.SecretKey)
 
 	err = transferManager.DownloadAllFiles(bucket.Name, tarWriter)
 	if err != nil {
