@@ -4,22 +4,30 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/lifecycle"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -409,6 +417,10 @@ func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if r.Header.Get("Content-Type") == "application/octet-stream" {
+		return createStoragePoolBucketFromBackup(s, r, request.ProjectParam(r), bucketProjectName, r.Body, poolName, r.Header.Get("X-LXD-name"))
 	}
 
 	// Parse the request into a record.
@@ -1165,4 +1177,87 @@ func addStorageBucketDetailsToContext(d *Daemon, r *http.Request) error {
 
 	details.bucketName = bucketName
 	return nil
+}
+
+func createStoragePoolBucketFromBackup(s *state.State, r *http.Request, requestProjectName string, projectName string, data io.Reader, pool string, bucketName string) response.Response {
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Create temporary file to store uploaded backup data.
+	backupFile, err := os.CreateTemp(shared.VarPath("backups"), fmt.Sprintf("%s_", backup.WorkingDirPrefix))
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	defer func() { _ = os.Remove(backupFile.Name()) }()
+	revert.Add(func() { _ = backupFile.Close() })
+
+	// Stream uploaded backup data into temporary file.
+	_, err = io.Copy(backupFile, data)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	// Parse the backup information.
+	_, err = backupFile.Seek(0, io.SeekStart)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	logger.Debug("Reading backup file info")
+	bInfo, err := backup.GetInfo(backupFile, s.OS, backupFile.Name())
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	bInfo.Project = projectName
+
+	// Override pool.
+	if pool != "" {
+		bInfo.Pool = pool
+	}
+
+	// Override bucket name.
+	if bucketName != "" {
+		bInfo.Name = bucketName
+	}
+
+	logger.Debug("Backup file info loaded", logger.Ctx{
+		"type":    bInfo.Type,
+		"name":    bInfo.Name,
+		"project": bInfo.Project,
+		"backend": bInfo.Backend,
+		"pool":    bInfo.Pool,
+	})
+
+	runRevert := revert.Clone()
+
+	run := func(op *operations.Operation) error {
+		defer func() { _ = backupFile.Close() }()
+		defer runRevert.Fail()
+
+		pool, err := storagePools.LoadByName(s, bInfo.Pool)
+		if err != nil {
+			return err
+		}
+
+		err = pool.CreateBucketFromBackup(*bInfo, backupFile, nil)
+		if err != nil {
+			return fmt.Errorf("Create storage bucket from backup: %w", err)
+		}
+
+		runRevert.Success()
+		return nil
+	}
+
+	resources := map[string][]api.URL{}
+	resources["storage_buckets"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", bInfo.Pool, "buckets", string(bInfo.Type), bInfo.Name)}
+
+	op, err := operations.OperationCreate(s, requestProjectName, operations.OperationClassTask, operationtype.BucketBackupRestore, resources, nil, run, nil, nil, r)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	revert.Success()
+	return operations.OperationResponse(op)
 }

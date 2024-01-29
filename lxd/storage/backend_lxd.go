@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -6718,6 +6719,31 @@ func (b *lxdBackend) createStorageStructure(path string) error {
 	return nil
 }
 
+// GenerateBucketBackupConfig returns the backup config entry for this bucket.
+func (b *lxdBackend) GenerateBucketBackupConfig(projectName string, bucketName string, op *operations.Operation) (*backupConfig.Config, error) {
+	bucket, err := BucketDBGet(b, projectName, bucketName, true)
+	if err != nil {
+		return nil, err
+	}
+
+	dbBucketKeys, err := BucketKeysDBGet(b, bucket.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	var bucketKeys []*api.StorageBucketKey
+	for _, key := range dbBucketKeys {
+		bucketKeys = append(bucketKeys, &key.StorageBucketKey)
+	}
+
+	config := &backupConfig.Config{
+		Bucket:     &bucket.StorageBucket,
+		BucketKeys: bucketKeys,
+	}
+
+	return config, nil
+}
+
 // GenerateCustomVolumeBackupConfig returns the backup config entry for this volume.
 func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volName string, snapshots bool, op *operations.Operation) (*backupConfig.Config, error) {
 	vol, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
@@ -7771,4 +7797,195 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 
 	revert.Success()
 	return nil
+}
+
+// BackupBucket backups up a bucket to a tarball.
+func (b *lxdBackend) BackupBucket(projectName string, bucketName string, tarWriter *instancewriter.InstanceTarWriter, op *operations.Operation) error {
+	l := b.logger.AddContext(logger.Ctx{"project": projectName, "bucket": bucketName})
+	l.Debug("BackupBucket started")
+	defer l.Debug("BackupBucket finished")
+
+	err := b.isStatusReady()
+	if err != nil {
+		return err
+	}
+
+	if !b.Driver().Info().Buckets {
+		return fmt.Errorf("Storage pool does not support buckets")
+	}
+
+	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
+
+	var bucket *db.StorageBucket
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		bucket, err = tx.GetStoragePoolBucket(ctx, b.id, projectName, memberSpecific, bucketName)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	backupKey, err := b.getFirstReadStorageBucketPoolKey(bucket.ID)
+	if err != nil {
+		return err
+	}
+
+	bucketURL := b.GetBucketURL(bucket.Name)
+	transferManager := s3.NewTransferManager(bucketURL, backupKey.AccessKey, backupKey.SecretKey)
+
+	err = transferManager.DownloadAllFiles(bucket.Name, tarWriter)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CreateBucketFromBackup creates a bucket from a tarball.
+func (b *lxdBackend) CreateBucketFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) error {
+	l := b.logger.AddContext(logger.Ctx{"project": srcBackup.Project, "bucket": srcBackup.Name})
+	l.Debug("CreateBucketFromBackup started")
+	defer l.Debug("CreateBucketFromBackup finished")
+
+	// Validate the name.
+	backupName, err := backup.ValidateBackupName(srcBackup.Name)
+	if err != nil {
+		return err
+	}
+
+	err = b.isStatusReady()
+	if err != nil {
+		return err
+	}
+
+	if !b.Driver().Info().Buckets {
+		return fmt.Errorf("Storage pool does not support buckets")
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	bucketRequest := api.StorageBucketsPost{
+		Name:             backupName,
+		StorageBucketPut: srcBackup.Config.Bucket.Writable(),
+	}
+
+	// Ensure project exists.
+	var projectName string
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		project, err := cluster.GetProject(ctx, tx.Tx(), srcBackup.Project)
+		if err != nil {
+			return err
+		}
+
+		projectName = project.Name
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Create the bucket to import.
+	err = b.CreateBucket(projectName, bucketRequest, op)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() { _ = b.DeleteBucket(projectName, bucketRequest.Name, op) })
+
+	// Upload all keys from the backup.
+	for _, bucketKey := range srcBackup.Config.BucketKeys {
+		bucketKeyRequest := api.StorageBucketKeysPost{
+			Name:                bucketKey.Name,
+			StorageBucketKeyPut: bucketKey.Writable(),
+		}
+
+		_, err := b.CreateBucketKey(projectName, backupName, bucketKeyRequest, op)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Upload all files from the backup.
+	backupKey, err := b.getFirstAdminStorageBucketPoolKey(projectName, backupName)
+	if err != nil {
+		return err
+	}
+
+	bucketURL := b.GetBucketURL(backupName)
+	transferManager := s3.NewTransferManager(bucketURL, b.state, backupKey.AccessKey, backupKey.SecretKey)
+	err = transferManager.UploadAllFiles(backupName, srcData)
+	if err != nil {
+		return err
+	}
+
+	revert.Success()
+	return nil
+}
+
+func (b *lxdBackend) getFirstReadStorageBucketPoolKey(bucketID int64) (*db.StorageBucketKey, error) {
+	var backupKey *db.StorageBucketKey
+
+	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		bucketKeys, err := tx.GetStoragePoolBucketKeys(ctx, bucketID)
+		bucketKeysLen := len(bucketKeys)
+		if (err == nil && bucketKeysLen <= 0) || errors.Is(err, sql.ErrNoRows) {
+			return api.StatusErrorf(http.StatusNotFound, "Storage bucket key not found")
+		} else if err != nil {
+			return err
+		}
+
+		backupKey = bucketKeys[0]
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return backupKey, nil
+}
+
+func (b *lxdBackend) getFirstAdminStorageBucketPoolKey(projectName string, bucketName string) (*db.StorageBucketKey, error) {
+	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
+
+	var bucket *db.StorageBucket
+	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		bucket, err = tx.GetStoragePoolBucket(ctx, b.id, projectName, memberSpecific, bucketName)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var bucketKey *db.StorageBucketKey
+
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		bucketKeys, err := tx.GetStoragePoolBucketKeys(ctx, bucket.ID)
+		bucketKeysLen := len(bucketKeys)
+		if (err == nil && bucketKeysLen <= 0) || errors.Is(err, sql.ErrNoRows) {
+			return api.StatusErrorf(http.StatusNotFound, "Storage bucket key not found")
+		} else if err != nil {
+			return err
+		}
+
+		for _, key := range bucketKeys {
+			if key.Role == "admin" {
+				bucketKey = key
+				break
+			}
+		}
+
+		if bucketKey == nil {
+			return api.StatusErrorf(http.StatusNotFound, "No storage bucket admin key found")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return bucketKey, nil
 }
