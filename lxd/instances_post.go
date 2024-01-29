@@ -22,6 +22,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
+	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
@@ -78,6 +79,11 @@ func ensureDownloadedImageFitWithinBudget(s *state.State, r *http.Request, op *o
 }
 
 func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []api.Profile, img *api.Image, imgAlias string, req *api.InstancesPost) response.Response {
+	lockName := fmt.Sprintf("ImageFetch-%s", imgAlias)
+	if imgAlias == "" {
+		lockName = fmt.Sprintf("ImageFetch-%s", req.Source.Fingerprint)
+	}
+
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
 	}
@@ -88,6 +94,16 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 	}
 
 	run := func(op *operations.Operation) error {
+		reverter := revert.New()
+		defer reverter.Fail()
+
+		clusterUnlock, err := locking.ClusterLock(s.ShutdownCtx, s, lockName)
+		if err != nil {
+			return fmt.Errorf("Failed to lock cluster before inspecting images: %w", err)
+		}
+
+		reverter.Add(func() { clusterUnlock() })
+
 		devices := deviceConfig.NewDevices(req.Devices)
 
 		args := db.InstanceArgs{
@@ -119,6 +135,9 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 		if err != nil {
 			return err
 		}
+
+		clusterUnlock()
+		reverter.Success()
 
 		return instanceCreateFromImage(s, r, img, args, op)
 	}
