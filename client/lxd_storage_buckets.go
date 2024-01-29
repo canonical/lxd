@@ -1,7 +1,16 @@
 package lxd
 
 import (
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strconv"
+
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/cancel"
+	"github.com/canonical/lxd/shared/ioprogress"
+	"github.com/canonical/lxd/shared/units"
 )
 
 // GetStoragePoolBucketNames returns a list of storage bucket names.
@@ -232,4 +241,152 @@ func (r *ProtocolLXD) DeleteStoragePoolBucketKey(poolName string, bucketName str
 	}
 
 	return nil
+}
+
+// CreateStoragePoolBucketBackup creates a new storage bucket backup.
+func (r *ProtocolLXD) CreateStoragePoolBucketBackup(poolName string, bucketName string, backup api.StorageBucketBackupsPost) (Operation, error) {
+	err := r.CheckExtension("storage_bucket_backup")
+	if err != nil {
+		return nil, err
+	}
+
+	op, _, err := r.queryOperation("POST", "/storage-pools/"+url.PathEscape(poolName)+"/buckets/"+url.PathEscape(bucketName)+"/backups", backup, "", true)
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
+// DeleteStoragePoolBucketBackup deletes an existing storage bucket backup.
+func (r *ProtocolLXD) DeleteStoragePoolBucketBackup(pool string, bucketName string, name string) (Operation, error) {
+	err := r.CheckExtension("storage_bucket_backup")
+	if err != nil {
+		return nil, err
+	}
+
+	op, _, err := r.queryOperation("DELETE", "/storage-pools/"+url.PathEscape(pool)+"/buckets/"+url.PathEscape(bucketName)+"/backups/"+url.PathEscape(name), nil, "", true)
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
+// GetStoragePoolBucketBackupFile returns the storage bucket file.
+func (r *ProtocolLXD) GetStoragePoolBucketBackupFile(pool string, bucketName string, name string, req *BackupFileRequest) (*BackupFileResponse, error) {
+	err := r.CheckExtension("storage_bucket_backup")
+	if err != nil {
+		return nil, err
+	}
+
+	// Build the URL
+	uri := r.httpBaseURL.String() + "/1.0/storage-pools/" + url.PathEscape(pool) + "/buckets/" + url.PathEscape(bucketName) + "/backups/" + url.PathEscape(name) + "/export"
+
+	if r.project != "" {
+		uri += "?project=" + url.QueryEscape(r.project)
+	}
+
+	// Prepare the download request
+	request, err := http.NewRequest("GET", uri, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if r.httpUserAgent != "" {
+		request.Header.Set("User-Agent", r.httpUserAgent)
+	}
+
+	// Start the request
+	response, doneCh, err := cancel.CancelableDownload(req.Canceler, r.DoHTTP, request)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = response.Body.Close() }()
+	defer close(doneCh)
+
+	if response.StatusCode != http.StatusOK {
+		_, _, err := lxdParseResponse(response)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Handle the data
+	body := response.Body
+	if req.ProgressHandler != nil {
+		body = &ioprogress.ProgressReader{
+			ReadCloser: response.Body,
+			Tracker: &ioprogress.ProgressTracker{
+				Length: response.ContentLength,
+				Handler: func(percent int64, speed int64) {
+					req.ProgressHandler(ioprogress.ProgressData{Text: strconv.FormatInt(percent, 10) + "% (" + units.GetByteSizeString(speed, 2) + "/s)"})
+				},
+			},
+		}
+	}
+
+	size, err := io.Copy(req.BackupFile, body)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := BackupFileResponse{}
+	resp.Size = size
+
+	return &resp, nil
+}
+
+// CreateStoragePoolBucketFromBackup creates a storage pool bucket using a backup.
+func (r *ProtocolLXD) CreateStoragePoolBucketFromBackup(pool string, args StoragePoolBucketBackupArgs) (Operation, error) {
+	if !r.HasExtension("storage_bucket_backup") {
+		return nil, fmt.Errorf(`The server is missing the required "custom_volume_backup" API extension`)
+	}
+
+	path := "/storage-pools/" + url.PathEscape(pool) + "/buckets"
+
+	// Prepare the HTTP request.
+	reqURL, err := r.setQueryAttributes(r.httpBaseURL.String() + "/1.0" + path)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", reqURL, args.BackupFile)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/octet-stream")
+
+	if args.Name != "" {
+		req.Header.Set("X-LXD-name", args.Name)
+	}
+
+	// Send the request.
+	resp, err := r.DoHTTP(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = resp.Body.Close() }()
+
+	// Handle errors.
+	response, _, err := lxdParseResponse(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	respOperation, err := response.MetadataAsOperation()
+	if err != nil {
+		return nil, err
+	}
+
+	op := operation{
+		Operation: *respOperation,
+		r:         r,
+		chActive:  make(chan bool),
+	}
+
+	return &op, nil
 }
