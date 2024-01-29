@@ -441,3 +441,18 @@ func (b *mockBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcDat
 func (b *mockBackend) CreateCustomVolumeFromISO(projectName string, volName string, srcData io.ReadSeeker, size int64, op *operations.Operation) error {
 	return nil
 }
+
+// GenerateBucketBackupConfig ...
+func (b *mockBackend) GenerateBucketBackupConfig(projectName string, bucketName string, op *operations.Operation) (*backupConfig.Config, error) {
+	return nil, nil
+}
+
+// BackupBucket ...
+func (b *mockBackend) BackupBucket(projectName string, bucketName string, tarWriter *instancewriter.InstanceTarWriter, op *operations.Operation) error {
+	return nil
+}
+
+// CreateBucketFromBackup ...
+func (b *mockBackend) CreateBucketFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) error {
+	return nil
+}
