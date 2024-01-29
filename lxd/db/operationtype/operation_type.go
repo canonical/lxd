@@ -76,6 +76,10 @@ const (
 	RenewServerCertificate
 	RemoveExpiredTokens
 	ClusterHeal
+	BucketBackupCreate
+	BucketBackupRemove
+	BucketBackupRename
+	BucketBackupRestore
 )
 
 // Description return a human-readable description of the operation type.
@@ -199,6 +203,14 @@ func (t Type) Description() string {
 		return "Remove expired tokens"
 	case ClusterHeal:
 		return "Healing cluster"
+	case BucketBackupCreate:
+		return "Creating bucket backup"
+	case BucketBackupRemove:
+		return "Deleting bucket backup"
+	case BucketBackupRename:
+		return "Renaming bucket backup"
+	case BucketBackupRestore:
+		return "Restoring bucket backup"
 	default:
 		return "Executing operation"
 	}
@@ -279,6 +291,15 @@ func (t Type) Permission() (entity.Type, auth.Entitlement) {
 	case CustomVolumeBackupRename:
 		return entity.TypeStorageVolume, auth.EntitlementCanManageBackups
 	case CustomVolumeBackupRestore:
+		return entity.TypeStorageVolume, auth.EntitlementCanEdit
+
+	case BucketBackupCreate:
+		return entity.TypeStorageVolume, auth.EntitlementCanManageBackups
+	case BucketBackupRemove:
+		return entity.TypeStorageVolume, auth.EntitlementCanManageBackups
+	case BucketBackupRename:
+		return entity.TypeStorageVolume, auth.EntitlementCanManageBackups
+	case BucketBackupRestore:
 		return entity.TypeStorageVolume, auth.EntitlementCanEdit
 	}
 
