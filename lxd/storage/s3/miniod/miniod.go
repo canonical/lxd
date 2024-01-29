@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/minio/madmin-go"
+	"github.com/minio/madmin-go/v3"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 
@@ -114,7 +114,7 @@ func (p *Process) Stop(ctx context.Context) error {
 		return err
 	}
 
-	err = adminClient.ServiceStop(ctx)
+	err = adminClient.ServiceStopV2(ctx)
 	if err != nil {
 		return err
 	}
