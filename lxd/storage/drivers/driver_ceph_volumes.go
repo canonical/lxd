@@ -1827,6 +1827,15 @@ func (d *ceph) RestoreVolume(vol Volume, snapshotName string, op *operations.Ope
 		return err
 	}
 
+	// For VM images, restore the filesystem volume too.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		err := d.RestoreVolume(fsVol, snapshotName, op)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
