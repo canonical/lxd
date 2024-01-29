@@ -11,6 +11,7 @@ import (
 var exclude []string
 var jsonOutput string
 var txtOutput string
+var substitutionDBPath string
 var rootCmd = &cobra.Command{
 	Use:   "lxd-metadata",
 	Short: "lxd-metadata - a simple tool to generate configuration metadata and documentation for LXD",
@@ -22,7 +23,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		path := args[0]
-		_, err := parse(path, jsonOutput, exclude)
+		_, err := parse(path, jsonOutput, exclude, substitutionDBPath)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -40,6 +41,7 @@ func main() {
 	rootCmd.Flags().StringSliceVarP(&exclude, "exclude", "e", []string{}, "Path to exclude from the process")
 	rootCmd.Flags().StringVarP(&jsonOutput, "json", "j", "configuration.json", "Output JSON file containing the generated configuration")
 	rootCmd.Flags().StringVarP(&txtOutput, "txt", "t", "", "Output TXT file containing the generated documentation")
+	rootCmd.Flags().StringVarP(&substitutionDBPath, "substitution-db", "s", "", "Path to a YAML file containing substitution rules")
 	err := rootCmd.Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "lxd-metadata failed: %v", err)
