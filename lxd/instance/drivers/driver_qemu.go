@@ -1062,28 +1062,31 @@ func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
 			return err
 		}
 
-		stateDiskSizeStr := pool.Driver().Info().DefaultVMBlockFilesystemSize
-		if rootDiskDevice["size.state"] != "" {
-			stateDiskSizeStr = rootDiskDevice["size.state"]
-		}
+		sharedStorage := pool.Driver().Info().Remote
+		if !sharedStorage {
+			stateDiskSizeStr := pool.Driver().Info().DefaultVMBlockFilesystemSize
+			if rootDiskDevice["size.state"] != "" {
+				stateDiskSizeStr = rootDiskDevice["size.state"]
+			}
 
-		stateDiskSize, err := units.ParseByteSizeString(stateDiskSizeStr)
-		if err != nil {
-			return err
-		}
+			stateDiskSize, err := units.ParseByteSizeString(stateDiskSizeStr)
+			if err != nil {
+				return err
+			}
 
-		memoryLimitStr := QEMUDefaultMemSize
-		if d.expandedConfig["limits.memory"] != "" {
-			memoryLimitStr = d.expandedConfig["limits.memory"]
-		}
+			memoryLimitStr := QEMUDefaultMemSize
+			if d.expandedConfig["limits.memory"] != "" {
+				memoryLimitStr = d.expandedConfig["limits.memory"]
+			}
 
-		memoryLimit, err := units.ParseByteSizeString(memoryLimitStr)
-		if err != nil {
-			return err
-		}
+			memoryLimit, err := units.ParseByteSizeString(memoryLimitStr)
+			if err != nil {
+				return err
+			}
 
-		if stateDiskSize < memoryLimit {
-			return fmt.Errorf("Stateful start requires that the instance limits.memory is less than size.state on the root disk device")
+			if stateDiskSize < memoryLimit {
+				return fmt.Errorf("Stateful start requires that the instance limits.memory is less than size.state on the root disk device")
+			}
 		}
 	}
 
