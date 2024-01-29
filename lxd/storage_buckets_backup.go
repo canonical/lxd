@@ -32,22 +32,22 @@ import (
 var storagePoolBucketBackupsCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/buckets/{bucketName}/backups",
 
-	Get:  APIEndpointAction{Handler: storagePoolBucketBackupsGet, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanView, "poolName", "bucketName", "location")},
-	Post: APIEndpointAction{Handler: storagePoolBucketBackupsPost, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanManageBackups, "poolName", "bucketName", "location")},
+	Get:  APIEndpointAction{Handler: storagePoolBucketBackupsGet, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanView, "poolName", "bucketName")},
+	Post: APIEndpointAction{Handler: storagePoolBucketBackupsPost, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanManageBackups, "poolName", "bucketName")},
 }
 
 var storagePoolBucketBackupCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/buckets/{bucketName}/backups/{backupName}",
 
-	Get:    APIEndpointAction{Handler: storagePoolBucketBackupGet, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanView, "poolName", "bucketName", "location")},
-	Post:   APIEndpointAction{Handler: storagePoolBucketBackupPost, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanManageBackups, "poolName", "bucketName", "location")},
-	Delete: APIEndpointAction{Handler: storagePoolBucketBackupDelete, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanManageBackups, "poolName", "bucketName", "location")},
+	Get:    APIEndpointAction{Handler: storagePoolBucketBackupGet, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanView, "poolName", "bucketName")},
+	Post:   APIEndpointAction{Handler: storagePoolBucketBackupPost, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanManageBackups, "poolName", "bucketName")},
+	Delete: APIEndpointAction{Handler: storagePoolBucketBackupDelete, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanManageBackups, "poolName", "bucketName")},
 }
 
 var storagePoolBucketBackupsExportCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/buckets/{bucketName}/backups/{backupName}/export",
 
-	Get: APIEndpointAction{Handler: storagePoolBucketBackupExportGet, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanView, "poolName", "bucketName", "location")},
+	Get: APIEndpointAction{Handler: storagePoolBucketBackupExportGet, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanView, "poolName", "bucketName")},
 }
 
 // swagger:operation GET /1.0/storage-pools/{poolName}/buckets/{bucketName}/backups storage storage_pool_buckets_backups_get
