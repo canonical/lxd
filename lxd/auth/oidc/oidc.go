@@ -39,15 +39,20 @@ type Verifier struct {
 	accessTokenVerifier op.AccessTokenVerifier
 	relyingParty        rp.RelyingParty
 
-	clientID  string
-	issuer    string
-	audience  string
-	cookieKey []byte
+	clientID    string
+	issuer      string
+	audience    string
+	clusterCert func() *shared.CertInfo
 
 	// host is used for setting a valid callback URL when setting the relyingParty.
 	// When creating the relyingParty, the OIDC library performs discovery (e.g. it calls the /well-known/oidc-configuration endpoint).
 	// We don't want to perform this on every request, so we only do it when the request host changes.
 	host string
+
+	// configExpiry is the next time at which the relying party and access token verifier will be considered out of date
+	// and will be refreshed. This refreshes the cookie encryption keys that the relying party uses.
+	configExpiry         time.Time
+	configExpiryInterval time.Duration
 }
 
 // AuthError represents an authentication error.
