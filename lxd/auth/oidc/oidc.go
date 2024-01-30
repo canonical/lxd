@@ -263,13 +263,14 @@ func (o *Verifier) IsRequest(r *http.Request) bool {
 // if the given host is different from the Verifier host we reset the relyingParty to ensure the callback URL is set
 // correctly.
 func (o *Verifier) ensureConfig(host string) error {
-	if o.relyingParty == nil || host != o.host {
+	if o.relyingParty == nil || host != o.host || time.Now().After(o.configExpiry) {
 		err := o.setRelyingParty(host)
 		if err != nil {
 			return err
 		}
 
 		o.host = host
+		o.configExpiry = time.Now().Add(o.configExpiryInterval)
 	}
 
 	if o.accessTokenVerifier == nil {
@@ -284,7 +285,26 @@ func (o *Verifier) ensureConfig(host string) error {
 
 // setRelyingParty sets the relyingParty on the Verifier. The host argument is used to set a valid callback URL.
 func (o *Verifier) setRelyingParty(host string) error {
-	cookieHandler := httphelper.NewCookieHandler(o.cookieKey, o.cookieKey)
+	// The relying party sets cookies for the following values:
+	// - "state": Used to prevent CSRF attacks (https://datatracker.ietf.org/doc/html/rfc6749#section-10.12).
+	// - "pkce": Used to prevent authorization code interception attacks (https://datatracker.ietf.org/doc/html/rfc7636).
+	// Both should be stored securely. However, these cookies do not need to be decrypted by other cluster members, so
+	// it is ok to use the secure key generation that is built in to the securecookie library. This also reduces the
+	// exposure of our private key.
+
+	// The hash key should be 64 bytes (https://github.com/gorilla/securecookie).
+	cookieHashKey := securecookie.GenerateRandomKey(64)
+	if cookieHashKey == nil {
+		return errors.New("Failed to generate a secure cookie hash key")
+	}
+
+	// The block key should 32 bytes for AES-256 encryption.
+	cookieBlockKey := securecookie.GenerateRandomKey(32)
+	if cookieBlockKey == nil {
+		return errors.New("Failed to generate a secure cookie hash key")
+	}
+
+	cookieHandler := httphelper.NewCookieHandler(cookieHashKey, cookieBlockKey)
 	options := []rp.Option{
 		rp.WithCookieHandler(cookieHandler),
 		rp.WithVerifierOpts(rp.WithIssuedAtOffset(5 * time.Second)),
