@@ -1059,7 +1059,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			d.oidcVerifier = nil
 		} else {
 			var err error
-			d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcAudience)
+			d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcAudience, s.ServerCert, nil)
 			if err != nil {
 				return fmt.Errorf("Failed creating verifier: %w", err)
 			}
