@@ -309,6 +309,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		Server:                 "lxd",
 		ServerPid:              os.Getpid(),
 		ServerVersion:          version.Version,
+		ServerLTS:              version.IsLTSVersion,
 		ServerClustered:        s.ServerClustered,
 		ServerEventMode:        string(cluster.ServerEventMode()),
 		ServerName:             serverName,
