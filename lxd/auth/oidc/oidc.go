@@ -240,10 +240,15 @@ func (o *Verifier) WriteHeaders(w http.ResponseWriter) error {
 }
 
 // IsRequest checks if the request is using OIDC authentication. We check for the presence of the Authorization header
-// or one of the ID or refresh tokens.
-func (o *Verifier) IsRequest(r *http.Request) bool {
+// or one of the ID or refresh tokens and the session cookie.
+func (*Verifier) IsRequest(r *http.Request) bool {
 	if r.Header.Get("Authorization") != "" {
 		return true
+	}
+
+	_, err := r.Cookie(cookieNameSessionID)
+	if err != nil {
+		return false
 	}
 
 	idTokenCookie, err := r.Cookie(cookieNameIDToken)
