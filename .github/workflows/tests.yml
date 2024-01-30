@@ -104,6 +104,8 @@ jobs:
           make
 
       - name: Run static analysis
+        env:
+          GITHUB_BEFORE: ${{ github.event.before }}
         run: |
           make static-analysis
 
