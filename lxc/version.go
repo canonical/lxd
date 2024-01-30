@@ -34,7 +34,11 @@ func (c *cmdVersion) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf(i18n.G("Client version: %s\n"), version.Version)
+	// Client version
+	clientVersion := version.Version
+	if version.IsLTSVersion {
+		clientVersion = fmt.Sprintf("%s LTS", clientVersion)
+	}
 
 	// Remote version
 	remote := ""
@@ -45,17 +49,21 @@ func (c *cmdVersion) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	version := i18n.G("unreachable")
+	serverVersion := i18n.G("unreachable")
 	resources, err := c.global.ParseServers(remote)
 	if err == nil {
 		resource := resources[0]
 		info, _, err := resource.server.GetServer()
 		if err == nil {
-			version = info.Environment.ServerVersion
+			serverVersion = info.Environment.ServerVersion
+			if info.Environment.ServerLTS {
+				serverVersion = fmt.Sprintf("%s LTS", serverVersion)
+			}
 		}
 	}
 
-	fmt.Printf(i18n.G("Server version: %s\n"), version)
+	fmt.Printf(i18n.G("Client version: %s\n"), clientVersion)
+	fmt.Printf(i18n.G("Server version: %s\n"), serverVersion)
 
 	return nil
 }
