@@ -25,6 +25,13 @@ const (
 
 	// cookieNameRefreshToken is the identifier used to set and retrieve the refresh token.
 	cookieNameRefreshToken = "oidc_refresh"
+
+	// cookieNameSessionID is used to identify the session. It does not need to be encrypted.
+	cookieNameSessionID = "session_id"
+)
+
+const (
+	defaultConfigExpiryInterval = 5 * time.Minute
 )
 
 // Verifier holds all information needed to verify an access token offline.
