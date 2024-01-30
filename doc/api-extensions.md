@@ -2351,3 +2351,8 @@ This field indicates which instance types are supported by the server.
 
 Adds a `mounted` field to disk resources that LXD discovers on the system, reporting whether that disk or partition is
 mounted.
+
+## `server_version_lts`
+
+The API extension adds indication whether the LXD version is an LTS release.
+This is indicated when command `lxc version` is executed or when `/1.0` endpoint is queried.
