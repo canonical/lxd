@@ -358,6 +358,7 @@ var APIExtensions = []string{
 	"cluster_internal_custom_volume_copy",
 	"instance_move_config",
 	"server_instance_type_info",
+	"server_version_lts",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
