@@ -2,18 +2,22 @@ package oidc
 
 import (
 	"context"
+	"crypto/sha512"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/securecookie"
 	"github.com/zitadel/oidc/v2/pkg/client"
 	"github.com/zitadel/oidc/v2/pkg/client/rp"
 	httphelper "github.com/zitadel/oidc/v2/pkg/http"
 	"github.com/zitadel/oidc/v2/pkg/oidc"
 	"github.com/zitadel/oidc/v2/pkg/op"
+	"golang.org/x/crypto/hkdf"
 
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
@@ -369,6 +373,57 @@ func (*Verifier) setCookies(w http.ResponseWriter, idToken string, refreshToken 
 	}
 
 	return nil
+}
+
+// secureCookieFromSession returns a *securecookie.SecureCookie that is secure, unique to each client, and possible to
+// decrypt on all cluster members.
+//
+// To do this we use the cluster private key as an input seed to HKDF (https://datatracker.ietf.org/doc/html/rfc5869) and
+// use the given sessionID uuid.UUID as a salt. The session ID can then be stored as a plaintext cookie so that we can
+// regenerate the keys upon the next request.
+//
+// Warning: Changes to this function might cause all existing OIDC users to be logged out of LXD (but not logged out of
+// the IdP).
+func (o *Verifier) secureCookieFromSession(sessionID uuid.UUID) (*securecookie.SecureCookie, error) {
+	// Get the sessionID as a binary so that we can use it as a salt.
+	salt, err := sessionID.MarshalBinary()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to marshal session ID as binary: %w", err)
+	}
+
+	// Get the current cluster private key.
+	clusterPrivateKey := o.clusterCert().PrivateKey()
+
+	// Extract a pseudo-random key from the cluster private key.
+	prk := hkdf.Extract(sha512.New, clusterPrivateKey, salt)
+
+	// Get an io.Reader from which we can read a secure key. We will use this key as the hash key for the cookie.
+	// The hash key is used to verify the integrity of decrypted values using HMAC. The HKDF "info" is set to "INTEGRITY"
+	// to indicate the intended usage of the key and prevent decryption in other contexts
+	// (see https://datatracker.ietf.org/doc/html/rfc5869#section-3.2).
+	keyDerivationFunc := hkdf.Expand(sha512.New, prk, []byte("INTEGRITY"))
+
+	// Read 64 bytes of the derived key. The securecookie library recommends 64 bytes for the hash key (https://github.com/gorilla/securecookie).
+	cookieHashKey := make([]byte, 64)
+	_, err = io.ReadFull(keyDerivationFunc, cookieHashKey)
+	if err != nil {
+		return nil, fmt.Errorf("Failed creating secure cookie hash key: %w", err)
+	}
+
+	// Get an io.Reader from which we can read a secure key. We will use this key as the block key for the cookie.
+	// The block key is used by securecookie to perform AES encryption. The HKDF "info" is set to "ENCRYPTION"
+	// to indicate the intended usage of the key and prevent decryption in other contexts
+	// (see https://datatracker.ietf.org/doc/html/rfc5869#section-3.2).
+	keyDerivationFunc = hkdf.Expand(sha512.New, prk, []byte("ENCRYPTION"))
+
+	// Read 32 bytes of the derived key. Given 32 bytes for the block key the securecookie library will use AES-256 for encryption.
+	cookieBlockKey := make([]byte, 32)
+	_, err = io.ReadFull(keyDerivationFunc, cookieBlockKey)
+	if err != nil {
+		return nil, fmt.Errorf("Failed creating secure cookie block key: %w", err)
+	}
+
+	return securecookie.New(cookieHashKey, cookieBlockKey), nil
 }
 
 // Opts contains optional configurable fields for the Verifier.
