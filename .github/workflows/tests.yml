@@ -455,13 +455,9 @@ jobs:
           make doc-linkcheck
 
       - name: Build docs (Sphinx)
-        run:
+        run: |
           set -eux
           make doc
-
-      - name: Print warnings (Sphinx)
-        run:
-          set -eux
           if [ -s doc/.sphinx/warnings.txt ]; then cat doc/.sphinx/warnings.txt; exit 1; fi
 
       - name: Upload documentation artifacts
