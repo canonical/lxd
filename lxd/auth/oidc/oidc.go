@@ -371,14 +371,28 @@ func (*Verifier) setCookies(w http.ResponseWriter, idToken string, refreshToken 
 	return nil
 }
 
+// Opts contains optional configurable fields for the Verifier.
+type Opts struct {
+	ConfigExpiryInterval time.Duration
+}
+
 // NewVerifier returns a Verifier.
-func NewVerifier(issuer string, clientid string, audience string) (*Verifier, error) {
-	cookieKey, err := uuid.New().MarshalBinary()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to create UUID: %w", err)
+func NewVerifier(issuer string, clientID string, audience string, clusterCert func() *shared.CertInfo, options *Opts) (*Verifier, error) {
+	opts := &Opts{
+		ConfigExpiryInterval: defaultConfigExpiryInterval,
 	}
 
-	verifier := &Verifier{issuer: issuer, clientID: clientid, audience: audience, cookieKey: cookieKey}
+	if options != nil {
+		opts.ConfigExpiryInterval = options.ConfigExpiryInterval
+	}
+
+	verifier := &Verifier{
+		issuer:               issuer,
+		clientID:             clientID,
+		audience:             audience,
+		clusterCert:          clusterCert,
+		configExpiryInterval: opts.ConfigExpiryInterval,
+	}
 
 	return verifier, nil
 }
