@@ -26,7 +26,11 @@ func (c *cmdVersion) Command() *cobra.Command {
 }
 
 func (c *cmdVersion) Run(cmd *cobra.Command, args []string) error {
-	fmt.Println(version.Version)
+	if version.IsLTSVersion {
+		fmt.Println(version.Version, "LTS")
+	} else {
+		fmt.Println(version.Version)
+	}
 
 	return nil
 }
