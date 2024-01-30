@@ -46,7 +46,7 @@ Complete the following steps to install the snap:
    If it is not, use one of the {ref}`installing-other`.
 
 1. Install `snapd`.
-   See the [installation instructions](https://snapcraft.io/docs/core/install) in the Snapcraft documentation.
+   See the [installation instructions](https://snapcraft.io/docs/installing-snapd) in the Snapcraft documentation.
 
 1. Install the snap package.
    For the latest feature release, use:
