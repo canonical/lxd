@@ -16,9 +16,15 @@ elif [ -n "${1:-}" ]; then
   target_branch="${1}"
 fi
 
-# If we don't already have a target revision. Try to get one from the branch.
 if [ -z "${target_revision}" ]; then
-  target_revision="$(git log --max-count=1 --format=%H "origin/${target_branch}" || true)"
+  # If we don't already have a target revision. Try to get one from the branch.
+  if [ -n "${GITHUB_ACTIONS:-}" ]; then
+    # If we're in CI, just attempt and continue, we may be in a shallow clone.
+    target_revision="$(git log --max-count=1 --format=%H "origin/${target_branch}" || true)"
+  else
+    # If we're local, fail if we don't find a revision (and don't prefix with "origin").
+    target_revision="$(git log --max-count=1 --format=%H "${target_branch}")"
+  fi
 fi
 
 # If we still don't have a target revision, we need to fetch the branch as actions/checkout performs a shallow clone by default.
