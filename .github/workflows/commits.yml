@@ -24,7 +24,7 @@ jobs:
         commits: ${{ steps.get-pr-commits.outputs.commits }}
 
     - name: Check if CLA signed
-      uses: canonical/has-signed-canonical-cla@v1
+      uses: simondeziel/has-signed-canonical-cla@implicit-approval-from-licenses
 
     - name: Check branch target
       env:
