@@ -83,11 +83,11 @@ func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Requ
 
 	authorizationHeader := r.Header.Get("Authorization")
 
-	idToken, refreshToken, err := o.getCookies(r)
+	_, idToken, refreshToken, err := o.getCookies(r)
 	if err != nil {
 		// Cookies are present but we failed to decrypt them. They may have been tampered with, so delete them to force
 		// the user to log in again.
-		_ = o.setCookies(w, "", "", true)
+		_ = o.setCookies(w, nil, uuid.UUID{}, "", "", true)
 		return "", fmt.Errorf("Failed to retrieve login information: %w", err)
 	}
 
@@ -162,8 +162,14 @@ func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWrite
 		return "", AuthError{Err: fmt.Errorf("Failed to verify refreshed ID token: %w", err)}
 	}
 
+	sessionID := uuid.New()
+	secureCookie, err := o.secureCookieFromSession(sessionID)
+	if err != nil {
+		return "", AuthError{Err: fmt.Errorf("Failed to create new session with refreshed token: %w", err)}
+	}
+
 	// Update the cookies.
-	err = o.setCookies(w, idToken, tokens.RefreshToken, false)
+	err = o.setCookies(w, secureCookie, sessionID, idToken, tokens.RefreshToken, false)
 	if err != nil {
 		return "", fmt.Errorf("Failed to update login cookies: %w", err)
 	}
@@ -185,7 +191,7 @@ func (o *Verifier) Login(w http.ResponseWriter, r *http.Request) {
 
 // Logout deletes the ID and refresh token cookies and redirects the user to the login page.
 func (o *Verifier) Logout(w http.ResponseWriter, r *http.Request) {
-	err := o.setCookies(w, "", "", true)
+	err := o.setCookies(w, nil, uuid.UUID{}, "", "", true)
 	if err != nil {
 		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to delete login information: %w", err).Error()).Render(w)
 		return
@@ -203,7 +209,14 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handler := rp.CodeExchangeHandler(func(w http.ResponseWriter, r *http.Request, tokens *oidc.Tokens[*oidc.IDTokenClaims], state string, rp rp.RelyingParty) {
-		err := o.setCookies(w, tokens.IDToken, tokens.RefreshToken, false)
+		sessionID := uuid.New()
+		secureCookie, err := o.secureCookieFromSession(sessionID)
+		if err != nil {
+			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to start a new session: %w", err).Error()).Render(w)
+			return
+		}
+
+		err = o.setCookies(w, secureCookie, sessionID, tokens.IDToken, tokens.RefreshToken, false)
 		if err != nil {
 			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to set login information: %w", err).Error()).Render(w)
 			return
