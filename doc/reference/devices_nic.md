@@ -481,6 +481,7 @@ Multiple IP addresses
   In this case, set the `ipv4.gateway` and `ipv6.gateway` values to `none` on any subsequent interfaces to avoid default gateway conflicts.
   Also consider specifying a different host-side address for these subsequent interfaces using `ipv4.host_address` and/or `ipv6.host_address`.
 
+(nic-routed-parent)=
 Parent interface
 : This NIC can operate with and without a `parent` network interface set.
 
