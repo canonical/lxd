@@ -75,6 +75,11 @@ func (d *deviceCommon) CanMigrate() bool {
 	return false
 }
 
+// CanLiveMigrate returns whether the device can be live migrated.
+func (d *deviceCommon) CanLiveMigrate() bool {
+	return true
+}
+
 // UpdatableFields returns an empty list of updatable fields as most devices do not support updates.
 func (d *deviceCommon) UpdatableFields(oldDevice Type) []string {
 	return []string{}

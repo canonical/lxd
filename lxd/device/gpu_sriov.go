@@ -328,3 +328,8 @@ func (d *gpuSRIOV) restoreSriovParent(volatile map[string]string) error {
 	revert.Success()
 	return nil
 }
+
+// CanLiveMigrate returns whether the device can be live migrated.
+func (d *gpuSRIOV) CanLiveMigrate() bool {
+	return false
+}

@@ -259,3 +259,8 @@ func (d *gpuMdev) validateEnvironment() error {
 
 	return validatePCIDevice(d.config["pci"])
 }
+
+// CanLiveMigrate returns whether the device can be live migrated.
+func (d *gpuMdev) CanLiveMigrate() bool {
+	return false
+}

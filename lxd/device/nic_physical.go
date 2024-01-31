@@ -303,3 +303,8 @@ func (d *nicPhysical) postStop() error {
 
 	return nil
 }
+
+// CanLiveMigrate returns whether the device can be live migrated.
+func (d *nicPhysical) CanLiveMigrate() bool {
+	return false
+}

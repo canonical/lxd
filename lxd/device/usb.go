@@ -320,3 +320,8 @@ func (d *usb) getUniqueDeviceNameFromUSBEvent(e USBEvent) string {
 func (d *usb) CanHotPlug() bool {
 	return true
 }
+
+// CanLiveMigrate returns whether the device can be live migrated.
+func (d *usb) CanLiveMigrate() bool {
+	return false
+}

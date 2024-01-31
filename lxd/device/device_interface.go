@@ -24,6 +24,9 @@ type Type interface {
 	// CanMigrate returns true if the device should work properly on any cluster member.
 	CanMigrate() bool
 
+	// CanLiveMigrate returns true if the device can be live migrated.
+	CanLiveMigrate() bool
+
 	// UpdatableFields returns a slice of config fields that can be updated. If only fields in this list have
 	// changed then Update() is called rather triggering a device remove & add.
 	UpdatableFields(oldDevice Type) []string

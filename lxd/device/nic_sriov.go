@@ -253,3 +253,8 @@ func (d *nicSRIOV) postStop() error {
 
 	return nil
 }
+
+// CanLiveMigrate returns whether the device can be live migrated.
+func (d *nicSRIOV) CanLiveMigrate() bool {
+	return false
+}

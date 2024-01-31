@@ -463,3 +463,8 @@ func (d *gpuPhysical) getNvidiaNonCardDevices() ([]nvidiaNonCardDevice, error) {
 
 	return nvidiaDevices, nil
 }
+
+// CanLiveMigrate returns whether the device can be live migrated.
+func (d *gpuPhysical) CanLiveMigrate() bool {
+	return false
+}

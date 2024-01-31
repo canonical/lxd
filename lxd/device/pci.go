@@ -127,3 +127,8 @@ func (d *pci) postStop() error {
 
 	return nil
 }
+
+// CanLiveMigrate returns whether the device can be live migrated.
+func (d *pci) CanLiveMigrate() bool {
+	return false
+}
