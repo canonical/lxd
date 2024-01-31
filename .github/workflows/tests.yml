@@ -284,9 +284,33 @@ jobs:
             exit 1
           fi
 
-          sudo snap install microceph --channel=quincy/edge
+          # Repurpose the ephemeral disk for ceph OSD.
+          sudo swapoff /mnt/swapfile
+          ephemeral_disk="$(findmnt --noheadings --output SOURCE --target /mnt | sed 's/[0-9]\+$//')"
+          sudo umount /mnt
+
+          # print information
+          sudo lsblk -f
+          grep "${ephemeral_disk}" /proc/mounts
+          sudo lsof | grep "${ephemeral_disk}"
+          cat /proc/mdstat
+          sudo fuser -m "${ephemeral_disk}"
+          sudo pvdisplay
+          sudo dmesg -T | grep "${ephemeral_disk}"
+
+          sudo snap install microceph --edge
           sudo apt-get install --no-install-recommends -y ceph-common
           sudo microceph cluster bootstrap
+
+          # print information
+          sudo lsblk -f
+          grep "${ephemeral_disk}" /proc/mounts
+          sudo lsof | grep "${ephemeral_disk}"
+          cat /proc/mdstat
+          sudo fuser -m "${ephemeral_disk}"
+          sudo pvdisplay
+          sudo dmesg -T | grep "${ephemeral_disk}"
+
           sudo microceph.ceph config set global osd_pool_default_size 1
           sudo microceph.ceph config set global mon_allow_pool_delete true
           sudo microceph.ceph config set global osd_memory_target 939524096
@@ -295,10 +319,17 @@ jobs:
           for flag in nosnaptrim noscrub nobackfill norebalance norecover noscrub nodeep-scrub; do
               sudo microceph.ceph osd set $flag
           done
-          # Repurpose the ephemeral disk for ceph OSD.
-          sudo swapoff /mnt/swapfile
-          ephemeral_disk="$(findmnt --noheadings --output SOURCE --target /mnt | sed 's/[0-9]\+$//')"
-          sudo umount /mnt
+
+          # print information
+          sudo lsblk -f
+          grep "${ephemeral_disk}" /proc/mounts
+          sudo lsof | grep "${ephemeral_disk}"
+          cat /proc/mdstat
+          sudo fuser -m "${ephemeral_disk}"
+          sudo pvdisplay
+          sudo dmesg -T | grep "${ephemeral_disk}"
+
+          sudo microceph disk list
           sudo microceph disk add --wipe "${ephemeral_disk}"
           sudo rm -rf /etc/ceph
           sudo ln -s /var/snap/microceph/current/conf/ /etc/ceph
@@ -320,182 +351,3 @@ jobs:
           sudo microceph.ceph status
           sudo rm -f /snap/bin/rbd
 
-      - name: "Run system tests (${{ matrix.go }}, ${{ matrix.suite }}, ${{ matrix.backend }})"
-        run: |
-          chmod +x ~
-          echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
-          cd test
-          sudo --preserve-env=PATH,GOPATH,GITHUB_ACTIONS,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS, LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
-
-  client:
-    name: Client
-    strategy:
-      fail-fast: false
-      matrix:
-        go:
-          - 1.20.x
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go }}
-
-      - name: Create build directory
-        run: |
-            mkdir bin
-
-      - name: Build static lxc (x86_64)
-        env:
-          CGO_ENABLED: 0
-          GOARCH: amd64
-        run: |
-          go build -o bin/lxc.x86_64 ./lxc
-
-      - name: Build static lxc (aarch64)
-        env:
-          CGO_ENABLED: 0
-          GOARCH: arm64
-        run: |
-          go build -o bin/lxc.aarch64 ./lxc
-
-      - name: Build static lxd-migrate
-        if: runner.os == 'Linux'
-        env:
-          CGO_ENABLED: 0
-        run: |
-          GOARCH=amd64 go build -o bin/lxd-migrate.x86_64 ./lxd-migrate
-          GOARCH=arm64 go build -o bin/lxd-migrate.aarch64 ./lxd-migrate
-
-      - name: Unit tests (client)
-        env:
-          CGO_ENABLED: 0
-        run: go test -v ./client/...
-
-      - name: Unit tests (lxc)
-        env:
-          CGO_ENABLED: 0
-        run: go test -v ./lxc/...
-
-      - name: Unit tests (shared)
-        env:
-          CGO_ENABLED: 0
-        run: go test -v ./shared/...
-
-      - name: Upload lxc client artifacts
-        uses: actions/upload-artifact@v4
-        continue-on-error: true
-        with:
-          name: ${{ runner.os }}
-          path: bin/
-
-  documentation:
-    name: Documentation
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 1.20.x
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get install aspell aspell-en
-          sudo snap install mdl
-
-      - name: Run markdown linter
-        run: |
-          make doc-lint
-
-      - name: Run spell checker
-        run: |
-          make doc-spellcheck
-
-      - name: Run inclusive naming checker
-        uses: get-woke/woke-action@v0
-        with:
-          fail-on-error: true
-          woke-args: "*.md **/*.md -c https://github.com/canonical/Inclusive-naming/raw/main/config.yml"
-
-      - name: Run link checker
-        run: |
-          make doc-linkcheck
-
-      - name: Build docs (Sphinx)
-        run: make doc
-
-      - name: Print warnings (Sphinx)
-        run: if [ -s doc/.sphinx/warnings.txt ]; then cat doc/.sphinx/warnings.txt; exit 1; fi
-
-      - name: Upload documentation artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: documentation
-          path: doc/html
-
-  snap:
-    name: Trigger snap edge build
-    runs-on: ubuntu-22.04
-    needs: [code-tests, system-tests, client, documentation]
-    if: ${{ github.repository == 'canonical/lxd' && github.event_name == 'push' && github.actor != 'dependabot[bot]' }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Launchpad SSH access
-        env:
-          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
-          LAUNCHPAD_LXD_BOT_KEY: ${{ secrets.LAUNCHPAD_LXD_BOT_KEY }}
-        run: |
-          set -eux
-          mkdir -m 0700 -p ~/.ssh/
-          ssh-agent -a "${SSH_AUTH_SOCK}" > /dev/null
-          ssh-add - <<< "${{ secrets.LAUNCHPAD_LXD_BOT_KEY }}"
-          ssh-add -L > ~/.ssh/id_ed25519.pub
-          # In ephemeral environments like GitHub Action runners, relying on TOFU isn't providing any security
-          # so require the key obtained by `ssh-keyscan` to match the expected hash from https://help.launchpad.net/SSHFingerprints
-          ssh-keyscan git.launchpad.net >> ~/.ssh/known_hosts
-          ssh-keygen -qlF git.launchpad.net | grep -xF 'git.launchpad.net RSA SHA256:UNOzlP66WpDuEo34Wgs8mewypV0UzqHLsIFoqwe8dYo'
-
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 1.20.x
-
-      - name: Trigger Launchpad snap build
-        env:
-          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
-          TARGET: >-
-            ${{ fromJson('{
-              "main": "latest-edge",
-              "stable-5.0": "5.0-edge",
-            }')[github.ref_name] }}
-        run: |
-          set -eux
-          git config --global transfer.fsckobjects true
-          git config --global user.name "Canonical LXD Bot"
-          git config --global user.email "lxd@lists.canonical.com"
-          git config --global commit.gpgsign true
-          git config --global gpg.format "ssh"
-          git config --global user.signingkey ~/.ssh/id_ed25519.pub
-          localRev="$(git rev-parse HEAD)"
-          go install github.com/canonical/lxd-ci/lxd-snapcraft@latest
-          git clone -b "${TARGET}" git+ssh://lxdbot@git.launchpad.net/~canonical-lxd/lxd ~/lxd-pkg-snap-lp
-          cd ~/lxd-pkg-snap-lp
-          lxd-snapcraft -set-version "git-${localRev:0:7}" -set-source-commit "${localRev}"
-          git add --all
-          git commit --all --quiet -s --allow-empty -m "Automatic upstream build (${TARGET})" -m "Upstream commit: ${localRev}"
-          git show
-          git push --quiet
