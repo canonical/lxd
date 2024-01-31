@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -378,12 +379,24 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		return err
 	}
 
+	reverter := revert.New()
+	defer reverter.Fail()
+
 	// Lock regular access to the cluster database since we don't want any
 	// other database code to run while we're reconfiguring raft.
 	err = state.DB.Cluster.EnterExclusive()
 	if err != nil {
 		return fmt.Errorf("Failed to acquire cluster database lock: %w", err)
 	}
+
+	reverter.Add(func() {
+		err := state.DB.Cluster.ExitExclusive(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return nil
+		})
+		if err != nil {
+			logger.Error("Failed to unlock global database after cluster join error", logger.Ctx{"error": err})
+		}
+	})
 
 	// Shutdown the gateway and wipe any raft data. This will trash any
 	// gRPC SQL connection against our in-memory dqlite driver and shutdown
@@ -401,11 +414,47 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	// Re-initialize the gateway. This will create a new raft factory an
 	// dqlite driver instance, which will be exposed over gRPC by the
 	// gateway handlers.
+	oldCert := gateway.networkCert
 	gateway.networkCert = networkCert
 	err = gateway.init(false)
 	if err != nil {
 		return fmt.Errorf("Failed to re-initialize gRPC SQL gateway: %w", err)
 	}
+
+	reverter.Add(func() {
+		err = state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+			return tx.ReplaceRaftNodes([]db.RaftNode{})
+		})
+		if err != nil {
+			logger.Error("Failed to clear local raft node records after cluster join error", logger.Ctx{"error": err})
+			return
+		}
+
+		err = gateway.Shutdown()
+		if err != nil {
+			logger.Error("Failed to shutdown gateway after cluster join error", logger.Ctx{"error": err})
+			return
+		}
+
+		err = os.RemoveAll(state.OS.GlobalDatabaseDir())
+		if err != nil {
+			logger.Error("Failed to remove raft data after cluster join error", logger.Ctx{"error": err})
+			return
+		}
+
+		gateway.networkCert = oldCert
+		err = gateway.init(false)
+		if err != nil {
+			logger.Error("Failed to re-initialize gateway after cluster join error", logger.Ctx{"error": err})
+			return
+		}
+
+		_, err = cluster.EnsureSchema(state.DB.Cluster.DB(), localClusterAddress, state.OS.GlobalDatabaseDir())
+		if err != nil {
+			logger.Error("Failed to reload schema after cluster join error", logger.Ctx{"error": err})
+			return
+		}
+	})
 
 	// If we are listed among the database nodes, join the raft cluster.
 	var info *db.RaftNode
@@ -576,6 +625,8 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	if state.Endpoints != nil {
 		NotifyHeartbeat(state, gateway)
 	}
+
+	reverter.Success()
 
 	return nil
 }
