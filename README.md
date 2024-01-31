@@ -39,6 +39,8 @@ Linux               | [Snap](https://snapcraft.io/lxd)                  | `snap 
 Windows             | [Chocolatey](https://chocolatey.org/packages/lxc) | `choco install lxc`
 macOS               | [Homebrew](https://formulae.brew.sh/formula/lxc)  | `brew install lxc`
 
+The LXD snap packaging repository is available [here](https://github.com/canonical/lxd-pkg-snap).
+
 For more instructions on installing LXD for a wide variety of Linux distributions and operating systems, and to install LXD from source, see [How to install LXD](https://documentation.ubuntu.com/lxd/en/latest/installing/) in the documentation.
 
 ## Client SDK packages
