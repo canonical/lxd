@@ -27,7 +27,12 @@ Specify the instance name and the key and value of the instance option:
 Send a PATCH request to the instance to update instance options.
 Specify the instance name and the key and value of the instance option:
 
-    lxc query --request PATCH /1.0/instances/<instance_name> --data '{"config": {"<option_key>":"<option_value>","<option_key>":"<option_value>"}}'
+    lxc query --request PATCH /1.0/instances/<instance_name> --data '{
+      "config": {
+        "<option_key>": "<option_value>",
+        "<option_key>": "<option_value>"
+      }
+    }'
 
 See [`PATCH /1.0/instances/{name}`](swagger:/instances/instance_patch) for more information.
 ```
@@ -56,7 +61,11 @@ To set the memory limit to 8 GiB, enter the following command:
 ```{group-tab} API
 To set the memory limit to 8 GiB, send the following request:
 
-    lxc query --request PATCH /1.0/instances/my-container --data '{"config": {"limits.memory":"8GiB"}}'
+    lxc query --request PATCH /1.0/instances/my-container --data '{
+      "config": {
+        "limits.memory": "8GiB"
+      }
+    }'
 ```
 
 ```{group-tab} UI
@@ -101,7 +110,11 @@ The only difference is that properties are on the root level of the configuratio
 
 Therefore, to set an instance property, send a PATCH request to the instance:
 
-    lxc query --request PATCH /1.0/instances/<instance_name> --data '{"<property_key>":"<property_value>","<property_key>":"property_value>"}}'
+    lxc query --request PATCH /1.0/instances/<instance_name> --data '{
+      "<property_key>": "<property_value>",
+      "<property_key>": "property_value>"
+      }
+    }'
 
 To unset an instance property, send a PUT request that contains the full instance configuration that you want except for the property that you want to unset.
 
@@ -163,11 +176,27 @@ The device configuration is located under the `devices` field of the configurati
 
 Specify the instance name, a device name, the device type and maybe device options (depending on the {ref}`device type <devices>`):
 
-    lxc query --request PATCH /1.0/instances/<instance_name> --data '{"devices": {"<device_name>": {"type":"<device_type>","<device_option_key>":"<device_option_value>","<device_option_key>":"device_option_value>"}}}'
+    lxc query --request PATCH /1.0/instances/<instance_name> --data '{
+      "devices": {
+        "<device_name>": {
+          "type": "<device_type>",
+          "<device_option_key>": "<device_option_value>",
+          "<device_option_key>": "device_option_value>"
+        }
+      }
+    }'
 
 For example, to add the storage at `/share/c1` on the host system to your instance at path `/opt`, enter the following command:
 
-    lxc query --request PATCH /1.0/instances/my-container --data '{"devices": {"disk-storage-device": {"type":"disk","source":"/share/c1","path":"/opt"}}}'
+    lxc query --request PATCH /1.0/instances/my-container --data '{
+      "devices": {
+        "disk-storage-device": {
+          "type": "disk",
+          "source": "/share/c1",
+          "path": "/opt"
+        }
+      }
+    }'
 
 See [`PATCH /1.0/instances/{name}`](swagger:/instances/instance_patch) for more information.
 ````
@@ -200,7 +229,7 @@ To display the current configuration of your instance, including writable instan
 ```{group-tab} API
 To retrieve the current configuration of your instance, including writable instance properties, instance options, devices and device options, send a GET request to the instance:
 
-    lxc query /1.0/instances/<instance_name>
+    lxc query --request GET /1.0/instances/<instance_name>
 
 See [`GET /1.0/instances/{name}`](swagger:/instances/instance_get) for more information.
 ```
