@@ -13,6 +13,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    # Make sure bash is always invoked with `-eo pipefail`
+    # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
+    shell: bash
+
 jobs:
   code-tests:
     env:
@@ -53,10 +59,12 @@ jobs:
 
       - name: Check compatible min Go version
         run: |
+          set -eux
           go mod tidy -go=1.20
 
       - name: Install dependencies
         run: |
+          set -eux
           sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
           sudo apt-get update
 
@@ -84,33 +92,39 @@ jobs:
 
       - name: Download go dependencies
         run: |
+          set -eux
           go mod download
 
       - name: Make LXD tarball and unpack it
         env:
           CUSTOM_VERSION: "test"
         run: |
+          set -eux
           make dist
           tar -xzf lxd-test.tar.gz -C ~/work/lxd/
           rm lxd-test.tar.gz
 
       - name: Build LXD dependencies
         run: |
+          set -eux
           cd ~/work/lxd/lxd-test
           make deps
 
       - name: Run LXD build
         run: |
+          set -eux
           make
 
       - name: Run static analysis
         env:
           GITHUB_BEFORE: ${{ github.event.before }}
         run: |
+          set -eux
           make static-analysis
 
       - name: Unit tests (all)
         run: |
+          set -eux
           sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" go test ./...
 
   system-tests:
@@ -197,7 +211,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          set -x
+          set -eux
           sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
           sudo add-apt-repository ppa:dqlite/dev -y --no-update
           sudo apt-get update
@@ -263,16 +277,18 @@ jobs:
 
       - name: Download go dependencies
         run: |
+          set -eux
           go mod download
 
       - name: Run LXD build
         run: |
+          set -eux
           make
 
       - name: Setup MicroCeph
         if: ${{ matrix.backend == 'ceph' }}
         run: |
-          set -x
+          set -eux
 
           # If the rootfs and the ephemeral part are on the same physical disk, giving the whole
           # disk to microceph would wipe our rootfs. Since it is pretty rare for GitHub Action
@@ -284,7 +300,13 @@ jobs:
             exit 1
           fi
 
-          sudo snap install microceph --channel=quincy/edge
+          # Free-up the ephemeral disk to use it as ceph OSD.
+          # https://github.com/canonical/microceph/issues/288 and https://github.com/canonical/microceph/issues/289
+          sudo swapoff /mnt/swapfile
+          ephemeral_disk="$(findmnt --noheadings --output SOURCE --target /mnt | sed 's/[0-9]\+$//')"
+          sudo umount /mnt
+
+          sudo snap install microceph --edge
           sudo apt-get install --no-install-recommends -y ceph-common
           sudo microceph cluster bootstrap
           sudo microceph.ceph config set global osd_pool_default_size 1
@@ -295,10 +317,6 @@ jobs:
           for flag in nosnaptrim noscrub nobackfill norebalance norecover noscrub nodeep-scrub; do
               sudo microceph.ceph osd set $flag
           done
-          # Repurpose the ephemeral disk for ceph OSD.
-          sudo swapoff /mnt/swapfile
-          ephemeral_disk="$(findmnt --noheadings --output SOURCE --target /mnt | sed 's/[0-9]\+$//')"
-          sudo umount /mnt
           sudo microceph disk add --wipe "${ephemeral_disk}"
           sudo rm -rf /etc/ceph
           sudo ln -s /var/snap/microceph/current/conf/ /etc/ceph
@@ -322,6 +340,7 @@ jobs:
 
       - name: "Run system tests (${{ matrix.go }}, ${{ matrix.suite }}, ${{ matrix.backend }})"
         run: |
+          set -eux
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           cd test
@@ -351,7 +370,7 @@ jobs:
 
       - name: Create build directory
         run: |
-            mkdir bin
+          mkdir bin
 
       - name: Build static lxc (x86_64)
         env:
@@ -372,6 +391,7 @@ jobs:
         env:
           CGO_ENABLED: 0
         run: |
+          set -eux
           GOARCH=amd64 go build -o bin/lxd-migrate.x86_64 ./lxd-migrate
           GOARCH=arm64 go build -o bin/lxd-migrate.aarch64 ./lxd-migrate
 
@@ -411,15 +431,18 @@ jobs:
 
       - name: Install dependencies
         run: |
+          set -eux
           sudo apt-get install aspell aspell-en
           sudo snap install mdl
 
       - name: Run markdown linter
         run: |
+          set -eux
           make doc-lint
 
       - name: Run spell checker
         run: |
+          set -eux
           make doc-spellcheck
 
       - name: Run inclusive naming checker
@@ -430,13 +453,14 @@ jobs:
 
       - name: Run link checker
         run: |
+          set -eux
           make doc-linkcheck
 
       - name: Build docs (Sphinx)
-        run: make doc
-
-      - name: Print warnings (Sphinx)
-        run: if [ -s doc/.sphinx/warnings.txt ]; then cat doc/.sphinx/warnings.txt; exit 1; fi
+        run: |
+          set -eux
+          make doc
+          if [ -s doc/.sphinx/warnings.txt ]; then cat doc/.sphinx/warnings.txt; exit 1; fi
 
       - name: Upload documentation artifacts
         if: always()
