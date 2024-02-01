@@ -1807,9 +1807,11 @@ func (d *ceph) RestoreVolume(vol Volume, snapshotName string, op *operations.Ope
 	defer func() { _ = d.rbdUnmapVolume(vol, true) }()
 
 	// Re-generate the UUID.
-	err = d.generateUUID(vol.ConfigBlockFilesystem(), devPath)
-	if err != nil {
-		return err
+	if vol.contentType == ContentTypeFS {
+		err = d.generateUUID(vol.ConfigBlockFilesystem(), devPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	// For VM images, restore the filesystem volume too.
