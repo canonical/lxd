@@ -33,13 +33,5 @@ jobs:
     - name: Check if CLA signed
       uses: simondeziel/has-signed-canonical-cla@implicit-approval-from-licenses
 
-    - name: Get PR Commits
-      id: 'get-pr-commits'
-      uses: tim-actions/get-pr-commits@master
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-
     - name: Check that all commits are signed-off
-      uses: tim-actions/dco@master
-      with:
-        commits: ${{ steps.get-pr-commits.outputs.commits }}
+      uses: live627/check-pr-signoff-action@v1
