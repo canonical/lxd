@@ -855,7 +855,18 @@ func (d *ceph) commonVolumeRules() map[string]func(value string) error {
 
 // ValidateVolume validates the supplied volume config.
 func (d *ceph) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
-	return d.validateVolume(vol, d.commonVolumeRules(), removeUnknownKeys)
+	commonRules := d.commonVolumeRules()
+
+	// Disallow block.* settings for regular custom block volumes. These settings only make sense
+	// when using custom filesystem volumes. LXD will create the filesystem
+	// for these volumes, and use the mount options. When attaching a regular block volume to a VM,
+	// these are not mounted by LXD and therefore don't need these config keys.
+	if vol.IsVMBlock() || vol.volType == VolumeTypeCustom && vol.contentType == ContentTypeBlock {
+		delete(commonRules, "block.filesystem")
+		delete(commonRules, "block.mount_options")
+	}
+
+	return d.validateVolume(vol, commonRules, removeUnknownKeys)
 }
 
 // UpdateVolume applies config changes to the volume.
@@ -1683,7 +1694,7 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 	return nil
 }
 
-// UnmountVolume simulates unmounting a volume snapshot.
+// UnmountVolumeSnapshot simulates unmounting a volume snapshot.
 func (d *ceph) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
 	unlock, err := snapVol.MountLock()
 	if err != nil {
@@ -1822,9 +1833,11 @@ func (d *ceph) RestoreVolume(vol Volume, snapshotName string, op *operations.Ope
 	defer func() { _ = d.rbdUnmapVolume(vol, true) }()
 
 	// Re-generate the UUID.
-	err = d.generateUUID(vol.ConfigBlockFilesystem(), devPath)
-	if err != nil {
-		return err
+	if vol.contentType == ContentTypeFS {
+		err = d.generateUUID(vol.ConfigBlockFilesystem(), devPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	// For VM images, restore the filesystem volume too.
