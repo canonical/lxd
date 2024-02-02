@@ -25,10 +25,10 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-// clusterBusyError is returned by dqlite if attempting attempting to join a cluster at the same time as a role-change.
+// errClusterBusy is returned by dqlite if attempting attempting to join a cluster at the same time as a role-change.
 // This error tells us we can retry and probably join the cluster or fail due to something else.
 // The error code here is SQLITE_BUSY.
-var clusterBusyError = fmt.Errorf("a configuration change is already in progress (5)")
+var errClusterBusy = fmt.Errorf("a configuration change is already in progress (5)")
 
 // Bootstrap turns a non-clustered LXD instance into the first (and leader)
 // node of a new LXD cluster.
@@ -457,15 +457,15 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	})
 
 	// If we are listed among the database nodes, join the raft cluster.
-	var info *db.RaftNode
+	var info db.RaftNode
 	for _, node := range raftNodes {
 		if node.Address == localClusterAddress {
-			info = &node
+			info = node
 		}
 	}
 
-	if info == nil {
-		panic("Joining member not found")
+	if (db.RaftNode{}) == info {
+		return fmt.Errorf("Joining member not found")
 	}
 
 	logger.Info("Joining dqlite raft cluster", logger.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
@@ -494,7 +494,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 			return fmt.Errorf("Failed to join cluster: %w", ctx.Err())
 		default:
 			err = client.Add(ctx, info.NodeInfo)
-			if err != nil && err.Error() == clusterBusyError.Error() {
+			if err != nil && err.Error() == errClusterBusy.Error() {
 				// If the cluster is busy with a role change, sleep a second and then keep trying to join.
 				time.Sleep(1 * time.Second)
 				continue
