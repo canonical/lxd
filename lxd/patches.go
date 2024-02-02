@@ -80,6 +80,7 @@ var patches = []patch{
 	{name: "zfs_set_content_type_user_property", stage: patchPostDaemonStorage, run: patchZfsSetContentTypeUserProperty},
 	{name: "storage_zfs_unset_invalid_block_settings", stage: patchPostDaemonStorage, run: patchStorageZfsUnsetInvalidBlockSettings},
 	{name: "storage_zfs_unset_invalid_block_settings_v2", stage: patchPostDaemonStorage, run: patchStorageZfsUnsetInvalidBlockSettingsV2},
+	{name: "storage_unset_invalid_block_settings", stage: patchPostDaemonStorage, run: patchStorageUnsetInvalidBlockSettings},
 }
 
 type patch struct {
@@ -1141,6 +1142,139 @@ func patchStorageZfsUnsetInvalidBlockSettingsV2(_ string, d *Daemon) error {
 			if shared.IsTrue(config["zfs.block_mode"]) && vol.Type == db.StoragePoolVolumeTypeNameCustom {
 				continue
 			}
+
+			update := false
+			for _, k := range []string{"block.filesystem", "block.mount_options"} {
+				_, found := config[k]
+				if found {
+					delete(config, k)
+					update = true
+				}
+			}
+
+			if !update {
+				continue
+			}
+
+			if vol.Type == db.StoragePoolVolumeTypeNameVM {
+				volType = volTypeVM
+			} else if vol.Type == db.StoragePoolVolumeTypeNameCustom {
+				volType = volTypeCustom
+			} else {
+				// Should not happen.
+				continue
+			}
+
+			err = s.DB.Cluster.UpdateStoragePoolVolume(vol.Project, vol.Name, volType, pool, vol.Description, config)
+			if err != nil {
+				return fmt.Errorf("Failed updating volume %q in project %q on pool %q: %w", vol.Name, vol.Project, poolIDNameMap[pool], err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// patchStorageUnsetInvalidBlockSettings removes invalid block settings from LVM and Ceph RBD volumes.
+func patchStorageUnsetInvalidBlockSettings(_ string, d *Daemon) error {
+	s := d.State()
+
+	// Get all storage pool names.
+	pools, err := s.DB.Cluster.GetStoragePoolNames()
+	if err != nil {
+		// Skip the rest of the patch if no storage pools were found.
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil
+		}
+
+		return fmt.Errorf("Failed getting storage pool names: %w", err)
+	}
+
+	// Check if this member is the current cluster leader.
+	isLeader := false
+
+	if !d.serverClustered {
+		// If we're not clustered, we're the leader.
+		isLeader = true
+	} else {
+		leaderAddress, err := d.gateway.LeaderAddress()
+		if err != nil {
+			return err
+		}
+
+		if s.LocalConfig.ClusterAddress() == leaderAddress {
+			isLeader = true
+		}
+	}
+
+	volTypeCustom := db.StoragePoolVolumeTypeCustom
+	volTypeVM := db.StoragePoolVolumeTypeVM
+
+	poolIDNameMap := make(map[int64]string, 0)
+	poolVolumes := make(map[int64][]*db.StorageVolume, 0)
+
+	for _, pool := range pools {
+		// Load storage pool.
+		loadedPool, err := storagePools.LoadByName(s, pool)
+		if err != nil {
+			return fmt.Errorf("Failed loading pool %q: %w", pool, err)
+		}
+
+		// Ensure the renaming is done only on the cluster leader for remote storage pools.
+		if loadedPool.Driver().Info().Remote && !isLeader {
+			continue
+		}
+
+		var poolID int64
+		var volumes []*db.StorageVolume
+		err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+			// Get storage pool ID.
+			poolID, err = tx.GetStoragePoolID(ctx, pool)
+			if err != nil {
+				return fmt.Errorf("Failed getting storage pool ID of pool %q: %w", pool, err)
+			}
+
+			driverName, err := tx.GetStoragePoolDriver(ctx, poolID)
+			if err != nil {
+				return fmt.Errorf("Failed getting storage pool driver of pool %q: %w", pool, err)
+			}
+
+			// Skip the pool if the driver is not LVM or Ceph RBD.
+			if !shared.ValueInSlice[string](driverName, []string{"lvm", "ceph"}) {
+				return nil
+			}
+
+			// Get the pool's storage volumes.
+			volumes, err = tx.GetStoragePoolVolumes(ctx, poolID, false, db.StorageVolumeFilter{Type: &volTypeCustom}, db.StorageVolumeFilter{Type: &volTypeVM})
+			if err != nil {
+				return fmt.Errorf("Failed getting custom storage volumes of pool %q: %w", pool, err)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		if poolVolumes[poolID] == nil {
+			poolVolumes[poolID] = []*db.StorageVolume{}
+		}
+
+		poolIDNameMap[poolID] = pool
+		poolVolumes[poolID] = append(poolVolumes[poolID], volumes...)
+	}
+
+	var volType int
+
+	for pool, volumes := range poolVolumes {
+		for _, vol := range volumes {
+			// Skip custom volumes with filesystem content type.
+			// VMs are always of type block.
+			if vol.Type == db.StoragePoolVolumeTypeNameCustom && vol.ContentType == db.StoragePoolVolumeContentTypeNameFS {
+				continue
+			}
+
+			config := vol.Config
 
 			update := false
 			for _, k := range []string{"block.filesystem", "block.mount_options"} {
