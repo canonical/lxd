@@ -894,11 +894,11 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 
 		// Send the response before replacing the LXD daemon process.
 		f, ok := w.(http.Flusher)
-		if ok {
-			f.Flush()
-		} else {
+		if !ok {
 			return fmt.Errorf("http.ResponseWriter is not type http.Flusher")
 		}
+
+		f.Flush()
 
 		return nil
 	})
@@ -1978,11 +1978,11 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 			// Send the response before replacing the LXD daemon process.
 			f, ok := w.(http.Flusher)
-			if ok {
-				f.Flush()
-			} else {
+			if !ok {
 				return fmt.Errorf("http.ResponseWriter is not type http.Flusher")
 			}
+
+			f.Flush()
 
 			return nil
 		})
