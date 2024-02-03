@@ -457,7 +457,7 @@ func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath st
 		return nil, nil, UnsupportedError{msg: "Architecture unsupported"}
 	}
 
-	if shared.IsTrue(inst.ExpandedConfig()["migration.stateful"]) {
+	if shared.IsTrue(inst.ExpandedConfig()["migration.stateful"]) || shared.IsTrue(inst.LocalConfig()["volatile.auto_stateful_migration"]) {
 		return nil, nil, UnsupportedError{"Stateful migration unsupported"}
 	}
 
