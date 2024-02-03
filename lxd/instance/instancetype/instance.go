@@ -1202,6 +1202,15 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		if strings.HasSuffix(key, ".last_state.ready") {
 			return validate.IsBool, nil
 		}
+
+		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.auto_stateful_migration)
+		//
+		// ---
+		//  type: bool
+		//  shortdesc: If an instance has been set to migration.stateful automatically
+		if strings.HasSuffix(key, ".auto_stateful_migration") {
+			return validate.IsBool, nil
+		}
 	}
 
 	if strings.HasPrefix(key, "environment.") {
