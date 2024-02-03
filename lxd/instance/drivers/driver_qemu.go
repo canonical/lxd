@@ -6452,11 +6452,6 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	d.logger.Info("Migration send starting")
 	defer d.logger.Info("Migration send stopped")
 
-	// Check for stateful support.
-	if args.Live && shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
-		return fmt.Errorf("Stateful migration requires migration.stateful to be set to true")
-	}
-
 	// Wait for essential migration connections before negotiation.
 	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
@@ -6537,6 +6532,39 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	}
 
 	d.logger.Debug("Got migration offer response from target")
+
+	autoStatefulReq := &migration.MigrationAutoStatefulReq{}
+	autoStatefulResp := &migration.MigrationAutoStatefulResp{}
+	if args.Live && shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
+		err := d.autoEnableStatefulMigration(respHeader.CpuInfo)
+		if err != nil {
+			return fmt.Errorf("An error occured while attempting to auto-enable stateful.migration for this instance: %w", err)
+		}
+
+		if shared.IsFalseOrEmpty(d.localConfig["volatile.auto_stateful_migration"]) {
+			return fmt.Errorf("Could not auto-enable stateful.migration for this instance")
+		} else {
+			autoStatefulReq.AutoStatefulMigration = proto.Bool(true)
+		}
+	} else {
+		autoStatefulReq.AutoStatefulMigration = proto.Bool(false)
+	}
+
+	d.logger.Debug("Sending auto stateful migration request to target")
+	err = args.ControlSend(autoStatefulReq)
+	if err != nil {
+		return fmt.Errorf("Failed sending auto stateful migration request to target: %w", err)
+	}
+
+	d.logger.Debug("Waiting for auto stateful migration response from target")
+	err = args.ControlReceive(autoStatefulResp)
+	if err != nil {
+		return fmt.Errorf("Failed receiving auto stateful migration response from target: %w", err)
+	}
+
+	if !autoStatefulResp.GetSuccess() {
+		return fmt.Errorf("Target refused auto stateful migration")
+	}
 
 	// Negotiated migration types.
 	migrationTypes, err := migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
@@ -7210,6 +7238,9 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		useStateConn = true
 	}
 
+	// Populate the target CPU features.
+	d.addTargetCpuToMigrationHeader(respHeader)
+
 	// Send response to source.
 	d.logger.Debug("Sending migration response to source")
 	err = args.ControlSend(respHeader)
@@ -7218,6 +7249,29 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	}
 
 	d.logger.Debug("Sent migration response to source")
+
+	// Receive auto stateful message from source.
+	d.logger.Debug("Waiting for detection of auto stateful migration from source")
+	autoStatefulMsg := &migration.MigrationAutoStatefulReq{}
+	err = args.ControlReceive(autoStatefulMsg)
+	if err != nil {
+		return fmt.Errorf("Failed receiving auto stateful message from source: %w", err)
+	}
+
+	autoStateful := autoStatefulMsg.GetAutoStatefulMigration()
+	if autoStateful {
+		d.logger.Debug("Detected auto stateful migration from source")
+		d.localConfig["volatile.auto_stateful_migration"] = "true"
+		d.logger.Debug("Set auto stateful migration on target")
+	} else {
+		d.logger.Debug("No need for au-stateful migration from source")
+	}
+
+	autoStatefulResp := &migration.MigrationAutoStatefulResp{Success: proto.Bool(true)}
+	err = args.ControlSend(autoStatefulResp)
+	if err != nil {
+		return fmt.Errorf("Failed sending auto stateful ack message from target: %w", err)
+	}
 
 	// Establish state transfer connection if needed.
 	var stateConn io.ReadWriteCloser
