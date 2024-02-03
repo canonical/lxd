@@ -21,13 +21,14 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
 
-// clusterBusyError is returned by dqlite if attempting attempting to join a cluster at the same time as a role-change.
+// errClusterBusy is returned by dqlite if attempting attempting to join a cluster at the same time as a role-change.
 // This error tells us we can retry and probably join the cluster or fail due to something else.
 // The error code here is SQLITE_BUSY.
-var clusterBusyError = fmt.Errorf("a configuration change is already in progress (5)")
+var errClusterBusy = fmt.Errorf("a configuration change is already in progress (5)")
 
 // Bootstrap turns a non-clustered LXD instance into the first (and leader)
 // node of a new LXD cluster.
@@ -378,12 +379,24 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		return err
 	}
 
+	reverter := revert.New()
+	defer reverter.Fail()
+
 	// Lock regular access to the cluster database since we don't want any
 	// other database code to run while we're reconfiguring raft.
 	err = state.DB.Cluster.EnterExclusive()
 	if err != nil {
 		return fmt.Errorf("Failed to acquire cluster database lock: %w", err)
 	}
+
+	reverter.Add(func() {
+		err := state.DB.Cluster.ExitExclusive(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return nil
+		})
+		if err != nil {
+			logger.Error("Failed to unlock global database after cluster join error", logger.Ctx{"error": err})
+		}
+	})
 
 	// Shutdown the gateway and wipe any raft data. This will trash any
 	// gRPC SQL connection against our in-memory dqlite driver and shutdown
@@ -401,22 +414,58 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	// Re-initialize the gateway. This will create a new raft factory an
 	// dqlite driver instance, which will be exposed over gRPC by the
 	// gateway handlers.
+	oldCert := gateway.networkCert
 	gateway.networkCert = networkCert
 	err = gateway.init(false)
 	if err != nil {
 		return fmt.Errorf("Failed to re-initialize gRPC SQL gateway: %w", err)
 	}
 
+	reverter.Add(func() {
+		err = state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+			return tx.ReplaceRaftNodes([]db.RaftNode{})
+		})
+		if err != nil {
+			logger.Error("Failed to clear local raft node records after cluster join error", logger.Ctx{"error": err})
+			return
+		}
+
+		err = gateway.Shutdown()
+		if err != nil {
+			logger.Error("Failed to shutdown gateway after cluster join error", logger.Ctx{"error": err})
+			return
+		}
+
+		err = os.RemoveAll(state.OS.GlobalDatabaseDir())
+		if err != nil {
+			logger.Error("Failed to remove raft data after cluster join error", logger.Ctx{"error": err})
+			return
+		}
+
+		gateway.networkCert = oldCert
+		err = gateway.init(false)
+		if err != nil {
+			logger.Error("Failed to re-initialize gateway after cluster join error", logger.Ctx{"error": err})
+			return
+		}
+
+		_, err = cluster.EnsureSchema(state.DB.Cluster.DB(), localClusterAddress, state.OS.GlobalDatabaseDir())
+		if err != nil {
+			logger.Error("Failed to reload schema after cluster join error", logger.Ctx{"error": err})
+			return
+		}
+	})
+
 	// If we are listed among the database nodes, join the raft cluster.
-	var info *db.RaftNode
+	var info db.RaftNode
 	for _, node := range raftNodes {
 		if node.Address == localClusterAddress {
-			info = &node
+			info = node
 		}
 	}
 
-	if info == nil {
-		panic("Joining member not found")
+	if (db.RaftNode{}) == info {
+		return fmt.Errorf("Joining member not found")
 	}
 
 	logger.Info("Joining dqlite raft cluster", logger.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
@@ -445,7 +494,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 			return fmt.Errorf("Failed to join cluster: %w", ctx.Err())
 		default:
 			err = client.Add(ctx, info.NodeInfo)
-			if err != nil && err.Error() == clusterBusyError.Error() {
+			if err != nil && err.Error() == errClusterBusy.Error() {
 				// If the cluster is busy with a role change, sleep a second and then keep trying to join.
 				time.Sleep(1 * time.Second)
 				continue
@@ -576,6 +625,8 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	if state.Endpoints != nil {
 		NotifyHeartbeat(state, gateway)
 	}
+
+	reverter.Success()
 
 	return nil
 }
