@@ -69,6 +69,65 @@ message btrfsFeatures {
 	optional bool       	header_subvolume_uuids = 3;
 }
 
+message CPUInfo {
+	message SGXEPCSection {
+		optional uint64 base_address = 1;
+		optional uint64 epc_size = 2;
+	}
+
+	message SGXSupport {
+		optional bool available = 1;
+		optional bool launch_control = 2;
+		optional bool sgx1_supported = 3;
+		optional bool sgx2_supported = 4;
+		optional int64 max_enclave_size_not_64 = 5;
+		optional int64 max_enclave_size_64 = 6;
+		repeated SGXEPCSection epc_sections = 7;
+	}
+
+	message AMDMemEncryptionSupport {
+		optional bool available = 1;
+		optional uint32 c_bit_position = 2;
+		optional uint32 num_vmpl = 3;
+		optional uint32 phys_addr_reduction = 4;
+		optional uint32 num_encrypted_guests = 5;
+		optional uint32 min_sev_no_es_asid = 6;
+	}
+
+	message CacheInfo {
+		optional int32 l1i = 1;
+		optional int32 l1d = 2;
+		optional int32 l2 = 3;
+		optional int32 l3 = 4;
+	}
+
+	optional string brand_name = 1;
+    optional int32 vendor_id = 2;
+    optional string vendor_string = 3;
+    repeated uint64 feature_set = 4;
+    optional int32 physical_cores = 5;
+    optional int32 threads_per_core = 6;
+    optional int32 logical_cores = 7;
+    optional int32 family = 8;
+    optional int32 model = 9;
+    optional int32 stepping = 10;
+    optional int32 cache_line = 11;
+    optional int64 hz = 12;
+    optional int64 boost_freq = 13;
+    optional CacheInfo cache = 14;
+    optional SGXSupport sgx = 15;
+    optional AMDMemEncryptionSupport amd_mem_encryption = 16;
+    optional uint32 avx10_level = 17;
+}
+
+message MigrationAutoStatefulReq {
+	required bool autoStatefulMigration = 1;
+}
+
+message MigrationAutoStatefulResp {
+	required bool success = 1;
+}
+
 message MigrationHeader {
 	required MigrationFSType		fs			= 1;
 	optional CRIUType			criu			= 2;
@@ -82,6 +141,8 @@ message MigrationHeader {
 	optional int64				volumeSize		= 11;
 	optional btrfsFeatures			btrfsFeatures 		= 12;
 	optional uint32				indexHeaderVersion	= 13;
+	optional CPUInfo 			cpuInfo			= 14;
+	optional bool autoStatefulMigration = 15;
 }
 
 message MigrationControl {
