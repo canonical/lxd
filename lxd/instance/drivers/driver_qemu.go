@@ -31,6 +31,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/kballard/go-shellquote"
+	cpuid "github.com/klauspost/cpuid/v2"
 	"github.com/mdlayher/vsock"
 	"github.com/pkg/sftp"
 	"golang.org/x/sync/errgroup"
@@ -6893,6 +6894,96 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 
 	revert.Success()
 	return nil
+}
+
+// addTargetCpuToMigrationHeader appends the target CPU representation to the resp headers for migration.
+// The idea behind this is is to fully compare the source and target CPUs and make sure that they are compatible.
+func (d *qemu) addTargetCpuToMigrationHeader(respHeader *migration.MigrationHeader) {
+	vendorID := int32(cpuid.CPU.VendorID)
+	featureSetString := cpuid.CPU.FeatureSet()
+	featureSet := make([]uint64, 0)
+	for _, feature := range featureSetString {
+		featureSet = append(featureSet, uint64(cpuid.ParseFeature(feature)))
+	}
+
+	physicalCores := int32(cpuid.CPU.PhysicalCores)
+	threadsPerCore := int32(cpuid.CPU.ThreadsPerCore)
+	logicalCores := int32(cpuid.CPU.LogicalCores)
+	family := int32(cpuid.CPU.Family)
+	model := int32(cpuid.CPU.Model)
+	stepping := int32(cpuid.CPU.Stepping)
+	cacheLine := int32(cpuid.CPU.CacheLine)
+	hz := int64(cpuid.CPU.Hz)
+	boostFreq := int64(cpuid.CPU.BoostFreq)
+	cache_ := cpuid.CPU.Cache
+	cacheL1I_ := int32(cache_.L1I)
+	cacheL1D_ := int32(cache_.L1D)
+	cacheL2_ := int32(cache_.L2)
+	cacheL3_ := int32(cache_.L3)
+	cache := &migration.CPUInfo_CacheInfo{
+		L1I: &cacheL1I_,
+		L1D: &cacheL1D_,
+		L2:  &cacheL2_,
+		L3:  &cacheL3_,
+	}
+
+	sgx_ := cpuid.CPU.SGX
+	sgxEPCSections := make([]*migration.CPUInfo_SGXEPCSection, 0)
+	for _, sgxSection := range sgx_.EPCSections {
+		section := &migration.CPUInfo_SGXEPCSection{
+			BaseAddress: &sgxSection.BaseAddress,
+			EpcSize:     &sgxSection.EPCSize,
+		}
+
+		sgxEPCSections = append(sgxEPCSections, section)
+	}
+
+	sgx := &migration.CPUInfo_SGXSupport{
+		Available:            &sgx_.Available,
+		LaunchControl:        &sgx_.LaunchControl,
+		Sgx1Supported:        &sgx_.SGX1Supported,
+		Sgx2Supported:        &sgx_.SGX2Supported,
+		MaxEnclaveSizeNot_64: &sgx_.MaxEnclaveSizeNot64,
+		MaxEnclaveSize_64:    &sgx_.MaxEnclaveSize64,
+		EpcSections:          sgxEPCSections,
+	}
+
+	amdMemEncryptSupport_ := cpuid.CPU.AMDMemEncryption
+	cbitPosition := uint32(amdMemEncryptSupport_.CBitPossition)
+	numVmpl := uint32(amdMemEncryptSupport_.NumVMPL)
+	PhysAddrReduction := uint32(amdMemEncryptSupport_.PhysAddrReduction)
+	NumEncryptedGuests := uint32(amdMemEncryptSupport_.NumEntryptedGuests)
+	minSevNoEsAsid := uint32(amdMemEncryptSupport_.MinSevNoEsAsid)
+
+	amdMemEncryptSupport := &migration.CPUInfo_AMDMemEncryptionSupport{
+		Available:          &amdMemEncryptSupport_.Available,
+		CBitPosition:       &cbitPosition,
+		NumVmpl:            &numVmpl,
+		PhysAddrReduction:  &PhysAddrReduction,
+		NumEncryptedGuests: &NumEncryptedGuests,
+		MinSevNoEsAsid:     &minSevNoEsAsid,
+	}
+
+	exportedCpu := &migration.CPUInfo{
+		BrandName:        &cpuid.CPU.BrandName,
+		VendorId:         &vendorID,
+		VendorString:     &cpuid.CPU.VendorString,
+		FeatureSet:       featureSet,
+		PhysicalCores:    &physicalCores,
+		ThreadsPerCore:   &threadsPerCore,
+		LogicalCores:     &logicalCores,
+		Family:           &family,
+		Model:            &model,
+		Stepping:         &stepping,
+		CacheLine:        &cacheLine,
+		Hz:               &hz,
+		BoostFreq:        &boostFreq,
+		Cache:            cache,
+		Sgx:              sgx,
+		AmdMemEncryption: amdMemEncryptSupport,
+	}
+
+	respHeader.CpuInfo = exportedCpu
 }
 
 func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
