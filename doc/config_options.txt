@@ -854,6 +854,12 @@ The original VLAN used when moving a VF into an instance.
 The template with the given name is triggered upon next startup.
 ```
 
+```{config:option} volatile.auto_stateful_migration instance-volatile
+:shortdesc: "If an instance has been set to migration.stateful automatically"
+:type: "bool"
+
+```
+
 ```{config:option} volatile.base_image instance-volatile
 :shortdesc: "Hash of the base image"
 :type: "string"

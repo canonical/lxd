@@ -921,6 +921,13 @@
 						}
 					},
 					{
+						"volatile.auto_stateful_migration": {
+							"longdesc": "",
+							"shortdesc": "If an instance has been set to migration.stateful automatically",
+							"type": "bool"
+						}
+					},
+					{
 						"volatile.base_image": {
 							"longdesc": "The hash of the image that the instance was created from (empty if the instance was not created from an image).",
 							"shortdesc": "Hash of the base image",
