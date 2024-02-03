@@ -6360,6 +6360,93 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 	return meta, nil
 }
 
+// loadAndcompareCPUs loads the source CPU and compare it with the target CPU.
+func (d *qemu) loadAndCompareCPUs(cpuInfo *migration.CPUInfo) (bool, error) {
+	// Load the source CPU flags
+	srcCPUFeaturesStr := cpuid.CPU.FeatureSet()
+	srcCPUFeatures := make([]cpuid.FeatureID, 0)
+	srcCpuFeaturesMap := make(map[string]struct{})
+	for _, srcCPUFeatureStr := range srcCPUFeaturesStr {
+		srcCpuFeaturesMap[srcCPUFeatureStr] = struct{}{}
+		srcCPUFeatures = append(srcCPUFeatures, cpuid.ParseFeature(srcCPUFeatureStr))
+	}
+
+	// Load the target CPU flags
+	targetCPUFeatures := make(map[cpuid.FeatureID]struct{})
+	for _, targetCPUFeature := range cpuInfo.FeatureSet {
+		targetCPUFeatures[cpuid.FeatureID(targetCPUFeature)] = struct{}{}
+	}
+
+	// Check that the target CPU 'supports' the source CPU features.
+	// What it means is that the target CPU has at least the same features as the source CPU.
+	missingFeatures := make([]string, 0)
+	for _, srcCPUFeature := range srcCPUFeatures {
+		_, ok := targetCPUFeatures[srcCPUFeature]
+		if !ok {
+			missingFeatures = append(missingFeatures, srcCPUFeature.String())
+		}
+	}
+
+	if len(missingFeatures) > 0 {
+		d.logger.Warn("The target CPU is missing some features of the source CPU", logger.Ctx{"missingFeatures": missingFeatures})
+		return false, nil
+	}
+
+	return true, nil
+}
+
+// autoEnableStatefulMigration checks if the instance's devices and CPU are safe for stateful migration and if so, enables it.
+func (d *qemu) autoEnableStatefulMigration(cpuInfo *migration.CPUInfo) error {
+	// First, check the compatibility of the source and target CPU features.
+	// If they are not compatible, then stateful migration is not possible.
+	//
+	// We want to check that the commom denominator of the source and target CPU features
+	// is at least the source CPU features.
+	cpusMatched, err := d.loadAndCompareCPUs(cpuInfo)
+	if err != nil {
+		return fmt.Errorf("Failed to compare source and target CPU features: %w", err)
+	}
+
+	if !cpusMatched {
+		d.logger.Warn("Source and target CPU features do not match")
+		return nil
+	}
+
+	d.logger.Info("Source and target CPU features match")
+
+	// Then, check if the running instance's attached devices support stateful migration.
+	devConfs := d.expandedDevices
+	for devName, devConf := range devConfs {
+		dev, err := d.deviceLoad(d, devName, devConf)
+		if err != nil {
+			return err
+		}
+
+		liveMigratable := dev.CanLiveMigrate()
+		if !liveMigratable {
+			d.logger.Warn("Some devices does not support live migration", logger.Ctx{"devName": devName})
+			return nil
+		}
+	}
+
+	// Once the volatile key is set, we are forced to restart the instance
+	// to disable virtiofsd and use 9p instead, and to also update the QEMU CPU flags.
+	// (one in particular being the 'hv_passthrough' flag which needs to be disabled for stateful migration).
+	//
+	// Statefully stopping the instance and statefully starting it won't work because of the initial
+	// non-migratable nature of the vhost-user-fs device while saving the instance state.
+	// While this is not ideal because the state won't be preserved, it ensures that a non stateful instance
+	// can be painlessly live migrated after the stateless restart.
+	d.logger.Debug("Instance CPU is safe for auto-enabling stateful migration")
+	d.localConfig["volatile.auto_stateful_migration"] = "true"
+	err = d.Restart(0)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // MigrateSend is not currently supported.
 func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	d.logger.Info("Migration send starting")
