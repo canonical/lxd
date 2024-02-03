@@ -1043,14 +1043,14 @@ func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
 	}
 
 	// Cannot perform stateful start unless config is appropriately set.
-	if stateful && shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
+	if stateful && (shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) && shared.IsFalseOrEmpty(d.LocalConfig()["volatile.auto_stateful_migration"])) {
 		return fmt.Errorf("Stateful start requires migration.stateful to be set to true")
 	}
 
 	// The "size.state" of the instance root disk device must be larger than the instance memory.
 	// Otherwise, there will not be enough disk space to write the instance state to disk during any subsequent stops.
 	// (Only check when migration.stateful is true, otherwise the memory won't be dumped when this instance stops).
-	if shared.IsTrue(d.expandedConfig["migration.stateful"]) {
+	if shared.IsTrue(d.expandedConfig["migration.stateful"]) || shared.IsTrue(d.LocalConfig()["volatile.auto_stateful_migration"]) {
 		_, rootDiskDevice, err := d.getRootDiskDevice()
 		if err != nil {
 			return err
@@ -1446,7 +1446,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	if d.architecture == osarch.ARCH_64BIT_INTEL_X86 {
 		// If using Linux 5.10 or later, use HyperV optimizations.
 		minVer, _ := version.NewDottedVersion("5.10.0")
-		if d.state.OS.KernelVersion.Compare(minVer) >= 0 && shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
+		if d.state.OS.KernelVersion.Compare(minVer) >= 0 && (shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) && shared.IsFalseOrEmpty(d.LocalConfig()["volatile.auto_stateful_migration"])) {
 			// x86_64 can use hv_time to improve Windows guest performance.
 			cpuExtensions = append(cpuExtensions, "hv_passthrough")
 		}
@@ -4685,7 +4685,7 @@ func (d *qemu) Stop(stateful bool) error {
 	}
 
 	// Check for stateful.
-	if stateful && shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
+	if stateful && (shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) && shared.IsFalseOrEmpty(d.expandedConfig["volatile.auto_stateful_migration"])) {
 		return fmt.Errorf("Stateful stop requires migration.stateful to be set to true")
 	}
 
@@ -4841,7 +4841,7 @@ func (d *qemu) snapshot(name string, expiry time.Time, stateful bool) error {
 	// Deal with state.
 	if stateful {
 		// Confirm the instance has stateful migration enabled.
-		if shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
+		if shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) && shared.IsFalseOrEmpty(d.LocalConfig()["volatile.auto_stateful_migration"]) {
 			return fmt.Errorf("Stateful snapshot requires migration.stateful to be set to true")
 		}
 
