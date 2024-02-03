@@ -1107,7 +1107,7 @@ func (d *common) canMigrate(inst instance.Instance) (bool, bool) {
 	// Limit automatic live-migration to virtual machines for now.
 	live := false
 	if inst.Type() == instancetype.VM {
-		live = shared.IsTrue(config["migration.stateful"])
+		live = shared.IsTrue(config["migration.stateful"]) || shared.IsTrue(inst.LocalConfig()["volatile.auto_stateful_migration"])
 	}
 
 	return true, live
