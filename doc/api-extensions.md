@@ -2471,3 +2471,9 @@ And lastly, adds a `project` field on leases, leases can be retrieved via `/1.0/
 ## `network_ovn_uplink_vlan`
 
 Adds support for using a bridge network with a specified VLAN ID as an OVN uplink.
+
+## `shared_custom_block_volumes`
+
+This adds a configuration key `security.shared` to custom block volumes.
+If unset or `false`, the custom block volume cannot be attached to multiple instances.
+This feature was added to prevent data loss which can happen when custom block volumes are attached to multiple instances at once.
