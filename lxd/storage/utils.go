@@ -537,6 +537,11 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		rules["security.unmapped"] = validate.Optional(validate.IsBool)
 	}
 
+	// security.shared is only relevant for custom block volumes.
+	if (vol == nil) || (vol != nil && vol.Type() == drivers.VolumeTypeCustom && vol.ContentType() == drivers.ContentTypeBlock) {
+		rules["security.shared"] = validate.Optional(validate.IsBool)
+	}
+
 	// Those keys are only valid for volumes.
 	if vol != nil {
 		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=volatile.uuid)
