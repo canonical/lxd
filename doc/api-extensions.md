@@ -2424,3 +2424,9 @@ The OVN driver will allocate IP addresses from the subnets specified in the upli
 
 Adds the ability to explicitly specify a trust token when creating a certificate
 and joining an existing cluster.
+
+## `shared_custom_block_volumes`
+
+This adds a configuration key `security.shared` to custom block volumes.
+If unset or `false`, the custom block volume cannot be attached to multiple instances.
+This feature was added to prevent data loss which can happen when custom block volumes are attached to multiple instances at once.
