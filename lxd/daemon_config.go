@@ -18,7 +18,7 @@ func daemonConfigRender(state *state.State) (map[string]any, error) {
 	maps.Copy(config, state.GlobalConfig.Dump())
 
 	// Apply the local config.
-	err := state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+	err := state.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 		nodeConfig, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
 			return err
