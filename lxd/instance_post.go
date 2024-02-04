@@ -332,7 +332,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 			// Setup the instance move operation.
 			run := func(op *operations.Operation) error {
-				return instancePostMigration(s, inst, req, op)
+				return instancePostMigration(context.TODO(), s, inst, req, op)
 			}
 
 			resources := map[string][]api.URL{}
@@ -363,7 +363,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			run := func(op *operations.Operation) error {
-				return migrateInstance(s, r, inst, targetMemberInfo.Name, req, op)
+				return migrateInstance(context.TODO(), s, r, inst, targetMemberInfo.Name, req, op)
 			}
 
 			resources := map[string][]api.URL{}
@@ -455,7 +455,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 }
 
 // Move an instance.
-func instancePostMigration(s *state.State, inst instance.Instance, req api.InstancePost, op *operations.Operation) error {
+func instancePostMigration(ctx context.Context, s *state.State, inst instance.Instance, req api.InstancePost, op *operations.Operation) error {
 	if inst.IsSnapshot() {
 		return errors.New("Instance snapshots cannot be moved between pools")
 	}
@@ -504,7 +504,7 @@ func instancePostMigration(s *state.State, inst instance.Instance, req api.Insta
 
 	apiProfiles := []api.Profile{}
 	if len(req.Profiles) > 0 {
-		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			profiles, err := dbCluster.GetProfilesIfEnabled(ctx, tx.Tx(), req.Project, req.Profiles)
 			if err != nil {
 				return err
@@ -963,7 +963,7 @@ func instancePostClusteringMigrateWithRemoteStorage(s *state.State, r *http.Requ
 	return run, nil
 }
 
-func migrateInstance(s *state.State, r *http.Request, inst instance.Instance, targetNode string, req api.InstancePost, op *operations.Operation) error {
+func migrateInstance(ctx context.Context, s *state.State, r *http.Request, inst instance.Instance, targetNode string, req api.InstancePost, op *operations.Operation) error {
 	// If target isn't the same as the instance's location.
 	if targetNode == inst.Location() {
 		return errors.New("Target must be different than instance's current location")
@@ -974,7 +974,7 @@ func migrateInstance(s *state.State, r *http.Request, inst instance.Instance, ta
 
 	// If the source member is online then get its address so we can connect to it and see if the
 	// instance is running later.
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		srcMember, err = tx.GetNodeByName(ctx, inst.Location())
 		if err != nil {
 			return fmt.Errorf("Failed getting current cluster member of instance %q", inst.Name())
