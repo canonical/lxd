@@ -20,7 +20,7 @@ import (
 
 var supportedVolumeTypes = []cluster.StoragePoolVolumeType{cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM, cluster.StoragePoolVolumeTypeCustom, cluster.StoragePoolVolumeTypeImage}
 
-func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolName string, oldVol *api.StorageVolume, newPoolName string, newVol *api.StorageVolume) (revert.Hook, error) {
+func storagePoolVolumeUpdateUsers(ctx context.Context, s *state.State, projectName string, oldPoolName string, oldVol *api.StorageVolume, newPoolName string, newVol *api.StorageVolume) (revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -111,7 +111,7 @@ func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolNam
 			Devices:     newDevices,
 		}
 
-		err = doProfileUpdate(s, p, profile.Name, profileID, &profile, pUpdate)
+		err = doProfileUpdate(ctx, s, p, profile.Name, profileID, &profile, pUpdate)
 		if err != nil {
 			return err
 		}
@@ -123,7 +123,7 @@ func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolNam
 				Devices:     profile.Devices,
 			}
 
-			err := doProfileUpdate(s, p, profile.Name, profileID, &profile, original)
+			err := doProfileUpdate(ctx, s, p, profile.Name, profileID, &profile, original)
 			if err != nil {
 				logger.Error("Failed reverting profile update", logger.Ctx{"project": p.Name, "profile": profile.Name, "error": err})
 			}
@@ -208,10 +208,10 @@ func storagePoolVolumeUsedByGet(s *state.State, requestProjectName string, vol *
 	return volumeUsedBy, nil
 }
 
-func storagePoolVolumeBackupLoadByName(s *state.State, projectName, poolName, backupName string) (*backup.VolumeBackup, error) {
+func storagePoolVolumeBackupLoadByName(ctx context.Context, s *state.State, projectName, poolName, backupName string) (*backup.VolumeBackup, error) {
 	var b db.StoragePoolVolumeBackup
 
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		b, err = tx.GetStoragePoolVolumeBackup(ctx, projectName, poolName, backupName)
 		return err
