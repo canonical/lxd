@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
@@ -31,7 +30,6 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/auth/oidc"
 	"github.com/canonical/lxd/lxd/bgp"
-	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/daemon"
@@ -43,6 +41,7 @@ import (
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/firewall"
 	"github.com/canonical/lxd/lxd/fsmonitor"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
@@ -75,13 +74,13 @@ import (
 
 // A Daemon can respond to requests from a shared client.
 type Daemon struct {
-	clientCerts *certificate.Cache
-	os          *sys.OS
-	db          *db.DB
-	firewall    firewall.Firewall
-	maas        *maas.Controller
-	bgp         *bgp.Server
-	dns         *dns.Server
+	identityCache *identity.Cache
+	os            *sys.OS
+	db            *db.DB
+	firewall      firewall.Firewall
+	maas          *maas.Controller
+	bgp           *bgp.Server
+	dns           *dns.Server
 
 	// Event servers
 	devlxdEvents     *events.DevLXDServer
@@ -174,7 +173,7 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
 
 	d := &Daemon{
-		clientCerts:    &certificate.Cache{},
+		identityCache:  &identity.Cache{},
 		config:         config,
 		devlxdEvents:   devlxdEvents,
 		events:         lxdEvents,
@@ -282,11 +281,6 @@ func (d *Daemon) checkTrustedClient(r *http.Request) error {
 	return nil
 }
 
-// getTrustedCertificates returns trusted certificates key on DB type and fingerprint.
-func (d *Daemon) getTrustedCertificates() map[certificate.Type]map[string]x509.Certificate {
-	return d.clientCerts.GetCertificates()
-}
-
 // Authenticate validates an incoming http Request
 // It will check over what protocol it came, what type of request it is and
 // will validate the TLS certificate or Macaroon.
@@ -295,12 +289,10 @@ func (d *Daemon) getTrustedCertificates() map[certificate.Type]map[string]x509.C
 // Returns whether trusted or not, the username (or certificate fingerprint) of the trusted client, and the type of
 // client that has been authenticated (cluster, unix, oidc or tls).
 func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted bool, username string, method string, err error) {
-	trustedCerts := d.getTrustedCertificates()
-
 	// Allow internal cluster traffic by checking against the trusted certfificates.
 	if r.TLS != nil {
 		for _, i := range r.TLS.PeerCertificates {
-			trusted, fingerprint := util.CheckTrustState(*i, trustedCerts[certificate.TypeServer], d.endpoints.NetworkCert(), false)
+			trusted, fingerprint := util.CheckTrustState(*i, d.identityCache.X509Certificates(api.IdentityTypeCertificateServer), d.endpoints.NetworkCert(), false)
 			if trusted {
 				return true, fingerprint, "cluster", nil
 			}
@@ -356,7 +348,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 	// Validate metrics certificates.
 	if r.URL.Path == "/1.0/metrics" {
 		for _, i := range r.TLS.PeerCertificates {
-			trusted, username := util.CheckTrustState(*i, trustedCerts[certificate.TypeMetrics], d.endpoints.NetworkCert(), trustCACertificates)
+			trusted, username := util.CheckTrustState(*i, d.identityCache.X509Certificates(api.IdentityTypeCertificateMetrics), d.endpoints.NetworkCert(), trustCACertificates)
 			if trusted {
 				return true, username, api.AuthenticationMethodTLS, nil
 			}
@@ -364,7 +356,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 	}
 
 	for _, i := range r.TLS.PeerCertificates {
-		trusted, username := util.CheckTrustState(*i, trustedCerts[certificate.TypeClient], d.endpoints.NetworkCert(), trustCACertificates)
+		trusted, username := util.CheckTrustState(*i, d.identityCache.X509Certificates(api.IdentityTypeCertificateClientRestricted, api.IdentityTypeCertificateClientUnrestricted), d.endpoints.NetworkCert(), trustCACertificates)
 		if trusted {
 			return true, username, api.AuthenticationMethodTLS, nil
 		}
@@ -711,7 +703,7 @@ func (d *Daemon) init() error {
 	var dbWarnings []dbCluster.Warning
 
 	// Set default authorizer.
-	d.authorizer, err = auth.LoadAuthorizer(d.shutdownCtx, auth.DriverTLS, logger.Log, d.clientCerts)
+	d.authorizer, err = auth.LoadAuthorizer(d.shutdownCtx, auth.DriverTLS, logger.Log, d.identityCache)
 	if err != nil {
 		return err
 	}
@@ -961,8 +953,7 @@ func (d *Daemon) init() error {
 	}
 
 	// Detect if clustered, but not yet upgraded to per-server client certificates.
-	certificates := d.clientCerts.GetCertificates()
-	if d.serverClustered && len(certificates[certificate.TypeServer]) < 1 {
+	if d.serverClustered && len(d.identityCache.GetByType(api.IdentityTypeCertificateServer)) < 1 {
 		// If the cluster has not yet upgraded to per-server client certificates (by running patch
 		// patchClusteringServerCertTrust) then temporarily use the network (cluster) certificate as client
 		// certificate, and cause us to trust it for use as client certificate from the other members.
