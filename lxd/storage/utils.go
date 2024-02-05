@@ -517,6 +517,17 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		rules["security.unmapped"] = validate.Optional(validate.IsBool)
 	}
 
+	// Those keys are only valid for volumes.
+	if vol != nil {
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs; group=volume-conf; key=volatile.uuid)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: random UUID
+		//  shortdesc: The volume's UUID
+		rules["volatile.uuid"] = validate.Optional(validate.IsUUID)
+	}
+
 	return rules
 }
 
