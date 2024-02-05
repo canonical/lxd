@@ -19,12 +19,13 @@ LXD requires a kernel with support for:
 * Native Linux AIO
   ([`io_setup(2)`](https://man7.org/linux/man-pages/man2/io_setup.2.html), etc.)
 
-The following optional features also require extra kernel options:
+The following optional features also require extra kernel options or newer versions:
 
 * Namespaces (`user` and `cgroup`)
 * AppArmor (including Ubuntu patch for mount mediation)
 * Control Groups (`blkio`, `cpuset`, `devices`, `memory`, `pids` and `net_prio`)
 * CRIU (exact details to be found with CRIU upstream)
+* SKBPRIO/QFQ qdiscs (for `limits.priority`, minimum kernel 5.17)
 
 As well as any other kernel feature required by the LXC version in use.
 
