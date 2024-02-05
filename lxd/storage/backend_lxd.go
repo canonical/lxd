@@ -2383,6 +2383,11 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 			return fmt.Errorf(`Instance volume "block.filesystem" property cannot be changed`)
 		}
 
+		// Check that the volume's volatile.uuid property isn't being changed.
+		if changedConfig["volatile.uuid"] != "" {
+			return fmt.Errorf(`Instance volume "volatile.uuid" property cannot be changed`)
+		}
+
 		// Load storage volume from database.
 		dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
 		if err != nil {
@@ -5361,6 +5366,11 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 		// Check that the volume's block.filesystem property isn't being changed.
 		if changedConfig["block.filesystem"] != "" {
 			return fmt.Errorf("Custom volume 'block.filesystem' property cannot be changed")
+		}
+
+		// Check that the volume's volatile.uuid property isn't being changed.
+		if changedConfig["volatile.uuid"] != "" {
+			return fmt.Errorf(`Custom volume "volatile.uuid" property cannot be changed`)
 		}
 
 		// Check for config changing that is not allowed when running instances are using it.
