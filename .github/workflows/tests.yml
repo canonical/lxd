@@ -132,10 +132,10 @@ jobs:
         suite: ["cluster", "standalone"]
         backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
         include:
-          - go: stable
+          - go: "1.19.x"
             suite: cluster
             backend: dir
-          - go: stable
+          - go: "1.19.x"
             suite: standalone
             backend: dir
           - go: tip
