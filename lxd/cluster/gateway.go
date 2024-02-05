@@ -1254,6 +1254,7 @@ type dqliteNodeStore struct {
 	onDisk   client.NodeStore
 }
 
+// Get gets node information from the dqlite node store.
 func (s *dqliteNodeStore) Get(ctx context.Context) ([]client.NodeInfo, error) {
 	if s.inMemory != nil {
 		return s.inMemory.Get(ctx)
@@ -1262,6 +1263,7 @@ func (s *dqliteNodeStore) Get(ctx context.Context) ([]client.NodeInfo, error) {
 	return s.onDisk.Get(ctx)
 }
 
+// Set sets node information in the dqlite node store.
 func (s *dqliteNodeStore) Set(ctx context.Context, servers []client.NodeInfo) error {
 	if s.inMemory != nil {
 		return s.inMemory.Set(ctx, servers)
