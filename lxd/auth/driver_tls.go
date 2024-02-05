@@ -32,7 +32,7 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, object Objec
 		return api.StatusErrorf(http.StatusForbidden, "Failed to extract request details: %v", err)
 	}
 
-	if details.isInternalOrUnix() {
+	if details.isInternalOrUnix() || details.isPKI {
 		return nil
 	}
 
@@ -96,7 +96,7 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 		return nil, api.StatusErrorf(http.StatusForbidden, "Failed to extract request details: %v", err)
 	}
 
-	if details.isInternalOrUnix() {
+	if details.isInternalOrUnix() || details.isPKI {
 		return allowFunc(true), nil
 	}
 
