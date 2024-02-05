@@ -209,6 +209,13 @@ jobs:
           echo "PATH=$HOME/go/bin:$HOME/sdk/gotip/bin/:$PATH" >> $GITHUB_ENV
         if: matrix.go == 'tip'
 
+      - name: Check compatibility with min Go version (${{ matrix.go }})
+        if: matrix.go == '1.20.x'
+        run: |
+          set -eux
+          GOSHORTVER="$(go env GOVERSION | sed -n 's/^go\([0-9]\+\.[0-9]\+\).*/\1/p')"
+          go mod tidy -go="${GOSHORTVER}"
+
       - name: Install dependencies
         run: |
           set -eux
