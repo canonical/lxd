@@ -65,6 +65,7 @@ endian
 ESA
 ETag
 failover
+firmware
 FQDNs
 gapped
 GARP
@@ -87,7 +88,6 @@ hotplugged
 hotplugging
 HTTPS
 ICMP
-IPAM
 idmap
 idmapped
 idmaps
@@ -99,6 +99,7 @@ initramfs
 integrations
 IOPS
 IOV
+IPAM
 IPs
 IPv
 IPVLAN
@@ -117,6 +118,7 @@ LV
 LVM
 LXC
 LXCFS
+LXC's
 LXD
 LXD's
 MAAS
@@ -195,6 +197,7 @@ runtime
 SATA
 scalable
 SDN
+SeaBIOS
 Seccomp
 SFTP
 SHA
@@ -254,20 +257,20 @@ UFW
 UI
 UID
 UIDs
-URI
-URIs
 unconfigured
 unmanaged
 unmount
 unmounting
 uplink
 uptime
+URI
+URIs
 userspace
 UUID
 vCPU
 vCPUs
-VFs
 VFS
+VFs
 VirtIO
 virtualize
 virtualized
@@ -289,4 +292,3 @@ Zettabyte
 ZFS
 zpool
 zpools
-qdisc
