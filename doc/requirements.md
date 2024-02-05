@@ -55,7 +55,7 @@ LXD itself also uses a number of (usually packaged) C libraries:
 * `libcap2`
 * `liblz4` (for `dqlite`)
 * `libuv1` (for `dqlite`)
-* `libsqlite3` >= 3.25.0 (for `dqlite`)
+* `libsqlite3` >= 3.37.2 (for `dqlite`)
 
 Make sure you have all these libraries themselves and their development
 headers (`-dev` packages) installed.
