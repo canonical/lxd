@@ -41,7 +41,7 @@ should also be installed.
 
 ## QEMU
 
-For virtual machines, QEMU 6.0 or higher is required.
+For virtual machines, QEMU 6.2 or higher is required.
 
 ## Additional libraries (and development headers)
 
