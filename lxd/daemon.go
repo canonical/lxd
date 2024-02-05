@@ -297,7 +297,7 @@ func (d *Daemon) getTrustedCertificates() map[certificate.Type]map[string]x509.C
 // This does not perform authorization, only validates authentication.
 // Returns whether trusted or not, the username (or certificate fingerprint) of the trusted client, and the type of
 // client that has been authenticated (cluster, unix, candid or tls).
-func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, string, string, error) {
+func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted bool, username string, method string, err error) {
 	trustedCerts := d.getTrustedCertificates()
 
 	// Allow internal cluster traffic by checking against the trusted certfificates.
