@@ -4380,6 +4380,11 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 			return fmt.Errorf(`Custom volume "volatile.uuid" property cannot be changed`)
 		}
 
+		// Check that the volume's volatile.uuid property isn't being changed.
+		if changedConfig["volatile.uuid"] != "" {
+			return fmt.Errorf(`Custom volume "volatile.uuid" property cannot be changed`)
+		}
+
 		// Check for config changing that is not allowed when running instances are using it.
 		if changedConfig["security.shifted"] != "" {
 			err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &curVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
