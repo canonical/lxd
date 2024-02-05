@@ -3,8 +3,11 @@
 package cluster
 
 import (
+	"crypto/x509"
 	"database/sql/driver"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"fmt"
 
 	"github.com/canonical/lxd/lxd/certificate"
@@ -197,6 +200,21 @@ type CertificateMetadata struct {
 	Certificate string `json:"cert"`
 }
 
+// X509 returns an x509.Certificate from the CertificateMetadata.
+func (c CertificateMetadata) X509() (*x509.Certificate, error) {
+	certBlock, _ := pem.Decode([]byte(c.Certificate))
+	if certBlock == nil {
+		return nil, errors.New("Failed decoding certificate")
+	}
+
+	cert, err := x509.ParseCertificate(certBlock.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing certificate: %w", err)
+	}
+
+	return cert, nil
+}
+
 // ToCertificate converts an Identity to a Certificate.
 func (i Identity) ToCertificate() (*Certificate, error) {
 	identityType, err := i.Type.toCertificateType()
@@ -225,4 +243,19 @@ func (i Identity) ToCertificate() (*Certificate, error) {
 	}
 
 	return c, nil
+}
+
+// X509 returns an x509.Certificate from the identity metadata. The AuthMethod of the Identity must be api.AuthenticationMethodTLS.
+func (i Identity) X509() (*x509.Certificate, error) {
+	if i.AuthMethod != api.AuthenticationMethodTLS {
+		return nil, fmt.Errorf("Cannot extract X509 certificate from identity: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodTLS)
+	}
+
+	var metadata CertificateMetadata
+	err := json.Unmarshal([]byte(i.Metadata), &metadata)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal certificate identity metadata: %w", err)
+	}
+
+	return metadata.X509()
 }
