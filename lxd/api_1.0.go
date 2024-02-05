@@ -454,7 +454,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		logger.Debug("Handling config changed notification")
 		changed := make(map[string]string)
 		for key, value := range req.Config {
-			changed[key] = value.(string)
+			changed[key], _ = value.(string)
 		}
 
 		// Get the current (updated) config.
@@ -601,14 +601,15 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 				return fmt.Errorf("Cannot fetch node config from database: %w", err)
 			}
 
-			newClusterHTTPSAddress, found := nodeValues["cluster.https_address"]
-			if !found && patch {
+			newClusterHTTPSAddress := ""
+			newClusterHTTPSAddressAny, found := nodeValues["cluster.https_address"]
+			if found {
+				newClusterHTTPSAddress, _ = newClusterHTTPSAddressAny.(string)
+			} else if patch {
 				newClusterHTTPSAddress = curConfig["cluster.https_address"]
-			} else if !found {
-				newClusterHTTPSAddress = ""
 			}
 
-			if curConfig["cluster.https_address"] != newClusterHTTPSAddress.(string) {
+			if curConfig["cluster.https_address"] != newClusterHTTPSAddress {
 				return fmt.Errorf("Changing cluster.https_address is currently not supported")
 			}
 		}
