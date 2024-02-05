@@ -474,7 +474,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		d.globalConfigMu.Unlock()
 
 		// Run any update triggers.
-		err = doApi10UpdateTriggers(d, nil, changed, s.LocalConfig, config)
+		err = doAPI10UpdateTriggers(d, nil, changed, s.LocalConfig, config)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -492,7 +492,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		return response.PreconditionFailed(err)
 	}
 
-	return doApi10Update(d, r, req, false)
+	return doAPI10Update(d, r, req, false)
 }
 
 // swagger:operation PATCH /1.0 server server_patch
@@ -561,10 +561,10 @@ func api10Patch(d *Daemon, r *http.Request) response.Response {
 		return response.EmptySyncResponse
 	}
 
-	return doApi10Update(d, r, req, true)
+	return doAPI10Update(d, r, req, true)
 }
 
-func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) response.Response {
+func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) response.Response {
 	s := d.State()
 
 	// First deal with config specific to the local daemon
@@ -792,7 +792,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	d.globalConfigMu.Unlock()
 
 	// Run any update triggers.
-	err = doApi10UpdateTriggers(d, nodeChanged, clusterChanged, newNodeConfig, newClusterConfig)
+	err = doAPI10UpdateTriggers(d, nodeChanged, clusterChanged, newNodeConfig, newClusterConfig)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -804,7 +804,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	return response.EmptySyncResponse
 }
 
-func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, nodeConfig *node.Config, clusterConfig *clusterConfig.Config) error {
+func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, nodeConfig *node.Config, clusterConfig *clusterConfig.Config) error {
 	s := d.State()
 
 	maasChanged := false
