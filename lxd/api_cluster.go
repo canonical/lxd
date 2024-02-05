@@ -766,7 +766,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			changes[k], _ = v.(string)
 		}
 
-		err = doApi10UpdateTriggers(d, nil, changes, nodeConfig, currentClusterConfig)
+		err = doAPI10UpdateTriggers(d, nil, changes, nodeConfig, currentClusterConfig)
 		if err != nil {
 			return err
 		}
