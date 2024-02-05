@@ -52,7 +52,7 @@ jobs:
           path: ${{ steps.ShellCheck.outputs.sarif }}
         if: github.event_name == 'pull_request'
 
-      - name: Install Go
+      - name: Install Go (${{ matrix.go }})
         uses: actions/setup-go@v5
         with:
           go-version: 1.20.x
@@ -189,13 +189,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Go (stable)
+      - name: Install Go (${{ matrix.go }})
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
         if: matrix.go != 'tip'
 
-      - name: Install Go (tip)
+      - name: Install Go (${{ matrix.go }})
         run: |
           set -eux
           HEAD="$(git ls-remote https://github.com/golang/go.git HEAD | awk '{print $1}')"
@@ -363,7 +363,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Go
+      - name: Install Go (${{ matrix.go }})
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
@@ -424,7 +424,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Go
+      - name: Install Go (${{ matrix.go }})
         uses: actions/setup-go@v5
         with:
           go-version: 1.20.x
@@ -493,7 +493,7 @@ jobs:
           ssh-keyscan git.launchpad.net >> ~/.ssh/known_hosts
           ssh-keygen -qlF git.launchpad.net | grep -xF 'git.launchpad.net RSA SHA256:UNOzlP66WpDuEo34Wgs8mewypV0UzqHLsIFoqwe8dYo'
 
-      - name: Install Go
+      - name: Install Go (${{ matrix.go }})
         uses: actions/setup-go@v5
         with:
           go-version: 1.20.x
