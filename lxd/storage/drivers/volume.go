@@ -97,6 +97,7 @@ type Volume struct {
 	mountCustomPath      string // Mount the filesystem volume at a custom location.
 	mountFilesystemProbe bool   // Probe filesystem type when mounting volume (when needed).
 	hasSource            bool   // Whether the volume is created from a source volume.
+	parentUUID           string // Set to the parent volume's volatile.uuid (if snapshot).
 }
 
 // VolumeCopy represents a volume and its snapshots for copy and refresh operations.
@@ -566,6 +567,11 @@ func (v *Volume) SetMountFilesystemProbe(probe bool) {
 // SetHasSource indicates whether the Volume is created from a source.
 func (v *Volume) SetHasSource(hasSource bool) {
 	v.hasSource = hasSource
+}
+
+// SetParentUUID sets the parent volume's UUID for snapshots.
+func (v *Volume) SetParentUUID(parentUUID string) {
+	v.parentUUID = parentUUID
 }
 
 // Clone returns a copy of the volume.
