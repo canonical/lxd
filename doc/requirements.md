@@ -41,7 +41,8 @@ should also be installed.
 
 ## QEMU
 
-For virtual machines, QEMU 6.2 or higher is required.
+For virtual machines, QEMU 6.2 or higher is required. Some features like
+Confidential Guest support require a more recent QEMU and kernel version.
 
 ## Additional libraries (and development headers)
 
