@@ -15,6 +15,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v2"
 
@@ -698,12 +699,25 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		volumeConfig = srcBackup.Config.Volume.Config
 	}
 
+	// At this stage the DB record for the new volume isn't yet created.
+	// We have to set the UUID manually to allow passing it into the storage driver.
+	// It will get used later when creating the DB record.
+	// A new UUID has to be assigned to avoid conflicts when importing the same instance multiple times.
+	volumeConfig["volatile.uuid"] = uuid.New().String()
+
 	vol := b.GetVolume(volType, contentType, volStorageName, volumeConfig)
 
 	sourceSnapshots := make([]drivers.Volume, 0, len(srcBackup.Config.VolumeSnapshots))
 	for _, volSnap := range srcBackup.Config.VolumeSnapshots {
 		snapshotName := drivers.GetSnapshotVolumeName(srcBackup.Name, volSnap.Name)
 		snapshotStorageName := project.Instance(srcBackup.Project, snapshotName)
+
+		// At this stage the DB record for the new volume snapshot isn't yet created.
+		// We have to set the UUID manually to allow passing it into the storage driver.
+		// It will get used later when creating the DB record.
+		// A new UUID has to be assigned to avoid conflicts when importing the same instance multiple times.
+		volSnap.Config["volatile.uuid"] = uuid.New().String()
+
 		sourceSnapshots = append(sourceSnapshots, b.GetVolume(volType, contentType, snapshotStorageName, volSnap.Config))
 	}
 
@@ -998,6 +1012,10 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		srcVolStorageName := project.Instance(src.Project().Name, src.Name())
 		srcVol := b.GetVolume(volType, contentType, srcVolStorageName, srcConfig.Volume.Config)
 
+		// Delete the source volume's UUID.
+		// A new one gets set when creating the record in the DB.
+		delete(vol.Config(), "volatile.uuid")
+
 		// Validate config and create database entry for new storage volume.
 		err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), "", vol.Type(), false, vol.Config(), time.Time{}, contentType, false, true)
 		if err != nil {
@@ -1015,6 +1033,10 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 			if srcConfig.VolumeSnapshots[i].ExpiresAt != nil {
 				volumeSnapExpiryDate = *srcConfig.VolumeSnapshots[i].ExpiresAt
 			}
+
+			// Delete the source volume's snapshot UUID.
+			// A new one gets set when creating the record in the DB.
+			delete(srcConfig.VolumeSnapshots[i].Config, "volatile.uuid")
 
 			// Validate config and create database entry for new storage volume.
 			err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, srcConfig.VolumeSnapshots[i].Description, vol.Type(), true, srcConfig.VolumeSnapshots[i].Config, volumeSnapExpiryDate, vol.ContentType(), false, true)
@@ -1160,13 +1182,30 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 
 	// Use the source volume's config if not supplied.
 	if config == nil {
-		config = srcConfig.Volume.Config
+		// Create a deep copy to be able to set different volume attributes for the source and target.
+		for k, v := range srcConfig.Volume.Config {
+			config[k] = v
+		}
 	}
 
 	// Use the source volume's description if not supplied.
 	if desc == "" {
 		desc = srcConfig.Volume.Description
 	}
+
+	// Load the target volume from database.
+	dbVol, err := VolumeDBGet(b, projectName, volName, drivers.VolumeType(srcConfig.Volume.Type))
+	if err != nil {
+		return err
+	}
+
+	volUUID := dbVol.Config["volatile.uuid"]
+	if volUUID == "" {
+		return fmt.Errorf(`Volume %q is missing the required "volatile.uuid" setting`, volName)
+	}
+
+	// Replace the target volume's UUID.
+	config["volatile.uuid"] = volUUID
 
 	contentDBType, err := VolumeContentTypeNameToContentType(srcConfig.Volume.ContentType)
 	if err != nil {
@@ -1282,6 +1321,10 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 			if srcSnap.ExpiresAt != nil {
 				snapExpiryDate = *srcSnap.ExpiresAt
 			}
+
+			// Delete the source volume's snapshot UUID.
+			// A new one gets set when creating the record in the DB.
+			delete(srcSnap.Config, "volatile.uuid")
 
 			// Validate config and create database entry for new storage volume from source volume config.
 			err = VolumeDBCreate(b, projectName, newSnapshotName, srcSnap.Description, drivers.VolumeTypeCustom, true, srcSnap.Config, snapExpiryDate, contentType, false, true)
@@ -1541,6 +1584,10 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 			if srcConfig.VolumeSnapshots[i].ExpiresAt != nil {
 				volumeSnapExpiryDate = *srcConfig.VolumeSnapshots[i].ExpiresAt
 			}
+
+			// Delete the source volume's snapshot UUID.
+			// A new one gets set when creating the record in the DB.
+			delete(srcConfig.VolumeSnapshots[i].Config, "volatile.uuid")
 
 			// Validate config and create database entry for new storage volume.
 			err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, srcConfig.VolumeSnapshots[i].Description, volType, true, srcConfig.VolumeSnapshots[i].Config, volumeSnapExpiryDate, contentType, false, true)
@@ -1907,6 +1954,10 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 				return fmt.Errorf("Cannot create volume, already exists on migration target storage")
 			}
 		} else {
+			// Delete the source volume's UUID.
+			// A new one gets set when creating the record in the DB.
+			delete(vol.Config(), "volatile.uuid")
+
 			// Validate config and create database entry for new storage volume if not refreshing.
 			// Strip unsupported config keys (in case the export was made from a different type of storage pool).
 			err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), volumeDescription, volType, false, vol.Config(), time.Time{}, contentType, true, true)
@@ -1937,6 +1988,10 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 					}
 				}
 			}
+
+			// Delete the source volume's snapshot UUID.
+			// A new one gets set when creating the record in the DB.
+			delete(snapConfig, "volatile.uuid")
 
 			// Validate config and create database entry for new storage volume.
 			// Strip unsupported config keys (in case the export was made from a different type of storage pool).
@@ -2142,8 +2197,9 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 	}
 
 	revert.Add(func() {
-		// There's no need to pass config as it's not needed when renaming a volume.
-		newVol := b.GetVolume(volType, contentType, newVolStorageName, nil)
+		// Renaming a volume doesn't change its UUID.
+		// Pass the same configuration as for the initial rename operation.
+		newVol := b.GetVolume(volType, contentType, newVolStorageName, volume.Config)
 		_ = b.driver.RenameVolume(newVol, volStorageName, op)
 	})
 
@@ -2214,8 +2270,13 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 	contentType := InstanceContentType(inst)
 
-	// There's no need to pass config as it's not needed when deleting a volume.
-	vol := b.GetVolume(volType, contentType, volStorageName, nil)
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
+	if err != nil {
+		return err
+	}
+
+	vol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
 
 	// Delete the volume from the storage device. Must come after snapshots are removed.
 	// Must come before DB VolumeDBDelete so that the volume ID is still available.
@@ -2497,8 +2558,13 @@ func (b *lxdBackend) CleanupInstancePaths(inst instance.Instance, op *operations
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 	contentType := InstanceContentType(inst)
 
-	// There's no need to pass config as it's not needed when deleting a volume.
-	vol := b.GetVolume(volType, contentType, volStorageName, nil)
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
+	if err != nil {
+		return err
+	}
+
+	vol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
 
 	// Remove empty snapshot mount paths.
 	snapshotDir := drivers.GetVolumeSnapshotDir(b.Name(), vol.Type(), vol.Name())
@@ -2637,9 +2703,14 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (int64, error) {
 
 	contentType := InstanceContentType(inst)
 
-	// There's no need to pass config as it's not needed when retrieving the volume usage.
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
+	if err != nil {
+		return nil, err
+	}
+
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
-	vol := b.GetVolume(volType, contentType, volStorageName, nil)
+	vol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
 
 	return b.driver.GetVolumeUsage(vol)
 }
@@ -2827,10 +2898,14 @@ func (b *lxdBackend) getInstanceDisk(inst instance.Instance) (string, error) {
 	contentType := InstanceContentType(inst)
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
+	if err != nil {
+		return "", err
+	}
+
 	// Get the volume.
-	// There's no need to pass config as it's not needed when getting the
-	// location of the disk block device.
-	vol := b.GetVolume(volType, contentType, volStorageName, nil)
+	vol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
 
 	// Get the location of the disk block device.
 	diskPath, err := b.driver.GetVolumeDiskPath(vol)
@@ -2873,6 +2948,14 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 		return err
 	}
 
+	parentUUID := srcDBVol.Config["volatile.uuid"]
+	if parentUUID == "" {
+		return fmt.Errorf(`Instance volume %q is missing the required "volatile.uuid" setting`, src.Name())
+	}
+
+	// Delete the volume's UUID.
+	delete(srcDBVol.Config, "volatile.uuid")
+
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -2901,8 +2984,10 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 
 	// Get the volume.
-	// There's no need to pass config as it's not needed when creating volume snapshots.
-	vol := b.GetVolume(volType, contentType, volStorageName, nil)
+	vol := b.GetVolume(volType, contentType, volStorageName, srcDBVol.Config)
+
+	// Set the parent volume's UUID.
+	vol.SetParentUUID(parentUUID)
 
 	// Lock this operation to ensure that the only one snapshot is made at the time.
 	// Other operations will wait for this one to finish.
@@ -2963,8 +3048,14 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 	contentType := InstanceContentType(inst)
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 
-	// Rename storage volume snapshot. No need to pass config as it's not needed when renaming a volume.
-	snapVol := b.GetVolume(volType, contentType, volStorageName, nil)
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
+	if err != nil {
+		return err
+	}
+
+	// Rename storage volume snapshot.
+	snapVol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
 	err = b.driver.RenameVolumeSnapshot(snapVol, newName, op)
 	if err != nil {
 		return err
@@ -2973,8 +3064,10 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 	newVolName := drivers.GetSnapshotVolumeName(parentName, newName)
 
 	revert.Add(func() {
-		// Revert rename. No need to pass config as it's not needed when renaming a volume.
-		newSnapVol := b.GetVolume(volType, contentType, project.Instance(inst.Project().Name, newVolName), nil)
+		// Revert rename.
+		// Renaming a volume snapshot doesn't change its UUID.
+		// Pass the same configuration as for the initial rename operation.
+		newSnapVol := b.GetVolume(volType, contentType, project.Instance(inst.Project().Name, newVolName), dbVol.Config)
 		_ = b.driver.RenameVolumeSnapshot(newSnapVol, oldSnapshotName, op)
 	})
 
@@ -3027,8 +3120,13 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operatio
 
 	snapVolName := drivers.GetSnapshotVolumeName(parentStorageName, snapName)
 
-	// There's no need to pass config as it's not needed when deleting a volume snapshot.
-	vol := b.GetVolume(volType, contentType, snapVolName, nil)
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
+	if err != nil {
+		return err
+	}
+
+	vol := b.GetVolume(volType, contentType, snapVolName, dbVol.Config)
 
 	volExists, err := b.driver.HasVolume(vol)
 	if err != nil {
@@ -3110,6 +3208,7 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 		return fmt.Errorf("Volume name must be a snapshot")
 	}
 
+	// Load storage volume from database.
 	srcDBVol, err := VolumeDBGet(b, src.Project().Name, src.Name(), volType)
 	if err != nil {
 		return err
@@ -3123,12 +3222,23 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 			return err
 		}
 
+		volUUID := dbVol.Config["volatile.uuid"]
+		if volUUID == "" {
+			return fmt.Errorf(`Instance volume %q is missing the required "volatile.uuid" setting`, inst.Name())
+		}
+
+		// Set the actual target volume's UUID.
+		// This is required because we have just copied the source volume's config.
+		srcDBVol.Config["volatile.uuid"] = volUUID
+
 		err = b.state.DB.Cluster.UpdateStoragePoolVolume(inst.Project().Name, inst.Name(), volDBType, b.ID(), srcDBVol.Description, srcDBVol.Config)
 		if err != nil {
 			return err
 		}
 
 		revert.Add(func() {
+			// Update the instance snapshot with its old config.
+			// This will also reset its UUID.
 			_ = b.state.DB.Cluster.UpdateStoragePoolVolume(inst.Project().Name, inst.Name(), volDBType, b.ID(), dbVol.Description, dbVol.Config)
 		})
 	}
@@ -3733,6 +3843,10 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		volStorageName := project.StorageVolume(projectName, volName)
 		vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, config)
 
+		// Delete the source volume's UUID.
+		// A new one gets set when creating the record in the DB.
+		delete(vol.Config(), "volatile.uuid")
+
 		// Validate config and create database entry for new storage volume.
 		err = VolumeDBCreate(b, projectName, volName, desc, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType(), false, true)
 		if err != nil {
@@ -3750,6 +3864,10 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 			if srcConfig.VolumeSnapshots[i].ExpiresAt != nil {
 				volumeSnapExpiryDate = *srcConfig.VolumeSnapshots[i].ExpiresAt
 			}
+
+			// Delete the source volume's snapshot UUID.
+			// A new one gets set when creating the record in the DB.
+			delete(srcConfig.VolumeSnapshots[i].Config, "volatile.uuid")
 
 			// Validate config and create database entry for new storage volume.
 			err = VolumeDBCreate(b, projectName, newSnapshotName, srcConfig.VolumeSnapshots[i].Description, vol.Type(), true, srcConfig.VolumeSnapshots[i].Config, volumeSnapExpiryDate, vol.ContentType(), false, true)
@@ -4128,6 +4246,10 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	defer revert.Fail()
 
 	if !args.Refresh {
+		// Delete the source volume's UUID.
+		// A new one gets set when creating the record in the DB.
+		delete(vol.Config(), "volatile.uuid")
+
 		// Validate config and create database entry for new storage volume.
 		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
 		err = VolumeDBCreate(b, projectName, args.Name, args.Description, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType(), true, true)
@@ -4164,6 +4286,10 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 					break
 				}
 			}
+
+			// Delete the source volume's snapshot UUID.
+			// A new one gets set when creating the record in the DB.
+			delete(snapConfig, "volatile.uuid")
 
 			// Validate config and create database entry for new storage volume.
 			// Strip unsupported config keys (in case the export was made from a different type of storage pool).
@@ -4521,8 +4647,7 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 		return err
 	}
 
-	// There's no need to pass config as it's not needed when deleting a volume.
-	vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, nil)
+	vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, curVol.Config)
 
 	// Delete the volume from the storage device. Must come after snapshots are removed.
 	volExists, err := b.driver.HasVolume(vol)
@@ -4567,8 +4692,7 @@ func (b *lxdBackend) GetCustomVolumeDisk(projectName, volName string) (string, e
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
 
-	// There's no need to pass config as it's not needed when getting the volume usage.
-	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, nil)
+	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
 
 	return b.driver.GetVolumeDiskPath(vol)
 }
@@ -4588,8 +4712,7 @@ func (b *lxdBackend) GetCustomVolumeUsage(projectName, volName string) (int64, e
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
 
-	// There's no need to pass config as it's not needed when getting the volume usage.
-	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, nil)
+	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
 
 	return b.driver.GetVolumeUsage(vol)
 }
@@ -4783,6 +4906,14 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 		return fmt.Errorf("Volume of content type %q does not support snapshots", contentType)
 	}
 
+	parentUUID := parentVol.Config["volatile.uuid"]
+	if parentUUID == "" {
+		return fmt.Errorf(`Volume %q is missing the required "volatile.uuid" setting`, parentVol.Name)
+	}
+
+	// Delete the volume's UUID.
+	delete(parentVol.Config, "volatile.uuid")
+
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -4798,6 +4929,9 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, fullSnapshotName)
 	vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, parentVol.Config)
+
+	// Set the parent volume's UUID.
+	vol.SetParentUUID(parentUUID)
 
 	// Lock this operation to ensure that the only one snapshot is made at the time.
 	// Other operations will wait for this one to finish.
@@ -4843,8 +4977,7 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
 
-	// There's no need to pass config as it's not needed when renaming a volume.
-	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, nil)
+	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
 
 	err = b.driver.RenameVolumeSnapshot(vol, newSnapshotName, op)
 	if err != nil {
@@ -4858,7 +4991,9 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 		newVolStorageName := project.StorageVolume(projectName, newVolName)
 
 		// Revert rename.
-		newVol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), newVolStorageName, nil)
+		// Renaming a volume snapshot doesn't change its UUID.
+		// Pass the same configuration as for the initial rename operation.
+		newVol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), newVolStorageName, volume.Config)
 		_ = b.driver.RenameVolumeSnapshot(newVol, oldSnapshotName, op)
 		return err
 	}
@@ -4900,8 +5035,7 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
 
-	// There's no need to pass config as it's not needed when deleting a volume snapshot.
-	vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, nil)
+	vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, volume.Config)
 
 	// Delete the snapshot from the storage device.
 	// Must come before DB VolumeDBDelete so that the volume ID is still available.
@@ -5531,6 +5665,10 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 		return fmt.Errorf("Unknown custom volume content type %q", contentType)
 	}
 
+	// When detecting unknown custom storage volumes we have to set a new UUID.
+	// Otherwise the volume's validation will fail since it isn't set.
+	vol.Config()["volatile.uuid"] = uuid.New().String()
+
 	// This may not always be the correct thing to do, but seeing as we don't know what the volume's config
 	// was lets take a best guess that it was the default config.
 	err = b.driver.FillVolumeConfig(*vol)
@@ -5557,9 +5695,22 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 
 	// Populate snaphot volumes.
 	for _, snapOnlyName := range snapshots {
+		// Have to assume the snapshot volume config is same as parent.
+		// Deep copy it to allow setting a different UUID.
+		snapConfig := make(map[string]string, len(vol.Config()))
+		for k, v := range vol.Config() {
+			// We don't copy the parent volume's UUID.
+			// Instead the the snapshot will get its own ID when inserted into the DB.
+			if k == "volatile.uuid" {
+				continue
+			}
+
+			snapConfig[k] = v
+		}
+
 		backupConf.VolumeSnapshots = append(backupConf.VolumeSnapshots, &api.StorageVolumeSnapshot{
 			Name:        snapOnlyName, // Snapshot only name, not full name.
-			Config:      vol.Config(), // Have to assume the snapshot volume config is same as parent.
+			Config:      snapConfig,
 			ContentType: apiContentType,
 		})
 	}
@@ -5911,6 +6062,10 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 
 	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(srcBackup.Config.Volume.ContentType), volStorageName, srcBackup.Config.Volume.Config)
 
+	// Delete the source volume's UUID.
+	// A new one gets set when creating the record in the DB.
+	delete(vol.Config(), "volatile.uuid")
+
 	// Validate config and create database entry for new storage volume.
 	// Strip unsupported config keys (in case the export was made from a different type of storage pool).
 	err = VolumeDBCreate(b, srcBackup.Project, srcBackup.Name, srcBackup.Config.Volume.Description, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType(), true, true)
@@ -5936,6 +6091,10 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 		fullSnapName := drivers.GetSnapshotVolumeName(srcBackup.Name, snapName)
 		snapVolStorageName := project.StorageVolume(srcBackup.Project, fullSnapName)
 		snapVol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(srcBackup.Config.Volume.ContentType), snapVolStorageName, snapshot.Config)
+
+		// Delete the source volume's snapshot UUID.
+		// A new one gets set when creating the record in the DB.
+		delete(snapVol.Config(), "volatile.uuid")
 
 		// Validate config and create database entry for new storage volume.
 		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
