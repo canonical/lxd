@@ -24,6 +24,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
@@ -175,18 +176,13 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	body := []string{}
-
-	trustedCertificates := d.getTrustedCertificates()
-	for _, certs := range trustedCertificates {
-		for _, cert := range certs {
-			fingerprint := shared.CertFingerprint(&cert)
-			if !userHasPermission(auth.ObjectCertificate(fingerprint)) {
-				continue
-			}
-
-			certificateURL := fmt.Sprintf("/%s/certificates/%s", version.APIVersion, fingerprint)
-			body = append(body, certificateURL)
+	for _, identity := range d.identityCache.GetByAuthenticationMethod(api.AuthenticationMethodTLS) {
+		if !userHasPermission(auth.ObjectCertificate(identity.Identifier)) {
+			continue
 		}
+
+		certificateURL := fmt.Sprintf("/%s/certificates/%s", version.APIVersion, identity.Identifier)
+		body = append(body, certificateURL)
 	}
 
 	return response.SyncResponse(true, body)
