@@ -175,7 +175,10 @@ preseed
 proxied
 proxying
 PTS
+qdisc
+qdiscs
 QEMU
+QFQ
 qgroup
 qgroups
 RADOS
@@ -199,6 +202,7 @@ shiftfs
 SIGHUP
 SIGTERM
 simplestreams
+SKBPRIO
 SLAAC
 SMTP
 Snapcraft
