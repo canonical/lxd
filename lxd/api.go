@@ -129,7 +129,7 @@ func restServer(d *Daemon) *http.Server {
 		}
 	})
 
-	for endpoint, f := range d.gateway.HandlerFuncs(d.heartbeatHandler, d.getTrustedCertificates) {
+	for endpoint, f := range d.gateway.HandlerFuncs(d.heartbeatHandler, d.identityCache) {
 		mux.HandleFunc(endpoint, f)
 	}
 
@@ -200,7 +200,7 @@ func metricsServer(d *Daemon) *http.Server {
 		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w)
 	})
 
-	for endpoint, f := range d.gateway.HandlerFuncs(d.heartbeatHandler, d.getTrustedCertificates) {
+	for endpoint, f := range d.gateway.HandlerFuncs(d.heartbeatHandler, d.identityCache) {
 		mux.HandleFunc(endpoint, f)
 	}
 
