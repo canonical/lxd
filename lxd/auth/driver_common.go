@@ -135,6 +135,7 @@ func (c *commonAuthorizer) requestDetails(r *http.Request) (*requestDetails, err
 	}, nil
 }
 
+// Driver returns the driver name.
 func (c *commonAuthorizer) Driver() string {
 	return c.driverName
 }
