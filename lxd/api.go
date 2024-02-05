@@ -63,8 +63,8 @@ func restServer(d *Daemon) *http.Server {
 	uiPath := os.Getenv("LXD_UI")
 	uiEnabled := uiPath != "" && shared.PathExists(uiPath)
 	if uiEnabled {
-		uiHttpDir := uiHttpDir{http.Dir(uiPath)}
-		mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/", http.FileServer(uiHttpDir)))
+		uiHTTPDir := uiHTTPDir{http.Dir(uiPath)}
+		mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/", http.FileServer(uiHTTPDir)))
 	}
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -109,7 +109,7 @@ func restServer(d *Daemon) *http.Server {
 	})
 
 	return &http.Server{
-		Handler:     &lxdHttpServer{r: mux, d: d},
+		Handler:     &lxdHTTPServer{r: mux, d: d},
 		ConnContext: lxdRequest.SaveConnectionInContext,
 	}
 }
@@ -160,15 +160,15 @@ func metricsServer(d *Daemon) *http.Server {
 		_ = response.NotFound(nil).Render(w)
 	})
 
-	return &http.Server{Handler: &lxdHttpServer{r: mux, d: d}}
+	return &http.Server{Handler: &lxdHTTPServer{r: mux, d: d}}
 }
 
-type lxdHttpServer struct {
+type lxdHTTPServer struct {
 	r *mux.Router
 	d *Daemon
 }
 
-func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (s *lxdHTTPServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if !strings.HasPrefix(req.URL.Path, "/internal") {
 		<-s.d.setupChan
 
@@ -215,11 +215,12 @@ func isClusterNotification(r *http.Request) bool {
 	return r.Header.Get("User-Agent") == request.UserAgentNotifier
 }
 
-type uiHttpDir struct {
+type uiHTTPDir struct {
 	http.FileSystem
 }
 
-func (fs uiHttpDir) Open(name string) (http.File, error) {
+// Open opens the HTTP server for the user interface files.
+func (fs uiHTTPDir) Open(name string) (http.File, error) {
 	fsFile, err := fs.FileSystem.Open(name)
 	if err != nil && os.IsNotExist(err) {
 		return fs.FileSystem.Open("index.html")
