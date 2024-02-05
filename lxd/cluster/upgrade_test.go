@@ -2,7 +2,6 @@ package cluster_test
 
 import (
 	"context"
-	"crypto/x509"
 	"fmt"
 	"net/http"
 	"os"
@@ -16,9 +15,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
@@ -158,11 +157,7 @@ func TestUpgradeMembersWithoutRole(t *testing.T) {
 	gateway := newGateway(t, state.DB.Node, serverCert, state)
 	defer func() { _ = gateway.Shutdown() }()
 
-	trustedCerts := func() map[certificate.Type]map[string]x509.Certificate {
-		return nil
-	}
-
-	for path, handler := range gateway.HandlerFuncs(nil, trustedCerts) {
+	for path, handler := range gateway.HandlerFuncs(nil, &identity.Cache{}) {
 		mux.HandleFunc(path, handler)
 	}
 
