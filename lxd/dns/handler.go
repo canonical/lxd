@@ -18,7 +18,8 @@ type dnsHandler struct {
 	mu     sync.Mutex
 }
 
-func (d dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
+// ServeDNS handles each DNS request.
+func (d *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	// Don't allow concurent queries.
 	d.mu.Lock()
 	defer d.mu.Unlock()

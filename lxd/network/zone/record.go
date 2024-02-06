@@ -12,6 +12,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// AddRecord adds a network zone record.
 func (d *zone) AddRecord(req api.NetworkZoneRecordsPost) error {
 	// Validate.
 	err := d.validateRecordConfig(req.NetworkZoneRecordPut)
@@ -38,6 +39,7 @@ func (d *zone) AddRecord(req api.NetworkZoneRecordsPost) error {
 	return nil
 }
 
+// GetRecords fetches the network zone records.
 func (d *zone) GetRecords() ([]api.NetworkZoneRecord, error) {
 	s := d.state
 
@@ -73,6 +75,7 @@ func (d *zone) GetRecords() ([]api.NetworkZoneRecord, error) {
 	return records, nil
 }
 
+// GetRecord fetches the network zone record corresponding to the given name.
 func (d *zone) GetRecord(name string) (*api.NetworkZoneRecord, error) {
 	var record *api.NetworkZoneRecord
 
@@ -91,6 +94,7 @@ func (d *zone) GetRecord(name string) (*api.NetworkZoneRecord, error) {
 	return record, nil
 }
 
+// UpdateRecord updates the network zone record corresponding to the given name.
 func (d *zone) UpdateRecord(name string, req api.NetworkZoneRecordPut, clientType request.ClientType) error {
 	s := d.state
 
@@ -128,6 +132,7 @@ func (d *zone) UpdateRecord(name string, req api.NetworkZoneRecordPut, clientTyp
 	return nil
 }
 
+// DeleteRecord delete the network zone record corresponding to the given name.
 func (d *zone) DeleteRecord(name string) error {
 	s := d.state
 

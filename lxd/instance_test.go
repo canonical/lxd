@@ -73,6 +73,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 	suite.Req.Nil(err, "Failed to create the unprivileged profile.")
 	defer func() {
 		_ = suite.d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			//nolint:revive // revive seems to think this return is outside of the transaction.
 			return cluster.DeleteProfile(ctx, tx.Tx(), "default", "unprivileged")
 		})
 	}()
@@ -137,7 +138,8 @@ func (suite *containerTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
 	out, _, err := c.Render()
 	suite.Req.Nil(err)
 
-	state := out.(*api.Instance)
+	state, ok := out.(*api.Instance)
+	suite.Req.True(ok)
 	defer func() { _ = c.Delete(true) }()
 
 	suite.Equal(
@@ -484,6 +486,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_raw() {
 func (suite *containerTestSuite) TestContainer_findIdmap_maxed() {
 	maps := []*idmap.IdmapSet{}
 
+	instances := make([]instance.Instance, 0, 7)
 	for i := 0; i < 7; i++ {
 		c, op, _, err := instance.CreateInternal(suite.d.State(), db.InstanceArgs{
 			Type: instancetype.Container,
@@ -494,15 +497,15 @@ func (suite *containerTestSuite) TestContainer_findIdmap_maxed() {
 		}, true)
 
 		/* we should fail if there are no ids left */
-		if i != 6 {
-			suite.Req.Nil(err)
-		} else {
+		if i == 6 {
 			suite.Req.NotNil(err)
 			return
 		}
 
+		suite.Req.Nil(err)
+
 		op.Done(nil)
-		defer func() { _ = c.Delete(true) }()
+		instances = append(instances, c)
 
 		m, err := c.(instance.Container).NextIdmap()
 		suite.Req.Nil(err)
@@ -520,6 +523,11 @@ func (suite *containerTestSuite) TestContainer_findIdmap_maxed() {
 				suite.Req.False(m1.HostidsIntersect(e), "%d and %d's idmaps intersect %v %v", i, j, m1, m2)
 			}
 		}
+	}
+
+	for _, c := range instances {
+		err := c.Delete(true)
+		suite.Req.NotNil(err)
 	}
 }
 

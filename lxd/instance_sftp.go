@@ -108,6 +108,7 @@ func (r *sftpServeResponse) String() string {
 	return "sftp handler"
 }
 
+// Render renders the server response.
 func (r *sftpServeResponse) Render(w http.ResponseWriter) error {
 	defer func() { _ = r.instConn.Close() }()
 

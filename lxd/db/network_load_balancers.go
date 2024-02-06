@@ -224,7 +224,7 @@ func networkLoadBalancerConfig(ctx context.Context, tx *ClusterTx, loadBalancerI
 // If memberSpecific is true, then the search is restricted to load balancers that belong to this member or belong
 // to all members.
 func (c *ClusterTx) GetNetworkLoadBalancerListenAddresses(ctx context.Context, networkID int64, memberSpecific bool) (map[int64]string, error) {
-	var q *strings.Builder = &strings.Builder{}
+	var q = &strings.Builder{}
 	args := []any{networkID}
 
 	q.WriteString(`
@@ -243,7 +243,7 @@ func (c *ClusterTx) GetNetworkLoadBalancerListenAddresses(ctx context.Context, n
 	loadBalancers := make(map[int64]string)
 
 	err := query.Scan(ctx, c.tx, q.String(), func(scan func(dest ...any) error) error {
-		var loadBalancerID int64 = int64(-1)
+		var loadBalancerID = int64(-1)
 		var listenAddress string
 
 		err := scan(&loadBalancerID, &listenAddress)
@@ -343,7 +343,7 @@ func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesOnMember(ctx con
 
 	err := query.Scan(ctx, c.Tx(), q, func(scan func(dest ...any) error) error {
 		var projectName string
-		var networkID int64 = int64(-1)
+		var networkID = int64(-1)
 		var listenAddress string
 
 		err := scan(&projectName, &networkID, &listenAddress)
@@ -374,7 +374,7 @@ func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesOnMember(ctx con
 // If memberSpecific is true, then the search is restricted to load balancers that belong to this member or belong
 // to all members. Can optionally retrieve only specific network load balancers by listen address.
 func (c *ClusterTx) GetNetworkLoadBalancers(ctx context.Context, networkID int64, memberSpecific bool, listenAddresses ...string) (map[int64]*api.NetworkLoadBalancer, error) {
-	var q *strings.Builder = &strings.Builder{}
+	var q = &strings.Builder{}
 	args := []any{networkID}
 
 	q.WriteString(`
@@ -406,7 +406,7 @@ func (c *ClusterTx) GetNetworkLoadBalancers(ctx context.Context, networkID int64
 	loadBalancers := make(map[int64]*api.NetworkLoadBalancer)
 
 	err = query.Scan(ctx, c.tx, q.String(), func(scan func(dest ...any) error) error {
-		var loadBalancerID int64 = int64(-1)
+		var loadBalancerID = int64(-1)
 		var backendsJSON, portsJSON string
 		var loadBalancer api.NetworkLoadBalancer
 

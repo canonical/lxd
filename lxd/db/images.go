@@ -774,7 +774,7 @@ func (c *ClusterTx) SetImageCachedAndLastUseDate(ctx context.Context, projectNam
 }
 
 // UpdateImage updates the image with the given ID.
-func (c *ClusterTx) UpdateImage(ctx context.Context, id int, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, project string, profileIds []int64) error {
+func (c *ClusterTx) UpdateImage(ctx context.Context, id int, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, project string, profileIDs []int64) error {
 	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
@@ -813,7 +813,7 @@ func (c *ClusterTx) UpdateImage(ctx context.Context, id int, fname string, sz in
 		}
 	}
 
-	if project != "" && profileIds != nil {
+	if project != "" && profileIDs != nil {
 		enabled, err := cluster.ProjectHasProfiles(ctx, c.tx, project)
 		if err != nil {
 			return err
@@ -835,7 +835,7 @@ func (c *ClusterTx) UpdateImage(ctx context.Context, id int, fname string, sz in
 		}
 
 		sql = `INSERT INTO images_profiles (image_id, profile_id) VALUES (?, ?)`
-		for _, profileID := range profileIds {
+		for _, profileID := range profileIDs {
 			_, err = c.tx.ExecContext(ctx, sql, id, profileID)
 			if err != nil {
 				return err
@@ -847,7 +847,7 @@ func (c *ClusterTx) UpdateImage(ctx context.Context, id int, fname string, sz in
 }
 
 // CreateImage creates a new image.
-func (c *ClusterTx) CreateImage(ctx context.Context, project string, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, typeName string, profileIds []int64) error {
+func (c *ClusterTx) CreateImage(ctx context.Context, project string, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, typeName string, profileIDs []int64) error {
 	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
@@ -914,9 +914,9 @@ func (c *ClusterTx) CreateImage(ctx context.Context, project string, fp string, 
 		}
 	}
 
-	if profileIds != nil {
+	if profileIDs != nil {
 		sql = `INSERT INTO images_profiles (image_id, profile_id) VALUES (?, ?)`
-		for _, profileID := range profileIds {
+		for _, profileID := range profileIDs {
 			_, err = c.tx.ExecContext(ctx, sql, id, profileID)
 			if err != nil {
 				return fmt.Errorf("Failed saving image profiles: %w", err)

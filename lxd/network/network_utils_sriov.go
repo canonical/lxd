@@ -334,6 +334,7 @@ func SRIOVFindRepresentorPort(nicEntries []fs.DirEntry, pfSwitchID string, pfID 
 	return ""
 }
 
+// SRIOVGetSwitchAndPFID returns the physical switch ID and PF id.
 func SRIOVGetSwitchAndPFID(parentDev string) (string, int, error) {
 	physPortName, err := os.ReadFile(filepath.Join(sysClassNet, parentDev, "phys_port_name"))
 	if err != nil {
@@ -370,7 +371,7 @@ func SRIOVGetSwitchAndPFID(parentDev string) (string, int, error) {
 // To do this it first looks at the ports on the OVS bridge specified and identifies which ones are PF ports in
 // switchdev mode. It then tries to find a free VF on that PF and the representor port associated to the VF ID.
 // It returns the PF name, representor port name, VF name, and VF ID.
-func SRIOVFindFreeVFAndRepresentor(state *state.State, ovsBridgeName string) (string, string, string, int, error) {
+func SRIOVFindFreeVFAndRepresentor(state *state.State, ovsBridgeName string) (port string, representorPort string, vfName string, vfID int, err error) {
 	nics, err := os.ReadDir(sysClassNet)
 	if err != nil {
 		return "", "", "", -1, fmt.Errorf("Failed to read directory %q: %w", sysClassNet, err)

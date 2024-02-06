@@ -4066,7 +4066,7 @@ func (b *lxdBackend) UpdateBucket(projectName string, bucketName string, bucket 
 		}
 	}
 
-	b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Update the database record.
 		return tx.UpdateStoragePoolBucket(ctx, b.id, curBucket.ID, &bucket)
 	})
@@ -4199,6 +4199,7 @@ func (b *lxdBackend) ImportBucket(projectName string, poolVol *backupConfig.Conf
 	if err != nil {
 		return nil, err
 	}
+
 	// Insert keys into the database.
 	for _, key := range keys {
 		var keyID int64
@@ -4643,7 +4644,7 @@ func (b *lxdBackend) DeleteBucketKey(projectName string, bucketName string, keyN
 		}
 	}
 
-	b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.DeleteStoragePoolBucketKey(ctx, bucket.ID, bucketKey.ID)
 	})
 	if err != nil {
@@ -7112,7 +7113,7 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 	return cleanup, err
 }
 
-// BackupCustomVolume backs up a custom volume.
+// BackupCustomVolume creates a backup of an existing custom volume.
 func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volume": volName, "optimized": optimized, "snapshots": snapshots})
 	l.Debug("BackupCustomVolume started")
@@ -7172,7 +7173,7 @@ func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarW
 	return nil
 }
 
-// CreateCustomVolumeFromISO creates a custom volume from ISO.
+// CreateCustomVolumeFromISO creates a custom volume from the given ISO source data.
 func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName string, srcData io.ReadSeeker, size int64, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volume": volName})
 	l.Debug("CreateCustomVolumeFromISO started")
@@ -7251,7 +7252,7 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 	return nil
 }
 
-// CreateCustomVolumeFromBackup creates a custom volume from backup.
+// CreateCustomVolumeFromBackup creates a custom volume from the given backup info.
 func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": srcBackup.Project, "volume": srcBackup.Name, "snapshots": srcBackup.Snapshots, "optimizedStorage": *srcBackup.OptimizedStorage})
 	l.Debug("CreateCustomVolumeFromBackup started")

@@ -465,14 +465,14 @@ func instancePostMigration(s *state.State, inst instance.Instance, newName strin
 
 	statefulStart := false
 	if inst.IsRunning() {
-		if stateful {
-			statefulStart = true
-			err := inst.Stop(true)
-			if err != nil {
-				return err
-			}
-		} else {
+		if !stateful {
 			return api.StatusErrorf(http.StatusBadRequest, "Instance must be stopped to move between pools statelessly")
+		}
+
+		statefulStart = true
+		err := inst.Stop(true)
+		if err != nil {
+			return err
 		}
 	}
 

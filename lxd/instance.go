@@ -282,6 +282,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 
 	var snapshots []instance.Instance
 
+	snapOps := []*operationlock.InstanceOperation{}
 	if !opts.instanceOnly {
 		if opts.refresh {
 			// Compare snapshots.
@@ -370,7 +371,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 					"path": "/",
 					"pool": instRootDiskDevice["pool"],
 				}
-			} else { //nolint:staticcheck // (keep the empty branch for the comment)
+			} else { //nolint:staticcheck,revive // (keep the empty branch for the comment)
 				// Snapshot has multiple root disk devices, we can't automatically fix this so
 				// leave alone so we don't prevent copy.
 			}
@@ -399,7 +400,11 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 			}
 
 			revert.Add(cleanup)
-			defer snapInstOp.Done(err)
+			revert.Add(func() {
+				snapInstOp.Done(err)
+			})
+
+			snapOps = append(snapOps, snapInstOp)
 		}
 	}
 
@@ -434,6 +439,10 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	err = inst.UpdateBackupFile()
 	if err != nil {
 		return nil, err
+	}
+
+	for _, op := range snapOps {
+		op.Done(nil)
 	}
 
 	revert.Success()

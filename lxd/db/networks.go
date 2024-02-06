@@ -204,16 +204,13 @@ func (c *ClusterTx) GetNetworkID(ctx context.Context, projectName string, name s
 }
 
 // GetNetworkNameAndProjectWithID returns the network name and project name for the given ID.
-func (c *ClusterTx) GetNetworkNameAndProjectWithID(ctx context.Context, networkID int) (string, string, error) {
-	var networkName string
-	var projectName string
-
+func (c *ClusterTx) GetNetworkNameAndProjectWithID(ctx context.Context, networkID int) (networkName string, projectName string, err error) {
 	q := `SELECT networks.name, projects.name FROM networks JOIN projects ON projects.id=networks.project_id WHERE networks.id=?`
 
 	inargs := []any{networkID}
 	outargs := []any{&networkName, &projectName}
 
-	err := dbQueryRowScan(ctx, c, q, inargs, outargs)
+	err = dbQueryRowScan(ctx, c, q, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", "", api.StatusErrorf(http.StatusNotFound, "Network not found")
@@ -566,7 +563,7 @@ func (c *ClusterTx) getNetworkByProjectAndName(ctx context.Context, projectName 
 // Returns network ID, network state, network type, and partially populated network info.
 func (c *ClusterTx) getPartialNetworkByProjectAndName(ctx context.Context, tx *ClusterTx, projectName string, networkName string, stateFilter NetworkState) (int64, NetworkState, NetworkType, *api.Network, error) {
 	var err error
-	var networkID int64 = int64(-1)
+	var networkID = int64(-1)
 	var network api.Network
 	var networkState NetworkState
 	var networkType NetworkType
@@ -679,10 +676,19 @@ func (c *ClusterTx) GetNetworkWithInterface(ctx context.Context, devName string)
 	for _, r := range result {
 		for _, entry := range strings.Split(r[2].(string), ",") {
 			entry = strings.TrimSpace(entry)
-
 			if entry == devName {
-				id = r[0].(int64)
-				name = r[1].(string)
+				entryID, ok := r[0].(int64)
+				if !ok {
+					continue
+				}
+
+				entryName, ok := r[1].(string)
+				if !ok {
+					continue
+				}
+
+				id = entryID
+				name = entryName
 			}
 		}
 	}

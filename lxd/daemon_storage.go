@@ -132,14 +132,14 @@ func daemonStorageMount(s *state.State) error {
 	return nil
 }
 
-func daemonStorageSplitVolume(volume string) (string, string, error) {
+func daemonStorageSplitVolume(volume string) (poolName string, volumeName string, err error) {
 	fields := strings.Split(volume, "/")
 	if len(fields) != 2 {
 		return "", "", fmt.Errorf("Invalid syntax for volume, must be <pool>/<volume>")
 	}
 
-	poolName := fields[0]
-	volumeName := fields[1]
+	poolName = fields[0]
+	volumeName = fields[1]
 
 	return poolName, volumeName, nil
 }

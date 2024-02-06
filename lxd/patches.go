@@ -227,12 +227,11 @@ func patchClusteringServerCertTrust(name string, d *Daemon) error {
 			return err
 		}
 
-		trustedServerCerts := make(map[string]*dbCluster.Certificate)
+		trustedServerCerts := make(map[string]dbCluster.Certificate)
 
 		for _, c := range dbCerts {
 			if c.Type == certificate.TypeServer {
-				cCopy := c
-				trustedServerCerts[c.Name] = &cCopy
+				trustedServerCerts[c.Name] = c
 			}
 		}
 
@@ -1237,7 +1236,15 @@ func patchStorageUnsetInvalidBlockSettings(_ string, d *Daemon) error {
 	s := d.State()
 
 	// Get all storage pool names.
-	pools, err := s.DB.Cluster.GetStoragePoolNames()
+	var pools []string
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		// Get all storage pool names.
+		pools, err = tx.GetStoragePoolNames(ctx)
+
+		return err
+	})
 	if err != nil {
 		// Skip the rest of the patch if no storage pools were found.
 		if api.StatusErrorCheck(err, http.StatusNotFound) {
@@ -1355,7 +1362,9 @@ func patchStorageUnsetInvalidBlockSettings(_ string, d *Daemon) error {
 				continue
 			}
 
-			err = s.DB.Cluster.UpdateStoragePoolVolume(vol.Project, vol.Name, volType, pool, vol.Description, config)
+			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				return tx.UpdateStoragePoolVolume(ctx, vol.Project, vol.Name, volType, pool, vol.Description, config)
+			})
 			if err != nil {
 				return fmt.Errorf("Failed updating volume %q in project %q on pool %q: %w", vol.Name, vol.Project, poolIDNameMap[pool], err)
 			}

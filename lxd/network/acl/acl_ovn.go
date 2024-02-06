@@ -547,18 +547,18 @@ func ovnRuleSubjectToOVNACLMatch(direction string, aclNameIDs map[string]int64, 
 	for _, subjectCriterion := range subjectCriteria {
 		if validate.IsNetworkRange(subjectCriterion) == nil {
 			criterionParts := strings.SplitN(subjectCriterion, "-", 2)
-			if len(criterionParts) > 1 {
-				ip := net.ParseIP(criterionParts[0])
-				if ip != nil {
-					protocol := "ip4"
-					if ip.To4() == nil {
-						protocol = "ip6"
-					}
-
-					fieldParts = append(fieldParts, fmt.Sprintf("(%s.%s >= %s && %s.%s <= %s)", protocol, direction, criterionParts[0], protocol, direction, criterionParts[1]))
-				}
-			} else {
+			if len(criterionParts) <= 1 {
 				return "", false, nil, fmt.Errorf("Invalid IP range %q", subjectCriterion)
+			}
+
+			ip := net.ParseIP(criterionParts[0])
+			if ip != nil {
+				protocol := "ip4"
+				if ip.To4() == nil {
+					protocol = "ip6"
+				}
+
+				fieldParts = append(fieldParts, fmt.Sprintf("(%s.%s >= %s && %s.%s <= %s)", protocol, direction, criterionParts[0], protocol, direction, criterionParts[1]))
 			}
 		} else {
 			// Try parsing subject as single IP or CIDR.

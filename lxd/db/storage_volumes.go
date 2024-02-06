@@ -130,7 +130,7 @@ type StorageVolume struct {
 // Accepts filters for narrowing down the results returned. If memberSpecific is true, then the search is
 // restricted to volumes that belong to this member or belong to all members.
 func (c *ClusterTx) GetStoragePoolVolumes(ctx context.Context, poolID int64, memberSpecific bool, filters ...StorageVolumeFilter) ([]*StorageVolume, error) {
-	var q *strings.Builder = &strings.Builder{}
+	var q = &strings.Builder{}
 	args := []any{poolID}
 
 	q.WriteString(`
@@ -202,8 +202,8 @@ func (c *ClusterTx) GetStoragePoolVolumes(ctx context.Context, poolID int64, mem
 	var volumes []*StorageVolume
 
 	err = query.Scan(ctx, c.Tx(), q.String(), func(scan func(dest ...any) error) error {
-		var volumeType int = int(-1)
-		var contentType int = int(-1)
+		var volumeType = int(-1)
+		var contentType = int(-1)
 		var vol StorageVolume
 
 		err := scan(&vol.Project, &vol.ID, &vol.Name, &vol.Location, &volumeType, &contentType, &vol.Description, &vol.CreatedAt)
@@ -683,7 +683,11 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
 	max := 0
 
 	for _, r := range results {
-		substr := r[0].(string)
+		substr, ok := r[0].(string)
+		if !ok {
+			continue
+		}
+
 		fields := strings.SplitN(pattern, "%d", 2)
 
 		var num int
