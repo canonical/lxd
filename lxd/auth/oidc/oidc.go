@@ -21,6 +21,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 const (
@@ -176,6 +177,37 @@ func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWrite
 	}
 
 	return claims.Subject, nil
+}
+
+// getGroupsFromClaims attempts to get the configured groups claim from the token claims and warns if it is not present
+// or is not a valid type. The custom claims are an unmarshalled JSON object.
+func (o *Verifier) getGroupsFromClaims(customClaims map[string]any) []string {
+	if o.groupsClaim == "" {
+		return nil
+	}
+
+	groupsClaimAny, ok := customClaims[o.groupsClaim]
+	if !ok {
+		logger.Warn("OIDC groups custom claim not found", logger.Ctx{"claim_name": o.groupsClaim})
+		return nil
+	}
+
+	groupsArr, ok := groupsClaimAny.([]any)
+	if !ok {
+		logger.Warn("Unexpected type for OIDC groups custom claim", logger.Ctx{"claim_name": o.groupsClaim, "claim_value": groupsClaimAny})
+	}
+
+	groups := make([]string, 0, len(groupsArr))
+	for _, groupNameAny := range groupsArr {
+		groupName, ok := groupNameAny.(string)
+		if !ok {
+			logger.Warn("Unexpected type for OIDC groups custom claim", logger.Ctx{"claim_name": o.groupsClaim, "claim_value": groupsClaimAny})
+		}
+
+		groups = append(groups, groupName)
+	}
+
+	return groups
 }
 
 // Login is a http.Handler than initiates the login flow for the UI.
