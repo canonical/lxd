@@ -227,8 +227,8 @@ func (c *Config) RemoteTokenExpiry() string {
 }
 
 // OIDCServer returns all the OpenID Connect settings needed to connect to a server.
-func (c *Config) OIDCServer() (issuer string, clientID string, audience string) {
-	return c.m.GetString("oidc.issuer"), c.m.GetString("oidc.client.id"), c.m.GetString("oidc.audience")
+func (c *Config) OIDCServer() (issuer string, clientID string, audience string, groupsClaim string) {
+	return c.m.GetString("oidc.issuer"), c.m.GetString("oidc.client.id"), c.m.GetString("oidc.audience"), c.m.GetString("oidc.groups.claim")
 }
 
 // ClusterHealingThreshold returns the configured healing threshold, i.e. the
@@ -674,6 +674,16 @@ var ConfigSchema = config.Schema{
 	//  shortdesc: Expected audience value for the application
 	"oidc.audience": {},
 
+	// lxdmeta:generate(entities=server; group=oidc; key=oidc.groups.claim)
+	// Specify a custom claim to be requested when performing OIDC flows.
+	// Configure a corresponding custom claim in your identity provider and
+	// add organization level groups to it. These can be mapped to LXD groups
+	// for automatic access control.
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Expected audience value for the application
+	"oidc.groups.claim": {},
 	// OVN networking global keys.
 
 	// lxdmeta:generate(entities=server; group=miscellaneous; key=network.ovn.integration_bridge)
