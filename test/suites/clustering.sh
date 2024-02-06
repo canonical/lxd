@@ -273,10 +273,10 @@ test_clustering_membership() {
 
   # Gracefully remove a node and check trust certificate is removed.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep node4
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'SELECT name FROM certificates WHERE type = 2' | grep node4
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'SELECT name FROM identities WHERE type = 3' | grep node4
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster remove node4
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep node4 || false
-  ! LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'SELECT name FROM certificates WHERE type = 2' | grep node4 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'SELECT name FROM identities WHERE type = 3' | grep node4 || false
 
   # The node isn't clustered anymore.
   ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list || false
