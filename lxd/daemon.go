@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -514,6 +515,16 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 				ctx = context.WithValue(ctx, request.CtxForwardedAddress, r.Header.Get(request.HeaderForwardedAddress))
 				ctx = context.WithValue(ctx, request.CtxForwardedUsername, r.Header.Get(request.HeaderForwardedUsername))
 				ctx = context.WithValue(ctx, request.CtxForwardedProtocol, r.Header.Get(request.HeaderForwardedProtocol))
+				forwardedIdentityProviderGroupsJSON := r.Header.Get(request.HeaderForwardedIdentityProviderGroups)
+				if forwardedIdentityProviderGroupsJSON != "" {
+					var forwardedIdentityProviderGroups []string
+					err = json.Unmarshal([]byte(forwardedIdentityProviderGroupsJSON), &forwardedIdentityProviderGroups)
+					if err != nil {
+						logger.Error("Failed unmarshalling identity provider groups from forwarded request header", logger.Ctx{"error": err})
+					} else {
+						ctx = context.WithValue(ctx, request.CtxForwardedIdentityProviderGroups, forwardedIdentityProviderGroups)
+					}
+				}
 			}
 
 			r = r.WithContext(ctx)
