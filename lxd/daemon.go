@@ -1264,7 +1264,7 @@ func (d *Daemon) init() error {
 	maasAPIURL, maasAPIKey = d.globalConfig.MAASController()
 	d.gateway.HeartbeatOfflineThreshold = d.globalConfig.OfflineThreshold()
 	lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiLabels, lokiLoglevel, lokiTypes := d.globalConfig.LokiServer()
-	oidcIssuer, oidcClientID, oidcAudience := d.globalConfig.OIDCServer()
+	oidcIssuer, oidcClientID, oidcAudience, oidcGroupsClaim := d.globalConfig.OIDCServer()
 	syslogSocketEnabled := d.localConfig.SyslogSocket()
 	instancePlacementScriptlet := d.globalConfig.InstancesPlacementScriptlet()
 
@@ -1288,7 +1288,7 @@ func (d *Daemon) init() error {
 
 	// Setup OIDC authentication.
 	if oidcIssuer != "" && oidcClientID != "" {
-		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcAudience, d.serverCert, nil)
+		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcAudience, d.serverCert, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
 		if err != nil {
 			return err
 		}
