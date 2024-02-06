@@ -109,6 +109,7 @@ const (
 	identityTypeCertificateClientUnrestricted int64 = 2
 	identityTypeCertificateServer             int64 = 3
 	identityTypeCertificateMetrics            int64 = 4
+	identityTypeOIDCClient                    int64 = 5
 )
 
 // Scan implements sql.Scanner for IdentityType. This converts the integer value back into the correct API constant or
@@ -137,6 +138,8 @@ func (i *IdentityType) Scan(value any) error {
 		*i = api.IdentityTypeCertificateServer
 	case identityTypeCertificateMetrics:
 		*i = api.IdentityTypeCertificateMetrics
+	case identityTypeOIDCClient:
+		*i = api.IdentityTypeOIDCClient
 	default:
 		return fmt.Errorf("Unknown identity type `%d`", identityTypeInt)
 	}
@@ -155,6 +158,8 @@ func (i IdentityType) Value() (driver.Value, error) {
 		return identityTypeCertificateServer, nil
 	case api.IdentityTypeCertificateMetrics:
 		return identityTypeCertificateMetrics, nil
+	case api.IdentityTypeOIDCClient:
+		return identityTypeOIDCClient, nil
 	}
 
 	return nil, fmt.Errorf("Invalid identity type %q", i)
