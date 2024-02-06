@@ -268,7 +268,7 @@ func allowPermission(objectType auth.ObjectType, entitlement auth.Entitlement, m
 
 // Convenience function around Authenticate.
 func (d *Daemon) checkTrustedClient(r *http.Request) error {
-	trusted, _, _, err := d.Authenticate(nil, r)
+	trusted, _, _, _, err := d.Authenticate(nil, r)
 	if !trusted || err != nil {
 		if err != nil {
 			return err
@@ -287,13 +287,13 @@ func (d *Daemon) checkTrustedClient(r *http.Request) error {
 // This does not perform authorization, only validates authentication.
 // Returns whether trusted or not, the username (or certificate fingerprint) of the trusted client, and the type of
 // client that has been authenticated (cluster, unix, oidc or tls).
-func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted bool, username string, method string, err error) {
+func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted bool, username string, method string, identityProviderGroups []string, err error) {
 	// Allow internal cluster traffic by checking against the trusted certfificates.
 	if r.TLS != nil {
 		for _, i := range r.TLS.PeerCertificates {
 			trusted, fingerprint := util.CheckTrustState(*i, d.identityCache.X509Certificates(api.IdentityTypeCertificateServer), d.endpoints.NetworkCert(), false)
 			if trusted {
-				return true, fingerprint, "cluster", nil
+				return true, fingerprint, "cluster", nil, nil
 			}
 		}
 	}
@@ -303,44 +303,44 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 		if w != nil {
 			cred, err := ucred.GetCredFromContext(r.Context())
 			if err != nil {
-				return false, "", "", err
+				return false, "", "", nil, err
 			}
 
 			u, err := user.LookupId(fmt.Sprintf("%d", cred.Uid))
 			if err != nil {
-				return true, fmt.Sprintf("uid=%d", cred.Uid), "unix", nil
+				return true, fmt.Sprintf("uid=%d", cred.Uid), "unix", nil, nil
 			}
 
-			return true, u.Username, "unix", nil
+			return true, u.Username, "unix", nil, nil
 		}
 
-		return true, "", "unix", nil
+		return true, "", "unix", nil, nil
 	}
 
 	// Devlxd unix socket credentials on main API.
 	if r.RemoteAddr == "@devlxd" {
-		return false, "", "", fmt.Errorf("Main API query can't come from /dev/lxd socket")
+		return false, "", "", nil, fmt.Errorf("Main API query can't come from /dev/lxd socket")
 	}
 
 	// Cluster notification with wrong certificate.
 	if isClusterNotification(r) {
-		return false, "", "", fmt.Errorf("Cluster notification isn't using trusted server certificate")
+		return false, "", "", nil, fmt.Errorf("Cluster notification isn't using trusted server certificate")
 	}
 
 	// Bad query, no TLS found.
 	if r.TLS == nil {
-		return false, "", "", fmt.Errorf("Bad/missing TLS on network query")
+		return false, "", "", nil, fmt.Errorf("Bad/missing TLS on network query")
 	}
 
 	if d.oidcVerifier != nil && d.oidcVerifier.IsRequest(r) {
 		result, err := d.oidcVerifier.Auth(d.shutdownCtx, w, r)
 		if err != nil {
-			return false, "", "", err
+			return false, "", "", nil, err
 		}
 
 		_, err = d.identityCache.Get(api.AuthenticationMethodOIDC, result.Subject)
 		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-			return false, "", "", fmt.Errorf("Failed getting OIDC identity from cache: %w", err)
+			return false, "", "", nil, fmt.Errorf("Failed getting OIDC identity from cache: %w", err)
 		} else if err != nil {
 			err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 				_, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
@@ -352,13 +352,13 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 				return err
 			})
 			if err != nil {
-				return false, "", "", fmt.Errorf("Failed to store OIDC identity information: %w", err)
+				return false, "", "", nil, fmt.Errorf("Failed to store OIDC identity information: %w", err)
 			}
 
 			updateIdentityCache(d)
 		}
 
-		return true, result.Subject, api.AuthenticationMethodOIDC, nil
+		return true, result.Subject, api.AuthenticationMethodOIDC, nil, nil
 	}
 
 	// Validate normal TLS access.
@@ -369,7 +369,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 		for _, i := range r.TLS.PeerCertificates {
 			trusted, username := util.CheckTrustState(*i, d.identityCache.X509Certificates(api.IdentityTypeCertificateMetrics), d.endpoints.NetworkCert(), trustCACertificates)
 			if trusted {
-				return true, username, api.AuthenticationMethodTLS, nil
+				return true, username, api.AuthenticationMethodTLS, nil, nil
 			}
 		}
 	}
@@ -377,12 +377,12 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 	for _, i := range r.TLS.PeerCertificates {
 		trusted, username := util.CheckTrustState(*i, d.identityCache.X509Certificates(api.IdentityTypeCertificateClientRestricted, api.IdentityTypeCertificateClientUnrestricted), d.endpoints.NetworkCert(), trustCACertificates)
 		if trusted {
-			return true, username, api.AuthenticationMethodTLS, nil
+			return true, username, api.AuthenticationMethodTLS, nil, nil
 		}
 	}
 
 	// Reject unauthorized.
-	return false, "", "", nil
+	return false, "", "", nil, nil
 }
 
 // State creates a new State instance linked to our internal db and os.
@@ -466,7 +466,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		// Authentication
-		trusted, username, protocol, err := d.Authenticate(w, r)
+		trusted, username, protocol, identityProviderGroups, err := d.Authenticate(w, r)
 		if err != nil {
 			_, ok := err.(*oidc.AuthError)
 			if ok {
@@ -504,6 +504,9 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			// Add authentication/authorization context data.
 			ctx := context.WithValue(r.Context(), request.CtxUsername, username)
 			ctx = context.WithValue(ctx, request.CtxProtocol, protocol)
+			if len(identityProviderGroups) > 0 {
+				ctx = context.WithValue(ctx, request.CtxIdentityProviderGroups, identityProviderGroups)
+			}
 
 			// Add forwarded requestor data.
 			if protocol == "cluster" {
