@@ -318,6 +318,9 @@ func (o *Verifier) setRelyingParty(host string) error {
 	}
 
 	oidcScopes := []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, oidc.ScopeEmail}
+	if o.groupsClaim != "" {
+		oidcScopes = append(oidcScopes, o.groupsClaim)
+	}
 
 	relyingParty, err := rp.NewRelyingPartyOIDC(o.issuer, o.clientID, "", fmt.Sprintf("https://%s/oidc/callback", host), oidcScopes, options...)
 	if err != nil {
