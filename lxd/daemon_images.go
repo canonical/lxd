@@ -451,7 +451,11 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 		}
 
 		// Use relatively short response header timeout so as not to hold the image lock open too long.
-		httpTransport := httpClient.Transport.(*http.Transport)
+		httpTransport, ok := httpClient.Transport.(*http.Transport)
+		if !ok {
+			return nil, fmt.Errorf("Invalid http client type")
+		}
+
 		httpTransport.ResponseHeaderTimeout = 30 * time.Second
 
 		req, err := http.NewRequest("GET", args.Server, nil)

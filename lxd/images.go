@@ -52,6 +52,7 @@ import (
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -449,7 +450,7 @@ func imgPostRemoteInfo(s *state.State, r *http.Request, req api.ImagesPost, op *
 			req.Profiles = []string{api.ProjectDefaultName}
 		}
 
-		profileIds := make([]int64, len(req.Profiles))
+		profileIDs := make([]int64, len(req.Profiles))
 
 		for i, profile := range req.Profiles {
 			profileID, _, err := tx.GetProfile(ctx, project, profile)
@@ -459,12 +460,12 @@ func imgPostRemoteInfo(s *state.State, r *http.Request, req api.ImagesPost, op *
 				return err
 			}
 
-			profileIds[i] = profileID
+			profileIDs[i] = profileID
 		}
 
 		// Update the DB record if needed
 		if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 || len(req.Profiles) > 0 {
-			err := tx.UpdateImage(ctx, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, project, profileIds)
+			err := tx.UpdateImage(ctx, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, project, profileIDs)
 			if err != nil {
 				return err
 			}
@@ -739,14 +740,20 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 
 	expiresAt, ok := metadata["expires_at"]
 	if ok {
-		info.ExpiresAt = expiresAt.(time.Time)
+		info.ExpiresAt, ok = expiresAt.(time.Time)
+		if !ok {
+			return nil, fmt.Errorf("Invalid type for field \"expires_at\"")
+		}
 	} else {
 		info.ExpiresAt = time.Unix(imageMeta.ExpiryDate, 0)
 	}
 
 	properties, ok := metadata["properties"]
 	if ok {
-		info.Properties = properties.(map[string]string)
+		info.Properties, ok = properties.(map[string]string)
+		if !ok {
+			return nil, fmt.Errorf("Invalid type for field \"properties\"")
+		}
 	} else {
 		info.Properties = imageMeta.Properties
 	}
@@ -760,10 +767,10 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		}
 	}
 
-	var profileIds []int64
+	var profileIDs []int64
 	if len(profilesHeaders) > 0 {
 		p, _ := url.ParseQuery(profilesHeaders)
-		profileIds = make([]int64, len(p["profile"]))
+		profileIDs = make([]int64, len(p["profile"]))
 
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			for i, val := range p["profile"] {
@@ -774,7 +781,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 					return err
 				}
 
-				profileIds[i] = profileID
+				profileIDs[i] = profileID
 			}
 
 			return nil
@@ -799,25 +806,28 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 	if exists {
 		// Do not create a database entry if the request is coming from the internal
 		// cluster communications for image synchronization
-		if isClusterNotification(r) {
-			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return tx.AddImageToLocalNode(ctx, project, info.Fingerprint)
-			})
-			if err != nil {
-				return nil, err
-			}
-		} else {
+		if !isClusterNotification(r) {
 			return &info, fmt.Errorf("Image with same fingerprint already exists")
+		}
+
+		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.AddImageToLocalNode(ctx, project, info.Fingerprint)
+		})
+		if err != nil {
+			return nil, err
 		}
 	} else {
 		public, ok := metadata["public"]
 		if ok {
-			info.Public = public.(bool)
+			info.Public, ok = public.(bool)
+			if !ok {
+				return nil, fmt.Errorf("Invalid type for key \"public\"")
+			}
 		}
 
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Create the database entry
-			return tx.CreateImage(ctx, project, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type, profileIds)
+			return tx.CreateImage(ctx, project, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type, profileIDs)
 		})
 		if err != nil {
 			return nil, err
@@ -978,18 +988,18 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 	if !trusted && (secret == "" || fingerprint == "") {
 		return response.Forbidden(nil)
-	} else {
-		// We need to invalidate the secret whether the source is trusted or not.
-		op, err := imageValidSecret(s, r, projectName, fingerprint, secret)
-		if err != nil {
-			return response.SmartError(err)
-		}
+	}
 
-		if op != nil {
-			imageMetadata = op.Metadata
-		} else if !trusted {
-			return response.Forbidden(nil)
-		}
+	// We need to invalidate the secret whether the source is trusted or not.
+	op, err := imageValidSecret(s, r, projectName, fingerprint, secret)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if op != nil {
+		imageMetadata = op.Metadata
+	} else if !trusted {
+		return response.Forbidden(nil)
 	}
 
 	instanceType, err := urlInstanceTypeDetect(r)
@@ -1135,7 +1145,10 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			// Keep secret if available
 			secret, ok := op.Metadata()["secret"]
 			if ok {
-				metadata["secret"] = secret.(string)
+				metadata["secret"], ok = secret.(string)
+				if !ok {
+					return fmt.Errorf("Invalid type for field \"secret\"")
+				}
 			}
 
 			_ = op.UpdateMetadata(metadata)
@@ -1153,7 +1166,10 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		// Apply any provided alias
 		aliases, ok := imageMetadata["aliases"]
 		if ok {
-			req.Aliases = aliases.([]api.ImageAlias)
+			req.Aliases, ok = aliases.([]api.ImageAlias)
+			if !ok {
+				return fmt.Errorf("Invalid type for field \"aliases\"")
+			}
 		}
 
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -1212,13 +1228,13 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.ImageDownload, nil, metadata, run, nil, nil, r)
+	imageOp, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.ImageDownload, nil, metadata, run, nil, nil, r)
 	if err != nil {
 		cleanup(builddir, post)
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return operations.OperationResponse(imageOp)
 }
 
 func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
@@ -1752,9 +1768,11 @@ func autoUpdateImages(ctx context.Context, s *state.State) error {
 		var newImage *api.Image
 
 		for _, image := range images {
-			filter := dbCluster.ImageFilter{Project: &image.Project}
+			imgProject := image.Project
+			filter := dbCluster.ImageFilter{Project: &imgProject}
 			if image.Public {
-				filter.Public = &image.Public
+				imgPublic := image.Public
+				filter.Public = &imgPublic
 			}
 
 			var imageInfo *api.Image
@@ -1810,7 +1828,6 @@ func autoUpdateImages(ctx context.Context, s *state.State) error {
 
 				return nil
 			})
-
 		}
 	}
 
@@ -1892,6 +1909,8 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 		return err
 	}
 
+	reverter := revert.New()
+	defer reverter.Fail()
 	for _, nodeAddress := range nodes {
 		if nodeAddress == localClusterAddress {
 			continue
@@ -1922,7 +1941,11 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 
 			val := resp.Config["storage.images_volume"]
 			if val != nil {
-				vol = val.(string)
+				var ok bool
+				vol, ok = val.(string)
+				if !ok {
+					return fmt.Errorf("Invalid type for field \"storage.images_volume\"")
+				}
 			}
 
 			skipDistribution := false
@@ -1965,19 +1988,24 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 			return err
 		}
 
-		defer func() { _ = metaFile.Close() }()
+		reverter.Add(func() {
+			_ = metaFile.Close()
+		})
 
 		createArgs.MetaFile = metaFile
 		createArgs.MetaName = filepath.Base(imageMetaPath)
 		createArgs.Type = newImage.Type
 
+		var rootfsFile *os.File
 		if shared.PathExists(imageRootfsPath) {
-			rootfsFile, err := os.Open(imageRootfsPath)
+			rootfsFile, err = os.Open(imageRootfsPath)
 			if err != nil {
 				return err
 			}
 
-			defer func() { _ = rootfsFile.Close() }()
+			reverter.Add(func() {
+				_ = rootfsFile.Close()
+			})
 
 			createArgs.RootfsFile = rootfsFile
 			createArgs.RootfsName = filepath.Base(imageRootfsPath)
@@ -2023,7 +2051,21 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 				logger.Error("Failed deleting old image from storage pool", logger.Ctx{"err": err, "remote": nodeAddress, "pool": poolName, "fingerprint": oldFingerprint})
 			}
 		}
+
+		err = metaFile.Close()
+		if err != nil {
+			return err
+		}
+
+		if rootfsFile != nil {
+			err = rootfsFile.Close()
+			if err != nil {
+				return err
+			}
+		}
 	}
+
+	reverter.Success()
 
 	return nil
 }
@@ -3054,7 +3096,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 		req.Profiles = []string{"default"}
 	}
 
-	profileIds := make([]int64, len(req.Profiles))
+	profileIDs := make([]int64, len(req.Profiles))
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		for i, profile := range req.Profiles {
@@ -3065,10 +3107,10 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			profileIds[i] = profileID
+			profileIDs[i] = profileID
 		}
 
-		return tx.UpdateImage(ctx, id, info.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, req.Properties, projectName, profileIds)
+		return tx.UpdateImage(ctx, id, info.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, req.Properties, projectName, profileIDs)
 	})
 	if err != nil {
 		if response.IsNotFoundError(err) {
@@ -4190,7 +4232,10 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 
 		val, ok := opAPI.Metadata["secret"]
 		if ok {
-			secret = val.(string)
+			secret, ok = val.(string)
+			if !ok {
+				return fmt.Errorf("Invalid type for field \"secret\"")
+			}
 		}
 
 		opWaitAPI, _, err := remote.GetOperationWaitSecret(opAPI.ID, secret, -1)
@@ -4499,14 +4544,14 @@ func autoSyncImages(ctx context.Context, s *state.State) error {
 
 	for fingerprint, projects := range imageProjectInfo {
 		ch := make(chan error)
-		go func() {
-			err := imageSyncBetweenNodes(s, nil, projects[0], fingerprint)
+		go func(fingerprint string, project string) {
+			err := imageSyncBetweenNodes(s, nil, project, fingerprint)
 			if err != nil {
 				logger.Error("Failed to synchronize images", logger.Ctx{"err": err, "fingerprint": fingerprint})
 			}
 
 			ch <- nil
-		}()
+		}(fingerprint, projects[0])
 
 		select {
 		case <-ctx.Done():

@@ -88,10 +88,25 @@ func TestImportPreClusteringData(t *testing.T) {
 	require.NoError(t, err)
 
 	// networks
-	networks, err := c.GetNetworks(api.ProjectDefaultName)
+	var networks []string
+	err = c.Transaction(context.TODO(), func(ctx context.Context, ct *db.ClusterTx) error {
+		var err error
+		networks, err = ct.GetNetworks(ctx, api.ProjectDefaultName)
+
+		return err
+	})
+
 	require.NoError(t, err)
 	assert.Equal(t, []string{"lxcbr0"}, networks)
-	id, network, _, err := c.GetNetworkInAnyState(api.ProjectDefaultName, "lxcbr0")
+	var id int64
+	var network *api.Network
+	err = c.Transaction(context.TODO(), func(ctx context.Context, ct *db.ClusterTx) error {
+		var err error
+		id, network, _, err = ct.GetNetworkInAnyState(ctx, api.ProjectDefaultName, "lxcbr0")
+
+		return err
+	})
+
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 	assert.Equal(t, "true", network.Config["ipv4.nat"])
@@ -99,10 +114,24 @@ func TestImportPreClusteringData(t *testing.T) {
 	assert.Equal(t, []string{"none"}, network.Locations)
 
 	// storage
-	pools, err := c.GetStoragePoolNames()
+	var pools []string
+	err = c.Transaction(context.TODO(), func(ctx context.Context, ct *db.ClusterTx) error {
+		var err error
+		pools, err = ct.GetStoragePoolNames(ctx)
+
+		return err
+	})
+
 	require.NoError(t, err)
 	assert.Equal(t, []string{"default"}, pools)
-	id, pool, _, err := c.GetStoragePool("default")
+	var pool *api.StoragePool
+	err = c.Transaction(context.TODO(), func(ctx context.Context, ct *db.ClusterTx) error {
+		var err error
+		id, pool, _, err = ct.GetStoragePool(ctx, api.ProjectDefaultName)
+
+		return err
+	})
+
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 	assert.Equal(t, "/foo/bar", pool.Config["source"])
@@ -154,10 +183,24 @@ func TestImportPreClusteringData(t *testing.T) {
 	require.NoError(t, err)
 
 	// profiles
-	profiles, err := c.GetProfileNames("default")
+	var profiles []string
+	err = c.Transaction(context.TODO(), func(ctx context.Context, ct *db.ClusterTx) error {
+		var err error
+		profiles, err = ct.GetProfileNames(ctx, api.ProjectDefaultName)
+
+		return err
+	})
+
 	require.NoError(t, err)
 	assert.Equal(t, []string{"default", "users"}, profiles)
-	_, profile, err := c.GetProfile("default", "default")
+	var profile *api.Profile
+	err = c.Transaction(context.TODO(), func(ctx context.Context, ct *db.ClusterTx) error {
+		var err error
+		_, profile, err = ct.GetProfile(ctx, api.ProjectDefaultName, "default")
+
+		return err
+	})
+
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{}, profile.Config)
 	assert.Equal(t,
@@ -171,7 +214,13 @@ func TestImportPreClusteringData(t *testing.T) {
 				"nictype": "bridged",
 				"parent":  "lxdbr0"}},
 		profile.Devices)
-	_, profile, err = c.GetProfile("default", "users")
+	err = c.Transaction(context.TODO(), func(ctx context.Context, ct *db.ClusterTx) error {
+		var err error
+		_, profile, err = ct.GetProfile(ctx, api.ProjectDefaultName, "users")
+
+		return err
+	})
+
 	require.NoError(t, err)
 	assert.Equal(t,
 		map[string]string{

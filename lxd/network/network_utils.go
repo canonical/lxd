@@ -1284,18 +1284,18 @@ func InterfaceStatus(nicName string) ([]net.IP, bool, error) {
 }
 
 // ParsePortRange validates a port range in the form start-end.
-func ParsePortRange(r string) (int64, int64, error) {
+func ParsePortRange(r string) (base int64, size int64, err error) {
 	entries := strings.Split(r, "-")
 	if len(entries) > 2 {
 		return -1, -1, fmt.Errorf("Invalid port range %q", r)
 	}
 
-	base, err := strconv.ParseInt(entries[0], 10, 64)
+	base, err = strconv.ParseInt(entries[0], 10, 64)
 	if err != nil {
 		return -1, -1, err
 	}
 
-	size := int64(1)
+	size = int64(1)
 	if len(entries) > 1 {
 		size, err = strconv.ParseInt(entries[1], 10, 64)
 		if err != nil {
@@ -1345,14 +1345,14 @@ func ParseIPCIDRToNet(ipAddressCIDR string) (*net.IPNet, error) {
 
 // IPToNet converts an IP to a single host IPNet.
 func IPToNet(ip net.IP) net.IPNet {
-	len := 32
+	bits := 32
 	if ip.To4() == nil {
-		len = 128
+		bits = 128
 	}
 
 	return net.IPNet{
 		IP:   ip,
-		Mask: net.CIDRMask(len, len),
+		Mask: net.CIDRMask(bits, bits),
 	}
 }
 

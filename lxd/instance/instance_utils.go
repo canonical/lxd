@@ -55,14 +55,14 @@ func exclusiveConfigKeys(key1 string, key2 string, config map[string]string) (va
 		return "", false, fmt.Errorf("Mutually exclusive keys %s and %s are set", key1, key2)
 	}
 
-	val, ok = config[key1]
+	_, ok = config[key1]
 	if ok {
-		return
+		return "", false, nil
 	}
 
-	val, ok = config[key2]
+	_, ok = config[key2]
 	if ok {
-		return
+		return "", false, nil
 	}
 
 	return "", false, nil
@@ -180,7 +180,7 @@ func validConfigKey(os *sys.OS, key string, value string, instanceType instancet
 	return nil
 }
 
-func lxcParseRawLXC(line string) (string, string, error) {
+func lxcParseRawLXC(line string) (key string, val string, err error) {
 	// Ignore empty lines
 	if len(line) == 0 {
 		return "", "", nil
@@ -200,8 +200,8 @@ func lxcParseRawLXC(line string) (string, string, error) {
 		return "", "", fmt.Errorf("Invalid raw.lxc line: %s", line)
 	}
 
-	key := strings.ToLower(strings.Trim(membs[0], " \t"))
-	val := strings.Trim(membs[1], " \t")
+	key = strings.ToLower(strings.Trim(membs[0], " \t"))
+	val = strings.Trim(membs[1], " \t")
 	return key, val, nil
 }
 

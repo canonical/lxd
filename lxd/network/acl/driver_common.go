@@ -261,7 +261,7 @@ func (d *common) validateConfigMap(config map[string]string, rules map[string]fu
 
 	// Run the validator against each field.
 	for k, validator := range rules {
-		checkedFields[k] = struct{}{} //Mark field as checked.
+		checkedFields[k] = struct{}{} // Mark field as checked.
 		err := validator(config[k])
 		if err != nil {
 			return fmt.Errorf("Invalid value for config option %q: %w", k, err)
@@ -449,7 +449,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 // validateRuleSubjects checks that the source or destination subjects for a rule are valid.
 // Accepts a validSubjectNames list of valid ACL or special classifier names.
 // Returns whether the subjects include names, IPv4 and IPv6 addresses respectively.
-func (d *common) validateRuleSubjects(fieldName string, direction ruleDirection, subjects []string, validSubjectNames []string) (bool, bool, bool, error) {
+func (d *common) validateRuleSubjects(fieldName string, direction ruleDirection, subjects []string, validSubjectNames []string) (hasName bool, hasIPv4 bool, hasIPv6 bool, err error) {
 	// Check if named subjects are allowed in field/direction combination.
 	allowSubjectNames := false
 	if (fieldName == "Source" && direction == ruleDirectionIngress) || (fieldName == "Destination" && direction == ruleDirectionEgress) {
@@ -542,10 +542,6 @@ func (d *common) validateRuleSubjects(fieldName string, direction ruleDirection,
 
 		return 0, fmt.Errorf("Invalid subject %q", subject)
 	}
-
-	hasIPv4 := false
-	hasIPv6 := false
-	hasName := false
 
 	for _, s := range subjects {
 		ipVersion, err := validSubject(s)

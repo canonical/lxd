@@ -51,7 +51,7 @@ func (s *Server) start(address string) error {
 	address = util.CanonicalNetworkAddress(address, 53)
 
 	// Setup the handler.
-	handler := dnsHandler{}
+	handler := &dnsHandler{}
 	handler.server = s
 
 	// Spawn the DNS server.

@@ -73,7 +73,7 @@ func (c *ClusterTx) GetNetworkACLIDsByNames(ctx context.Context, project string)
 
 // GetNetworkACL returns the Network ACL with the given name in the given project.
 func (c *ClusterTx) GetNetworkACL(ctx context.Context, projectName string, name string) (int64, *api.NetworkACL, error) {
-	var id int64 = int64(-1)
+	var id = int64(-1)
 	var ingressJSON string
 	var egressJSON string
 
@@ -128,13 +128,10 @@ func (c *ClusterTx) GetNetworkACL(ctx context.Context, projectName string, name 
 }
 
 // GetNetworkACLNameAndProjectWithID returns the network ACL name and project name for the given ID.
-func (c *ClusterTx) GetNetworkACLNameAndProjectWithID(ctx context.Context, networkACLID int) (string, string, error) {
-	var networkACLName string
-	var projectName string
-
+func (c *ClusterTx) GetNetworkACLNameAndProjectWithID(ctx context.Context, networkACLID int) (networkACLName string, projectName string, err error) {
 	q := `SELECT networks_acls.name, projects.name FROM networks_acls JOIN projects ON projects.id=networks.project_id WHERE networks_acls.id=?`
 
-	err := c.tx.QueryRowContext(ctx, q, networkACLID).Scan(&networkACLName, &projectName)
+	err = c.tx.QueryRowContext(ctx, q, networkACLID).Scan(&networkACLName, &projectName)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", "", api.StatusErrorf(http.StatusNotFound, "Network ACL not found")

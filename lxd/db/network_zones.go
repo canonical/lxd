@@ -112,7 +112,7 @@ func (c *ClusterTx) GetNetworkZoneKeys(ctx context.Context) (map[string]string, 
 
 // GetNetworkZone returns the Network zone with the given name.
 func (c *ClusterTx) GetNetworkZone(ctx context.Context, name string) (int64, string, *api.NetworkZone, error) {
-	var id int64 = int64(-1)
+	var id = int64(-1)
 
 	zone := api.NetworkZone{
 		Name: name,
@@ -151,7 +151,7 @@ func (c *ClusterTx) GetNetworkZone(ctx context.Context, name string) (int64, str
 
 // GetNetworkZoneByProject returns the Network zone with the given name in the given project.
 func (c *ClusterTx) GetNetworkZoneByProject(ctx context.Context, projectName string, name string) (int64, *api.NetworkZone, error) {
-	var id int64 = int64(-1)
+	var id = int64(-1)
 
 	zone := api.NetworkZone{
 		Name: name,
@@ -324,7 +324,7 @@ func (c *ClusterTx) GetNetworkZoneRecordNames(ctx context.Context, zone int64) (
 
 // GetNetworkZoneRecord returns the network zone record for the given zone and name.
 func (c *ClusterTx) GetNetworkZoneRecord(ctx context.Context, zone int64, name string) (int64, *api.NetworkZoneRecord, error) {
-	var id int64 = int64(-1)
+	var id = int64(-1)
 
 	record := api.NetworkZoneRecord{
 		Name: name,

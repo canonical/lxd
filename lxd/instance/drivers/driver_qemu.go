@@ -1404,32 +1404,32 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// where 9p isn't available in the VM guest OS.
 	configSockPath, configPIDPath := d.configVirtiofsdPaths()
 	revertFunc, unixListener, err := device.DiskVMVirtiofsdStart(d.state.OS.ExecPath, d, configSockPath, configPIDPath, "", configMntPath, nil)
-	if err != nil {
-		var errUnsupported device.UnsupportedError
-		if !errors.As(err, &errUnsupported) {
-			// Resolve previous warning.
-			_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
-			err = fmt.Errorf("Failed to setup virtiofsd for config drive: %w", err)
-			op.Done(err)
-			return err
-		}
+	if err == nil {
+		// Resolve previous warning.
+		_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
+		err = fmt.Errorf("Failed to setup virtiofsd for config drive: %w", err)
+		op.Done(err)
+		return err
+	}
 
-		d.logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback", logger.Ctx{"err": errUnsupported})
-
-		if errUnsupported == device.ErrMissingVirtiofsd {
-			_ = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				// Create a warning if virtiofsd is missing.
-				return tx.UpsertWarning(ctx, d.node, d.project.Name, entity.TypeInstance, d.ID(), warningtype.MissingVirtiofsd, "Using 9p as a fallback")
-			})
-		} else {
-			// Resolve previous warning.
-			_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
-		}
-	} else {
+	var errUnsupported device.UnsupportedError
+	if !errors.As(err, &errUnsupported) {
 		revert.Add(revertFunc)
 
 		// Request the unix listener is closed after QEMU has connected on startup.
 		defer func() { _ = unixListener.Close() }()
+	}
+
+	d.logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback", logger.Ctx{"err": errUnsupported})
+
+	if errUnsupported == device.ErrMissingVirtiofsd {
+		_ = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			// Create a warning if virtiofsd is missing.
+			return tx.UpsertWarning(ctx, d.node, d.project.Name, entity.TypeInstance, d.ID(), warningtype.MissingVirtiofsd, "Using 9p as a fallback")
+		})
+	} else {
+		// Resolve previous warning.
+		_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
 	}
 
 	// Get qemu configuration and check qemu is installed.
@@ -2059,7 +2059,7 @@ func (d *qemu) setupNvram() error {
 	return nil
 }
 
-func (d *qemu) qemuArchConfig(arch int) (qemuPath string, qemuBus string, err error) {
+func (d *qemu) qemuArchConfig(arch int) (path string, bus string, err error) {
 	if arch == osarch.ARCH_64BIT_INTEL_X86 {
 		path, err := exec.LookPath("qemu-system-x86_64")
 		if err != nil {
@@ -4211,9 +4211,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 					return fmt.Errorf("Error opening netdev file for queue %d: %w", i, err)
 				}
 
-				// Close file after device has been added.
-				//revive:disable-next-line:defer
-				defer func() { _ = devFile.Close() }()
+				reverter.Add(func() { _ = devFile.Close() })
 
 				devFDName := fmt.Sprintf("%s.%d", devFile.Name(), i)
 				err = m.SendFile(devFDName, devFile)
@@ -4222,6 +4220,10 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 				}
 
 				reverter.Add(func() { _ = m.CloseFile(devFDName) })
+				err = devFile.Close()
+				if err != nil {
+					return err
+				}
 
 				fds = append(fds, devFDName)
 
@@ -4232,14 +4234,16 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 						return fmt.Errorf("Error opening /dev/vhost-net for queue %d: %w", i, err)
 					}
 
-					// Close file after device has been added.
-					//revive:disable-next-line:defer
-					defer func() { _ = vhostFile.Close() }()
-
+					reverter.Add(func() { _ = vhostFile.Close() })
 					vhostFDName := fmt.Sprintf("%s.%d", vhostFile.Name(), i)
 					err = m.SendFile(vhostFDName, vhostFile)
 					if err != nil {
 						return fmt.Errorf("Failed to send %q file descriptor for queue %d: %w", vhostFDName, i, err)
+					}
+
+					err = vhostFile.Close()
+					if err != nil {
+						return err
 					}
 
 					reverter.Add(func() { _ = m.CloseFile(vhostFDName) })
@@ -7217,7 +7221,8 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			for _, name := range offerHeader.SnapshotNames {
 				name := name // Local var.
 				base := instance.SnapshotToProtobuf(apiInstSnap)
-				base.Name = &name
+				baseName := name
+				base.Name = &baseName
 				snapshots = append(snapshots, base)
 			}
 		} else {
@@ -7251,6 +7256,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// A zero length Snapshots slice indicates volume only migration in
 		// VolumeTargetArgs. So if VolumeOnly was requested, do not populate them.
+		snapOps := []operationlock.InstanceOperation{}
 		if args.Snapshots {
 			volTargetArgs.Snapshots = make([]string, 0, len(snapshots))
 			for _, snap := range snapshots {
@@ -7282,8 +7288,11 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					}
 
 					revert.Add(cleanup)
-					//revive:disable-next-line:defer
-					defer snapInstOp.Done(err)
+					revert.Add(func() {
+						snapInstOp.Done(err)
+					})
+
+					snapOps = append(snapOps, *snapInstOp)
 				}
 			}
 		}
@@ -7339,6 +7348,10 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			if err != nil {
 				return err
 			}
+		}
+
+		for _, op := range snapOps {
+			op.Done(nil)
 		}
 
 		return nil

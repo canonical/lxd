@@ -896,16 +896,14 @@ func (c *ClusterTx) DeleteInstance(ctx context.Context, project, name string) er
 
 // GetInstanceProjectAndName returns the project and the name of the instance
 // with the given ID.
-func (c *ClusterTx) GetInstanceProjectAndName(ctx context.Context, id int) (string, string, error) {
-	var project string
-	var name string
+func (c *ClusterTx) GetInstanceProjectAndName(ctx context.Context, id int) (project string, name string, err error) {
 	q := `
 SELECT projects.name, instances.name
   FROM instances
   JOIN projects ON projects.id = instances.project_id
 WHERE instances.id=?
 `
-	err := c.tx.QueryRowContext(ctx, q, id).Scan(&project, &name)
+	err = c.tx.QueryRowContext(ctx, q, id).Scan(&project, &name)
 	if err == sql.ErrNoRows {
 		return "", "", api.StatusErrorf(http.StatusNotFound, "Instance not found")
 	}
@@ -1014,7 +1012,11 @@ ORDER BY instances_snapshots.creation_date, instances_snapshots.id
 	max := 0
 
 	for _, r := range results {
-		snapOnlyName := r[0].(string)
+		snapOnlyName, ok := r[0].(string)
+		if !ok {
+			continue
+		}
+
 		fields := strings.SplitN(pattern, "%d", 2)
 
 		var num int

@@ -2120,7 +2120,7 @@ func (n *bridge) applyBootRoutesV6(routes []string) {
 	}
 }
 
-func (n *bridge) fanAddress(underlay *net.IPNet, overlay *net.IPNet) (cidr string, ifaceName string, subnet string, err error) {
+func (n *bridge) fanAddress(underlay *net.IPNet, overlay *net.IPNet) (cidr string, dev string, ipStr string, err error) {
 	// Quick checks.
 	underlaySize, _ := underlay.Mask.Size()
 	if underlaySize != 16 && underlaySize != 24 {
@@ -2142,7 +2142,7 @@ func (n *bridge) fanAddress(underlay *net.IPNet, overlay *net.IPNet) (cidr strin
 		return "", "", "", err
 	}
 
-	ipStr := ip.String()
+	ipStr = ip.String()
 
 	// Force into IPv4 format
 	ipBytes := ip.To4()

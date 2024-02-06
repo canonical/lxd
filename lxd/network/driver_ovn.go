@@ -91,7 +91,7 @@ func (n *ovn) DBType() db.NetworkType {
 	return db.NetworkTypeOVN
 }
 
-// Config returns the network driver info.
+// Info returns the network driver info.
 func (n *ovn) Info() Info {
 	info := n.common.Info()
 	info.Projects = true
@@ -103,6 +103,7 @@ func (n *ovn) Info() Info {
 	return info
 }
 
+// State returns the network state.
 func (n *ovn) State() (*api.NetworkState, error) {
 	var addresses []api.NetworkStateAddress
 	IPv4Net, err := ParseIPCIDRToNet(n.config["ipv4.address"])
@@ -3692,7 +3693,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 			}
 
 			if ip == nil {
-				continue //No qualifying target IP from DNS records.
+				continue // No qualifying target IP from DNS records.
 			}
 
 			err = client.LogicalRouterDNATSNATAdd(n.getRouterName(), ip, ip, true, true)

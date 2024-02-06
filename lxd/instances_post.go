@@ -284,16 +284,16 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 	if req.Source.Refresh || (clusterMoveSourceName != "" && clusterMoveSourceName == req.Name) {
 		inst, err = instance.LoadByProjectAndName(s, projectName, req.Name)
 		if err != nil {
-			if response.IsNotFoundError(err) {
-				if clusterMoveSourceName != "" {
-					// Cluster move doesn't allow renaming as part of migration so fail here.
-					return response.SmartError(fmt.Errorf("Cluster move doesn't allow renaming"))
-				}
-
-				req.Source.Refresh = false
-			} else {
+			if !response.IsNotFoundError(err) {
 				return response.SmartError(err)
 			}
+
+			if clusterMoveSourceName != "" {
+				// Cluster move doesn't allow renaming as part of migration so fail here.
+				return response.SmartError(fmt.Errorf("Cluster move doesn't allow renaming"))
+			}
+
+			req.Source.Refresh = false
 		}
 	}
 
@@ -1152,12 +1152,9 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	}
 }
 
-func instanceFindStoragePool(s *state.State, projectName string, req *api.InstancesPost) (string, string, string, map[string]string, response.Response) {
+func instanceFindStoragePool(s *state.State, projectName string, req *api.InstancesPost) (storagePool string, storagePoolProfile string, localRootDiskDeviceKey string, localRootDiskDevice map[string]string, resp response.Response) {
 	// Grab the container's root device if one is specified
-	storagePool := ""
-	storagePoolProfile := ""
-
-	localRootDiskDeviceKey, localRootDiskDevice, _ := instancetype.GetRootDiskDevice(req.Devices)
+	localRootDiskDeviceKey, localRootDiskDevice, _ = instancetype.GetRootDiskDevice(req.Devices)
 	if localRootDiskDeviceKey != "" {
 		storagePool = localRootDiskDevice["pool"]
 	}
@@ -1186,7 +1183,7 @@ func instanceFindStoragePool(s *state.State, projectName string, req *api.Instan
 					return err
 				}
 
-			k, v, _ := instancetype.GetRootDiskDevice(p.Devices)
+				k, v, _ := instancetype.GetRootDiskDevice(p.Devices)
 				if k != "" && v["pool"] != "" {
 					// Keep going as we want the last one in the profile chain
 					storagePool = v["pool"]
@@ -1299,7 +1296,12 @@ func clusterCopyContainerInternal(s *state.State, r *http.Request, source instan
 
 	websockets := map[string]string{}
 	for k, v := range opAPI.Metadata {
-		websockets[k] = v.(string)
+		ws, ok := v.(string)
+		if !ok {
+			continue
+		}
+
+		websockets[k] = ws
 	}
 
 	// Reset the source for a migration

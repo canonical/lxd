@@ -1690,6 +1690,8 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 // deviceHandleMounts live attaches or detaches mounts on a container.
 // If the mount DevPath is empty the mount action is treated as unmount.
 func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
+	reverter := revert.New()
+	defer reverter.Fail()
 	for _, mount := range mounts {
 		if mount.DevPath != "" {
 			flags := 0
@@ -1727,8 +1729,7 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 				return err
 			}
 
-			//revive:disable-next-line:defer
-			defer func() { _ = files.Close() }()
+			reverter.Add(func() { _ = files.Close() })
 
 			_, err = files.Lstat(relativeTargetPath)
 			if err == nil {
@@ -1745,8 +1746,15 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 					d.logger.Warn("Could not remove the device path inside container", logger.Ctx{"err": err})
 				}
 			}
+
+			err = files.Close()
+			if err != nil {
+				return err
+			}
 		}
 	}
+
+	reverter.Success()
 
 	return nil
 }
@@ -4024,6 +4032,9 @@ func (d *lxc) CGroupSet(key string, value string) error {
 
 // Update applies updated config.
 func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
+	reverter := revert.New()
+	defer reverter.Fail()
+
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
 		return err
@@ -4433,9 +4444,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 						return err
 					}
 
-					//revive:disable-next-line:defer
-					defer func() { _ = files.Close() }()
-
+					reverter.Add(func() { _ = files.Close() })
 					_, err = files.Lstat("/dev/lxd")
 					if err == nil {
 						err = d.removeMount("/dev/lxd")
@@ -4447,6 +4456,11 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 						if err != nil {
 							return err
 						}
+					}
+
+					err = files.Close()
+					if err != nil {
+						return err
 					}
 				}
 			} else if key == "linux.kernel_modules" && value != "" {
@@ -4853,6 +4867,8 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceUpdated.Event(d, nil))
 		}
 	}
+
+	reverter.Success()
 
 	return nil
 }
@@ -6052,7 +6068,8 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			for _, name := range offerHeader.SnapshotNames {
 				name := name // Local var.
 				base := instance.SnapshotToProtobuf(apiInstSnap)
-				base.Name = &name
+				baseName := name
+				base.Name = &baseName
 				snapshots = append(snapshots, base)
 			}
 		} else {
@@ -6098,6 +6115,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// A zero length Snapshots slice indicates volume only migration in
 		// VolumeTargetArgs. So if VolumeOnly was requested, do not populate them.
+		snapOps := []*operationlock.InstanceOperation{}
 		if args.Snapshots {
 			volTargetArgs.Snapshots = make([]string, 0, len(snapshots))
 			for _, snap := range snapshots {
@@ -6129,8 +6147,11 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					}
 
 					revert.Add(cleanup)
-					//revive:disable-next-line:defer
-					defer snapInstOp.Done(err)
+					revert.Add(func() {
+						snapInstOp.Done(err)
+					})
+
+					snapOps = append(snapOps, snapInstOp)
 				}
 			}
 		}
@@ -6171,6 +6192,10 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			if err != nil {
 				return err
 			}
+		}
+
+		for _, op := range snapOps {
+			op.Done(nil)
 		}
 
 		return nil

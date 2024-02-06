@@ -210,7 +210,7 @@ func networkForwardConfig(ctx context.Context, tx *ClusterTx, forwardID int64, f
 // If memberSpecific is true, then the search is restricted to forwards that belong to this member or belong to
 // all members.
 func (c *ClusterTx) GetNetworkForwardListenAddresses(ctx context.Context, networkID int64, memberSpecific bool) (map[int64]string, error) {
-	var q *strings.Builder = &strings.Builder{}
+	var q = &strings.Builder{}
 	args := []any{networkID}
 
 	q.WriteString(`
@@ -229,7 +229,7 @@ func (c *ClusterTx) GetNetworkForwardListenAddresses(ctx context.Context, networ
 	forwards := make(map[int64]string)
 
 	err := query.Scan(ctx, c.tx, q.String(), func(scan func(dest ...any) error) error {
-		var forwardID int64 = int64(-1)
+		var forwardID = int64(-1)
 		var listenAddress string
 
 		err := scan(&forwardID, &listenAddress)
@@ -329,7 +329,7 @@ func (c *ClusterTx) GetProjectNetworkForwardListenAddressesOnMember(ctx context.
 
 	err := query.Scan(ctx, c.Tx(), q, func(scan func(dest ...any) error) error {
 		var projectName string
-		var networkID int64 = int64(-1)
+		var networkID = int64(-1)
 		var listenAddress string
 
 		err := scan(&projectName, &networkID, &listenAddress)
@@ -360,7 +360,7 @@ func (c *ClusterTx) GetProjectNetworkForwardListenAddressesOnMember(ctx context.
 // If memberSpecific is true, then the search is restricted to forwards that belong to this member or belong to
 // all members. Can optionally retrieve only specific network forwards by listen address.
 func (c *ClusterTx) GetNetworkForwards(ctx context.Context, networkID int64, memberSpecific bool, listenAddresses ...string) (map[int64]*api.NetworkForward, error) {
-	var q *strings.Builder = &strings.Builder{}
+	var q = &strings.Builder{}
 	args := []any{networkID}
 
 	q.WriteString(`
@@ -391,7 +391,7 @@ func (c *ClusterTx) GetNetworkForwards(ctx context.Context, networkID int64, mem
 	forwards := make(map[int64]*api.NetworkForward)
 
 	err = query.Scan(ctx, c.tx, q.String(), func(scan func(dest ...any) error) error {
-		var forwardID int64 = int64(-1)
+		var forwardID = int64(-1)
 		var portsJSON string
 		var forward api.NetworkForward
 
