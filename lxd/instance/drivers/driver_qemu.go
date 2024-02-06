@@ -421,7 +421,11 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 			}
 		}
 
-		d = inst.(*qemu)
+		d, ok := inst.(*qemu)
+		if !ok {
+			d.logger.Error("Failed to cast instance to *qemu")
+			return
+		}
 
 		if event == qmp.EventAgentStarted {
 			d.logger.Debug("Instance agent started")
@@ -493,14 +497,14 @@ func (d *qemu) unmount() error {
 }
 
 // generateAgentCert creates the necessary server key and certificate if needed.
-func (d *qemu) generateAgentCert() (string, string, string, string, error) {
+func (d *qemu) generateAgentCert() (agentCert string, agentKey string, clientCert string, clientKey string, err error) {
 	agentCertFile := filepath.Join(d.Path(), "agent.crt")
 	agentKeyFile := filepath.Join(d.Path(), "agent.key")
 	clientCertFile := filepath.Join(d.Path(), "agent-client.crt")
 	clientKeyFile := filepath.Join(d.Path(), "agent-client.key")
 
 	// Create server certificate.
-	err := shared.FindOrGenCert(agentCertFile, agentKeyFile, false, false)
+	err = shared.FindOrGenCert(agentCertFile, agentKeyFile, false, false)
 	if err != nil {
 		return "", "", "", "", err
 	}
@@ -512,27 +516,27 @@ func (d *qemu) generateAgentCert() (string, string, string, string, error) {
 	}
 
 	// Read all the files
-	agentCert, err := os.ReadFile(agentCertFile)
+	agentCertBytes, err := os.ReadFile(agentCertFile)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
-	agentKey, err := os.ReadFile(agentKeyFile)
+	agentKeyBytes, err := os.ReadFile(agentKeyFile)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
-	clientCert, err := os.ReadFile(clientCertFile)
+	clientCertBytes, err := os.ReadFile(clientCertFile)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
-	clientKey, err := os.ReadFile(clientKeyFile)
+	clientKeyBytes, err := os.ReadFile(clientKeyFile)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
-	return string(agentCert), string(agentKey), string(clientCert), string(clientKey), nil
+	return string(agentCertBytes), string(agentKeyBytes), string(clientCertBytes), string(clientKeyBytes), nil
 }
 
 // Freeze freezes the instance.
@@ -564,9 +568,9 @@ func (d *qemu) configDriveMountPathClear() error {
 }
 
 // configVirtiofsdPaths returns the path for the socket and PID file to use with config drive virtiofsd process.
-func (d *qemu) configVirtiofsdPaths() (string, string) {
-	sockPath := filepath.Join(d.LogPath(), "virtio-fs.config.sock")
-	pidPath := filepath.Join(d.LogPath(), "virtiofsd.pid")
+func (d *qemu) configVirtiofsdPaths() (sockPath string, pidPath string) {
+	sockPath = filepath.Join(d.LogPath(), "virtio-fs.config.sock")
+	pidPath = filepath.Join(d.LogPath(), "virtiofsd.pid")
 
 	return sockPath, pidPath
 }
@@ -1343,22 +1347,22 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	revertFunc, unixListener, err := device.DiskVMVirtiofsdStart(d.state.OS.ExecPath, d, configSockPath, configPIDPath, "", configMntPath, nil)
 	if err != nil {
 		var errUnsupported device.UnsupportedError
-		if errors.As(err, &errUnsupported) {
-			d.logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback", logger.Ctx{"err": errUnsupported})
-
-			if errUnsupported == device.ErrMissingVirtiofsd {
-				// Create a warning if virtiofsd is missing.
-				_ = d.state.DB.Cluster.UpsertWarning(d.node, d.project.Name, dbCluster.TypeInstance, d.ID(), warningtype.MissingVirtiofsd, "Using 9p as a fallback")
-			} else {
-				// Resolve previous warning.
-				_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
-			}
-		} else {
+		if !errors.As(err, &errUnsupported) {
 			// Resolve previous warning.
 			_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
 			err = fmt.Errorf("Failed to setup virtiofsd for config drive: %w", err)
 			op.Done(err)
 			return err
+		}
+
+		d.logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback", logger.Ctx{"err": errUnsupported})
+
+		if errUnsupported == device.ErrMissingVirtiofsd {
+			// Create a warning if virtiofsd is missing.
+			_ = d.state.DB.Cluster.UpsertWarning(d.node, d.project.Name, dbCluster.TypeInstance, d.ID(), warningtype.MissingVirtiofsd, "Using 9p as a fallback")
+		} else {
+			// Resolve previous warning.
+			_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
 		}
 	} else {
 		revert.Add(revertFunc)
@@ -1899,7 +1903,7 @@ func (d *qemu) setupNvram() error {
 	return nil
 }
 
-func (d *qemu) qemuArchConfig(arch int) (string, string, error) {
+func (d *qemu) qemuArchConfig(arch int) (qemuPath string, qemuBus string, err error) {
 	if arch == osarch.ARCH_64BIT_INTEL_X86 {
 		path, err := exec.LookPath("qemu-system-x86_64")
 		if err != nil {
@@ -3765,7 +3769,9 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 					return fmt.Errorf("Error opening netdev file for queue %d: %w", i, err)
 				}
 
-				defer func() { _ = devFile.Close() }() // Close file after device has been added.
+				// Close file after device has been added.
+				//revive:disable-next-line:defer
+				defer func() { _ = devFile.Close() }()
 
 				devFDName := fmt.Sprintf("%s.%d", devFile.Name(), i)
 				err = m.SendFile(devFDName, devFile)
@@ -3784,7 +3790,9 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 						return fmt.Errorf("Error opening /dev/vhost-net for queue %d: %w", i, err)
 					}
 
-					defer func() { _ = vhostFile.Close() }() // Close file after device has been added.
+					// Close file after device has been added.
+					//revive:disable-next-line:defer
+					defer func() { _ = vhostFile.Close() }()
 
 					vhostFDName := fmt.Sprintf("%s.%d", vhostFile.Name(), i)
 					err = m.SendFile(vhostFDName, vhostFile)
@@ -3816,7 +3824,12 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 				qemuNetDev["vhostfds"] = strings.Join(vhostfds, ":")
 			}
 
-			qemuDev["netdev"] = qemuNetDev["id"].(string)
+			qemuNetDevID, ok := qemuNetDev["id"].(string)
+			if !ok {
+				return fmt.Errorf("Failed getting QEMU netdev id")
+			}
+
+			qemuDev["netdev"] = qemuNetDevID
 			qemuDev["mac"] = devHwaddr
 
 			err = m.AddNIC(qemuNetDev, qemuDev)
@@ -5826,7 +5839,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 	return meta, nil
 }
 
-// MigrateSend is not currently supported.
+// MigrateSend controls the sending side of a migration.
 func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	d.logger.Info("Migration send starting")
 	defer d.logger.Info("Migration send stopped")
@@ -6362,6 +6375,8 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 	return nil
 }
 
+// MigrateReceive receives the migration offer from the source and negotiates the migration options.
+// It establishes the necessary connections and transfers the filesystem and snapshots if required.
 func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	d.logger.Info("Migration receive starting")
 	defer d.logger.Info("Migration receive stopped")
@@ -6598,6 +6613,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			}
 
 			for _, name := range offerHeader.SnapshotNames {
+				name := name // Local var.
 				base := instance.SnapshotToProtobuf(apiInstSnap)
 				base.Name = &name
 				snapshots = append(snapshots, base)
@@ -6664,6 +6680,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					}
 
 					revert.Add(cleanup)
+					//revive:disable-next-line:defer
 					defer snapInstOp.Done(err)
 				}
 			}
@@ -6773,7 +6790,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	}
 }
 
-// CGroupSet is not implemented for VMs.
+// CGroup is not implemented for VMs.
 func (d *qemu) CGroup() (*cgroup.CGroup, error) {
 	return nil, instance.ErrNotImplemented
 }
@@ -6792,7 +6809,10 @@ func (d *qemu) FileSFTPConn() (net.Conn, error) {
 	}
 
 	// Get the HTTP transport.
-	httpTransport := client.Transport.(*http.Transport)
+	httpTransport, ok := client.Transport.(*http.Transport)
+	if !ok {
+		return nil, fmt.Errorf("FileSFTP transport is an invalid HTTP transport")
+	}
 
 	// Send the upgrade request.
 	u, err := url.Parse("https://custom.socket/1.0/sftp")
@@ -6972,7 +6992,7 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 }
 
 // Render returns info about the instance.
-func (d *qemu) Render(options ...func(response any) error) (any, any, error) {
+func (d *qemu) Render(options ...func(response any) error) (state any, etag any, err error) {
 	profileNames := make([]string, 0, len(d.profiles))
 	for _, profile := range d.profiles {
 		profileNames = append(profileNames, profile.Name)
@@ -7010,7 +7030,7 @@ func (d *qemu) Render(options ...func(response any) error) (any, any, error) {
 	}
 
 	// Prepare the ETag
-	etag := []any{d.architecture, d.localConfig, d.localDevices, d.ephemeral, d.profiles}
+	etag = []any{d.architecture, d.localConfig, d.localDevices, d.ephemeral, d.profiles}
 	statusCode := d.statusCode()
 
 	instState := api.Instance{
@@ -7236,7 +7256,7 @@ func (d *qemu) IsFrozen() bool {
 }
 
 // CanMigrate returns whether the instance can be migrated.
-func (d *qemu) CanMigrate() (bool, bool) {
+func (d *qemu) CanMigrate() (canMigrate bool, live bool) {
 	return d.canMigrate(d)
 }
 
@@ -7947,6 +7967,10 @@ func (d *qemu) version() (*version.DottedVersion, error) {
 	return qemuVer, nil
 }
 
+// Metrics returns the metrics of the QEMU instance.
+// If the instance is not running, it returns ErrInstanceIsStopped.
+// If agent metrics are enabled, it tries to get the metrics from the agent.
+// If the agent is not reachable, it falls back to getting the metrics directly from QEMU.
 func (d *qemu) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
 	if !d.IsRunning() {
 		return nil, ErrInstanceIsStopped
