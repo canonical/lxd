@@ -3,6 +3,7 @@ package cluster_test
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/osarch"
 )
 
@@ -762,4 +765,77 @@ func TestUpdateFromV34(t *testing.T) {
 	require.NoError(t, row.Scan(&id, &nodeID))
 	assert.Equal(t, id, 2)
 	assert.Equal(t, nodeID, nil)
+}
+
+func TestUpdateFromV69(t *testing.T) {
+	c1 := string(shared.TestingKeyPair().PublicKey())
+	c2 := string(shared.TestingAltKeyPair().PublicKey())
+
+	schema := cluster.Schema()
+	db, err := schema.ExerciseUpdate(70, func(db *sql.DB) {
+		_, err := db.Exec(`
+INSERT INTO certificates (fingerprint, type, name, certificate, restricted) VALUES ('eeef45f0570ce713864c86ec60c8d88f60b4844d3a8849b262c77cb18e88394d', 1, 'restricted-client', ?, 1);
+INSERT INTO certificates (fingerprint, type, name, certificate, restricted) VALUES ('86ec60c8d88f60b4844d3a8849b262c77cb18e88394deeef45f0570ce713864c', 1, 'unrestricted-client', ?, 0);
+INSERT INTO certificates (fingerprint, type, name, certificate, restricted) VALUES ('49b262c77cb18e88394d8e6ec60c8d8eef45f0570ce713864c8f60b4844d3a88', 2, 'server', ?, 0);
+INSERT INTO certificates (fingerprint, type, name, certificate, restricted) VALUES ('60c8d8eef45f0570ce713864c8f60b4844d3a8849b262c77cb18e88394d8e6ec', 3, 'metrics', ?, 0);
+INSERT INTO projects (name, description) VALUES ('p1', '');
+INSERT INTO projects (name, description) VALUES ('p2', '');
+INSERT INTO projects (name, description) VALUES ('p3', '');
+INSERT INTO certificates_projects (certificate_id, project_id) VALUES (1, 2);
+INSERT INTO certificates_projects (certificate_id, project_id) VALUES (1, 3);
+INSERT INTO certificates_projects (certificate_id, project_id) VALUES (1, 4);
+`, c1, c2, c1, c2)
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+
+	stmts, err := cluster.PrepareStmts(db, false)
+	require.NoError(t, err)
+
+	cluster.PreparedStmts = stmts
+
+	tx, err := db.Begin()
+	require.NoError(t, err)
+
+	identity, err := cluster.GetIdentity(context.Background(), tx, api.AuthenticationMethodTLS, "eeef45f0570ce713864c86ec60c8d88f60b4844d3a8849b262c77cb18e88394d")
+	require.NoError(t, err)
+	assert.Equal(t, api.IdentityTypeCertificateClientRestricted, string(identity.Type))
+	assert.Equal(t, "restricted-client", identity.Name)
+	var metadata cluster.CertificateMetadata
+	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
+	require.NoError(t, err)
+	assert.Equal(t, c1, metadata.Certificate)
+
+	projects, err := cluster.GetIdentityProjects(context.Background(), tx, identity.ID)
+	require.NoError(t, err)
+	pNames := make([]string, 0, len(projects))
+	for _, project := range projects {
+		pNames = append(pNames, project.Name)
+	}
+
+	assert.ElementsMatch(t, []string{"p1", "p2", "p3"}, pNames)
+
+	identity, err = cluster.GetIdentity(context.Background(), tx, api.AuthenticationMethodTLS, "86ec60c8d88f60b4844d3a8849b262c77cb18e88394deeef45f0570ce713864c")
+	require.NoError(t, err)
+	assert.Equal(t, api.IdentityTypeCertificateClientUnrestricted, string(identity.Type))
+	assert.Equal(t, "unrestricted-client", identity.Name)
+	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
+	require.NoError(t, err)
+	assert.Equal(t, c2, metadata.Certificate)
+
+	identity, err = cluster.GetIdentity(context.Background(), tx, api.AuthenticationMethodTLS, "49b262c77cb18e88394d8e6ec60c8d8eef45f0570ce713864c8f60b4844d3a88")
+	require.NoError(t, err)
+	assert.Equal(t, api.IdentityTypeCertificateServer, string(identity.Type))
+	assert.Equal(t, "server", identity.Name)
+	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
+	require.NoError(t, err)
+	assert.Equal(t, c1, metadata.Certificate)
+
+	identity, err = cluster.GetIdentity(context.Background(), tx, api.AuthenticationMethodTLS, "60c8d8eef45f0570ce713864c8f60b4844d3a8849b262c77cb18e88394d8e6ec")
+	require.NoError(t, err)
+	assert.Equal(t, api.IdentityTypeCertificateMetrics, string(identity.Type))
+	assert.Equal(t, "metrics", identity.Name)
+	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
+	require.NoError(t, err)
+	assert.Equal(t, c2, metadata.Certificate)
 }
