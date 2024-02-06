@@ -333,12 +333,32 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 	}
 
 	if d.oidcVerifier != nil && d.oidcVerifier.IsRequest(r) {
-		userName, err := d.oidcVerifier.Auth(d.shutdownCtx, w, r)
+		result, err := d.oidcVerifier.Auth(d.shutdownCtx, w, r)
 		if err != nil {
 			return false, "", "", err
 		}
 
-		return true, userName, api.AuthenticationMethodOIDC, nil
+		_, err = d.identityCache.Get(api.AuthenticationMethodOIDC, result.Subject)
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return false, "", "", fmt.Errorf("Failed getting OIDC identity from cache: %w", err)
+		} else if err != nil {
+			err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+				_, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
+					AuthMethod: api.AuthenticationMethodOIDC,
+					Type:       api.IdentityTypeOIDCClient,
+					Identifier: result.Subject,
+					Name:       result.Email,
+				})
+				return err
+			})
+			if err != nil {
+				return false, "", "", fmt.Errorf("Failed to store OIDC identity information: %w", err)
+			}
+
+			updateIdentityCache(d)
+		}
+
+		return true, result.Subject, api.AuthenticationMethodOIDC, nil
 	}
 
 	// Validate normal TLS access.
