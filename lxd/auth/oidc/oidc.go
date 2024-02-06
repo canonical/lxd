@@ -236,6 +236,7 @@ func (o *Verifier) WriteHeaders(w http.ResponseWriter) error {
 	w.Header().Set("X-LXD-OIDC-issuer", o.issuer)
 	w.Header().Set("X-LXD-OIDC-clientid", o.clientID)
 	w.Header().Set("X-LXD-OIDC-audience", o.audience)
+	w.Header().Set("X-LXD-OIDC-groups-claim", o.groupsClaim)
 
 	return nil
 }
