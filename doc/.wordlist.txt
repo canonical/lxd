@@ -72,6 +72,7 @@ ES
 ESA
 ETag
 failover
+firmware
 FQDNs
 gapped
 GARP
@@ -96,7 +97,6 @@ hotplugging
 HTTPS
 HWE
 ICMP
-IPAM
 idmap
 idmapped
 idmaps
@@ -108,6 +108,7 @@ initramfs
 integrations
 IOPS
 IOV
+IPAM
 IPs
 IPv
 IPVLAN
@@ -126,8 +127,8 @@ LTS
 LV
 LVM
 LXC
-LXC's
 LXCFS
+LXC's
 LXD
 LXD's
 MAAS
@@ -189,7 +190,10 @@ preseed
 proxied
 proxying
 PTS
+qdisc
+qdiscs
 QEMU
+QFQ
 qgroup
 qgroups
 RADOS
@@ -209,6 +213,7 @@ SATA
 scalable
 scriptlet
 SDN
+SeaBIOS
 Seccomp
 SEV
 SFTP
@@ -217,6 +222,7 @@ shiftfs
 SIGHUP
 SIGTERM
 simplestreams
+SKBPRIO
 SLAAC
 SMTP
 Snapcraft
@@ -226,8 +232,8 @@ SPL
 SquashFS
 SSDs
 SSL
-stateful
 Starlark
+stateful
 stderr
 stdin
 stdout
@@ -271,8 +277,6 @@ UFW
 UI
 UID
 UIDs
-URI
-URIs
 unconfigured
 unevictable
 unixgram
@@ -281,13 +285,15 @@ unmount
 unmounting
 uplink
 uptime
+URI
+URIs
 userspace
 UUID
 vCPU
 vCPUs
 VDPA
-VFs
 VFS
+VFs
 VirtIO
 virtualize
 virtualized
@@ -310,6 +316,3 @@ Zettabyte
 ZFS
 zpool
 zpools
-qdisc
-firmware
-SeaBIOS
