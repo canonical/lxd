@@ -46,6 +46,7 @@ type Verifier struct {
 	clientID    string
 	issuer      string
 	audience    string
+	groupsClaim string
 	clusterCert func() *shared.CertInfo
 
 	// host is used for setting a valid callback URL when setting the relyingParty.
@@ -504,6 +505,7 @@ func (o *Verifier) secureCookieFromSession(sessionID uuid.UUID) (*securecookie.S
 // Opts contains optional configurable fields for the Verifier.
 type Opts struct {
 	ConfigExpiryInterval time.Duration
+	GroupsClaim          string
 }
 
 // NewVerifier returns a Verifier.
@@ -514,12 +516,14 @@ func NewVerifier(issuer string, clientID string, audience string, clusterCert fu
 
 	if options != nil {
 		opts.ConfigExpiryInterval = options.ConfigExpiryInterval
+		opts.GroupsClaim = options.GroupsClaim
 	}
 
 	verifier := &Verifier{
 		issuer:               issuer,
 		clientID:             clientID,
 		audience:             audience,
+		groupsClaim:          opts.GroupsClaim,
 		clusterCert:          clusterCert,
 		configExpiryInterval: opts.ConfigExpiryInterval,
 	}
