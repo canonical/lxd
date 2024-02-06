@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 )
@@ -18,7 +19,10 @@ func TestGetCertificate(t *testing.T) {
 	defer cleanup()
 
 	ctx := context.Background()
-	_, err := cluster.CreateCertificate(ctx, tx.Tx(), cluster.Certificate{Fingerprint: "foobar"})
+	_, err := cluster.CreateCertificate(ctx, tx.Tx(), cluster.Certificate{
+		Fingerprint: "foobar",
+		Type:        certificate.TypeClient,
+	})
 	require.NoError(t, err)
 
 	cert, err := cluster.GetCertificate(ctx, tx.Tx(), "foobar")

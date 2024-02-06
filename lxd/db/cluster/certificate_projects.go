@@ -2,20 +2,10 @@
 
 package cluster
 
-// Code generation directives.
-//
-//go:generate -command mapper lxd-generate db mapper -t certificate_projects.mapper.go
-//go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
-//
-//go:generate mapper stmt -e certificate_project objects
-//go:generate mapper stmt -e certificate_project objects-by-CertificateID
-//go:generate mapper stmt -e certificate_project create struct=CertificateProject
-//go:generate mapper stmt -e certificate_project delete-by-CertificateID
-//
-//go:generate mapper method -i -e certificate_project GetMany struct=Certificate
-//go:generate mapper method -i -e certificate_project DeleteMany struct=Certificate
-//go:generate mapper method -i -e certificate_project Create struct=Certificate
-//go:generate mapper method -i -e certificate_project Update struct=Certificate
+import (
+	"context"
+	"database/sql"
+)
 
 // CertificateProject is an association table struct that associates
 // Certificates to Projects.
@@ -28,4 +18,32 @@ type CertificateProject struct {
 type CertificateProjectFilter struct {
 	CertificateID *int
 	ProjectID     *int
+}
+
+// GetCertificateProjects returns all available Projects for the Certificate.
+func GetCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int) ([]Project, error) {
+	return GetIdentityProjects(ctx, tx, certificateID)
+}
+
+// DeleteCertificateProjects deletes the certificate_project matching the given key parameters.
+func DeleteCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int) error {
+	return DeleteIdentityProjects(ctx, tx, certificateID)
+}
+
+// CreateCertificateProjects adds a new certificate_project to the database.
+func CreateCertificateProjects(ctx context.Context, tx *sql.Tx, objects []CertificateProject) error {
+	identityProjects := make([]IdentityProject, 0, len(objects))
+	for _, certificateProject := range objects {
+		identityProjects = append(identityProjects, IdentityProject{
+			IdentityID: certificateProject.CertificateID,
+			ProjectID:  certificateProject.ProjectID,
+		})
+	}
+
+	return CreateIdentityProjects(ctx, tx, identityProjects)
+}
+
+// UpdateCertificateProjects updates the certificate_project matching the given key parameters.
+func UpdateCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int, projectNames []string) error {
+	return UpdateIdentityProjects(ctx, tx, certificateID, projectNames)
 }

@@ -106,6 +106,45 @@ var updates = map[int]schema.Update{
 	67: updateFromV66,
 	68: updateFromV67,
 	69: updateFromV68,
+	70: updateFromV69,
+}
+
+func updateFromV69(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE identities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    auth_method INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    identifier TEXT NOT NULL,
+    name TEXT NOT NULL,
+    metadata TEXT NOT NULL,
+    UNIQUE (auth_method, identifier),
+    UNIQUE (type, identifier)
+);
+
+CREATE TABLE identities_projects (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    identity_id INTEGER NOT NULL,
+    project_id INTEGER NOT NULL,
+    FOREIGN KEY (identity_id) REFERENCES identities (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
+    UNIQUE (identity_id, project_id)
+);
+
+INSERT INTO identities (id, auth_method, type, identifier, name, metadata) SELECT id, 1, 1, fingerprint, name, json_object('cert', certificate) FROM certificates WHERE type = 1 AND restricted = 1;
+INSERT INTO identities (id, auth_method, type, identifier, name, metadata) SELECT id, 1, 2, fingerprint, name, json_object('cert', certificate) FROM certificates WHERE type = 1 AND restricted = 0;
+INSERT INTO identities (id, auth_method, type, identifier, name, metadata) SELECT id, 1, 3, fingerprint, name, json_object('cert', certificate) FROM certificates WHERE type = 2;
+INSERT INTO identities (id, auth_method, type, identifier, name, metadata) SELECT id, 1, 4, fingerprint, name, json_object('cert', certificate) FROM certificates WHERE type = 3;
+INSERT INTO identities_projects (identity_id, project_id) SELECT certificate_id, project_id FROM certificates_projects;
+
+DROP TABLE certificates;
+DROP TABLE certificates_projects;
+`)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // updateFromV68 fixes unique index for record name to make it zone specific.
