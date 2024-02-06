@@ -7170,9 +7170,9 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 				Profiles:     profileNames,
 			}
 
-			for _, name := range offerHeader.SnapshotNames {
+			for i := range offerHeader.SnapshotNames {
 				base := instance.SnapshotToProtobuf(apiInstSnap)
-				base.Name = &name //nolint:staticcheck
+				base.Name = &offerHeader.SnapshotNames[i]
 				snapshots = append(snapshots, base)
 			}
 		} else {
