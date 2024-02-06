@@ -14,12 +14,26 @@ To troubleshoot the problem, complete the following steps:
    Instance log
    : Enter the following command to display the instance log:
 
+     ````{tabs}
+     ```{group-tab} CLI
          lxc info <instance_name> --show-log
+     ```
+     ```{group-tab} API
+         lxc query --request GET /1.0/instances/<instance_name>/logs/lxc.log
+     ```
+     ````
 
    Console log
    : Enter the following command to display the console log:
 
+     ````{tabs}
+     ```{group-tab} CLI
          lxc console <instance_name> --show-log
+     ```
+     ```{group-tab} API
+         lxc query --request GET /1.0/instances/<instance_name>/console
+     ```
+     ````
 
    Detailed server information
    : The LXD snap includes a tool that collects the relevant server information for debugging.
