@@ -48,6 +48,9 @@ Use the following command to create a snapshot for a custom storage volume:
     lxc storage volume snapshot <pool_name> <volume_name> [<snapshot_name>]
 
 <!-- Include start create snapshot options -->
+The snapshot name is optional.
+If you don't specify one, the name follows the naming pattern defined in `snapshots.pattern`.
+
 Add the `--reuse` flag in combination with a snapshot name to replace an existing snapshot.
 
 By default, snapshots are kept forever, unless the `snapshots.expiry` configuration option is set.
