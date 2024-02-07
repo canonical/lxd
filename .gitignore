@@ -15,7 +15,6 @@ lxd-benchmark/lxd-benchmark
 lxd-migrate/lxd-migrate
 lxd-user/lxd-user
 test/devlxd-client/devlxd-client
-test/rbac/rbac
 test/syscall/sysinfo/sysinfo
 test/mini-oidc/mini-oidc
 test/mini-oidc/user.data
