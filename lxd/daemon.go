@@ -29,7 +29,6 @@ import (
 	"github.com/canonical/lxd/lxd/acme"
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/auth"
-	"github.com/canonical/lxd/lxd/auth/candid"
 	"github.com/canonical/lxd/lxd/auth/oidc"
 	"github.com/canonical/lxd/lxd/bgp"
 	"github.com/canonical/lxd/lxd/certificate"
@@ -71,7 +70,6 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/logger"
-	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -1269,20 +1267,7 @@ func (d *Daemon) init() error {
 	bgpRouterID := d.localConfig.BGPRouterID()
 	bgpASN := int64(0)
 
-	candidAPIURL := ""
-	candidAPIKey := ""
-	candidDomains := ""
-	candidExpiry := int64(0)
-
 	dnsAddress := d.localConfig.DNSAddress()
-
-	rbacAPIURL := ""
-	rbacAPIKey := ""
-	rbacAgentURL := ""
-	rbacAgentUsername := ""
-	rbacAgentPrivateKey := ""
-	rbacAgentPublicKey := ""
-	rbacExpiry := int64(0)
 
 	maasAPIURL := ""
 	maasAPIKey := ""
@@ -1294,9 +1279,7 @@ func (d *Daemon) init() error {
 
 	d.proxy = shared.ProxyFromConfig(d.globalConfig.ProxyHTTPS(), d.globalConfig.ProxyHTTP(), d.globalConfig.ProxyIgnoreHosts())
 
-	candidAPIURL, candidAPIKey, candidExpiry, candidDomains = d.globalConfig.CandidServer()
 	maasAPIURL, maasAPIKey = d.globalConfig.MAASController()
-	rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey = d.globalConfig.RBACServer()
 	d.gateway.HeartbeatOfflineThreshold = d.globalConfig.OfflineThreshold()
 	lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiLabels, lokiLoglevel, lokiTypes := d.globalConfig.LokiServer()
 	oidcIssuer, oidcClientID, oidcAudience := d.globalConfig.OIDCServer()
@@ -1316,22 +1299,6 @@ func (d *Daemon) init() error {
 
 	if syslogSocketEnabled {
 		err = d.setupSyslogSocket(true)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Setup RBAC authentication.
-	if rbacAPIURL != "" {
-		err = d.setupRBACServer(rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Setup Candid authentication.
-	if candidAPIURL != "" {
-		d.candidVerifier, err = candid.NewVerifier(candidAPIURL, candidAPIKey, candidExpiry, candidDomains)
 		if err != nil {
 			return err
 		}
@@ -1814,87 +1781,6 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	}
 
 	return err
-}
-
-// Setup RBAC.
-func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int64, rbacAgentURL string, rbacAgentUsername string, rbacAgentPrivateKey string, rbacAgentPublicKey string) error {
-	var err error
-
-	if d.authorizer != nil {
-		err := d.authorizer.StopService(d.shutdownCtx)
-		if err != nil {
-			logger.Error("Failed to stop authorizer service", logger.Ctx{"error": err})
-		}
-	}
-
-	if rbacURL == "" || rbacAgentURL == "" || rbacAgentUsername == "" || rbacAgentPrivateKey == "" || rbacAgentPublicKey == "" {
-		d.candidVerifier = nil
-
-		// Reset to default authorizer.
-		d.authorizer, err = auth.LoadAuthorizer(d.shutdownCtx, auth.DriverTLS, logger.Log, d.clientCerts)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	revert := revert.New()
-	defer revert.Fail()
-
-	projectsFunc := func(ctx context.Context) (map[int64]string, error) {
-		var result map[int64]string
-		err := d.State().DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			var err error
-			result, err = dbCluster.GetProjectIDsToNames(ctx, tx.Tx())
-			return err
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		return result, nil
-	}
-
-	config := map[string]any{
-		"rbac.api.url":           rbacURL,
-		"rbac.agent.url":         rbacAgentURL,
-		"rbac.agent.private_key": rbacAgentPrivateKey,
-		"rbac.agent.public_key":  rbacAgentPublicKey,
-		"rbac.agent.username":    rbacAgentUsername,
-	}
-
-	revert.Add(func() {
-		d.candidVerifier = nil
-
-		// Reset to default authorizer.
-		d.authorizer, _ = auth.LoadAuthorizer(d.shutdownCtx, auth.DriverTLS, logger.Log, d.clientCerts)
-	})
-
-	// Load RBAC authorizer
-	rbacAuthorizer, err := auth.LoadAuthorizer(d.shutdownCtx, auth.DriverRBAC, logger.Log, d.clientCerts, auth.WithConfig(config), auth.WithProjectsGetFunc(projectsFunc))
-	if err != nil {
-		return err
-	}
-
-	revert.Add(func() {
-		// Stop status check in case candid fails.
-		err := rbacAuthorizer.StopService(d.shutdownCtx)
-		if err != nil {
-			logger.Error("Failed to stop authorizer service", logger.Ctx{"error": err})
-		}
-	})
-
-	// Enable candid authentication
-	d.candidVerifier, err = candid.NewVerifier(fmt.Sprintf("%s/auth", rbacURL), rbacKey, rbacExpiry, "")
-	if err != nil {
-		return err
-	}
-
-	d.authorizer = rbacAuthorizer
-
-	revert.Success()
-	return nil
 }
 
 // Setup MAAS.
