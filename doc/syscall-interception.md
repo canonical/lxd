@@ -13,6 +13,7 @@ per-container basis through container configuration options.
 
 ## Available system calls
 
+(syscall-mknod)=
 ### `mknod` / `mknodat`
 
 The `mknod` and `mknodat` system calls can be used to create a variety of special files.
@@ -28,7 +29,7 @@ inside an unprivileged containers.
 
 The devices which are currently allowed are:
 
-- overlayfs whiteout (char 0:0)
+- OverlayFS whiteout (char 0:0)
 - `/dev/console` (char 5:1)
 - `/dev/full` (char 1:7)
 - `/dev/null` (char 1:3)
@@ -102,13 +103,14 @@ considered to be flawed and can significantly impact overall system
 stability. This is why under normal conditions, only the real root user
 (or global `CAP_SYS_NICE`) would allow its use.
 
+(syscall-setxattr)=
 ### `setxattr`
 
 The `setxattr` system call is used to set extended attributes on files.
 
 The attributes which are handled by this currently are:
 
-- `trusted.overlay.opaque` (overlayfs directory whiteout)
+- `trusted.overlay.opaque` (OverlayFS directory whiteout)
 
 Note that because the mediation must happen on a number of character
 strings, there is no easy way at present to only intercept the few

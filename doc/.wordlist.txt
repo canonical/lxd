@@ -168,7 +168,7 @@ OpenSUSE
 OSD
 overcommit
 overcommitting
-overlayfs
+OverlayFS
 OVMF
 OVN
 OVS
