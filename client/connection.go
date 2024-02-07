@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery"
 	"github.com/gorilla/websocket"
 	"github.com/zitadel/oidc/v2/pkg/oidc"
 
@@ -40,9 +39,6 @@ type ConnectionArgs struct {
 
 	// Authentication type
 	AuthType string
-
-	// Authentication interactor
-	AuthInteractor []httpbakery.Interactor
 
 	// Custom proxy
 	Proxy func(*http.Request) (*url.URL, error)
@@ -326,7 +322,6 @@ func httpsLXD(ctx context.Context, requestURL string, args *ConnectionArgs) (Ins
 		httpBaseURL:        *httpBaseURL,
 		httpProtocol:       "https",
 		httpUserAgent:      args.UserAgent,
-		bakeryInteractor:   args.AuthInteractor,
 		ctxConnected:       ctxConnected,
 		ctxConnectedCancel: ctxConnectedCancel,
 		eventConns:         make(map[string]*websocket.Conn),
