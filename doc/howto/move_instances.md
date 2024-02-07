@@ -63,6 +63,10 @@ To do so, ensure the following configuration:
 If you are using a shared storage pool like Ceph RBD to back your instance, you don't need to set [`size.state`](devices-disk) to perform live migration.
 ```
 
+```{note}
+When {config:option}`instance-migration:migration.stateful` is enabled in LXD, virtiofs shares are disabled, and files are only shared via the 9P protocol. Consequently, guest OSes lacking 9P support, such as CentOS 8, cannot share files with the host unless stateful migration is disabled. Additionally, the `lxd-agent` will not function for these guests under these conditions.
+```
+
 (live-migration-containers)=
 ### Live migration for containers
 
