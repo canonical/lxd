@@ -21,6 +21,8 @@ The `default` profile cannot be renamed or removed.
 
 ## View profiles
 
+````{tabs}
+```{group-tab} CLI
 Enter the following command to display a list of all available profiles:
 
     lxc profile list
@@ -28,21 +30,47 @@ Enter the following command to display a list of all available profiles:
 Enter the following command to display the contents of a profile:
 
     lxc profile show <profile_name>
+```
+```{group-tab} API
+To display all available profiles, send a request to the `/1.0/profiles` endpoint:
+
+    lxc query --request GET /1.0/profiles?recursion=1
+
+To display a specific profile, send a request to that profile:
+
+    lxc query --request GET /1.0/profiles/<profile_name>
+
+See [`GET /1.0/profiles`](swagger:/profiles/profiles_get) and [`GET /1.0/profiles/{name}`](swagger:/profiles/profile_get) for more information.
+```
+````
 
 ## Create an empty profile
 
+````{tabs}
+```{group-tab} CLI
 Enter the following command to create an empty profile:
 
     lxc profile create <profile_name>
+```
+```{group-tab} API
+To create an empty profile, send a POST request to the `/1.0/profiles` endpoint:
+
+    lxc query --request POST /1.0/profiles --data '{"name": "<profile_name>"}'
+
+See [`POST /1.0/profiles`](swagger:/profiles/profiles_post) for more information.
+```
+````
 
 (profiles-edit)=
 ## Edit a profile
 
-You can either set specific configuration options for a profile or edit the full profile in YAML format.
+You can either set specific configuration options for a profile or edit the full profile.
 See {ref}`instance-config` (and its subpages) for the available options.
 
 ### Set specific options for a profile
 
+````{tabs}
+```{group-tab} CLI
 To set an instance option for a profile, use the [`lxc profile set`](lxc_profile_set.md) command.
 Specify the profile name and the key and value of the instance option:
 
@@ -56,12 +84,39 @@ Specify the profile name, a device name, the device type and maybe device option
 To configure instance device options for a device that you have added to the profile earlier, use the [`lxc profile device set`](lxc_profile_device_set.md) command:
 
     lxc profile device set <profile_name> <device_name> <device_option_key>=<device_option_value> <device_option_key>=<device_option_value> ...
+```
+```{group-tab} API
+To set an instance option for a profile, send a PATCH request to the profile.
+Specify the key and value of the instance option under the `"config"` field:
+
+    lxc query --request PATCH /1.0/profiles/<profile_name> --data '{
+      "config": {
+        "<option_key>": "<option_value>",
+        "<option_key>": "<option_value>"
+      }
+    }'
+
+To add and configure an instance device for your profile, specify the device name, the device type and maybe device options (depending on the {ref}`device type <devices>`) under the `"devices"` field:
+
+    lxc query --request PATCH /1.0/profiles/<profile_name> --data '{
+      "devices": {
+        "<device_name>": {
+          "type": "<device_type>",
+          "<device_option_key>": "<device_option_value>",
+          "<device_option_key>": "<device_option_value>"
+        }
+      }
+    }'
+
+See [`PATCH /1.0/profiles/{name}`](swagger:/profiles/profile_patch) for more information.
+```
+````
 
 ### Edit the full profile
 
-Instead of setting each configuration option separately, you can provide all options at once in YAML format.
+Instead of setting each configuration option separately, you can provide all options at once.
 
-Check the contents of an existing profile or instance configuration for the required markup.
+Check the contents of an existing profile or instance configuration for the required fields.
 For example, the `default` profile might look like this:
 
     config: {}
@@ -81,6 +136,8 @@ For example, the `default` profile might look like this:
 Instance options are provided as an array under `config`.
 Instance devices and instance device options are provided under `devices`.
 
+````{tabs}
+```{group-tab} CLI
 To edit a profile using your standard terminal editor, enter the following command:
 
     lxc profile edit <profile_name>
@@ -88,9 +145,24 @@ To edit a profile using your standard terminal editor, enter the following comma
 Alternatively, you can create a YAML file (for example, `profile.yaml`) with the configuration and write the configuration to the profile with the following command:
 
     lxc profile edit <profile_name> < profile.yaml
+```
+```{group-tab} API
+To update the entire profile configuration, send a PUT request to the profile:
+
+    lxc query --request PUT /1.0/profiles/<profile_name> --data '{
+      "config": { ... },
+      "description": "<description>",
+      "devices": { ... }
+    }'
+
+See [`PUT /1.0/profiles/{name}`](swagger:/profiles/profile_put) for more information.
+```
+````
 
 ## Apply a profile to an instance
 
+`````{tabs}
+````{group-tab} CLI
 Enter the following command to apply a profile to an instance:
 
     lxc profile add <instance_name> <profile_name>
@@ -108,9 +180,47 @@ This means that if you edit a profile, the changes are automatically applied to 
 You can also specify profiles when launching an instance by adding the `--profile` flag:
 
     lxc launch <image> <instance_name> --profile <profile> --profile <profile> ...
+````
+````{group-tab} API
+To apply a profile to an instance, add it to the profile list in the instance configuration:
+
+    lxc query --request PATCH /1.0/instances/<instance_name> --data '{
+      "profiles": [ "default", "<profile_name>" ]
+    }'
+
+See [`PATCH /1.0/instances/{name}`](swagger:/instances/instance_patch) for more information.
+
+You can also specify profiles when {ref}`creating an instance <instances-create>`:
+
+    lxc query --request POST /1.0/instances --data '{
+      "name": "<instance_name>",
+      "profiles": [ "default", "<profile_name>" ],
+      "source": {
+        "alias": "<image_alias>",
+        "protocol": "simplestreams",
+        "server": "<server_URL>",
+        "type": "image"
+      }
+    }'
+````
+`````
 
 ## Remove a profile from an instance
 
+````{tabs}
+```{group-tab} CLI
 Enter the following command to remove a profile from an instance:
 
     lxc profile remove <instance_name> <profile_name>
+```
+```{group-tab} API
+To remove a profile from an instance, send a PATCH request to the instance configuration with the new profile list.
+For example, to revert back to using only the default profile:
+
+    lxc query --request PATCH /1.0/instances/<instance_name> --data '{
+      "profiles": [ "default" ]
+    }'
+
+See [`PATCH /1.0/instances/{name}`](swagger:/instances/instance_patch) for more information.
+```
+````
