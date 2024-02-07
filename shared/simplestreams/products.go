@@ -279,8 +279,6 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 					if err != nil {
 						continue
 					}
-
-					break // Stop at first compatible item found.
 				} else if shared.ValueInSlice(item.FileType, lxdCompatItems) {
 					// Locate the root files
 					for _, subItem := range version.Items {
@@ -291,8 +289,6 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 							}
 						}
 					}
-
-					break // Stop at first compatible item found.
 				}
 			}
 		}
