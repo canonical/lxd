@@ -26,6 +26,7 @@ type cmdRemote struct {
 	global *cmdGlobal
 }
 
+// Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemote) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remote")
@@ -81,6 +82,7 @@ type cmdRemoteAdd struct {
 	flagProject    string
 }
 
+// Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemoteAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>] <IP|FQDN|URL|token>"))
@@ -150,7 +152,7 @@ func (c *cmdRemoteAdd) findProject(d lxd.InstanceServer, project string) (string
 	return project, nil
 }
 
-func (c *cmdRemoteAdd) RunToken(server string, token string, rawToken *api.CertificateAddToken) error {
+func (c *cmdRemoteAdd) runToken(server string, token string, rawToken *api.CertificateAddToken) error {
 	conf := c.global.conf
 
 	if !conf.HasClientCertificate() {
@@ -267,6 +269,7 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 	return conf.SaveConfig(c.global.confPath)
 }
 
+// Run is used in the RunE field of the cobra.Command returned by Command.
 func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -310,7 +313,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 
 	rawToken, err := shared.CertificateTokenDecode(addr)
 	if err == nil {
-		return c.RunToken(server, addr, rawToken)
+		return c.runToken(server, addr, rawToken)
 	}
 
 	// Complex remote URL parsing
@@ -617,6 +620,7 @@ type cmdRemoteGetDefault struct {
 	remote *cmdRemote
 }
 
+// Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemoteGetDefault) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get-default")
@@ -629,6 +633,7 @@ func (c *cmdRemoteGetDefault) Command() *cobra.Command {
 	return cmd
 }
 
+// Run is used in the RunE field of the cobra.Command returned by Command.
 func (c *cmdRemoteGetDefault) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -652,6 +657,7 @@ type cmdRemoteList struct {
 	flagFormat string
 }
 
+// Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemoteList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list")
@@ -666,6 +672,7 @@ func (c *cmdRemoteList) Command() *cobra.Command {
 	return cmd
 }
 
+// Run is used in the RunE field of the cobra.Command returned by Command.
 func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -740,6 +747,7 @@ type cmdRemoteRename struct {
 	remote *cmdRemote
 }
 
+// Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemoteRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("<remote> <new-name>"))
@@ -753,6 +761,7 @@ func (c *cmdRemoteRename) Command() *cobra.Command {
 	return cmd
 }
 
+// Run is used in the RunE field of the cobra.Command returned by Command.
 func (c *cmdRemoteRename) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -811,6 +820,7 @@ type cmdRemoteRemove struct {
 	remote *cmdRemote
 }
 
+// Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemoteRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("<remote>"))
@@ -824,6 +834,7 @@ func (c *cmdRemoteRemove) Command() *cobra.Command {
 	return cmd
 }
 
+// Run is used in the RunE field of the cobra.Command returned by Command.
 func (c *cmdRemoteRemove) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -865,6 +876,7 @@ type cmdRemoteSwitch struct {
 	remote *cmdRemote
 }
 
+// Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemoteSwitch) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Aliases = []string{"set-default"}
@@ -878,6 +890,7 @@ func (c *cmdRemoteSwitch) Command() *cobra.Command {
 	return cmd
 }
 
+// Run is used in the RunE field of the cobra.Command returned by Command.
 func (c *cmdRemoteSwitch) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -904,6 +917,7 @@ type cmdRemoteSetURL struct {
 	remote *cmdRemote
 }
 
+// Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemoteSetURL) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set-url", i18n.G("<remote> <URL>"))
@@ -916,6 +930,7 @@ func (c *cmdRemoteSetURL) Command() *cobra.Command {
 	return cmd
 }
 
+// Run is used in the RunE field of the cobra.Command returned by Command.
 func (c *cmdRemoteSetURL) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
