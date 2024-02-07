@@ -110,8 +110,6 @@ func (r *ProtocolLXD) UseProject(name string) InstanceServer {
 		httpBaseURL:          r.httpBaseURL,
 		httpProtocol:         r.httpProtocol,
 		httpUserAgent:        r.httpUserAgent,
-		bakeryClient:         r.bakeryClient,
-		bakeryInteractor:     r.bakeryInteractor,
 		requireAuthenticated: r.requireAuthenticated,
 		clusterTarget:        r.clusterTarget,
 		project:              name,
@@ -135,8 +133,6 @@ func (r *ProtocolLXD) UseTarget(name string) InstanceServer {
 		httpBaseURL:          r.httpBaseURL,
 		httpProtocol:         r.httpProtocol,
 		httpUserAgent:        r.httpUserAgent,
-		bakeryClient:         r.bakeryClient,
-		bakeryInteractor:     r.bakeryInteractor,
 		requireAuthenticated: r.requireAuthenticated,
 		project:              r.project,
 		eventConns:           make(map[string]*websocket.Conn),  // New target specific listener conns.

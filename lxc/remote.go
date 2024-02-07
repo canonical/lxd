@@ -26,6 +26,7 @@ type cmdRemote struct {
 	global *cmdGlobal
 }
 
+// Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemote) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remote")
@@ -77,10 +78,10 @@ type cmdRemoteAdd struct {
 	flagPublic     bool
 	flagProtocol   string
 	flagAuthType   string
-	flagDomain     string
 	flagProject    string
 }
 
+// Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemoteAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>] <IP|FQDN|URL|token>"))
@@ -98,9 +99,8 @@ Basic authentication can be used when combined with the "simplestreams" protocol
 	cmd.Flags().BoolVar(&c.flagAcceptCert, "accept-certificate", false, i18n.G("Accept certificate"))
 	cmd.Flags().StringVar(&c.flagPassword, "password", "", i18n.G("Remote admin password")+"``")
 	cmd.Flags().StringVar(&c.flagProtocol, "protocol", "", i18n.G("Server protocol (lxd or simplestreams)")+"``")
-	cmd.Flags().StringVar(&c.flagAuthType, "auth-type", "", i18n.G("Server authentication type (tls, candid, or oidc)")+"``")
+	cmd.Flags().StringVar(&c.flagAuthType, "auth-type", "", i18n.G("Server authentication type (tls or oidc)")+"``")
 	cmd.Flags().BoolVar(&c.flagPublic, "public", false, i18n.G("Public image server"))
-	cmd.Flags().StringVar(&c.flagDomain, "domain", "", i18n.G("Candid domain to use")+"``")
 	cmd.Flags().StringVar(&c.flagProject, "project", "", i18n.G("Project to use for the remote")+"``")
 
 	return cmd
@@ -150,7 +150,7 @@ func (c *cmdRemoteAdd) findProject(d lxd.InstanceServer, project string) (string
 	return project, nil
 }
 
-func (c *cmdRemoteAdd) RunToken(server string, token string, rawToken *api.CertificateAddToken) error {
+func (c *cmdRemoteAdd) runToken(server string, token string, rawToken *api.CertificateAddToken) error {
 	conf := c.global.conf
 
 	if !conf.HasClientCertificate() {
@@ -202,7 +202,7 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 	var certificate *x509.Certificate
 	var err error
 
-	conf.Remotes[server] = config.Remote{Addr: addr, Protocol: c.flagProtocol, AuthType: c.flagAuthType, Domain: c.flagDomain}
+	conf.Remotes[server] = config.Remote{Addr: addr, Protocol: c.flagProtocol, AuthType: c.flagAuthType}
 
 	_, err = conf.GetInstanceServer(server)
 	if err != nil {
@@ -267,6 +267,7 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 	return conf.SaveConfig(c.global.confPath)
 }
 
+// Run is used in the RunE field of the cobra.Command returned by Command.
 func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -310,7 +311,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 
 	rawToken, err := shared.CertificateTokenDecode(addr)
 	if err == nil {
-		return c.RunToken(server, addr, rawToken)
+		return c.runToken(server, addr, rawToken)
 	}
 
 	// Complex remote URL parsing
@@ -395,7 +396,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	conf.Remotes[server] = config.Remote{Addr: addr, Protocol: c.flagProtocol, AuthType: c.flagAuthType, Domain: c.flagDomain}
+	conf.Remotes[server] = config.Remote{Addr: addr, Protocol: c.flagProtocol, AuthType: c.flagAuthType}
 
 	// Attempt to connect
 	var d lxd.ImageServer
@@ -497,27 +498,21 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 		return conf.SaveConfig(c.global.confPath)
 	}
 
-	if c.flagAuthType == api.AuthenticationMethodCandid {
-		d.(lxd.InstanceServer).RequireAuthenticated(false)
-	}
-
 	// Get server information
 	srv, _, err := d.(lxd.InstanceServer).GetServer()
 	if err != nil {
 		return err
 	}
 
-	// If not specified, the preferred order of authentication is 1) OIDC 2) Candid 3) TLS.
+	// If not specified, the preferred order of authentication is 1) OIDC 2) TLS.
 	if c.flagAuthType == "" {
 		if !srv.Public && shared.ValueInSlice(api.AuthenticationMethodOIDC, srv.AuthMethods) {
 			c.flagAuthType = api.AuthenticationMethodOIDC
-		} else if !srv.Public && shared.ValueInSlice(api.AuthenticationMethodCandid, srv.AuthMethods) {
-			c.flagAuthType = api.AuthenticationMethodCandid
 		} else {
 			c.flagAuthType = api.AuthenticationMethodTLS
 		}
 
-		if shared.ValueInSlice(c.flagAuthType, []string{api.AuthenticationMethodOIDC, api.AuthenticationMethodCandid}) {
+		if shared.ValueInSlice(c.flagAuthType, []string{api.AuthenticationMethodOIDC}) {
 			// Update the remote configuration
 			remote := conf.Remotes[server]
 			remote.AuthType = c.flagAuthType
@@ -621,6 +616,7 @@ type cmdRemoteGetDefault struct {
 	remote *cmdRemote
 }
 
+// Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemoteGetDefault) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get-default")
@@ -633,6 +629,7 @@ func (c *cmdRemoteGetDefault) Command() *cobra.Command {
 	return cmd
 }
 
+// Run is used in the RunE field of the cobra.Command returned by Command.
 func (c *cmdRemoteGetDefault) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -656,6 +653,7 @@ type cmdRemoteList struct {
 	flagFormat string
 }
 
+// Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemoteList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list")
@@ -670,6 +668,7 @@ func (c *cmdRemoteList) Command() *cobra.Command {
 	return cmd
 }
 
+// Run is used in the RunE field of the cobra.Command returned by Command.
 func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -711,10 +710,6 @@ func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		if rc.AuthType == api.AuthenticationMethodCandid && rc.Domain != "" {
-			rc.AuthType = fmt.Sprintf("%s (%s)", rc.AuthType, rc.Domain)
-		}
-
 		strName := name
 		if name == conf.DefaultRemote {
 			strName = fmt.Sprintf("%s (%s)", name, i18n.G("current"))
@@ -744,6 +739,7 @@ type cmdRemoteRename struct {
 	remote *cmdRemote
 }
 
+// Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemoteRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("<remote> <new-name>"))
@@ -757,6 +753,7 @@ func (c *cmdRemoteRename) Command() *cobra.Command {
 	return cmd
 }
 
+// Run is used in the RunE field of the cobra.Command returned by Command.
 func (c *cmdRemoteRename) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -815,6 +812,7 @@ type cmdRemoteRemove struct {
 	remote *cmdRemote
 }
 
+// Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemoteRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("<remote>"))
@@ -828,6 +826,7 @@ func (c *cmdRemoteRemove) Command() *cobra.Command {
 	return cmd
 }
 
+// Run is used in the RunE field of the cobra.Command returned by Command.
 func (c *cmdRemoteRemove) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -870,6 +869,7 @@ type cmdRemoteSwitch struct {
 	remote *cmdRemote
 }
 
+// Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemoteSwitch) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Aliases = []string{"set-default"}
@@ -883,6 +883,7 @@ func (c *cmdRemoteSwitch) Command() *cobra.Command {
 	return cmd
 }
 
+// Run is used in the RunE field of the cobra.Command returned by Command.
 func (c *cmdRemoteSwitch) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -909,6 +910,7 @@ type cmdRemoteSetURL struct {
 	remote *cmdRemote
 }
 
+// Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
 func (c *cmdRemoteSetURL) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set-url", i18n.G("<remote> <URL>"))
@@ -921,6 +923,7 @@ func (c *cmdRemoteSetURL) Command() *cobra.Command {
 	return cmd
 }
 
+// Run is used in the RunE field of the cobra.Command returned by Command.
 func (c *cmdRemoteSetURL) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 

@@ -669,22 +669,10 @@ all container structs, including the state, snapshots and backup structs.
 
 This effectively allows for [`lxc list`](lxc_list.md) to get all it needs in one query.
 
-## `candid_authentication`
-
-This introduces the new `candid.api.url` configuration option and removes
-`core.macaroon.endpoint`.
-
 ## `backup_compression`
 
 This introduces a new `backups.compression_algorithm` configuration key which
 allows configuration of backup compression.
-
-## `candid_config`
-
-This introduces the configuration keys `candid.domains` and `candid.expiry`. The
-former allows specifying allowed/valid Candid domains, the latter makes the
-macaroon's expiry configurable. The [`lxc remote add`](lxc_remote_add.md) command now has a
-`--domain` flag which allows specifying a Candid domain.
 
 ## `nvidia_runtime_config`
 
@@ -726,12 +714,6 @@ Add a new project API, supporting creation, update and deletion of projects.
 
 Projects can hold containers, profiles or images at this point and let
 you get a separate view of your LXD resources by switching to it.
-
-## `candid_config_key`
-
-This introduces a new `candid.api.key` option which allows for setting
-the expected public key for the endpoint, allowing for safe use of a
-HTTP-only Candid server.
 
 ## `network_vxlan_ttl`
 
@@ -868,18 +850,6 @@ Those keys control the source address used for outbound traffic from the bridge.
 
 This introduces the `ipv4.routes` and `ipv6.routes` properties on `nic` type devices.
 This allows adding static routes on host to container's NIC.
-
-## `rbac`
-
-Adds support for RBAC (role based access control). This introduces new configuration keys:
-
-* `rbac.api.url`
-* `rbac.api.key`
-* `rbac.api.expiry`
-* `rbac.agent.url`
-* `rbac.agent.username`
-* `rbac.agent.private_key`
-* `rbac.agent.public_key`
 
 ## `cluster_internal_copy`
 

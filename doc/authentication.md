@@ -14,8 +14,6 @@ The following authentication methods are supported:
 
 - {ref}`authentication-tls-certs`
 - {ref}`authentication-openid`
-- {ref}`authentication-candid`
-- {ref}`authentication-rbac`
 
 (authentication-tls-certs)=
 ## TLS client certificates
@@ -154,54 +152,6 @@ Your OIDC provider must be configured to enable the [Device Authorization Grant]
 To add a remote pointing to a LXD server configured with OIDC authentication, run [`lxc remote add <remote_name> <remote_address>`](lxc_remote_add.md).
 You are then prompted to authenticate through your web browser, where you must confirm the device code that LXD uses.
 The LXD client then retrieves and stores the access and refresh tokens and provides those to LXD for all interactions.
-
-(authentication-candid)=
-## Candid-based authentication
-
-```{youtube} https://www.youtube.com/watch?v=FebTipM1jJk
-```
-
-You can configure LXD to use [Candid](https://github.com/canonical/candid) authentication by setting the [`candid.*`](server-options-candid-rbac) server configuration options.
-In this case, clients that try to authenticate with the server must get a Discharge token from the authentication server specified by the {config:option}`server-candid-and-rbac:candid.api_url` option.
-
-The authentication server certificate must be trusted by the LXD server.
-
-To add a remote pointing to a LXD server configured with Candid/Macaroon authentication, run [`lxc remote add REMOTE ENDPOINT --auth-type=candid`](lxc_remote_add.md).
-To verify the user, the client will prompt for the credentials required by the authentication server.
-If the authentication is successful, the client will connect to the LXD server and present the token received from the authentication server.
-The LXD server verifies the token, thus authenticating the request.
-The token is stored as cookie and is presented by the client at each request to LXD.
-
-For instructions on how to set up Candid-based authentication, see the [Candid authentication for LXD](https://ubuntu.com/tutorials/candid-authentication-lxd) tutorial.
-
-(authentication-rbac)=
-## Role Based Access Control (RBAC)
-
-```{youtube} https://www.youtube.com/watch?v=VE60AbJHT6E
-```
-
-LXD supports integrating with the Canonical RBAC service, which is included in the [Ubuntu Pro](https://ubuntu.com/pro) subscription.
-Combined with Candid-based authentication, {abbr}`RBAC (Role Based Access Control)` can be used to limit what an API client is allowed to do on LXD.
-
-In such a setup, authentication happens through Candid, while the RBAC service maintains roles to user/group relationships.
-Roles can be assigned to individual projects, to all projects or to the entire LXD instance.
-
-The meaning of the roles when applied to a project is as follows:
-
-- auditor: Read-only access to the project
-- user: Ability to do normal life cycle actions (start, stop, ...),
-        execute commands in the instances, attach to console, manage snapshots, ...
-- operator: All of the above + the ability to create, re-configure and
-            delete instances and images
-- admin: All of the above + the ability to reconfigure the project itself
-
-```{important}
-In an unrestricted project, only the `auditor` and the `user` roles are suitable for users that you wouldn't trust with root access to the host.
-
-In a {ref}`restricted project <project-restrictions>`, the `operator` role is safe to use as well if configured appropriately.
-```
-
-To enable RBAC for your LXD server, set the [`rbac.*`](server-options-candid-rbac) server configuration options, which are a superset of the `candid.*` ones and allow for LXD to integrate with the RBAC service.
 
 (authentication-server-certificate)=
 ## TLS server certificate

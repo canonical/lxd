@@ -1,3 +1,4 @@
+//nolint:revive
 package auth
 
 // Entitlement is a type representation of a permission as it applies to a particular ObjectType.
@@ -60,19 +61,4 @@ const (
 	ObjectTypeProfile       ObjectType = "profile"
 	ObjectTypeStorageBucket ObjectType = "storage_bucket"
 	ObjectTypeStorageVolume ObjectType = "storage_volume"
-)
-
-// Permission is a type representation of general permission levels in LXD. Used with TLS and RBAC drivers.
-type Permission string
-
-const (
-	PermissionAdmin                Permission = "admin"
-	PermissionView                 Permission = "view"
-	PermissionManageProjects       Permission = "manage-projects"
-	PermissionManageInstances      Permission = "manage-containers"
-	PermissionManageImages         Permission = "manage-images"
-	PermissionManageNetworks       Permission = "manage-networks"
-	PermissionManageProfiles       Permission = "manage-profiles"
-	PermissionManageStorageVolumes Permission = "manage-storage-volumes"
-	PermissionOperateInstances     Permission = "operate-containers"
 )
