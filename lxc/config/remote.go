@@ -30,7 +30,7 @@ type Remote struct {
 }
 
 // ParseRemote splits remote and object.
-func (c *Config) ParseRemote(raw string) (string, string, error) {
+func (c *Config) ParseRemote(raw string) (remoteName string, resourceName string, err error) {
 	result := strings.SplitN(raw, ":", 2)
 	if len(result) == 1 {
 		return c.DefaultRemote, raw, nil
