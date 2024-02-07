@@ -12,8 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-macaroon-bakery/macaroon-bakery/v3/bakery"
-	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery"
 	"github.com/gorilla/websocket"
 
 	"github.com/canonical/lxd/shared"
@@ -46,8 +44,6 @@ type ProtocolLXD struct {
 	httpProtocol    string
 	httpUserAgent   string
 
-	bakeryClient         *httpbakery.Client
-	bakeryInteractor     []httpbakery.Interactor
 	requireAuthenticated bool
 
 	clusterTarget string
