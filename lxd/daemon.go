@@ -296,7 +296,7 @@ func (d *Daemon) getTrustedCertificates() map[certificate.Type]map[string]x509.C
 //
 // This does not perform authorization, only validates authentication.
 // Returns whether trusted or not, the username (or certificate fingerprint) of the trusted client, and the type of
-// client that has been authenticated (cluster, unix, candid or tls).
+// client that has been authenticated (cluster, unix, oidc or tls).
 func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted bool, username string, method string, err error) {
 	trustedCerts := d.getTrustedCertificates()
 
@@ -351,19 +351,6 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 		}
 
 		return true, userName, api.AuthenticationMethodOIDC, nil
-	} else if d.candidVerifier != nil && d.candidVerifier.IsRequest(r) {
-		info, err := d.candidVerifier.Auth(r)
-		if err != nil {
-			return false, "", "", err
-		}
-
-		if info != nil && info.Identity != nil {
-			// Valid identity macaroon found.
-			return true, info.Identity.Id(), api.AuthenticationMethodCandid, nil
-		}
-
-		// Valid macaroon with no identity information.
-		return true, "", api.AuthenticationMethodCandid, nil
 	}
 
 	// Validate normal TLS access.
@@ -528,9 +515,6 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			r = r.WithContext(ctx)
 		} else if untrustedOk && r.Header.Get("X-LXD-authenticated") == "" {
 			logger.Debug(fmt.Sprintf("Allowing untrusted %s", r.Method), logger.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
-		} else if derr, ok := err.(*bakery.DischargeRequiredError); ok {
-			d.candidVerifier.WriteRequest(r, w, derr)
-			return
 		} else {
 			if d.oidcVerifier != nil {
 				_ = d.oidcVerifier.WriteHeaders(w)
