@@ -160,8 +160,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	type AuthMethod int
 
 	const (
-		authMethodCandid AuthMethod = iota
-		authMethodTLSCertificate
+		authMethodTLSCertificate AuthMethod = iota
 		authMethodTLSTemporaryCertificate
 		authMethodTLSCertificateToken
 	)
@@ -171,12 +170,6 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	var authMethod AuthMethod
 
 	i := 1
-
-	if shared.ValueInSlice(api.AuthenticationMethodCandid, apiServer.AuthMethods) {
-		fmt.Printf("%d) Candid/RBAC based authentication\n", i)
-		availableAuthMethods = append(availableAuthMethods, authMethodCandid)
-		i++
-	}
 
 	if shared.ValueInSlice(api.AuthenticationMethodTLS, apiServer.AuthMethods) {
 		fmt.Printf("%d) Use a certificate token\n", i)
@@ -241,8 +234,6 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	var authType string
 
 	switch authMethod {
-	case authMethodCandid:
-		authType = api.AuthenticationMethodCandid
 	case authMethodTLSCertificate, authMethodTLSTemporaryCertificate, authMethodTLSCertificateToken:
 		authType = api.AuthenticationMethodTLS
 	}
