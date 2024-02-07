@@ -1134,8 +1134,8 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				Reason:        apiScriptlet.InstancePlacementReasonNew,
 			}
 
-			reqExpanded.Config = db.ExpandInstanceConfig(reqExpanded.Config, profiles)
-			reqExpanded.Devices = db.ExpandInstanceDevices(deviceConfig.NewDevices(reqExpanded.Devices), profiles).CloneNative()
+			reqExpanded.Config = instancetype.ExpandInstanceConfig(reqExpanded.Config, profiles)
+			reqExpanded.Devices = instancetype.ExpandInstanceDevices(deviceConfig.NewDevices(reqExpanded.Devices), profiles).CloneNative()
 
 			targetMemberInfo, err = scriptlet.InstancePlacementRun(r.Context(), logger.Log, s, &reqExpanded, candidateMembers, leaderAddress)
 			if err != nil {

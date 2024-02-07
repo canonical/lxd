@@ -7,6 +7,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -243,7 +244,7 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(ctx context.Co
 					return nil
 				}
 
-				devices := db.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
+				devices := instancetype.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
 
 				// Iterate through each of the instance's devices, looking for NICs that are using any of the ACLs.
 				for devName, devConfig := range devices {

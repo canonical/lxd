@@ -978,7 +978,7 @@ func internalImportRootDevicePopulate(instancePoolName string, localDevices map[
 	expandedRootName, expandedRootConfig, _ := instancetype.GetRootDiskDevice(expandedDevices)
 
 	// Extract root disk from expanded profile devices.
-	profileExpandedDevices := db.ExpandInstanceDevices(deviceConfig.NewDevices(localDevices), profiles)
+	profileExpandedDevices := instancetype.ExpandInstanceDevices(deviceConfig.NewDevices(localDevices), profiles)
 	profileExpandedRootName, profileExpandedRootConfig, _ := instancetype.GetRootDiskDevice(profileExpandedDevices.CloneNative())
 
 	// Record whether we need to add a new local disk device.
