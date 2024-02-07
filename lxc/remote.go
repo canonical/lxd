@@ -77,7 +77,6 @@ type cmdRemoteAdd struct {
 	flagPublic     bool
 	flagProtocol   string
 	flagAuthType   string
-	flagDomain     string
 	flagProject    string
 }
 
@@ -98,9 +97,8 @@ Basic authentication can be used when combined with the "simplestreams" protocol
 	cmd.Flags().BoolVar(&c.flagAcceptCert, "accept-certificate", false, i18n.G("Accept certificate"))
 	cmd.Flags().StringVar(&c.flagPassword, "password", "", i18n.G("Remote admin password")+"``")
 	cmd.Flags().StringVar(&c.flagProtocol, "protocol", "", i18n.G("Server protocol (lxd or simplestreams)")+"``")
-	cmd.Flags().StringVar(&c.flagAuthType, "auth-type", "", i18n.G("Server authentication type (tls, candid, or oidc)")+"``")
+	cmd.Flags().StringVar(&c.flagAuthType, "auth-type", "", i18n.G("Server authentication type (tls or oidc)")+"``")
 	cmd.Flags().BoolVar(&c.flagPublic, "public", false, i18n.G("Public image server"))
-	cmd.Flags().StringVar(&c.flagDomain, "domain", "", i18n.G("Candid domain to use")+"``")
 	cmd.Flags().StringVar(&c.flagProject, "project", "", i18n.G("Project to use for the remote")+"``")
 
 	return cmd
@@ -202,7 +200,7 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 	var certificate *x509.Certificate
 	var err error
 
-	conf.Remotes[server] = config.Remote{Addr: addr, Protocol: c.flagProtocol, AuthType: c.flagAuthType, Domain: c.flagDomain}
+	conf.Remotes[server] = config.Remote{Addr: addr, Protocol: c.flagProtocol, AuthType: c.flagAuthType}
 
 	_, err = conf.GetInstanceServer(server)
 	if err != nil {
@@ -395,7 +393,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	conf.Remotes[server] = config.Remote{Addr: addr, Protocol: c.flagProtocol, AuthType: c.flagAuthType, Domain: c.flagDomain}
+	conf.Remotes[server] = config.Remote{Addr: addr, Protocol: c.flagProtocol, AuthType: c.flagAuthType}
 
 	// Attempt to connect
 	var d lxd.ImageServer
@@ -497,27 +495,21 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 		return conf.SaveConfig(c.global.confPath)
 	}
 
-	if c.flagAuthType == api.AuthenticationMethodCandid {
-		d.(lxd.InstanceServer).RequireAuthenticated(false)
-	}
-
 	// Get server information
 	srv, _, err := d.(lxd.InstanceServer).GetServer()
 	if err != nil {
 		return err
 	}
 
-	// If not specified, the preferred order of authentication is 1) OIDC 2) Candid 3) TLS.
+	// If not specified, the preferred order of authentication is 1) OIDC 2) TLS.
 	if c.flagAuthType == "" {
 		if !srv.Public && shared.ValueInSlice(api.AuthenticationMethodOIDC, srv.AuthMethods) {
 			c.flagAuthType = api.AuthenticationMethodOIDC
-		} else if !srv.Public && shared.ValueInSlice(api.AuthenticationMethodCandid, srv.AuthMethods) {
-			c.flagAuthType = api.AuthenticationMethodCandid
 		} else {
 			c.flagAuthType = api.AuthenticationMethodTLS
 		}
 
-		if shared.ValueInSlice(c.flagAuthType, []string{api.AuthenticationMethodOIDC, api.AuthenticationMethodCandid}) {
+		if shared.ValueInSlice(c.flagAuthType, []string{api.AuthenticationMethodOIDC}) {
 			// Update the remote configuration
 			remote := conf.Remotes[server]
 			remote.AuthType = c.flagAuthType
@@ -709,10 +701,6 @@ func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 			} else {
 				rc.AuthType = api.AuthenticationMethodTLS
 			}
-		}
-
-		if rc.AuthType == api.AuthenticationMethodCandid && rc.Domain != "" {
-			rc.AuthType = fmt.Sprintf("%s (%s)", rc.AuthType, rc.Domain)
 		}
 
 		strName := name
