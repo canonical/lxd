@@ -28,6 +28,7 @@ import (
 	"github.com/canonical/lxd/lxd/dnsmasq"
 	"github.com/canonical/lxd/lxd/dnsmasq/dhcpalloc"
 	firewallDrivers "github.com/canonical/lxd/lxd/firewall/drivers"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/ip"
 	"github.com/canonical/lxd/lxd/network/acl"
 	"github.com/canonical/lxd/lxd/network/openvswitch"
@@ -2471,7 +2472,7 @@ func (n *bridge) bridgedNICExternalRoutes(bridgeProjectNetworks map[string][]*ap
 			return nil // Managed bridge networks can only exist in default project.
 		}
 
-		devices := db.ExpandInstanceDevices(inst.Devices, inst.Profiles)
+		devices := instancetype.ExpandInstanceDevices(inst.Devices, inst.Profiles)
 
 		// Iterate through each of the instance's devices, looking for bridged NICs that are linked to
 		// networks specified.
@@ -2569,7 +2570,7 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 
 	// Detect if there are any conflicting proxy devices on all instances with the to be created network forward
 	err = n.state.DB.Cluster.InstanceList(context.TODO(), func(inst db.InstanceArgs, p api.Project) error {
-		devices := db.ExpandInstanceDevices(inst.Devices, inst.Profiles)
+		devices := instancetype.ExpandInstanceDevices(inst.Devices, inst.Profiles)
 
 		for devName, devConfig := range devices {
 			if devConfig["type"] != "proxy" {
@@ -2722,7 +2723,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 						return nil // Managed bridge networks can only exist in default project.
 					}
 
-					devices := db.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
+					devices := instancetype.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
 
 					// Iterate through each of the instance's devices, looking for bridged NICs
 					// that are linked to this network.
