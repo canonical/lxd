@@ -5,7 +5,6 @@ go 1.20
 require (
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.1.0
-	github.com/canonical/candid v1.12.2
 	github.com/canonical/go-dqlite v1.21.0
 	github.com/checkpoint-restore/go-criu/v6 v6.3.0
 	github.com/digitalocean/go-qemu v0.0.0-20230711162256-2e3d0186973e
@@ -18,6 +17,7 @@ require (
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
+	github.com/gorilla/securecookie v1.1.2
 	github.com/gorilla/websocket v1.5.1
 	github.com/gosexy/gettext v0.0.0-20160830220431-74466a0a0c4a
 	github.com/grafana/dskit v0.0.0-20240130153441-9af49a5b011a
@@ -56,7 +56,6 @@ require (
 	golang.org/x/term v0.16.0
 	golang.org/x/text v0.14.0
 	google.golang.org/protobuf v1.32.0
-	gopkg.in/juju/environschema.v1 v1.0.1
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
@@ -80,7 +79,6 @@ require (
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/renameio v1.0.1 // indirect
 	github.com/gorilla/schema v1.2.1 // indirect
-	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jkeiser/iter v0.0.0-20200628201005-c8aa0ae784d1 // indirect
@@ -91,10 +89,7 @@ require (
 	github.com/juju/loggo v1.0.0 // indirect
 	github.com/juju/mgo/v2 v2.0.2 // indirect
 	github.com/juju/schema v1.2.0 // indirect
-	github.com/juju/utils/v2 v2.0.0-20210305225158-eedbe7b6b3e2 // indirect
 	github.com/juju/version v0.0.0-20210303051006-2015802527a8 // indirect
-	github.com/juju/webbrowser v1.0.0 // indirect
-	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/k-sone/critbitgo v1.4.0 // indirect
 	github.com/klauspost/compress v1.17.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.6 // indirect
@@ -141,7 +136,6 @@ require (
 	go.opentelemetry.io/otel v1.22.0 // indirect
 	go.opentelemetry.io/otel/metric v1.22.0 // indirect
 	go.opentelemetry.io/otel/trace v1.22.0 // indirect
-	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20240119083558-1b970713d09a // indirect
 	golang.org/x/mod v0.14.0 // indirect
@@ -151,7 +145,6 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240125205218-1f4bbc51befe // indirect
 	google.golang.org/grpc v1.61.0 // indirect
 	gopkg.in/errgo.v1 v1.0.1 // indirect
-	gopkg.in/httprequest.v1 v1.2.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/macaroon.v2 v2.1.0 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
