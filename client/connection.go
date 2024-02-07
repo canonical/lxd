@@ -333,7 +333,7 @@ func httpsLXD(ctx context.Context, requestURL string, args *ConnectionArgs) (Ins
 		eventListeners:     make(map[string][]*EventListener),
 	}
 
-	if shared.ValueInSlice(args.AuthType, []string{api.AuthenticationMethodCandid, api.AuthenticationMethodOIDC}) {
+	if shared.ValueInSlice(args.AuthType, []string{api.AuthenticationMethodOIDC}) {
 		server.RequireAuthenticated(true)
 	}
 
@@ -348,9 +348,7 @@ func httpsLXD(ctx context.Context, requestURL string, args *ConnectionArgs) (Ins
 	}
 
 	server.http = httpClient
-	if args.AuthType == api.AuthenticationMethodCandid {
-		server.setupBakeryClient()
-	} else if args.AuthType == api.AuthenticationMethodOIDC {
+	if args.AuthType == api.AuthenticationMethodOIDC {
 		server.setupOIDCClient(args.OIDCTokens)
 	}
 
