@@ -93,7 +93,6 @@ cleanup() {
     echo "==> Cleaning up"
 
     umount -l "${TEST_DIR}/dev"
-    kill_rbac_daemon "$TEST_DIR"
     cleanup_lxds "$TEST_DIR"
   fi
 
@@ -137,8 +136,6 @@ chmod +x "${LXD_DIR}"
 spawn_lxd "${LXD_DIR}" true
 LXD_ADDR=$(cat "${LXD_DIR}/lxd.addr")
 export LXD_ADDR
-
-start_rbac_daemon "${LXD_DIR}"
 
 run_test() {
   TEST_CURRENT=${1}
@@ -340,8 +337,6 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_storage_volume_initial_config "storage volume initial configuration"
     run_test test_resources "resources"
     run_test test_kernel_limits "kernel limits"
-    run_test test_macaroon_auth "macaroon authentication"
-    run_test test_rbac "RBAC authorization and Candid Auth"
     run_test test_console "console"
     run_test test_query "query"
     run_test test_storage_local_volume_handling "storage local volume handling"
