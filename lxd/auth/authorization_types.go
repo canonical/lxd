@@ -1,3 +1,4 @@
+//nolint:revive
 package auth
 
 // Entitlement is a type representation of a permission as it applies to a particular ObjectType.
