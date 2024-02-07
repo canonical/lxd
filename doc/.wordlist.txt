@@ -26,7 +26,7 @@ BPF
 Btrfs
 bugfix
 bugfixes
-Centos
+CentOS
 Ceph
 CephFS
 Ceph's
@@ -303,6 +303,7 @@ VDPA
 VFS
 VFs
 VirtIO
+virtiofs
 virtualize
 virtualized
 VLAN
