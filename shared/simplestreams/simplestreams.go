@@ -377,7 +377,7 @@ func (s *SimpleStreams) GetFiles(fingerprint string) (map[string]DownloadableFil
 		}
 	}
 
-	return nil, fmt.Errorf("Couldn't find the requested image")
+	return nil, fmt.Errorf("Couldn't find the requested image for fingerprint %q", fingerprint)
 }
 
 // ListAliases returns a list of image aliases for the provided image fingerprint.
@@ -501,9 +501,9 @@ func (s *SimpleStreams) GetImage(fingerprint string) (*api.Image, error) {
 	}
 
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("The requested image couldn't be found")
+		return nil, fmt.Errorf("The requested image couldn't be found for fingerprint %q", fingerprint)
 	} else if len(matches) > 1 {
-		return nil, fmt.Errorf("More than one match for the provided partial fingerprint")
+		return nil, fmt.Errorf("More than one match for the provided partial fingerprint %q", fingerprint)
 	}
 
 	return &matches[0], nil
