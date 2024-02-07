@@ -79,8 +79,7 @@ _have lxc && {
     global_keys="backups.compression_algorithm,
       core.https_address core.https_allowed_credentials \
       core.https_allowed_headers core.https_allowed_methods \
-      core.https_allowed_origin candid.api.url candid.api.key candid.expiry \
-      candid.domains cluster.https_address \
+      core.https_allowed_origin \
       core.metrics_address core.metrics_authentication \
       core.storage_buckets_address \
       core.proxy_https core.proxy_http core.proxy_ignore_hosts \
@@ -91,8 +90,6 @@ _have lxc && {
       maas.api.url maas.api.key maas.machine cluster.images_minimal_replica \
       network.ovn.integration_bridge network.ovn.northbound_connection \
       oidc.client.id oidc.issuer oidc.audience \
-      rbac.agent.url rbac.agent.username rbac.agent.public_key \
-      rbac.agent.private_key rbac.api.expiry rbac.api.key rbac.api.url \
       storage.backups_volume storage.images_volume"
 
     container_keys="boot.autostart boot.autostart.delay \
