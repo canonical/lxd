@@ -89,25 +89,6 @@ func (c *Config) TrustCACertificates() bool {
 	return c.m.GetBool("core.trust_ca_certificates")
 }
 
-// CandidServer returns all the Candid settings needed to connect to a server.
-func (c *Config) CandidServer() (string, string, int64, string) {
-	return c.m.GetString("candid.api.url"),
-		c.m.GetString("candid.api.key"),
-		c.m.GetInt64("candid.expiry"),
-		c.m.GetString("candid.domains")
-}
-
-// RBACServer returns all the Candid settings needed to connect to a server.
-func (c *Config) RBACServer() (string, string, int64, string, string, string, string) {
-	return c.m.GetString("rbac.api.url"),
-		c.m.GetString("rbac.api.key"),
-		c.m.GetInt64("rbac.expiry"),
-		c.m.GetString("rbac.agent.url"),
-		c.m.GetString("rbac.agent.username"),
-		c.m.GetString("rbac.agent.private_key"),
-		c.m.GetString("rbac.agent.public_key")
-}
-
 // ProxyHTTPS returns the configured HTTPS proxy, if any.
 func (c *Config) ProxyHTTPS() string {
 	return c.m.GetString("core.proxy_https")
@@ -533,41 +514,6 @@ var ConfigSchema = config.Schema{
 	//  shortdesc: Whether to automatically trust clients signed by the CA
 	"core.trust_ca_certificates": {Type: config.Bool, Default: "false"},
 
-	// lxdmeta:generate(entities=server; group=candid-and-rbac; key=candid.api_key)
-	//
-	// ---
-	//  type: string
-	//  scope: global
-	//  condition: required for HTTP-only servers
-	//  shortdesc: Public key of the Candid server
-	"candid.api.key": {},
-
-	// lxdmeta:generate(entities=server; group=candid-and-rbac; key=candid.api_url)
-	//
-	// ---
-	//  type: string
-	//  scope: global
-	//  shortdesc: URL of the external authentication endpoint using Candid
-	"candid.api.url": {},
-
-	// lxdmeta:generate(entities=server; group=candid-and-rbac; key=candid.domains)
-	// Specify a comma-separated list of allowed Candid domains.
-	// An empty string means all domains are valid.
-	// ---
-	//  type: string
-	//  scope: global
-	//  shortdesc: Allowed Candid domains
-	"candid.domains": {},
-
-	// lxdmeta:generate(entities=server; group=candid-and-rbac; key=candid.expiry)
-	// Specify the expiry time in seconds.
-	// ---
-	//  type: integer
-	//  scope: global
-	//  defaultdesc: `3600`
-	//  shortdesc: Candid macaroon expiry
-	"candid.expiry": {Type: config.Int64, Default: "3600"},
-
 	// lxdmeta:generate(entities=server; group=images; key=images.auto_update_cached)
 	//
 	// ---
@@ -730,61 +676,6 @@ var ConfigSchema = config.Schema{
 	//  scope: global
 	//  shortdesc: Expected audience value for the application
 	"oidc.audience": {},
-
-	// lxdmeta:generate(entities=server; group=candid-and-rbac; key=rbac.agent.url)
-	// Specify the URL as provided during RBAC registration.
-	// ---
-	//  type: string
-	//  scope: global
-	//  shortdesc: URL of the Candid agent
-	"rbac.agent.url": {},
-
-	// lxdmeta:generate(entities=server; group=candid-and-rbac; key=rbac.agent.username)
-	// Specify the user name as provided during RBAC registration.
-	// ---
-	//  type: string
-	//  scope: global
-	//  shortdesc: User name of the Candid agent
-	"rbac.agent.username": {},
-	// lxdmeta:generate(entities=server; group=candid-and-rbac; key=rbac.agent.private_key)
-	// Specify the private key as provided during RBAC registration.
-	// ---
-	//  type: string
-	//  scope: global
-	//  shortdesc: Private key of the Candid agent
-	"rbac.agent.private_key": {},
-	// lxdmeta:generate(entities=server; group=candid-and-rbac; key=rbac.agent.public_key)
-	// Specify the public key as provided during RBAC registration.
-	// ---
-	//  type: string
-	//  scope: global
-	//  shortdesc: Public key of the Candid agent
-	"rbac.agent.public_key": {},
-	// lxdmeta:generate(entities=server; group=candid-and-rbac; key=rbac.api.expiry)
-	// Specify the expiry time in seconds.
-	// ---
-	//  type: integer
-	//  scope: global
-	//  shortdesc: RBAC macaroon expiry
-	"rbac.api.expiry": {Type: config.Int64, Default: "3600"},
-
-	// lxdmeta:generate(entities=server; group=candid-and-rbac; key=rbac.api.key)
-	//
-	// ---
-	//  type: string
-	//  scope: global
-	//  condition: required for HTTP-only servers
-	//  shortdesc: Public key of the RBAC server
-	"rbac.api.key": {},
-
-	// lxdmeta:generate(entities=server; group=candid-and-rbac; key=rbac.api.url)
-	//
-	// ---
-	//  type: string
-	//  scope: global
-	//  shortdesc: URL of the external RBAC server
-	"rbac.api.url": {},
-	"rbac.expiry":  {Type: config.Int64, Default: "3600"},
 
 	// OVN networking global keys.
 
