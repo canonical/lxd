@@ -7,11 +7,9 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
-	"github.com/canonical/lxd/lxd/auth/candid"
 	"github.com/canonical/lxd/lxd/auth/oidc"
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
@@ -211,11 +209,6 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 	// Get the authentication methods.
 	authMethods := []string{api.AuthenticationMethodTLS}
-	candidURL, _, _, _ := s.GlobalConfig.CandidServer()
-	rbacURL, _, _, _, _, _, _ := s.GlobalConfig.RBACServer()
-	if candidURL != "" || rbacURL != "" {
-		authMethods = append(authMethods, api.AuthenticationMethodCandid)
-	}
 
 	oidcIssuer, oidcClientID, _ := s.GlobalConfig.OIDCServer()
 	if oidcIssuer != "" && oidcClientID != "" {
@@ -678,25 +671,6 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		}
 	})
 
-	// Validate global configuration
-	hasRBAC := false
-	hasCandid := false
-	for k, v := range req.Config {
-		if v == "" {
-			continue
-		}
-
-		if strings.HasPrefix(k, "candid.") {
-			hasCandid = true
-		} else if strings.HasPrefix(k, "rbac.") {
-			hasRBAC = true
-		}
-
-		if hasCandid && hasRBAC {
-			return response.BadRequest(fmt.Errorf("RBAC and Candid are mutually exclusive"))
-		}
-	}
-
 	// Then deal with cluster wide configuration
 	var clusterChanged map[string]string
 	var newClusterConfig *clusterConfig.Config
@@ -809,8 +783,6 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	s := d.State()
 
 	maasChanged := false
-	candidChanged := false
-	rbacChanged := false
 	bgpChanged := false
 	dnsChanged := false
 	lokiChanged := false
@@ -833,14 +805,6 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			fallthrough
 		case "maas.api.key":
 			maasChanged = true
-		case "candid.domains":
-			fallthrough
-		case "candid.expiry":
-			fallthrough
-		case "candid.api.key":
-			fallthrough
-		case "candid.api.url":
-			candidChanged = true
 		case "cluster.images_minimal_replica":
 			err := autoSyncImages(s.ShutdownCtx, s)
 			if err != nil {
@@ -857,20 +821,6 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 				d.taskPruneImages.Reset()
 			}
 
-		case "rbac.agent.url":
-			fallthrough
-		case "rbac.agent.username":
-			fallthrough
-		case "rbac.agent.private_key":
-			fallthrough
-		case "rbac.agent.public_key":
-			fallthrough
-		case "rbac.api.url":
-			fallthrough
-		case "rbac.api.key":
-			fallthrough
-		case "rbac.expiry":
-			rbacChanged = true
 		case "core.bgp_asn":
 			bgpChanged = true
 		case "loki.api.url":
@@ -980,25 +930,6 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		url, key := clusterConfig.MAASController()
 		machine := nodeConfig.MAASMachine()
 		err := d.setupMAASController(url, key, machine)
-		if err != nil {
-			return err
-		}
-	}
-
-	if candidChanged {
-		var err error
-
-		apiURL, apiKey, expiry, domains := clusterConfig.CandidServer()
-		d.candidVerifier, err = candid.NewVerifier(apiURL, apiKey, expiry, domains)
-		if err != nil {
-			return err
-		}
-	}
-
-	if rbacChanged {
-		apiURL, apiKey, apiExpiry, agentURL, agentUsername, agentPrivateKey, agentPublicKey := clusterConfig.RBACServer()
-
-		err := d.setupRBACServer(apiURL, apiKey, apiExpiry, agentURL, agentUsername, agentPrivateKey, agentPublicKey)
 		if err != nil {
 			return err
 		}

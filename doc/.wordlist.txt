@@ -197,7 +197,6 @@ QFQ
 qgroup
 qgroups
 RADOS
-RBAC
 RBD
 README
 reconfiguring

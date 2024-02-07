@@ -8,7 +8,6 @@ The following options are available:
 
 - {ref}`server-options-core`
 - {ref}`server-options-acme`
-- {ref}`server-options-candid-rbac`
 - {ref}`server-options-oidc`
 - {ref}`server-options-cluster`
 - {ref}`server-options-images`
@@ -42,17 +41,6 @@ The following server options control the {ref}`ACME <authentication-server-certi
 ```{include} config_options.txt
     :start-after: <!-- config group server-acme start -->
     :end-before: <!-- config group server-acme end -->
-```
-
-(server-options-candid-rbac)=
-## Candid and RBAC configuration
-
-The following server options configure external user authentication, through {ref}`authentication-candid` or through {ref}`authentication-rbac`:
-
-% Include content from [config_options.txt](config_options.txt)
-```{include} config_options.txt
-    :start-after: <!-- config group server-candid-and-rbac start -->
-    :end-before: <!-- config group server-candid-and-rbac end -->
 ```
 
 (server-options-oidc)=

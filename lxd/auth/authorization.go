@@ -10,11 +10,8 @@ import (
 )
 
 const (
-	// DriverTLS is the default TLS authorization driver. It is not compatible with OIDC or Candid authentication.
+	// DriverTLS is the default TLS authorization driver. It is not compatible with OIDC authentication.
 	DriverTLS string = "tls"
-
-	// DriverRBAC is role-based authorization. It is not compatible with TLS authentication.
-	DriverRBAC string = "rbac"
 )
 
 // ErrUnknownDriver is the "Unknown driver" error.
@@ -22,12 +19,6 @@ var ErrUnknownDriver = fmt.Errorf("Unknown driver")
 
 var authorizers = map[string]func() authorizer{
 	DriverTLS: func() authorizer { return &tls{} },
-	DriverRBAC: func() authorizer {
-		return &rbac{
-			resources:   map[string]string{},
-			permissions: map[string]map[string][]Permission{},
-		}
-	},
 }
 
 type authorizer interface {
@@ -96,21 +87,13 @@ type Authorizer interface {
 // Opts is used as part of the LoadAuthorizer function so that only the relevant configuration fields are passed into a
 // particular driver.
 type Opts struct {
-	config          map[string]any
-	projectsGetFunc func(ctx context.Context) (map[int64]string, error)
+	config map[string]any
 }
 
 // WithConfig can be passed into LoadAuthorizer to pass in driver specific configuration.
 func WithConfig(c map[string]any) func(*Opts) {
 	return func(o *Opts) {
 		o.config = c
-	}
-}
-
-// WithProjectsGetFunc should be passed into LoadAuthorizer when DriverRBAC is used.
-func WithProjectsGetFunc(f func(ctx context.Context) (map[int64]string, error)) func(*Opts) {
-	return func(o *Opts) {
-		o.projectsGetFunc = f
 	}
 }
 
