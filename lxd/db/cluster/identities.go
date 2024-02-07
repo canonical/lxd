@@ -8,8 +8,8 @@ import (
 	"fmt"
 
 	"github.com/canonical/lxd/lxd/certificate"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/auth"
 )
 
 // Code generation directives.
@@ -173,11 +173,6 @@ func (i IdentityType) toCertificateType() (certificate.Type, error) {
 	return -1, fmt.Errorf("Identity type %q is not a certificate", i)
 }
 
-// IsRestricted returns true if the identity type is restricted.
-func (i IdentityType) IsRestricted() bool {
-	return !shared.ValueInSlice(string(i), []string{api.IdentityTypeCertificateClientUnrestricted, api.IdentityTypeCertificateServer})
-}
-
 // Identity is a database representation of any authenticated party.
 type Identity struct {
 	ID         int
@@ -215,13 +210,18 @@ func (i Identity) ToCertificate() (*Certificate, error) {
 		return nil, fmt.Errorf("Failed to unmarshal certificate identity metadata: %w", err)
 	}
 
+	isRestricted, err := auth.IsRestrictedIdentityType(string(i.Type))
+	if err != nil {
+		return nil, fmt.Errorf("Failed to check restricted status of identity: %w", err)
+	}
+
 	c := &Certificate{
 		ID:          i.ID,
 		Fingerprint: i.Identifier,
 		Type:        identityType,
 		Name:        i.Name,
 		Certificate: metadata.Certificate,
-		Restricted:  i.Type.IsRestricted(),
+		Restricted:  isRestricted,
 	}
 
 	return c, nil
