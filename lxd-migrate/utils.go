@@ -146,7 +146,7 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 	return nil
 }
 
-func (m *cmdMigrate) connectTarget(url string, certPath string, keyPath string, authType string, token string) (lxd.InstanceServer, string, error) {
+func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, authType string, token string) (lxd.InstanceServer, string, error) {
 	args := lxd.ConnectionArgs{
 		AuthType: authType,
 	}
@@ -219,7 +219,7 @@ func (m *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 
 	// Attempt to connect using the system CA
 	args.UserAgent = fmt.Sprintf("LXC-MIGRATE %s", version.Version)
-	c, err := lxd.ConnectLXD(url, &args)
+	instanceServer, err := lxd.ConnectLXD(url, &args)
 
 	var certificate *x509.Certificate
 	if err != nil {
@@ -236,18 +236,18 @@ func (m *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 		args.TLSServerCert = string(serverCrt)
 
 		// Setup a new connection, this time with the remote certificate
-		c, err = lxd.ConnectLXD(url, &args)
+		instanceServer, err = lxd.ConnectLXD(url, &args)
 		if err != nil {
 			return nil, "", err
 		}
 	}
 
 	if authType == "candid" {
-		c.RequireAuthenticated(false)
+		instanceServer.RequireAuthenticated(false)
 	}
 
 	// Get server information
-	srv, _, err := c.GetServer()
+	srv, _, err := instanceServer.GetServer()
 	if err != nil {
 		return nil, "", err
 	}
@@ -255,7 +255,7 @@ func (m *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 	// Check if our cert is already trusted
 	if srv.Auth == "trusted" {
 		fmt.Printf("\nRemote LXD server:\n  Hostname: %s\n  Version: %s\n\n", srv.Environment.ServerName, srv.Environment.ServerVersion)
-		return c, "", nil
+		return instanceServer, "", nil
 	}
 
 	if authType == "tls" {
@@ -264,7 +264,7 @@ func (m *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 				Password: token,
 			}
 
-			err = c.CreateCertificate(req)
+			err = instanceServer.CreateCertificate(req)
 			if err != nil {
 				return nil, "", fmt.Errorf("Failed to create certificate: %w", err)
 			}
@@ -273,7 +273,7 @@ func (m *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 
 			fmt.Println("")
 
-			useTrustPassword, err := m.global.asker.AskBool("Would you like to use a trust password? [default=no]: ", "no")
+			useTrustPassword, err := c.global.asker.AskBool("Would you like to use a trust password? [default=no]: ", "no")
 			if err != nil {
 				return nil, "", err
 			}
@@ -295,7 +295,7 @@ func (m *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 
 				req.Type = api.CertificateTypeClient
 
-				err = c.CreateCertificate(req)
+				err = instanceServer.CreateCertificate(req)
 				if err != nil {
 					return nil, "", err
 				}
@@ -308,14 +308,14 @@ func (m *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 			}
 		}
 	} else {
-		c.RequireAuthenticated(true)
+		instanceServer.RequireAuthenticated(true)
 	}
 
 	// Get full server information
-	srv, _, err = c.GetServer()
+	srv, _, err = instanceServer.GetServer()
 	if err != nil {
 		if clientFingerprint != "" {
-			_ = c.DeleteCertificate(clientFingerprint)
+			_ = instanceServer.DeleteCertificate(clientFingerprint)
 		}
 
 		return nil, "", err
@@ -327,7 +327,7 @@ func (m *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 
 	fmt.Printf("\nRemote LXD server:\n  Hostname: %s\n  Version: %s\n\n", srv.Environment.ServerName, srv.Environment.ServerVersion)
 
-	return c, clientFingerprint, nil
+	return instanceServer, clientFingerprint, nil
 }
 
 func setupSource(path string, mounts []string) error {
