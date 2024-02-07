@@ -110,8 +110,7 @@ type Daemon struct {
 
 	proxy func(req *http.Request) (*url.URL, error)
 
-	candidVerifier *candid.Verifier
-	oidcVerifier   *oidc.Verifier
+	oidcVerifier *oidc.Verifier
 
 	// Stores last heartbeat node information to detect node changes.
 	lastNodeList *cluster.APIHeartbeat
