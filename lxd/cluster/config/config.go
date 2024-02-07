@@ -110,7 +110,7 @@ func (c *Config) HTTPSTrustedProxy() string {
 }
 
 // MAASController the configured MAAS url and key, if any.
-func (c *Config) MAASController() (string, string) {
+func (c *Config) MAASController() (apiURL string, apiKey string) {
 	url := c.m.GetString("maas.api.url")
 	key := c.m.GetString("maas.api.key")
 	return url, key
@@ -152,7 +152,7 @@ func (c *Config) NetworkOVNNorthboundConnection() string {
 }
 
 // NetworkOVNSSL returns all three SSL configuration keys needed for a connection.
-func (c *Config) NetworkOVNSSL() (string, string, string) {
+func (c *Config) NetworkOVNSSL() (caCert string, clientCert string, clientKey string) {
 	return c.m.GetString("network.ovn.ca_cert"), c.m.GetString("network.ovn.client_cert"), c.m.GetString("network.ovn.client_key")
 }
 
@@ -199,10 +199,7 @@ func (c *Config) InstancesPlacementScriptlet() string {
 }
 
 // LokiServer returns all the Loki settings needed to connect to a server.
-func (c *Config) LokiServer() (string, string, string, string, []string, string, []string) {
-	var types []string
-	var labels []string
-
+func (c *Config) LokiServer() (apiURL string, authUsername string, authPassword string, apiCACert string, labels []string, logLevel string, types []string) {
 	if c.m.GetString("loki.types") != "" {
 		types = strings.Split(c.m.GetString("loki.types"), ",")
 	}
@@ -215,7 +212,7 @@ func (c *Config) LokiServer() (string, string, string, string, []string, string,
 }
 
 // ACME returns all ACME settings needed for certificate renewal.
-func (c *Config) ACME() (string, string, string, bool) {
+func (c *Config) ACME() (domain string, email string, caURL string, agreeTOS bool) {
 	return c.m.GetString("acme.domain"), c.m.GetString("acme.email"), c.m.GetString("acme.ca_url"), c.m.GetBool("acme.agree_tos")
 }
 
@@ -230,7 +227,7 @@ func (c *Config) RemoteTokenExpiry() string {
 }
 
 // OIDCServer returns all the OpenID Connect settings needed to connect to a server.
-func (c *Config) OIDCServer() (string, string, string) {
+func (c *Config) OIDCServer() (issuer string, clientID string, audience string) {
 	return c.m.GetString("oidc.issuer"), c.m.GetString("oidc.client.id"), c.m.GetString("oidc.audience")
 }
 
