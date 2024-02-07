@@ -227,7 +227,8 @@ func patchClusteringServerCertTrust(name string, d *Daemon) error {
 
 		for _, c := range dbCerts {
 			if c.Type == certificate.TypeServer {
-				trustedServerCerts[c.Name] = &c
+				cCopy := c
+				trustedServerCerts[c.Name] = &cCopy
 			}
 		}
 
@@ -806,11 +807,11 @@ func patchStorageRenameCustomISOBlockVolumes(name string, d *Daemon) error {
 	leaderAddress, err := d.gateway.LeaderAddress()
 	if err != nil {
 		// If we're not clustered, we're the leader.
-		if errors.Is(err, cluster.ErrNodeIsNotClustered) {
-			isLeader = true
-		} else {
+		if !errors.Is(err, cluster.ErrNodeIsNotClustered) {
 			return err
 		}
+
+		isLeader = true
 	} else if localConfig.ClusterAddress() == leaderAddress {
 		isLeader = true
 	}
