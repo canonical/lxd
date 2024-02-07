@@ -33,7 +33,7 @@ type cmdMigrate struct {
 	flagRsyncArgs string
 }
 
-func (c *cmdMigrate) Command() *cobra.Command {
+func (c *cmdMigrate) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "lxd-migrate"
 	cmd.Short = "Physical to instance migration tool"
@@ -49,7 +49,7 @@ func (c *cmdMigrate) Command() *cobra.Command {
 
   The same set of options as ` + "`lxc launch`" + ` are also supported.
 `
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().StringVar(&c.flagRsyncArgs, "rsync-args", "", "Extra arguments to pass to rsync"+"``")
 
 	return cmd
@@ -62,7 +62,7 @@ type cmdMigrateData struct {
 	Project      string
 }
 
-func (c *cmdMigrateData) Render() string {
+func (c *cmdMigrateData) render() string {
 	data := struct {
 		Name        string            `yaml:"Name"`
 		Project     string            `yaml:"Project"`
@@ -241,7 +241,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	return c.connectTarget(serverURL, certPath, keyPath, authType, token)
 }
 
-func (c *cmdMigrate) RunInteractive(server lxd.InstanceServer) (cmdMigrateData, error) {
+func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, error) {
 	var err error
 
 	config := cmdMigrateData{}
@@ -386,7 +386,7 @@ func (c *cmdMigrate) RunInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 	for {
 		fmt.Println("\nInstance to be created:")
 
-		scanner := bufio.NewScanner(strings.NewReader(config.Render()))
+		scanner := bufio.NewScanner(strings.NewReader(config.render()))
 		for scanner.Scan() {
 			fmt.Printf("  %s\n", scanner.Text())
 		}
@@ -425,7 +425,7 @@ Additional overrides can be applied at this stage:
 	}
 }
 
-func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if os.Geteuid() != 0 {
 		return fmt.Errorf("This tool must be run as root")
@@ -461,7 +461,7 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 		defer func() { _ = server.DeleteCertificate(clientFingerprint) }()
 	}
 
-	config, err := c.RunInteractive(server)
+	config, err := c.runInteractive(server)
 	if err != nil {
 		return err
 	}
