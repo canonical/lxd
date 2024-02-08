@@ -625,13 +625,23 @@ func genericVFSBackupVolume(d Driver, vol VolumeCopy, tarWriter *instancewriter.
 		}
 
 		for _, snapName := range snapshots {
-			prefix := filepath.Join(snapshotsPrefix, snapName)
-			snapVol, err := vol.NewSnapshot(snapName)
-			if err != nil {
-				return err
+			found := false
+			var snapVol Volume
+			for _, snapshot := range vol.Snapshots {
+				_, snapshotName, _ := api.GetParentAndSnapshotName(snapshot.name)
+				if snapshotName == snapName {
+					snapVol = snapshot
+					found = true
+					break
+				}
 			}
 
-			err = backupVolume(snapVol, prefix)
+			if !found {
+				return fmt.Errorf("Snapshot %q missing in volume's list", snapName)
+			}
+
+			prefix := filepath.Join(snapshotsPrefix, snapName)
+			err := backupVolume(snapVol, prefix)
 			if err != nil {
 				return err
 			}
