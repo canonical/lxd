@@ -7,9 +7,7 @@ permissions:
 
 jobs:
   commits:
-    permissions:
-      pull-requests: read  # for tim-actions/get-pr-commits to get list of commits from the PR
-    name: Branch target, CLA and Signed-off-by (DCO)
+    name: Branch target and CLA
     runs-on: ubuntu-22.04
     steps:
     - name: Check branch target
@@ -32,14 +30,3 @@ jobs:
 
     - name: Check if CLA signed
       uses: simondeziel/has-signed-canonical-cla@implicit-approval-from-licenses
-
-    - name: Get PR Commits
-      id: 'get-pr-commits'
-      uses: tim-actions/get-pr-commits@master
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Check that all commits are signed-off
-      uses: tim-actions/dco@master
-      with:
-        commits: ${{ steps.get-pr-commits.outputs.commits }}
