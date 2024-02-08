@@ -150,7 +150,7 @@ Using incremental memory transfer of the instance's memory can reduce downtime.
 
 ```{config:option} migration.stateful instance-migration
 :condition: "virtual machine"
-:defaultdesc: "`false`"
+:defaultdesc: "`false` or value from profiles or `instances.migration.stateful` (if set)"
 :liveupdate: "no"
 :shortdesc: "Whether to allow for stateful stop/start and snapshots"
 :type: "bool"
@@ -1655,6 +1655,13 @@ The events can be any combination of `lifecycle`, `logging`, and `ovn`.
 :shortdesc: "Compression algorithm to use for backups"
 :type: "string"
 Possible values are `bzip2`, `gzip`, `lzma`, `xz`, or `none`.
+```
+
+```{config:option} instances.migration.stateful server-miscellaneous
+:scope: "global"
+:shortdesc: "Whether to set `migration.stateful` to `true` for the instances"
+:type: "bool"
+You can override this setting for relevant instances, either in the instance-specific configuration or through a profile.
 ```
 
 ```{config:option} instances.nic.host_name server-miscellaneous
