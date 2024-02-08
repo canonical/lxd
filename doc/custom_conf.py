@@ -28,7 +28,7 @@ author = 'LXD contributors'
 # release = '1.0'
 
 with open("../shared/version/flex.go") as fd:
-    version = fd.read().split("\n")[-2].split()[-1].strip("\"")
+    version = fd.readlines()[3].split()[-1].strip("\"")
 
 # The default value uses the current year as the copyright year.
 #
