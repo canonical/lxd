@@ -366,8 +366,20 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 
 		// Snapshots are sent first by the sender, so create these first.
 		for _, snapName := range volTargetArgs.Snapshots {
-			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
-			snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapshotName, vol.config, vol.poolConfig)
+			found := false
+			var snapVol Volume
+			for _, snapshot := range vol.Snapshots {
+				_, snapshotName, _ := api.GetParentAndSnapshotName(snapshot.name)
+				if snapshotName == snapName {
+					snapVol = snapshot
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				return fmt.Errorf("Snapshot %q missing in volume's list", snapName)
+			}
 
 			if snapVol.contentType != ContentTypeBlock || snapVol.volType != VolumeTypeCustom { // Receive the filesystem snapshot first (as it is sent first).
 				err = recvFSVol(snapVol.name, conn, path)
