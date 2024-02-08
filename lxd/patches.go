@@ -81,6 +81,7 @@ var patches = []patch{
 	{name: "storage_zfs_unset_invalid_block_settings", stage: patchPostDaemonStorage, run: patchStorageZfsUnsetInvalidBlockSettings},
 	{name: "storage_zfs_unset_invalid_block_settings_v2", stage: patchPostDaemonStorage, run: patchStorageZfsUnsetInvalidBlockSettingsV2},
 	{name: "storage_unset_invalid_block_settings", stage: patchPostDaemonStorage, run: patchStorageUnsetInvalidBlockSettings},
+	{name: "candid_rbac_remove_config_keys", stage: patchPreDaemonStorage, run: patchRemoveCandidRBACConfigKeys},
 }
 
 type patch struct {
@@ -1304,6 +1305,31 @@ func patchStorageUnsetInvalidBlockSettings(_ string, d *Daemon) error {
 				return fmt.Errorf("Failed updating volume %q in project %q on pool %q: %w", vol.Name, vol.Project, poolIDNameMap[pool], err)
 			}
 		}
+	}
+
+	return nil
+}
+
+// patchRemoveCandidRBACConfigKeys removes all Candid and RBAC related configuration from the database.
+func patchRemoveCandidRBACConfigKeys(_ string, d *Daemon) error {
+	s := d.State()
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.UpdateClusterConfig(map[string]string{
+			"candid.api.url":         "",
+			"candid.api.key":         "",
+			"candid.expiry":          "",
+			"candid.domains":         "",
+			"rbac.api.url":           "",
+			"rbac.api.key":           "",
+			"rbac.expiry":            "",
+			"rbac.agent.url":         "",
+			"rbac.agent.username":    "",
+			"rbac.agent.private_key": "",
+			"rbac.agent.public_key":  "",
+		})
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to remove RBAC and Candid configuration keys: %w", err)
 	}
 
 	return nil
