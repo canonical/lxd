@@ -198,6 +198,11 @@ func (c *Config) InstancesPlacementScriptlet() string {
 	return c.m.GetString("instances.placement.scriptlet")
 }
 
+// InstancesMigrationStateful returns the whether or not to auto enable migration.stateful for all VM instances.
+func (c *Config) InstancesMigrationStateful() bool {
+	return c.m.GetBool("instances.migration.stateful")
+}
+
 // LokiServer returns all the Loki settings needed to connect to a server.
 func (c *Config) LokiServer() (apiURL string, authUsername string, authPassword string, apiCACert string, instance string, logLevel string, labels []string, types []string) {
 	if c.m.GetString("loki.types") != "" {
@@ -575,6 +580,14 @@ var ConfigSchema = config.Schema{
 	//  scope: global
 	//  shortdesc: Instance placement scriptlet for automatic instance placement
 	"instances.placement.scriptlet": {Validator: validate.Optional(scriptletLoad.InstancePlacementValidate)},
+
+	// lxdmeta:generate(entities=server; group=miscellaneous; key=instances.migration.stateful)
+	// You can override this setting for relevant instances, either in the instance-specific configuration or through a profile.
+	// ---
+	//  type: bool
+	//  scope: global
+	//  shortdesc: Whether to set `migration.stateful` to `true` for the instances
+	"instances.migration.stateful": {Type: config.Bool, Default: "false"},
 
 	// lxdmeta:generate(entities=server; group=loki; key=loki.auth.username)
 	//
