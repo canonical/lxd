@@ -232,8 +232,7 @@ jobs:
           sudo add-apt-repository ppa:dqlite/dev -y --no-update
           sudo apt-get update
 
-          sudo systemctl mask lxc.service
-          sudo systemctl mask lxc-net.service
+          sudo systemctl mask lxc.service lxc-net.service
 
           sudo apt-get install --no-install-recommends -y \
             curl \
