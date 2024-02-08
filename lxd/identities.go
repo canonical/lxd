@@ -5,11 +5,10 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"github.com/canonical/lxd/lxd/certificate"
-	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
-	"github.com/canonical/lxd/shared"
 
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -17,26 +16,25 @@ import (
 func updateCertificateCache(d *Daemon) {
 	s := d.State()
 
-	logger.Debug("Refreshing trusted certificate cache")
+	logger.Debug("Refreshing identity cache")
 
-	newCerts := map[certificate.Type]map[string]x509.Certificate{}
-	newProjects := map[string][]string{}
-
-	var certs []*api.Certificate
-	var dbCerts []dbCluster.Certificate
-	var localCerts []dbCluster.Certificate
+	var identities []cluster.Identity
+	projects := make(map[int][]string)
 	var err error
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbCerts, err = dbCluster.GetCertificates(ctx, tx.Tx())
+	err = s.DB.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		identities, err = cluster.GetIdentitys(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
 
-		certs = make([]*api.Certificate, len(dbCerts))
-		for i, c := range dbCerts {
-			certs[i], err = c.ToAPI(ctx, tx.Tx())
+		for _, identity := range identities {
+			identityProjects, err := cluster.GetIdentityProjects(ctx, tx.Tx(), identity.ID)
 			if err != nil {
 				return err
+			}
+
+			for _, p := range identityProjects {
+				projects[identity.ID] = append(projects[identity.ID], p.Name)
 			}
 		}
 		return nil
@@ -46,39 +44,42 @@ func updateCertificateCache(d *Daemon) {
 		return
 	}
 
-	for i, dbCert := range dbCerts {
-		_, found := newCerts[dbCert.Type]
-		if !found {
-			newCerts[dbCert.Type] = make(map[string]x509.Certificate)
+	identityCacheEntries := make([]identity.CacheEntry, 0, len(identities))
+	var localServerCerts []cluster.Certificate
+	for _, id := range identities {
+		cacheEntry := identity.CacheEntry{
+			Identifier:           id.Identifier,
+			AuthenticationMethod: string(id.AuthMethod),
+			IdentityType:         string(id.Type),
+			Projects:             projects[id.ID],
 		}
 
-		certBlock, _ := pem.Decode([]byte(dbCert.Certificate))
-		if certBlock == nil {
-			logger.Warn("Failed decoding certificate", logger.Ctx{"name": dbCert.Name, "err": err})
-			continue
+		if cacheEntry.AuthenticationMethod == api.AuthenticationMethodTLS {
+			cert, err := id.X509()
+			if err != nil {
+				logger.Warn("Failed to extract x509 certificate from TLS identity metadata", logger.Ctx{"error": err})
+				continue
+			}
+
+			cacheEntry.Certificate = cert
 		}
 
-		cert, err := x509.ParseCertificate(certBlock.Bytes)
-		if err != nil {
-			logger.Warn("Failed parsing certificate", logger.Ctx{"name": dbCert.Name, "err": err})
-			continue
-		}
-
-		newCerts[dbCert.Type][shared.CertFingerprint(cert)] = *cert
-
-		if dbCert.Restricted {
-			newProjects[shared.CertFingerprint(cert)] = certs[i].Projects
-		}
+		identityCacheEntries = append(identityCacheEntries, cacheEntry)
 
 		// Add server certs to list of certificates to store in local database to allow cluster restart.
-		if dbCert.Type == certificate.TypeServer {
-			localCerts = append(localCerts, dbCert)
+		if id.Type == api.IdentityTypeCertificateServer {
+			cert, err := id.ToCertificate()
+			if err != nil {
+				logger.Warn("Failed to convert TLS identity to server certificate", logger.Ctx{"error": err})
+			}
+
+			localServerCerts = append(localServerCerts, *cert)
 		}
 	}
 
 	// Write out the server certs to the local database to allow the cluster to restart.
-	err = s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		return tx.ReplaceCertificates(localCerts)
+	err = s.DB.Node.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.NodeTx) error {
+		return tx.ReplaceCertificates(localServerCerts)
 	})
 	if err != nil {
 		logger.Warn("Failed writing certificates to local database", logger.Ctx{"err": err})
@@ -86,32 +87,29 @@ func updateCertificateCache(d *Daemon) {
 		// continue functioning, and hopefully the write will succeed on next update.
 	}
 
-	d.clientCerts.SetCertificatesAndProjects(newCerts, newProjects)
+	err = d.identityCache.ReplaceAll(identityCacheEntries)
+	if err != nil {
+		logger.Warn("Failed to update identity cache", logger.Ctx{"error": err})
+	}
 }
 
-// updateCertificateCacheFromLocal loads trusted server certificates from local database into memory.
+// updateCertificateCacheFromLocal loads trusted server certificates from local database into the identity cache.
 func updateCertificateCacheFromLocal(d *Daemon) error {
-	logger.Debug("Refreshing local trusted certificate cache")
+	logger.Debug("Refreshing identity cache with local trusted certificates")
 
-	newCerts := map[certificate.Type]map[string]x509.Certificate{}
-
-	var dbCerts []dbCluster.Certificate
+	var localServerCerts []cluster.Certificate
 	var err error
 
-	err = d.State().DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		dbCerts, err = tx.GetCertificates(ctx)
+	err = d.State().DB.Node.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.NodeTx) error {
+		localServerCerts, err = tx.GetCertificates(ctx)
 		return err
 	})
 	if err != nil {
 		return fmt.Errorf("Failed reading certificates from local database: %w", err)
 	}
 
-	for _, dbCert := range dbCerts {
-		_, found := newCerts[dbCert.Type]
-		if !found {
-			newCerts[dbCert.Type] = make(map[string]x509.Certificate)
-		}
-
+	var identityCacheEntries []identity.CacheEntry
+	for _, dbCert := range localServerCerts {
 		certBlock, _ := pem.Decode([]byte(dbCert.Certificate))
 		if certBlock == nil {
 			logger.Warn("Failed decoding certificate", logger.Ctx{"name": dbCert.Name, "err": err})
@@ -124,10 +122,24 @@ func updateCertificateCacheFromLocal(d *Daemon) error {
 			continue
 		}
 
-		newCerts[dbCert.Type][shared.CertFingerprint(cert)] = *cert
+		id, err := dbCert.ToIdentity()
+		if err != nil {
+			logger.Warn("Failed to convert node certificate into identity entry", logger.Ctx{"error": err})
+			continue
+		}
+
+		identityCacheEntries = append(identityCacheEntries, identity.CacheEntry{
+			Identifier:           id.Identifier,
+			AuthenticationMethod: string(id.AuthMethod),
+			IdentityType:         string(id.Type),
+			Certificate:          cert,
+		})
 	}
 
-	d.clientCerts.SetCertificates(newCerts)
+	err = d.identityCache.ReplaceAll(identityCacheEntries)
+	if err != nil {
+		return fmt.Errorf("Failed to update identity cache from local trust store: %w", err)
+	}
 
 	return nil
 }
