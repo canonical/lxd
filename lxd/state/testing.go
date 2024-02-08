@@ -29,12 +29,12 @@ func NewTestState(t *testing.T) (*State, func()) {
 	}
 
 	state := &State{
-		ShutdownCtx:            context.TODO(),
-		DB:                     &db.DB{Node: node, Cluster: cluster},
-		OS:                     os,
-		Firewall:               firewall.New(),
-		UpdateCertificateCache: func() {},
-		GlobalConfig:           &clusterConfig.Config{},
+		ShutdownCtx:         context.TODO(),
+		DB:                  &db.DB{Node: node, Cluster: cluster},
+		OS:                  os,
+		Firewall:            firewall.New(),
+		UpdateIdentityCache: func() {},
+		GlobalConfig:        &clusterConfig.Config{},
 	}
 
 	return state, cleanup

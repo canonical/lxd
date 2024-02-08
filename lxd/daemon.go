@@ -385,28 +385,28 @@ func (d *Daemon) State() *state.State {
 	d.globalConfigMu.Unlock()
 
 	return &state.State{
-		ShutdownCtx:            d.shutdownCtx,
-		DB:                     d.db,
-		MAAS:                   d.maas,
-		BGP:                    d.bgp,
-		DNS:                    d.dns,
-		OS:                     d.os,
-		Endpoints:              d.endpoints,
-		Events:                 d.events,
-		DevlxdEvents:           d.devlxdEvents,
-		Firewall:               d.firewall,
-		Proxy:                  d.proxy,
-		ServerCert:             d.serverCert,
-		UpdateCertificateCache: func() { updateCertificateCache(d) },
-		InstanceTypes:          instanceTypes,
-		DevMonitor:             d.devmonitor,
-		GlobalConfig:           globalConfig,
-		LocalConfig:            localConfig,
-		ServerName:             d.serverName,
-		ServerClustered:        d.serverClustered,
-		ServerUUID:             d.serverUUID,
-		StartTime:              d.startTime,
-		Authorizer:             d.authorizer,
+		ShutdownCtx:         d.shutdownCtx,
+		DB:                  d.db,
+		MAAS:                d.maas,
+		BGP:                 d.bgp,
+		DNS:                 d.dns,
+		OS:                  d.os,
+		Endpoints:           d.endpoints,
+		Events:              d.events,
+		DevlxdEvents:        d.devlxdEvents,
+		Firewall:            d.firewall,
+		Proxy:               d.proxy,
+		ServerCert:          d.serverCert,
+		UpdateIdentityCache: func() { updateIdentityCache(d) },
+		InstanceTypes:       instanceTypes,
+		DevMonitor:          d.devmonitor,
+		GlobalConfig:        globalConfig,
+		LocalConfig:         localConfig,
+		ServerName:          d.serverName,
+		ServerClustered:     d.serverClustered,
+		ServerUUID:          d.serverUUID,
+		StartTime:           d.startTime,
+		Authorizer:          d.authorizer,
 	}
 }
 
@@ -942,7 +942,7 @@ func (d *Daemon) init() error {
 	}
 
 	// Load cached local trusted certificates before starting listener and cluster database.
-	err = updateCertificateCacheFromLocal(d)
+	err = updateIdentityCacheFromLocal(d)
 	if err != nil {
 		return err
 	}
@@ -1440,8 +1440,8 @@ func (d *Daemon) init() error {
 			logger.Info("Started seccomp handler", logger.Ctx{"path": shared.VarPath("seccomp.socket")})
 		}
 
-		// Read the trusted certificates
-		updateCertificateCache(d)
+		// Read the trusted identities
+		updateIdentityCache(d)
 
 		// Connect to MAAS
 		if maasAPIURL != "" {
@@ -2015,8 +2015,8 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	if d.hasMemberStateChanged(heartbeatData) {
 		logger.Info("Cluster member state has changed", logger.Ctx{"local": localClusterAddress})
 
-		// Refresh cluster certificates cached.
-		updateCertificateCache(d)
+		// Refresh the identity cache.
+		updateIdentityCache(d)
 
 		// Refresh forkdns peers.
 		err := networkUpdateForkdnsServersTask(s, heartbeatData)
