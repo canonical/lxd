@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/cluster"
@@ -82,6 +84,7 @@ var patches = []patch{
 	{name: "storage_zfs_unset_invalid_block_settings_v2", stage: patchPostDaemonStorage, run: patchStorageZfsUnsetInvalidBlockSettingsV2},
 	{name: "storage_unset_invalid_block_settings", stage: patchPostDaemonStorage, run: patchStorageUnsetInvalidBlockSettings},
 	{name: "candid_rbac_remove_config_keys", stage: patchPreDaemonStorage, run: patchRemoveCandidRBACConfigKeys},
+	{name: "storage_set_volume_uuid", stage: patchPostDaemonStorage, run: patchStorageSetVolumeUUID},
 }
 
 type patch struct {
@@ -1330,6 +1333,150 @@ func patchRemoveCandidRBACConfigKeys(_ string, d *Daemon) error {
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to remove RBAC and Candid configuration keys: %w", err)
+	}
+
+	return nil
+}
+
+// patchStorageSetVolumeUUID sets a unique volatile.uuid field for each volume and its snapshots.
+func patchStorageSetVolumeUUID(_ string, d *Daemon) error {
+	s := d.State()
+
+	// Get all storage pool names.
+	pools, err := s.DB.Cluster.GetStoragePoolNames()
+	if err != nil {
+		// Skip the rest of the patch if no storage pools were found.
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil
+		}
+
+		return fmt.Errorf("Failed getting storage pool names: %w", err)
+	}
+
+	// Check if this member is the current cluster leader.
+	isLeader := false
+
+	if !d.serverClustered {
+		// If we're not clustered, we're the leader.
+		isLeader = true
+	} else {
+		leaderAddress, err := d.gateway.LeaderAddress()
+		if err != nil {
+			return err
+		}
+
+		if s.LocalConfig.ClusterAddress() == leaderAddress {
+			isLeader = true
+		}
+	}
+
+	// Ensure the renaming is done on the cluster leader only.
+	if !isLeader {
+		return nil
+	}
+
+	poolIDNameMap := make(map[int64]string, 0)
+	poolVolumes := make(map[int64][]*db.StorageVolume, 0)
+	poolBuckets := make(map[int64][]*db.StorageBucket, 0)
+
+	for _, pool := range pools {
+		var poolID int64
+		var buckets []*db.StorageBucket
+		err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+			// Get storage pool ID.
+			poolID, err = tx.GetStoragePoolID(ctx, pool)
+			if err != nil {
+				return fmt.Errorf("Failed getting storage pool ID of pool %q: %w", pool, err)
+			}
+
+			// Get the pool's storage buckets.
+			buckets, err = tx.GetStoragePoolBuckets(ctx, false, db.StorageBucketFilter{PoolID: &poolID})
+			if err != nil {
+				return fmt.Errorf("Failed getting custom storage volumes of pool %q: %w", pool, err)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		if poolBuckets[poolID] == nil {
+			poolBuckets[poolID] = []*db.StorageBucket{}
+		}
+
+		poolIDNameMap[poolID] = pool
+		poolBuckets[poolID] = append(poolBuckets[poolID], buckets...)
+
+		var volumes []*db.StorageVolume
+		err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+			// Get the pool's storage volumes.
+			volumes, err = tx.GetStoragePoolVolumes(ctx, poolID, false)
+			if err != nil {
+				return fmt.Errorf("Failed getting storage volumes of pool %q: %w", pool, err)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		if poolVolumes[poolID] == nil {
+			poolVolumes[poolID] = []*db.StorageVolume{}
+		}
+
+		poolVolumes[poolID] = append(poolVolumes[poolID], volumes...)
+	}
+
+	for pool, buckets := range poolBuckets {
+		for _, bucket := range buckets {
+			// Skip buckets that already have a UUID.
+			if bucket.Config["volatile.uuid"] == "" {
+				bucket.Config["volatile.uuid"] = uuid.New().String()
+
+				err := s.DB.Cluster.UpdateStoragePoolBucket(d.shutdownCtx, pool, bucket.ID, &bucket.StorageBucketPut)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	for pool, volumes := range poolVolumes {
+		for _, vol := range volumes {
+			volDBType, err := storagePools.VolumeTypeNameToDBType(vol.Type)
+			if err != nil {
+				return err
+			}
+
+			// Skip volumes that already have a UUID.
+			if vol.Config["volatile.uuid"] == "" {
+				vol.Config["volatile.uuid"] = uuid.New().String()
+
+				err := s.DB.Cluster.UpdateStoragePoolVolume(vol.Project, vol.Name, volDBType, pool, vol.Description, vol.Config)
+				if err != nil {
+					return fmt.Errorf("Failed updating volume %q in project %q on pool %q: %w", vol.Name, vol.Project, poolIDNameMap[pool], err)
+				}
+			}
+
+			snapshots, err := s.DB.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(vol.Project, vol.Name, volDBType, pool)
+			if err != nil {
+				return err
+			}
+
+			for _, snapshot := range snapshots {
+				// Skip snapshots that already have a UUID.
+				if snapshot.Config["volatile.uuid"] == "" {
+					snapshot.Config["volatile.uuid"] = uuid.New().String()
+
+					err = s.DB.Cluster.UpdateStorageVolumeSnapshot(snapshot.ProjectName, snapshot.Name, volDBType, pool, snapshot.Description, snapshot.Config, snapshot.ExpiryDate)
+					if err != nil {
+						return fmt.Errorf("Failed updating snapshot %q in project %q on pool %q: %w", snapshot.Name, snapshot.ProjectName, poolIDNameMap[pool], err)
+					}
+				}
+			}
+		}
 	}
 
 	return nil
