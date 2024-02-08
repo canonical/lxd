@@ -52,15 +52,10 @@ jobs:
           path: ${{ steps.ShellCheck.outputs.sarif }}
         if: github.event_name == 'pull_request'
 
-      - name: Install Go
+      - name: Install Go (1.21)
         uses: actions/setup-go@v5
         with:
-          go-version: 1.20.x
-
-      - name: Check compatible min Go version
-        run: |
-          set -eux
-          go mod tidy -go=1.20
+          go-version: 1.21.x
 
       - name: Install dependencies
         run: |
@@ -143,14 +138,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.20.x"]
+        go: ["1.21.x"]
         suite: ["cluster", "standalone"]
         backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
         include:
-          - go: stable
+          - go: "1.20.x"
             suite: cluster
             backend: dir
-          - go: stable
+          - go: "1.20.x"
             suite: standalone
             backend: dir
           - go: tip
@@ -175,8 +170,15 @@ jobs:
 
       - name: Reclaim some space
         run: |
-          # This was inspired from https://github.com/easimon/maximize-build-space
           set -eux
+
+          sudo snap remove lxd --purge
+          # Purge older snap revisions that are disabled/superseded by newer revisions of the same snap
+          snap list --all | while read -r name _ rev _ _ notes _; do
+            [ "${notes}" = "disabled" ] && snap remove "${name}" --revision "${rev}" --purge
+          done || true
+
+          # This was inspired from https://github.com/easimon/maximize-build-space
           df -h /
           # dotnet
           sudo rm -rf /usr/share/dotnet
@@ -186,16 +188,23 @@ jobs:
           sudo rm -rf /opt/ghc
           df -h /
 
+      - name: Remove docker
+        run: |
+          set -eux
+          sudo apt-get autopurge -y moby-containerd docker uidmap
+          sudo ip link delete docker0
+          sudo nft flush ruleset
+
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Go (stable)
+      - name: Install Go (${{ matrix.go }})
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
         if: matrix.go != 'tip'
 
-      - name: Install Go (tip)
+      - name: Install Go (${{ matrix.go }})
         run: |
           set -eux
           HEAD="$(git ls-remote https://github.com/golang/go.git HEAD | awk '{print $1}')"
@@ -209,6 +218,13 @@ jobs:
           echo "PATH=$HOME/go/bin:$HOME/sdk/gotip/bin/:$PATH" >> $GITHUB_ENV
         if: matrix.go == 'tip'
 
+      - name: Check compatibility with min Go version (${{ matrix.go }})
+        if: matrix.go == '1.20.x'
+        run: |
+          set -eux
+          GOSHORTVER="$(go env GOVERSION | sed -n 's/^go\([0-9]\+\.[0-9]\+\).*/\1/p')"
+          go mod tidy -go="${GOSHORTVER}"
+
       - name: Install dependencies
         run: |
           set -eux
@@ -216,14 +232,7 @@ jobs:
           sudo add-apt-repository ppa:dqlite/dev -y --no-update
           sudo apt-get update
 
-          sudo snap remove lxd --purge
-          sudo snap remove core20 --purge || true
-          sudo apt-get autopurge moby-containerd docker uidmap -y
-          sudo ip link delete docker0
-          sudo nft flush ruleset
-
-          sudo systemctl mask lxc.service
-          sudo systemctl mask lxc-net.service
+          sudo systemctl mask lxc.service lxc-net.service
 
           sudo apt-get install --no-install-recommends -y \
             curl \
@@ -352,7 +361,7 @@ jobs:
       fail-fast: false
       matrix:
         go:
-          - 1.20.x
+          - 1.21.x
         os:
           - ubuntu-latest
           - macos-latest
@@ -363,7 +372,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Go
+      - name: Install Go (${{ matrix.go }})
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
@@ -424,10 +433,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Go
+      - name: Install Go (1.21)
         uses: actions/setup-go@v5
         with:
-          go-version: 1.20.x
+          go-version: 1.21.x
 
       - name: Install dependencies
         run: |
@@ -493,10 +502,10 @@ jobs:
           ssh-keyscan git.launchpad.net >> ~/.ssh/known_hosts
           ssh-keygen -qlF git.launchpad.net | grep -xF 'git.launchpad.net RSA SHA256:UNOzlP66WpDuEo34Wgs8mewypV0UzqHLsIFoqwe8dYo'
 
-      - name: Install Go
+      - name: Install Go (${{ matrix.go }})
         uses: actions/setup-go@v5
         with:
-          go-version: 1.20.x
+          go-version: 1.21.x
 
       - name: Trigger Launchpad snap build
         env:
