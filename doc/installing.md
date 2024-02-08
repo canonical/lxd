@@ -53,7 +53,11 @@ Complete the following steps to install the snap:
 1. Install the snap package.
    For the latest feature release, use:
 
-        sudo snap install lxd
+        sudo snap install lxd --channel=latest/stable
+
+   For the LXD 5.21 LTS release, use:
+
+        sudo snap install lxd --channel=5.21/stable
 
    For the LXD 5.0 LTS release, use:
 
