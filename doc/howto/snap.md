@@ -32,6 +32,8 @@ For example:
 
     sudo snap install lxd --channel=latest/stable
 
+If you do not specify a channel, snap will choose the default channel (the latest LTS release).
+
 To see all available channels of the LXD snap, run the following command:
 
     snap info lxd
