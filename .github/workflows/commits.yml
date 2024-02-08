@@ -7,22 +7,9 @@ permissions:
 
 jobs:
   commits:
-    permissions:
-      pull-requests: read  # for tim-actions/get-pr-commits to get list of commits from the PR
-    name: Signed-off-by (DCO) and branch target
+    name: Branch target
     runs-on: ubuntu-22.04
     steps:
-    - name: Get PR Commits
-      id: 'get-pr-commits'
-      uses: tim-actions/get-pr-commits@master
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Check that all commits are signed-off
-      uses: tim-actions/dco@master
-      with:
-        commits: ${{ steps.get-pr-commits.outputs.commits }}
-
     - name: Check branch target
       env:
         TARGET: ${{ github.event.pull_request.base.ref }}
