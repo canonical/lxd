@@ -714,9 +714,9 @@ func (d *disk) vmVirtfsProxyHelperPaths() string {
 }
 
 // vmVirtiofsdPaths returns the path for the socket and PID file to use with virtiofsd process.
-func (d *disk) vmVirtiofsdPaths() (string, string) {
-	sockPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.sock", d.name))
-	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.pid", d.name))
+func (d *disk) vmVirtiofsdPaths() (sockPath string, pidPath string) {
+	sockPath = filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.sock", d.name))
+	pidPath = filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.pid", d.name))
 
 	return sockPath, pidPath
 }
@@ -1276,10 +1276,12 @@ type cgroupWriter struct {
 	runConf *deviceConfig.RunConfig
 }
 
+// Get returns the cgroup's controller key.
 func (w *cgroupWriter) Get(version cgroup.Backend, controller string, key string) (string, error) {
 	return "", fmt.Errorf("This cgroup handler does not support reading")
 }
 
+// Set applies the cgroup's controller key value.
 func (w *cgroupWriter) Set(version cgroup.Backend, controller string, key string, value string) error {
 	w.runConf.CGroups = append(w.runConf.CGroups, deviceConfig.RunConfigItem{
 		Key:   key,
@@ -1329,7 +1331,6 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		volumeTypeName = db.StoragePoolVolumeTypeNameCustom
 		fallthrough
 	case db.StoragePoolVolumeTypeNameCustom:
-		break
 	case db.StoragePoolVolumeTypeNameImage:
 		return nil, "", nil, fmt.Errorf("Using image storage volumes is not supported")
 	default:
@@ -1362,13 +1363,13 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	}
 
 	if d.inst.Type() == instancetype.Container {
-		if dbVolume.ContentType == db.StoragePoolVolumeContentTypeNameFS {
-			err = d.storagePoolVolumeAttachShift(storageProjectName, d.pool.Name(), volumeName, db.StoragePoolVolumeTypeCustom, srcPath)
-			if err != nil {
-				return nil, "", nil, fmt.Errorf("Failed shifting storage volume %q of type %q on storage pool %q: %w", volumeName, volumeTypeName, d.pool.Name(), err)
-			}
-		} else {
+		if dbVolume.ContentType != db.StoragePoolVolumeContentTypeNameFS {
 			return nil, "", nil, fmt.Errorf("Only filesystem volumes are supported for containers")
+		}
+
+		err = d.storagePoolVolumeAttachShift(storageProjectName, d.pool.Name(), volumeName, db.StoragePoolVolumeTypeCustom, srcPath)
+		if err != nil {
+			return nil, "", nil, fmt.Errorf("Failed shifting storage volume %q of type %q on storage pool %q: %w", volumeName, volumeTypeName, d.pool.Name(), err)
 		}
 	}
 
@@ -1605,7 +1606,11 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 	var nextIdmap *idmap.IdmapSet
 	nextJSONMap := "[]"
 	if shared.IsFalseOrEmpty(poolVolumePut.Config["security.shifted"]) {
-		c := d.inst.(instance.Container)
+		c, ok := d.inst.(instance.Container)
+		if !ok {
+			return fmt.Errorf("Failed to cast instance %q to container", d.inst.Name())
+		}
+
 		// Get the container's idmap.
 		if c.IsRunning() {
 			nextIdmap, err = c.CurrentIdmap()
@@ -1651,7 +1656,10 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 						continue
 					}
 
-					ct := inst.(instance.Container)
+					ct, ok := inst.(instance.Container)
+					if !ok {
+						return fmt.Errorf("Failed to cast instance %q to container", inst.Name())
+					}
 
 					var ctNextIdmap *idmap.IdmapSet
 
@@ -1972,7 +1980,7 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 	return result, nil
 }
 
-func (d *disk) parseDiskLimit(readSpeed string, writeSpeed string) (int64, int64, int64, int64, error) {
+func (d *disk) parseDiskLimit(readSpeed string, writeSpeed string) (readBps int64, readIops int64, writeBps int64, writeIops int64, err error) {
 	parseValue := func(value string) (int64, int64, error) {
 		var err error
 
@@ -1998,12 +2006,12 @@ func (d *disk) parseDiskLimit(readSpeed string, writeSpeed string) (int64, int64
 		return bps, iops, nil
 	}
 
-	readBps, readIops, err := parseValue(readSpeed)
+	readBps, readIops, err = parseValue(readSpeed)
 	if err != nil {
 		return -1, -1, -1, -1, err
 	}
 
-	writeBps, writeIops, err := parseValue(writeSpeed)
+	writeBps, writeIops, err = parseValue(writeSpeed)
 	if err != nil {
 		return -1, -1, -1, -1, err
 	}
@@ -2093,19 +2101,19 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 			}
 
 			var path string
-			if shared.PathExists(fields[0]) {
-				if shared.IsBlockdevPath(fields[0]) {
-					path = fields[0]
-				} else {
-					subDevices, err := d.getParentBlocks(fields[0])
-					if err != nil {
-						return nil, err
-					}
-
-					devices = append(devices, subDevices...)
-				}
-			} else {
+			if !shared.PathExists(fields[0]) {
 				continue
+			}
+
+			if shared.IsBlockdevPath(fields[0]) {
+				path = fields[0]
+			} else {
+				subDevices, err := d.getParentBlocks(fields[0])
+				if err != nil {
+					return nil, err
+				}
+
+				devices = append(devices, subDevices...)
 			}
 
 			if path != "" {
@@ -2250,14 +2258,14 @@ local-hostname: %s
 }
 
 // cephCreds returns cluster name and user name to use for ceph disks.
-func (d *disk) cephCreds() (string, string) {
+func (d *disk) cephCreds() (clusterName string, userName string) {
 	// Apply the ceph configuration.
-	userName := d.config["ceph.user_name"]
+	userName = d.config["ceph.user_name"]
 	if userName == "" {
 		userName = storageDrivers.CephDefaultUser
 	}
 
-	clusterName := d.config["ceph.cluster_name"]
+	clusterName = d.config["ceph.cluster_name"]
 	if clusterName == "" {
 		clusterName = storageDrivers.CephDefaultCluster
 	}
