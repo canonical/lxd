@@ -269,7 +269,7 @@ func patchClusteringServerCertTrust(name string, d *Daemon) error {
 	// certificates for the other members into the in-memory trusted cache.
 	logger.Infof("Set client certificate to server certificate %v", serverCert.Fingerprint())
 	d.serverCertInt = serverCert
-	updateCertificateCache(d)
+	updateIdentityCache(d)
 
 	return nil
 }

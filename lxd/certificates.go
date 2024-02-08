@@ -24,7 +24,6 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
-	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
@@ -654,7 +653,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Reload the cache.
-	s.UpdateCertificateCache()
+	s.UpdateIdentityCache()
 
 	lc := lifecycle.CertificateCreated.Event(fingerprint, request.CreateRequestor(r), nil)
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
@@ -981,7 +980,7 @@ func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificateP
 	}
 
 	// Reload the cache.
-	s.UpdateCertificateCache()
+	s.UpdateIdentityCache()
 
 	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.CertificateUpdated.Event(dbInfo.Fingerprint, request.CreateRequestor(r), nil))
 
@@ -1099,7 +1098,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Reload the cache.
-	s.UpdateCertificateCache()
+	s.UpdateIdentityCache()
 
 	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.CertificateDeleted.Event(fingerprint, request.CreateRequestor(r), nil))
 

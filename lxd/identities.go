@@ -13,7 +13,11 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
-func updateCertificateCache(d *Daemon) {
+// updateIdentityCache reads all identities from the database and sets them in the identity.Cache.
+// The certificates in the local database are replaced with identities in the cluster database that
+// are of type api.IdentityTypeCertificateServer. This ensures that this cluster member is able to
+// trust other cluster members on restart.
+func updateIdentityCache(d *Daemon) {
 	s := d.State()
 
 	logger.Debug("Refreshing identity cache")
@@ -93,8 +97,8 @@ func updateCertificateCache(d *Daemon) {
 	}
 }
 
-// updateCertificateCacheFromLocal loads trusted server certificates from local database into the identity cache.
-func updateCertificateCacheFromLocal(d *Daemon) error {
+// updateIdentityCacheFromLocal loads trusted server certificates from local database into the identity cache.
+func updateIdentityCacheFromLocal(d *Daemon) error {
 	logger.Debug("Refreshing identity cache with local trusted certificates")
 
 	var localServerCerts []cluster.Certificate
