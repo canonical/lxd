@@ -1231,25 +1231,25 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 	// Disk priority limits.
 	diskPriority := d.ExpandedConfig()["limits.disk.priority"]
 	if diskPriority != "" {
-		if d.state.OS.CGInfo.Supports(cgroup.BlkioWeight, nil) {
-			priorityInt, err := strconv.Atoi(diskPriority)
-			if err != nil {
-				return nil, err
-			}
-
-			priority := priorityInt * 100
-
-			// Minimum valid value is 10
-			if priority == 0 {
-				priority = 10
-			}
-
-			err = cg.SetBlkioWeight(int64(priority))
-			if err != nil {
-				return nil, err
-			}
-		} else {
+		if !d.state.OS.CGInfo.Supports(cgroup.BlkioWeight, nil) {
 			return nil, fmt.Errorf("Cannot apply limits.disk.priority as blkio.weight cgroup controller is missing")
+		}
+
+		priorityInt, err := strconv.Atoi(diskPriority)
+		if err != nil {
+			return nil, err
+		}
+
+		priority := priorityInt * 100
+
+		// Minimum valid value is 10
+		if priority == 0 {
+			priority = 10
+		}
+
+		err = cg.SetBlkioWeight(int64(priority))
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -1345,7 +1345,7 @@ var idmappedStorageMapLock sync.Mutex
 // IdmappedStorage determines if the container can use idmapped mounts.
 func (d *lxc) IdmappedStorage(path string, fstype string) idmap.IdmapStorageType {
 	var mode idmap.IdmapStorageType = idmap.IdmapStorageNone
-	var bindMount bool = fstype == "none" || fstype == ""
+	bindMount := fstype == "none" || fstype == ""
 
 	if !d.state.OS.LXCFeatures["idmapped_mounts_v2"] || !d.state.OS.IdmappedMounts {
 		return mode
@@ -1727,6 +1727,7 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 				return err
 			}
 
+			//revive:disable-next-line:defer
 			defer func() { _ = files.Close() }()
 
 			_, err = files.Lstat(relativeTargetPath)
@@ -3163,7 +3164,7 @@ func (d *lxc) getLxcState() (liblxc.State, error) {
 }
 
 // Render renders the state of the instance.
-func (d *lxc) Render(options ...func(response any) error) (any, any, error) {
+func (d *lxc) Render(options ...func(response any) error) (state any, etag any, err error) {
 	// Ignore err as the arch string on error is correct (unknown)
 	architectureName, _ := osarch.ArchitectureName(d.architecture)
 	profileNames := make([]string, 0, len(d.profiles))
@@ -3203,7 +3204,7 @@ func (d *lxc) Render(options ...func(response any) error) (any, any, error) {
 	}
 
 	// Prepare the ETag
-	etag := []any{d.architecture, d.localConfig, d.localDevices, d.ephemeral, d.profiles}
+	etag = []any{d.architecture, d.localConfig, d.localDevices, d.ephemeral, d.profiles}
 
 	statusCode := d.statusCode()
 	instState := api.Instance{
@@ -4404,6 +4405,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 						return err
 					}
 
+					//revive:disable-next-line:defer
 					defer func() { _ = files.Close() }()
 
 					_, err = files.Lstat("/dev/lxd")
@@ -5159,6 +5161,7 @@ fi
 	return f.Close()
 }
 
+// MigrateSend controls the sending side of a migration.
 func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 	d.logger.Info("Migration send starting")
 	defer d.logger.Info("Migration send stopped")
@@ -5753,6 +5756,8 @@ func (d *lxc) resetContainerDiskIdmap(srcIdmap *idmap.IdmapSet) error {
 	return nil
 }
 
+// MigrateReceive receives the migration offer from the source and negotiates the migration options.
+// It establishes the necessary connections and transfers the filesystem and snapshots if required.
 func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	d.logger.Info("Migration receive starting")
 	defer d.logger.Info("Migration receive stopped")
@@ -6017,6 +6022,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			}
 
 			for _, name := range offerHeader.SnapshotNames {
+				name := name // Local var.
 				base := instance.SnapshotToProtobuf(apiInstSnap)
 				base.Name = &name
 				snapshots = append(snapshots, base)
@@ -6095,6 +6101,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					}
 
 					revert.Add(cleanup)
+					//revive:disable-next-line:defer
 					defer snapInstOp.Done(err)
 				}
 			}
@@ -7976,7 +7983,7 @@ func (d *lxc) IsRunning() bool {
 }
 
 // CanMigrate returns whether the instance can be migrated.
-func (d *lxc) CanMigrate() (bool, bool) {
+func (d *lxc) CanMigrate() (canMigrate bool, live bool) {
 	return d.canMigrate(d)
 }
 
@@ -8109,6 +8116,7 @@ func (d *lxc) LogFilePath() string {
 	return filepath.Join(d.LogPath(), "lxc.log")
 }
 
+// CGroup returns the cgroup of the instance.
 func (d *lxc) CGroup() (*cgroup.CGroup, error) {
 	// Load the go-lxc struct
 	cc, err := d.initLXC(false)
@@ -8142,6 +8150,7 @@ type lxcCgroupReadWriter struct {
 	running bool
 }
 
+// Get retrieves the value of a cgroup key for a specific controller and version.
 func (rw *lxcCgroupReadWriter) Get(version cgroup.Backend, controller string, key string) (string, error) {
 	if !rw.running {
 		lxcKey := fmt.Sprintf("lxc.cgroup.%s", key)
@@ -8156,6 +8165,7 @@ func (rw *lxcCgroupReadWriter) Get(version cgroup.Backend, controller string, ke
 	return strings.Join(rw.cc.CgroupItem(key), "\n"), nil
 }
 
+// Set writes a value to a cgroup key for a specific controller and version.
 func (rw *lxcCgroupReadWriter) Set(version cgroup.Backend, controller string, key string, value string) error {
 	if !rw.running {
 		if version == cgroup.V1 {
@@ -8188,6 +8198,7 @@ func (d *lxc) Info() instance.Info {
 	}
 }
 
+// Metrics returns the metric set for the LXC driver. It collects various metrics related to memory, CPU, disk, filesystem, and network usage.
 func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
 	state := instance.PowerStateStopped
 	isRunning := d.IsRunning()
