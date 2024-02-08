@@ -851,15 +851,25 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol VolumeCopy, snapshots [
 	}
 
 	for _, snapName := range snapshots {
+		found := false
+		var snapVol Volume
+		for _, snapshot := range vol.Snapshots {
+			_, snapshotName, _ := api.GetParentAndSnapshotName(snapshot.name)
+			if snapshotName == snapName {
+				snapVol = snapshot
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return nil, nil, fmt.Errorf("Snapshot %q missing in volume's list", snapName)
+		}
+
 		err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
 			backupSnapshotPrefix := fmt.Sprintf("%s/%s", backupSnapshotsPrefix, snapName)
 			return unpackVolume(srcData, tarArgs, unpacker, backupSnapshotPrefix, mountPath)
 		}, op)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		snapVol, err := vol.NewSnapshot(snapName)
 		if err != nil {
 			return nil, nil, err
 		}
