@@ -690,46 +690,10 @@ func (g *Gateway) LeaderAddress() (string, error) {
 	defer cleanup()
 
 	for _, address := range addresses {
-		timeout := 2 * time.Second
-		client := &http.Client{
-			Transport: transport,
-			Timeout:   timeout,
-		}
-
-		url := fmt.Sprintf("https://%s%s", address, databaseEndpoint)
-		request, err := http.NewRequest("GET", url, nil)
+		leader, err := attemptGetLeaderAddressFromNodeAddress(g.ctx, transport, address)
 		if err != nil {
-			return "", err
-		}
-
-		setDqliteVersionHeader(request)
-
-		// Use 1s later timeout to give HTTP client chance timeout with
-		// more useful info.
-		ctx, cancel := context.WithTimeout(g.ctx, timeout+time.Second)
-		defer cancel()
-		request = request.WithContext(ctx)
-		response, err := client.Do(request)
-		if err != nil {
-			logger.Debugf("Failed to fetch leader address from %s", address)
-			continue
-		}
-
-		if response.StatusCode != http.StatusOK {
-			logger.Debugf("Request for leader address from %s failed", address)
-			continue
-		}
-
-		info := map[string]string{}
-		err = json.NewDecoder(response.Body).Decode(&info)
-		if err != nil {
-			logger.Debugf("Failed to parse leader address from %s", address)
-			continue
-		}
-
-		leader := info["leader"]
-		if leader == "" {
-			logger.Debugf("Raft node %s returned no leader address", address)
+			return "", fmt.Errorf("Failed to find leader address: %w", err)
+		} else if leader == "" {
 			continue
 		}
 
@@ -1006,6 +970,56 @@ func (g *Gateway) nodeAddress(raftAddress string) (string, error) {
 	}
 
 	return address, nil
+}
+
+// attemptGetLeaderAddressFromNodeAddress calls the /internal/database endpoint of the given node address to ascertain
+// the leader address. An error is returned if the given address is invalid. Other errors are ignored. The returned
+// leader address may be empty.
+func attemptGetLeaderAddressFromNodeAddress(ctx context.Context, transport http.RoundTripper, nodeAddress string) (string, error) {
+	timeout := 2 * time.Second
+	httpClient := &http.Client{
+		Transport: transport,
+		Timeout:   timeout,
+	}
+
+	url := fmt.Sprintf("https://%s%s", nodeAddress, databaseEndpoint)
+	request, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+
+	setDqliteVersionHeader(request)
+
+	// Use 1s later timeout to give HTTP client chance timeout with
+	// more useful info.
+	ctx, cancel := context.WithTimeout(ctx, timeout+time.Second)
+	defer cancel()
+	request = request.WithContext(ctx)
+	response, err := httpClient.Do(request)
+	if err != nil {
+		logger.Debugf("Failed to fetch leader address from %s", request.URL.Host)
+		return "", nil
+	}
+
+	if response.StatusCode != http.StatusOK {
+		logger.Debugf("Request for leader address from %s failed", request.URL.Host)
+		return "", nil
+	}
+
+	info := map[string]string{}
+	err = json.NewDecoder(response.Body).Decode(&info)
+	if err != nil {
+		logger.Debugf("Failed to parse leader address from %s", request.URL.Host)
+		return "", nil
+	}
+
+	leader := info["leader"]
+	if leader == "" {
+		logger.Debugf("Raft node %s returned no leader address", request.URL.Host)
+		return "", nil
+	}
+
+	return leader, nil
 }
 
 func dqliteNetworkDial(ctx context.Context, name string, addr string, g *Gateway) (net.Conn, error) {
