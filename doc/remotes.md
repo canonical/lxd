@@ -3,6 +3,8 @@
 Remote servers are a concept in the LXD command-line client.
 By default, the command-line client interacts with the local LXD daemon, but you can add other servers or clusters to interact with.
 
+If you are using the API, you can interact with different remotes by using their exposed API addresses.
+
 One use case for remote servers is to distribute images that can be used to create instances on local servers.
 See {ref}`remote-image-servers` for more information.
 
