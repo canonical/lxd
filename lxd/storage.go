@@ -39,7 +39,9 @@ func readStoragePoolDriversCache() ([]api.ServerStorageDriverInfo, map[string]st
 		supportedDrivers = []api.ServerStorageDriverInfo{}
 	}
 
-	return supportedDrivers.([]api.ServerStorageDriverInfo), usedDrivers.(map[string]string)
+	driverInfo, _ := supportedDrivers.([]api.ServerStorageDriverInfo)
+	driversUsed, _ := usedDrivers.(map[string]string)
+	return driverInfo, driversUsed
 }
 
 func storageStartup(s *state.State, forceCheck bool) error {
