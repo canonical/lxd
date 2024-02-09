@@ -25,6 +25,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -260,7 +261,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 		if objectType != "" {
 			for _, v := range op.Resources() {
 				for _, u := range v {
-					_, _, pathArgs, err := dbCluster.URLToEntityType(u.String())
+					_, _, _, pathArgs, err := entity.ParseURL(u.URL)
 					if err != nil {
 						return response.InternalError(fmt.Errorf("Unable to parse operation resource URL: %w", err))
 					}
