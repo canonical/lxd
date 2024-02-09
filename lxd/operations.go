@@ -1014,6 +1014,7 @@ type operationWebSocket struct {
 	op  *operations.Operation
 }
 
+// Render implements response.Response for operationWebSocket.
 func (r *operationWebSocket) Render(w http.ResponseWriter) error {
 	chanErr, err := r.op.Connect(r.req, w)
 	if err != nil {
@@ -1024,6 +1025,7 @@ func (r *operationWebSocket) Render(w http.ResponseWriter) error {
 	return err
 }
 
+// String implements fmt.Stringer for operationWebSocket.
 func (r *operationWebSocket) String() string {
 	_, md, err := r.op.Render()
 	if err != nil {
