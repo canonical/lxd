@@ -65,7 +65,7 @@ func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdown
 				logger.Error("Failed cleaning up operations")
 			}
 
-			return nil
+			return nil //nolint:revive // False positive: raises "return in a defer function has no effect".
 		})
 	}()
 
