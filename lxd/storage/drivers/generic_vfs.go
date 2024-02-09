@@ -486,89 +486,7 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 			// Reset hard link cache as we are copying a new volume (instance or snapshot).
 			tarWriter.ResetHardLinkMap()
 
-			if v.contentType == ContentTypeBlock {
-				blockPath, err := d.GetVolumeDiskPath(v)
-				if err != nil {
-					errMsg := "Error getting VM block volume disk path"
-					if vol.volType == VolumeTypeCustom {
-						errMsg = "Error getting custom block volume disk path"
-					}
-
-					return fmt.Errorf(errMsg+": %w", err)
-				}
-
-				// Get size of disk block device for tarball header.
-				blockDiskSize, err := BlockDiskSizeBytes(blockPath)
-				if err != nil {
-					return fmt.Errorf("Error getting block device size %q: %w", blockPath, err)
-				}
-
-				var exclude []string // Files to exclude from filesystem volume backup.
-				if !shared.IsBlockdevPath(blockPath) {
-					// Exclude the volume root disk file from the filesystem volume backup.
-					// We will read it as a block device later instead.
-					exclude = append(exclude, blockPath)
-				}
-
-				if v.IsVMBlock() {
-					logMsg := "Copying virtual machine config volume"
-
-					d.Logger().Debug(logMsg, logger.Ctx{"sourcePath": mountPath, "prefix": prefix})
-					err = filepath.Walk(mountPath, func(srcPath string, fi os.FileInfo, err error) error {
-						if err != nil {
-							return err
-						}
-
-						// Skip any exluded files.
-						if shared.StringHasPrefix(srcPath, exclude...) {
-							return nil
-						}
-
-						name := filepath.Join(prefix, strings.TrimPrefix(srcPath, mountPath))
-						err = tarWriter.WriteFile(name, srcPath, fi, false)
-						if err != nil {
-							return fmt.Errorf("Error adding %q as %q to tarball: %w", srcPath, name, err)
-						}
-
-						return nil
-					})
-					if err != nil {
-						return err
-					}
-				}
-
-				name := fmt.Sprintf("%s.%s", prefix, genericVolumeBlockExtension)
-
-				logMsg := "Copying virtual machine block volume"
-				if vol.volType == VolumeTypeCustom {
-					logMsg = "Copying custom block volume"
-				}
-
-				d.Logger().Debug(logMsg, logger.Ctx{"sourcePath": blockPath, "file": name, "size": blockDiskSize})
-				from, err := os.Open(blockPath)
-				if err != nil {
-					return fmt.Errorf("Error opening file for reading %q: %w", blockPath, err)
-				}
-
-				defer func() { _ = from.Close() }()
-
-				fi := instancewriter.FileInfo{
-					FileName:    name,
-					FileSize:    blockDiskSize,
-					FileMode:    0600,
-					FileModTime: time.Now(),
-				}
-
-				err = tarWriter.WriteFileFromReader(from, &fi)
-				if err != nil {
-					return fmt.Errorf("Error copying %q as %q to tarball: %w", blockPath, name, err)
-				}
-
-				err = from.Close()
-				if err != nil {
-					return fmt.Errorf("Failed to close file %q: %w", blockPath, err)
-				}
-			} else {
+			if v.contentType != ContentTypeBlock {
 				logMsg := "Copying container filesystem volume"
 				if vol.volType == VolumeTypeCustom {
 					logMsg = "Copying custom filesystem volume"
@@ -609,6 +527,88 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 
 					return nil
 				})
+			}
+
+			blockPath, err := d.GetVolumeDiskPath(v)
+			if err != nil {
+				errMsg := "Error getting VM block volume disk path"
+				if vol.volType == VolumeTypeCustom {
+					errMsg = "Error getting custom block volume disk path"
+				}
+
+				return fmt.Errorf(errMsg+": %w", err)
+			}
+
+			// Get size of disk block device for tarball header.
+			blockDiskSize, err := BlockDiskSizeBytes(blockPath)
+			if err != nil {
+				return fmt.Errorf("Error getting block device size %q: %w", blockPath, err)
+			}
+
+			var exclude []string // Files to exclude from filesystem volume backup.
+			if !shared.IsBlockdevPath(blockPath) {
+				// Exclude the volume root disk file from the filesystem volume backup.
+				// We will read it as a block device later instead.
+				exclude = append(exclude, blockPath)
+			}
+
+			if v.IsVMBlock() {
+				logMsg := "Copying virtual machine config volume"
+
+				d.Logger().Debug(logMsg, logger.Ctx{"sourcePath": mountPath, "prefix": prefix})
+				err = filepath.Walk(mountPath, func(srcPath string, fi os.FileInfo, err error) error {
+					if err != nil {
+						return err
+					}
+
+					// Skip any exluded files.
+					if shared.StringHasPrefix(srcPath, exclude...) {
+						return nil
+					}
+
+					name := filepath.Join(prefix, strings.TrimPrefix(srcPath, mountPath))
+					err = tarWriter.WriteFile(name, srcPath, fi, false)
+					if err != nil {
+						return fmt.Errorf("Error adding %q as %q to tarball: %w", srcPath, name, err)
+					}
+
+					return nil
+				})
+				if err != nil {
+					return err
+				}
+			}
+
+			name := fmt.Sprintf("%s.%s", prefix, genericVolumeBlockExtension)
+
+			logMsg := "Copying virtual machine block volume"
+			if vol.volType == VolumeTypeCustom {
+				logMsg = "Copying custom block volume"
+			}
+
+			d.Logger().Debug(logMsg, logger.Ctx{"sourcePath": blockPath, "file": name, "size": blockDiskSize})
+			from, err := os.Open(blockPath)
+			if err != nil {
+				return fmt.Errorf("Error opening file for reading %q: %w", blockPath, err)
+			}
+
+			defer func() { _ = from.Close() }()
+
+			fi := instancewriter.FileInfo{
+				FileName:    name,
+				FileSize:    blockDiskSize,
+				FileMode:    0600,
+				FileModTime: time.Now(),
+			}
+
+			err = tarWriter.WriteFileFromReader(from, &fi)
+			if err != nil {
+				return fmt.Errorf("Error copying %q as %q to tarball: %w", blockPath, name, err)
+			}
+
+			err = from.Close()
+			if err != nil {
+				return fmt.Errorf("Failed to close file %q: %w", blockPath, err)
 			}
 
 			return nil
@@ -746,6 +746,43 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 
 			defer cancelFunc()
 
+			unpack := func(size int64) error {
+				var allowUnsafeResize bool
+
+				// Open block file (use O_CREATE to support drivers that use image files).
+				to, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
+				if err != nil {
+					return fmt.Errorf("Error opening file for writing %q: %w", targetPath, err)
+				}
+
+				defer to.Close()
+
+				// Restore original size of volume from raw block backup file size.
+				d.Logger().Debug("Setting volume size from source", logger.Ctx{"source": srcFile, "target": targetPath, "size": size})
+
+				// Allow potentially destructive resize of volume as we are going to be
+				// overwriting it entirely anyway. This allows shrinking of block volumes.
+				allowUnsafeResize = true
+				err = d.SetVolumeQuota(vol, fmt.Sprintf("%d", size), allowUnsafeResize, op)
+				if err != nil {
+					return err
+				}
+
+				logMsg := "Unpacking virtual machine block volume"
+				if vol.volType == VolumeTypeCustom {
+					logMsg = "Unpacking custom block volume"
+				}
+
+				d.Logger().Debug(logMsg, logger.Ctx{"source": srcFile, "target": targetPath})
+				_, err = io.Copy(to, tr)
+				if err != nil {
+					return err
+				}
+
+				cancelFunc()
+				return nil
+			}
+
 			for {
 				hdr, err := tr.Next()
 				if err == io.EOF {
@@ -757,40 +794,10 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 				}
 
 				if hdr.Name == srcFile {
-					var allowUnsafeResize bool
-
-					// Open block file (use O_CREATE to support drivers that use image files).
-					to, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
-					if err != nil {
-						return fmt.Errorf("Error opening file for writing %q: %w", targetPath, err)
-					}
-
-					defer func() { _ = to.Close() }()
-
-					// Restore original size of volume from raw block backup file size.
-					d.Logger().Debug("Setting volume size from source", logger.Ctx{"source": srcFile, "target": targetPath, "size": hdr.Size})
-
-					// Allow potentially destructive resize of volume as we are going to be
-					// overwriting it entirely anyway. This allows shrinking of block volumes.
-					allowUnsafeResize = true
-					err = d.SetVolumeQuota(vol, fmt.Sprintf("%d", hdr.Size), allowUnsafeResize, op)
+					err := unpack(hdr.Size)
 					if err != nil {
 						return err
 					}
-
-					logMsg := "Unpacking virtual machine block volume"
-					if vol.volType == VolumeTypeCustom {
-						logMsg = "Unpacking custom block volume"
-					}
-
-					d.Logger().Debug(logMsg, logger.Ctx{"source": srcFile, "target": targetPath})
-					_, err = io.Copy(to, tr)
-					if err != nil {
-						return err
-					}
-
-					cancelFunc()
-					return to.Close()
 				}
 			}
 
