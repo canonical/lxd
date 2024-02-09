@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -557,7 +558,7 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 	return operations.OperationResponse(op)
 }
 
-func createFromBackup(s *state.State, r *http.Request, projectName string, data io.Reader, pool string, instanceName string) response.Response {
+func createFromBackup(s *state.State, r *http.Request, projectName string, data io.Reader, pool string, instanceName string, devices map[string]map[string]string) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -718,7 +719,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 
 		runRevert.Add(revertHook)
 
-		err = internalImportFromBackup(s, bInfo.Project, bInfo.Name, instanceName != "")
+		err = internalImportFromBackup(s, bInfo.Project, bInfo.Name, instanceName != "", devices)
 		if err != nil {
 			return fmt.Errorf("Failed importing backup: %w", err)
 		}
@@ -810,7 +811,29 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 	// If we're getting binary content, process separately
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
-		return createFromBackup(s, r, targetProjectName, r.Body, r.Header.Get("X-LXD-pool"), r.Header.Get("X-LXD-name"))
+		deviceMap := map[string]map[string]string{}
+
+		if r.Header.Get("X-LXD-devices") != "" {
+			devProps, err := url.ParseQuery(r.Header.Get("X-LXD-devices"))
+			if err != nil {
+				return response.BadRequest(err)
+			}
+
+			for devKey := range devProps {
+				deviceMap[devKey] = map[string]string{}
+
+				props, err := url.ParseQuery(devProps.Get(devKey))
+				if err != nil {
+					return response.BadRequest(err)
+				}
+
+				for k := range props {
+					deviceMap[devKey][k] = props.Get(k)
+				}
+			}
+		}
+
+		return createFromBackup(s, r, targetProjectName, r.Body, r.Header.Get("X-LXD-pool"), r.Header.Get("X-LXD-name"), deviceMap)
 	}
 
 	// Parse the request
