@@ -336,7 +336,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 	if d.oidcVerifier != nil && d.oidcVerifier.IsRequest(r) {
 		result, err := d.oidcVerifier.Auth(d.shutdownCtx, w, r)
 		if err != nil {
-			return false, "", "", nil, err
+			return false, "", "", nil, fmt.Errorf("Failed OIDC Authentication: %w", err)
 		}
 
 		_, err = d.identityCache.Get(api.AuthenticationMethodOIDC, result.Subject)
@@ -469,8 +469,8 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		// Authentication
 		trusted, username, protocol, identityProviderGroups, err := d.Authenticate(w, r)
 		if err != nil {
-			_, ok := err.(*oidc.AuthError)
-			if ok {
+			var authError oidc.AuthError
+			if errors.As(err, &authError) {
 				// Ensure the OIDC headers are set if needed.
 				if d.oidcVerifier != nil {
 					_ = d.oidcVerifier.WriteHeaders(w)
