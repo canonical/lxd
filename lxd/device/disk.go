@@ -1271,7 +1271,6 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	case "":
 		// We simply received the name of a storage volume.
 		volumeTypeName = db.StoragePoolVolumeTypeNameCustom
-		fallthrough
 	case db.StoragePoolVolumeTypeNameCustom:
 	case db.StoragePoolVolumeTypeNameImage:
 		return nil, "", nil, fmt.Errorf("Using image storage volumes is not supported")
