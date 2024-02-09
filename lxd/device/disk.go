@@ -16,7 +16,6 @@ import (
 
 	"github.com/canonical/lxd/lxd/cgroup"
 	"github.com/canonical/lxd/lxd/db"
-	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/idmap"
@@ -29,6 +28,7 @@ import (
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
@@ -961,7 +961,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 							d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback", logger.Ctx{"err": errUnsupported})
 
 							if errUnsupported == ErrMissingVirtiofsd {
-								_ = d.state.DB.Cluster.UpsertWarningLocalNode(d.inst.Project().Name, cluster.TypeInstance, d.inst.ID(), warningtype.MissingVirtiofsd, "Using 9p as a fallback")
+								_ = d.state.DB.Cluster.UpsertWarningLocalNode(d.inst.Project().Name, entity.TypeInstance, d.inst.ID(), warningtype.MissingVirtiofsd, "Using 9p as a fallback")
 							} else {
 								// Resolve previous warning.
 								_ = warnings.ResolveWarningsByLocalNodeAndProjectAndType(d.state.DB.Cluster, d.inst.Project().Name, warningtype.MissingVirtiofsd)
