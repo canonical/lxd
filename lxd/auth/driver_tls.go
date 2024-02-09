@@ -129,13 +129,13 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 			return allowFunc(true), nil
 		}
 
-		return nil, api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
+		return allowFunc(false), nil
 	case ObjectTypeStoragePool, ObjectTypeCertificate:
 		if entitlement == EntitlementCanView {
 			return allowFunc(true), nil
 		}
 
-		return nil, api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
+		return allowFunc(false), nil
 	}
 
 	// Error if user does not have access to the project (unless we're getting projects, where we want to filter the results).
