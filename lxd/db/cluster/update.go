@@ -4021,15 +4021,15 @@ CREATE INDEX profiles_project_id_idx ON profiles (project_id);
 	}
 
 	// Create a view to easily query all resources using a certain project
-	stmt := fmt.Sprintf(`
+	stmt := `
 CREATE VIEW projects_used_by_ref (name, value) AS
-  SELECT projects.name, printf('%s', containers.name, projects.name)
+  SELECT projects.name, printf('/1.0/containers/%s', containers.name, projects.name)
     FROM containers JOIN projects ON project_id=projects.id UNION
-  SELECT projects.name, printf('%s', images.fingerprint)
+  SELECT projects.name, printf('/1.0/images/%s', images.fingerprint)
     FROM images JOIN projects ON project_id=projects.id UNION
-  SELECT projects.name, printf('%s', profiles.name, projects.name)
+  SELECT projects.name, printf('/1.0/projects/%s?project=%s', profiles.name, projects.name)
     FROM profiles JOIN projects ON project_id=projects.id
-`, EntityURIs[TypeContainer], EntityURIs[TypeImage], EntityURIs[TypeProfile])
+`
 	_, err = tx.Exec(stmt)
 	if err != nil {
 		return fmt.Errorf("Failed to create projects_used_by_ref view: %w", err)
@@ -4112,16 +4112,16 @@ CREATE VIEW profiles_devices_ref (project, name, device, type, key, value) AS
 	}
 
 	// Create a view to easily query all resources using a certain profile
-	stmt = fmt.Sprintf(`
+	stmt = `
 CREATE VIEW profiles_used_by_ref (project, name, value) AS
-  SELECT projects.name, profiles.name, printf('%s', containers.name, projects.name)
+  SELECT projects.name, profiles.name, printf('/1.0/containers/%s', containers.name, projects.name)
     FROM profiles
     JOIN projects ON projects.id=profiles.project_id
     JOIN containers_profiles
       ON containers_profiles.profile_id=profiles.id
     JOIN containers
       ON containers.id=containers_profiles.container_id
-`, EntityURIs[TypeContainer])
+`
 	_, err = tx.Exec(stmt)
 	if err != nil {
 		return fmt.Errorf("Failed to create profiles_used_by_ref view: %w", err)
