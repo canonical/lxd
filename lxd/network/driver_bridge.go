@@ -1002,7 +1002,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		// Configure NAT.
 		if shared.IsTrue(n.config["ipv4.nat"]) {
-			//If a SNAT source address is specified, use that, otherwise default to MASQUERADE mode.
+			// If a SNAT source address is specified, use that, otherwise default to MASQUERADE mode.
 			var srcIP net.IP
 			if n.config["ipv4.nat.address"] != "" {
 				srcIP = net.ParseIP(n.config["ipv4.nat.address"])
@@ -1189,7 +1189,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		// Configure NAT.
 		if shared.IsTrue(n.config["ipv6.nat"]) {
-			//If a SNAT source address is specified, use that, otherwise default to MASQUERADE mode.
+			// If a SNAT source address is specified, use that, otherwise default to MASQUERADE mode.
 			var srcIP net.IP
 			if n.config["ipv6.nat.address"] != "" {
 				srcIP = net.ParseIP(n.config["ipv6.nat.address"])
@@ -2110,7 +2110,7 @@ func (n *bridge) applyBootRoutesV6(routes []string) {
 	}
 }
 
-func (n *bridge) fanAddress(underlay *net.IPNet, overlay *net.IPNet) (string, string, string, error) {
+func (n *bridge) fanAddress(underlay *net.IPNet, overlay *net.IPNet) (cidr string, ifaceName string, subnet string, err error) {
 	// Quick checks.
 	underlaySize, _ := underlay.Mask.Size()
 	if underlaySize != 16 && underlaySize != 24 {
