@@ -713,7 +713,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		// Update cached trusted certificates (this adds the server certificates we collected above) so that we are able to join.
 		// Client and metric type certificates from the cluster we are joining will not be added until later.
-		s.UpdateCertificateCache()
+		s.UpdateIdentityCache()
 
 		// Update local setup and possibly join the raft dqlite cluster.
 		nodes := make([]db.RaftNode, len(info.RaftNodes))
@@ -814,8 +814,8 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			logger.Warn("Failed to sync images")
 		}
 
-		// Update the cert cache again to add client and metric certs to the cache.
-		s.UpdateCertificateCache()
+		// Update the identity cache again to add identities from the cluster we're joining..
+		s.UpdateIdentityCache()
 
 		s.Events.SendLifecycle(request.ProjectParam(r), lifecycle.ClusterMemberAdded.Event(req.ServerName, op.Requestor(), nil))
 
@@ -1982,7 +1982,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 				return response.SmartError(err)
 			}
 
-			s.UpdateCertificateCache()
+			s.UpdateIdentityCache()
 		}
 
 		return response.ManualResponse(func(w http.ResponseWriter) error {
@@ -2120,8 +2120,8 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Refresh the trusted certificate cache now that the member certificate has been removed.
 	// We do not need to notify the other members here because the next heartbeat will trigger member change
-	// detection and updateCertificateCache is called as part of that.
-	s.UpdateCertificateCache()
+	// detection and updateIdentityCache is called as part of that.
+	s.UpdateIdentityCache()
 
 	// Ensure all images are available after this node has been deleted.
 	err = autoSyncImages(s.ShutdownCtx, s)

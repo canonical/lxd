@@ -2,7 +2,6 @@ package cluster_test
 
 import (
 	"context"
-	"crypto/x509"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,10 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
@@ -214,11 +213,7 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 	mux := http.NewServeMux()
 	server := newServer(serverCert, mux)
 
-	trustedCerts := func() map[certificate.Type]map[string]x509.Certificate {
-		return nil
-	}
-
-	for path, handler := range gateway.HandlerFuncs(nil, trustedCerts) {
+	for path, handler := range gateway.HandlerFuncs(nil, &identity.Cache{}) {
 		mux.HandleFunc(path, handler)
 	}
 

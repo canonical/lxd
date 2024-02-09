@@ -3,13 +3,16 @@
 package cluster
 
 import (
+	"crypto/x509"
 	"database/sql/driver"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"fmt"
 
 	"github.com/canonical/lxd/lxd/certificate"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/auth"
 )
 
 // Code generation directives.
@@ -173,11 +176,6 @@ func (i IdentityType) toCertificateType() (certificate.Type, error) {
 	return -1, fmt.Errorf("Identity type %q is not a certificate", i)
 }
 
-// IsRestricted returns true if the identity type is restricted.
-func (i IdentityType) IsRestricted() bool {
-	return !shared.ValueInSlice(string(i), []string{api.IdentityTypeCertificateClientUnrestricted, api.IdentityTypeCertificateServer})
-}
-
 // Identity is a database representation of any authenticated party.
 type Identity struct {
 	ID         int
@@ -202,6 +200,21 @@ type CertificateMetadata struct {
 	Certificate string `json:"cert"`
 }
 
+// X509 returns an x509.Certificate from the CertificateMetadata.
+func (c CertificateMetadata) X509() (*x509.Certificate, error) {
+	certBlock, _ := pem.Decode([]byte(c.Certificate))
+	if certBlock == nil {
+		return nil, errors.New("Failed decoding certificate")
+	}
+
+	cert, err := x509.ParseCertificate(certBlock.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing certificate: %w", err)
+	}
+
+	return cert, nil
+}
+
 // ToCertificate converts an Identity to a Certificate.
 func (i Identity) ToCertificate() (*Certificate, error) {
 	identityType, err := i.Type.toCertificateType()
@@ -215,14 +228,34 @@ func (i Identity) ToCertificate() (*Certificate, error) {
 		return nil, fmt.Errorf("Failed to unmarshal certificate identity metadata: %w", err)
 	}
 
+	isRestricted, err := auth.IsRestrictedIdentityType(string(i.Type))
+	if err != nil {
+		return nil, fmt.Errorf("Failed to check restricted status of identity: %w", err)
+	}
+
 	c := &Certificate{
 		ID:          i.ID,
 		Fingerprint: i.Identifier,
 		Type:        identityType,
 		Name:        i.Name,
 		Certificate: metadata.Certificate,
-		Restricted:  i.Type.IsRestricted(),
+		Restricted:  isRestricted,
 	}
 
 	return c, nil
+}
+
+// X509 returns an x509.Certificate from the identity metadata. The AuthMethod of the Identity must be api.AuthenticationMethodTLS.
+func (i Identity) X509() (*x509.Certificate, error) {
+	if i.AuthMethod != api.AuthenticationMethodTLS {
+		return nil, fmt.Errorf("Cannot extract X509 certificate from identity: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodTLS)
+	}
+
+	var metadata CertificateMetadata
+	err := json.Unmarshal([]byte(i.Metadata), &metadata)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal certificate identity metadata: %w", err)
+	}
+
+	return metadata.X509()
 }

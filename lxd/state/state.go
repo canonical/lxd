@@ -58,8 +58,12 @@ type State struct {
 	Firewall firewall.Firewall
 
 	// Server certificate
-	ServerCert             func() *shared.CertInfo
-	UpdateCertificateCache func()
+	ServerCert func() *shared.CertInfo
+
+	// UpdateIdentityCache refreshes the local cache of identities.
+	// This should be called whenever an identity is added, modified, or removed.
+	// The cache is also refreshed on dqlite heartbeat to synchronise with other members.
+	UpdateIdentityCache func()
 
 	// Available instance types based on operational drivers.
 	InstanceTypes map[instancetype.Type]error

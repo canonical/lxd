@@ -70,8 +70,8 @@ func restServer(d *Daemon) *http.Server {
 	uiPath := os.Getenv("LXD_UI")
 	uiEnabled := uiPath != "" && shared.PathExists(uiPath)
 	if uiEnabled {
-		uiHttpDir := uiHttpDir{http.Dir(uiPath)}
-		mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/", http.FileServer(uiHttpDir)))
+		uiHTTPDir := uiHTTPDir{http.Dir(uiPath)}
+		mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/", http.FileServer(uiHTTPDir)))
 		mux.HandleFunc("/ui", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
 		})
@@ -81,8 +81,8 @@ func restServer(d *Daemon) *http.Server {
 	documentationPath := os.Getenv("LXD_DOCUMENTATION")
 	docEnabled := documentationPath != "" && shared.PathExists(documentationPath)
 	if docEnabled {
-		documentationHttpDir := documentationHttpDir{http.Dir(documentationPath)}
-		mux.PathPrefix("/documentation/").Handler(http.StripPrefix("/documentation/", http.FileServer(documentationHttpDir)))
+		documentationHTTPDir := documentationHTTPDir{http.Dir(documentationPath)}
+		mux.PathPrefix("/documentation/").Handler(http.StripPrefix("/documentation/", http.FileServer(documentationHTTPDir)))
 		mux.HandleFunc("/documentation", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/documentation/", http.StatusMovedPermanently)
 		})
@@ -129,7 +129,7 @@ func restServer(d *Daemon) *http.Server {
 		}
 	})
 
-	for endpoint, f := range d.gateway.HandlerFuncs(d.heartbeatHandler, d.getTrustedCertificates) {
+	for endpoint, f := range d.gateway.HandlerFuncs(d.heartbeatHandler, d.identityCache) {
 		mux.HandleFunc(endpoint, f)
 	}
 
@@ -162,7 +162,7 @@ func restServer(d *Daemon) *http.Server {
 	})
 
 	return &http.Server{
-		Handler:     &lxdHttpServer{r: mux, d: d},
+		Handler:     &lxdHTTPServer{r: mux, d: d},
 		ConnContext: lxdRequest.SaveConnectionInContext,
 	}
 }
@@ -200,7 +200,7 @@ func metricsServer(d *Daemon) *http.Server {
 		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w)
 	})
 
-	for endpoint, f := range d.gateway.HandlerFuncs(d.heartbeatHandler, d.getTrustedCertificates) {
+	for endpoint, f := range d.gateway.HandlerFuncs(d.heartbeatHandler, d.identityCache) {
 		mux.HandleFunc(endpoint, f)
 	}
 
@@ -213,7 +213,7 @@ func metricsServer(d *Daemon) *http.Server {
 		_ = response.NotFound(nil).Render(w)
 	})
 
-	return &http.Server{Handler: &lxdHttpServer{r: mux, d: d}}
+	return &http.Server{Handler: &lxdHTTPServer{r: mux, d: d}}
 }
 
 func storageBucketsServer(d *Daemon) *http.Server {
@@ -354,15 +354,15 @@ func storageBucketsServer(d *Daemon) *http.Server {
 		rproxy.ServeHTTP(w, r)
 	})
 
-	return &http.Server{Handler: &lxdHttpServer{r: m, d: d}}
+	return &http.Server{Handler: &lxdHTTPServer{r: m, d: d}}
 }
 
-type lxdHttpServer struct {
+type lxdHTTPServer struct {
 	r *mux.Router
 	d *Daemon
 }
 
-func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (s *lxdHTTPServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if !strings.HasPrefix(req.URL.Path, "/internal") {
 		<-s.d.setupChan
 
@@ -409,11 +409,12 @@ func isClusterNotification(r *http.Request) bool {
 	return r.Header.Get("User-Agent") == request.UserAgentNotifier
 }
 
-type uiHttpDir struct {
+type uiHTTPDir struct {
 	http.FileSystem
 }
 
-func (fs uiHttpDir) Open(name string) (http.File, error) {
+// Open opens the HTTP server for the user interface files.
+func (fs uiHTTPDir) Open(name string) (http.File, error) {
 	fsFile, err := fs.FileSystem.Open(name)
 	if err != nil && os.IsNotExist(err) {
 		return fs.FileSystem.Open("index.html")
@@ -422,11 +423,12 @@ func (fs uiHttpDir) Open(name string) (http.File, error) {
 	return fsFile, err
 }
 
-type documentationHttpDir struct {
+type documentationHTTPDir struct {
 	http.FileSystem
 }
 
-func (fs documentationHttpDir) Open(name string) (http.File, error) {
+// Open opens the HTTP server for the documentation files.
+func (fs documentationHTTPDir) Open(name string) (http.File, error) {
 	fsFile, err := fs.FileSystem.Open(name)
 	if err != nil && os.IsNotExist(err) {
 		return fs.FileSystem.Open("index.html")

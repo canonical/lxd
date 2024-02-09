@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,11 +16,11 @@ import (
 	"sync"
 	"time"
 
-	dqlite "github.com/canonical/go-dqlite"
-	client "github.com/canonical/go-dqlite/client"
+	"github.com/canonical/go-dqlite"
+	"github.com/canonical/go-dqlite/client"
 
-	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
@@ -154,10 +153,10 @@ func setDqliteVersionHeader(request *http.Request) {
 // These handlers might return 404, either because this LXD node is a
 // non-clustered node not available over the network or because it is not a
 // database node part of the dqlite cluster.
-func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts func() map[certificate.Type]map[string]x509.Certificate) map[string]http.HandlerFunc {
+func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, identityCache *identity.Cache) map[string]http.HandlerFunc {
 	database := func(w http.ResponseWriter, r *http.Request) {
 		g.lock.RLock()
-		if !tlsCheckCert(r, g.networkCert, g.state().ServerCert(), trustedCerts()) {
+		if !tlsCheckCert(r, g.networkCert, g.state().ServerCert(), identityCache) {
 			g.lock.RUnlock()
 			http.Error(w, "403 invalid client certificate", http.StatusForbidden)
 			return
@@ -607,7 +606,7 @@ func (g *Gateway) Reset(networkCert *shared.CertInfo) error {
 }
 
 // ErrNodeIsNotClustered indicates the node is not clustered.
-var ErrNodeIsNotClustered error = fmt.Errorf("Server is not clustered")
+var ErrNodeIsNotClustered = fmt.Errorf("Server is not clustered")
 
 // LeaderAddress returns the address of the current raft leader.
 func (g *Gateway) LeaderAddress() (string, error) {
@@ -691,46 +690,10 @@ func (g *Gateway) LeaderAddress() (string, error) {
 	defer cleanup()
 
 	for _, address := range addresses {
-		timeout := 2 * time.Second
-		client := &http.Client{
-			Transport: transport,
-			Timeout:   timeout,
-		}
-
-		url := fmt.Sprintf("https://%s%s", address, databaseEndpoint)
-		request, err := http.NewRequest("GET", url, nil)
+		leader, err := attemptGetLeaderAddressFromNodeAddress(g.ctx, transport, address)
 		if err != nil {
-			return "", err
-		}
-
-		setDqliteVersionHeader(request)
-
-		// Use 1s later timeout to give HTTP client chance timeout with
-		// more useful info.
-		ctx, cancel := context.WithTimeout(g.ctx, timeout+time.Second)
-		defer cancel()
-		request = request.WithContext(ctx)
-		response, err := client.Do(request)
-		if err != nil {
-			logger.Debugf("Failed to fetch leader address from %s", address)
-			continue
-		}
-
-		if response.StatusCode != http.StatusOK {
-			logger.Debugf("Request for leader address from %s failed", address)
-			continue
-		}
-
-		info := map[string]string{}
-		err = json.NewDecoder(response.Body).Decode(&info)
-		if err != nil {
-			logger.Debugf("Failed to parse leader address from %s", address)
-			continue
-		}
-
-		leader := info["leader"]
-		if leader == "" {
-			logger.Debugf("Raft node %s returned no leader address", address)
+			return "", fmt.Errorf("Failed to find leader address: %w", err)
+		} else if leader == "" {
 			continue
 		}
 
@@ -1009,6 +972,56 @@ func (g *Gateway) nodeAddress(raftAddress string) (string, error) {
 	return address, nil
 }
 
+// attemptGetLeaderAddressFromNodeAddress calls the /internal/database endpoint of the given node address to ascertain
+// the leader address. An error is returned if the given address is invalid. Other errors are ignored. The returned
+// leader address may be empty.
+func attemptGetLeaderAddressFromNodeAddress(ctx context.Context, transport http.RoundTripper, nodeAddress string) (string, error) {
+	timeout := 2 * time.Second
+	httpClient := &http.Client{
+		Transport: transport,
+		Timeout:   timeout,
+	}
+
+	url := fmt.Sprintf("https://%s%s", nodeAddress, databaseEndpoint)
+	request, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+
+	setDqliteVersionHeader(request)
+
+	// Use 1s later timeout to give HTTP client chance timeout with
+	// more useful info.
+	ctx, cancel := context.WithTimeout(ctx, timeout+time.Second)
+	defer cancel()
+	request = request.WithContext(ctx)
+	response, err := httpClient.Do(request)
+	if err != nil {
+		logger.Debugf("Failed to fetch leader address from %s", request.URL.Host)
+		return "", nil
+	}
+
+	if response.StatusCode != http.StatusOK {
+		logger.Debugf("Request for leader address from %s failed", request.URL.Host)
+		return "", nil
+	}
+
+	info := map[string]string{}
+	err = json.NewDecoder(response.Body).Decode(&info)
+	if err != nil {
+		logger.Debugf("Failed to parse leader address from %s", request.URL.Host)
+		return "", nil
+	}
+
+	leader := info["leader"]
+	if leader == "" {
+		logger.Debugf("Raft node %s returned no leader address", request.URL.Host)
+		return "", nil
+	}
+
+	return leader, nil
+}
+
 func dqliteNetworkDial(ctx context.Context, name string, addr string, g *Gateway) (net.Conn, error) {
 	config, err := tlsClientConfig(g.networkCert, g.state().ServerCert())
 	if err != nil {
@@ -1241,6 +1254,7 @@ type dqliteNodeStore struct {
 	onDisk   client.NodeStore
 }
 
+// Get gets node information from the dqlite node store.
 func (s *dqliteNodeStore) Get(ctx context.Context) ([]client.NodeInfo, error) {
 	if s.inMemory != nil {
 		return s.inMemory.Get(ctx)
@@ -1249,6 +1263,7 @@ func (s *dqliteNodeStore) Get(ctx context.Context) ([]client.NodeInfo, error) {
 	return s.onDisk.Get(ctx)
 }
 
+// Set sets node information in the dqlite node store.
 func (s *dqliteNodeStore) Set(ctx context.Context, servers []client.NodeInfo) error {
 	if s.inMemory != nil {
 		return s.inMemory.Set(ctx, servers)
