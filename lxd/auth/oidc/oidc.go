@@ -70,7 +70,8 @@ type AuthenticationResult struct {
 	IdentityProviderGroups []string
 }
 
-// AuthError represents an authentication error.
+// AuthError represents an authentication error. If an error of this type is returned, the caller should call
+// WriteHeaders on the response so that the client has the necessary information to log in using the device flow.
 type AuthError struct {
 	Err error
 }
@@ -108,7 +109,7 @@ func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		//    Authorization Bearer <access_token>
 		parts := strings.Split(authorizationHeader, "Bearer ")
 		if len(parts) != 2 {
-			return nil, &AuthError{fmt.Errorf("Bad authorization token, expected a Bearer token")}
+			return nil, AuthError{fmt.Errorf("Bad authorization token, expected a Bearer token")}
 		}
 
 		// Bearer tokens should always be access tokens.
@@ -205,7 +206,7 @@ func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWrite
 	// Update the cookies.
 	err = o.setCookies(w, secureCookie, sessionID, idToken, tokens.RefreshToken, false)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to update login cookies: %w", err)
+		return nil, AuthError{fmt.Errorf("Failed to update login cookies: %w", err)}
 	}
 
 	return &AuthenticationResult{
