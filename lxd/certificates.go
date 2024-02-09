@@ -175,139 +175,16 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	body := []string{}
-
-	trustedCertificates := d.getTrustedCertificates()
-	for _, certs := range trustedCertificates {
-		for _, cert := range certs {
-			fingerprint := shared.CertFingerprint(&cert)
-			if !userHasPermission(auth.ObjectCertificate(fingerprint)) {
-				continue
-			}
-
-			certificateURL := fmt.Sprintf("/%s/certificates/%s", version.APIVersion, fingerprint)
-			body = append(body, certificateURL)
+	for _, identity := range d.identityCache.GetByAuthenticationMethod(api.AuthenticationMethodTLS) {
+		if !userHasPermission(auth.ObjectCertificate(identity.Identifier)) {
+			continue
 		}
+
+		certificateURL := fmt.Sprintf("/%s/certificates/%s", version.APIVersion, identity.Identifier)
+		body = append(body, certificateURL)
 	}
 
 	return response.SyncResponse(true, body)
-}
-
-func updateCertificateCache(d *Daemon) {
-	s := d.State()
-
-	logger.Debug("Refreshing trusted certificate cache")
-
-	newCerts := map[certificate.Type]map[string]x509.Certificate{}
-	newProjects := map[string][]string{}
-
-	var certs []*api.Certificate
-	var dbCerts []dbCluster.Certificate
-	var localCerts []dbCluster.Certificate
-	var err error
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbCerts, err = dbCluster.GetCertificates(ctx, tx.Tx())
-		if err != nil {
-			return err
-		}
-
-		certs = make([]*api.Certificate, len(dbCerts))
-		for i, c := range dbCerts {
-			certs[i], err = c.ToAPI(ctx, tx.Tx())
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		logger.Warn("Failed reading certificates from global database", logger.Ctx{"err": err})
-		return
-	}
-
-	for i, dbCert := range dbCerts {
-		_, found := newCerts[dbCert.Type]
-		if !found {
-			newCerts[dbCert.Type] = make(map[string]x509.Certificate)
-		}
-
-		certBlock, _ := pem.Decode([]byte(dbCert.Certificate))
-		if certBlock == nil {
-			logger.Warn("Failed decoding certificate", logger.Ctx{"name": dbCert.Name, "err": err})
-			continue
-		}
-
-		cert, err := x509.ParseCertificate(certBlock.Bytes)
-		if err != nil {
-			logger.Warn("Failed parsing certificate", logger.Ctx{"name": dbCert.Name, "err": err})
-			continue
-		}
-
-		newCerts[dbCert.Type][shared.CertFingerprint(cert)] = *cert
-
-		if dbCert.Restricted {
-			newProjects[shared.CertFingerprint(cert)] = certs[i].Projects
-		}
-
-		// Add server certs to list of certificates to store in local database to allow cluster restart.
-		if dbCert.Type == certificate.TypeServer {
-			localCerts = append(localCerts, dbCert)
-		}
-	}
-
-	// Write out the server certs to the local database to allow the cluster to restart.
-	err = s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		return tx.ReplaceCertificates(localCerts)
-	})
-	if err != nil {
-		logger.Warn("Failed writing certificates to local database", logger.Ctx{"err": err})
-		// Don't return here, as we still should update the in-memory cache to allow the cluster to
-		// continue functioning, and hopefully the write will succeed on next update.
-	}
-
-	d.clientCerts.SetCertificatesAndProjects(newCerts, newProjects)
-}
-
-// updateCertificateCacheFromLocal loads trusted server certificates from local database into memory.
-func updateCertificateCacheFromLocal(d *Daemon) error {
-	logger.Debug("Refreshing local trusted certificate cache")
-
-	newCerts := map[certificate.Type]map[string]x509.Certificate{}
-
-	var dbCerts []dbCluster.Certificate
-	var err error
-
-	err = d.State().DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		dbCerts, err = tx.GetCertificates(ctx)
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("Failed reading certificates from local database: %w", err)
-	}
-
-	for _, dbCert := range dbCerts {
-		_, found := newCerts[dbCert.Type]
-		if !found {
-			newCerts[dbCert.Type] = make(map[string]x509.Certificate)
-		}
-
-		certBlock, _ := pem.Decode([]byte(dbCert.Certificate))
-		if certBlock == nil {
-			logger.Warn("Failed decoding certificate", logger.Ctx{"name": dbCert.Name, "err": err})
-			continue
-		}
-
-		cert, err := x509.ParseCertificate(certBlock.Bytes)
-		if err != nil {
-			logger.Warn("Failed parsing certificate", logger.Ctx{"name": dbCert.Name, "err": err})
-			continue
-		}
-
-		newCerts[dbCert.Type][shared.CertFingerprint(cert)] = *cert
-	}
-
-	d.clientCerts.SetCertificates(newCerts)
-
-	return nil
 }
 
 // clusterMemberJoinTokenValid searches for cluster join token that matches the join token provided.
@@ -776,7 +653,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Reload the cache.
-	s.UpdateCertificateCache()
+	s.UpdateIdentityCache()
 
 	lc := lifecycle.CertificateCreated.Event(fingerprint, request.CreateRequestor(r), nil)
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
@@ -1103,7 +980,7 @@ func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificateP
 	}
 
 	// Reload the cache.
-	s.UpdateCertificateCache()
+	s.UpdateIdentityCache()
 
 	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.CertificateUpdated.Event(dbInfo.Fingerprint, request.CreateRequestor(r), nil))
 
@@ -1221,7 +1098,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Reload the cache.
-	s.UpdateCertificateCache()
+	s.UpdateIdentityCache()
 
 	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.CertificateDeleted.Event(fingerprint, request.CreateRequestor(r), nil))
 

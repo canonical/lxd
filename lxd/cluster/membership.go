@@ -100,9 +100,9 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 		return err
 	}
 
-	// Reload the trusted certificate cache to enable the certificate we just added to the local trust store
+	// Reload the identity cache to enable the certificate we just added to the local trust store
 	// to be used when validating endpoint connections. This will allow Dqlite to connect to ourselves.
-	state.UpdateCertificateCache()
+	state.UpdateIdentityCache()
 
 	// Shutdown the gateway. This will trash any dqlite connection against
 	// our in-memory dqlite driver and shutdown the associated raft

@@ -3,25 +3,27 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 
-	"github.com/canonical/lxd/lxd/certificate"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/auth"
 	"github.com/canonical/lxd/shared/logger"
 )
 
 type tls struct {
 	commonAuthorizer
-	certificates *certificate.Cache
+	identities *identity.Cache
 }
 
-func (t *tls) load(ctx context.Context, certificateCache *certificate.Cache, opts Opts) error {
-	if certificateCache == nil {
-		return errors.New("TLS authorization driver requires a certificate cache")
+func (t *tls) load(ctx context.Context, identityCache *identity.Cache, opts Opts) error {
+	if identityCache == nil {
+		return errors.New("TLS authorization driver requires an identity cache")
 	}
 
-	t.certificates = certificateCache
+	t.identities = identityCache
 	return nil
 }
 
@@ -32,7 +34,7 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, object Objec
 		return api.StatusErrorf(http.StatusForbidden, "Failed to extract request details: %v", err)
 	}
 
-	if details.isInternalOrUnix() {
+	if details.isInternalOrUnix() || details.isPKI {
 		return nil
 	}
 
@@ -44,12 +46,20 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, object Objec
 		return nil
 	}
 
-	certType, isNotRestricted, projectNames, err := t.certificateDetails(details.username())
+	username := details.username()
+	id, err := t.identities.Get(api.AuthenticationMethodTLS, details.username())
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed loading certificate for %q: %w", username, err)
 	}
 
-	if isNotRestricted || (certType == certificate.TypeMetrics && entitlement == EntitlementCanViewMetrics) {
+	isRestricted, err := auth.IsRestrictedIdentityType(id.IdentityType)
+	if err != nil {
+		return fmt.Errorf("Failed to check restricted status of identity: %w", err)
+	}
+
+	if !isRestricted {
+		return nil
+	} else if id.IdentityType == api.IdentityTypeCertificateMetrics && entitlement == EntitlementCanViewMetrics {
 		return nil
 	}
 
@@ -76,7 +86,7 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, object Objec
 
 	// Check project level permissions against the certificates project list.
 	projectName := object.Project()
-	if !shared.ValueInSlice(projectName, projectNames) {
+	if !shared.ValueInSlice(projectName, id.Projects) {
 		return api.StatusErrorf(http.StatusForbidden, "User does not have permission for project %q", projectName)
 	}
 
@@ -96,7 +106,7 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 		return nil, api.StatusErrorf(http.StatusForbidden, "Failed to extract request details: %v", err)
 	}
 
-	if details.isInternalOrUnix() {
+	if details.isInternalOrUnix() || details.isPKI {
 		return allowFunc(true), nil
 	}
 
@@ -108,12 +118,20 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 		return allowFunc(true), nil
 	}
 
-	certType, isNotRestricted, projectNames, err := t.certificateDetails(details.username())
+	username := details.username()
+	id, err := t.identities.Get(api.AuthenticationMethodTLS, details.username())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed loading certificate for %q: %w", username, err)
 	}
 
-	if isNotRestricted || (certType == certificate.TypeMetrics && entitlement == EntitlementCanViewMetrics) {
+	isRestricted, err := auth.IsRestrictedIdentityType(id.IdentityType)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to check restricted status of identity: %w", err)
+	}
+
+	if !isRestricted {
+		return allowFunc(true), nil
+	} else if id.IdentityType == api.IdentityTypeCertificateMetrics && entitlement == EntitlementCanViewMetrics {
 		return allowFunc(true), nil
 	}
 
@@ -139,44 +157,12 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 	}
 
 	// Error if user does not have access to the project (unless we're getting projects, where we want to filter the results).
-	if !shared.ValueInSlice(details.projectName, projectNames) && objectType != ObjectTypeProject {
+	if !shared.ValueInSlice(details.projectName, id.Projects) && objectType != ObjectTypeProject {
 		return nil, api.StatusErrorf(http.StatusForbidden, "User does not have permissions for project %q", details.projectName)
 	}
 
 	// Filter objects by project.
 	return func(object Object) bool {
-		return shared.ValueInSlice(object.Project(), projectNames)
+		return shared.ValueInSlice(object.Project(), id.Projects)
 	}, nil
-}
-
-// certificateDetails returns the certificate type, a boolean indicating if the certificate is *not* restricted, a slice of
-// project names for this certificate, or an error if the certificate could not be found.
-func (t *tls) certificateDetails(fingerprint string) (certificate.Type, bool, []string, error) {
-	certs, projects := t.certificates.GetCertificatesAndProjects()
-	clientCerts := certs[certificate.TypeClient]
-	_, ok := clientCerts[fingerprint]
-	if ok {
-		projectNames, ok := projects[fingerprint]
-		if !ok {
-			// Certificate is not restricted.
-			return certificate.TypeClient, true, nil, nil
-		}
-
-		return certificate.TypeClient, false, projectNames, nil
-	}
-
-	// If not a client cert, could be a metrics cert. Only need to check one entitlement.
-	metricCerts := certs[certificate.TypeMetrics]
-	_, ok = metricCerts[fingerprint]
-	if ok {
-		return certificate.TypeMetrics, false, nil, nil
-	}
-
-	// If we're in a CA environment, it's possible for a certificate to be trusted despite not being present in the trust store.
-	// We rely on the validation of the certificate (and its potential revocation) having been done in CheckTrustState.
-	if shared.PathExists(shared.VarPath("server.ca")) {
-		return certificate.TypeClient, true, nil, nil
-	}
-
-	return -1, false, nil, api.StatusErrorf(http.StatusForbidden, "Client certificate not found")
 }

@@ -15,9 +15,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 )
@@ -37,11 +37,7 @@ func TestGateway_Single(t *testing.T) {
 	gateway := newGateway(t, node, cert, s)
 	defer func() { _ = gateway.Shutdown() }()
 
-	trustedCerts := func() map[certificate.Type]map[string]x509.Certificate {
-		return nil
-	}
-
-	handlerFuncs := gateway.HandlerFuncs(nil, trustedCerts)
+	handlerFuncs := gateway.HandlerFuncs(nil, &identity.Cache{})
 	assert.Len(t, handlerFuncs, 1)
 	for endpoint, f := range handlerFuncs {
 		c, err := x509.ParseCertificate(cert.KeyPair().Certificate[0])
@@ -101,11 +97,7 @@ func TestGateway_SingleWithNetworkAddress(t *testing.T) {
 	gateway := newGateway(t, node, cert, s)
 	defer func() { _ = gateway.Shutdown() }()
 
-	trustedCerts := func() map[certificate.Type]map[string]x509.Certificate {
-		return nil
-	}
-
-	for path, handler := range gateway.HandlerFuncs(nil, trustedCerts) {
+	for path, handler := range gateway.HandlerFuncs(nil, &identity.Cache{}) {
 		mux.HandleFunc(path, handler)
 	}
 
@@ -146,11 +138,7 @@ func TestGateway_NetworkAuth(t *testing.T) {
 	gateway := newGateway(t, node, cert, s)
 	defer func() { _ = gateway.Shutdown() }()
 
-	trustedCerts := func() map[certificate.Type]map[string]x509.Certificate {
-		return nil
-	}
-
-	for path, handler := range gateway.HandlerFuncs(nil, trustedCerts) {
+	for path, handler := range gateway.HandlerFuncs(nil, &identity.Cache{}) {
 		mux.HandleFunc(path, handler)
 	}
 
@@ -161,7 +149,7 @@ func TestGateway_NetworkAuth(t *testing.T) {
 	require.NoError(t, err)
 	client := &http.Client{Transport: &http.Transport{TLSClientConfig: config}}
 
-	for path := range gateway.HandlerFuncs(nil, trustedCerts) {
+	for path := range gateway.HandlerFuncs(nil, &identity.Cache{}) {
 		url := fmt.Sprintf("https://%s%s", address, path)
 		response, err := client.Head(url)
 		require.NoError(t, err)

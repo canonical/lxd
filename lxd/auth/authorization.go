@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/canonical/lxd/lxd/certificate"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -25,7 +25,7 @@ type authorizer interface {
 	Authorizer
 
 	init(driverName string, logger logger.Logger) error
-	load(ctx context.Context, certificateCache *certificate.Cache, opts Opts) error
+	load(ctx context.Context, certificateCache *identity.Cache, opts Opts) error
 }
 
 // PermissionChecker is a type alias for a function that returns whether a user has required permissions on an object.
@@ -98,7 +98,7 @@ func WithConfig(c map[string]any) func(*Opts) {
 }
 
 // LoadAuthorizer instantiates, configures, and initialises an Authorizer.
-func LoadAuthorizer(ctx context.Context, driver string, logger logger.Logger, certificateCache *certificate.Cache, options ...func(opts *Opts)) (Authorizer, error) {
+func LoadAuthorizer(ctx context.Context, driver string, logger logger.Logger, certificateCache *identity.Cache, options ...func(opts *Opts)) (Authorizer, error) {
 	opts := &Opts{}
 	for _, o := range options {
 		o(opts)

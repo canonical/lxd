@@ -8,6 +8,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -35,6 +36,7 @@ type requestDetails struct {
 	forwardedProtocol    string
 	isAllProjectsRequest bool
 	projectName          string
+	isPKI                bool
 }
 
 func (r *requestDetails) isInternalOrUnix() bool {
@@ -92,6 +94,13 @@ func (c *commonAuthorizer) requestDetails(r *http.Request) (*requestDetails, err
 		return nil, fmt.Errorf("Request context protocol has incorrect type")
 	}
 
+	pkiMode := false
+	if protocol == api.AuthenticationMethodTLS && shared.PathExists(shared.VarPath("server.ca")) {
+		// If we're in a CA environment, it's possible for a certificate to be trusted despite not being present in the trust store.
+		// We rely on the validation of the certificate (and its potential revocation) having been done in CheckTrustState.
+		pkiMode = true
+	}
+
 	var forwardedUsername string
 	val = r.Context().Value(request.CtxForwardedUsername)
 	if val != nil {
@@ -122,9 +131,11 @@ func (c *commonAuthorizer) requestDetails(r *http.Request) (*requestDetails, err
 		forwardedProtocol:    forwardedProtocol,
 		isAllProjectsRequest: shared.IsTrue(values.Get("all-projects")),
 		projectName:          request.ProjectParam(r),
+		isPKI:                pkiMode,
 	}, nil
 }
 
+// Driver returns the driver name.
 func (c *commonAuthorizer) Driver() string {
 	return c.driverName
 }

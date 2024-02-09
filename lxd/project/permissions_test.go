@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/canonical/lxd/lxd/auth"
-	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
@@ -176,7 +176,7 @@ func TestCheckClusterTargetRestriction_RestrictedTrue(t *testing.T) {
 	require.NoError(t, err)
 
 	req := &http.Request{}
-	authorizer, err := auth.LoadAuthorizer(context.Background(), auth.DriverTLS, logger.Log, &certificate.Cache{})
+	authorizer, err := auth.LoadAuthorizer(context.Background(), auth.DriverTLS, logger.Log, &identity.Cache{})
 	require.NoError(t, err)
 
 	err = project.CheckClusterTargetRestriction(authorizer, req, p, "n1")
@@ -207,17 +207,21 @@ func TestCheckClusterTargetRestriction_RestrictedTrueWithOverride(t *testing.T) 
 
 	req = req.WithContext(context.WithValue(req.Context(), request.CtxProtocol, "tls"))
 	req = req.WithContext(context.WithValue(req.Context(), request.CtxUsername, "my-certificate-fingerprint"))
-	certificateCache := &certificate.Cache{}
+	identityCache := &identity.Cache{}
 
-	// Setting the certificate and not projects means the certificate is not restricted and therefore the user is an
-	// admin that can override the cluster targer restriction.
-	certificateCache.SetCertificates(map[certificate.Type]map[string]x509.Certificate{
-		certificate.TypeClient: {
-			"my-certificate-fingerprint": x509.Certificate{},
+	// Unrestricted client certificates can override the cluster target restriction.
+	err = identityCache.ReplaceAll([]identity.CacheEntry{
+		{
+			Identifier:           "my-certificate-fingerprint",
+			IdentityType:         api.IdentityTypeCertificateClientUnrestricted,
+			AuthenticationMethod: api.AuthenticationMethodTLS,
+			// Certificate has to be non-nil for TLS identities.
+			Certificate: &x509.Certificate{},
 		},
 	})
+	require.NoError(t, err)
 
-	authorizer, err := auth.LoadAuthorizer(context.Background(), auth.DriverTLS, logger.Log, certificateCache)
+	authorizer, err := auth.LoadAuthorizer(context.Background(), auth.DriverTLS, logger.Log, identityCache)
 	require.NoError(t, err)
 
 	err = project.CheckClusterTargetRestriction(authorizer, req, p, "n1")
@@ -243,7 +247,7 @@ func TestCheckClusterTargetRestriction_RestrictedFalse(t *testing.T) {
 	require.NoError(t, err)
 
 	req := &http.Request{}
-	authorizer, err := auth.LoadAuthorizer(context.Background(), auth.DriverTLS, logger.Log, &certificate.Cache{})
+	authorizer, err := auth.LoadAuthorizer(context.Background(), auth.DriverTLS, logger.Log, &identity.Cache{})
 	require.NoError(t, err)
 
 	err = project.CheckClusterTargetRestriction(authorizer, req, p, "n1")
