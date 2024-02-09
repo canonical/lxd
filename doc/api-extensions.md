@@ -2340,3 +2340,7 @@ the event as that's usually already covered by the `location` field.
 Adds a new `volatile.uuid` configuration key to all storage volumes, snapshots and buckets.
 This information can be used by storage drivers as a separate identifier besides the name
 when working with volumes.
+
+## `import_instance_devices`
+
+This API extension provides the ability to use flags `--device` when importing an instance to override instance's devices.

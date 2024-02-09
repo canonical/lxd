@@ -588,7 +588,7 @@ func internalSQLExec(tx *sql.Tx, query string, result *internalSQLResult) error 
 
 // internalImportFromBackup creates instance, storage pool and volume DB records from an instance's backup file.
 // It expects the instance volume to be mounted so that the backup.yaml file is readable.
-func internalImportFromBackup(s *state.State, projectName string, instName string, allowNameOverride bool) error {
+func internalImportFromBackup(s *state.State, projectName string, instName string, allowNameOverride bool, devices map[string]map[string]string) error {
 	if instName == "" {
 		return fmt.Errorf("The name of the instance is required")
 	}
@@ -659,6 +659,28 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 	backupConf, err := backup.ParseConfigYamlFile(backupYamlPath)
 	if err != nil {
 		return err
+	}
+
+	// Override instance devices.
+	if len(devices) > 0 {
+		if backupConf.Container.Devices == nil {
+			backupConf.Container.Devices = map[string]map[string]string{}
+		}
+
+		for devName, devConfig := range devices {
+			if backupConf.Container.Devices[devName] == nil {
+				backupConf.Container.Devices[devName] = map[string]string{}
+			}
+
+			for k, v := range devConfig {
+				backupConf.Container.Devices[devName][k] = v
+			}
+		}
+
+		err = backup.OverrideConfigYamlFile(backupYamlPath, backupConf)
+		if err != nil {
+			return err
+		}
 	}
 
 	if allowNameOverride && instName != "" {
