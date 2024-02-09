@@ -794,10 +794,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 				}
 
 				if hdr.Name == srcFile {
-					err := unpack(hdr.Size)
-					if err != nil {
-						return err
-					}
+					return unpack(hdr.Size)
 				}
 			}
 
