@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -17,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -78,13 +78,13 @@ func storageStartup(s *state.State, forceCheck bool) error {
 		_, err = pool.Mount()
 		if err != nil {
 			logger.Error("Failed mounting storage pool", logger.Ctx{"pool": poolName, "err": err})
-			_ = s.DB.Cluster.UpsertWarningLocalNode("", cluster.TypeStoragePool, int(pool.ID()), warningtype.StoragePoolUnvailable, err.Error())
+			_ = s.DB.Cluster.UpsertWarningLocalNode("", entity.TypeStoragePool, int(pool.ID()), warningtype.StoragePoolUnvailable, err.Error())
 
 			return false
 		}
 
 		logger.Info("Initialized storage pool", logger.Ctx{"pool": poolName})
-		_ = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.DB.Cluster, "", warningtype.StoragePoolUnvailable, cluster.TypeStoragePool, int(pool.ID()))
+		_ = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.DB.Cluster, "", warningtype.StoragePoolUnvailable, entity.TypeStoragePool, int(pool.ID()))
 
 		return true
 	}

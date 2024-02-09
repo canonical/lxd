@@ -2209,7 +2209,7 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 		var err error
 
 		revert.Add(func() {
-			_ = s.DB.Cluster.UpsertWarningLocalNode("", -1, -1, warningtype.UnableToUpdateClusterCertificate, err.Error())
+			_ = s.DB.Cluster.UpsertWarningLocalNode("", "", -1, warningtype.UnableToUpdateClusterCertificate, err.Error())
 		})
 
 		oldCertBytes, err := os.ReadFile(shared.VarPath("cluster.crt"))
