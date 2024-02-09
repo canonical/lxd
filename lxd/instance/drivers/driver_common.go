@@ -1068,7 +1068,7 @@ func (d *common) warningsDelete() error {
 // canMigrate determines if the given instance can be migrated and whether the migration
 // can be live. In "auto" mode, the function checks each attached device of the instance
 // to ensure they are all migratable.
-func (d *common) canMigrate(inst instance.Instance) (bool, bool) {
+func (d *common) canMigrate(inst instance.Instance) (canMigrate bool, canLiveMigrate bool) {
 	// Check policy for the instance.
 	config := d.ExpandedConfig()
 	val, ok := config["cluster.evacuate"]
