@@ -33,6 +33,10 @@ test_tls_restrictions() {
   # Confirm we can still view storage pools
   [ "$(lxc_remote storage list localhost: --format csv | wc -l)" = 1 ]
 
+  # Confirm we cannot view storage pool configuration
+  pool_name="$(lxc_remote storage list localhost: --format csv | cut -d, -f1)"
+  ! lxc_remote storage show "localhost:${pool_name}" | grep -F 'source:' || false
+
   # Allow access to project blah
   lxc config trust show "${FINGERPRINT}" | sed -e "s/projects: \[\]/projects: ['blah']/" -e "s/restricted: false/restricted: true/" | lxc config trust edit "${FINGERPRINT}"
 
