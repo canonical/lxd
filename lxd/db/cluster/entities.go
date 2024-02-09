@@ -1,142 +1,153 @@
 package cluster
 
 import (
+	"database/sql/driver"
 	"fmt"
-	"net/url"
-	"strings"
 
-	"github.com/canonical/lxd/shared/version"
+	"github.com/canonical/lxd/shared/entity"
 )
 
-// Numeric type codes identifying different kind of entities.
+// EntityType is a database representation of an entity type.
+//
+// EntityType is defined on string so that entity.Type constants can be converted by casting. The sql.Scanner and
+// driver.Valuer interfaces are implemented on this type such that the string constants are converted into their int64
+// counterparts as they are written to the database, or converted back into an EntityType as they are read from the
+// database. It is not possible to read/write invalid entity types from/to the database when using this type.
+type EntityType string
+
 const (
-	TypeContainer             = 0
-	TypeImage                 = 1
-	TypeProfile               = 2
-	TypeProject               = 3
-	TypeCertificate           = 4
-	TypeInstance              = 5
-	TypeInstanceBackup        = 6
-	TypeInstanceSnapshot      = 7
-	TypeNetwork               = 8
-	TypeNetworkACL            = 9
-	TypeNode                  = 10
-	TypeOperation             = 11
-	TypeStoragePool           = 12
-	TypeStorageVolume         = 13
-	TypeStorageVolumeBackup   = 14
-	TypeStorageVolumeSnapshot = 15
-	TypeWarning               = 16
-	TypeClusterGroup          = 17
-	TypeStorageBucket         = 18
+	entityTypeNone                  int64 = -1
+	entityTypeContainer             int64 = 0
+	entityTypeImage                 int64 = 1
+	entityTypeProfile               int64 = 2
+	entityTypeProject               int64 = 3
+	entityTypeCertificate           int64 = 4
+	entityTypeInstance              int64 = 5
+	entityTypeInstanceBackup        int64 = 6
+	entityTypeInstanceSnapshot      int64 = 7
+	entityTypeNetwork               int64 = 8
+	entityTypeNetworkACL            int64 = 9
+	entityTypeNode                  int64 = 10
+	entityTypeOperation             int64 = 11
+	entityTypeStoragePool           int64 = 12
+	entityTypeStorageVolume         int64 = 13
+	entityTypeStorageVolumeBackup   int64 = 14
+	entityTypeStorageVolumeSnapshot int64 = 15
+	entityTypeWarning               int64 = 16
+	entityTypeClusterGroup          int64 = 17
+	entityTypeStorageBucket         int64 = 18
 )
 
-// EntityNames associates an entity code to its name.
-var EntityNames = map[int]string{
-	TypeContainer:             "container",
-	TypeImage:                 "image",
-	TypeProfile:               "profile",
-	TypeProject:               "project",
-	TypeCertificate:           "certificate",
-	TypeInstance:              "instance",
-	TypeInstanceBackup:        "instance backup",
-	TypeInstanceSnapshot:      "instance snapshot",
-	TypeNetwork:               "network",
-	TypeNetworkACL:            "network acl",
-	TypeNode:                  "node",
-	TypeOperation:             "operation",
-	TypeStoragePool:           "storage pool",
-	TypeStorageVolume:         "storage volume",
-	TypeStorageVolumeBackup:   "storage volume backup",
-	TypeStorageVolumeSnapshot: "storage volume snapshot",
-	TypeStorageBucket:         "storage bucket",
-	TypeWarning:               "warning",
-	TypeClusterGroup:          "cluster group",
-}
-
-// EntityTypes associates an entity name to its type code.
-var EntityTypes = map[string]int{}
-
-// EntityURIs associates an entity code to its URI pattern.
-var EntityURIs = map[int]string{
-	TypeContainer:             "/" + version.APIVersion + "/containers/%s?project=%s",
-	TypeImage:                 "/" + version.APIVersion + "/images/%s?project=%s",
-	TypeProfile:               "/" + version.APIVersion + "/profiles/%s?project=%s",
-	TypeProject:               "/" + version.APIVersion + "/projects/%s",
-	TypeCertificate:           "/" + version.APIVersion + "/certificates/%s",
-	TypeInstance:              "/" + version.APIVersion + "/instances/%s?project=%s",
-	TypeInstanceBackup:        "/" + version.APIVersion + "/instances/%s/backups/%s?project=%s",
-	TypeInstanceSnapshot:      "/" + version.APIVersion + "/instances/%s/snapshots/%s?project=%s",
-	TypeNetwork:               "/" + version.APIVersion + "/networks/%s?project=%s",
-	TypeNetworkACL:            "/" + version.APIVersion + "/network-acls/%s?project=%s",
-	TypeNode:                  "/" + version.APIVersion + "/cluster/members/%s",
-	TypeOperation:             "/" + version.APIVersion + "/operations/%s",
-	TypeStoragePool:           "/" + version.APIVersion + "/storage-pools/%s",
-	TypeStorageVolume:         "/" + version.APIVersion + "/storage-pools/%s/volumes/%s/%s?project=%s",
-	TypeStorageVolumeBackup:   "/" + version.APIVersion + "/storage-pools/%s/volumes/%s/%s/backups/%s?project=%s",
-	TypeStorageVolumeSnapshot: "/" + version.APIVersion + "/storage-pools/%s/volumes/%s/%s/snapshots/%s?project=%s",
-	TypeStorageBucket:         "/" + version.APIVersion + "/storage-pools/%s/buckets/%s?project=%s",
-	TypeWarning:               "/" + version.APIVersion + "/warnings/%s",
-	TypeClusterGroup:          "/" + version.APIVersion + "/cluster/groups/%s",
-}
-
-func init() {
-	for code, name := range EntityNames {
-		EntityTypes[name] = code
+// Scan implements sql.Scanner for EntityType. This converts the integer value back into the correct entity.Type
+// constant or returns an error.
+func (e *EntityType) Scan(value any) error {
+	// Always expect null values to be coalesced into entityTypeNone (-1).
+	if value == nil {
+		return fmt.Errorf("Entity type cannot be null")
 	}
-}
 
-// URLToEntityType parses a raw URL string and returns the entity type, the project, and the path arguments. The
-// returned project is set to "default" if it is not present (unless the entity type is TypeProject, in which case it is
-// set to the value of the path parameter). An error is returned if the URL is not recognised.
-func URLToEntityType(rawURL string) (int, string, []string, error) {
-	u, err := url.Parse(rawURL)
+	intValue, err := driver.Int32.ConvertValue(value)
 	if err != nil {
-		return -1, "", nil, fmt.Errorf("Failed to parse url %q into an entity type: %w", rawURL, err)
+		return fmt.Errorf("Invalid entity type `%v`: %w", value, err)
 	}
 
-	// We need to space separate the path because fmt.Sscanf uses this as a delimiter.
-	spaceSeparatedURLPath := strings.Replace(u.Path, "/", " / ", -1)
-	for entityType, entityURI := range EntityURIs {
-		entityPath, _, _ := strings.Cut(entityURI, "?")
-
-		// Skip if we don't have the same number of slashes.
-		if strings.Count(entityPath, "/") != strings.Count(u.Path, "/") {
-			continue
-		}
-
-		spaceSeparatedEntityPath := strings.Replace(entityPath, "/", " / ", -1)
-
-		// Make an []any for the number of expected path arguments and set each value in the slice to a *string.
-		nPathArgs := strings.Count(spaceSeparatedEntityPath, "%s")
-		pathArgsAny := make([]any, 0, nPathArgs)
-		for i := 0; i < nPathArgs; i++ {
-			var pathComponentStr string
-			pathArgsAny = append(pathArgsAny, &pathComponentStr)
-		}
-
-		// Scan the given URL into the entity URL. If we found all the expected path arguments and there
-		// are no errors we have a match.
-		nFound, err := fmt.Sscanf(spaceSeparatedURLPath, spaceSeparatedEntityPath, pathArgsAny...)
-		if nFound == nPathArgs && err == nil {
-			pathArgs := make([]string, 0, nPathArgs)
-			for _, pathArgAny := range pathArgsAny {
-				pathArgPtr := pathArgAny.(*string)
-				pathArgs = append(pathArgs, *pathArgPtr)
-			}
-
-			projectName := u.Query().Get("project")
-			if projectName == "" {
-				projectName = "default"
-			}
-
-			if entityType == TypeProject {
-				return TypeProject, pathArgs[0], pathArgs, nil
-			}
-
-			return entityType, projectName, pathArgs, nil
-		}
+	entityTypeInt, ok := intValue.(int64)
+	if !ok {
+		return fmt.Errorf("Entity should be an integer, got `%v` (%T)", intValue, intValue)
 	}
 
-	return -1, "", nil, fmt.Errorf("Unknown entity URL %q", u.String())
+	switch entityTypeInt {
+	case entityTypeNone:
+		*e = ""
+	case entityTypeContainer:
+		*e = EntityType(entity.TypeContainer)
+	case entityTypeImage:
+		*e = EntityType(entity.TypeImage)
+	case entityTypeProfile:
+		*e = EntityType(entity.TypeProfile)
+	case entityTypeProject:
+		*e = EntityType(entity.TypeProject)
+	case entityTypeCertificate:
+		*e = EntityType(entity.TypeCertificate)
+	case entityTypeInstance:
+		*e = EntityType(entity.TypeInstance)
+	case entityTypeInstanceBackup:
+		*e = EntityType(entity.TypeInstanceBackup)
+	case entityTypeInstanceSnapshot:
+		*e = EntityType(entity.TypeInstanceSnapshot)
+	case entityTypeNetwork:
+		*e = EntityType(entity.TypeNetwork)
+	case entityTypeNetworkACL:
+		*e = EntityType(entity.TypeNetworkACL)
+	case entityTypeNode:
+		*e = EntityType(entity.TypeNode)
+	case entityTypeOperation:
+		*e = EntityType(entity.TypeOperation)
+	case entityTypeStoragePool:
+		*e = EntityType(entity.TypeStoragePool)
+	case entityTypeStorageVolume:
+		*e = EntityType(entity.TypeStorageVolume)
+	case entityTypeStorageVolumeBackup:
+		*e = EntityType(entity.TypeStorageVolumeBackup)
+	case entityTypeStorageVolumeSnapshot:
+		*e = EntityType(entity.TypeStorageVolumeSnapshot)
+	case entityTypeWarning:
+		*e = EntityType(entity.TypeWarning)
+	case entityTypeClusterGroup:
+		*e = EntityType(entity.TypeClusterGroup)
+	case entityTypeStorageBucket:
+		*e = EntityType(entity.TypeStorageBucket)
+	default:
+		return fmt.Errorf("Unknown entity type %d", entityTypeInt)
+	}
+
+	return nil
+}
+
+// Value implements driver.Valuer for EntityType. This converts the EntityType into an integer or throws an error.
+func (e EntityType) Value() (driver.Value, error) {
+	switch e {
+	case "":
+		return entityTypeNone, nil
+	case EntityType(entity.TypeContainer):
+		return entityTypeContainer, nil
+	case EntityType(entity.TypeImage):
+		return entityTypeImage, nil
+	case EntityType(entity.TypeProfile):
+		return entityTypeProfile, nil
+	case EntityType(entity.TypeProject):
+		return entityTypeProject, nil
+	case EntityType(entity.TypeCertificate):
+		return entityTypeCertificate, nil
+	case EntityType(entity.TypeInstance):
+		return entityTypeInstance, nil
+	case EntityType(entity.TypeInstanceBackup):
+		return entityTypeInstanceBackup, nil
+	case EntityType(entity.TypeInstanceSnapshot):
+		return entityTypeInstanceSnapshot, nil
+	case EntityType(entity.TypeNetwork):
+		return entityTypeNetwork, nil
+	case EntityType(entity.TypeNetworkACL):
+		return entityTypeNetworkACL, nil
+	case EntityType(entity.TypeNode):
+		return entityTypeNode, nil
+	case EntityType(entity.TypeOperation):
+		return entityTypeOperation, nil
+	case EntityType(entity.TypeStoragePool):
+		return entityTypeStoragePool, nil
+	case EntityType(entity.TypeStorageVolume):
+		return entityTypeStorageVolume, nil
+	case EntityType(entity.TypeStorageVolumeBackup):
+		return entityTypeStorageVolumeBackup, nil
+	case EntityType(entity.TypeStorageVolumeSnapshot):
+		return entityTypeStorageVolumeSnapshot, nil
+	case EntityType(entity.TypeWarning):
+		return entityTypeWarning, nil
+	case EntityType(entity.TypeClusterGroup):
+		return entityTypeClusterGroup, nil
+	case EntityType(entity.TypeStorageBucket):
+		return entityTypeStorageBucket, nil
+	default:
+		return nil, fmt.Errorf("Unknown entity type %q", e)
+	}
 }
