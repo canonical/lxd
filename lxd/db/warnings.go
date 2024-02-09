@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 var warningCreate = cluster.RegisterStmt(`
@@ -22,7 +23,7 @@ INSERT INTO warnings (node_id, project_id, entity_type_code, entity_id, uuid, ty
 `)
 
 // UpsertWarningLocalNode creates or updates a warning for the local member. Returns error if no local member name.
-func (c *Cluster) UpsertWarningLocalNode(projectName string, entityTypeCode int, entityID int, typeCode warningtype.Type, message string) error {
+func (c *Cluster) UpsertWarningLocalNode(projectName string, entityType entity.Type, entityID int, typeCode warningtype.Type, message string) error {
 	var err error
 	var localName string
 
@@ -42,15 +43,15 @@ func (c *Cluster) UpsertWarningLocalNode(projectName string, entityTypeCode int,
 		return fmt.Errorf("Local member name not available")
 	}
 
-	return c.UpsertWarning(localName, projectName, entityTypeCode, entityID, typeCode, message)
+	return c.UpsertWarning(localName, projectName, entityType, entityID, typeCode, message)
 }
 
 // UpsertWarning creates or updates a warning.
-func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeCode int, entityID int, typeCode warningtype.Type, message string) error {
+func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityType entity.Type, entityID int, typeCode warningtype.Type, message string) error {
 	// Validate
-	_, err := c.GetURIFromEntity(entityTypeCode, entityID)
+	_, err := c.GetURIFromEntity(entityType, entityID)
 	if err != nil {
-		return fmt.Errorf("Failed to get URI for entity ID %d with entity type code %d: %w", entityID, entityTypeCode, err)
+		return fmt.Errorf("Failed to get URI for entity ID %d with entity type %q: %w", entityID, entityType, err)
 	}
 
 	_, ok := warningtype.TypeNames[typeCode]
@@ -61,12 +62,13 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 	now := time.Now().UTC()
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		clusterEntityType := cluster.EntityType(entityType)
 		filter := cluster.WarningFilter{
-			TypeCode:       &typeCode,
-			Node:           &nodeName,
-			Project:        &projectName,
-			EntityTypeCode: &entityTypeCode,
-			EntityID:       &entityID,
+			TypeCode:   &typeCode,
+			Node:       &nodeName,
+			Project:    &projectName,
+			EntityType: &clusterEntityType,
+			EntityID:   &entityID,
 		}
 
 		warnings, err := cluster.GetWarnings(ctx, tx.tx, filter)
@@ -76,7 +78,7 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 
 		if len(warnings) > 1 {
 			// This shouldn't happen
-			return fmt.Errorf("More than one warnings (%d) match the criteria: typeCode: %d, nodeName: %q, projectName: %q, entityTypeCode: %d, entityID: %d", len(warnings), typeCode, nodeName, projectName, entityTypeCode, entityID)
+			return fmt.Errorf("More than one warnings (%d) match the criteria: typeCode: %d, nodeName: %q, projectName: %q, entityType: %q, entityID: %d", len(warnings), typeCode, nodeName, projectName, entityType, entityID)
 		} else if len(warnings) == 1 {
 			// If there is a historical warning that was previously automatically resolved and the same
 			// warning has now reoccurred then set the status back to warningtype.StatusNew so it shows as
@@ -89,18 +91,18 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 			err = tx.UpdateWarningState(warnings[0].UUID, message, newStatus)
 		} else {
 			warning := cluster.Warning{
-				Node:           nodeName,
-				Project:        projectName,
-				EntityTypeCode: entityTypeCode,
-				EntityID:       entityID,
-				UUID:           uuid.New().String(),
-				TypeCode:       typeCode,
-				Status:         warningtype.StatusNew,
-				FirstSeenDate:  now,
-				LastSeenDate:   now,
-				UpdatedDate:    time.Time{}.UTC(),
-				LastMessage:    message,
-				Count:          1,
+				Node:          nodeName,
+				Project:       projectName,
+				EntityType:    clusterEntityType,
+				EntityID:      entityID,
+				UUID:          uuid.New().String(),
+				TypeCode:      typeCode,
+				Status:        warningtype.StatusNew,
+				FirstSeenDate: now,
+				LastSeenDate:  now,
+				UpdatedDate:   time.Time{}.UTC(),
+				LastMessage:   message,
+				Count:         1,
 			}
 
 			_, err = tx.createWarning(ctx, warning)
@@ -200,8 +202,8 @@ func (c *ClusterTx) createWarning(ctx context.Context, object cluster.Warning) (
 		args[1] = object.Project
 	}
 
-	if object.EntityTypeCode != -1 {
-		args[2] = object.EntityTypeCode
+	if object.EntityType != "" {
+		args[2] = object.EntityType
 	}
 
 	if object.EntityID != -1 {
