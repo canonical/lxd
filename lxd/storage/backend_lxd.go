@@ -46,6 +46,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
@@ -318,7 +319,7 @@ func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newCo
 // warningsDelete deletes any persistent warnings for the pool.
 func (b *lxdBackend) warningsDelete() error {
 	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return cluster.DeleteWarnings(ctx, tx.Tx(), cluster.TypeStoragePool, int(b.ID()))
+		return cluster.DeleteWarnings(ctx, tx.Tx(), cluster.EntityType(entity.TypeStoragePool), int(b.ID()))
 	})
 	if err != nil {
 		return fmt.Errorf("Failed deleting persistent warnings: %w", err)
