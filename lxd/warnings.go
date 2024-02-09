@@ -24,6 +24,7 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/task"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/filter"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
@@ -502,18 +503,13 @@ func pruneResolvedWarnings(ctx context.Context, s *state.State) error {
 
 // getWarningEntityURL fetches the entity corresponding to the warning from the database, and generates a URL.
 func getWarningEntityURL(ctx context.Context, tx *sql.Tx, warning *cluster.Warning) (string, error) {
-	if warning.EntityID == -1 || warning.EntityTypeCode == -1 {
+	if warning.EntityID == -1 || warning.EntityType == "" {
 		return "", nil
 	}
 
-	_, ok := cluster.EntityNames[warning.EntityTypeCode]
-	if !ok {
-		return "", fmt.Errorf("Unknown entity type")
-	}
-
 	var url string
-	switch warning.EntityTypeCode {
-	case cluster.TypeImage:
+	switch entity.Type(warning.EntityType) {
+	case entity.TypeImage:
 		entities, err := cluster.GetImages(ctx, tx, cluster.ImageFilter{ID: &warning.EntityID})
 		if err != nil {
 			return "", err
@@ -525,7 +521,7 @@ func getWarningEntityURL(ctx context.Context, tx *sql.Tx, warning *cluster.Warni
 
 		apiImage := api.Image{Fingerprint: entities[0].Fingerprint}
 		url = apiImage.URL(version.APIVersion, entities[0].Project).String()
-	case cluster.TypeProfile:
+	case entity.TypeProfile:
 		entities, err := cluster.GetProfiles(ctx, tx, cluster.ProfileFilter{ID: &warning.EntityID})
 		if err != nil {
 			return "", err
@@ -537,7 +533,7 @@ func getWarningEntityURL(ctx context.Context, tx *sql.Tx, warning *cluster.Warni
 
 		apiProfile := api.Profile{Name: entities[0].Name}
 		url = apiProfile.URL(version.APIVersion, entities[0].Project).String()
-	case cluster.TypeProject:
+	case entity.TypeProject:
 		entities, err := cluster.GetProjects(ctx, tx, cluster.ProjectFilter{ID: &warning.EntityID})
 		if err != nil {
 			return "", err
@@ -549,7 +545,7 @@ func getWarningEntityURL(ctx context.Context, tx *sql.Tx, warning *cluster.Warni
 
 		apiProject := api.Project{Name: entities[0].Name}
 		url = apiProject.URL(version.APIVersion).String()
-	case cluster.TypeCertificate:
+	case entity.TypeCertificate:
 		entities, err := cluster.GetCertificates(ctx, tx, cluster.CertificateFilter{ID: &warning.EntityID})
 		if err != nil {
 			return "", err
@@ -561,9 +557,9 @@ func getWarningEntityURL(ctx context.Context, tx *sql.Tx, warning *cluster.Warni
 
 		apiCertificate := api.Certificate{Fingerprint: entities[0].Fingerprint}
 		url = apiCertificate.URL(version.APIVersion).String()
-	case cluster.TypeContainer:
+	case entity.TypeContainer:
 		fallthrough
-	case cluster.TypeInstance:
+	case entity.TypeInstance:
 		entities, err := cluster.GetInstances(ctx, tx, cluster.InstanceFilter{ID: &warning.EntityID})
 		if err != nil {
 			return "", err
