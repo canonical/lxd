@@ -20,45 +20,45 @@ import (
 //go:generate mapper stmt -e warning objects-by-Status
 //go:generate mapper stmt -e warning objects-by-Node-and-TypeCode
 //go:generate mapper stmt -e warning objects-by-Node-and-TypeCode-and-Project
-//go:generate mapper stmt -e warning objects-by-Node-and-TypeCode-and-Project-and-EntityTypeCode-and-EntityID
+//go:generate mapper stmt -e warning objects-by-Node-and-TypeCode-and-Project-and-EntityType-and-EntityID
 //go:generate mapper stmt -e warning delete-by-UUID
-//go:generate mapper stmt -e warning delete-by-EntityTypeCode-and-EntityID
+//go:generate mapper stmt -e warning delete-by-EntityType-and-EntityID
 //go:generate mapper stmt -e warning id
 //
 //go:generate mapper method -i -e warning GetMany
 //go:generate mapper method -i -e warning GetOne-by-UUID
 //go:generate mapper method -i -e warning DeleteOne-by-UUID
-//go:generate mapper method -i -e warning DeleteMany-by-EntityTypeCode-and-EntityID
+//go:generate mapper method -i -e warning DeleteMany-by-EntityType-and-EntityID
 //go:generate mapper method -i -e warning ID
 //go:generate mapper method -i -e warning Exists struct=Warning
 
 // Warning is a value object holding db-related details about a warning.
 type Warning struct {
-	ID             int
-	Node           string `db:"coalesce=''&leftjoin=nodes.name"`
-	Project        string `db:"coalesce=''&leftjoin=projects.name"`
-	EntityTypeCode int    `db:"coalesce=-1"`
-	EntityID       int    `db:"coalesce=-1"`
-	UUID           string `db:"primary=yes"`
-	TypeCode       warningtype.Type
-	Status         warningtype.Status
-	FirstSeenDate  time.Time
-	LastSeenDate   time.Time
-	UpdatedDate    time.Time
-	LastMessage    string
-	Count          int
+	ID            int
+	Node          string     `db:"coalesce=''&leftjoin=nodes.name"`
+	Project       string     `db:"coalesce=''&leftjoin=projects.name"`
+	EntityType    EntityType `db:"coalesce=-1&sql=warnings.entity_type_code"`
+	EntityID      int        `db:"coalesce=-1"`
+	UUID          string     `db:"primary=yes"`
+	TypeCode      warningtype.Type
+	Status        warningtype.Status
+	FirstSeenDate time.Time
+	LastSeenDate  time.Time
+	UpdatedDate   time.Time
+	LastMessage   string
+	Count         int
 }
 
 // WarningFilter specifies potential query parameter fields.
 type WarningFilter struct {
-	ID             *int
-	UUID           *string
-	Project        *string
-	Node           *string
-	TypeCode       *warningtype.Type
-	EntityTypeCode *int
-	EntityID       *int
-	Status         *warningtype.Status
+	ID         *int
+	UUID       *string
+	Project    *string
+	Node       *string
+	TypeCode   *warningtype.Type
+	EntityType *EntityType
+	EntityID   *int
+	Status     *warningtype.Status
 }
 
 // ToAPI returns a LXD API entry.
