@@ -896,11 +896,11 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 				// if the restored volume is larger than the config's size and it cannot be shrunk
 				// to the equivalent size on the target storage driver, don't fail as the backup
 				// has still been restored successfully.
-				if errors.Is(err, drivers.ErrCannotBeShrunk) {
-					l.Warn("Could not apply volume quota from root disk config as restored volume cannot be shrunk", logger.Ctx{"size": size})
-				} else {
+				if !errors.Is(err, drivers.ErrCannotBeShrunk) {
 					return fmt.Errorf("Failed applying volume quota to root disk: %w", err)
 				}
+
+				l.Warn("Could not apply volume quota from root disk config as restored volume cannot be shrunk", logger.Ctx{"size": size})
 			}
 
 			// Apply the filesystem volume quota (only when main volume is block).
@@ -3875,26 +3875,26 @@ func (b *lxdBackend) ImportBucket(projectName string, poolVol *backupConfig.Conf
 
 	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
 
-	if memberSpecific {
-		// Handle common MinIO implementation for local storage drivers.
+	if !memberSpecific {
+		return nil, fmt.Errorf("Importing buckets from a remote storage is not supported")
+	}
 
-		// Extract existing bucket keys from MinIO.
-		keys, err := b.recoverMinIOKeys(projectName, bucket.Name, op)
+	// Handle common MinIO implementation for local storage drivers.
+
+	// Extract existing bucket keys from MinIO.
+	keys, err := b.recoverMinIOKeys(projectName, bucket.Name, op)
+	if err != nil {
+		return nil, err
+	}
+
+	// Insert keys into the database.
+	for _, key := range keys {
+		keyID, err := b.state.DB.Cluster.CreateStoragePoolBucketKey(b.state.ShutdownCtx, bucketID, key)
 		if err != nil {
 			return nil, err
 		}
 
-		// Insert keys into the database.
-		for _, key := range keys {
-			keyID, err := b.state.DB.Cluster.CreateStoragePoolBucketKey(b.state.ShutdownCtx, bucketID, key)
-			if err != nil {
-				return nil, err
-			}
-
-			revert.Add(func() { _ = b.state.DB.Cluster.DeleteStoragePoolBucketKey(b.state.ShutdownCtx, bucketID, keyID) })
-		}
-	} else {
-		return nil, fmt.Errorf("Importing buckets from a remote storage is not supported")
+		revert.Add(func() { _ = b.state.DB.Cluster.DeleteStoragePoolBucketKey(b.state.ShutdownCtx, bucketID, keyID) })
 	}
 
 	cleanup := revert.Clone().Fail
@@ -3937,6 +3937,22 @@ func (b *lxdBackend) recoverMinIOKeys(projectName string, bucketName string, op 
 		return nil, err
 	}
 
+	unmarshal := func(file *zip.File, into any) error {
+		f, err := file.Open()
+		if err != nil {
+			return err
+		}
+
+		defer f.Close()
+
+		fContent, err := io.ReadAll(f)
+		if err != nil {
+			return err
+		}
+
+		return json.Unmarshal(fContent, into)
+	}
+
 	// We are interesed only in a json file that contains service accounts.
 	// Find that file and extract service accounts.
 	svcAccounts := map[string]madmin.Credentials{}
@@ -3945,19 +3961,7 @@ func (b *lxdBackend) recoverMinIOKeys(projectName string, bucketName string, op 
 			continue
 		}
 
-		f, err := file.Open()
-		if err != nil {
-			return nil, err
-		}
-
-		defer f.Close()
-
-		fContent, err := io.ReadAll(f)
-		if err != nil {
-			return nil, err
-		}
-
-		err = json.Unmarshal(fContent, &svcAccounts)
+		err := unmarshal(file, &svcAccounts)
 		if err != nil {
 			return nil, err
 		}
@@ -4111,6 +4115,7 @@ func (b *lxdBackend) CreateBucketKey(projectName string, bucketName string, key 
 	return &newKey, err
 }
 
+// UpdateBucketKey updates bucket key.
 func (b *lxdBackend) UpdateBucketKey(projectName string, bucketName string, keyName string, key api.StorageBucketKeyPut, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "bucketName": bucketName, "keyName": keyName, "desc": key.Description, "role": key.Role})
 	l.Debug("UpdateBucketKey started")
@@ -4708,7 +4713,7 @@ func (b *lxdBackend) migrationIndexHeaderSend(l logger.Logger, indexHeaderVersio
 			return nil, fmt.Errorf("Failed sending migration index header: %w", err)
 		}
 
-		err = conn.Close() //End the frame.
+		err = conn.Close() // End the frame.
 		if err != nil {
 			return nil, fmt.Errorf("Failed closing migration index header frame: %w", err)
 		}
@@ -4767,7 +4772,7 @@ func (b *lxdBackend) migrationIndexHeaderReceive(l logger.Logger, indexHeaderVer
 			return nil, fmt.Errorf("Failed sending migration index header response: %w", err)
 		}
 
-		err = conn.Close() //End the frame.
+		err = conn.Close() // End the frame.
 		if err != nil {
 			return nil, fmt.Errorf("Failed closing migration index header response frame: %w", err)
 		}
@@ -5896,7 +5901,11 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 
 	// Only populate Container field for non-snapshot instances.
 	if !inst.IsSnapshot() {
-		config.Container = ci.(*api.Instance)
+		var ok bool
+		config.Container, ok = ci.(*api.Instance)
+		if !ok {
+			return nil, fmt.Errorf("Failed to cast %q into its API representation", inst.Name())
+		}
 
 		if snapshots {
 			snapshots, err := inst.Snapshots()
@@ -6633,6 +6642,7 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 	return cleanup, err
 }
 
+// BackupCustomVolume backs up a custom volume.
 func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volume": volName, "optimized": optimized, "snapshots": snapshots})
 	l.Debug("BackupCustomVolume started")
@@ -6685,6 +6695,7 @@ func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarW
 	return nil
 }
 
+// CreateCustomVolumeFromISO creates a custom volume from ISO.
 func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName string, srcData io.ReadSeeker, size int64, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volume": volName})
 	l.Debug("CreateCustomVolumeFromISO started")
@@ -6763,6 +6774,7 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 	return nil
 }
 
+// CreateCustomVolumeFromBackup creates a custom volume from backup.
 func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": srcBackup.Project, "volume": srcBackup.Name, "snapshots": srcBackup.Snapshots, "optimizedStorage": *srcBackup.OptimizedStorage})
 	l.Debug("CreateCustomVolumeFromBackup started")
