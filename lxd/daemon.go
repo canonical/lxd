@@ -282,7 +282,7 @@ func (d *Daemon) checkTrustedClient(r *http.Request) error {
 
 // Authenticate validates an incoming http Request
 // It will check over what protocol it came, what type of request it is and
-// will validate the TLS certificate or Macaroon.
+// will validate the TLS certificate or OIDC token.
 //
 // This does not perform authorization, only validates authentication.
 // Returns whether trusted or not, the username (or certificate fingerprint) of the trusted client, and the type of
