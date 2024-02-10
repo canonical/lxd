@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/lxd/identity"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -30,15 +32,15 @@ type authorizer interface {
 
 // PermissionChecker is a type alias for a function that returns whether a user has required permissions on an object.
 // It is returned by Authorizer.GetPermissionChecker.
-type PermissionChecker func(object Object) bool
+type PermissionChecker func(entityURL *api.URL) bool
 
 // Authorizer is the primary external API for this package.
 type Authorizer interface {
 	Driver() string
 	StopService(ctx context.Context) error
 
-	CheckPermission(ctx context.Context, r *http.Request, object Object, entitlement Entitlement) error
-	GetPermissionChecker(ctx context.Context, r *http.Request, entitlement Entitlement, objectType ObjectType) (PermissionChecker, error)
+	CheckPermission(ctx context.Context, r *http.Request, entityURL *api.URL, entitlement Entitlement) error
+	GetPermissionChecker(ctx context.Context, r *http.Request, entitlement Entitlement, entityType entity.Type) (PermissionChecker, error)
 
 	AddProject(ctx context.Context, projectID int64, projectName string) error
 	DeleteProject(ctx context.Context, projectID int64, projectName string) error
