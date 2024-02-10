@@ -70,6 +70,15 @@ const (
 
 	// TypeStorageBucket represents storage bucket resources.
 	TypeStorageBucket Type = "storage_bucket"
+
+	// TypeServer represents the top level /1.0 resource.
+	TypeServer Type = "server"
+
+	// TypeImageAlias represents image alias resources.
+	TypeImageAlias Type = "image_alias"
+
+	// TypeNetworkZone represents network zone resources.
+	TypeNetworkZone Type = "network_zone"
 )
 
 const (
@@ -97,6 +106,9 @@ var entityTypes = []Type{
 	TypeWarning,
 	TypeClusterGroup,
 	TypeStorageBucket,
+	TypeServer,
+	TypeImageAlias,
+	TypeNetworkZone,
 }
 
 // String implements fmt.Stringer for Type.
@@ -122,7 +134,7 @@ func (t Type) requiresProject() (bool, error) {
 		return false, err
 	}
 
-	return !shared.ValueInSlice(t, []Type{TypeProject, TypeCertificate, TypeNode, TypeOperation, TypeStoragePool, TypeWarning, TypeClusterGroup}), nil
+	return !shared.ValueInSlice(t, []Type{TypeProject, TypeCertificate, TypeNode, TypeOperation, TypeStoragePool, TypeWarning, TypeClusterGroup, TypeServer}), nil
 }
 
 // nRequiredPathArguments returns the number of path arguments (mux variables) that are required to create a unique URL
@@ -245,6 +257,12 @@ func (t Type) path() ([]string, error) {
 		return []string{"warnings", pathPlaceholder}, nil
 	case TypeClusterGroup:
 		return []string{"cluster", "groups", pathPlaceholder}, nil
+	case TypeServer:
+		return []string{}, nil
+	case TypeImageAlias:
+		return []string{"images", "aliases", pathPlaceholder}, nil
+	case TypeNetworkZone:
+		return []string{"network-zones", pathPlaceholder}, nil
 	default:
 		return nil, fmt.Errorf("Missing path definition for entity type %q", t)
 	}
