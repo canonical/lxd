@@ -19,7 +19,6 @@ import (
 
 	dqliteClient "github.com/canonical/go-dqlite/client"
 	"github.com/canonical/go-dqlite/driver"
-	"github.com/go-macaroon-bakery/macaroon-bakery/v3/bakery"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	liblxc "github.com/lxc/go-lxc"
@@ -457,13 +456,6 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 				}
 
 				_ = response.Unauthorized(err).Render(w)
-				return
-			}
-
-			// If not a macaroon discharge request, return the error
-			_, ok = err.(*bakery.DischargeRequiredError)
-			if !ok {
-				_ = response.InternalError(err).Render(w)
 				return
 			}
 		}
