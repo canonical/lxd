@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -27,7 +28,7 @@ func (t *tls) load(ctx context.Context, identityCache *identity.Cache, opts Opts
 }
 
 // CheckPermission returns an error if the user does not have the given Entitlement on the given Object.
-func (t *tls) CheckPermission(ctx context.Context, r *http.Request, object Object, entitlement Entitlement) error {
+func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *api.URL, entitlement Entitlement) error {
 	details, err := t.requestDetails(r)
 	if err != nil {
 		return api.StatusErrorf(http.StatusForbidden, "Failed to extract request details: %v", err)
@@ -67,15 +68,20 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, object Objec
 		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
 	}
 
+	entityType, projectName, _, _, err := entity.ParseURL(entityURL.URL)
+	if err != nil {
+		return fmt.Errorf("Failed to parse entity URL: %w", err)
+	}
+
 	// Check server level object types
-	switch object.Type() {
-	case ObjectTypeServer:
+	switch entityType {
+	case entity.TypeServer:
 		if entitlement == EntitlementCanView || entitlement == EntitlementCanViewResources || entitlement == EntitlementCanViewMetrics {
 			return nil
 		}
 
 		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
-	case ObjectTypeStoragePool, ObjectTypeCertificate:
+	case entity.TypeStoragePool, entity.TypeCertificate:
 		if entitlement == EntitlementCanView {
 			return nil
 		}
@@ -84,7 +90,6 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, object Objec
 	}
 
 	// Check project level permissions against the certificates project list.
-	projectName := object.Project()
 	if !shared.ValueInSlice(projectName, id.Projects) {
 		return api.StatusErrorf(http.StatusForbidden, "User does not have permission for project %q", projectName)
 	}
@@ -93,9 +98,9 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, object Objec
 }
 
 // GetPermissionChecker returns a function that can be used to check whether a user has the required entitlement on an authorization object.
-func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitlement Entitlement, objectType ObjectType) (PermissionChecker, error) {
-	allowFunc := func(b bool) func(Object) bool {
-		return func(Object) bool {
+func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitlement Entitlement, entityType entity.Type) (PermissionChecker, error) {
+	allowFunc := func(b bool) func(*api.URL) bool {
+		return func(*api.URL) bool {
 			return b
 		}
 	}
@@ -140,14 +145,14 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 	}
 
 	// Check server level object types
-	switch objectType {
-	case ObjectTypeServer:
+	switch entityType {
+	case entity.TypeServer:
 		if entitlement == EntitlementCanView || entitlement == EntitlementCanViewResources || entitlement == EntitlementCanViewMetrics {
 			return allowFunc(true), nil
 		}
 
 		return allowFunc(false), nil
-	case ObjectTypeStoragePool, ObjectTypeCertificate:
+	case entity.TypeStoragePool, entity.TypeCertificate:
 		if entitlement == EntitlementCanView {
 			return allowFunc(true), nil
 		}
@@ -156,12 +161,27 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 	}
 
 	// Error if user does not have access to the project (unless we're getting projects, where we want to filter the results).
-	if !shared.ValueInSlice(details.projectName, id.Projects) && objectType != ObjectTypeProject {
+	if !shared.ValueInSlice(details.projectName, id.Projects) && entityType != entity.TypeProject {
 		return nil, api.StatusErrorf(http.StatusForbidden, "User does not have permissions for project %q", details.projectName)
 	}
 
 	// Filter objects by project.
-	return func(object Object) bool {
-		return shared.ValueInSlice(object.Project(), id.Projects)
+	return func(entityURL *api.URL) bool {
+		eType, project, _, pathArgs, err := entity.ParseURL(entityURL.URL)
+		if err != nil {
+			logger.Warn("Permission checker failed to parse entity URL", logger.Ctx{"entity_url": entityURL, "error": err})
+			return false
+		}
+
+		if eType == entity.TypeProject {
+			project = pathArgs[0]
+		}
+
+		if eType != entityType {
+			logger.Warn("Permission checker received URL with unexpected entity type", logger.Ctx{"expected": entityType, "actual": eType, "entity_url": entityURL})
+			return false
+		}
+
+		return shared.ValueInSlice(project, id.Projects)
 	}, nil
 }
