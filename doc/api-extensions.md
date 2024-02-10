@@ -2322,3 +2322,9 @@ mounted.
 
 The API extension adds indication whether the LXD version is an LTS release.
 This is indicated when command `lxc version` is executed or when `/1.0` endpoint is queried.
+
+## `oidc_groups_claim`
+
+This API extension enables setting an `oidc.groups.claim` configuration key.
+If OIDC authentication is configured and this claim is set, LXD will request this claim in the scope of OIDC flow.
+The value of the claim will be extracted and might be used to make authorization decisions.
