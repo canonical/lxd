@@ -318,22 +318,22 @@ func (d *common) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.O
 }
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
-func (d *common) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
+func (d *common) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
 	return nil, nil, ErrNotSupported
 }
 
 // CreateVolumeFromCopy copies an existing storage volume (with or without snapshots) into a new volume.
-func (d *common) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, allowInconsistent bool, op *operations.Operation) error {
+func (d *common) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // CreateVolumeFromMigration creates a new volume (with or without snapshots) from a migration data stream.
-func (d *common) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+func (d *common) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // RefreshVolume updates an existing volume to match the state of another.
-func (d *common) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, allowInconsistent bool, op *operations.Operation) error {
+func (d *common) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
@@ -404,12 +404,12 @@ func (d *common) RenameVolume(vol Volume, newVolName string, op *operations.Oper
 }
 
 // MigrateVolume streams the volume (with or without snapshots).
-func (d *common) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
+func (d *common) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // BackupVolume creates an exported version of a volume.
-func (d *common) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
+func (d *common) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
@@ -439,7 +439,7 @@ func (d *common) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string
 }
 
 // RestoreVolume resets a volume to its snapshotted state.
-func (d *common) RestoreVolume(vol Volume, snapshotName string, op *operations.Operation) error {
+func (d *common) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
