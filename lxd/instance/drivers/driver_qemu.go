@@ -50,6 +50,7 @@ import (
 	"github.com/canonical/lxd/lxd/device/nictype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/drivers/qmp"
+	"github.com/canonical/lxd/lxd/instance/drivers/uefi"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
 	"github.com/canonical/lxd/lxd/instancewriter"
@@ -2587,6 +2588,50 @@ func (d *qemu) monitorPath() string {
 
 func (d *qemu) nvramPath() string {
 	return filepath.Join(d.Path(), "qemu.nvram")
+}
+
+// UEFIVars reads UEFI Variables for instance.
+func (d *qemu) UEFIVars() (*api.InstanceUEFIVars, error) {
+	if !d.architectureSupportsUEFI(d.architecture) {
+		return nil, fmt.Errorf("UEFI is not supported for this instance architecture")
+	}
+
+	if shared.IsTrue(d.expandedConfig["security.csm"]) {
+		return nil, fmt.Errorf("UEFI is disabled when CSM mode is active")
+	}
+
+	uefiVarsPath := d.nvramPath()
+
+	instanceUEFI, err := uefi.UEFIVars(d.state.OS, uefiVarsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return instanceUEFI, nil
+}
+
+// UEFIVarsUpdate updates UEFI Variables for instance.
+func (d *qemu) UEFIVarsUpdate(newUEFIVarsSet api.InstanceUEFIVars) error {
+	if d.IsRunning() {
+		return fmt.Errorf("UEFI variables editing is allowed for stopped VM instances only")
+	}
+
+	if !d.architectureSupportsUEFI(d.architecture) {
+		return fmt.Errorf("UEFI is not supported for this instance architecture")
+	}
+
+	if shared.IsTrue(d.expandedConfig["security.csm"]) {
+		return fmt.Errorf("UEFI is disabled when CSM mode is active")
+	}
+
+	uefiVarsPath := d.nvramPath()
+
+	err := uefi.UEFIVarsUpdate(d.state.OS, newUEFIVarsSet, uefiVarsPath)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (d *qemu) consolePath() string {
