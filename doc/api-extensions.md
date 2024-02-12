@@ -2348,3 +2348,8 @@ This API extension provides the ability to use flags `--device` when importing a
 ## `instances_uefi_vars`
 
 This API extension indicates that the `/1.0/instances/{name}/uefi-vars` endpoint is supported on the server. This endpoint allows to get the full list of UEFI variables (HTTP method GET) or replace the entire set of UEFI variables (HTTP method PUT).
+
+## `instances_migration_stateful`
+
+This API extension allows newly created VMs to have their `migration.stateful` configuration key automatically set
+through the new server-level configuration key `instances.migration.stateful`. If `migration.stateful` is already set at the profile or instance level then `instances.migration.stateful` is not applied.
