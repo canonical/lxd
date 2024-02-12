@@ -335,11 +335,20 @@ func (c *Cluster) GetURIFromEntity(entityType entity.Type, entityID int) (*api.U
 
 	case entity.TypeStorageVolume:
 		var args StorageVolumeArgs
-
+		var location string
 		err := c.Transaction(c.closingCtx, func(ctx context.Context, tx *ClusterTx) error {
 			args, err = tx.GetStoragePoolVolumeWithID(ctx, entityID)
 			if err != nil {
 				return err
+			}
+
+			if args.NodeID > 0 {
+				node, err := tx.GetNodeWithID(ctx, int(args.NodeID))
+				if err != nil {
+					return err
+				}
+
+				location = node.Name
 			}
 
 			return nil
@@ -348,7 +357,7 @@ func (c *Cluster) GetURIFromEntity(entityType entity.Type, entityID int) (*api.U
 			return nil, fmt.Errorf("Failed to get storage volume: %w", err)
 		}
 
-		uri, err = entityType.URL(args.ProjectName, "", args.PoolName, args.TypeName, args.Name)
+		uri, err = entityType.URL(args.ProjectName, location, args.PoolName, args.TypeName, args.Name)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get storage volume URL: %w", err)
 		}
@@ -360,11 +369,20 @@ func (c *Cluster) GetURIFromEntity(entityType entity.Type, entityID int) (*api.U
 		}
 
 		var volume StorageVolumeArgs
-
+		var location string
 		err = c.Transaction(c.closingCtx, func(ctx context.Context, tx *ClusterTx) error {
 			volume, err = tx.GetStoragePoolVolumeWithID(ctx, int(backup.VolumeID))
 			if err != nil {
 				return err
+			}
+
+			if volume.NodeID > 0 {
+				node, err := tx.GetNodeWithID(ctx, int(volume.NodeID))
+				if err != nil {
+					return err
+				}
+
+				location = node.Name
 			}
 
 			return nil
@@ -373,7 +391,7 @@ func (c *Cluster) GetURIFromEntity(entityType entity.Type, entityID int) (*api.U
 			return nil, fmt.Errorf("Failed to get storage volume: %w", err)
 		}
 
-		uri, err = entityType.URL(volume.ProjectName, "", volume.PoolName, volume.TypeName, volume.Name, backup.Name)
+		uri, err = entityType.URL(volume.ProjectName, location, volume.PoolName, volume.TypeName, volume.Name, backup.Name)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get storage volume backup URL: %w", err)
 		}
