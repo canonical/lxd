@@ -274,6 +274,10 @@ func (t Type) path() ([]string, error) {
 // Type requires a project, then api.ProjectDefaultName is returned as the project name. The returned location is the
 // value of the "target" query parameter. All returned values are unescaped.
 func ParseURL(u url.URL) (entityType Type, projectName string, location string, pathArguments []string, err error) {
+	if u.Path == "/"+version.APIVersion {
+		return TypeServer, "", "", nil, nil
+	}
+
 	path := u.Path
 	if u.RawPath != "" {
 		path = u.RawPath
