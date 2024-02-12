@@ -20,4 +20,7 @@ const (
 
 	// IdentityTypeCertificateMetrics represents identities that may only view metrics.
 	IdentityTypeCertificateMetrics = "Metrics certificate"
+
+	// IdentityTypeOIDCClient represents an identity that authenticates with OIDC..
+	IdentityTypeOIDCClient = "OIDC client"
 )

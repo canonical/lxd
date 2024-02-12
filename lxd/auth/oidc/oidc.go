@@ -21,6 +21,8 @@ import (
 
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 const (
@@ -46,6 +48,7 @@ type Verifier struct {
 	clientID    string
 	issuer      string
 	audience    string
+	groupsClaim string
 	clusterCert func() *shared.CertInfo
 
 	// host is used for setting a valid callback URL when setting the relyingParty.
@@ -59,7 +62,16 @@ type Verifier struct {
 	configExpiryInterval time.Duration
 }
 
-// AuthError represents an authentication error.
+// AuthenticationResult represents an authenticated OIDC client.
+type AuthenticationResult struct {
+	IdentityType           string
+	Subject                string
+	Email                  string
+	IdentityProviderGroups []string
+}
+
+// AuthError represents an authentication error. If an error of this type is returned, the caller should call
+// WriteHeaders on the response so that the client has the necessary information to log in using the device flow.
 type AuthError struct {
 	Err error
 }
@@ -75,10 +87,10 @@ func (e AuthError) Unwrap() error {
 }
 
 // Auth extracts OIDC tokens from the request, verifies them, and returns the subject.
-func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Request) (string, error) {
+func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Request) (*AuthenticationResult, error) {
 	err := o.ensureConfig(r.Host)
 	if err != nil {
-		return "", fmt.Errorf("Authorization failed: %w", err)
+		return nil, fmt.Errorf("Authorization failed: %w", err)
 	}
 
 	authorizationHeader := r.Header.Get("Authorization")
@@ -88,93 +100,152 @@ func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		// Cookies are present but we failed to decrypt them. They may have been tampered with, so delete them to force
 		// the user to log in again.
 		_ = o.setCookies(w, nil, uuid.UUID{}, "", "", true)
-		return "", fmt.Errorf("Failed to retrieve login information: %w", err)
+		return nil, fmt.Errorf("Failed to retrieve login information: %w", err)
 	}
 
+	var result *AuthenticationResult
 	if authorizationHeader != "" {
 		// When a command line client wants to authenticate, it needs to set the Authorization HTTP header like this:
 		//    Authorization Bearer <access_token>
 		parts := strings.Split(authorizationHeader, "Bearer ")
 		if len(parts) != 2 {
-			return "", &AuthError{fmt.Errorf("Bad authorization token, expected a Bearer token")}
+			return nil, AuthError{fmt.Errorf("Bad authorization token, expected a Bearer token")}
 		}
 
 		// Bearer tokens should always be access tokens.
-		return o.authenticateAccessToken(ctx, parts[1])
+		result, err = o.authenticateAccessToken(ctx, parts[1])
+		if err != nil {
+			return nil, err
+		}
 	} else if idToken != "" || refreshToken != "" {
 		// When authenticating via the UI, we expect that there will be ID and refresh tokens present in the request cookies.
-		return o.authenticateIDToken(ctx, w, idToken, refreshToken)
+		result, err = o.authenticateIDToken(ctx, w, idToken, refreshToken)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return "", AuthError{Err: errors.New("No OIDC tokens provided")}
+	return result, nil
 }
 
 // authenticateAccessToken verifies the access token and checks that the configured audience is present the in access
 // token claims. We do not attempt to refresh access tokens as this is performed client side. The access token subject
 // is returned if no error occurs.
-func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken string) (string, error) {
+func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken string) (*AuthenticationResult, error) {
 	claims, err := op.VerifyAccessToken[*oidc.AccessTokenClaims](ctx, accessToken, o.accessTokenVerifier)
 	if err != nil {
-		return "", AuthError{Err: fmt.Errorf("Failed to verify access token: %w", err)}
+		return nil, AuthError{Err: fmt.Errorf("Failed to verify access token: %w", err)}
 	}
 
 	// Check that the token includes the configured audience.
 	audience := claims.GetAudience()
 	if o.audience != "" && !shared.ValueInSlice(o.audience, audience) {
-		return "", AuthError{Err: fmt.Errorf("Provided OIDC token doesn't allow the configured audience")}
+		return nil, AuthError{Err: fmt.Errorf("Provided OIDC token doesn't allow the configured audience")}
 	}
 
-	return claims.Subject, nil
+	var email string
+	emailAny, ok := claims.Claims[oidc.ScopeEmail]
+	if ok {
+		email, _ = emailAny.(string)
+	}
+
+	return &AuthenticationResult{
+		IdentityType:           api.IdentityTypeOIDCClient,
+		Subject:                claims.Subject,
+		Email:                  email,
+		IdentityProviderGroups: o.getGroupsFromClaims(claims.Claims),
+	}, nil
 }
 
 // authenticateIDToken verifies the identity token and returns the ID token subject. If no identity token is given (or
 // verification fails) it will attempt to refresh the ID token.
-func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWriter, idToken string, refreshToken string) (string, error) {
+func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWriter, idToken string, refreshToken string) (*AuthenticationResult, error) {
 	var claims *oidc.IDTokenClaims
 	var err error
 	if idToken != "" {
 		// Try to verify the ID token.
 		claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParty.IDTokenVerifier())
 		if err == nil {
-			return claims.Subject, nil
+			return &AuthenticationResult{
+				IdentityType:           api.IdentityTypeOIDCClient,
+				Subject:                claims.Subject,
+				Email:                  claims.Email,
+				IdentityProviderGroups: o.getGroupsFromClaims(claims.Claims),
+			}, nil
 		}
 	}
 
 	// If ID token verification failed (or it wasn't provided, try refreshing the token).
 	tokens, err := rp.RefreshAccessToken(o.relyingParty, refreshToken, "", "")
 	if err != nil {
-		return "", AuthError{Err: fmt.Errorf("Failed to refresh ID tokens: %w", err)}
+		return nil, AuthError{Err: fmt.Errorf("Failed to refresh ID tokens: %w", err)}
 	}
 
 	idTokenAny := tokens.Extra("id_token")
 	if idTokenAny == nil {
-		return "", AuthError{Err: errors.New("ID tokens missing from OIDC refresh response")}
+		return nil, AuthError{Err: errors.New("ID tokens missing from OIDC refresh response")}
 	}
 
 	idToken, ok := idTokenAny.(string)
 	if !ok {
-		return "", AuthError{Err: errors.New("Malformed ID tokens in OIDC refresh response")}
+		return nil, AuthError{Err: errors.New("Malformed ID tokens in OIDC refresh response")}
 	}
 
 	// Verify the refreshed ID token.
 	claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParty.IDTokenVerifier())
 	if err != nil {
-		return "", AuthError{Err: fmt.Errorf("Failed to verify refreshed ID token: %w", err)}
+		return nil, AuthError{Err: fmt.Errorf("Failed to verify refreshed ID token: %w", err)}
 	}
 
 	sessionID := uuid.New()
 	secureCookie, err := o.secureCookieFromSession(sessionID)
 	if err != nil {
-		return "", AuthError{Err: fmt.Errorf("Failed to create new session with refreshed token: %w", err)}
+		return nil, AuthError{Err: fmt.Errorf("Failed to create new session with refreshed token: %w", err)}
 	}
 
 	// Update the cookies.
 	err = o.setCookies(w, secureCookie, sessionID, idToken, tokens.RefreshToken, false)
 	if err != nil {
-		return "", fmt.Errorf("Failed to update login cookies: %w", err)
+		return nil, AuthError{fmt.Errorf("Failed to update login cookies: %w", err)}
 	}
 
-	return claims.Subject, nil
+	return &AuthenticationResult{
+		IdentityType:           api.IdentityTypeOIDCClient,
+		Subject:                claims.Subject,
+		Email:                  claims.Email,
+		IdentityProviderGroups: o.getGroupsFromClaims(claims.Claims),
+	}, nil
+}
+
+// getGroupsFromClaims attempts to get the configured groups claim from the token claims and warns if it is not present
+// or is not a valid type. The custom claims are an unmarshalled JSON object.
+func (o *Verifier) getGroupsFromClaims(customClaims map[string]any) []string {
+	if o.groupsClaim == "" {
+		return nil
+	}
+
+	groupsClaimAny, ok := customClaims[o.groupsClaim]
+	if !ok {
+		logger.Warn("OIDC groups custom claim not found", logger.Ctx{"claim_name": o.groupsClaim})
+		return nil
+	}
+
+	groupsArr, ok := groupsClaimAny.([]any)
+	if !ok {
+		logger.Warn("Unexpected type for OIDC groups custom claim", logger.Ctx{"claim_name": o.groupsClaim, "claim_value": groupsClaimAny})
+	}
+
+	groups := make([]string, 0, len(groupsArr))
+	for _, groupNameAny := range groupsArr {
+		groupName, ok := groupNameAny.(string)
+		if !ok {
+			logger.Warn("Unexpected type for OIDC groups custom claim", logger.Ctx{"claim_name": o.groupsClaim, "claim_value": groupsClaimAny})
+		}
+
+		groups = append(groups, groupName)
+	}
+
+	return groups
 }
 
 // Login is a http.Handler than initiates the login flow for the UI.
@@ -235,6 +306,7 @@ func (o *Verifier) WriteHeaders(w http.ResponseWriter) error {
 	w.Header().Set("X-LXD-OIDC-issuer", o.issuer)
 	w.Header().Set("X-LXD-OIDC-clientid", o.clientID)
 	w.Header().Set("X-LXD-OIDC-audience", o.audience)
+	w.Header().Set("X-LXD-OIDC-groups-claim", o.groupsClaim)
 
 	return nil
 }
@@ -317,6 +389,9 @@ func (o *Verifier) setRelyingParty(host string) error {
 	}
 
 	oidcScopes := []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, oidc.ScopeEmail}
+	if o.groupsClaim != "" {
+		oidcScopes = append(oidcScopes, o.groupsClaim)
+	}
 
 	relyingParty, err := rp.NewRelyingPartyOIDC(o.issuer, o.clientID, "", fmt.Sprintf("https://%s/oidc/callback", host), oidcScopes, options...)
 	if err != nil {
@@ -504,6 +579,7 @@ func (o *Verifier) secureCookieFromSession(sessionID uuid.UUID) (*securecookie.S
 // Opts contains optional configurable fields for the Verifier.
 type Opts struct {
 	ConfigExpiryInterval time.Duration
+	GroupsClaim          string
 }
 
 // NewVerifier returns a Verifier.
@@ -514,12 +590,14 @@ func NewVerifier(issuer string, clientID string, audience string, clusterCert fu
 
 	if options != nil {
 		opts.ConfigExpiryInterval = options.ConfigExpiryInterval
+		opts.GroupsClaim = options.GroupsClaim
 	}
 
 	verifier := &Verifier{
 		issuer:               issuer,
 		clientID:             clientID,
 		audience:             audience,
+		groupsClaim:          opts.GroupsClaim,
 		clusterCert:          clusterCert,
 		configExpiryInterval: opts.ConfigExpiryInterval,
 	}

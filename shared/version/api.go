@@ -392,6 +392,7 @@ var APIExtensions = []string{
 	"server_instance_type_info",
 	"resources_disk_mounted",
 	"server_version_lts",
+	"oidc_groups_claim",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

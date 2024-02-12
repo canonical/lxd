@@ -1760,6 +1760,16 @@ This value is required by some providers.
 
 ```
 
+```{config:option} oidc.groups.claim server-oidc
+:scope: "global"
+:shortdesc: "Expected audience value for the application"
+:type: "string"
+Specify a custom claim to be requested when performing OIDC flows.
+Configure a corresponding custom claim in your identity provider and
+add organization level groups to it. These can be mapped to LXD groups
+for automatic access control.
+```
+
 ```{config:option} oidc.issuer server-oidc
 :scope: "global"
 :shortdesc: "OpenID Connect Discovery URL for the provider"
