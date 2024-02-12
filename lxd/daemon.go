@@ -19,7 +19,6 @@ import (
 
 	dqliteClient "github.com/canonical/go-dqlite/client"
 	"github.com/canonical/go-dqlite/driver"
-	"github.com/go-macaroon-bakery/macaroon-bakery/v3/bakery"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	liblxc "github.com/lxc/go-lxc"
@@ -283,7 +282,7 @@ func (d *Daemon) checkTrustedClient(r *http.Request) error {
 
 // Authenticate validates an incoming http Request
 // It will check over what protocol it came, what type of request it is and
-// will validate the TLS certificate or Macaroon.
+// will validate the TLS certificate or OIDC token.
 //
 // This does not perform authorization, only validates authentication.
 // Returns whether trusted or not, the username (or certificate fingerprint) of the trusted client, and the type of
@@ -457,13 +456,6 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 				}
 
 				_ = response.Unauthorized(err).Render(w)
-				return
-			}
-
-			// If not a macaroon discharge request, return the error
-			_, ok = err.(*bakery.DischargeRequiredError)
-			if !ok {
-				_ = response.InternalError(err).Render(w)
 				return
 			}
 		}

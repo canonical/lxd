@@ -194,7 +194,7 @@ type ServerUntrusted struct {
 	// Read only: true
 	// Example: ["tls", "oidc"]
 	//
-	// API extension: macaroon_authentication
+	// API extension: oidc
 	AuthMethods []string `json:"auth_methods" yaml:"auth_methods"`
 }
 
