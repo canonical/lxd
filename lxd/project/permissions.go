@@ -1430,37 +1430,10 @@ func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string)
 	for _, entry := range entries {
 		u, err := url.Parse(entry)
 		if err != nil {
-			logger.Error("Invalid URL found when filtering used-by entries", logger.Ctx{"entry": entry, "error": err})
-			continue
+			logger.Warn("Failed to parse project used-by entity URL", logger.Ctx{"url": entry, "error": err})
 		}
 
-		entityType, projectName, _, pathArgs, err := entity.ParseURL(*u)
-		if err != nil {
-			logger.Error("Encountered unrecognized URL found when filtering used-by entries", logger.Ctx{"entry": entry, "error": err})
-			continue
-		}
-
-		var object auth.Object
-		switch entityType {
-		case entity.TypeImage:
-			object = auth.ObjectImage(projectName, pathArgs[0])
-		case entity.TypeInstance:
-			object = auth.ObjectInstance(projectName, pathArgs[0])
-		case entity.TypeNetwork:
-			object = auth.ObjectNetwork(projectName, pathArgs[0])
-		case entity.TypeProfile:
-			object = auth.ObjectProfile(projectName, pathArgs[0])
-		case entity.TypeStoragePool:
-			object = auth.ObjectStoragePool(pathArgs[0])
-		case entity.TypeStorageVolume:
-			object = auth.ObjectStorageVolume(projectName, pathArgs[0], pathArgs[1], pathArgs[2])
-		case entity.TypeStorageBucket:
-			object = auth.ObjectStorageBucket(projectName, pathArgs[0], pathArgs[1])
-		default:
-			continue
-		}
-
-		err = authorizer.CheckPermission(r.Context(), r, object, auth.EntitlementCanView)
+		err = authorizer.CheckPermission(r.Context(), r, &api.URL{URL: *u}, auth.EntitlementCanView)
 		if err != nil {
 			continue
 		}
@@ -1493,7 +1466,7 @@ func projectHasRestriction(project *api.Project, restrictionKey string, blockVal
 func CheckClusterTargetRestriction(authorizer auth.Authorizer, r *http.Request, project *api.Project, targetFlag string) error {
 	if projectHasRestriction(project, "restricted.cluster.target", "block") && targetFlag != "" {
 		// Allow server administrators to move instances around even when restricted (node evacuation, ...)
-		err := authorizer.CheckPermission(r.Context(), r, auth.ObjectServer(), auth.EntitlementCanOverrideClusterTargetRestriction)
+		err := authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanOverrideClusterTargetRestriction)
 		if err != nil && api.StatusErrorCheck(err, http.StatusForbidden) {
 			return api.StatusErrorf(http.StatusForbidden, "This project doesn't allow cluster member targeting")
 		} else if err != nil {
