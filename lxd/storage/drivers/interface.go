@@ -65,8 +65,8 @@ type Driver interface {
 	FillVolumeConfig(vol Volume) error
 	ValidateVolume(vol Volume, removeUnknownKeys bool) error
 	CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error
-	CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, allowInconsistent bool, op *operations.Operation) error
-	RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, allowInconsistent bool, op *operations.Operation) error
+	CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error
+	RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error
 	DeleteVolume(vol Volume, op *operations.Operation) error
 	RenameVolume(vol Volume, newName string, op *operations.Operation) error
 	UpdateVolume(vol Volume, changedConfig map[string]string) error
@@ -99,14 +99,14 @@ type Driver interface {
 	DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) error
 	RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error
 	VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error)
-	RestoreVolume(vol Volume, snapshotName string, op *operations.Operation) error
+	RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation) error
 
 	// Migration.
 	MigrationTypes(contentType ContentType, refresh bool, copySnapshots bool) []migration.Type
-	MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error
-	CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error
+	MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error
+	CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error
 
 	// Backup.
-	BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error
-	CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error)
+	BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error
+	CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error)
 }
