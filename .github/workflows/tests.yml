@@ -52,10 +52,10 @@ jobs:
           path: ${{ steps.ShellCheck.outputs.sarif }}
         if: github.event_name == 'pull_request'
 
-      - name: Install Go (1.21)
+      - name: Install Go (1.22)
         uses: actions/setup-go@v5
         with:
-          go-version: 1.21.x
+          go-version: 1.22.x
 
       - name: Install dependencies
         run: |
@@ -138,7 +138,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.21.x"]
+        go: ["1.22.x"]
         suite: ["cluster", "standalone"]
         backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
         include:
@@ -361,7 +361,7 @@ jobs:
       fail-fast: false
       matrix:
         go:
-          - 1.21.x
+          - 1.22.x
         os:
           - ubuntu-latest
           - macos-latest
@@ -433,10 +433,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Go (1.21)
+      - name: Install Go (1.22)
         uses: actions/setup-go@v5
         with:
-          go-version: 1.21.x
+          go-version: 1.22.x
 
       - name: Install dependencies
         run: |
@@ -505,7 +505,7 @@ jobs:
       - name: Install Go (${{ matrix.go }})
         uses: actions/setup-go@v5
         with:
-          go-version: 1.21.x
+          go-version: 1.22.x
 
       - name: Trigger Launchpad snap build
         env:
