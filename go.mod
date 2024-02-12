@@ -2,6 +2,9 @@ module github.com/canonical/lxd
 
 go 1.19
 
+// https://github.com/minio/minio-go/issues/1931
+replace github.com/minio/minio-go/v7 => github.com/minio/minio-go/v7 v7.0.66
+
 require (
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.1.0
