@@ -99,6 +99,12 @@ type Volume struct {
 	hasSource            bool   // Whether the volume is created from a source volume.
 }
 
+// VolumeCopy represents a volume and its snapshots for copy and refresh operations.
+type VolumeCopy struct {
+	Volume
+	Snapshots []Volume
+}
+
 // NewVolume instantiates a new Volume struct.
 func NewVolume(driver Driver, poolName string, volType VolumeType, contentType ContentType, volName string, volConfig map[string]string, poolConfig map[string]string) Volume {
 	return Volume{
@@ -577,4 +583,12 @@ func (v Volume) Clone() Volume {
 	}
 
 	return NewVolume(v.driver, v.pool, v.volType, v.contentType, v.name, newConfig, newPoolConfig)
+}
+
+// NewVolumeCopy returns a container for copying a volume and its snapshots.
+func NewVolumeCopy(vol Volume, snapshots ...Volume) VolumeCopy {
+	return VolumeCopy{
+		Volume:    vol,
+		Snapshots: snapshots,
+	}
 }
