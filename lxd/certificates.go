@@ -410,7 +410,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if the user is already trusted.
-	trusted, _, _, err := d.Authenticate(nil, r)
+	trusted, _, _, _, err := d.Authenticate(nil, r)
 	if err != nil {
 		return response.SmartError(err)
 	}
