@@ -511,7 +511,7 @@ func (d *lvm) resizeLogicalVolume(lvPath string, sizeBytes int64) error {
 }
 
 // copyThinpoolVolume makes an optimised copy of a thinpool volume by using thinpool snapshots.
-func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refresh bool) error {
+func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []string, refresh bool) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -526,8 +526,7 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 		}
 
 		for _, srcSnapshot := range srcSnapshots {
-			_, snapName, _ := api.GetParentAndSnapshotName(srcSnapshot.name)
-			newFullSnapName := GetSnapshotVolumeName(vol.name, snapName)
+			newFullSnapName := GetSnapshotVolumeName(vol.name, srcSnapshot)
 			newSnapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, newFullSnapName, vol.config, vol.poolConfig)
 
 			volExists, err := d.HasVolume(newSnapVol)
@@ -546,6 +545,11 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 			}
 
 			revert.Add(func() { _ = os.RemoveAll(newSnapVolPath) })
+
+			srcSnapshot, err := srcVol.NewSnapshot(srcSnapshot)
+			if err != nil {
+				return err
+			}
 
 			// We do not modify the original snapshot so as to avoid damaging if it is corrupted for
 			// some reason. If the filesystem needs to have a unique UUID generated in order to mount
