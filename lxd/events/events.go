@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
@@ -72,7 +73,7 @@ func (s *Server) AddListener(projectName string, allProjects bool, projectPermis
 	}
 
 	if projectPermissionFunc == nil {
-		projectPermissionFunc = func(auth.Object) bool {
+		projectPermissionFunc = func(*api.URL) bool {
 			return true
 		}
 	}
@@ -188,7 +189,7 @@ func (s *Server) broadcast(event api.Event, eventSource EventSource) error {
 		}
 
 		// If the event is project specific, ensure we have permission to view it.
-		if event.Project != "" && !listener.projectPermissionFunc(auth.ObjectProject(event.Project)) {
+		if event.Project != "" && !listener.projectPermissionFunc(entity.ProjectURL(event.Project)) {
 			continue
 		}
 
