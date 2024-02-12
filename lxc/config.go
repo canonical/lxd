@@ -75,6 +75,10 @@ func (c *cmdConfig) Command() *cobra.Command {
 	configUnsetCmd := cmdConfigUnset{global: c.global, config: c, configSet: &configSetCmd}
 	cmd.AddCommand(configUnsetCmd.Command())
 
+	// Uefi
+	configUefiCmd := cmdConfigUefi{global: c.global, config: c}
+	cmd.AddCommand(configUefiCmd.Command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -873,4 +877,421 @@ func (c *cmdConfigUnset) Run(cmd *cobra.Command, args []string) error {
 
 	args = append(args, "")
 	return c.configSet.Run(cmd, args)
+}
+
+type cmdConfigUefi struct {
+	global *cmdGlobal
+	config *cmdConfig
+}
+
+// Command creates a Cobra command for managing virtual machine instance UEFI variables,
+// including options for get, set, unset, show, edit.
+func (c *cmdConfigUefi) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("uefi")
+	cmd.Short = i18n.G("Manage instance UEFI variables")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Manage instance UEFI variables`))
+
+	// Get
+	configUefiGetCmd := cmdConfigUefiGet{global: c.global, configUefi: c}
+	cmd.AddCommand(configUefiGetCmd.Command())
+
+	// Set
+	configUefiSetCmd := cmdConfigUefiSet{global: c.global, configUefi: c}
+	cmd.AddCommand(configUefiSetCmd.Command())
+
+	// Unset
+	configUefiUnsetCmd := cmdConfigUefiUnset{global: c.global, configUefi: c, configSet: &configUefiSetCmd}
+	cmd.AddCommand(configUefiUnsetCmd.Command())
+
+	// Show
+	configUefiShowCmd := cmdConfigUefiShow{global: c.global, configUefi: c}
+	cmd.AddCommand(configUefiShowCmd.Command())
+
+	// Edit
+	configUefiEditCmd := cmdConfigUefiEdit{global: c.global, configUefi: c}
+	cmd.AddCommand(configUefiEditCmd.Command())
+
+	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
+	cmd.Args = cobra.NoArgs
+	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
+	return cmd
+}
+
+// Get.
+type cmdConfigUefiGet struct {
+	global     *cmdGlobal
+	configUefi *cmdConfigUefi
+}
+
+// Command creates a Cobra command to fetch virtual machine instance UEFI variables.
+func (c *cmdConfigUefiGet) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("get", i18n.G("[<remote>:]<instance> <key>"))
+	cmd.Short = i18n.G("Get UEFI variables for instance")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Get UEFI variables for instance`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+// Run fetches and prints the specified UEFI variable's value.
+func (c *cmdConfigUefiGet) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	remote := args[0]
+	resources, err := c.global.ParseServers(remote)
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Instance name must be specified"))
+	}
+
+	// Get the UEFI variable
+	resp, _, err := resource.server.GetInstanceUEFIVars(resource.name)
+	if err != nil {
+		return err
+	}
+
+	efiVariable, ok := resp.Variables[args[len(args)-1]]
+	if !ok {
+		return fmt.Errorf(i18n.G("Requested UEFI variable does not exist"))
+	}
+
+	fmt.Println(efiVariable.Data)
+
+	return nil
+}
+
+// Set.
+type cmdConfigUefiSet struct {
+	global     *cmdGlobal
+	configUefi *cmdConfigUefi
+}
+
+// Command creates a new Cobra command to set virtual machine instance UEFI variables.
+func (c *cmdConfigUefiSet) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("set", i18n.G("[<remote>:]<instance> <key>=<value>..."))
+	cmd.Short = i18n.G("Set UEFI variables for instance")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Set UEFI variables for instance`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`lxc config uefi set [<remote>:]<instance> testvar-9073e4e0-60ec-4b6e-9903-4c223c260f3c=aabb
+    Set a UEFI variable with name "testvar", GUID 9073e4e0-60ec-4b6e-9903-4c223c260f3c and value "aabb" (HEX-encoded) for the instance.`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+// Run executes the "set" command, updating virtual machine instance UEFI variables based on provided arguments.
+func (c *cmdConfigUefiSet) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	remote := args[0]
+	resources, err := c.global.ParseServers(remote)
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Instance name must be specified"))
+	}
+
+	// Set the config keys
+	keys, err := getConfig(args[1:]...)
+	if err != nil {
+		return err
+	}
+
+	instUEFI, etag, err := resource.server.GetInstanceUEFIVars(resource.name)
+	if err != nil {
+		return err
+	}
+
+	for k, v := range keys {
+		if cmd.Name() == "unset" {
+			_, ok := instUEFI.Variables[k]
+			if !ok {
+				return fmt.Errorf(i18n.G("Can't unset key '%s', it's not currently set"), k)
+			}
+
+			delete(instUEFI.Variables, k)
+		} else {
+			uefiVar, ok := instUEFI.Variables[k]
+
+			// Initialize UEFI variable attributes with the default value
+			if !ok {
+				uefiVar = api.InstanceUEFIVariable{
+					// The following attribute mask is used for UEFI variables
+					// BootOrder, DriverOrder, BootNext (and many others):
+					// EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS
+					// Let's set it as a default attribute value in case when user
+					// sets a new UEFI variable.
+					Attr: 7,
+				}
+			}
+
+			uefiVar.Data = v
+
+			instUEFI.Variables[k] = uefiVar
+		}
+	}
+
+	err = resource.server.UpdateInstanceUEFIVars(resource.name, *instUEFI, etag)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Unset.
+type cmdConfigUefiUnset struct {
+	global     *cmdGlobal
+	configUefi *cmdConfigUefi
+	configSet  *cmdConfigUefiSet
+}
+
+// Command generates a new "unset" command to remove specific virtual machine instance UEFI variable.
+func (c *cmdConfigUefiUnset) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("unset", i18n.G("[<remote>:]<instance> <key>"))
+	cmd.Short = i18n.G("Unset UEFI variables for instance")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Unset UEFI variables for instance`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+// Run executes the "unset" command, delegating to the "set" command to remove specific UEFI variable.
+func (c *cmdConfigUefiUnset) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	args = append(args, "")
+	return c.configSet.Run(cmd, args)
+}
+
+// Show.
+type cmdConfigUefiShow struct {
+	global     *cmdGlobal
+	configUefi *cmdConfigUefi
+}
+
+// Command sets up the "show" command, which displays virtual machine instance UEFI variables based on the provided arguments.
+func (c *cmdConfigUefiShow) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("show", i18n.G("[<remote>:]<instance>"))
+	cmd.Short = i18n.G("Show instance UEFI variables")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Show instance UEFI variables`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+// Run executes the "show" command, displaying the YAML-formatted configuration of a virtual machine instance UEFI variables.
+func (c *cmdConfigUefiShow) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	remote := args[0]
+	resources, err := c.global.ParseServers(remote)
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Instance name must be specified"))
+	}
+
+	instEFI, _, err := resource.server.GetInstanceUEFIVars(resource.name)
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&instEFI)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
+
+	return nil
+}
+
+// Edit.
+type cmdConfigUefiEdit struct {
+	global     *cmdGlobal
+	configUefi *cmdConfigUefi
+}
+
+// Command creates a Cobra command to edit virtual machine instance UEFI variables.
+func (c *cmdConfigUefiEdit) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("edit", i18n.G("[<remote>:]<instance>"))
+	cmd.Short = i18n.G("Edit instance UEFI variables")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Edit instance UEFI variables`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`lxc config uefi edit <instance> < instance_uefi_vars.yaml
+    Set the instance UEFI variables from instance_uefi_vars.yaml.`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+// helpTemplate returns a sample YAML UEFI variables configuration.
+func (c *cmdConfigUefiEdit) helpTemplate() string {
+	return i18n.G(
+		`### This is a YAML representation of the UEFI variables configuration.
+### Any line starting with a '# will be ignored.
+###
+### A sample UEFI variables configuration looks like:
+### variables:
+###   00163E0BD47A-5b446ed1-e30b-4faa-871a-3654eca36080:
+###     data: 3a5001001000afaf040000000100000000000000
+###     attr: 3
+###     timestamp: ""
+###     digest: ""
+###   00163E0BD47A-937fe521-95ae-4d1a-8929-48bcd90ad31a:
+###     data: df7f3f
+###     attr: 3
+###     timestamp: ""
+###     digest: ""
+###   BootOrder-8be4df61-93ca-11d2-aa0d-00e098032b8c:
+###     data: "07000100020003000400050000000600"
+###     attr: 7
+###     timestamp: ""
+###     digest: ""
+###   ClientId-9fb9a8a1-2f4a-43a6-889c-d0f7b6c47ad5:
+###     data: 0e00000100012cb0289c00163e0bd47a
+###     attr: 3
+###     timestamp: ""
+###     digest: ""
+###
+### Note that the format of the key in the variables map is "<EFI variable name>-<UUID>".
+### Fields "data", "timestamp", "digest" are HEX-encoded.
+### Field "attr" is an unsigned 32-bit integer.
+###`)
+}
+
+// Run executes the config edit command, allowing users to edit virtual machine instance UEFI variables via an interactive YAML editor.
+func (c *cmdConfigUefiEdit) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	remote := args[0]
+	resources, err := c.global.ParseServers(remote)
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Instance name must be specified"))
+	}
+
+	// If stdin isn't a terminal, read text from it
+	if !termios.IsTerminal(getStdinFd()) {
+		contents, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		newUEFIVarsSet := api.InstanceUEFIVars{}
+		err = yaml.Unmarshal(contents, &newUEFIVarsSet)
+		if err != nil {
+			return err
+		}
+
+		err = resource.server.UpdateInstanceUEFIVars(resource.name, newUEFIVarsSet, "")
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	instEFI, etag, err := resource.server.GetInstanceUEFIVars(resource.name)
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&instEFI)
+	if err != nil {
+		return err
+	}
+
+	// Spawn the editor
+	content, err := shared.TextEditor("", []byte(c.helpTemplate()+"\n\n"+string(data)))
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Parse the text received from the editor
+		newUEFIVarsSet := api.InstanceUEFIVars{}
+		err = yaml.Unmarshal(content, &newUEFIVarsSet)
+		if err == nil {
+			err = resource.server.UpdateInstanceUEFIVars(resource.name, newUEFIVarsSet, etag)
+		}
+
+		// Respawn the editor
+		if err != nil {
+			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
+			fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+
+			_, err := os.Stdin.Read(make([]byte, 1))
+			if err != nil {
+				return err
+			}
+
+			content, err = shared.TextEditor("", content)
+			if err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		break
+	}
+
+	return nil
 }

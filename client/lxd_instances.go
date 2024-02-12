@@ -484,6 +484,50 @@ func (r *ProtocolLXD) GetInstance(name string) (*api.Instance, string, error) {
 	return &instance, etag, nil
 }
 
+// GetInstanceUEFIVars returns the instance UEFI variables list for the provided name.
+func (r *ProtocolLXD) GetInstanceUEFIVars(name string) (*api.InstanceUEFIVars, string, error) {
+	instanceUEFI := api.InstanceUEFIVars{}
+
+	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
+	if err != nil {
+		return nil, "", err
+	}
+
+	err = r.CheckExtension("instances_uefi_vars")
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Fetch the raw value
+	etag, err := r.queryStruct("GET", fmt.Sprintf("%s/%s/uefi-vars", path, url.PathEscape(name)), nil, "", &instanceUEFI)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &instanceUEFI, etag, nil
+}
+
+// UpdateInstanceUEFIVars updates the instance's UEFI variables.
+func (r *ProtocolLXD) UpdateInstanceUEFIVars(name string, instanceUEFI api.InstanceUEFIVars, ETag string) error {
+	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
+	if err != nil {
+		return err
+	}
+
+	err = r.CheckExtension("instances_uefi_vars")
+	if err != nil {
+		return err
+	}
+
+	// Send the request
+	_, _, err = r.query("PUT", fmt.Sprintf("%s/%s/uefi-vars", path, url.PathEscape(name)), instanceUEFI, ETag)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // GetInstanceFull returns the instance entry for the provided name along with snapshot information.
 func (r *ProtocolLXD) GetInstanceFull(name string) (*api.InstanceFull, string, error) {
 	instance := api.InstanceFull{}
