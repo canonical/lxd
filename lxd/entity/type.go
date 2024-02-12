@@ -3,10 +3,12 @@ package entity
 import (
 	"fmt"
 	"net/url"
+	"runtime"
 	"strings"
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -337,4 +339,90 @@ entityTypeLoop:
 	}
 
 	return entityType, projectName, u.Query().Get("target"), pathArguments, nil
+}
+
+// urlMust is used internally when we know that creation of an *api.URL ought to succeed. If an error does occur an
+// empty string is return and the error is logged with as much context as possible, including the file and line number
+// of the caller.
+func (t Type) urlMust(projectName string, location string, pathArguments ...string) *api.URL {
+	ref, err := t.URL(projectName, location, pathArguments...)
+	if err != nil {
+		logCtx := logger.Ctx{"entity_type": t, "project_name": projectName, "location": location, "path_aguments": pathArguments}
+
+		// Get the second caller (we expect the first caller to be internal to this package since this method is not exported).
+		_, file, line, ok := runtime.Caller(2)
+		if ok {
+			logCtx["caller"] = fmt.Sprintf("%s#%d", file, line)
+		}
+
+		logger.Error("Failed to create entity URL", logCtx)
+		return api.NewURL()
+	}
+
+	return ref
+}
+
+// ProjectURL returns an *api.URL to a Project.
+func ProjectURL(projectName string) *api.URL {
+	return TypeProject.urlMust("", "", projectName)
+}
+
+// InstanceURL returns an *api.URL to an instance.
+func InstanceURL(projectName string, instanceName string) *api.URL {
+	return TypeInstance.urlMust(projectName, "", instanceName)
+}
+
+// ServerURL returns an *api.URL to the server.
+func ServerURL() *api.URL {
+	return TypeServer.urlMust("", "")
+}
+
+// CertificateURL returns an *api.URL to a certificate.
+func CertificateURL(fingerprint string) *api.URL {
+	return TypeCertificate.urlMust("", "", fingerprint)
+}
+
+// ImageURL returns an *api.URL to an image.
+func ImageURL(projectName string, imageName string) *api.URL {
+	return TypeImage.urlMust(projectName, "", imageName)
+}
+
+// ImageAliasURL returns an *api.URL to an image alias.
+func ImageAliasURL(projectName string, imageAliasName string) *api.URL {
+	return TypeImageAlias.urlMust(projectName, "", imageAliasName)
+}
+
+// ProfileURL returns an *api.URL to a profile.
+func ProfileURL(projectName string, profileName string) *api.URL {
+	return TypeProfile.urlMust(projectName, "", profileName)
+}
+
+// NetworkURL returns an *api.URL to a network.
+func NetworkURL(projectName string, networkName string) *api.URL {
+	return TypeNetwork.urlMust(projectName, "", networkName)
+}
+
+// NetworkACLURL returns an *api.URL to a network ACL.
+func NetworkACLURL(projectName string, networkACLName string) *api.URL {
+	return TypeNetworkACL.urlMust(projectName, "", networkACLName)
+}
+
+// NetworkZoneURL returns an *api.URL to a network zone.
+func NetworkZoneURL(projectName string, networkZoneName string) *api.URL {
+	return TypeNetworkZone.urlMust(projectName, "", networkZoneName)
+}
+
+// StoragePoolURL returns an *api.URL to a storage pool.
+func StoragePoolURL(storagePoolName string) *api.URL {
+	return TypeStoragePool.urlMust("", "", storagePoolName)
+}
+
+// StorageVolumeURL returns an *api.URL to a storage volume.
+func StorageVolumeURL(projectName string, location string, storagePoolName string, storageVolumeType string, storageVolumeName string) *api.URL {
+	return TypeStorageVolume.urlMust(projectName, location, storagePoolName, storageVolumeType, storageVolumeName)
+}
+
+// StorageBucketURL returns an *api.URL to a storage bucket.
+func StorageBucketURL(projectName string, location string, storagePoolName string, storageBucketName string) *api.URL {
+	return TypeStorageBucket.urlMust(projectName, location, storagePoolName, storageBucketName)
 }
