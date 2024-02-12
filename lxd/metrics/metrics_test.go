@@ -20,7 +20,7 @@ func TestMetricSet_FilterSamples(t *testing.T) {
 
 	m := newMetricSet()
 	permissionChecker := func(object auth.Object) bool {
-		return object == auth.ObjectInstance("default", "jammy")
+		return object == entity.InstanceURL("", "", "default", "jammy")
 	}
 
 	m.FilterSamples(permissionChecker)
@@ -30,7 +30,7 @@ func TestMetricSet_FilterSamples(t *testing.T) {
 
 	m = newMetricSet()
 	permissionChecker = func(object auth.Object) bool {
-		return object == auth.ObjectInstance("not-default", "not-jammy")
+		return object == entity.InstanceURL("", "", "not-default", "not-jammy")
 	}
 
 	m.FilterSamples(permissionChecker)

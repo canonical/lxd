@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/lxd/instance"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -48,7 +49,7 @@ func allowMetrics(d *Daemon, r *http.Request) response.Response {
 		return response.EmptySyncResponse
 	}
 
-	return allowPermission(auth.ObjectTypeServer, auth.EntitlementCanViewMetrics)(d, r)
+	return allowPermission(entity.TypeServer, auth.EntitlementCanViewMetrics)(d, r)
 }
 
 // swagger:operation GET /1.0/metrics metrics metrics_get
@@ -325,7 +326,7 @@ func getFilteredMetrics(s *state.State, r *http.Request, compress bool, metricSe
 	}
 
 	// Get instances the user is allowed to view.
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, auth.ObjectTypeInstance)
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeInstance)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusForbidden) {
 		return response.SmartError(err)
 	} else if err != nil {
@@ -338,7 +339,7 @@ func getFilteredMetrics(s *state.State, r *http.Request, compress bool, metricSe
 	// Filter by project name and instance name.
 	metricSet.FilterSamples(userHasPermission)
 
-	userHasPermission, err = s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, auth.ObjectTypeProject)
+	userHasPermission, err = s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeProject)
 	if err != nil {
 		return response.SmartError(err)
 	}
