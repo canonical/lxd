@@ -241,7 +241,7 @@ func (t Type) Permission() (entity.Type, auth.Entitlement) {
 		return entity.TypeInstance, auth.EntitlementCanManageSnapshots
 
 	case InstanceCreate:
-		return entity.TypeProject, auth.EntitlementCanCreateInstances
+		return entity.TypeInstance, auth.EntitlementCanEdit
 	case InstanceUpdate:
 		return entity.TypeInstance, auth.EntitlementCanEdit
 	case InstanceRename:
