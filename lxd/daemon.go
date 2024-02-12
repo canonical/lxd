@@ -38,6 +38,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/dns"
 	"github.com/canonical/lxd/lxd/endpoints"
+	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/firewall"
 	"github.com/canonical/lxd/lxd/fsmonitor"
@@ -248,17 +249,40 @@ func allowAuthenticated(d *Daemon, r *http.Request) response.Response {
 // Mux vars should be passed in so that the object we are checking can be created. For example, a certificate object requires
 // a fingerprint, the mux var for certificate fingerprints is "fingerprint", so that string should be passed in.
 // Mux vars should always be passed in with the same order they appear in the API route.
-func allowPermission(objectType auth.ObjectType, entitlement auth.Entitlement, muxVars ...string) func(d *Daemon, r *http.Request) response.Response {
+func allowPermission(entityType entity.Type, entitlement auth.Entitlement, muxVars ...string) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
-		objectName, err := auth.ObjectFromRequest(r, objectType, muxVars...)
-		if err != nil {
-			return response.InternalError(fmt.Errorf("Failed to create authentication object: %w", err))
+		s := d.State()
+		var err error
+		var entityURL *api.URL
+		if entityType == entity.TypeServer {
+			// For server permission checks, skip mux var logic.
+			entityURL = entity.ServerURL()
+		} else if entityType == entity.TypeProject && len(muxVars) == 0 {
+			// If we're checking project permissions on a non-project endpoint (e.g. `can_create_instances` on POST /1.0/instances)
+			// we get the project name from the query parameter.
+			// If we're checking project permissions on a project endpoint, we expect to get the project name from its path variable
+			// in the next else block.
+			entityURL = entity.ProjectURL(request.ProjectParam(r))
+		} else {
+			muxValues := make([]string, 0, len(muxVars))
+			vars := mux.Vars(r)
+			for _, muxVar := range muxVars {
+				muxValue := vars[muxVar]
+				if muxValue == "" {
+					return response.InternalError(fmt.Errorf("Failed to perform permission check: Path argument label %q not found in request URL %q", muxVar, r.URL))
+				}
+
+				muxValues = append(muxValues, muxValue)
+			}
+
+			entityURL, err = entityType.URL(request.QueryParam(r, "project"), request.QueryParam(r, "target"), muxValues...)
+			if err != nil {
+				return response.InternalError(fmt.Errorf("Failed to perform permission check: %w", err))
+			}
 		}
 
-		s := d.State()
-
 		// Validate whether the user has the needed permission
-		err = s.Authorizer.CheckPermission(r.Context(), r, objectName, entitlement)
+		err = s.Authorizer.CheckPermission(r.Context(), r, entityURL, entitlement)
 		if err != nil {
 			return response.SmartError(err)
 		}
