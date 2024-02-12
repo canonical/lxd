@@ -2395,6 +2395,47 @@ definitions:
         title: InstanceType represents the type if instance being returned or requested via the API.
         type: string
         x-go-package: github.com/canonical/lxd/shared/api
+    InstanceUEFIVariable:
+        description: InstanceUEFIVariable represents an EFI variable entry
+        properties:
+            attr:
+                description: UEFI variable attributes
+                example: 7
+                format: uint32
+                type: integer
+                x-go-name: Attr
+            data:
+                description: UEFI variable data (HEX-encoded)
+                example: "01"
+                type: string
+                x-go-name: Data
+            digest:
+                description: UEFI variable digest (HEX-encoded)
+                type: string
+                x-go-name: Digest
+            timestamp:
+                description: UEFI variable timestamp (HEX-encoded)
+                type: string
+                x-go-name: Timestamp
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    InstanceUEFIVars:
+        properties:
+            variables:
+                additionalProperties:
+                    $ref: '#/definitions/InstanceUEFIVariable'
+                description: |-
+                    UEFI variables map
+                    Hashmap key format is <uefi-variable-name>-<UUID>
+                example:
+                    SecureBootEnable-f0a30bc7-af08-4556-99c4-001009c93a44:
+                        attr: 3
+                        data: "01"
+                type: object
+                x-go-name: Variables
+        title: InstanceUEFIVars represents the UEFI variables of a LXD virtual machine.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     InstancesPost:
         properties:
             architecture:
@@ -9946,6 +9987,78 @@ paths:
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Change the state
+            tags:
+                - instances
+    /1.0/instances/{name}/uefi-vars:
+        get:
+            description: Gets the UEFI variables for a specific VM.
+            operationId: instance_uefi_vars_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Instance UEFI variables
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/InstanceUEFIVars'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the instance's UEFI variables
+            tags:
+                - instances
+        put:
+            consumes:
+                - application/json
+            description: Sets the UEFI variables for a specific VM.
+            operationId: instance_uefi_vars_put
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: UEFI variables update request
+                  in: body
+                  name: instanceEFI
+                  schema:
+                    $ref: '#/definitions/InstanceUEFIVars'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Set the instance's UEFI variables
             tags:
                 - instances
     /1.0/instances/{name}?recursion=1:
