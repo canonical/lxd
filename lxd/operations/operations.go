@@ -11,6 +11,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -104,7 +105,7 @@ type Operation struct {
 	readonly    bool
 	canceler    *cancel.HTTPRequestCanceller
 	description string
-	objectType  auth.ObjectType
+	entityType  entity.Type
 	entitlement auth.Entitlement
 	dbOpType    operationtype.Type
 	requestor   *api.EventLifecycleRequestor
@@ -138,7 +139,7 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 	op.projectName = projectName
 	op.id = uuid.New().String()
 	op.description = opType.Description()
-	op.objectType, op.entitlement = opType.Permission()
+	op.entityType, op.entitlement = opType.Permission()
 	op.dbOpType = opType
 	op.class = opClass
 	op.createdAt = time.Now()
@@ -661,9 +662,9 @@ func (op *Operation) SetCanceler(canceler *cancel.HTTPRequestCanceller) {
 	op.canceler = canceler
 }
 
-// Permission returns the operations auth.ObjectType and auth.Entitlement.
-func (op *Operation) Permission() (auth.ObjectType, auth.Entitlement) {
-	return op.objectType, op.entitlement
+// Permission returns the operations entity.Type and auth.Entitlement.
+func (op *Operation) Permission() (entity.Type, auth.Entitlement) {
+	return op.entityType, op.entitlement
 }
 
 // Project returns the operation project.
