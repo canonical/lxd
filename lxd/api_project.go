@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/operations"
@@ -36,23 +37,23 @@ var projectsCmd = APIEndpoint{
 	Path: "projects",
 
 	Get:  APIEndpointAction{Handler: projectsGet, AccessHandler: allowAuthenticated},
-	Post: APIEndpointAction{Handler: projectsPost, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanCreateProjects)},
+	Post: APIEndpointAction{Handler: projectsPost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanCreateProjects)},
 }
 
 var projectCmd = APIEndpoint{
 	Path: "projects/{name}",
 
-	Delete: APIEndpointAction{Handler: projectDelete, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.EntitlementCanEdit, "name")},
-	Get:    APIEndpointAction{Handler: projectGet, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.EntitlementCanView, "name")},
-	Patch:  APIEndpointAction{Handler: projectPatch, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.EntitlementCanEdit, "name")},
-	Post:   APIEndpointAction{Handler: projectPost, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.EntitlementCanEdit, "name")},
-	Put:    APIEndpointAction{Handler: projectPut, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.EntitlementCanEdit, "name")},
+	Delete: APIEndpointAction{Handler: projectDelete, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanDelete, "name")},
+	Get:    APIEndpointAction{Handler: projectGet, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanView, "name")},
+	Patch:  APIEndpointAction{Handler: projectPatch, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanEdit, "name")},
+	Post:   APIEndpointAction{Handler: projectPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanEdit, "name")},
+	Put:    APIEndpointAction{Handler: projectPut, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanEdit, "name")},
 }
 
 var projectStateCmd = APIEndpoint{
 	Path: "projects/{name}/state",
 
-	Get: APIEndpointAction{Handler: projectStateGet, AccessHandler: allowPermission(auth.ObjectTypeProject, auth.EntitlementCanView, "name")},
+	Get: APIEndpointAction{Handler: projectStateGet, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanView, "name")},
 }
 
 // swagger:operation GET /1.0/projects projects projects_get
@@ -140,7 +141,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 
 	recursion := util.IsRecursionRequest(r)
 
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, auth.ObjectTypeProject)
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeProject)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -154,7 +155,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 
 		filtered := []api.Project{}
 		for _, project := range projects {
-			if !userHasPermission(auth.ObjectProject(project.Name)) {
+			if !userHasPermission(entity.ProjectURL(project.Name)) {
 				continue
 			}
 
