@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
@@ -323,7 +324,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		if req.Pool != "" || req.Project != "" {
 			// Check if user has access to target project.
 			if req.Project != "" {
-				err := s.Authorizer.CheckPermission(r.Context(), r, auth.ObjectProject(req.Project), auth.EntitlementCanCreateInstances)
+				err := s.Authorizer.CheckPermission(r.Context(), r, entity.ProjectURL(req.Project), auth.EntitlementCanCreateInstances)
 				if err != nil {
 					return response.SmartError(err)
 				}
