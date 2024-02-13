@@ -151,7 +151,7 @@ func (o *oidcClient) getProvider(issuer string, clientID string, groupsClaim str
 		return nil, err
 	}
 
-	cookieHandler := httphelper.NewCookieHandler(hashKey, encryptKey, httphelper.WithUnsecure())
+	cookieHandler := httphelper.NewCookieHandler(hashKey, encryptKey)
 	options := []rp.Option{
 		rp.WithCookieHandler(cookieHandler),
 		rp.WithVerifierOpts(rp.WithIssuedAtOffset(5 * time.Second)),
