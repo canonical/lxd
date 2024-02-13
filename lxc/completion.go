@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/spf13/cobra"
 )
 
@@ -42,6 +43,15 @@ func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirec
 	}
 
 	return results, cobra.ShellCompDirectiveNoFileComp
+}
+
+func (g *cmdGlobal) cmpInstanceAllKeys() ([]string, cobra.ShellCompDirective) {
+	keys := []string{}
+	for k := range instancetype.InstanceConfigKeysAny {
+		keys = append(keys, k)
+	}
+
+	return keys, cobra.ShellCompDirectiveNoFileComp
 }
 
 func (g *cmdGlobal) cmpInstances(toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -230,5 +240,5 @@ func (g *cmdGlobal) cmpRemotes(includeAll bool) ([]string, cobra.ShellCompDirect
 		results = append(results, fmt.Sprintf("%s:", remoteName))
 	}
 
-	return results, cobra.ShellCompDirectiveNoFileComp
+	return results, cobra.ShellCompDirectiveNoSpace
 }
