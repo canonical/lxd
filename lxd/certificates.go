@@ -48,7 +48,7 @@ var certificateCmd = APIEndpoint{
 	Path: "certificates/{fingerprint}",
 
 	Delete: APIEndpointAction{Handler: certificateDelete, AccessHandler: allowAuthenticated},
-	Get:    APIEndpointAction{Handler: certificateGet, AccessHandler: allowPermission(entity.TypeCertificate, auth.EntitlementCanView, "fingerprint")},
+	Get:    APIEndpointAction{Handler: certificateGet, AccessHandler: allowAuthenticated},
 	Patch:  APIEndpointAction{Handler: certificatePatch, AccessHandler: allowAuthenticated},
 	Put:    APIEndpointAction{Handler: certificatePut, AccessHandler: allowAuthenticated},
 }
@@ -697,13 +697,14 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func certificateGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	var cert *api.Certificate
-	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbCertInfo, err := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if err != nil {
 			return err
@@ -712,6 +713,11 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 		cert, err = dbCertInfo.ToAPI(ctx, tx.Tx())
 		return err
 	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = s.Authorizer.CheckPermission(r.Context(), r, entity.CertificateURL(cert.Fingerprint), auth.EntitlementCanView)
 	if err != nil {
 		return response.SmartError(err)
 	}
