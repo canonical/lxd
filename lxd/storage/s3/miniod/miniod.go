@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/minio/madmin-go"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 
@@ -62,8 +61,8 @@ func (p *Process) AdminUser() string {
 }
 
 // AdminClient returns admin client for the minio process.
-func (p *Process) AdminClient() (*madmin.AdminClient, error) {
-	adminClient, err := madmin.New(p.url.Host, p.username, p.password, false)
+func (p *Process) AdminClient() (*minioAdmin, error) {
+	adminClient, err := NewAdminClient(p.url.Host, p.username, p.password)
 	if err != nil {
 		return nil, err
 	}
