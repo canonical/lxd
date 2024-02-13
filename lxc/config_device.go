@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/i18n"
 )
@@ -620,12 +621,49 @@ func (c *cmdConfigDeviceSet) Run(cmd *cobra.Command, args []string) error {
 
 		dev, ok := inst.Devices[devname]
 		if !ok {
-			_, ok = inst.ExpandedDevices[devname]
+			expandedDev, ok := inst.ExpandedDevices[devname]
 			if !ok {
 				return fmt.Errorf(i18n.G("Device doesn't exist"))
 			}
 
-			return fmt.Errorf(i18n.G("Device from profile(s) cannot be modified for individual instance. Override device or modify profile instead"))
+			// There is one case where we allow setting a config for a device: setting the size.state for the root disk while the instance is running.
+			// This is needed for VM live migration.
+			deviceFromProfileErr := fmt.Errorf(i18n.G("Device from profile(s) cannot be modified for individual instance. Override device or modify profile instead"))
+			if inst.Type != instancetype.VM.String() {
+				return deviceFromProfileErr
+			}
+
+			if devname != "root" {
+				return deviceFromProfileErr
+			}
+
+			if len(keys) != 1 {
+				return deviceFromProfileErr
+			}
+
+			for k := range keys {
+				if k != "size.state" {
+					return deviceFromProfileErr
+				}
+			}
+
+			for k, v := range keys {
+				expandedDev[k] = v
+			}
+
+			inst.Devices[devname] = expandedDev
+
+			op, err := resource.server.UpdateInstance(resource.name, inst.Writable(), etag)
+			if err != nil {
+				return err
+			}
+
+			err = op.Wait()
+			if err != nil {
+				return err
+			}
+
+			return nil
 		}
 
 		for k, v := range keys {
