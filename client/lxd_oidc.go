@@ -64,7 +64,7 @@ func (o *oidcTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 }
 
 var errRefreshAccessToken = fmt.Errorf("Failed refreshing access token")
-var oidcScopes = []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, oidc.ScopeEmail}
+var oidcScopes = []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, oidc.ScopeEmail, oidc.ScopeProfile}
 
 type oidcClient struct {
 	httpClient    *http.Client
@@ -151,7 +151,7 @@ func (o *oidcClient) getProvider(issuer string, clientID string, groupsClaim str
 		return nil, err
 	}
 
-	cookieHandler := httphelper.NewCookieHandler(hashKey, encryptKey, httphelper.WithUnsecure())
+	cookieHandler := httphelper.NewCookieHandler(hashKey, encryptKey)
 	options := []rp.Option{
 		rp.WithCookieHandler(cookieHandler),
 		rp.WithVerifierOpts(rp.WithIssuedAtOffset(5 * time.Second)),

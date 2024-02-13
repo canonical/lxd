@@ -14,7 +14,7 @@ import (
 // Cache represents a thread-safe in-memory cache of the identities in the database.
 type Cache struct {
 	// entries is a map of authentication method to map of identifier to CacheEntry. The identifier is either a
-	// certificate fingerprint (tls) or an OIDC subject (oidc).
+	// certificate fingerprint (tls) or an email address (oidc).
 	entries map[string]map[string]*CacheEntry
 	mu      sync.RWMutex
 }
@@ -22,12 +22,16 @@ type Cache struct {
 // CacheEntry represents an identity.
 type CacheEntry struct {
 	Identifier           string
+	Name                 string
 	AuthenticationMethod string
 	IdentityType         string
 	Projects             []string
 
 	// Certificate is optional. It is pre-computed for identities with AuthenticationMethod api.AuthenticationMethodTLS.
 	Certificate *x509.Certificate
+
+	// Subject is optional. It is only set when AuthenticationMethod is api.AuthenticationMethodOIDC.
+	Subject string
 }
 
 // Get returns a single CacheEntry by its authentication method and identifier.
@@ -53,7 +57,8 @@ func (c *Cache) Get(authenticationMethod string, identifier string) (*CacheEntry
 		return nil, api.StatusErrorf(http.StatusNotFound, "Identity %q (%s) not found", identifier, authenticationMethod)
 	}
 
-	return entry, nil
+	entryCopy := *entry
+	return &entryCopy, nil
 }
 
 // GetByType returns a map of identifier to CacheEntry, where all entries have the given identity type.
@@ -146,4 +151,28 @@ func (c *Cache) X509Certificates(identityTypes ...string) map[string]x509.Certif
 	}
 
 	return certificates
+}
+
+// GetByOIDCSubject returns a CacheEntry with the given subject or returns an api.StatusError with http.StatusNotFound.
+func (c *Cache) GetByOIDCSubject(subject string) (*CacheEntry, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	oidcEntries, ok := c.entries[api.AuthenticationMethodOIDC]
+	if !ok {
+		return nil, api.StatusErrorf(http.StatusNotFound, "Identity with OIDC subject %q not found", subject)
+	}
+
+	for _, entry := range oidcEntries {
+		if entry == nil {
+			continue
+		}
+
+		if entry.Subject == subject {
+			entryCopy := *entry
+			return &entryCopy, nil
+		}
+	}
+
+	return nil, api.StatusErrorf(http.StatusNotFound, "Identity with OIDC subject %q not found", subject)
 }
