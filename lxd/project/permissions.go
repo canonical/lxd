@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -16,6 +17,8 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
 )
@@ -99,7 +102,7 @@ func checkTotalInstanceCountLimit(info *projectInfo) error {
 	return nil
 }
 
-func getTotalInstanceCountLimit(info *projectInfo) (int, int, error) {
+func getTotalInstanceCountLimit(info *projectInfo) (instanceCount int, limit int, err error) {
 	overallValue, ok := info.Project.Config["limits.instances"]
 	if ok {
 		limit, err := strconv.Atoi(overallValue)
@@ -127,7 +130,7 @@ func checkInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) 
 	return nil
 }
 
-func getInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) (int, int, error) {
+func getInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) (instanceCount int, limit int, err error) {
 	var key string
 	switch instanceType {
 	case instancetype.Container:
@@ -138,7 +141,6 @@ func getInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) (i
 		return -1, -1, fmt.Errorf("Unexpected instance type %q", instanceType)
 	}
 
-	instanceCount := 0
 	for _, inst := range info.Instances {
 		if inst.Type == instanceType.String() {
 			instanceCount++
@@ -1426,26 +1428,33 @@ func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string)
 	// Filter the entries.
 	usedBy := []string{}
 	for _, entry := range entries {
-		entityType, projectName, pathArgs, err := cluster.URLToEntityType(entry)
+		u, err := url.Parse(entry)
 		if err != nil {
+			logger.Error("Invalid URL found when filtering used-by entries", logger.Ctx{"entry": entry, "error": err})
+			continue
+		}
+
+		entityType, projectName, _, pathArgs, err := entity.ParseURL(*u)
+		if err != nil {
+			logger.Error("Encountered unrecognized URL found when filtering used-by entries", logger.Ctx{"entry": entry, "error": err})
 			continue
 		}
 
 		var object auth.Object
 		switch entityType {
-		case cluster.TypeImage:
+		case entity.TypeImage:
 			object = auth.ObjectImage(projectName, pathArgs[0])
-		case cluster.TypeInstance:
+		case entity.TypeInstance:
 			object = auth.ObjectInstance(projectName, pathArgs[0])
-		case cluster.TypeNetwork:
+		case entity.TypeNetwork:
 			object = auth.ObjectNetwork(projectName, pathArgs[0])
-		case cluster.TypeProfile:
+		case entity.TypeProfile:
 			object = auth.ObjectProfile(projectName, pathArgs[0])
-		case cluster.TypeStoragePool:
+		case entity.TypeStoragePool:
 			object = auth.ObjectStoragePool(pathArgs[0])
-		case cluster.TypeStorageVolume:
+		case entity.TypeStorageVolume:
 			object = auth.ObjectStorageVolume(projectName, pathArgs[0], pathArgs[1], pathArgs[2])
-		case cluster.TypeStorageBucket:
+		case entity.TypeStorageBucket:
 			object = auth.ObjectStorageBucket(projectName, pathArgs[0], pathArgs[1])
 		default:
 			continue

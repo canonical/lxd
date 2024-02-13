@@ -1,17 +1,22 @@
-package cluster
+package entity
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/canonical/lxd/shared/api"
 )
 
-func TestURLToEntityType(t *testing.T) {
+func TestURL(t *testing.T) {
 	tests := []struct {
 		name               string
 		rawURL             string
-		expectedEntityType int
+		expectedEntityType Type
 		expectedProject    string
+		expectedLocation   string
 		expectedPathArgs   []string
 		expectedErr        error
 	}{
@@ -43,7 +48,7 @@ func TestURLToEntityType(t *testing.T) {
 			name:               "projects",
 			rawURL:             "/1.0/projects/my-project",
 			expectedEntityType: TypeProject,
-			expectedProject:    "my-project",
+			expectedProject:    "",
 			expectedPathArgs:   []string{"my-project"},
 			expectedErr:        nil,
 		},
@@ -51,7 +56,7 @@ func TestURLToEntityType(t *testing.T) {
 			name:               "certificates",
 			rawURL:             "/1.0/certificates/foawienfoawnefkanwelfknsfl",
 			expectedEntityType: TypeCertificate,
-			expectedProject:    "default",
+			expectedProject:    "",
 			expectedPathArgs:   []string{"foawienfoawnefkanwelfknsfl"},
 			expectedErr:        nil,
 		},
@@ -99,7 +104,7 @@ func TestURLToEntityType(t *testing.T) {
 			name:               "cluster members",
 			rawURL:             "/1.0/cluster/members/node01",
 			expectedEntityType: TypeNode,
-			expectedProject:    "default",
+			expectedProject:    "",
 			expectedPathArgs:   []string{"node01"},
 			expectedErr:        nil,
 		},
@@ -107,7 +112,7 @@ func TestURLToEntityType(t *testing.T) {
 			name:               "operation",
 			rawURL:             "/1.0/operations/3e75d1bf-30ed-45ce-9e02-267fa7338eb4",
 			expectedEntityType: TypeOperation,
-			expectedProject:    "default",
+			expectedProject:    "",
 			expectedPathArgs:   []string{"3e75d1bf-30ed-45ce-9e02-267fa7338eb4"},
 			expectedErr:        nil,
 		},
@@ -115,16 +120,17 @@ func TestURLToEntityType(t *testing.T) {
 			name:               "storage pools",
 			rawURL:             "/1.0/storage-pools/my-storage-pool",
 			expectedEntityType: TypeStoragePool,
-			expectedProject:    "default",
+			expectedProject:    "",
 			expectedPathArgs:   []string{"my-storage-pool"},
 			expectedErr:        nil,
 		},
 		{
 			name:               "storage volumes",
-			rawURL:             "/1.0/storage-pools/my-storage-pool/volumes/custom/my-storage-volume?project=my-project",
+			rawURL:             "/1.0/storage-pools/my-storage-pool/volumes/custom/my%2Fstorage-volume?project=my-project&target=node01",
 			expectedEntityType: TypeStorageVolume,
 			expectedProject:    "my-project",
-			expectedPathArgs:   []string{"my-storage-pool", "custom", "my-storage-volume"},
+			expectedLocation:   "node01",
+			expectedPathArgs:   []string{"my-storage-pool", "custom", "my/storage-volume"},
 			expectedErr:        nil,
 		},
 		{
@@ -147,7 +153,7 @@ func TestURLToEntityType(t *testing.T) {
 			name:               "warnings",
 			rawURL:             "/1.0/warnings/3e75d1bf-30ed-45ce-9e02-267fa7338eb4",
 			expectedEntityType: TypeWarning,
-			expectedProject:    "default",
+			expectedProject:    "",
 			expectedPathArgs:   []string{"3e75d1bf-30ed-45ce-9e02-267fa7338eb4"},
 			expectedErr:        nil,
 		},
@@ -155,7 +161,7 @@ func TestURLToEntityType(t *testing.T) {
 			name:               "cluster groups",
 			rawURL:             "/1.0/cluster/groups/my-cluster-group",
 			expectedEntityType: TypeClusterGroup,
-			expectedProject:    "default",
+			expectedProject:    "",
 			expectedPathArgs:   []string{"my-cluster-group"},
 			expectedErr:        nil,
 		},
@@ -163,15 +169,36 @@ func TestURLToEntityType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actualEntityType, actualProject, actualPathArgs, actualErr := URLToEntityType(tt.rawURL)
+			u, err := url.Parse(tt.rawURL)
+			require.NoError(t, err)
+			actualEntityType, actualProject, actualLocation, actualPathArgs, actualErr := ParseURL(*u)
 
 			assert.Equal(t, tt.expectedEntityType, actualEntityType)
 			assert.Equal(t, tt.expectedProject, actualProject)
+			assert.Equal(t, tt.expectedLocation, actualLocation)
 			for i, pathArg := range actualPathArgs {
 				assert.Equal(t, tt.expectedPathArgs[i], pathArg)
 			}
 
 			assert.Equal(t, tt.expectedErr, actualErr)
+
+			requiresProject, err := actualEntityType.requiresProject()
+			assert.NoError(t, err)
+			if u.Query().Get("project") != "" || !requiresProject {
+				// Assert that we can convert back to the same value.
+				actualURL, err := actualEntityType.URL(actualProject, actualLocation, actualPathArgs...)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.rawURL, actualURL.String())
+			} else {
+				// If the entity type requires a project but one wasn't set, assert that (entity.Type).URL sets the
+				// default project.
+				q := u.Query()
+				q.Set("project", api.ProjectDefaultName)
+				u.RawQuery = q.Encode()
+				actualURL, err := actualEntityType.URL(actualProject, actualLocation, actualPathArgs...)
+				assert.NoError(t, err)
+				assert.Equal(t, u.String(), actualURL.String())
+			}
 		})
 	}
 }

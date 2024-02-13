@@ -22,7 +22,6 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/db"
-	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
@@ -36,6 +35,7 @@ import (
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
@@ -142,12 +142,12 @@ type internalImageOptimizePost struct {
 }
 
 type internalWarningCreatePost struct {
-	Location       string `json:"location"         yaml:"location"`
-	Project        string `json:"project"          yaml:"project"`
-	EntityTypeCode int    `json:"entity_type_code" yaml:"entity_type_code"`
-	EntityID       int    `json:"entity_id"        yaml:"entity_id"`
-	TypeCode       int    `json:"type_code"        yaml:"type_code"`
-	Message        string `json:"message"          yaml:"message"`
+	Location   string      `json:"location"         yaml:"location"`
+	Project    string      `json:"project"          yaml:"project"`
+	EntityType entity.Type `json:"entity_type" yaml:"entity_type"`
+	EntityID   int         `json:"entity_id"        yaml:"entity_id"`
+	TypeCode   int         `json:"type_code"        yaml:"type_code"`
+	Message    string      `json:"message"          yaml:"message"`
 }
 
 // internalCreateWarning creates a warning, and is used for testing only.
@@ -172,16 +172,19 @@ func internalCreateWarning(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	req.EntityTypeCode, _ = reqRaw.GetInt("entity_type_code")
+	entityTypeStr, _ := reqRaw.GetString("entity_type")
 	req.EntityID, _ = reqRaw.GetInt("entity_id")
 
-	// Check if the entity exists, and fail if it doesn't.
-	_, ok := cluster.EntityNames[req.EntityTypeCode]
-	if req.EntityTypeCode != -1 && !ok {
-		return response.SmartError(fmt.Errorf("Invalid entity type"))
+	// If entity type is set, check it is valid and fail if it isn't.
+	if entityTypeStr != "" {
+		req.EntityType = entity.Type(entityTypeStr)
+		err = req.EntityType.Validate()
+		if err != nil {
+			return response.BadRequest(fmt.Errorf("Invalid entity type: %w", err))
+		}
 	}
 
-	err = d.State().DB.Cluster.UpsertWarning(req.Location, req.Project, req.EntityTypeCode, req.EntityID, warningtype.Type(req.TypeCode), req.Message)
+	err = d.State().DB.Cluster.UpsertWarning(req.Location, req.Project, req.EntityType, req.EntityID, warningtype.Type(req.TypeCode), req.Message)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to create warning: %w", err))
 	}
@@ -261,11 +264,11 @@ func internalShutdown(d *Daemon, r *http.Request) response.Response {
 
 		// Send the response before the LXD daemon process ends.
 		f, ok := w.(http.Flusher)
-		if ok {
-			f.Flush()
-		} else {
+		if !ok {
 			return fmt.Errorf("http.ResponseWriter is not type http.Flusher")
 		}
+
+		f.Flush()
 
 		// Send result of d.Stop() to cmdDaemon so that process stops with correct exit code from Stop().
 		go func() {
@@ -885,7 +888,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 		}
 
 		revert.Add(cleanup)
-		defer snapInstOp.Done(err)
+		defer snapInstOp.Done(err) //nolint:revive
 
 		// Recreate missing mountpoints and symlinks.
 		volStorageName := project.Instance(projectName, snapInstName)

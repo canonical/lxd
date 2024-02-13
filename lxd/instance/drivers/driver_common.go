@@ -33,6 +33,7 @@ import (
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 )
@@ -1055,7 +1056,7 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 // warningsDelete deletes any persistent warnings for the instance.
 func (d *common) warningsDelete() error {
 	err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.DeleteWarnings(ctx, tx.Tx(), dbCluster.TypeInstance, d.ID())
+		return dbCluster.DeleteWarnings(ctx, tx.Tx(), dbCluster.EntityType(entity.TypeInstance), d.ID())
 	})
 	if err != nil {
 		return fmt.Errorf("Failed deleting persistent warnings: %w", err)
@@ -1067,7 +1068,7 @@ func (d *common) warningsDelete() error {
 // canMigrate determines if the given instance can be migrated and whether the migration
 // can be live. In "auto" mode, the function checks each attached device of the instance
 // to ensure they are all migratable.
-func (d *common) canMigrate(inst instance.Instance) (bool, bool) {
+func (d *common) canMigrate(inst instance.Instance) (canMigrate bool, canLiveMigrate bool) {
 	// Check policy for the instance.
 	config := d.ExpandedConfig()
 	val, ok := config["cluster.evacuate"]

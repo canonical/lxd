@@ -19,6 +19,7 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
@@ -129,7 +130,7 @@ func (n *common) validate(config map[string]string, driverRules map[string]func(
 
 	// Run the validator against each field.
 	for k, validator := range rules {
-		checkedFields[k] = struct{}{} //Mark field as checked.
+		checkedFields[k] = struct{}{} // Mark field as checked.
 		err := validator(config[k])
 		if err != nil {
 			return fmt.Errorf("Invalid value for network %q option %q: %w", n.name, k, err)
@@ -268,11 +269,12 @@ func (n *common) Config() map[string]string {
 	return n.config
 }
 
+// IsManaged returns true if the network is managed by LXD and false otherwise.
 func (n *common) IsManaged() bool {
 	return n.managed
 }
 
-// Config returns the common network driver info.
+// Info returns the common network driver info.
 func (n *common) Info() Info {
 	return Info{
 		Projects:           false,
@@ -476,7 +478,7 @@ func (n *common) rename(newName string) error {
 // warningsDelete deletes any persistent warnings for the network.
 func (n *common) warningsDelete() error {
 	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.DeleteWarnings(ctx, tx.Tx(), dbCluster.TypeNetwork, int(n.ID()))
+		return dbCluster.DeleteWarnings(ctx, tx.Tx(), dbCluster.EntityType(entity.TypeNetwork), int(n.ID()))
 	})
 	if err != nil {
 		return fmt.Errorf("Failed deleting persistent warnings: %w", err)
@@ -1369,7 +1371,7 @@ func (n *common) Leases(projectName string, clientType request.ClientType) ([]ap
 	return nil, ErrNotImplemented
 }
 
-// PeerCrete returns ErrNotImplemented for drivers that do not support forwards.
+// PeerCreate returns ErrNotImplemented for drivers that do not support forwards.
 func (n *common) PeerCreate(forward api.NetworkPeersPost) error {
 	return ErrNotImplemented
 }
@@ -1486,6 +1488,7 @@ func (n *common) peerUsedBy(peerName string, firstOnly bool) ([]string, error) {
 	return usedBy, nil
 }
 
+// State returns the api.NetworkState for the network.
 func (n *common) State() (*api.NetworkState, error) {
 	return resources.GetNetworkState(n.name)
 }

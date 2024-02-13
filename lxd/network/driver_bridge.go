@@ -37,6 +37,7 @@ import (
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/validate"
@@ -64,7 +65,7 @@ func (n *bridge) DBType() db.NetworkType {
 	return db.NetworkTypeBridge
 }
 
-// Config returns the network driver info.
+// Info returns the network driver info.
 func (n *bridge) Info() Info {
 	info := n.common.Info()
 	info.AddressForwards = true
@@ -1008,7 +1009,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		// Configure NAT.
 		if shared.IsTrue(n.config["ipv4.nat"]) {
-			//If a SNAT source address is specified, use that, otherwise default to MASQUERADE mode.
+			// If a SNAT source address is specified, use that, otherwise default to MASQUERADE mode.
 			var srcIP net.IP
 			if n.config["ipv4.nat.address"] != "" {
 				srcIP = net.ParseIP(n.config["ipv4.nat.address"])
@@ -1094,13 +1095,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		if subnetSize > 64 {
 			n.logger.Warn("IPv6 networks with a prefix larger than 64 aren't properly supported by dnsmasq")
-
-			err = n.state.DB.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), warningtype.LargerIPv6PrefixThanSupported, "")
+			err = n.state.DB.Cluster.UpsertWarningLocalNode(n.project, entity.TypeNetwork, int(n.id), warningtype.LargerIPv6PrefixThanSupported, "")
 			if err != nil {
 				n.logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 			}
 		} else {
-			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.DB.Cluster, n.project, warningtype.LargerIPv6PrefixThanSupported, dbCluster.TypeNetwork, int(n.id))
+			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.DB.Cluster, n.project, warningtype.LargerIPv6PrefixThanSupported, entity.TypeNetwork, int(n.id))
 			if err != nil {
 				n.logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
 			}
@@ -1195,7 +1195,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		// Configure NAT.
 		if shared.IsTrue(n.config["ipv6.nat"]) {
-			//If a SNAT source address is specified, use that, otherwise default to MASQUERADE mode.
+			// If a SNAT source address is specified, use that, otherwise default to MASQUERADE mode.
 			var srcIP net.IP
 			if n.config["ipv6.nat.address"] != "" {
 				srcIP = net.ParseIP(n.config["ipv6.nat.address"])
@@ -1622,14 +1622,14 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if n.config["raw.dnsmasq"] == "" {
 			p.SetApparmor(apparmor.DnsmasqProfileName(n))
 
-			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.DB.Cluster, n.project, warningtype.AppArmorDisabledDueToRawDnsmasq, dbCluster.TypeNetwork, int(n.id))
+			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.DB.Cluster, n.project, warningtype.AppArmorDisabledDueToRawDnsmasq, entity.TypeNetwork, int(n.id))
 			if err != nil {
 				n.logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
 			}
 		} else {
 			n.logger.Warn("Skipping AppArmor for dnsmasq due to raw.dnsmasq being set", logger.Ctx{"name": n.name})
 
-			err = n.state.DB.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), warningtype.AppArmorDisabledDueToRawDnsmasq, "")
+			err = n.state.DB.Cluster.UpsertWarningLocalNode(n.project, entity.TypeNetwork, int(n.id), warningtype.AppArmorDisabledDueToRawDnsmasq, "")
 			if err != nil {
 				n.logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 			}
@@ -2116,7 +2116,7 @@ func (n *bridge) applyBootRoutesV6(routes []string) {
 	}
 }
 
-func (n *bridge) fanAddress(underlay *net.IPNet, overlay *net.IPNet) (string, string, string, error) {
+func (n *bridge) fanAddress(underlay *net.IPNet, overlay *net.IPNet) (cidr string, ifaceName string, subnet string, err error) {
 	// Quick checks.
 	underlaySize, _ := underlay.Mask.Size()
 	if underlaySize != 16 && underlaySize != 24 {
@@ -2912,7 +2912,7 @@ func (n *bridge) forwardSetupFirewall() error {
 				brNetfilterWarning = true
 				msg := fmt.Sprintf("IPv%d bridge netfilter not enabled. Instances using the bridge will not be able to connect to the forward listen IPs", ipVersion)
 				n.logger.Warn(msg, logger.Ctx{"err": err})
-				err = n.state.DB.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), warningtype.ProxyBridgeNetfilterNotEnabled, fmt.Sprintf("%s: %v", msg, err))
+				err = n.state.DB.Cluster.UpsertWarningLocalNode(n.project, entity.TypeNetwork, int(n.id), warningtype.ProxyBridgeNetfilterNotEnabled, fmt.Sprintf("%s: %v", msg, err))
 				if err != nil {
 					n.logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 				}
@@ -2920,7 +2920,7 @@ func (n *bridge) forwardSetupFirewall() error {
 		}
 
 		if !brNetfilterWarning {
-			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.DB.Cluster, n.project, warningtype.ProxyBridgeNetfilterNotEnabled, dbCluster.TypeNetwork, int(n.id))
+			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.DB.Cluster, n.project, warningtype.ProxyBridgeNetfilterNotEnabled, entity.TypeNetwork, int(n.id))
 			if err != nil {
 				n.logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
 			}
