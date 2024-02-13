@@ -59,6 +59,10 @@ To do so, ensure the following configuration:
 * Set {config:option}`instance-migration:migration.stateful` to `true` on the instance.
 * Set [`size.state`](devices-disk) of the virtual machine's root disk device to at least the size of the virtual machine's {config:option}`instance-resource-limits:limits.memory` setting.
 
+```{note}
+If you are using a shared storage pool like Ceph RBD to back your instance, you don't need to set [`size.state`](devices-disk) to perform live migration.
+```
+
 (live-migration-containers)=
 ### Live migration for containers
 
