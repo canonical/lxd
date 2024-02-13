@@ -175,7 +175,7 @@ jobs:
           sudo snap remove lxd --purge
           # Purge older snap revisions that are disabled/superseded by newer revisions of the same snap
           snap list --all | while read -r name _ rev _ _ notes _; do
-            [ "${notes}" = "disabled" ] && snap remove "${name}" --revision "${rev}" --purge
+            [[ "${notes}" =~ disabled$ ]] && snap remove "${name}" --revision "${rev}" --purge
           done || true
 
           # This was inspired from https://github.com/easimon/maximize-build-space
