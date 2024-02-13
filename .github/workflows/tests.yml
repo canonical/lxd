@@ -286,6 +286,10 @@ jobs:
           curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/archive/minio.RELEASE.2024-01-18T22-51-28Z --output "$(go env GOPATH)/bin/minio"
           chmod +x "$(go env GOPATH)/bin/minio"
 
+          # Also grab the minio client.
+          curl -sSfL https://dl.min.io/client/mc/release/linux-amd64/mc --output "$(go env GOPATH)/bin/mc"
+          chmod +x "$(go env GOPATH)/bin/mc"
+
       - name: Download go dependencies
         run: |
           set -eux
