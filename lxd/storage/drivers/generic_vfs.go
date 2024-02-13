@@ -929,7 +929,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 
 // genericVFSCopyVolume copies a volume and its snapshots using a non-optimized method.
 // initVolume is run against the main volume (not the snapshots) and is often used for quota initialization.
-func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (revert.Hook, error), vol Volume, srcVol Volume, srcSnapshots []Volume, refresh bool, allowInconsistent bool, op *operations.Operation) error {
+func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (revert.Hook, error), vol Volume, srcVol Volume, refreshSnapshots []string, refresh bool, allowInconsistent bool, op *operations.Operation) error {
 	if vol.contentType != srcVol.contentType {
 		return fmt.Errorf("Content type of source and target must be the same")
 	}
@@ -992,10 +992,8 @@ func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (revert.Hook, er
 	// Ensure the volume is mounted.
 	err := vol.MountTask(func(targetMountPath string, op *operations.Operation) error {
 		// If copying snapshots is indicated, check the source isn't itself a snapshot.
-		if len(srcSnapshots) > 0 && !srcVol.IsSnapshot() {
-			for _, srcVol := range srcSnapshots {
-				_, snapName, _ := api.GetParentAndSnapshotName(srcVol.name)
-
+		if len(refreshSnapshots) > 0 && !srcVol.IsSnapshot() {
+			for _, refreshSnapshot := range refreshSnapshots {
 				// Mount the source snapshot and copy it to the target main volume.
 				// A snapshot will then be taken next so it is stored in the correct volume and
 				// subsequent filesystem rsync transfers benefit from only transferring the files
@@ -1021,7 +1019,7 @@ func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (revert.Hook, er
 					return err
 				}
 
-				fullSnapName := GetSnapshotVolumeName(vol.name, snapName)
+				fullSnapName := GetSnapshotVolumeName(vol.name, refreshSnapshot)
 				snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapName, vol.config, vol.poolConfig)
 
 				// Create the snapshot itself.
