@@ -339,27 +339,12 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 			return false, "", "", nil, fmt.Errorf("Failed OIDC Authentication: %w", err)
 		}
 
-		_, err = d.identityCache.Get(api.AuthenticationMethodOIDC, result.Subject)
-		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-			return false, "", "", nil, fmt.Errorf("Failed getting OIDC identity from cache: %w", err)
-		} else if err != nil {
-			err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-				_, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
-					AuthMethod: api.AuthenticationMethodOIDC,
-					Type:       api.IdentityTypeOIDCClient,
-					Identifier: result.Subject,
-					Name:       result.Email,
-				})
-				return err
-			})
-			if err != nil {
-				return false, "", "", nil, fmt.Errorf("Failed to store OIDC identity information: %w", err)
-			}
-
-			updateIdentityCache(d)
+		err = d.handleOIDCAuthenticationResult(result)
+		if err != nil {
+			return false, "", "", nil, fmt.Errorf("Failed to process OIDC authentication result: %w", err)
 		}
 
-		return true, result.Subject, api.AuthenticationMethodOIDC, nil, nil
+		return true, result.Email, api.AuthenticationMethodOIDC, result.IdentityProviderGroups, nil
 	}
 
 	// Validate normal TLS access.
@@ -384,6 +369,64 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 
 	// Reject unauthorized.
 	return false, "", "", nil, nil
+}
+
+// handleOIDCAuthenticationResult checks the identity cache for the OIDC identity by their email address. If no identity
+// is found, an identity is added with that email. If an identity is found but the OIDC subject is different to the
+// expected value, the identity is updated with the new subject.
+func (d *Daemon) handleOIDCAuthenticationResult(result *oidc.AuthenticationResult) error {
+	id, err := d.identityCache.Get(api.AuthenticationMethodOIDC, result.Email)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return fmt.Errorf("Failed getting OIDC identity from cache: %w", err)
+	} else if err != nil {
+		// Identity not found. Add it to the database and refresh the identity cache.
+		idMetadata := dbCluster.OIDCMetadata{Subject: result.Subject}
+		b, err := json.Marshal(idMetadata)
+		if err != nil {
+			return fmt.Errorf("Failed to marshal OIDC identity metadata: %w", err)
+		}
+
+		err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+			_, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
+				AuthMethod: api.AuthenticationMethodOIDC,
+				Type:       api.IdentityTypeOIDCClient,
+				Identifier: result.Email,
+				Name:       result.Name,
+				Metadata:   string(b),
+			})
+			return err
+		})
+		if err != nil {
+			return fmt.Errorf("Failed to add new OIDC identity to database: %w", err)
+		}
+
+		updateIdentityCache(d)
+	} else if id.Subject != result.Subject || id.Name != result.Name {
+		// The OIDC subject of the user with this email address has changed (this should be rare). Replace the
+		// subject in the identity metadata and refresh the cache.
+		idMetadata := dbCluster.OIDCMetadata{Subject: result.Subject}
+		b, err := json.Marshal(idMetadata)
+		if err != nil {
+			return fmt.Errorf("Failed to marshal OIDC identity metadata: %w", err)
+		}
+
+		err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+			return dbCluster.UpdateIdentity(ctx, tx.Tx(), api.AuthenticationMethodOIDC, result.Email, dbCluster.Identity{
+				AuthMethod: api.AuthenticationMethodOIDC,
+				Type:       api.IdentityTypeOIDCClient,
+				Identifier: result.Email,
+				Name:       result.Name,
+				Metadata:   string(b),
+			})
+		})
+		if err != nil {
+			return fmt.Errorf("Failed to update OIDC identity information: %w", err)
+		}
+
+		updateIdentityCache(d)
+	}
+
+	return nil
 }
 
 // State creates a new State instance linked to our internal db and os.
