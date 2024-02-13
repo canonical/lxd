@@ -177,6 +177,34 @@ Key                     | Type    | Default           | Managed | Description
 `security.mac_filtering`| bool    | `false`           | no      | Prevent the instance from spoofing another instance's MAC address
 `vlan`                  | integer | -                 | no      | The VLAN ID to attach to
 
+(nic-physical)=
+### `nictype`: `physical`
+
+```{note}
+- You can select this NIC type through the `nictype` option or the `network` option (see {ref}`network-physical` for information about the managed `physical` network).
+- You can have only one `physical` NIC for each parent device.
+```
+
+A `physical` NIC provides straight physical device pass-through from the host.
+The targeted device will vanish from the host and appear in the instance (which means that you can have only one `physical` NIC for each targeted device).
+
+#### Device options
+
+NIC devices of type `physical` have the following device options:
+
+Key                     | Type    | Default           | Managed | Description
+:--                     | :--     | :--               | :--     | :--
+`boot.priority`         | integer | -                 | no      | Boot priority for VMs (higher value boots first)
+`gvrp`                  | bool    | `false`           | no      | Register VLAN using GARP VLAN Registration Protocol
+`hwaddr`                | string  | randomly assigned | no      | The MAC address of the new interface
+`maas.subnet.ipv4`      | string  | -                 | no      | MAAS IPv4 subnet to register the instance in
+`maas.subnet.ipv6`      | string  | -                 | no      | MAAS IPv6 subnet to register the instance in
+`mtu`                   | integer | parent MTU        | no      | The MTU of the new interface
+`name`                  | string  | kernel assigned   | no      | The name of the interface inside the instance
+`network`               | string  | -                 | no      | The managed network to link the device to (instead of specifying the `nictype` directly)
+`parent`                | string  | -                 | yes     | The name of the host device (required if specifying the `nictype` directly)
+`vlan`                  | integer | -                 | no      | The VLAN ID to attach to
+
 (nic-ovn)=
 ### `nictype`: `ovn`
 
@@ -249,34 +277,6 @@ Key                                   | Type    | Default           | Managed | 
 `security.acls.default.ingress.action`| string  | `reject`          | no      | Action to use for ingress traffic that doesn't match any ACL rule
 `security.acls.default.ingress.logged`| bool    | `false`           | no      | Whether to log ingress traffic that doesn't match any ACL rule
 `vlan`                                | integer | -                 | no      | The VLAN ID to use when nesting (see also `nested`)
-
-(nic-physical)=
-### `nictype`: `physical`
-
-```{note}
-- You can select this NIC type through the `nictype` option or the `network` option (see {ref}`network-physical` for information about the managed `physical` network).
-- You can have only one `physical` NIC for each parent device.
-```
-
-A `physical` NIC provides straight physical device pass-through from the host.
-The targeted device will vanish from the host and appear in the instance (which means that you can have only one `physical` NIC for each targeted device).
-
-#### Device options
-
-NIC devices of type `physical` have the following device options:
-
-Key                     | Type    | Default           | Managed | Description
-:--                     | :--     | :--               | :--     | :--
-`boot.priority`         | integer | -                 | no      | Boot priority for VMs (higher value boots first)
-`gvrp`                  | bool    | `false`           | no      | Register VLAN using GARP VLAN Registration Protocol
-`hwaddr`                | string  | randomly assigned | no      | The MAC address of the new interface
-`maas.subnet.ipv4`      | string  | -                 | no      | MAAS IPv4 subnet to register the instance in
-`maas.subnet.ipv6`      | string  | -                 | no      | MAAS IPv6 subnet to register the instance in
-`mtu`                   | integer | parent MTU        | no      | The MTU of the new interface
-`name`                  | string  | kernel assigned   | no      | The name of the interface inside the instance
-`network`               | string  | -                 | no      | The managed network to link the device to (instead of specifying the `nictype` directly)
-`parent`                | string  | -                 | yes     | The name of the host device (required if specifying the `nictype` directly)
-`vlan`                  | integer | -                 | no      | The VLAN ID to attach to
 
 (nic-ipvlan)=
 ### `nictype`: `ipvlan`
