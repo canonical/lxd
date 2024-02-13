@@ -1034,6 +1034,16 @@ func (r *ProtocolLXD) CreateStoragePoolVolumeFromISO(pool string, args StoragePo
 	req.Header.Set("X-LXD-name", args.Name)
 	req.Header.Set("X-LXD-type", "iso")
 
+	// Set up the events listener before making the request so that
+	// the operation doesn't complete and emit the event before we've begun listening.
+	var listener *EventListener
+	if r.supportsAuthentication {
+		listener, err = r.getEvents(false)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Send the request.
 	resp, err := r.DoHTTP(req)
 	if err != nil {
@@ -1057,6 +1067,7 @@ func (r *ProtocolLXD) CreateStoragePoolVolumeFromISO(pool string, args StoragePo
 	// Setup an Operation wrapper.
 	op := operation{
 		Operation: *respOperation,
+		listener:  listener,
 		r:         r,
 		chActive:  make(chan bool),
 	}
@@ -1097,6 +1108,16 @@ func (r *ProtocolLXD) CreateStoragePoolVolumeFromBackup(pool string, args Storag
 		req.Header.Set("X-LXD-name", args.Name)
 	}
 
+	// Set up the events listener before making the request so that
+	// the operation doesn't complete and emit the event before we've begun listening.
+	var listener *EventListener
+	if r.supportsAuthentication {
+		listener, err = r.getEvents(false)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Send the request.
 	resp, err := r.DoHTTP(req)
 	if err != nil {
@@ -1120,6 +1141,7 @@ func (r *ProtocolLXD) CreateStoragePoolVolumeFromBackup(pool string, args Storag
 	// Setup an Operation wrapper.
 	op := operation{
 		Operation: *respOperation,
+		listener:  listener,
 		r:         r,
 		chActive:  make(chan bool),
 	}

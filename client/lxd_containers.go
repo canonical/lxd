@@ -118,6 +118,16 @@ func (r *ProtocolLXD) CreateContainerFromBackup(args ContainerBackupArgs) (Opera
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Header.Set("X-LXD-pool", args.PoolName)
 
+	// Set up the events listener before making the request so that
+	// the operation doesn't complete and emit the event before we've begun listening.
+	var listener *EventListener
+	if r.supportsAuthentication {
+		listener, err = r.getEvents(false)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Send the request
 	resp, err := r.DoHTTP(req)
 	if err != nil {
@@ -141,6 +151,7 @@ func (r *ProtocolLXD) CreateContainerFromBackup(args ContainerBackupArgs) (Opera
 	// Setup an Operation wrapper
 	op := operation{
 		Operation: *respOperation,
+		listener:  listener,
 		r:         r,
 		chActive:  make(chan bool),
 	}

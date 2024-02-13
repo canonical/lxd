@@ -495,6 +495,16 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 		return nil, err
 	}
 
+	// Set up the events listener before making the request so that
+	// the operation doesn't complete and emit the event before we've begun listening.
+	var listener *EventListener
+	if r.supportsAuthentication {
+		listener, err = r.getEvents(false)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	req, err := http.NewRequest("POST", reqURL, body)
 	if err != nil {
 		return nil, err
@@ -567,6 +577,7 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 	op := operation{
 		Operation: *respOperation,
 		r:         r,
+		listener:  listener,
 		chActive:  make(chan bool),
 	}
 

@@ -656,6 +656,16 @@ func (r *ProtocolLXD) CreateInstanceFromBackup(args InstanceBackupArgs) (Operati
 		req.Header.Set("X-LXD-devices", devProps.Encode())
 	}
 
+	// Set up the events listener before making the request so that
+	// the operation doesn't complete and emit the event before we've begun listening.
+	var listener *EventListener
+	if r.supportsAuthentication {
+		listener, err = r.getEvents(false)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Send the request
 	resp, err := r.DoHTTP(req)
 	if err != nil {
@@ -680,6 +690,7 @@ func (r *ProtocolLXD) CreateInstanceFromBackup(args InstanceBackupArgs) (Operati
 	op := operation{
 		Operation: *respOperation,
 		r:         r,
+		listener:  listener,
 		chActive:  make(chan bool),
 	}
 
