@@ -53,6 +53,7 @@ func updateIdentityCache(d *Daemon) {
 	for _, id := range identities {
 		cacheEntry := identity.CacheEntry{
 			Identifier:           id.Identifier,
+			Name:                 id.Name,
 			AuthenticationMethod: string(id.AuthMethod),
 			IdentityType:         string(id.Type),
 			Projects:             projects[id.ID],
@@ -66,6 +67,14 @@ func updateIdentityCache(d *Daemon) {
 			}
 
 			cacheEntry.Certificate = cert
+		} else if cacheEntry.AuthenticationMethod == api.AuthenticationMethodOIDC {
+			subject, err := id.Subject()
+			if err != nil {
+				logger.Warn("Failed to extract OIDC subject from OIDC identity metadata", logger.Ctx{"error": err})
+				continue
+			}
+
+			cacheEntry.Subject = subject
 		}
 
 		identityCacheEntries = append(identityCacheEntries, cacheEntry)
