@@ -15,7 +15,6 @@ import (
 
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/db"
-	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/device/nictype"
@@ -30,6 +29,7 @@ import (
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
 )
@@ -447,12 +447,12 @@ func (d *proxy) setupNAT() error {
 	if err != nil {
 		msg := fmt.Sprintf("IPv%d bridge netfilter not enabled. Instances using the bridge will not be able to connect to the proxy listen IP", ipVersion)
 		d.logger.Warn(msg, logger.Ctx{"err": err})
-		err := d.state.DB.Cluster.UpsertWarningLocalNode(d.inst.Project().Name, cluster.TypeInstance, d.inst.ID(), warningtype.ProxyBridgeNetfilterNotEnabled, fmt.Sprintf("%s: %v", msg, err))
+		err := d.state.DB.Cluster.UpsertWarningLocalNode(d.inst.Project().Name, entity.TypeInstance, d.inst.ID(), warningtype.ProxyBridgeNetfilterNotEnabled, fmt.Sprintf("%s: %v", msg, err))
 		if err != nil {
 			logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 		}
 	} else {
-		err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.DB.Cluster, d.inst.Project().Name, warningtype.ProxyBridgeNetfilterNotEnabled, cluster.TypeInstance, d.inst.ID())
+		err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.DB.Cluster, d.inst.Project().Name, warningtype.ProxyBridgeNetfilterNotEnabled, entity.TypeInstance, d.inst.ID())
 		if err != nil {
 			logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
 		}
@@ -598,8 +598,9 @@ func (d *proxy) killProxyProc(pidPath string) error {
 	return nil
 }
 
+// Remove removes the proxy device.
 func (d *proxy) Remove() error {
-	err := warnings.DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.DB.Cluster, d.inst.Project().Name, warningtype.ProxyBridgeNetfilterNotEnabled, cluster.TypeInstance, d.inst.ID())
+	err := warnings.DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.DB.Cluster, d.inst.Project().Name, warningtype.ProxyBridgeNetfilterNotEnabled, entity.TypeInstance, d.inst.ID())
 	if err != nil {
 		logger.Warn("Failed to delete warning", logger.Ctx{"err": err})
 	}

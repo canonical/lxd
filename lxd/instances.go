@@ -13,7 +13,6 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
-	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -22,6 +21,7 @@ import (
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -288,7 +288,7 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 
 				if attempt >= maxAttempts {
 					// If unable to start after 3 tries, record a warning.
-					warnErr := s.DB.Cluster.UpsertWarningLocalNode(inst.Project().Name, cluster.TypeInstance, inst.ID(), warningtype.InstanceAutostartFailure, fmt.Sprintf("%v", err))
+					warnErr := s.DB.Cluster.UpsertWarningLocalNode(inst.Project().Name, entity.TypeInstance, inst.ID(), warningtype.InstanceAutostartFailure, fmt.Sprintf("%v", err))
 					if warnErr != nil {
 						instLogger.Warn("Failed to create instance autostart failure warning", logger.Ctx{"err": warnErr})
 					}
@@ -304,7 +304,7 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 			}
 
 			// Resolve any previous warning.
-			warnErr := warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.DB.Cluster, inst.Project().Name, warningtype.InstanceAutostartFailure, cluster.TypeInstance, inst.ID())
+			warnErr := warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.DB.Cluster, inst.Project().Name, warningtype.InstanceAutostartFailure, entity.TypeInstance, inst.ID())
 			if warnErr != nil {
 				instLogger.Warn("Failed to resolve instance autostart failure warning", logger.Ctx{"err": warnErr})
 			}

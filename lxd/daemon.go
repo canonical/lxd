@@ -1484,7 +1484,7 @@ func (d *Daemon) init() error {
 					logger.Warn("Unable to connect to MAAS, trying again in a minute", logger.Ctx{"url": maasAPIURL, "err": err})
 
 					if !warningAdded {
-						_ = d.db.Cluster.UpsertWarningLocalNode("", -1, -1, warningtype.UnableToConnectToMAAS, err.Error())
+						_ = d.db.Cluster.UpsertWarningLocalNode("", "", -1, warningtype.UnableToConnectToMAAS, err.Error())
 
 						warningAdded = true
 					}
@@ -1510,7 +1510,7 @@ func (d *Daemon) init() error {
 
 	// Create warnings that have been collected
 	for _, w := range dbWarnings {
-		err := d.db.Cluster.UpsertWarningLocalNode("", -1, -1, warningtype.Type(w.TypeCode), w.LastMessage)
+		err := d.db.Cluster.UpsertWarningLocalNode("", "", -1, warningtype.Type(w.TypeCode), w.LastMessage)
 		if err != nil {
 			logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 		}
@@ -1918,7 +1918,7 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 			logger.Warn("Time skew detected between leader and local", logger.Ctx{"leaderTime": hbData.Time, "localTime": now})
 
 			if d.db.Cluster != nil {
-				err := d.db.Cluster.UpsertWarningLocalNode("", -1, -1, warningtype.ClusterTimeSkew, fmt.Sprintf("leaderTime: %s, localTime: %s", hbData.Time, now))
+				err := d.db.Cluster.UpsertWarningLocalNode("", "", -1, warningtype.ClusterTimeSkew, fmt.Sprintf("leaderTime: %s, localTime: %s", hbData.Time, now))
 				if err != nil {
 					logger.Warn("Failed to create cluster time skew warning", logger.Ctx{"err": err})
 				}

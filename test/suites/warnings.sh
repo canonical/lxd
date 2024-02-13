@@ -25,7 +25,7 @@ test_warnings() {
     ! lxc query --wait -X POST -d '{\"type_code\": 999, \"message\": \"global warning\"}' /internal/testing/warnings || false
 
     # Both entity type code as entity ID need to be valid otherwise no warning will be created. Note that empty/null values are valid as well.
-    ! lxc query --wait -X POST -d '{\"type_code\": 0, \"message\": \"global warning\", \"entity_type_code\": 0, \"entity_id\": 0}' /internal/testing/warnings || false
+    ! lxc query --wait -X POST -d '{\"type_code\": 0, \"message\": \"global warning\", \"entity_type\": \"invalid_entity_type\", \"entity_id\": 0}' /internal/testing/warnings || false
 
     ensure_import_testimage
 
@@ -33,7 +33,7 @@ test_warnings() {
     image_id=$(lxd sql global 'select image_id from images_aliases where name="testimage"' | grep -Eo '[[:digit:]]+')
 
     # Create a warning with entity type "image" and entity ID ${image_id} (the imported testimage)
-    lxc query --wait -X POST -d "{\\\"type_code\\\": 0, \\\"message\\\": \\\"global warning\\\", \\\"entity_type_code\\\": 1, \\\"entity_id\\\": ${image_id}}" /internal/testing/warnings
+    lxc query --wait -X POST -d "{\\\"type_code\\\": 0, \\\"message\\\": \\\"global warning\\\", \\\"entity_type\\\": \\\"image\\\", \\\"entity_id\\\": ${image_id}}" /internal/testing/warnings
 
     # There should be three warnings now.
     count=$(lxc warning list --format json | jq 'length')

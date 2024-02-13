@@ -71,7 +71,7 @@ SELECT warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, ''
   ORDER BY warnings.uuid
 `)
 
-var warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeCodeAndEntityID = RegisterStmt(`
+var warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeAndEntityID = RegisterStmt(`
 SELECT warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, '') AS project, coalesce(warnings.entity_type_code, -1), coalesce(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
   FROM warnings
   LEFT JOIN nodes ON warnings.node_id = nodes.id
@@ -84,7 +84,7 @@ var warningDeleteByUUID = RegisterStmt(`
 DELETE FROM warnings WHERE uuid = ?
 `)
 
-var warningDeleteByEntityTypeCodeAndEntityID = RegisterStmt(`
+var warningDeleteByEntityTypeAndEntityID = RegisterStmt(`
 DELETE FROM warnings WHERE entity_type_code = ? AND entity_id = ?
 `)
 
@@ -105,7 +105,7 @@ func getWarnings(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Warning, e
 
 	dest := func(scan func(dest ...any) error) error {
 		w := Warning{}
-		err := scan(&w.ID, &w.Node, &w.Project, &w.EntityTypeCode, &w.EntityID, &w.UUID, &w.TypeCode, &w.Status, &w.FirstSeenDate, &w.LastSeenDate, &w.UpdatedDate, &w.LastMessage, &w.Count)
+		err := scan(&w.ID, &w.Node, &w.Project, &w.EntityType, &w.EntityID, &w.UUID, &w.TypeCode, &w.Status, &w.FirstSeenDate, &w.LastSeenDate, &w.UpdatedDate, &w.LastMessage, &w.Count)
 		if err != nil {
 			return err
 		}
@@ -129,7 +129,7 @@ func getWarningsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([
 
 	dest := func(scan func(dest ...any) error) error {
 		w := Warning{}
-		err := scan(&w.ID, &w.Node, &w.Project, &w.EntityTypeCode, &w.EntityID, &w.UUID, &w.TypeCode, &w.Status, &w.FirstSeenDate, &w.LastSeenDate, &w.UpdatedDate, &w.LastMessage, &w.Count)
+		err := scan(&w.ID, &w.Node, &w.Project, &w.EntityType, &w.EntityID, &w.UUID, &w.TypeCode, &w.Status, &w.FirstSeenDate, &w.LastSeenDate, &w.UpdatedDate, &w.LastMessage, &w.Count)
 		if err != nil {
 			return err
 		}
@@ -168,18 +168,18 @@ func GetWarnings(ctx context.Context, tx *sql.Tx, filters ...WarningFilter) ([]W
 	}
 
 	for i, filter := range filters {
-		if filter.Node != nil && filter.TypeCode != nil && filter.Project != nil && filter.EntityTypeCode != nil && filter.EntityID != nil && filter.ID == nil && filter.UUID == nil && filter.Status == nil {
-			args = append(args, []any{filter.Node, filter.TypeCode, filter.Project, filter.EntityTypeCode, filter.EntityID}...)
+		if filter.Node != nil && filter.TypeCode != nil && filter.Project != nil && filter.EntityType != nil && filter.EntityID != nil && filter.ID == nil && filter.UUID == nil && filter.Status == nil {
+			args = append(args, []any{filter.Node, filter.TypeCode, filter.Project, filter.EntityType, filter.EntityID}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeCodeAndEntityID)
+				sqlStmt, err = Stmt(tx, warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeAndEntityID)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeCodeAndEntityID\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed to get \"warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeAndEntityID\" prepared statement: %w", err)
 				}
 
 				break
 			}
 
-			query, err := StmtString(warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeCodeAndEntityID)
+			query, err := StmtString(warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeAndEntityID)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to get \"warningObjects\" prepared statement: %w", err)
 			}
@@ -192,7 +192,7 @@ func GetWarnings(ctx context.Context, tx *sql.Tx, filters ...WarningFilter) ([]W
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.Node != nil && filter.TypeCode != nil && filter.Project != nil && filter.ID == nil && filter.UUID == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
+		} else if filter.Node != nil && filter.TypeCode != nil && filter.Project != nil && filter.ID == nil && filter.UUID == nil && filter.EntityType == nil && filter.EntityID == nil && filter.Status == nil {
 			args = append(args, []any{filter.Node, filter.TypeCode, filter.Project}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, warningObjectsByNodeAndTypeCodeAndProject)
@@ -216,7 +216,7 @@ func GetWarnings(ctx context.Context, tx *sql.Tx, filters ...WarningFilter) ([]W
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.Node != nil && filter.TypeCode != nil && filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
+		} else if filter.Node != nil && filter.TypeCode != nil && filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.EntityType == nil && filter.EntityID == nil && filter.Status == nil {
 			args = append(args, []any{filter.Node, filter.TypeCode}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, warningObjectsByNodeAndTypeCode)
@@ -240,7 +240,7 @@ func GetWarnings(ctx context.Context, tx *sql.Tx, filters ...WarningFilter) ([]W
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.UUID != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
+		} else if filter.UUID != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityType == nil && filter.EntityID == nil && filter.Status == nil {
 			args = append(args, []any{filter.UUID}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, warningObjectsByUUID)
@@ -264,7 +264,7 @@ func GetWarnings(ctx context.Context, tx *sql.Tx, filters ...WarningFilter) ([]W
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.Status != nil && filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil {
+		} else if filter.Status != nil && filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityType == nil && filter.EntityID == nil {
 			args = append(args, []any{filter.Status}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, warningObjectsByStatus)
@@ -288,7 +288,7 @@ func GetWarnings(ctx context.Context, tx *sql.Tx, filters ...WarningFilter) ([]W
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.Project != nil && filter.ID == nil && filter.UUID == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
+		} else if filter.Project != nil && filter.ID == nil && filter.UUID == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityType == nil && filter.EntityID == nil && filter.Status == nil {
 			args = append(args, []any{filter.Project}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, warningObjectsByProject)
@@ -312,7 +312,7 @@ func GetWarnings(ctx context.Context, tx *sql.Tx, filters ...WarningFilter) ([]W
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
+		} else if filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityType == nil && filter.EntityID == nil && filter.Status == nil {
 			return nil, fmt.Errorf("Cannot filter on empty WarningFilter")
 		} else {
 			return nil, fmt.Errorf("No statement exists for the given Filter")
@@ -383,14 +383,14 @@ func DeleteWarning(ctx context.Context, tx *sql.Tx, uuid string) error {
 }
 
 // DeleteWarnings deletes the warning matching the given key parameters.
-// generator: warning DeleteMany-by-EntityTypeCode-and-EntityID
-func DeleteWarnings(ctx context.Context, tx *sql.Tx, entityTypeCode int, entityID int) error {
-	stmt, err := Stmt(tx, warningDeleteByEntityTypeCodeAndEntityID)
+// generator: warning DeleteMany-by-EntityType-and-EntityID
+func DeleteWarnings(ctx context.Context, tx *sql.Tx, entityType EntityType, entityID int) error {
+	stmt, err := Stmt(tx, warningDeleteByEntityTypeAndEntityID)
 	if err != nil {
-		return fmt.Errorf("Failed to get \"warningDeleteByEntityTypeCodeAndEntityID\" prepared statement: %w", err)
+		return fmt.Errorf("Failed to get \"warningDeleteByEntityTypeAndEntityID\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(entityTypeCode, entityID)
+	result, err := stmt.Exec(entityType, entityID)
 	if err != nil {
 		return fmt.Errorf("Delete \"warnings\": %w", err)
 	}

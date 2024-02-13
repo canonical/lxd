@@ -36,6 +36,7 @@ import (
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
@@ -1485,7 +1486,7 @@ func networkStartup(s *state.State) error {
 		err = n.Start()
 		if err != nil {
 			err = fmt.Errorf("Failed starting: %w", err)
-			_ = s.DB.Cluster.UpsertWarningLocalNode(n.Project(), dbCluster.TypeNetwork, int(n.ID()), warningtype.NetworkUnvailable, err.Error())
+			_ = s.DB.Cluster.UpsertWarningLocalNode(n.Project(), entity.TypeNetwork, int(n.ID()), warningtype.NetworkUnvailable, err.Error())
 
 			return err
 		}
@@ -1500,7 +1501,7 @@ func networkStartup(s *state.State) error {
 
 		delete(initNetworks[priority], pn)
 
-		_ = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.DB.Cluster, n.Project(), warningtype.NetworkUnvailable, dbCluster.TypeNetwork, int(n.ID()))
+		_ = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.DB.Cluster, n.Project(), warningtype.NetworkUnvailable, entity.TypeNetwork, int(n.ID()))
 
 		return nil
 	}

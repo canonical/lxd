@@ -22,8 +22,8 @@ type WarningGenerated interface {
 	DeleteWarning(ctx context.Context, tx *sql.Tx, uuid string) error
 
 	// DeleteWarnings deletes the warning matching the given key parameters.
-	// generator: warning DeleteMany-by-EntityTypeCode-and-EntityID
-	DeleteWarnings(ctx context.Context, tx *sql.Tx, entityTypeCode int, entityID int) error
+	// generator: warning DeleteMany-by-EntityType-and-EntityID
+	DeleteWarnings(ctx context.Context, tx *sql.Tx, entityType EntityType, entityID int) error
 
 	// GetWarningID return the ID of the warning with the given key.
 	// generator: warning ID
