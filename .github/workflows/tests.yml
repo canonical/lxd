@@ -409,6 +409,10 @@ jobs:
           GOARCH=amd64 go build -o trimpath -o bin/lxd-migrate.x86_64 ./lxd-migrate
           GOARCH=arm64 go build -o trimpath -o bin/lxd-migrate.aarch64 ./lxd-migrate
 
+      - name: Strip lxc and lxd-migrate native binaries
+        if: runner.os != 'macOS'     # macOS doesn't have strip
+        run: strip -s bin/lx*.x86_64 # non-native binaries cannot be strip'ed
+
       - name: Unit tests (client)
         env:
           CGO_ENABLED: 0
