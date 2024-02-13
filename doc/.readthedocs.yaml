@@ -13,7 +13,7 @@ build:
     python: "3.11"
   jobs:
     pre_build:
-      - go build -o lxc.bin ./lxc
+      - go build -ldflags "-s -w" -o trimpath -o lxc.bin ./lxc
     post_build:
       - cd _readthedocs/html; python -m sphinx.ext.intersphinx 'objects.inv' > objects.inv.txt
 
