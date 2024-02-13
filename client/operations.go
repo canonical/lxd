@@ -194,16 +194,6 @@ func (op *operation) setupListener() error {
 
 	op.handlerReady = true
 
-	// Get a new listener
-	if op.listener == nil {
-		listener, err := op.r.GetEvents()
-		if err != nil {
-			return err
-		}
-
-		op.listener = listener
-	}
-
 	// Setup the handler
 	chReady := make(chan bool)
 	_, err := op.listener.AddHandler([]string{"operation"}, func(event api.Event) {
