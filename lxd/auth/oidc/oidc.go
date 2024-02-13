@@ -390,7 +390,7 @@ func (o *Verifier) setRelyingParty(host string) error {
 		rp.WithPKCE(cookieHandler),
 	}
 
-	oidcScopes := []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, oidc.ScopeEmail}
+	oidcScopes := []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, oidc.ScopeEmail, oidc.ScopeProfile}
 	if o.groupsClaim != "" {
 		oidcScopes = append(oidcScopes, o.groupsClaim)
 	}
