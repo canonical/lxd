@@ -199,7 +199,7 @@ func (c *Config) InstancesPlacementScriptlet() string {
 }
 
 // LokiServer returns all the Loki settings needed to connect to a server.
-func (c *Config) LokiServer() (apiURL string, authUsername string, authPassword string, apiCACert string, labels []string, logLevel string, types []string) {
+func (c *Config) LokiServer() (apiURL string, authUsername string, authPassword string, apiCACert string, instance string, logLevel string, labels []string, types []string) {
 	if c.m.GetString("loki.types") != "" {
 		types = strings.Split(c.m.GetString("loki.types"), ",")
 	}
@@ -208,7 +208,7 @@ func (c *Config) LokiServer() (apiURL string, authUsername string, authPassword 
 		labels = strings.Split(c.m.GetString("loki.labels"), ",")
 	}
 
-	return c.m.GetString("loki.api.url"), c.m.GetString("loki.auth.username"), c.m.GetString("loki.auth.password"), c.m.GetString("loki.api.ca_cert"), labels, c.m.GetString("loki.loglevel"), types
+	return c.m.GetString("loki.api.url"), c.m.GetString("loki.auth.username"), c.m.GetString("loki.auth.password"), c.m.GetString("loki.api.ca_cert"), c.m.GetString("loki.instance"), c.m.GetString("loki.loglevel"), labels, types
 }
 
 // ACME returns all ACME settings needed for certificate renewal.
@@ -607,6 +607,15 @@ var ConfigSchema = config.Schema{
 	//  scope: global
 	//  shortdesc: URL to the Loki server
 	"loki.api.url": {},
+
+	// lxdmeta:generate(entities=server; group=loki; key=loki.instance)
+	// This allows replacing the default instance value (server host name) by a more relevant value like a cluster identifier.
+	// ---
+	//  type: string
+	//  scope: global
+	//  defaultdesc: Local server host name or cluster member name
+	//  shortdesc: Name to use as the instance field in Loki events.
+	"loki.instance": {},
 
 	// lxdmeta:generate(entities=server; group=loki; key=loki.labels)
 	// Specify a comma-separated list of values that should be used as labels for a Loki log entry.
