@@ -14,7 +14,7 @@ import (
 // Cache represents a thread-safe in-memory cache of the identities in the database.
 type Cache struct {
 	// entries is a map of authentication method to map of identifier to CacheEntry. The identifier is either a
-	// certificate fingerprint (tls) or an OIDC subject (oidc).
+	// certificate fingerprint (tls) or an email address (oidc).
 	entries map[string]map[string]*CacheEntry
 	mu      sync.RWMutex
 }
@@ -22,12 +22,16 @@ type Cache struct {
 // CacheEntry represents an identity.
 type CacheEntry struct {
 	Identifier           string
+	Name                 string
 	AuthenticationMethod string
 	IdentityType         string
 	Projects             []string
 
 	// Certificate is optional. It is pre-computed for identities with AuthenticationMethod api.AuthenticationMethodTLS.
 	Certificate *x509.Certificate
+
+	// Subject is optional. It is only set when AuthenticationMethod is api.AuthenticationMethodOIDC.
+	Subject string
 }
 
 // Get returns a single CacheEntry by its authentication method and identifier.
