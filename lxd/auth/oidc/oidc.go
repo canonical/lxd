@@ -69,6 +69,7 @@ type AuthenticationResult struct {
 	IdentityType           string
 	Subject                string
 	Email                  string
+	Name                   string
 	IdentityProviderGroups []string
 }
 
@@ -172,6 +173,7 @@ func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWrite
 				IdentityType:           api.IdentityTypeOIDCClient,
 				Subject:                claims.Subject,
 				Email:                  claims.Email,
+				Name:                   claims.Name,
 				IdentityProviderGroups: o.getGroupsFromClaims(claims.Claims),
 			}, nil
 		}
@@ -215,6 +217,7 @@ func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWrite
 		IdentityType:           api.IdentityTypeOIDCClient,
 		Subject:                claims.Subject,
 		Email:                  claims.Email,
+		Name:                   claims.Name,
 		IdentityProviderGroups: o.getGroupsFromClaims(claims.Claims),
 	}, nil
 }
