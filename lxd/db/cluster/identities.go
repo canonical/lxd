@@ -200,7 +200,7 @@ type IdentityFilter struct {
 	Name       *string
 }
 
-// CertificateMetadata contains metadate for certificate identities. Currently this is only the certificate itself.
+// CertificateMetadata contains metadata for certificate identities. Currently this is only the certificate itself.
 type CertificateMetadata struct {
 	Certificate string `json:"cert"`
 }
@@ -263,4 +263,24 @@ func (i Identity) X509() (*x509.Certificate, error) {
 	}
 
 	return metadata.X509()
+}
+
+// OIDCMetadata contains metadata for OIDC identities.
+type OIDCMetadata struct {
+	Subject string `json:"subject"`
+}
+
+// Subject returns OIDC subject from the identity metadata. The AuthMethod of the Identity must be api.AuthenticationMethodOIDC.
+func (i Identity) Subject() (string, error) {
+	if i.AuthMethod != api.AuthenticationMethodOIDC {
+		return "", fmt.Errorf("Cannot extract subject from identity: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodOIDC)
+	}
+
+	var metadata OIDCMetadata
+	err := json.Unmarshal([]byte(i.Metadata), &metadata)
+	if err != nil {
+		return "", fmt.Errorf("Failed to unmarshal subject metadata: %w", err)
+	}
+
+	return metadata.Subject, nil
 }

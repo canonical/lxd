@@ -19,6 +19,7 @@ import (
 	"github.com/zitadel/oidc/v2/pkg/op"
 	"golang.org/x/crypto/hkdf"
 
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -44,6 +45,7 @@ const (
 type Verifier struct {
 	accessTokenVerifier op.AccessTokenVerifier
 	relyingParty        rp.RelyingParty
+	identityCache       *identity.Cache
 
 	clientID    string
 	issuer      string
@@ -67,6 +69,7 @@ type AuthenticationResult struct {
 	IdentityType           string
 	Subject                string
 	Email                  string
+	Name                   string
 	IdentityProviderGroups []string
 }
 
@@ -143,16 +146,33 @@ func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken stri
 		return nil, AuthError{Err: fmt.Errorf("Provided OIDC token doesn't allow the configured audience")}
 	}
 
-	var email string
-	emailAny, ok := claims.Claims[oidc.ScopeEmail]
-	if ok {
-		email, _ = emailAny.(string)
+	id, err := o.identityCache.GetByOIDCSubject(claims.Subject)
+	if err == nil {
+		return &AuthenticationResult{
+			IdentityType:           api.IdentityTypeOIDCClient,
+			Email:                  id.Identifier,
+			Name:                   id.Name,
+			Subject:                claims.Subject,
+			IdentityProviderGroups: o.getGroupsFromClaims(claims.Claims),
+		}, nil
+	} else if !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return nil, fmt.Errorf("Failed to get OIDC identity from identity cache by their subject (%s): %w", claims.Subject, err)
+	}
+
+	userInfo, err := rp.Userinfo(accessToken, oidc.BearerToken, claims.Subject, o.relyingParty)
+	if err != nil {
+		return nil, AuthError{Err: fmt.Errorf("Failed to call user info endpoint with given access token: %w", err)}
+	}
+
+	if userInfo.Email == "" {
+		return nil, AuthError{Err: fmt.Errorf("Could not get email address of oidc user with subject %q", claims.Subject)}
 	}
 
 	return &AuthenticationResult{
 		IdentityType:           api.IdentityTypeOIDCClient,
+		Email:                  userInfo.Email,
+		Name:                   userInfo.Name,
 		Subject:                claims.Subject,
-		Email:                  email,
 		IdentityProviderGroups: o.getGroupsFromClaims(claims.Claims),
 	}, nil
 }
@@ -170,6 +190,7 @@ func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWrite
 				IdentityType:           api.IdentityTypeOIDCClient,
 				Subject:                claims.Subject,
 				Email:                  claims.Email,
+				Name:                   claims.Name,
 				IdentityProviderGroups: o.getGroupsFromClaims(claims.Claims),
 			}, nil
 		}
@@ -213,6 +234,7 @@ func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWrite
 		IdentityType:           api.IdentityTypeOIDCClient,
 		Subject:                claims.Subject,
 		Email:                  claims.Email,
+		Name:                   claims.Name,
 		IdentityProviderGroups: o.getGroupsFromClaims(claims.Claims),
 	}, nil
 }
@@ -388,7 +410,7 @@ func (o *Verifier) setRelyingParty(host string) error {
 		rp.WithPKCE(cookieHandler),
 	}
 
-	oidcScopes := []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, oidc.ScopeEmail}
+	oidcScopes := []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, oidc.ScopeEmail, oidc.ScopeProfile}
 	if o.groupsClaim != "" {
 		oidcScopes = append(oidcScopes, o.groupsClaim)
 	}
@@ -583,7 +605,7 @@ type Opts struct {
 }
 
 // NewVerifier returns a Verifier.
-func NewVerifier(issuer string, clientID string, audience string, clusterCert func() *shared.CertInfo, options *Opts) (*Verifier, error) {
+func NewVerifier(issuer string, clientID string, audience string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, options *Opts) (*Verifier, error) {
 	opts := &Opts{
 		ConfigExpiryInterval: defaultConfigExpiryInterval,
 	}
@@ -597,6 +619,7 @@ func NewVerifier(issuer string, clientID string, audience string, clusterCert fu
 		issuer:               issuer,
 		clientID:             clientID,
 		audience:             audience,
+		identityCache:        identityCache,
 		groupsClaim:          opts.GroupsClaim,
 		clusterCert:          clusterCert,
 		configExpiryInterval: opts.ConfigExpiryInterval,
