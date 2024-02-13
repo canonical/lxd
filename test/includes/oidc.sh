@@ -23,4 +23,5 @@ kill_oidc() {
 
 set_oidc() {
   echo "${1}" > "${TEST_DIR}/oidc.user"
+  echo "${2:-}" >> "${TEST_DIR}/oidc.user"
 }
