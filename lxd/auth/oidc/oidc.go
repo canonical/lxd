@@ -19,6 +19,7 @@ import (
 	"github.com/zitadel/oidc/v2/pkg/op"
 	"golang.org/x/crypto/hkdf"
 
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -44,6 +45,7 @@ const (
 type Verifier struct {
 	accessTokenVerifier op.AccessTokenVerifier
 	relyingParty        rp.RelyingParty
+	identityCache       *identity.Cache
 
 	clientID    string
 	issuer      string
@@ -583,7 +585,7 @@ type Opts struct {
 }
 
 // NewVerifier returns a Verifier.
-func NewVerifier(issuer string, clientID string, audience string, clusterCert func() *shared.CertInfo, options *Opts) (*Verifier, error) {
+func NewVerifier(issuer string, clientID string, audience string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, options *Opts) (*Verifier, error) {
 	opts := &Opts{
 		ConfigExpiryInterval: defaultConfigExpiryInterval,
 	}
@@ -597,6 +599,7 @@ func NewVerifier(issuer string, clientID string, audience string, clusterCert fu
 		issuer:               issuer,
 		clientID:             clientID,
 		audience:             audience,
+		identityCache:        identityCache,
 		groupsClaim:          opts.GroupsClaim,
 		clusterCert:          clusterCert,
 		configExpiryInterval: opts.ConfigExpiryInterval,
