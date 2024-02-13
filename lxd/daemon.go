@@ -1322,7 +1322,7 @@ func (d *Daemon) init() error {
 
 	// Setup OIDC authentication.
 	if oidcIssuer != "" && oidcClientID != "" {
-		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcAudience, d.serverCert, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
+		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcAudience, d.serverCert, d.identityCache, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
 		if err != nil {
 			return err
 		}
