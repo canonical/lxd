@@ -391,14 +391,14 @@ jobs:
           CGO_ENABLED: 0
           GOARCH: amd64
         run: |
-          go build -o trimpath -o bin/lxc.x86_64 ./lxc
+          go build -ldflags "-s -w" -o trimpath -o bin/lxc.x86_64 ./lxc
 
       - name: Build static lxc (aarch64)
         env:
           CGO_ENABLED: 0
           GOARCH: arm64
         run: |
-          go build -o trimpath -o bin/lxc.aarch64 ./lxc
+          go build -ldflags "-s -w" -o trimpath -o bin/lxc.aarch64 ./lxc
 
       - name: Build static lxd-migrate
         if: runner.os == 'Linux'
@@ -406,12 +406,8 @@ jobs:
           CGO_ENABLED: 0
         run: |
           set -eux
-          GOARCH=amd64 go build -o trimpath -o bin/lxd-migrate.x86_64 ./lxd-migrate
-          GOARCH=arm64 go build -o trimpath -o bin/lxd-migrate.aarch64 ./lxd-migrate
-
-      - name: Strip lxc and lxd-migrate native binaries
-        if: runner.os != 'macOS'     # macOS doesn't have strip
-        run: strip -s bin/lx*.x86_64 # non-native binaries cannot be strip'ed
+          GOARCH=amd64 go build -ldflags "-s -w" -o trimpath -o bin/lxd-migrate.x86_64 ./lxd-migrate
+          GOARCH=arm64 go build -ldflags "-s -w" -o trimpath -o bin/lxd-migrate.aarch64 ./lxd-migrate
 
       - name: Unit tests (client)
         env:
