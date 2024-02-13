@@ -57,7 +57,8 @@ func (c *Cache) Get(authenticationMethod string, identifier string) (*CacheEntry
 		return nil, api.StatusErrorf(http.StatusNotFound, "Identity %q (%s) not found", identifier, authenticationMethod)
 	}
 
-	return entry, nil
+	entryCopy := *entry
+	return &entryCopy, nil
 }
 
 // GetByType returns a map of identifier to CacheEntry, where all entries have the given identity type.
