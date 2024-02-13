@@ -1,12 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"crypto/sha256"
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/zitadel/oidc/v3/pkg/op"
@@ -74,7 +74,7 @@ func main() {
 }
 
 func userCodeHandler(storage *storage.Storage, w http.ResponseWriter, r *http.Request) {
-	name := username()
+	name, _ := usernameAndEmail()
 
 	err := r.ParseForm()
 	if err != nil {
@@ -83,6 +83,11 @@ func userCodeHandler(storage *storage.Storage, w http.ResponseWriter, r *http.Re
 
 	userCode := r.Form.Get("user_code")
 	if userCode == "" {
+		return
+	}
+
+	if name == "" {
+		_ = storage.DenyDeviceAuthorization(r.Context(), userCode)
 		return
 	}
 
@@ -96,15 +101,22 @@ func userCodeHandler(storage *storage.Storage, w http.ResponseWriter, r *http.Re
 	return
 }
 
-func username() string {
-	userName := "unknown"
-
-	content, err := os.ReadFile(os.Args[2])
-	if err == nil {
-		userName = strings.TrimSpace(string(content))
+func usernameAndEmail() (username string, email string) {
+	f, err := os.Open(os.Args[2])
+	if err != nil {
+		return "", ""
 	}
 
-	return userName
+	scanner := bufio.NewScanner(f)
+	for i := 0; i < 2 && scanner.Scan(); i++ {
+		if i == 0 {
+			username = scanner.Text()
+		} else {
+			email = scanner.Text()
+		}
+	}
+
+	return username, email
 }
 
 type userStore struct{}
@@ -114,19 +126,21 @@ func (u userStore) ExampleClientID() string {
 }
 
 func (u userStore) GetUserByID(string) *storage.User {
-	name := username()
+	name, email := usernameAndEmail()
 
 	return &storage.User{
 		ID:       name,
 		Username: name,
+		Email:    email,
 	}
 }
 
 func (u userStore) GetUserByUsername(string) *storage.User {
-	name := username()
+	name, email := usernameAndEmail()
 
 	return &storage.User{
 		ID:       name,
 		Username: name,
+		Email:    email,
 	}
 }
