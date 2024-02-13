@@ -2328,3 +2328,9 @@ This is indicated when command `lxc version` is executed or when `/1.0` endpoint
 This API extension enables setting an `oidc.groups.claim` configuration key.
 If OIDC authentication is configured and this claim is set, LXD will request this claim in the scope of OIDC flow.
 The value of the claim will be extracted and might be used to make authorization decisions.
+
+## `loki_config_instance`
+
+Adds a new `loki.instance` server configuration key to customize the `instance` field in Loki events.
+This can be used to expose the name of the cluster rather than the individual system name sending
+the event as that's usually already covered by the `location` field.
