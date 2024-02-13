@@ -146,16 +146,33 @@ func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken stri
 		return nil, AuthError{Err: fmt.Errorf("Provided OIDC token doesn't allow the configured audience")}
 	}
 
-	var email string
-	emailAny, ok := claims.Claims[oidc.ScopeEmail]
-	if ok {
-		email, _ = emailAny.(string)
+	id, err := o.identityCache.GetByOIDCSubject(claims.Subject)
+	if err == nil {
+		return &AuthenticationResult{
+			IdentityType:           api.IdentityTypeOIDCClient,
+			Email:                  id.Identifier,
+			Name:                   id.Name,
+			Subject:                claims.Subject,
+			IdentityProviderGroups: o.getGroupsFromClaims(claims.Claims),
+		}, nil
+	} else if !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return nil, fmt.Errorf("Failed to get OIDC identity from identity cache by their subject (%s): %w", claims.Subject, err)
+	}
+
+	userInfo, err := rp.Userinfo(accessToken, oidc.BearerToken, claims.Subject, o.relyingParty)
+	if err != nil {
+		return nil, AuthError{Err: fmt.Errorf("Failed to call user info endpoint with given access token: %w", err)}
+	}
+
+	if userInfo.Email == "" {
+		return nil, AuthError{Err: fmt.Errorf("Could not get email address of oidc user with subject %q", claims.Subject)}
 	}
 
 	return &AuthenticationResult{
 		IdentityType:           api.IdentityTypeOIDCClient,
+		Email:                  userInfo.Email,
+		Name:                   userInfo.Name,
 		Subject:                claims.Subject,
-		Email:                  email,
 		IdentityProviderGroups: o.getGroupsFromClaims(claims.Claims),
 	}, nil
 }
