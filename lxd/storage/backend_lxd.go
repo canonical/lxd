@@ -702,7 +702,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 
 	sourceSnapshots := make([]drivers.Volume, 0, len(srcBackup.Config.VolumeSnapshots))
 	for _, volSnap := range srcBackup.Config.VolumeSnapshots {
-		snapshotName := drivers.GetSnapshotVolumeName(vol.Name(), volSnap.Name)
+		snapshotName := drivers.GetSnapshotVolumeName(srcBackup.Name, volSnap.Name)
 		snapshotStorageName := project.Instance(srcBackup.Project, snapshotName)
 		sourceSnapshots = append(sourceSnapshots, b.GetVolume(volType, contentType, snapshotStorageName, volSnap.Config))
 	}
