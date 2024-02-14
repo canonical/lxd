@@ -11,8 +11,8 @@ import (
 	"fmt"
 
 	"github.com/canonical/lxd/lxd/certificate"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/auth"
 )
 
 // Code generation directives.
@@ -233,7 +233,7 @@ func (i Identity) ToCertificate() (*Certificate, error) {
 		return nil, fmt.Errorf("Failed to unmarshal certificate identity metadata: %w", err)
 	}
 
-	isRestricted, err := auth.IsRestrictedIdentityType(string(i.Type))
+	isRestricted, err := identity.IsRestrictedIdentityType(string(i.Type))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to check restricted status of identity: %w", err)
 	}
