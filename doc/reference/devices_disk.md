@@ -18,58 +18,35 @@ Virtual machines share host-side mounts or directories through `9p` or `virtiofs
 ## Types of disk devices
 
 You can create disk devices from different sources.
-The value that you specify for the `source` option specifies the type of disk device that is added:
+The value that you specify for the `source` option specifies the type of disk device that is added.
+See {ref}`devices-disk-examples` for more detailed information on how to add each type of disk device.
 
 Storage volume
 : The most common type of disk device is a storage volume.
-  To add a storage volume, specify its name as the `source` of the device:
-
-      lxc config device add <instance_name> <device_name> disk pool=<pool_name> source=<volume_name> [path=<path_in_instance>]
-
-  The path is required for file system volumes, but not for block volumes.
-
-  Alternatively, you can use the [`lxc storage volume attach`](lxc_storage_volume_attach.md) command to {ref}`storage-attach-volume`.
-  Both commands use the same mechanism to add a storage volume as a disk device.
+  Specify the storage volume name as the source to add a storage volume as a disk device.
 
 Path on the host
-: You can share a path on your host (either a file system or a block device) to your instance by adding it as a disk device with the host path as the `source`:
-
-      lxc config device add <instance_name> <device_name> disk source=<path_on_host> [path=<path_in_instance>]
-
-  The path is required for file systems, but not for block devices.
+: You can share a path on your host (either a file system or a block device) to your instance.
+  Specify the host path as the source to add it as a disk device.
 
 Ceph RBD
-: LXD can use Ceph to manage an internal file system for the instance, but if you have an existing, externally managed Ceph RBD that you would like to use for an instance, you can add it with the following command:
-
-      lxc config device add <instance_name> <device_name> disk source=ceph:<pool_name>/<volume_name> ceph.user_name=<user_name> ceph.cluster_name=<cluster_name> [path=<path_in_instance>]
-
-  The path is required for file systems, but not for block devices.
+: LXD can use Ceph to manage an internal file system for the instance, but if you have an existing, externally managed Ceph RBD that you would like to use for an instance, you can add it by specifying `ceph:<pool_name>/<volume_name>` as the source.
 
 CephFS
-: LXD can use Ceph to manage an internal file system for the instance, but if you have an existing, externally managed Ceph file system that you would like to use for an instance, you can add it with the following command:
-
-      lxc config device add <instance_name> <device_name> disk source=cephfs:<fs_name>/<path> ceph.user_name=<user_name> ceph.cluster_name=<cluster_name> path=<path_in_instance>
+: LXD can use Ceph to manage an internal file system for the instance, but if you have an existing, externally managed Ceph file system that you would like to use for an instance, you can add it by specifying `cephfs:<fs_name>/<path>` as the source.
 
 ISO file
-: You can add an ISO file as a disk device for a virtual machine.
+: You can add an ISO file as a disk device for a virtual machine by specifying its file path as the source.
   It is added as a ROM device inside the VM.
 
   This source type is applicable only to VMs.
 
-  To add an ISO file, specify its file path as the `source`:
-
-      lxc config device add <instance_name> <device_name> disk source=<file_path_on_host>
-
 (vm-cloud-init-config)=
 VM `cloud-init`
-: You can generate a `cloud-init` configuration ISO from the {config:option}`instance-cloud-init:cloud-init.vendor-data` and {config:option}`instance-cloud-init:cloud-init.user-data` configuration keys and attach it to a virtual machine.
+: You can generate a `cloud-init` configuration ISO from the {config:option}`instance-cloud-init:cloud-init.vendor-data` and {config:option}`instance-cloud-init:cloud-init.user-data` configuration keys and attach it to a virtual machine by specifying `cloud-init:config` as the source.
   The `cloud-init` that is running inside the VM then detects the drive on boot and applies the configuration.
 
   This source type is applicable only to VMs.
-
-  To add such a device, use the following command:
-
-      lxc config device add <instance_name> <device_name> disk source=cloud-init:config
 
   Adding such a configuration disk might be needed if the VM image that is used includes `cloud-init` but not the `lxd-agent`. This is the case for official Ubuntu images prior to `20.04`. On such images, the following steps enable the LXD agent and thus provide the ability to use `lxc exec` to access the VM:
 
@@ -136,3 +113,49 @@ Key                 | Type      | Default       | Required  | Description
 `size`              | string    | -             | no        | Disk size in bytes (various suffixes supported, see {ref}`instances-limit-units`) - only supported for the `rootfs` (`/`)
 `size.state`        | string    | -             | no        | Same as `size`, but applies to the file-system volume used for saving runtime state in VMs
 `source`            | string    | -             | yes       | Source of a file system or block device (see {ref}`devices-disk-types` for details)
+
+(devices-disk-examples)=
+## Configuration examples
+
+How to add a disk device depends on its {ref}`type <devices-disk-types>`.
+
+Storage volume
+: To add a storage volume, specify its name as the `source` of the device:
+
+      lxc config device add <instance_name> <device_name> disk pool=<pool_name> source=<volume_name> [path=<path_in_instance>]
+
+  The path is required for file system volumes, but not for block volumes.
+
+  Alternatively, you can use the [`lxc storage volume attach`](lxc_storage_volume_attach.md) command to {ref}`storage-attach-volume`.
+  Both commands use the same mechanism to add a storage volume as a disk device.
+
+Path on the host
+: To add a host device, specify the host path as the `source`:
+
+      lxc config device add <instance_name> <device_name> disk source=<path_on_host> [path=<path_in_instance>]
+
+  The path is required for file systems, but not for block devices.
+
+Ceph RBD
+: To add an existing Ceph RBD volume, specify its pool and volume name:
+
+      lxc config device add <instance_name> <device_name> disk source=ceph:<pool_name>/<volume_name> ceph.user_name=<user_name> ceph.cluster_name=<cluster_name> [path=<path_in_instance>]
+
+  The path is required for file systems, but not for block devices.
+
+CephFS
+: To add an existing CephFS file system, specify its name and path:
+
+      lxc config device add <instance_name> <device_name> disk source=cephfs:<fs_name>/<path> ceph.user_name=<user_name> ceph.cluster_name=<cluster_name> path=<path_in_instance>
+
+ISO file
+: To add an ISO file, specify its file path as the `source`:
+
+      lxc config device add <instance_name> <device_name> disk source=<file_path_on_host>
+
+VM `cloud-init`
+: To add `cloud-init` configuration, specify `cloud-init:config` as the source:
+
+      lxc config device add <instance_name> <device_name> disk source=cloud-init:config
+
+See {ref}`instances-configure-devices` for more information.
