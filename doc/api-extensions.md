@@ -2334,3 +2334,8 @@ The value of the claim will be extracted and might be used to make authorization
 Adds a new `loki.instance` server configuration key to customize the `instance` field in Loki events.
 This can be used to expose the name of the cluster rather than the individual system name sending
 the event as that's usually already covered by the `location` field.
+
+## `resources_v3`
+
+Export the CPU feature flags over `/1.0/resources`. For example, this is useful to prevent a VM live migration from happening
+if the destination node doesn't support the same CPU features as the source node.
