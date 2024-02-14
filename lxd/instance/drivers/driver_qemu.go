@@ -2764,6 +2764,9 @@ cp -Ra --no-preserve=ownership "${PREFIX}/.mnt/"* "${PREFIX}"
 # Unmount the temporary mount.
 umount "${PREFIX}/.mnt"
 rmdir "${PREFIX}/.mnt"
+
+# Attempt to restore SELinux labels.
+restorecon -R "${PREFIX}" >/dev/null 2>&1 || true
 `
 
 	err = os.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-setup"), []byte(lxdAgentSetupScript), 0500)
@@ -2812,6 +2815,11 @@ cp udev/99-lxd-agent.rules /lib/udev/rules.d/
 cp systemd/lxd-agent.service /lib/systemd/system/
 cp systemd/lxd-agent-setup /lib/systemd/
 systemctl daemon-reload
+
+# SELinux handling.
+if getenforce >/dev/null 2>&1; then
+    semanage fcontext -a -t bin_t /run/lxd_agent/lxd-agent
+fi
 
 echo ""
 echo "LXD agent has been installed, reboot to confirm setup."
