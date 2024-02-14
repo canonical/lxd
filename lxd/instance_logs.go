@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/project"
@@ -30,8 +31,8 @@ var instanceLogCmd = APIEndpoint{
 		{Name: "vmLog", Path: "virtual-machines/{name}/logs/{file}"},
 	},
 
-	Delete: APIEndpointAction{Handler: instanceLogDelete, AccessHandler: allowPermission(auth.ObjectTypeInstance, auth.EntitlementCanEdit, "name")},
-	Get:    APIEndpointAction{Handler: instanceLogGet, AccessHandler: allowPermission(auth.ObjectTypeInstance, auth.EntitlementCanView, "name")},
+	Delete: APIEndpointAction{Handler: instanceLogDelete, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
+	Get:    APIEndpointAction{Handler: instanceLogGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 }
 
 var instanceLogsCmd = APIEndpoint{
@@ -42,7 +43,7 @@ var instanceLogsCmd = APIEndpoint{
 		{Name: "vmLogs", Path: "virtual-machines/{name}/logs"},
 	},
 
-	Get: APIEndpointAction{Handler: instanceLogsGet, AccessHandler: allowPermission(auth.ObjectTypeInstance, auth.EntitlementCanView, "name")},
+	Get: APIEndpointAction{Handler: instanceLogsGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 }
 
 var instanceExecOutputCmd = APIEndpoint{
@@ -53,8 +54,8 @@ var instanceExecOutputCmd = APIEndpoint{
 		{Name: "vmExecOutput", Path: "virtual-machines/{name}/logs/exec-output/{file}"},
 	},
 
-	Delete: APIEndpointAction{Handler: instanceExecOutputDelete, AccessHandler: allowPermission(auth.ObjectTypeInstance, auth.EntitlementCanExec, "name")},
-	Get:    APIEndpointAction{Handler: instanceExecOutputGet, AccessHandler: allowPermission(auth.ObjectTypeInstance, auth.EntitlementCanExec, "name")},
+	Delete: APIEndpointAction{Handler: instanceExecOutputDelete, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanExec, "name")},
+	Get:    APIEndpointAction{Handler: instanceExecOutputGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanExec, "name")},
 }
 
 var instanceExecOutputsCmd = APIEndpoint{
@@ -65,7 +66,7 @@ var instanceExecOutputsCmd = APIEndpoint{
 		{Name: "vmExecOutputs", Path: "virtual-machines/{name}/logs/exec-output"},
 	},
 
-	Get: APIEndpointAction{Handler: instanceExecOutputsGet, AccessHandler: allowPermission(auth.ObjectTypeInstance, auth.EntitlementCanExec, "name")},
+	Get: APIEndpointAction{Handler: instanceExecOutputsGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanExec, "name")},
 }
 
 // swagger:operation GET /1.0/instances/{name}/logs instances instance_logs_get
