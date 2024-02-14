@@ -4372,7 +4372,7 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 
 		// Check that the volume's block.filesystem property isn't being changed.
 		if changedConfig["block.filesystem"] != "" {
-			return fmt.Errorf("Custom volume 'block.filesystem' property cannot be changed")
+			return fmt.Errorf(`Custom volume "block.filesystem" property cannot be changed`)
 		}
 
 		// Check that the volume's volatile.uuid property isn't being changed.
