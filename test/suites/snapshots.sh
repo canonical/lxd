@@ -33,6 +33,15 @@ snapshots() {
     [ -d "${LXD_DIR}/snapshots/foo/snap0" ]
   fi
 
+  # Check if the snapshot has an UUID
+  [ -n "$(lxc storage volume get "${pool}" container/foo/snap0 volatile.uuid)" ]
+
+  # Check if the snapshot's UUID is different from the parent volume
+  [ "$(lxc storage volume get "${pool}" container/foo/snap0 volatile.uuid)" != "$(lxc storage volume get "${pool}" container/foo volatile.uuid)" ]
+
+  # Check if the snapshot's UUID can be modified
+  ! lxc storage volume set "${pool}" container/foo/snap0 volatile.uuid "2d94c537-5eff-4751-95b1-6a1b7d11f849" || false
+
   lxc snapshot foo
   # FIXME: make this backend agnostic
   if [ "$lxd_backend" = "dir" ]; then
@@ -166,6 +175,7 @@ snap_restore() {
   lxc exec bar -- mkdir /root/dir_only_in_snap1
   initialUUID=$(lxc config get bar volatile.uuid)
   initialGenerationID=$(lxc config get bar volatile.uuid.generation)
+  initialVolumeUUID=$(lxc storage volume get "${pool}" container/bar volatile.uuid)
   lxc stop bar --force
   lxc storage volume set "${pool}" container/bar user.foo=snap1
 
@@ -228,6 +238,9 @@ snap_restore() {
     echo "==> Generation UUID of the instance should change after restoring its snapshot"
     false
   fi
+
+  # Check if the volumes's UUID is the same as the original volume
+  [ "$(lxc storage volume get "${pool}" container/bar volatile.uuid)" = "${initialVolumeUUID}" ]
 
   # Check that instances UUIS remain the same before and after snapshoting  (stateful mode)
   if ! command -v criu >/dev/null 2>&1; then
