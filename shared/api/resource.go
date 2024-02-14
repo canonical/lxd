@@ -98,6 +98,19 @@ type ResourcesCPUSocket struct {
 	// Maximum CPU frequency (Mhz)
 	// Example: 3500
 	FrequencyTurbo uint64 `json:"frequency_turbo,omitempty" yaml:"frequency_turbo,omitempty"`
+
+	// CPU feature flags
+	FeatureSet *ResourcesCPUFeatureSet `json:"feature_set" yaml:"feature_set"`
+}
+
+// ResourcesCPUFeatureSet represents the cpu flags currently set on a CPU.
+//
+// swagger:model
+//
+// API extension: resources_v3.
+type ResourcesCPUFeatureSet struct {
+	// List of CPU flags
+	Flags []string `json:"flags" yaml:"flags"`
 }
 
 // ResourcesCPUCache represents a CPU cache
