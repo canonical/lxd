@@ -4043,6 +4043,17 @@ definitions:
                 x-go-name: Threads
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    ResourcesCPUFeatureSet:
+        properties:
+            flags:
+                description: List of CPU flags
+                items:
+                    type: string
+                type: array
+                x-go-name: Flags
+        title: ResourcesCPUFeatureSet represents the cpu flags currently set on a CPU.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     ResourcesCPUSocket:
         description: ResourcesCPUSocket represents a CPU socket on the system
         properties:
@@ -4058,6 +4069,8 @@ definitions:
                     $ref: '#/definitions/ResourcesCPUCore'
                 type: array
                 x-go-name: Cores
+            feature_set:
+                $ref: '#/definitions/ResourcesCPUFeatureSet'
             frequency:
                 description: Current CPU frequency (Mhz)
                 example: 3499
