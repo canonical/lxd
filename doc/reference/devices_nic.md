@@ -103,6 +103,21 @@ Key                      | Type    | Default           | Managed | Description
 `vlan`                   | integer | -                 | no      | The VLAN ID to use for non-tagged traffic (can be `none` to remove port from default VLAN)
 `vlan.tagged`            | integer | -                 | no      | Comma-delimited list of VLAN IDs or VLAN ranges to join for tagged traffic
 
+#### Configuration examples
+
+Add a `bridged` network device to an instance, connecting to a LXD managed network:
+
+    lxc network create <network_name> --type=bridge
+    lxc config device add <instance_name> <device_name> nic network=<network_name>
+
+Note that `bridge` is the type when creating a managed bridge network, while the device `nictype` that is required when connecting to an unmanaged bridge is `bridged`.
+
+Add a `bridged` network device to an instance, connecting to an existing bridge interface with `nictype`:
+
+    lxc config device add <instance_name> <device_name> nic nictype=bridged parent=<existing_bridge>
+
+See {ref}`network-create` and {ref}`instances-configure-devices`for more information.
+
 (nic-macvlan)=
 ### `nictype`: `macvlan`
 
@@ -131,6 +146,19 @@ Key                     | Type    | Default           | Managed | Description
 `network`               | string  | -                 | no      | The managed network to link the device to (instead of specifying the `nictype` directly)
 `parent`                | string  | -                 | yes     | The name of the host device (required if specifying the `nictype` directly)
 `vlan`                  | integer | -                 | no      | The VLAN ID to attach to
+
+#### Configuration examples
+
+Add a `macvlan` network device to an instance, connecting to a LXD managed network:
+
+    lxc network create <network_name> --type=macvlan parent=<existing_NIC>
+    lxc config device add <instance_name> <device_name> nic network=<network_name>
+
+Add a `macvlan` network device to an instance, connecting to an existing network interface with `nictype`:
+
+    lxc config device add <instance_name> <device_name> nic nictype=macvlan parent=<existing_NIC>
+
+See {ref}`network-create` and {ref}`instances-configure-devices`for more information.
 
 (nic-sriov)=
 ### `nictype`: `sriov`
@@ -176,6 +204,57 @@ Key                     | Type    | Default           | Managed | Description
 `parent`                | string  | -                 | yes     | The name of the host device (required if specifying the `nictype` directly)
 `security.mac_filtering`| bool    | `false`           | no      | Prevent the instance from spoofing another instance's MAC address
 `vlan`                  | integer | -                 | no      | The VLAN ID to attach to
+
+#### Configuration examples
+
+Add a `sriov` network device to an instance, connecting to a LXD managed network:
+
+    lxc network create <network_name> --type=sriov parent=<sriov_enabled_NIC>
+    lxc config device add <instance_name> <device_name> nic network=<network_name>
+
+Add a `sriov` network device to an instance, connecting to an existing SR-IOV-enabled interface with `nictype`:
+
+    lxc config device add <instance_name> <device_name> nic nictype=sriov parent=<sriov_enabled_NIC>
+
+See {ref}`network-create` and {ref}`instances-configure-devices`for more information.
+
+(nic-physical)=
+### `nictype`: `physical`
+
+```{note}
+- You can select this NIC type through the `nictype` option or the `network` option (see {ref}`network-physical` for information about the managed `physical` network).
+- You can have only one `physical` NIC for each parent device.
+```
+
+A `physical` NIC provides straight physical device pass-through from the host.
+The targeted device will vanish from the host and appear in the instance (which means that you can have only one `physical` NIC for each targeted device).
+
+#### Device options
+
+NIC devices of type `physical` have the following device options:
+
+Key                     | Type    | Default           | Managed | Description
+:--                     | :--     | :--               | :--     | :--
+`boot.priority`         | integer | -                 | no      | Boot priority for VMs (higher value boots first)
+`gvrp`                  | bool    | `false`           | no      | Register VLAN using GARP VLAN Registration Protocol
+`hwaddr`                | string  | randomly assigned | no      | The MAC address of the new interface
+`maas.subnet.ipv4`      | string  | -                 | no      | MAAS IPv4 subnet to register the instance in
+`maas.subnet.ipv6`      | string  | -                 | no      | MAAS IPv6 subnet to register the instance in
+`mtu`                   | integer | parent MTU        | no      | The MTU of the new interface
+`name`                  | string  | kernel assigned   | no      | The name of the interface inside the instance
+`network`               | string  | -                 | no      | The managed network to link the device to (instead of specifying the `nictype` directly)
+`parent`                | string  | -                 | yes     | The name of the host device (required if specifying the `nictype` directly)
+`vlan`                  | integer | -                 | no      | The VLAN ID to attach to
+
+#### Configuration examples
+
+Add a `physical` network device to an instance, connecting to an existing physical network interface with `nictype`:
+
+    lxc config device add <instance_name> <device_name> nic nictype=physical parent=<physical_NIC>
+
+Adding a `physical` network device to an instance using a managed network is not possible, because the `physical` managed network type is intended to be used only with OVN networks.
+
+See {ref}`instances-configure-devices` for more information.
 
 (nic-ovn)=
 ### `nictype`: `ovn`
@@ -250,33 +329,15 @@ Key                                   | Type    | Default           | Managed | 
 `security.acls.default.ingress.logged`| bool    | `false`           | no      | Whether to log ingress traffic that doesn't match any ACL rule
 `vlan`                                | integer | -                 | no      | The VLAN ID to use when nesting (see also `nested`)
 
-(nic-physical)=
-### `nictype`: `physical`
+#### Configuration examples
 
-```{note}
-- You can select this NIC type through the `nictype` option or the `network` option (see {ref}`network-physical` for information about the managed `physical` network).
-- You can have only one `physical` NIC for each parent device.
-```
+An `ovn` network device must be added using a managed network.
+To do so:
 
-A `physical` NIC provides straight physical device pass-through from the host.
-The targeted device will vanish from the host and appear in the instance (which means that you can have only one `physical` NIC for each targeted device).
+    lxc network create <network_name> --type=ovn network=<parent_network>
+    lxc config device add <instance_name> <device_name> nic network=<network_name>
 
-#### Device options
-
-NIC devices of type `physical` have the following device options:
-
-Key                     | Type    | Default           | Managed | Description
-:--                     | :--     | :--               | :--     | :--
-`boot.priority`         | integer | -                 | no      | Boot priority for VMs (higher value boots first)
-`gvrp`                  | bool    | `false`           | no      | Register VLAN using GARP VLAN Registration Protocol
-`hwaddr`                | string  | randomly assigned | no      | The MAC address of the new interface
-`maas.subnet.ipv4`      | string  | -                 | no      | MAAS IPv4 subnet to register the instance in
-`maas.subnet.ipv6`      | string  | -                 | no      | MAAS IPv6 subnet to register the instance in
-`mtu`                   | integer | parent MTU        | no      | The MTU of the new interface
-`name`                  | string  | kernel assigned   | no      | The name of the interface inside the instance
-`network`               | string  | -                 | no      | The managed network to link the device to (instead of specifying the `nictype` directly)
-`parent`                | string  | -                 | yes     | The name of the host device (required if specifying the `nictype` directly)
-`vlan`                  | integer | -                 | no      | The VLAN ID to attach to
+See {ref}`network-ovn-setup` for full instructions, and {ref}`network-create` and {ref}`instances-configure-devices` for more information.
 
 (nic-ipvlan)=
 ### `nictype`: `ipvlan`
@@ -332,6 +393,17 @@ Key                     | Type    | Default            | Description
 `parent`                | string  | -                  | The name of the host device (required)
 `vlan`                  | integer | -                  | The VLAN ID to attach to
 
+#### Configuration examples
+
+Add an `ipvlan` network device to an instance, connecting to an existing network interface with `nictype`:
+
+    lxc stop <instance_name>
+    lxc config device add <instance_name> <device_name> nic nictype=ipvlan parent=<existing_NIC>
+
+Adding an `ipvlan` network device to an instance using a managed network is not possible.
+
+See {ref}`instances-configure-devices` for more information.
+
 (nic-p2p)=
 ### `nictype`: `p2p`
 
@@ -359,6 +431,16 @@ Key                     | Type    | Default           | Description
 `mtu`                   | integer | kernel assigned   | The MTU of the new interface
 `name`                  | string  | kernel assigned   | The name of the interface inside the instance
 `queue.tx.length`       | integer | -                 | The transmit queue length for the NIC
+
+#### Configuration examples
+
+Add a `p2p` network device to an instance using `nictype`:
+
+    lxc config device add <instance_name> <device_name> nic nictype=p2p
+
+Adding a `p2p` network device to an instance using a managed network is not possible.
+
+See {ref}`instances-configure-devices` for more information.
 
 (nic-routed)=
 ### `nictype`: `routed`
@@ -450,6 +532,16 @@ Key                     | Type    | Default           | Description
 `parent`                | string  | -                 | The name of the host device to join the instance to
 `queue.tx.length`       | integer | -                 | The transmit queue length for the NIC
 `vlan`                  | integer | -                 | The VLAN ID to attach to
+
+#### Configuration examples
+
+Add a `routed` network device to an instance using `nictype`:
+
+    lxc config device add <instance_name> <device_name> nic nictype=routed ipv4.address=192.0.2.2 ipv6.address=2001:db8::2
+
+Adding a `routed` network device to an instance using a managed network is not possible.
+
+See {ref}`instances-configure-devices` for more information.
 
 ## `bridged`, `macvlan` or `ipvlan` for connection to physical network
 
