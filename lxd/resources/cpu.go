@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/digitalocean/go-smbios/smbios"
+	"github.com/klauspost/cpuid/v2"
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/shared"
@@ -479,6 +480,10 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		if coreFrequencyCount > 0 {
 			socket.Frequency = coreFrequency / coreFrequencyCount
 		}
+
+		// Record the features
+		featureSet := &api.ResourcesCPUFeatureSet{Flags: cpuid.CPU.FeatureSet()}
+		socket.FeatureSet = featureSet
 
 		sort.SliceStable(socket.Cores, func(i int, j int) bool { return socket.Cores[i].Core < socket.Cores[j].Core })
 		cpu.Sockets = append(cpu.Sockets, *socket)
