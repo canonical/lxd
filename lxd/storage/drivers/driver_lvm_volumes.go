@@ -119,26 +119,31 @@ func (d *lvm) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 }
 
 // CreateVolumeFromBackup restores a backup tarball onto the storage device.
-func (d *lvm) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
+func (d *lvm) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
 	return genericVFSBackupUnpack(d, d.state.OS, vol, srcBackup.Snapshots, srcData, op)
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
-func (d *lvm) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, allowInconsistent bool, op *operations.Operation) error {
+func (d *lvm) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
 	var err error
-	var srcSnapshots []Volume
+	var srcSnapshots []string
 
-	if copySnapshots && !srcVol.IsSnapshot() {
+	if len(vol.Snapshots) > 0 && !srcVol.IsSnapshot() {
 		// Get the list of snapshots from the source.
-		srcSnapshots, err = srcVol.Snapshots(op)
+		allSrcSnapshots, err := srcVol.Volume.Snapshots(op)
 		if err != nil {
 			return err
+		}
+
+		for _, srcSnapshot := range allSrcSnapshots {
+			_, snapshotName, _ := api.GetParentAndSnapshotName(srcSnapshot.name)
+			srcSnapshots = append(srcSnapshots, snapshotName)
 		}
 	}
 
 	// We can use optimised copying when the pool is backed by an LVM thinpool.
 	if d.usesThinpool() {
-		err = d.copyThinpoolVolume(vol, srcVol, srcSnapshots, false)
+		err = d.copyThinpoolVolume(vol.Volume, srcVol.Volume, srcSnapshots, false)
 		if err != nil {
 			return err
 		}
@@ -154,23 +159,23 @@ func (d *lvm) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 	}
 
 	// Otherwise run the generic copy.
-	return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, false, allowInconsistent, op)
+	return genericVFSCopyVolume(d, nil, vol.Volume, srcVol.Volume, srcSnapshots, false, allowInconsistent, op)
 }
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
-func (d *lvm) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+func (d *lvm) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	return genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
 }
 
 // RefreshVolume provides same-pool volume and specific snapshots syncing functionality.
-func (d *lvm) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, allowInconsistent bool, op *operations.Operation) error {
+func (d *lvm) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
 	// We can use optimised copying when the pool is backed by an LVM thinpool.
 	if d.usesThinpool() {
-		return d.copyThinpoolVolume(vol, srcVol, srcSnapshots, true)
+		return d.copyThinpoolVolume(vol.Volume, srcVol.Volume, refreshSnapshots, true)
 	}
 
 	// Otherwise run the generic copy.
-	return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, allowInconsistent, op)
+	return genericVFSCopyVolume(d, nil, vol.Volume, srcVol.Volume, refreshSnapshots, true, allowInconsistent, op)
 }
 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then this function
@@ -848,13 +853,13 @@ func (d *lvm) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 }
 
 // MigrateVolume sends a volume for migration.
-func (d *lvm) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
-	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
+func (d *lvm) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
+	return genericVFSMigrateVolume(d, d.state, vol.Volume, conn, volSrcArgs, op)
 }
 
 // BackupVolume copies a volume (and optionally its snapshots) to a specified target path.
 // This driver does not support optimized backups.
-func (d *lvm) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWriter, _ bool, snapshots []string, op *operations.Operation) error {
+func (d *lvm) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTarWriter, _ bool, snapshots []string, op *operations.Operation) error {
 	return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
 }
 
@@ -1192,7 +1197,9 @@ func (d *lvm) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, e
 }
 
 // RestoreVolume restores a volume from a snapshot.
-func (d *lvm) RestoreVolume(vol Volume, snapshotName string, op *operations.Operation) error {
+func (d *lvm) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation) error {
+	_, snapshotName, _ := api.GetParentAndSnapshotName(snapVol.name)
+
 	restoreThinPoolVolume := func(restoreVol Volume) (revert.Hook, error) {
 		// Instantiate snapshot volume from snapshot name.
 		snapVol, err := restoreVol.NewSnapshot(snapshotName)
