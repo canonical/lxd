@@ -6016,6 +6016,43 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 			}
 		}
 
+		sharedVolume, ok := changedConfig["security.shared"]
+		if ok && shared.IsFalseOrEmpty(sharedVolume) && curVol.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock {
+			usedByProfile := false
+
+			err = VolumeUsedByProfileDevices(b.state, b.name, projectName, &curVol.StorageVolume, func(profileID int64, profile api.Profile, project api.Project, usedByDevices []string) error {
+				usedByProfile = true
+
+				return db.ErrListStop
+			})
+			if err != nil && err != db.ErrListStop {
+				return err
+			}
+
+			if usedByProfile {
+				return fmt.Errorf("Cannot disable security.shared on custom storage block volume as it is attached to profile(s)")
+			}
+
+			var usedByInstanceDevices []string
+
+			err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &curVol.StorageVolume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+				usedByInstanceDevices = append(usedByInstanceDevices, inst.Name)
+
+				if len(usedByInstanceDevices) > 1 {
+					return db.ErrListStop
+				}
+
+				return nil
+			})
+			if err != nil && err != db.ErrListStop {
+				return err
+			}
+
+			if len(usedByInstanceDevices) > 1 {
+				return fmt.Errorf("Cannot disable security.shared on custom storage block volume as it is attached to more than one instance")
+			}
+		}
+
 		curVol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, curVol.Config)
 		if !userOnly {
 			err = b.driver.UpdateVolume(curVol, changedConfig)
