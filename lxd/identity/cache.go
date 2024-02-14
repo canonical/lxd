@@ -8,7 +8,6 @@ import (
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/auth"
 )
 
 // Cache represents a thread-safe in-memory cache of the identities in the database.
@@ -67,7 +66,7 @@ func (c *Cache) GetByType(identityType string) map[string]CacheEntry {
 	defer c.mu.RUnlock()
 
 	// Explicitly ignore the error here. It is expected that the caller will use the constants defined in shared/api.
-	authenticationMethod, _ := auth.AuthenticationMethodFromIdentityType(identityType)
+	authenticationMethod, _ := AuthenticationMethodFromIdentityType(identityType)
 	entriesByAuthMethod, ok := c.entries[authenticationMethod]
 	if !ok {
 		return nil

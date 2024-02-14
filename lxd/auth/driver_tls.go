@@ -9,7 +9,6 @@ import (
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/auth"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -52,7 +51,7 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, object Objec
 		return fmt.Errorf("Failed loading certificate for %q: %w", username, err)
 	}
 
-	isRestricted, err := auth.IsRestrictedIdentityType(id.IdentityType)
+	isRestricted, err := identity.IsRestrictedIdentityType(id.IdentityType)
 	if err != nil {
 		return fmt.Errorf("Failed to check restricted status of identity: %w", err)
 	}
@@ -124,7 +123,7 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 		return nil, fmt.Errorf("Failed loading certificate for %q: %w", username, err)
 	}
 
-	isRestricted, err := auth.IsRestrictedIdentityType(id.IdentityType)
+	isRestricted, err := identity.IsRestrictedIdentityType(id.IdentityType)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to check restricted status of identity: %w", err)
 	}
