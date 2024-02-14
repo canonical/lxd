@@ -342,6 +342,7 @@ test_backup_import() {
 
 test_backup_import_with_project() {
   project="default"
+  pool="lxdtest-$(basename "${LXD_DIR}")"
 
   if [ "$#" -ne 0 ]; then
     # Create a projects
@@ -354,7 +355,6 @@ test_backup_import_with_project() {
     deps/import-busybox --project "$project-b" --alias testimage
 
     # Add a root device to the default profile of the project
-    pool="lxdtest-$(basename "${LXD_DIR}")"
     lxc profile device add default root disk path="/" pool="${pool}"
     lxc profile device add default root disk path="/" pool="${pool}" --project "$project-b"
   fi
@@ -397,6 +397,8 @@ test_backup_import_with_project() {
     lxc export c2 "${LXD_DIR}/c2-optimized.tar.gz" --optimized-storage
   fi
 
+  old_uuid="$(lxc storage volume get "${pool}" container/c2 volatile.uuid)"
+  old_snap0_uuid="$(lxc storage volume get "${pool}" container/c2/snap0 volatile.uuid)"
   lxc export c2 "${LXD_DIR}/c2.tar.gz"
   lxc delete --force c2
 
@@ -404,6 +406,13 @@ test_backup_import_with_project() {
   lxc import "${LXD_DIR}/c2.tar.gz" c3
   lxc info c2 | grep snap0
   lxc info c3 | grep snap0
+
+  # Check if the imported instance and its snapshot have a new UUID.
+  [ -n "$(lxc storage volume get "${pool}" container/c2 volatile.uuid)" ]
+  [ -n "$(lxc storage volume get "${pool}" container/c2/snap0 volatile.uuid)" ]
+  [ "$(lxc storage volume get "${pool}" container/c2 volatile.uuid)" != "${old_uuid}" ]
+  [ "$(lxc storage volume get "${pool}" container/c2/snap0 volatile.uuid)" != "${old_snap0_uuid}" ]
+
   lxc start c2
   lxc start c3
   lxc stop c2 --force
@@ -773,6 +782,10 @@ test_backup_volume_export_with_project() {
 
   rm -rf "${LXD_DIR}/non-optimized/"*
 
+  old_uuid="$(lxc storage volume get "${custom_vol_pool}" testvol volatile.uuid)"
+  old_snap0_uuid="$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 volatile.uuid)"
+  old_snap1_uuid="$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 volatile.uuid)"
+
   # Test non-optimized import.
   lxc stop -f c1
   lxc storage volume detach "${custom_vol_pool}" testvol c1
@@ -783,6 +796,14 @@ test_backup_volume_export_with_project() {
   lxc storage volume show "${custom_vol_pool}" testvol/test-snap0
   lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 user.foo | grep -Fx "test-snap0"
   lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 user.foo | grep -Fx "test-snap1"
+
+  # Check if the imported volume and its snapshots have a new UUID.
+  [ -n "$(lxc storage volume get "${custom_vol_pool}" testvol volatile.uuid)" ]
+  [ -n "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 volatile.uuid)" ]
+  [ -n "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 volatile.uuid)" ]
+  [ "$(lxc storage volume get "${custom_vol_pool}" testvol volatile.uuid)" != "${old_uuid}" ]
+  [ "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 volatile.uuid)" != "${old_snap0_uuid}" ]
+  [ "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 volatile.uuid)" != "${old_snap1_uuid}" ]
 
   lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol.tar.gz" testvol2
   lxc storage volume attach "${custom_vol_pool}" testvol c1 /mnt

@@ -35,6 +35,15 @@ test_storage_volume_snapshots() {
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'name: snap0'
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'expires_at: 0001-01-01T00:00:00Z'
 
+  # Check if the snapshot has an UUID.
+  [ -n "$(lxc storage volume get "${storage_pool}" "${storage_volume}/snap0" volatile.uuid)" ]
+
+  # Check if the snapshot's UUID is different from the parent volume
+  [ "$(lxc storage volume get "${storage_pool}" "${storage_volume}/snap0" volatile.uuid)" != "$(lxc storage volume get "${storage_pool}" "${storage_volume}" volatile.uuid)" ]
+
+  # Check if the snapshot's UUID can be modified
+  ! lxc storage volume set "${storage_pool}" "${storage_volume}/snap0" volatile.uuid "2d94c537-5eff-4751-95b1-6a1b7d11f849" || false
+
   # Use the 'snapshots.pattern' option to change the snapshot name
   lxc storage volume set "${storage_pool}" "${storage_volume}" snapshots.pattern='test%d'
   # This will create a snapshot named 'test0' and 'test1'
@@ -89,7 +98,11 @@ test_storage_volume_snapshots() {
   ! lxc storage volume restore "${storage_pool}" "${storage_volume}" snap0 || false
 
   lxc stop -f c1
+  initial_volume_uuid="$(lxc storage volume get "${storage_pool}" "${storage_volume}" volatile.uuid)"
   lxc storage volume restore "${storage_pool}" "${storage_volume}" foo
+
+  # Check if the volumes's UUID is the same as the original volume
+  [ "$(lxc storage volume get "${storage_pool}" "${storage_volume}" volatile.uuid)" = "${initial_volume_uuid}" ]
 
   lxc start c1
   lxc storage volume detach "${storage_pool}" "${storage_volume}" c1
