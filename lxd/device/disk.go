@@ -147,6 +147,31 @@ func (d *disk) sourceIsLocalPath(source string) bool {
 	return true
 }
 
+// Check that unshared custom storage block volumes are not added to profiles or multiple instances.
+func (d *disk) checkBlockVolSharing(instanceType instancetype.Type, projectName string, volume *api.StorageVolume) error {
+	// Skip the checks if the volume is set to be shared or is not a block volume.
+	if volume.ContentType != cluster.StoragePoolVolumeContentTypeNameBlock || shared.IsTrue(volume.Config["security.shared"]) {
+		return nil
+	}
+
+	if instanceType == instancetype.Any {
+		return fmt.Errorf("Cannot add custom storage block volume to profiles if security.shared is false or unset")
+	}
+
+	err := storagePools.VolumeUsedByInstanceDevices(d.state, d.pool.Name(), projectName, volume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+		return db.ErrListStop
+	})
+	if err != nil {
+		if err == db.ErrListStop {
+			return fmt.Errorf("Cannot add custom storage block volume to more than one instance if security.shared is false or unset")
+		}
+
+		return err
+	}
+
+	return nil
+}
+
 // validateConfig checks the supplied config for correctness.
 func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
@@ -411,6 +436,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		return fmt.Errorf("Missing source path %q for disk %q", d.config["source"], d.name)
 	}
 
+	// Check if validating a storage volume disk.
 	if d.config["pool"] != "" {
 		if d.config["shift"] != "" {
 			return fmt.Errorf(`The "shift" property cannot be used with custom storage volumes (set "security.shifted=true" on the volume instead)`)
@@ -420,38 +446,51 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			return fmt.Errorf("Storage volumes cannot be specified as absolute paths")
 		}
 
-		// Only perform expensive instance pool volume checks when not validating a profile and after
-		// device expansion has occurred (to avoid doing it twice during instance load).
-		if d.inst != nil && !d.inst.IsSnapshot() && len(instConf.ExpandedDevices()) > 0 {
+		var dbCustomVolume *db.StorageVolume
+		var storageProjectName string
+
+		// Check if validating an instance or a custom storage volume attached to a profile.
+		if (d.inst != nil && !d.inst.IsSnapshot()) || (d.inst == nil && instConf.Type() == instancetype.Any && !instancetype.IsRootDiskDevice(d.config)) {
 			d.pool, err = storagePools.LoadByName(d.state, d.config["pool"])
 			if err != nil {
 				return fmt.Errorf("Failed to get storage pool %q: %w", d.config["pool"], err)
 			}
 
-			if d.pool.Status() == "Pending" {
-				return fmt.Errorf("Pool %q is pending", d.config["pool"])
-			}
-
 			// Custom volume validation.
-			if d.config["source"] != "" && d.config["path"] != "/" {
+			if !instancetype.IsRootDiskDevice(d.config) {
 				// Derive the effective storage project name from the instance config's project.
-				storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, instConf.Project().Name, cluster.StoragePoolVolumeTypeCustom)
+				storageProjectName, err = project.StorageVolumeProject(d.state.DB.Cluster, instConf.Project().Name, cluster.StoragePoolVolumeTypeCustom)
 				if err != nil {
 					return err
 				}
 
 				// GetStoragePoolVolume returns a volume with an empty Location field for remote drivers.
-				var dbVolume *db.StorageVolume
 				err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-					dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, cluster.StoragePoolVolumeTypeCustom, d.config["source"], true)
+					dbCustomVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, cluster.StoragePoolVolumeTypeCustom, d.config["source"], true)
 					return err
 				})
 				if err != nil {
 					return fmt.Errorf("Failed loading custom volume: %w", err)
 				}
 
+				err := d.checkBlockVolSharing(instConf.Type(), storageProjectName, &dbCustomVolume.StorageVolume)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		// Only perform expensive instance pool volume checks when not validating a profile and after
+		// device expansion has occurred (to avoid doing it twice during instance load).
+		if d.inst != nil && !d.inst.IsSnapshot() && len(instConf.ExpandedDevices()) > 0 {
+			if d.pool.Status() == "Pending" {
+				return fmt.Errorf("Pool %q is pending", d.config["pool"])
+			}
+
+			// Custom volume validation.
+			if dbCustomVolume != nil {
 				// Check storage volume is available to mount on this cluster member.
-				remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(d.state, d.config["pool"], storageProjectName, &dbVolume.StorageVolume)
+				remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(d.state, d.config["pool"], storageProjectName, &dbCustomVolume.StorageVolume)
 				if err != nil {
 					return fmt.Errorf("Failed checking if custom volume is exclusively attached to another instance: %w", err)
 				}
@@ -461,12 +500,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 				}
 
 				// Check that block volumes are *only* attached to VM instances.
-				contentType, err := storagePools.VolumeContentTypeNameToContentType(dbVolume.ContentType)
-				if err != nil {
-					return err
-				}
-
-				if contentType == cluster.StoragePoolVolumeContentTypeBlock {
+				if dbCustomVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock {
 					if instConf.Type() == instancetype.Container {
 						return fmt.Errorf("Custom block volumes cannot be used on containers")
 					}
@@ -474,7 +508,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 					if d.config["path"] != "" {
 						return fmt.Errorf("Custom block volumes cannot have a path defined")
 					}
-				} else if contentType == cluster.StoragePoolVolumeContentTypeISO {
+				} else if dbCustomVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameISO {
 					if instConf.Type() == instancetype.Container {
 						return fmt.Errorf("Custom ISO volumes cannot be used on containers")
 					}
