@@ -18,6 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/request"
@@ -306,7 +307,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 		return nil, err
 	}
 
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, auth.ObjectTypeInstance)
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeInstance)
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +317,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 		var filteredInstances []db.Instance
 
 		for _, inst := range instances {
-			if !userHasPermission(auth.ObjectInstance(inst.Project, inst.Name)) {
+			if !userHasPermission(entity.InstanceURL(inst.Project, inst.Name)) {
 				continue
 			}
 

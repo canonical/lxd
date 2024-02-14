@@ -4,7 +4,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
-	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/lxd/entity"
 )
 
 // EntityType is a database representation of an entity type.

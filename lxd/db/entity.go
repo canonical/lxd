@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/entity"
 )
 
 // ErrUnknownEntityID describes the unknown entity ID error.

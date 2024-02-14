@@ -11,6 +11,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
@@ -96,7 +97,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 
 	action := instancetype.InstanceAction(req.State.Action)
 
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanUpdateState, auth.ObjectTypeInstance)
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanUpdateState, entity.TypeInstance)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -109,7 +110,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Only allow changing the state of instances the user has permission for.
-		if !userHasPermission(auth.ObjectInstance(inst.Project().Name, inst.Name())) {
+		if !userHasPermission(entity.InstanceURL(inst.Project().Name, inst.Name())) {
 			continue
 		}
 

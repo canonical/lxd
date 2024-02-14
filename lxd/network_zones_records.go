@@ -9,6 +9,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
+	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network/zone"
 	"github.com/canonical/lxd/lxd/project"
@@ -22,17 +23,17 @@ import (
 var networkZoneRecordsCmd = APIEndpoint{
 	Path: "network-zones/{zone}/records",
 
-	Get:  APIEndpointAction{Handler: networkZoneRecordsGet, AccessHandler: allowPermission(auth.ObjectTypeNetworkZone, auth.EntitlementCanView, "zone")},
-	Post: APIEndpointAction{Handler: networkZoneRecordsPost, AccessHandler: allowPermission(auth.ObjectTypeNetworkZone, auth.EntitlementCanEdit, "zone")},
+	Get:  APIEndpointAction{Handler: networkZoneRecordsGet, AccessHandler: allowPermission(entity.TypeNetworkZone, auth.EntitlementCanView, "zone")},
+	Post: APIEndpointAction{Handler: networkZoneRecordsPost, AccessHandler: allowPermission(entity.TypeNetworkZone, auth.EntitlementCanEdit, "zone")},
 }
 
 var networkZoneRecordCmd = APIEndpoint{
 	Path: "network-zones/{zone}/records/{name}",
 
-	Delete: APIEndpointAction{Handler: networkZoneRecordDelete, AccessHandler: allowPermission(auth.ObjectTypeNetworkZone, auth.EntitlementCanEdit, "zone")},
-	Get:    APIEndpointAction{Handler: networkZoneRecordGet, AccessHandler: allowPermission(auth.ObjectTypeNetworkZone, auth.EntitlementCanView, "zone")},
-	Put:    APIEndpointAction{Handler: networkZoneRecordPut, AccessHandler: allowPermission(auth.ObjectTypeNetworkZone, auth.EntitlementCanEdit, "zone")},
-	Patch:  APIEndpointAction{Handler: networkZoneRecordPut, AccessHandler: allowPermission(auth.ObjectTypeNetworkZone, auth.EntitlementCanEdit, "zone")},
+	Delete: APIEndpointAction{Handler: networkZoneRecordDelete, AccessHandler: allowPermission(entity.TypeNetworkZone, auth.EntitlementCanEdit, "zone")},
+	Get:    APIEndpointAction{Handler: networkZoneRecordGet, AccessHandler: allowPermission(entity.TypeNetworkZone, auth.EntitlementCanView, "zone")},
+	Put:    APIEndpointAction{Handler: networkZoneRecordPut, AccessHandler: allowPermission(entity.TypeNetworkZone, auth.EntitlementCanEdit, "zone")},
+	Patch:  APIEndpointAction{Handler: networkZoneRecordPut, AccessHandler: allowPermission(entity.TypeNetworkZone, auth.EntitlementCanEdit, "zone")},
 }
 
 // API endpoints.

@@ -5,7 +5,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/entity"
+	"github.com/canonical/lxd/shared/api"
 )
 
 func TestMetricSet_FilterSamples(t *testing.T) {
@@ -19,8 +20,8 @@ func TestMetricSet_FilterSamples(t *testing.T) {
 	}
 
 	m := newMetricSet()
-	permissionChecker := func(object auth.Object) bool {
-		return object == auth.ObjectInstance("default", "jammy")
+	permissionChecker := func(u *api.URL) bool {
+		return u.String() == entity.InstanceURL("default", "jammy").String()
 	}
 
 	m.FilterSamples(permissionChecker)
@@ -29,8 +30,8 @@ func TestMetricSet_FilterSamples(t *testing.T) {
 	require.Equal(t, []Sample{{Value: 10, Labels: labels}}, m.set[CPUSecondsTotal])
 
 	m = newMetricSet()
-	permissionChecker = func(object auth.Object) bool {
-		return object == auth.ObjectInstance("not-default", "not-jammy")
+	permissionChecker = func(u *api.URL) bool {
+		return u.String() == entity.InstanceURL("not-default", "jammy").String()
 	}
 
 	m.FilterSamples(permissionChecker)

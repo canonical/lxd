@@ -28,6 +28,7 @@ import (
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/db/warningtype"
+	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/lxd/instance"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -72,91 +73,91 @@ var targetGroupPrefix = "@"
 var clusterCmd = APIEndpoint{
 	Path: "cluster",
 
-	Get: APIEndpointAction{Handler: clusterGet, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanView)},
-	Put: APIEndpointAction{Handler: clusterPut, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
+	Get: APIEndpointAction{Handler: clusterGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanView)},
+	Put: APIEndpointAction{Handler: clusterPut, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var clusterNodesCmd = APIEndpoint{
 	Path: "cluster/members",
 
-	Get:  APIEndpointAction{Handler: clusterNodesGet, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanView)},
-	Post: APIEndpointAction{Handler: clusterNodesPost, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
+	Get:  APIEndpointAction{Handler: clusterNodesGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanView)},
+	Post: APIEndpointAction{Handler: clusterNodesPost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var clusterNodeCmd = APIEndpoint{
 	Path: "cluster/members/{name}",
 
-	Delete: APIEndpointAction{Handler: clusterNodeDelete, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
-	Get:    APIEndpointAction{Handler: clusterNodeGet, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanView)},
-	Patch:  APIEndpointAction{Handler: clusterNodePatch, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
-	Put:    APIEndpointAction{Handler: clusterNodePut, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
-	Post:   APIEndpointAction{Handler: clusterNodePost, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
+	Delete: APIEndpointAction{Handler: clusterNodeDelete, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Get:    APIEndpointAction{Handler: clusterNodeGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanView)},
+	Patch:  APIEndpointAction{Handler: clusterNodePatch, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Put:    APIEndpointAction{Handler: clusterNodePut, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Post:   APIEndpointAction{Handler: clusterNodePost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var clusterNodeStateCmd = APIEndpoint{
 	Path: "cluster/members/{name}/state",
 
-	Get:  APIEndpointAction{Handler: clusterNodeStateGet, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanView)},
-	Post: APIEndpointAction{Handler: clusterNodeStatePost, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
+	Get:  APIEndpointAction{Handler: clusterNodeStateGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanView)},
+	Post: APIEndpointAction{Handler: clusterNodeStatePost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var clusterCertificateCmd = APIEndpoint{
 	Path: "cluster/certificate",
 
-	Put: APIEndpointAction{Handler: clusterCertificatePut, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
+	Put: APIEndpointAction{Handler: clusterCertificatePut, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var clusterGroupsCmd = APIEndpoint{
 	Path: "cluster/groups",
 
-	Get:  APIEndpointAction{Handler: clusterGroupsGet, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanView)},
-	Post: APIEndpointAction{Handler: clusterGroupsPost, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
+	Get:  APIEndpointAction{Handler: clusterGroupsGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanView)},
+	Post: APIEndpointAction{Handler: clusterGroupsPost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var clusterGroupCmd = APIEndpoint{
 	Path: "cluster/groups/{name}",
 
-	Get:    APIEndpointAction{Handler: clusterGroupGet, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanView)},
-	Post:   APIEndpointAction{Handler: clusterGroupPost, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
-	Put:    APIEndpointAction{Handler: clusterGroupPut, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
-	Patch:  APIEndpointAction{Handler: clusterGroupPatch, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
-	Delete: APIEndpointAction{Handler: clusterGroupDelete, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
+	Get:    APIEndpointAction{Handler: clusterGroupGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanView)},
+	Post:   APIEndpointAction{Handler: clusterGroupPost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Put:    APIEndpointAction{Handler: clusterGroupPut, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Patch:  APIEndpointAction{Handler: clusterGroupPatch, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Delete: APIEndpointAction{Handler: clusterGroupDelete, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalClusterAcceptCmd = APIEndpoint{
 	Path: "cluster/accept",
 
-	Post: APIEndpointAction{Handler: internalClusterPostAccept, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
+	Post: APIEndpointAction{Handler: internalClusterPostAccept, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalClusterRebalanceCmd = APIEndpoint{
 	Path: "cluster/rebalance",
 
-	Post: APIEndpointAction{Handler: internalClusterPostRebalance, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
+	Post: APIEndpointAction{Handler: internalClusterPostRebalance, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalClusterAssignCmd = APIEndpoint{
 	Path: "cluster/assign",
 
-	Post: APIEndpointAction{Handler: internalClusterPostAssign, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
+	Post: APIEndpointAction{Handler: internalClusterPostAssign, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalClusterHandoverCmd = APIEndpoint{
 	Path: "cluster/handover",
 
-	Post: APIEndpointAction{Handler: internalClusterPostHandover, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
+	Post: APIEndpointAction{Handler: internalClusterPostHandover, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalClusterRaftNodeCmd = APIEndpoint{
 	Path: "cluster/raft-node/{address}",
 
-	Delete: APIEndpointAction{Handler: internalClusterRaftNodeDelete, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
+	Delete: APIEndpointAction{Handler: internalClusterRaftNodeDelete, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalClusterHealCmd = APIEndpoint{
 	Path: "cluster/heal/{name}",
 
-	Post: APIEndpointAction{Handler: internalClusterHeal, AccessHandler: allowPermission(auth.ObjectTypeServer, auth.EntitlementCanEdit)},
+	Post: APIEndpointAction{Handler: internalClusterHeal, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 // swagger:operation GET /1.0/cluster cluster cluster_get
