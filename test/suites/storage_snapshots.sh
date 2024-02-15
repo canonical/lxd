@@ -121,6 +121,17 @@ test_storage_volume_snapshots() {
   ! lxc storage volume create "${storage_pool}" "vol1" --type block block.filesystem=btrfs || false
   ! lxc storage volume create "${storage_pool}" "vol1" --type block block.mount_options=xyz || false
 
+  # Check snapshot creation dates.
+  lxc storage volume create "${storage_pool}" "vol1"
+  lxc storage volume snapshot "${storage_pool}" "vol1" "snap0"
+  ! lxc storage volume show "${storage_pool}" "vol1" | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc storage volume show "${storage_pool}" "vol1/snap0" | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  lxc storage volume copy "${storage_pool}/vol1" "${storage_pool}/vol2"
+  ! lxc storage volume show "${storage_pool}" "vol2" | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  [ "$(lxc storage volume show "${storage_pool}" "vol1/snap0" | awk /created_at:/)" = "$(lxc storage volume show "${storage_pool}" "vol2/snap0" | awk /created_at:/)" ]
+  lxc storage volume delete "${storage_pool}" "vol1"
+  lxc storage volume delete "${storage_pool}" "vol2"
+
   # Check snapshot copy (mode pull).
   lxc launch testimage "c1"
   lxc storage volume create "${storage_pool}" "vol1"
@@ -233,8 +244,19 @@ test_storage_volume_snapshots() {
   lxc storage volume copy "${storage_pool}/vol1/snap0" "test:${storage_pool}/vol1" --target-project project1
   [ "$(lxc query "/1.0/storage-pools/${storage_pool}/volumes?project=project1" | jq "length == 1")" = "true" ]
   lxc storage volume delete "${storage_pool}" "vol1" --project project1
-
   lxc storage volume delete "${storage_pool}" "vol1"
+
+  # Check snapshot creation dates (remote).
+  lxc storage volume create "${storage_pool}" "vol1"
+  lxc storage volume snapshot "${storage_pool}" "vol1" "snap0"
+  ! lxc storage volume show "${storage_pool}" "vol1" | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc storage volume show "${storage_pool}" "vol1/snap0" | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  lxc storage volume copy "${storage_pool}/vol1" "test:${storage_pool}/vol1-copy"
+  ! lxc storage volume show "${storage_pool}" "test:${storage_pool}" "vol1-copy" | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  [ "$(lxc storage volume show "${storage_pool}" "vol1/snap0" | awk /created_at:/)" = "$(lxc storage volume show "test:${storage_pool}" "vol1-copy/snap0" | awk /created_at:/)" ]
+  lxc storage volume delete "${storage_pool}" "vol1"
+  lxc storage volume delete "${storage_pool}" "vol1-copy"
+
   lxc project delete "project1"
   lxc storage delete "${storage_pool}"
   lxc remote remove "test"

@@ -365,8 +365,14 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 			_, targetSnapName, _ := api.GetParentAndSnapshotName(targetSnap.Name)
 
 			targetSnapshotsComparable = append(targetSnapshotsComparable, storagePools.ComparableSnapshot{
-				Name:         targetSnapName,
-				CreationDate: targetSnap.CreationDate,
+				Name: targetSnapName,
+
+				// The list of source snapshots from the offer header
+				// contains the creation timestamps in seconds granularity.
+				// Also use second based granularity for the target snapshots to be able to compare them.
+				// They are stored with nanoseconds in the database.
+				// Retrieve the timestamp using second based granularity the same way as it's done on the source.
+				CreationDate: time.Unix(targetSnap.CreationDate.Unix(), 0),
 			})
 		}
 
@@ -496,7 +502,7 @@ func volumeSnapshotToProtobuf(vol *api.StorageVolumeSnapshot) *migration.Snapsho
 		LocalDevices: []*migration.Device{},
 		Architecture: proto.Int32(0),
 		Stateful:     proto.Bool(false),
-		CreationDate: proto.Int64(0),
+		CreationDate: proto.Int64(vol.CreatedAt.Unix()),
 		LastUsedDate: proto.Int64(0),
 		ExpiryDate:   proto.Int64(0),
 	}
