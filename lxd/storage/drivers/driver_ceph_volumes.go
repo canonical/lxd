@@ -364,8 +364,9 @@ func (d *ceph) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 
 	// For VMs, also copy the filesystem volume.
 	if vol.IsVMBlock() {
-		srcFSVol := NewVolumeCopy(srcVol.NewVMBlockFilesystemVolume())
-		fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume())
+		// We can pass the regular volume's snapshots as only their presence is relevant.
+		srcFSVol := NewVolumeCopy(srcVol.NewVMBlockFilesystemVolume(), srcVol.Snapshots...)
+		fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume(), vol.Snapshots...)
 		err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, op)
 		if err != nil {
 			return err

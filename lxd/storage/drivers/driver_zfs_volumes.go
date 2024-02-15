@@ -567,8 +567,9 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 	// For VMs, also copy the filesystem dataset.
 	if vol.IsVMBlock() {
 		// For VMs, also copy the filesystem volume.
-		srcFSVol := NewVolumeCopy(srcVol.NewVMBlockFilesystemVolume())
-		fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume())
+		// We can pass the regular volume's snapshots as only their presence is relevant.
+		srcFSVol := NewVolumeCopy(srcVol.NewVMBlockFilesystemVolume(), srcVol.Snapshots...)
+		fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume(), vol.Snapshots...)
 
 		err = d.CreateVolumeFromCopy(fsVol, srcFSVol, false, op)
 		if err != nil {
