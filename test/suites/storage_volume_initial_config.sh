@@ -67,7 +67,6 @@ test_storage_volume_initial_config() {
     lxc storage unset "${pool}" volume.zfs.block_mode
     lxc profile device unset "${profile}" root initial.block.filesystem
 
-
     # > Verify zfs.block_mode without initial configuration.
 
     # Verify "zfs.block_mode=true" is applied from pool configuration.

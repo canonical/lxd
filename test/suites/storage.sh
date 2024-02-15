@@ -31,6 +31,12 @@ test_storage() {
   lxc storage volume set "$storage_pool" "$storage_volume" user.abc def
   [ "$(lxc storage volume get "$storage_pool" "$storage_volume" user.abc)" = "def" ]
 
+  # Check if storage volume has an UUID.
+  [ -n "$(lxc storage volume get "$storage_pool" "$storage_volume" volatile.uuid)" ]
+
+  # Check if the volume's UUID can be modified
+  ! lxc storage volume set "$storage_pool" "$storage_volume" volatile.uuid "2d94c537-5eff-4751-95b1-6a1b7d11f849" || false
+
   lxc storage volume delete "$storage_pool" "$storage_volume"
 
   # Test copying pool volume.* key to the volume with prefix stripped at volume creation time

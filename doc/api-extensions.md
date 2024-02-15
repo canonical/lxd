@@ -2334,3 +2334,9 @@ The value of the claim will be extracted and might be used to make authorization
 Adds a new `loki.instance` server configuration key to customize the `instance` field in Loki events.
 This can be used to expose the name of the cluster rather than the individual system name sending
 the event as that's usually already covered by the `location` field.
+
+## `storage_volatile_uuid`
+
+Adds a new `volatile.uuid` configuration key to all storage volumes, snapshots and buckets.
+This information can be used by storage drivers as a separate identifier besides the name
+when working with volumes.

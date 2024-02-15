@@ -97,6 +97,7 @@ type Volume struct {
 	mountCustomPath      string // Mount the filesystem volume at a custom location.
 	mountFilesystemProbe bool   // Probe filesystem type when mounting volume (when needed).
 	hasSource            bool   // Whether the volume is created from a source volume.
+	parentUUID           string // Set to the parent volume's volatile.uuid (if snapshot).
 }
 
 // VolumeCopy represents a volume and its snapshots for copy and refresh operations.
@@ -568,6 +569,11 @@ func (v *Volume) SetHasSource(hasSource bool) {
 	v.hasSource = hasSource
 }
 
+// SetParentUUID sets the parent volume's UUID for snapshots.
+func (v *Volume) SetParentUUID(parentUUID string) {
+	v.parentUUID = parentUUID
+}
+
 // Clone returns a copy of the volume.
 func (v Volume) Clone() Volume {
 	// Copy the config map to avoid internal modifications affecting external state.
@@ -587,8 +593,17 @@ func (v Volume) Clone() Volume {
 
 // NewVolumeCopy returns a container for copying a volume and its snapshots.
 func NewVolumeCopy(vol Volume, snapshots ...Volume) VolumeCopy {
+	modifiedSnapshots := make([]Volume, 0, len(snapshots))
+
+	// Set the parent volume's UUID for each snapshot.
+	// If the parent volume doesn't have an UUID it's a noop.
+	for _, snapshot := range snapshots {
+		snapshot.SetParentUUID(vol.config["volatile.uuid"])
+		modifiedSnapshots = append(modifiedSnapshots, snapshot)
+	}
+
 	return VolumeCopy{
 		Volume:    vol,
-		Snapshots: snapshots,
+		Snapshots: modifiedSnapshots,
 	}
 }

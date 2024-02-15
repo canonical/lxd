@@ -384,6 +384,12 @@ migration() {
   lxc_remote storage volume get l2:"$remote_pool2" vol2 user.foo | grep -Fx "postsnap1vol1"
   lxc_remote storage volume get l2:"$remote_pool2" vol2/snap0 user.foo | grep -Fx "snap0vol1"
   lxc_remote storage volume get l2:"$remote_pool2" vol2/snap1 user.foo | grep -Fx "snap1vol1"
+
+  # check copied volume and snapshots have different UUIDs
+  [ "$(lxc_remote storage volume get l1:"$remote_pool1" vol1 volatile.uuid)" != "$(lxc_remote storage volume get l2:"$remote_pool2" vol2 volatile.uuid)" ]
+  [ "$(lxc_remote storage volume get l1:"$remote_pool1" vol1/snap0 volatile.uuid)" != "$(lxc_remote storage volume get l2:"$remote_pool2" vol2/snap0 volatile.uuid)" ]
+  [ "$(lxc_remote storage volume get l1:"$remote_pool1" vol1/snap1 volatile.uuid)" != "$(lxc_remote storage volume get l2:"$remote_pool2" vol2/snap1 volatile.uuid)" ]
+
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
 
   # check moving volume and snapshots.
@@ -432,8 +438,19 @@ migration() {
   lxc_remote storage volume get l2:"$remote_pool2" vol2/snap1 user.foo | grep -Fx "snap1vol3"
   lxc_remote storage volume get l2:"$remote_pool2" vol2/snap2 user.foo | grep -Fx "snap2vol3"
   ! lxc_remote storage volume show l2:"$remote_pool2" vol2/snapremove || false
-
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
+
+  # check that a refresh doesn't change the volume's and snapshot's UUID.
+  lxc_remote storage volume create l1:"$remote_pool1" vol1
+  lxc_remote storage volume snapshot l1:"$remote_pool1" vol1
+  lxc_remote storage volume copy l1:"$remote_pool1"/vol1 l2:"$remote_pool2"/vol2
+  old_uuid="$(lxc storage volume get l2:"$remote_pool2" vol2 volatile.uuid)"
+  old_snap0_uuid="$(lxc storage volume get l2:"$remote_pool2" vol2/snap0 volatile.uuid)"
+  lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --refresh
+  [ "$(lxc storage volume get l2:"$remote_pool2" vol2 volatile.uuid)" = "${old_uuid}" ]
+  [ "$(lxc storage volume get l2:"$remote_pool2" vol2/snap0 volatile.uuid)" = "${old_snap0_uuid}" ]
+  lxc_remote storage volume delete l2:"$remote_pool2" vol2
+  lxc_remote storage volume delete l1:"$remote_pool1" vol1
 
   # remote storage volume migration in "push" mode
   lxc_remote storage volume create l1:"$remote_pool1" vol1

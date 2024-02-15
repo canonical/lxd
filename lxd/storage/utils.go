@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/apparmor"
@@ -258,6 +259,11 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 		volumeConfig = map[string]string{}
 	}
 
+	// Ensure volume has an UUID.
+	if volumeConfig["volatile.uuid"] == "" {
+		volumeConfig["volatile.uuid"] = uuid.New().String()
+	}
+
 	volType, err := VolumeDBTypeToType(volDBType)
 	if err != nil {
 		return err
@@ -377,6 +383,11 @@ func BucketDBCreate(ctx context.Context, pool Pool, projectName string, memberSp
 	// Make sure that we don't pass a nil to the next function.
 	if bucket.Config == nil {
 		bucket.Config = map[string]string{}
+	}
+
+	// Ensure bucket has an UUID.
+	if bucket.Config["volatile.uuid"] == "" {
+		bucket.Config["volatile.uuid"] = uuid.New().String()
 	}
 
 	bucketVolName := project.StorageVolume(projectName, bucket.Name)
@@ -515,6 +526,17 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		//  defaultdesc: same as `volume.security.unmappped` or `false`
 		//  shortdesc: Disable ID mapping for the volume
 		rules["security.unmapped"] = validate.Optional(validate.IsBool)
+	}
+
+	// Those keys are only valid for volumes.
+	if vol != nil {
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs; group=volume-conf; key=volatile.uuid)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: random UUID
+		//  shortdesc: The volume's UUID
+		rules["volatile.uuid"] = validate.Optional(validate.IsUUID)
 	}
 
 	return rules

@@ -1,16 +1,18 @@
 test_snapshots() {
-  snapshots
+  snapshots "lxdtest-$(basename "${LXD_DIR}")"
 
   if [ "$(storage_backend "$LXD_DIR")" = "lvm" ]; then
-    # Test that non-thinpool lvm backends work fine with snaphots.
-    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snapshots" lvm lvm.use_thinpool=false volume.size=25MiB
-    lxc profile device set default root pool "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snapshots"
+    pool="lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snapshots"
 
-    snapshots
+    # Test that non-thinpool lvm backends work fine with snaphots.
+    lxc storage create "${pool}" lvm lvm.use_thinpool=false volume.size=25MiB
+    lxc profile device set default root pool "${pool}"
+
+    snapshots "${pool}"
 
     lxc profile device set default root pool "lxdtest-$(basename "${LXD_DIR}")"
 
-    lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snapshots"
+    lxc storage delete "${pool}"
   fi
 }
 
@@ -18,6 +20,7 @@ snapshots() {
   # shellcheck disable=2039,3043
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
+  pool="$1"
 
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
@@ -29,6 +32,15 @@ snapshots() {
   if [ "$lxd_backend" = "dir" ]; then
     [ -d "${LXD_DIR}/snapshots/foo/snap0" ]
   fi
+
+  # Check if the snapshot has an UUID
+  [ -n "$(lxc storage volume get "${pool}" container/foo/snap0 volatile.uuid)" ]
+
+  # Check if the snapshot's UUID is different from the parent volume
+  [ "$(lxc storage volume get "${pool}" container/foo/snap0 volatile.uuid)" != "$(lxc storage volume get "${pool}" container/foo volatile.uuid)" ]
+
+  # Check if the snapshot's UUID can be modified
+  ! lxc storage volume set "${pool}" container/foo/snap0 volatile.uuid "2d94c537-5eff-4751-95b1-6a1b7d11f849" || false
 
   lxc snapshot foo
   # FIXME: make this backend agnostic
@@ -96,18 +108,20 @@ snapshots() {
 }
 
 test_snap_restore() {
-  snap_restore
+  snap_restore "lxdtest-$(basename "${LXD_DIR}")"
 
   if [ "$(storage_backend "$LXD_DIR")" = "lvm" ]; then
-    # Test that non-thinpool lvm backends work fine with snaphots.
-    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snap-restore" lvm lvm.use_thinpool=false volume.size=25MiB
-    lxc profile device set default root pool "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snap-restore"
+    pool="lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snap-restore"
 
-    snap_restore
+    # Test that non-thinpool lvm backends work fine with snaphots.
+    lxc storage create "${pool}" lvm lvm.use_thinpool=false volume.size=25MiB
+    lxc profile device set default root pool "${pool}"
+
+    snap_restore "${pool}"
 
     lxc profile device set default root pool "lxdtest-$(basename "${LXD_DIR}")"
 
-    lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snap-restore"
+    lxc storage delete "${pool}"
   fi
 }
 
@@ -115,6 +129,7 @@ snap_restore() {
   # shellcheck disable=2039,3043
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
+  pool="$1"
 
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
@@ -160,6 +175,7 @@ snap_restore() {
   lxc exec bar -- mkdir /root/dir_only_in_snap1
   initialUUID=$(lxc config get bar volatile.uuid)
   initialGenerationID=$(lxc config get bar volatile.uuid.generation)
+  initialVolumeUUID=$(lxc storage volume get "${pool}" container/bar volatile.uuid)
   lxc stop bar --force
   lxc storage volume set "${pool}" container/bar user.foo=snap1
 
@@ -222,6 +238,9 @@ snap_restore() {
     echo "==> Generation UUID of the instance should change after restoring its snapshot"
     false
   fi
+
+  # Check if the volumes's UUID is the same as the original volume
+  [ "$(lxc storage volume get "${pool}" container/bar volatile.uuid)" = "${initialVolumeUUID}" ]
 
   # Check that instances UUIS remain the same before and after snapshoting  (stateful mode)
   if ! command -v criu >/dev/null 2>&1; then
