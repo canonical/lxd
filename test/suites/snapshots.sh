@@ -298,6 +298,16 @@ snap_restore() {
   lxc snapshot a-b c-d
   lxc restore a-b c-d
   lxc delete -f a-b
+
+  # Check snapshot creation dates.
+  lxc init testimage c1
+  lxc snapshot c1
+  ! lxc storage volume show "${pool}" container/c1 | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc storage volume show "${pool}" container/c1/snap0 | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  lxc copy c1 c2
+  ! lxc storage volume show "${pool}" container/c2 | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  [ "$(lxc storage volume show "${pool}" container/c1/snap0 | awk /created_at:/)" = "$(lxc storage volume show "${pool}" container/c2/snap0 | awk /created_at:/)" ]
+  lxc delete -f c1 c2
 }
 
 restore_and_compare_fs() {

@@ -121,6 +121,17 @@ test_storage_volume_snapshots() {
   ! lxc storage volume create "${storage_pool}" "vol1" --type block block.filesystem=btrfs || false
   ! lxc storage volume create "${storage_pool}" "vol1" --type block block.mount_options=xyz || false
 
+  # Check snapshot creation dates.
+  lxc storage volume create "${storage_pool}" "vol1"
+  lxc storage volume snapshot "${storage_pool}" "vol1" "snap0"
+  ! lxc storage volume show "${storage_pool}" "vol1" | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc storage volume show "${storage_pool}" "vol1/snap0" | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  lxc storage volume copy "${storage_pool}/vol1" "${storage_pool}/vol2"
+  ! lxc storage volume show "${storage_pool}" "vol2" | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  [ "$(lxc storage volume show "${storage_pool}" "vol1/snap0" | awk /created_at:/)" = "$(lxc storage volume show "${storage_pool}" "vol2/snap0" | awk /created_at:/)" ]
+  lxc storage volume delete "${storage_pool}" "vol1"
+  lxc storage volume delete "${storage_pool}" "vol2"
+
   # Check snapshot copy (mode pull).
   lxc launch testimage "c1"
   lxc storage volume create "${storage_pool}" "vol1"
