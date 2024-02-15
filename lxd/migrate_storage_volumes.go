@@ -496,7 +496,7 @@ func volumeSnapshotToProtobuf(vol *api.StorageVolumeSnapshot) *migration.Snapsho
 		LocalDevices: []*migration.Device{},
 		Architecture: proto.Int32(0),
 		Stateful:     proto.Bool(false),
-		CreationDate: proto.Int64(0),
+		CreationDate: proto.Int64(vol.CreatedAt.Unix()),
 		LastUsedDate: proto.Int64(0),
 		ExpiryDate:   proto.Int64(0),
 	}
