@@ -6,6 +6,38 @@
 
 See the following sections for instructions on how to create, configure, view and resize {ref}`storage-buckets` and how to manage storage bucket keys.
 
+## Install requirements for local storage buckets
+
+LXD uses [MinIO](https://min.io) to set up local storage buckets. To use this feature with LXD, you must install both the server and client binaries.
+
+- MinIO Server:
+   - Source:
+      - [MinIO Server on GitHub](https://github.com/minio/minio)
+   - Direct download for various architectures:
+      - [MinIO Server pre-built for `amd64`](https://dl.min.io/server/minio/release/linux-amd64/minio)
+      - [MinIO Server pre-built for `arm64`](https://dl.min.io/server/minio/release/linux-arm64/minio)
+      - [MinIO Server pre-built for `arm`](https://dl.min.io/server/minio/release/linux-arm/minio)
+      - [MinIO Server pre-built for `ppc64le`](https://dl.min.io/server/minio/release/linux-ppc64le/minio)
+      - [MinIO Server pre-built for `s390x`](https://dl.min.io/server/minio/release/linux-s390x/minio)
+
+- MinIO Client:
+   - Source:
+      - [MinIO Client on GitHub](https://github.com/minio/mc)
+   - Direct download for various architectures:
+      - [MinIO Client pre-built for `amd64`](https://dl.min.io/client/mc/release/linux-amd64/mc)
+      - [MinIO Client pre-built for `arm64`](https://dl.min.io/client/mc/release/linux-arm64/mc)
+      - [MinIO Client pre-built for `arm`](https://dl.min.io/client/mc/release/linux-arm/mc)
+      - [MinIO Client pre-built for `ppc64le`](https://dl.min.io/client/mc/release/linux-ppc64le/mc)
+      - [MinIO Client pre-built for `s390x`](https://dl.min.io/client/mc/release/linux-s390x/mc)
+
+If LXD is installed from a Snap, you must configure the snap environment to detect the binaries, and restart LXD.
+Note that the path to the directory containing the binaries must not be under the home directory of any user.
+
+    snap set lxd minio.path=/path/to/directory/containing/both/binaries
+    snap restart lxd
+
+If LXD is installed from another source, both binaries must be included in the `$PATH` that LXD was started with.
+
 ## Configure the S3 address
 
 If you want to use storage buckets on local storage (thus in a `dir`, `btrfs`, `lvm`, or `zfs` pool), you must configure the S3 address for your LXD server.
