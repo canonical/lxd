@@ -148,7 +148,7 @@ func UsedBy(ctx context.Context, s *state.State, pool Pool, firstOnly bool, memb
 			}
 
 			// Generate URL for volume based on types that map to other entities.
-			if vol.Type == db.StoragePoolVolumeTypeNameContainer || vol.Type == db.StoragePoolVolumeTypeNameVM {
+			if vol.Type == cluster.StoragePoolVolumeTypeNameContainer || vol.Type == cluster.StoragePoolVolumeTypeNameVM {
 				volName, snapName, isSnap := api.GetParentAndSnapshotName(vol.Name)
 				if isSnap {
 					u = api.NewURL().Path(version.APIVersion, "instances", volName, "snapshots", snapName).Project(vol.Project)
@@ -157,7 +157,7 @@ func UsedBy(ctx context.Context, s *state.State, pool Pool, firstOnly bool, memb
 				}
 
 				usedBy = append(usedBy, u.String())
-			} else if vol.Type == db.StoragePoolVolumeTypeNameImage {
+			} else if vol.Type == cluster.StoragePoolVolumeTypeNameImage {
 				imgProjectNames, err := tx.GetProjectsUsingImage(ctx, vol.Name)
 				if err != nil {
 					return fmt.Errorf("Failed loading projects using image %q: %w", vol.Name, err)

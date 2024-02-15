@@ -115,7 +115,7 @@ func TestImportPreClusteringData(t *testing.T) {
 
 	var dbVolumes []*db.StorageVolume
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		volumeType := db.StoragePoolVolumeTypeImage
+		volumeType := cluster.StoragePoolVolumeTypeImage
 		filters := []db.StorageVolumeFilter{{
 			Type: &volumeType,
 		}}
