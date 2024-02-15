@@ -5,6 +5,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
@@ -13,7 +14,7 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-var supportedVolumeTypes = []int{db.StoragePoolVolumeTypeContainer, db.StoragePoolVolumeTypeVM, db.StoragePoolVolumeTypeCustom, db.StoragePoolVolumeTypeImage}
+var supportedVolumeTypes = []int{cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM, cluster.StoragePoolVolumeTypeCustom, cluster.StoragePoolVolumeTypeImage}
 
 func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolName string, oldVol *api.StorageVolume, newPoolName string, newVol *api.StorageVolume) error {
 	// Update all instances that are using the volume with a local (non-expanded) device.
@@ -85,7 +86,7 @@ func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolNam
 // storagePoolVolumeUsedByGet returns a list of URL resources that use the volume.
 func storagePoolVolumeUsedByGet(s *state.State, requestProjectName string, poolName string, vol *db.StorageVolume) ([]string, error) {
 	// Handle instance volumes.
-	if vol.Type == db.StoragePoolVolumeTypeNameContainer || vol.Type == db.StoragePoolVolumeTypeNameVM {
+	if vol.Type == cluster.StoragePoolVolumeTypeNameContainer || vol.Type == cluster.StoragePoolVolumeTypeNameVM {
 		volName, snapName, isSnap := api.GetParentAndSnapshotName(vol.Name)
 		if isSnap {
 			return []string{api.NewURL().Path(version.APIVersion, "instances", volName, "snapshots", snapName).Project(vol.Project).String()}, nil
@@ -95,7 +96,7 @@ func storagePoolVolumeUsedByGet(s *state.State, requestProjectName string, poolN
 	}
 
 	// Handle image volumes.
-	if vol.Type == db.StoragePoolVolumeTypeNameImage {
+	if vol.Type == cluster.StoragePoolVolumeTypeNameImage {
 		return []string{api.NewURL().Path(version.APIVersion, "images", vol.Name).Project(requestProjectName).Target(vol.Location).String()}, nil
 	}
 

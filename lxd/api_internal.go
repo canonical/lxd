@@ -22,6 +22,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
@@ -612,7 +613,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 	instancePoolName := ""
 	instanceType := instancetype.Container
 	instanceVolType := storageDrivers.VolumeTypeContainer
-	instanceDBVolType := db.StoragePoolVolumeTypeContainer
+	instanceDBVolType := cluster.StoragePoolVolumeTypeContainer
 
 	for _, volType := range []storageDrivers.VolumeType{storageDrivers.VolumeTypeVM, storageDrivers.VolumeTypeContainer} {
 		for _, poolName := range storagePoolNames {
@@ -626,10 +627,10 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 
 				if volType == storageDrivers.VolumeTypeVM {
 					instanceType = instancetype.VM
-					instanceDBVolType = db.StoragePoolVolumeTypeVM
+					instanceDBVolType = cluster.StoragePoolVolumeTypeVM
 				} else {
 					instanceType = instancetype.Container
-					instanceDBVolType = db.StoragePoolVolumeTypeContainer
+					instanceDBVolType = cluster.StoragePoolVolumeTypeContainer
 				}
 			}
 		}

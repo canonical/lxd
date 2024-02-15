@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -105,7 +106,7 @@ WHERE storage_volumes.id = ?
 		return StorageVolumeArgs{}, err
 	}
 
-	response.TypeName = StoragePoolVolumeTypeNames[response.Type]
+	response.TypeName = cluster.StoragePoolVolumeTypeNames[response.Type]
 
 	return response, nil
 }
@@ -569,47 +570,6 @@ func (c *Cluster) GetStoragePoolNodeVolumeID(projectName string, volumeName stri
 	return c.storagePoolVolumeGetTypeID(projectName, volumeName, volumeType, poolID, c.nodeID)
 }
 
-// XXX: this was extracted from lxd/storage_volume_utils.go, we find a way to
-// factor it independently from both the db and main packages.
-const (
-	StoragePoolVolumeTypeContainer = iota
-	StoragePoolVolumeTypeImage
-	StoragePoolVolumeTypeCustom
-	StoragePoolVolumeTypeVM
-)
-
-// Leave the string type in here! This guarantees that go treats this is as a
-// typed string constant. Removing it causes go to treat these as untyped string
-// constants which is not what we want.
-const (
-	StoragePoolVolumeTypeNameContainer string = "container"
-	StoragePoolVolumeTypeNameVM        string = "virtual-machine"
-	StoragePoolVolumeTypeNameImage     string = "image"
-	StoragePoolVolumeTypeNameCustom    string = "custom"
-)
-
-// StoragePoolVolumeTypeNames represents a map of storage volume types and their names.
-var StoragePoolVolumeTypeNames = map[int]string{
-	StoragePoolVolumeTypeContainer: "container",
-	StoragePoolVolumeTypeImage:     "image",
-	StoragePoolVolumeTypeCustom:    "custom",
-	StoragePoolVolumeTypeVM:        "virtual-machine",
-}
-
-// Content types.
-const (
-	StoragePoolVolumeContentTypeFS = iota
-	StoragePoolVolumeContentTypeBlock
-	StoragePoolVolumeContentTypeISO
-)
-
-// Content type names.
-const (
-	StoragePoolVolumeContentTypeNameFS    string = "filesystem"
-	StoragePoolVolumeContentTypeNameBlock string = "block"
-	StoragePoolVolumeContentTypeNameISO   string = "iso"
-)
-
 // StorageVolumeArgs is a value object holding all db-related details about a
 // storage volume.
 type StorageVolumeArgs struct {
@@ -851,14 +811,14 @@ func storageVolumeConfigClear(tx *sql.Tx, volumeID int64, isSnapshot bool) error
 // Convert a volume integer type code to its human-readable name.
 func storagePoolVolumeTypeToName(volumeType int) (string, error) {
 	switch volumeType {
-	case StoragePoolVolumeTypeContainer:
-		return StoragePoolVolumeTypeNameContainer, nil
-	case StoragePoolVolumeTypeVM:
-		return StoragePoolVolumeTypeNameVM, nil
-	case StoragePoolVolumeTypeImage:
-		return StoragePoolVolumeTypeNameImage, nil
-	case StoragePoolVolumeTypeCustom:
-		return StoragePoolVolumeTypeNameCustom, nil
+	case cluster.StoragePoolVolumeTypeContainer:
+		return cluster.StoragePoolVolumeTypeNameContainer, nil
+	case cluster.StoragePoolVolumeTypeVM:
+		return cluster.StoragePoolVolumeTypeNameVM, nil
+	case cluster.StoragePoolVolumeTypeImage:
+		return cluster.StoragePoolVolumeTypeNameImage, nil
+	case cluster.StoragePoolVolumeTypeCustom:
+		return cluster.StoragePoolVolumeTypeNameCustom, nil
 	}
 
 	return "", fmt.Errorf("Invalid storage volume type")
@@ -867,12 +827,12 @@ func storagePoolVolumeTypeToName(volumeType int) (string, error) {
 // Convert a volume integer content type code to its human-readable name.
 func storagePoolVolumeContentTypeToName(contentType int) (string, error) {
 	switch contentType {
-	case StoragePoolVolumeContentTypeFS:
-		return StoragePoolVolumeContentTypeNameFS, nil
-	case StoragePoolVolumeContentTypeBlock:
-		return StoragePoolVolumeContentTypeNameBlock, nil
-	case StoragePoolVolumeContentTypeISO:
-		return StoragePoolVolumeContentTypeNameISO, nil
+	case cluster.StoragePoolVolumeContentTypeFS:
+		return cluster.StoragePoolVolumeContentTypeNameFS, nil
+	case cluster.StoragePoolVolumeContentTypeBlock:
+		return cluster.StoragePoolVolumeContentTypeNameBlock, nil
+	case cluster.StoragePoolVolumeContentTypeISO:
+		return cluster.StoragePoolVolumeContentTypeNameISO, nil
 	}
 
 	return "", fmt.Errorf("Invalid storage volume content type")
@@ -904,7 +864,7 @@ WHERE storage_volumes.type = ? AND projects.name = ?
 		volumes = append(volumes, volume)
 
 		return nil
-	}, StoragePoolVolumeTypeCustom, project)
+	}, cluster.StoragePoolVolumeTypeCustom, project)
 	if err != nil {
 		return nil, fmt.Errorf("Fetch custom volumes: %w", err)
 	}

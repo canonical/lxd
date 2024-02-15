@@ -817,7 +817,7 @@ func patchStorageRenameCustomISOBlockVolumes(name string, d *Daemon) error {
 		isLeader = true
 	}
 
-	volTypeCustom := db.StoragePoolVolumeTypeCustom
+	volTypeCustom := dbCluster.StoragePoolVolumeTypeCustom
 	customPoolVolumes := make(map[string][]*db.StorageVolume, 0)
 
 	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -866,7 +866,7 @@ func patchStorageRenameCustomISOBlockVolumes(name string, d *Daemon) error {
 			}
 
 			// Exclude non-ISO custom volumes.
-			if vol.ContentType != db.StoragePoolVolumeContentTypeNameISO {
+			if vol.ContentType != dbCluster.StoragePoolVolumeContentTypeNameISO {
 				continue
 			}
 
@@ -898,7 +898,7 @@ func patchZfsSetContentTypeUserProperty(name string, d *Daemon) error {
 		return fmt.Errorf("Failed getting storage pool names: %w", err)
 	}
 
-	volTypeCustom := db.StoragePoolVolumeTypeCustom
+	volTypeCustom := dbCluster.StoragePoolVolumeTypeCustom
 	customPoolVolumes := make(map[string][]*db.StorageVolume, 0)
 
 	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -977,8 +977,8 @@ func patchStorageZfsUnsetInvalidBlockSettings(_ string, d *Daemon) error {
 		return fmt.Errorf("Failed getting storage pool names: %w", err)
 	}
 
-	volTypeCustom := db.StoragePoolVolumeTypeCustom
-	volTypeVM := db.StoragePoolVolumeTypeVM
+	volTypeCustom := dbCluster.StoragePoolVolumeTypeCustom
+	volTypeVM := dbCluster.StoragePoolVolumeTypeVM
 
 	poolIDNameMap := make(map[int64]string, 0)
 	poolVolumes := make(map[int64][]*db.StorageVolume, 0)
@@ -1048,9 +1048,9 @@ func patchStorageZfsUnsetInvalidBlockSettings(_ string, d *Daemon) error {
 				continue
 			}
 
-			if vol.Type == db.StoragePoolVolumeTypeNameVM {
+			if vol.Type == dbCluster.StoragePoolVolumeTypeNameVM {
 				volType = volTypeVM
-			} else if vol.Type == db.StoragePoolVolumeTypeNameCustom {
+			} else if vol.Type == dbCluster.StoragePoolVolumeTypeNameCustom {
 				volType = volTypeCustom
 			} else {
 				// Should not happen.
@@ -1085,8 +1085,8 @@ func patchStorageZfsUnsetInvalidBlockSettingsV2(_ string, d *Daemon) error {
 		return fmt.Errorf("Failed getting storage pool names: %w", err)
 	}
 
-	volTypeCustom := db.StoragePoolVolumeTypeCustom
-	volTypeVM := db.StoragePoolVolumeTypeVM
+	volTypeCustom := dbCluster.StoragePoolVolumeTypeCustom
+	volTypeVM := dbCluster.StoragePoolVolumeTypeVM
 
 	poolIDNameMap := make(map[int64]string, 0)
 	poolVolumes := make(map[int64][]*db.StorageVolume, 0)
@@ -1141,7 +1141,7 @@ func patchStorageZfsUnsetInvalidBlockSettingsV2(_ string, d *Daemon) error {
 
 			// Only check zfs.block_mode for custom volumes. VMs should never have any block.* settings
 			// regardless of the zfs.block_mode setting.
-			if shared.IsTrue(config["zfs.block_mode"]) && vol.Type == db.StoragePoolVolumeTypeNameCustom {
+			if shared.IsTrue(config["zfs.block_mode"]) && vol.Type == dbCluster.StoragePoolVolumeTypeNameCustom {
 				continue
 			}
 
@@ -1158,9 +1158,9 @@ func patchStorageZfsUnsetInvalidBlockSettingsV2(_ string, d *Daemon) error {
 				continue
 			}
 
-			if vol.Type == db.StoragePoolVolumeTypeNameVM {
+			if vol.Type == dbCluster.StoragePoolVolumeTypeNameVM {
 				volType = volTypeVM
-			} else if vol.Type == db.StoragePoolVolumeTypeNameCustom {
+			} else if vol.Type == dbCluster.StoragePoolVolumeTypeNameCustom {
 				volType = volTypeCustom
 			} else {
 				// Should not happen.
@@ -1209,8 +1209,8 @@ func patchStorageUnsetInvalidBlockSettings(_ string, d *Daemon) error {
 		}
 	}
 
-	volTypeCustom := db.StoragePoolVolumeTypeCustom
-	volTypeVM := db.StoragePoolVolumeTypeVM
+	volTypeCustom := dbCluster.StoragePoolVolumeTypeCustom
+	volTypeVM := dbCluster.StoragePoolVolumeTypeVM
 
 	poolIDNameMap := make(map[int64]string, 0)
 	poolVolumes := make(map[int64][]*db.StorageVolume, 0)
@@ -1272,7 +1272,7 @@ func patchStorageUnsetInvalidBlockSettings(_ string, d *Daemon) error {
 		for _, vol := range volumes {
 			// Skip custom volumes with filesystem content type.
 			// VMs are always of type block.
-			if vol.Type == db.StoragePoolVolumeTypeNameCustom && vol.ContentType == db.StoragePoolVolumeContentTypeNameFS {
+			if vol.Type == dbCluster.StoragePoolVolumeTypeNameCustom && vol.ContentType == dbCluster.StoragePoolVolumeContentTypeNameFS {
 				continue
 			}
 
@@ -1291,9 +1291,9 @@ func patchStorageUnsetInvalidBlockSettings(_ string, d *Daemon) error {
 				continue
 			}
 
-			if vol.Type == db.StoragePoolVolumeTypeNameVM {
+			if vol.Type == dbCluster.StoragePoolVolumeTypeNameVM {
 				volType = volTypeVM
-			} else if vol.Type == db.StoragePoolVolumeTypeNameCustom {
+			} else if vol.Type == dbCluster.StoragePoolVolumeTypeNameCustom {
 				volType = volTypeCustom
 			} else {
 				// Should not happen.
