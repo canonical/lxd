@@ -61,10 +61,10 @@ func BucketPolicy(bucketName string, roleName string) (json.RawMessage, error) {
 
 // BucketPolicyRole compares the given bucket policy with the predefined bucket policies
 // and returns the role name of the matching policy.
-func BucketPolicyRole(bucketName string, jsonPolicy string) (string, error) {
+func BucketPolicyRole(bucketName string, jsonPolicy json.RawMessage) (string, error) {
 	var policy Policy
 
-	err := json.Unmarshal([]byte(jsonPolicy), &policy)
+	err := json.Unmarshal(jsonPolicy, &policy)
 	if err != nil {
 		return "", err
 	}

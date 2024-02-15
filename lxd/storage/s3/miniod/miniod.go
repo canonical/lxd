@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/minio/madmin-go"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 
@@ -62,8 +61,8 @@ func (p *Process) AdminUser() string {
 }
 
 // AdminClient returns admin client for the minio process.
-func (p *Process) AdminClient() (*madmin.AdminClient, error) {
-	adminClient, err := madmin.New(p.url.Host, p.username, p.password, false)
+func (p *Process) AdminClient() (*minioAdmin, error) {
+	adminClient, err := NewAdminClient(p.url.Host, p.username, p.password)
 	if err != nil {
 		return nil, err
 	}
@@ -129,31 +128,32 @@ func (p *Process) Stop(ctx context.Context) error {
 
 // WaitReady waits until process is ready.
 func (p *Process) WaitReady(ctx context.Context) error {
-	adminClient, err := p.AdminClient()
-	if err != nil {
-		p.cancel.Cancel()
-		return err
-	}
-
+	var lastErr error
 	for {
-		_, err = adminClient.GetConfig(ctx)
-		if err == nil {
-			return nil
-		}
-
-		err = ctx.Err()
-		if err != nil {
-			p.cancel.Cancel()
-
-			// If process failed to start then return start error.
-			if p.err != nil {
-				return p.err
+		select {
+		case <-ctx.Done():
+			err := fmt.Errorf("Failed to wait for MinIO server process: %w", ctx.Err())
+			if lastErr != nil {
+				err = fmt.Errorf("%w: %w", lastErr, err)
+				p.cancel.Cancel()
+				if p.err != nil {
+					err = fmt.Errorf("%w: %w", p.err, err)
+				}
 			}
 
 			return err
-		}
+		default:
+			adminClient, err := p.AdminClient()
+			if adminClient != nil {
+				_, err = adminClient.GetConfig(ctx)
+				if err == nil {
+					return nil
+				}
+			}
 
-		time.Sleep(time.Millisecond * 100)
+			lastErr = err
+			time.Sleep(time.Millisecond * 100)
+		}
 	}
 }
 
