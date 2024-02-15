@@ -97,7 +97,11 @@ To launch a container with this instance type, enter the following command:
 
     lxc launch ubuntu:22.04 my-instance --type t2.micro
 
-The list of supported clouds and instance types can be found at [`https://github.com/dustinkirkland/instance-type`](https://github.com/dustinkirkland/instance-type).
+The list of supported clouds and instance types can be found here:
+
+- [Amazon Web Services](https://raw.githubusercontent.com/canonical/lxd/main/meta/instance-types/aws.yaml)
+- [Google Compute Engine](https://raw.githubusercontent.com/canonical/lxd/main/meta/instance-types/gce.yaml)
+- [Microsoft Azure](https://raw.githubusercontent.com/canonical/lxd/main/meta/instance-types/azure.yaml)
 
 ### Launch a VM that boots from an ISO
 
