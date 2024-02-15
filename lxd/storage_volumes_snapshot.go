@@ -116,7 +116,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Check that the storage volume type is valid.
-	if volumeType != db.StoragePoolVolumeTypeCustom {
+	if volumeType != dbCluster.StoragePoolVolumeTypeCustom {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
@@ -534,7 +534,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Check that the storage volume type is valid.
-	if volumeType != db.StoragePoolVolumeTypeCustom {
+	if volumeType != dbCluster.StoragePoolVolumeTypeCustom {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
@@ -1004,7 +1004,7 @@ func doStoragePoolVolumeSnapshotUpdate(s *state.State, r *http.Request, poolName
 	op.SetRequestor(r)
 
 	// Update the database.
-	if volumeType == db.StoragePoolVolumeTypeCustom {
+	if volumeType == dbCluster.StoragePoolVolumeTypeCustom {
 		err = pool.UpdateCustomVolumeSnapshot(projectName, volName, req.Description, nil, expiry, op)
 		if err != nil {
 			return response.SmartError(err)
@@ -1089,7 +1089,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	}
 
 	// Check that the storage volume type is valid.
-	if volumeType != db.StoragePoolVolumeTypeCustom {
+	if volumeType != dbCluster.StoragePoolVolumeTypeCustom {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
@@ -1170,7 +1170,7 @@ func pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, t
 				}
 			}
 
-			allVolumes, err := tx.GetStoragePoolVolumesWithType(ctx, db.StoragePoolVolumeTypeCustom, true)
+			allVolumes, err := tx.GetStoragePoolVolumesWithType(ctx, dbCluster.StoragePoolVolumeTypeCustom, true)
 			if err != nil {
 				return fmt.Errorf("Failed getting volumes for auto custom volume snapshot task: %w", err)
 			}
@@ -1440,7 +1440,7 @@ func volumeDetermineNextSnapshotName(s *state.State, volume db.StorageVolumeArgs
 	if count > 1 {
 		return "", fmt.Errorf("Snapshot pattern may contain '%%d' only once")
 	} else if count == 1 {
-		i := s.DB.Cluster.GetNextStorageVolumeSnapshotIndex(volume.PoolName, volume.Name, db.StoragePoolVolumeTypeCustom, pattern)
+		i := s.DB.Cluster.GetNextStorageVolumeSnapshotIndex(volume.PoolName, volume.Name, dbCluster.StoragePoolVolumeTypeCustom, pattern)
 		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
 	}
 
@@ -1469,7 +1469,7 @@ func volumeDetermineNextSnapshotName(s *state.State, volume db.StorageVolumeArgs
 		}
 
 		for _, project := range projects {
-			snaps, err := s.DB.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(project, volume.Name, db.StoragePoolVolumeTypeCustom, poolID)
+			snaps, err := s.DB.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(project, volume.Name, dbCluster.StoragePoolVolumeTypeCustom, poolID)
 			if err != nil {
 				return "", err
 			}
@@ -1488,7 +1488,7 @@ func volumeDetermineNextSnapshotName(s *state.State, volume db.StorageVolumeArgs
 	}
 
 	if snapshotExists {
-		i := s.DB.Cluster.GetNextStorageVolumeSnapshotIndex(volume.PoolName, volume.Name, db.StoragePoolVolumeTypeCustom, pattern)
+		i := s.DB.Cluster.GetNextStorageVolumeSnapshotIndex(volume.PoolName, volume.Name, dbCluster.StoragePoolVolumeTypeCustom, pattern)
 		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
 	}
 

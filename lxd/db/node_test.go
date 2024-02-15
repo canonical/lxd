@@ -295,7 +295,7 @@ INSERT INTO storage_pools (id, name, driver, description) VALUES (1, 'local', 'z
 
 	_, err = tx.Tx().Exec(`
 INSERT INTO storage_volumes(name, storage_pool_id, node_id, type, project_id, description)
-  VALUES ('data', 1, ?, ?, 1, '')`, id, db.StoragePoolVolumeTypeCustom)
+  VALUES ('data', 1, ?, ?, 1, '')`, id, cluster.StoragePoolVolumeTypeCustom)
 	require.NoError(t, err)
 
 	message, err := tx.NodeIsEmpty(context.Background(), id)

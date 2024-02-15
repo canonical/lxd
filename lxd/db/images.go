@@ -1035,7 +1035,7 @@ func (c *Cluster) GetPoolsWithImage(imageFingerprint string) ([]int64, error) {
 	var ids []int
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
-		ids, err = query.SelectIntegers(ctx, tx.tx, q, c.nodeID, imageFingerprint, StoragePoolVolumeTypeImage)
+		ids, err = query.SelectIntegers(ctx, tx.tx, q, c.nodeID, imageFingerprint, cluster.StoragePoolVolumeTypeImage)
 		return err
 	})
 	if err != nil {

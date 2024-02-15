@@ -69,12 +69,12 @@ func StorageVolumeParts(projectStorageVolumeName string) (string, string) {
 func StorageVolumeProject(c *db.Cluster, projectName string, volumeType int) (string, error) {
 	// Image volumes are effectively a cache and so are always linked to default project.
 	// Optimisation to avoid loading project record.
-	if volumeType == db.StoragePoolVolumeTypeImage {
+	if volumeType == cluster.StoragePoolVolumeTypeImage {
 		return api.ProjectDefaultName, nil
 	}
 
 	// Non-custom volumes always use the project specified. Optimisation to avoid loading project record.
-	if volumeType != db.StoragePoolVolumeTypeCustom {
+	if volumeType != cluster.StoragePoolVolumeTypeCustom {
 		return projectName, nil
 	}
 
@@ -103,12 +103,12 @@ func StorageVolumeProject(c *db.Cluster, projectName string, volumeType int) (st
 // For all other volume types the supplied project's name is returned.
 func StorageVolumeProjectFromRecord(p *api.Project, volumeType int) string {
 	// Image volumes are effectively a cache and so are always linked to default project.
-	if volumeType == db.StoragePoolVolumeTypeImage {
+	if volumeType == cluster.StoragePoolVolumeTypeImage {
 		return api.ProjectDefaultName
 	}
 
 	// Non-custom volumes always use the project specified.
-	if volumeType != db.StoragePoolVolumeTypeCustom {
+	if volumeType != cluster.StoragePoolVolumeTypeCustom {
 		return p.Name
 	}
 
