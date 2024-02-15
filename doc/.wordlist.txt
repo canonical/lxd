@@ -245,6 +245,7 @@ subitem
 subnet
 subnets
 subpage
+subpages
 substep
 subtree
 subtrees
