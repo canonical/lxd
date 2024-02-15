@@ -16,6 +16,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/cgroup"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/entity"
@@ -303,7 +304,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			// Custom volume validation.
 			if d.config["source"] != "" && d.config["path"] != "/" {
 				// Derive the effective storage project name from the instance config's project.
-				storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, instConf.Project().Name, db.StoragePoolVolumeTypeCustom)
+				storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, instConf.Project().Name, cluster.StoragePoolVolumeTypeCustom)
 				if err != nil {
 					return err
 				}
@@ -311,7 +312,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 				// GetStoragePoolVolume returns a volume with an empty Location field for remote drivers.
 				var dbVolume *db.StorageVolume
 				err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-					dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, db.StoragePoolVolumeTypeCustom, d.config["source"], true)
+					dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, cluster.StoragePoolVolumeTypeCustom, d.config["source"], true)
 					return err
 				})
 				if err != nil {
@@ -334,7 +335,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 					return err
 				}
 
-				if contentType == db.StoragePoolVolumeContentTypeBlock {
+				if contentType == cluster.StoragePoolVolumeContentTypeBlock {
 					if instConf.Type() == instancetype.Container {
 						return fmt.Errorf("Custom block volumes cannot be used on containers")
 					}
@@ -342,7 +343,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 					if d.config["path"] != "" {
 						return fmt.Errorf("Custom block volumes cannot have a path defined")
 					}
-				} else if contentType == db.StoragePoolVolumeContentTypeISO {
+				} else if contentType == cluster.StoragePoolVolumeContentTypeISO {
 					if instConf.Type() == instancetype.Container {
 						return fmt.Errorf("Custom ISO volumes cannot be used on containers")
 					}
@@ -488,7 +489,7 @@ func (d *disk) Register() error {
 			return err
 		}
 	} else if d.config["path"] != "/" && d.config["source"] != "" && d.config["pool"] != "" {
-		storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, db.StoragePoolVolumeTypeCustom)
+		storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, cluster.StoragePoolVolumeTypeCustom)
 		if err != nil {
 			return err
 		}
@@ -614,14 +615,14 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		// has owner shifting enabled, and if so enable shifting on this device too.
 		if ownerShift == deviceConfig.MountOwnerShiftNone && d.config["pool"] != "" {
 			// Only custom volumes can be attached currently.
-			storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, db.StoragePoolVolumeTypeCustom)
+			storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, cluster.StoragePoolVolumeTypeCustom)
 			if err != nil {
 				return nil, err
 			}
 
 			var dbVolume *db.StorageVolume
 			err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, db.StoragePoolVolumeTypeCustom, d.config["source"], true)
+				dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, cluster.StoragePoolVolumeTypeCustom, d.config["source"], true)
 				return err
 			})
 			if err != nil {
@@ -841,7 +842,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				var revertFunc func()
 
 				// Derive the effective storage project name from the instance config's project.
-				storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, db.StoragePoolVolumeTypeCustom)
+				storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, cluster.StoragePoolVolumeTypeCustom)
 				if err != nil {
 					return nil, err
 				}
@@ -849,7 +850,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				// GetStoragePoolVolume returns a volume with an empty Location field for remote drivers.
 				var dbVolume *db.StorageVolume
 				err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-					dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, db.StoragePoolVolumeTypeCustom, d.config["source"], true)
+					dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, cluster.StoragePoolVolumeTypeCustom, d.config["source"], true)
 					return err
 				})
 				if err != nil {
@@ -861,13 +862,13 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					return nil, err
 				}
 
-				if contentType == db.StoragePoolVolumeContentTypeISO {
+				if contentType == cluster.StoragePoolVolumeContentTypeISO {
 					mount.FSType = "iso9660"
 				}
 
 				// If the pool is ceph backed and a block device, don't mount it, instead pass config to QEMU instance
 				// to use the built in RBD support.
-				if d.pool.Driver().Info().Name == "ceph" && (contentType == db.StoragePoolVolumeContentTypeBlock || contentType == db.StoragePoolVolumeContentTypeISO) {
+				if d.pool.Driver().Info().Name == "ceph" && (contentType == cluster.StoragePoolVolumeContentTypeBlock || contentType == cluster.StoragePoolVolumeContentTypeISO) {
 					config := d.pool.ToAPI().Config
 					poolName := config["ceph.osd.pool_name"]
 
@@ -887,7 +888,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						Opts:    opts,
 					}
 
-					if contentType == db.StoragePoolVolumeContentTypeISO {
+					if contentType == cluster.StoragePoolVolumeContentTypeISO {
 						mount.FSType = "iso9660"
 					}
 
@@ -1324,20 +1325,20 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 
 	// Check volume type name is custom.
 	switch volumeTypeName {
-	case db.StoragePoolVolumeTypeNameContainer:
+	case cluster.StoragePoolVolumeTypeNameContainer:
 		return nil, "", nil, fmt.Errorf("Using instance storage volumes is not supported")
 	case "":
 		// We simply received the name of a storage volume.
-		volumeTypeName = db.StoragePoolVolumeTypeNameCustom
-	case db.StoragePoolVolumeTypeNameCustom:
-	case db.StoragePoolVolumeTypeNameImage:
+		volumeTypeName = cluster.StoragePoolVolumeTypeNameCustom
+	case cluster.StoragePoolVolumeTypeNameCustom:
+	case cluster.StoragePoolVolumeTypeNameImage:
 		return nil, "", nil, fmt.Errorf("Using image storage volumes is not supported")
 	default:
 		return nil, "", nil, fmt.Errorf("Unknown storage type prefix %q found", volumeTypeName)
 	}
 
 	// Only custom volumes can be attached currently.
-	storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, db.StoragePoolVolumeTypeCustom)
+	storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, cluster.StoragePoolVolumeTypeCustom)
 	if err != nil {
 		return nil, "", nil, err
 	}
@@ -1354,7 +1355,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 
 	var dbVolume *db.StorageVolume
 	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, db.StoragePoolVolumeTypeCustom, volumeName, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, cluster.StoragePoolVolumeTypeCustom, volumeName, true)
 		return err
 	})
 	if err != nil {
@@ -1362,17 +1363,17 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	}
 
 	if d.inst.Type() == instancetype.Container {
-		if dbVolume.ContentType != db.StoragePoolVolumeContentTypeNameFS {
+		if dbVolume.ContentType != cluster.StoragePoolVolumeContentTypeNameFS {
 			return nil, "", nil, fmt.Errorf("Only filesystem volumes are supported for containers")
 		}
 
-		err = d.storagePoolVolumeAttachShift(storageProjectName, d.pool.Name(), volumeName, db.StoragePoolVolumeTypeCustom, srcPath)
+		err = d.storagePoolVolumeAttachShift(storageProjectName, d.pool.Name(), volumeName, cluster.StoragePoolVolumeTypeCustom, srcPath)
 		if err != nil {
 			return nil, "", nil, fmt.Errorf("Failed shifting storage volume %q of type %q on storage pool %q: %w", volumeName, volumeTypeName, d.pool.Name(), err)
 		}
 	}
 
-	if dbVolume.ContentType == db.StoragePoolVolumeContentTypeNameBlock || dbVolume.ContentType == db.StoragePoolVolumeContentTypeNameISO {
+	if dbVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock || dbVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameISO {
 		srcPath, err = d.pool.GetCustomVolumeDisk(storageProjectName, volumeName)
 		if err != nil {
 			return nil, "", nil, fmt.Errorf("Failed to get disk path: %w", err)
@@ -1804,7 +1805,7 @@ func (d *disk) postStop() error {
 	// Check if pool-specific action should be taken to unmount custom volume disks.
 	if d.config["pool"] != "" && d.config["path"] != "/" {
 		// Only custom volumes can be attached currently.
-		storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, db.StoragePoolVolumeTypeCustom)
+		storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, cluster.StoragePoolVolumeTypeCustom)
 		if err != nil {
 			return err
 		}

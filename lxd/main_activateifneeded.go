@@ -11,6 +11,7 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -145,7 +146,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	// Check for scheduled volume snapshots
 	var volumes []db.StorageVolumeArgs
 	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		volumes, err = tx.GetStoragePoolVolumesWithType(ctx, db.StoragePoolVolumeTypeCustom, false)
+		volumes, err = tx.GetStoragePoolVolumesWithType(ctx, cluster.StoragePoolVolumeTypeCustom, false)
 		if err != nil {
 			return err
 		}

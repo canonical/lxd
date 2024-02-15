@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
+	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/project"
@@ -949,7 +950,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 			}
 
 			for _, vol := range volumes {
-				if vol.Type != db.StoragePoolVolumeTypeNameImage {
+				if vol.Type != dbCluster.StoragePoolVolumeTypeNameImage {
 					return fmt.Errorf("Volume %q of type %q in project %q still exists in storage pool %q", vol.Name, vol.Type, vol.Project, pool.Name())
 				}
 

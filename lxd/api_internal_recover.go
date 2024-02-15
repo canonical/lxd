@@ -406,7 +406,7 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 			}
 
 			profileProjectName := project.ProfileProjectFromRecord(projectInfo)
-			customStorageProjectName := project.StorageVolumeProjectFromRecord(projectInfo, db.StoragePoolVolumeTypeCustom)
+			customStorageProjectName := project.StorageVolumeProjectFromRecord(projectInfo, dbCluster.StoragePoolVolumeTypeCustom)
 
 			// Recover unknown custom volumes (do this first before recovering instances so that any
 			// instances that reference unknown custom volume disk devices can be created).

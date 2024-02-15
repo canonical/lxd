@@ -144,7 +144,7 @@ DELETE FROM storage_volumes WHERE id IN (
 	) j1 ON name=printf("%s/%s", j1.inst_name, j1.snap_name)
 	/* Only keep the records with a matching 'name' pattern, 'node_id' and 'type' */
 );
-`, nodeID, db.StoragePoolVolumeTypeContainer)
+`, nodeID, cluster.StoragePoolVolumeTypeContainer)
 		if err != nil {
 			return fmt.Errorf("Failed to delete remaining instance snapshot records in the `storage_volumes` table: %w", err)
 		}

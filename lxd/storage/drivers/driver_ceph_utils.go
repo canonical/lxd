@@ -14,7 +14,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -39,10 +39,10 @@ const CephDefaultUser = "admin"
 
 // cephVolTypePrefixes maps volume type to storage volume name prefix.
 var cephVolTypePrefixes = map[VolumeType]string{
-	VolumeTypeContainer: db.StoragePoolVolumeTypeNameContainer,
-	VolumeTypeVM:        db.StoragePoolVolumeTypeNameVM,
-	VolumeTypeImage:     db.StoragePoolVolumeTypeNameImage,
-	VolumeTypeCustom:    db.StoragePoolVolumeTypeNameCustom,
+	VolumeTypeContainer: cluster.StoragePoolVolumeTypeNameContainer,
+	VolumeTypeVM:        cluster.StoragePoolVolumeTypeNameVM,
+	VolumeTypeImage:     cluster.StoragePoolVolumeTypeNameImage,
+	VolumeTypeCustom:    cluster.StoragePoolVolumeTypeNameCustom,
 }
 
 // osdPoolExists checks whether a given OSD pool exists.

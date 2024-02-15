@@ -507,71 +507,10 @@ func getWarningEntityURL(ctx context.Context, tx *sql.Tx, warning *cluster.Warni
 		return "", nil
 	}
 
-	var url string
-	switch entity.Type(warning.EntityType) {
-	case entity.TypeImage:
-		entities, err := cluster.GetImages(ctx, tx, cluster.ImageFilter{ID: &warning.EntityID})
-		if err != nil {
-			return "", err
-		}
-
-		if len(entities) == 0 {
-			return "", db.ErrUnknownEntityID
-		}
-
-		apiImage := api.Image{Fingerprint: entities[0].Fingerprint}
-		url = apiImage.URL(version.APIVersion, entities[0].Project).String()
-	case entity.TypeProfile:
-		entities, err := cluster.GetProfiles(ctx, tx, cluster.ProfileFilter{ID: &warning.EntityID})
-		if err != nil {
-			return "", err
-		}
-
-		if len(entities) == 0 {
-			return "", db.ErrUnknownEntityID
-		}
-
-		apiProfile := api.Profile{Name: entities[0].Name}
-		url = apiProfile.URL(version.APIVersion, entities[0].Project).String()
-	case entity.TypeProject:
-		entities, err := cluster.GetProjects(ctx, tx, cluster.ProjectFilter{ID: &warning.EntityID})
-		if err != nil {
-			return "", err
-		}
-
-		if len(entities) == 0 {
-			return "", db.ErrUnknownEntityID
-		}
-
-		apiProject := api.Project{Name: entities[0].Name}
-		url = apiProject.URL(version.APIVersion).String()
-	case entity.TypeCertificate:
-		entities, err := cluster.GetCertificates(ctx, tx, cluster.CertificateFilter{ID: &warning.EntityID})
-		if err != nil {
-			return "", err
-		}
-
-		if len(entities) == 0 {
-			return "", db.ErrUnknownEntityID
-		}
-
-		apiCertificate := api.Certificate{Fingerprint: entities[0].Fingerprint}
-		url = apiCertificate.URL(version.APIVersion).String()
-	case entity.TypeContainer:
-		fallthrough
-	case entity.TypeInstance:
-		entities, err := cluster.GetInstances(ctx, tx, cluster.InstanceFilter{ID: &warning.EntityID})
-		if err != nil {
-			return "", err
-		}
-
-		if len(entities) == 0 {
-			return "", db.ErrUnknownEntityID
-		}
-
-		apiInstance := api.Instance{Name: entities[0].Name}
-		url = apiInstance.URL(version.APIVersion, entities[0].Project).String()
+	u, err := cluster.GetEntityURL(ctx, tx, entity.Type(warning.EntityType), warning.EntityID)
+	if err != nil {
+		return "", fmt.Errorf("Failed to get warning entity URL: %w", err)
 	}
 
-	return url, nil
+	return u.String(), nil
 }

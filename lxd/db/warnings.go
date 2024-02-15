@@ -48,12 +48,6 @@ func (c *Cluster) UpsertWarningLocalNode(projectName string, entityType entity.T
 
 // UpsertWarning creates or updates a warning.
 func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityType entity.Type, entityID int, typeCode warningtype.Type, message string) error {
-	// Validate
-	_, err := c.GetURIFromEntity(entityType, entityID)
-	if err != nil {
-		return fmt.Errorf("Failed to get URI for entity ID %d with entity type %q: %w", entityID, entityType, err)
-	}
-
 	_, ok := warningtype.TypeNames[typeCode]
 	if !ok {
 		return fmt.Errorf("Unknown warning type code %d", typeCode)
@@ -61,7 +55,15 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityType 
 
 	now := time.Now().UTC()
 
-	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		if entityType != "" {
+			// Validate that the entity exists.
+			_, err := cluster.GetEntityURL(ctx, tx.Tx(), entityType, entityID)
+			if err != nil {
+				return fmt.Errorf("Failed to validate warning: %w", err)
+			}
+		}
+
 		clusterEntityType := cluster.EntityType(entityType)
 		filter := cluster.WarningFilter{
 			TypeCode:   &typeCode,
