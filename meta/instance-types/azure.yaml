@@ -1,0 +1,145 @@
+A10:
+  cpu: 8.0
+  mem: 56.0
+A11:
+  cpu: 16.0
+  mem: 112.0
+A5:
+  cpu: 2.0
+  mem: 14.0
+A6:
+  cpu: 4.0
+  mem: 28.0
+A7:
+  cpu: 8.0
+  mem: 56.0
+A8:
+  cpu: 8.0
+  mem: 56.0
+A9:
+  cpu: 16.0
+  mem: 112.0
+ExtraLarge:
+  cpu: 8.0
+  mem: 14.0
+ExtraSmall:
+  cpu: 1.0
+  mem: 0.768
+Large:
+  cpu: 4.0
+  mem: 7.0
+Medium:
+  cpu: 2.0
+  mem: 3.5
+Small:
+  cpu: 1.0
+  mem: 1.75
+Standard_A1_v2:
+  cpu: 1.0
+  mem: 2.0
+Standard_A2_v2:
+  cpu: 2.0
+  mem: 4.0
+Standard_A2m_v2:
+  cpu: 2.0
+  mem: 16.0
+Standard_A4_v2:
+  cpu: 4.0
+  mem: 8.0
+Standard_A4m_v2:
+  cpu: 4.0
+  mem: 32.0
+Standard_A8_v2:
+  cpu: 8.0
+  mem: 16.0
+Standard_A8m_v2:
+  cpu: 8.0
+  mem: 64.0
+Standard_D1:
+  cpu: 1.0
+  mem: 3.5
+Standard_D11:
+  cpu: 2.0
+  mem: 14.0
+Standard_D11_v2:
+  cpu: 2.0
+  mem: 14.0
+Standard_D12:
+  cpu: 4.0
+  mem: 28.0
+Standard_D12_v2:
+  cpu: 4.0
+  mem: 28.0
+Standard_D13:
+  cpu: 8.0
+  mem: 56.0
+Standard_D13_v2:
+  cpu: 8.0
+  mem: 56.0
+Standard_D14:
+  cpu: 16.0
+  mem: 112.0
+Standard_D14_v2:
+  cpu: 16.0
+  mem: 112.0
+Standard_D15_v2:
+  cpu: 20.0
+  mem: 140.0
+Standard_D1_v2:
+  cpu: 1.0
+  mem: 3.5
+Standard_D2:
+  cpu: 2.0
+  mem: 7.0
+Standard_D2_v2:
+  cpu: 2.0
+  mem: 7.0
+Standard_D3:
+  cpu: 4.0
+  mem: 14.0
+Standard_D3_v2:
+  cpu: 4.0
+  mem: 14.0
+Standard_D4:
+  cpu: 8.0
+  mem: 28.0
+Standard_D4_v2:
+  cpu: 8.0
+  mem: 28.0
+Standard_D5_v2:
+  cpu: 16.0
+  mem: 56.0
+Standard_G1:
+  cpu: 2.0
+  mem: 28.0
+Standard_G2:
+  cpu: 4.0
+  mem: 56.0
+Standard_G3:
+  cpu: 8.0
+  mem: 112.0
+Standard_G4:
+  cpu: 16.0
+  mem: 224.0
+Standard_G5:
+  cpu: 32.0
+  mem: 448.0
+Standard_H16:
+  cpu: 16.0
+  mem: 112.0
+Standard_H16m:
+  cpu: 16.0
+  mem: 224.0
+Standard_H16mr:
+  cpu: 16.0
+  mem: 224.0
+Standard_H16r:
+  cpu: 16.0
+  mem: 112.0
+Standard_H8:
+  cpu: 8.0
+  mem: 56.0
+Standard_H8m:
+  cpu: 8.0
+  mem: 112.0
+
