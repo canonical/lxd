@@ -587,8 +587,17 @@ func (v Volume) Clone() Volume {
 
 // NewVolumeCopy returns a container for copying a volume and its snapshots.
 func NewVolumeCopy(vol Volume, snapshots ...Volume) VolumeCopy {
+	modifiedSnapshots := make([]Volume, 0, len(snapshots))
+
+	// Set the parent volume's UUID for each snapshot.
+	// If the parent volume doesn't have an UUID it's a noop.
+	for _, snapshot := range snapshots {
+		snapshot.SetParentUUID(vol.config["volatile.uuid"])
+		modifiedSnapshots = append(modifiedSnapshots, snapshot)
+	}
+
 	return VolumeCopy{
 		Volume:    vol,
-		Snapshots: snapshots,
+		Snapshots: modifiedSnapshots,
 	}
 }
