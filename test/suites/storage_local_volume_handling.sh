@@ -247,11 +247,11 @@ test_storage_local_volume_handling() {
 
           # check snapshot volumes (including config) was overridden from new source and that missing snapshot is
           # present and that the missing snapshot has been removed.
-          # Note: Due to a known issue we are currently only diffing the snapshots by name, so infact existing
-          # snapshots of the same name won't be overwritten even if their config or contents is different.
+          # Note: Due to a known issue we are currently only diffing the snapshots by name and creation date, so infact existing
+          # snapshots of the same name and date won't be overwritten even if their config or contents is different.
           lxc storage volume get "${target_pool}" vol5 user.foo | grep -Fx "postsnap1vol5"
-          lxc storage volume get "${target_pool}" vol5/snap0 user.foo | grep -Fx "snap0vol5"
-          lxc storage volume get "${target_pool}" vol5/snap1 user.foo | grep -Fx "snap1vol5"
+          lxc storage volume get "${target_pool}" vol5/snap0 user.foo | grep -Fx "snap0vol6"
+          lxc storage volume get "${target_pool}" vol5/snap1 user.foo | grep -Fx "snap1vol6"
           lxc storage volume get "${target_pool}" vol5/snap2 user.foo | grep -Fx "snap2vol6"
           ! lxc storage volume get "${target_pool}" vol5/snapremove user.foo || false
 
