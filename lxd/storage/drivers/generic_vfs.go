@@ -366,8 +366,20 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 
 		// Snapshots are sent first by the sender, so create these first.
 		for _, snapName := range volTargetArgs.Snapshots {
-			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
-			snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapshotName, vol.config, vol.poolConfig)
+			found := false
+			var snapVol Volume
+			for _, snapshot := range vol.Snapshots {
+				_, snapshotName, _ := api.GetParentAndSnapshotName(snapshot.name)
+				if snapshotName == snapName {
+					snapVol = snapshot
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				return fmt.Errorf("Snapshot %q missing in volume's list", snapName)
+			}
 
 			if snapVol.contentType != ContentTypeBlock || snapVol.volType != VolumeTypeCustom { // Receive the filesystem snapshot first (as it is sent first).
 				err = recvFSVol(snapVol.name, conn, path)
@@ -625,13 +637,23 @@ func genericVFSBackupVolume(d Driver, vol VolumeCopy, tarWriter *instancewriter.
 		}
 
 		for _, snapName := range snapshots {
-			prefix := filepath.Join(snapshotsPrefix, snapName)
-			snapVol, err := vol.NewSnapshot(snapName)
-			if err != nil {
-				return err
+			found := false
+			var snapVol Volume
+			for _, snapshot := range vol.Snapshots {
+				_, snapshotName, _ := api.GetParentAndSnapshotName(snapshot.name)
+				if snapshotName == snapName {
+					snapVol = snapshot
+					found = true
+					break
+				}
 			}
 
-			err = backupVolume(snapVol, prefix)
+			if !found {
+				return fmt.Errorf("Snapshot %q missing in volume's list", snapName)
+			}
+
+			prefix := filepath.Join(snapshotsPrefix, snapName)
+			err := backupVolume(snapVol, prefix)
 			if err != nil {
 				return err
 			}
@@ -851,15 +873,25 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol VolumeCopy, snapshots [
 	}
 
 	for _, snapName := range snapshots {
+		found := false
+		var snapVol Volume
+		for _, snapshot := range vol.Snapshots {
+			_, snapshotName, _ := api.GetParentAndSnapshotName(snapshot.name)
+			if snapshotName == snapName {
+				snapVol = snapshot
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return nil, nil, fmt.Errorf("Snapshot %q missing in volume's list", snapName)
+		}
+
 		err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
 			backupSnapshotPrefix := fmt.Sprintf("%s/%s", backupSnapshotsPrefix, snapName)
 			return unpackVolume(srcData, tarArgs, unpacker, backupSnapshotPrefix, mountPath)
 		}, op)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		snapVol, err := vol.NewSnapshot(snapName)
 		if err != nil {
 			return nil, nil, err
 		}

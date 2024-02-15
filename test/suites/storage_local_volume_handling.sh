@@ -86,6 +86,11 @@ test_storage_local_volume_handling() {
     lxc storage volume get "${pool}" vol1copy user.foo | grep -Fx "postsnap1"
     lxc storage volume get "${pool}" vol1copy/snap0 user.foo | grep -Fx "snap0"
     lxc storage volume get "${pool}" vol1copy/snap1 user.foo | grep -Fx "snap1"
+
+    # Check the volume and snapshot UUIDs are different
+    [ "$(lxc storage volume get "${pool}" vol1 volatile.uuid)" != "$(lxc storage volume get "${pool}" vol1copy volatile.uuid)" ]
+    [ "$(lxc storage volume get "${pool}" vol1/snap0 volatile.uuid)" != "$(lxc storage volume get "${pool}" vol1copy/snap0 volatile.uuid)" ]
+    [ "$(lxc storage volume get "${pool}" vol1/snap1 volatile.uuid)" != "$(lxc storage volume get "${pool}" vol1copy/snap1 volatile.uuid)" ]
     lxc storage volume delete "${pool}" vol1copy
 
     # Copy volume with snapshots in different pool
@@ -254,6 +259,13 @@ test_storage_local_volume_handling() {
           lxc storage volume get "${target_pool}" vol5/snap1 user.foo | grep -Fx "snap1vol6"
           lxc storage volume get "${target_pool}" vol5/snap2 user.foo | grep -Fx "snap2vol6"
           ! lxc storage volume get "${target_pool}" vol5/snapremove user.foo || false
+
+          # check that another refresh doesn't change the volume's and snapshot's UUID
+          old_uuid="$(lxc storage volume get "${target_pool}" vol5 volatile.uuid)"
+          old_snap0_uuid="$(lxc storage volume get "${target_pool}" vol5/snap0 volatile.uuid)"
+          lxc storage volume copy --refresh "${source_pool}/vol6" "${target_pool}/vol5"
+          [ "$(lxc storage volume get "${target_pool}" vol5 volatile.uuid)" = "${old_uuid}" ]
+          [ "$(lxc storage volume get "${target_pool}" vol5/snap0 volatile.uuid)" = "${old_snap0_uuid}" ]
 
           # copy ISO custom volumes
           truncate -s 25MiB foo.iso
