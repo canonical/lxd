@@ -1,0 +1,64 @@
+f1-micro:
+  cpu: 0.2
+  mem: 0.6
+g1-small:
+  cpu: 0.5
+  mem: 1.7
+n1-highcpu-16:
+  cpu: 16.0
+  mem: 14.4
+n1-highcpu-2:
+  cpu: 2.0
+  mem: 1.8
+n1-highcpu-32:
+  cpu: 32.0
+  mem: 28.8
+n1-highcpu-4:
+  cpu: 4.0
+  mem: 3.6
+n1-highcpu-64:
+  cpu: 64.0
+  mem: 57.6
+n1-highcpu-8:
+  cpu: 8.0
+  mem: 7.2
+n1-highmem-16:
+  cpu: 16.0
+  mem: 104.0
+n1-highmem-2:
+  cpu: 2.0
+  mem: 13.0
+n1-highmem-32:
+  cpu: 32.0
+  mem: 208.0
+n1-highmem-4:
+  cpu: 4.0
+  mem: 26.0
+n1-highmem-64:
+  cpu: 64.0
+  mem: 416.0
+n1-highmem-8:
+  cpu: 8.0
+  mem: 52.0
+n1-standard-1:
+  cpu: 1.0
+  mem: 3.75
+n1-standard-16:
+  cpu: 16.0
+  mem: 60.0
+n1-standard-2:
+  cpu: 2.0
+  mem: 7.5
+n1-standard-32:
+  cpu: 32.0
+  mem: 120.0
+n1-standard-4:
+  cpu: 4.0
+  mem: 15.0
+n1-standard-64:
+  cpu: 64.0
+  mem: 240.0
+n1-standard-8:
+  cpu: 8.0
+  mem: 30.0
+

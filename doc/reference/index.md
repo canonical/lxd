@@ -24,6 +24,5 @@ Production server settings </reference/server_settings>
 /restapi_landing
 /server
 /reference/storage_drivers
-Community image server <https://images.linuxcontainers.org>
 Project repository <https://github.com/canonical/lxd>
 ```
