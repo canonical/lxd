@@ -2,6 +2,8 @@ module github.com/canonical/lxd
 
 go 1.20
 
+toolchain go1.21.6
+
 require (
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.1.0
