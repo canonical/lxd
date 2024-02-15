@@ -2,7 +2,7 @@
 # How to use profiles
 
 Profiles store a set of configuration options.
-They can contain instance options, devices and device options.
+They can contain {ref}`instance-options`, {ref}`devices`, and device options.
 
 You can apply any number of profiles to an instance.
 They are applied in the order they are specified, so the last profile to specify a specific key takes precedence.
@@ -39,6 +39,7 @@ Enter the following command to create an empty profile:
 ## Edit a profile
 
 You can either set specific configuration options for a profile or edit the full profile in YAML format.
+See {ref}`instance-config` (and its subpages) for the available options.
 
 ### Set specific options for a profile
 
