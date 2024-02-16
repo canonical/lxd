@@ -860,7 +860,7 @@ func (d *lvm) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs 
 // BackupVolume copies a volume (and optionally its snapshots) to a specified target path.
 // This driver does not support optimized backups.
 func (d *lvm) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTarWriter, _ bool, snapshots []string, op *operations.Operation) error {
-	return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
+	return genericVFSBackupVolume(d, vol, tarWriter, snapshots, snapshotNameMatcher, op)
 }
 
 // CreateVolumeSnapshot creates a snapshot of a volume.
