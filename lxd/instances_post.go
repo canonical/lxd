@@ -1447,15 +1447,13 @@ func instanceFindStoragePool(s *state.State, projectName string, req *api.Instan
 }
 
 func clusterCopyContainerInternal(ctx context.Context, s *state.State, source instance.Instance, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
-	name := req.Source.Source
-
 	// Locate the source of the container
 	var nodeAddress string
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		// Load source node.
-		nodeAddress, err = tx.GetNodeAddressOfInstance(ctx, projectName, name, source.Type())
+		nodeAddress, err = tx.GetNodeAddressOfInstance(ctx, source.Project().Name, source.Name(), source.Type())
 		if err != nil {
 			return fmt.Errorf("Failed to get address of instance's member: %w", err)
 		}
