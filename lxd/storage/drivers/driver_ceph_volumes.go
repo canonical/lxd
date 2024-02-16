@@ -1484,7 +1484,7 @@ func (d *ceph) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs
 
 // BackupVolume creates an exported version of a volume.
 func (d *ceph) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
-	return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
+	return genericVFSBackupVolume(d, vol, tarWriter, snapshots, snapshotNameMatcher, op)
 }
 
 // CreateVolumeSnapshot creates a snapshot of a volume.
