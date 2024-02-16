@@ -1,9 +1,9 @@
 #!/bin/sh -eu
 
-# Check client and shared packages don't include non-permissive licenses.
-# As they are licensed out under Apache-2.0.
-cd client
+# Check LXD doesn't include non-permissive licenses (except for itself).
+mv COPYING COPYING.tmp
+cp client/COPYING COPYING
 go-licenses check ./...
+mv COPYING.tmp COPYING
 
-cd ../shared
-go-licenses check ./...
+
