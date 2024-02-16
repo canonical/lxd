@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	petname "github.com/dustinkirkland/golang-petname"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 
 	"github.com/canonical/lxd/lxd/archive"
@@ -650,6 +651,18 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	// Override instance name.
 	if instanceName != "" {
 		bInfo.Name = instanceName
+	}
+
+	// Override the volume's UUID.
+	// Normally a volume (and its snapshots) gets a new UUID if their config doesn't already have
+	// a `volatile.uuid` field during creation of the volume's record in the DB.
+	// When importing a backup we have to ensure to not pass the backup volume's UUID when
+	// calling the actual backend functions for the target volume that perform some preliminary validation checks.
+	bInfo.Config.Volume.Config["volatile.uuid"] = uuid.New().String()
+
+	// Override the volume snapshot's UUID.
+	for _, snapshot := range bInfo.Config.VolumeSnapshots {
+		snapshot.Config["volatile.uuid"] = uuid.New().String()
 	}
 
 	logger.Debug("Backup file info loaded", logger.Ctx{
