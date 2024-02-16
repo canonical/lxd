@@ -144,13 +144,31 @@ func (v Volume) ExpandedConfig(key string) string {
 }
 
 // NewSnapshot instantiates a new Volume struct representing a snapshot of the parent volume.
+// This creates a logical representation of the snapshot with the cloned config from its parent volume.
+// The parent's UUID is not included.
+// Load the snapshot from the database instead if you want to access its own UUID.
 func (v Volume) NewSnapshot(snapshotName string) (Volume, error) {
 	if v.IsSnapshot() {
 		return Volume{}, fmt.Errorf("Cannot create a snapshot volume from a snapshot")
 	}
 
+	// Deep copy the volume's config.
+	// A snapshot can have different config keys like its UUID.
+	// When instantiating a new snapshot from its parent volume,
+	// this ensures that modifications on the snapshots config
+	// aren't propagated to the parent volume.
+	snapConfig := make(map[string]string, len(v.config))
+	for key, value := range v.config {
+		if key == "volatile.uuid" {
+			// Don't copy the parent volume's UUID.
+			continue
+		}
+
+		snapConfig[key] = value
+	}
+
 	fullSnapName := GetSnapshotVolumeName(v.name, snapshotName)
-	vol := NewVolume(v.driver, v.pool, v.volType, v.contentType, fullSnapName, v.config, v.poolConfig)
+	vol := NewVolume(v.driver, v.pool, v.volType, v.contentType, fullSnapName, snapConfig, v.poolConfig)
 
 	// Propagate filesystem probe mode of parent volume.
 	vol.SetMountFilesystemProbe(v.mountFilesystemProbe)
