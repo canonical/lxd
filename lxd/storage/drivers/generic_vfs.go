@@ -483,10 +483,10 @@ func genericVFSGetVolumeDiskPath(vol Volume) (string, error) {
 }
 
 // genericVFSBackupVolume is a generic BackupVolume implementation for VFS-only drivers.
-func genericVFSBackupVolume(d Driver, vol VolumeCopy, tarWriter *instancewriter.InstanceTarWriter, snapshots []string, op *operations.Operation) error {
+func genericVFSBackupVolume(d Driver, vol VolumeCopy, tarWriter *instancewriter.InstanceTarWriter, snapshots []string, matcher snapshotMatcher, op *operations.Operation) error {
 	if len(snapshots) > 0 {
 		// Check requested snapshot match those in storage.
-		err := vol.SnapshotsMatch(snapshots, op)
+		err := vol.SnapshotsMatch(vol.Snapshots, matcher, op)
 		if err != nil {
 			return err
 		}
