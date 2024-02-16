@@ -355,25 +355,50 @@ func (v Volume) Snapshots(op *operations.Operation) ([]Volume, error) {
 
 // SnapshotsMatch checks that the snapshots, according to the storage driver, match those provided (although not
 // necessarily in the same order).
-func (v Volume) SnapshotsMatch(snapNames []string, op *operations.Operation) error {
+func (v Volume) SnapshotsMatch(dbSnapshots []Volume, matcher snapshotMatcher, op *operations.Operation) error {
 	if v.IsSnapshot() {
 		return fmt.Errorf("Volume is a snapshot")
 	}
 
-	snapshots, err := v.driver.VolumeSnapshots(v, op)
+	storageSnapshots, err := v.driver.VolumeSnapshots(v, op)
 	if err != nil {
 		return err
 	}
 
-	for _, snapName := range snapNames {
-		if !shared.ValueInSlice(snapName, snapshots) {
-			return fmt.Errorf("Snapshot %q expected but not in storage", snapName)
+	var storageSnapshotVolumes []Volume
+	for _, storageSnapshot := range storageSnapshots {
+		snap, err := v.NewSnapshot(storageSnapshot)
+		if err != nil {
+			return err
+		}
+
+		storageSnapshotVolumes = append(storageSnapshotVolumes, snap)
+	}
+
+	for _, dbSnapshot := range dbSnapshots {
+		ok, err := matcher(dbSnapshot, storageSnapshotVolumes)
+		if err != nil {
+			return err
+		}
+
+		if !ok {
+			return fmt.Errorf("Snapshot %q expected but not in storage", dbSnapshot.name)
 		}
 	}
 
-	for _, snapshot := range snapshots {
-		if !shared.ValueInSlice(snapshot, snapNames) {
-			return fmt.Errorf("Snapshot %q in storage but not expected", snapshot)
+	for _, storageSnapshot := range storageSnapshots {
+		snap, err := v.NewSnapshot(storageSnapshot)
+		if err != nil {
+			return err
+		}
+
+		ok, err := matcher(snap, dbSnapshots)
+		if err != nil {
+			return err
+		}
+
+		if !ok {
+			return fmt.Errorf("Snapshot %q in storage but not expected", storageSnapshot)
 		}
 	}
 
