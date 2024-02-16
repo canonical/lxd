@@ -21,11 +21,27 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+// snapshotMatcher implements a function to find a snapshot within a list of snapshots.
+type snapshotMatcher func(findSnapshot Volume, snapshotList []Volume) (bool, error)
+
 // MinBlockBoundary minimum block boundary size to use.
 const MinBlockBoundary = 8192
 
 // blockBackedAllowedFilesystems allowed filesystems for block volumes.
 var blockBackedAllowedFilesystems = []string{"btrfs", "ext4", "xfs"}
+
+// snapshotNameMatcher finds a snapshot in a list of snapshots based on its name.
+var snapshotNameMatcher snapshotMatcher = func(findSnapshot Volume, snapshotList []Volume) (bool, error) {
+	_, findSnapshotName, _ := api.GetParentAndSnapshotName(findSnapshot.name)
+	for _, snapshot := range snapshotList {
+		_, listSnapshotName, _ := api.GetParentAndSnapshotName(snapshot.name)
+		if listSnapshotName == findSnapshotName {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
 
 // wipeDirectory empties the contents of a directory, but leaves it in place.
 func wipeDirectory(path string) error {
