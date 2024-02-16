@@ -1512,14 +1512,14 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceT
 			vol.mountCustomPath = snapshotPath
 		}
 
-		return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
+		return genericVFSBackupVolume(d, vol, tarWriter, snapshots, snapshotNameMatcher, op)
 	}
 
 	// Optimized backup.
 
 	if len(snapshots) > 0 {
 		// Check requested snapshot match those in storage.
-		err := vol.SnapshotsMatch(snapshots, op)
+		err := vol.SnapshotsMatch(vol.Snapshots, snapshotNameMatcher, op)
 		if err != nil {
 			return err
 		}
