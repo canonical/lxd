@@ -150,8 +150,23 @@ func (v Volume) NewSnapshot(snapshotName string) (Volume, error) {
 		return Volume{}, fmt.Errorf("Cannot create a snapshot volume from a snapshot")
 	}
 
+	// Deep copy the volume's config.
+	// A snapshot can have different config keys like its UUID.
+	// When instantiating a new snapshot from its parent volume,
+	// this ensures that modifications on the snapshots config
+	// aren't propagated to the parent volume.
+	snapConfig := make(map[string]string, len(v.config))
+	for k, v := range v.config {
+		if k == "volatile.uuid" {
+			// Don't copy the parent volume's UUID.
+			continue
+		}
+
+		snapConfig[k] = v
+	}
+
 	fullSnapName := GetSnapshotVolumeName(v.name, snapshotName)
-	vol := NewVolume(v.driver, v.pool, v.volType, v.contentType, fullSnapName, v.config, v.poolConfig)
+	vol := NewVolume(v.driver, v.pool, v.volType, v.contentType, fullSnapName, snapConfig, v.poolConfig)
 
 	// Propagate filesystem probe mode of parent volume.
 	vol.SetMountFilesystemProbe(v.mountFilesystemProbe)
