@@ -8,7 +8,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/warningtype"
-	"github.com/canonical/lxd/lxd/entity"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 // ResolveWarningsByLocalNodeOlderThan resolves all warnings which are older than the provided time.
