@@ -10,9 +10,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 // EntityType is a database representation of an entity type.
