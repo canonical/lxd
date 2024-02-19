@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 )
@@ -436,6 +437,38 @@ func (d *common) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation)
 // VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
 func (d *common) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
 	return nil, ErrNotSupported
+}
+
+// CheckVolumeSnapshots checks that the volume's snapshots, according to the storage driver, match those provided.
+func (d *common) CheckVolumeSnapshots(vol Volume, snapVols []Volume, op *operations.Operation) error {
+	// Use the volume's driver reference to pick the actual method as implemented by the driver.
+	storageSnapshotNames, err := vol.driver.VolumeSnapshots(vol, op)
+	if err != nil {
+		return err
+	}
+
+	// Create a list of all wanted snapshots.
+	wantedSnapshotNames := make([]string, 0, len(snapVols))
+	for _, snap := range snapVols {
+		_, snapName, _ := api.GetParentAndSnapshotName(snap.name)
+		wantedSnapshotNames = append(wantedSnapshotNames, snapName)
+	}
+
+	// Check if the provided list of volume snapshots matches the ones from storage.
+	for _, wantedSnapshotName := range wantedSnapshotNames {
+		if !shared.StringInSlice(wantedSnapshotName, storageSnapshotNames) {
+			return fmt.Errorf("Snapshot %q expected but not in storage", wantedSnapshotName)
+		}
+	}
+
+	// Check if the snapshots in storage match the ones from the provided list.
+	for _, storageSnapshotName := range storageSnapshotNames {
+		if !shared.StringInSlice(storageSnapshotName, wantedSnapshotNames) {
+			return fmt.Errorf("Snapshot %q in storage but not expected", storageSnapshotName)
+		}
+	}
+
+	return nil
 }
 
 // RestoreVolume resets a volume to its snapshotted state.
