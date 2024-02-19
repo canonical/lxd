@@ -159,7 +159,7 @@ func (d *lvm) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 	}
 
 	// Otherwise run the generic copy.
-	return genericVFSCopyVolume(d, nil, vol.Volume, srcVol.Volume, srcSnapshots, false, allowInconsistent, op)
+	return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, false, allowInconsistent, op)
 }
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
@@ -175,7 +175,7 @@ func (d *lvm) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 	}
 
 	// Otherwise run the generic copy.
-	return genericVFSCopyVolume(d, nil, vol.Volume, srcVol.Volume, refreshSnapshots, true, allowInconsistent, op)
+	return genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
 }
 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then this function
