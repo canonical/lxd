@@ -1064,23 +1064,6 @@ func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
 		return fmt.Errorf("Stateful start requires migration.stateful to be set to true")
 	}
 
-	// The "size.state" of the instance root disk device must be larger than the instance memory.
-	// Otherwise, there will not be enough disk space to write the instance state to disk during any subsequent stops.
-	// (Only check when migration.stateful is true, otherwise the memory won't be dumped when this instance stops).
-	if shared.IsTrue(d.expandedConfig["migration.stateful"]) {
-		pool, err := d.getStoragePool()
-		if err != nil {
-			return err
-		}
-
-		if !pool.Driver().Info().Remote {
-			err = d.validateRootDiskStatefulStop()
-			if err != nil {
-				return err
-			}
-		}
-	}
-
 	return nil
 }
 
