@@ -468,6 +468,42 @@ var storageBucketEntityByID = fmt.Sprintf(`%s WHERE storage_buckets.id = ?`, sto
 // storageBucketEntities returns all entities of type entity.TypeStorageBucket in a particular project.
 var storageBucketEntitiesByProjectName = fmt.Sprintf(`%s WHERE projects.name = ?`, storageBucketEntities)
 
+// authGroupEntities returns all entities of type entity.TypeGroup.
+var authGroupEntities = fmt.Sprintf(`SELECT %d, auth_groups.id, '', '', json_array(auth_groups.name) FROM auth_groups`, entityTypeAuthGroup)
+
+// authGroupEntityByID gets the entity of type entity.TypeGroup with a particular ID.
+var authGroupEntityByID = fmt.Sprintf(`%s WHERE auth_groups.id = ?`, authGroupEntities)
+
+// identityProviderGroupEntities returns all entities of type entity.TypeIdentityProviderGroup.
+var identityProviderGroupEntities = fmt.Sprintf(`SELECT %d, identity_provider_groups.id, '', '', json_array(identity_provider_groups.name) FROM identity_provider_groups`, entityTypeIdentityProviderGroup)
+
+// identityProviderGroupByEntityID gets the entity of type entity.TypeIdentityProviderGroup with a particular ID.
+var identityProviderGroupEntityByID = fmt.Sprintf(`%s WHERE identity_provider_groups.id = ?`, identityProviderGroupEntities)
+
+// identityEntities returns all entities of type entity.TypeIdentity.
+var identityEntities = fmt.Sprintf(`
+SELECT 
+	%d, 
+	identities.id, 
+	'', 
+	'', 
+	json_array(
+		CASE identities.auth_method
+			WHEN %d THEN '%s'
+			WHEN %d THEN '%s'
+		END,
+		identities.identifier
+	) 
+FROM identities
+`,
+	entityTypeIdentity,
+	authMethodTLS, api.AuthenticationMethodTLS,
+	authMethodOIDC, api.AuthenticationMethodOIDC,
+)
+
+// identityEntityByID gets the entity of type entity.TypeIdentity with a particular ID.
+var identityEntityByID = fmt.Sprintf(`%s WHERE identities.id = ?`, identityEntities)
+
 // entityStatementsAll is a map of entity type to the statement which queries for all URL information for entities of that type.
 var entityStatementsAll = map[entity.Type]string{
 	entity.TypeContainer:             containerEntities,
@@ -491,6 +527,9 @@ var entityStatementsAll = map[entity.Type]string{
 	entity.TypeStorageBucket:         storageBucketEntities,
 	entity.TypeImageAlias:            imageAliasEntities,
 	entity.TypeNetworkZone:           networkZoneEntities,
+	entity.TypeAuthGroup:             authGroupEntities,
+	entity.TypeIdentityProviderGroup: identityProviderGroupEntities,
+	entity.TypeIdentity:              identityEntities,
 }
 
 // entityStatementsByID is a map of entity type to the statement which queries for all URL information for a single entity of that type with a given ID.
@@ -516,6 +555,9 @@ var entityStatementsByID = map[entity.Type]string{
 	entity.TypeStorageBucket:         storageBucketEntityByID,
 	entity.TypeImageAlias:            imageAliasEntityByID,
 	entity.TypeNetworkZone:           networkZoneEntityByID,
+	entity.TypeAuthGroup:             authGroupEntityByID,
+	entity.TypeIdentityProviderGroup: identityProviderGroupEntityByID,
+	entity.TypeIdentity:              identityEntityByID,
 }
 
 // entityStatementsByProjectName is a map of entity type to the statement which queries for all URL information for all entities of that type within a given project.
