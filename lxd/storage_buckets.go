@@ -12,7 +12,6 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
-	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
@@ -20,6 +19,7 @@ import (
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"

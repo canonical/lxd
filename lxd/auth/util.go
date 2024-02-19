@@ -3,8 +3,8 @@ package auth
 import (
 	"fmt"
 
-	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 // ValidateEntitlement returns an error if the given Entitlement does not apply to the entity.Type.

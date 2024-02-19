@@ -17,7 +17,6 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
-	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
@@ -30,6 +29,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	apiScriptlet "github.com/canonical/lxd/shared/api/scriptlet"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
