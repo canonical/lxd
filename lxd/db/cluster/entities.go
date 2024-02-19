@@ -580,24 +580,24 @@ var entityStatementsByProjectName = map[entity.Type]string{
 	entity.TypeNetworkZone:           networkZoneEntitiesByProjectName,
 }
 
-// entityRef represents the expected format of entity URL queries.
-type entityRef struct {
-	entityType  EntityType
-	entityID    int
-	projectName string
-	location    string
-	pathArgs    []string
+// EntityRef represents the expected format of entity URL queries.
+type EntityRef struct {
+	EntityType  EntityType
+	EntityID    int
+	ProjectName string
+	Location    string
+	PathArgs    []string
 }
 
 // scan accepts a scanning function (e.g. `(*sql.Row).Scan`) and uses it to parse the row and set its fields.
-func (e *entityRef) scan(scan func(dest ...any) error) error {
+func (e *EntityRef) scan(scan func(dest ...any) error) error {
 	var pathArgs string
-	err := scan(&e.entityType, &e.entityID, &e.projectName, &e.location, &pathArgs)
+	err := scan(&e.EntityType, &e.EntityID, &e.ProjectName, &e.Location, &pathArgs)
 	if err != nil {
 		return fmt.Errorf("Failed to scan entity URL: %w", err)
 	}
 
-	err = json.Unmarshal([]byte(pathArgs), &e.pathArgs)
+	err = json.Unmarshal([]byte(pathArgs), &e.PathArgs)
 	if err != nil {
 		return fmt.Errorf("Failed to unmarshal entity URL path arguments: %w", err)
 	}
@@ -605,9 +605,9 @@ func (e *entityRef) scan(scan func(dest ...any) error) error {
 	return nil
 }
 
-// getURL is a convenience for generating a URL from the entityRef.
-func (e *entityRef) getURL() (*api.URL, error) {
-	u, err := entity.Type(e.entityType).URL(e.projectName, e.location, e.pathArgs...)
+// getURL is a convenience for generating a URL from the EntityRef.
+func (e *EntityRef) getURL() (*api.URL, error) {
+	u, err := entity.Type(e.EntityType).URL(e.ProjectName, e.Location, e.PathArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create entity URL: %w", err)
 	}
@@ -631,7 +631,7 @@ func GetEntityURL(ctx context.Context, tx *sql.Tx, entityType entity.Type, entit
 		return nil, api.StatusErrorf(http.StatusNotFound, "No entity found with id `%d` and type %q", entityID, entityType)
 	}
 
-	entityRef := &entityRef{}
+	entityRef := &EntityRef{}
 	err := entityRef.scan(row.Scan)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to scan entity URL: %w", err)
@@ -717,7 +717,7 @@ func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, entityTy
 	}
 
 	for rows.Next() {
-		entityRef := &entityRef{}
+		entityRef := &EntityRef{}
 		err := entityRef.scan(rows.Scan)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to scan entity URL: %w", err)
@@ -728,7 +728,7 @@ func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, entityTy
 			return nil, err
 		}
 
-		result[entity.Type(entityRef.entityType)][entityRef.entityID] = u
+		result[entity.Type(entityRef.EntityType)][entityRef.EntityID] = u
 	}
 
 	return result, nil
