@@ -789,16 +789,16 @@ INSERT INTO certificates_projects (certificate_id, project_id) VALUES (1, 4);
 	})
 	require.NoError(t, err)
 
-	stmts, err := cluster.PrepareStmts(db, false)
-	require.NoError(t, err)
+	getTLSIdentityByFingerprint := func(fingerprint string) cluster.Identity {
+		identity := cluster.Identity{}
+		row := db.QueryRow(`SELECT id, auth_method, type, identifier, name, metadata FROM identities WHERE auth_method = ? AND identifier = ?`, cluster.AuthMethod(api.AuthenticationMethodTLS), fingerprint)
+		require.NoError(t, row.Err())
+		err = row.Scan(&identity.ID, &identity.AuthMethod, &identity.Type, &identity.Identifier, &identity.Name, &identity.Metadata)
+		require.NoError(t, row.Err())
+		return identity
+	}
 
-	cluster.PreparedStmts = stmts
-
-	tx, err := db.Begin()
-	require.NoError(t, err)
-
-	identity, err := cluster.GetIdentity(context.Background(), tx, api.AuthenticationMethodTLS, "eeef45f0570ce713864c86ec60c8d88f60b4844d3a8849b262c77cb18e88394d")
-	require.NoError(t, err)
+	identity := getTLSIdentityByFingerprint("eeef45f0570ce713864c86ec60c8d88f60b4844d3a8849b262c77cb18e88394d")
 	assert.Equal(t, api.IdentityTypeCertificateClientRestricted, string(identity.Type))
 	assert.Equal(t, "restricted-client", identity.Name)
 	var metadata cluster.CertificateMetadata
@@ -806,33 +806,33 @@ INSERT INTO certificates_projects (certificate_id, project_id) VALUES (1, 4);
 	require.NoError(t, err)
 	assert.Equal(t, c1, metadata.Certificate)
 
-	projects, err := cluster.GetIdentityProjects(context.Background(), tx, identity.ID)
+	rows, err := db.Query(`SELECT projects.name FROM identities_projects JOIN projects ON identities_projects.project_id = projects.id WHERE identity_id = ?`, identity.ID)
 	require.NoError(t, err)
-	pNames := make([]string, 0, len(projects))
-	for _, project := range projects {
-		pNames = append(pNames, project.Name)
+	var projectNames []string
+	for rows.Next() {
+		var projectName string
+		err = rows.Scan(&projectName)
+		require.NoError(t, err)
+		projectNames = append(projectNames, projectName)
 	}
 
-	assert.ElementsMatch(t, []string{"p1", "p2", "p3"}, pNames)
+	assert.ElementsMatch(t, []string{"p1", "p2", "p3"}, projectNames)
 
-	identity, err = cluster.GetIdentity(context.Background(), tx, api.AuthenticationMethodTLS, "86ec60c8d88f60b4844d3a8849b262c77cb18e88394deeef45f0570ce713864c")
-	require.NoError(t, err)
+	identity = getTLSIdentityByFingerprint("86ec60c8d88f60b4844d3a8849b262c77cb18e88394deeef45f0570ce713864c")
 	assert.Equal(t, api.IdentityTypeCertificateClientUnrestricted, string(identity.Type))
 	assert.Equal(t, "unrestricted-client", identity.Name)
 	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
 	require.NoError(t, err)
 	assert.Equal(t, c2, metadata.Certificate)
 
-	identity, err = cluster.GetIdentity(context.Background(), tx, api.AuthenticationMethodTLS, "49b262c77cb18e88394d8e6ec60c8d8eef45f0570ce713864c8f60b4844d3a88")
-	require.NoError(t, err)
+	identity = getTLSIdentityByFingerprint("49b262c77cb18e88394d8e6ec60c8d8eef45f0570ce713864c8f60b4844d3a88")
 	assert.Equal(t, api.IdentityTypeCertificateServer, string(identity.Type))
 	assert.Equal(t, "server", identity.Name)
 	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
 	require.NoError(t, err)
 	assert.Equal(t, c1, metadata.Certificate)
 
-	identity, err = cluster.GetIdentity(context.Background(), tx, api.AuthenticationMethodTLS, "60c8d8eef45f0570ce713864c8f60b4844d3a8849b262c77cb18e88394d8e6ec")
-	require.NoError(t, err)
+	identity = getTLSIdentityByFingerprint("60c8d8eef45f0570ce713864c8f60b4844d3a8849b262c77cb18e88394d8e6ec")
 	assert.Equal(t, api.IdentityTypeCertificateMetrics, string(identity.Type))
 	assert.Equal(t, "metrics", identity.Name)
 	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
