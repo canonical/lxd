@@ -293,7 +293,7 @@ func TestJoin(t *testing.T) {
 			Identifier:           altServerCert.Fingerprint(),
 			Certificate:          trustedAltServerCert,
 		},
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	for path, handler := range targetGateway.HandlerFuncs(nil, identityCache) {
