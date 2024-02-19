@@ -154,6 +154,7 @@ func EntitlementsByEntityType(entityType entity.Type) ([]Entitlement, error) {
 			EntitlementServerViewer,
 			EntitlementCanViewConfiguration,
 			EntitlementPermissionManager,
+			EntitlementCanViewPermissions,
 			EntitlementCanCreateIdentities,
 			EntitlementCanViewIdentities,
 			EntitlementCanEditIdentities,

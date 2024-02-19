@@ -31,6 +31,9 @@ const (
 	// EntitlementPermissionManager is the `permission_manager` Entitlement. It applies to entity.TypeServer.
 	EntitlementPermissionManager Entitlement = "permission_manager"
 
+	// EntitlementCanViewPermissions is the `can_view_permissions` Entitlement. It applies to entity.TypeServer.
+	EntitlementCanViewPermissions Entitlement = "can_view_permissions"
+
 	// EntitlementCanCreateIdentities is the `can_create_identities` Entitlement. It applies to entity.TypeServer.
 	EntitlementCanCreateIdentities Entitlement = "can_create_identities"
 
@@ -283,6 +286,7 @@ var allEntitlements = []Entitlement{
 	EntitlementServerViewer,
 	EntitlementCanViewConfiguration,
 	EntitlementPermissionManager,
+	EntitlementCanViewPermissions,
 	EntitlementCanCreateIdentities,
 	EntitlementCanViewIdentities,
 	EntitlementCanEditIdentities,
