@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/auth"
+	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	deviceconfig "github.com/canonical/lxd/lxd/device/config"
@@ -25,8 +26,13 @@ import (
 
 // AllowInstanceCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new instance.
-func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.InstancesPost) error {
-	info, err := fetchProject(tx, projectName, true)
+func AllowInstanceCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, req api.InstancesPost) error {
+	var globalConfigDump map[string]any
+	if globalConfig != nil {
+		globalConfigDump = globalConfig.Dump()
+	}
+
+	info, err := fetchProject(globalConfigDump, tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -80,7 +86,7 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 		return err
 	}
 
-	err = checkRestrictionsAndAggregateLimits(tx, info)
+	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if instance creation allowed: %w", err)
 	}
@@ -227,8 +233,13 @@ func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instanc
 
 // AllowVolumeCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new custom volume in a project.
-func AllowVolumeCreation(tx *db.ClusterTx, projectName string, req api.StorageVolumesPost) error {
-	info, err := fetchProject(tx, projectName, true)
+func AllowVolumeCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, req api.StorageVolumesPost) error {
+	var globalConfigDump map[string]any
+	if globalConfig != nil {
+		globalConfigDump = globalConfig.Dump()
+	}
+
+	info, err := fetchProject(globalConfigDump, tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -248,7 +259,7 @@ func AllowVolumeCreation(tx *db.ClusterTx, projectName string, req api.StorageVo
 		Config: req.Config,
 	})
 
-	err = checkRestrictionsAndAggregateLimits(tx, info)
+	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if volume creation allowed: %w", err)
 	}
@@ -260,8 +271,13 @@ func AllowVolumeCreation(tx *db.ClusterTx, projectName string, req api.StorageVo
 // for writing images.
 //
 // If no limit is in place, return -1.
-func GetImageSpaceBudget(tx *db.ClusterTx, projectName string) (int64, error) {
-	info, err := fetchProject(tx, projectName, true)
+func GetImageSpaceBudget(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string) (int64, error) {
+	var globalConfigDump map[string]any
+	if globalConfig != nil {
+		globalConfigDump = globalConfig.Dump()
+	}
+
+	info, err := fetchProject(globalConfigDump, tx, projectName, true)
 	if err != nil {
 		return -1, err
 	}
@@ -286,7 +302,7 @@ func GetImageSpaceBudget(tx *db.ClusterTx, projectName string) (int64, error) {
 		return -1, err
 	}
 
-	instances, err := expandInstancesConfigAndDevices(info.Instances, info.Profiles)
+	instances, err := expandInstancesConfigAndDevices(globalConfigDump, info.Instances, info.Profiles)
 	if err != nil {
 		return -1, err
 	}
@@ -307,7 +323,7 @@ func GetImageSpaceBudget(tx *db.ClusterTx, projectName string) (int64, error) {
 
 // Check that we would not violate the project limits or restrictions if we
 // were to commit the given instances and profiles.
-func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, info *projectInfo) error {
+func checkRestrictionsAndAggregateLimits(globalConfig *clusterConfig.Config, tx *db.ClusterTx, info *projectInfo) error {
 	// List of config keys for which we need to check aggregate values
 	// across all project instances.
 	aggregateKeys := []string{}
@@ -328,7 +344,12 @@ func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, info *projectInfo) er
 		return nil
 	}
 
-	instances, err := expandInstancesConfigAndDevices(info.Instances, info.Profiles)
+	var globalConfigDump map[string]any
+	if globalConfig != nil {
+		globalConfigDump = globalConfig.Dump()
+	}
+
+	instances, err := expandInstancesConfigAndDevices(globalConfigDump, info.Instances, info.Profiles)
 	if err != nil {
 		return err
 	}
@@ -857,9 +878,15 @@ func isVMLowLevelOptionForbidden(key string) bool {
 
 // AllowInstanceUpdate returns an error if any project-specific limit or
 // restriction is violated when updating an existing instance.
-func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req api.InstancePut, currentConfig map[string]string) error {
+func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, instanceName string, req api.InstancePut, currentConfig map[string]string) error {
 	var updatedInstance *api.Instance
-	info, err := fetchProject(tx, projectName, true)
+
+	var globalConfigDump map[string]any
+	if globalConfig != nil {
+		globalConfigDump = globalConfig.Dump()
+	}
+
+	info, err := fetchProject(globalConfigDump, tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -893,7 +920,7 @@ func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req
 		return err
 	}
 
-	err = checkRestrictionsAndAggregateLimits(tx, info)
+	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if instance update allowed: %w", err)
 	}
@@ -903,8 +930,13 @@ func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req
 
 // AllowVolumeUpdate returns an error if any project-specific limit or
 // restriction is violated when updating an existing custom volume.
-func AllowVolumeUpdate(tx *db.ClusterTx, projectName, volumeName string, req api.StorageVolumePut, currentConfig map[string]string) error {
-	info, err := fetchProject(tx, projectName, true)
+func AllowVolumeUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, volumeName string, req api.StorageVolumePut, currentConfig map[string]string) error {
+	var globalConfigDump map[string]any
+	if globalConfig != nil {
+		globalConfigDump = globalConfig.Dump()
+	}
+
+	info, err := fetchProject(globalConfigDump, tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -927,7 +959,7 @@ func AllowVolumeUpdate(tx *db.ClusterTx, projectName, volumeName string, req api
 		info.Volumes[i].Config = req.Config
 	}
 
-	err = checkRestrictionsAndAggregateLimits(tx, info)
+	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if volume update allowed: %w", err)
 	}
@@ -937,8 +969,13 @@ func AllowVolumeUpdate(tx *db.ClusterTx, projectName, volumeName string, req api
 
 // AllowProfileUpdate checks that project limits and restrictions are not
 // violated when changing a profile.
-func AllowProfileUpdate(tx *db.ClusterTx, projectName, profileName string, req api.ProfilePut) error {
-	info, err := fetchProject(tx, projectName, true)
+func AllowProfileUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, profileName string, req api.ProfilePut) error {
+	var globalConfigDump map[string]any
+	if globalConfig != nil {
+		globalConfigDump = globalConfig.Dump()
+	}
+
+	info, err := fetchProject(globalConfigDump, tx, projectName, true)
 	if err != nil {
 		return err
 	}
@@ -957,7 +994,7 @@ func AllowProfileUpdate(tx *db.ClusterTx, projectName, profileName string, req a
 		info.Profiles[i].Devices = req.Devices
 	}
 
-	err = checkRestrictionsAndAggregateLimits(tx, info)
+	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if profile update allowed: %w", err)
 	}
@@ -966,13 +1003,18 @@ func AllowProfileUpdate(tx *db.ClusterTx, projectName, profileName string, req a
 }
 
 // AllowProjectUpdate checks the new config to be set on a project is valid.
-func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]string, changed []string) error {
-	info, err := fetchProject(tx, projectName, false)
+func AllowProjectUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, config map[string]string, changed []string) error {
+	var globalConfigDump map[string]any
+	if globalConfig != nil {
+		globalConfigDump = globalConfig.Dump()
+	}
+
+	info, err := fetchProject(globalConfigDump, tx, projectName, false)
 	if err != nil {
 		return err
 	}
 
-	info.Instances, err = expandInstancesConfigAndDevices(info.Instances, info.Profiles)
+	info.Instances, err = expandInstancesConfigAndDevices(globalConfigDump, info.Instances, info.Profiles)
 	if err != nil {
 		return err
 	}
@@ -1151,7 +1193,7 @@ type projectInfo struct {
 // If the skipIfNoLimits flag is true, then profiles, instances and volumes
 // won't be loaded if the profile has no limits set on it, and nil will be
 // returned.
-func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*projectInfo, error) {
+func fetchProject(globalConfig map[string]any, tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*projectInfo, error) {
 	ctx := context.Background()
 	dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
 	if err != nil {
@@ -1201,7 +1243,7 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 
 	instances := make([]api.Instance, 0, len(dbInstances))
 	for _, instance := range dbInstances {
-		apiInstance, err := instance.ToAPI(ctx, tx.Tx())
+		apiInstance, err := instance.ToAPI(ctx, tx.Tx(), globalConfig)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get API data for instance %q in project %q: %w", instance.Name, instance.Project, err)
 		}
@@ -1226,7 +1268,7 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 
 // Expand the configuration and devices of the given instances, taking the give
 // project profiles into account.
-func expandInstancesConfigAndDevices(instances []api.Instance, profiles []api.Profile) ([]api.Instance, error) {
+func expandInstancesConfigAndDevices(globalConfig map[string]any, instances []api.Instance, profiles []api.Profile) ([]api.Instance, error) {
 	expandedInstances := make([]api.Instance, len(instances))
 
 	// Index of all profiles by name.
@@ -1244,7 +1286,7 @@ func expandInstancesConfigAndDevices(instances []api.Instance, profiles []api.Pr
 		}
 
 		expandedInstances[i] = instance
-		expandedInstances[i].Config = instancetype.ExpandInstanceConfig(instance.Config, apiProfiles)
+		expandedInstances[i].Config = instancetype.ExpandInstanceConfig(globalConfig, instance.Config, apiProfiles)
 		expandedInstances[i].Devices = instancetype.ExpandInstanceDevices(deviceconfig.NewDevices(instance.Devices), apiProfiles).CloneNative()
 	}
 
