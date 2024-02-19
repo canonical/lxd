@@ -565,7 +565,6 @@ func NewVolumeCopy(vol Volume, snapshots ...Volume) VolumeCopy {
 	// Set the parent volume's UUID for each snapshot.
 	// If the parent volume doesn't have an UUID it's a noop.
 	for _, snapshot := range snapshots {
-		snapshot.SetParentUUID(vol.config["volatile.uuid"])
 		modifiedSnapshots = append(modifiedSnapshots, snapshot)
 	}
 
