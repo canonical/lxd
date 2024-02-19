@@ -38,7 +38,6 @@ import (
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/dns"
 	"github.com/canonical/lxd/lxd/endpoints"
-	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/firewall"
 	"github.com/canonical/lxd/lxd/fsmonitor"
@@ -69,6 +68,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )

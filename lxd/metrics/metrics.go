@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 // NewMetricSet returns a new MetricSet.

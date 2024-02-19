@@ -9,7 +9,6 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db/cluster"
-	"github.com/canonical/lxd/lxd/entity"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/project"
@@ -18,6 +17,7 @@ import (
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 var storagePoolVolumeTypeStateCmd = APIEndpoint{
