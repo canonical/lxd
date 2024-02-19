@@ -140,9 +140,9 @@ func (t Type) Validate() error {
 	return nil
 }
 
-// requiresProject returns true if an entity of the Type can only exist within the context of a project. Operations and
+// RequiresProject returns true if an entity of the Type can only exist within the context of a project. Operations and
 // warnings may still be project specific but it is not an absolute requirement.
-func (t Type) requiresProject() (bool, error) {
+func (t Type) RequiresProject() (bool, error) {
 	err := t.Validate()
 	if err != nil {
 		return false, err
@@ -180,7 +180,7 @@ func (t Type) nRequiredPathArguments() (int, error) {
 //
 // Warning: All arguments to this function will be URL encoded. They must not be URL encoded before calling this method.
 func (t Type) URL(projectName string, location string, pathArguments ...string) (*api.URL, error) {
-	requiresProject, err := t.requiresProject()
+	requiresProject, err := t.RequiresProject()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to check if entity type %q is project specific: %w", t, err)
 	}
@@ -347,7 +347,7 @@ entityTypeLoop:
 		return "", "", "", nil, fmt.Errorf("Failed to match entity URL %q", u.String())
 	}
 
-	requiresProject, _ := entityType.requiresProject()
+	requiresProject, _ := entityType.RequiresProject()
 	projectName = ""
 	if requiresProject {
 		projectName = u.Query().Get("project")
