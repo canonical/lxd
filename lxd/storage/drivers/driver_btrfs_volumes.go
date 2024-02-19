@@ -790,7 +790,7 @@ func (d *btrfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshot
 	// as btrfs can then use an incremental streams instead of just copying the datasets.
 	if len(targetSnapshots) == 0 || len(srcSnapshotsAll) == 0 {
 		d.logger.Debug("Performing generic volume refresh")
-		return genericVFSCopyVolume(d, nil, vol.Volume, srcVol.Volume, refreshSnapshots, true, false, op)
+		return genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, false, op)
 	}
 
 	d.logger.Debug("Performing optimized volume refresh")
