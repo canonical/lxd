@@ -26,6 +26,10 @@ func ValidateEntitlement(entityType entity.Type, entitlement Entitlement) error 
 		return err
 	}
 
+	if len(entitlements) == 0 {
+		return fmt.Errorf("No entitlements can be granted against entities of type %q", entityType)
+	}
+
 	if !shared.ValueInSlice(entitlement, entitlements) {
 		return fmt.Errorf("Entitlement %q not valid for entity type %q", entitlement, entityType)
 	}
@@ -38,6 +42,22 @@ func EntitlementsByEntityType(entityType entity.Type) ([]Entitlement, error) {
 	err := entityType.Validate()
 	if err != nil {
 		return nil, fmt.Errorf("Entity type %q is not valid: %w", entityType, err)
+	}
+
+	// Some entity types do not have entitlements
+	if shared.ValueInSlice(entityType, []entity.Type{
+		entity.TypeContainer,
+		entity.TypeCertificate,
+		entity.TypeInstanceBackup,
+		entity.TypeInstanceSnapshot,
+		entity.TypeNode,
+		entity.TypeOperation,
+		entity.TypeStorageVolumeBackup,
+		entity.TypeStorageVolumeSnapshot,
+		entity.TypeWarning,
+		entity.TypeClusterGroup,
+	}) {
+		return []Entitlement{}, nil
 	}
 
 	// With the exception of entity types in the list below. All entity types have EntitlementCanView,
