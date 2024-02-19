@@ -2643,7 +2643,7 @@ func (d *zfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTar
 
 	if len(snapshots) > 0 {
 		// Check requested snapshot match those in storage.
-		err := vol.SnapshotsMatch(snapshots, op)
+		err := d.CheckVolumeSnapshots(vol.Volume, vol.Snapshots, op)
 		if err != nil {
 			return err
 		}
