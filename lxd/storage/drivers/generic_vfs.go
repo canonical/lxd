@@ -486,7 +486,7 @@ func genericVFSGetVolumeDiskPath(vol Volume) (string, error) {
 func genericVFSBackupVolume(d Driver, vol VolumeCopy, tarWriter *instancewriter.InstanceTarWriter, snapshots []string, op *operations.Operation) error {
 	if len(snapshots) > 0 {
 		// Check requested snapshot match those in storage.
-		err := vol.SnapshotsMatch(snapshots, op)
+		err := d.CheckVolumeSnapshots(vol.Volume, vol.Snapshots, op)
 		if err != nil {
 			return err
 		}
