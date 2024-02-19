@@ -5227,13 +5227,9 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 }
 
 // CheckInstanceBackupFileSnapshots compares the snapshots on the storage device to those defined in the backup
-// config supplied and returns an error if they do not match (if deleteMissing argument is false).
-// If deleteMissing argument is true, then any snapshots that exist on the storage device but not in the backup
-// config are removed from the storage device, and any snapshots that exist in the backup config but do not exist
-// on the storage device are ignored. The remaining set of snapshots that exist on both the storage device and the
-// backup config are returned. They set can be used to re-create the snapshot database entries when importing.
-func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backupConfig.Config, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error) {
-	l := b.logger.AddContext(logger.Ctx{"project": projectName, "instance": backupConf.Container.Name, "deleteMissing": deleteMissing})
+// config supplied and returns an error if they do not match.
+func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backupConfig.Config, projectName string, op *operations.Operation) ([]*api.InstanceSnapshot, error) {
+	l := b.logger.AddContext(logger.Ctx{"project": projectName, "instance": backupConf.Container.Name})
 	l.Debug("CheckInstanceBackupFileSnapshots started")
 	defer l.Debug("CheckInstanceBackupFileSnapshots finished")
 
@@ -5255,8 +5251,9 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backupConfig.C
 		contentType = drivers.ContentTypeBlock
 	}
 
-	// We don't need to use the volume's config for mounting so set to nil.
-	vol := b.GetVolume(volType, contentType, volStorageName, nil)
+	// Use the volume's config from the backup config.
+	// Some storage drivers might require the UUID to generate the volume name.
+	vol := b.GetVolume(volType, contentType, volStorageName, backupConf.Volume.Config)
 
 	// Get a list of snapshots that exist on storage device.
 	driverSnapshots, err := vol.Snapshots(op)
@@ -5265,68 +5262,21 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backupConfig.C
 	}
 
 	if len(backupConf.Snapshots) != len(driverSnapshots) {
-		if !deleteMissing {
-			return nil, fmt.Errorf("Snapshot count in backup config and storage device are different: %w", ErrBackupSnapshotsMismatch)
-		}
+		return nil, fmt.Errorf("Snapshot count in backup config and storage device are different: %w", ErrBackupSnapshotsMismatch)
 	}
 
-	// Check (and optionally delete) snapshots that do not exist in backup config.
-	for _, driverSnapVol := range driverSnapshots {
-		_, driverSnapOnly, _ := api.GetParentAndSnapshotName(driverSnapVol.Name())
-
-		inBackupFile := false
-		for _, backupFileSnap := range backupConf.Snapshots {
-			backupFileSnapOnly := backupFileSnap.Name
-
-			if driverSnapOnly == backupFileSnapOnly {
-				inBackupFile = true
-				break
-			}
-		}
-
-		if inBackupFile {
-			continue
-		}
-
-		if !deleteMissing {
-			return nil, fmt.Errorf("Snapshot %q exists on storage device but not in backup config: %w", driverSnapOnly, ErrBackupSnapshotsMismatch)
-		}
-
-		err = b.driver.DeleteVolumeSnapshot(driverSnapVol, op)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to delete snapshot %q: %w", driverSnapOnly, err)
-		}
-
-		l.Warn("Deleted snapshot as not present in backup config", logger.Ctx{"snapshot": driverSnapOnly})
+	volSnaps := make([]drivers.Volume, 0, len(backupConf.VolumeSnapshots))
+	for _, snap := range backupConf.VolumeSnapshots {
+		snapName := drivers.GetSnapshotVolumeName(backupConf.Container.Name, snap.Name)
+		volSnaps = append(volSnaps, b.GetVolume(volType, contentType, snapName, snap.Config))
 	}
 
-	// Check the snapshots in backup config exist on storage device.
-	existingSnapshots := []*api.InstanceSnapshot{}
-	for _, backupFileSnap := range backupConf.Snapshots {
-		backupFileSnapOnly := backupFileSnap.Name
-
-		onStorageDevice := false
-		for _, driverSnapVol := range driverSnapshots {
-			_, driverSnapOnly, _ := api.GetParentAndSnapshotName(driverSnapVol.Name())
-			if driverSnapOnly == backupFileSnapOnly {
-				onStorageDevice = true
-				break
-			}
-		}
-
-		if !onStorageDevice {
-			if !deleteMissing {
-				return nil, fmt.Errorf("Snapshot %q exists in backup config but not on storage device: %w", backupFileSnapOnly, ErrBackupSnapshotsMismatch)
-			}
-
-			l.Warn("Skipped snapshot in backup config as not present on storage device", logger.Ctx{"snapshot": backupFileSnap})
-			continue // Skip snapshots missing on storage device.
-		}
-
-		existingSnapshots = append(existingSnapshots, backupFileSnap)
+	err = b.driver.CheckVolumeSnapshots(vol, volSnaps, op)
+	if err != nil {
+		return nil, err
 	}
 
-	return existingSnapshots, nil
+	return backupConf.Snapshots, nil
 }
 
 // ListUnknownVolumes returns volumes that exist on the storage pool but don't have records in the database.
