@@ -276,6 +276,24 @@ var networkACLEntityByID = fmt.Sprintf(`%s WHERE networks_acls.id = ?`, networkA
 // networkACLEntities returns all entities of type entity.TypeNetworkACL in a particular project.
 var networkACLEntitiesByProjectName = fmt.Sprintf(`%s WHERE projects.name = ?`, networkACLEntities)
 
+// networkZoneEntities returns all entities of type entity.TypeNetworkZone.
+var networkZoneEntities = fmt.Sprintf(`SELECT %d, networks_zones.id, projects.name, '', json_array(networks_zones.name) FROM networks_zones JOIN projects ON networks_zones.project_id = projects.id`, entityTypeNetworkZone)
+
+// networkZoneEntityByID gets the entity of type entity.TypeNetworkZone with a particular ID.
+var networkZoneEntityByID = fmt.Sprintf(`%s WHERE networks_zones.id = ?`, networkZoneEntities)
+
+// networkZoneEntitiesByProjectName returns all entities of type entity.TypeNetworkZone in a particular project.
+var networkZoneEntitiesByProjectName = fmt.Sprintf(`%s WHERE projects.name = ?`, networkZoneEntities)
+
+// imageAliasEntities returns all entities of type entity.TypeImageAlias.
+var imageAliasEntities = fmt.Sprintf(`SELECT %d, images_aliases.id, projects.name, '', json_array(images_aliases.name) FROM images_aliases JOIN projects ON images_aliases.project_id = projects.id`, entityTypeImageAlias)
+
+// imageAliasEntityByID gets the entity of type entity.TypeImageAlias with a particular ID.
+var imageAliasEntityByID = fmt.Sprintf(`%s WHERE images_aliases.id = ?`, imageAliasEntities)
+
+// imageAliasEntitiesByProjectName returns all the entities of type entity.TypeImageAlias in a particular project.
+var imageAliasEntitiesByProjectName = fmt.Sprintf(`%s WHERE projects.name = ?`, imageAliasEntities)
+
 // nodeEntities returns all entities of type entity.TypeNode.
 var nodeEntities = fmt.Sprintf(`SELECT %d, nodes.id, '', '', json_array(nodes.name) FROM nodes`, entityTypeNode)
 
@@ -458,6 +476,8 @@ var entityStatementsAll = map[entity.Type]string{
 	entity.TypeWarning:               warningEntities,
 	entity.TypeClusterGroup:          clusterGroupEntities,
 	entity.TypeStorageBucket:         storageBucketEntities,
+	entity.TypeImageAlias:            imageAliasEntities,
+	entity.TypeNetworkZone:           networkZoneEntities,
 }
 
 // entityStatementsByID is a map of entity type to the statement which queries for all URL information for a single entity of that type with a given ID.
@@ -481,6 +501,8 @@ var entityStatementsByID = map[entity.Type]string{
 	entity.TypeWarning:               warningEntityByID,
 	entity.TypeClusterGroup:          clusterGroupEntityByID,
 	entity.TypeStorageBucket:         storageBucketEntityByID,
+	entity.TypeImageAlias:            imageAliasEntityByID,
+	entity.TypeNetworkZone:           networkZoneEntityByID,
 }
 
 // entityStatementsByProjectName is a map of entity type to the statement which queries for all URL information for all entities of that type within a given project.
@@ -499,6 +521,8 @@ var entityStatementsByProjectName = map[entity.Type]string{
 	entity.TypeStorageVolumeSnapshot: storageVolumeSnapshotEntitiesByProjectName,
 	entity.TypeWarning:               warningEntitiesByProjectName,
 	entity.TypeStorageBucket:         storageBucketEntitiesByProjectName,
+	entity.TypeImageAlias:            imageAliasEntitiesByProjectName,
+	entity.TypeNetworkZone:           networkZoneEntitiesByProjectName,
 }
 
 // entityRef represents the expected format of entity URL queries.
