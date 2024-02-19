@@ -150,7 +150,8 @@ func (b *mockBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshot 
 	return nil
 }
 
-func (b *mockBackend) CheckInstanceBackupFileSnapshots(backupConf *backupConfig.Config, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error) {
+// CheckInstanceBackupFileSnapshots checks the snapshots in storage against the given backup config.
+func (b *mockBackend) CheckInstanceBackupFileSnapshots(backupConf *backupConfig.Config, projectName string, op *operations.Operation) ([]*api.InstanceSnapshot, error) {
 	return nil, nil
 }
 
