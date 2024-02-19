@@ -164,7 +164,7 @@ jobs:
           # optimize ext4 FSes for performance, not reliability
           for fs in $(findmnt --noheading --type ext4 --list --uniq | awk '{print $1}'); do
             # nombcache and data=writeback cannot be changed on remount
-            sudo mount -o remount,noatime,barrier=0,commit=6000 "${fs}"
+            sudo mount -o remount,noatime,barrier=0,commit=6000 "${fs}" || true
           done
 
           # disable dpkg from calling sync()
@@ -193,7 +193,7 @@ jobs:
       - name: Remove docker
         run: |
           set -eux
-          sudo apt-get autopurge -y moby-containerd docker uidmap
+          sudo apt-get autopurge -y containerd.io moby-containerd docker docker-ce podman uidmap
           sudo ip link delete docker0
           sudo nft flush ruleset
 
