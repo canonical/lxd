@@ -24,6 +24,8 @@ func updateIdentityCache(d *Daemon) {
 
 	var identities []cluster.Identity
 	projects := make(map[int][]string)
+	groups := make(map[int][]string)
+	idpGroupMapping := make(map[string][]string)
 	var err error
 	err = s.DB.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		identities, err = cluster.GetIdentitys(ctx, tx.Tx())
@@ -40,7 +42,31 @@ func updateIdentityCache(d *Daemon) {
 			for _, p := range identityProjects {
 				projects[identity.ID] = append(projects[identity.ID], p.Name)
 			}
+
+			identityGroups, err := cluster.GetIdentityGroups(ctx, tx.Tx(), identity.ID)
+			if err != nil {
+				return err
+			}
+
+			for _, g := range identityGroups {
+				groups[identity.ID] = append(groups[identity.ID], g.Name)
+			}
 		}
+
+		idpGroups, err := cluster.GetIdentityProviderGroups(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		for _, idpGroup := range idpGroups {
+			apiIDPGroup, err := idpGroup.ToAPI(ctx, tx.Tx())
+			if err != nil {
+				return err
+			}
+
+			idpGroupMapping[apiIDPGroup.Name] = apiIDPGroup.Groups
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -57,6 +83,7 @@ func updateIdentityCache(d *Daemon) {
 			AuthenticationMethod: string(id.AuthMethod),
 			IdentityType:         string(id.Type),
 			Projects:             projects[id.ID],
+			Groups:               groups[id.ID],
 		}
 
 		if cacheEntry.AuthenticationMethod == api.AuthenticationMethodTLS {
@@ -100,7 +127,7 @@ func updateIdentityCache(d *Daemon) {
 		// continue functioning, and hopefully the write will succeed on next update.
 	}
 
-	err = d.identityCache.ReplaceAll(identityCacheEntries)
+	err = d.identityCache.ReplaceAll(identityCacheEntries, idpGroupMapping)
 	if err != nil {
 		logger.Warn("Failed to update identity cache", logger.Ctx{"error": err})
 	}
@@ -149,7 +176,7 @@ func updateIdentityCacheFromLocal(d *Daemon) error {
 		})
 	}
 
-	err = d.identityCache.ReplaceAll(identityCacheEntries)
+	err = d.identityCache.ReplaceAll(identityCacheEntries, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to update identity cache from local trust store: %w", err)
 	}
