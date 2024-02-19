@@ -694,7 +694,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 	}
 
 	// Check snapshots are consistent.
-	existingSnapshots, err := pool.CheckInstanceBackupFileSnapshots(backupConf, projectName, false, nil)
+	existingSnapshots, err := pool.CheckInstanceBackupFileSnapshots(backupConf, projectName, nil)
 	if err != nil {
 		return fmt.Errorf("Failed checking snapshots: %w", err)
 	}
