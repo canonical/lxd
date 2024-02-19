@@ -48,7 +48,7 @@ const (
 	entityTypeNetworkZone           int64 = 19
 	entityTypeImageAlias            int64 = 20
 	entityTypeServer                int64 = 21
-	entityTypeGroup                 int64 = 22
+	entityTypeAuthGroup             int64 = 22
 	entityTypeIdentityProviderGroup int64 = 23
 	entityTypeIdentity              int64 = 24
 )
@@ -118,6 +118,12 @@ func (e *EntityType) Scan(value any) error {
 		*e = EntityType(entity.TypeImageAlias)
 	case entityTypeServer:
 		*e = EntityType(entity.TypeServer)
+	case entityTypeAuthGroup:
+		*e = EntityType(entity.TypeAuthGroup)
+	case entityTypeIdentityProviderGroup:
+		*e = EntityType(entity.TypeIdentityProviderGroup)
+	case entityTypeIdentity:
+		*e = EntityType(entity.TypeIdentity)
 	default:
 		return fmt.Errorf("Unknown entity type %d", entityTypeInt)
 	}
@@ -174,6 +180,12 @@ func (e EntityType) Value() (driver.Value, error) {
 		return entityTypeImageAlias, nil
 	case EntityType(entity.TypeServer):
 		return entityTypeServer, nil
+	case EntityType(entity.TypeAuthGroup):
+		return entityTypeAuthGroup, nil
+	case EntityType(entity.TypeIdentityProviderGroup):
+		return entityTypeIdentityProviderGroup, nil
+	case EntityType(entity.TypeIdentity):
+		return entityTypeIdentity, nil
 	default:
 		return nil, fmt.Errorf("Unknown entity type %q", e)
 	}
