@@ -2,7 +2,7 @@ package operationtype
 
 import (
 	"github.com/canonical/lxd/lxd/auth"
-	"github.com/canonical/lxd/lxd/entity"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 // Type is a numeric code indentifying the type of an Operation.
