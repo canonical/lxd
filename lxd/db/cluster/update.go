@@ -107,6 +107,64 @@ var updates = map[int]schema.Update{
 	68: updateFromV67,
 	69: updateFromV68,
 	70: updateFromV69,
+	71: updateFromV70,
+}
+
+func updateFromV70(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE auth_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    UNIQUE (name)
+);
+
+CREATE TABLE identities_auth_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    identity_id INTEGER NOT NULL,
+    auth_group_id INTEGER NOT NULL,
+    FOREIGN KEY (identity_id) REFERENCES identities (id) ON DELETE CASCADE,
+    FOREIGN KEY (auth_group_id) REFERENCES auth_groups (id) ON DELETE CASCADE,
+    UNIQUE (identity_id, auth_group_id)
+);
+
+CREATE TABLE identity_provider_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    UNIQUE (name)
+);
+
+CREATE TABLE auth_groups_identity_provider_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    auth_group_id INTEGER NOT NULL,
+    identity_provider_group_id INTEGER NOT NULL,
+    FOREIGN KEY (auth_group_id) REFERENCES auth_groups (id) ON DELETE CASCADE,
+    FOREIGN KEY (identity_provider_group_id) REFERENCES identity_provider_groups (id) ON DELETE CASCADE,
+    UNIQUE (auth_group_id, identity_provider_group_id)
+);
+
+CREATE TABLE permissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    entitlement TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id INTEGER NOT NULL,
+    UNIQUE (entitlement, entity_type, entity_id)
+);
+
+CREATE TABLE auth_groups_permissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    auth_group_id INTEGER NOT NULL,
+    permission_id INTEGER NOT NULL,
+    FOREIGN KEY (auth_group_id) REFERENCES auth_groups (id) ON DELETE CASCADE,
+    FOREIGN KEY (permission_id) REFERENCES permissions (id) ON DELETE CASCADE,
+    UNIQUE (auth_group_id, permission_id)
+);
+`)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func updateFromV69(ctx context.Context, tx *sql.Tx) error {
