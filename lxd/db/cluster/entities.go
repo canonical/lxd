@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
@@ -562,6 +563,10 @@ func (e *entityRef) getURL() (*api.URL, error) {
 
 // GetEntityURL returns the *api.URL of a single entity by its type and ID.
 func GetEntityURL(ctx context.Context, tx *sql.Tx, entityType entity.Type, entityID int) (*api.URL, error) {
+	if entityType == entity.TypeServer {
+		return entity.ServerURL(), nil
+	}
+
 	stmt, ok := entityStatementsByID[entityType]
 	if !ok {
 		return nil, fmt.Errorf("Could not get entity URL: No statement found for entity type %q", entityType)
@@ -590,6 +595,18 @@ func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, entityTy
 	var args []any
 	result := make(map[entity.Type]map[int]*api.URL)
 
+	// If the server entity type is in the list of entity types, or if we are getting all entity types and
+	// not filtering by project, we need to add a server URL to the result. The entity ID of the server entity type is
+	// always zero.
+	if shared.ValueInSlice(entity.TypeServer, entityTypes) || (len(entityTypes) == 0 && projectName == "") {
+		result[entity.TypeServer] = map[int]*api.URL{0: entity.ServerURL()}
+
+		// Return early if there are no other entity types in the list (no queries to execute).
+		if len(entityTypes) == 1 {
+			return result, nil
+		}
+	}
+
 	// Collate all the statements we need.
 	// If the project is not empty, each statement will need an argument for the project name.
 	// Additionally, pre-populate the result map as we know the entity types in advance (this is so that we don't have
@@ -607,6 +624,11 @@ func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, entityTy
 		}
 	} else if projectName == "" {
 		for _, entityType := range entityTypes {
+			// We've already added the server url to the result.
+			if entityType == entity.TypeServer {
+				continue
+			}
+
 			stmt, ok := entityStatementsAll[entityType]
 			if !ok {
 				return nil, fmt.Errorf("Could not get entity URLs: No statement found for entity type %q", entityType)
@@ -617,6 +639,11 @@ func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, entityTy
 		}
 	} else {
 		for _, entityType := range entityTypes {
+			// We've already added the server url to the result.
+			if entityType == entity.TypeServer {
+				continue
+			}
+
 			stmt, ok := entityStatementsByProjectName[entityType]
 			if !ok {
 				return nil, fmt.Errorf("Could not get entity URLs: No statement found for entity type %q", entityType)
