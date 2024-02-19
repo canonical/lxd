@@ -182,7 +182,7 @@ func TestURL(t *testing.T) {
 
 			assert.Equal(t, tt.expectedErr, actualErr)
 
-			requiresProject, err := actualEntityType.requiresProject()
+			requiresProject, err := actualEntityType.RequiresProject()
 			assert.NoError(t, err)
 			if u.Query().Get("project") != "" || !requiresProject {
 				// Assert that we can convert back to the same value.
