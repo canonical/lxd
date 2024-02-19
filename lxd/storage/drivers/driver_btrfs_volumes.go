@@ -1519,7 +1519,7 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceT
 
 	if len(snapshots) > 0 {
 		// Check requested snapshot match those in storage.
-		err := vol.SnapshotsMatch(snapshots, op)
+		err := d.CheckVolumeSnapshots(vol.Volume, vol.Snapshots, op)
 		if err != nil {
 			return err
 		}
