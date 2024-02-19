@@ -1035,7 +1035,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	// allowed to use.
 	var budget int64
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		budget, err = projectutils.GetImageSpaceBudget(tx, projectName)
+		budget, err = projectutils.GetImageSpaceBudget(s.GlobalConfig, tx, projectName)
 		return err
 	})
 	if err != nil {

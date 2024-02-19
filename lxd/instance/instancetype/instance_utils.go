@@ -1,13 +1,26 @@
 package instancetype
 
 import (
+	"strconv"
+
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/shared/api"
 )
 
 // ExpandInstanceConfig expands the given instance config with the config values of the given profiles.
-func ExpandInstanceConfig(config map[string]string, profiles []api.Profile) map[string]string {
+func ExpandInstanceConfig(globalConfig map[string]any, config map[string]string, profiles []api.Profile) map[string]string {
 	expandedConfig := map[string]string{}
+
+	// Apply global config overriding
+	if globalConfig != nil {
+		globalInstancesMigrationStatefulStr, ok := globalConfig["instances.migration.stateful"].(string)
+		if ok {
+			globalInstancesMigrationStateful, _ := strconv.ParseBool(globalInstancesMigrationStatefulStr)
+			if globalInstancesMigrationStateful {
+				expandedConfig["migration.stateful"] = globalInstancesMigrationStatefulStr
+			}
+		}
+	}
 
 	// Apply all the profiles.
 	profileConfigs := make([]map[string]string, len(profiles))
