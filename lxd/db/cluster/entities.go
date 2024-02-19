@@ -413,7 +413,7 @@ FROM storage_buckets
 `, entityTypeStorageBucket,
 )
 
-// storageBucketEntities gets the entity of type entity.TypeStorageBucket with a particular ID.
+// storageBucketEntityByID gets the entity of type entity.TypeStorageBucket with a particular ID.
 var storageBucketEntityByID = fmt.Sprintf(`%s WHERE storage_buckets.id = ?`, storageBucketEntities)
 
 // storageBucketEntities returns all entities of type entity.TypeStorageBucket in a particular project.
