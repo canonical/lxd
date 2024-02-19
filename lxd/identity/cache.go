@@ -15,7 +15,10 @@ type Cache struct {
 	// entries is a map of authentication method to map of identifier to CacheEntry. The identifier is either a
 	// certificate fingerprint (tls) or an email address (oidc).
 	entries map[string]map[string]*CacheEntry
-	mu      sync.RWMutex
+
+	// identityProviderGroups is a map of identity provider group name to slice of LXD group names.
+	identityProviderGroups map[string]*[]string
+	mu                     sync.RWMutex
 }
 
 // CacheEntry represents an identity.
@@ -25,6 +28,7 @@ type CacheEntry struct {
 	AuthenticationMethod string
 	IdentityType         string
 	Projects             []string
+	Groups               []string
 
 	// Certificate is optional. It is pre-computed for identities with AuthenticationMethod api.AuthenticationMethodTLS.
 	Certificate *x509.Certificate
@@ -104,8 +108,8 @@ func (c *Cache) GetByAuthenticationMethod(authenticationMethod string) map[strin
 	return entriesOfAuthMethodCopy
 }
 
-// ReplaceAll deletes all entries from the cache and replaces them with the given entries.
-func (c *Cache) ReplaceAll(entries []CacheEntry) error {
+// ReplaceAll deletes all entries and identity provider groups from the cache and replaces them with the given values.
+func (c *Cache) ReplaceAll(entries []CacheEntry, idpGroups map[string][]string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -122,6 +126,13 @@ func (c *Cache) ReplaceAll(entries []CacheEntry) error {
 
 		e := entry
 		c.entries[entry.AuthenticationMethod][entry.Identifier] = &e
+	}
+
+	c.identityProviderGroups = make(map[string]*[]string, len(idpGroups))
+	for idpGroupName, authGroupNames := range idpGroups {
+		authGroupNamesCopy := make([]string, 0, len(authGroupNames))
+		authGroupNamesCopy = append(authGroupNamesCopy, authGroupNames...)
+		c.identityProviderGroups[idpGroupName] = &authGroupNamesCopy
 	}
 
 	return nil
