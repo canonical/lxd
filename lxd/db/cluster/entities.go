@@ -44,6 +44,12 @@ const (
 	entityTypeWarning               int64 = 16
 	entityTypeClusterGroup          int64 = 17
 	entityTypeStorageBucket         int64 = 18
+	entityTypeNetworkZone           int64 = 19
+	entityTypeImageAlias            int64 = 20
+	entityTypeServer                int64 = 21
+	entityTypeGroup                 int64 = 22
+	entityTypeIdentityProviderGroup int64 = 23
+	entityTypeIdentity              int64 = 24
 )
 
 // Scan implements sql.Scanner for EntityType. This converts the integer value back into the correct entity.Type
@@ -105,6 +111,12 @@ func (e *EntityType) Scan(value any) error {
 		*e = EntityType(entity.TypeClusterGroup)
 	case entityTypeStorageBucket:
 		*e = EntityType(entity.TypeStorageBucket)
+	case entityTypeNetworkZone:
+		*e = EntityType(entity.TypeNetworkZone)
+	case entityTypeImageAlias:
+		*e = EntityType(entity.TypeImageAlias)
+	case entityTypeServer:
+		*e = EntityType(entity.TypeServer)
 	default:
 		return fmt.Errorf("Unknown entity type %d", entityTypeInt)
 	}
@@ -155,6 +167,12 @@ func (e EntityType) Value() (driver.Value, error) {
 		return entityTypeClusterGroup, nil
 	case EntityType(entity.TypeStorageBucket):
 		return entityTypeStorageBucket, nil
+	case EntityType(entity.TypeNetworkZone):
+		return entityTypeNetworkZone, nil
+	case EntityType(entity.TypeImageAlias):
+		return entityTypeImageAlias, nil
+	case EntityType(entity.TypeServer):
+		return entityTypeServer, nil
 	default:
 		return nil, fmt.Errorf("Unknown entity type %q", e)
 	}
