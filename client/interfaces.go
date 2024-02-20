@@ -582,6 +582,9 @@ type InstanceBackupArgs struct {
 
 	// Name to import backup as
 	Name string
+
+	// If set, it would override devices
+	Devices map[string]map[string]string
 }
 
 // The InstanceCopyArgs struct is used to pass additional options during instance copy.
