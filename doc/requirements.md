@@ -44,6 +44,11 @@ should also be installed.
 For virtual machines, QEMU 6.2 or higher is required. Some features like
 Confidential Guest support require a more recent QEMU and kernel version.
 
+## ZFS
+
+For the ZFS storage driver, ZFS 2.1 or higher is required. Some features
+like `zfs_delegate` requires 2.2 or higher to be used.
+
 ## Additional libraries (and development headers)
 
 LXD uses `dqlite` for its database, to build and set it up, you can
