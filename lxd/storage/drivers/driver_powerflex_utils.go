@@ -794,7 +794,7 @@ func (d *powerflex) createNVMeHost() (string, error) {
 	return hostID, nil
 }
 
-// deleteNVMeHost delets this NVMe host in PowerFlex.
+// deleteNVMeHost deletes this NVMe host in PowerFlex.
 // The operation is idempotent and locked using lock name powerflex.host.
 func (d *powerflex) deleteNVMeHost() error {
 	unlock, err := locking.Lock(d.state.ShutdownCtx, "powerflex.host")

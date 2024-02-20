@@ -57,6 +57,8 @@ func (d *powerflex) CreateVolume(vol Volume, filler *VolumeFiller, op *operation
 		return err
 	}
 
+	// In case of error delete the volume with mode "ONLY_ME".
+	// This removes the given volume only without any parent(s) or child(s).
 	revert.Add(func() { _ = client.deleteVolume(id, "ONLY_ME") })
 
 	volumeFilesystem := vol.ConfigBlockFilesystem()
