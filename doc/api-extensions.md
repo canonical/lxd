@@ -2344,3 +2344,7 @@ when working with volumes.
 ## `import_instance_devices`
 
 This API extension provides the ability to use flags `--device` when importing an instance to override instance's devices.
+
+## `instances_uefi_vars`
+
+This API extension indicates that the `/1.0/instances/{name}/uefi-vars` endpoint is supported on the server. This endpoint allows to get the full list of UEFI variables (HTTP method GET) or replace the entire set of UEFI variables (HTTP method PUT).

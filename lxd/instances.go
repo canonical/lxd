@@ -53,6 +53,17 @@ var instanceCmd = APIEndpoint{
 	Patch:  APIEndpointAction{Handler: instancePatch, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
 }
 
+var instanceUEFIVarsCmd = APIEndpoint{
+	Name: "instanceUEFIVars",
+	Path: "instances/{name}/uefi-vars",
+	Aliases: []APIEndpointAlias{
+		{Name: "vmUEFIVars", Path: "virtual-machines/{name}/uefi-vars"},
+	},
+
+	Get: APIEndpointAction{Handler: instanceUEFIVarsGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
+	Put: APIEndpointAction{Handler: instanceUEFIVarsPut, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
+}
+
 var instanceRebuildCmd = APIEndpoint{
 	Name: "instanceRebuild",
 	Path: "instances/{name}/rebuild",

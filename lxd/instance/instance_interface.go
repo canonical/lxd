@@ -187,6 +187,10 @@ type VM interface {
 	Instance
 
 	AgentCertificate() *x509.Certificate
+
+	// UEFI vars handling.
+	UEFIVars() (*api.InstanceUEFIVars, error)
+	UEFIVarsUpdate(newUEFIVarsSet api.InstanceUEFIVars) error
 }
 
 // CriuMigrationArgs arguments for CRIU migration.
