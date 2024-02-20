@@ -55,7 +55,7 @@ func (d *zone) ID() int64 {
 	return d.id
 }
 
-// Name returns the project.
+// Project returns the project.
 func (d *zone) Project() string {
 	return d.projectName
 }
@@ -89,26 +89,37 @@ func (d *zone) networkUsesZone(netConfig map[string]string) bool {
 func (d *zone) usedBy(firstOnly bool) ([]string, error) {
 	usedBy := []string{}
 
-	// Find networks using the zone.
-	networkNames, err := d.state.DB.Cluster.GetCreatedNetworks(d.projectName)
-	if err != nil && !response.IsNotFoundError(err) {
-		return nil, fmt.Errorf("Failed loading networks for project %q: %w", d.projectName, err)
-	}
+	var networkNames []string
 
-	for _, networkName := range networkNames {
-		_, network, _, err := d.state.DB.Cluster.GetNetworkInAnyState(d.projectName, networkName)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get network config for %q: %w", networkName, err)
+	err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		// Find networks using the zone.
+		networkNames, err = tx.GetCreatedNetworkNamesByProject(ctx, d.projectName)
+		if err != nil && !response.IsNotFoundError(err) {
+			return fmt.Errorf("Failed loading networks for project %q: %w", d.projectName, err)
 		}
 
-		// Check if the network is using this zone.
-		if d.networkUsesZone(network.Config) {
-			u := api.NewURL().Path(version.APIVersion, "networks", networkName)
-			usedBy = append(usedBy, u.String())
-			if firstOnly {
-				return usedBy, nil
+		for _, networkName := range networkNames {
+			_, network, _, err := tx.GetNetworkInAnyState(ctx, d.projectName, networkName)
+			if err != nil {
+				return fmt.Errorf("Failed to get network config for %q: %w", networkName, err)
+			}
+
+			// Check if the network is using this zone.
+			if d.networkUsesZone(network.Config) {
+				u := api.NewURL().Path(version.APIVersion, "networks", networkName)
+				usedBy = append(usedBy, u.String())
+				if firstOnly {
+					return nil
+				}
 			}
 		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return usedBy, nil
@@ -192,7 +203,7 @@ func (d *zone) validateConfigMap(config map[string]string, rules map[string]func
 
 	// Run the validator against each field.
 	for k, validator := range rules {
-		checkedFields[k] = struct{}{} //Mark field as checked.
+		checkedFields[k] = struct{}{} // Mark field as checked.
 		err := validator(config[k])
 		if err != nil {
 			return fmt.Errorf("Invalid value for config option %q: %w", k, err)
@@ -282,8 +293,12 @@ func (d *zone) Delete() error {
 		return fmt.Errorf("Cannot delete a zone that is in use")
 	}
 
-	// Delete the database record.
-	err = d.state.DB.Cluster.DeleteNetworkZone(d.id)
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Delete the database record.
+		err = tx.DeleteNetworkZone(ctx, d.id)
+
+		return err
+	})
 	if err != nil {
 		return err
 	}

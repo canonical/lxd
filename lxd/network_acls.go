@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
+	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network/acl"
 	"github.com/canonical/lxd/lxd/project"
@@ -151,8 +153,16 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 
 	recursion := util.IsRecursionRequest(r)
 
-	// Get list of Network ACLs.
-	aclNames, err := s.DB.Cluster.GetNetworkACLs(projectName)
+	var aclNames []string
+
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		// Get list of Network ACLs.
+		aclNames, err = tx.GetNetworkACLs(ctx, projectName)
+
+		return err
+	})
 	if err != nil {
 		return response.InternalError(err)
 	}

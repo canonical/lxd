@@ -1690,6 +1690,8 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 // deviceHandleMounts live attaches or detaches mounts on a container.
 // If the mount DevPath is empty the mount action is treated as unmount.
 func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
+	reverter := revert.New()
+	defer reverter.Fail()
 	for _, mount := range mounts {
 		if mount.DevPath != "" {
 			flags := 0
@@ -1727,8 +1729,7 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 				return err
 			}
 
-			//revive:disable-next-line:defer
-			defer func() { _ = files.Close() }()
+			reverter.Add(func() { _ = files.Close() })
 
 			_, err = files.Lstat(relativeTargetPath)
 			if err == nil {
@@ -1745,8 +1746,15 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 					d.logger.Warn("Could not remove the device path inside container", logger.Ctx{"err": err})
 				}
 			}
+
+			err = files.Close()
+			if err != nil {
+				return err
+			}
 		}
 	}
+
+	reverter.Success()
 
 	return nil
 }
@@ -2400,7 +2408,9 @@ func (d *lxc) Start(stateful bool) error {
 		_ = os.RemoveAll(d.StatePath())
 		d.stateful = false
 
-		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, false)
+		err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.UpdateInstanceStatefulFlag(ctx, d.id, false)
+		})
 		if err != nil {
 			op.Done(err)
 			return fmt.Errorf("Failed clearing instance stateful flag: %w", err)
@@ -2421,7 +2431,9 @@ func (d *lxc) Start(stateful bool) error {
 		}
 
 		d.stateful = false
-		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, false)
+		err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.UpdateInstanceStatefulFlag(ctx, d.id, false)
+		})
 		if err != nil {
 			op.Done(err)
 			return fmt.Errorf("Failed clearing instance stateful flag: %w", err)
@@ -2533,8 +2545,10 @@ func (d *lxc) onStart(_ map[string]string) error {
 			return err
 		}
 
-		// Remove the volatile key from the DB
-		err := d.state.DB.Cluster.DeleteInstanceConfigKey(d.id, key)
+		err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			// Remove the volatile key from the DB
+			return tx.DeleteInstanceConfigKey(ctx, int64(d.id), key)
+		})
 		if err != nil {
 			_ = apparmor.InstanceUnload(d.state.OS, d)
 			return err
@@ -2656,7 +2670,10 @@ func (d *lxc) Stop(stateful bool) error {
 		}
 
 		d.stateful = true
-		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, true)
+
+		err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.UpdateInstanceStatefulFlag(ctx, d.id, true)
+		})
 		if err != nil {
 			return fmt.Errorf("Failed updating instance stateful flag: %w", err)
 		}
@@ -3768,8 +3785,10 @@ func (d *lxc) delete(force bool) error {
 		d.cleanup()
 	}
 
-	// Remove the database record of the instance or snapshot instance.
-	err = d.state.DB.Cluster.DeleteInstance(d.project.Name, d.Name())
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Remove the database record of the instance or snapshot instance.
+		return tx.DeleteInstance(ctx, d.project.Name, d.Name())
+	})
 	if err != nil {
 		d.logger.Error("Failed deleting instance entry", logger.Ctx{"err": err})
 		return err
@@ -3852,24 +3871,35 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	}
 
 	if !d.IsSnapshot() {
-		// Rename all the instance snapshot database entries.
-		results, err := d.state.DB.Cluster.GetInstanceSnapshotsNames(d.project.Name, oldName)
-		if err != nil {
-			d.logger.Error("Failed to get instance snapshots", ctxMap)
-			return fmt.Errorf("Failed to get instance snapshots: %w", err)
-		}
+		var results []string
 
-		for _, sname := range results {
-			// Rename the snapshot.
-			oldSnapName := strings.SplitN(sname, shared.SnapshotDelimiter, 2)[1]
-			baseSnapName := filepath.Base(sname)
-			err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return cluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project.Name, oldName, oldSnapName, baseSnapName)
-			})
+		err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			var err error
+
+			// Rename all the instance snapshot database entries.
+			results, err = tx.GetInstanceSnapshotsNames(ctx, d.project.Name, oldName)
 			if err != nil {
-				d.logger.Error("Failed renaming snapshot", ctxMap)
-				return fmt.Errorf("Failed renaming snapshot: %w", err)
+				d.logger.Error("Failed to get instance snapshots", ctxMap)
+
+				return fmt.Errorf("Failed to get instance snapshots: Failed getting instance snapshot names: %w", err)
 			}
+
+			for _, sname := range results {
+				// Rename the snapshot.
+				oldSnapName := strings.SplitN(sname, shared.SnapshotDelimiter, 2)[1]
+				baseSnapName := filepath.Base(sname)
+
+				err := cluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project.Name, oldName, oldSnapName, baseSnapName)
+				if err != nil {
+					d.logger.Error("Failed renaming snapshot", ctxMap)
+					return fmt.Errorf("Failed renaming snapshot: %w", err)
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
 		}
 	}
 
@@ -4002,6 +4032,9 @@ func (d *lxc) CGroupSet(key string, value string) error {
 
 // Update applies updated config.
 func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
+	reverter := revert.New()
+	defer reverter.Fail()
+
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
 		return err
@@ -4052,8 +4085,14 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
-	// Validate the new profiles
-	profiles, err := d.state.DB.Cluster.GetProfileNames(args.Project)
+	var profiles []string
+
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Validate the new profiles
+		profiles, err = tx.GetProfileNames(ctx, args.Project)
+
+		return err
+	})
 	if err != nil {
 		return fmt.Errorf("Failed to get profiles: %w", err)
 	}
@@ -4405,9 +4444,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 						return err
 					}
 
-					//revive:disable-next-line:defer
-					defer func() { _ = files.Close() }()
-
+					reverter.Add(func() { _ = files.Close() })
 					_, err = files.Lstat("/dev/lxd")
 					if err == nil {
 						err = d.removeMount("/dev/lxd")
@@ -4419,6 +4456,11 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 						if err != nil {
 							return err
 						}
+					}
+
+					err = files.Close()
+					if err != nil {
+						return err
 					}
 				}
 			} else if key == "linux.kernel_modules" && value != "" {
@@ -4825,6 +4867,8 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceUpdated.Event(d, nil))
 		}
 	}
+
+	reverter.Success()
 
 	return nil
 }
@@ -6024,7 +6068,8 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			for _, name := range offerHeader.SnapshotNames {
 				name := name // Local var.
 				base := instance.SnapshotToProtobuf(apiInstSnap)
-				base.Name = &name
+				baseName := name
+				base.Name = &baseName
 				snapshots = append(snapshots, base)
 			}
 		} else {
@@ -6070,6 +6115,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// A zero length Snapshots slice indicates volume only migration in
 		// VolumeTargetArgs. So if VolumeOnly was requested, do not populate them.
+		snapOps := []*operationlock.InstanceOperation{}
 		if args.Snapshots {
 			volTargetArgs.Snapshots = make([]string, 0, len(snapshots))
 			for _, snap := range snapshots {
@@ -6101,8 +6147,11 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					}
 
 					revert.Add(cleanup)
-					//revive:disable-next-line:defer
-					defer snapInstOp.Done(err)
+					revert.Add(func() {
+						snapInstOp.Done(err)
+					})
+
+					snapOps = append(snapOps, snapInstOp)
 				}
 			}
 		}
@@ -6143,6 +6192,10 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			if err != nil {
 				return err
 			}
+		}
+
+		for _, op := range snapOps {
+			op.Done(nil)
 		}
 
 		return nil

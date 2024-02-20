@@ -1,15 +1,18 @@
 package zone
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/miekg/dns"
 
 	"github.com/canonical/lxd/lxd/cluster/request"
+	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
 
+// AddRecord adds a network zone record.
 func (d *zone) AddRecord(req api.NetworkZoneRecordsPost) error {
 	// Validate.
 	err := d.validateRecordConfig(req.NetworkZoneRecordPut)
@@ -23,8 +26,12 @@ func (d *zone) AddRecord(req api.NetworkZoneRecordsPost) error {
 		return err
 	}
 
-	// Add the new record.
-	_, err = d.state.DB.Cluster.CreateNetworkZoneRecord(d.id, req)
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Add the new record.
+		_, err = tx.CreateNetworkZoneRecord(ctx, d.id, req)
+
+		return err
+	})
 	if err != nil {
 		return err
 	}
@@ -32,30 +39,54 @@ func (d *zone) AddRecord(req api.NetworkZoneRecordsPost) error {
 	return nil
 }
 
+// GetRecords fetches the network zone records.
 func (d *zone) GetRecords() ([]api.NetworkZoneRecord, error) {
-	// Get the record names.
-	names, err := d.state.DB.Cluster.GetNetworkZoneRecordNames(d.id)
-	if err != nil {
-		return nil, err
-	}
+	s := d.state
 
-	// Load all the records.
+	var names []string
 	records := []api.NetworkZoneRecord{}
-	for _, name := range names {
-		_, record, err := d.state.DB.Cluster.GetNetworkZoneRecord(d.id, name)
+	var record *api.NetworkZoneRecord
+
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		// Get the record names.
+		names, err = tx.GetNetworkZoneRecordNames(ctx, d.id)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		records = append(records, *record)
+		// Load all the records.
+		for _, name := range names {
+			_, record, err = tx.GetNetworkZoneRecord(ctx, d.id, name)
+			if err != nil {
+				return err
+			}
+
+			records = append(records, *record)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return records, nil
 }
 
+// GetRecord fetches the network zone record corresponding to the given name.
 func (d *zone) GetRecord(name string) (*api.NetworkZoneRecord, error) {
-	// Get the record.
-	_, record, err := d.state.DB.Cluster.GetNetworkZoneRecord(d.id, name)
+	var record *api.NetworkZoneRecord
+
+	err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		// Get the record.
+		_, record, err = tx.GetNetworkZoneRecord(ctx, d.id, name)
+
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +94,10 @@ func (d *zone) GetRecord(name string) (*api.NetworkZoneRecord, error) {
 	return record, nil
 }
 
+// UpdateRecord updates the network zone record corresponding to the given name.
 func (d *zone) UpdateRecord(name string, req api.NetworkZoneRecordPut, clientType request.ClientType) error {
+	s := d.state
+
 	// Validate.
 	err := d.validateRecordConfig(req)
 	if err != nil {
@@ -76,14 +110,21 @@ func (d *zone) UpdateRecord(name string, req api.NetworkZoneRecordPut, clientTyp
 		return err
 	}
 
-	// Get the record.
-	id, _, err := d.state.DB.Cluster.GetNetworkZoneRecord(d.id, name)
-	if err != nil {
-		return err
-	}
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get the record.
+		id, _, err := tx.GetNetworkZoneRecord(ctx, d.id, name)
+		if err != nil {
+			return err
+		}
 
-	// Update the record.
-	err = d.state.DB.Cluster.UpdateNetworkZoneRecord(id, req)
+		// Update the record.
+		err = tx.UpdateNetworkZoneRecord(ctx, id, req)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	if err != nil {
 		return err
 	}
@@ -91,15 +132,25 @@ func (d *zone) UpdateRecord(name string, req api.NetworkZoneRecordPut, clientTyp
 	return nil
 }
 
+// DeleteRecord delete the network zone record corresponding to the given name.
 func (d *zone) DeleteRecord(name string) error {
-	// Get the record.
-	id, _, err := d.state.DB.Cluster.GetNetworkZoneRecord(d.id, name)
-	if err != nil {
-		return err
-	}
+	s := d.state
 
-	// Delete the record.
-	err = d.state.DB.Cluster.DeleteNetworkZoneRecord(id)
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get the record.
+		id, _, err := tx.GetNetworkZoneRecord(ctx, d.id, name)
+		if err != nil {
+			return err
+		}
+
+		// Delete the record.
+		err = tx.DeleteNetworkZoneRecord(ctx, id)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	if err != nil {
 		return err
 	}

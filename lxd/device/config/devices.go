@@ -13,13 +13,13 @@ type Device map[string]string
 
 // Clone returns a copy of the Device.
 func (device Device) Clone() Device {
-	copy := make(map[string]string, len(device))
+	cpy := make(map[string]string, len(device))
 
 	for k, v := range device {
-		copy[k] = v
+		cpy[k] = v
 	}
 
-	return copy
+	return cpy
 }
 
 // Validate accepts a map of field/validation functions to run against the device's config.
@@ -27,7 +27,7 @@ func (device Device) Validate(rules map[string]func(value string) error) error {
 	checkedFields := map[string]struct{}{}
 
 	for k, validator := range rules {
-		checkedFields[k] = struct{}{} //Mark field as checked.
+		checkedFields[k] = struct{}{} // Mark field as checked.
 		err := validator(device[k])
 		if err != nil {
 			return fmt.Errorf("Invalid value for device option %q: %w", k, err)
@@ -196,24 +196,24 @@ func (list Devices) Update(newlist Devices, updateFields func(Device, Device) []
 
 // Clone returns a copy of the Devices set.
 func (list Devices) Clone() Devices {
-	copy := make(Devices, len(list))
+	cpy := make(Devices, len(list))
 
 	for deviceName, device := range list {
-		copy[deviceName] = device.Clone()
+		cpy[deviceName] = device.Clone()
 	}
 
-	return copy
+	return cpy
 }
 
 // CloneNative returns a copy of the Devices set as a native map[string]map[string]string type.
 func (list Devices) CloneNative() map[string]map[string]string {
-	copy := make(map[string]map[string]string, len(list))
+	cpy := make(map[string]map[string]string, len(list))
 
 	for deviceName, device := range list {
-		copy[deviceName] = device.Clone()
+		cpy[deviceName] = device.Clone()
 	}
 
-	return copy
+	return cpy
 }
 
 // Sorted returns the name of all devices in the set, sorted properly.

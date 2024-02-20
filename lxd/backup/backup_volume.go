@@ -1,10 +1,12 @@
 package backup
 
 import (
+	"context"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
@@ -92,7 +94,9 @@ func (b *VolumeBackup) Rename(newName string) error {
 	}
 
 	// Rename the database record.
-	err = b.state.DB.Cluster.RenameVolumeBackup(b.name, newName)
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.RenameVolumeBackup(ctx, b.name, newName)
+	})
 	if err != nil {
 		return err
 	}
@@ -123,7 +127,9 @@ func (b *VolumeBackup) Delete() error {
 	}
 
 	// Remove the database record.
-	err := b.state.DB.Cluster.DeleteStoragePoolVolumeBackup(b.name)
+	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.DeleteStoragePoolVolumeBackup(ctx, b.name)
+	})
 	if err != nil {
 		return err
 	}

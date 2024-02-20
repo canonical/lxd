@@ -73,11 +73,18 @@ func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 	suite.Req.Nil(err, "Failed to create the unprivileged profile.")
 	defer func() {
 		_ = suite.d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			//nolint:revive // revive seems to think this return is outside of the transaction.
 			return cluster.DeleteProfile(ctx, tx.Tx(), "default", "unprivileged")
 		})
 	}()
 
-	testProfiles, err := suite.d.db.Cluster.GetProfiles("default", []string{"default", "unprivileged"})
+	var testProfiles []api.Profile
+
+	err = suite.d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		testProfiles, err = tx.GetProfiles(ctx, "default", []string{"default", "unprivileged"})
+
+		return err
+	})
 	suite.Req.Nil(err)
 
 	args := db.InstanceArgs{
@@ -116,7 +123,11 @@ func (suite *containerTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
 		Name: "testFoo",
 	}
 
-	_, err := suite.d.State().DB.Cluster.CreateNetwork(api.ProjectDefaultName, "unknownbr0", "", db.NetworkTypeBridge, nil)
+	err := suite.d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_, err := tx.CreateNetwork(ctx, api.ProjectDefaultName, "unknownbr0", "", db.NetworkTypeBridge, nil)
+
+		return err
+	})
 	suite.Req.Nil(err)
 
 	c, op, _, err := instance.CreateInternal(suite.d.State(), args, true)
@@ -127,7 +138,8 @@ func (suite *containerTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
 	out, _, err := c.Render()
 	suite.Req.Nil(err)
 
-	state := out.(*api.Instance)
+	state, ok := out.(*api.Instance)
+	suite.Req.True(ok)
 	defer func() { _ = c.Delete(true) }()
 
 	suite.Equal(
@@ -151,7 +163,11 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 
 	state := suite.d.State()
 
-	_, err := state.DB.Cluster.CreateNetwork(api.ProjectDefaultName, "unknownbr0", "", db.NetworkTypeBridge, nil)
+	err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_, err := tx.CreateNetwork(ctx, api.ProjectDefaultName, "unknownbr0", "", db.NetworkTypeBridge, nil)
+
+		return err
+	})
 	suite.Req.Nil(err)
 
 	// Create the container
@@ -166,7 +182,11 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	pool, err := storagePools.LoadByName(state, poolName)
 	suite.Req.Nil(err)
 
-	_, err = state.DB.Cluster.CreateStoragePoolVolume(c.Project().Name, c.Name(), "", cluster.StoragePoolVolumeContentTypeFS, pool.ID(), nil, cluster.StoragePoolVolumeContentTypeFS, time.Now())
+	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_, err = tx.CreateStoragePoolVolume(ctx, c.Project().Name, c.Name(), "", cluster.StoragePoolVolumeContentTypeFS, pool.ID(), nil, cluster.StoragePoolVolumeContentTypeFS, time.Now())
+
+		return err
+	})
 	suite.Req.Nil(err)
 
 	// Load the container and trigger initLXC()
@@ -245,7 +265,15 @@ func (suite *containerTestSuite) TestContainer_AddRoutedNicValidation() {
 		"ipv6.gateway": "none", "nictype": "routed", "parent": "unknownbr0"}
 	eth2 := deviceConfig.Device{"name": "eth2", "type": "nic", "nictype": "bridged", "parent": "unknownbr0"}
 
-	testProfiles, err := suite.d.db.Cluster.GetProfiles("default", []string{"default"})
+	var testProfiles []api.Profile
+
+	err := suite.d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		testProfiles, err = tx.GetProfiles(ctx, "default", []string{"default"})
+
+		return err
+	})
 	suite.Req.Nil(err)
 
 	args := db.InstanceArgs{
@@ -458,6 +486,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_raw() {
 func (suite *containerTestSuite) TestContainer_findIdmap_maxed() {
 	maps := []*idmap.IdmapSet{}
 
+	instances := make([]instance.Instance, 0, 7)
 	for i := 0; i < 7; i++ {
 		c, op, _, err := instance.CreateInternal(suite.d.State(), db.InstanceArgs{
 			Type: instancetype.Container,
@@ -468,15 +497,15 @@ func (suite *containerTestSuite) TestContainer_findIdmap_maxed() {
 		}, true)
 
 		/* we should fail if there are no ids left */
-		if i != 6 {
-			suite.Req.Nil(err)
-		} else {
+		if i == 6 {
 			suite.Req.NotNil(err)
 			return
 		}
 
+		suite.Req.Nil(err)
+
 		op.Done(nil)
-		defer func() { _ = c.Delete(true) }()
+		instances = append(instances, c)
 
 		m, err := c.(instance.Container).NextIdmap()
 		suite.Req.Nil(err)
@@ -494,6 +523,11 @@ func (suite *containerTestSuite) TestContainer_findIdmap_maxed() {
 				suite.Req.False(m1.HostidsIntersect(e), "%d and %d's idmaps intersect %v %v", i, j, m1, m2)
 			}
 		}
+	}
+
+	for _, c := range instances {
+		err := c.Delete(true)
+		suite.Req.NotNil(err)
 	}
 }
 

@@ -1405,30 +1405,32 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// where 9p isn't available in the VM guest OS.
 	configSockPath, configPIDPath := d.configVirtiofsdPaths()
 	revertFunc, unixListener, err := device.DiskVMVirtiofsdStart(d.state.OS.ExecPath, d, configSockPath, configPIDPath, "", configMntPath, nil)
-	if err != nil {
-		var errUnsupported device.UnsupportedError
-		if !errors.As(err, &errUnsupported) {
-			// Resolve previous warning.
-			_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
-			err = fmt.Errorf("Failed to setup virtiofsd for config drive: %w", err)
-			op.Done(err)
-			return err
-		}
+	if err == nil {
+		// Resolve previous warning.
+		_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
+		err = fmt.Errorf("Failed to setup virtiofsd for config drive: %w", err)
+		op.Done(err)
+		return err
+	}
 
-		d.logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback", logger.Ctx{"err": errUnsupported})
-
-		if errUnsupported == device.ErrMissingVirtiofsd {
-			// Create a warning if virtiofsd is missing.
-			_ = d.state.DB.Cluster.UpsertWarning(d.node, d.project.Name, entity.TypeInstance, d.ID(), warningtype.MissingVirtiofsd, "Using 9p as a fallback")
-		} else {
-			// Resolve previous warning.
-			_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
-		}
-	} else {
+	var errUnsupported device.UnsupportedError
+	if !errors.As(err, &errUnsupported) {
 		revert.Add(revertFunc)
 
 		// Request the unix listener is closed after QEMU has connected on startup.
 		defer func() { _ = unixListener.Close() }()
+	}
+
+	d.logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback", logger.Ctx{"err": errUnsupported})
+
+	if errUnsupported == device.ErrMissingVirtiofsd {
+		_ = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			// Create a warning if virtiofsd is missing.
+			return tx.UpsertWarning(ctx, d.node, d.project.Name, entity.TypeInstance, d.ID(), warningtype.MissingVirtiofsd, "Using 9p as a fallback")
+		})
+	} else {
+		// Resolve previous warning.
+		_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
 	}
 
 	// Get qemu configuration and check qemu is installed.
@@ -1536,7 +1538,9 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		}
 
 		d.stateful = false
-		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, false)
+		err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.UpdateInstanceStatefulFlag(ctx, d.id, false)
+		})
 		if err != nil {
 			op.Done(err)
 			return fmt.Errorf("Error updating instance stateful flag: %w", err)
@@ -1798,7 +1802,9 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		_ = os.Remove(d.StatePath())
 		d.stateful = false
 
-		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, false)
+		err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.UpdateInstanceStatefulFlag(ctx, d.id, false)
+		})
 		if err != nil {
 			op.Done(err)
 			return fmt.Errorf("Error updating instance stateful flag: %w", err)
@@ -2054,7 +2060,7 @@ func (d *qemu) setupNvram() error {
 	return nil
 }
 
-func (d *qemu) qemuArchConfig(arch int) (qemuPath string, qemuBus string, err error) {
+func (d *qemu) qemuArchConfig(arch int) (path string, bus string, err error) {
 	if arch == osarch.ARCH_64BIT_INTEL_X86 {
 		path, err := exec.LookPath("qemu-system-x86_64")
 		if err != nil {
@@ -2895,8 +2901,10 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 			return err
 		}
 
-		// Remove the volatile key from the DB.
-		err := d.state.DB.Cluster.DeleteInstanceConfigKey(d.id, key)
+		err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			// Remove the volatile key from the DB.
+			return tx.DeleteInstanceConfigKey(ctx, int64(d.id), key)
+		})
 		if err != nil {
 			return err
 		}
@@ -4248,9 +4256,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 					return fmt.Errorf("Error opening netdev file for queue %d: %w", i, err)
 				}
 
-				// Close file after device has been added.
-				//revive:disable-next-line:defer
-				defer func() { _ = devFile.Close() }()
+				reverter.Add(func() { _ = devFile.Close() })
 
 				devFDName := fmt.Sprintf("%s.%d", devFile.Name(), i)
 				err = m.SendFile(devFDName, devFile)
@@ -4259,6 +4265,10 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 				}
 
 				reverter.Add(func() { _ = m.CloseFile(devFDName) })
+				err = devFile.Close()
+				if err != nil {
+					return err
+				}
 
 				fds = append(fds, devFDName)
 
@@ -4269,14 +4279,16 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 						return fmt.Errorf("Error opening /dev/vhost-net for queue %d: %w", i, err)
 					}
 
-					// Close file after device has been added.
-					//revive:disable-next-line:defer
-					defer func() { _ = vhostFile.Close() }()
-
+					reverter.Add(func() { _ = vhostFile.Close() })
 					vhostFDName := fmt.Sprintf("%s.%d", vhostFile.Name(), i)
 					err = m.SendFile(vhostFDName, vhostFile)
 					if err != nil {
 						return fmt.Errorf("Failed to send %q file descriptor for queue %d: %w", vhostFDName, i, err)
+					}
+
+					err = vhostFile.Close()
+					if err != nil {
+						return err
 					}
 
 					reverter.Add(func() { _ = m.CloseFile(vhostFDName) })
@@ -4839,7 +4851,9 @@ func (d *qemu) Stop(stateful bool) error {
 		}
 
 		d.stateful = true
-		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, true)
+		err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.UpdateInstanceStatefulFlag(ctx, d.id, true)
+		})
 		if err != nil {
 			op.Done(err)
 			return err
@@ -5174,24 +5188,34 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	}
 
 	if !d.IsSnapshot() {
-		// Rename all the instance snapshot database entries.
-		results, err := d.state.DB.Cluster.GetInstanceSnapshotsNames(d.project.Name, oldName)
-		if err != nil {
-			d.logger.Error("Failed to get instance snapshots", ctxMap)
-			return fmt.Errorf("Failed to get instance snapshots: %w", err)
-		}
+		var results []string
 
-		for _, sname := range results {
-			// Rename the snapshot.
-			oldSnapName := strings.SplitN(sname, shared.SnapshotDelimiter, 2)[1]
-			baseSnapName := filepath.Base(sname)
-			err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return dbCluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project.Name, oldName, oldSnapName, baseSnapName)
-			})
+		err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			var err error
+
+			// Rename all the instance snapshot database entries.
+			results, err = tx.GetInstanceSnapshotsNames(ctx, d.project.Name, oldName)
 			if err != nil {
-				d.logger.Error("Failed renaming snapshot", ctxMap)
-				return err
+				d.logger.Error("Failed to get instance snapshots", ctxMap)
+				return fmt.Errorf("Failed to get instance snapshots: Failed getting instance snapshot names: %w", err)
 			}
+
+			for _, sname := range results {
+				// Rename the snapshot.
+				oldSnapName := strings.SplitN(sname, shared.SnapshotDelimiter, 2)[1]
+				baseSnapName := filepath.Base(sname)
+
+				err := dbCluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project.Name, oldName, oldSnapName, baseSnapName)
+				if err != nil {
+					d.logger.Error("Failed renaming snapshot", ctxMap)
+					return err
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
 		}
 	}
 
@@ -5349,8 +5373,14 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
-	// Validate the new profiles.
-	profiles, err := d.state.DB.Cluster.GetProfileNames(args.Project)
+	var profiles []string
+
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Validate the new profiles.
+		profiles, err = tx.GetProfileNames(ctx, args.Project)
+
+		return err
+	})
 	if err != nil {
 		return fmt.Errorf("Failed to get profiles: %w", err)
 	}
@@ -6157,8 +6187,10 @@ func (d *qemu) delete(force bool) error {
 		d.cleanup()
 	}
 
-	// Remove the database record of the instance or snapshot instance.
-	err = d.state.DB.Cluster.DeleteInstance(d.Project().Name, d.Name())
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Remove the database record of the instance or snapshot instance.
+		return tx.DeleteInstance(ctx, d.Project().Name, d.Name())
+	})
 	if err != nil {
 		d.logger.Error("Failed deleting instance entry", logger.Ctx{"project": d.Project().Name})
 		return err
@@ -7234,7 +7266,8 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			for _, name := range offerHeader.SnapshotNames {
 				name := name // Local var.
 				base := instance.SnapshotToProtobuf(apiInstSnap)
-				base.Name = &name
+				baseName := name
+				base.Name = &baseName
 				snapshots = append(snapshots, base)
 			}
 		} else {
@@ -7268,6 +7301,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// A zero length Snapshots slice indicates volume only migration in
 		// VolumeTargetArgs. So if VolumeOnly was requested, do not populate them.
+		snapOps := []operationlock.InstanceOperation{}
 		if args.Snapshots {
 			volTargetArgs.Snapshots = make([]string, 0, len(snapshots))
 			for _, snap := range snapshots {
@@ -7299,8 +7333,11 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					}
 
 					revert.Add(cleanup)
-					//revive:disable-next-line:defer
-					defer snapInstOp.Done(err)
+					revert.Add(func() {
+						snapInstOp.Done(err)
+					})
+
+					snapOps = append(snapOps, *snapInstOp)
 				}
 			}
 		}
@@ -7356,6 +7393,10 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			if err != nil {
 				return err
 			}
+		}
+
+		for _, op := range snapOps {
+			op.Done(nil)
 		}
 
 		return nil

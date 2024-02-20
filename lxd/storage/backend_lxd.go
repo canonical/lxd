@@ -317,7 +317,9 @@ func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newCo
 
 	// Update the database if something changed and we're in ClientTypeNormal mode.
 	if clientType == request.ClientTypeNormal && (len(changedConfig) > 0 || newDesc != b.db.Description) {
-		err = b.state.DB.Cluster.UpdateStoragePool(b.name, newDesc, newConfig)
+		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.UpdateStoragePool(ctx, b.name, newDesc, newConfig)
+		})
 		if err != nil {
 			return err
 		}
@@ -2084,8 +2086,12 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 			imageExists := false
 
 			if fingerprint != "" {
-				// Confirm that the image is present in the project.
-				_, _, err = b.state.DB.Cluster.GetImage(fingerprint, cluster.ImageFilter{Project: &projectName})
+				err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+					// Confirm that the image is present in the project.
+					_, _, err = tx.GetImage(ctx, fingerprint, cluster.ImageFilter{Project: &projectName})
+
+					return err
+				})
 				if err != nil && !response.IsNotFoundError(err) {
 					return err
 				}
@@ -2193,8 +2199,16 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 		return err
 	}
 
-	// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
-	snapshots, err := b.state.DB.Cluster.GetInstanceSnapshotsNames(inst.Project().Name, inst.Name())
+	var snapshots []string
+
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
+		snapshots, err = tx.GetInstanceSnapshotsNames(ctx, inst.Project().Name, inst.Name())
+
+		return err
+	})
 	if err != nil {
 		return err
 	}
@@ -2210,24 +2224,33 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 	for _, srcSnapshot := range snapshots {
 		_, snapName, _ := api.GetParentAndSnapshotName(srcSnapshot)
 		newSnapVolName := drivers.GetSnapshotVolumeName(newName, snapName)
-		err = b.state.DB.Cluster.RenameStoragePoolVolume(inst.Project().Name, srcSnapshot, newSnapVolName, volDBType, b.ID())
+
+		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.RenameStoragePoolVolume(ctx, inst.Project().Name, srcSnapshot, newSnapVolName, volDBType, b.ID())
+		})
 		if err != nil {
 			return err
 		}
 
 		revert.Add(func() {
-			_ = b.state.DB.Cluster.RenameStoragePoolVolume(inst.Project().Name, newSnapVolName, srcSnapshot, volDBType, b.ID())
+			_ = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				return tx.RenameStoragePoolVolume(ctx, inst.Project().Name, newSnapVolName, srcSnapshot, volDBType, b.ID())
+			})
 		})
 	}
 
-	// Rename the parent volume DB record.
-	err = b.state.DB.Cluster.RenameStoragePoolVolume(inst.Project().Name, inst.Name(), newName, volDBType, b.ID())
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Rename the parent volume DB record.
+		return tx.RenameStoragePoolVolume(ctx, inst.Project().Name, inst.Name(), newName, volDBType, b.ID())
+	})
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
-		_ = b.state.DB.Cluster.RenameStoragePoolVolume(inst.Project().Name, newName, inst.Name(), volDBType, b.ID())
+		_ = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.RenameStoragePoolVolume(ctx, inst.Project().Name, newName, inst.Name(), volDBType, b.ID())
+		})
 	})
 
 	// Rename the volume and its snapshots on the storage device.
@@ -2444,7 +2467,9 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 
 	// Update the database if something changed.
 	if len(changedConfig) != 0 || newDesc != curVol.Description {
-		err = b.state.DB.Cluster.UpdateStoragePoolVolume(inst.Project().Name, inst.Name(), volDBType, b.ID(), newDesc, newConfig)
+		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.UpdateStoragePoolVolume(ctx, inst.Project().Name, inst.Name(), volDBType, b.ID(), newDesc, newConfig)
+		})
 		if err != nil {
 			return err
 		}
@@ -3141,15 +3166,19 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 		_ = b.driver.RenameVolumeSnapshot(newSnapVol, oldSnapshotName, op)
 	})
 
-	// Rename DB volume record.
-	err = b.state.DB.Cluster.RenameStoragePoolVolume(inst.Project().Name, inst.Name(), newVolName, volDBType, b.ID())
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Rename DB volume record.
+		return tx.RenameStoragePoolVolume(ctx, inst.Project().Name, inst.Name(), newVolName, volDBType, b.ID())
+	})
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
-		// Rename DB volume record back.
-		_ = b.state.DB.Cluster.RenameStoragePoolVolume(inst.Project().Name, newVolName, inst.Name(), volDBType, b.ID())
+		_ = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			// Rename DB volume record back.
+			return tx.RenameStoragePoolVolume(ctx, inst.Project().Name, newVolName, inst.Name(), volDBType, b.ID())
+		})
 	})
 
 	// Ensure the backup file reflects current config.
@@ -3301,7 +3330,9 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 		// This is required because we have just copied the source volume's config.
 		srcDBVol.Config["volatile.uuid"] = volUUID
 
-		err = b.state.DB.Cluster.UpdateStoragePoolVolume(inst.Project().Name, inst.Name(), volDBType, b.ID(), srcDBVol.Description, srcDBVol.Config)
+		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.UpdateStoragePoolVolume(ctx, inst.Project().Name, inst.Name(), volDBType, b.ID(), srcDBVol.Description, srcDBVol.Config)
+		})
 		if err != nil {
 			return err
 		}
@@ -3309,7 +3340,9 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 		revert.Add(func() {
 			// Update the instance snapshot with its old config.
 			// This will also reset its UUID.
-			_ = b.state.DB.Cluster.UpdateStoragePoolVolume(inst.Project().Name, inst.Name(), volDBType, b.ID(), dbVol.Description, dbVol.Config)
+			_ = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				return tx.UpdateStoragePoolVolume(ctx, inst.Project().Name, inst.Name(), volDBType, b.ID(), dbVol.Description, dbVol.Config)
+			})
 		})
 	}
 
@@ -3477,8 +3510,14 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 
 	defer unlock()
 
-	// Load image info from database.
-	_, image, err := b.state.DB.Cluster.GetImageFromAnyProject(fingerprint)
+	var image *api.Image
+
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Load image info from database.
+		_, image, err = tx.GetImageFromAnyProject(ctx, fingerprint)
+
+		return err
+	})
 	if err != nil {
 		return err
 	}
@@ -3624,7 +3663,9 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	if volFiller.Size != 0 {
 		imgVol.Config()["volatile.rootfs.size"] = fmt.Sprintf("%d", volFiller.Size)
 
-		err = b.state.DB.Cluster.UpdateStoragePoolVolume(api.ProjectDefaultName, fingerprint, cluster.StoragePoolVolumeTypeImage, b.id, "", imgVol.Config())
+		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.UpdateStoragePoolVolume(ctx, api.ProjectDefaultName, fingerprint, cluster.StoragePoolVolumeTypeImage, b.id, "", imgVol.Config())
+		})
 		if err != nil {
 			return err
 		}
@@ -3779,7 +3820,9 @@ func (b *lxdBackend) updateVolumeDescriptionOnly(projectName string, volName str
 
 	// Update the database if description changed. Use current config.
 	if newDesc != curVol.Description {
-		err = b.state.DB.Cluster.UpdateStoragePoolVolume(projectName, volName, volDBType, b.ID(), newDesc, curVol.Config)
+		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.UpdateStoragePoolVolume(ctx, projectName, volName, volDBType, b.ID(), newDesc, curVol.Config)
+		})
 		if err != nil {
 			return err
 		}
@@ -3996,8 +4039,10 @@ func (b *lxdBackend) UpdateBucket(projectName string, bucketName string, bucket 
 		}
 	}
 
-	// Update the database record.
-	err = b.state.DB.Cluster.UpdateStoragePoolBucket(context.TODO(), b.id, curBucket.ID, &bucket)
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Update the database record.
+		return tx.UpdateStoragePoolBucket(ctx, b.id, curBucket.ID, &bucket)
+	})
 	if err != nil {
 		return err
 	}
@@ -4133,12 +4178,22 @@ func (b *lxdBackend) ImportBucket(projectName string, poolVol *backupConfig.Conf
 
 	// Insert keys into the database.
 	for _, key := range keys {
-		keyID, err := b.state.DB.Cluster.CreateStoragePoolBucketKey(b.state.ShutdownCtx, bucketID, key)
+		var keyID int64
+
+		err := b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+			keyID, err = tx.CreateStoragePoolBucketKey(ctx, bucketID, key)
+
+			return err
+		})
 		if err != nil {
 			return nil, err
 		}
 
-		revert.Add(func() { _ = b.state.DB.Cluster.DeleteStoragePoolBucketKey(b.state.ShutdownCtx, bucketID, keyID) })
+		revert.Add(func() {
+			_ = b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+				return tx.DeleteStoragePoolBucketKey(ctx, bucketID, keyID)
+			})
+		})
 	}
 
 	cleanup := revert.Clone().Fail
@@ -4337,7 +4392,11 @@ func (b *lxdBackend) CreateBucketKey(projectName string, bucketName string, key 
 		},
 	}
 
-	_, err = b.state.DB.Cluster.CreateStoragePoolBucketKey(context.TODO(), bucket.ID, key)
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_, err = tx.CreateStoragePoolBucketKey(ctx, bucket.ID, key)
+
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -4480,8 +4539,10 @@ func (b *lxdBackend) UpdateBucketKey(projectName string, bucketName string, keyN
 		key.SecretKey = newCreds.SecretKey
 	}
 
-	// Update the database record.
-	err = b.state.DB.Cluster.UpdateStoragePoolBucketKey(context.TODO(), bucket.ID, curBucketKey.ID, &key)
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Update the database record.
+		return tx.UpdateStoragePoolBucketKey(ctx, bucket.ID, curBucketKey.ID, &key)
+	})
 	if err != nil {
 		return err
 	}
@@ -4559,7 +4620,9 @@ func (b *lxdBackend) DeleteBucketKey(projectName string, bucketName string, keyN
 		}
 	}
 
-	err = b.state.DB.Cluster.DeleteStoragePoolBucketKey(context.TODO(), bucket.ID, bucketKey.ID)
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.DeleteStoragePoolBucketKey(ctx, bucket.ID, bucketKey.ID)
+	})
 	if err != nil {
 		return fmt.Errorf("Failed deleting bucket key from database: %w", err)
 	}
@@ -5302,18 +5365,28 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 	for _, srcSnapshot := range snapshots {
 		_, snapName, _ := api.GetParentAndSnapshotName(srcSnapshot.Name)
 		newSnapVolName := drivers.GetSnapshotVolumeName(newVolName, snapName)
-		err = b.state.DB.Cluster.RenameStoragePoolVolume(projectName, srcSnapshot.Name, newSnapVolName, cluster.StoragePoolVolumeTypeCustom, b.ID())
+		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.RenameStoragePoolVolume(ctx, projectName, srcSnapshot.Name, newSnapVolName, cluster.StoragePoolVolumeTypeCustom, b.ID())
+		})
 		if err != nil {
 			return err
 		}
 
 		revert.Add(func() {
-			_ = b.state.DB.Cluster.RenameStoragePoolVolume(projectName, newSnapVolName, srcSnapshot.Name, cluster.StoragePoolVolumeTypeCustom, b.ID())
+			_ = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				return tx.RenameStoragePoolVolume(ctx, projectName, newSnapVolName, srcSnapshot.Name, cluster.StoragePoolVolumeTypeCustom, b.ID())
+			})
 		})
 	}
 
+	var backups []db.StoragePoolVolumeBackup
+
 	// Rename each backup to have the new parent volume prefix.
-	backups, err := b.state.DB.Cluster.GetStoragePoolVolumeBackups(projectName, volName, b.ID())
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		backups, err = tx.GetStoragePoolVolumeBackups(ctx, projectName, volName, b.ID())
+		return err
+	})
 	if err != nil {
 		return err
 	}
@@ -5333,13 +5406,17 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 		})
 	}
 
-	err = b.state.DB.Cluster.RenameStoragePoolVolume(projectName, volName, newVolName, cluster.StoragePoolVolumeTypeCustom, b.ID())
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.RenameStoragePoolVolume(ctx, projectName, volName, newVolName, cluster.StoragePoolVolumeTypeCustom, b.ID())
+	})
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
-		_ = b.state.DB.Cluster.RenameStoragePoolVolume(projectName, newVolName, volName, cluster.StoragePoolVolumeTypeCustom, b.ID())
+		_ = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.RenameStoragePoolVolume(ctx, projectName, newVolName, volName, cluster.StoragePoolVolumeTypeCustom, b.ID())
+		})
 	})
 
 	// Get the volume name on storage.
@@ -5487,7 +5564,9 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 
 	// Update the database if something changed.
 	if len(changedConfig) != 0 || newDesc != curVol.Description {
-		err = b.state.DB.Cluster.UpdateStoragePoolVolume(projectName, volName, cluster.StoragePoolVolumeTypeCustom, b.ID(), newDesc, newConfig)
+		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.UpdateStoragePoolVolume(ctx, projectName, volName, cluster.StoragePoolVolumeTypeCustom, b.ID(), newDesc, newConfig)
+		})
 		if err != nil {
 			return err
 		}
@@ -5515,7 +5594,13 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 		return err
 	}
 
-	curExpiryDate, err := b.state.DB.Cluster.GetStorageVolumeSnapshotExpiry(curVol.ID)
+	var curExpiryDate time.Time
+
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		curExpiryDate, err = tx.GetStorageVolumeSnapshotExpiry(ctx, curVol.ID)
+
+		return err
+	})
 	if err != nil {
 		return err
 	}
@@ -5529,7 +5614,9 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 
 	// Update the database if description changed. Use current config.
 	if newDesc != curVol.Description || newExpiryDate != curExpiryDate {
-		err = b.state.DB.Cluster.UpdateStorageVolumeSnapshot(projectName, volName, cluster.StoragePoolVolumeTypeCustom, b.ID(), newDesc, curVol.Config, newExpiryDate)
+		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.UpdateStorageVolumeSnapshot(ctx, projectName, volName, cluster.StoragePoolVolumeTypeCustom, b.ID(), newDesc, curVol.Config, newExpiryDate)
+		})
 		if err != nil {
 			return err
 		}
@@ -5942,7 +6029,9 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 	}
 
 	newVolName := drivers.GetSnapshotVolumeName(parentName, newSnapshotName)
-	err = b.state.DB.Cluster.RenameStoragePoolVolume(projectName, volName, newVolName, cluster.StoragePoolVolumeTypeCustom, b.ID())
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.RenameStoragePoolVolume(ctx, projectName, volName, newVolName, cluster.StoragePoolVolumeTypeCustom, b.ID())
+	})
 	if err != nil {
 		// Get the volume name on storage.
 		newVolStorageName := project.StorageVolume(projectName, newVolName)
@@ -6433,13 +6522,25 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 
 	projectName, instName := project.InstanceParts(vol.Name())
 
-	// Check if an entry for the instance already exists in the DB.
-	instID, err := b.state.DB.Cluster.GetInstanceID(projectName, instName)
-	if err != nil && !response.IsNotFoundError(err) {
-		return err
-	}
+	var instID int
+	var instSnapshots []string
 
-	instSnapshots, err := b.state.DB.Cluster.GetInstanceSnapshotsNames(projectName, instName)
+	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		// Check if an entry for the instance already exists in the DB.
+		instID, err = tx.GetInstanceID(ctx, projectName, instName)
+		if err != nil && !response.IsNotFoundError(err) {
+			return err
+		}
+
+		instSnapshots, err = tx.GetInstanceSnapshotsNames(ctx, projectName, instName)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	if err != nil {
 		return err
 	}
@@ -6742,8 +6843,16 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 		return nil, err
 	}
 
-	// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
-	snapshots, err := b.state.DB.Cluster.GetInstanceSnapshotsNames(inst.Project().Name, inst.Name())
+	var snapshots []string
+
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
+		snapshots, err = tx.GetInstanceSnapshotsNames(ctx, inst.Project().Name, inst.Name())
+
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -6901,7 +7010,7 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 	return cleanup, err
 }
 
-// BackupCustomVolume backs up a custom volume.
+// BackupCustomVolume creates a backup of an existing custom volume.
 func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volume": volName, "optimized": optimized, "snapshots": snapshots})
 	l.Debug("BackupCustomVolume started")
@@ -6961,7 +7070,7 @@ func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarW
 	return nil
 }
 
-// CreateCustomVolumeFromISO creates a custom volume from ISO.
+// CreateCustomVolumeFromISO creates a custom volume from the given ISO source data.
 func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName string, srcData io.ReadSeeker, size int64, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volume": volName})
 	l.Debug("CreateCustomVolumeFromISO started")
@@ -7040,7 +7149,7 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 	return nil
 }
 
-// CreateCustomVolumeFromBackup creates a custom volume from backup.
+// CreateCustomVolumeFromBackup creates a custom volume from the given backup info.
 func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": srcBackup.Project, "volume": srcBackup.Name, "snapshots": srcBackup.Snapshots, "optimizedStorage": *srcBackup.OptimizedStorage})
 	l.Debug("CreateCustomVolumeFromBackup started")

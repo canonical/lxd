@@ -80,7 +80,26 @@ func MACDevName(mac net.HardwareAddr) string {
 // UsedByInstanceDevices looks for instance NIC devices using the network and runs the supplied usageFunc for each.
 // Accepts optional filter arguments to specify a subset of instances.
 func UsedByInstanceDevices(s *state.State, networkProjectName string, networkName string, networkType string, usageFunc func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error, filters ...cluster.InstanceFilter) error {
-	return s.DB.Cluster.InstanceList(context.TODO(), func(inst db.InstanceArgs, p api.Project) error {
+	// Get the instances.
+	projects := map[string]api.Project{}
+	instances := []db.InstanceArgs{}
+
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
+			projects[inst.Project] = p
+			instances = append(instances, inst)
+
+			return nil
+		}, filters...)
+	})
+	if err != nil {
+		return err
+	}
+
+	// Go through the instances and run usageFunc.
+	for _, inst := range instances {
+		p := projects[inst.Project]
+
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 
@@ -99,9 +118,9 @@ func UsedByInstanceDevices(s *state.State, networkProjectName string, networkNam
 				}
 			}
 		}
+	}
 
-		return nil
-	}, filters...)
+	return nil
 }
 
 // UsedBy returns list of API resources using network. Accepts firstOnly argument to indicate that only the first
@@ -112,7 +131,13 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 
 	// If managed network being passed in, check if it has any peerings in a created state.
 	if networkID > 0 {
-		peers, err := s.DB.Cluster.GetNetworkPeers(networkID)
+		var peers map[int64]*api.NetworkPeer
+
+		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			peers, err = tx.GetNetworkPeers(ctx, networkID)
+
+			return err
+		})
 		if err != nil {
 			return nil, fmt.Errorf("Failed getting network peers: %w", err)
 		}
@@ -378,8 +403,12 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 	if networkName == "" {
 		var err error
 
-		// Pass api.ProjectDefaultName here, as currently dnsmasq (bridged) networks do not support projects.
-		networks, err = s.DB.Cluster.GetNetworks(api.ProjectDefaultName)
+		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			// Pass api.ProjectDefaultName here, as currently dnsmasq (bridged) networks do not support projects.
+			networks, err = tx.GetNetworks(ctx, api.ProjectDefaultName)
+
+			return err
+		})
 		if err != nil {
 			return err
 		}
@@ -1255,18 +1284,18 @@ func InterfaceStatus(nicName string) ([]net.IP, bool, error) {
 }
 
 // ParsePortRange validates a port range in the form start-end.
-func ParsePortRange(r string) (int64, int64, error) {
+func ParsePortRange(r string) (base int64, size int64, err error) {
 	entries := strings.Split(r, "-")
 	if len(entries) > 2 {
 		return -1, -1, fmt.Errorf("Invalid port range %q", r)
 	}
 
-	base, err := strconv.ParseInt(entries[0], 10, 64)
+	base, err = strconv.ParseInt(entries[0], 10, 64)
 	if err != nil {
 		return -1, -1, err
 	}
 
-	size := int64(1)
+	size = int64(1)
 	if len(entries) > 1 {
 		size, err = strconv.ParseInt(entries[1], 10, 64)
 		if err != nil {
@@ -1316,14 +1345,14 @@ func ParseIPCIDRToNet(ipAddressCIDR string) (*net.IPNet, error) {
 
 // IPToNet converts an IP to a single host IPNet.
 func IPToNet(ip net.IP) net.IPNet {
-	len := 32
+	bits := 32
 	if ip.To4() == nil {
-		len = 128
+		bits = 128
 	}
 
 	return net.IPNet{
 		IP:   ip,
-		Mask: net.CIDRMask(len, len),
+		Mask: net.CIDRMask(bits, bits),
 	}
 }
 

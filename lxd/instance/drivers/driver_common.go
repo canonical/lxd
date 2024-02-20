@@ -2,7 +2,6 @@ package drivers
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -17,7 +16,6 @@ import (
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
-	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/device"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/device/nictype"
@@ -209,8 +207,14 @@ func (d *common) Operation() *operations.Operation {
 
 // Backups returns a list of backups.
 func (d *common) Backups() ([]backup.InstanceBackup, error) {
+	var backupNames []string
+
 	// Get all the backups
-	backupNames, err := d.state.DB.Cluster.GetInstanceBackups(d.project.Name, d.name)
+	err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		backupNames, err = tx.GetInstanceBackups(ctx, d.project.Name, d.name)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -760,19 +764,19 @@ func (d *common) updateProgress(progress string) {
 // unpopulated then the insert querty is retried until it succeeds or a retry limit is reached.
 // If the insert succeeds or the key is found to have been populated then the value of the key is returned.
 func (d *common) insertConfigkey(key string, value string) (string, error) {
-	err := query.Retry(func() error {
-		err := query.Transaction(context.TODO(), d.state.DB.Cluster.DB(), func(ctx context.Context, tx *sql.Tx) error {
-			return db.CreateInstanceConfig(tx, d.id, map[string]string{key: value})
-		})
-		if err != nil {
-			// Check if something else filled it in behind our back.
-			existingValue, errCheckExists := d.state.DB.Cluster.GetInstanceConfig(d.id, key)
-			if errCheckExists != nil {
-				return err
-			}
-
-			value = existingValue
+	err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := tx.CreateInstanceConfig(ctx, d.id, map[string]string{key: value})
+		if err == nil {
+			return nil
 		}
+
+		// Check if something else filled it in behind our back.
+		existingValue, errCheckExists := tx.GetInstanceConfig(ctx, d.id, key)
+		if errCheckExists != nil {
+			return err
+		}
+
+		value = existingValue
 
 		return nil
 	})
@@ -1068,7 +1072,7 @@ func (d *common) warningsDelete() error {
 // canMigrate determines if the given instance can be migrated and whether the migration
 // can be live. In "auto" mode, the function checks each attached device of the instance
 // to ensure they are all migratable.
-func (d *common) canMigrate(inst instance.Instance) (canMigrate bool, canLiveMigrate bool) {
+func (d *common) canMigrate(inst instance.Instance) (migrate bool, live bool) {
 	// Check policy for the instance.
 	config := d.ExpandedConfig()
 	val, ok := config["cluster.evacuate"]
@@ -1106,7 +1110,6 @@ func (d *common) canMigrate(inst instance.Instance) (canMigrate bool, canLiveMig
 
 	// Check if set up for live migration.
 	// Limit automatic live-migration to virtual machines for now.
-	live := false
 	if inst.Type() == instancetype.VM {
 		live = shared.IsTrue(config["migration.stateful"])
 	}
@@ -1261,7 +1264,18 @@ func (d *common) getStoragePool() (storagePools.Pool, error) {
 		return d.storagePool, nil
 	}
 
-	poolName, err := d.state.DB.Cluster.GetInstancePool(d.Project().Name, d.Name())
+	var poolName string
+
+	err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		poolName, err = tx.GetInstancePool(ctx, d.Project().Name, d.Name())
+		if err != nil {
+			return fmt.Errorf("Failed getting instance pool: %w", err)
+		}
+
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
