@@ -259,11 +259,6 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 		volumeConfig = map[string]string{}
 	}
 
-	// Ensure volume has an UUID.
-	if volumeConfig["volatile.uuid"] == "" {
-		volumeConfig["volatile.uuid"] = uuid.New().String()
-	}
-
 	volType, err := VolumeDBTypeToType(volDBType)
 	if err != nil {
 		return err
