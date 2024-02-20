@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/network"
@@ -12,13 +14,20 @@ import (
 var networkOVNChassis *bool
 
 func networkAutoAttach(cluster *db.Cluster, devName string) error {
-	_, dbInfo, err := cluster.GetNetworkWithInterface(devName)
-	if err != nil {
-		// No match found, move on
-		return nil
-	}
+	var networkName string
+	_ = cluster.Transaction(context.TODO(), func(ctx context.Context, c *db.ClusterTx) error {
+		_, dbInfo, err := c.GetNetworkWithInterface(ctx, devName)
+		if err != nil {
+			// No match found, move on
+			logger.Warnf("Failed to find network matching interface %v", devName)
+			return nil
+		}
 
-	return network.AttachInterface(dbInfo.Name, devName)
+		networkName = dbInfo.Name
+		return nil
+	})
+
+	return network.AttachInterface(networkName, devName)
 }
 
 // networkUpdateForkdnsServersTask runs every 30s and refreshes the forkdns servers list.
@@ -29,7 +38,13 @@ func networkUpdateForkdnsServersTask(s *state.State, heartbeatData *cluster.APIH
 	projectName := api.ProjectDefaultName
 
 	// Get a list of managed networks
-	networks, err := s.DB.Cluster.GetCreatedNetworks(projectName)
+	var networks []string
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, c *db.ClusterTx) error {
+		var err error
+		networks, err = c.GetCreatedNetworkNamesByProject(ctx, projectName)
+
+		return err
+	})
 	if err != nil {
 		return err
 	}

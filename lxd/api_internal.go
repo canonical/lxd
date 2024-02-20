@@ -143,12 +143,12 @@ type internalImageOptimizePost struct {
 }
 
 type internalWarningCreatePost struct {
-	Location   string      `json:"location"         yaml:"location"`
-	Project    string      `json:"project"          yaml:"project"`
+	Location   string      `json:"location"    yaml:"location"`
+	Project    string      `json:"project"     yaml:"project"`
 	EntityType entity.Type `json:"entity_type" yaml:"entity_type"`
-	EntityID   int         `json:"entity_id"        yaml:"entity_id"`
-	TypeCode   int         `json:"type_code"        yaml:"type_code"`
-	Message    string      `json:"message"          yaml:"message"`
+	EntityID   int         `json:"entity_id"   yaml:"entity_id"`
+	TypeCode   int         `json:"type_code"   yaml:"type_code"`
+	Message    string      `json:"message"     yaml:"message"`
 }
 
 // internalCreateWarning creates a warning, and is used for testing only.
@@ -185,7 +185,9 @@ func internalCreateWarning(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	err = d.State().DB.Cluster.UpsertWarning(req.Location, req.Project, req.EntityType, req.EntityID, warningtype.Type(req.TypeCode), req.Message)
+	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.UpsertWarning(ctx, req.Location, req.Project, req.EntityType, req.EntityID, warningtype.Type(req.TypeCode), req.Message)
+	})
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to create warning: %w", err))
 	}
@@ -745,8 +747,12 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 		return fmt.Errorf(`Storage volume for instance %q already exists in the database`, backupConf.Container.Name)
 	}
 
-	// Check if an entry for the instance already exists in the db.
-	_, err = s.DB.Cluster.GetInstanceID(projectName, backupConf.Container.Name)
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Check if an entry for the instance already exists in the db.
+		_, err := tx.GetInstanceID(ctx, projectName, backupConf.Container.Name)
+
+		return err
+	})
 	if err != nil && !response.IsNotFoundError(err) {
 		return err
 	}
@@ -768,14 +774,22 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 			return fmt.Errorf(`The type %q of the storage volume is not identical to the instance's type %q`, dbVolume.Type, backupConf.Volume.Type)
 		}
 
-		// Remove the storage volume db entry for the instance since force was specified.
-		err := s.DB.Cluster.RemoveStoragePoolVolume(projectName, backupConf.Container.Name, instanceDBVolType, pool.ID())
+		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			// Remove the storage volume db entry for the instance since force was specified.
+			return tx.RemoveStoragePoolVolume(ctx, projectName, backupConf.Container.Name, instanceDBVolType, pool.ID())
+		})
 		if err != nil {
 			return err
 		}
 	}
 
-	profiles, err := s.DB.Cluster.GetProfiles(projectName, backupConf.Container.Profiles)
+	var profiles []api.Profile
+
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		profiles, err = tx.GetProfiles(ctx, projectName, backupConf.Container.Profiles)
+
+		return err
+	})
 	if err != nil {
 		return fmt.Errorf("Failed loading profiles for instance: %w", err)
 	}
@@ -825,8 +839,12 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 	for _, snap := range existingSnapshots {
 		snapInstName := fmt.Sprintf("%s%s%s", backupConf.Container.Name, shared.SnapshotDelimiter, snap.Name)
 
-		// Check if an entry for the snapshot already exists in the db.
-		_, snapErr := s.DB.Cluster.GetInstanceSnapshotID(projectName, backupConf.Container.Name, snap.Name)
+		snapErr := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			// Check if an entry for the snapshot already exists in the db.
+			_, err := tx.GetInstanceSnapshotID(ctx, projectName, backupConf.Container.Name, snap.Name)
+
+			return err
+		})
 		if snapErr != nil && !response.IsNotFoundError(snapErr) {
 			return snapErr
 		}
@@ -855,14 +873,18 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 		}
 
 		if snapErr == nil {
-			err := s.DB.Cluster.DeleteInstance(projectName, snapInstName)
+			err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				return tx.DeleteInstance(ctx, projectName, snapInstName)
+			})
 			if err != nil {
 				return err
 			}
 		}
 
 		if dbVolume != nil {
-			err := s.DB.Cluster.RemoveStoragePoolVolume(projectName, snapInstName, instanceDBVolType, pool.ID())
+			err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				return tx.RemoveStoragePoolVolume(ctx, projectName, snapInstName, instanceDBVolType, pool.ID())
+			})
 			if err != nil {
 				return err
 			}
@@ -875,7 +897,11 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 			return err
 		}
 
-		profiles, err := s.DB.Cluster.GetProfiles(projectName, snap.Profiles)
+		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			profiles, err = tx.GetProfiles(ctx, projectName, snap.Profiles)
+
+			return err
+		})
 		if err != nil {
 			return fmt.Errorf("Failed loading profiles for instance snapshot %q: %w", snapInstName, err)
 		}

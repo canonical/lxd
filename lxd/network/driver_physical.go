@@ -210,7 +210,7 @@ func (n *physical) setup(oldConfig map[string]string) error {
 	if shared.IsFalseOrEmpty(n.config["volatile.last_state.created"]) {
 		n.config["volatile.last_state.created"] = fmt.Sprintf("%t", created)
 		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return tx.UpdateNetwork(n.id, n.description, n.config)
+			return tx.UpdateNetwork(ctx, n.project, n.name, n.description, n.config)
 		})
 		if err != nil {
 			return fmt.Errorf("Failed saving volatile config: %w", err)
@@ -260,7 +260,7 @@ func (n *physical) Stop() error {
 	// Remove last state config.
 	delete(n.config, "volatile.last_state.created")
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return tx.UpdateNetwork(n.id, n.description, n.config)
+		return tx.UpdateNetwork(ctx, n.project, n.name, n.description, n.config)
 	})
 	if err != nil {
 		return fmt.Errorf("Failed removing volatile config: %w", err)

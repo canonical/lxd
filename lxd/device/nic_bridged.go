@@ -3,6 +3,7 @@ package device
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -625,7 +626,13 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		}
 
 		if brNetfilterEnabled {
-			listenAddresses, err := d.state.DB.Cluster.GetNetworkForwardListenAddresses(d.network.ID(), true)
+			var listenAddresses map[int64]string
+
+			err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				listenAddresses, err = tx.GetNetworkForwardListenAddresses(ctx, d.network.ID(), true)
+
+				return err
+			})
 			if err != nil {
 				return nil, fmt.Errorf("Failed loading network forwards: %w", err)
 			}
@@ -1344,7 +1351,7 @@ func (d *nicBridged) networkDHCPv4Release(srcMAC net.HardwareAddr, srcIP net.IP,
 
 	defer func() { _ = conn.Close() }()
 
-	//Random DHCP transaction ID
+	// Random DHCP transaction ID
 	xid := rand.Uint32()
 
 	// Construct a DHCP packet pretending to be from the source IP and MAC supplied.

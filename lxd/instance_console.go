@@ -63,6 +63,7 @@ type consoleWs struct {
 	protocol string
 }
 
+// Metadata returns a map of metadata.
 func (s *consoleWs) Metadata() any {
 	fds := shared.Jmap{}
 	for fd, secret := range s.fds {
@@ -76,6 +77,7 @@ func (s *consoleWs) Metadata() any {
 	return shared.Jmap{"fds": fds}
 }
 
+// Connect connects to the websocket.
 func (s *consoleWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	switch s.protocol {
 	case instance.ConsoleTypeConsole:
@@ -189,6 +191,7 @@ func (s *consoleWs) connectVGA(op *operations.Operation, r *http.Request, w http
 	return os.ErrPermission
 }
 
+// Do connects to the websocket and executes the operation.
 func (s *consoleWs) Do(op *operations.Operation) error {
 	switch s.protocol {
 	case instance.ConsoleTypeConsole:
@@ -444,7 +447,7 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Forward the request if the container is remote.
-	client, err := cluster.ConnectIfInstanceIsRemote(s.DB.Cluster, projectName, name, s.Endpoints.NetworkCert(), s.ServerCert(), r, instanceType)
+	client, err := cluster.ConnectIfInstanceIsRemote(s, projectName, name, r, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -597,7 +600,11 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
-	c := inst.(instance.Container)
+	c, ok := inst.(instance.Container)
+	if !ok {
+		return response.SmartError(fmt.Errorf("Invalid instance type"))
+	}
+
 	ent := response.FileResponseEntry{}
 	if !c.IsRunning() {
 		// Hand back the contents of the console ringbuffer logfile.
@@ -688,7 +695,10 @@ func instanceConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
-	c := inst.(instance.Container)
+	c, ok := inst.(instance.Container)
+	if !ok {
+		return response.SmartError(fmt.Errorf("Invalid instance type"))
+	}
 
 	truncateConsoleLogFile := func(path string) error {
 		// Check that this is a regular file. We don't want to try and unlink

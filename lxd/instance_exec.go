@@ -54,6 +54,7 @@ type execWs struct {
 	s                     *state.State
 }
 
+// Metadata returns a map of metadata.
 func (s *execWs) Metadata() any {
 	fds := shared.Jmap{}
 	for fd, secret := range s.fds {
@@ -72,6 +73,7 @@ func (s *execWs) Metadata() any {
 	}
 }
 
+// Connect connects to the websocket.
 func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
@@ -86,7 +88,6 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 			}
 
 			s.connsLock.Lock()
-			defer s.connsLock.Unlock()
 
 			val, found := s.conns[fd]
 			if found && val == nil {
@@ -133,17 +134,19 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 					}
 
 					if c == nil {
+						s.connsLock.Unlock()
 						return nil // Not all required connections connected yet.
 					}
 				}
 
 				s.waitRequiredConnected.Cancel() // All required connections now connected.
+				s.connsLock.Unlock()
 				return nil
 			} else if !found {
 				return fmt.Errorf("Unknown websocket number")
-			} else {
-				return fmt.Errorf("Websocket number already connected")
 			}
+
+			return fmt.Errorf("Websocket number already connected")
 		}
 	}
 
@@ -152,6 +155,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 	return os.ErrPermission
 }
 
+// Do connects to the websocket and executes the operation.
 func (s *execWs) Do(op *operations.Operation) error {
 	// Once this function ends ensure that any connected websockets are closed.
 	defer func() {
@@ -169,7 +173,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 	logger.Debug("Waiting for exec websockets to connect")
 	select {
 	case <-s.waitRequiredConnected.Done():
-		break
 	case <-time.After(time.Second * 5):
 		return fmt.Errorf("Timed out waiting for websockets to connect")
 	}
@@ -191,7 +194,11 @@ func (s *execWs) Do(op *operations.Operation) error {
 			var rootUID, rootGID int64
 			var devptsFd *os.File
 
-			c := s.instance.(instance.Container)
+			c, ok := s.instance.(instance.Container)
+			if !ok {
+				return fmt.Errorf("Invalid instance type")
+			}
+
 			idmapset, err := c.CurrentIdmap()
 			if err != nil {
 				return err
@@ -559,7 +566,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Forward the request if the container is remote.
-	client, err := cluster.ConnectIfInstanceIsRemote(s.DB.Cluster, projectName, name, s.Endpoints.NetworkCert(), s.ServerCert(), r, instanceType)
+	client, err := cluster.ConnectIfInstanceIsRemote(s, projectName, name, r, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}

@@ -286,16 +286,16 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 	if req.Source.Refresh || (clusterMoveSourceName != "" && clusterMoveSourceName == req.Name) {
 		inst, err = instance.LoadByProjectAndName(s, projectName, req.Name)
 		if err != nil {
-			if response.IsNotFoundError(err) {
-				if clusterMoveSourceName != "" {
-					// Cluster move doesn't allow renaming as part of migration so fail here.
-					return response.SmartError(fmt.Errorf("Cluster move doesn't allow renaming"))
-				}
-
-				req.Source.Refresh = false
-			} else {
+			if !response.IsNotFoundError(err) {
 				return response.SmartError(err)
 			}
+
+			if clusterMoveSourceName != "" {
+				// Cluster move doesn't allow renaming as part of migration so fail here.
+				return response.SmartError(fmt.Errorf("Cluster move doesn't allow renaming"))
+			}
+
+			req.Source.Refresh = false
 		}
 	}
 
@@ -444,7 +444,13 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 				return clusterCopyContainerInternal(s, r, source, projectName, profiles, req)
 			}
 
-			_, pool, _, err := s.DB.Cluster.GetStoragePoolInAnyState(sourcePoolName)
+			var pool *api.StoragePool
+
+			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				_, pool, _, err = tx.GetStoragePoolInAnyState(ctx, sourcePoolName)
+
+				return err
+			})
 			if err != nil {
 				err = fmt.Errorf("Failed to fetch instance's pool info: %w", err)
 				return response.SmartError(err)
@@ -676,8 +682,12 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		"snapshots": bInfo.Snapshots,
 	})
 
-	// Check storage pool exists.
-	_, _, _, err = s.DB.Cluster.GetStoragePoolInAnyState(bInfo.Pool)
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Check storage pool exists.
+		_, _, _, err = tx.GetStoragePoolInAnyState(ctx, bInfo.Pool)
+
+		return err
+	})
 	if response.IsNotFoundError(err) {
 		// The storage pool doesn't exist. If backup is in binary format (so we cannot alter
 		// the backup.yaml) or the pool has been specified directly from the user restoring
@@ -686,8 +696,14 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 			return response.InternalError(fmt.Errorf("Storage pool not found: %w", err))
 		}
 
-		// Otherwise try and restore to the project's default profile pool.
-		_, profile, err := s.DB.Cluster.GetProfile(bInfo.Project, "default")
+		var profile *api.Profile
+
+		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			// Otherwise try and restore to the project's default profile pool.
+			_, profile, err = tx.GetProfile(ctx, bInfo.Project, "default")
+
+			return err
+		})
 		if err != nil {
 			return response.InternalError(fmt.Errorf("Failed to get default profile: %w", err))
 		}
@@ -1172,19 +1188,20 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	}
 }
 
-func instanceFindStoragePool(s *state.State, projectName string, req *api.InstancesPost) (string, string, string, map[string]string, response.Response) {
+func instanceFindStoragePool(s *state.State, projectName string, req *api.InstancesPost) (storagePool string, storagePoolProfile string, localRootDiskDeviceKey string, localRootDiskDevice map[string]string, resp response.Response) {
 	// Grab the container's root device if one is specified
-	storagePool := ""
-	storagePoolProfile := ""
-
-	localRootDiskDeviceKey, localRootDiskDevice, _ := instancetype.GetRootDiskDevice(req.Devices)
+	localRootDiskDeviceKey, localRootDiskDevice, _ = instancetype.GetRootDiskDevice(req.Devices)
 	if localRootDiskDeviceKey != "" {
 		storagePool = localRootDiskDevice["pool"]
 	}
 
 	// Handle copying/moving between two storage-api LXD instances.
 	if storagePool != "" {
-		_, err := s.DB.Cluster.GetStoragePoolID(storagePool)
+		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			_, err := tx.GetStoragePoolID(ctx, storagePool)
+
+			return err
+		})
 		if response.IsNotFoundError(err) {
 			storagePool = ""
 			// Unset the local root disk device storage pool if not
@@ -1195,25 +1212,41 @@ func instanceFindStoragePool(s *state.State, projectName string, req *api.Instan
 
 	// If we don't have a valid pool yet, look through profiles
 	if storagePool == "" {
-		for _, pName := range req.Profiles {
-			_, p, err := s.DB.Cluster.GetProfile(projectName, pName)
-			if err != nil {
-				return "", "", "", nil, response.SmartError(err)
+		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			for _, pName := range req.Profiles {
+				_, p, err := tx.GetProfile(ctx, projectName, pName)
+				if err != nil {
+					return err
+				}
+
+				k, v, _ := instancetype.GetRootDiskDevice(p.Devices)
+				if k != "" && v["pool"] != "" {
+					// Keep going as we want the last one in the profile chain
+					storagePool = v["pool"]
+					storagePoolProfile = pName
+				}
 			}
 
-			k, v, _ := instancetype.GetRootDiskDevice(p.Devices)
-			if k != "" && v["pool"] != "" {
-				// Keep going as we want the last one in the profile chain
-				storagePool = v["pool"]
-				storagePoolProfile = pName
-			}
+			return nil
+		})
+		if err != nil {
+			return "", "", "", nil, response.SmartError(err)
 		}
 	}
 
 	// If there is just a single pool in the database, use that
 	if storagePool == "" {
 		logger.Debug("No valid storage pool in the container's local root disk device and profiles found")
-		pools, err := s.DB.Cluster.GetStoragePoolNames()
+
+		var pools []string
+
+		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			var err error
+
+			pools, err = tx.GetStoragePoolNames(ctx)
+
+			return err
+		})
 		if err != nil {
 			if response.IsNotFoundError(err) {
 				return "", "", "", nil, response.BadRequest(fmt.Errorf("This LXD instance does not have any storage pools configured"))
@@ -1299,7 +1332,12 @@ func clusterCopyContainerInternal(s *state.State, r *http.Request, source instan
 
 	websockets := map[string]string{}
 	for k, v := range opAPI.Metadata {
-		websockets[k] = v.(string)
+		ws, ok := v.(string)
+		if !ok {
+			continue
+		}
+
+		websockets[k] = ws
 	}
 
 	// Reset the source for a migration

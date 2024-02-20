@@ -157,8 +157,14 @@ func UpdateInstanceConfig(c *db.Cluster, b Info, mountPath string) error {
 		backup.VolumeSnapshots = b.Config.VolumeSnapshots
 	}
 
-	// Load the storage pool.
-	_, pool, _, err := c.GetStoragePool(b.Pool)
+	var pool *api.StoragePool
+
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Load the storage pool.
+		_, pool, _, err = tx.GetStoragePool(ctx, b.Pool)
+
+		return err
+	})
 	if err != nil {
 		return err
 	}

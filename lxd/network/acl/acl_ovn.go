@@ -133,8 +133,14 @@ func OVNEnsureACLs(s *state.State, l logger.Logger, client *openvswitch.OVN, acl
 		}
 
 		if portGroupUUID == "" {
-			// Load the config we'll need to create the port group with ACL rules.
-			_, aclInfo, err := s.DB.Cluster.GetNetworkACL(aclProjectName, aclName)
+			var aclInfo *api.NetworkACL
+
+			err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				// Load the config we'll need to create the port group with ACL rules.
+				_, aclInfo, err = tx.GetNetworkACL(ctx, aclProjectName, aclName)
+
+				return err
+			})
 			if err != nil {
 				return nil, fmt.Errorf("Failed loading Network ACL %q: %w", aclName, err)
 			}
@@ -164,7 +170,11 @@ func OVNEnsureACLs(s *state.State, l logger.Logger, client *openvswitch.OVN, acl
 			// the default rule we add. We also need to reapply the rules if we are adding any
 			// new per-ACL-per-network port groups.
 			if reapplyRules || !portGroupHasACLs || len(addACLNets) > 0 {
-				_, aclInfo, err = s.DB.Cluster.GetNetworkACL(aclProjectName, aclName)
+				err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+					_, aclInfo, err = tx.GetNetworkACL(ctx, aclProjectName, aclName)
+
+					return err
+				})
 				if err != nil {
 					return nil, fmt.Errorf("Failed loading Network ACL %q: %w", aclName, err)
 				}
@@ -537,18 +547,18 @@ func ovnRuleSubjectToOVNACLMatch(direction string, aclNameIDs map[string]int64, 
 	for _, subjectCriterion := range subjectCriteria {
 		if validate.IsNetworkRange(subjectCriterion) == nil {
 			criterionParts := strings.SplitN(subjectCriterion, "-", 2)
-			if len(criterionParts) > 1 {
-				ip := net.ParseIP(criterionParts[0])
-				if ip != nil {
-					protocol := "ip4"
-					if ip.To4() == nil {
-						protocol = "ip6"
-					}
-
-					fieldParts = append(fieldParts, fmt.Sprintf("(%s.%s >= %s && %s.%s <= %s)", protocol, direction, criterionParts[0], protocol, direction, criterionParts[1]))
-				}
-			} else {
+			if len(criterionParts) <= 1 {
 				return "", false, nil, fmt.Errorf("Invalid IP range %q", subjectCriterion)
+			}
+
+			ip := net.ParseIP(criterionParts[0])
+			if ip != nil {
+				protocol := "ip4"
+				if ip.To4() == nil {
+					protocol = "ip6"
+				}
+
+				fieldParts = append(fieldParts, fmt.Sprintf("(%s.%s >= %s && %s.%s <= %s)", protocol, direction, criterionParts[0], protocol, direction, criterionParts[1]))
 			}
 		} else {
 			// Try parsing subject as single IP or CIDR.
@@ -747,26 +757,35 @@ func OVNApplyNetworkBaselineRules(client *openvswitch.OVN, switchName openvswitc
 // the desired ACLs are considered unused by the usage type even if the referring config has not yet been removed
 // from the database.
 func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvswitch.OVN, aclProjectName string, ignoreUsageType any, ignoreUsageNicName string, keepACLs ...string) error {
-	// Get map of ACL names to DB IDs (used for generating OVN port group names).
-	aclNameIDs, err := s.DB.Cluster.GetNetworkACLIDsByNames(aclProjectName)
-	if err != nil {
-		return fmt.Errorf("Failed getting network ACL IDs for security ACL port group removal: %w", err)
-	}
-
-	// Convert aclNameIDs to aclNames slice for use with UsedBy.
-	aclNames := make([]string, 0, len(aclNameIDs))
-	for aclName := range aclNameIDs {
-		aclNames = append(aclNames, aclName)
-	}
-
-	// Get project ID.
+	var aclNameIDs map[string]int64
+	var aclNames []string
 	var projectID int64
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		// Get map of ACL names to DB IDs (used for generating OVN port group names).
+		aclNameIDs, err = tx.GetNetworkACLIDsByNames(ctx, aclProjectName)
+		if err != nil {
+			return fmt.Errorf("Failed getting network ACL IDs for security ACL port group removal: %w", err)
+		}
+
+		// Convert aclNameIDs to aclNames slice for use with UsedBy.
+		aclNames = make([]string, 0, len(aclNameIDs))
+		for aclName := range aclNameIDs {
+			aclNames = append(aclNames, aclName)
+		}
+
+		// Get project ID.
 		projectID, err = cluster.GetProjectID(ctx, tx.Tx(), aclProjectName)
-		return err
+		if err != nil {
+			return fmt.Errorf("Failed getting project ID for project %q: %w", aclProjectName, err)
+		}
+
+		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed getting project ID for project %q: %w", aclProjectName, err)
+		return err
 	}
 
 	// Get list of OVN port groups associated to this project.
@@ -813,7 +832,7 @@ func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvsw
 	// Find alls ACLs that are either directly referred to by OVN entities (networks, instance/profile NICs)
 	// or indirectly by being referred to by a ruleset of another ACL that is itself in use by OVN entities.
 	// For the indirectly referred to ACLs, store a list of the ACLs that are referring to it.
-	err = UsedBy(s, aclProjectName, func(matchedACLNames []string, usageType any, nicName string, nicConfig map[string]string) error {
+	err = UsedBy(s, aclProjectName, func(ctx context.Context, tx *db.ClusterTx, matchedACLNames []string, usageType any, nicName string, nicConfig map[string]string) error {
 		switch u := usageType.(type) {
 		case db.InstanceArgs:
 			ignoreInst, isIgnoreInst := ignoreUsageType.(instance.Instance)
@@ -829,7 +848,7 @@ func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvsw
 				return nil
 			}
 
-			netID, network, _, err := s.DB.Cluster.GetNetworkInAnyState(aclProjectName, nicConfig["network"])
+			netID, network, _, err := tx.GetNetworkInAnyState(ctx, aclProjectName, nicConfig["network"])
 			if err != nil {
 				return fmt.Errorf("Failed to load network %q: %w", nicConfig["network"], err)
 			}
@@ -858,7 +877,7 @@ func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvsw
 			}
 
 			if u.Type == "ovn" {
-				netID, _, _, err := s.DB.Cluster.GetNetworkInAnyState(aclProjectName, u.Name)
+				netID, _, _, err := tx.GetNetworkInAnyState(ctx, aclProjectName, u.Name)
 				if err != nil {
 					return fmt.Errorf("Failed to load network %q: %w", nicConfig["network"], err)
 				}
@@ -885,7 +904,7 @@ func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvsw
 				return nil
 			}
 
-			netID, network, _, err := s.DB.Cluster.GetNetworkInAnyState(aclProjectName, nicConfig["network"])
+			netID, network, _, err := tx.GetNetworkInAnyState(ctx, aclProjectName, nicConfig["network"])
 			if err != nil {
 				return fmt.Errorf("Failed to load network %q: %w", nicConfig["network"], err)
 			}

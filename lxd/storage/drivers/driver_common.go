@@ -65,7 +65,7 @@ func (d *common) validatePool(config map[string]string, driverRules map[string]f
 
 	// Run the validator against each field.
 	for k, validator := range rules {
-		checkedFields[k] = struct{}{} //Mark field as checked.
+		checkedFields[k] = struct{}{} // Mark field as checked.
 		err := validator(config[k])
 		if err != nil {
 			return fmt.Errorf("Invalid value for option %q: %w", k, err)
@@ -154,7 +154,7 @@ func (d *common) validateVolume(vol Volume, driverRules map[string]func(value st
 
 	// Run the validator against each field.
 	for k, validator := range rules {
-		checkedFields[k] = struct{}{} //Mark field as checked.
+		checkedFields[k] = struct{}{} // Mark field as checked.
 		err := validator(vol.config[k])
 		if err != nil {
 			return fmt.Errorf("Invalid value for volume %q option %q: %w", vol.name, k, err)
@@ -173,11 +173,11 @@ func (d *common) validateVolume(vol Volume, driverRules map[string]func(value st
 			continue
 		}
 
-		if removeUnknownKeys {
-			delete(vol.config, k)
-		} else {
+		if !removeUnknownKeys {
 			return fmt.Errorf("Invalid option for volume %q option %q", vol.name, k)
 		}
+
+		delete(vol.config, k)
 	}
 
 	// If volume type is not custom or bucket, don't allow "size" property.
@@ -193,7 +193,7 @@ func (d *common) validateVolume(vol Volume, driverRules map[string]func(value st
 	return nil
 }
 
-// MigrationType returns the type of transfer methods to be used when doing migrations between pools
+// MigrationTypes returns the type of transfer methods to be used when doing migrations between pools
 // in preference order.
 func (d *common) MigrationTypes(contentType ContentType, refresh bool, copySnapshots bool) []migration.Type {
 	var transportType migration.MigrationFSType
@@ -544,6 +544,7 @@ func (d *common) UpdateBucketKey(bucket Volume, keyName string, creds S3Credenti
 	return nil, ErrNotSupported
 }
 
+// DeleteBucketKey deletes the bucket key.
 func (d *common) DeleteBucketKey(bucket Volume, keyName string, op *operations.Operation) error {
 	return nil
 }
