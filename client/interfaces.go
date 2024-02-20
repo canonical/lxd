@@ -175,6 +175,8 @@ type InstanceServer interface {
 	UpdateInstances(state api.InstancesPut, ETag string) (op Operation, err error)
 	RebuildInstance(instanceName string, req api.InstanceRebuildPost) (op Operation, err error)
 	RebuildInstanceFromImage(source ImageServer, image api.Image, instanceName string, req api.InstanceRebuildPost) (op RemoteOperation, err error)
+	GetInstanceUEFIVars(name string) (instanceUEFI *api.InstanceUEFIVars, ETag string, err error)
+	UpdateInstanceUEFIVars(name string, instanceUEFI api.InstanceUEFIVars, ETag string) (err error)
 
 	ExecInstance(instanceName string, exec api.InstanceExecPost, args *InstanceExecArgs) (op Operation, err error)
 	ConsoleInstance(instanceName string, console api.InstanceConsolePost, args *InstanceConsoleArgs) (op Operation, err error)

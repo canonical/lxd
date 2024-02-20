@@ -396,6 +396,7 @@ var APIExtensions = []string{
 	"loki_config_instance",
 	"storage_volatile_uuid",
 	"import_instance_devices",
+	"instances_uefi_vars",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
