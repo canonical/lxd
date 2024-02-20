@@ -233,7 +233,7 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//
 		// ---
 		//  type: bool
-		//  defaultdesc: `false`
+		//  defaultdesc: `true`
 		//  shortdesc: Make a non-sparse copy when creating a snapshot of instances or custom volumes (see the [limitations](storage-powerflex-limitations))
 		"powerflex.clone_copy": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=volume.size)

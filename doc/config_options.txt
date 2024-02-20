@@ -2520,7 +2520,7 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 <!-- config group storage-lvm-volume-conf end -->
 <!-- config group storage-powerflex-pool-conf start -->
 ```{config:option} powerflex.clone_copy storage-powerflex-pool-conf
-:defaultdesc: "`false`"
+:defaultdesc: "`true`"
 :shortdesc: "Make a non-sparse copy when creating a snapshot of instances or custom volumes (see the [limitations](storage-powerflex-limitations))"
 :type: "bool"
 
