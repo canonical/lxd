@@ -610,8 +610,11 @@ func NewVerifier(issuer string, clientID string, audience string, clusterCert fu
 		ConfigExpiryInterval: defaultConfigExpiryInterval,
 	}
 
-	if options != nil {
+	if options != nil && options.ConfigExpiryInterval > 0 {
 		opts.ConfigExpiryInterval = options.ConfigExpiryInterval
+	}
+
+	if options != nil && options.GroupsClaim != "" {
 		opts.GroupsClaim = options.GroupsClaim
 	}
 
