@@ -2741,7 +2741,7 @@
 				"keys": [
 					{
 						"powerflex.clone_copy": {
-							"defaultdesc": "`false`",
+							"defaultdesc": "`true`",
 							"longdesc": "",
 							"shortdesc": "Make a non-sparse copy when creating a snapshot of instances or custom volumes (see the [limitations](storage-powerflex-limitations))",
 							"type": "bool"
