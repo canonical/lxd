@@ -167,6 +167,7 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
+	request.SetCtxValue(r, request.CtxEffectiveProjectName, projectName)
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeNetworkACL)
 	if err != nil {
 		return response.SmartError(err)

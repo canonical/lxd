@@ -176,6 +176,8 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	request.SetCtxValue(r, request.CtxEffectiveProjectName, projectName)
+
 	recursion := util.IsRecursionRequest(r)
 
 	var networkNames []string

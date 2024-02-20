@@ -1617,7 +1617,24 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 	filterStr := r.FormValue("filter")
 
 	s := d.State()
+	var effectiveProjectName string
+	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		hasImages, err := dbCluster.ProjectHasImages(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return err
+		}
 
+		if !hasImages {
+			effectiveProjectName = api.ProjectDefaultName
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	hasPermission, authorizationErr := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeImage)
 	if authorizationErr != nil && !api.StatusErrorCheck(authorizationErr, http.StatusForbidden) {
 		return response.SmartError(authorizationErr)
@@ -3427,10 +3444,29 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
-	projectName := request.ProjectParam(r)
 	recursion := util.IsRecursionRequest(r)
 
 	s := d.State()
+
+	projectName := request.ProjectParam(r)
+	var effectiveProjectName string
+	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		projectHasImages, err := dbCluster.ProjectHasImages(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return err
+		}
+
+		if !projectHasImages {
+			effectiveProjectName = api.ProjectDefaultName
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeImageAlias)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to get a permission checker: %w", err))
