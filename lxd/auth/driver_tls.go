@@ -68,9 +68,13 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *a
 		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
 	}
 
-	entityType, projectName, _, _, err := entity.ParseURL(entityURL.URL)
+	entityType, projectName, _, pathArgs, err := entity.ParseURL(entityURL.URL)
 	if err != nil {
 		return fmt.Errorf("Failed to parse entity URL: %w", err)
+	}
+
+	if entityType == entity.TypeProject {
+		projectName = pathArgs[0]
 	}
 
 	// Check server level object types
