@@ -395,6 +395,7 @@ var APIExtensions = []string{
 	"oidc_groups_claim",
 	"loki_config_instance",
 	"storage_volatile_uuid",
+	"import_instance_devices",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
