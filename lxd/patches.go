@@ -1404,7 +1404,13 @@ func patchStorageSetVolumeUUID(_ string, d *Daemon) error {
 	s := d.State()
 
 	// Get all storage pool names.
-	pools, err := s.DB.Cluster.GetStoragePoolNames()
+	var pools []string
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, ct *db.ClusterTx) error {
+		var err error
+		pools, err = ct.GetStoragePoolNames(ctx)
+
+		return err
+	})
 	if err != nil {
 		// Skip the rest of the patch if no storage pools were found.
 		if api.StatusErrorCheck(err, http.StatusNotFound) {
@@ -1496,7 +1502,9 @@ func patchStorageSetVolumeUUID(_ string, d *Daemon) error {
 			if bucket.Config["volatile.uuid"] == "" {
 				bucket.Config["volatile.uuid"] = uuid.New().String()
 
-				err := s.DB.Cluster.UpdateStoragePoolBucket(d.shutdownCtx, pool, bucket.ID, &bucket.StorageBucketPut)
+				err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, ct *db.ClusterTx) error {
+					return ct.UpdateStoragePoolBucket(d.shutdownCtx, pool, bucket.ID, &bucket.StorageBucketPut)
+				})
 				if err != nil {
 					return err
 				}
@@ -1511,31 +1519,38 @@ func patchStorageSetVolumeUUID(_ string, d *Daemon) error {
 				return err
 			}
 
-			// Skip volumes that already have a UUID.
-			if vol.Config["volatile.uuid"] == "" {
-				vol.Config["volatile.uuid"] = uuid.New().String()
+			err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, ct *db.ClusterTx) error {
+				// Skip volumes that already have a UUID.
+				if vol.Config["volatile.uuid"] == "" {
+					vol.Config["volatile.uuid"] = uuid.New().String()
 
-				err := s.DB.Cluster.UpdateStoragePoolVolume(vol.Project, vol.Name, volDBType, pool, vol.Description, vol.Config)
-				if err != nil {
-					return fmt.Errorf("Failed updating volume %q in project %q on pool %q: %w", vol.Name, vol.Project, poolIDNameMap[pool], err)
-				}
-			}
-
-			snapshots, err := s.DB.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(vol.Project, vol.Name, volDBType, pool)
-			if err != nil {
-				return err
-			}
-
-			for _, snapshot := range snapshots {
-				// Skip snapshots that already have a UUID.
-				if snapshot.Config["volatile.uuid"] == "" {
-					snapshot.Config["volatile.uuid"] = uuid.New().String()
-
-					err = s.DB.Cluster.UpdateStorageVolumeSnapshot(snapshot.ProjectName, snapshot.Name, volDBType, pool, snapshot.Description, snapshot.Config, snapshot.ExpiryDate)
+					err := ct.UpdateStoragePoolVolume(ctx, vol.Project, vol.Name, volDBType, pool, vol.Description, vol.Config)
 					if err != nil {
-						return fmt.Errorf("Failed updating snapshot %q in project %q on pool %q: %w", snapshot.Name, snapshot.ProjectName, poolIDNameMap[pool], err)
+						return fmt.Errorf("Failed updating volume %q in project %q on pool %q: %w", vol.Name, vol.Project, poolIDNameMap[pool], err)
 					}
 				}
+
+				snapshots, err := ct.GetLocalStoragePoolVolumeSnapshotsWithType(ctx, vol.Project, vol.Name, volDBType, pool)
+				if err != nil {
+					return err
+				}
+
+				for _, snapshot := range snapshots {
+					// Skip snapshots that already have a UUID.
+					if snapshot.Config["volatile.uuid"] == "" {
+						snapshot.Config["volatile.uuid"] = uuid.New().String()
+
+						err = ct.UpdateStorageVolumeSnapshot(ctx, snapshot.ProjectName, snapshot.Name, volDBType, pool, snapshot.Description, snapshot.Config, snapshot.ExpiryDate)
+						if err != nil {
+							return fmt.Errorf("Failed updating snapshot %q in project %q on pool %q: %w", snapshot.Name, snapshot.ProjectName, poolIDNameMap[pool], err)
+						}
+					}
+				}
+
+				return nil
+			})
+			if err != nil {
+				return err
 			}
 		}
 	}
