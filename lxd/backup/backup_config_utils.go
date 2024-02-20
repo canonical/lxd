@@ -124,6 +124,10 @@ func UpdateInstanceConfig(c *db.Cluster, b Info, mountPath string) error {
 	if backup.Volume != nil {
 		backup.Volume.Name = b.Name
 		backup.Volume.Project = b.Project
+
+		// Ensure the most recent volume UUIDs get updated.
+		backup.Volume.Config = b.Config.Volume.Config
+		backup.VolumeSnapshots = b.Config.VolumeSnapshots
 	}
 
 	// Load the storage pool.
