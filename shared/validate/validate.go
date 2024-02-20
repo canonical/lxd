@@ -863,3 +863,24 @@ func IsValidCPUSet(value string) error {
 
 	return nil
 }
+
+// IsMultipleOfUnit checks if value is in multiples of unit.
+func IsMultipleOfUnit(unit string) func(value string) error {
+	return func(value string) error {
+		bytes, err := units.ParseByteSizeString(value)
+		if err != nil {
+			return fmt.Errorf("Invalid value: %s", value)
+		}
+
+		unitBytes, err := units.ParseByteSizeString(unit)
+		if err != nil {
+			return fmt.Errorf("Invalid unit value: %s", unit)
+		}
+
+		if bytes%unitBytes != 0 {
+			return fmt.Errorf("Value not in multiples of %s: %s", unit, value)
+		}
+
+		return nil
+	}
+}

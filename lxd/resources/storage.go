@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -436,4 +438,24 @@ func GetStorage() (*api.ResourcesStorage, error) {
 	}
 
 	return &storage, nil
+}
+
+// GetDisksByID returns all disks whose ID contains the filter prefix.
+func GetDisksByID(filterPrefix string) ([]string, error) {
+	disks, err := os.ReadDir(devDiskByID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting disks by ID: %w", err)
+	}
+
+	var filteredDisks []string
+	for _, disk := range disks {
+		// Skip the disk if it does not have the prefix.
+		if !shared.StringHasPrefix(disk.Name(), filterPrefix) {
+			continue
+		}
+
+		filteredDisks = append(filteredDisks, path.Join(devDiskByID, disk.Name()))
+	}
+
+	return filteredDisks, nil
 }

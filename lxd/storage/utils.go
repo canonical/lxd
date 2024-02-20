@@ -465,7 +465,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		//  defaultdesc: same as `volume.size`
 		//  shortdesc: Size/quota of the storage bucket
 		"size": validate.Optional(validate.IsSize),
-		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs; group=volume-conf; key=snapshots.expiry)
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=snapshots.expiry)
 		// Specify an expression like `1M 2H 3d 4w 5m 6y`.
 		// ---
 		//  type: string
@@ -477,7 +477,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 			_, err := shared.GetExpiry(time.Time{}, value)
 			return err
 		},
-		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs; group=volume-conf; key=snapshots.schedule)
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=snapshots.schedule)
 		// Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
 		// ---
 		//  type: string
@@ -485,7 +485,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		//  defaultdesc: same as `snapshots.schedule`
 		//  shortdesc: Schedule for automatic volume snapshots
 		"snapshots.schedule": validate.Optional(validate.IsCron([]string{"@hourly", "@daily", "@midnight", "@weekly", "@monthly", "@annually", "@yearly"})),
-		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs; group=volume-conf; key=snapshots.pattern)
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=snapshots.pattern)
 		// You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.
 		//
 		// {{snapshot_pattern_detail}}
@@ -499,7 +499,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 
 	// security.shifted and security.unmapped are only relevant for custom filesystem volumes.
 	if (vol == nil) || (vol != nil && vol.Type() == drivers.VolumeTypeCustom && vol.ContentType() == drivers.ContentTypeFS) {
-		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs; group=volume-conf; key=security.shifted)
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=security.shifted)
 		// Enabling this option allows attaching the volume to multiple isolated instances.
 		// ---
 		//  type: bool
@@ -507,7 +507,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		//  defaultdesc: same as `volume.security.shifted` or `false`
 		//  shortdesc: Enable ID shifting overlay
 		rules["security.shifted"] = validate.Optional(validate.IsBool)
-		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs; group=volume-conf; key=security.unmapped)
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=security.unmapped)
 		//
 		// ---
 		//  type: bool
@@ -579,7 +579,7 @@ func validatePoolCommonRules() map[string]func(string) error {
 		//  shortdesc: Whether to wipe the block device before creating the pool
 		"source.wipe":             validate.Optional(validate.IsBool),
 		"volatile.initial_source": validate.IsAny,
-		// lxdmeta:generate(entities=storage-dir,storage-lvm; group=pool-conf; key=rsync.bwlimit)
+		// lxdmeta:generate(entities=storage-dir,storage-lvm,storage-powerflex; group=pool-conf; key=rsync.bwlimit)
 		// When `rsync` must be used to transfer storage entities, this option specifies the upper limit
 		// to be placed on the socket I/O.
 		// ---
@@ -587,7 +587,7 @@ func validatePoolCommonRules() map[string]func(string) error {
 		//  defaultdesc: `0` (no limit)
 		//  shortdesc: Upper limit on the socket I/O for `rsync`
 		"rsync.bwlimit": validate.Optional(validate.IsSize),
-		// lxdmeta:generate(entities=storage-dir,storage-lvm; group=pool-conf; key=rsync.compression)
+		// lxdmeta:generate(entities=storage-dir,storage-lvm,storage-powerflex; group=pool-conf; key=rsync.compression)
 		//
 		// ---
 		//  type: bool
