@@ -152,6 +152,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 
 	recursion := util.IsRecursionRequest(r)
 
+	request.SetCtxValue(r, request.CtxEffectiveProjectName, p.Name)
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeProfile)
 	if err != nil {
 		return response.InternalError(err)

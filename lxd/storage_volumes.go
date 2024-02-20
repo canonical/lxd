@@ -345,9 +345,9 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 
 	var dbVolumes []*db.StorageVolume
 	var projectImages []string
+	var customVolProjectName string
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var customVolProjectName string
 
 		if !allProjects {
 			dbProject, err := cluster.GetProject(ctx, tx.Tx(), requestProjectName)
@@ -452,6 +452,11 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 
 		return volA.Name < volB.Name
 	})
+
+	// If we're requesting for just one project, set the effective project name of volumes in this project.
+	if !allProjects {
+		request.SetCtxValue(r, request.CtxEffectiveProjectName, customVolProjectName)
+	}
 
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeStorageVolume)
 	if err != nil {
