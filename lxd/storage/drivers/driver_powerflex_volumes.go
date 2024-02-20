@@ -57,6 +57,8 @@ func (d *powerflex) CreateVolume(vol Volume, filler *VolumeFiller, op *operation
 		return err
 	}
 
+	// In case of error delete the volume with mode "ONLY_ME".
+	// This removes the given volume only without any parent(s) or child(s).
 	revert.Add(func() { _ = client.deleteVolume(id, "ONLY_ME") })
 
 	volumeFilesystem := vol.ConfigBlockFilesystem()
@@ -187,7 +189,7 @@ func (d *powerflex) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allo
 	// If the source volume is of type image, lazy copying is enforced which prevents using optimized image storage
 	// but effectively allows to circumvent the PowerFlex limit of 126 snapshots.
 	client := d.client()
-	if len(vol.Snapshots) == 0 && shared.IsFalseOrEmpty(d.config["powerflex.clone_copy"]) {
+	if len(vol.Snapshots) == 0 && shared.IsFalse(d.config["powerflex.clone_copy"]) {
 		pool, err := d.resolvePool()
 		if err != nil {
 			return err
