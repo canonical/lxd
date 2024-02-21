@@ -1,6 +1,5 @@
 ---
 discourse: 12281,11735
-relatedlinks: https://grafana.com/grafana/dashboards/19131-lxd/
 ---
 
 (metrics)=
@@ -13,7 +12,7 @@ relatedlinks: https://grafana.com/grafana/dashboards/19131-lxd/
 LXD collects metrics for all running instances as well as some internal metrics.
 These metrics cover the CPU, memory, network, disk and process usage.
 They are meant to be consumed by Prometheus, and you can use Grafana to display the metrics as graphs.
-See {ref}`provided-metrics` for lists of available metrics.
+See {ref}`provided-metrics` for lists of available metrics and {ref}`grafana` for instructions on how to display the metrics in Grafana.
 <!-- Include end metrics intro -->
 
 In a cluster environment, LXD returns only the values for instances running on the server that is being accessed.
@@ -250,63 +249,3 @@ scrape_configs:
 ```
 
 After editing the configuration, restart Prometheus (for example, `snap restart prometheus`) to start scraping.
-
-## Set up a Grafana dashboard
-
-To visualize the metrics data, set up [Grafana](https://grafana.com/).
-LXD provides a [Grafana dashboard](https://grafana.com/grafana/dashboards/19131-lxd/) that is configured to display the LXD metrics scraped by Prometheus.
-
-```{note}
-The dashboard requires Grafana 8.4 or later.
-```
-
-See the Grafana documentation for instructions on installing and signing in:
-
-- [Install Grafana](https://grafana.com/docs/grafana/latest/setup-grafana/installation/)
-- [Sign in to Grafana](https://grafana.com/docs/grafana/latest/setup-grafana/sign-in-to-grafana/)
-
-Complete the following steps to import the [LXD dashboard](https://grafana.com/grafana/dashboards/19131-lxd/):
-
-1. Configure Prometheus as the data source:
-
-   1. Go to {guilabel}`Configuration` > {guilabel}`Data sources`.
-   1. Click {guilabel}`Add data source`.
-
-      ![Add data source in Grafana](images/grafana_add_datasource.png)
-
-   1. Select {guilabel}`Prometheus`.
-
-      ![Select Prometheus as the data source](images/grafana_select_prometheus.png)
-
-   1. In the {guilabel}`URL` field, enter `http://localhost:9090/`.
-
-      ![Enter Prometheus URL](images/grafana_configure_datasource.png)
-
-   1. Keep the default configuration for the other fields and click {guilabel}`Save & test`.
-
-1. Import the LXD dashboard:
-
-   1. Go to {guilabel}`Dashboards` > {guilabel}`Browse`.
-   1. Click {guilabel}`New` and select {guilabel}`Import`.
-
-      ![Import a dashboard in Grafana](images/grafana_dashboard_import.png)
-
-   1. In the {guilabel}`Import via grafana.com` field, enter the dashboard ID `19131`.
-
-      ![Enter the LXD dashboard ID](images/grafana_dashboard_id.png)
-
-   1. Click {guilabel}`Load`.
-   1. In the {guilabel}`LXD` drop-down menu, select the Prometheus data source that you configured.
-
-      ![Select the Prometheus data source](images/grafana_dashboard_select_datasource.png)
-
-   1. Click {guilabel}`Import`.
-
-You should now see the LXD dashboard.
-You can select the project and filter by instances.
-
-![Resource overview in the LXD Grafana dashboard](images/grafana_resources.png)
-
-At the bottom of the page, you can see data for each instance.
-
-![Instance data in the LXD Grafana dashboard](images/grafana_instances.png)
