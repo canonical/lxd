@@ -1617,7 +1617,24 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 	filterStr := r.FormValue("filter")
 
 	s := d.State()
+	var effectiveProjectName string
+	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		hasImages, err := dbCluster.ProjectHasImages(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return err
+		}
 
+		if !hasImages {
+			effectiveProjectName = api.ProjectDefaultName
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	hasPermission, authorizationErr := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeImage)
 	if authorizationErr != nil && !api.StatusErrorCheck(authorizationErr, http.StatusForbidden) {
 		return response.SmartError(authorizationErr)
@@ -2980,17 +2997,7 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var userCanViewImage bool
-	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ImageURL(projectName, fingerprint), auth.EntitlementCanView)
-	if err == nil {
-		userCanViewImage = true
-	} else if !api.StatusErrorCheck(err, http.StatusForbidden) {
-		return response.SmartError(err)
-	}
-
-	public := d.checkTrustedClient(r) != nil || !userCanViewImage
-	secret := r.FormValue("secret")
-
+	// Get the image (expand partial fingerprints).
 	var info *api.Image
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		info, err = doImageGet(ctx, tx, projectName, fingerprint, false)
@@ -3003,6 +3010,17 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	var userCanViewImage bool
+	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ImageURL(projectName, info.Fingerprint), auth.EntitlementCanView)
+	if err == nil {
+		userCanViewImage = true
+	} else if !api.StatusErrorCheck(err, http.StatusForbidden) {
+		return response.SmartError(err)
+	}
+
+	public := d.checkTrustedClient(r) != nil || !userCanViewImage
+	secret := r.FormValue("secret")
 
 	op, err := imageValidSecret(s, r, projectName, info.Fingerprint, secret)
 	if err != nil {
@@ -3426,10 +3444,29 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
-	projectName := request.ProjectParam(r)
 	recursion := util.IsRecursionRequest(r)
 
 	s := d.State()
+
+	projectName := request.ProjectParam(r)
+	var effectiveProjectName string
+	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		projectHasImages, err := dbCluster.ProjectHasImages(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return err
+		}
+
+		if !projectHasImages {
+			effectiveProjectName = api.ProjectDefaultName
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeImageAlias)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to get a permission checker: %w", err))
@@ -3997,20 +4034,8 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Access control.
-	var userCanViewImage bool
-	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ImageURL(projectName, fingerprint), auth.EntitlementCanView)
-	if err == nil {
-		userCanViewImage = true
-	} else if !api.StatusErrorCheck(err, http.StatusForbidden) {
-		return response.SmartError(err)
-	}
-
-	public := d.checkTrustedClient(r) != nil || !userCanViewImage
-	secret := r.FormValue("secret")
-
+	// Get the image (expand the fingerprint).
 	var imgInfo *api.Image
-
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the image (expand the fingerprint).
 		_, imgInfo, err = tx.GetImage(ctx, fingerprint, dbCluster.ImageFilter{Project: &projectName})
@@ -4020,6 +4045,18 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	// Access control.
+	var userCanViewImage bool
+	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ImageURL(projectName, imgInfo.Fingerprint), auth.EntitlementCanView)
+	if err == nil {
+		userCanViewImage = true
+	} else if !api.StatusErrorCheck(err, http.StatusForbidden) {
+		return response.SmartError(err)
+	}
+
+	public := d.checkTrustedClient(r) != nil || !userCanViewImage
+	secret := r.FormValue("secret")
 
 	if r.RemoteAddr == "@devlxd" {
 		if !imgInfo.Public && !imgInfo.Cached {

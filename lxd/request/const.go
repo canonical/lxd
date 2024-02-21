@@ -37,6 +37,11 @@ const (
 	// This contains groups defined by the identity provider if the identity authenticated with OIDC on another cluster
 	// member.
 	CtxForwardedIdentityProviderGroups CtxKey = "identity_provider_groups"
+
+	// CtxEffectiveProjectName is used to indicate that the effective project of a resource is different from the project
+	// specified in the URL. (For example, if a project has `features.networks=false`, any networks in this project actually
+	// belong to the default project).
+	CtxEffectiveProjectName CtxKey = "effective_project_name"
 )
 
 // Headers.

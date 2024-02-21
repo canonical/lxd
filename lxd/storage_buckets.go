@@ -196,6 +196,7 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	request.SetCtxValue(r, request.CtxEffectiveProjectName, bucketProjectName)
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeStorageBucket)
 	if err != nil {
 		return response.SmartError(err)
