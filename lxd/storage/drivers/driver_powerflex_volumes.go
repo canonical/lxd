@@ -793,7 +793,7 @@ func (d *powerflex) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSr
 		return nil
 	}
 
-	return genericVFSMigrateVolume(d, d.state, vol.Volume, conn, volSrcArgs, op)
+	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 }
 
 // BackupVolume creates an exported version of a volume.
