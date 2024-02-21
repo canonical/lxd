@@ -847,7 +847,7 @@ func (d *lvm) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 
 // MigrateVolume sends a volume for migration.
 func (d *lvm) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
-	return genericVFSMigrateVolume(d, d.state, vol.Volume, conn, volSrcArgs, op)
+	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 }
 
 // BackupVolume copies a volume (and optionally its snapshots) to a specified target path.
