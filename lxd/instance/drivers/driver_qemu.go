@@ -1405,32 +1405,32 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// where 9p isn't available in the VM guest OS.
 	configSockPath, configPIDPath := d.configVirtiofsdPaths()
 	revertFunc, unixListener, err := device.DiskVMVirtiofsdStart(d.state.OS.ExecPath, d, configSockPath, configPIDPath, "", configMntPath, nil)
-	if err == nil {
-		// Resolve previous warning.
-		_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
-		err = fmt.Errorf("Failed to setup virtiofsd for config drive: %w", err)
-		op.Done(err)
-		return err
-	}
+	if err != nil {
+		var errUnsupported device.UnsupportedError
+		if !errors.As(err, &errUnsupported) {
+			// Resolve previous warning.
+			_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
+			err = fmt.Errorf("Failed to setup virtiofsd for config drive: %w", err)
+			op.Done(err)
+			return err
+		}
 
-	var errUnsupported device.UnsupportedError
-	if !errors.As(err, &errUnsupported) {
+		d.logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback", logger.Ctx{"err": errUnsupported})
+
+		if errUnsupported == device.ErrMissingVirtiofsd {
+			_ = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				// Create a warning if virtiofsd is missing.
+				return tx.UpsertWarning(ctx, d.node, d.project.Name, entity.TypeInstance, d.ID(), warningtype.MissingVirtiofsd, "Using 9p as a fallback")
+			})
+		} else {
+			// Resolve previous warning.
+			_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
+		}
+	} else {
 		revert.Add(revertFunc)
 
 		// Request the unix listener is closed after QEMU has connected on startup.
 		defer func() { _ = unixListener.Close() }()
-	}
-
-	d.logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback", logger.Ctx{"err": errUnsupported})
-
-	if errUnsupported == device.ErrMissingVirtiofsd {
-		_ = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			// Create a warning if virtiofsd is missing.
-			return tx.UpsertWarning(ctx, d.node, d.project.Name, entity.TypeInstance, d.ID(), warningtype.MissingVirtiofsd, "Using 9p as a fallback")
-		})
-	} else {
-		// Resolve previous warning.
-		_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
 	}
 
 	// Get qemu configuration and check qemu is installed.
