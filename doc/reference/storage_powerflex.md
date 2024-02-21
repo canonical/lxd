@@ -48,10 +48,10 @@ Both volumes and their snapshots get added as standalone NVMe disks to the LXD h
 ### Volume names
 
 Due to a [limitation](storage-powerflex-limitations) in PowerFlex, volume names cannot exceed 31 characters.
-Therefore the driver is using the volume's `volatile.uuid` to generated a fixed length volume name.
-A UUID of `5a2504b0-6a6c-4849-8ee7-ddb0b674fd14` will render to the base64 encoded string `WiUEsGpsSEmO592wtnT9FA==`.
+Therefore the driver is using the volume's {config:option}`storage-powerflex-volume-conf:volatile.uuid` to generate a fixed length volume name.
+A UUID of `5a2504b0-6a6c-4849-8ee7-ddb0b674fd14` will render to the base64-encoded string `WiUEsGpsSEmO592wtnT9FA==`.
 
-In order to be able to identify the volume types and snapshots, special identifiers are appended to the volume names:
+To be able to identify the volume types and snapshots, special identifiers are prepended to the volume names:
 
 Type            | Identifier   | Example
 :--             | :---         | :----------
@@ -93,7 +93,7 @@ Sharing custom volumes between instances
 Sharing the PowerFlex storage pool between installations
 : Sharing the same PowerFlex storage pool between multiple LXD installations is not supported.
 
-Recover PowerFlex storage pools
+Recovering PowerFlex storage pools
 : Recovery of PowerFlex storage pools using `lxd recover` is not supported.
 
 ## Configuration options
