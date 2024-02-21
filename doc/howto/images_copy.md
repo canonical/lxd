@@ -5,6 +5,8 @@ To add images to an image store, you can either copy them from another server or
 
 ## Copy an image from a remote
 
+`````{tabs}
+````{group-tab} CLI
 To copy an image from one server to another, enter the following command:
 
     lxc image copy [<source_remote>:]<image> <target_remote>:
@@ -27,7 +29,13 @@ The most relevant ones are:
 
 `--vm`
 : When copying from an alias, copy the image that can be used to create virtual machines.
+````
+````{group-tab} API
+To copy an image from one server to another, {ref}`export it to your local machine <images-manage-export>` and then {ref}`import it to the other server <images-copy-import>`.
+````
+`````
 
+(images-copy-import)=
 ## Import an image from files
 
 If you have image files that use the required {ref}`image-format`, you can import them into your image store.
@@ -40,6 +48,8 @@ There are several ways of obtaining such image files:
 
 ### Import from the local file system
 
+````{tabs}
+```{group-tab} CLI
 To import an image from the local file system, use the [`lxc image import`](lxc_image_import.md) command.
 This command supports both {ref}`unified images <image-format-unified>` (compressed file or directory) and {ref}`split images <image-format-split>` (two files).
 
@@ -53,6 +63,23 @@ To import a split image, enter the following command:
 
 In both cases, you can assign an alias with the `--alias` flag.
 See [`lxc image import --help`](lxc_image_import.md) for all available flags.
+```
+```{group-tab} API
+To import an image from the local file system, send a POST request to the `/1.0/images` endpoint.
+
+For example, to import a unified image from one file:
+
+    curl -X POST --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/images \
+    --data-binary @<image_file_path>
+
+To import a split image from a metadata file and a rootfs file:
+
+    curl -X POST --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/images \
+    --form metadata=@<metadata_tarball_path> --form rootfs.img=<rootfs_tarball_path>
+
+See [`POST /1.0/images`](swagger:/images/images_post) for more information.
+```
+````
 
 ### Import from a file on a remote web server
 
@@ -62,11 +89,27 @@ It only requires a basic web server with support for custom headers (see {ref}`i
 
 The image files must be provided as unified images (see {ref}`image-format-unified`).
 
+````{tabs}
+```{group-tab} CLI
 To import an image file from a remote web server, enter the following command:
 
     lxc image import <URL>
 
 You can assign an alias to the local image with the `--alias` flag.
+```
+```{group-tab} API
+To import an image file from a remote web server, send a POST request with the image URL to the `/1.0/images` endpoint:
+
+    lxc query --request POST /1.0/images --data '{
+      "source": {
+        "type": "url",
+        "url": "<URL>"
+      }
+    }'
+
+See [`POST /1.0/images`](swagger:/images/images_post) for more information.
+```
+````
 
 (images-copy-http-headers)=
 #### Custom HTTP headers
