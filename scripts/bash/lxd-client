@@ -183,12 +183,15 @@ _have lxc && {
       "config")
         case $pos in
           2)
-            COMPREPLY=( $(compgen -W "get set unset show edit metadata template device trust" -- $cur) )
+            COMPREPLY=( $(compgen -W "get set unset show edit metadata template device trust uefi" -- $cur) )
             ;;
           3)
             case ${no_dashargs[2]} in
               "trust")
                 COMPREPLY=( $(compgen -W "add edit list list-tokens remove revoke-token show" -- $cur) )
+                ;;
+              "uefi")
+                COMPREPLY=( $(compgen -W "edit get set show unset" -- $cur) )
                 ;;
               "device")
                 COMPREPLY=( $(compgen -W "add get set unset list show remove" -- $cur) )
@@ -211,6 +214,9 @@ _have lxc && {
             case ${no_dashargs[2]} in
               "trust")
                 _lxd_remotes
+                ;;
+              "uefi")
+                _lxd_names
                 ;;
               "device")
                 _lxd_names
