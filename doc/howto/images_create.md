@@ -12,8 +12,11 @@ If you want to create and share your own images, you can do this either based on
 
 If you want to be able to use an instance or an instance snapshot as the base for new instances, you should create and publish an image from it.
 
-To publish an image from an instance, make sure that the instance is stopped.
-Then enter the following command:
+When publishing an image from an instance, make sure that the instance is stopped.
+
+````{tabs}
+```{group-tab} CLI
+To publish an image from an instance, enter the following command:
 
     lxc publish <instance_name> [<remote>:]
 
@@ -25,6 +28,45 @@ In both cases, you can specify an alias for the new image with the `--alias` fla
 If an image with the same name already exists, add the `--reuse` flag to overwrite it.
 See [`lxc publish --help`](lxc_publish.md) for a full list of available flags.
 
+```
+```{group-tab} API
+To publish an image from an instance or a snapshot, send a POST request with the suitable source type to the `/1.0/images` endpoint.
+
+To publish an image from an instance:
+
+    lxc query --request POST /1.0/images --data '{
+      "source": {
+        "name": "<instance_name>",
+        "type": "instance"
+      }
+    }'
+
+To publish an image from a snapshot
+
+    lxc query --request POST /1.0/images --data '{
+      "source": {
+        "name": "<instance_name>/<snapshot_name>",
+        "type": "snapshot"
+      }
+    }'
+
+In both cases, you can include additional configuration (for example, you can include aliases, set a custom expiration date, or make the image publicly available).
+For example:
+
+    lxc query --request POST /1.0/images --data '{
+      "aliases": [ { "name": "<alias>" } ],
+      "expires_at": "2025-03-23T20:00:00-04:00",
+      "public": true,
+      "source": {
+        "name": "<instance_name>",
+        "type": "instance"
+      }
+    }'
+
+See [`POST /1.0/images`](swagger:/images/images_post) for more information.
+```
+````
+
 The publishing process can take quite a while because it generates a tarball from the instance or snapshot and then compresses it.
 As this can be particularly I/O and CPU intensive, publish operations are serialized by LXD.
 
@@ -33,8 +75,8 @@ As this can be particularly I/O and CPU intensive, publish operations are serial
 Before you publish an image from an instance, clean up all data that should not be included in the image.
 Usually, this includes the following data:
 
-- Instance metadata (use [`lxc config metadata`](lxc_config_metadata.md) to edit)
-- File templates (use [`lxc config template`](lxc_config_template.md) to edit)
+- Instance metadata (use [`lxc config metadata`](lxc_config_metadata.md) or [`PATCH /1.0/instances/{name}/metadata`](swagger:/instances/instance_metadata_patch)/[`PUT /1.0/instances/{name}/metadata`](swagger:/instances/instance_metadata_put) to edit)
+- File templates (use [`lxc config template`](lxc_config_template.md) or [`POST /1.0/instances/{name}/metadata/templates`](swagger:/instances/instance_metadata_templates_post) to edit)
 - Instance-specific data inside the instance itself (for example, host SSH keys and `dbus/systemd machine-id`)
 
 (images-create-build)=
