@@ -2371,7 +2371,7 @@ func (d *zfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs 
 			vol.mountCustomPath = snapshotPath
 		}
 
-		return genericVFSMigrateVolume(d, d.state, vol.Volume, conn, volSrcArgs, op)
+		return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 	} else if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_ZFS {
 		return ErrNotSupported
 	}
