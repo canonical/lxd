@@ -26,3 +26,4 @@ matrix:
       - div.visually-hidden
       - img
       - a.p-navigation__link
+      - kbd
