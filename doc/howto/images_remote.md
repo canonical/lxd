@@ -4,6 +4,13 @@
 The [`lxc`](lxc.md) CLI command is pre-configured with several remote image servers.
 See {ref}`remote-image-servers` for an overview.
 
+```{note}
+If you are using the API, you can interact with different LXD servers by using their exposed API addresses.
+See {ref}`server-authenticate` for instructions on how to authenticate with the servers.
+
+{ref}`images-manage` describes how to interact with images on any LXD server through the API.
+```
+
 ## List configured remotes
 
 <!-- Include start list remotes -->
