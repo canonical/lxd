@@ -72,6 +72,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 `))
 
 // RsyncWrapper is used as a RunWrapper in the rsync package.
+// It returns a cleanup function that deletes the AppArmor profile that the command is running in.
 func RsyncWrapper(sysOS *sys.OS, cmd *exec.Cmd, sourcePath string, dstPath string) (func(), error) {
 	if !sysOS.AppArmorAvailable {
 		return func() {}, nil
