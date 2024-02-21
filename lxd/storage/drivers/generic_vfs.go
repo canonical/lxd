@@ -147,7 +147,7 @@ func genericVFSRenameVolumeSnapshot(d Driver, snapVol Volume, newSnapshotName st
 }
 
 // genericVFSMigrateVolume is a generic MigrateVolume implementation for VFS-only drivers.
-func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
+func genericVFSMigrateVolume(d Driver, s *state.State, vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
 	bwlimit := d.Config()["rsync.bwlimit"]
 	var rsyncArgs []string
 
@@ -230,22 +230,32 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 
 	// Send all snapshots to target.
 	for _, snapName := range volSrcArgs.Snapshots {
-		snapshot, err := vol.NewSnapshot(snapName)
-		if err != nil {
-			return err
+		found := false
+		var snapVol Volume
+		for _, snapshot := range vol.Snapshots {
+			_, snapshotName, _ := api.GetParentAndSnapshotName(snapshot.name)
+			if snapshotName == snapName {
+				snapVol = snapshot
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return fmt.Errorf("Snapshot %q missing in volume's list", snapName)
 		}
 
 		// Send snapshot to target (ensure local snapshot volume is mounted if needed).
-		err = snapshot.MountTask(func(mountPath string, op *operations.Operation) error {
+		err := snapVol.MountTask(func(mountPath string, op *operations.Operation) error {
 			if vol.contentType != ContentTypeBlock || vol.volType != VolumeTypeCustom {
-				err := sendFSVol(snapshot, conn, mountPath)
+				err := sendFSVol(snapVol, conn, mountPath)
 				if err != nil {
 					return err
 				}
 			}
 
 			if vol.IsVMBlock() || (vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom) {
-				err = sendBlockVol(snapshot, conn)
+				err := sendBlockVol(snapVol, conn)
 				if err != nil {
 					return err
 				}
@@ -261,14 +271,14 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 	// Send volume to target (ensure local volume is mounted if needed).
 	return vol.MountTask(func(mountPath string, op *operations.Operation) error {
 		if !IsContentBlock(vol.contentType) || vol.volType != VolumeTypeCustom {
-			err := sendFSVol(vol, conn, mountPath)
+			err := sendFSVol(vol.Volume, conn, mountPath)
 			if err != nil {
 				return err
 			}
 		}
 
 		if vol.IsVMBlock() || (IsContentBlock(vol.contentType) && vol.volType == VolumeTypeCustom) {
-			err := sendBlockVol(vol, conn)
+			err := sendBlockVol(vol.Volume, conn)
 			if err != nil {
 				return err
 			}
