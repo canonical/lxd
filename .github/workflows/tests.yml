@@ -300,7 +300,6 @@ jobs:
             echo "::group::dmesg logs"
             journalctl --quiet --no-hostname --no-pager --boot=0 --lines=100 --dmesg
             echo "::endgroup::"
-            exit 1
           }
           trap cleanup ERR HUP INT TERM
 
