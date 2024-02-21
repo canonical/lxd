@@ -72,6 +72,8 @@ Typical ways to contribute are:
 - Ask questions or provide suggestions in the `#lxd` channel on [IRC](https://web.libera.chat/#lxd).
   Given the dynamic nature of IRC, we cannot guarantee answers or reactions to IRC posts, but we monitor the channel and try to improve our documentation based on the received feedback.
 
+If images are added (`doc/images`), prioritize either SVG or PNG format and make sure to optimize PNG images for smaller size using a service like [TinyPNG](https://tinypng.com/) or similar.
+
 % Include content from [README.md](README.md)
 ```{include} README.md
     :start-after: <!-- Include start docs -->
