@@ -2521,15 +2521,16 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 <!-- config group storage-powerflex-pool-conf start -->
 ```{config:option} powerflex.clone_copy storage-powerflex-pool-conf
 :defaultdesc: "`true`"
-:shortdesc: "Make a non-sparse copy when creating a snapshot of instances or custom volumes (see the [limitations](storage-powerflex-limitations))"
+:shortdesc: "Whether to use non-sparse copies for snapshots"
 :type: "bool"
-
+If this option is set to `true`, PowerFlex makes a non-sparse copy when creating a snapshot of an instance or custom volume.
+See {ref}`storage-powerflex-limitations` for more information.
 ```
 
 ```{config:option} powerflex.domain storage-powerflex-pool-conf
-:shortdesc: "Name of the PowerFlex protection domain (only required if `powerflex.pool` is specified using its name)"
+:shortdesc: "Name of the PowerFlex protection domain"
 :type: "string"
-
+This option is required only if {config:option}`storage-powerflex-pool-conf:powerflex.pool` is specified using its name.
 ```
 
 ```{config:option} powerflex.gateway storage-powerflex-pool-conf
@@ -2547,15 +2548,16 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 
 ```{config:option} powerflex.mode storage-powerflex-pool-conf
 :defaultdesc: "the discovered mode"
-:shortdesc: "Gets discovered automatically if the system provides the necessary kernel modules; currently, only `nvme` is supported"
+:shortdesc: "How volumes are mapped to the local server"
 :type: "string"
-
+The mode gets discovered automatically if the system provides the necessary kernel modules.
+Currently, only `nvme` is supported.
 ```
 
 ```{config:option} powerflex.pool storage-powerflex-pool-conf
-:shortdesc: "ID of the PowerFlex storage pool (if you want to specify the storage pool via its name, also set `powerflex.domain`)"
+:shortdesc: "ID of the PowerFlex storage pool"
 :type: "string"
-
+If you want to specify the storage pool via its name, also set {config:option}`storage-powerflex-pool-conf:powerflex.domain`.
 ```
 
 ```{config:option} powerflex.sdt storage-powerflex-pool-conf
@@ -2595,9 +2597,10 @@ to be placed on the socket I/O.
 
 ```{config:option} volume.size storage-powerflex-pool-conf
 :defaultdesc: "`8GiB`"
-:shortdesc: "Size/quota of the storage volume in multiples of 8GiB"
+:shortdesc: "Size/quota of the storage volume"
 :type: "string"
-
+The size must be in multiples of 8 GiB.
+See {ref}`storage-powerflex-limitations` for more information.
 ```
 
 <!-- config group storage-powerflex-pool-conf end -->
@@ -2621,7 +2624,7 @@ If not set, `ext4` is assumed.
 
 ```{config:option} block.type storage-powerflex-volume-conf
 :defaultdesc: "same as `volume.block.type` or `thick`"
-:shortdesc: "Create a `thin` or `thick` provisioned volume"
+:shortdesc: "Whether to create a `thin` or `thick` provisioned volume"
 :type: "string"
 
 ```
@@ -2644,9 +2647,10 @@ Enabling this option allows attaching the volume to multiple isolated instances.
 
 ```{config:option} size storage-powerflex-volume-conf
 :defaultdesc: "same as `volume.size`"
-:shortdesc: "Size/quota of the storage volume in multiples of 8GiB"
+:shortdesc: "Size/quota of the storage volume"
 :type: "string"
-
+The size must be in multiples of 8 GiB.
+See {ref}`storage-powerflex-limitations` for more information.
 ```
 
 ```{config:option} snapshots.expiry storage-powerflex-volume-conf
@@ -2682,6 +2686,13 @@ This number is then incremented by one for the new name.
 :shortdesc: "Schedule for automatic volume snapshots"
 :type: "string"
 Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
+```
+
+```{config:option} volatile.uuid storage-powerflex-volume-conf
+:defaultdesc: "random UUID"
+:shortdesc: "The volume's UUID"
+:type: "string"
+
 ```
 
 <!-- config group storage-powerflex-volume-conf end -->
