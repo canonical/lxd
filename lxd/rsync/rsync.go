@@ -23,6 +23,7 @@ import (
 var Debug bool
 
 // RunWrapper is an optional function that's used to wrap rsync, useful for confinement like AppArmor.
+// It returns a cleanup function that will close the wrapper's environment, and should be called after the command has completed.
 var RunWrapper func(cmd *exec.Cmd, source string, destination string) (func(), error)
 
 // rsync is a wrapper for the rsync command which will respect RunWrapper.
