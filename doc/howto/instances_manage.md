@@ -29,19 +29,19 @@ Enter [`lxc list --help`](lxc_list.md) to see all filter options.
 Query the `/1.0/instances` endpoint to list all instances.
 You can use {ref}`rest-api-recursion` to display more information about the instances:
 
-    lxc query /1.0/instances?recursion=2
+    lxc query --request GET /1.0/instances?recursion=2
 
 You can {ref}`filter <rest-api-filtering>` the instances that are displayed, by name, type, status or the cluster member where the instance is located:
 
-    lxc query /1.0/instances?filter=name+eq+ubuntu
-    lxc query /1.0/instances?filter=type+eq+container
-    lxc query /1.0/instances?filter=status+eq+running
-    lxc query /1.0/instances?filter=location+eq+server1
+    lxc query --request GET /1.0/instances?filter=name+eq+ubuntu
+    lxc query --request GET /1.0/instances?filter=type+eq+container
+    lxc query --request GET /1.0/instances?filter=status+eq+running
+    lxc query --request GET /1.0/instances?filter=location+eq+server1
 
 To list several instances, use a regular expression for the name.
 For example:
 
-    lxc query /1.0/instances?filter=name+eq+ubuntu.*
+    lxc query --request GET /1.0/instances?filter=name+eq+ubuntu.*
 
 See [`GET /1.0/instances`](swagger:/instances/instances_get) for more information.
 ```
@@ -72,7 +72,7 @@ Add `--show-log` to the command to show the latest log lines for the instance:
 ```{group-tab} API
 Query the following endpoint to show detailed information about an instance:
 
-    lxc query /1.0/instances/<instance_name>
+    lxc query --request GET /1.0/instances/<instance_name>
 
 See [`GET /1.0/instances/{name}`](swagger:/instances/instance_get) for more information.
 ```
@@ -84,6 +84,7 @@ Click the instance name to go to the instance detail page, which contains detail
 ```
 ````
 
+(instances-manage-start)=
 ## Start an instance
 
 ````{tabs}
@@ -105,16 +106,16 @@ See {ref}`instances-console` for more information.
 ```{group-tab} API
 To start an instance, send a PUT request to change the instance state:
 
-    lxc query --request PUT /1.0/instances/<instance_name>/state --data '{"action":"start"}'
+    lxc query --request PUT /1.0/instances/<instance_name>/state --data '{"action": "start"}'
 
 <!-- Include start monitor status -->
 The return value of this query contains an operation ID, which you can use to query the status of the operation:
 
-    lxc query /1.0/operations/<operation_ID>
+    lxc query --request GET /1.0/operations/<operation_ID>
 
 Use the following query to monitor the state of the instance:
 
-    lxc query /1.0/instances/<instance_name>/state
+    lxc query --request GET /1.0/instances/<instance_name>/state
 
 See [`GET /1.0/instances/{name}/state`](swagger:/instances/instance_state_get) and [`PUT /1.0/instances/{name}/state`](swagger:/instances/instance_state_put)for more information.
 <!-- Include end monitor status -->
@@ -145,7 +146,7 @@ You will get an error if the instance does not exist or if it is not running.
 ````{group-tab} API
 To stop an instance, send a PUT request to change the instance state:
 
-    lxc query --request PUT /1.0/instances/<instance_name>/state --data '{"action":"stop"}'
+    lxc query --request PUT /1.0/instances/<instance_name>/state --data '{"action": "stop"}'
 
 % Include content from above
 ```{include} ./instances_manage.md
@@ -245,11 +246,21 @@ For more information about the `rebuild` command, see [`lxc rebuild --help`](lxc
 To rebuild the instance with a different image, send a POST request to the instance's `rebuild` endpoint.
 For example:
 
-    lxc query --request POST /1.0/instances/<instance_name>/rebuild --data '{"source": {"alias":"<image_alias>","server":"<server_URL>", protocol:"simplestreams"}}'
+    lxc query --request POST /1.0/instances/<instance_name>/rebuild --data '{
+      "source": {
+        "alias": "<image_alias>",
+        "protocol": "simplestreams",
+        "server": "<server_URL>"
+      }
+    }'
 
 To rebuild the instance with an empty root disk, specify the source type as `none`:
 
-    lxc query --request POST /1.0/instances/<instance_name>/rebuild --data '{"source": {"type":"none"}}'
+    lxc query --request POST /1.0/instances/<instance_name>/rebuild --data '{
+      "source": {
+        "type": "none"
+      }
+    }'
 
 See [`POST /1.0/instances/{name}/rebuild`](swagger:/instances/instance_rebuild_post) for more information.
 ```
