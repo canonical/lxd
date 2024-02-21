@@ -156,6 +156,7 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
+	request.SetCtxValue(r, request.CtxEffectiveProjectName, projectName)
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeNetworkZone)
 	if err != nil {
 		return response.InternalError(err)

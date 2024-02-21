@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/canonical/lxd/lxd/identity"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -68,9 +69,13 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *a
 		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
 	}
 
-	entityType, projectName, _, _, err := entity.ParseURL(entityURL.URL)
+	entityType, projectName, _, pathArgs, err := entity.ParseURL(entityURL.URL)
 	if err != nil {
 		return fmt.Errorf("Failed to parse entity URL: %w", err)
+	}
+
+	if entityType == entity.TypeProject {
+		projectName = pathArgs[0]
 	}
 
 	// Check server level object types
@@ -165,6 +170,8 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 		return nil, api.StatusErrorf(http.StatusForbidden, "User does not have permissions for project %q", details.projectName)
 	}
 
+	effectiveProject, _ := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
+
 	// Filter objects by project.
 	return func(entityURL *api.URL) bool {
 		eType, project, _, pathArgs, err := entity.ParseURL(entityURL.URL)
@@ -173,15 +180,23 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 			return false
 		}
 
-		if eType == entity.TypeProject {
-			project = pathArgs[0]
-		}
-
+		// GetPermissionChecker can only be used to check permissions on entities of the same type, e.g. a list of instances.
 		if eType != entityType {
 			logger.Warn("Permission checker received URL with unexpected entity type", logger.Ctx{"expected": entityType, "actual": eType, "entity_url": entityURL})
 			return false
 		}
 
+		// If it's a project URL, the project name is in the path, not the query parameter.
+		if eType == entity.TypeProject {
+			project = pathArgs[0]
+		}
+
+		// If an effective project has been set in the request context. We expect all entities to be in that project.
+		if effectiveProject != "" {
+			return project == effectiveProject
+		}
+
+		// Otherwise, check if the project is in the list of allowed projects for the entity.
 		return shared.ValueInSlice(project, id.Projects)
 	}, nil
 }
