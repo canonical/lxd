@@ -436,14 +436,15 @@ func (d *powerflex) commonVolumeRules() map[string]func(value string) error {
 		// ---
 		//  type: string
 		//  defaultdesc: same as `volume.block.type` or `thick`
-		//  shortdesc: Create a `thin` or `thick` provisioned volume
+		//  shortdesc: Whether to create a `thin` or `thick` provisioned volume
 		"block.type": validate.Optional(validate.IsOneOf("thin", "thick")),
 		// lxdmeta:generate(entities=storage-powerflex; group=volume-conf; key=size)
-		//
+		// The size must be in multiples of 8 GiB.
+		// See {ref}`storage-powerflex-limitations` for more information.
 		// ---
 		//  type: string
 		//  defaultdesc: same as `volume.size`
-		//  shortdesc: Size/quota of the storage volume in multiples of 8GiB
+		//  shortdesc: Size/quota of the storage volume
 		"size": validate.Optional(validate.IsMultipleOfUnit("8GiB")),
 	}
 }

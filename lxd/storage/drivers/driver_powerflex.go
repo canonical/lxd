@@ -204,23 +204,24 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  shortdesc: Whether to verify the PowerFlex Gateway's certificate
 		"powerflex.gateway.verify": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.pool)
-		//
+		// If you want to specify the storage pool via its name, also set {config:option}`storage-powerflex-pool-conf:powerflex.domain`.
 		// ---
 		//  type: string
-		//  shortdesc: ID of the PowerFlex storage pool (if you want to specify the storage pool via its name, also set `powerflex.domain`)
+		//  shortdesc: ID of the PowerFlex storage pool
 		"powerflex.pool": validate.IsAny,
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.domain)
-		//
+		// This option is required only if {config:option}`storage-powerflex-pool-conf:powerflex.pool` is specified using its name.
 		// ---
 		//  type: string
-		//  shortdesc: Name of the PowerFlex protection domain (only required if `powerflex.pool` is specified using its name)
+		//  shortdesc: Name of the PowerFlex protection domain
 		"powerflex.domain": validate.Optional(validate.IsAny),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.mode)
-		//
+		// The mode gets discovered automatically if the system provides the necessary kernel modules.
+		// Currently, only `nvme` is supported.
 		// ---
 		//  type: string
 		//  defaultdesc: the discovered mode
-		//  shortdesc: Gets discovered automatically if the system provides the necessary kernel modules; currently, only `nvme` is supported
+		//  shortdesc: How volumes are mapped to the local server
 		"powerflex.mode": validate.Optional(validate.IsOneOf("nvme")),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.sdt)
 		//
@@ -230,18 +231,20 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  shortdesc: PowerFlex NVMe/TCP SDT
 		"powerflex.sdt": validate.Optional(validate.IsNetworkAddress),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.clone_copy)
-		//
+		// If this option is set to `true`, PowerFlex makes a non-sparse copy when creating a snapshot of an instance or custom volume.
+		// See {ref}`storage-powerflex-limitations` for more information.
 		// ---
 		//  type: bool
 		//  defaultdesc: `true`
-		//  shortdesc: Make a non-sparse copy when creating a snapshot of instances or custom volumes (see the [limitations](storage-powerflex-limitations))
+		//  shortdesc: Whether to use non-sparse copies for snapshots
 		"powerflex.clone_copy": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=volume.size)
-		//
+		// The size must be in multiples of 8 GiB.
+		// See {ref}`storage-powerflex-limitations` for more information.
 		// ---
 		//  type: string
 		//  defaultdesc: `8GiB`
-		//  shortdesc: Size/quota of the storage volume in multiples of 8GiB
+		//  shortdesc: Size/quota of the storage volume
 		"volume.size": validate.Optional(validate.IsMultipleOfUnit("8GiB")),
 	}
 
