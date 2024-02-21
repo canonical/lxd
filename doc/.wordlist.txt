@@ -271,6 +271,7 @@ TCP
 Telegraf
 TiB
 Tibit
+TinyPNG
 TLS
 tmpfs
 toolchain
