@@ -1948,8 +1948,18 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		volumeDescription = args.Description
 	}
 
+	isRemoteClusterMove := args.ClusterMoveSourceName != "" && b.driver.Info().Remote
+
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
-	vol := b.GetNewVolume(volType, contentType, volStorageName, volumeConfig)
+
+	var vol drivers.Volume
+	if isRemoteClusterMove {
+		// In case it's a cluster move don't instantiate a new volume.
+		// Instead load the existing volume and config from the database.
+		vol = b.GetVolume(volType, contentType, volStorageName, volumeConfig)
+	} else {
+		vol = b.GetNewVolume(volType, contentType, volStorageName, volumeConfig)
+	}
 
 	// Ensure storage volume settings are honored when doing migration.
 	// This is only done for non-optimized migration because some storage volume settings,
@@ -1987,8 +1997,6 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 	revert := revert.New()
 	defer revert.Fail()
-
-	isRemoteClusterMove := args.ClusterMoveSourceName != "" && b.driver.Info().Remote
 
 	if !args.Refresh {
 		if volExists {
