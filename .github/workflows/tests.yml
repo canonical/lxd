@@ -303,6 +303,15 @@ jobs:
         run: |
           set -eux
 
+          cleanup() {
+            set +e
+            # dmesg may contain oops, IO errors, crashes, etc
+            echo "::group::dmesg logs"
+            journalctl --quiet --no-hostname --no-pager --boot=0 --lines=100 --dmesg
+            echo "::endgroup::"
+          }
+          trap cleanup ERR HUP INT TERM
+
           # If the rootfs and the ephemeral part are on the same physical disk, giving the whole
           # disk to microceph would wipe our rootfs. Since it is pretty rare for GitHub Action
           # runners to have a single disk, we immediately bail rather than trying to gracefully
