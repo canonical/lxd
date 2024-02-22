@@ -398,6 +398,7 @@ var APIExtensions = []string{
 	"import_instance_devices",
 	"instances_uefi_vars",
 	"instances_migration_stateful",
+	"container_syscall_filtering_allow_deny_syntax",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
