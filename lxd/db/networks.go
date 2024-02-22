@@ -694,7 +694,7 @@ func (c *ClusterTx) GetNetworkWithInterface(ctx context.Context, devName string)
 	}
 
 	if id == -1 {
-		return -1, nil, fmt.Errorf("No network found for interface: %s", devName)
+		return -1, nil, api.StatusErrorf(http.StatusNotFound, "No network found for interface: %s", devName)
 	}
 
 	network := api.Network{
