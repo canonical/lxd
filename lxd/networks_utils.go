@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/network"
@@ -14,6 +17,10 @@ var networkOVNChassis *bool
 func networkAutoAttach(cluster *db.Cluster, devName string) error {
 	_, dbInfo, err := cluster.GetNetworkWithInterface(devName)
 	if err != nil {
+		if !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return fmt.Errorf("Failed finding network matching interface %q: %w", devName, err)
+		}
+
 		// No match found, move on
 		return nil
 	}
