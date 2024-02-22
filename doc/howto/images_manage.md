@@ -73,7 +73,7 @@ For example, to show all Arm 64-bit images for virtual machines, enter the follo
 
 You can also use a regular expression:
 
-    lxc query --request GET /1.0/images?filter=fingerprint+eq+be25.*
+    lxc query --request GET "/1.0/images?filter=fingerprint+eq+be25.*"
 
 See [`GET /1.0/images`](swagger:/images/images_get) and {ref}`rest-api-filtering` for more information.
 ```
