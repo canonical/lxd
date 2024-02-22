@@ -23,6 +23,7 @@ import (
 var Debug bool
 
 // RunWrapper is an optional function that's used to wrap rsync, useful for confinement like AppArmor.
+// It returns a cleanup function that will close the wrapper's environment, and should be called after the command has completed.
 var RunWrapper func(cmd *exec.Cmd, source string, destination string) (func(), error)
 
 // rsync is a wrapper for the rsync command which will respect RunWrapper.
@@ -121,7 +122,9 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArg
 	return msg, nil
 }
 
-func sendSetup(name string, path string, bwlimit string, execPath string, features []string, rsyncArgs ...string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
+// Send sets up the sending half of an rsync, to recursively send the
+// directory pointed to by path over the websocket.
+func Send(name string, path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTracker, features []string, bwlimit string, execPath string, rsyncArgs ...string) error {
 	/*
 	 * The way rsync works, it invokes a subprocess that does the actual
 	 * talking (given to it by a -E argument). Since there isn't an easy
@@ -145,7 +148,7 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 
 	l, err := net.Listen("unix", auds)
 	if err != nil {
-		return nil, nil, nil, err
+		return err
 	}
 
 	defer func() { _ = l.Close() }()
@@ -190,7 +193,7 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 	if RunWrapper != nil {
 		cleanup, err := RunWrapper(cmd, path, "")
 		if err != nil {
-			return nil, nil, nil, err
+			return err
 		}
 
 		defer cleanup()
@@ -198,55 +201,45 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return nil, nil, nil, err
+		return err
 	}
 
 	err = cmd.Start()
 	if err != nil {
-		return nil, nil, nil, err
+		return err
 	}
 
-	var conn *net.Conn
+	var ncConn *net.Conn
 	chConn := make(chan *net.Conn, 1)
 
 	go func() {
-		conn, err := l.Accept()
+		ncConn, err := l.Accept()
 		if err != nil {
 			chConn <- nil
 			return
 		}
 
-		chConn <- &conn
+		chConn <- &ncConn
 	}()
 
 	select {
-	case conn = <-chConn:
-		if conn == nil {
+	case ncConn = <-chConn:
+		if ncConn == nil {
 			output, _ := io.ReadAll(stderr)
 			_ = cmd.Process.Kill()
 			_ = cmd.Wait()
-			return nil, nil, nil, fmt.Errorf("Failed to connect to rsync socket (%s)", string(output))
+			return fmt.Errorf("Failed to ncConnect to rsync socket (%s)", string(output))
 		}
 
 	case <-time.After(10 * time.Second):
 		output, _ := io.ReadAll(stderr)
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
-		return nil, nil, nil, fmt.Errorf("rsync failed to spawn after 10s (%s)", string(output))
-	}
-
-	return cmd, *conn, stderr, nil
-}
-
-// Send sets up the sending half of an rsync, to recursively send the
-// directory pointed to by path over the websocket.
-func Send(name string, path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTracker, features []string, bwlimit string, execPath string, rsyncArgs ...string) error {
-	cmd, netcatConn, stderr, err := sendSetup(name, path, bwlimit, execPath, features, rsyncArgs...)
-	if err != nil {
-		return err
+		return fmt.Errorf("rsync failed to spawn after 10s (%s)", string(output))
 	}
 
 	// Setup progress tracker.
+	netcatConn := *ncConn
 	readNetcatPipe := io.ReadCloser(netcatConn)
 	if tracker != nil {
 		readNetcatPipe = &ioprogress.ProgressReader{
