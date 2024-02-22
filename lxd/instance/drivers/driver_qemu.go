@@ -2591,6 +2591,10 @@ func (d *qemu) UEFIVars() (*api.InstanceUEFIVars, error) {
 
 	uefiVarsPath := d.nvramPath()
 
+	if !shared.PathExists(uefiVarsPath) {
+		return nil, fmt.Errorf("UEFI variables are not initialized yet. Please start an instance at least once.")
+	}
+
 	instanceUEFI, err := uefi.UEFIVars(d.state.OS, uefiVarsPath)
 	if err != nil {
 		return nil, err
@@ -2601,10 +2605,6 @@ func (d *qemu) UEFIVars() (*api.InstanceUEFIVars, error) {
 
 // UEFIVarsUpdate updates UEFI Variables for instance.
 func (d *qemu) UEFIVarsUpdate(newUEFIVarsSet api.InstanceUEFIVars) error {
-	if d.IsRunning() {
-		return fmt.Errorf("UEFI variables editing is allowed for stopped VM instances only")
-	}
-
 	if !d.architectureSupportsUEFI(d.architecture) {
 		return fmt.Errorf("UEFI is not supported for this instance architecture")
 	}
@@ -2613,7 +2613,15 @@ func (d *qemu) UEFIVarsUpdate(newUEFIVarsSet api.InstanceUEFIVars) error {
 		return fmt.Errorf("UEFI is disabled when CSM mode is active")
 	}
 
+	if d.IsRunning() {
+		return fmt.Errorf("UEFI variables editing is allowed for stopped VM instances only")
+	}
+
 	uefiVarsPath := d.nvramPath()
+
+	if !shared.PathExists(uefiVarsPath) {
+		return fmt.Errorf("UEFI variables are not initialized yet. Please start an instance at least once.")
+	}
 
 	err := uefi.UEFIVarsUpdate(d.state.OS, newUEFIVarsSet, uefiVarsPath)
 	if err != nil {
