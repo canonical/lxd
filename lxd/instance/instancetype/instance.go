@@ -732,10 +732,6 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	//  shortdesc: List of syscalls to allow
 	"security.syscalls.allow": validate.IsAny,
 
-	"security.syscalls.blacklist_default": validate.Optional(validate.IsBool),
-	"security.syscalls.blacklist_compat":  validate.Optional(validate.IsBool),
-	"security.syscalls.blacklist":         validate.IsAny,
-
 	// lxdmeta:generate(entities=instance; group=security; key=security.syscalls.deny_default)
 	//
 	// ---
@@ -864,8 +860,6 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	//  condition: container
 	//  shortdesc: Whether to handle the `sysinfo` system call
 	"security.syscalls.intercept.sysinfo": validate.Optional(validate.IsBool),
-
-	"security.syscalls.whitelist": validate.IsAny,
 
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.last_state.idmap)
 	//
