@@ -1361,13 +1361,11 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 			}
 
 			// Generate source snapshot volumes list.
-			srcSnapVolumeName := drivers.GetSnapshotVolumeName(srcVolName, srcSnap.Name)
-			srcSnapVolStorageName := project.StorageVolume(projectName, srcSnapVolumeName)
-			srcSnapVol := b.GetNewVolume(drivers.VolumeTypeCustom, contentType, srcSnapVolStorageName, srcSnap.Config)
-			srcSnapVols = append(srcSnapVols, srcSnap.Name)
+			targetSnapVolStorageName := project.StorageVolume(projectName, newSnapshotName)
+			targetSnapVol := b.GetNewVolume(drivers.VolumeTypeCustom, contentType, targetSnapVolStorageName, srcSnap.Config)
 
 			// Validate config and create database entry for new storage volume from source volume config.
-			err = VolumeDBCreate(b, projectName, newSnapshotName, srcSnap.Description, drivers.VolumeTypeCustom, true, srcSnapVol.Config(), srcSnap.CreatedAt, snapExpiryDate, contentType, false, true)
+			err = VolumeDBCreate(b, projectName, newSnapshotName, srcSnap.Description, drivers.VolumeTypeCustom, true, targetSnapVol.Config(), srcSnap.CreatedAt, snapExpiryDate, contentType, false, true)
 			if err != nil {
 				return err
 			}
@@ -1375,7 +1373,10 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 			revert.Add(func() { _ = VolumeDBDelete(b, projectName, newSnapshotName, vol.Type()) })
 
 			// Extend the list of target snaphots to not require loading all of them again from DB.
-			targetSnapshots = append(targetSnapshots, srcSnapVol)
+			targetSnapshots = append(targetSnapshots, targetSnapVol)
+
+			// Extend the list of snapshots that require refresh.
+			srcSnapVols = append(srcSnapVols, srcSnap.Name)
 		}
 
 		volCopy := drivers.NewVolumeCopy(vol, targetSnapshots...)
