@@ -825,6 +825,12 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 			return err
 		}
 
+		// Save any changes that have occurred to the instance's config to the on-disk backup.yaml file.
+		err = b.UpdateInstanceBackupFile(inst, false, op)
+		if err != nil {
+			return fmt.Errorf("Failed updating backup file: %w", err)
+		}
+
 		// If the driver returned a post hook, run it now.
 		if volPostHook != nil {
 			// Initialise new volume containing root disk config supplied in instance.
