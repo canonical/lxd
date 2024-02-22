@@ -267,8 +267,8 @@ func TestInstanceList(t *testing.T) {
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.InstanceList(ctx, func(dbInst db.InstanceArgs, p api.Project) error {
-			dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, dbInst.Profiles)
-			dbInst.Devices = db.ExpandInstanceDevices(dbInst.Devices, dbInst.Profiles)
+			dbInst.Config = instancetype.ExpandInstanceConfig(dbInst.Config, dbInst.Profiles)
+			dbInst.Devices = instancetype.ExpandInstanceDevices(dbInst.Devices, dbInst.Profiles)
 
 			instances = append(instances, dbInst)
 

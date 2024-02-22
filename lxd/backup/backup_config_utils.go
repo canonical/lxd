@@ -90,33 +90,6 @@ func ParseConfigYamlFile(path string) (*config.Config, error) {
 	return &backupConf, nil
 }
 
-// OverrideConfigYamlFile overrides the YAML file.
-func OverrideConfigYamlFile(path string, backupConf *config.Config) error {
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-
-	defer f.Close()
-
-	data, err := yaml.Marshal(backupConf)
-	if err != nil {
-		return err
-	}
-
-	err = f.Chmod(0400)
-	if err != nil {
-		return err
-	}
-
-	_, err = f.Write(data)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // updateRootDevicePool updates the root disk device in the supplied list of devices to the pool
 // specified. Returns true if a root disk device has been found and updated otherwise false.
 func updateRootDevicePool(devices map[string]map[string]string, poolName string) bool {

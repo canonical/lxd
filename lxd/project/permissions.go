@@ -1244,8 +1244,8 @@ func expandInstancesConfigAndDevices(instances []api.Instance, profiles []api.Pr
 		}
 
 		expandedInstances[i] = instance
-		expandedInstances[i].Config = db.ExpandInstanceConfig(instance.Config, apiProfiles)
-		expandedInstances[i].Devices = db.ExpandInstanceDevices(deviceconfig.NewDevices(instance.Devices), apiProfiles).CloneNative()
+		expandedInstances[i].Config = instancetype.ExpandInstanceConfig(instance.Config, apiProfiles)
+		expandedInstances[i].Devices = instancetype.ExpandInstanceDevices(deviceconfig.NewDevices(instance.Devices), apiProfiles).CloneNative()
 	}
 
 	return expandedInstances, nil

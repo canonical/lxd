@@ -320,6 +320,7 @@ jobs:
           sudo umount /mnt
 
           sudo snap install microceph --edge
+          sudo snap connect microceph:mount-observe
           sudo apt-get install --no-install-recommends -y ceph-common
           sudo microceph cluster bootstrap
           sudo microceph.ceph config set global osd_pool_default_size 1
