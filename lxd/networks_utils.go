@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
@@ -18,16 +20,22 @@ func networkAutoAttach(cluster *db.Cluster, devName string) error {
 	_ = cluster.Transaction(context.TODO(), func(ctx context.Context, c *db.ClusterTx) error {
 		_, dbInfo, err := c.GetNetworkWithInterface(ctx, devName)
 		if err != nil {
-			// No match found, move on
-			logger.Warnf("Failed to find network matching interface %v", devName)
-			return nil
+			if !api.StatusErrorCheck(err, http.StatusNotFound) {
+				return fmt.Errorf("Failed finding network matching interface %q: %w", devName, err)
+			}
+
+			return nil // No match found, move on.
 		}
 
 		networkName = dbInfo.Name
 		return nil
 	})
 
-	return network.AttachInterface(networkName, devName)
+	if networkName != "" {
+		return network.AttachInterface(networkName, devName)
+	}
+
+	return nil
 }
 
 // networkUpdateForkdnsServersTask runs every 30s and refreshes the forkdns servers list.
