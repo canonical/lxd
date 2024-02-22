@@ -87,6 +87,13 @@ cleanup() {
   echo "df -h output:"
   df -h
 
+  if [ "${TEST_RESULT}" != "success" ]; then
+    # dmesg may contain oops, IO errors, crashes, etc
+    echo "::group::dmesg logs"
+    journalctl --quiet --no-hostname --no-pager --boot=0 --lines=100 --dmesg
+    echo "::endgroup::"
+  fi
+
   if [ -n "${GITHUB_ACTIONS:-}" ]; then
     echo "==> Skipping cleanup (GitHub Action runner detected)"
   else
@@ -161,7 +168,9 @@ run_test() {
 
   if [ "${skip}" = false ]; then
     # Run test.
+    echo "::group::${TEST_CURRENT}"
     ${TEST_CURRENT}
+    echo "::endgroup::"
 
     # Check whether test was skipped due to unmet requirements, and if so check if the test is required and fail.
     if [ -n "${TEST_UNMET_REQUIREMENT}" ]; then
