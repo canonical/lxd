@@ -120,6 +120,7 @@ For convenience, the following functions are exported to the Pongo2 templates:
 
 - `config_get("user.foo", "bar")` - Returns the value of `user.foo`, or `"bar"` if not set.
 
+(image-format-tarballs)=
 ## Image tarballs
 
 LXD supports two LXD-specific image formats: a unified tarball and split tarballs.
