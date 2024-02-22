@@ -101,14 +101,14 @@ func (i *Instance) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Instance, error)
 	}
 
 	apiDevices := DevicesToAPI(devices)
-	expandedDevices := ExpandInstanceDevices(config.NewDevices(apiDevices), apiProfiles)
+	expandedDevices := instancetype.ExpandInstanceDevices(config.NewDevices(apiDevices), apiProfiles)
 
 	config, err := GetInstanceConfig(ctx, tx, i.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	expandedConfig := ExpandInstanceConfig(config, apiProfiles)
+	expandedConfig := instancetype.ExpandInstanceConfig(config, apiProfiles)
 
 	archName, err := osarch.ArchitectureName(i.Architecture)
 	if err != nil {
