@@ -867,7 +867,7 @@ func (d *ceph) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 	// when using custom filesystem volumes. LXD will create the filesystem
 	// for these volumes, and use the mount options. When attaching a regular block volume to a VM,
 	// these are not mounted by LXD and therefore don't need these config keys.
-	if vol.IsVMBlock() || vol.volType == VolumeTypeCustom && vol.contentType == ContentTypeBlock {
+	if vol.volType == VolumeTypeCustom && vol.contentType == ContentTypeBlock {
 		delete(commonRules, "block.filesystem")
 		delete(commonRules, "block.mount_options")
 	}
