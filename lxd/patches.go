@@ -1208,7 +1208,6 @@ func patchStorageUnsetInvalidBlockSettings(_ string, d *Daemon) error {
 	}
 
 	volTypeCustom := db.StoragePoolVolumeTypeCustom
-	volTypeVM := db.StoragePoolVolumeTypeVM
 
 	poolIDNameMap := make(map[int64]string, 0)
 	poolVolumes := make(map[int64][]*db.StorageVolume, 0)
@@ -1245,7 +1244,7 @@ func patchStorageUnsetInvalidBlockSettings(_ string, d *Daemon) error {
 			}
 
 			// Get the pool's storage volumes.
-			volumes, err = tx.GetStoragePoolVolumes(ctx, poolID, false, db.StorageVolumeFilter{Type: &volTypeCustom}, db.StorageVolumeFilter{Type: &volTypeVM})
+			volumes, err = tx.GetStoragePoolVolumes(ctx, poolID, false, db.StorageVolumeFilter{Type: &volTypeCustom})
 			if err != nil {
 				return fmt.Errorf("Failed getting custom storage volumes of pool %q: %w", pool, err)
 			}
@@ -1264,12 +1263,9 @@ func patchStorageUnsetInvalidBlockSettings(_ string, d *Daemon) error {
 		poolVolumes[poolID] = append(poolVolumes[poolID], volumes...)
 	}
 
-	var volType int
-
 	for pool, volumes := range poolVolumes {
 		for _, vol := range volumes {
 			// Skip custom volumes with filesystem content type.
-			// VMs are always of type block.
 			if vol.Type == db.StoragePoolVolumeTypeNameCustom && vol.ContentType == db.StoragePoolVolumeContentTypeNameFS {
 				continue
 			}
@@ -1289,16 +1285,12 @@ func patchStorageUnsetInvalidBlockSettings(_ string, d *Daemon) error {
 				continue
 			}
 
-			if vol.Type == db.StoragePoolVolumeTypeNameVM {
-				volType = volTypeVM
-			} else if vol.Type == db.StoragePoolVolumeTypeNameCustom {
-				volType = volTypeCustom
-			} else {
+			if vol.Type != db.StoragePoolVolumeTypeNameCustom {
 				// Should not happen.
 				continue
 			}
 
-			err = s.DB.Cluster.UpdateStoragePoolVolume(vol.Project, vol.Name, volType, pool, vol.Description, config)
+			err = s.DB.Cluster.UpdateStoragePoolVolume(vol.Project, vol.Name, volTypeCustom, pool, vol.Description, config)
 			if err != nil {
 				return fmt.Errorf("Failed updating volume %q in project %q on pool %q: %w", vol.Name, vol.Project, poolIDNameMap[pool], err)
 			}
