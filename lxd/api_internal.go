@@ -590,7 +590,8 @@ func internalSQLExec(tx *sql.Tx, query string, result *internalSQLResult) error 
 
 // internalImportFromBackup creates instance, storage pool and volume DB records from an instance's backup file.
 // It expects the instance volume to be mounted so that the backup.yaml file is readable.
-func internalImportFromBackup(s *state.State, projectName string, instName string, allowNameOverride bool, devices map[string]map[string]string) error {
+// Also accepts an optional map of device overrides.
+func internalImportFromBackup(s *state.State, projectName string, instName string, allowNameOverride bool, deviceOverrides map[string]map[string]string) error {
 	if instName == "" {
 		return fmt.Errorf("The name of the instance is required")
 	}
@@ -663,28 +664,6 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 		return err
 	}
 
-	// Override instance devices.
-	if len(devices) > 0 {
-		if backupConf.Container.Devices == nil {
-			backupConf.Container.Devices = map[string]map[string]string{}
-		}
-
-		for devName, devConfig := range devices {
-			if backupConf.Container.Devices[devName] == nil {
-				backupConf.Container.Devices[devName] = map[string]string{}
-			}
-
-			for k, v := range devConfig {
-				backupConf.Container.Devices[devName][k] = v
-			}
-		}
-
-		err = backup.OverrideConfigYamlFile(backupYamlPath, backupConf)
-		if err != nil {
-			return err
-		}
-	}
-
 	if allowNameOverride && instName != "" {
 		backupConf.Container.Name = instName
 	}
@@ -695,7 +674,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 
 	if backupConf.Pool == nil {
 		// We don't know what kind of storage type the pool is.
-		return fmt.Errorf(`No storage pool struct in the backup file found. The storage pool needs to be recovered manually`)
+		return fmt.Errorf("No storage pool struct in the backup file found. The storage pool needs to be recovered manually")
 	}
 
 	// Try to retrieve the storage pool the instance supposedly lives on.
@@ -794,7 +773,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 		return fmt.Errorf("Failed loading profiles for instance: %w", err)
 	}
 
-	// Add root device if needed.
+	// Initialise the devices maps.
 	if backupConf.Container.Devices == nil {
 		backupConf.Container.Devices = make(map[string]map[string]string, 0)
 	}
@@ -803,6 +782,33 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 		backupConf.Container.ExpandedDevices = make(map[string]map[string]string, 0)
 	}
 
+	// Apply device overrides.
+	// Do this before calling internalImportRootDevicePopulate so that device overrides are taken into account.
+	for deviceName := range deviceOverrides {
+		_, isLocalDevice := backupConf.Container.Devices[deviceName]
+		if isLocalDevice {
+			// Apply overrides to local device.
+			for k, v := range deviceOverrides[deviceName] {
+				backupConf.Container.Devices[deviceName][k] = v
+			}
+		} else {
+			// Check device exists in expanded profile devices.
+			profileDeviceConfig, found := backupConf.Container.ExpandedDevices[deviceName]
+			if !found {
+				return fmt.Errorf("Cannot override config for device %q: Device not found in profile devices", deviceName)
+			}
+
+			for k, v := range deviceOverrides[deviceName] {
+				profileDeviceConfig[k] = v
+			}
+
+			// Add device to local devices.
+			backupConf.Container.Devices[deviceName] = profileDeviceConfig
+		}
+	}
+
+	// Add root device if needed.
+	// And ensure root device is associated with same pool as instance has been imported to.
 	internalImportRootDevicePopulate(instancePoolName, backupConf.Container.Devices, backupConf.Container.ExpandedDevices, profiles)
 
 	revert := revert.New()
@@ -972,7 +978,7 @@ func internalImportRootDevicePopulate(instancePoolName string, localDevices map[
 	expandedRootName, expandedRootConfig, _ := instancetype.GetRootDiskDevice(expandedDevices)
 
 	// Extract root disk from expanded profile devices.
-	profileExpandedDevices := db.ExpandInstanceDevices(deviceConfig.NewDevices(localDevices), profiles)
+	profileExpandedDevices := instancetype.ExpandInstanceDevices(deviceConfig.NewDevices(localDevices), profiles)
 	profileExpandedRootName, profileExpandedRootConfig, _ := instancetype.GetRootDiskDevice(profileExpandedDevices.CloneNative())
 
 	// Record whether we need to add a new local disk device.

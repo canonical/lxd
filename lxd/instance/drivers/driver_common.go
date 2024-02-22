@@ -509,8 +509,8 @@ func (d *common) deviceVolatileSetFunc(devName string) func(save map[string]stri
 
 // expandConfig applies the config of each profile in order, followed by the local config.
 func (d *common) expandConfig() error {
-	d.expandedConfig = db.ExpandInstanceConfig(d.localConfig, d.profiles)
-	d.expandedDevices = db.ExpandInstanceDevices(d.localDevices, d.profiles)
+	d.expandedConfig = instancetype.ExpandInstanceConfig(d.localConfig, d.profiles)
+	d.expandedDevices = instancetype.ExpandInstanceDevices(d.localDevices, d.profiles)
 
 	return nil
 }
