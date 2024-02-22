@@ -16,10 +16,12 @@ However, this tool does not migrate any of the LXC container configuration.
 
 ## Get the tool
 
-If you're using the snap, the `lxc-to-lxd` is automatically installed.
-It is available as `lxd.lxc-to-lxd`.
+To get the `lxc-to-lxd` tool, you can download a pre-built binary:
 
-Otherwise, make sure that you have `go` ({ref}`requirements-go`) installed and get the tool with the following command:
+1. Download the `bin.linux.lxc-to-lxd` tool ([`bin.linux.lxc-to-lxd.aarch64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxc-to-lxd.aarch64) or [`bin.linux.lxc-to-lxd.x86_64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxc-to-lxd.x86_64)) from the **Assets** section of the latest [LXD release](https://github.com/canonical/lxd/releases).
+1. Save the binary as `lxc-to-lxd` and make it executable (usually by running `chmod u+x lxc-to-lxd`).
+
+If you have `go` ({ref}`requirements-go`) installed, you can build the tool with the following command:
 
     go install github.com/canonical/lxd/lxc-to-lxd@latest
 
@@ -38,30 +40,29 @@ Before you start the migration process, stop the LXC containers that you want to
 
 ## Start the migration process
 
-Run `sudo lxd.lxc-to-lxd [flags]` to migrate the containers.
-(This command assumes that you are using the snap; otherwise, replace `lxd.lxc-to-lxd` with `lxc-to-lxd`, also in the following examples.)
+Run `sudo lxc-to-lxd [flags]` to migrate the containers.
 
 For example, to migrate all containers:
 
-    sudo lxd.lxc-to-lxd --all
+    sudo lxc-to-lxd --all
 
 To migrate only the `lxc1` container:
 
-    sudo lxd.lxc-to-lxd --containers lxc1
+    sudo lxc-to-lxd --containers lxc1
 
 To migrate two containers (`lxc1` and `lxc2`) and use the `my-storage` storage pool in LXD:
 
-    sudo lxd.lxc-to-lxd --containers lxc1,lxc2 --storage my-storage
+    sudo lxc-to-lxd --containers lxc1,lxc2 --storage my-storage
 
 To test the migration of all containers without actually running it:
 
-    sudo lxd.lxc-to-lxd --all --dry-run
+    sudo lxc-to-lxd --all --dry-run
 
 To migrate all containers but limit the `rsync` bandwidth to 5000 KB/s:
 
-    sudo lxd.lxc-to-lxd --all --rsync-args --bwlimit=5000
+    sudo lxc-to-lxd --all --rsync-args --bwlimit=5000
 
-Run `sudo lxd.lxc-to-lxd --help` to check all available flags.
+Run `sudo lxc-to-lxd --help` to check all available flags.
 
 ```{note}
 If you get an error that the `linux64` architecture isn't supported, either update the tool to the latest version or change the architecture in the LXC container configuration from `linux64` to either `amd64` or `x86_64`.
