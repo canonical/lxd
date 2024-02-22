@@ -664,7 +664,7 @@ func deviceEventListener(stateFunc func() *state.State) {
 			logger.Debugf("Scheduler: network: %s has been added: updating network priorities", e[0])
 			err = networkAutoAttach(s.DB.Cluster, e[0])
 			if err != nil {
-				logger.Warn("Failed to auto-attach network", logger.Ctx{"err": err})
+				logger.Warn("Failed to auto-attach network", logger.Ctx{"err": err, "dev": e[0]})
 			}
 
 		case e := <-chUSB:
