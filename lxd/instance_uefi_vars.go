@@ -186,6 +186,10 @@ func instanceUEFIVarsPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("UEFI variables manipulation supported for VM type instances only"))
 	}
 
+	if inst.IsRunning() {
+		return response.BadRequest(fmt.Errorf("UEFI variables editing is allowed for stopped VM instances only"))
+	}
+
 	instanceUEFI, err := inst.(instance.VM).UEFIVars()
 	if err != nil {
 		return response.SmartError(err)
