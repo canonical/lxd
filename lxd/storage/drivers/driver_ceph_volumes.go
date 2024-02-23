@@ -804,15 +804,20 @@ func (d *ceph) FillVolumeConfig(vol Volume) error {
 	// Only validate filesystem config keys for filesystem volumes or VM block volumes (which have an
 	// associated filesystem volume).
 	if vol.ContentType() == ContentTypeFS || vol.IsVMBlock() {
-		// Inherit filesystem from pool if not set.
-		if vol.config["block.filesystem"] == "" {
-			vol.config["block.filesystem"] = d.config["volume.block.filesystem"]
-		}
-
-		// Default filesystem if neither volume nor pool specify an override.
-		if vol.config["block.filesystem"] == "" {
-			// Unchangeable volume property: Set unconditionally.
+		// VM volumes will always use the default filesystem.
+		if vol.IsVMBlock() {
 			vol.config["block.filesystem"] = DefaultFilesystem
+		} else {
+			// Inherit filesystem from pool if not set.
+			if vol.config["block.filesystem"] == "" {
+				vol.config["block.filesystem"] = d.config["volume.block.filesystem"]
+			}
+
+			// Default filesystem if neither volume nor pool specify an override.
+			if vol.config["block.filesystem"] == "" {
+				// Unchangeable volume property: Set unconditionally.
+				vol.config["block.filesystem"] = DefaultFilesystem
+			}
 		}
 
 		// Inherit filesystem mount options from pool if not set.
