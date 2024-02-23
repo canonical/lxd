@@ -633,7 +633,7 @@ test_container_devices_nic_bridged() {
   lxc copy "${ctName}" foo # Gets new MAC address but IPs still conflict.
   ! stat "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" || false
   lxc snapshot foo
-  lxc export foo foo.tar.gz
+  lxc export foo foo.tar.gz # Export in pristine state for import tests below.
   ! lxc start foo || false
   lxc config device set foo eth0 \
     ipv4.address=192.0.2.233 \
@@ -682,9 +682,16 @@ test_container_devices_nic_bridged() {
 
   # Check MAC conflict detection:
   ! lxc config device set "${ctName}" eth0 hwaddr="0a:92:a7:0d:b7:c9" || false
+  lxc delete -f foo
+
+  # Test container can be imported with device override to fix conflict.
+  lxc import foo.tar.gz --device eth0,ipv4.address=192.0.2.233 --device eth0,ipv6.address=2001:db8::3
+  lxc config device get foo eth0 ipv4.address | grep -Fx '192.0.2.233'
+  lxc config device get foo eth0 ipv6.address | grep -Fx '2001:db8::3'
+  lxc start foo
+  lxc delete -f foo
 
   # Test container with conflicting addresses rebuilds DHCP lease if original conflicting instance is removed.
-  lxc delete -f foo
   ! stat "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" || false
   lxc import foo.tar.gz
   rm foo.tar.gz
