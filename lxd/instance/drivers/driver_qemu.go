@@ -2595,6 +2595,22 @@ func (d *qemu) UEFIVars() (*api.InstanceUEFIVars, error) {
 
 	uefiVarsPath := d.nvramPath()
 
+	// Initialise the NVRAM file if doesn't exist so we return the default variables.
+	if !shared.PathExists(uefiVarsPath) {
+		// Ensure that a VM start or update isn't in progress.
+		instOp, err := d.LockExclusive()
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting exclusive access instance: %w", err)
+		}
+
+		defer instOp.Done(err)
+
+		err = d.setupNvram()
+		if err != nil {
+			return nil, fmt.Errorf("Failed setting up NVRAM: %w", err)
+		}
+	}
+
 	instanceUEFI, err := uefi.UEFIVars(d.state.OS, uefiVarsPath)
 	if err != nil {
 		return nil, err
