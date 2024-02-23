@@ -112,6 +112,19 @@ jobs:
           set -eux
           make
 
+      - name: Build lxc-to-lxd binaries
+        run: |
+          set -eux
+          GOARCH=amd64 go build -ldflags "-s -w" -o trimpath -o bin/lxc-to-lxd.x86_64 ./lxc-to-lxd
+          GOARCH=arm64 go build -ldflags "-s -w" -o trimpath -o bin/lxc-to-lxd.aarch64 ./lxc-to-lxd
+
+      - name: Upload lxc-to-lxd artifacts
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: ${{ runner.os }}-lxc-to-lxd
+          path: bin/
+
       - name: Run static analysis
         env:
           GITHUB_BEFORE: ${{ github.event.before }}
