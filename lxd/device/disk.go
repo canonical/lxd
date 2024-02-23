@@ -159,6 +159,11 @@ func (d *disk) checkBlockVolSharing(instanceType instancetype.Type, projectName 
 	}
 
 	err := storagePools.VolumeUsedByInstanceDevices(d.state, d.pool.Name(), projectName, volume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+		// Don't count the current instance.
+		if d.inst != nil && d.inst.Project().Name == inst.Project && d.inst.Name() == inst.Name {
+			return nil
+		}
+
 		return db.ErrListStop
 	})
 	if err != nil {
