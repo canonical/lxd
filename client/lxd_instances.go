@@ -569,6 +569,13 @@ func (r *ProtocolLXD) CreateInstanceFromBackup(args InstanceBackupArgs) (Operati
 		}
 	}
 
+	if len(args.Devices) > 0 {
+		err = r.CheckExtension("import_instance_devices")
+		if err != nil {
+			return nil, fmt.Errorf("Cannot use device override: %w", err)
+		}
+	}
+
 	// Prepare the HTTP request
 	reqURL, err := r.setQueryAttributes(fmt.Sprintf("%s/1.0%s", r.httpBaseURL.String(), path))
 	if err != nil {
