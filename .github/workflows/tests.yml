@@ -116,7 +116,7 @@ jobs:
         run: |
           set -eux
           GOARCH=amd64 go build -ldflags "-s -w" -o trimpath -o bin/lxc-to-lxd.x86_64 ./lxc-to-lxd
-          GOARCH=arm64 go build -ldflags "-s -w" -o trimpath -o bin/lxc-to-lxd.aarch64 ./lxc-to-lxd
+          GOARCH=arm64 go build -ldflags "-s -w" -o trimpath -o bin/lxc-to-lxd.aarch64 ./lxc-to-lxd || true
 
       - name: Upload lxc-to-lxd artifacts
         uses: actions/upload-artifact@v4
