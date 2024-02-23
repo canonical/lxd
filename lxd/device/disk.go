@@ -471,6 +471,11 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 				usedByInstance := false
 
 				err = storagePools.VolumeUsedByInstanceDevices(d.state, d.pool.Name(), storageProjectName, &dbVolume.StorageVolume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+					// Don't count the current instance.
+					if d.inst != nil && d.inst.Project().Name == inst.Project && d.inst.Name() == inst.Name {
+						return nil
+					}
+
 					usedByInstance = true
 
 					return db.ErrListStop
