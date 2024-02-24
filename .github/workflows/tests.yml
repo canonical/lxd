@@ -409,6 +409,15 @@ jobs:
         run: |
           go build -ldflags "-s -w" -o trimpath -o bin/lxc.aarch64 ./lxc
 
+      - name: Build static lxd-benchmark
+        if: runner.os == 'Linux'
+        env:
+          CGO_ENABLED: 0
+        run: |
+          set -eux
+          GOARCH=amd64 go build -ldflags "-s -w" -o trimpath -o bin/lxd-benchmark.x86_64 ./lxd-benchmark
+          GOARCH=arm64 go build -ldflags "-s -w" -o trimpath -o bin/lxd-benchmark.aarch64 ./lxd-benchmark
+
       - name: Build static lxd-migrate
         if: runner.os == 'Linux'
         env:
