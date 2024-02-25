@@ -33,6 +33,10 @@ func (c *cmdStart) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Start instances`))
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return c.global.cmpInstances(toComplete)
+	}
+
 	return cmd
 }
 
@@ -54,6 +58,10 @@ func (c *cmdPause) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Pause instances`))
 	cmd.Aliases = []string{"freeze"}
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return c.global.cmpInstances(toComplete)
+	}
 
 	return cmd
 }
@@ -78,6 +86,10 @@ func (c *cmdRestart) command() *cobra.Command {
 
 The opposite of "lxc pause" is "lxc start".`))
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return c.global.cmpInstances(toComplete)
+	}
+
 	return cmd
 }
 
@@ -98,6 +110,10 @@ func (c *cmdStop) command() *cobra.Command {
 	cmd.Short = i18n.G("Stop instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Stop instances`))
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return c.global.cmpInstances(toComplete)
+	}
 
 	return cmd
 }
