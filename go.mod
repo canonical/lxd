@@ -8,7 +8,7 @@ replace github.com/minio/minio-go/v7 => github.com/minio/minio-go/v7 v7.0.66
 require (
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.1.0
-	github.com/canonical/candid v1.12.2
+	github.com/canonical/candid v1.12.3
 	github.com/canonical/go-dqlite v1.21.0
 	github.com/checkpoint-restore/go-criu/v6 v6.3.0
 	github.com/digitalocean/go-qemu v0.0.0-20230711162256-2e3d0186973e
@@ -105,6 +105,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.1.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
+	github.com/prometheus/client_model v0.4.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/fastuuid v1.2.0 // indirect
 	github.com/rs/xid v1.5.0 // indirect
@@ -126,6 +127,7 @@ require (
 	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/tools v0.18.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240116215550-a9fa1716bcac // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240205150955-31a09d347014 // indirect
 	google.golang.org/grpc v1.61.0 // indirect
 	gopkg.in/errgo.v1 v1.0.1 // indirect
