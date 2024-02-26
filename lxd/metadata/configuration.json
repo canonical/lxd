@@ -176,7 +176,7 @@
 					{
 						"migration.stateful": {
 							"condition": "virtual machine",
-							"defaultdesc": "`false`",
+							"defaultdesc": "`false` or value from profiles or `instances.migration.stateful` (if set)",
 							"liveupdate": "no",
 							"longdesc": "Enabling this option prevents the use of some features that are incompatible with it.",
 							"shortdesc": "Whether to allow for stateful stop/start and snapshots",
@@ -1806,6 +1806,14 @@
 							"scope": "global",
 							"shortdesc": "Compression algorithm to use for backups",
 							"type": "string"
+						}
+					},
+					{
+						"instances.migration.stateful": {
+							"longdesc": "You can override this setting for relevant instances, either in the instance-specific configuration or through a profile.",
+							"scope": "global",
+							"shortdesc": "Whether to set `migration.stateful` to `true` for the instances",
+							"type": "bool"
 						}
 					},
 					{
