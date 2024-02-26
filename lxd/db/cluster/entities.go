@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
@@ -44,6 +45,12 @@ const (
 	entityTypeWarning               int64 = 16
 	entityTypeClusterGroup          int64 = 17
 	entityTypeStorageBucket         int64 = 18
+	entityTypeNetworkZone           int64 = 19
+	entityTypeImageAlias            int64 = 20
+	entityTypeServer                int64 = 21
+	entityTypeGroup                 int64 = 22
+	entityTypeIdentityProviderGroup int64 = 23
+	entityTypeIdentity              int64 = 24
 )
 
 // Scan implements sql.Scanner for EntityType. This converts the integer value back into the correct entity.Type
@@ -105,6 +112,12 @@ func (e *EntityType) Scan(value any) error {
 		*e = EntityType(entity.TypeClusterGroup)
 	case entityTypeStorageBucket:
 		*e = EntityType(entity.TypeStorageBucket)
+	case entityTypeNetworkZone:
+		*e = EntityType(entity.TypeNetworkZone)
+	case entityTypeImageAlias:
+		*e = EntityType(entity.TypeImageAlias)
+	case entityTypeServer:
+		*e = EntityType(entity.TypeServer)
 	default:
 		return fmt.Errorf("Unknown entity type %d", entityTypeInt)
 	}
@@ -155,6 +168,12 @@ func (e EntityType) Value() (driver.Value, error) {
 		return entityTypeClusterGroup, nil
 	case EntityType(entity.TypeStorageBucket):
 		return entityTypeStorageBucket, nil
+	case EntityType(entity.TypeNetworkZone):
+		return entityTypeNetworkZone, nil
+	case EntityType(entity.TypeImageAlias):
+		return entityTypeImageAlias, nil
+	case EntityType(entity.TypeServer):
+		return entityTypeServer, nil
 	default:
 		return nil, fmt.Errorf("Unknown entity type %q", e)
 	}
@@ -257,6 +276,24 @@ var networkACLEntityByID = fmt.Sprintf(`%s WHERE networks_acls.id = ?`, networkA
 
 // networkACLEntities returns all entities of type entity.TypeNetworkACL in a particular project.
 var networkACLEntitiesByProjectName = fmt.Sprintf(`%s WHERE projects.name = ?`, networkACLEntities)
+
+// networkZoneEntities returns all entities of type entity.TypeNetworkZone.
+var networkZoneEntities = fmt.Sprintf(`SELECT %d, networks_zones.id, projects.name, '', json_array(networks_zones.name) FROM networks_zones JOIN projects ON networks_zones.project_id = projects.id`, entityTypeNetworkZone)
+
+// networkZoneEntityByID gets the entity of type entity.TypeNetworkZone with a particular ID.
+var networkZoneEntityByID = fmt.Sprintf(`%s WHERE networks_zones.id = ?`, networkZoneEntities)
+
+// networkZoneEntitiesByProjectName returns all entities of type entity.TypeNetworkZone in a particular project.
+var networkZoneEntitiesByProjectName = fmt.Sprintf(`%s WHERE projects.name = ?`, networkZoneEntities)
+
+// imageAliasEntities returns all entities of type entity.TypeImageAlias.
+var imageAliasEntities = fmt.Sprintf(`SELECT %d, images_aliases.id, projects.name, '', json_array(images_aliases.name) FROM images_aliases JOIN projects ON images_aliases.project_id = projects.id`, entityTypeImageAlias)
+
+// imageAliasEntityByID gets the entity of type entity.TypeImageAlias with a particular ID.
+var imageAliasEntityByID = fmt.Sprintf(`%s WHERE images_aliases.id = ?`, imageAliasEntities)
+
+// imageAliasEntitiesByProjectName returns all the entities of type entity.TypeImageAlias in a particular project.
+var imageAliasEntitiesByProjectName = fmt.Sprintf(`%s WHERE projects.name = ?`, imageAliasEntities)
 
 // nodeEntities returns all entities of type entity.TypeNode.
 var nodeEntities = fmt.Sprintf(`SELECT %d, nodes.id, '', '', json_array(nodes.name) FROM nodes`, entityTypeNode)
@@ -440,6 +477,8 @@ var entityStatementsAll = map[entity.Type]string{
 	entity.TypeWarning:               warningEntities,
 	entity.TypeClusterGroup:          clusterGroupEntities,
 	entity.TypeStorageBucket:         storageBucketEntities,
+	entity.TypeImageAlias:            imageAliasEntities,
+	entity.TypeNetworkZone:           networkZoneEntities,
 }
 
 // entityStatementsByID is a map of entity type to the statement which queries for all URL information for a single entity of that type with a given ID.
@@ -463,6 +502,8 @@ var entityStatementsByID = map[entity.Type]string{
 	entity.TypeWarning:               warningEntityByID,
 	entity.TypeClusterGroup:          clusterGroupEntityByID,
 	entity.TypeStorageBucket:         storageBucketEntityByID,
+	entity.TypeImageAlias:            imageAliasEntityByID,
+	entity.TypeNetworkZone:           networkZoneEntityByID,
 }
 
 // entityStatementsByProjectName is a map of entity type to the statement which queries for all URL information for all entities of that type within a given project.
@@ -481,6 +522,8 @@ var entityStatementsByProjectName = map[entity.Type]string{
 	entity.TypeStorageVolumeSnapshot: storageVolumeSnapshotEntitiesByProjectName,
 	entity.TypeWarning:               warningEntitiesByProjectName,
 	entity.TypeStorageBucket:         storageBucketEntitiesByProjectName,
+	entity.TypeImageAlias:            imageAliasEntitiesByProjectName,
+	entity.TypeNetworkZone:           networkZoneEntitiesByProjectName,
 }
 
 // entityRef represents the expected format of entity URL queries.
@@ -520,6 +563,10 @@ func (e *entityRef) getURL() (*api.URL, error) {
 
 // GetEntityURL returns the *api.URL of a single entity by its type and ID.
 func GetEntityURL(ctx context.Context, tx *sql.Tx, entityType entity.Type, entityID int) (*api.URL, error) {
+	if entityType == entity.TypeServer {
+		return entity.ServerURL(), nil
+	}
+
 	stmt, ok := entityStatementsByID[entityType]
 	if !ok {
 		return nil, fmt.Errorf("Could not get entity URL: No statement found for entity type %q", entityType)
@@ -548,6 +595,18 @@ func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, entityTy
 	var args []any
 	result := make(map[entity.Type]map[int]*api.URL)
 
+	// If the server entity type is in the list of entity types, or if we are getting all entity types and
+	// not filtering by project, we need to add a server URL to the result. The entity ID of the server entity type is
+	// always zero.
+	if shared.ValueInSlice(entity.TypeServer, entityTypes) || (len(entityTypes) == 0 && projectName == "") {
+		result[entity.TypeServer] = map[int]*api.URL{0: entity.ServerURL()}
+
+		// Return early if there are no other entity types in the list (no queries to execute).
+		if len(entityTypes) == 1 {
+			return result, nil
+		}
+	}
+
 	// Collate all the statements we need.
 	// If the project is not empty, each statement will need an argument for the project name.
 	// Additionally, pre-populate the result map as we know the entity types in advance (this is so that we don't have
@@ -565,6 +624,11 @@ func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, entityTy
 		}
 	} else if projectName == "" {
 		for _, entityType := range entityTypes {
+			// We've already added the server url to the result.
+			if entityType == entity.TypeServer {
+				continue
+			}
+
 			stmt, ok := entityStatementsAll[entityType]
 			if !ok {
 				return nil, fmt.Errorf("Could not get entity URLs: No statement found for entity type %q", entityType)
@@ -575,6 +639,11 @@ func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, entityTy
 		}
 	} else {
 		for _, entityType := range entityTypes {
+			// We've already added the server url to the result.
+			if entityType == entity.TypeServer {
+				continue
+			}
+
 			stmt, ok := entityStatementsByProjectName[entityType]
 			if !ok {
 				return nil, fmt.Errorf("Could not get entity URLs: No statement found for entity type %q", entityType)
