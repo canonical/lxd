@@ -704,7 +704,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		err = project.AllowVolumeCreation(tx, projectName, req)
+		err = project.AllowVolumeCreation(s.GlobalConfig, tx, projectName, req)
 		if err != nil {
 			return err
 		}
@@ -1883,7 +1883,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		if req.Config != nil || req.Restore == "" {
 			// Possibly check if project limits are honored.
 			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return project.AllowVolumeUpdate(tx, projectName, volumeName, req, dbVolume.Config)
+				return project.AllowVolumeUpdate(s.GlobalConfig, tx, projectName, volumeName, req, dbVolume.Config)
 			})
 			if err != nil {
 				return response.SmartError(err)

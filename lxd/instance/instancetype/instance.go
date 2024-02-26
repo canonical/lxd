@@ -912,7 +912,7 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	// Enabling this option prevents the use of some features that are incompatible with it.
 	// ---
 	//  type: bool
-	//  defaultdesc: `false`
+	//  defaultdesc: `false` or value from profiles or `instances.migration.stateful` (if set)
 	//  liveupdate: no
 	//  condition: virtual machine
 	//  shortdesc: Whether to allow for stateful stop/start and snapshots

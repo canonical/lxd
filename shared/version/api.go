@@ -397,6 +397,7 @@ var APIExtensions = []string{
 	"storage_volatile_uuid",
 	"import_instance_devices",
 	"instances_uefi_vars",
+	"instances_migration_stateful",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

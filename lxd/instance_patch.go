@@ -200,7 +200,7 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 			apiProfiles = append(apiProfiles, *apiProfile)
 		}
 
-		return projecthelpers.AllowInstanceUpdate(tx, projectName, name, req, c.LocalConfig())
+		return projecthelpers.AllowInstanceUpdate(s.GlobalConfig, tx, projectName, name, req, c.LocalConfig())
 	})
 	if err != nil {
 		return response.SmartError(err)

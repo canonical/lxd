@@ -148,7 +148,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 				apiProfiles = append(apiProfiles, *apiProfile)
 			}
 
-			return projecthelpers.AllowInstanceUpdate(tx, projectName, name, configRaw, inst.LocalConfig())
+			return projecthelpers.AllowInstanceUpdate(s.GlobalConfig, tx, projectName, name, configRaw, inst.LocalConfig())
 		})
 		if err != nil {
 			return response.SmartError(err)
