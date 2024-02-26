@@ -25,6 +25,7 @@ import (
 	liblxc "github.com/lxc/go-lxc"
 	"golang.org/x/sys/unix"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/acme"
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/auth"
@@ -46,6 +47,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/loki"
 	"github.com/canonical/lxd/lxd/maas"
 	networkZone "github.com/canonical/lxd/lxd/network/zone"
@@ -363,7 +365,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 			return false, "", "", nil, fmt.Errorf("Failed OIDC Authentication: %w", err)
 		}
 
-		err = d.handleOIDCAuthenticationResult(result)
+		err = d.handleOIDCAuthenticationResult(r, result)
 		if err != nil {
 			return false, "", "", nil, fmt.Errorf("Failed to process OIDC authentication result: %w", err)
 		}
@@ -398,7 +400,9 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 // handleOIDCAuthenticationResult checks the identity cache for the OIDC identity by their email address. If no identity
 // is found, an identity is added with that email. If an identity is found but the OIDC subject is different to the
 // expected value, the identity is updated with the new subject.
-func (d *Daemon) handleOIDCAuthenticationResult(result *oidc.AuthenticationResult) error {
+func (d *Daemon) handleOIDCAuthenticationResult(r *http.Request, result *oidc.AuthenticationResult) error {
+	var action lifecycle.IdentityAction
+
 	id, err := d.identityCache.Get(api.AuthenticationMethodOIDC, result.Email)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return fmt.Errorf("Failed getting OIDC identity from cache: %w", err)
@@ -424,7 +428,7 @@ func (d *Daemon) handleOIDCAuthenticationResult(result *oidc.AuthenticationResul
 			return fmt.Errorf("Failed to add new OIDC identity to database: %w", err)
 		}
 
-		updateIdentityCache(d)
+		action = lifecycle.IdentityCreated
 	} else if id.Subject != result.Subject || id.Name != result.Name {
 		// The OIDC subject of the user with this email address has changed (this should be rare). Replace the
 		// subject in the identity metadata and refresh the cache.
@@ -447,7 +451,29 @@ func (d *Daemon) handleOIDCAuthenticationResult(result *oidc.AuthenticationResul
 			return fmt.Errorf("Failed to update OIDC identity information: %w", err)
 		}
 
-		updateIdentityCache(d)
+		action = lifecycle.IdentityUpdated
+	}
+
+	if action != "" {
+		// Notify other nodes about the new identity.
+		s := d.State()
+		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+		if err != nil {
+			return fmt.Errorf("Failed to notify cluster members of new or updated OIDC identity: %w", err)
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
+			return err
+		})
+		if err != nil {
+			return fmt.Errorf("Failed to notify cluster members of new or updated OIDC identity: %w", err)
+		}
+
+		lc := action.Event(api.AuthenticationMethodOIDC, result.Email, request.CreateRequestor(r), nil)
+		s.Events.SendLifecycle(api.ProjectDefaultName, lc)
+
+		s.UpdateIdentityCache()
 	}
 
 	return nil
