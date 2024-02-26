@@ -29,6 +29,7 @@ The following optional features also require extra kernel options or newer versi
 
 As well as any other kernel feature required by the LXC version in use.
 
+(requirements-lxc)=
 ## LXC
 
 LXD requires LXC 5.0.0 or higher with the following build options:
