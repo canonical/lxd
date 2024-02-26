@@ -2535,3 +2535,8 @@ Adds a new {config:option}`device-unix-hotplug-device-conf:ownership.inherit` co
 ## `unix_device_hotplug_subsystem_device_option`
 
 Adds a new {config:option}`device-unix-hotplug-device-conf:subsystem` configuration option for `unix-hotplug` devices. This adds support for detecting `unix-hotplug` devices by subsystem, and can be used in conjunction with {config:option}`device-unix-hotplug-device-conf:productid` and {config:option}`device-unix-hotplug-device-conf:vendorid`.
+
+## `projects_force_delete`
+
+This extends `DELETE /1.0/projects` to allow `?force=true` which will
+delete everything inside of the project along with the project itself.
