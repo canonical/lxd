@@ -119,4 +119,6 @@ const (
 	EventLifecycleWarningAcknowledged               = "warning-acknowledged"
 	EventLifecycleWarningDeleted                    = "warning-deleted"
 	EventLifecycleWarningReset                      = "warning-reset"
+	EventLifecycleIdentityCreated                   = "identity-created"
+	EventLifecycleIdentityUpdated                   = "identity-updated"
 )
