@@ -31,6 +31,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   /snap/lxd/*/lib/**.so* mr,
 
   # Snap-specific Python locations
+  /snap/lxd/*/bin**/ r,
   /snap/lxd/*/bin**/*.py r,
   /snap/lxd/*/usr/lib/python** r,
   /snap/lxd/*/lib/python** r,
