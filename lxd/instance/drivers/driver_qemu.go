@@ -8623,6 +8623,34 @@ func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]any) er
 	return nil
 }
 
+func (d *qemu) devlxdDeviceRemove(deviceType string, deviceName string, deviceConfig map[string]string, deviceVolatile map[string]string) error {
+	agentDevice := shared.Jmap{}
+	agentDevice["type"] = deviceType
+	agentDevice["config"] = deviceConfig
+	agentDevice["name"] = deviceName
+	agentDevice["volatile"] = deviceVolatile
+
+	client, err := d.getAgentClient()
+	if err != nil {
+		return err
+	}
+
+	agent, err := lxd.ConnectLXDHTTP(nil, client)
+	if err != nil {
+		d.logger.Error("Failed to connect to lxd-agent", logger.Ctx{"err": err})
+		return fmt.Errorf("Failed to connect to lxd-agent")
+	}
+
+	defer agent.Disconnect()
+
+	_, _, err = agent.RawQuery("DELETE", "/1.0/devices", &agentDevice, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Info returns "qemu" and the currently loaded qemu version.
 func (d *qemu) Info() instance.Info {
 	data := instance.Info{
