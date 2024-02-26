@@ -199,7 +199,7 @@ var profileEntities = fmt.Sprintf(`SELECT %d, profiles.id, projects.name, '', js
 var profileEntityByID = fmt.Sprintf(`%s WHERE profiles.id = ?`, profileEntities)
 
 // profileEntities returns all entities of type entity.TypeProfile in a particular project.
-var profileEntitiesByProjectName = fmt.Sprintf(`%s WHERE profiles.id = ?`, profileEntities)
+var profileEntitiesByProjectName = fmt.Sprintf(`%s WHERE projects.name = ?`, profileEntities)
 
 // projectEntities returns all entities of type entity.TypeProject.
 var projectEntities = fmt.Sprintf(`SELECT %d, projects.id, '', '', json_array(projects.name) FROM projects`, entityTypeProject)
@@ -413,7 +413,7 @@ FROM storage_buckets
 `, entityTypeStorageBucket,
 )
 
-// storageBucketEntities gets the entity of type entity.TypeStorageBucket with a particular ID.
+// storageBucketEntityByID gets the entity of type entity.TypeStorageBucket with a particular ID.
 var storageBucketEntityByID = fmt.Sprintf(`%s WHERE storage_buckets.id = ?`, storageBucketEntities)
 
 // storageBucketEntities returns all entities of type entity.TypeStorageBucket in a particular project.
