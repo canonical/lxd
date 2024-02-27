@@ -284,6 +284,8 @@ To import an export file, use the following command:
 If you do not specify an instance name, the original name of the exported instance is used for the new instance.
 If an instance with that name already (or still) exists in the specified storage pool, the command returns an error.
 In that case, either delete the existing instance before importing the backup or specify a different instance name for the import.
+
+Add the `--storage` flag to specify which storage pool to use, or the `--device` flag to override the device configuration (syntax: `--device <device_name>,<device_option>=<value>`).
 ```
 ```{group-tab} API
 To import an export file, post it to the `/1.0/instances` endpoint:
