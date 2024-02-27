@@ -62,6 +62,7 @@ var apiInternal = []APIEndpoint{
 	internalShutdownCmd,
 	internalSQLCmd,
 	internalWarningCreateCmd,
+	internalIdentityCacheRefreshCmd,
 }
 
 var internalShutdownCmd = APIEndpoint{
@@ -135,6 +136,12 @@ var internalBGPStateCmd = APIEndpoint{
 	Path: "testing/bgp",
 
 	Get: APIEndpointAction{Handler: internalBGPState, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+}
+
+var internalIdentityCacheRefreshCmd = APIEndpoint{
+	Path: "identity-cache-refresh",
+
+	Post: APIEndpointAction{Handler: internalIdentityCacheRefresh, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 type internalImageOptimizePost struct {
@@ -1082,4 +1089,10 @@ func internalBGPState(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	return response.SyncResponse(true, s.BGP.Debug())
+}
+
+func internalIdentityCacheRefresh(d *Daemon, r *http.Request) response.Response {
+	logger.Debug("Received identity cache update notification - refreshing cache")
+	d.State().UpdateIdentityCache()
+	return response.EmptySyncResponse
 }
