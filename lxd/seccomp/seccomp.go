@@ -636,8 +636,6 @@ func InstanceNeedsPolicy(c Instance) bool {
 		"raw.seccomp",
 		"security.syscalls.allow",
 		"security.syscalls.deny",
-		"security.syscalls.whitelist",
-		"security.syscalls.blacklist",
 	}
 
 	for _, k := range keys {
@@ -650,7 +648,6 @@ func InstanceNeedsPolicy(c Instance) bool {
 	// Check for boolean keys that default to false
 	keys = []string{
 		"security.syscalls.deny_compat",
-		"security.syscalls.blacklist_compat",
 		"security.syscalls.intercept.mknod",
 		"security.syscalls.intercept.sched_setscheduler",
 		"security.syscalls.intercept.setxattr",
@@ -667,10 +664,6 @@ func InstanceNeedsPolicy(c Instance) bool {
 
 	// Check for boolean keys that default to true
 	value, ok := config["security.syscalls.deny_default"]
-	if !ok {
-		value, ok = config["security.syscalls.blacklist_default"]
-	}
-
 	if !ok || shared.IsTrue(value) {
 		return true
 	}
@@ -744,30 +737,22 @@ func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 	// Policy header
 	policy := seccompHeader
 	allowlist := config["security.syscalls.allow"]
-	if allowlist == "" {
-		allowlist = config["security.syscalls.whitelist"]
-	}
 
 	if allowlist != "" {
-		if s.OS.LXCFeatures["seccomp_allow_deny_syntax"] {
-			policy += "allowlist\n[all]\n"
-		} else {
-			policy += "whitelist\n[all]\n"
+		if !s.OS.LXCFeatures["seccomp_allow_deny_syntax"] {
+			return "", fmt.Errorf("Unable to configure allowlist, liblxc is does not support: %q", "seccomp_allow_deny_syntax")
 		}
 
+		policy += "allowlist\n[all]\n"
 		policy += allowlist
 	} else {
-		if s.OS.LXCFeatures["seccomp_allow_deny_syntax"] {
-			policy += "denylist\n[all]\n"
-		} else {
-			policy += "blacklist\n[all]\n"
+		if !s.OS.LXCFeatures["seccomp_allow_deny_syntax"] {
+			return "", fmt.Errorf("Unable to configure denylist, liblxc is does not support: %q", "seccomp_allow_deny_syntax")
 		}
+
+		policy += "denylist\n[all]\n"
 
 		defaultFlag, ok := config["security.syscalls.deny_default"]
-		if !ok {
-			defaultFlag, ok = config["security.syscalls.blacklist_default"]
-		}
-
 		if !ok || shared.IsTrue(defaultFlag) {
 			policy += defaultSeccompPolicy
 		}
@@ -819,11 +804,7 @@ func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 	}
 
 	// Additional deny entries
-	compat, ok := config["security.syscalls.deny_compat"]
-	if !ok {
-		compat = config["security.syscalls.blacklist_compat"]
-	}
-
+	compat := config["security.syscalls.deny_compat"]
 	if shared.IsTrue(compat) {
 		arch, err := osarch.ArchitectureName(c.Architecture())
 		if err != nil {
@@ -833,11 +814,7 @@ func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 		policy += fmt.Sprintf(compatBlockingPolicy, arch)
 	}
 
-	denylist, ok := config["security.syscalls.deny"]
-	if !ok {
-		denylist = config["security.syscalls.blacklist"]
-	}
-
+	denylist := config["security.syscalls.deny"]
 	if denylist != "" {
 		policy += denylist
 	}
