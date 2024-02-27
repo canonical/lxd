@@ -216,7 +216,7 @@ html_theme_options = {
 
 # Download and link swagger-ui files
 if not os.path.isdir('.sphinx/deps/swagger-ui'):
-    Repo.clone_from('https://github.com/swagger-api/swagger-ui', '.sphinx/deps/swagger-ui', depth=1)
+    Repo.clone_from('https://github.com/swagger-api/swagger-ui', '.sphinx/deps/swagger-ui', depth=1, single_branch=True, b='v5.11.7')
 
 os.makedirs('.sphinx/_static/swagger-ui/', exist_ok=True)
 
