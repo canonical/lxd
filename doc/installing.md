@@ -165,7 +165,7 @@ To download a specific build:
 
 Follow these instructions if you want to build and install LXD from the source code.
 
-We recommend having the latest versions of `liblxc` (>= 4.0.0 required)
+We recommend having the latest versions of `liblxc` (see {ref}`LXC requirements <requirements-lxc>`)
 available for LXD development. Additionally, LXD requires a modern Golang (see {ref}`requirements-go`)
 version to work. On Ubuntu, you can get those with:
 
@@ -179,8 +179,8 @@ sudo snap install --classic go
 ```{note}
 If you use the `liblxc-dev` package and get compile time errors when building the `go-lxc` module,
 ensure that the value for `LXC_DEVEL` is `0` for your `liblxc` build. To check that, look at `/usr/include/lxc/version.h`.
-If the `LXC_DEVEL` value is `1`, replace it with `0` to work around the problem. It's a packaging bug, and
-we are aware of it for Ubuntu 22.04 onward, see [LP: #2039873](https://bugs.launchpad.net/ubuntu/+source/lxc/+bug/2039873).
+If the `LXC_DEVEL` value is `1`, replace it with `0` to work around the problem. It's a packaging bug that is now fixed,
+see [LP: #2039873](https://bugs.launchpad.net/ubuntu/+source/lxc/+bug/2039873).
 ```
 
 There are a few storage drivers for LXD besides the default `dir` driver.
