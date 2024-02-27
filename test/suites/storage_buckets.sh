@@ -118,7 +118,7 @@ test_storage_buckets() {
 
   # Test putting a file into a bucket.
   lxdTestFile="bucketfile_${bucketPrefix}.txt"
-  head -c 2M /dev/urandom > "${lxdTestFile}"
+  head -c 5M /dev/urandom > "${lxdTestFile}"
   s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" put "${lxdTestFile}" "s3://${bucketPrefix}.foo"
   ! s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" put "${lxdTestFile}" "s3://${bucketPrefix}.foo" || false
 
