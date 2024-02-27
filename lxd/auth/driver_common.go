@@ -37,6 +37,8 @@ type requestDetails struct {
 	isAllProjectsRequest bool
 	projectName          string
 	isPKI                bool
+	idpGroups            []string
+	forwardedIDPGroups   []string
 }
 
 func (r *requestDetails) isInternalOrUnix() bool {
@@ -65,6 +67,14 @@ func (r *requestDetails) authenticationProtocol() string {
 	}
 
 	return r.protocol
+}
+
+func (r *requestDetails) identityProviderGroups() []string {
+	if r.protocol == "cluster" {
+		return r.forwardedIDPGroups
+	}
+
+	return r.idpGroups
 }
 
 func (c *commonAuthorizer) requestDetails(r *http.Request) (*requestDetails, error) {
