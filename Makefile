@@ -92,12 +92,15 @@ ifneq "$(LXD_OFFLINE)" ""
 	exit 1
 endif
 	go get -t -v -d -u ./...
-	go get github.com/mdlayher/socket@v0.4.1
-	go mod tidy --go=1.20
-	go get toolchain@none
+	go get go@1.21
+	go get toolchain@go1.21
+	go mod tidy
 
 	cd test/mini-oidc && go get -t -v -d -u ./...
-	cd test/mini-oidc && go mod tidy --go=1.20
+	cd test/mini-oidc && go get go@1.21
+	cd test/mini-oidc && go get toolchain@go1.21
+	cd test/mini-oidc && go mod tidy
+
 	@echo "Dependencies updated"
 
 .PHONY: update-protobuf
