@@ -20,7 +20,6 @@ import (
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
-	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
@@ -601,59 +600,58 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	if !isClusterNotification(r) {
-		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			// Check if we already have the certificate.
-			existingCert, _ := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
-			if existingCert != nil {
-				return api.StatusErrorf(http.StatusConflict, "Certificate already in trust store")
-			}
-
-			// Store the certificate in the cluster database.
-			dbCert := dbCluster.Certificate{
-				Fingerprint: shared.CertFingerprint(cert),
-				Type:        dbReqType,
-				Name:        name,
-				Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})),
-				Restricted:  req.Restricted,
-			}
-
-			_, err := dbCluster.CreateCertificateWithProjects(ctx, tx.Tx(), dbCert, req.Projects)
-			return err
-		})
-		if err != nil {
-			return response.SmartError(err)
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Check if we already have the certificate.
+		existingCert, _ := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
+		if existingCert != nil {
+			return api.StatusErrorf(http.StatusConflict, "Certificate already in trust store")
 		}
 
-		// Notify other nodes about the new certificate.
-		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
-		if err != nil {
-			return response.SmartError(err)
+		// Store the certificate in the cluster database.
+		dbCert := dbCluster.Certificate{
+			Fingerprint: shared.CertFingerprint(cert),
+			Type:        dbReqType,
+			Name:        name,
+			Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})),
+			Restricted:  req.Restricted,
 		}
 
-		req := api.CertificatesPost{
-			CertificatePut: api.CertificatePut{
-				Certificate: base64.StdEncoding.EncodeToString(cert.Raw),
-				Name:        name,
-				Type:        api.CertificateTypeClient,
-			},
-		}
-
-		err = notifier(func(client lxd.InstanceServer) error {
-			return client.CreateCertificate(req)
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		// Add the certificate resource to the authorizer.
-		err = s.Authorizer.AddCertificate(r.Context(), fingerprint)
-		if err != nil {
-			logger.Error("Failed to add certificate to authorizer", logger.Ctx{"fingerprint": fingerprint, "error": err})
-		}
+		_, err := dbCluster.CreateCertificateWithProjects(ctx, tx.Tx(), dbCert, req.Projects)
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
 	}
 
-	// Reload the cache.
+	// Send a notification to other cluster members to refresh their identity cache.
+	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	req = api.CertificatesPost{
+		CertificatePut: api.CertificatePut{
+			Certificate: base64.StdEncoding.EncodeToString(cert.Raw),
+			Name:        name,
+			Type:        api.CertificateTypeClient,
+		},
+	}
+
+	err = notifier(func(client lxd.InstanceServer) error {
+		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Add the certificate resource to the authorizer.
+	err = s.Authorizer.AddCertificate(r.Context(), fingerprint)
+	if err != nil {
+		logger.Error("Failed to add certificate to authorizer", logger.Ctx{"fingerprint": fingerprint, "error": err})
+	}
+
+	// Reload the identity cache to add the new certificate.
 	s.UpdateIdentityCache()
 
 	lc := lifecycle.CertificateCreated.Event(fingerprint, request.CreateRequestor(r), nil)
@@ -788,10 +786,8 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
-
 	// Apply the update.
-	return doCertificateUpdate(d, *apiEntry, req, clientType, r)
+	return doCertificateUpdate(d, *apiEntry, req, r)
 }
 
 // swagger:operation PATCH /1.0/certificates/{fingerprint} certificates certificate_patch
@@ -857,136 +853,133 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
-
-	return doCertificateUpdate(d, *apiEntry, req.Writable(), clientType, r)
+	return doCertificateUpdate(d, *apiEntry, req.Writable(), r)
 }
 
-func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificatePut, clientType clusterRequest.ClientType, r *http.Request) response.Response {
+func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificatePut, r *http.Request) response.Response {
 	s := d.State()
 
-	if clientType == clusterRequest.ClientTypeNormal {
-		reqDBType, err := certificate.FromAPIType(req.Type)
-		if err != nil {
-			return response.BadRequest(err)
+	reqDBType, err := certificate.FromAPIType(req.Type)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Convert to the database type.
+	dbCert := dbCluster.Certificate{
+		Certificate: dbInfo.Certificate,
+		Fingerprint: dbInfo.Fingerprint,
+		Restricted:  req.Restricted,
+		Name:        req.Name,
+		Type:        reqDBType,
+	}
+
+	var userCanEditCertificate bool
+	err = s.Authorizer.CheckPermission(r.Context(), r, entity.CertificateURL(dbInfo.Fingerprint), auth.EntitlementCanEdit)
+	if err == nil {
+		userCanEditCertificate = true
+	} else if !api.StatusErrorCheck(err, http.StatusForbidden) {
+		return response.SmartError(err)
+	}
+
+	// Non-admins are able to change their own certificate but no other fields.
+	// In order to prevent possible future security issues, the certificate information is
+	// reset in case a non-admin user is performing the update.
+	certProjects := req.Projects
+	if !userCanEditCertificate {
+		if r.TLS == nil {
+			response.Forbidden(fmt.Errorf("Cannot update certificate information"))
 		}
 
-		// Convert to the database type.
-		dbCert := dbCluster.Certificate{
+		// Ensure the user in not trying to change fields other than the certificate.
+		if dbInfo.Restricted != req.Restricted || dbInfo.Name != req.Name || len(dbInfo.Projects) != len(req.Projects) {
+			return response.Forbidden(fmt.Errorf("Only the certificate can be changed"))
+		}
+
+		for i := 0; i < len(dbInfo.Projects); i++ {
+			if dbInfo.Projects[i] != req.Projects[i] {
+				return response.Forbidden(fmt.Errorf("Only the certificate can be changed"))
+			}
+		}
+
+		// Reset dbCert in order to prevent possible future security issues.
+		dbCert = dbCluster.Certificate{
 			Certificate: dbInfo.Certificate,
 			Fingerprint: dbInfo.Fingerprint,
-			Restricted:  req.Restricted,
-			Name:        req.Name,
+			Restricted:  dbInfo.Restricted,
+			Name:        dbInfo.Name,
 			Type:        reqDBType,
 		}
 
-		var userCanEditCertificate bool
-		err = s.Authorizer.CheckPermission(r.Context(), r, entity.CertificateURL(dbInfo.Fingerprint), auth.EntitlementCanEdit)
-		if err == nil {
-			userCanEditCertificate = true
-		} else if !api.StatusErrorCheck(err, http.StatusForbidden) {
-			return response.SmartError(err)
-		}
-
-		// Non-admins are able to change their own certificate but no other fields.
-		// In order to prevent possible future security issues, the certificate information is
-		// reset in case a non-admin user is performing the update.
-		certProjects := req.Projects
-		if !userCanEditCertificate {
-			if r.TLS == nil {
-				response.Forbidden(fmt.Errorf("Cannot update certificate information"))
-			}
-
-			// Ensure the user in not trying to change fields other than the certificate.
-			if dbInfo.Restricted != req.Restricted || dbInfo.Name != req.Name || len(dbInfo.Projects) != len(req.Projects) {
-				return response.Forbidden(fmt.Errorf("Only the certificate can be changed"))
-			}
-
-			for i := 0; i < len(dbInfo.Projects); i++ {
-				if dbInfo.Projects[i] != req.Projects[i] {
-					return response.Forbidden(fmt.Errorf("Only the certificate can be changed"))
-				}
-			}
-
-			// Reset dbCert in order to prevent possible future security issues.
-			dbCert = dbCluster.Certificate{
-				Certificate: dbInfo.Certificate,
-				Fingerprint: dbInfo.Fingerprint,
-				Restricted:  dbInfo.Restricted,
-				Name:        dbInfo.Name,
-				Type:        reqDBType,
-			}
-
-			certProjects = dbInfo.Projects
-
-			if req.Certificate != "" && dbInfo.Certificate != req.Certificate {
-				certBlock, _ := pem.Decode([]byte(dbInfo.Certificate))
-
-				oldCert, err := x509.ParseCertificate(certBlock.Bytes)
-				if err != nil {
-					// This should not happen
-					return response.InternalError(err)
-				}
-
-				trustedCerts := map[string]x509.Certificate{
-					dbInfo.Name: *oldCert,
-				}
-
-				trusted := false
-				for _, i := range r.TLS.PeerCertificates {
-					trusted, _ = util.CheckTrustState(*i, trustedCerts, s.Endpoints.NetworkCert(), false)
-
-					if trusted {
-						break
-					}
-				}
-
-				if !trusted {
-					return response.Forbidden(fmt.Errorf("Certificate cannot be changed"))
-				}
-			}
-		}
+		certProjects = dbInfo.Projects
 
 		if req.Certificate != "" && dbInfo.Certificate != req.Certificate {
-			// Add supplied certificate.
-			block, _ := pem.Decode([]byte(req.Certificate))
+			certBlock, _ := pem.Decode([]byte(dbInfo.Certificate))
 
-			cert, err := x509.ParseCertificate(block.Bytes)
+			oldCert, err := x509.ParseCertificate(certBlock.Bytes)
 			if err != nil {
-				return response.BadRequest(fmt.Errorf("Invalid certificate material: %w", err))
+				// This should not happen
+				return response.InternalError(err)
 			}
 
-			dbCert.Certificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
-			dbCert.Fingerprint = shared.CertFingerprint(cert)
-
-			// Check validity.
-			err = certificateValidate(cert)
-			if err != nil {
-				return response.BadRequest(err)
+			trustedCerts := map[string]x509.Certificate{
+				dbInfo.Name: *oldCert,
 			}
-		}
 
-		// Update the database record.
-		err = s.DB.UpdateCertificate(context.Background(), dbInfo.Fingerprint, dbCert, certProjects)
-		if err != nil {
-			return response.SmartError(err)
-		}
+			trusted := false
+			for _, i := range r.TLS.PeerCertificates {
+				trusted, _ = util.CheckTrustState(*i, trustedCerts, s.Endpoints.NetworkCert(), false)
 
-		// Notify other nodes about the new certificate.
-		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
-		if err != nil {
-			return response.SmartError(err)
-		}
+				if trusted {
+					break
+				}
+			}
 
-		err = notifier(func(client lxd.InstanceServer) error {
-			return client.UpdateCertificate(dbCert.Fingerprint, req, "")
-		})
-		if err != nil {
-			return response.SmartError(err)
+			if !trusted {
+				return response.Forbidden(fmt.Errorf("Certificate cannot be changed"))
+			}
 		}
 	}
 
-	// Reload the cache.
+	if req.Certificate != "" && dbInfo.Certificate != req.Certificate {
+		// Add supplied certificate.
+		block, _ := pem.Decode([]byte(req.Certificate))
+
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return response.BadRequest(fmt.Errorf("Invalid certificate material: %w", err))
+		}
+
+		dbCert.Certificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+		dbCert.Fingerprint = shared.CertFingerprint(cert)
+
+		// Check validity.
+		err = certificateValidate(cert)
+		if err != nil {
+			return response.BadRequest(err)
+		}
+	}
+
+	// Update the database record.
+	err = s.DB.UpdateCertificate(context.Background(), dbInfo.Fingerprint, dbCert, certProjects)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Notify other cluster members to update their identity cache.
+	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = notifier(func(client lxd.InstanceServer) error {
+		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Reload the identity cache.
 	s.UpdateIdentityCache()
 
 	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.CertificateUpdated.Event(dbInfo.Fingerprint, request.CreateRequestor(r), nil))
@@ -1020,88 +1013,87 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if !isClusterNotification(r) {
-		var certInfo *dbCluster.Certificate
-		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			// Get current database record.
-			var err error
-			certInfo, err = dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
+	var certInfo *dbCluster.Certificate
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get current database record.
+		var err error
+		certInfo, err = dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if err != nil {
-			return response.SmartError(err)
+			return err
 		}
 
-		var userCanEditCertificate bool
-		err = s.Authorizer.CheckPermission(r.Context(), r, entity.CertificateURL(certInfo.Fingerprint), auth.EntitlementCanDelete)
-		if err == nil {
-			userCanEditCertificate = true
-		} else if api.StatusErrorCheck(err, http.StatusForbidden) {
-			return response.SmartError(err)
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	var userCanEditCertificate bool
+	err = s.Authorizer.CheckPermission(r.Context(), r, entity.CertificateURL(certInfo.Fingerprint), auth.EntitlementCanDelete)
+	if err == nil {
+		userCanEditCertificate = true
+	} else if api.StatusErrorCheck(err, http.StatusForbidden) {
+		return response.SmartError(err)
+	}
+
+	// Non-admins are able to delete only their own certificate.
+	if !userCanEditCertificate {
+		if r.TLS == nil {
+			response.Forbidden(fmt.Errorf("Cannot delete certificate"))
 		}
 
-		// Non-admins are able to delete only their own certificate.
-		if !userCanEditCertificate {
-			if r.TLS == nil {
-				response.Forbidden(fmt.Errorf("Cannot delete certificate"))
-			}
+		certBlock, _ := pem.Decode([]byte(certInfo.Certificate))
 
-			certBlock, _ := pem.Decode([]byte(certInfo.Certificate))
-
-			cert, err := x509.ParseCertificate(certBlock.Bytes)
-			if err != nil {
-				// This should not happen
-				return response.InternalError(err)
-			}
-
-			trustedCerts := map[string]x509.Certificate{
-				certInfo.Name: *cert,
-			}
-
-			trusted := false
-			for _, i := range r.TLS.PeerCertificates {
-				trusted, _ = util.CheckTrustState(*i, trustedCerts, s.Endpoints.NetworkCert(), false)
-
-				if trusted {
-					break
-				}
-			}
-
-			if !trusted {
-				return response.Forbidden(fmt.Errorf("Certificate cannot be deleted"))
-			}
-		}
-
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			// Perform the delete with the expanded fingerprint.
-			return dbCluster.DeleteCertificate(ctx, tx.Tx(), certInfo.Fingerprint)
-		})
+		cert, err := x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
-			return response.SmartError(err)
+			// This should not happen
+			return response.InternalError(err)
 		}
 
-		// Notify other nodes about the new certificate.
-		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
-		if err != nil {
-			return response.SmartError(err)
+		trustedCerts := map[string]x509.Certificate{
+			certInfo.Name: *cert,
 		}
 
-		err = notifier(func(client lxd.InstanceServer) error {
-			return client.DeleteCertificate(certInfo.Fingerprint)
-		})
-		if err != nil {
-			return response.SmartError(err)
+		trusted := false
+		for _, i := range r.TLS.PeerCertificates {
+			trusted, _ = util.CheckTrustState(*i, trustedCerts, s.Endpoints.NetworkCert(), false)
+
+			if trusted {
+				break
+			}
 		}
 
-		// Remove the certificate from the authorizer.
-		err = s.Authorizer.DeleteCertificate(r.Context(), certInfo.Fingerprint)
-		if err != nil {
-			logger.Error("Failed to remove certificate from authorizer", logger.Ctx{"fingerprint": certInfo.Fingerprint, "error": err})
+		if !trusted {
+			return response.Forbidden(fmt.Errorf("Certificate cannot be deleted"))
 		}
+	}
+
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Perform the delete with the expanded fingerprint.
+		return dbCluster.DeleteCertificate(ctx, tx.Tx(), certInfo.Fingerprint)
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Notify other cluster members so that they update their identity cache.
+	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = notifier(func(client lxd.InstanceServer) error {
+		_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Remove the certificate from the authorizer.
+	err = s.Authorizer.DeleteCertificate(r.Context(), certInfo.Fingerprint)
+	if err != nil {
+		logger.Error("Failed to remove certificate from authorizer", logger.Ctx{"fingerprint": certInfo.Fingerprint, "error": err})
 	}
 
 	// Reload the cache.
