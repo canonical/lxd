@@ -1,13 +1,13 @@
 module github.com/canonical/lxd/test/mini-oidc
 
-go 1.20
+go 1.21.7
 
 require (
-	github.com/go-chi/chi/v5 v5.0.11
-	github.com/go-jose/go-jose/v3 v3.0.1
+	github.com/go-chi/chi/v5 v5.0.12
+	github.com/go-jose/go-jose/v3 v3.0.2
 	github.com/google/uuid v1.6.0
-	github.com/zitadel/oidc/v3 v3.11.1
-	golang.org/x/exp v0.0.0-20240213143201-ec583247a57a
+	github.com/zitadel/oidc/v3 v3.12.0
+	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
 	golang.org/x/text v0.14.0
 )
 
@@ -23,10 +23,10 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/zitadel/logging v0.5.0 // indirect
 	github.com/zitadel/schema v1.3.0 // indirect
-	go.opentelemetry.io/otel v1.23.1 // indirect
-	go.opentelemetry.io/otel/metric v1.23.1 // indirect
-	go.opentelemetry.io/otel/trace v1.23.1 // indirect
-	golang.org/x/crypto v0.19.0 // indirect
+	go.opentelemetry.io/otel v1.24.0 // indirect
+	go.opentelemetry.io/otel/metric v1.24.0 // indirect
+	go.opentelemetry.io/otel/trace v1.24.0 // indirect
+	golang.org/x/crypto v0.20.0 // indirect
 	golang.org/x/oauth2 v0.17.0 // indirect
 	golang.org/x/sys v0.17.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
