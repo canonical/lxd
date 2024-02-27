@@ -543,9 +543,14 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 					_ = d.oidcVerifier.WriteHeaders(w)
 				}
 
+				// Return 401 Unauthorized error. This indicates to the client that it needs to use the
+				// headers we've set above to get an access token and try again.
 				_ = response.Unauthorized(err).Render(w)
 				return
 			}
+
+			_ = response.Forbidden(err).Render(w)
+			return
 		}
 
 		// Reject internal queries to remote, non-cluster, clients
