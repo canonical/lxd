@@ -1245,6 +1245,13 @@ func (d *Daemon) init() error {
 		return fmt.Errorf("Failed to initialize global database: %w", err)
 	}
 
+	// Load the embedded OpenFGA authorizer. This cannot be loaded until after the cluster database is initialised,
+	// so the TLS authorizer must be loaded first to set up clustering.
+	d.authorizer, err = auth.LoadAuthorizer(d.shutdownCtx, auth.DriverEmbeddedOpenFGA, logger.Log, d.identityCache, auth.WithOpenFGADatastore(db.NewOpenFGAStore(d.db.Cluster)))
+	if err != nil {
+		return err
+	}
+
 	d.firewall = firewall.New()
 	logger.Info("Firewall loaded driver", logger.Ctx{"driver": d.firewall})
 
