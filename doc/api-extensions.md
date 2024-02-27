@@ -37,12 +37,19 @@ Containers with the same priority will shutdown in parallel.  It defaults to 0.
 
 A number of new syscalls related container configuration keys were introduced.
 
-* `security.syscalls.blacklist_default` <!-- wokeignore:rule=blacklist -->
-* `security.syscalls.blacklist_compat` <!-- wokeignore:rule=blacklist -->
-* `security.syscalls.blacklist` <!-- wokeignore:rule=blacklist -->
-* `security.syscalls.whitelist` <!-- wokeignore:rule=whitelist -->
+* `security.syscalls.deny_default`
+* `security.syscalls.deny_compat`
+* `security.syscalls.deny`
+* `security.syscalls.allow`
 
 See [Instance configuration](instance-config) for how to use them.
+
+```{note}
+Initially, those configuration keys were (accidentally) introduced with
+offensive names. They have since been renamed
+(`container_syscall_filtering_allow_deny_syntax`), and the old names are no
+longer accepted.
+```
 
 ## `auth_pki`
 
@@ -1273,6 +1280,8 @@ A number of new syscalls related container configuration keys were updated.
 * `security.syscalls.deny_compat`
 * `security.syscalls.deny`
 * `security.syscalls.allow`
+
+Support for the offensively named variants was removed.
 
 ## `resources_gpu_mdev`
 
