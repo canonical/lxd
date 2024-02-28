@@ -13,7 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/spf13/cobra"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -135,9 +135,12 @@ func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-
-		fmt.Printf("\n"+i18n.G("Console log:")+"\n\n%s\n", string(stuff))
-		return nil
+		if len(stuff) == 0 {
+			return fmt.Errorf("\n" + i18n.G("No new console log messages."))
+		} else {
+			fmt.Printf("\n"+i18n.G("Console log:")+"\n\n%s\n", string(stuff))
+			return nil
+		}
 	}
 
 	return c.Console(d, name)
