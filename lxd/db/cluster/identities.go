@@ -3,14 +3,19 @@
 package cluster
 
 import (
+	"context"
 	"crypto/x509"
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"net/http"
+	"strings"
 
 	"github.com/canonical/lxd/lxd/certificate"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/shared/api"
 )
@@ -283,4 +288,164 @@ func (i Identity) Subject() (string, error) {
 	}
 
 	return metadata.Subject, nil
+}
+
+// ToAPIInfo converts an Identity to an api.IdentityInfo, executing database queries as necessary.
+func (i *Identity) ToAPIInfo(ctx context.Context, tx *sql.Tx) (*api.IdentityInfo, error) {
+	groups, err := GetAuthGroupsByIdentityID(ctx, tx, i.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	groupNames := make([]string, 0, len(groups))
+	for _, group := range groups {
+		groupNames = append(groupNames, group.Name)
+	}
+
+	return &api.IdentityInfo{
+		Identity: api.Identity{
+			AuthenticationMethod: string(i.AuthMethod),
+			Type:                 string(i.Type),
+			Identifier:           i.Identifier,
+			Name:                 i.Name,
+		},
+		IdentityPut: api.IdentityPut{
+			Groups: groupNames,
+		},
+	}, nil
+}
+
+// GetAuthGroupsByIdentityID returns a slice of groups that the identity with the given ID is a member of.
+func GetAuthGroupsByIdentityID(ctx context.Context, tx *sql.Tx, identityID int) ([]AuthGroup, error) {
+	stmt := `
+SELECT auth_groups.id, auth_groups.name, auth_groups.description 
+FROM auth_groups 
+JOIN identities_auth_groups ON auth_groups.id = identities_auth_groups.auth_group_id 
+WHERE identities_auth_groups.identity_id = ?`
+
+	var result []AuthGroup
+	dest := func(scan func(dest ...any) error) error {
+		g := AuthGroup{}
+		err := scan(&g.ID, &g.Name, &g.Description)
+		if err != nil {
+			return err
+		}
+
+		result = append(result, g)
+
+		return nil
+	}
+
+	err := query.Scan(ctx, tx, stmt, dest, identityID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get groups for identity with ID `%d`: %w", identityID, err)
+	}
+
+	return result, nil
+}
+
+// GetAllAuthGroupsByIdentityIDs returns a map of identity ID to slice of groups the identity with that ID is a member of.
+func GetAllAuthGroupsByIdentityIDs(ctx context.Context, tx *sql.Tx) (map[int][]AuthGroup, error) {
+	stmt := `
+SELECT identities_auth_groups.identity_id, auth_groups.id, auth_groups.name, auth_groups.description 
+FROM auth_groups 
+JOIN identities_auth_groups ON auth_groups.id = identities_auth_groups.auth_group_id`
+
+	result := make(map[int][]AuthGroup)
+	dest := func(scan func(dest ...any) error) error {
+		var identityID int
+		g := AuthGroup{}
+		err := scan(&identityID, &g.ID, &g.Name, &g.Description)
+		if err != nil {
+			return err
+		}
+
+		result[identityID] = append(result[identityID], g)
+
+		return nil
+	}
+
+	err := query.Scan(ctx, tx, stmt, dest)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get identities for all groups: %w", err)
+	}
+
+	return result, nil
+}
+
+// GetIdentityByNameOrIdentifier attempts to get an identity by the authentication method and identifier. If that fails
+// it will try to use the nameOrID argument as a name and will return the result only if the query matches a single Identity.
+// It will return an api.StatusError with http.StatusNotFound if none are found or http.StatusBadRequest if multiple are found.
+func GetIdentityByNameOrIdentifier(ctx context.Context, tx *sql.Tx, authenticationMethod string, nameOrID string) (*Identity, error) {
+	id, err := GetIdentity(ctx, tx, AuthMethod(authenticationMethod), nameOrID)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return nil, err
+	} else if err != nil {
+		dbAuthMethod := AuthMethod(authenticationMethod)
+		identities, err := GetIdentitys(ctx, tx, IdentityFilter{
+			AuthMethod: &dbAuthMethod,
+			Name:       &nameOrID,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		if len(identities) == 0 {
+			return nil, api.StatusErrorf(http.StatusNotFound, "No identity found with name or identifier %q", nameOrID)
+		} else if len(identities) > 1 {
+			return nil, api.StatusErrorf(http.StatusBadRequest, "More than one identity found with name %q", nameOrID)
+		}
+
+		id = &identities[0]
+	}
+
+	return id, nil
+}
+
+// SetIdentityAuthGroups deletes all auth_group -> identity mappings from the `identities_auth_groups` table
+// where the identity ID is equal to the given value. Then it inserts new associations into the table where the
+// group IDs correspond to the given group names.
+func SetIdentityAuthGroups(ctx context.Context, tx *sql.Tx, identityID int, groupNames []string) error {
+	_, err := tx.ExecContext(ctx, `DELETE FROM identities_auth_groups WHERE identity_id = ?`, identityID)
+	if err != nil {
+		return fmt.Errorf("Failed to delete existing groups for identity with ID `%d`: %w", identityID, err)
+	}
+
+	if len(groupNames) == 0 {
+		return nil
+	}
+
+	args := []any{identityID}
+	var builder strings.Builder
+	builder.WriteString(`
+INSERT INTO identities_auth_groups (identity_id, auth_group_id)
+SELECT ?, auth_groups.id
+FROM auth_groups
+WHERE auth_groups.name IN (
+`)
+	for i, groupName := range groupNames {
+		if i == len(groupNames)-1 {
+			builder.WriteString(`?)`)
+		} else {
+			builder.WriteString(`?, `)
+		}
+
+		args = append(args, groupName)
+	}
+
+	res, err := tx.ExecContext(ctx, builder.String(), args...)
+	if err != nil {
+		return fmt.Errorf("Failed to write identity provider group mappings: %w", err)
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Failed to check validity of identity provider group mapping creation: %w", err)
+	}
+
+	if int(rowsAffected) != len(groupNames) {
+		return fmt.Errorf("Failed to write expected number of rows to identity provider group association table (expected %d, got %d)", len(groupNames), rowsAffected)
+	}
+
+	return nil
 }

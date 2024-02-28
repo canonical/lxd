@@ -124,6 +124,14 @@ var api10 = []APIEndpoint{
 	warningsCmd,
 	warningCmd,
 	metricsCmd,
+	identitiesCmd,
+	identitiesByAuthenticationMethodCmd,
+	identityCmd,
+	authGroupsCmd,
+	authGroupCmd,
+	identityProviderGroupsCmd,
+	identityProviderGroupCmd,
+	permissionsCmd,
 }
 
 // swagger:operation GET /1.0?public server server_get_untrusted
