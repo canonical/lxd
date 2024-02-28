@@ -29,7 +29,7 @@ const (
 //
 // swagger:model
 //
-// API extension: authorization_apis.
+// API extension: access_management.
 type Identity struct {
 	// AuthenticationMethod is the authentication method that the identity
 	// authenticates to LXD with.
@@ -54,7 +54,7 @@ type Identity struct {
 //
 // swagger:model
 //
-// API extension: authorization_apis.
+// API extension: access_management.
 type IdentityInfo struct {
 	IdentityPut `yaml:",inline"`
 	Identity    `yaml:",inline"`
@@ -64,7 +64,7 @@ type IdentityInfo struct {
 //
 // swagger:model
 //
-// API extension: authorization_apis.
+// API extension: access_management.
 type IdentityPut struct {
 	// Groups is the list of groups for which the identity is a member.
 	// Example: ["foo", "bar"]
@@ -75,7 +75,7 @@ type IdentityPut struct {
 //
 // swagger:model
 //
-// API extension: authorization_apis.
+// API extension: access_management.
 type AuthGroup struct {
 	AuthGroupsPost `yaml:",inline"`
 
@@ -92,7 +92,7 @@ type AuthGroup struct {
 //
 // swagger:model
 //
-// API extension: authorization_apis.
+// API extension: access_management.
 type AuthGroupsPost struct {
 	AuthGroupPost `yaml:",inline"`
 	AuthGroupPut  `yaml:",inline"`
@@ -102,7 +102,7 @@ type AuthGroupsPost struct {
 //
 // swagger:model
 //
-// API extension: authorization_apis.
+// API extension: access_management.
 type AuthGroupPost struct {
 	// Name is the name of the group.
 	// Example: default-c1-viewers
@@ -113,7 +113,7 @@ type AuthGroupPost struct {
 //
 // swagger:model
 //
-// API extension: authorization_apis.
+// API extension: access_management.
 type AuthGroupPut struct {
 	// Description is a short description of the group.
 	// Example: Viewers of instance c1 in the default project.
@@ -127,7 +127,7 @@ type AuthGroupPut struct {
 //
 // swagger:model
 //
-// API extension: authorization_apis.
+// API extension: access_management.
 type IdentityProviderGroup struct {
 	IdentityProviderGroupPost `yaml:",inline"`
 	IdentityProviderGroupPut  `yaml:",inline"`
@@ -137,7 +137,7 @@ type IdentityProviderGroup struct {
 //
 // swagger:model
 //
-// API extension: authorization_apis.
+// API extension: access_management.
 type IdentityProviderGroupPost struct {
 	// Name is the name of the IdP group.
 	Name string `json:"name" yaml:"name"`
@@ -147,7 +147,7 @@ type IdentityProviderGroupPost struct {
 //
 // swagger:model
 //
-// API extension: authorization_apis.
+// API extension: access_management.
 type IdentityProviderGroupPut struct {
 	// Groups are the groups the IdP group resolves to.
 	// Example: ["foo", "bar"]
@@ -158,7 +158,7 @@ type IdentityProviderGroupPut struct {
 //
 // swagger:model
 //
-// API extension: authorization_apis.
+// API extension: access_management.
 type Permission struct {
 	// EntityType is the string representation of the entity type.
 	// Example: instance
@@ -177,7 +177,7 @@ type Permission struct {
 //
 // swagger:model
 //
-// API extension: authorization_apis.
+// API extension: access_management.
 type PermissionInfo struct {
 	Permission `yaml:",inline"`
 
