@@ -19,6 +19,17 @@ However, this tool does not migrate any of the LXC container configuration.
 If you're using the snap, the `lxc-to-lxd` is automatically installed.
 It is available as `lxd.lxc-to-lxd`.
 
+```{note}
+The `lxd.lxc-to-lxd` command was last included in the 5.0 snap which should be installed to do the conversion from `lxc` to `lxd`:
+
+        sudo install lxd --channel=5.0/stable
+        sudo lxd.lxc-to-lxd --all
+
+After successfully running the `lxd.lxc-to-lxd` command, you can then switch to a newer snap channel if desired, like the latest one:
+
+        sudo refresh lxd --channel=latest/stable
+```
+
 Otherwise, make sure that you have `go` ({ref}`requirements-go`) installed and get the tool with the following command:
 
     go install github.com/canonical/lxd/lxc-to-lxd@latest
