@@ -11,6 +11,7 @@ GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
 SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
+GOMIN=1.21
 
 ifneq "$(wildcard vendor)" ""
 	RAFT_PATH=$(CURDIR)/vendor/raft
@@ -92,14 +93,12 @@ ifneq "$(LXD_OFFLINE)" ""
 	exit 1
 endif
 	go get -t -v -d -u ./...
-	go get go@1.21
-	go get toolchain@go1.21
-	go mod tidy
+	go mod tidy -go=$(GOMIN)
+	go get toolchain@none
 
 	cd test/mini-oidc && go get -t -v -d -u ./...
-	cd test/mini-oidc && go get go@1.21
-	cd test/mini-oidc && go get toolchain@go1.21
-	cd test/mini-oidc && go mod tidy
+	cd test/mini-oidc && go mod tidy -go=$(GOMIN)
+	cd test/mini-oidc && go get toolchain@none
 
 	@echo "Dependencies updated"
 
