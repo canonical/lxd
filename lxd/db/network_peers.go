@@ -117,7 +117,7 @@ func (c *Cluster) CreateNetworkPeer(networkID int64, info *api.NetworkPeersPost)
 		return -1, false, err
 	}
 
-	return localPeerID, targetPeerNetworkID > -1, err
+	return localPeerID, targetPeerNetworkID > -1, nil
 }
 
 // networkPeerConfigAdd inserts Network peer config keys.
