@@ -22,10 +22,11 @@ import (
 )
 
 var (
-	globalLxdDocRegex   = regexp.MustCompile(`(?m)lxdmeta:generate\((.*)\)([\S\s]+)\s+---\n([\S\s]+)`)
-	lxdDocMetadataRegex = regexp.MustCompile(`(?m)([^;\s]+)=([^;\s]+)`)
-	lxdDocDataRegex     = regexp.MustCompile(`(?m)([\S]+):[\s]+([\S \"\']+)`)
-	tpl                 = regexp.MustCompile(`{{(\S*?)}}`)
+	globalLxdDocRegex    = regexp.MustCompile(`(?m)lxdmeta:generate\((.*)\)([\S\s]+)\s+---\n([\S\s]+)`)
+	lxdDocMetadataRegex  = regexp.MustCompile(`(?m)([^;\s]+)=([^;\s]+)`)
+	lxdDocDataRegex      = regexp.MustCompile(`(?m)([\S]+):[\s]+([\S \"\']+)`)
+	tpl                  = regexp.MustCompile(`{{(\S*?)}}`)
+	compressedExpression = regexp.MustCompile(`([^,{}]+)\{([^}]+)\}`)
 )
 
 var mdKeys = []string{"entities", "group", "key"}
@@ -126,6 +127,32 @@ func renderString(db map[string]string, s string) string {
 	})
 }
 
+// expandExpression expands a compressed expression of the form "prefix{part1+part2+part3+...}" into "prefixpart1,prefixpart2,prefixpart3,..."
+// It can also work with ...,<string1>,<string2>,<prefix1>{<part1>+<part2>},<string3>,<prefix2>{<part3>+<part4>+...},...
+func expandExpression(input string) string {
+	result := input
+	for _, match := range compressedExpression.FindAllStringSubmatch(input, -1) {
+		if len(match) < 3 {
+			continue // Skip if the match does not contain at least 3 groups (a 'compressed expression')
+		}
+
+		prefix := match[1]
+		partsStr := match[2]
+
+		// Split the parts string based on '+'
+		parts := strings.Split(partsStr, "+")
+		var expandedParts []string
+		for _, part := range parts {
+			expandedParts = append(expandedParts, prefix+part)
+		}
+
+		expandedResult := strings.Join(expandedParts, ",")
+		result = strings.Replace(result, match[0], expandedResult, 1)
+	}
+
+	return result
+}
+
 func parse(path string, outputJSONPath string, excludedPaths []string, substitutionDBPath string) (*doc, error) {
 	jsonDoc := &doc{}
 	docKeys := make(map[string]struct{}, 0)
@@ -195,7 +222,6 @@ func parse(path string, outputJSONPath string, excludedPaths []string, substitut
 				data := match[3]
 				// process metadata
 				metadataMap := make(map[string]string)
-				var entityKey string
 				var groupKey string
 				var simpleKey string
 				for _, mdKVMatch := range lxdDocMetadataRegex.FindAllStringSubmatch(metadata, -1) {
@@ -211,7 +237,7 @@ func parse(path string, outputJSONPath string, excludedPaths []string, substitut
 					}
 
 					if mdKey == "entities" {
-						entityKey = mdValue
+						mdValue = expandExpression(mdValue) // There can be compressed expressions in the 'entities' list
 					}
 
 					if mdKey == "group" {
@@ -238,7 +264,7 @@ func parse(path string, outputJSONPath string, excludedPaths []string, substitut
 					uniqueEntities[entity] = struct{}{}
 				}
 
-				for entityKey = range uniqueEntities {
+				for entityKey := range uniqueEntities {
 					// Check that this metadata is not already present
 					mdKeyHash := fmt.Sprintf("%s/%s/%s", entityKey, groupKey, simpleKey)
 					_, ok := docKeys[mdKeyHash]
