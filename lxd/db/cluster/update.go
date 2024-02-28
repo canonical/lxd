@@ -108,6 +108,20 @@ var updates = map[int]schema.Update{
 	69: updateFromV68,
 	70: updateFromV69,
 	71: updateFromV70,
+	72: updateFromV71,
+}
+
+func updateFromV71(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `
+ALTER TABLE identities ADD COLUMN first_seen_date DATETIME NOT NULL DEFAULT "0001-01-01T00:00:00Z";
+ALTER TABLE identities ADD COLUMN last_seen_date DATETIME NOT NULL DEFAULT "0001-01-01T00:00:00Z";
+ALTER TABLE identities ADD COLUMN updated_date DATETIME NOT NULL DEFAULT "0001-01-01T00:00:00Z";
+`)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func updateFromV70(ctx context.Context, tx *sql.Tx) error {
