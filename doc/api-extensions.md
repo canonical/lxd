@@ -2363,6 +2363,7 @@ This API extension indicates that the `/1.0/instances/{name}/uefi-vars` endpoint
 This API extension allows newly created VMs to have their `migration.stateful` configuration key automatically set
 through the new server-level configuration key `instances.migration.stateful`. If `migration.stateful` is already set at the profile or instance level then `instances.migration.stateful` is not applied.
 
-## `authorization_apis`
+## `access_management`
 
 Adds new APIs under `/1.0/auth` for viewing and managing identities, groups, and permissions.
+Adds an embedded OpenFGA authorization driver for enforcing fine-grained permissions.
