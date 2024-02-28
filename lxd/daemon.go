@@ -1434,7 +1434,11 @@ func (d *Daemon) init() error {
 
 	// Setup OIDC authentication.
 	if oidcIssuer != "" && oidcClientID != "" {
-		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcAudience, d.serverCert, d.identityCache, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
+		httpClientFunc := func() (*http.Client, error) {
+			return util.HTTPClient("", d.proxy)
+		}
+
+		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcAudience, d.serverCert, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
 		if err != nil {
 			return err
 		}
