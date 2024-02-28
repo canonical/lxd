@@ -735,114 +735,284 @@ func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, entityTy
 }
 
 /*
-The following queries return the ID of an entity by the information contained in its unique URL in a common format. This
-allows us to query for the IDs of multiple entities at once by concatenating these queries with UNION.
-All of the below queries expect as arguments the project name query parameter, the location query parameter, and the path arguments of the URL.
-Each row returned by all of these queries has two columns:
- 1. An identifier for the query being executed, this is directly returned so that we can match the result of the query
-    to the URL (see PopulateEntityReferencesFromURLs below).
- 2. The ID of the entity.
+The following queries return the ID of an entity by the information contained in its unique URL in a common format.
+These queries are not used in isolation, they are used together as part of a larger UNION query.
+Because of this, all of the below queries expect as arguments the project name, the location, and the path arguments of
+the URL.
+Some entity types don't require a project name or location, so that's why they explicitly check for an empty project
+name or location being passed in.
+Additionally, all of the queries accept an index number as their first binding so that the results can be correlated in
+the calling function (see PopulateEntityReferencesFromURLs below).
 
-Note: It may be possible to further improve the efficiency of these queries by using WHERE statements, e.g. `WHERE projects.name IN (?, ?, ...)`.
+TODO: We could avoid a query snippet per entity by making these snippets support multiple entities for a single entity type.
+(e.g. `WHERE projects.name IN (?, ...) AND instances.name IN (?, ...)` we'd need to be very careful!).
 */
 
 // containerIDFromURL gets the ID of a container from its URL.
-var containerIDFromURL = fmt.Sprintf(`SELECT ?, instances.id FROM instances JOIN projects ON instances.project_id = projects.id WHERE projects.name = ? AND '' = ? AND instances.name = ? AND instances.type = %d`, instancetype.Container)
+var containerIDFromURL = fmt.Sprintf(`
+SELECT ?, instances.id 
+FROM instances 
+JOIN projects ON instances.project_id = projects.id 
+WHERE projects.name = ? 
+	AND '' = ? 
+	AND instances.name = ? 
+	AND instances.type = %d
+`, instancetype.Container)
 
 // imageIDFromURL gets the ID of an image from its URL.
-var imageIDFromURL = `SELECT ?, images.id FROM images JOIN projects ON images.project_id = projects.id WHERE projects.name = ? AND '' = ? AND images.fingerprint = ?`
+var imageIDFromURL = `
+SELECT ?, images.id 
+FROM images 
+JOIN projects ON images.project_id = projects.id 
+WHERE projects.name = ? 
+	AND '' = ? 
+	AND images.fingerprint = ?`
 
 // profileIDFromURL gets the ID of a profile from its URL.
-var profileIDFromURL = `SELECT ?, profiles.id FROM profiles JOIN projects ON profiles.project_id = projects.id WHERE projects.name = ? AND '' = ? AND profiles.name = ?`
+var profileIDFromURL = `
+SELECT ?, profiles.id 
+FROM profiles 
+JOIN projects ON profiles.project_id = projects.id 
+WHERE projects.name = ? 
+	AND '' = ? 
+	AND profiles.name = ?`
 
 // projectIDFromURL gets the ID of a project from its URL.
-var projectIDFromURL = `SELECT ?, projects.id FROM projects WHERE '' = ? AND '' = ? AND projects.name = ?`
+var projectIDFromURL = `
+SELECT ?, projects.id 
+FROM projects 
+WHERE '' = ? 
+	AND '' = ? 
+	AND projects.name = ?`
 
 // certificateIDFromURL gets the ID of a certificate from its URL.
-var certificateIDFromURL = fmt.Sprintf(`SELECT ?, identities.id FROM identities WHERE '' = ? AND '' = ? AND identities.identifier = ? AND identities.auth_method = %d`, authMethodTLS)
+var certificateIDFromURL = fmt.Sprintf(`
+SELECT ?, identities.id 
+FROM identities 
+WHERE '' = ? 
+	AND '' = ? 
+	AND identities.identifier = ? 
+	AND identities.auth_method = %d
+`, authMethodTLS)
 
 // instanceIDFromURL gets the ID of an instance from its URL.
-var instanceIDFromURL = `SELECT ?, instances.id FROM instances JOIN projects ON instances.project_id = projects.id WHERE projects.name = ? AND '' = ? AND instances.name = ?`
+var instanceIDFromURL = `
+SELECT ?, instances.id 
+FROM instances 
+JOIN projects ON instances.project_id = projects.id 
+WHERE projects.name = ? 
+	AND '' = ? 
+	AND instances.name = ?`
 
 // instanceBackupIDFromURL gets the ID of an instance backup from its URL.
-var instanceBackupIDFromURL = `SELECT ?, instances_backups.id FROM instances_backups JOIN instances ON instances_backups.instance_id = instances.id JOIN projects ON instances.project_id = projects.id WHERE projects.name = ? AND '' = ? AND instances.name = ? AND instances_backups.name = ?`
+var instanceBackupIDFromURL = `
+SELECT ?, instances_backups.id 
+FROM instances_backups 
+JOIN instances ON instances_backups.instance_id = instances.id 
+JOIN projects ON instances.project_id = projects.id 
+WHERE projects.name = ? 
+	AND '' = ? 
+	AND instances.name = ? 
+	AND instances_backups.name = ?`
 
 // instanceSnapshotIDFromURL gets the ID of an instance snapshot from its URL.
-var instanceSnapshotIDFromURL = `SELECT ?, instances_snapshots.id FROM instances_snapshots JOIN instances ON instances_snapshots.instance_id = instances.id JOIN projects ON instances.project_id = projects.id WHERE projects.name = ? AND '' = ? AND instances.name = ? AND instances_snapshots.name = ?`
+var instanceSnapshotIDFromURL = `
+SELECT ?, instances_snapshots.id 
+FROM instances_snapshots 
+JOIN instances ON instances_snapshots.instance_id = instances.id 
+JOIN projects ON instances.project_id = projects.id 
+WHERE projects.name = ? 
+	AND '' = ? 
+	AND instances.name = ? 
+	AND instances_snapshots.name = ?`
 
 // networkIDFromURL gets the ID of a network from its URL.
-var networkIDFromURL = `SELECT ?, networks.id FROM networks JOIN projects ON networks.project_id = projects.id WHERE projects.name = ? AND '' = ? AND networks.name = ?`
+var networkIDFromURL = `
+SELECT ?, networks.id 
+FROM networks 
+JOIN projects ON networks.project_id = projects.id 
+WHERE projects.name = ? 
+	AND '' = ? 
+	AND networks.name = ?`
 
 // networkACLIDFromURL gets the ID of a network ACL from its URL.
-var networkACLIDFromURL = `SELECT ?, networks_acls.id FROM networks_acls JOIN projects ON networks_acls.project_id = projects.id WHERE projects.name = ? AND '' = ? AND networks_acls.name = ?`
+var networkACLIDFromURL = `
+SELECT ?, networks_acls.id 
+FROM networks_acls 
+JOIN projects ON networks_acls.project_id = projects.id 
+WHERE projects.name = ? 
+	AND '' = ? 
+	AND networks_acls.name = ?`
 
 // nodeIDFromURL gets the ID of a node from its URL.
-var nodeIDFromURL = `SELECT ?, nodes.id FROM nodes WHERE '' = ? AND '' = ? AND nodes.name = ?`
+var nodeIDFromURL = `
+SELECT ?, nodes.id 
+FROM nodes 
+WHERE '' = ? 
+	AND '' = ? 
+	AND nodes.name = ?`
 
 // operationIDFromURL gets the ID of an operation from its URL.
-var operationIDFromURL = `SELECT ?, operations.id FROM operations LEFT JOIN projects ON operations.project_id = projects.id WHERE coalesce(projects.name, '') = ? AND '' = ? AND operations.uuid = ?`
+var operationIDFromURL = `
+SELECT ?, operations.id 
+FROM operations 
+LEFT JOIN projects ON operations.project_id = projects.id 
+WHERE coalesce(projects.name, '') = ? 
+	AND '' = ? 
+	AND operations.uuid = ?`
 
 // storagePoolIDFromURL gets the ID of a storage pool from its URL.
-var storagePoolIDFromURL = `SELECT ?, storage_pools.id FROM storage_pools WHERE '' = ? AND '' = ? AND storage_pools.name = ?`
+var storagePoolIDFromURL = `
+SELECT ?, storage_pools.id 
+FROM storage_pools 
+WHERE '' = ? 
+	AND '' = ? 
+	AND storage_pools.name = ?`
 
 // storageVolumeIDFromURL gets the ID of a storage volume from its URL.
 var storageVolumeIDFromURL = fmt.Sprintf(`
-SELECT ?, storage_volumes.id FROM storage_volumes
-	JOIN projects ON storage_volumes.project_id = projects.id
-	JOIN storage_pools ON storage_volumes.storage_pool_id = storage_pools.id
-	LEFT JOIN nodes ON storage_volumes.node_id = nodes.id
-WHERE projects.name = ? AND replace(coalesce(nodes.name, ''), 'none', '') = ? AND storage_pools.name = ? AND CASE storage_volumes.type WHEN %d THEN '%s' WHEN %d THEN '%s' WHEN %d THEN '%s' WHEN %d THEN '%s' END = ? AND storage_volumes.name = ?
-`, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeNameContainer, StoragePoolVolumeTypeImage, StoragePoolVolumeTypeNameImage, StoragePoolVolumeTypeCustom, StoragePoolVolumeTypeNameCustom, StoragePoolVolumeTypeVM, StoragePoolVolumeTypeNameVM)
+SELECT ?, storage_volumes.id 
+FROM storage_volumes
+JOIN projects ON storage_volumes.project_id = projects.id
+JOIN storage_pools ON storage_volumes.storage_pool_id = storage_pools.id
+LEFT JOIN nodes ON storage_volumes.node_id = nodes.id
+WHERE projects.name = ? 
+	AND replace(coalesce(nodes.name, ''), 'none', '') = ? 
+	AND storage_pools.name = ? 
+	AND CASE storage_volumes.type 
+		WHEN %d THEN '%s' 
+		WHEN %d THEN '%s' 
+		WHEN %d THEN '%s' 
+		WHEN %d THEN '%s' 
+	END = ? 
+	AND storage_volumes.name = ?
+`, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeNameContainer,
+	StoragePoolVolumeTypeImage, StoragePoolVolumeTypeNameImage,
+	StoragePoolVolumeTypeCustom, StoragePoolVolumeTypeNameCustom,
+	StoragePoolVolumeTypeVM, StoragePoolVolumeTypeNameVM)
 
 // storageVolumeBackupIDFromURL gets the ID of a storageVolumeBackup from its URL.
 var storageVolumeBackupIDFromURL = fmt.Sprintf(`
-SELECT ?, storage_volumes_backups.id FROM storage_volumes_backups
-	JOIN storage_volumes ON storage_volumes_backups.storage_volume_id = storage_volumes.id
-	JOIN projects ON storage_volumes.project_id = projects.id
-	JOIN storage_pools ON storage_volumes.storage_pool_id = storage_pools.id
-	LEFT JOIN nodes ON storage_volumes.node_id = nodes.id
-WHERE projects.name = ? AND replace(coalesce(nodes.name, ''), 'none', '') = ? AND storage_pools.name = ? AND CASE storage_volumes.type WHEN %d THEN '%s' WHEN %d THEN '%s' WHEN %d THEN '%s' WHEN %d THEN '%s' END = ? AND storage_volumes.name = ? AND storage_volumes_backups.name = ?
-`, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeNameContainer, StoragePoolVolumeTypeImage, StoragePoolVolumeTypeNameImage, StoragePoolVolumeTypeCustom, StoragePoolVolumeTypeNameCustom, StoragePoolVolumeTypeVM, StoragePoolVolumeTypeNameVM)
+SELECT ?, storage_volumes_backups.id 
+FROM storage_volumes_backups
+JOIN storage_volumes ON storage_volumes_backups.storage_volume_id = storage_volumes.id
+JOIN projects ON storage_volumes.project_id = projects.id
+JOIN storage_pools ON storage_volumes.storage_pool_id = storage_pools.id
+LEFT JOIN nodes ON storage_volumes.node_id = nodes.id
+WHERE projects.name = ? 
+	AND replace(coalesce(nodes.name, ''), 'none', '') = ? 
+	AND storage_pools.name = ? 
+	AND CASE storage_volumes.type 
+		WHEN %d THEN '%s' 
+		WHEN %d THEN '%s' 
+		WHEN %d THEN '%s' 
+		WHEN %d THEN '%s' 
+	END = ? 
+	AND storage_volumes.name = ? 
+	AND storage_volumes_backups.name = ?
+`, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeNameContainer,
+	StoragePoolVolumeTypeImage, StoragePoolVolumeTypeNameImage,
+	StoragePoolVolumeTypeCustom, StoragePoolVolumeTypeNameCustom,
+	StoragePoolVolumeTypeVM, StoragePoolVolumeTypeNameVM)
 
 // storageVolumeSnapshotIDFromURL gets the ID of a storageVolumeSnapshot from its URL.
 var storageVolumeSnapshotIDFromURL = fmt.Sprintf(`
-SELECT ?, storage_volumes_backups.id FROM storage_volumes_backups
-	JOIN storage_volumes ON storage_volumes_backups.storage_volume_id = storage_volumes.id
-	JOIN projects ON storage_volumes.project_id = projects.id
-	JOIN storage_pools ON storage_volumes.storage_pool_id = storage_pools.id
-	LEFT JOIN nodes ON storage_volumes.node_id = nodes.id
-WHERE projects.name = ? AND replace(coalesce(nodes.name, ''), 'none', '') = ? AND storage_pools.name = ? AND CASE storage_volumes.type WHEN %d THEN '%s' WHEN %d THEN '%s' WHEN %d THEN '%s' WHEN %d THEN '%s' END = ? AND storage_volumes.name = ? AND storage_volumes_backups.name = ?
+SELECT ?, storage_volumes_backups.id 
+FROM storage_volumes_backups
+JOIN storage_volumes ON storage_volumes_backups.storage_volume_id = storage_volumes.id
+JOIN projects ON storage_volumes.project_id = projects.id
+JOIN storage_pools ON storage_volumes.storage_pool_id = storage_pools.id
+LEFT JOIN nodes ON storage_volumes.node_id = nodes.id
+WHERE projects.name = ? 
+	AND replace(coalesce(nodes.name, ''), 'none', '') = ? 
+	AND storage_pools.name = ? 
+	AND CASE storage_volumes.type
+		WHEN %d THEN '%s' 
+		WHEN %d THEN '%s' 
+		WHEN %d THEN '%s' 
+		WHEN %d THEN '%s' 
+	END = ? 
+	AND storage_volumes.name = ? 
+	AND storage_volumes_backups.name = ?
 `, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeNameContainer, StoragePoolVolumeTypeImage, StoragePoolVolumeTypeNameImage, StoragePoolVolumeTypeCustom, StoragePoolVolumeTypeNameCustom, StoragePoolVolumeTypeVM, StoragePoolVolumeTypeNameVM)
 
 // warningIDFromURL gets the ID of a warning from its URL.
-var warningIDFromURL = `SELECT ?, warnings.id FROM warnings LEFT JOIN projects ON warnings.project_id = projects.id WHERE coalesce(projects.name, '') = ? AND '' = ? AND warnings.uuid = ?`
+var warningIDFromURL = `
+SELECT ?, warnings.id 
+FROM warnings 
+LEFT JOIN projects ON warnings.project_id = projects.id 
+WHERE coalesce(projects.name, '') = ? 
+	AND '' = ? 
+	AND warnings.uuid = ?`
 
 // clusterGroupIDFromURL gets the ID of a clusterGroup from its URL.
-var clusterGroupIDFromURL = `SELECT ?, cluster_groups.id FROM cluster_groups WHERE '' = ? AND '' = ? AND cluster_groups.name = ?`
+var clusterGroupIDFromURL = `
+SELECT ?, cluster_groups.id 
+FROM cluster_groups 
+WHERE '' = ? 
+	AND '' = ? 
+	AND cluster_groups.name = ?`
 
 // storageBucketIDFromURL gets the ID of a storageBucket from its URL.
 var storageBucketIDFromURL = `
-SELECT ?, storage_buckets.id FROM storage_buckets
-	JOIN projects ON storage_buckets.project_id = projects.id
-	JOIN storage_pools ON storage_buckets.storage_pool_id = storage_pools.id
-	LEFT JOIN nodes ON storage_buckets.node_id = nodes.id
- WHERE projects.name = ? AND replace(coalesce(nodes.name, ''), 'none', '') = ? AND storage_pools.name = ? AND storage_buckets.name = ?
+SELECT ?, storage_buckets.id 
+FROM storage_buckets
+JOIN projects ON storage_buckets.project_id = projects.id
+JOIN storage_pools ON storage_buckets.storage_pool_id = storage_pools.id
+LEFT JOIN nodes ON storage_buckets.node_id = nodes.id
+WHERE projects.name = ? 
+	AND replace(coalesce(nodes.name, ''), 'none', '') = ? 
+	AND storage_pools.name = ? 
+	AND storage_buckets.name = ?
 `
 
 // networkZoneIDFromURL gets the ID of a networkZone from its URL.
-var networkZoneIDFromURL = `SELECT ?, networks_zones.id FROM networks_zones JOIN projects ON networks_zones.project_id = projects.id WHERE projects.name = ? AND '' = ? AND networks_zones.name = ?`
+var networkZoneIDFromURL = `
+SELECT ?, networks_zones.id 
+FROM networks_zones 
+JOIN projects ON networks_zones.project_id = projects.id 
+WHERE projects.name = ? 
+	AND '' = ? 
+	AND networks_zones.name = ?`
 
 // imageAliasIDFromURL gets the ID of a imageAlias from its URL.
-var imageAliasIDFromURL = `SELECT ?, images_aliases.id FROM images_aliases JOIN projects ON images_aliases.project_id = projects.id WHERE projects.name = ? AND '' = ? AND images_aliases.name = ? `
+var imageAliasIDFromURL = `
+SELECT ?, images_aliases.id 
+FROM images_aliases 
+JOIN projects ON images_aliases.project_id = projects.id 
+WHERE projects.name = ? 
+	AND '' = ? 
+	AND images_aliases.name = ? `
 
 // authGroupIDFromURL gets the ID of a group from its URL.
-var authGroupIDFromURL = `SELECT ?, auth_groups.id FROM auth_groups WHERE '' = ? AND '' = ? AND auth_groups.name = ?`
+var authGroupIDFromURL = `
+SELECT ?, auth_groups.id 
+FROM auth_groups 
+WHERE '' = ? 
+	AND '' = ? 
+	AND auth_groups.name = ?`
 
 // identityProviderGroupIDFromURL gets the ID of a identityProviderGroup from its URL.
-var identityProviderGroupIDFromURL = `SELECT ?, identity_provider_groups.id FROM identity_provider_groups WHERE '' = ? AND '' = ? AND identity_provider_groups.name = ?`
+var identityProviderGroupIDFromURL = `
+SELECT ?, identity_provider_groups.id 
+FROM identity_provider_groups 
+WHERE '' = ? 
+	AND '' = ? 
+	AND identity_provider_groups.name = ?`
 
 // identityIDFromURL gets the ID of a identity from its URL.
-var identityIDFromURL = fmt.Sprintf(`SELECT ?, identities.id FROM identities WHERE '' = ? AND '' = ? AND CASE identities.auth_method WHEN %d THEN '%s' WHEN %d THEN '%s' END = ? and identities.identifier = ?`, authMethodTLS, api.AuthenticationMethodTLS, authMethodOIDC, api.AuthenticationMethodOIDC)
+var identityIDFromURL = fmt.Sprintf(`
+SELECT ?, identities.id 
+FROM identities 
+WHERE '' = ? 
+	AND '' = ? 
+	AND CASE identities.auth_method 
+		WHEN %d THEN '%s' 
+		WHEN %d THEN '%s' 
+	END = ? 
+	AND identities.identifier = ?
+`, authMethodTLS, api.AuthenticationMethodTLS,
+	authMethodOIDC, api.AuthenticationMethodOIDC)
 
 // identityIDFromURLStatements is a map of entity.Type to a statement that can be used to get the ID of the entity from its URL.
 var entityIDFromURLStatements = map[entity.Type]string{
