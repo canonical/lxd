@@ -404,11 +404,17 @@ func (o *Verifier) setRelyingParty(host string) error {
 		return errors.New("Failed to generate a secure cookie hash key")
 	}
 
+	httpClient, err := o.httpClientFunc()
+	if err != nil {
+		return fmt.Errorf("Failed to get a HTTP client: %w", err)
+	}
+
 	cookieHandler := httphelper.NewCookieHandler(cookieHashKey, cookieBlockKey)
 	options := []rp.Option{
 		rp.WithCookieHandler(cookieHandler),
 		rp.WithVerifierOpts(rp.WithIssuedAtOffset(5 * time.Second)),
 		rp.WithPKCE(cookieHandler),
+		rp.WithHTTPClient(httpClient),
 	}
 
 	oidcScopes := []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, oidc.ScopeEmail, oidc.ScopeProfile}
