@@ -13,7 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/spf13/cobra"
 
-	lxd "github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
