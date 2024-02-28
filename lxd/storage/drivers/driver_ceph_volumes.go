@@ -1806,8 +1806,9 @@ func (d *ceph) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, 
 	return ret, nil
 }
 
-// RestoreVolume restores a volume from a snapshot.
-func (d *ceph) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation) error {
+// restoreVolume restores a volume from a snapshot.
+// Use RestoreVolume if a VM's filesystem volume should get restored too.
+func (d *ceph) restoreVolume(vol Volume, snapVol Volume, op *operations.Operation) error {
 	ourUnmount, err := d.UnmountVolume(vol, false, op)
 	if err != nil {
 		return err
@@ -1848,11 +1849,22 @@ func (d *ceph) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operatio
 		}
 	}
 
+	return nil
+}
+
+// RestoreVolume restores a volume from a snapshot.
+// Use restoreVolume if a VM's filesystem volume should not get restored.
+func (d *ceph) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation) error {
+	err := d.restoreVolume(vol, snapVol, op)
+	if err != nil {
+		return err
+	}
+
 	// For VM images, restore the filesystem volume too.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
 		fsSnapVol := snapVol.NewVMBlockFilesystemVolume()
-		err := d.RestoreVolume(fsVol, fsSnapVol, op)
+		err := d.restoreVolume(fsVol, fsSnapVol, op)
 		if err != nil {
 			return err
 		}
