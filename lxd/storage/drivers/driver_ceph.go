@@ -401,24 +401,38 @@ func (d *ceph) MigrationTypes(contentType ContentType, refresh bool, copySnapsho
 	}
 
 	if refresh {
-		var transportType migration.MigrationFSType
-
 		if IsContentBlock(contentType) {
-			transportType = migration.MigrationFSType_BLOCK_AND_RSYNC
-		} else {
-			transportType = migration.MigrationFSType_RSYNC
+			return []migration.Type{
+				{
+					FSType:   migration.MigrationFSType_RBD_AND_RSYNC,
+					Features: rsyncFeatures,
+				},
+				{
+					FSType:   migration.MigrationFSType_BLOCK_AND_RSYNC,
+					Features: rsyncFeatures,
+				},
+			}
 		}
 
 		return []migration.Type{
 			{
-				FSType:   transportType,
+				FSType:   migration.MigrationFSType_RSYNC,
 				Features: rsyncFeatures,
 			},
 		}
 	}
 
-	if contentType == ContentTypeBlock {
+	if IsContentBlock(contentType) {
 		return []migration.Type{
+			// Prefer to use RBD_AND_RSYNC for the initial migration.
+			{
+				FSType:   migration.MigrationFSType_RBD_AND_RSYNC,
+				Features: rsyncFeatures,
+			},
+			// If RBD_AND_RSYNC is not supported by the target it will fall back to BLOCK_AND_RSYNC
+			// as RBD wasn't sent as the preferred method by the source.
+			// If the source sends RBD as the preferred method the target will accept RBD
+			// as it's in the list of supported migration types.
 			{
 				FSType: migration.MigrationFSType_RBD,
 			},
