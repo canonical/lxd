@@ -254,6 +254,9 @@ For help with any of those, simply call them with --help.`))
 	warningCmd := cmdWarning{global: &globalCmd}
 	app.AddCommand(warningCmd.Command())
 
+	authCmd := cmdAuth{global: &globalCmd}
+	app.AddCommand(authCmd.command())
+
 	// Get help command
 	app.InitDefaultHelpCmd()
 	var help *cobra.Command

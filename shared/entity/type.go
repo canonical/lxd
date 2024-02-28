@@ -81,6 +81,15 @@ const (
 
 	// TypeNetworkZone represents network zone resources.
 	TypeNetworkZone Type = "network_zone"
+
+	// TypeIdentity represents identity resources.
+	TypeIdentity Type = "identity"
+
+	// TypeAuthGroup represents authorization group resources.
+	TypeAuthGroup Type = "group"
+
+	// TypeIdentityProviderGroup represents identity provider group resources.
+	TypeIdentityProviderGroup Type = "identity_provider_group"
 )
 
 const (
@@ -111,6 +120,9 @@ var entityTypes = []Type{
 	TypeServer,
 	TypeImageAlias,
 	TypeNetworkZone,
+	TypeIdentity,
+	TypeAuthGroup,
+	TypeIdentityProviderGroup,
 }
 
 // String implements fmt.Stringer for Type.
@@ -128,15 +140,15 @@ func (t Type) Validate() error {
 	return nil
 }
 
-// requiresProject returns true if an entity of the Type can only exist within the context of a project. Operations and
+// RequiresProject returns true if an entity of the Type can only exist within the context of a project. Operations and
 // warnings may still be project specific but it is not an absolute requirement.
-func (t Type) requiresProject() (bool, error) {
+func (t Type) RequiresProject() (bool, error) {
 	err := t.Validate()
 	if err != nil {
 		return false, err
 	}
 
-	return !shared.ValueInSlice(t, []Type{TypeProject, TypeCertificate, TypeNode, TypeOperation, TypeStoragePool, TypeWarning, TypeClusterGroup, TypeServer}), nil
+	return !shared.ValueInSlice(t, []Type{TypeProject, TypeCertificate, TypeNode, TypeOperation, TypeStoragePool, TypeWarning, TypeClusterGroup, TypeServer, TypeAuthGroup, TypeIdentityProviderGroup, TypeIdentity}), nil
 }
 
 // nRequiredPathArguments returns the number of path arguments (mux variables) that are required to create a unique URL
@@ -168,7 +180,7 @@ func (t Type) nRequiredPathArguments() (int, error) {
 //
 // Warning: All arguments to this function will be URL encoded. They must not be URL encoded before calling this method.
 func (t Type) URL(projectName string, location string, pathArguments ...string) (*api.URL, error) {
-	requiresProject, err := t.requiresProject()
+	requiresProject, err := t.RequiresProject()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to check if entity type %q is project specific: %w", t, err)
 	}
@@ -265,6 +277,12 @@ func (t Type) path() ([]string, error) {
 		return []string{"images", "aliases", pathPlaceholder}, nil
 	case TypeNetworkZone:
 		return []string{"network-zones", pathPlaceholder}, nil
+	case TypeIdentity:
+		return []string{"auth", "identities", pathPlaceholder, pathPlaceholder}, nil
+	case TypeAuthGroup:
+		return []string{"auth", "groups", pathPlaceholder}, nil
+	case TypeIdentityProviderGroup:
+		return []string{"auth", "identity-provider-groups", pathPlaceholder}, nil
 	default:
 		return nil, fmt.Errorf("Missing path definition for entity type %q", t)
 	}
@@ -329,7 +347,7 @@ entityTypeLoop:
 		return "", "", "", nil, fmt.Errorf("Failed to match entity URL %q", u.String())
 	}
 
-	requiresProject, _ := entityType.requiresProject()
+	requiresProject, _ := entityType.RequiresProject()
 	projectName = ""
 	if requiresProject {
 		projectName = u.Query().Get("project")
@@ -425,4 +443,19 @@ func StorageVolumeURL(projectName string, location string, storagePoolName strin
 // StorageBucketURL returns an *api.URL to a storage bucket.
 func StorageBucketURL(projectName string, location string, storagePoolName string, storageBucketName string) *api.URL {
 	return TypeStorageBucket.urlMust(projectName, location, storagePoolName, storageBucketName)
+}
+
+// IdentityURL returns an *api.URL to an identity.
+func IdentityURL(authenticationMethod string, identifier string) *api.URL {
+	return TypeIdentity.urlMust("", "", authenticationMethod, identifier)
+}
+
+// AuthGroupURL returns an *api.URL to a group.
+func AuthGroupURL(groupName string) *api.URL {
+	return TypeAuthGroup.urlMust("", "", groupName)
+}
+
+// IdentityProviderGroupURL returns an *api.URL to an identity provider group.
+func IdentityProviderGroupURL(identityProviderGroupName string) *api.URL {
+	return TypeIdentityProviderGroup.urlMust("", "", identityProviderGroupName)
 }

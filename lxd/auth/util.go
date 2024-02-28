@@ -2,16 +2,32 @@ package auth
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
+
+// ValidateAuthenticationMethod returns an api.StatusError with http.StatusBadRequest if the given authentication
+// method is not recognised.
+func ValidateAuthenticationMethod(authenticationMethod string) error {
+	if !shared.ValueInSlice(authenticationMethod, []string{api.AuthenticationMethodTLS, api.AuthenticationMethodOIDC}) {
+		return api.StatusErrorf(http.StatusBadRequest, "Unrecognized authentication method %q", authenticationMethod)
+	}
+
+	return nil
+}
 
 // ValidateEntitlement returns an error if the given Entitlement does not apply to the entity.Type.
 func ValidateEntitlement(entityType entity.Type, entitlement Entitlement) error {
 	entitlements, err := EntitlementsByEntityType(entityType)
 	if err != nil {
 		return err
+	}
+
+	if len(entitlements) == 0 {
+		return fmt.Errorf("No entitlements can be granted against entities of type %q", entityType)
 	}
 
 	if !shared.ValueInSlice(entitlement, entitlements) {
@@ -26,6 +42,22 @@ func EntitlementsByEntityType(entityType entity.Type) ([]Entitlement, error) {
 	err := entityType.Validate()
 	if err != nil {
 		return nil, fmt.Errorf("Entity type %q is not valid: %w", entityType, err)
+	}
+
+	// Some entity types do not have entitlements
+	if shared.ValueInSlice(entityType, []entity.Type{
+		entity.TypeContainer,
+		entity.TypeCertificate,
+		entity.TypeInstanceBackup,
+		entity.TypeInstanceSnapshot,
+		entity.TypeNode,
+		entity.TypeOperation,
+		entity.TypeStorageVolumeBackup,
+		entity.TypeStorageVolumeSnapshot,
+		entity.TypeWarning,
+		entity.TypeClusterGroup,
+	}) {
+		return []Entitlement{}, nil
 	}
 
 	// With the exception of entity types in the list below. All entity types have EntitlementCanView,
@@ -122,6 +154,7 @@ func EntitlementsByEntityType(entityType entity.Type) ([]Entitlement, error) {
 			EntitlementServerViewer,
 			EntitlementCanViewConfiguration,
 			EntitlementPermissionManager,
+			EntitlementCanViewPermissions,
 			EntitlementCanCreateIdentities,
 			EntitlementCanViewIdentities,
 			EntitlementCanEditIdentities,

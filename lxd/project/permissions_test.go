@@ -218,7 +218,7 @@ func TestCheckClusterTargetRestriction_RestrictedTrueWithOverride(t *testing.T) 
 			// Certificate has to be non-nil for TLS identities.
 			Certificate: &x509.Certificate{},
 		},
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	authorizer, err := auth.LoadAuthorizer(context.Background(), auth.DriverTLS, logger.Log, identityCache)

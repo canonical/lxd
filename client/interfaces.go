@@ -425,6 +425,32 @@ type InstanceServer interface {
 	UpdateWarning(UUID string, warning api.WarningPut, ETag string) (err error)
 	DeleteWarning(UUID string) (err error)
 
+	// Authorization functions
+	GetAuthGroupNames() (groupNames []string, err error)
+	GetAuthGroups() (groups []api.AuthGroup, err error)
+	GetAuthGroup(groupName string) (group *api.AuthGroup, ETag string, err error)
+	CreateAuthGroup(groupsPost api.AuthGroupsPost) error
+	UpdateAuthGroup(groupName string, groupPut api.AuthGroupPut, ETag string) error
+	RenameAuthGroup(groupName string, groupPost api.AuthGroupPost) error
+	DeleteAuthGroup(groupName string) error
+	GetIdentityAuthenticationMethodsIdentifiers() (authMethodsIdentifiers map[string][]string, err error)
+	GetIdentityIdentifiersByAuthenticationMethod(authenticationMethod string) (identifiers []string, err error)
+	GetIdentities() (identities []api.Identity, err error)
+	GetIdentitiesByAuthenticationMethod(authenticationMethod string) (identities []api.Identity, err error)
+	GetIdentitiesInfo() (identityInfos []api.IdentityInfo, err error)
+	GetIdentitiesInfoByAuthenticationMethod(authenticationMethod string) (identityInfos []api.IdentityInfo, err error)
+	GetIdentity(authenticationMethod string, nameOrIdentifier string) (identityInfo *api.IdentityInfo, ETag string, err error)
+	UpdateIdentity(authenticationMethod string, nameOrIdentifier string, identityPut api.IdentityPut, ETag string) error
+	GetIdentityProviderGroupNames() (identityProviderGroupNames []string, err error)
+	GetIdentityProviderGroups() (identityProviderGroups []api.IdentityProviderGroup, err error)
+	GetIdentityProviderGroup(identityProviderGroupName string) (identityProviderGroup *api.IdentityProviderGroup, ETag string, err error)
+	CreateIdentityProviderGroup(identityProviderGroup api.IdentityProviderGroup) error
+	UpdateIdentityProviderGroup(identityProviderGroupName string, identityProviderGroupPut api.IdentityProviderGroupPut, ETag string) error
+	RenameIdentityProviderGroup(identityProviderGroupName string, identityProviderGroupPost api.IdentityProviderGroupPost) error
+	DeleteIdentityProviderGroup(identityProviderGroupName string) error
+	GetPermissions(args GetPermissionsArgs) (permissions []api.Permission, err error)
+	GetPermissionsInfo(args GetPermissionsArgs) (permissions []api.PermissionInfo, err error)
+
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data any, queryETag string) (resp *api.Response, ETag string, err error)
 	RawWebsocket(path string) (conn *websocket.Conn, err error)
@@ -697,4 +723,16 @@ type InstanceFileResponse struct {
 
 	// If a directory, the list of files inside it
 	Entries []string
+}
+
+// GetPermissionsArgs is used in the call to GetPermissions to specify filtering behaviour.
+type GetPermissionsArgs struct {
+	// EntityType is the type of entity to filter against.
+	// If left unspecified, permissions will be returned for all entity types.
+	EntityType string
+
+	// ProjectName is the project to filter against.
+	// If the project name is specified, only permissions for resources in the given project will be returned and server
+	// level permissions will not be returned.
+	ProjectName string
 }
