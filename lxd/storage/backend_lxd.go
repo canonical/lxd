@@ -1279,17 +1279,6 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 		srcConfig.VolumeSnapshots = nil
 	}
 
-	targetSnaps, err := VolumeDBSnapshotsGet(b, projectName, volName, drivers.VolumeTypeCustom)
-	if err != nil {
-		return err
-	}
-
-	targetSnapshots := make([]drivers.Volume, 0, len(targetSnaps))
-	for _, targetSnap := range targetSnaps {
-		snapshotStorageName := project.StorageVolume(projectName, targetSnap.Name)
-		targetSnapshots = append(targetSnapshots, b.GetVolume(drivers.VolumeTypeCustom, contentType, snapshotStorageName, targetSnap.Config))
-	}
-
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -1304,6 +1293,12 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 				Name:         sourceSnap.Name,
 				CreationDate: sourceSnap.CreatedAt,
 			})
+		}
+
+		// Get a list of already existing snapshots on the target volume.
+		targetSnaps, err := VolumeDBSnapshotsGet(b, projectName, volName, drivers.VolumeTypeCustom)
+		if err != nil {
+			return err
 		}
 
 		targetSnapshotsComparable := make([]ComparableSnapshot, 0, len(targetSnaps))
@@ -1372,11 +1367,23 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 
 			revert.Add(func() { _ = VolumeDBDelete(b, projectName, newSnapshotName, vol.Type()) })
 
-			// Extend the list of target snaphots to not require loading all of them again from DB.
-			targetSnapshots = append(targetSnapshots, targetSnapVol)
-
 			// Extend the list of snapshots that require refresh.
 			srcSnapVols = append(srcSnapVols, srcSnap.Name)
+		}
+
+		// Reload the final target volume's snapshots.
+		// Some snapshots might have been removed from the target volume if they aren't anymore present on the source volume.
+		// Other snapshots might require a refresh if they have been deleted from the target volume in the meantime.
+		// Get the snapshots directly from the database to ensure they are in the right order.
+		targetSnaps, err := VolumeDBSnapshotsGet(b, projectName, volName, drivers.VolumeTypeCustom)
+		if err != nil {
+			return err
+		}
+
+		targetSnapshots := make([]drivers.Volume, 0, len(targetSnaps))
+		for _, targetSnap := range targetSnaps {
+			snapshotStorageName := project.StorageVolume(projectName, targetSnap.Name)
+			targetSnapshots = append(targetSnapshots, b.GetVolume(drivers.VolumeTypeCustom, contentType, snapshotStorageName, targetSnap.Config))
 		}
 
 		volCopy := drivers.NewVolumeCopy(vol, targetSnapshots...)
