@@ -600,19 +600,12 @@ func (o *Verifier) secureCookieFromSession(sessionID uuid.UUID) (*securecookie.S
 
 // Opts contains optional configurable fields for the Verifier.
 type Opts struct {
-	ConfigExpiryInterval time.Duration
-	GroupsClaim          string
+	GroupsClaim string
 }
 
 // NewVerifier returns a Verifier.
 func NewVerifier(issuer string, clientID string, audience string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, options *Opts) (*Verifier, error) {
-	opts := &Opts{
-		ConfigExpiryInterval: defaultConfigExpiryInterval,
-	}
-
-	if options != nil && options.ConfigExpiryInterval > 0 {
-		opts.ConfigExpiryInterval = options.ConfigExpiryInterval
-	}
+	opts := &Opts{}
 
 	if options != nil && options.GroupsClaim != "" {
 		opts.GroupsClaim = options.GroupsClaim
@@ -625,7 +618,7 @@ func NewVerifier(issuer string, clientID string, audience string, clusterCert fu
 		identityCache:        identityCache,
 		groupsClaim:          opts.GroupsClaim,
 		clusterCert:          clusterCert,
-		configExpiryInterval: opts.ConfigExpiryInterval,
+		configExpiryInterval: defaultConfigExpiryInterval,
 	}
 
 	return verifier, nil
