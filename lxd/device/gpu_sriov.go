@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	pcidev "github.com/canonical/lxd/lxd/device/pci"
@@ -16,6 +17,9 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/revert"
 )
+
+// sriovMu is used to lock concurrent GPU allocations.
+var sriovMu sync.Mutex
 
 type gpuSRIOV struct {
 	deviceCommon
@@ -80,6 +84,10 @@ func (d *gpuSRIOV) Start() (*deviceConfig.RunConfig, error) {
 
 	runConf := deviceConfig.RunConfig{}
 	saveData := make(map[string]string)
+
+	// Get global SR-IOV lock to prevent concurent allocations of the VF.
+	sriovMu.Lock()
+	defer sriovMu.Unlock()
 
 	// Get SRIOV parent, i.e. the actual GPU.
 	parentPCIAddresses, err := d.getParentPCIAddresses()
