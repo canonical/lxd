@@ -359,6 +359,12 @@ func (*Verifier) IsRequest(r *http.Request) bool {
 	return false
 }
 
+// ExpireConfig sets the expiry time of the current configuration to zero. This forces the verifier to reconfigure the
+// relying party the next time a user authenticates.
+func (o *Verifier) ExpireConfig() {
+	o.configExpiry = time.Now()
+}
+
 // ensureConfig ensures that the relyingParty and accessTokenVerifier fields of the Verifier are non-nil. Additionally,
 // if the given host is different from the Verifier host we reset the relyingParty to ensure the callback URL is set
 // correctly.
