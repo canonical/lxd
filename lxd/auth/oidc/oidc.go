@@ -47,11 +47,12 @@ type Verifier struct {
 	relyingParty        rp.RelyingParty
 	identityCache       *identity.Cache
 
-	clientID    string
-	issuer      string
-	audience    string
-	groupsClaim string
-	clusterCert func() *shared.CertInfo
+	clientID       string
+	issuer         string
+	audience       string
+	groupsClaim    string
+	clusterCert    func() *shared.CertInfo
+	httpClientFunc func() (*http.Client, error)
 
 	// host is used for setting a valid callback URL when setting the relyingParty.
 	// When creating the relyingParty, the OIDC library performs discovery (e.g. it calls the /well-known/oidc-configuration endpoint).
@@ -604,7 +605,7 @@ type Opts struct {
 }
 
 // NewVerifier returns a Verifier.
-func NewVerifier(issuer string, clientID string, audience string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, options *Opts) (*Verifier, error) {
+func NewVerifier(issuer string, clientID string, audience string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
 	opts := &Opts{}
 
 	if options != nil && options.GroupsClaim != "" {
@@ -619,6 +620,7 @@ func NewVerifier(issuer string, clientID string, audience string, clusterCert fu
 		groupsClaim:          opts.GroupsClaim,
 		clusterCert:          clusterCert,
 		configExpiryInterval: defaultConfigExpiryInterval,
+		httpClientFunc:       httpClientFunc,
 	}
 
 	return verifier, nil
