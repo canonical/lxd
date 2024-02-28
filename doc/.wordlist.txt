@@ -164,6 +164,7 @@ NVMe
 NVRAM
 OData
 OIDC
+OpenFGA
 OpenID
 OpenMetrics
 OpenSSL

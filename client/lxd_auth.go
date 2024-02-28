@@ -11,7 +11,7 @@ import (
 
 // GetAuthGroupNames returns a slice of all group names.
 func (r *ProtocolLXD) GetAuthGroupNames() ([]string, error) {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +28,7 @@ func (r *ProtocolLXD) GetAuthGroupNames() ([]string, error) {
 
 // GetAuthGroup returns a single group by its name.
 func (r *ProtocolLXD) GetAuthGroup(groupName string) (*api.AuthGroup, string, error) {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return nil, "", err
 	}
@@ -44,7 +44,7 @@ func (r *ProtocolLXD) GetAuthGroup(groupName string) (*api.AuthGroup, string, er
 
 // GetAuthGroups returns a list of all groups.
 func (r *ProtocolLXD) GetAuthGroups() ([]api.AuthGroup, error) {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (r *ProtocolLXD) GetAuthGroups() ([]api.AuthGroup, error) {
 
 // CreateAuthGroup creates a new group.
 func (r *ProtocolLXD) CreateAuthGroup(group api.AuthGroupsPost) error {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (r *ProtocolLXD) CreateAuthGroup(group api.AuthGroupsPost) error {
 
 // UpdateAuthGroup replaces the editable fields of the group with the given name.
 func (r *ProtocolLXD) UpdateAuthGroup(groupName string, groupPut api.AuthGroupPut, ETag string) error {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return err
 	}
@@ -90,7 +90,7 @@ func (r *ProtocolLXD) UpdateAuthGroup(groupName string, groupPut api.AuthGroupPu
 
 // RenameAuthGroup renames the group with the given name.
 func (r *ProtocolLXD) RenameAuthGroup(groupName string, groupPost api.AuthGroupPost) error {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func (r *ProtocolLXD) RenameAuthGroup(groupName string, groupPost api.AuthGroupP
 
 // DeleteAuthGroup deletes the group with the given name.
 func (r *ProtocolLXD) DeleteAuthGroup(groupName string) error {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return err
 	}
@@ -121,7 +121,7 @@ func (r *ProtocolLXD) DeleteAuthGroup(groupName string) error {
 // GetIdentityAuthenticationMethodsIdentifiers returns a map of authentication method to list of identifiers (e.g. certificate fingerprint, email address)
 // for all identities.
 func (r *ProtocolLXD) GetIdentityAuthenticationMethodsIdentifiers() (map[string][]string, error) {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +165,7 @@ func (r *ProtocolLXD) GetIdentityAuthenticationMethodsIdentifiers() (map[string]
 // GetIdentityIdentifiersByAuthenticationMethod returns a list of identifiers (e.g. certificate fingerprint, email address) of
 // identities that authenticate with the given authentication method.
 func (r *ProtocolLXD) GetIdentityIdentifiersByAuthenticationMethod(authenticationMethod string) ([]string, error) {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func (r *ProtocolLXD) GetIdentityIdentifiersByAuthenticationMethod(authenticatio
 
 // GetIdentities returns a list of identities.
 func (r *ProtocolLXD) GetIdentities() ([]api.Identity, error) {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +198,7 @@ func (r *ProtocolLXD) GetIdentities() ([]api.Identity, error) {
 
 // GetIdentitiesByAuthenticationMethod returns a list of identities that authenticate with the given authentication method.
 func (r *ProtocolLXD) GetIdentitiesByAuthenticationMethod(authenticationMethod string) ([]api.Identity, error) {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +214,7 @@ func (r *ProtocolLXD) GetIdentitiesByAuthenticationMethod(authenticationMethod s
 
 // GetIdentitiesInfo returns a list of identities and populates the groups that each identity is a member of.
 func (r *ProtocolLXD) GetIdentitiesInfo() ([]api.IdentityInfo, error) {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +231,7 @@ func (r *ProtocolLXD) GetIdentitiesInfo() ([]api.IdentityInfo, error) {
 // GetIdentitiesInfoByAuthenticationMethod returns a list of identities that authenticate with the given authentication method
 // and populates the groups that each identity is a member of.
 func (r *ProtocolLXD) GetIdentitiesInfoByAuthenticationMethod(authenticationMethod string) ([]api.IdentityInfo, error) {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +248,7 @@ func (r *ProtocolLXD) GetIdentitiesInfoByAuthenticationMethod(authenticationMeth
 // GetIdentity returns the identity with the given authentication method and identifier. A name may be supplied in place
 // of the identifier if the name is unique within the authentication method.
 func (r *ProtocolLXD) GetIdentity(authenticationMethod string, nameOrIdentifier string) (*api.IdentityInfo, string, error) {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return nil, "", err
 	}
@@ -264,7 +264,7 @@ func (r *ProtocolLXD) GetIdentity(authenticationMethod string, nameOrIdentifier 
 
 // UpdateIdentity replaces the editable fields of an identity with the given input.
 func (r *ProtocolLXD) UpdateIdentity(authenticationMethod string, nameOrIdentifer string, identityPut api.IdentityPut, ETag string) error {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return err
 	}
@@ -279,7 +279,7 @@ func (r *ProtocolLXD) UpdateIdentity(authenticationMethod string, nameOrIdentife
 
 // GetIdentityProviderGroupNames returns a list of identity provider group names.
 func (r *ProtocolLXD) GetIdentityProviderGroupNames() ([]string, error) {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return nil, err
 	}
@@ -296,7 +296,7 @@ func (r *ProtocolLXD) GetIdentityProviderGroupNames() ([]string, error) {
 
 // GetIdentityProviderGroups returns all identity provider groups defined on the server.
 func (r *ProtocolLXD) GetIdentityProviderGroups() ([]api.IdentityProviderGroup, error) {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +312,7 @@ func (r *ProtocolLXD) GetIdentityProviderGroups() ([]api.IdentityProviderGroup, 
 
 // GetIdentityProviderGroup returns the identity provider group with the given name.
 func (r *ProtocolLXD) GetIdentityProviderGroup(identityProviderGroupName string) (*api.IdentityProviderGroup, string, error) {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return nil, "", err
 	}
@@ -328,7 +328,7 @@ func (r *ProtocolLXD) GetIdentityProviderGroup(identityProviderGroupName string)
 
 // CreateIdentityProviderGroup creates a new identity provider group.
 func (r *ProtocolLXD) CreateIdentityProviderGroup(identityProviderGroup api.IdentityProviderGroup) error {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return err
 	}
@@ -343,7 +343,7 @@ func (r *ProtocolLXD) CreateIdentityProviderGroup(identityProviderGroup api.Iden
 
 // UpdateIdentityProviderGroup replaces the groups that are mapped to the identity provider group with the given name.
 func (r *ProtocolLXD) UpdateIdentityProviderGroup(identityProviderGroupName string, identityProviderGroupPut api.IdentityProviderGroupPut, ETag string) error {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return err
 	}
@@ -358,7 +358,7 @@ func (r *ProtocolLXD) UpdateIdentityProviderGroup(identityProviderGroupName stri
 
 // RenameIdentityProviderGroup renames the identity provider group with the given name.
 func (r *ProtocolLXD) RenameIdentityProviderGroup(identityProviderGroupName string, identityProviderGroupPost api.IdentityProviderGroupPost) error {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return err
 	}
@@ -373,7 +373,7 @@ func (r *ProtocolLXD) RenameIdentityProviderGroup(identityProviderGroupName stri
 
 // DeleteIdentityProviderGroup deletes the identity provider group with the given name.
 func (r *ProtocolLXD) DeleteIdentityProviderGroup(identityProviderGroupName string) error {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return err
 	}
@@ -389,7 +389,7 @@ func (r *ProtocolLXD) DeleteIdentityProviderGroup(identityProviderGroupName stri
 // GetPermissions returns all permissions available on the server. It does not return information on whether these
 // permissions are assigned to groups.
 func (r *ProtocolLXD) GetPermissions(args GetPermissionsArgs) ([]api.Permission, error) {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return nil, err
 	}
@@ -414,7 +414,7 @@ func (r *ProtocolLXD) GetPermissions(args GetPermissionsArgs) ([]api.Permission,
 
 // GetPermissionsInfo returns all permissions available on the server and includes the groups that are assigned each permission.
 func (r *ProtocolLXD) GetPermissionsInfo(args GetPermissionsArgs) ([]api.PermissionInfo, error) {
-	err := r.CheckExtension("authorization_apis")
+	err := r.CheckExtension("access_management")
 	if err != nil {
 		return nil, err
 	}
