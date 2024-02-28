@@ -211,7 +211,7 @@ jobs:
           set -eux
           HEAD="$(git ls-remote https://github.com/golang/go.git HEAD | awk '{print $1}')"
           # Tarballs can take time to become available
-          curl --retry 3 --retry-all-errors --retry-delay 30 -sSfL "https://storage.googleapis.com/go-build-snap/go/linux-amd64/${HEAD}.tar.gz" -o gotip.tar.gz
+          curl --retry 3 --retry-all-errors --retry-delay 45 -sSfL "https://storage.googleapis.com/go-build-snap/go/linux-amd64/${HEAD}.tar.gz" -o gotip.tar.gz
           ls -lah gotip.tar.gz
           mkdir -p ~/sdk/gotip
           tar -C ~/sdk/gotip -xzf gotip.tar.gz
