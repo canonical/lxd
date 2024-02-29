@@ -907,6 +907,23 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		opts = append(opts, fmt.Sprintf("cache=%s", d.config["io.cache"]))
 	}
 
+	// Add I/O limits if set.
+	var diskLimits *deviceConfig.DiskLimits
+	if d.config["limits.read"] != "" || d.config["limits.write"] != "" || d.config["limits.max"] != "" {
+		// Parse the limits into usable values.
+		readBps, readIops, writeBps, writeIops, err := d.parseLimit(d.config)
+		if err != nil {
+			return nil, err
+		}
+
+		diskLimits = &deviceConfig.DiskLimits{
+			ReadBytes:  readBps,
+			ReadIOps:   readIops,
+			WriteBytes: writeBps,
+			WriteIOps:  writeIops,
+		}
+	}
+
 	if instancetype.IsRootDiskDevice(d.config) {
 		// Handle previous requests for setting new quotas.
 		err := d.applyDeferredQuota()
@@ -921,6 +938,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				TargetPath: d.config["path"], // Indicator used that this is the root device.
 				DevName:    d.name,
 				Opts:       opts,
+				Limits:     diskLimits,
 			},
 		}
 
@@ -965,6 +983,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					DevPath: DiskGetRBDFormat(clusterName, userName, fields[0], fields[1]),
 					DevName: d.name,
 					Opts:    opts,
+					Limits:  diskLimits,
 				},
 			}
 		} else {
@@ -975,6 +994,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				DevPath: shared.HostPath(d.config["source"]),
 				DevName: d.name,
 				Opts:    opts,
+				Limits:  diskLimits,
 			}
 
 			// Mount the pool volume and update srcPath to mount path so it can be recognised as dir
@@ -1028,6 +1048,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						DevPath: DiskGetRBDFormat(clusterName, userName, poolName, d.config["source"]),
 						DevName: d.name,
 						Opts:    opts,
+						Limits:  diskLimits,
 					}
 
 					if contentType == cluster.StoragePoolVolumeContentTypeISO {
