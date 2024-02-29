@@ -81,15 +81,15 @@ func (d *gpuSRIOV) Start() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
 	saveData := make(map[string]string)
 
+	// Get global SR-IOV lock to prevent concurent allocations of the VF.
+	sriovMu.Lock()
+	defer sriovMu.Unlock()
+
 	// Make sure that vfio-pci is loaded.
 	err = util.LoadModule("vfio-pci")
 	if err != nil {
 		return nil, fmt.Errorf("Error loading %q module: %w", "vfio-pci", err)
 	}
-
-	// Get global SR-IOV lock to prevent concurent allocations of the VF.
-	sriovMu.Lock()
-	defer sriovMu.Unlock()
 
 	// Get SRIOV VF.
 	parentPCIAddress, vfID, err := d.getVF()
