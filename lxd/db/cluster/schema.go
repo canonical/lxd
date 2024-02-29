@@ -47,6 +47,9 @@ CREATE TABLE identities (
     identifier TEXT NOT NULL,
     name TEXT NOT NULL,
     metadata TEXT NOT NULL,
+    first_seen_date DATETIME NOT NULL DEFAULT "0001-01-01T00:00:00Z",
+    last_seen_date DATETIME NOT NULL DEFAULT "0001-01-01T00:00:00Z",
+    updated_date DATETIME NOT NULL DEFAULT "0001-01-01T00:00:00Z",
     UNIQUE (auth_method, identifier),
     UNIQUE (type, identifier)
 );
@@ -665,5 +668,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (71, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (72, strftime("%s"))
 `
