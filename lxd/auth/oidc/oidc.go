@@ -47,11 +47,12 @@ type Verifier struct {
 	relyingParty        rp.RelyingParty
 	identityCache       *identity.Cache
 
-	clientID    string
-	issuer      string
-	audience    string
-	groupsClaim string
-	clusterCert func() *shared.CertInfo
+	clientID       string
+	issuer         string
+	audience       string
+	groupsClaim    string
+	clusterCert    func() *shared.CertInfo
+	httpClientFunc func() (*http.Client, error)
 
 	// host is used for setting a valid callback URL when setting the relyingParty.
 	// When creating the relyingParty, the OIDC library performs discovery (e.g. it calls the /well-known/oidc-configuration endpoint).
@@ -358,6 +359,12 @@ func (*Verifier) IsRequest(r *http.Request) bool {
 	return false
 }
 
+// ExpireConfig sets the expiry time of the current configuration to zero. This forces the verifier to reconfigure the
+// relying party the next time a user authenticates.
+func (o *Verifier) ExpireConfig() {
+	o.configExpiry = time.Now()
+}
+
 // ensureConfig ensures that the relyingParty and accessTokenVerifier fields of the Verifier are non-nil. Additionally,
 // if the given host is different from the Verifier host we reset the relyingParty to ensure the callback URL is set
 // correctly.
@@ -403,11 +410,17 @@ func (o *Verifier) setRelyingParty(host string) error {
 		return errors.New("Failed to generate a secure cookie hash key")
 	}
 
+	httpClient, err := o.httpClientFunc()
+	if err != nil {
+		return fmt.Errorf("Failed to get a HTTP client: %w", err)
+	}
+
 	cookieHandler := httphelper.NewCookieHandler(cookieHashKey, cookieBlockKey)
 	options := []rp.Option{
 		rp.WithCookieHandler(cookieHandler),
 		rp.WithVerifierOpts(rp.WithIssuedAtOffset(5 * time.Second)),
 		rp.WithPKCE(cookieHandler),
+		rp.WithHTTPClient(httpClient),
 	}
 
 	oidcScopes := []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, oidc.ScopeEmail, oidc.ScopeProfile}
@@ -600,19 +613,12 @@ func (o *Verifier) secureCookieFromSession(sessionID uuid.UUID) (*securecookie.S
 
 // Opts contains optional configurable fields for the Verifier.
 type Opts struct {
-	ConfigExpiryInterval time.Duration
-	GroupsClaim          string
+	GroupsClaim string
 }
 
 // NewVerifier returns a Verifier.
-func NewVerifier(issuer string, clientID string, audience string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, options *Opts) (*Verifier, error) {
-	opts := &Opts{
-		ConfigExpiryInterval: defaultConfigExpiryInterval,
-	}
-
-	if options != nil && options.ConfigExpiryInterval > 0 {
-		opts.ConfigExpiryInterval = options.ConfigExpiryInterval
-	}
+func NewVerifier(issuer string, clientID string, audience string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
+	opts := &Opts{}
 
 	if options != nil && options.GroupsClaim != "" {
 		opts.GroupsClaim = options.GroupsClaim
@@ -625,7 +631,8 @@ func NewVerifier(issuer string, clientID string, audience string, clusterCert fu
 		identityCache:        identityCache,
 		groupsClaim:          opts.GroupsClaim,
 		clusterCert:          clusterCert,
-		configExpiryInterval: opts.ConfigExpiryInterval,
+		configExpiryInterval: defaultConfigExpiryInterval,
+		httpClientFunc:       httpClientFunc,
 	}
 
 	return verifier, nil

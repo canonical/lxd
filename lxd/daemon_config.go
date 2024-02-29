@@ -45,4 +45,8 @@ func daemonConfigSetProxy(d *Daemon, config *clusterConfig.Config) {
 		config.ProxyHTTP(),
 		config.ProxyIgnoreHosts(),
 	)
+
+	if d.oidcVerifier != nil {
+		d.oidcVerifier.ExpireConfig()
+	}
 }
