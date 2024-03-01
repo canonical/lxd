@@ -24,6 +24,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 var authGroupsCmd = APIEndpoint{
@@ -170,7 +171,7 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var groups []dbCluster.AuthGroup
-	groupsPermissions := make(map[int][]dbCluster.Permission)
+	var authGroupPermissions []dbCluster.Permission
 	groupsIdentities := make(map[int][]dbCluster.Identity)
 	groupsIdentityProviderGroups := make(map[int][]dbCluster.IdentityProviderGroup)
 	entityURLs := make(map[entity.Type]map[int]*api.URL)
@@ -204,25 +205,29 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			groupsPermissions, err = dbCluster.GetAllPermissionsByAuthGroupIDs(ctx, tx.Tx())
+			authGroupPermissions, err = dbCluster.GetPermissions(ctx, tx.Tx())
 			if err != nil {
 				return err
 			}
 
-			// allGroupPermissions is a de-duplicated slice of permissions.
-			var allGroupPermissions []dbCluster.Permission
-			for _, groupPermissions := range groupsPermissions {
-				for _, permission := range groupPermissions {
-					if !shared.ValueInSlice(permission, allGroupPermissions) {
-						allGroupPermissions = append(allGroupPermissions, permission)
+			// Get the EntityURLs for the permissions. Ignore any dangling permissions.
+			var danglingPermissions []dbCluster.Permission
+			authGroupPermissions, danglingPermissions, entityURLs, err = dbCluster.GetPermissionEntityURLs(ctx, tx.Tx(), authGroupPermissions)
+			if err != nil {
+				return err
+			}
+
+			if len(danglingPermissions) > 0 {
+				permissionIDs := make([]int, 0, len(danglingPermissions))
+				entityTypes := make([]dbCluster.EntityType, 0, len(danglingPermissions))
+				for _, perm := range danglingPermissions {
+					permissionIDs = append(permissionIDs, perm.ID)
+					if !shared.ValueInSlice(perm.EntityType, entityTypes) {
+						entityTypes = append(entityTypes, perm.EntityType)
 					}
 				}
-			}
 
-			// EntityURLs is a map of entity type, to entity ID, to api.URL.
-			entityURLs, err = dbCluster.GetPermissionEntityURLs(ctx, tx.Tx(), allGroupPermissions)
-			if err != nil {
-				return err
+				logger.Warn("Encountered dangling permissions", logger.Ctx{"permission_ids": permissionIDs, "entity_types": entityTypes})
 			}
 		}
 
@@ -233,29 +238,23 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if recursion == "1" {
+		authGroupPermissionsByGroupID := make(map[int][]dbCluster.Permission, len(groups))
+		for _, permission := range authGroupPermissions {
+			authGroupPermissionsByGroupID[permission.GroupID] = append(authGroupPermissionsByGroupID[permission.GroupID], permission)
+		}
+
 		apiGroups := make([]api.AuthGroup, 0, len(groups))
 		for _, group := range groups {
 			var apiPermissions []api.Permission
 
 			// The group may not have any permissions.
-			permissions, ok := groupsPermissions[group.ID]
+			permissions, ok := authGroupPermissionsByGroupID[group.ID]
 			if ok {
 				apiPermissions = make([]api.Permission, 0, len(permissions))
 				for _, permission := range permissions {
-					// Expect to find any permissions in the entity URL map by its entity type and entity ID.
-					entityIDToURL, ok := entityURLs[entity.Type(permission.EntityType)]
-					if !ok {
-						return response.InternalError(fmt.Errorf("Entity URLs missing for permissions with entity type %q", permission.EntityType))
-					}
-
-					apiURL, ok := entityIDToURL[permission.EntityID]
-					if !ok {
-						return response.InternalError(fmt.Errorf("Entity URL missing for permission with entity type %q and entity ID `%d`", permission.EntityType, permission.EntityID))
-					}
-
 					apiPermissions = append(apiPermissions, api.Permission{
 						EntityType:      string(permission.EntityType),
-						EntityReference: apiURL.String(),
+						EntityReference: entityURLs[entity.Type(permission.EntityType)][permission.EntityID].String(),
 						Entitlement:     string(permission.Entitlement),
 					})
 				}
@@ -357,12 +356,7 @@ func createAuthGroup(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		permissionIDs, err := upsertPermissions(ctx, tx.Tx(), group.Permissions)
-		if err != nil {
-			return err
-		}
-
-		err = dbCluster.SetAuthGroupPermissions(ctx, tx.Tx(), int(groupID), permissionIDs)
+		err = upsertPermissions(ctx, tx.Tx(), int(groupID), group.Permissions)
 		if err != nil {
 			return err
 		}
@@ -515,12 +509,7 @@ func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		permissionIDs, err := upsertPermissions(ctx, tx.Tx(), groupPut.Permissions)
-		if err != nil {
-			return err
-		}
-
-		err = dbCluster.SetAuthGroupPermissions(ctx, tx.Tx(), group.ID, permissionIDs)
+		err = upsertPermissions(ctx, tx.Tx(), group.ID, groupPut.Permissions)
 		if err != nil {
 			return err
 		}
@@ -618,12 +607,7 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		permissionIDs, err := upsertPermissions(ctx, tx.Tx(), newPermissions)
-		if err != nil {
-			return err
-		}
-
-		err = dbCluster.SetAuthGroupPermissions(ctx, tx.Tx(), group.ID, permissionIDs)
+		err = upsertPermissions(ctx, tx.Tx(), group.ID, newPermissions)
 		if err != nil {
 			return err
 		}
