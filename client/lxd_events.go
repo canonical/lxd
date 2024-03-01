@@ -29,6 +29,10 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 		ctxCancel: cancel,
 	}
 
+	if !r.supportsAuthentication {
+		return nil, fmt.Errorf("Failed to connect to the Events interface, the client does not support authentication")
+	}
+
 	connInfo, _ := r.GetConnectionInfo()
 	if connInfo.Project == "" {
 		return nil, fmt.Errorf("Unexpected empty project in connection info")
