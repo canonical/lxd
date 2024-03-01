@@ -11,17 +11,104 @@ import (
 func gpuValidationRules(requiredFields []string, optionalFields []string) map[string]func(value string) error {
 	// Define a set of default validators for each field name.
 	defaultValidators := map[string]func(value string) error{
-		"vendorid":  validate.Optional(validate.IsDeviceID),
+		// lxdmeta:generate(entities=device-gpu-{physical+mdev+mig}; group=device-conf; key=vendorid)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Vendor ID of the GPU device
+
+		// lxdmeta:generate(entities=device-gpu-sriov; group=device-conf; key=vendorid)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Vendor ID of the parent GPU device
+		"vendorid": validate.Optional(validate.IsDeviceID),
+		// lxdmeta:generate(entities=device-gpu-{physical+mdev+mig}; group=device-conf; key=productid)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Product ID of the GPU device
+
+		// lxdmeta:generate(entities=device-gpu-sriov; group=device-conf; key=productid)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Product ID of the parent GPU device
 		"productid": validate.Optional(validate.IsDeviceID),
-		"id":        validate.IsAny,
-		"pci":       validate.IsPCIAddress,
-		"uid":       unixValidUserID,
-		"gid":       unixValidUserID,
-		"mode":      unixValidOctalFileMode,
-		"mig.gi":    validate.IsUint8,
-		"mig.ci":    validate.IsUint8,
-		"mig.uuid":  gpuValidMigUUID,
-		"mdev":      validate.IsAny,
+		// lxdmeta:generate(entities=device-gpu-{physical+mdev+mig}; group=device-conf; key=id)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: DRM card ID of the GPU device
+
+		// lxdmeta:generate(entities=device-gpu-sriov; group=device-conf; key=id)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: DRM card ID of the parent GPU device
+		"id": validate.IsAny,
+		// lxdmeta:generate(entities=device-gpu-{physical+mdev+mig}; group=device-conf; key=pci)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: PCI address of the GPU device
+
+		// lxdmeta:generate(entities=device-gpu-sriov; group=device-conf; key=pci)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: PCI address of the parent GPU device
+		"pci": validate.IsPCIAddress,
+		// lxdmeta:generate(entities=device-gpu-physical; group=device-conf; key=uid)
+		//
+		// ---
+		//  type: integer
+		//  defaultdesc: `0`
+		//  condition: container
+		//  shortdesc: UID of the device owner in the container
+		"uid": unixValidUserID,
+		// lxdmeta:generate(entities=device-gpu-physical; group=device-conf; key=gid)
+		//
+		// ---
+		//  type: integer
+		//  defaultdesc: `0`
+		//  condition: container
+		//  shortdesc: GID of the device owner in the container
+		"gid": unixValidUserID,
+		// lxdmeta:generate(entities=device-gpu-physical; group=device-conf; key=mode)
+		//
+		// ---
+		//  type: integer
+		//  defaultdesc: `0660`
+		//  condition: container
+		//  shortdesc: Mode of the device in the container
+		"mode": unixValidOctalFileMode,
+		// lxdmeta:generate(entities=device-gpu-mig; group=device-conf; key=mig.gi)
+		//
+		// ---
+		//  type: integer
+		//  shortdesc: Existing MIG GPU instance ID
+		"mig.gi": validate.IsUint8,
+		// lxdmeta:generate(entities=device-gpu-mig; group=device-conf; key=mig.ci)
+		//
+		// ---
+		//  type: integer
+		//  shortdesc: Existing MIG compute instance ID
+		"mig.ci": validate.IsUint8,
+		// lxdmeta:generate(entities=device-gpu-mig; group=device-conf; key=mig.uuid)
+		// You can omit the `MIG-` prefix when specifying this option.
+		// ---
+		//  type: string
+		//  shortdesc: Existing MIG device UUID
+		"mig.uuid": gpuValidMigUUID,
+		// lxdmeta:generate(entities=device-gpu-mdev; group=device-conf; key=mdev)
+		// For example: `i915-GVTg_V5_4`
+		// ---
+		//  type: string
+		//  defaultdesc: `0`
+		//  required: yes
+		//  shortdesc: The `mdev` profile to use
+		"mdev": validate.IsAny,
 	}
 
 	validators := map[string]func(value string) error{}
