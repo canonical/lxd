@@ -324,7 +324,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 
 	var poolID int64
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		poolID, err = tx.GetStoragePoolID(ctx, poolName)
 
 		return err
@@ -692,7 +692,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	var poolID int64
 	var dbVolume *db.StorageVolume
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		poolID, err = tx.GetStoragePoolID(ctx, poolName)
 		if err != nil {
 			return err
@@ -1278,7 +1278,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		targetPoolName = srcPoolName
 	}
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		targetPoolID, err = tx.GetStoragePoolID(ctx, targetPoolName)
 
 		return err
@@ -1287,7 +1287,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Check that the name isn't already in use.
 		_, err = tx.GetStoragePoolNodeVolumeID(ctx, targetProjectName, req.Name, volumeType, targetPoolID)
 
@@ -1315,7 +1315,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	var volumeNotFound bool
 	var targetIsSet bool
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Load source volume.
 		srcPoolID, err := tx.GetStoragePoolID(ctx, srcPoolName)
 		if err != nil {
@@ -1713,14 +1713,14 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r, poolName, volumeProjectName, volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(s, r, poolName, projectName, volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
 
 	var dbVolume *db.StorageVolume
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the ID of the storage pool the storage volume is supposed to be attached to.
 		poolID, err := tx.GetStoragePoolID(ctx, poolName)
 		if err != nil {
@@ -2357,7 +2357,7 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 		"snapshots": bInfo.Snapshots,
 	})
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Check storage pool exists.
 		_, _, _, err = tx.GetStoragePoolInAnyState(ctx, bInfo.Pool)
 
@@ -2373,7 +2373,7 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 
 		var profile *api.Profile
 
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Otherwise try and restore to the project's default profile pool.
 			_, profile, err = tx.GetProfile(ctx, bInfo.Project, "default")
 
