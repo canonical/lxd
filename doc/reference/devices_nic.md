@@ -74,34 +74,11 @@ A `bridged` NIC uses an existing bridge on the host and creates a virtual device
 
 NIC devices of type `bridged` have the following device options:
 
-Key                      | Type    | Default           | Managed | Description
-:--                      | :--     | :--               | :--     | :--
-`boot.priority`          | integer | -                 | no      | Boot priority for VMs (higher value boots first)
-`host_name`              | string  | randomly assigned | no      | The name of the interface inside the host
-`hwaddr`                 | string  | randomly assigned | no      | The MAC address of the new interface
-`ipv4.address`           | string  | -                 | no      | An IPv4 address to assign to the instance through DHCP (can be `none` to restrict all IPv4 traffic when `security.ipv4_filtering` is set)
-`ipv4.routes`            | string  | -                 | no      | Comma-delimited list of IPv4 static routes to add on host to NIC
-`ipv4.routes.external`   | string  | -                 | no      | Comma-delimited list of IPv4 static routes to route to the NIC and publish on uplink network (BGP)
-`ipv6.address`           | string  | -                 | no      | An IPv6 address to assign to the instance through DHCP (can be `none` to restrict all IPv6 traffic when `security.ipv6_filtering` is set)
-`ipv6.routes`            | string  | -                 | no      | Comma-delimited list of IPv6 static routes to add on host to NIC
-`ipv6.routes.external`   | string  | -                 | no      | Comma-delimited list of IPv6 static routes to route to the NIC and publish on uplink network (BGP)
-`limits.egress`          | string  | -                 | no      | I/O limit in bit/s for outgoing traffic (various suffixes supported, see {ref}`instances-limit-units`)
-`limits.ingress`         | string  | -                 | no      | I/O limit in bit/s for incoming traffic (various suffixes supported, see {ref}`instances-limit-units`)
-`limits.max`             | string  | -                 | no      | I/O limit in bit/s for both incoming and outgoing traffic (same as setting both `limits.ingress` and `limits.egress`)
-`limits.priority`        | integer | -                 | no      | The `skb->priority` value (32-bit unsigned integer) for outgoing traffic, to be used by the kernel queuing discipline (qdisc) to prioritize network packets (The effect of this value depends on the particular qdisc implementation, for example, `SKBPRIO` or `QFQ`. Consult the kernel qdisc documentation before setting this value.)
-`maas.subnet.ipv4`       | string  | -                 | yes     | MAAS IPv4 subnet to register the instance in
-`maas.subnet.ipv6`       | string  | -                 | yes     | MAAS IPv6 subnet to register the instance in
-`mtu`                    | integer | parent MTU        | yes     | The MTU of the new interface
-`name`                   | string  | kernel assigned   | no      | The name of the interface inside the instance
-`network`                | string  | -                 | no      | The managed network to link the device to (instead of specifying the `nictype` directly)
-`parent`                 | string  | -                 | yes     | The name of the host device (required if specifying the `nictype` directly)
-`queue.tx.length`        | integer | -                 | no      | The transmit queue length for the NIC
-`security.ipv4_filtering`| bool    | `false`           | no      | Prevent the instance from spoofing another instance's IPv4 address (enables `security.mac_filtering`)
-`security.ipv6_filtering`| bool    | `false`           | no      | Prevent the instance from spoofing another instance's IPv6 address (enables `security.mac_filtering`)
-`security.mac_filtering` | bool    | `false`           | no      | Prevent the instance from spoofing another instance's MAC address
-`security.port_isolation`| bool    | `false`           | no      | Prevent the NIC from communicating with other NICs in the network that have port isolation enabled
-`vlan`                   | integer | -                 | no      | The VLAN ID to use for non-tagged traffic (can be `none` to remove port from default VLAN)
-`vlan.tagged`            | integer | -                 | no      | Comma-delimited list of VLAN IDs or VLAN ranges to join for tagged traffic
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group device-nic-bridged-device-conf start -->
+    :end-before: <!-- config group device-nic-bridged-device-conf end -->
+```
 
 #### Configuration examples
 
@@ -134,18 +111,11 @@ Both the host and the instances can talk to the gateway, but they cannot communi
 
 NIC devices of type `macvlan` have the following device options:
 
-Key                     | Type    | Default           | Managed | Description
-:--                     | :--     | :--               | :--     | :--
-`boot.priority`         | integer | -                 | no      | Boot priority for VMs (higher value boots first)
-`gvrp`                  | bool    | `false`           | no      | Register VLAN using GARP VLAN Registration Protocol
-`hwaddr`                | string  | randomly assigned | no      | The MAC address of the new interface
-`maas.subnet.ipv4`      | string  | -                 | yes     | MAAS IPv4 subnet to register the instance in
-`maas.subnet.ipv6`      | string  | -                 | yes     | MAAS IPv6 subnet to register the instance in
-`mtu`                   | integer | parent MTU        | yes     | The MTU of the new interface
-`name`                  | string  | kernel assigned   | no      | The name of the interface inside the instance
-`network`               | string  | -                 | no      | The managed network to link the device to (instead of specifying the `nictype` directly)
-`parent`                | string  | -                 | yes     | The name of the host device (required if specifying the `nictype` directly)
-`vlan`                  | integer | -                 | no      | The VLAN ID to attach to
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group device-nic-macvlan-device-conf start -->
+    :end-before: <!-- config group device-nic-macvlan-device-conf end -->
+```
 
 #### Configuration examples
 
@@ -192,18 +162,11 @@ VF allocation
 
 NIC devices of type `sriov` have the following device options:
 
-Key                     | Type    | Default           | Managed | Description
-:--                     | :--     | :--               | :--     | :--
-`boot.priority`         | integer | -                 | no      | Boot priority for VMs (higher value boots first)
-`hwaddr`                | string  | randomly assigned | no      | The MAC address of the new interface
-`maas.subnet.ipv4`      | string  | -                 | yes     | MAAS IPv4 subnet to register the instance in
-`maas.subnet.ipv6`      | string  | -                 | yes     | MAAS IPv6 subnet to register the instance in
-`mtu`                   | integer | kernel assigned   | yes     | The MTU of the new interface
-`name`                  | string  | kernel assigned   | no      | The name of the interface inside the instance
-`network`               | string  | -                 | no      | The managed network to link the device to (instead of specifying the `nictype` directly)
-`parent`                | string  | -                 | yes     | The name of the host device (required if specifying the `nictype` directly)
-`security.mac_filtering`| bool    | `false`           | no      | Prevent the instance from spoofing another instance's MAC address
-`vlan`                  | integer | -                 | no      | The VLAN ID to attach to
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group device-nic-sriov-device-conf start -->
+    :end-before: <!-- config group device-nic-sriov-device-conf end -->
+```
 
 #### Configuration examples
 
@@ -233,18 +196,11 @@ The targeted device will vanish from the host and appear in the instance (which 
 
 NIC devices of type `physical` have the following device options:
 
-Key                     | Type    | Default           | Managed | Description
-:--                     | :--     | :--               | :--     | :--
-`boot.priority`         | integer | -                 | no      | Boot priority for VMs (higher value boots first)
-`gvrp`                  | bool    | `false`           | no      | Register VLAN using GARP VLAN Registration Protocol
-`hwaddr`                | string  | randomly assigned | no      | The MAC address of the new interface
-`maas.subnet.ipv4`      | string  | -                 | no      | MAAS IPv4 subnet to register the instance in
-`maas.subnet.ipv6`      | string  | -                 | no      | MAAS IPv6 subnet to register the instance in
-`mtu`                   | integer | parent MTU        | no      | The MTU of the new interface
-`name`                  | string  | kernel assigned   | no      | The name of the interface inside the instance
-`network`               | string  | -                 | no      | The managed network to link the device to (instead of specifying the `nictype` directly)
-`parent`                | string  | -                 | yes     | The name of the host device (required if specifying the `nictype` directly)
-`vlan`                  | integer | -                 | no      | The VLAN ID to attach to
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group device-nic-physical-device-conf start -->
+    :end-before: <!-- config group device-nic-physical-device-conf end -->
+```
 
 #### Configuration examples
 
@@ -307,27 +263,11 @@ VDPA hardware acceleration
 
 NIC devices of type `ovn` have the following device options:
 
-Key                                   | Type    | Default           | Managed | Description
-:--                                   | :--     | :--               | :--     | :--
-`acceleration`                        | string  | `none`            | no      | Enable hardware offloading (either `none`, `sriov` or `vdpa`, see {ref}`devices-nic-hw-acceleration`)
-`boot.priority`                       | integer | -                 | no      | Boot priority for VMs (higher value boots first)
-`host_name`                           | string  | randomly assigned | no      | The name of the interface inside the host
-`hwaddr`                              | string  | randomly assigned | no      | The MAC address of the new interface
-`ipv4.address`                        | string  | -                 | no      | An IPv4 address to assign to the instance through DHCP
-`ipv4.routes`                         | string  | -                 | no      | Comma-delimited list of IPv4 static routes to route to the NIC
-`ipv4.routes.external`                | string  | -                 | no      | Comma-delimited list of IPv4 static routes to route to the NIC and publish on uplink network
-`ipv6.address`                        | string  | -                 | no      | An IPv6 address to assign to the instance through DHCP
-`ipv6.routes`                         | string  | -                 | no      | Comma-delimited list of IPv6 static routes to route to the NIC
-`ipv6.routes.external`                | string  | -                 | no      | Comma-delimited list of IPv6 static routes to route to the NIC and publish on uplink network
-`name`                                | string  | kernel assigned   | no      | The name of the interface inside the instance
-`nested`                              | string  | -                 | no      | The parent NIC name to nest this NIC under (see also `vlan`)
-`network`                             | string  | -                 | yes     | The managed network to link the device to (required)
-`security.acls`                       | string  | -                 | no      | Comma-separated list of network ACLs to apply
-`security.acls.default.egress.action` | string  | `reject`          | no      | Action to use for egress traffic that doesn't match any ACL rule
-`security.acls.default.egress.logged` | bool    | `false`           | no      | Whether to log egress traffic that doesn't match any ACL rule
-`security.acls.default.ingress.action`| string  | `reject`          | no      | Action to use for ingress traffic that doesn't match any ACL rule
-`security.acls.default.ingress.logged`| bool    | `false`           | no      | Whether to log ingress traffic that doesn't match any ACL rule
-`vlan`                                | integer | -                 | no      | The VLAN ID to use when nesting (see also `nested`)
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group device-nic-ovn-device-conf start -->
+    :end-before: <!-- config group device-nic-ovn-device-conf end -->
+```
 
 #### Configuration examples
 
@@ -377,21 +317,11 @@ DNS
 
 NIC devices of type `ipvlan` have the following device options:
 
-Key                     | Type    | Default            | Description
-:--                     | :--     | :--                | :--
-`gvrp`                  | bool    | `false`            | Register VLAN using GARP VLAN Registration Protocol
-`hwaddr`                | string  | randomly assigned  | The MAC address of the new interface
-`ipv4.address`          | string  | -                  | Comma-delimited list of IPv4 static addresses to add to the instance (in `l2` mode, these can be specified as CIDR values or singular addresses using a subnet of `/24`)
-`ipv4.gateway`          | string  | `auto` (`l3s`), - (`l2`) | In `l3s` mode, whether to add an automatic default IPv4 gateway (can be `auto` or `none`); in `l2` mode, the IPv4 address of the gateway
-`ipv4.host_table`       | integer | -                  | The custom policy routing table ID to add IPv4 static routes to (in addition to the main routing table)
-`ipv6.address`          | string  | -                  | Comma-delimited list of IPv6 static addresses to add to the instance (in `l2` mode, these can be specified as CIDR values or singular addresses using a subnet of `/64`)
-`ipv6.gateway`          | string  | `auto` (`l3s`), - (`l2`) | In `l3s` mode, whether to add an automatic default IPv6 gateway (can be `auto` or `none`); in `l2` mode, the IPv6 address of the gateway
-`ipv6.host_table`       | integer | -                  | The custom policy routing table ID to add IPv6 static routes to (in addition to the main routing table)
-`mode`                  | string  | `l3s`              | The IPVLAN mode (either `l2` or `l3s`)
-`mtu`                   | integer | parent MTU         | The MTU of the new interface
-`name`                  | string  | kernel assigned    | The name of the interface inside the instance
-`parent`                | string  | -                  | The name of the host device (required)
-`vlan`                  | integer | -                  | The VLAN ID to attach to
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group device-nic-ipvlan-device-conf start -->
+    :end-before: <!-- config group device-nic-ipvlan-device-conf end -->
+```
 
 #### Configuration examples
 
@@ -417,20 +347,11 @@ A `p2p` NIC creates a virtual device pair, putting one side in the instance and 
 
 NIC devices of type `p2p` have the following device options:
 
-Key                     | Type    | Default           | Description
-:--                     | :--     | :--               | :--
-`boot.priority`         | integer | -                 | Boot priority for VMs (higher value boots first)
-`host_name`             | string  | randomly assigned | The name of the interface inside the host
-`hwaddr`                | string  | randomly assigned | The MAC address of the new interface
-`ipv4.routes`           | string  | -                 | Comma-delimited list of IPv4 static routes to add on host to NIC
-`ipv6.routes`           | string  | -                 | Comma-delimited list of IPv6 static routes to add on host to NIC
-`limits.egress`         | string  | -                 | I/O limit in bit/s for outgoing traffic (various suffixes supported, see {ref}`instances-limit-units`)
-`limits.ingress`        | string  | -                 | I/O limit in bit/s for incoming traffic (various suffixes supported, see {ref}`instances-limit-units`)
-`limits.max`            | string  | -                 | I/O limit in bit/s for both incoming and outgoing traffic (same as setting both `limits.ingress` and `limits.egress`)
-`limits.priority`       | integer | -                 | The `skb->priority` value (32-bit unsigned integer) for outgoing traffic, to be used by the kernel queuing discipline (qdisc) to prioritize network packets (The effect of this value depends on the particular qdisc implementation, for example, `SKBPRIO` or `QFQ`. Consult the kernel qdisc documentation before setting this value.)
-`mtu`                   | integer | kernel assigned   | The MTU of the new interface
-`name`                  | string  | kernel assigned   | The name of the interface inside the instance
-`queue.tx.length`       | integer | -                 | The transmit queue length for the NIC
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group device-nic-p2p-device-conf start -->
+    :end-before: <!-- config group device-nic-p2p-device-conf end -->
+```
 
 #### Configuration examples
 
@@ -507,32 +428,11 @@ Parent interface
 
 NIC devices of type `routed` have the following device options:
 
-Key                     | Type    | Default           | Description
-:--                     | :--     | :--               | :--
-`gvrp`                  | bool    | `false`           | Register VLAN using GARP VLAN Registration Protocol
-`host_name`             | string  | randomly assigned | The name of the interface inside the host
-`hwaddr`                | string  | randomly assigned | The MAC address of the new interface
-`ipv4.address`          | string  | -                 | Comma-delimited list of IPv4 static addresses to add to the instance
-`ipv4.gateway`          | string  | `auto`            | Whether to add an automatic default IPv4 gateway (can be `auto` or `none`)
-`ipv4.host_address`     | string  | `169.254.0.1`     | The IPv4 address to add to the host-side `veth` interface
-`ipv4.host_table`       | integer | -                 | The custom policy routing table ID to add IPv4 static routes to (in addition to the main routing table)
-`ipv4.neighbor_probe`   | bool    | `true`            | Whether to probe the parent network for IP address availability
-`ipv4.routes`           | string  | -                 | Comma-delimited list of IPv4 static routes to add on host to NIC (without L2 ARP/NDP proxy)
-`ipv6.address`          | string  | -                 | Comma-delimited list of IPv6 static addresses to add to the instance
-`ipv6.gateway`          | string  | `auto`            | Whether to add an automatic default IPv6 gateway (can be `auto` or `none`)
-`ipv6.host_address`     | string  | `fe80::1`         | The IPv6 address to add to the host-side `veth` interface
-`ipv6.host_table`       | integer | -                 | The custom policy routing table ID to add IPv6 static routes to (in addition to the main routing table)
-`ipv6.neighbor_probe`   | bool    | `true`            | Whether to probe the parent network for IP address availability
-`ipv6.routes`           | string  | -                 | Comma-delimited list of IPv6 static routes to add on host to NIC (without L2 ARP/NDP proxy)
-`limits.egress`         | string  | -                 | I/O limit in bit/s for outgoing traffic (various suffixes supported, see {ref}`instances-limit-units`)
-`limits.ingress`        | string  | -                 | I/O limit in bit/s for incoming traffic (various suffixes supported, see {ref}`instances-limit-units`)
-`limits.max`            | string  | -                 | I/O limit in bit/s for both incoming and outgoing traffic (same as setting both `limits.ingress` and `limits.egress`)
-`limits.priority`       | integer | -                 | The `skb->priority` value (32-bit unsigned integer) for outgoing traffic, to be used by the kernel queuing discipline (qdisc) to prioritize network packets (The effect of this value depends on the particular qdisc implementation, for example, `SKBPRIO` or `QFQ`. Consult the kernel qdisc documentation before setting this value.)
-`mtu`                   | integer | parent MTU        | The MTU of the new interface
-`name`                  | string  | kernel assigned   | The name of the interface inside the instance
-`parent`                | string  | -                 | The name of the host device to join the instance to
-`queue.tx.length`       | integer | -                 | The transmit queue length for the NIC
-`vlan`                  | integer | -                 | The VLAN ID to attach to
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group device-nic-routed-device-conf start -->
+    :end-before: <!-- config group device-nic-routed-device-conf end -->
+```
 
 #### Configuration examples
 
