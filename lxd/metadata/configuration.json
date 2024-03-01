@@ -1506,6 +1506,100 @@
 				]
 			}
 		},
+		"device-proxy": {
+			"device-conf": {
+				"keys": [
+					{
+						"bind": {
+							"defaultdesc": "`host`",
+							"longdesc": "Possible values are `host` and `instance`.",
+							"required": "no",
+							"shortdesc": "Which side to bind on",
+							"type": "string"
+						}
+					},
+					{
+						"connect": {
+							"longdesc": "Use the following format to specify the address and port: `\u003ctype\u003e:\u003caddr\u003e:\u003cport\u003e[-\u003cport\u003e][,\u003cport\u003e]`",
+							"required": "yes",
+							"shortdesc": "Address and port to connect to",
+							"type": "string"
+						}
+					},
+					{
+						"gid": {
+							"defaultdesc": "`0`",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "GID of the owner of the listening Unix socket",
+							"type": "integer"
+						}
+					},
+					{
+						"listen": {
+							"longdesc": "Use the following format to specify the address and port: `\u003ctype\u003e:\u003caddr\u003e:\u003cport\u003e[-\u003cport\u003e][,\u003cport\u003e]`",
+							"required": "yes",
+							"shortdesc": "Address and port to bind and listen",
+							"type": "string"
+						}
+					},
+					{
+						"mode": {
+							"defaultdesc": "`0644`",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Mode for the listening Unix socket",
+							"type": "integer"
+						}
+					},
+					{
+						"nat": {
+							"defaultdesc": "`false`",
+							"longdesc": "This option requires that the instance NIC has a static IP address.",
+							"required": "no",
+							"shortdesc": "Whether to optimize proxying via NAT",
+							"type": "bool"
+						}
+					},
+					{
+						"proxy_protocol": {
+							"defaultdesc": "`false`",
+							"longdesc": "This option specifies whether to use the HAProxy PROXY protocol to transmit sender information.",
+							"required": "no",
+							"shortdesc": "Whether to use the HAProxy PROXY protocol",
+							"type": "bool"
+						}
+					},
+					{
+						"security.gid": {
+							"defaultdesc": "`0`",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "What GID to drop privilege to",
+							"type": "integer"
+						}
+					},
+					{
+						"security.uid": {
+							"defaultdesc": "`0`",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "What UID to drop privilege to",
+							"type": "integer"
+						}
+					},
+					{
+						"uid": {
+							"defaultdesc": "`0`",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "UID of the owner of the listening Unix socket",
+							"type": "integer"
+						}
+					}
+				]
+			}
+		},
 		"device-tpm": {
 			"device-conf": {
 				"keys": [
