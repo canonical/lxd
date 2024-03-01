@@ -396,6 +396,55 @@
 				]
 			}
 		},
+		"device-infiniband": {
+			"device-conf": {
+				"keys": [
+					{
+						"hwaddr": {
+							"defaultdesc": "randomly assigned",
+							"longdesc": " You can specify either the full 20-byte variant or the short 8-byte variant (which will modify only the last 8 bytes of the parent device).",
+							"required": "no",
+							"shortdesc": "MAC address of the new interface",
+							"type": "string"
+						}
+					},
+					{
+						"mtu": {
+							"defaultdesc": "parent MTU",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "MTU of the new interface",
+							"type": "integer"
+						}
+					},
+					{
+						"name": {
+							"defaultdesc": "kernel assigned",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Name of the interface inside the instance",
+							"type": "string"
+						}
+					},
+					{
+						"nictype": {
+							"longdesc": "Possible values are `physical` and `sriov`.",
+							"required": "yes",
+							"shortdesc": "Device type",
+							"type": "string"
+						}
+					},
+					{
+						"parent": {
+							"longdesc": "",
+							"required": "yes",
+							"shortdesc": "The name of the host device or bridge",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
 		"device-nic-bridged": {
 			"device-conf": {
 				"keys": [
