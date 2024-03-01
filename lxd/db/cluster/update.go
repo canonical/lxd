@@ -109,6 +109,28 @@ var updates = map[int]schema.Update{
 	70: updateFromV69,
 	71: updateFromV70,
 	72: updateFromV71,
+	73: updateFromV72,
+}
+
+func updateFromV72(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `
+DROP TABLE permissions;
+DROP TABLE auth_groups_permissions;
+CREATE TABLE auth_groups_permissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    auth_group_id INTEGER NOT NULL,
+    entity_type INTEGER NOT NULL,
+    entity_id INTEGER NOT NULL,
+    entitlement TEXT NOT NULL,
+    FOREIGN KEY (auth_group_id) REFERENCES auth_groups (id) ON DELETE CASCADE,
+    UNIQUE (auth_group_id, entity_type, entitlement, entity_id)
+);
+`)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func updateFromV71(ctx context.Context, tx *sql.Tx) error {
