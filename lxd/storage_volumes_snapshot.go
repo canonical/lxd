@@ -408,7 +408,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 	var poolID int64
 	var volumes []db.StorageVolumeArgs
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		// Retrieve ID of the storage pool (and check if the storage pool exists).
@@ -717,7 +717,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	var dbVolume *db.StorageVolume
 	var expiry time.Time
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the snapshot.
 		poolID, _, _, err = tx.GetStoragePool(ctx, poolName)
 		if err != nil {
@@ -847,7 +847,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	var dbVolume *db.StorageVolume
 	var expiry time.Time
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the snapshot.
 		poolID, _, _, err = tx.GetStoragePool(ctx, poolName)
 		if err != nil {
@@ -982,7 +982,7 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 	var dbVolume *db.StorageVolume
 	var expiry time.Time
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the snapshot.
 		poolID, _, _, err = tx.GetStoragePool(ctx, poolName)
 		if err != nil {
