@@ -135,8 +135,8 @@ func getPermissions(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var entityURLs map[entity.Type]map[int]*api.URL
-	var permissions []cluster.Permission
-	var groupsByPermissionID map[int][]cluster.AuthGroup
+	var groups []cluster.AuthGroup
+	var authGroupPermissions []cluster.Permission
 	err := d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		if projectNameFilter != "" {
@@ -148,14 +148,14 @@ func getPermissions(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if recursion == "1" {
-			permissions, err = cluster.GetPermissions(ctx, tx.Tx())
+			groups, err = cluster.GetAuthGroups(ctx, tx.Tx())
 			if err != nil {
-				return fmt.Errorf("Failed to get currently assigned permissions: %w", err)
+				return fmt.Errorf("Failed to get groups: %w", err)
 			}
 
-			groupsByPermissionID, err = cluster.GetAllAuthGroupsByPermissionID(ctx, tx.Tx())
+			authGroupPermissions, err = cluster.GetPermissions(ctx, tx.Tx())
 			if err != nil {
-				return fmt.Errorf("Failed to get groups by permission mapping: %w", err)
+				return fmt.Errorf("Failed to get currently assigned permissions: %w", err)
 			}
 		}
 
@@ -170,28 +170,20 @@ func getPermissions(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// If we're recursing, convert the groupsByPermissionID map into a map of cluster.Permission to list of group names.
-	assignedPermissions := make(map[cluster.Permission][]string, len(groupsByPermissionID))
+	assignedPermissions := make(map[cluster.Permission][]string, len(authGroupPermissions))
 	if recursion == "1" {
-		for permissionID, groups := range groupsByPermissionID {
-			var perm cluster.Permission
-			for _, p := range permissions {
-				if permissionID == p.ID {
-					perm = p
+		groupNames := make(map[int]string, len(groups))
+		for _, group := range groups {
+			groupNames[group.ID] = group.Name
+		}
 
-					// A permission is unique via its entity ID, entity type, and entitlement. Set the ID to zero
-					// so we can create a map key from the entityURL map below.
-					perm.ID = 0
-					break
-				}
-			}
-
-			groupNames := make([]string, 0, len(groups))
-			for _, g := range groups {
-				groupNames = append(groupNames, g.Name)
-			}
-
-			assignedPermissions[perm] = groupNames
+		for _, perm := range authGroupPermissions {
+			// A permission is unique via its entity ID, entity type, and entitlement. Set the permission ID and group ID
+			// to zero so that we can create a map key from the entityURL map below.
+			groupName := groupNames[perm.GroupID]
+			perm.ID = 0
+			perm.GroupID = 0
+			assignedPermissions[perm] = append(assignedPermissions[perm], groupName)
 		}
 	}
 
@@ -212,8 +204,8 @@ func getPermissions(d *Daemon, r *http.Request) response.Response {
 							EntityReference: entityURL.String(),
 							Entitlement:     string(entitlement),
 						},
-						// Get the groups from the assigned permissions map. We don't have the permission ID in scope
-						// here. Thats why we set it to zero above.
+						// Get the groups from the assigned permissions map. We don't have the permission ID or group ID
+						// in scope here. That's why we set it to zero above.
 						Groups: assignedPermissions[cluster.Permission{
 							Entitlement: entitlement,
 							EntityType:  cluster.EntityType(entityType),
