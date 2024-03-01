@@ -24,11 +24,8 @@ When a device is passed to the instance, it vanishes from the host.
 
 `usb` devices have the following device options:
 
-Key         | Type      | Default           | Description
-:--         | :--       | :--               | :--
-`gid`       | int       | `0`               | Only for containers: GID of the device owner in the instance
-`mode`      | int       | `0660`            | Only for containers: Mode of the device in the instance
-`productid` | string    | -                 | The product ID of the USB device
-`required`  | bool      | `false`           | Whether this device is required to start the instance (the default is `false`, and all devices can be hotplugged)
-`uid`       | int       | `0`               | Only for containers: UID of the device owner in the instance
-`vendorid`  | string    | -                 | The vendor ID of the USB device
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group device-unix-usb-device-conf start -->
+    :end-before: <!-- config group device-unix-usb-device-conf end -->
+```
