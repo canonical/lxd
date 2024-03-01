@@ -917,9 +917,9 @@ WHERE projects.name = ?
 
 // storageVolumeSnapshotIDFromURL gets the ID of a storageVolumeSnapshot from its URL.
 var storageVolumeSnapshotIDFromURL = fmt.Sprintf(`
-SELECT ?, storage_volumes_backups.id 
-FROM storage_volumes_backups
-JOIN storage_volumes ON storage_volumes_backups.storage_volume_id = storage_volumes.id
+SELECT ?, storage_volumes_snapshots.id 
+FROM storage_volumes_snapshots
+JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id = storage_volumes.id
 JOIN projects ON storage_volumes.project_id = projects.id
 JOIN storage_pools ON storage_volumes.storage_pool_id = storage_pools.id
 LEFT JOIN nodes ON storage_volumes.node_id = nodes.id
@@ -933,7 +933,7 @@ WHERE projects.name = ?
 		WHEN %d THEN '%s' 
 	END = ? 
 	AND storage_volumes.name = ? 
-	AND storage_volumes_backups.name = ?
+	AND storage_volumes_snapshots.name = ?
 `, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeNameContainer, StoragePoolVolumeTypeImage, StoragePoolVolumeTypeNameImage, StoragePoolVolumeTypeCustom, StoragePoolVolumeTypeNameCustom, StoragePoolVolumeTypeVM, StoragePoolVolumeTypeNameVM)
 
 // warningIDFromURL gets the ID of a warning from its URL.
