@@ -112,18 +112,24 @@ func ConnectLXDHTTPWithContext(ctx context.Context, args *ConnectionArgs, client
 		return nil, err
 	}
 
+	t, ok := client.Transport.(*http.Transport)
+	if !ok {
+		return nil, fmt.Errorf("Invalid HTTP Transport type")
+	}
+
 	ctxConnected, ctxConnectedCancel := context.WithCancel(context.Background())
 
 	// Initialize the client struct
 	server := ProtocolLXD{
-		ctx:                ctx,
-		httpBaseURL:        *httpBaseURL,
-		httpProtocol:       "custom",
-		httpUserAgent:      args.UserAgent,
-		ctxConnected:       ctxConnected,
-		ctxConnectedCancel: ctxConnectedCancel,
-		eventConns:         make(map[string]*websocket.Conn),
-		eventListeners:     make(map[string][]*EventListener),
+		ctx:                    ctx,
+		httpBaseURL:            *httpBaseURL,
+		httpProtocol:           "custom",
+		httpUserAgent:          args.UserAgent,
+		ctxConnected:           ctxConnected,
+		ctxConnectedCancel:     ctxConnectedCancel,
+		eventConns:             make(map[string]*websocket.Conn),
+		eventListeners:         make(map[string][]*EventListener),
+		supportsAuthentication: t.TLSClientConfig != nil && len(t.TLSClientConfig.Certificates) > 0,
 	}
 
 	// Setup the HTTP client
@@ -174,15 +180,16 @@ func ConnectLXDUnixWithContext(ctx context.Context, path string, args *Connectio
 
 	// Initialize the client struct
 	server := ProtocolLXD{
-		ctx:                ctx,
-		httpBaseURL:        *httpBaseURL,
-		httpUnixPath:       path,
-		httpProtocol:       "unix",
-		httpUserAgent:      args.UserAgent,
-		ctxConnected:       ctxConnected,
-		ctxConnectedCancel: ctxConnectedCancel,
-		eventConns:         make(map[string]*websocket.Conn),
-		eventListeners:     make(map[string][]*EventListener),
+		ctx:                    ctx,
+		httpBaseURL:            *httpBaseURL,
+		httpUnixPath:           path,
+		httpProtocol:           "unix",
+		httpUserAgent:          args.UserAgent,
+		supportsAuthentication: true,
+		ctxConnected:           ctxConnected,
+		ctxConnectedCancel:     ctxConnectedCancel,
+		eventConns:             make(map[string]*websocket.Conn),
+		eventListeners:         make(map[string][]*EventListener),
 	}
 
 	// Determine the socket path
@@ -354,5 +361,13 @@ func httpsLXD(ctx context.Context, requestURL string, args *ConnectionArgs) (Ins
 			return nil, err
 		}
 	}
+
+	t, ok := httpClient.Transport.(*http.Transport)
+	if !ok {
+		return nil, fmt.Errorf("Invalid HTTP Transport type")
+	}
+
+	server.supportsAuthentication = t.TLSClientConfig != nil && len(t.TLSClientConfig.Certificates) > 0
+
 	return &server, nil
 }

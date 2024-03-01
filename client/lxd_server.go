@@ -101,21 +101,22 @@ func (r *ProtocolLXD) GetServerResources() (*api.Resources, error) {
 // UseProject returns a client that will use a specific project.
 func (r *ProtocolLXD) UseProject(name string) InstanceServer {
 	return &ProtocolLXD{
-		ctx:                  r.ctx,
-		ctxConnected:         r.ctxConnected,
-		ctxConnectedCancel:   r.ctxConnectedCancel,
-		server:               r.server,
-		http:                 r.http,
-		httpCertificate:      r.httpCertificate,
-		httpBaseURL:          r.httpBaseURL,
-		httpProtocol:         r.httpProtocol,
-		httpUserAgent:        r.httpUserAgent,
-		requireAuthenticated: r.requireAuthenticated,
-		clusterTarget:        r.clusterTarget,
-		project:              name,
-		eventConns:           make(map[string]*websocket.Conn),  // New project specific listener conns.
-		eventListeners:       make(map[string][]*EventListener), // New project specific listeners.
-		oidcClient:           r.oidcClient,
+		ctx:                    r.ctx,
+		ctxConnected:           r.ctxConnected,
+		ctxConnectedCancel:     r.ctxConnectedCancel,
+		server:                 r.server,
+		http:                   r.http,
+		httpCertificate:        r.httpCertificate,
+		httpBaseURL:            r.httpBaseURL,
+		httpProtocol:           r.httpProtocol,
+		httpUserAgent:          r.httpUserAgent,
+		supportsAuthentication: r.supportsAuthentication,
+		requireAuthenticated:   r.requireAuthenticated,
+		clusterTarget:          r.clusterTarget,
+		project:                name,
+		eventConns:             make(map[string]*websocket.Conn),  // New project specific listener conns.
+		eventListeners:         make(map[string][]*EventListener), // New project specific listeners.
+		oidcClient:             r.oidcClient,
 	}
 }
 
@@ -124,21 +125,22 @@ func (r *ProtocolLXD) UseProject(name string) InstanceServer {
 // placement, preparing a new storage pool or network, ...
 func (r *ProtocolLXD) UseTarget(name string) InstanceServer {
 	return &ProtocolLXD{
-		ctx:                  r.ctx,
-		ctxConnected:         r.ctxConnected,
-		ctxConnectedCancel:   r.ctxConnectedCancel,
-		server:               r.server,
-		http:                 r.http,
-		httpCertificate:      r.httpCertificate,
-		httpBaseURL:          r.httpBaseURL,
-		httpProtocol:         r.httpProtocol,
-		httpUserAgent:        r.httpUserAgent,
-		requireAuthenticated: r.requireAuthenticated,
-		project:              r.project,
-		eventConns:           make(map[string]*websocket.Conn),  // New target specific listener conns.
-		eventListeners:       make(map[string][]*EventListener), // New target specific listeners.
-		oidcClient:           r.oidcClient,
-		clusterTarget:        name,
+		ctx:                    r.ctx,
+		ctxConnected:           r.ctxConnected,
+		ctxConnectedCancel:     r.ctxConnectedCancel,
+		server:                 r.server,
+		http:                   r.http,
+		httpCertificate:        r.httpCertificate,
+		httpBaseURL:            r.httpBaseURL,
+		httpProtocol:           r.httpProtocol,
+		httpUserAgent:          r.httpUserAgent,
+		supportsAuthentication: r.supportsAuthentication,
+		requireAuthenticated:   r.requireAuthenticated,
+		project:                r.project,
+		eventConns:             make(map[string]*websocket.Conn),  // New target specific listener conns.
+		eventListeners:         make(map[string][]*EventListener), // New target specific listeners.
+		oidcClient:             r.oidcClient,
+		clusterTarget:          name,
 	}
 }
 

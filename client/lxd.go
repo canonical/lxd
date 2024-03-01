@@ -44,6 +44,10 @@ type ProtocolLXD struct {
 	httpProtocol    string
 	httpUserAgent   string
 
+	// supportsAuthentication returns whether the client can attempt to make trusted connections to its target server.
+	// A unix client, or an http client with TLS certificates will be considered to support authentication.
+	supportsAuthentication bool
+
 	requireAuthenticated bool
 
 	clusterTarget string
