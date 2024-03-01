@@ -20,10 +20,44 @@ type infinibandPhysical struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *infinibandPhysical) validateConfig(instConf instance.ConfigReader) error {
+	// lxdmeta:generate(entities=device-infiniband; group=device-conf; key=nictype)
+	// Possible values are `physical` and `sriov`.
+	// ---
+	//  type: string
+	//  required: yes
+	//  shortdesc: Device type
+
+	// lxdmeta:generate(entities=device-infiniband; group=device-conf; key=parent)
+	//
+	// ---
+	//  type: string
+	//  required: yes
+	//  shortdesc: The name of the host device or bridge
 	requiredFields := []string{"parent"}
 	optionalFields := []string{
+		// lxdmeta:generate(entities=device-infiniband; group=device-conf; key=name)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: kernel assigned
+		//  required: no
+		//  shortdesc: Name of the interface inside the instance
 		"name",
+		// lxdmeta:generate(entities=device-infiniband; group=device-conf; key=mtu)
+		//
+		// ---
+		//  type: integer
+		//  defaultdesc: parent MTU
+		//  required: no
+		//  shortdesc: MTU of the new interface
 		"mtu",
+		// lxdmeta:generate(entities=device-infiniband; group=device-conf; key=hwaddr)
+		//  You can specify either the full 20-byte variant or the short 8-byte variant (which will modify only the last 8 bytes of the parent device).
+		// ---
+		//  type: string
+		//  defaultdesc: randomly assigned
+		//  required: no
+		//  shortdesc: MAC address of the new interface
 		"hwaddr",
 	}
 
