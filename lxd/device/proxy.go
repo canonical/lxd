@@ -81,15 +81,83 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	rules := map[string]func(string) error{
-		"listen":         validate.Required(validateAddr),
-		"connect":        validate.Required(validateAddr),
-		"bind":           validate.Optional(validateBind),
-		"mode":           validate.Optional(unixValidOctalFileMode),
-		"nat":            validate.Optional(validate.IsBool),
-		"gid":            validate.Optional(unixValidUserID),
-		"uid":            validate.Optional(unixValidUserID),
-		"security.uid":   validate.Optional(unixValidUserID),
-		"security.gid":   validate.Optional(unixValidUserID),
+		// lxdmeta:generate(entities=device-proxy; group=device-conf; key=listen)
+		// Use the following format to specify the address and port: `<type>:<addr>:<port>[-<port>][,<port>]`
+		// ---
+		//  type: string
+		//  required: yes
+		//  shortdesc: Address and port to bind and listen
+		"listen": validate.Required(validateAddr),
+		// lxdmeta:generate(entities=device-proxy; group=device-conf; key=connect)
+		// Use the following format to specify the address and port: `<type>:<addr>:<port>[-<port>][,<port>]`
+		// ---
+		//  type: string
+		//  required: yes
+		//  shortdesc: Address and port to connect to
+		"connect": validate.Required(validateAddr),
+		// lxdmeta:generate(entities=device-proxy; group=device-conf; key=bind)
+		// Possible values are `host` and `instance`.
+		// ---
+		//  type: string
+		//  defaultdesc: `host`
+		//  required: no
+		//  shortdesc: Which side to bind on
+		"bind": validate.Optional(validateBind),
+		// lxdmeta:generate(entities=device-proxy; group=device-conf; key=mode)
+		//
+		// ---
+		//  type: integer
+		//  defaultdesc: `0644`
+		//  required: no
+		//  shortdesc: Mode for the listening Unix socket
+		"mode": validate.Optional(unixValidOctalFileMode),
+		// lxdmeta:generate(entities=device-proxy; group=device-conf; key=nat)
+		// This option requires that the instance NIC has a static IP address.
+		// ---
+		//  type: bool
+		//  defaultdesc: `false`
+		//  required: no
+		//  shortdesc: Whether to optimize proxying via NAT
+		"nat": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=device-proxy; group=device-conf; key=gid)
+		//
+		// ---
+		//  type: integer
+		//  defaultdesc: `0`
+		//  required: no
+		//  shortdesc: GID of the owner of the listening Unix socket
+		"gid": validate.Optional(unixValidUserID),
+		// lxdmeta:generate(entities=device-proxy; group=device-conf; key=uid)
+		//
+		// ---
+		//  type: integer
+		//  defaultdesc: `0`
+		//  required: no
+		//  shortdesc: UID of the owner of the listening Unix socket
+		"uid": validate.Optional(unixValidUserID),
+		// lxdmeta:generate(entities=device-proxy; group=device-conf; key=security.uid)
+		//
+		// ---
+		//  type: integer
+		//  defaultdesc: `0`
+		//  required: no
+		//  shortdesc: What UID to drop privilege to
+		"security.uid": validate.Optional(unixValidUserID),
+		// lxdmeta:generate(entities=device-proxy; group=device-conf; key=security.gid)
+		//
+		// ---
+		//  type: integer
+		//  defaultdesc: `0`
+		//  required: no
+		//  shortdesc: What GID to drop privilege to
+		"security.gid": validate.Optional(unixValidUserID),
+		// lxdmeta:generate(entities=device-proxy; group=device-conf; key=proxy_protocol)
+		// This option specifies whether to use the HAProxy PROXY protocol to transmit sender information.
+		// ---
+		//  type: bool
+		//  defaultdesc: `false`
+		//  required: no
+		//  shortdesc: Whether to use the HAProxy PROXY protocol
 		"proxy_protocol": validate.Optional(validate.IsBool),
 	}
 
