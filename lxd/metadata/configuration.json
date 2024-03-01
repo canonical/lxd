@@ -21,6 +21,188 @@
 				]
 			}
 		},
+		"device-disk": {
+			"device-conf": {
+				"keys": [
+					{
+						"boot.priority": {
+							"condition": "virtual machine",
+							"longdesc": "A higher value indicates a higher boot precedence for the disk device.\nThis is useful for prioritizing boot sources like ISO-backed disks.",
+							"required": "no",
+							"shortdesc": "Boot priority for VMs",
+							"type": "integer"
+						}
+					},
+					{
+						"ceph.cluster_name": {
+							"defaultdesc": "`ceph`",
+							"longdesc": "",
+							"required": "for Ceph or CephFS sources",
+							"shortdesc": "Cluster name of the Ceph cluster",
+							"type": "string"
+						}
+					},
+					{
+						"ceph.user_name": {
+							"defaultdesc": "`admin`",
+							"longdesc": "",
+							"required": "for Ceph or CephFS sources",
+							"shortdesc": "User name of the Ceph cluster",
+							"type": "string"
+						}
+					},
+					{
+						"initial.*": {
+							"longdesc": "Initial volume configuration allows setting unique configurations independent of the default storage pool settings.\nSee {ref}`devices-disk-initial-config` for more information.",
+							"required": "no",
+							"shortdesc": "Initial volume configuration",
+							"type": "n/a"
+						}
+					},
+					{
+						"io.bus": {
+							"condition": "virtual machine",
+							"defaultdesc": "`virtio-scsi`",
+							"longdesc": "Possible values are `virtio-scsi` or `nvme`.",
+							"required": "no",
+							"shortdesc": "Bus for the device",
+							"type": "string"
+						}
+					},
+					{
+						"io.cache": {
+							"condition": "virtual machine",
+							"defaultdesc": "`none`",
+							"longdesc": "Possible values are `none`, `writeback`, or `unsafe`.",
+							"required": "no",
+							"shortdesc": "Caching mode for the device",
+							"type": "string"
+						}
+					},
+					{
+						"limits.max": {
+							"longdesc": "This option is the same as setting both {config:option}`device-disk-device-conf:limits.read` and {config:option}`device-disk-device-conf:limits.write`.\n\nYou can specify a value in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in IOPS (must be suffixed with `iops`).\nSee also {ref}`storage-configure-io`.\n",
+							"required": "no",
+							"shortdesc": "I/O limit in byte/s or IOPS for both read and write",
+							"type": "string"
+						}
+					},
+					{
+						"limits.read": {
+							"longdesc": "You can specify a value in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in IOPS (must be suffixed with `iops`).\nSee also {ref}`storage-configure-io`.",
+							"required": "no",
+							"shortdesc": "Read I/O limit in byte/s or IOPS",
+							"type": "string"
+						}
+					},
+					{
+						"limits.write": {
+							"longdesc": "You can specify a value in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in IOPS (must be suffixed with `iops`).\nSee also {ref}`storage-configure-io`.",
+							"required": "no",
+							"shortdesc": "Write I/O limit in byte/s or IOPS",
+							"type": "string"
+						}
+					},
+					{
+						"path": {
+							"condition": "container",
+							"longdesc": "This option specifies the path inside the container where the disk will be mounted.",
+							"required": "yes",
+							"shortdesc": "Mount path",
+							"type": "string"
+						}
+					},
+					{
+						"pool": {
+							"condition": "storage volumes managed by LXD",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Storage pool to which the disk device belongs",
+							"type": "string"
+						}
+					},
+					{
+						"propagation": {
+							"defaultdesc": "`private`",
+							"longdesc": "Possible values are `private` (the default), `shared`, `slave`, `unbindable`, `rshared`, `rslave`, `runbindable`, `rprivate`.\nSee the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation.\n",
+							"required": "no",
+							"shortdesc": "How a bind-mount is shared between the instance and the host",
+							"type": "string"
+						}
+					},
+					{
+						"raw.mount.options": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "File system specific mount options",
+							"type": "string"
+						}
+					},
+					{
+						"readonly": {
+							"defaultdesc": "`false`",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Whether to make the mount read-only",
+							"type": "bool"
+						}
+					},
+					{
+						"recursive": {
+							"defaultdesc": "`false`",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Whether to recursively mount the source path",
+							"type": "bool"
+						}
+					},
+					{
+						"required": {
+							"defaultdesc": "`true`",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Whether to fail if the source doesn’t exist",
+							"type": "bool"
+						}
+					},
+					{
+						"shift": {
+							"condition": "container",
+							"defaultdesc": "`false`",
+							"longdesc": "If enabled, this option sets up a shifting overlay to translate the source UID/GID to match the container instance.",
+							"required": "no",
+							"shortdesc": "Whether to set up a UID/GID shifting overlay",
+							"type": "bool"
+						}
+					},
+					{
+						"size": {
+							"longdesc": "This option is supported only for the rootfs (`/`).\n\nSpecify a value in bytes (various suffixes supported, see {ref}`instances-limit-units`).",
+							"required": "no",
+							"shortdesc": "Disk size",
+							"type": "string"
+						}
+					},
+					{
+						"size.state": {
+							"condition": "virtual machine",
+							"longdesc": "This option is similar to {config:option}`device-disk-device-conf:size`, but applies to the file-system volume used for saving the runtime state in VMs.",
+							"required": "no",
+							"shortdesc": "Size of the file-system volume used for saving runtime state",
+							"type": "string"
+						}
+					},
+					{
+						"source": {
+							"longdesc": "See {ref}`devices-disk-types` for details.\n",
+							"required": "yes",
+							"shortdesc": "Source of a file system or block device",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
 		"device-gpu-mdev": {
 			"device-conf": {
 				"keys": [
