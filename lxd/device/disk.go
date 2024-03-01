@@ -177,26 +177,168 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	rules := map[string]func(string) error{
-		"required":          validate.Optional(validate.IsBool),
-		"optional":          validate.Optional(validate.IsBool), // "optional" is deprecated, replaced by "required".
-		"readonly":          validate.Optional(validate.IsBool),
-		"recursive":         validate.Optional(validate.IsBool),
-		"shift":             validate.Optional(validate.IsBool),
-		"source":            validate.IsAny,
-		"limits.read":       validate.IsAny,
-		"limits.write":      validate.IsAny,
-		"limits.max":        validate.IsAny,
-		"size":              validate.Optional(validate.IsSize),
-		"size.state":        validate.Optional(validate.IsSize),
-		"pool":              validate.IsAny,
-		"propagation":       validatePropagation,
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=required)
+		//
+		// ---
+		//  type: bool
+		//  defaultdesc: `true`
+		//  required: no
+		//  shortdesc: Whether to fail if the source doesn’t exist
+		"required": validate.Optional(validate.IsBool),
+		"optional": validate.Optional(validate.IsBool), // "optional" is deprecated, replaced by "required".
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=readonly)
+		//
+		// ---
+		//  type: bool
+		//  defaultdesc: `false`
+		//  required: no
+		//  shortdesc: Whether to make the mount read-only
+		"readonly": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=recursive)
+		//
+		// ---
+		//  type: bool
+		//  defaultdesc: `false`
+		//  required: no
+		//  shortdesc: Whether to recursively mount the source path
+		"recursive": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=shift)
+		// If enabled, this option sets up a shifting overlay to translate the source UID/GID to match the container instance.
+		// ---
+		//  type: bool
+		//  defaultdesc: `false`
+		//  required: no
+		//  condition: container
+		//  shortdesc: Whether to set up a UID/GID shifting overlay
+		"shift": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=source)
+		// See {ref}`devices-disk-types` for details.
+		//
+		// ---
+		//  type: string
+		//  required: yes
+		//  shortdesc: Source of a file system or block device
+		"source": validate.IsAny,
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=limits.read)
+		// You can specify a value in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in IOPS (must be suffixed with `iops`).
+		// See also {ref}`storage-configure-io`.
+		// ---
+		//  type: string
+		//  required: no
+		//  shortdesc: Read I/O limit in byte/s or IOPS
+		"limits.read": validate.IsAny,
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=limits.write)
+		// You can specify a value in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in IOPS (must be suffixed with `iops`).
+		// See also {ref}`storage-configure-io`.
+		// ---
+		//  type: string
+		//  required: no
+		//  shortdesc: Write I/O limit in byte/s or IOPS
+		"limits.write": validate.IsAny,
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=limits.max)
+		// This option is the same as setting both {config:option}`device-disk-device-conf:limits.read` and {config:option}`device-disk-device-conf:limits.write`.
+		//
+		// You can specify a value in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in IOPS (must be suffixed with `iops`).
+		// See also {ref}`storage-configure-io`.
+		//
+		// ---
+		//  type: string
+		//  required: no
+		//  shortdesc: I/O limit in byte/s or IOPS for both read and write
+		"limits.max": validate.IsAny,
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=size)
+		// This option is supported only for the rootfs (`/`).
+		//
+		// Specify a value in bytes (various suffixes supported, see {ref}`instances-limit-units`).
+		// ---
+		//  type: string
+		//  required: no
+		//  shortdesc: Disk size
+		"size": validate.Optional(validate.IsSize),
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=size.state)
+		// This option is similar to {config:option}`device-disk-device-conf:size`, but applies to the file-system volume used for saving the runtime state in VMs.
+		// ---
+		//  type: string
+		//  required: no
+		//  condition: virtual machine
+		//  shortdesc: Size of the file-system volume used for saving runtime state
+		"size.state": validate.Optional(validate.IsSize),
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=pool)
+		//
+		// ---
+		//  type: string
+		//  required: no
+		//  condition: storage volumes managed by LXD
+		//  shortdesc: Storage pool to which the disk device belongs
+		"pool": validate.IsAny,
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=propagation)
+		// Possible values are `private` (the default), `shared`, `slave`, `unbindable`, `rshared`, `rslave`, `runbindable`, `rprivate`.
+		// See the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation.
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: `private`
+		//  required: no
+		//  shortdesc: How a bind-mount is shared between the instance and the host
+		"propagation": validatePropagation,
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=raw.mount.options)
+		//
+		// ---
+		//  type: string
+		//  required: no
+		//  shortdesc: File system specific mount options
 		"raw.mount.options": validate.IsAny,
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=ceph.cluster_name)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: `ceph`
+		//  required: for Ceph or CephFS sources
+		//  shortdesc: Cluster name of the Ceph cluster
 		"ceph.cluster_name": validate.IsAny,
-		"ceph.user_name":    validate.IsAny,
-		"boot.priority":     validate.Optional(validate.IsUint32),
-		"path":              validate.IsAny,
-		"io.cache":          validate.Optional(validate.IsOneOf("none", "writeback", "unsafe")),
-		"io.bus":            validate.Optional(validate.IsOneOf("virtio-scsi", "nvme")),
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=ceph.user_name)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: `admin`
+		//  required: for Ceph or CephFS sources
+		//  shortdesc: User name of the Ceph cluster
+		"ceph.user_name": validate.IsAny,
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=boot.priority)
+		// A higher value indicates a higher boot precedence for the disk device.
+		// This is useful for prioritizing boot sources like ISO-backed disks.
+		// ---
+		//  type: integer
+		//  required: no
+		//  condition: virtual machine
+		//  shortdesc: Boot priority for VMs
+		"boot.priority": validate.Optional(validate.IsUint32),
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=path)
+		// This option specifies the path inside the container where the disk will be mounted.
+		// ---
+		//  type: string
+		//  required: yes
+		//  condition: container
+		//  shortdesc: Mount path
+		"path": validate.IsAny,
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=io.cache)
+		// Possible values are `none`, `writeback`, or `unsafe`.
+		// ---
+		//  type: string
+		//  defaultdesc: `none`
+		//  required: no
+		//  condition: virtual machine
+		//  shortdesc: Caching mode for the device
+		"io.cache": validate.Optional(validate.IsOneOf("none", "writeback", "unsafe")),
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=io.bus)
+		// Possible values are `virtio-scsi` or `nvme`.
+		// ---
+		//  type: string
+		//  defaultdesc: `virtio-scsi`
+		//  required: no
+		//  condition: virtual machine
+		//  shortdesc: Bus for the device
+		"io.bus": validate.Optional(validate.IsOneOf("virtio-scsi", "nvme")),
 	}
 
 	err := d.config.Validate(rules)
