@@ -825,16 +825,15 @@ func validatePermissions(permissions []api.Permission) error {
 	return nil
 }
 
-// upsertPermissions resolves the URLs of each permission to an entity ID and checks if the permission already
-// exists (it may be assigned to another group already). If the permission does not already exist, it is created.
-// A slice of permission IDs is returned that can be used to associate these permissions to a group.
-func upsertPermissions(ctx context.Context, tx *sql.Tx, permissions []api.Permission) ([]int, error) {
+// upsertPermissions converts the given slice of api.Permission into a slice of cluster.Permission by resolving
+// the URLs of each permission to an entity ID. Then sets those permissions against the group with the given ID.
+func upsertPermissions(ctx context.Context, tx *sql.Tx, groupID int, permissions []api.Permission) error {
 	entityReferences := make(map[*api.URL]*dbCluster.EntityRef, len(permissions))
 	permissionToURL := make(map[api.Permission]*api.URL, len(permissions))
 	for _, permission := range permissions {
 		u, err := url.Parse(permission.EntityReference)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse permission entity reference: %w", err)
+			return fmt.Errorf("Failed to parse permission entity reference: %w", err)
 		}
 
 		apiURL := &api.URL{URL: *u}
@@ -844,40 +843,30 @@ func upsertPermissions(ctx context.Context, tx *sql.Tx, permissions []api.Permis
 
 	err := dbCluster.PopulateEntityReferencesFromURLs(ctx, tx, entityReferences)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	var permissionIDs []int
+	authGroupPermissions := make([]dbCluster.Permission, 0, len(permissions))
 	for permission, apiURL := range permissionToURL {
 		entitlement := auth.Entitlement(permission.Entitlement)
 		entityType := dbCluster.EntityType(permission.EntityType)
 		entityRef, ok := entityReferences[apiURL]
 		if !ok {
-			return nil, fmt.Errorf("Missing entity ID for permission with URL %q", permission.EntityReference)
+			return api.StatusErrorf(http.StatusBadRequest, "Missing entity ID for permission with URL %q", permission.EntityReference)
 		}
 
-		// Get the permission, if one is found, append its ID to the slice.
-		existingPermission, err := dbCluster.GetPermission(ctx, tx, entitlement, entityType, entityRef.EntityID)
-		if err == nil {
-			permissionIDs = append(permissionIDs, existingPermission.ID)
-			continue
-		} else if !api.StatusErrorCheck(err, http.StatusNotFound) {
-			return nil, fmt.Errorf("Failed to check if permission with entitlement %q and URL %q already exists: %w", entitlement, permission.EntityReference, err)
-		}
-
-		// Generated "create" methods call cluster.GetPermission again to check if it exists. We already know that it doesn't exist, so create it directly.
-		res, err := tx.ExecContext(ctx, `INSERT INTO permissions (entitlement, entity_type, entity_id) VALUES (?, ?, ?)`, entitlement, entityType, entityRef.EntityID)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to insert new permission: %w", err)
-		}
-
-		lastInsertID, err := res.LastInsertId()
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get last insert ID of new permission: %w", err)
-		}
-
-		permissionIDs = append(permissionIDs, int(lastInsertID))
+		authGroupPermissions = append(authGroupPermissions, dbCluster.Permission{
+			GroupID:     groupID,
+			Entitlement: entitlement,
+			EntityType:  entityType,
+			EntityID:    entityRef.EntityID,
+		})
 	}
 
-	return permissionIDs, nil
+	err = dbCluster.SetAuthGroupPermissions(ctx, tx, groupID, authGroupPermissions)
+	if err != nil {
+		return fmt.Errorf("Failed to set group permissions: %w", err)
+	}
+
+	return nil
 }
