@@ -16,6 +16,15 @@ User keys can be used in search.
 ```
 
 <!-- config group cluster-cluster end -->
+<!-- config group device-pci-device-conf start -->
+```{config:option} address device-pci-device-conf
+:required: "yes"
+:shortdesc: "PCI address of the device"
+:type: "string"
+
+```
+
+<!-- config group device-pci-device-conf end -->
 <!-- config group instance-boot start -->
 ```{config:option} boot.autostart instance-boot
 :liveupdate: "no"
