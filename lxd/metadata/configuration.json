@@ -228,6 +228,30 @@
 				]
 			}
 		},
+		"device-tpm": {
+			"device-conf": {
+				"keys": [
+					{
+						"path": {
+							"condition": "containers",
+							"longdesc": "For example: `/dev/tpm0`",
+							"required": "for containers",
+							"shortdesc": "Path inside the container",
+							"type": "string"
+						}
+					},
+					{
+						"pathrm": {
+							"condition": "containers",
+							"longdesc": "For example: `/dev/tpmrm0`",
+							"required": "for containers",
+							"shortdesc": "Resource manager path inside the container",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
 		"device-unix-block": {
 			"device-conf": {
 				"keys": [
