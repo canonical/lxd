@@ -4567,7 +4567,7 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 func autoSyncImages(ctx context.Context, s *state.State) error {
 	var imageProjectInfo map[string][]string
 
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		// Get all images.
