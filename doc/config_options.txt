@@ -25,6 +25,209 @@ User keys can be used in search.
 ```
 
 <!-- config group device-pci-device-conf end -->
+<!-- config group device-unix-block-device-conf start -->
+```{config:option} gid device-unix-block-device-conf
+:defaultdesc: "`0`"
+:shortdesc: "GID of the device owner in the instance"
+:type: "integer"
+
+```
+
+```{config:option} major device-unix-block-device-conf
+:defaultdesc: "device on host"
+:shortdesc: "Device major number"
+:type: "integer"
+
+```
+
+```{config:option} minor device-unix-block-device-conf
+:defaultdesc: "device on host"
+:shortdesc: "Device minor number"
+:type: "integer"
+
+```
+
+```{config:option} mode device-unix-block-device-conf
+:defaultdesc: "`0660`"
+:shortdesc: "Mode of the device in the instance"
+:type: "integer"
+
+```
+
+```{config:option} path device-unix-block-device-conf
+:required: "either `source` or `path` must be set"
+:shortdesc: "Path inside the instance"
+:type: "string"
+
+```
+
+```{config:option} required device-unix-block-device-conf
+:defaultdesc: "`true`"
+:shortdesc: "Whether this device is required to start the instance"
+:type: "bool"
+See {ref}`devices-unix-block-hotplugging` for more information.
+```
+
+```{config:option} source device-unix-block-device-conf
+:required: "either `source` or `path` must be set"
+:shortdesc: "Path on the host"
+:type: "string"
+
+```
+
+```{config:option} uid device-unix-block-device-conf
+:defaultdesc: "`0`"
+:shortdesc: "UID of the device owner in the instance"
+:type: "integer"
+
+```
+
+<!-- config group device-unix-block-device-conf end -->
+<!-- config group device-unix-char-device-conf start -->
+```{config:option} gid device-unix-char-device-conf
+:defaultdesc: "`0`"
+:shortdesc: "GID of the device owner in the instance"
+:type: "integer"
+
+```
+
+```{config:option} major device-unix-char-device-conf
+:defaultdesc: "device on host"
+:shortdesc: "Device major number"
+:type: "integer"
+
+```
+
+```{config:option} minor device-unix-char-device-conf
+:defaultdesc: "device on host"
+:shortdesc: "Device minor number"
+:type: "integer"
+
+```
+
+```{config:option} mode device-unix-char-device-conf
+:defaultdesc: "`0660`"
+:shortdesc: "Mode of the device in the instance"
+:type: "integer"
+
+```
+
+```{config:option} path device-unix-char-device-conf
+:required: "either `source` or `path` must be set"
+:shortdesc: "Path inside the instance"
+:type: "string"
+
+```
+
+```{config:option} required device-unix-char-device-conf
+:defaultdesc: "`true`"
+:shortdesc: "Whether this device is required to start the instance"
+:type: "bool"
+See {ref}`devices-unix-char-hotplugging` for more information.
+```
+
+```{config:option} source device-unix-char-device-conf
+:required: "either `source` or `path` must be set"
+:shortdesc: "Path on the host"
+:type: "string"
+
+```
+
+```{config:option} uid device-unix-char-device-conf
+:defaultdesc: "`0`"
+:shortdesc: "UID of the device owner in the instance"
+:type: "integer"
+
+```
+
+<!-- config group device-unix-char-device-conf end -->
+<!-- config group device-unix-hotplug-device-conf start -->
+```{config:option} gid device-unix-hotplug-device-conf
+:defaultdesc: "`0`"
+:shortdesc: "GID of the device owner in the instance"
+:type: "integer"
+
+```
+
+```{config:option} mode device-unix-hotplug-device-conf
+:defaultdesc: "`0660`"
+:shortdesc: "Mode of the device in the instance"
+:type: "integer"
+
+```
+
+```{config:option} productid device-unix-hotplug-device-conf
+:shortdesc: "Product ID of the Unix device"
+:type: "string"
+
+```
+
+```{config:option} required device-unix-hotplug-device-conf
+:defaultdesc: "`false`"
+:shortdesc: "Whether this device is required to start the instance"
+:type: "bool"
+The default is `false`, which means that all devices can be hotplugged.
+```
+
+```{config:option} uid device-unix-hotplug-device-conf
+:defaultdesc: "`0`"
+:shortdesc: "UID of the device owner in the instance"
+:type: "integer"
+
+```
+
+```{config:option} vendorid device-unix-hotplug-device-conf
+:shortdesc: "Vendor ID of the Unix device"
+:type: "string"
+
+```
+
+<!-- config group device-unix-hotplug-device-conf end -->
+<!-- config group device-unix-usb-device-conf start -->
+```{config:option} gid device-unix-usb-device-conf
+:condition: "container"
+:defaultdesc: "`0`"
+:shortdesc: "GID of the device owner in the container"
+:type: "integer"
+
+```
+
+```{config:option} mode device-unix-usb-device-conf
+:condition: "container"
+:defaultdesc: "`0660`"
+:shortdesc: "Mode of the device in the container"
+:type: "integer"
+
+```
+
+```{config:option} productid device-unix-usb-device-conf
+:shortdesc: "Product ID of the USB device"
+:type: "string"
+
+```
+
+```{config:option} required device-unix-usb-device-conf
+:defaultdesc: "`false`"
+:shortdesc: "Whether this device is required to start the instance"
+:type: "bool"
+The default is `false`, which means that all devices can be hotplugged.
+```
+
+```{config:option} uid device-unix-usb-device-conf
+:condition: "container"
+:defaultdesc: "`0`"
+:shortdesc: "UID of the device owner in the container"
+:type: "integer"
+
+```
+
+```{config:option} vendorid device-unix-usb-device-conf
+:shortdesc: "Vendor ID of the USB device"
+:type: "string"
+
+```
+
+<!-- config group device-unix-usb-device-conf end -->
 <!-- config group instance-boot start -->
 ```{config:option} boot.autostart instance-boot
 :liveupdate: "no"

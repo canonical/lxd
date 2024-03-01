@@ -35,6 +35,253 @@
 				]
 			}
 		},
+		"device-unix-block": {
+			"device-conf": {
+				"keys": [
+					{
+						"gid": {
+							"defaultdesc": "`0`",
+							"longdesc": "",
+							"shortdesc": "GID of the device owner in the instance",
+							"type": "integer"
+						}
+					},
+					{
+						"major": {
+							"defaultdesc": "device on host",
+							"longdesc": "",
+							"shortdesc": "Device major number",
+							"type": "integer"
+						}
+					},
+					{
+						"minor": {
+							"defaultdesc": "device on host",
+							"longdesc": "",
+							"shortdesc": "Device minor number",
+							"type": "integer"
+						}
+					},
+					{
+						"mode": {
+							"defaultdesc": "`0660`",
+							"longdesc": "",
+							"shortdesc": "Mode of the device in the instance",
+							"type": "integer"
+						}
+					},
+					{
+						"path": {
+							"longdesc": "",
+							"required": "either `source` or `path` must be set",
+							"shortdesc": "Path inside the instance",
+							"type": "string"
+						}
+					},
+					{
+						"required": {
+							"defaultdesc": "`true`",
+							"longdesc": "See {ref}`devices-unix-block-hotplugging` for more information.",
+							"shortdesc": "Whether this device is required to start the instance",
+							"type": "bool"
+						}
+					},
+					{
+						"source": {
+							"longdesc": "",
+							"required": "either `source` or `path` must be set",
+							"shortdesc": "Path on the host",
+							"type": "string"
+						}
+					},
+					{
+						"uid": {
+							"defaultdesc": "`0`",
+							"longdesc": "",
+							"shortdesc": "UID of the device owner in the instance",
+							"type": "integer"
+						}
+					}
+				]
+			}
+		},
+		"device-unix-char": {
+			"device-conf": {
+				"keys": [
+					{
+						"gid": {
+							"defaultdesc": "`0`",
+							"longdesc": "",
+							"shortdesc": "GID of the device owner in the instance",
+							"type": "integer"
+						}
+					},
+					{
+						"major": {
+							"defaultdesc": "device on host",
+							"longdesc": "",
+							"shortdesc": "Device major number",
+							"type": "integer"
+						}
+					},
+					{
+						"minor": {
+							"defaultdesc": "device on host",
+							"longdesc": "",
+							"shortdesc": "Device minor number",
+							"type": "integer"
+						}
+					},
+					{
+						"mode": {
+							"defaultdesc": "`0660`",
+							"longdesc": "",
+							"shortdesc": "Mode of the device in the instance",
+							"type": "integer"
+						}
+					},
+					{
+						"path": {
+							"longdesc": "",
+							"required": "either `source` or `path` must be set",
+							"shortdesc": "Path inside the instance",
+							"type": "string"
+						}
+					},
+					{
+						"required": {
+							"defaultdesc": "`true`",
+							"longdesc": "See {ref}`devices-unix-char-hotplugging` for more information.",
+							"shortdesc": "Whether this device is required to start the instance",
+							"type": "bool"
+						}
+					},
+					{
+						"source": {
+							"longdesc": "",
+							"required": "either `source` or `path` must be set",
+							"shortdesc": "Path on the host",
+							"type": "string"
+						}
+					},
+					{
+						"uid": {
+							"defaultdesc": "`0`",
+							"longdesc": "",
+							"shortdesc": "UID of the device owner in the instance",
+							"type": "integer"
+						}
+					}
+				]
+			}
+		},
+		"device-unix-hotplug": {
+			"device-conf": {
+				"keys": [
+					{
+						"gid": {
+							"defaultdesc": "`0`",
+							"longdesc": "",
+							"shortdesc": "GID of the device owner in the instance",
+							"type": "integer"
+						}
+					},
+					{
+						"mode": {
+							"defaultdesc": "`0660`",
+							"longdesc": "",
+							"shortdesc": "Mode of the device in the instance",
+							"type": "integer"
+						}
+					},
+					{
+						"productid": {
+							"longdesc": "",
+							"shortdesc": "Product ID of the Unix device",
+							"type": "string"
+						}
+					},
+					{
+						"required": {
+							"defaultdesc": "`false`",
+							"longdesc": "The default is `false`, which means that all devices can be hotplugged.",
+							"shortdesc": "Whether this device is required to start the instance",
+							"type": "bool"
+						}
+					},
+					{
+						"uid": {
+							"defaultdesc": "`0`",
+							"longdesc": "",
+							"shortdesc": "UID of the device owner in the instance",
+							"type": "integer"
+						}
+					},
+					{
+						"vendorid": {
+							"longdesc": "",
+							"shortdesc": "Vendor ID of the Unix device",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"device-unix-usb": {
+			"device-conf": {
+				"keys": [
+					{
+						"gid": {
+							"condition": "container",
+							"defaultdesc": "`0`",
+							"longdesc": "",
+							"shortdesc": "GID of the device owner in the container",
+							"type": "integer"
+						}
+					},
+					{
+						"mode": {
+							"condition": "container",
+							"defaultdesc": "`0660`",
+							"longdesc": "",
+							"shortdesc": "Mode of the device in the container",
+							"type": "integer"
+						}
+					},
+					{
+						"productid": {
+							"longdesc": "",
+							"shortdesc": "Product ID of the USB device",
+							"type": "string"
+						}
+					},
+					{
+						"required": {
+							"defaultdesc": "`false`",
+							"longdesc": "The default is `false`, which means that all devices can be hotplugged.",
+							"shortdesc": "Whether this device is required to start the instance",
+							"type": "bool"
+						}
+					},
+					{
+						"uid": {
+							"condition": "container",
+							"defaultdesc": "`0`",
+							"longdesc": "",
+							"shortdesc": "UID of the device owner in the container",
+							"type": "integer"
+						}
+					},
+					{
+						"vendorid": {
+							"longdesc": "",
+							"shortdesc": "Vendor ID of the USB device",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
 		"instance": {
 			"boot": {
 				"keys": [
