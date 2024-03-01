@@ -57,10 +57,10 @@ To allow for live migration, you must enable support for stateful migration.
 To do so, ensure the following configuration:
 
 * Set {config:option}`instance-migration:migration.stateful` to `true` on the instance.
-* Set [`size.state`](devices-disk) of the virtual machine's root disk device to at least the size of the virtual machine's {config:option}`instance-resource-limits:limits.memory` setting.
+* Set {config:option}`device-disk-device-conf:size.state` of the virtual machine's root disk device to at least the size of the virtual machine's {config:option}`instance-resource-limits:limits.memory` setting.
 
 ```{note}
-If you are using a shared storage pool like Ceph RBD to back your instance, you don't need to set [`size.state`](devices-disk) to perform live migration.
+If you are using a shared storage pool like Ceph RBD to back your instance, you don't need to set {config:option}`device-disk-device-conf:size.state` to perform live migration.
 ```
 
 ```{note}
