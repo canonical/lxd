@@ -3,10 +3,8 @@ package cluster
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/canonical/lxd/lxd/auth"
-	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
@@ -61,32 +59,4 @@ func GetPermissionEntityURLs(ctx context.Context, tx *sql.Tx, permissions []Perm
 	}
 
 	return entityURLs, nil
-}
-
-// GetAllAuthGroupsByPermissionID returns a map of all permission IDs to a slice of groups that have that permission.
-func GetAllAuthGroupsByPermissionID(ctx context.Context, tx *sql.Tx) (map[int][]AuthGroup, error) {
-	stmt := `
-SELECT auth_groups_permissions.permission_id, auth_groups.id, auth_groups.name, auth_groups.description 
-FROM auth_groups 
-JOIN auth_groups_permissions ON auth_groups.id = auth_groups_permissions.auth_group_id`
-
-	result := make(map[int][]AuthGroup)
-	dest := func(scan func(dest ...any) error) error {
-		var permissionID int
-		p := AuthGroup{}
-		err := scan(&permissionID, &p.ID, &p.Name, &p.Description)
-		if err != nil {
-			return err
-		}
-
-		result[permissionID] = append(result[permissionID], p)
-		return nil
-	}
-
-	err := query.Scan(ctx, tx, stmt, dest)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get permissions for all groups: %w", err)
-	}
-
-	return result, nil
 }
