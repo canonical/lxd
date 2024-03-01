@@ -23,10 +23,11 @@ CREATE TABLE auth_groups_identity_provider_groups (
 CREATE TABLE auth_groups_permissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     auth_group_id INTEGER NOT NULL,
-    permission_id INTEGER NOT NULL,
+    entity_type INTEGER NOT NULL,
+    entity_id INTEGER NOT NULL,
+    entitlement TEXT NOT NULL,
     FOREIGN KEY (auth_group_id) REFERENCES auth_groups (id) ON DELETE CASCADE,
-    FOREIGN KEY (permission_id) REFERENCES permissions (id) ON DELETE CASCADE,
-    UNIQUE (auth_group_id, permission_id)
+    UNIQUE (auth_group_id, entity_type, entitlement, entity_id)
 );
 CREATE TABLE "cluster_groups" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -433,13 +434,6 @@ CREATE TABLE "operations" (
     FOREIGN KEY (node_id) REFERENCES "nodes" (id) ON DELETE CASCADE,
     FOREIGN KEY (project_id) REFERENCES "projects" (id) ON DELETE CASCADE
 );
-CREATE TABLE permissions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    entitlement TEXT NOT NULL,
-    entity_type TEXT NOT NULL,
-    entity_id INTEGER NOT NULL,
-    UNIQUE (entitlement, entity_type, entity_id)
-);
 CREATE TABLE "profiles" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
@@ -668,5 +662,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (72, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (73, strftime("%s"))
 `
