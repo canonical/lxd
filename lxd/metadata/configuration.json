@@ -214,6 +214,1053 @@
 				]
 			}
 		},
+		"device-nic-bridged": {
+			"device-conf": {
+				"keys": [
+					{
+						"boot.priority": {
+							"longdesc": "A higher value for this option means that the VM boots first.",
+							"managed": "no",
+							"shortdesc": "Boot priority for VMs",
+							"type": "integer"
+						}
+					},
+					{
+						"host_name": {
+							"defaultdesc": "randomly assigned",
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "Name of the interface inside the host",
+							"type": "string"
+						}
+					},
+					{
+						"hwaddr": {
+							"defaultdesc": "randomly assigned",
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "MAC address of the new interface",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.address": {
+							"longdesc": "Set this option to `none` to restrict all IPv4 traffic when {config:option}`device-nic-bridged-device-conf:security.ipv4_filtering` is set.",
+							"managed": "no",
+							"shortdesc": "IPv4 address to assign to the instance through DHCP",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.routes": {
+							"longdesc": "Specify a comma-delimited list of IPv4 static routes for this NIC to add on the host.",
+							"managed": "no",
+							"shortdesc": "IPv4 static routes for the NIC to add on the host",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.routes.external": {
+							"longdesc": "Specify a comma-delimited list of IPv4 static routes to route to the NIC and publish on the uplink network (BGP).",
+							"managed": "no",
+							"shortdesc": "IPv4 static routes to route to NIC",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.address": {
+							"longdesc": "Set this option to `none` to restrict all IPv6 traffic when {config:option}`device-nic-bridged-device-conf:security.ipv6_filtering` is set.",
+							"managed": "no",
+							"shortdesc": "IPv6 address to assign to the instance through DHCP",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.routes": {
+							"longdesc": "Specify a comma-delimited list of IPv6 static routes for this NIC to add on the host.",
+							"managed": "no",
+							"shortdesc": "IPv6 static routes for the NIC to add on the host",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.routes.external": {
+							"longdesc": "Specify a comma-delimited list of IPv6 static routes to route to the NIC and publish on the uplink network (BGP).",
+							"managed": "no",
+							"shortdesc": "IPv6 static routes to route to NIC",
+							"type": "string"
+						}
+					},
+					{
+						"limits.egress": {
+							"longdesc": "Specify the limit in bit/s. Various suffixes are supported (see {ref}`instances-limit-units`).",
+							"managed": "no",
+							"shortdesc": "I/O limit for outgoing traffic",
+							"type": "string"
+						}
+					},
+					{
+						"limits.ingress": {
+							"longdesc": "Specify the limit in bit/s. Various suffixes are supported (see {ref}`instances-limit-units`).",
+							"managed": "no",
+							"shortdesc": "I/O limit for incoming traffic",
+							"type": "string"
+						}
+					},
+					{
+						"limits.max": {
+							"longdesc": "This option is the same as setting both {config:option}`device-nic-bridged-device-conf:limits.ingress` and {config:option}`device-nic-bridged-device-conf:limits.egress`.\n\nSpecify the limit in bit/s. Various suffixes are supported (see {ref}`instances-limit-units`).",
+							"managed": "no",
+							"shortdesc": "I/O limit for both incoming and outgoing traffic",
+							"type": "string"
+						}
+					},
+					{
+						"limits.priority": {
+							"longdesc": "The `skb-\u003epriority` value for outgoing traffic is used by the kernel queuing discipline (qdisc) to prioritize network packets.\nSpecify the value as a 32-bit unsigned integer.\n\nThe effect of this value depends on the particular qdisc implementation, for example, `SKBPRIO` or `QFQ`.\nConsult the kernel qdisc documentation before setting this value.",
+							"managed": "no",
+							"shortdesc": "`skb-\u003epriority` value for outgoing traffic",
+							"type": "integer"
+						}
+					},
+					{
+						"maas.subnet.ipv4": {
+							"longdesc": "",
+							"managed": "yes",
+							"shortdesc": "MAAS IPv4 subnet to register the instance in",
+							"type": "string"
+						}
+					},
+					{
+						"maas.subnet.ipv6": {
+							"longdesc": "",
+							"managed": "yes",
+							"shortdesc": "MAAS IPv6 subnet to register the instance in",
+							"type": "string"
+						}
+					},
+					{
+						"mtu": {
+							"defaultdesc": "parent MTU",
+							"longdesc": "",
+							"managed": "yes",
+							"shortdesc": "MTU of the new interface",
+							"type": "integer"
+						}
+					},
+					{
+						"name": {
+							"defaultdesc": "kernel assigned",
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "Name of the interface inside the instance",
+							"type": "string"
+						}
+					},
+					{
+						"network": {
+							"longdesc": "You can specify this option instead of specifying the `nictype` directly.",
+							"managed": "no",
+							"shortdesc": "Managed network to link the device to",
+							"type": "string"
+						}
+					},
+					{
+						"parent": {
+							"longdesc": "",
+							"managed": "yes",
+							"required": "if specifying the `nictype` directly",
+							"shortdesc": "Name of the host device",
+							"type": "string"
+						}
+					},
+					{
+						"queue.tx.length": {
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "Transmit queue length for the NIC",
+							"type": "integer"
+						}
+					},
+					{
+						"security.ipv4_filtering": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to prevent the instance from spoofing another instance’s IPv4 address.\nThis option enables {config:option}`device-nic-bridged-device-conf:security.mac_filtering`.",
+							"managed": "no",
+							"shortdesc": "Whether to prevent the instance from spoofing an IPv4 address",
+							"type": "bool"
+						}
+					},
+					{
+						"security.ipv6_filtering": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to prevent the instance from spoofing another instance’s IPv6 address.\nThis option enables {config:option}`device-nic-bridged-device-conf:security.mac_filtering`.",
+							"managed": "no",
+							"shortdesc": "Whether to prevent the instance from spoofing an IPv6 address",
+							"type": "bool"
+						}
+					},
+					{
+						"security.mac_filtering": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to prevent the instance from spoofing another instance’s MAC address.",
+							"managed": "no",
+							"shortdesc": "Whether to prevent the instance from spoofing a MAC address",
+							"type": "bool"
+						}
+					},
+					{
+						"security.port_isolation": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to prevent the NIC from communicating with other NICs in the network that have port isolation enabled.",
+							"managed": "no",
+							"shortdesc": "Whether to respect port isolation",
+							"type": "bool"
+						}
+					},
+					{
+						"vlan": {
+							"longdesc": "Set this option to `none` to remove the port from the default VLAN.",
+							"managed": "no",
+							"shortdesc": "VLAN ID to use for non-tagged traffic",
+							"type": "integer"
+						}
+					},
+					{
+						"vlan.tagged": {
+							"longdesc": "Specify the VLAN IDs or ranges as a comma-delimited list.",
+							"managed": "no",
+							"shortdesc": "VLAN IDs or VLAN ranges to join for tagged traffic",
+							"type": "integer"
+						}
+					}
+				]
+			}
+		},
+		"device-nic-ipvlan": {
+			"device-conf": {
+				"keys": [
+					{
+						"gvrp": {
+							"defaultdesc": "`false`",
+							"longdesc": "This option specifies whether to register the VLAN using the GARP VLAN Registration Protocol.",
+							"shortdesc": "Whether to use GARP VLAN Registration Protocol",
+							"type": "bool"
+						}
+					},
+					{
+						"hwaddr": {
+							"defaultdesc": "randomly assigned",
+							"longdesc": "",
+							"shortdesc": "MAC address of the new interface",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.address": {
+							"longdesc": "Specify a comma-delimited list of IPv4 static addresses to add to the instance.\nIn `l2` mode, you can specify them as CIDR values or singular addresses using a subnet of `/24`.",
+							"shortdesc": "IPv4 static addresses to add to the instance",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.gateway": {
+							"defaultdesc": "`auto` (`l3s`), `-` (`l2`)",
+							"longdesc": "In `l3s` mode, the option specifies whether to add an automatic default IPv4 gateway.\nPossible values are `auto` and `none`.\n\nIn `l2` mode, this option specifies the IPv4 address of the gateway.",
+							"shortdesc": "IPv4 gateway",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.host_table": {
+							"longdesc": "The custom policy routing table is in addition to the main routing table.",
+							"shortdesc": "Custom policy routing table ID to add IPv4 static routes to",
+							"type": "integer"
+						}
+					},
+					{
+						"ipv6.address": {
+							"longdesc": "Specify a comma-delimited list of IPv6 static addresses to add to the instance.\nIn `l2` mode, you can specify them as CIDR values or singular addresses using a subnet of `/64`.",
+							"shortdesc": "IPv6 static addresses to add to the instance",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.gateway": {
+							"defaultdesc": "`auto` (`l3s`), `-` (`l2`)",
+							"longdesc": "In `l3s` mode, the option specifies whether to add an automatic default IPv6 gateway.\nPossible values are `auto` and `none`.\n\nIn `l2` mode, this option specifies the IPv6 address of the gateway.",
+							"shortdesc": "IPv6 gateway",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.host_table": {
+							"longdesc": "The custom policy routing table is in addition to the main routing table.",
+							"shortdesc": "Custom policy routing table ID to add IPv6 static routes to",
+							"type": "integer"
+						}
+					},
+					{
+						"mode": {
+							"defaultdesc": "`l3s`",
+							"longdesc": "Possible values are `l2` and `l3s`.",
+							"shortdesc": "IPVLAN mode",
+							"type": "string"
+						}
+					},
+					{
+						"mtu": {
+							"defaultdesc": "parent MTU",
+							"longdesc": "",
+							"shortdesc": "The MTU of the new interface",
+							"type": "integer"
+						}
+					},
+					{
+						"name": {
+							"defaultdesc": "kernel assigned",
+							"longdesc": "",
+							"shortdesc": "Name of the interface inside the instance",
+							"type": "string"
+						}
+					},
+					{
+						"parent": {
+							"longdesc": "",
+							"required": "yes",
+							"shortdesc": "Name of the host device",
+							"type": "string"
+						}
+					},
+					{
+						"vlan": {
+							"longdesc": "",
+							"shortdesc": "VLAN ID to attach to",
+							"type": "integer"
+						}
+					}
+				]
+			}
+		},
+		"device-nic-macvlan": {
+			"device-conf": {
+				"keys": [
+					{
+						"boot.priority": {
+							"longdesc": "A higher value for this option means that the VM boots first.",
+							"managed": "no",
+							"shortdesc": "Boot priority for VMs",
+							"type": "integer"
+						}
+					},
+					{
+						"gvrp": {
+							"defaultdesc": "`false`",
+							"longdesc": "This option specifies whether to register the VLAN using the GARP VLAN Registration Protocol.",
+							"managed": "no",
+							"shortdesc": "Whether to use GARP VLAN Registration Protocol",
+							"type": "bool"
+						}
+					},
+					{
+						"hwaddr": {
+							"defaultdesc": "randomly assigned",
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "MAC address of the new interface",
+							"type": "string"
+						}
+					},
+					{
+						"maas.subnet.ipv4": {
+							"longdesc": "",
+							"managed": "yes",
+							"shortdesc": "MAAS IPv4 subnet to register the instance in",
+							"type": "string"
+						}
+					},
+					{
+						"maas.subnet.ipv6": {
+							"longdesc": "",
+							"managed": "yes",
+							"shortdesc": "MAAS IPv6 subnet to register the instance in",
+							"type": "string"
+						}
+					},
+					{
+						"mtu": {
+							"defaultdesc": "parent MTU",
+							"longdesc": "",
+							"managed": "yes",
+							"shortdesc": "MTU of the new interface",
+							"type": "integer"
+						}
+					},
+					{
+						"name": {
+							"defaultdesc": "kernel assigned",
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "Name of the interface inside the instance",
+							"type": "string"
+						}
+					},
+					{
+						"network": {
+							"longdesc": "You can specify this option instead of specifying the `nictype` directly.",
+							"managed": "no",
+							"shortdesc": "Managed network to link the device to",
+							"type": "string"
+						}
+					},
+					{
+						"parent": {
+							"longdesc": "",
+							"managed": "yes",
+							"required": "if specifying the `nictype` directly",
+							"shortdesc": "Name of the host device",
+							"type": "string"
+						}
+					},
+					{
+						"vlan": {
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "VLAN ID to attach to",
+							"type": "integer"
+						}
+					}
+				]
+			}
+		},
+		"device-nic-ovn": {
+			"device-conf": {
+				"keys": [
+					{
+						"acceleration": {
+							"defaultdesc": "`none`",
+							"longdesc": "Possible values are `none`, `sriov`, or `vdpa`.\nSee {ref}`devices-nic-hw-acceleration` for more information.",
+							"managed": "no",
+							"shortdesc": "Enable hardware offloading",
+							"type": "string"
+						}
+					},
+					{
+						"boot.priority": {
+							"longdesc": "A higher value for this option means that the VM boots first.",
+							"managed": "no",
+							"shortdesc": "Boot priority for VMs",
+							"type": "integer"
+						}
+					},
+					{
+						"host_name": {
+							"defaultdesc": "randomly assigned",
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "Name of the interface inside the host",
+							"type": "string"
+						}
+					},
+					{
+						"hwaddr": {
+							"defaultdesc": "randomly assigned",
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "MAC address of the new interface",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.address": {
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "IPv4 address to assign to the instance through DHCP",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.routes": {
+							"longdesc": "Specify a comma-delimited list of IPv4 static routes to route for this NIC.",
+							"managed": "no",
+							"shortdesc": "IPv4 static routes to route for the NIC",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.routes.external": {
+							"longdesc": "Specify a comma-delimited list of IPv4 static routes to route to the NIC and publish on the uplink network.",
+							"managed": "no",
+							"shortdesc": "IPv4 static routes to route to NIC",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.address": {
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "IPv6 address to assign to the instance through DHCP",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.routes": {
+							"longdesc": "Specify a comma-delimited list of IPv6 static routes to route to the NIC.",
+							"managed": "no",
+							"shortdesc": "IPv6 static routes to route to the NIC",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.routes.external": {
+							"longdesc": "Specify a comma-delimited list of IPv6 static routes to route to the NIC and publish on the uplink network.",
+							"managed": "no",
+							"shortdesc": "IPv6 static routes to route to NIC",
+							"type": "string"
+						}
+					},
+					{
+						"name": {
+							"defaultdesc": "kernel assigned",
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "Name of the interface inside the instance",
+							"type": "string"
+						}
+					},
+					{
+						"nested": {
+							"longdesc": "See also {config:option}`device-nic-ovn-device-conf:vlan`.",
+							"managed": "no",
+							"shortdesc": "Parent NIC name to nest this NIC under",
+							"type": "string"
+						}
+					},
+					{
+						"network": {
+							"longdesc": "",
+							"managed": "yes",
+							"required": "yes",
+							"shortdesc": "Managed network to link the device to",
+							"type": "string"
+						}
+					},
+					{
+						"security.acls": {
+							"longdesc": "Specify a comma-separated list",
+							"managed": "no",
+							"shortdesc": "Network ACLs to apply",
+							"type": "string"
+						}
+					},
+					{
+						"security.acls.default.egress.action": {
+							"defaultdesc": "`reject`",
+							"longdesc": "The specified action is used for all egress traffic that doesn’t match any ACL rule.",
+							"managed": "no",
+							"shortdesc": "Default action to use for egress traffic",
+							"type": "string"
+						}
+					},
+					{
+						"security.acls.default.egress.logged": {
+							"defaultdesc": "`false`",
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "Whether to log egress traffic that doesn’t match any ACL rule",
+							"type": "bool"
+						}
+					},
+					{
+						"security.acls.default.ingress.action": {
+							"defaultdesc": "`reject`",
+							"longdesc": "The specified action is used for all ingress traffic that doesn’t match any ACL rule.",
+							"managed": "no",
+							"shortdesc": "Default action to use for ingress traffic",
+							"type": "string"
+						}
+					},
+					{
+						"security.acls.default.ingress.logged": {
+							"defaultdesc": "`false`",
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "Whether to log ingress traffic that doesn’t match any ACL rule",
+							"type": "bool"
+						}
+					},
+					{
+						"vlan": {
+							"longdesc": "See also {config:option}`device-nic-ovn-device-conf:nested`.",
+							"managed": "no",
+							"shortdesc": "VLAN ID to use when nesting",
+							"type": "integer"
+						}
+					}
+				]
+			}
+		},
+		"device-nic-p2p": {
+			"device-conf": {
+				"keys": [
+					{
+						"boot.priority": {
+							"longdesc": "A higher value for this option means that the VM boots first.",
+							"shortdesc": "Boot priority for VMs",
+							"type": "integer"
+						}
+					},
+					{
+						"host_name": {
+							"defaultdesc": "randomly assigned",
+							"longdesc": "",
+							"shortdesc": "Name of the interface inside the host",
+							"type": "string"
+						}
+					},
+					{
+						"hwaddr": {
+							"defaultdesc": "randomly assigned",
+							"longdesc": "",
+							"shortdesc": "MAC address of the new interface",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.routes": {
+							"longdesc": "Specify a comma-delimited list of IPv4 static routes for this NIC to add on the host.",
+							"shortdesc": "IPv4 static routes for the NIC to add on the host",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.routes": {
+							"longdesc": "Specify a comma-delimited list of IPv6 static routes for this NIC to add on the host.",
+							"shortdesc": "IPv6 static routes for the NIC to add on the host",
+							"type": "string"
+						}
+					},
+					{
+						"limits.egress": {
+							"longdesc": "Specify the limit in bit/s. Various suffixes are supported (see {ref}`instances-limit-units`).",
+							"shortdesc": "I/O limit for outgoing traffic",
+							"type": "string"
+						}
+					},
+					{
+						"limits.ingress": {
+							"longdesc": "Specify the limit in bit/s. Various suffixes are supported (see {ref}`instances-limit-units`).",
+							"shortdesc": "I/O limit for incoming traffic",
+							"type": "string"
+						}
+					},
+					{
+						"limits.max": {
+							"longdesc": "This option is the same as setting both {config:option}`device-nic-bridged-device-conf:limits.ingress` and {config:option}`device-nic-bridged-device-conf:limits.egress`.\n\nSpecify the limit in bit/s. Various suffixes are supported (see {ref}`instances-limit-units`).",
+							"shortdesc": "I/O limit for both incoming and outgoing traffic",
+							"type": "string"
+						}
+					},
+					{
+						"limits.priority": {
+							"longdesc": "The `skb-\u003epriority` value for outgoing traffic is used by the kernel queuing discipline (qdisc) to prioritize network packets.\nSpecify the value as a 32-bit unsigned integer.\n\nThe effect of this value depends on the particular qdisc implementation, for example, `SKBPRIO` or `QFQ`.\nConsult the kernel qdisc documentation before setting this value.",
+							"shortdesc": "`skb-\u003epriority` value for outgoing traffic",
+							"type": "integer"
+						}
+					},
+					{
+						"mtu": {
+							"defaultdesc": "kernel assigned",
+							"longdesc": "",
+							"shortdesc": "MTU of the new interface",
+							"type": "integer"
+						}
+					},
+					{
+						"name": {
+							"defaultdesc": "kernel assigned",
+							"longdesc": "",
+							"shortdesc": "Name of the interface inside the instance",
+							"type": "string"
+						}
+					},
+					{
+						"queue.tx.length": {
+							"longdesc": "",
+							"shortdesc": "Transmit queue length for the NIC",
+							"type": "integer"
+						}
+					}
+				]
+			}
+		},
+		"device-nic-physical": {
+			"device-conf": {
+				"keys": [
+					{
+						"boot.priority": {
+							"longdesc": "A higher value for this option means that the VM boots first.",
+							"managed": "no",
+							"shortdesc": "Boot priority for VMs",
+							"type": "integer"
+						}
+					},
+					{
+						"gvrp": {
+							"defaultdesc": "`false`",
+							"longdesc": "This option specifies whether to register the VLAN using the GARP VLAN Registration Protocol.",
+							"managed": "no",
+							"shortdesc": "Whether to use GARP VLAN Registration Protocol",
+							"type": "bool"
+						}
+					},
+					{
+						"hwaddr": {
+							"defaultdesc": "randomly assigned",
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "MAC address of the new interface",
+							"type": "string"
+						}
+					},
+					{
+						"maas.subnet.ipv4": {
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "MAAS IPv4 subnet to register the instance in",
+							"type": "string"
+						}
+					},
+					{
+						"maas.subnet.ipv6": {
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "MAAS IPv6 subnet to register the instance in",
+							"type": "string"
+						}
+					},
+					{
+						"mtu": {
+							"defaultdesc": "parent MTU",
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "MTU of the new interface",
+							"type": "integer"
+						}
+					},
+					{
+						"name": {
+							"defaultdesc": "kernel assigned",
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "Name of the interface inside the instance",
+							"type": "string"
+						}
+					},
+					{
+						"network": {
+							"longdesc": "You can specify this option instead of specifying the `nictype` directly.",
+							"managed": "no",
+							"shortdesc": "Managed network to link the device to",
+							"type": "string"
+						}
+					},
+					{
+						"parent": {
+							"longdesc": "",
+							"managed": "yes",
+							"required": "if specifying the `nictype` directly",
+							"shortdesc": "Name of the host device",
+							"type": "string"
+						}
+					},
+					{
+						"vlan": {
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "VLAN ID to attach to",
+							"type": "integer"
+						}
+					}
+				]
+			}
+		},
+		"device-nic-routed": {
+			"device-conf": {
+				"keys": [
+					{
+						"gvrp": {
+							"defaultdesc": "`false`",
+							"longdesc": "This option specifies whether to register the VLAN using the GARP VLAN Registration Protocol.",
+							"shortdesc": "Whether to use GARP VLAN Registration Protocol",
+							"type": "bool"
+						}
+					},
+					{
+						"host_name": {
+							"defaultdesc": "randomly assigned",
+							"longdesc": "",
+							"shortdesc": "Name of the interface inside the host",
+							"type": "string"
+						}
+					},
+					{
+						"hwaddr": {
+							"defaultdesc": "randomly assigned",
+							"longdesc": "",
+							"shortdesc": "MAC address of the new interface",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.address": {
+							"longdesc": "Specify a comma-delimited list of IPv4 static addresses to add to the instance.",
+							"shortdesc": "IPv4 static addresses to add to the instance",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.gateway": {
+							"defaultdesc": "`auto`",
+							"longdesc": "Possible values are `auto` and `none`.",
+							"shortdesc": "Whether to add an automatic default IPv4 gateway",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.host_address": {
+							"defaultdesc": "`192.254.0.1`",
+							"longdesc": "",
+							"shortdesc": "IPv4 address to add to the host-side `veth` interface",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.host_table": {
+							"longdesc": "The custom policy routing table is in addition to the main routing table.",
+							"shortdesc": "Custom policy routing table ID to add IPv4 static routes to",
+							"type": "integer"
+						}
+					},
+					{
+						"ipv4.neighbor_probe": {
+							"defaultdesc": "`true`",
+							"longdesc": "",
+							"shortdesc": "Whether to probe the parent network for IPv4 address availability",
+							"type": "bool"
+						}
+					},
+					{
+						"ipv4.routes": {
+							"longdesc": "Specify a comma-delimited list of IPv4 static routes for this NIC to add on the host (without L2 ARP/NDP proxy).",
+							"shortdesc": "IPv4 static routes for the NIC to add on the host",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.address": {
+							"longdesc": "Specify a comma-delimited list of IPv6 static addresses to add to the instance.",
+							"shortdesc": "IPv6 static addresses to add to the instance",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.gateway": {
+							"defaultdesc": "`auto`",
+							"longdesc": "Possible values are `auto` and `none`.",
+							"shortdesc": "Whether to add an automatic default IPv6 gateway",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.host_address": {
+							"defaultdesc": "`fe80::1`",
+							"longdesc": "",
+							"shortdesc": "IPv6 address to add to the host-side `veth` interface",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.host_table": {
+							"longdesc": "The custom policy routing table is in addition to the main routing table.",
+							"shortdesc": "Custom policy routing table ID to add IPv6 static routes to",
+							"type": "integer"
+						}
+					},
+					{
+						"ipv6.neighbor_probe": {
+							"defaultdesc": "`true`",
+							"longdesc": "",
+							"shortdesc": "Whether to probe the parent network for IPv6 address availability",
+							"type": "bool"
+						}
+					},
+					{
+						"ipv6.routes": {
+							"longdesc": "Specify a comma-delimited list of IPv6 static routes for this NIC to add on the host (without L2 ARP/NDP proxy).",
+							"shortdesc": "IPv6 static routes for the NIC to add on the host",
+							"type": "string"
+						}
+					},
+					{
+						"limits.egress": {
+							"longdesc": "Specify the limit in bit/s. Various suffixes are supported (see {ref}`instances-limit-units`).",
+							"shortdesc": "I/O limit for outgoing traffic",
+							"type": "string"
+						}
+					},
+					{
+						"limits.ingress": {
+							"longdesc": "Specify the limit in bit/s. Various suffixes are supported (see {ref}`instances-limit-units`).",
+							"shortdesc": "I/O limit for incoming traffic",
+							"type": "string"
+						}
+					},
+					{
+						"limits.max": {
+							"longdesc": "This option is the same as setting both {config:option}`device-nic-bridged-device-conf:limits.ingress` and {config:option}`device-nic-bridged-device-conf:limits.egress`.\n\nSpecify the limit in bit/s. Various suffixes are supported (see {ref}`instances-limit-units`).",
+							"shortdesc": "I/O limit for both incoming and outgoing traffic",
+							"type": "string"
+						}
+					},
+					{
+						"limits.priority": {
+							"longdesc": "The `skb-\u003epriority` value for outgoing traffic is used by the kernel queuing discipline (qdisc) to prioritize network packets.\nSpecify the value as a 32-bit unsigned integer.\n\nThe effect of this value depends on the particular qdisc implementation, for example, `SKBPRIO` or `QFQ`.\nConsult the kernel qdisc documentation before setting this value.",
+							"shortdesc": "`skb-\u003epriority` value for outgoing traffic",
+							"type": "integer"
+						}
+					},
+					{
+						"mtu": {
+							"defaultdesc": "parent MTU",
+							"longdesc": "",
+							"shortdesc": "The MTU of the new interface",
+							"type": "integer"
+						}
+					},
+					{
+						"name": {
+							"defaultdesc": "kernel assigned",
+							"longdesc": "",
+							"shortdesc": "Name of the interface inside the instance",
+							"type": "string"
+						}
+					},
+					{
+						"parent": {
+							"longdesc": "",
+							"shortdesc": "Name of the host device to join the instance to",
+							"type": "string"
+						}
+					},
+					{
+						"queue.tx.length": {
+							"longdesc": "",
+							"shortdesc": "Transmit queue length for the NIC",
+							"type": "integer"
+						}
+					},
+					{
+						"vlan": {
+							"longdesc": "",
+							"shortdesc": "VLAN ID to attach to",
+							"type": "integer"
+						}
+					}
+				]
+			}
+		},
+		"device-nic-sriov": {
+			"device-conf": {
+				"keys": [
+					{
+						"boot.priority": {
+							"longdesc": "A higher value for this option means that the VM boots first.",
+							"managed": "no",
+							"shortdesc": "Boot priority for VMs",
+							"type": "integer"
+						}
+					},
+					{
+						"hwaddr": {
+							"defaultdesc": "randomly assigned",
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "MAC address of the new interface",
+							"type": "string"
+						}
+					},
+					{
+						"maas.subnet.ipv4": {
+							"longdesc": "",
+							"managed": "yes",
+							"shortdesc": "MAAS IPv4 subnet to register the instance in",
+							"type": "string"
+						}
+					},
+					{
+						"maas.subnet.ipv6": {
+							"longdesc": "",
+							"managed": "yes",
+							"shortdesc": "MAAS IPv6 subnet to register the instance in",
+							"type": "string"
+						}
+					},
+					{
+						"mtu": {
+							"defaultdesc": "kernel assigned",
+							"longdesc": "",
+							"managed": "yes",
+							"shortdesc": "MTU of the new interface",
+							"type": "integer"
+						}
+					},
+					{
+						"name": {
+							"defaultdesc": "kernel assigned",
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "Name of the interface inside the instance",
+							"type": "string"
+						}
+					},
+					{
+						"network": {
+							"longdesc": "You can specify this option instead of specifying the `nictype` directly.",
+							"managed": "no",
+							"shortdesc": "Managed network to link the device to",
+							"type": "string"
+						}
+					},
+					{
+						"parent": {
+							"longdesc": "",
+							"managed": "yes",
+							"required": "if specifying the `nictype` directly",
+							"shortdesc": "Name of the host device",
+							"type": "string"
+						}
+					},
+					{
+						"security.mac_filtering": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to prevent the instance from spoofing another instance’s MAC address.",
+							"managed": "no",
+							"shortdesc": "Whether to prevent the instance from spoofing a MAC address",
+							"type": "bool"
+						}
+					},
+					{
+						"vlan": {
+							"longdesc": "",
+							"managed": "no",
+							"shortdesc": "VLAN ID to attach to",
+							"type": "integer"
+						}
+					}
+				]
+			}
+		},
 		"device-pci": {
 			"device-conf": {
 				"keys": [
