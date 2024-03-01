@@ -104,7 +104,8 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 	}
 
 	// Get the storage project name.
-	projectName, err := project.StorageVolumeProject(s.DB.Cluster, request.ProjectParam(r), volumeType)
+	requestProjectName := request.ProjectParam(r)
+	projectName, err := project.StorageVolumeProject(s.DB.Cluster, requestProjectName, volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
