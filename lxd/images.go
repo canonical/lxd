@@ -1201,7 +1201,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Sync the images between each node in the cluster on demand
-		err = imageSyncBetweenNodes(s, r, projectName, info.Fingerprint)
+		err = imageSyncBetweenNodes(s.ShutdownCtx, s, r, projectName, info.Fingerprint)
 		if err != nil {
 			return fmt.Errorf("Failed syncing image between nodes: %w", err)
 		}
@@ -4582,7 +4582,7 @@ func autoSyncImages(ctx context.Context, s *state.State) error {
 	for fingerprint, projects := range imageProjectInfo {
 		ch := make(chan error)
 		go func(projectName string, fingerprint string) {
-			err := imageSyncBetweenNodes(s, nil, projectName, fingerprint)
+			err := imageSyncBetweenNodes(ctx, s, nil, projectName, fingerprint)
 			if err != nil {
 				logger.Error("Failed to synchronize images", logger.Ctx{"err": err, "project": projectName, "fingerprint": fingerprint})
 			}
@@ -4600,14 +4600,14 @@ func autoSyncImages(ctx context.Context, s *state.State) error {
 	return nil
 }
 
-func imageSyncBetweenNodes(s *state.State, r *http.Request, project string, fingerprint string) error {
+func imageSyncBetweenNodes(ctx context.Context, s *state.State, r *http.Request, project string, fingerprint string) error {
 	logger.Info("Syncing image to members started", logger.Ctx{"fingerprint": fingerprint, "project": project})
 	defer logger.Info("Syncing image to members finished", logger.Ctx{"fingerprint": fingerprint, "project": project})
 
 	var desiredSyncNodeCount int64
 	var syncNodeAddresses []string
 
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		desiredSyncNodeCount = s.GlobalConfig.ImagesMinimalReplica()
 
 		// -1 means that we want to replicate the image on all nodes
@@ -4658,7 +4658,7 @@ func imageSyncBetweenNodes(s *state.State, r *http.Request, project string, fing
 
 	var image *api.Image
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the image.
 		_, image, err = tx.GetImage(ctx, fingerprint, dbCluster.ImageFilter{Project: &project})
 
@@ -4678,7 +4678,7 @@ func imageSyncBetweenNodes(s *state.State, r *http.Request, project string, fing
 	for i := 0; i < int(nodeCount); i++ {
 		var addresses []string
 
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			// Get a list of nodes that do not have the image.
 			addresses, err = tx.GetNodesWithoutImage(ctx, fingerprint)
 
