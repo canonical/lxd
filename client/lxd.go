@@ -399,11 +399,10 @@ func (r *ProtocolLXD) queryOperation(method string, path string, data any, ETag 
 
 	// Setup an Operation wrapper
 	op := operation{
-		Operation:    *respOperation,
-		r:            r,
-		listener:     listener,
-		chActive:     make(chan bool),
-		skipListener: !useEventListener,
+		Operation: *respOperation,
+		r:         r,
+		listener:  listener,
+		chActive:  make(chan bool),
 	}
 
 	// Log the data
