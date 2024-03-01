@@ -45,7 +45,29 @@ func (d *unixHotplug) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	rules := map[string]func(string) error{
-		"vendorid":  validate.Optional(validate.IsDeviceID),
+		// lxdmeta:generate(entities=device-unix-hotplug; group=device-conf; key=vendorid)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Vendor ID of the Unix device
+
+		// lxdmeta:generate(entities=device-unix-usb; group=device-conf; key=vendorid)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Vendor ID of the USB device
+		"vendorid": validate.Optional(validate.IsDeviceID),
+		// lxdmeta:generate(entities=device-unix-hotplug; group=device-conf; key=productid)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Product ID of the Unix device
+
+		// lxdmeta:generate(entities=device-unix-usb; group=device-conf; key=productid)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Product ID of the USB device
 		"productid": validate.Optional(validate.IsDeviceID),
 		"uid":       unixValidUserID,
 		"gid":       unixValidUserID,
