@@ -223,8 +223,12 @@ func SetupTrust(serverCert *shared.CertInfo, serverName string, targetAddress st
 	}
 
 	post := api.CertificatesPost{
-		CertificatePut: cert.CertificatePut,
-		Password:       targetPassword,
+		Name:        cert.Name,
+		Type:        cert.Type,
+		Projects:    cert.Projects,
+		Restricted:  cert.Restricted,
+		Certificate: cert.Certificate,
+		Password:    targetPassword,
 	}
 
 	err = target.CreateCertificate(post)
@@ -272,7 +276,7 @@ func UpdateTrust(serverCert *shared.CertInfo, serverName string, targetAddress s
 		// Ensure that if a client certificate already exists that matches our fingerprint, that it
 		// has the correct name and type for cluster operation, to allow us to associate member
 		// server names to certificate names.
-		err = target.UpdateCertificate(cert.Fingerprint, cert.CertificatePut, "")
+		err = target.UpdateCertificate(cert.Fingerprint, cert.Writable(), "")
 		if err != nil {
 			return fmt.Errorf("Failed updating certificate name and type in trust store: %w", err)
 		}
