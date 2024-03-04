@@ -66,9 +66,6 @@ func (w Warning) ToAPI() api.Warning {
 	typeCode := warningtype.Type(w.TypeCode)
 
 	return api.Warning{
-		WarningPut: api.WarningPut{
-			Status: warningtype.Statuses[warningtype.Status(w.Status)],
-		},
 		UUID:        w.UUID,
 		Location:    w.Node,
 		Project:     w.Project,
@@ -78,5 +75,6 @@ func (w Warning) ToAPI() api.Warning {
 		LastSeenAt:  w.LastSeenDate,
 		LastMessage: w.LastMessage,
 		Severity:    warningtype.Severities[typeCode.Severity()],
+		Status:      warningtype.Statuses[warningtype.Status(w.Status)],
 	}
 }

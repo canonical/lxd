@@ -63,12 +63,10 @@ func (p *Profile) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Profile, error) {
 	}
 
 	profile := &api.Profile{
-		Name: p.Name,
-		ProfilePut: api.ProfilePut{
-			Description: p.Description,
-			Config:      config,
-			Devices:     DevicesToAPI(devices),
-		},
+		Name:        p.Name,
+		Description: p.Description,
+		Config:      config,
+		Devices:     DevicesToAPI(devices),
 	}
 
 	return profile, nil
