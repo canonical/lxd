@@ -2564,6 +2564,156 @@ This option specifies whether to register the VLAN using the GARP VLAN Registrat
 ```
 
 <!-- config group network-macvlan-network-conf end -->
+<!-- config group network-physical-network-conf start -->
+```{config:option} bgp.peers.NAME.address network-physical-network-conf
+:condition: "BGP server"
+:shortdesc: "Peer address for use by `ovn` downstream networks"
+:type: "string"
+The address can be IPv4 or IPv6.
+```
+
+```{config:option} bgp.peers.NAME.asn network-physical-network-conf
+:condition: "BGP server"
+:shortdesc: "Peer AS number for use by `ovn` downstream networks"
+:type: "integer"
+
+```
+
+```{config:option} bgp.peers.NAME.holdtime network-physical-network-conf
+:condition: "BGP server"
+:defaultdesc: "`180`"
+:required: "no"
+:shortdesc: "Peer session hold time"
+:type: "integer"
+Specify the peer session hold time in seconds.
+```
+
+```{config:option} bgp.peers.NAME.password network-physical-network-conf
+:condition: "BGP server"
+:defaultdesc: "(no password)"
+:required: "no"
+:shortdesc: "Peer session password for use by `ovn` downstream networks"
+:type: "string"
+
+```
+
+```{config:option} dns.nameservers network-physical-network-conf
+:condition: "standard mode"
+:shortdesc: "DNS server IPs on physical network"
+:type: "string"
+Specify a list of DNS server IPs.
+```
+
+```{config:option} gvrp network-physical-network-conf
+:defaultdesc: "`false`"
+:shortdesc: "Whether to use GARP VLAN Registration Protocol"
+:type: "bool"
+This option specifies whether to register the VLAN using the GARP VLAN Registration Protocol.
+```
+
+```{config:option} ipv4.gateway network-physical-network-conf
+:condition: "standard mode"
+:shortdesc: "IPv4 address for the gateway and network"
+:type: "string"
+Use CIDR notation.
+```
+
+```{config:option} ipv4.ovn.ranges network-physical-network-conf
+:shortdesc: "IPv4 ranges to use for child OVN network routers"
+:type: "string"
+Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
+```
+
+```{config:option} ipv4.routes network-physical-network-conf
+:condition: "IPv4 address"
+:shortdesc: "Additional IPv4 CIDR subnets"
+:type: "string"
+Specify a comma-separated list of IPv4 CIDR subnets that can be used with the child OVN network's {config:option}`device-nic-ovn-device-conf:ipv4.routes.external` setting.
+```
+
+```{config:option} ipv4.routes.anycast network-physical-network-conf
+:condition: "IPv4 address"
+:defaultdesc: "`false`"
+:shortdesc: "Whether to allow IPv4 routes on multiple networks/NICs"
+:type: "bool"
+If set to `true`, this option allows the overlapping routes to be used on multiple networks/NICs at the same time.
+```
+
+```{config:option} ipv6.gateway network-physical-network-conf
+:condition: "standard mode"
+:shortdesc: "IPv6 address for the gateway and network"
+:type: "string"
+Use CIDR notation.
+```
+
+```{config:option} ipv6.ovn.ranges network-physical-network-conf
+:shortdesc: "IPv6 ranges to use for child OVN network routers"
+:type: "string"
+Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.
+```
+
+```{config:option} ipv6.routes network-physical-network-conf
+:condition: "IPv6 address"
+:shortdesc: "Additional IPv6 CIDR subnets"
+:type: "string"
+Specify a comma-separated list of IPv6 CIDR subnets that can be used with the child OVN network's {config:option}`device-nic-ovn-device-conf:ipv6.routes.external` setting.
+```
+
+```{config:option} ipv6.routes.anycast network-physical-network-conf
+:condition: "IPv6 address"
+:defaultdesc: "`false`"
+:shortdesc: "Whether to allow IPv6 routes on multiple networks/NICs"
+:type: "bool"
+If set to `true`, this option allows the overlapping routes to be used on multiple networks/NICs at the same time.
+```
+
+```{config:option} maas.subnet.ipv4 network-physical-network-conf
+:condition: "IPv4 address; using the `network` property on the NIC"
+:shortdesc: "MAAS IPv4 subnet to register instances in"
+:type: "string"
+
+```
+
+```{config:option} maas.subnet.ipv6 network-physical-network-conf
+:condition: "IPv6 address; using the `network` property on the NIC"
+:shortdesc: "MAAS IPv6 subnet to register instances in"
+:type: "string"
+
+```
+
+```{config:option} mtu network-physical-network-conf
+:shortdesc: "MTU of the new interface"
+:type: "integer"
+
+```
+
+```{config:option} ovn.ingress_mode network-physical-network-conf
+:condition: "standard mode"
+:defaultdesc: "`l2proxy`"
+:shortdesc: "How OVN NIC external IPs are advertised on uplink network"
+:type: "string"
+Possible values are `l2proxy` (proxy ARP/NDP) and `routed`.
+```
+
+```{config:option} parent network-physical-network-conf
+:shortdesc: "Existing interface to use for network"
+:type: "string"
+
+```
+
+```{config:option} user.* network-physical-network-conf
+:shortdesc: "User-provided free-form key/value pairs"
+:type: "string"
+
+```
+
+```{config:option} vlan network-physical-network-conf
+:shortdesc: "VLAN ID to attach to"
+:type: "integer"
+
+```
+
+<!-- config group network-physical-network-conf end -->
 <!-- config group network-sriov-network-conf start -->
 ```{config:option} maas.subnet.ipv4 network-sriov-network-conf
 :condition: "IPv4 address; using the `network` property on the NIC"
