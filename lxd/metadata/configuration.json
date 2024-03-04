@@ -2850,6 +2850,520 @@
 				]
 			}
 		},
+		"network-bridge": {
+			"network-conf": {
+				"keys": [
+					{
+						"bgp.ipv4.nexthop": {
+							"condition": "BGP server",
+							"defaultdesc": "local address",
+							"longdesc": "",
+							"shortdesc": "Override the IPv4 next-hop for advertised prefixes",
+							"type": "string"
+						}
+					},
+					{
+						"bgp.ipv6.nexthop": {
+							"condition": "BGP server",
+							"defaultdesc": "local address",
+							"longdesc": "",
+							"shortdesc": "Override the IPv6 next-hop for advertised prefixes",
+							"type": "string"
+						}
+					},
+					{
+						"bgp.peers.NAME.address": {
+							"condition": "BGP server",
+							"longdesc": "",
+							"shortdesc": "Peer address (IPv4 or IPv6)",
+							"type": "string"
+						}
+					},
+					{
+						"bgp.peers.NAME.asn": {
+							"condition": "BGP server",
+							"longdesc": "",
+							"shortdesc": "Peer AS number",
+							"type": "integer"
+						}
+					},
+					{
+						"bgp.peers.NAME.holdtime": {
+							"condition": "BGP server",
+							"defaultdesc": "`180`",
+							"longdesc": "Specify the hold time in seconds.",
+							"required": "no",
+							"shortdesc": "Peer session hold time",
+							"type": "integer"
+						}
+					},
+					{
+						"bgp.peers.NAME.password": {
+							"condition": "BGP server",
+							"defaultdesc": "(no password)",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Peer session password",
+							"type": "string"
+						}
+					},
+					{
+						"bridge.driver": {
+							"defaultdesc": "`native`",
+							"longdesc": "Possible values are `native` and `openvswitch`.",
+							"shortdesc": "Bridge driver",
+							"type": "string"
+						}
+					},
+					{
+						"bridge.external_interfaces": {
+							"longdesc": "Specify a comma-separated list of unconfigured network interfaces to include in the bridge.",
+							"shortdesc": "Unconfigured network interfaces to include in the bridge",
+							"type": "string"
+						}
+					},
+					{
+						"bridge.hwaddr": {
+							"longdesc": "",
+							"shortdesc": "MAC address for the bridge",
+							"type": "string"
+						}
+					},
+					{
+						"bridge.mode": {
+							"defaultdesc": "`standard`",
+							"longdesc": "Possible values are `standard` and `fan`.",
+							"shortdesc": "Bridge operation mode",
+							"type": "string"
+						}
+					},
+					{
+						"bridge.mtu": {
+							"defaultdesc": "`1500` if `bridge.mode=standard`, `1480` if `bridge.mode=fan` and `fan.type=ipip`, or `1450` if `bridge.mode=fan` and `fan.type=vxlan`",
+							"longdesc": "The default value varies depending on whether the bridge uses a tunnel or a fan setup.",
+							"shortdesc": "Bridge MTU",
+							"type": "integer"
+						}
+					},
+					{
+						"dns.domain": {
+							"defaultdesc": "`lxd`",
+							"longdesc": "",
+							"shortdesc": "Domain to advertise to DHCP clients and use for DNS resolution",
+							"type": "string"
+						}
+					},
+					{
+						"dns.mode": {
+							"defaultdesc": "`managed`",
+							"longdesc": "Possible values are `none` for no DNS record, `managed` for LXD-generated static records, and `dynamic` for client-generated records.",
+							"shortdesc": "DNS registration mode",
+							"type": "string"
+						}
+					},
+					{
+						"dns.search": {
+							"defaultdesc": "`dns.domain` value",
+							"longdesc": "Specify a comma-separated list of domains.",
+							"shortdesc": "Full domain search list",
+							"type": "string"
+						}
+					},
+					{
+						"dns.zone.forward": {
+							"longdesc": "Specify a comma-separated list of DNS zone names.",
+							"shortdesc": "DNS zone names for forward DNS records",
+							"type": "string"
+						}
+					},
+					{
+						"dns.zone.reverse.ipv4": {
+							"longdesc": "",
+							"shortdesc": "DNS zone name for IPv4 reverse DNS records",
+							"type": "string"
+						}
+					},
+					{
+						"dns.zone.reverse.ipv6": {
+							"longdesc": "",
+							"shortdesc": "DNS zone name for IPv6 reverse DNS records",
+							"type": "string"
+						}
+					},
+					{
+						"fan.overlay_subnet": {
+							"condition": "fan mode",
+							"defaultdesc": "`240.0.0.0/8`",
+							"longdesc": "Use CIDR notation.",
+							"shortdesc": "Subnet to use as the overlay for the FAN",
+							"type": "string"
+						}
+					},
+					{
+						"fan.type": {
+							"condition": "fan mode",
+							"defaultdesc": "`vxlan`",
+							"longdesc": "Possible values are `vxlan` and `ipip`.",
+							"shortdesc": "Tunneling type for the FAN",
+							"type": "string"
+						}
+					},
+					{
+						"fan.underlay_subnet": {
+							"condition": "fan mode",
+							"defaultdesc": "initial value on creation: `auto`",
+							"longdesc": "Use CIDR notation.\n\nYou can set the option to `auto` to use the default gateway subnet.",
+							"shortdesc": "Subnet to use as the underlay for the FAN",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.address": {
+							"condition": "standard mode",
+							"defaultdesc": "initial value on creation: `auto`",
+							"longdesc": "Use CIDR notation.\n\nYou can set the option to `none` to turn off IPv4, or to `auto` to generate a new random unused subnet.",
+							"shortdesc": "IPv4 address for the bridge",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.dhcp": {
+							"condition": "IPv4 address",
+							"defaultdesc": "`true`",
+							"longdesc": "",
+							"shortdesc": "Whether to allocate IPv4 addresses using DHCP",
+							"type": "bool"
+						}
+					},
+					{
+						"ipv4.dhcp.expiry": {
+							"condition": "IPv4 DHCP",
+							"defaultdesc": "`1h`",
+							"longdesc": "",
+							"shortdesc": "When to expire DHCP leases",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.dhcp.gateway": {
+							"condition": "IPv4 DHCP",
+							"defaultdesc": "IPv4 address",
+							"longdesc": "",
+							"shortdesc": "Address of the gateway for the IPv4 subnet",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.dhcp.ranges": {
+							"condition": "IPv4 DHCP",
+							"defaultdesc": "all addresses",
+							"longdesc": "Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.",
+							"shortdesc": "IPv4 ranges to use for DHCP",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.firewall": {
+							"condition": "IPv4 address",
+							"defaultdesc": "`true`",
+							"longdesc": "",
+							"shortdesc": "Whether to generate filtering firewall rules for this network",
+							"type": "bool"
+						}
+					},
+					{
+						"ipv4.nat": {
+							"condition": "IPv4 address",
+							"defaultdesc": "`false` (initial value on creation if `ipv4.address` is set to `auto`: `true`)",
+							"longdesc": "",
+							"shortdesc": "Whether to use NAT for IPv4",
+							"type": "bool"
+						}
+					},
+					{
+						"ipv4.nat.address": {
+							"condition": "IPv4 address",
+							"longdesc": "",
+							"shortdesc": "Source address used for outbound traffic from the bridge",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.nat.order": {
+							"condition": "IPv4 address",
+							"defaultdesc": "`before`",
+							"longdesc": "Set this option to `before` to add the NAT rules before any pre-existing rules, or to `after` to add them after the pre-existing rules.",
+							"shortdesc": "Where to add the required NAT rules",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.ovn.ranges": {
+							"longdesc": "Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.",
+							"shortdesc": "IPv4 ranges to use for child OVN network routers",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.routes": {
+							"condition": "IPv4 address",
+							"longdesc": "Specify a comma-separated list of IPv4 CIDR subnets.",
+							"shortdesc": "Additional IPv4 CIDR subnets to route to the bridge",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.routing": {
+							"condition": "IPv4 address",
+							"defaultdesc": "`true`",
+							"longdesc": "",
+							"shortdesc": "Whether to route IPv4 traffic in and out of the bridge",
+							"type": "bool"
+						}
+					},
+					{
+						"ipv6.address": {
+							"condition": "standard mode",
+							"defaultdesc": "initial value on creation: `auto`",
+							"longdesc": "Use CIDR notation.\n\nYou can set the option to `none` to turn off IPv6, or to `auto` to generate a new random unused subnet.",
+							"shortdesc": "IPv6 address for the bridge",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.dhcp": {
+							"condition": "IPv6 address",
+							"defaultdesc": "`true`",
+							"longdesc": "",
+							"shortdesc": "Whether to provide additional network configuration over DHCP",
+							"type": "bool"
+						}
+					},
+					{
+						"ipv6.dhcp.expiry": {
+							"condition": "IPv6 DHCP",
+							"defaultdesc": "`1h`",
+							"longdesc": "",
+							"shortdesc": "When to expire DHCP leases",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.dhcp.ranges": {
+							"condition": "IPv6 stateful DHCP",
+							"defaultdesc": "all addresses",
+							"longdesc": "Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.",
+							"shortdesc": "IPv6 ranges to use for DHCP",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.dhcp.stateful": {
+							"condition": "IPv6 DHCP",
+							"defaultdesc": "`false`",
+							"longdesc": "",
+							"shortdesc": "Whether to allocate IPv6 addresses using DHCP",
+							"type": "bool"
+						}
+					},
+					{
+						"ipv6.firewall": {
+							"condition": "IPv6 DHCP",
+							"defaultdesc": "`true`",
+							"longdesc": "",
+							"shortdesc": "Whether to generate filtering firewall rules for this network",
+							"type": "bool"
+						}
+					},
+					{
+						"ipv6.nat": {
+							"condition": "IPv6 address",
+							"defaultdesc": "`false` (initial value on creation if `ipv6.address` is set to `auto`: `true`)",
+							"longdesc": "",
+							"shortdesc": "Whether to use NAT for IPv6",
+							"type": "bool"
+						}
+					},
+					{
+						"ipv6.nat.address": {
+							"condition": "IPv6 address",
+							"longdesc": "",
+							"shortdesc": "Source address used for outbound traffic from the bridge",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.nat.order": {
+							"condition": "IPv6 address",
+							"defaultdesc": "`before`",
+							"longdesc": "Set this option to `before` to add the NAT rules before any pre-existing rules, or to `after` to add them after the pre-existing rules.",
+							"shortdesc": "Where to add the required NAT rules",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.ovn.ranges": {
+							"longdesc": "Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.",
+							"shortdesc": "IPv6 ranges to use for child OVN network routers",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.routes": {
+							"condition": "IPv6 address",
+							"longdesc": "Specify a comma-separated list of IPv6 CIDR subnets.",
+							"shortdesc": "Additional IPv6 CIDR subnets to route to the bridge",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.routing": {
+							"condition": "IPv6 address",
+							"longdesc": "",
+							"shortdesc": "Whether to route IPv6 traffic in and out of the bridge",
+							"type": "bool"
+						}
+					},
+					{
+						"maas.subnet.ipv4": {
+							"condition": "IPv4 address; using the `network` property on the NIC",
+							"longdesc": "",
+							"shortdesc": "MAAS IPv4 subnet to register instances in",
+							"type": "string"
+						}
+					},
+					{
+						"maas.subnet.ipv6": {
+							"condition": "IPv6 address; using the `network` property on the NIC",
+							"longdesc": "",
+							"shortdesc": "MAAS IPv6 subnet to register instances in",
+							"type": "string"
+						}
+					},
+					{
+						"raw.dnsmasq": {
+							"longdesc": "",
+							"shortdesc": "Additional `dnsmasq` configuration to append to the configuration file",
+							"type": "string"
+						}
+					},
+					{
+						"security.acls": {
+							"longdesc": "Specify a comma-separated list of network ACLs.\n\nAlso see {ref}`network-acls-bridge-limitations`.",
+							"shortdesc": "Network ACLs to apply to NICs connected to this network",
+							"type": "string"
+						}
+					},
+					{
+						"security.acls.default.egress.action": {
+							"condition": "`security.acls`",
+							"longdesc": "The specified action is used for all egress traffic that doesn’t match any ACL rule.",
+							"shortdesc": "Default action to use for egress traffic",
+							"type": "string"
+						}
+					},
+					{
+						"security.acls.default.egress.logged": {
+							"condition": "`security.acls`",
+							"longdesc": "",
+							"shortdesc": "Whether to log egress traffic that doesn’t match any ACL rule",
+							"type": "bool"
+						}
+					},
+					{
+						"security.acls.default.ingress.action": {
+							"condition": "`security.acls`",
+							"longdesc": "The specified action is used for all ingress traffic that doesn’t match any ACL rule.",
+							"shortdesc": "Default action to use for ingress traffic",
+							"type": "string"
+						}
+					},
+					{
+						"security.acls.default.ingress.logged": {
+							"condition": "`security.acls`",
+							"longdesc": "",
+							"shortdesc": "Whether to log ingress traffic that doesn’t match any ACL rule",
+							"type": "bool"
+						}
+					},
+					{
+						"tunnel.NAME.group": {
+							"condition": "`vxlan`",
+							"longdesc": "This address is used if {config:option}`network-bridge-network-conf:tunnel.NAME.local` and {config:option}`network-bridge-network-conf:tunnel.NAME.remote` aren’t set.",
+							"shortdesc": "Multicast address for `vxlan`",
+							"type": "string"
+						}
+					},
+					{
+						"tunnel.NAME.id": {
+							"condition": "`vxlan`",
+							"longdesc": "",
+							"shortdesc": "Specific tunnel ID to use for the `vxlan` tunnel",
+							"type": "integer"
+						}
+					},
+					{
+						"tunnel.NAME.interface": {
+							"condition": "`vxlan`",
+							"longdesc": "",
+							"shortdesc": "Specific host interface to use for the tunnel",
+							"type": "string"
+						}
+					},
+					{
+						"tunnel.NAME.local": {
+							"condition": "`gre` or `vxlan`",
+							"longdesc": "",
+							"required": "not required for multicast `vxlan`",
+							"shortdesc": "Local address for the tunnel",
+							"type": "string"
+						}
+					},
+					{
+						"tunnel.NAME.port": {
+							"condition": "`vxlan`",
+							"defaultdesc": "`0`",
+							"longdesc": "",
+							"shortdesc": "Specific port to use for the `vxlan` tunnel",
+							"type": "integer"
+						}
+					},
+					{
+						"tunnel.NAME.protocol": {
+							"condition": "standard mode",
+							"longdesc": "Possible values are `vxlan` and `gre`.",
+							"shortdesc": "Tunneling protocol",
+							"type": "string"
+						}
+					},
+					{
+						"tunnel.NAME.remote": {
+							"condition": "`gre` or `vxlan`",
+							"longdesc": "",
+							"required": "not required for multicast `vxlan`",
+							"shortdesc": "Remote address for the tunnel",
+							"type": "string"
+						}
+					},
+					{
+						"tunnel.NAME.ttl": {
+							"condition": "`vxlan`",
+							"defaultdesc": "`1`",
+							"longdesc": "",
+							"shortdesc": "Specific TTL to use for multicast routing topologies",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
 		"network-macvlan": {
 			"network-conf": {
 				"keys": [
