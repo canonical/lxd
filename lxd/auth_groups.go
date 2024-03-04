@@ -271,13 +271,9 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 			}
 
 			apiGroups = append(apiGroups, api.AuthGroup{
-				AuthGroupsPost: api.AuthGroupsPost{
-					AuthGroupPost: api.AuthGroupPost{Name: group.Name},
-					AuthGroupPut: api.AuthGroupPut{
-						Description: group.Description,
-						Permissions: apiPermissions,
-					},
-				},
+				Name:                   group.Name,
+				Description:            group.Description,
+				Permissions:            apiPermissions,
 				Identities:             apiIdentities,
 				IdentityProviderGroups: idpGroups,
 			})
