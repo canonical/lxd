@@ -164,7 +164,7 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 	recursion := request.QueryParam(r, "recursion")
 	s := d.State()
 
-	hasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanViewGroups, entity.TypeAuthGroup)
+	hasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
