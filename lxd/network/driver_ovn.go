@@ -298,9 +298,34 @@ func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnet
 // Validate network config.
 func (n *ovn) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"network":       validate.IsAny,
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=network)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Uplink network to use for external network access
+		"network": validate.IsAny,
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=bridge.hwaddr)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: MAC address for the bridge
 		"bridge.hwaddr": validate.Optional(validate.IsNetworkMAC),
-		"bridge.mtu":    validate.Optional(validate.IsNetworkMTU),
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=bridge.mtu)
+		// The default value allows the host to host Geneve tunnels.
+		// ---
+		//  type: integer
+		//  defaultdesc: `1442`
+		//  shortdesc: Bridge MTU
+		"bridge.mtu": validate.Optional(validate.IsNetworkMTU),
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=ipv4.address)
+		// Use CIDR notation.
+		//
+		// You can set the option to `none` to turn off IPv4, or to `auto` to generate a new random unused subnet.
+		// ---
+		//  type: string
+		//  condition: standard mode
+		//  defaultdesc: initial value on creation: `auto`
+		//  shortdesc: IPv4 address for the bridge
 		"ipv4.address": validate.Optional(func(value string) error {
 			if validate.IsOneOf("none", "auto")(value) == nil {
 				return nil
@@ -308,7 +333,23 @@ func (n *ovn) Validate(config map[string]string) error {
 
 			return validate.IsNetworkAddressCIDRV4(value)
 		}),
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=ipv4.dhcp)
+		//
+		// ---
+		//  type: bool
+		//  condition: IPv4 address
+		//  defaultdesc: `true`
+		//  shortdesc: Whether to allocate IPv4 addresses using DHCP
 		"ipv4.dhcp": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=ipv6.address)
+		// Use CIDR notation.
+		//
+		// You can set the option to `none` to turn off IPv6, or to `auto` to generate a new random unused subnet.
+		// ---
+		//  type: string
+		//  condition: standard mode
+		//  defaultdesc: initial value on creation: `auto`
+		//  shortdesc: IPv6 address for the bridge
 		"ipv6.address": validate.Optional(func(value string) error {
 			if validate.IsOneOf("none", "auto")(value) == nil {
 				return nil
@@ -316,24 +357,144 @@ func (n *ovn) Validate(config map[string]string) error {
 
 			return validate.IsNetworkAddressCIDRV6(value)
 		}),
-		"ipv6.dhcp":                            validate.Optional(validate.IsBool),
-		"ipv6.dhcp.stateful":                   validate.Optional(validate.IsBool),
-		"ipv4.nat":                             validate.Optional(validate.IsBool),
-		"ipv4.nat.address":                     validate.Optional(validate.IsNetworkAddressV4),
-		"ipv6.nat":                             validate.Optional(validate.IsBool),
-		"ipv6.nat.address":                     validate.Optional(validate.IsNetworkAddressV6),
-		"ipv4.l3only":                          validate.Optional(validate.IsBool),
-		"ipv6.l3only":                          validate.Optional(validate.IsBool),
-		"dns.domain":                           validate.IsAny,
-		"dns.search":                           validate.IsAny,
-		"dns.zone.forward":                     validate.IsAny,
-		"dns.zone.reverse.ipv4":                validate.IsAny,
-		"dns.zone.reverse.ipv6":                validate.IsAny,
-		"security.acls":                        validate.IsAny,
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=ipv6.dhcp)
+		//
+		// ---
+		//  type: bool
+		//  condition: IPv6 address
+		//  defaultdesc: `true`
+		//  shortdesc: Whether to provide additional network configuration over DHCP
+		"ipv6.dhcp": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=ipv6.dhcp.stateful)
+		//
+		// ---
+		//  type: bool
+		//  condition: IPv6 DHCP
+		//  defaultdesc: `false`
+		//  shortdesc: Whether to allocate IPv6 addresses using DHCP
+		"ipv6.dhcp.stateful": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=ipv4.nat)
+		//
+		// ---
+		//  type: bool
+		//  condition: IPv4 address
+		//  defaultdesc: `false` (initial value on creation if `ipv4.address` is set to `auto`: `true`)
+		//  shortdesc: Whether to use NAT for IPv4
+		"ipv4.nat": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=ipv4.nat.address)
+		//
+		// ---
+		//  type: string
+		//  condition: IPv4 address; requires uplink `ovn.ingress_mode=routed`
+		//  shortdesc: Source address used for outbound traffic from the network
+		"ipv4.nat.address": validate.Optional(validate.IsNetworkAddressV4),
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=ipv6.nat)
+		//
+		// ---
+		//  type: bool
+		//  condition: IPv6 address
+		//  defaultdesc: `false` (initial value on creation if `ipv6.address` is set to `auto`: `true`)
+		//  shortdesc: Whether to use NAT for IPv6
+		"ipv6.nat": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=ipv6.nat.address)
+		//
+		// ---
+		//  type: string
+		//  condition: IPv6 address; requires uplink `ovn.ingress_mode=routed`
+		//  shortdesc: Source address used for outbound traffic from the network
+		"ipv6.nat.address": validate.Optional(validate.IsNetworkAddressV6),
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=ipv4.l3only)
+		//
+		// ---
+		//  type: bool
+		//  condition: IPv4 address
+		//  defaultdesc: `false`
+		//  shortdesc: Whether to enable layer 3 only mode for IPv4
+		"ipv4.l3only": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=ipv6.l3only)
+		//
+		// ---
+		//  type: bool
+		//  condition: IPv6 DHCP stateful
+		//  defaultdesc: `false`
+		//  shortdesc: Whether to enable layer 3 only mode for IPv6
+		"ipv6.l3only": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=dns.domain)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: `lxd`
+		//  shortdesc: Domain to advertise to DHCP clients and use for DNS resolution
+		"dns.domain": validate.IsAny,
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=dns.search)
+		// Specify a comma-separated list of domains.
+		// ---
+		//  type: string
+		//  defaultdesc: `dns.domain` value
+		//  shortdesc: Full domain search list
+		"dns.search": validate.IsAny,
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=dns.zone.forward)
+		// Specify a comma-separated list of DNS zone names.
+		// ---
+		//  type: string
+		//  shortdesc:  DNS zone names for forward DNS records
+		"dns.zone.forward": validate.IsAny,
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=dns.zone.reverse.ipv4)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: DNS zone name for IPv4 reverse DNS records
+		"dns.zone.reverse.ipv4": validate.IsAny,
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=dns.zone.reverse.ipv6)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: DNS zone name for IPv6 reverse DNS records
+		"dns.zone.reverse.ipv6": validate.IsAny,
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=security.acls)
+		// Specify a comma-separated list of network ACLs.
+		// ---
+		//  type: string
+		//  shortdesc: Network ACLs to apply to NICs connected to this network
+		"security.acls": validate.IsAny,
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=security.acls.default.ingress.action)
+		// The specified action is used for all ingress traffic that doesn’t match any ACL rule.
+		// ---
+		//  type: string
+		//  condition: `security.acls`
+		//  defaultdesc: `reject`
+		//  shortdesc: Default action to use for ingress traffic
 		"security.acls.default.ingress.action": validate.Optional(validate.IsOneOf(acl.ValidActions...)),
-		"security.acls.default.egress.action":  validate.Optional(validate.IsOneOf(acl.ValidActions...)),
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=security.acls.default.egress.action)
+		// The specified action is used for all egress traffic that doesn’t match any ACL rule.
+		// ---
+		//  type: string
+		//  condition: `security.acls`
+		//  defaultdesc: `reject`
+		//  shortdesc: Default action to use for egress traffic
+		"security.acls.default.egress.action": validate.Optional(validate.IsOneOf(acl.ValidActions...)),
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=security.acls.default.ingress.logged)
+		//
+		// ---
+		//  type: bool
+		//  condition: `security.acls`
+		//  defaultdesc: `false`
+		//  shortdesc: Whether to log ingress traffic that doesn’t match any ACL rule
 		"security.acls.default.ingress.logged": validate.Optional(validate.IsBool),
-		"security.acls.default.egress.logged":  validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=security.acls.default.egress.logged)
+		//
+		// ---
+		//  type: bool
+		//  condition: `security.acls`
+		//  defaultdesc: `false`
+		//  shortdesc: Whether to log egress traffic that doesn’t match any ACL rule
+		"security.acls.default.egress.logged": validate.Optional(validate.IsBool),
+
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=user.*)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: User-provided free-form key/value pairs
 
 		// Volatile keys populated automatically as needed.
 		ovnVolatileUplinkIPv4: validate.Optional(validate.IsNetworkAddressV4),
