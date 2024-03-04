@@ -78,9 +78,7 @@ func (c *ClusterTx) GetNetworkACL(ctx context.Context, projectName string, name 
 	var egressJSON string
 
 	acl := api.NetworkACL{
-		NetworkACLPost: api.NetworkACLPost{
-			Name: name,
-		},
+		Name: name,
 	}
 
 	q := `
