@@ -529,11 +529,9 @@ func GenerateTrustCertificate(cert *CertInfo, name string) (*api.Certificate, er
 
 	certificate := base64.StdEncoding.EncodeToString(block.Bytes)
 	apiCert := api.Certificate{
-		CertificatePut: api.CertificatePut{
-			Certificate: certificate,
-			Name:        name,
-			Type:        api.CertificateTypeServer, // Server type for intra-member communication.
-		},
+		Name:        name,
+		Type:        api.CertificateTypeServer, // Server type for intra-member communication.
+		Certificate: certificate,
 		Fingerprint: fingerprint,
 	}
 
