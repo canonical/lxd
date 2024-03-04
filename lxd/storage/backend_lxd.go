@@ -4019,8 +4019,9 @@ func (b *lxdBackend) UpdateBucket(projectName string, bucketName string, bucket 
 	}
 
 	newBucket := api.StorageBucket{
-		Name:             curBucket.Name,
-		StorageBucketPut: bucket,
+		Name:        curBucket.Name,
+		Description: bucket.Description,
+		Config:      bucket.Config,
 	}
 
 	newBucketEtagHash, err := util.EtagHash(newBucket.Etag())
@@ -4063,7 +4064,7 @@ func (b *lxdBackend) UpdateBucket(projectName string, bucketName string, bucket 
 
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Update the database record.
-		return tx.UpdateStoragePoolBucket(ctx, b.id, curBucket.ID, &bucket)
+		return tx.UpdateStoragePoolBucket(ctx, b.id, curBucket.ID, bucket)
 	})
 	if err != nil {
 		return err
@@ -4161,7 +4162,7 @@ func (b *lxdBackend) ImportBucket(projectName string, poolVol *backupConfig.Conf
 
 	bucket := &api.StorageBucketsPost{
 		Name:             poolVol.Bucket.Name,
-		StorageBucketPut: poolVol.Bucket.StorageBucketPut,
+		StorageBucketPut: poolVol.Bucket.Writable(),
 	}
 
 	// Get the bucket name on storage.
@@ -4405,13 +4406,11 @@ func (b *lxdBackend) CreateBucketKey(projectName string, bucketName string, key 
 	key.SecretKey = newCreds.SecretKey
 
 	newKey := api.StorageBucketKey{
-		Name: key.Name,
-		StorageBucketKeyPut: api.StorageBucketKeyPut{
-			Description: key.Description,
-			Role:        key.Role,
-			AccessKey:   key.AccessKey,
-			SecretKey:   key.SecretKey,
-		},
+		Name:        key.Name,
+		Description: key.Description,
+		Role:        key.Role,
+		AccessKey:   key.AccessKey,
+		SecretKey:   key.SecretKey,
 	}
 
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -4474,8 +4473,11 @@ func (b *lxdBackend) UpdateBucketKey(projectName string, bucketName string, keyN
 	}
 
 	newBucketKey := api.StorageBucketKey{
-		Name:                curBucketKey.Name,
-		StorageBucketKeyPut: key,
+		Name:        curBucketKey.Name,
+		Role:        key.Role,
+		Description: key.Description,
+		AccessKey:   key.AccessKey,
+		SecretKey:   key.SecretKey,
 	}
 
 	newBucketKeyEtagHash, err := util.EtagHash(newBucketKey.Etag())
@@ -4563,7 +4565,7 @@ func (b *lxdBackend) UpdateBucketKey(projectName string, bucketName string, keyN
 
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Update the database record.
-		return tx.UpdateStoragePoolBucketKey(ctx, bucket.ID, curBucketKey.ID, &key)
+		return tx.UpdateStoragePoolBucketKey(ctx, bucket.ID, curBucketKey.ID, key)
 	})
 	if err != nil {
 		return err
@@ -6259,11 +6261,9 @@ func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volNam
 			_, snapName, _ := api.GetParentAndSnapshotName(dbVolSnaps[i].Name)
 
 			snapshot := api.StorageVolumeSnapshot{
-				StorageVolumeSnapshotPut: api.StorageVolumeSnapshotPut{
-					Description: dbVolSnaps[i].Description,
-					ExpiresAt:   &dbVolSnaps[i].ExpiryDate,
-				},
 				Name:        snapName, // Snapshot only name, not full name.
+				Description: dbVolSnaps[i].Description,
+				ExpiresAt:   &dbVolSnaps[i].ExpiryDate,
 				Config:      dbVolSnaps[i].Config,
 				ContentType: dbVolSnaps[i].ContentType,
 				CreatedAt:   dbVolSnaps[i].CreationDate,
@@ -6357,11 +6357,9 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 				_, snapName, _ := api.GetParentAndSnapshotName(dbVolSnaps[i].Name)
 
 				config.VolumeSnapshots = append(config.VolumeSnapshots, &api.StorageVolumeSnapshot{
-					StorageVolumeSnapshotPut: api.StorageVolumeSnapshotPut{
-						Description: dbVolSnaps[i].Description,
-						ExpiresAt:   &dbVolSnaps[i].ExpiryDate,
-					},
 					Name:        snapName,
+					Description: dbVolSnaps[i].Description,
+					ExpiresAt:   &dbVolSnaps[i].ExpiryDate,
 					Config:      dbVolSnaps[i].Config,
 					ContentType: dbVolSnaps[i].ContentType,
 					CreatedAt:   dbVolSnaps[i].CreationDate,
@@ -6775,9 +6773,7 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 			Name:        volName,
 			Type:        cluster.StoragePoolVolumeTypeNameCustom,
 			ContentType: apiContentType,
-			StorageVolumePut: api.StorageVolumePut{
-				Config: vol.Config(),
-			},
+			Config:      vol.Config(),
 		},
 	}
 
@@ -6834,10 +6830,8 @@ func (b *lxdBackend) detectUnknownBuckets(vol *drivers.Volume, projectVols map[s
 
 	backupConf := &backupConfig.Config{
 		Bucket: &api.StorageBucket{
-			StorageBucketPut: api.StorageBucketPut{
-				Config: vol.Config(),
-			},
-			Name: bucketName,
+			Name:   bucketName,
+			Config: vol.Config(),
 		},
 	}
 
