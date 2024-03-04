@@ -17,7 +17,7 @@ import (
 
 	"github.com/mdlayher/netx/eui64"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/cluster/request"
@@ -197,10 +197,66 @@ func (n *bridge) ValidateName(name string) error {
 func (n *bridge) Validate(config map[string]string) error {
 	// Build driver specific rules dynamically.
 	rules := map[string]func(value string) error{
-		"bgp.ipv4.nexthop": validate.Optional(validate.IsNetworkAddressV4),
-		"bgp.ipv6.nexthop": validate.Optional(validate.IsNetworkAddressV6),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bgp.peers.NAME.address)
+		//
+		// ---
+		//  type: string
+		//  condition: BGP server
+		//  shortdesc: Peer address (IPv4 or IPv6)
 
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bgp.peers.NAME.asn)
+		//
+		// ---
+		//  type: integer
+		//  condition: BGP server
+		//  shortdesc: Peer AS number
+
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bgp.peers.NAME.password)
+		//
+		// ---
+		//  type: string
+		//  condition: BGP server
+		//  defaultdesc: (no password)
+		//  required: no
+		//  shortdesc: Peer session password
+
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bgp.peers.NAME.holdtime)
+		// Specify the hold time in seconds.
+		// ---
+		//  type: integer
+		//  condition: BGP server
+		//  defaultdesc: `180`
+		//  required: no
+		//  shortdesc: Peer session hold time
+
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bgp.ipv4.nexthop)
+		//
+		// ---
+		//  type: string
+		//  condition: BGP server
+		//  defaultdesc: local address
+		//  shortdesc: Override the IPv4 next-hop for advertised prefixes
+		"bgp.ipv4.nexthop": validate.Optional(validate.IsNetworkAddressV4),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bgp.ipv6.nexthop)
+		//
+		// ---
+		//  type: string
+		//  condition: BGP server
+		//  defaultdesc: local address
+		//  shortdesc: Override the IPv6 next-hop for advertised prefixes
+		"bgp.ipv6.nexthop": validate.Optional(validate.IsNetworkAddressV6),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bridge.driver)
+		// Possible values are `native` and `openvswitch`.
+		// ---
+		//  type: string
+		//  defaultdesc: `native`
+		//  shortdesc: Bridge driver
 		"bridge.driver": validate.Optional(validate.IsOneOf("native", "openvswitch")),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bridge.external_interfaces)
+		// Specify a comma-separated list of unconfigured network interfaces to include in the bridge.
+		// ---
+		//  type: string
+		//  shortdesc: Unconfigured network interfaces to include in the bridge
 		"bridge.external_interfaces": validate.Optional(func(value string) error {
 			for _, entry := range strings.Split(value, ",") {
 				entry = strings.TrimSpace(entry)
@@ -212,11 +268,43 @@ func (n *bridge) Validate(config map[string]string) error {
 
 			return nil
 		}),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bridge.hwaddr)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: MAC address for the bridge
 		"bridge.hwaddr": validate.Optional(validate.IsNetworkMAC),
-		"bridge.mtu":    validate.Optional(validate.IsNetworkMTU),
-		"bridge.mode":   validate.Optional(validate.IsOneOf("standard", "fan")),
-
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bridge.mtu)
+		// The default value varies depending on whether the bridge uses a tunnel or a fan setup.
+		// ---
+		//  type: integer
+		//  defaultdesc: `1500` if `bridge.mode=standard`, `1480` if `bridge.mode=fan` and `fan.type=ipip`, or `1450` if `bridge.mode=fan` and `fan.type=vxlan`
+		//  shortdesc: Bridge MTU
+		"bridge.mtu": validate.Optional(validate.IsNetworkMTU),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bridge.mode)
+		// Possible values are `standard` and `fan`.
+		// ---
+		//  type: string
+		//  defaultdesc: `standard`
+		//  shortdesc: Bridge operation mode
+		"bridge.mode": validate.Optional(validate.IsOneOf("standard", "fan")),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=fan.overlay_subnet)
+		// Use CIDR notation.
+		// ---
+		//  type: string
+		//  condition: fan mode
+		//  defaultdesc: `240.0.0.0/8`
+		//  shortdesc: Subnet to use as the overlay for the FAN
 		"fan.overlay_subnet": validate.Optional(validate.IsNetworkV4),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=fan.underlay_subnet)
+		// Use CIDR notation.
+		//
+		// You can set the option to `auto` to use the default gateway subnet.
+		// ---
+		//  type: string
+		//  condition: fan mode
+		//  defaultdesc: initial value on creation: `auto`
+		//  shortdesc: Subnet to use as the underlay for the FAN
 		"fan.underlay_subnet": validate.Optional(func(value string) error {
 			if value == "auto" {
 				return nil
@@ -224,8 +312,23 @@ func (n *bridge) Validate(config map[string]string) error {
 
 			return validate.IsNetworkV4(value)
 		}),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=fan.type)
+		// Possible values are `vxlan` and `ipip`.
+		// ---
+		//  type: string
+		//  condition: fan mode
+		//  defaultdesc: `vxlan`
+		//  shortdesc: Tunneling type for the FAN
 		"fan.type": validate.Optional(validate.IsOneOf("vxlan", "ipip")),
-
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.address)
+		// Use CIDR notation.
+		//
+		// You can set the option to `none` to turn off IPv4, or to `auto` to generate a new random unused subnet.
+		// ---
+		//  type: string
+		//  condition: standard mode
+		//  defaultdesc: initial value on creation: `auto`
+		//  shortdesc: IPv4 address for the bridge
 		"ipv4.address": validate.Optional(func(value string) error {
 			if validate.IsOneOf("none", "auto")(value) == nil {
 				return nil
@@ -233,18 +336,99 @@ func (n *bridge) Validate(config map[string]string) error {
 
 			return validate.IsNetworkAddressCIDRV4(value)
 		}),
-		"ipv4.firewall":     validate.Optional(validate.IsBool),
-		"ipv4.nat":          validate.Optional(validate.IsBool),
-		"ipv4.nat.order":    validate.Optional(validate.IsOneOf("before", "after")),
-		"ipv4.nat.address":  validate.Optional(validate.IsNetworkAddressV4),
-		"ipv4.dhcp":         validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.firewall)
+		//
+		// ---
+		//  type: bool
+		//  condition: IPv4 address
+		//  defaultdesc: `true`
+		//  shortdesc: Whether to generate filtering firewall rules for this network
+		"ipv4.firewall": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.nat)
+		//
+		// ---
+		//  type: bool
+		//  condition: IPv4 address
+		//  defaultdesc: `false` (initial value on creation if `ipv4.address` is set to `auto`: `true`)
+		//  shortdesc: Whether to use NAT for IPv4
+		"ipv4.nat": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.nat.order)
+		// Set this option to `before` to add the NAT rules before any pre-existing rules, or to `after` to add them after the pre-existing rules.
+		// ---
+		//  type: string
+		//  condition: IPv4 address
+		//  defaultdesc: `before`
+		//  shortdesc: Where to add the required NAT rules
+		"ipv4.nat.order": validate.Optional(validate.IsOneOf("before", "after")),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.nat.address)
+		//
+		// ---
+		//  type: string
+		//  condition: IPv4 address
+		//  shortdesc: Source address used for outbound traffic from the bridge
+		"ipv4.nat.address": validate.Optional(validate.IsNetworkAddressV4),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.dhcp)
+		//
+		// ---
+		//  type: bool
+		//  condition: IPv4 address
+		//  defaultdesc: `true`
+		//  shortdesc: Whether to allocate IPv4 addresses using DHCP
+		"ipv4.dhcp": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.dhcp.gateway)
+		//
+		// ---
+		//  type: string
+		//  condition: IPv4 DHCP
+		//  defaultdesc: IPv4 address
+		//  shortdesc: Address of the gateway for the IPv4 subnet
 		"ipv4.dhcp.gateway": validate.Optional(validate.IsNetworkAddressV4),
-		"ipv4.dhcp.expiry":  validate.IsAny,
-		"ipv4.dhcp.ranges":  validate.Optional(validate.IsListOf(validate.IsNetworkRangeV4)),
-		"ipv4.routes":       validate.Optional(validate.IsListOf(validate.IsNetworkV4)),
-		"ipv4.routing":      validate.Optional(validate.IsBool),
-		"ipv4.ovn.ranges":   validate.Optional(validate.IsListOf(validate.IsNetworkRangeV4)),
-
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.dhcp.expiry)
+		//
+		// ---
+		//  type: string
+		//  condition: IPv4 DHCP
+		//  defaultdesc: `1h`
+		//  shortdesc: When to expire DHCP leases
+		"ipv4.dhcp.expiry": validate.IsAny,
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.dhcp.ranges)
+		// Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
+		// ---
+		//  type: string
+		//  condition: IPv4 DHCP
+		//  defaultdesc: all addresses
+		//  shortdesc: IPv4 ranges to use for DHCP
+		"ipv4.dhcp.ranges": validate.Optional(validate.IsListOf(validate.IsNetworkRangeV4)),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.routes)
+		// Specify a comma-separated list of IPv4 CIDR subnets.
+		// ---
+		//  type: string
+		//  condition: IPv4 address
+		//  shortdesc: Additional IPv4 CIDR subnets to route to the bridge
+		"ipv4.routes": validate.Optional(validate.IsListOf(validate.IsNetworkV4)),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.routing)
+		//
+		// ---
+		//  type: bool
+		//  condition: IPv4 address
+		//  defaultdesc: `true`
+		//  shortdesc: Whether to route IPv4 traffic in and out of the bridge
+		"ipv4.routing": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv4.ovn.ranges)
+		// Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
+		// ---
+		//  type: string
+		//  shortdesc: IPv4 ranges to use for child OVN network routers
+		"ipv4.ovn.ranges": validate.Optional(validate.IsListOf(validate.IsNetworkRangeV4)),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.address)
+		// Use CIDR notation.
+		//
+		// You can set the option to `none` to turn off IPv6, or to `auto` to generate a new random unused subnet.
+		// ---
+		//  type: string
+		//  condition: standard mode
+		//  defaultdesc: initial value on creation: `auto`
+		//  shortdesc: IPv6 address for the bridge
 		"ipv6.address": validate.Optional(func(value string) error {
 			if validate.IsOneOf("none", "auto")(value) == nil {
 				return nil
@@ -252,31 +436,197 @@ func (n *bridge) Validate(config map[string]string) error {
 
 			return validate.IsNetworkAddressCIDRV6(value)
 		}),
-		"ipv6.firewall":                        validate.Optional(validate.IsBool),
-		"ipv6.nat":                             validate.Optional(validate.IsBool),
-		"ipv6.nat.order":                       validate.Optional(validate.IsOneOf("before", "after")),
-		"ipv6.nat.address":                     validate.Optional(validate.IsNetworkAddressV6),
-		"ipv6.dhcp":                            validate.Optional(validate.IsBool),
-		"ipv6.dhcp.expiry":                     validate.IsAny,
-		"ipv6.dhcp.stateful":                   validate.Optional(validate.IsBool),
-		"ipv6.dhcp.ranges":                     validate.Optional(validate.IsListOf(validate.IsNetworkRangeV6)),
-		"ipv6.routes":                          validate.Optional(validate.IsListOf(validate.IsNetworkV6)),
-		"ipv6.routing":                         validate.Optional(validate.IsBool),
-		"ipv6.ovn.ranges":                      validate.Optional(validate.IsListOf(validate.IsNetworkRangeV6)),
-		"dns.domain":                           validate.IsAny,
-		"dns.mode":                             validate.Optional(validate.IsOneOf("dynamic", "managed", "none")),
-		"dns.search":                           validate.IsAny,
-		"dns.zone.forward":                     validate.IsAny,
-		"dns.zone.reverse.ipv4":                validate.IsAny,
-		"dns.zone.reverse.ipv6":                validate.IsAny,
-		"raw.dnsmasq":                          validate.IsAny,
-		"maas.subnet.ipv4":                     validate.IsAny,
-		"maas.subnet.ipv6":                     validate.IsAny,
-		"security.acls":                        validate.IsAny,
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.firewall)
+		//
+		// ---
+		//  type: bool
+		//  condition: IPv6 DHCP
+		//  defaultdesc: `true`
+		//  shortdesc: Whether to generate filtering firewall rules for this network
+		"ipv6.firewall": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.nat)
+		//
+		// ---
+		//  type: bool
+		//  condition: IPv6 address
+		//  defaultdesc: `false` (initial value on creation if `ipv6.address` is set to `auto`: `true`)
+		//  shortdesc: Whether to use NAT for IPv6
+		"ipv6.nat": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.nat.order)
+		// Set this option to `before` to add the NAT rules before any pre-existing rules, or to `after` to add them after the pre-existing rules.
+		// ---
+		//  type: string
+		//  condition: IPv6 address
+		//  defaultdesc: `before`
+		//  shortdesc: Where to add the required NAT rules
+		"ipv6.nat.order": validate.Optional(validate.IsOneOf("before", "after")),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.nat.address)
+		//
+		// ---
+		//  type: string
+		//  condition: IPv6 address
+		//  shortdesc: Source address used for outbound traffic from the bridge
+		"ipv6.nat.address": validate.Optional(validate.IsNetworkAddressV6),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.dhcp)
+		//
+		// ---
+		//  type: bool
+		//  condition: IPv6 address
+		//  defaultdesc: `true`
+		//  shortdesc: Whether to provide additional network configuration over DHCP
+		"ipv6.dhcp": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.dhcp.expiry)
+		//
+		// ---
+		//  type: string
+		//  condition: IPv6 DHCP
+		//  defaultdesc: `1h`
+		//  shortdesc: When to expire DHCP leases
+		"ipv6.dhcp.expiry": validate.IsAny,
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.dhcp.stateful)
+		//
+		// ---
+		//  type: bool
+		//  condition: IPv6 DHCP
+		//  defaultdesc: `false`
+		//  shortdesc: Whether to allocate IPv6 addresses using DHCP
+		"ipv6.dhcp.stateful": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.dhcp.ranges)
+		// Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.
+		// ---
+		//  type: string
+		//  condition: IPv6 stateful DHCP
+		//  defaultdesc: all addresses
+		//  shortdesc: IPv6 ranges to use for DHCP
+		"ipv6.dhcp.ranges": validate.Optional(validate.IsListOf(validate.IsNetworkRangeV6)),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.routes)
+		// Specify a comma-separated list of IPv6 CIDR subnets.
+		// ---
+		//  type: string
+		//  condition: IPv6 address
+		//  shortdesc: Additional IPv6 CIDR subnets to route to the bridge
+		"ipv6.routes": validate.Optional(validate.IsListOf(validate.IsNetworkV6)),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.routing)
+		//
+		// ---
+		//  type: bool
+		//  condition: IPv6 address
+		//  shortdesc: `true`
+		//  shortdesc: Whether to route IPv6 traffic in and out of the bridge
+		"ipv6.routing": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=ipv6.ovn.ranges)
+		// Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.
+		// ---
+		//  type: string
+		//  shortdesc: IPv6 ranges to use for child OVN network routers
+		"ipv6.ovn.ranges": validate.Optional(validate.IsListOf(validate.IsNetworkRangeV6)),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=dns.domain)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: `lxd`
+		//  shortdesc: Domain to advertise to DHCP clients and use for DNS resolution
+		"dns.domain": validate.IsAny,
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=dns.mode)
+		// Possible values are `none` for no DNS record, `managed` for LXD-generated static records, and `dynamic` for client-generated records.
+		// ---
+		//  type: string
+		//  defaultdesc: `managed`
+		//  shortdesc: DNS registration mode
+		"dns.mode": validate.Optional(validate.IsOneOf("dynamic", "managed", "none")),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=dns.search)
+		// Specify a comma-separated list of domains.
+		// ---
+		//  type: string
+		//  defaultdesc: `dns.domain` value
+		//  shortdesc: Full domain search list
+		"dns.search": validate.IsAny,
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=dns.zone.forward)
+		// Specify a comma-separated list of DNS zone names.
+		// ---
+		//  type: string
+		//  shortdesc: DNS zone names for forward DNS records
+		"dns.zone.forward": validate.IsAny,
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=dns.zone.reverse.ipv4)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: DNS zone name for IPv4 reverse DNS records
+		"dns.zone.reverse.ipv4": validate.IsAny,
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=dns.zone.reverse.ipv6)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: DNS zone name for IPv6 reverse DNS records
+		"dns.zone.reverse.ipv6": validate.IsAny,
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=raw.dnsmasq)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Additional `dnsmasq` configuration to append to the configuration file
+		"raw.dnsmasq": validate.IsAny,
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=maas.subnet.ipv4)
+		//
+		// ---
+		//  type: string
+		//  condition: IPv4 address; using the `network` property on the NIC
+		//  shortdesc: `true`
+		//  shortdesc: MAAS IPv4 subnet to register instances in
+		"maas.subnet.ipv4": validate.IsAny,
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=maas.subnet.ipv6)
+		//
+		// ---
+		//  type: string
+		//  condition: IPv6 address; using the `network` property on the NIC
+		//  shortdesc: `true`
+		//  shortdesc: MAAS IPv6 subnet to register instances in
+		"maas.subnet.ipv6": validate.IsAny,
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=security.acls)
+		// Specify a comma-separated list of network ACLs.
+		//
+		// Also see {ref}`network-acls-bridge-limitations`.
+		// ---
+		//  type: string
+		//  shortdesc: Network ACLs to apply to NICs connected to this network
+		"security.acls": validate.IsAny,
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=security.acls.default.ingress.action)
+		// The specified action is used for all ingress traffic that doesn’t match any ACL rule.
+		// ---
+		//  type: string
+		//  condition: `security.acls`
+		//  shortdesc: `reject`
+		//  shortdesc: Default action to use for ingress traffic
 		"security.acls.default.ingress.action": validate.Optional(validate.IsOneOf(acl.ValidActions...)),
-		"security.acls.default.egress.action":  validate.Optional(validate.IsOneOf(acl.ValidActions...)),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=security.acls.default.egress.action)
+		// The specified action is used for all egress traffic that doesn’t match any ACL rule.
+		// ---
+		//  type: string
+		//  condition: `security.acls`
+		//  shortdesc: `reject`
+		//  shortdesc: Default action to use for egress traffic
+		"security.acls.default.egress.action": validate.Optional(validate.IsOneOf(acl.ValidActions...)),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=security.acls.default.ingress.logged)
+		//
+		// ---
+		//  type: bool
+		//  condition: `security.acls`
+		//  shortdesc: `false`
+		//  shortdesc: Whether to log ingress traffic that doesn’t match any ACL rule
 		"security.acls.default.ingress.logged": validate.Optional(validate.IsBool),
-		"security.acls.default.egress.logged":  validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=security.acls.default.egress.logged)
+		//
+		// ---
+		//  type: bool
+		//  condition: `security.acls`
+		//  shortdesc: `false`
+		//  shortdesc: Whether to log egress traffic that doesn’t match any ACL rule
+		"security.acls.default.egress.logged": validate.Optional(validate.IsBool),
+
+		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=user.*)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: User-provided free-form key/value pairs
 	}
 
 	// Add dynamic validation rules.
@@ -298,20 +648,74 @@ func (n *bridge) Validate(config map[string]string) error {
 			// Add the correct validation rule for the dynamic field based on last part of key.
 			switch tunnelKey {
 			case "protocol":
+				// lxdmeta:generate(entities=network-bridge; group=network-conf; key=tunnel.NAME.protocol)
+				// Possible values are `vxlan` and `gre`.
+				// ---
+				//  type: string
+				//  condition: standard mode
+				//  shortdesc: Tunneling protocol
 				rules[k] = validate.Optional(validate.IsOneOf("gre", "vxlan"))
 			case "local":
+				// lxdmeta:generate(entities=network-bridge; group=network-conf; key=tunnel.NAME.local)
+				//
+				// ---
+				//  type: string
+				//  condition: `gre` or `vxlan`
+				//  required: not required for multicast `vxlan`
+				//  shortdesc: Local address for the tunnel
 				rules[k] = validate.Optional(validate.IsNetworkAddress)
 			case "remote":
+				// lxdmeta:generate(entities=network-bridge; group=network-conf; key=tunnel.NAME.remote)
+				//
+				// ---
+				//  type: string
+				//  condition: `gre` or `vxlan`
+				//  required: not required for multicast `vxlan`
+				//  shortdesc: Remote address for the tunnel
 				rules[k] = validate.Optional(validate.IsNetworkAddress)
 			case "port":
+				// lxdmeta:generate(entities=network-bridge; group=network-conf; key=tunnel.NAME.port)
+				//
+				// ---
+				//  type: integer
+				//  condition: `vxlan`
+				//  defaultdesc: `0`
+				//  shortdesc: Specific port to use for the `vxlan` tunnel
 				rules[k] = networkValidPort
 			case "group":
+				// lxdmeta:generate(entities=network-bridge; group=network-conf; key=tunnel.NAME.group)
+				// This address is used if {config:option}`network-bridge-network-conf:tunnel.NAME.local` and {config:option}`network-bridge-network-conf:tunnel.NAME.remote` aren’t set.
+				// ---
+				//  type: string
+				//  condition: `vxlan`
+				//  shortdesc: `239.0.0.1`
+				//  shortdesc: Multicast address for `vxlan`
 				rules[k] = validate.Optional(validate.IsNetworkAddress)
 			case "id":
+				// lxdmeta:generate(entities=network-bridge; group=network-conf; key=tunnel.NAME.id)
+				//
+				// ---
+				//  type: integer
+				//  condition: `vxlan`
+				//  shortdesc: `0`
+				//  shortdesc: Specific tunnel ID to use for the `vxlan` tunnel
 				rules[k] = validate.Optional(validate.IsInt64)
 			case "interface":
+				// lxdmeta:generate(entities=network-bridge; group=network-conf; key=tunnel.NAME.interface)
+				//
+				// ---
+				//  type: string
+				//  condition: `vxlan`
+				//  shortdesc: Specific host interface to use for the tunnel
 				rules[k] = validate.IsInterfaceName
 			case "ttl":
+				// lxdmeta:generate(entities=network-bridge; group=network-conf; key=tunnel.NAME.ttl)
+				//
+				// ---
+				//  type: string
+				//  condition: `vxlan`
+				//  defaultdesc: `1`
+				//  shortdesc: Specific TTL to use for multicast routing topologies
 				rules[k] = validate.Optional(validate.IsUint8)
 			}
 		}
