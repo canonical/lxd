@@ -601,7 +601,7 @@ func (c *cmdNetworkForwardEdit) Run(cmd *cobra.Command, args []string) error {
 
 		newData.Normalise()
 
-		return client.UpdateNetworkForward(resource.name, args[1], newData.NetworkForwardPut, "")
+		return client.UpdateNetworkForward(resource.name, args[1], newData.Writable(), "")
 	}
 
 	// Get the current config.

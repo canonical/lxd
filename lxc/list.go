@@ -944,7 +944,7 @@ func (c *cmdList) matchByStatus(cInfo *api.Instance, cState *api.InstanceState, 
 }
 
 func (c *cmdList) matchByArchitecture(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
-	return strings.EqualFold(cInfo.InstancePut.Architecture, query)
+	return strings.EqualFold(cInfo.Architecture, query)
 }
 
 func (c *cmdList) matchByLocation(cInfo *api.Instance, cState *api.InstanceState, query string) bool {

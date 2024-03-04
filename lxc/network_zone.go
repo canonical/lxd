@@ -518,7 +518,7 @@ func (c *cmdNetworkZoneEdit) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return resource.server.UpdateNetworkZone(resource.name, newdata.NetworkZonePut, "")
+		return resource.server.UpdateNetworkZone(resource.name, newdata.Writable(), "")
 	}
 
 	// Get the current config.
@@ -1110,7 +1110,7 @@ func (c *cmdNetworkZoneRecordEdit) Run(cmd *cobra.Command, args []string) error 
 			return err
 		}
 
-		return resource.server.UpdateNetworkZoneRecord(resource.name, args[1], newdata.NetworkZoneRecordPut, "")
+		return resource.server.UpdateNetworkZoneRecord(resource.name, args[1], newdata.Writable(), "")
 	}
 
 	// Get the current config.

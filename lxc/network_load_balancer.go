@@ -603,7 +603,7 @@ func (c *cmdNetworkLoadBalancerEdit) Run(cmd *cobra.Command, args []string) erro
 
 		newData.Normalise()
 
-		return client.UpdateNetworkLoadBalancer(resource.name, args[1], newData.NetworkLoadBalancerPut, "")
+		return client.UpdateNetworkLoadBalancer(resource.name, args[1], newData.Writable(), "")
 	}
 
 	// Get the current config.
