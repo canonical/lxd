@@ -134,8 +134,6 @@ type ImagePut struct {
 //
 // swagger:model
 type Image struct {
-	ImagePut `yaml:",inline"`
-
 	// List of aliases
 	Aliases []ImageAlias `json:"aliases" yaml:"aliases"`
 
@@ -146,6 +144,10 @@ type Image struct {
 	// Whether the image is an automatically cached remote image
 	// Example: true
 	Cached bool `json:"cached" yaml:"cached"`
+
+	// Whether the image is available to unauthenticated users
+	// Example: false
+	Public bool `json:"public" yaml:"public"`
 
 	// Original filename
 	// Example: 06b86454720d36b20f94e31c6812e05ec51c1b568cf3a8abd273769d213394bb.rootfs
@@ -162,6 +164,10 @@ type Image struct {
 	// Where the image came from
 	UpdateSource *ImageSource `json:"update_source,omitempty" yaml:"update_source,omitempty"`
 
+	// Whether the image should auto-update when a new build is available
+	// Example: true
+	AutoUpdate bool `json:"auto_update" yaml:"auto_update"`
+
 	// Type of image (container or virtual-machine)
 	// Example: container
 	//
@@ -172,6 +178,12 @@ type Image struct {
 	// Example: 2021-03-23T20:00:00-04:00
 	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
 
+	// When the image becomes obsolete
+	// Example: 2025-03-23T20:00:00-04:00
+	//
+	// API extension: images_expiry
+	ExpiresAt time.Time `json:"expires_at" yaml:"expires_at"`
+
 	// Last time the image was used
 	// Example: 2021-03-22T20:39:00.575185384-04:00
 	LastUsedAt time.Time `json:"last_used_at" yaml:"last_used_at"`
@@ -179,11 +191,36 @@ type Image struct {
 	// When the image was added to this LXD server
 	// Example: 2021-03-24T14:18:15.115036787-04:00
 	UploadedAt time.Time `json:"uploaded_at" yaml:"uploaded_at"`
+
+	// Descriptive properties
+	// Example: {"os": "Ubuntu", "release": "jammy", "variant": "cloud"}
+	Properties map[string]string `json:"properties" yaml:"properties"`
+
+	// List of profiles to use when creating from this image (if none provided by user)
+	// Example: ["default"]
+	//
+	// API extension: image_profiles
+	Profiles []string `json:"profiles" yaml:"profiles"`
 }
 
 // Writable converts a full Image struct into a ImagePut struct (filters read-only fields).
 func (img *Image) Writable() ImagePut {
-	return img.ImagePut
+	return ImagePut{
+		AutoUpdate: img.AutoUpdate,
+		Public:     img.Public,
+		ExpiresAt:  img.ExpiresAt,
+		Properties: img.Properties,
+		Profiles:   img.Profiles,
+	}
+}
+
+// SetWritable sets applicable values from ImagePut struct to Image struct.
+func (img *Image) SetWritable(put ImagePut) {
+	img.AutoUpdate = put.AutoUpdate
+	img.Public = put.Public
+	img.ExpiresAt = put.ExpiresAt
+	img.Properties = put.Properties
+	img.Profiles = put.Profiles
 }
 
 // URL returns the URL for the image.
@@ -264,17 +301,23 @@ type ImageAliasesEntryPut struct {
 //
 // swagger:model
 type ImageAliasesEntry struct {
-	ImageAliasesEntryPut `yaml:",inline"`
-
 	// Alias name
 	// Example: ubuntu-22.04
 	Name string `json:"name" yaml:"name"`
+
+	// Alias description
+	// Example: Our preferred Ubuntu image
+	Description string `json:"description" yaml:"description"`
 
 	// Alias type (container or virtual-machine)
 	// Example: container
 	//
 	// API extension: image_types
 	Type string `json:"type" yaml:"type"`
+
+	// Target fingerprint for the alias
+	// Example: 06b86454720d36b20f94e31c6812e05ec51c1b568cf3a8abd273769d213394bb
+	Target string `json:"target" yaml:"target"`
 }
 
 // ImageMetadata represents LXD image metadata (used in image tarball)
