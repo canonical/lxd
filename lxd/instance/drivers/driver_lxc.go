@@ -6047,11 +6047,9 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 			architectureName, _ := osarch.ArchitectureName(d.Architecture())
 			apiInstSnap := &api.InstanceSnapshot{
-				InstanceSnapshotPut: api.InstanceSnapshotPut{
-					ExpiresAt: time.Time{},
-				},
 				Architecture: architectureName,
 				CreatedAt:    d.CreationDate(),
+				ExpiresAt:    time.Time{},
 				LastUsedAt:   d.LastUsedDate(),
 				Config:       d.LocalConfig(),
 				Devices:      d.LocalDevices().CloneNative(),
