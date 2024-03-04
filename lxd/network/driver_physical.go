@@ -29,26 +29,158 @@ func (n *physical) DBType() db.NetworkType {
 // Validate network config.
 func (n *physical) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"parent":                      validate.Required(validate.IsNotEmpty, validate.IsInterfaceName),
-		"mtu":                         validate.Optional(validate.IsNetworkMTU),
-		"vlan":                        validate.Optional(validate.IsNetworkVLAN),
-		"gvrp":                        validate.Optional(validate.IsBool),
-		"maas.subnet.ipv4":            validate.IsAny,
-		"maas.subnet.ipv6":            validate.IsAny,
-		"ipv4.gateway":                validate.Optional(validate.IsNetworkAddressCIDRV4),
-		"ipv6.gateway":                validate.Optional(validate.IsNetworkAddressCIDRV6),
-		"ipv4.ovn.ranges":             validate.Optional(validate.IsListOf(validate.IsNetworkRangeV4)),
-		"ipv6.ovn.ranges":             validate.Optional(validate.IsListOf(validate.IsNetworkRangeV6)),
-		"ipv4.routes":                 validate.Optional(validate.IsListOf(validate.IsNetworkV4)),
-		"ipv4.routes.anycast":         validate.Optional(validate.IsBool),
-		"ipv6.routes":                 validate.Optional(validate.IsListOf(validate.IsNetworkV6)),
-		"ipv6.routes.anycast":         validate.Optional(validate.IsBool),
-		"dns.nameservers":             validate.Optional(validate.IsListOf(validate.IsNetworkAddress)),
+		// lxdmeta:generate(entities=network-physical; group=network-conf; key=parent)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Existing interface to use for network
+		"parent": validate.Required(validate.IsNotEmpty, validate.IsInterfaceName),
+		// lxdmeta:generate(entities=network-physical; group=network-conf; key=mtu)
+		//
+		// ---
+		//  type: integer
+		//  shortdesc: MTU of the new interface
+		"mtu": validate.Optional(validate.IsNetworkMTU),
+		// lxdmeta:generate(entities=network-physical; group=network-conf; key=vlan)
+		//
+		// ---
+		//  type: integer
+		//  shortdesc: VLAN ID to attach to
+		"vlan": validate.Optional(validate.IsNetworkVLAN),
+		// lxdmeta:generate(entities=network-physical; group=network-conf; key=gvrp)
+		// This option specifies whether to register the VLAN using the GARP VLAN Registration Protocol.
+		// ---
+		//  type: bool
+		//  defaultdesc: `false`
+		//  shortdesc: Whether to use GARP VLAN Registration Protocol
+		"gvrp": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-physical; group=network-conf; key=maas.subnet.ipv4)
+		//
+		// ---
+		//  type: string
+		//  condition: IPv4 address; using the `network` property on the NIC
+		//  shortdesc: MAAS IPv4 subnet to register instances in
+		"maas.subnet.ipv4": validate.IsAny,
+		// lxdmeta:generate(entities=network-physical; group=network-conf; key=maas.subnet.ipv6)
+		//
+		// ---
+		//  type: string
+		//  condition: IPv6 address; using the `network` property on the NIC
+		//  shortdesc: MAAS IPv6 subnet to register instances in
+		"maas.subnet.ipv6": validate.IsAny,
+		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ipv4.gateway)
+		// Use CIDR notation.
+		// ---
+		//  type: string
+		//  condition: standard mode
+		//  shortdesc: IPv4 address for the gateway and network
+		"ipv4.gateway": validate.Optional(validate.IsNetworkAddressCIDRV4),
+		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ipv6.gateway)
+		// Use CIDR notation.
+		// ---
+		//  type: string
+		//  condition: standard mode
+		//  shortdesc: IPv6 address for the gateway and network
+		"ipv6.gateway": validate.Optional(validate.IsNetworkAddressCIDRV6),
+		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ipv4.ovn.ranges)
+		// Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
+		// ---
+		//  type: string
+		//  shortdesc: IPv4 ranges to use for child OVN network routers
+		"ipv4.ovn.ranges": validate.Optional(validate.IsListOf(validate.IsNetworkRangeV4)),
+		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ipv6.ovn.ranges)
+		// Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.
+		// ---
+		//  type: string
+		//  shortdesc: IPv6 ranges to use for child OVN network routers
+		"ipv6.ovn.ranges": validate.Optional(validate.IsListOf(validate.IsNetworkRangeV6)),
+		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ipv4.routes)
+		// Specify a comma-separated list of IPv4 CIDR subnets that can be used with the child OVN network's {config:option}`device-nic-ovn-device-conf:ipv4.routes.external` setting.
+		// ---
+		//  type: string
+		//  condition: IPv4 address
+		//  shortdesc: Additional IPv4 CIDR subnets
+		"ipv4.routes": validate.Optional(validate.IsListOf(validate.IsNetworkV4)),
+		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ipv4.routes.anycast)
+		// If set to `true`, this option allows the overlapping routes to be used on multiple networks/NICs at the same time.
+		// ---
+		//  type: bool
+		//  condition: IPv4 address
+		//  defaultdesc: `false`
+		//  shortdesc: Whether to allow IPv4 routes on multiple networks/NICs
+		"ipv4.routes.anycast": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ipv6.routes)
+		// Specify a comma-separated list of IPv6 CIDR subnets that can be used with the child OVN network's {config:option}`device-nic-ovn-device-conf:ipv6.routes.external` setting.
+		// ---
+		//  type: string
+		//  condition: IPv6 address
+		//  shortdesc: Additional IPv6 CIDR subnets
+		"ipv6.routes": validate.Optional(validate.IsListOf(validate.IsNetworkV6)),
+		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ipv6.routes.anycast)
+		// If set to `true`, this option allows the overlapping routes to be used on multiple networks/NICs at the same time.
+		// ---
+		//  type: bool
+		//  condition: IPv6 address
+		//  defaultdesc: `false`
+		//  shortdesc: Whether to allow IPv6 routes on multiple networks/NICs
+		"ipv6.routes.anycast": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-physical; group=network-conf; key=dns.nameservers)
+		// Specify a list of DNS server IPs.
+		// ---
+		//  type: string
+		//  condition: standard mode
+		//  shortdesc: DNS server IPs on physical network
+		"dns.nameservers": validate.Optional(validate.IsListOf(validate.IsNetworkAddress)),
+		// lxdmeta:generate(entities=network-physical; group=network-conf; key=ovn.ingress_mode)
+		// Possible values are `l2proxy` (proxy ARP/NDP) and `routed`.
+		// ---
+		//  type: string
+		//  condition: standard mode
+		//  defaultdesc: `l2proxy`
+		//  shortdesc: How OVN NIC external IPs are advertised on uplink network
 		"ovn.ingress_mode":            validate.Optional(validate.IsOneOf("l2proxy", "routed")),
 		"volatile.last_state.created": validate.Optional(validate.IsBool),
+
+		// lxdmeta:generate(entities=network-physical; group=network-conf; key=user.*)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: User-provided free-form key/value pairs
 	}
 
 	// Add the BGP validation rules.
+
+	// lxdmeta:generate(entities=network-physical; group=network-conf; key=bgp.peers.NAME.address)
+	// The address can be IPv4 or IPv6.
+	// ---
+	//  type: string
+	//  condition: BGP server
+	//  shortdesc: Peer address for use by `ovn` downstream networks
+
+	// lxdmeta:generate(entities=network-physical; group=network-conf; key=bgp.peers.NAME.asn)
+	//
+	// ---
+	//  type: integer
+	//  condition: BGP server
+	//  shortdesc: Peer AS number for use by `ovn` downstream networks
+
+	// lxdmeta:generate(entities=network-physical; group=network-conf; key=bgp.peers.NAME.password)
+	//
+	// ---
+	//  type: string
+	//  condition: BGP server
+	//  defaultdesc: (no password)
+	//  required: no
+	//  shortdesc: Peer session password for use by `ovn` downstream networks
+
+	// lxdmeta:generate(entities=network-physical; group=network-conf; key=bgp.peers.NAME.holdtime)
+	// Specify the peer session hold time in seconds.
+	// ---
+	//  type: integer
+	//  condition: BGP server
+	//  defaultdesc: `180`
+	//  required: no
+	//  shortdesc: Peer session hold time
 	bgpRules, err := n.bgpValidationRules(config)
 	if err != nil {
 		return err
