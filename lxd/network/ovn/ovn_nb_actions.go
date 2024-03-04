@@ -1375,15 +1375,37 @@ func (o *NB) LogicalSwitchPortLinkProviderNetwork(switchPortName OVNSwitchPort, 
 // ChassisGroupAdd adds a new HA chassis group.
 // If mayExist is true, then an existing resource of the same name is not treated as an error.
 func (o *NB) ChassisGroupAdd(haChassisGroupName OVNChassisGroup, mayExist bool) error {
-	if mayExist {
-		// Check if it exists (sadly ha-chassis-group-add doesn't provide --may-exist option).
-		_, err := o.nbctl("list", "HA_Chassis_Group", string(haChassisGroupName))
-		if err == nil {
-			return nil // Chassis group exists.
-		}
+	// Prepare the context with timeout for the transaction.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Define the group.
+	haChassisGroup := ovnNB.HAChassisGroup{
+		Name: string(haChassisGroupName),
 	}
 
-	_, err := o.nbctl("ha-chassis-group-add", string(haChassisGroupName))
+	// Check if already exists.
+	err := o.get(ctx, &haChassisGroup)
+	if err != nil && !errors.Is(err, ovsdbClient.ErrNotFound) {
+		return err
+	}
+
+	if haChassisGroup.UUID != "" {
+		if mayExist {
+			return nil
+		}
+
+		return ErrExists
+	}
+
+	// Create the record.
+	operations, err := o.client.Create(&haChassisGroup)
+	if err != nil {
+		return fmt.Errorf("Failed preparing create operation: %w", err)
+	}
+
+	// Apply the changes and wait for the changes to be take effect in the SB database.
+	err = o.transactAndWaitSB(ctx, operations...)
 	if err != nil {
 		return err
 	}
