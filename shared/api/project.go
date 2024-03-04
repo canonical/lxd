@@ -48,12 +48,18 @@ type ProjectPut struct {
 //
 // API extension: projects.
 type Project struct {
-	ProjectPut `yaml:",inline"`
-
 	// The project name
 	// Read only: true
 	// Example: foo
 	Name string `json:"name" yaml:"name"`
+
+	// Description of the project
+	// Example: My new project
+	Description string `json:"description" yaml:"description"`
+
+	// Project configuration map (refer to doc/projects.md)
+	// Example: {"features.profiles": "true", "features.networks": "false"}
+	Config map[string]string `json:"config" yaml:"config"`
 
 	// List of URLs of objects using this project
 	// Read only: true
@@ -65,7 +71,16 @@ type Project struct {
 //
 // API extension: projects.
 func (project *Project) Writable() ProjectPut {
-	return project.ProjectPut
+	return ProjectPut{
+		Description: project.Description,
+		Config:      project.Config,
+	}
+}
+
+// SetWritable sets applicable values from ProjectPut struct to Project struct.
+func (project *Project) SetWritable(put ProjectPut) {
+	project.Description = put.Description
+	project.Config = put.Config
 }
 
 // URL returns the URL for the project.
