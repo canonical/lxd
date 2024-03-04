@@ -42,12 +42,14 @@ type NetworkPeerPut struct {
 //
 // API extension: network_forward.
 type NetworkPeer struct {
-	NetworkPeerPut `yaml:",inline"`
-
 	// Name of the peer
 	// Read only: true
 	// Example: project1-network1
 	Name string `json:"name" yaml:"name"`
+
+	// Description of the peer
+	// Example: Peering with network1 in project1
+	Description string `json:"description" yaml:"description"`
 
 	// Name of the target project
 	// Read only: true
@@ -64,6 +66,10 @@ type NetworkPeer struct {
 	// Example: Pending
 	Status string `json:"status" yaml:"status"`
 
+	// Peer configuration map (refer to doc/network-peers.md)
+	// Example: {"user.mykey": "foo"}
+	Config map[string]string `json:"config" yaml:"config"`
+
 	// List of URLs of objects using this network peering
 	// Read only: true
 	// Example: ["/1.0/network-acls/test", "/1.0/network-acls/foo"]
@@ -77,5 +83,14 @@ func (p *NetworkPeer) Etag() []any {
 
 // Writable converts a full NetworkPeer struct into a NetworkPeerPut struct (filters read-only fields).
 func (p *NetworkPeer) Writable() NetworkPeerPut {
-	return p.NetworkPeerPut
+	return NetworkPeerPut{
+		Description: p.Description,
+		Config:      p.Config,
+	}
+}
+
+// SetWritable sets applicable values from NetworkPeerPut struct to NetworkPeer struct.
+func (p *NetworkPeer) SetWritable(put NetworkPeerPut) {
+	p.Description = put.Description
+	p.Config = put.Config
 }
