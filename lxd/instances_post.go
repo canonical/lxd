@@ -636,7 +636,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	// Check project permissions.
 	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		req := api.InstancesPost{
-			InstancePut: bInfo.Config.Container.InstancePut,
+			InstancePut: bInfo.Config.Container.Writable(),
 			Name:        bInfo.Name,
 			Source:      api.InstanceSource{}, // Only relevant for "copy" or "migration", but may not be nil.
 			Type:        api.InstanceType(bInfo.Config.Container.Type),
