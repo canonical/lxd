@@ -81,10 +81,8 @@ func TestInternalImportRootDevicePopulate_ExpandedDeviceProfileDeviceMatch(t *te
 
 	profiles := []api.Profile{
 		{
-			Name: "default",
-			ProfilePut: api.ProfilePut{
-				Devices: make(map[string]map[string]string, 0),
-			},
+			Name:    "default",
+			Devices: make(map[string]map[string]string, 0),
 		},
 	}
 
@@ -118,10 +116,8 @@ func TestInternalImportRootDevicePopulate_ExpandedDeviceProfileDevicePoolMismatc
 
 	profiles := []api.Profile{
 		{
-			Name: "default",
-			ProfilePut: api.ProfilePut{
-				Devices: make(map[string]map[string]string, 0),
-			},
+			Name:    "default",
+			Devices: make(map[string]map[string]string, 0),
 		},
 	}
 
