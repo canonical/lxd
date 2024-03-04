@@ -59,7 +59,17 @@ type ContainerPut struct {
 
 // Container represents a LXD container.
 type Container struct {
-	ContainerPut `yaml:",inline"`
+	Architecture string                       `json:"architecture" yaml:"architecture"`
+	Config       map[string]string            `json:"config" yaml:"config"`
+	Devices      map[string]map[string]string `json:"devices" yaml:"devices"`
+	Ephemeral    bool                         `json:"ephemeral" yaml:"ephemeral"`
+	Profiles     []string                     `json:"profiles" yaml:"profiles"`
+
+	// For snapshot restore
+	Stateful bool `json:"stateful" yaml:"stateful"`
+
+	// API extension: entity_description
+	Description string `json:"description" yaml:"description"`
 
 	CreatedAt       time.Time                    `json:"created_at" yaml:"created_at"`
 	ExpandedConfig  map[string]string            `json:"expanded_config" yaml:"expanded_config"`
@@ -88,7 +98,26 @@ type ContainerFull struct {
 
 // Writable converts a full Container struct into a ContainerPut struct (filters read-only fields).
 func (c *Container) Writable() ContainerPut {
-	return c.ContainerPut
+	return ContainerPut{
+		Architecture: c.Architecture,
+		Config:       c.Config,
+		Devices:      c.Devices,
+		Ephemeral:    c.Ephemeral,
+		Profiles:     c.Profiles,
+		Stateful:     c.Stateful,
+		Description:  c.Description,
+	}
+}
+
+// SetWritable sets applicable values from ContainerPut struct to Container struct.
+func (c *Container) SetWritable(put ContainerPut) {
+	c.Architecture = put.Architecture
+	c.Config = put.Config
+	c.Devices = put.Devices
+	c.Ephemeral = put.Ephemeral
+	c.Profiles = put.Profiles
+	c.Stateful = put.Stateful
+	c.Description = put.Description
 }
 
 // IsActive checks whether the container state indicates the container is active.
