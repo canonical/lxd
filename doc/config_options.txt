@@ -2517,6 +2517,22 @@ It is globally unique across all servers and projects.
 ```
 
 <!-- config group instance-volatile end -->
+<!-- config group instance-property-instance-conf start -->
+```{config:option} architecture instance-property-instance-conf
+:readonly: "no"
+:shortdesc: "Instance architecture"
+:type: "string"
+
+```
+
+```{config:option} name instance-property-instance-conf
+:readonly: "yes"
+:shortdesc: "Instance name"
+:type: "string"
+See {ref}`instance-name-requirements`.
+```
+
+<!-- config group instance-property-instance-conf end -->
 <!-- config group network-bridge-network-conf start -->
 ```{config:option} bgp.ipv4.nexthop network-bridge-network-conf
 :condition: "BGP server"
