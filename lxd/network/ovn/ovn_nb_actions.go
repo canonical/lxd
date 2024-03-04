@@ -10,6 +10,7 @@ import (
 	"time"
 
 	ovsdbClient "github.com/ovn-kubernetes/libovsdb/client"
+	ovsdbModel "github.com/ovn-kubernetes/libovsdb/model"
 	"github.com/ovn-kubernetes/libovsdb/ovsdb"
 
 	ovnNB "github.com/canonical/lxd/lxd/network/ovn/schema/ovn-nb"
@@ -394,39 +395,82 @@ func (o *NB) LogicalRouterRouteDelete(routerName OVNRouter, prefixes ...net.IPNe
 
 // LogicalRouterPortAdd adds a named logical router port to a logical router.
 func (o *NB) LogicalRouterPortAdd(routerName OVNRouter, portName OVNRouterPort, mac net.HardwareAddr, gatewayMTU uint32, ipAddr []*net.IPNet, mayExist bool) error {
-	if mayExist {
-		// Check if it exists and update addresses.
-		_, err := o.nbctl("list", "Logical_Router_Port", string(portName))
-		if err == nil {
-			// Router port exists.
-			ips := make([]string, 0, len(ipAddr))
-			for _, ip := range ipAddr {
-				ips = append(ips, ip.String())
-			}
+	// Prepare the context with timeout for the transaction.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-			_, err := o.nbctl("set", "Logical_Router_Port", string(portName),
-				`networks="`+strings.Join(ips, `","`)+`"`,
-				`mac="`+mac.String()+`"`,
-				"options:gateway_mtu="+strconv.FormatUint(uint64(gatewayMTU), 10),
-			)
-			if err != nil {
-				return err
-			}
+	// Prepare the addresses.
+	networks := make([]string, 0, len(ipAddr))
 
-			return nil
+	for _, addr := range ipAddr {
+		networks = append(networks, addr.String())
+	}
+
+	// Prepare the new router port entry.
+	logicalRouterPort := ovnNB.LogicalRouterPort{
+		Name: string(portName),
+		UUID: "lrp",
+	}
+
+	// Check if the entry already exists.
+	err := o.get(ctx, &logicalRouterPort)
+	if err != nil && err != ErrNotFound {
+		return err
+	}
+
+	if logicalRouterPort.UUID != "lrp" && !mayExist {
+		return ErrExists
+	}
+
+	// Apply the configuration.
+	logicalRouterPort.MAC = mac.String()
+	logicalRouterPort.Networks = networks
+
+	if gatewayMTU > 0 {
+		if logicalRouterPort.Options == nil {
+			logicalRouterPort.Options = map[string]string{}
 		}
+
+		logicalRouterPort.Options["gateway_mtu"] = strconv.FormatUint(uint64(gatewayMTU), 10)
 	}
 
-	args := []string{"lrp-add", string(routerName), string(portName), mac.String()}
-	for _, ipNet := range ipAddr {
-		args = append(args, ipNet.String())
+	operations := []ovsdb.Operation{}
+	if logicalRouterPort.UUID != "lrp" {
+		// If the entry already exists, update it.
+		updateOps, err := o.client.Where(&logicalRouterPort).Update(&logicalRouterPort)
+		if err != nil {
+			return fmt.Errorf("Failed preparing update operation: %w", err)
+		}
+
+		operations = append(operations, updateOps...)
+	} else {
+		// Else, create it.
+		createOps, err := o.client.Create(&logicalRouterPort)
+		if err != nil {
+			return fmt.Errorf("Failed preparing create operation: %w", err)
+		}
+
+		operations = append(operations, createOps...)
+
+		// And connect it to the router.
+		logicalRouter := ovnNB.LogicalRouter{
+			Name: string(routerName),
+		}
+
+		updateOps, err := o.client.Where(&logicalRouter).Mutate(&logicalRouter, ovsdbModel.Mutation{
+			Field:   &logicalRouter.Ports,
+			Mutator: ovsdb.MutateOperationInsert,
+			Value:   []string{logicalRouterPort.UUID},
+		})
+		if err != nil {
+			return fmt.Errorf("Failed preparing mutate operation: %w", err)
+		}
+
+		operations = append(operations, updateOps...)
 	}
 
-	args = append(args, "--", "set", "Logical_Router_Port", string(portName),
-		"options:gateway_mtu="+strconv.FormatUint(uint64(gatewayMTU), 10),
-	)
-
-	_, err := o.nbctl(args...)
+	// Apply the changes and wait for the changes to be take effect in the SB database.
+	err = o.transactAndWaitSB(ctx, operations...)
 	if err != nil {
 		return err
 	}
