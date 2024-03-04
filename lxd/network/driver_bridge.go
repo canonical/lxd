@@ -2662,7 +2662,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 		return fmt.Errorf("Failed parsing address forward listen address %q: %w", forward.ListenAddress, err)
 	}
 
-	_, err = n.forwardValidate(listenAddressNet.IP, &forward.NetworkForwardPut)
+	_, err = n.forwardValidate(listenAddressNet.IP, forward.NetworkForwardPut)
 	if err != nil {
 		return err
 	}
@@ -2821,7 +2821,7 @@ func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, 
 		return err
 	}
 
-	_, err = n.forwardValidate(net.ParseIP(curForward.ListenAddress), &req)
+	_, err = n.forwardValidate(net.ParseIP(curForward.ListenAddress), req)
 	if err != nil {
 		return err
 	}
@@ -2832,8 +2832,10 @@ func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, 
 	}
 
 	newForward := api.NetworkForward{
-		ListenAddress:     curForward.ListenAddress,
-		NetworkForwardPut: req,
+		ListenAddress: curForward.ListenAddress,
+		Description:   req.Description,
+		Config:        req.Config,
+		Ports:         req.Ports,
 	}
 
 	newForwardEtagHash, err := util.EtagHash(newForward.Etag())
@@ -2849,7 +2851,7 @@ func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, 
 	defer revert.Fail()
 
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return tx.UpdateNetworkForward(ctx, n.ID(), curForwardID, &newForward.NetworkForwardPut)
+		return tx.UpdateNetworkForward(ctx, n.ID(), curForwardID, newForward.Writable())
 	})
 	if err != nil {
 		return err
@@ -2857,7 +2859,7 @@ func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, 
 
 	revert.Add(func() {
 		_ = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return tx.UpdateNetworkForward(ctx, n.ID(), curForwardID, &curForward.NetworkForwardPut)
+			return tx.UpdateNetworkForward(ctx, n.ID(), curForwardID, curForward.Writable())
 		})
 		_ = n.forwardSetupFirewall()
 		_ = n.forwardBGPSetupPrefixes()
@@ -2901,7 +2903,7 @@ func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientTy
 
 	revert.Add(func() {
 		newForward := api.NetworkForwardsPost{
-			NetworkForwardPut: forward.NetworkForwardPut,
+			NetworkForwardPut: forward.Writable(),
 			ListenAddress:     forward.ListenAddress,
 		}
 
@@ -2964,7 +2966,7 @@ func (n *bridge) forwardSetupFirewall() error {
 			ipVersions[4] = struct{}{}
 		}
 
-		portMaps, err := n.forwardValidate(listenAddressNet.IP, &forward.NetworkForwardPut)
+		portMaps, err := n.forwardValidate(listenAddressNet.IP, forward.Writable())
 		if err != nil {
 			return fmt.Errorf("Failed validating firewall address forward for listen address %q: %w", forward.ListenAddress, err)
 		}
