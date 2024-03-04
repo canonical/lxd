@@ -155,9 +155,20 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 	schema.Hook(hook)
 
 	var initial int
-	err := query.Retry(context.TODO(), func(_ context.Context) error {
+	err := query.Retry(context.TODO(), func(ctx context.Context) error {
 		var err error
 		initial, err = schema.Ensure(db)
+		if err != nil {
+			return fmt.Errorf("Failed to ensure schema: %w", err)
+		}
+
+		err = query.Transaction(ctx, db, func(ctx context.Context, tx *sql.Tx) error {
+			return applyTriggers(ctx, tx)
+		})
+		if err != nil {
+			return fmt.Errorf("Failed to apply triggers: %w", err)
+		}
+
 		return err
 	})
 	if someNodesAreBehind {
