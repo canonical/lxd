@@ -310,9 +310,7 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 		Type:                 string(i.Type),
 		Identifier:           i.Identifier,
 		Name:                 i.Name,
-		IdentityPut: api.IdentityPut{
-			Groups: groupNames,
-		},
+		Groups:               groupNames,
 	}, nil
 }
 

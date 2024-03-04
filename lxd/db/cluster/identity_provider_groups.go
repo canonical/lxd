@@ -49,7 +49,7 @@ type IdentityProviderGroupFilter struct {
 // ToAPI converts the IdentityProviderGroup to an api.IdentityProviderGroup, making more database calls as necessary.
 func (i *IdentityProviderGroup) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.PermissionChecker) (*api.IdentityProviderGroup, error) {
 	idpGroup := &api.IdentityProviderGroup{
-		IdentityProviderGroupPost: api.IdentityProviderGroupPost{Name: i.Name},
+		Name: i.Name,
 	}
 
 	groups, err := GetAuthGroupsByIdentityProviderGroupID(ctx, tx, i.ID)
