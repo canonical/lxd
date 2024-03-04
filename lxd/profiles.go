@@ -534,7 +534,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		}
 
 		err = notifier(func(client lxd.InstanceServer) error {
-			return client.UseProject(p.Name).UpdateProfile(name, profile.ProfilePut, "")
+			return client.UseProject(p.Name).UpdateProfile(name, profile.Writable(), "")
 		})
 		if err != nil {
 			return response.SmartError(err)
