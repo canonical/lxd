@@ -3422,6 +3422,218 @@
 				]
 			}
 		},
+		"network-ovn": {
+			"network-conf": {
+				"keys": [
+					{
+						"bridge.hwaddr": {
+							"longdesc": "",
+							"shortdesc": "MAC address for the bridge",
+							"type": "string"
+						}
+					},
+					{
+						"bridge.mtu": {
+							"defaultdesc": "`1442`",
+							"longdesc": "The default value allows the host to host Geneve tunnels.",
+							"shortdesc": "Bridge MTU",
+							"type": "integer"
+						}
+					},
+					{
+						"dns.domain": {
+							"defaultdesc": "`lxd`",
+							"longdesc": "",
+							"shortdesc": "Domain to advertise to DHCP clients and use for DNS resolution",
+							"type": "string"
+						}
+					},
+					{
+						"dns.search": {
+							"defaultdesc": "`dns.domain` value",
+							"longdesc": "Specify a comma-separated list of domains.",
+							"shortdesc": "Full domain search list",
+							"type": "string"
+						}
+					},
+					{
+						"dns.zone.forward": {
+							"longdesc": "Specify a comma-separated list of DNS zone names.",
+							"shortdesc": "DNS zone names for forward DNS records",
+							"type": "string"
+						}
+					},
+					{
+						"dns.zone.reverse.ipv4": {
+							"longdesc": "",
+							"shortdesc": "DNS zone name for IPv4 reverse DNS records",
+							"type": "string"
+						}
+					},
+					{
+						"dns.zone.reverse.ipv6": {
+							"longdesc": "",
+							"shortdesc": "DNS zone name for IPv6 reverse DNS records",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.address": {
+							"condition": "standard mode",
+							"defaultdesc": "initial value on creation: `auto`",
+							"longdesc": "Use CIDR notation.\n\nYou can set the option to `none` to turn off IPv4, or to `auto` to generate a new random unused subnet.",
+							"shortdesc": "IPv4 address for the bridge",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.dhcp": {
+							"condition": "IPv4 address",
+							"defaultdesc": "`true`",
+							"longdesc": "",
+							"shortdesc": "Whether to allocate IPv4 addresses using DHCP",
+							"type": "bool"
+						}
+					},
+					{
+						"ipv4.l3only": {
+							"condition": "IPv4 address",
+							"defaultdesc": "`false`",
+							"longdesc": "",
+							"shortdesc": "Whether to enable layer 3 only mode for IPv4",
+							"type": "bool"
+						}
+					},
+					{
+						"ipv4.nat": {
+							"condition": "IPv4 address",
+							"defaultdesc": "`false` (initial value on creation if `ipv4.address` is set to `auto`: `true`)",
+							"longdesc": "",
+							"shortdesc": "Whether to use NAT for IPv4",
+							"type": "bool"
+						}
+					},
+					{
+						"ipv4.nat.address": {
+							"condition": "IPv4 address; requires uplink `ovn.ingress_mode=routed`",
+							"longdesc": "",
+							"shortdesc": "Source address used for outbound traffic from the network",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.address": {
+							"condition": "standard mode",
+							"defaultdesc": "initial value on creation: `auto`",
+							"longdesc": "Use CIDR notation.\n\nYou can set the option to `none` to turn off IPv6, or to `auto` to generate a new random unused subnet.",
+							"shortdesc": "IPv6 address for the bridge",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.dhcp": {
+							"condition": "IPv6 address",
+							"defaultdesc": "`true`",
+							"longdesc": "",
+							"shortdesc": "Whether to provide additional network configuration over DHCP",
+							"type": "bool"
+						}
+					},
+					{
+						"ipv6.dhcp.stateful": {
+							"condition": "IPv6 DHCP",
+							"defaultdesc": "`false`",
+							"longdesc": "",
+							"shortdesc": "Whether to allocate IPv6 addresses using DHCP",
+							"type": "bool"
+						}
+					},
+					{
+						"ipv6.l3only": {
+							"condition": "IPv6 DHCP stateful",
+							"defaultdesc": "`false`",
+							"longdesc": "",
+							"shortdesc": "Whether to enable layer 3 only mode for IPv6",
+							"type": "bool"
+						}
+					},
+					{
+						"ipv6.nat": {
+							"condition": "IPv6 address",
+							"defaultdesc": "`false` (initial value on creation if `ipv6.address` is set to `auto`: `true`)",
+							"longdesc": "",
+							"shortdesc": "Whether to use NAT for IPv6",
+							"type": "bool"
+						}
+					},
+					{
+						"ipv6.nat.address": {
+							"condition": "IPv6 address; requires uplink `ovn.ingress_mode=routed`",
+							"longdesc": "",
+							"shortdesc": "Source address used for outbound traffic from the network",
+							"type": "string"
+						}
+					},
+					{
+						"network": {
+							"longdesc": "",
+							"shortdesc": "Uplink network to use for external network access",
+							"type": "string"
+						}
+					},
+					{
+						"security.acls": {
+							"longdesc": "Specify a comma-separated list of network ACLs.",
+							"shortdesc": "Network ACLs to apply to NICs connected to this network",
+							"type": "string"
+						}
+					},
+					{
+						"security.acls.default.egress.action": {
+							"condition": "`security.acls`",
+							"defaultdesc": "`reject`",
+							"longdesc": "The specified action is used for all egress traffic that doesn’t match any ACL rule.",
+							"shortdesc": "Default action to use for egress traffic",
+							"type": "string"
+						}
+					},
+					{
+						"security.acls.default.egress.logged": {
+							"condition": "`security.acls`",
+							"defaultdesc": "`false`",
+							"longdesc": "",
+							"shortdesc": "Whether to log egress traffic that doesn’t match any ACL rule",
+							"type": "bool"
+						}
+					},
+					{
+						"security.acls.default.ingress.action": {
+							"condition": "`security.acls`",
+							"defaultdesc": "`reject`",
+							"longdesc": "The specified action is used for all ingress traffic that doesn’t match any ACL rule.",
+							"shortdesc": "Default action to use for ingress traffic",
+							"type": "string"
+						}
+					},
+					{
+						"security.acls.default.ingress.logged": {
+							"condition": "`security.acls`",
+							"defaultdesc": "`false`",
+							"longdesc": "",
+							"shortdesc": "Whether to log ingress traffic that doesn’t match any ACL rule",
+							"type": "bool"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
 		"network-physical": {
 			"network-conf": {
 				"keys": [
