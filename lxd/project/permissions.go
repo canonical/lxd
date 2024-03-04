@@ -66,11 +66,13 @@ func AllowInstanceCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx,
 	}
 
 	// Add the instance being created.
-	info.Instances = append(info.Instances, api.Instance{
-		Name:        req.Name,
-		Project:     projectName,
-		InstancePut: req.InstancePut,
-	})
+	instance := api.Instance{
+		Name:    req.Name,
+		Project: projectName,
+	}
+
+	instance.SetWritable(req.InstancePut)
+	info.Instances = append(info.Instances, instance)
 
 	// Special case restriction checks on volatile.* keys.
 	strip := false
@@ -1026,10 +1028,8 @@ func AllowProjectUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, pr
 	for _, key := range changed {
 		if strings.HasPrefix(key, "restricted.") {
 			project := api.Project{
-				Name: projectName,
-				ProjectPut: api.ProjectPut{
-					Config: config,
-				},
+				Name:   projectName,
+				Config: config,
 			}
 
 			err := checkRestrictions(project, info.Instances, info.Profiles)
