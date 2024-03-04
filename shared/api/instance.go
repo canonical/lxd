@@ -201,23 +201,13 @@ type InstanceRebuildPost struct {
 //
 // API extension: instances.
 type Instance struct {
-	InstancePut `yaml:",inline"`
-
-	// Instance creation timestamp
-	// Example: 2021-03-23T20:00:00-04:00
-	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
-
-	// Expanded configuration (all profiles and local config merged)
-	// Example: {"security.nesting": "true"}
-	ExpandedConfig map[string]string `json:"expanded_config,omitempty" yaml:"expanded_config,omitempty"`
-
-	// Expanded devices (all profiles and local devices merged)
-	// Example: {"root": {"type": "disk", "pool": "default", "path": "/"}}
-	ExpandedDevices map[string]map[string]string `json:"expanded_devices,omitempty" yaml:"expanded_devices,omitempty"`
-
 	// Instance name
 	// Example: foo
 	Name string `json:"name" yaml:"name"`
+
+	// Instance description
+	// Example: My test instance
+	Description string `json:"description" yaml:"description"`
 
 	// Instance status (see instance_state)
 	// Example: Running
@@ -226,6 +216,10 @@ type Instance struct {
 	// Instance status code (see instance_state)
 	// Example: 101
 	StatusCode StatusCode `json:"status_code" yaml:"status_code"`
+
+	// Instance creation timestamp
+	// Example: 2021-03-23T20:00:00-04:00
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
 
 	// Last start timestamp
 	// Example: 2021-03-23T20:00:00-04:00
@@ -244,6 +238,38 @@ type Instance struct {
 	//
 	// API extension: instance_all_projects
 	Project string `json:"project" yaml:"project"`
+
+	// Architecture name
+	// Example: x86_64
+	Architecture string `json:"architecture" yaml:"architecture"`
+
+	// Whether the instance is ephemeral (deleted on shutdown)
+	// Example: false
+	Ephemeral bool `json:"ephemeral" yaml:"ephemeral"`
+
+	// Whether the instance currently has saved state on disk
+	// Example: false
+	Stateful bool `json:"stateful" yaml:"stateful"`
+
+	// List of profiles applied to the instance
+	// Example: ["default"]
+	Profiles []string `json:"profiles" yaml:"profiles"`
+
+	// Instance configuration (see doc/instances.md)
+	// Example: {"security.nesting": "true"}
+	Config map[string]string `json:"config" yaml:"config"`
+
+	// Instance devices (see doc/instances.md)
+	// Example: {"root": {"type": "disk", "pool": "default", "path": "/"}}
+	Devices map[string]map[string]string `json:"devices" yaml:"devices"`
+
+	// Expanded configuration (all profiles and local config merged)
+	// Example: {"security.nesting": "true"}
+	ExpandedConfig map[string]string `json:"expanded_config,omitempty" yaml:"expanded_config,omitempty"`
+
+	// Expanded devices (all profiles and local devices merged)
+	// Example: {"root": {"type": "disk", "pool": "default", "path": "/"}}
+	ExpandedDevices map[string]map[string]string `json:"expanded_devices,omitempty" yaml:"expanded_devices,omitempty"`
 }
 
 // InstanceFull is a combination of Instance, InstanceBackup, InstanceState and InstanceSnapshot.
@@ -268,7 +294,26 @@ type InstanceFull struct {
 //
 // API extension: instances.
 func (c *Instance) Writable() InstancePut {
-	return c.InstancePut
+	return InstancePut{
+		Architecture: c.Architecture,
+		Config:       c.Config,
+		Devices:      c.Devices,
+		Ephemeral:    c.Ephemeral,
+		Profiles:     c.Profiles,
+		Stateful:     c.Stateful,
+		Description:  c.Description,
+	}
+}
+
+// SetWritable sets applicable values from InstancePut struct to Instance struct.
+func (c *Instance) SetWritable(put InstancePut) {
+	c.Architecture = put.Architecture
+	c.Config = put.Config
+	c.Devices = put.Devices
+	c.Ephemeral = put.Ephemeral
+	c.Profiles = put.Profiles
+	c.Stateful = put.Stateful
+	c.Description = put.Description
 }
 
 // IsActive checks whether the instance state indicates the instance is active.
