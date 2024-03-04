@@ -193,7 +193,7 @@ func MatchTypes(offer *MigrationHeader, fallbackType MigrationFSType, ourTypes [
 				offeredFeatures = offer.GetZfsFeaturesSlice()
 			} else if offerFSType == MigrationFSType_BTRFS {
 				offeredFeatures = offer.GetBtrfsFeaturesSlice()
-			} else if shared.ValueInSlice(offerFSType, []MigrationFSType{MigrationFSType_RSYNC, MigrationFSType_BLOCK_AND_RSYNC}) {
+			} else if offerFSType == MigrationFSType_RSYNC {
 				offeredFeatures = offer.GetRsyncFeaturesSlice()
 				if !shared.ValueInSlice("bidirectional", offeredFeatures) {
 					// If no bi-directional support, this means we are getting a response from
