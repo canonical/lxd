@@ -29,22 +29,22 @@ type NetworkLoadBalancerBackend struct {
 }
 
 // Normalise normalises the fields in the load balancer backend so that they are comparable with ones stored.
-func (p *NetworkLoadBalancerBackend) Normalise() {
-	p.Description = strings.TrimSpace(p.Description)
-	p.TargetAddress = strings.TrimSpace(p.TargetAddress)
+func (b *NetworkLoadBalancerBackend) Normalise() {
+	b.Description = strings.TrimSpace(b.Description)
+	b.TargetAddress = strings.TrimSpace(b.TargetAddress)
 
-	ip := net.ParseIP(p.TargetAddress)
+	ip := net.ParseIP(b.TargetAddress)
 	if ip != nil {
-		p.TargetAddress = ip.String() // Replace with canonical form if specified.
+		b.TargetAddress = ip.String() // Replace with canonical form if specified.
 	}
 
 	// Remove space from TargetPort list.
-	subjects := strings.Split(p.TargetPort, ",")
+	subjects := strings.Split(b.TargetPort, ",")
 	for i, s := range subjects {
 		subjects[i] = strings.TrimSpace(s)
 	}
 
-	p.TargetPort = strings.Join(subjects, ",")
+	b.TargetPort = strings.Join(subjects, ",")
 }
 
 // NetworkLoadBalancerPort represents a port specification in a network load balancer
@@ -137,8 +137,6 @@ func (f *NetworkLoadBalancerPut) Normalise() {
 //
 // API extension: network_load_balancer.
 type NetworkLoadBalancer struct {
-	NetworkLoadBalancerPut `yaml:",inline"`
-
 	// The listen address of the load balancer
 	// Example: 192.0.2.1
 	ListenAddress string `json:"listen_address" yaml:"listen_address"`
@@ -146,14 +144,48 @@ type NetworkLoadBalancer struct {
 	// What cluster member this record was found on
 	// Example: lxd01
 	Location string `json:"location" yaml:"location"`
+
+	// Description of the load balancer listen IP
+	// Example: My public IP load balancer
+	Description string `json:"description" yaml:"description"`
+
+	// Load balancer configuration map (refer to doc/network-load-balancers.md)
+	// Example: {"user.mykey": "foo"}
+	Config map[string]string `json:"config" yaml:"config"`
+
+	// Backends (optional)
+	Backends []NetworkLoadBalancerBackend `json:"backends" yaml:"backends"`
+
+	// Port forwards (optional)
+	Ports []NetworkLoadBalancerPort `json:"ports" yaml:"ports"`
+}
+
+// Normalise normalises the fields in the load balancer so that they are comparable with ones stored.
+func (lb *NetworkLoadBalancer) Normalise() {
+	lbPut := lb.Writable()
+	lbPut.Normalise()
+	lb.SetWritable(lbPut)
 }
 
 // Etag returns the values used for etag generation.
-func (f *NetworkLoadBalancer) Etag() []any {
-	return []any{f.ListenAddress, f.Description, f.Config, f.Backends, f.Ports}
+func (lb *NetworkLoadBalancer) Etag() []any {
+	return []any{lb.ListenAddress, lb.Description, lb.Config, lb.Backends, lb.Ports}
 }
 
 // Writable converts a full NetworkLoadBalancer struct into a NetworkLoadBalancerPut struct (filters read-only fields).
-func (f *NetworkLoadBalancer) Writable() NetworkLoadBalancerPut {
-	return f.NetworkLoadBalancerPut
+func (lb *NetworkLoadBalancer) Writable() NetworkLoadBalancerPut {
+	return NetworkLoadBalancerPut{
+		Description: lb.Description,
+		Config:      lb.Config,
+		Backends:    lb.Backends,
+		Ports:       lb.Ports,
+	}
+}
+
+// SetWritable sets applicable values from NetworkLoadBalancerPut struct to NetworkLoadBalancer struct.
+func (lb *NetworkLoadBalancer) SetWritable(put NetworkLoadBalancerPut) {
+	lb.Description = put.Description
+	lb.Config = put.Config
+	lb.Backends = put.Backends
+	lb.Ports = put.Ports
 }
