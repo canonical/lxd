@@ -13,15 +13,14 @@ import (
 
 func TestMatch_Instance(t *testing.T) {
 	instance := api.Instance{
-		InstancePut: api.InstancePut{
-			Architecture: "x86_64",
-			Config: map[string]string{
-				"image.os": "BusyBox",
-			},
-			Stateful: false,
+		Name:         "c1",
+		Status:       "Running",
+		Architecture: "x86_64",
+		Stateful:     false,
+		CreatedAt:    time.Date(2020, 1, 29, 11, 10, 32, 0, time.UTC),
+		Config: map[string]string{
+			"image.os": "BusyBox",
 		},
-		CreatedAt: time.Date(2020, 1, 29, 11, 10, 32, 0, time.UTC),
-		Name:      "c1",
 		ExpandedConfig: map[string]string{
 			"image.os": "BusyBox",
 		},
@@ -32,7 +31,6 @@ func TestMatch_Instance(t *testing.T) {
 				"type": "disk",
 			},
 		},
-		Status: "Running",
 	}
 
 	cases := map[string]any{
@@ -57,13 +55,11 @@ func TestMatch_Instance(t *testing.T) {
 
 func TestMatch_Image(t *testing.T) {
 	image := api.Image{
-		ImagePut: api.ImagePut{
-			Public: true,
-			Properties: map[string]string{
-				"os": "Ubuntu",
-			},
-		},
+		Public:       true,
 		Architecture: "i686",
+		Properties: map[string]string{
+			"os": "Ubuntu",
+		},
 	}
 
 	cases := map[string]any{
