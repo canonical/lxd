@@ -16,13 +16,9 @@ import (
 // an API cluster group struct.
 func ClusterGroupToAPI(clusterGroup *cluster.ClusterGroup, nodes []string) *api.ClusterGroup {
 	c := &api.ClusterGroup{
-		ClusterGroupPut: api.ClusterGroupPut{
-			Description: clusterGroup.Description,
-			Members:     nodes,
-		},
-		ClusterGroupPost: api.ClusterGroupPost{
-			Name: clusterGroup.Name,
-		},
+		Name:        clusterGroup.Name,
+		Description: clusterGroup.Description,
+		Members:     nodes,
 	}
 
 	return c
