@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
@@ -108,24 +107,18 @@ func SetIdentityProviderGroupMapping(ctx context.Context, tx *sql.Tx, identityPr
 	}
 
 	args := []any{identityProviderGroupID}
-	var builder strings.Builder
-	builder.WriteString(`
-INSERT INTO auth_groups_identity_provider_groups (auth_group_id, identity_provider_group_id)
-SELECT ?, auth_groups.id
-FROM auth_groups
-WHERE auth_groups.name IN (
-`)
-	for i, groupName := range groupNames {
-		if i == len(groupNames)-1 {
-			builder.WriteString(`?)`)
-		} else {
-			builder.WriteString(`?, `)
-		}
-
+	for _, groupName := range groupNames {
 		args = append(args, groupName)
 	}
 
-	res, err := tx.ExecContext(ctx, builder.String(), args...)
+	q := fmt.Sprintf(`
+INSERT INTO auth_groups_identity_provider_groups (auth_group_id, identity_provider_group_id)
+SELECT ?, auth_groups.id
+FROM auth_groups
+WHERE auth_groups.name IN %s
+`, query.Params(len(groupNames)))
+
+	res, err := tx.ExecContext(ctx, q, args...)
 	if err != nil {
 		return fmt.Errorf("Failed to write identity provider group mappings: %w", err)
 	}
