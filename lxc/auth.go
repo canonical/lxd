@@ -1486,7 +1486,7 @@ func (c *cmdIdentityProviderGroupDelete) run(cmd *cobra.Command, args []string) 
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Group %s deleted")+"\n", resource.name)
+		fmt.Printf(i18n.G("Identity provider group %s deleted")+"\n", resource.name)
 	}
 
 	return nil
