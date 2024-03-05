@@ -3,47 +3,29 @@ package cluster
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"net/http"
 
 	"github.com/canonical/lxd/lxd/auth"
-	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
 
-// Code generation directives.
-//
-//go:generate -command mapper lxd-generate db mapper -t permissions.mapper.go
-//go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
-//
-//go:generate mapper stmt -e permission objects
-//go:generate mapper stmt -e permission objects-by-ID
-//go:generate mapper stmt -e permission objects-by-EntityType
-//go:generate mapper stmt -e permission objects-by-EntityType-and-EntityID
-//go:generate mapper stmt -e permission objects-by-EntityType-and-EntityID-and-Entitlement
-//
-//go:generate mapper method -i -e permission GetMany
-//go:generate mapper method -i -e permission GetOne
-
 // Permission is the database representation of an api.Permission.
 type Permission struct {
 	ID          int
-	Entitlement auth.Entitlement `db:"primary=true"`
-	EntityType  EntityType       `db:"primary=true"`
-	EntityID    int              `db:"primary=true"`
+	GroupID     int
+	Entitlement auth.Entitlement
+	EntityType  EntityType
+	EntityID    int
 }
 
-// PermissionFilter contains the fields upon which a Permission may be filtered.
-type PermissionFilter struct {
-	ID          *int
-	Entitlement *auth.Entitlement
-	EntityType  *EntityType
-	EntityID    *int
-}
-
-// GetPermissionEntityURLs accepts a slice of Permission and returns a map of entity.Type, to entity ID, to api.URL.
-// The returned map contains the URL of the entity of each given permission. It is used for populating api.Permission.
-func GetPermissionEntityURLs(ctx context.Context, tx *sql.Tx, permissions []Permission) (map[entity.Type]map[int]*api.URL, error) {
+// GetPermissionEntityURLs accepts a slice of Permission as input. The input Permission slice may include permissions
+// that are no longer valid because the entity against which they are defined no longer exists. This method determines
+// which permissions are valid and which are not valid by attempting to retrieve their entity URL. It uses as few
+// queries as possible to do this. It returns a slice of valid permissions, a slice of invalid permissions and a map of
+// entity.Type, to entity ID, to api.URL. The returned map contains the URL of the entity of each returned valid
+// permission. It is used for populating api.Permission. The invalid permissions can be ignored or deleted.
+func GetPermissionEntityURLs(ctx context.Context, tx *sql.Tx, permissions []Permission) (validPermissions []Permission, danglingPermissions []Permission, entityURLs map[entity.Type]map[int]*api.URL, err error) {
 	// To make as few calls as possible, categorize the permissions by entity type.
 	permissionsByEntityType := map[EntityType][]Permission{}
 	for _, permission := range permissions {
@@ -52,7 +34,7 @@ func GetPermissionEntityURLs(ctx context.Context, tx *sql.Tx, permissions []Perm
 
 	// For each entity type, if there is only on permission for the entity type, we'll get the URL by its entity type and ID.
 	// If there are multiple permissions for the entity type, append the entity type to a list for later use.
-	entityURLs := make(map[entity.Type]map[int]*api.URL)
+	entityURLs = make(map[entity.Type]map[int]*api.URL)
 	var entityTypes []entity.Type
 	for entityType, permissions := range permissionsByEntityType {
 		if len(permissions) > 1 {
@@ -60,9 +42,18 @@ func GetPermissionEntityURLs(ctx context.Context, tx *sql.Tx, permissions []Perm
 			continue
 		}
 
+		// Skip any permissions we have already evaluated. We've already checked that there is only one permission
+		// for this entity type, so checking if the entity type is already a key in the map is enough.
+		_, ok := entityURLs[entity.Type(permissions[0].EntityType)]
+		if ok {
+			continue
+		}
+
 		u, err := GetEntityURL(ctx, tx, entity.Type(entityType), permissions[0].EntityID)
-		if err != nil {
-			return nil, err
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil, nil, nil, err
+		} else if err != nil {
+			continue
 		}
 
 		entityURLs[entity.Type(entityType)] = make(map[int]*api.URL)
@@ -73,7 +64,7 @@ func GetPermissionEntityURLs(ctx context.Context, tx *sql.Tx, permissions []Perm
 	if len(entityTypes) > 0 {
 		entityURLsAll, err := GetEntityURLs(ctx, tx, "", entityTypes...)
 		if err != nil {
-			return nil, err
+			return nil, nil, nil, err
 		}
 
 		for k, v := range entityURLsAll {
@@ -81,33 +72,23 @@ func GetPermissionEntityURLs(ctx context.Context, tx *sql.Tx, permissions []Perm
 		}
 	}
 
-	return entityURLs, nil
-}
-
-// GetAllAuthGroupsByPermissionID returns a map of all permission IDs to a slice of groups that have that permission.
-func GetAllAuthGroupsByPermissionID(ctx context.Context, tx *sql.Tx) (map[int][]AuthGroup, error) {
-	stmt := `
-SELECT auth_groups_permissions.permission_id, auth_groups.id, auth_groups.name, auth_groups.description 
-FROM auth_groups 
-JOIN auth_groups_permissions ON auth_groups.id = auth_groups_permissions.auth_group_id`
-
-	result := make(map[int][]AuthGroup)
-	dest := func(scan func(dest ...any) error) error {
-		var permissionID int
-		p := AuthGroup{}
-		err := scan(&permissionID, &p.ID, &p.Name, &p.Description)
-		if err != nil {
-			return err
+	// Iterate over the input permissions and check which ones are present in the entityURLs map.
+	// If they are not present, the entity against which they are defined is no longer present in the DB.
+	for _, permission := range permissions {
+		entityIDToURL, ok := entityURLs[entity.Type(permission.EntityType)]
+		if !ok {
+			danglingPermissions = append(danglingPermissions, permission)
+			continue
 		}
 
-		result[permissionID] = append(result[permissionID], p)
-		return nil
+		_, ok = entityIDToURL[permission.EntityID]
+		if !ok {
+			danglingPermissions = append(danglingPermissions, permission)
+			continue
+		}
+
+		validPermissions = append(validPermissions, permission)
 	}
 
-	err := query.Scan(ctx, tx, stmt, dest)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get permissions for all groups: %w", err)
-	}
-
-	return result, nil
+	return validPermissions, danglingPermissions, entityURLs, nil
 }
