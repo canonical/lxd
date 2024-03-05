@@ -79,8 +79,8 @@ type IdentityPut struct {
 type AuthGroup struct {
 	AuthGroupsPost `yaml:",inline"`
 
-	// Identities are the identities that are members of the group.
-	Identities []Identity `json:"identities" yaml:"identities"`
+	// Identities is a map of authentication method to slice of identity identifiers.
+	Identities map[string][]string `json:"identities" yaml:"identities"`
 
 	// IdentityProviderGroups are a list of groups from the IdP whose mapping
 	// includes this group.
