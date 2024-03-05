@@ -24,6 +24,12 @@ func (d *pci) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	rules := map[string]func(string) error{
+		// lxdmeta:generate(entities=device-pci; group=device-conf; key=address)
+		//
+		// ---
+		//  type: string
+		//  required: yes
+		//  shortdesc: PCI address of the device
 		"address": validate.IsPCIAddress,
 	}
 
