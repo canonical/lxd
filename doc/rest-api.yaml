@@ -7,10 +7,12 @@ definitions:
                 type: string
                 x-go-name: Description
             identities:
-                description: Identities are the identities that are members of the group.
-                items:
-                    $ref: '#/definitions/Identity'
-                type: array
+                additionalProperties:
+                    items:
+                        type: string
+                    type: array
+                description: Identities is a map of authentication method to slice of identity identifiers.
+                type: object
                 x-go-name: Identities
             identity_provider_groups:
                 description: |-
@@ -710,35 +712,6 @@ definitions:
                 example: tls
                 type: string
                 x-go-name: AuthenticationMethod
-            id:
-                description: Identifier is a unique identifier for the identity (e.g. certificate fingerprint or email for OIDC).
-                example: jane.doe@example.com
-                type: string
-                x-go-name: Identifier
-            name:
-                description: |-
-                    Name is the Name claim of the identity if authenticated via OIDC, or the name
-                    of the certificate if authenticated with TLS.
-                example: Jane Doe
-                type: string
-                x-go-name: Name
-            type:
-                description: Type is the type of identity.
-                example: oidc-service-account
-                type: string
-                x-go-name: Type
-        title: Identity is the type for an authenticated party that can make requests to the HTTPS API.
-        type: object
-        x-go-package: github.com/canonical/lxd/shared/api
-    IdentityInfo:
-        properties:
-            authentication_method:
-                description: |-
-                    AuthenticationMethod is the authentication method that the identity
-                    authenticates to LXD with.
-                example: tls
-                type: string
-                x-go-name: AuthenticationMethod
             groups:
                 description: Groups is the list of groups for which the identity is a member.
                 example:
@@ -765,7 +738,65 @@ definitions:
                 example: oidc-service-account
                 type: string
                 x-go-name: Type
-        title: IdentityInfo expands an Identity to include group membership.
+        title: Identity is the type for an authenticated party that can make requests to the HTTPS API.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    IdentityInfo:
+        description: These fields can only be evaluated for the currently authenticated identity.
+        properties:
+            authentication_method:
+                description: |-
+                    AuthenticationMethod is the authentication method that the identity
+                    authenticates to LXD with.
+                example: tls
+                type: string
+                x-go-name: AuthenticationMethod
+            effective_groups:
+                description: |-
+                    Effective groups is the combined and deduplicated list of LXD groups that the identity is a direct member of, and
+                    the LXD groups that the identity is an effective member of via identity provider group mappings.
+                example:
+                    - foo
+                    - bar
+                items:
+                    type: string
+                type: array
+                x-go-name: EffectiveGroups
+            effective_permissions:
+                description: |-
+                    Effective permissions is the combined and deduplicated list of permissions that the identity has by virtue of
+                    direct membership to a LXD group, or effective membership of a LXD group via identity provider group mappings.
+                items:
+                    $ref: '#/definitions/Permission'
+                type: array
+                x-go-name: EffectivePermissions
+            groups:
+                description: Groups is the list of groups for which the identity is a member.
+                example:
+                    - foo
+                    - bar
+                items:
+                    type: string
+                type: array
+                x-go-name: Groups
+            id:
+                description: Identifier is a unique identifier for the identity (e.g. certificate fingerprint or email for OIDC).
+                example: jane.doe@example.com
+                type: string
+                x-go-name: Identifier
+            name:
+                description: |-
+                    Name is the Name claim of the identity if authenticated via OIDC, or the name
+                    of the certificate if authenticated with TLS.
+                example: Jane Doe
+                type: string
+                x-go-name: Name
+            type:
+                description: Type is the type of identity.
+                example: oidc-service-account
+                type: string
+                x-go-name: Type
+        title: IdentityInfo expands an Identity to include effective group membership and effective permissions.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     IdentityProviderGroup:
@@ -7073,7 +7104,7 @@ paths:
                         description: Sync response
                         properties:
                             metadata:
-                                $ref: '#/definitions/IdentityInfo'
+                                $ref: '#/definitions/Identity'
                             status:
                                 description: Status description
                                 example: Success
@@ -7181,10 +7212,10 @@ paths:
             summary: Get the identities
             tags:
                 - identities
-    /1.0/auth/identities/{authenticationMethod}?recursion=2:
+    /1.0/auth/identities/current:
         get:
-            description: Returns a list of identities including group membership.
-            operationId: identities_get_by_auth_method_recursion2
+            description: Gets the identity of the requestor, including contextual authorization information.
+            operationId: identity_get_current
             produces:
                 - application/json
             responses:
@@ -7194,10 +7225,7 @@ paths:
                         description: Sync response
                         properties:
                             metadata:
-                                description: List of identities
-                                items:
-                                    $ref: '#/definitions/IdentityInfo'
-                                type: array
+                                $ref: '#/definitions/IdentityInfo'
                             status:
                                 description: Status description
                                 example: Success
@@ -7215,7 +7243,7 @@ paths:
                     $ref: '#/responses/Forbidden'
                 "500":
                     $ref: '#/responses/InternalServerError'
-            summary: Get the identities
+            summary: Get the current identity
             tags:
                 - identities
     /1.0/auth/identities?recursion=1:
@@ -7234,43 +7262,6 @@ paths:
                                 description: List of identities
                                 items:
                                     $ref: '#/definitions/Identity'
-                                type: array
-                            status:
-                                description: Status description
-                                example: Success
-                                type: string
-                            status_code:
-                                description: Status code
-                                example: 200
-                                type: integer
-                            type:
-                                description: Response type
-                                example: sync
-                                type: string
-                        type: object
-                "403":
-                    $ref: '#/responses/Forbidden'
-                "500":
-                    $ref: '#/responses/InternalServerError'
-            summary: Get the identities
-            tags:
-                - identities
-    /1.0/auth/identities?recursion=2:
-        get:
-            description: Returns a list of identities including group membership.
-            operationId: identities_get_recursion2
-            produces:
-                - application/json
-            responses:
-                "200":
-                    description: API endpoints
-                    schema:
-                        description: Sync response
-                        properties:
-                            metadata:
-                                description: List of identities
-                                items:
-                                    $ref: '#/definitions/IdentityInfo'
                                 type: array
                             status:
                                 description: Status description
