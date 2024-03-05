@@ -212,49 +212,33 @@ func (r *ProtocolLXD) GetIdentitiesByAuthenticationMethod(authenticationMethod s
 	return identities, nil
 }
 
-// GetIdentitiesInfo returns a list of identities and populates the groups that each identity is a member of.
-func (r *ProtocolLXD) GetIdentitiesInfo() ([]api.IdentityInfo, error) {
-	err := r.CheckExtension("access_management")
-	if err != nil {
-		return nil, err
-	}
-
-	var identities []api.IdentityInfo
-	_, err = r.queryStruct(http.MethodGet, api.NewURL().Path("auth", "identities").WithQuery("recursion", "2").String(), nil, "", &identities)
-	if err != nil {
-		return nil, err
-	}
-
-	return identities, nil
-}
-
-// GetIdentitiesInfoByAuthenticationMethod returns a list of identities that authenticate with the given authentication method
-// and populates the groups that each identity is a member of.
-func (r *ProtocolLXD) GetIdentitiesInfoByAuthenticationMethod(authenticationMethod string) ([]api.IdentityInfo, error) {
-	err := r.CheckExtension("access_management")
-	if err != nil {
-		return nil, err
-	}
-
-	var identities []api.IdentityInfo
-	_, err = r.queryStruct(http.MethodGet, api.NewURL().Path("auth", "identities", authenticationMethod).WithQuery("recursion", "2").String(), nil, "", &identities)
-	if err != nil {
-		return nil, err
-	}
-
-	return identities, nil
-}
-
 // GetIdentity returns the identity with the given authentication method and identifier. A name may be supplied in place
 // of the identifier if the name is unique within the authentication method.
-func (r *ProtocolLXD) GetIdentity(authenticationMethod string, nameOrIdentifier string) (*api.IdentityInfo, string, error) {
+func (r *ProtocolLXD) GetIdentity(authenticationMethod string, nameOrIdentifier string) (*api.Identity, string, error) {
+	err := r.CheckExtension("access_management")
+	if err != nil {
+		return nil, "", err
+	}
+
+	identity := api.Identity{}
+	etag, err := r.queryStruct(http.MethodGet, api.NewURL().Path("auth", "identities", authenticationMethod, nameOrIdentifier).String(), nil, "", &identity)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &identity, etag, nil
+}
+
+// GetCurrentIdentityInfo returns the identity of the requestor. The response includes contextual information that is
+// used for authorization.
+func (r *ProtocolLXD) GetCurrentIdentityInfo() (*api.IdentityInfo, string, error) {
 	err := r.CheckExtension("access_management")
 	if err != nil {
 		return nil, "", err
 	}
 
 	identityInfo := api.IdentityInfo{}
-	etag, err := r.queryStruct(http.MethodGet, api.NewURL().Path("auth", "identities", authenticationMethod, nameOrIdentifier).WithQuery("recursion", "1").String(), nil, "", &identityInfo)
+	etag, err := r.queryStruct(http.MethodGet, api.NewURL().Path("auth", "identities", "current").String(), nil, "", &identityInfo)
 	if err != nil {
 		return nil, "", err
 	}
