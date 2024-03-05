@@ -276,7 +276,9 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(fmt.Errorf("Failed to unescape path argument: %w", err))
 	}
 
-	if authenticationMethod != "" {
+	if authenticationMethod == "current" {
+		return getCurrentIdentityInfo(d, r)
+	} else if authenticationMethod != "" {
 		err = auth.ValidateAuthenticationMethod(authenticationMethod)
 		if err != nil {
 			return response.SmartError(err)
