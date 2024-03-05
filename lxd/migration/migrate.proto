@@ -82,6 +82,7 @@ message MigrationHeader {
 	optional int64				volumeSize		= 11;
 	optional btrfsFeatures			btrfsFeatures 		= 12;
 	optional uint32				indexHeaderVersion	= 13;
+	optional MigrationFSType	fsRefresh		= 14;
 }
 
 message MigrationControl {
