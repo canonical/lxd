@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -47,7 +48,7 @@ type AuthGroupFilter struct {
 }
 
 // ToAPI converts the Group to an api.AuthGroup, making extra database queries as necessary.
-func (g *AuthGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.AuthGroup, error) {
+func (g *AuthGroup) ToAPI(ctx context.Context, tx *sql.Tx, canViewIdentity auth.PermissionChecker, canViewIDPGroup auth.PermissionChecker) (*api.AuthGroup, error) {
 	group := &api.AuthGroup{
 		AuthGroupsPost: api.AuthGroupsPost{
 			AuthGroupPost: api.AuthGroupPost{Name: g.Name},
@@ -93,7 +94,10 @@ func (g *AuthGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.AuthGroup, erro
 
 	group.Identities = make(map[string][]string)
 	for _, identity := range identities {
-		group.Identities[string(identity.AuthMethod)] = append(group.Identities[string(identity.AuthMethod)], identity.Identifier)
+		authenticationMethod := string(identity.AuthMethod)
+		if canViewIdentity(entity.IdentityURL(authenticationMethod, identity.Identifier)) {
+			group.Identities[authenticationMethod] = append(group.Identities[authenticationMethod], identity.Identifier)
+		}
 	}
 
 	identityProviderGroups, err := GetIdentityProviderGroupsByGroupID(ctx, tx, g.ID)
@@ -102,7 +106,9 @@ func (g *AuthGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.AuthGroup, erro
 	}
 
 	for _, idpGroup := range identityProviderGroups {
-		group.IdentityProviderGroups = append(group.IdentityProviderGroups, idpGroup.Name)
+		if canViewIDPGroup(entity.IdentityProviderGroupURL(idpGroup.Name)) {
+			group.IdentityProviderGroups = append(group.IdentityProviderGroups, idpGroup.Name)
+		}
 	}
 
 	return group, nil
