@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-02-20 21:09+0000\n"
+"POT-Creation-Date: 2024-03-05 17:17+0000\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -2958,7 +2958,7 @@ msgstr ""
 msgid "Group %s created"
 msgstr " Использование сети:"
 
-#: lxc/auth.go:186 lxc/auth.go:1489
+#: lxc/auth.go:186
 #, fuzzy, c-format
 msgid "Group %s deleted"
 msgstr " Использование сети:"
@@ -3058,6 +3058,11 @@ msgstr ""
 #: lxc/auth.go:1439
 #, fuzzy, c-format
 msgid "Identity provider group %s created"
+msgstr " Использование сети:"
+
+#: lxc/auth.go:1489
+#, fuzzy, c-format
+msgid "Identity provider group %s deleted"
 msgstr " Использование сети:"
 
 #: lxc/rebuild.go:32

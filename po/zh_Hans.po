@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-02-20 21:09+0000\n"
+"POT-Creation-Date: 2024-03-05 17:17+0000\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: 0x0916 <w@laoqinren.net>\n"
 "Language-Team: Chinese (Simplified) <https://hosted.weblate.org/projects/"
@@ -2772,7 +2772,7 @@ msgstr ""
 msgid "Group %s created"
 msgstr ""
 
-#: lxc/auth.go:186 lxc/auth.go:1489
+#: lxc/auth.go:186
 #, c-format
 msgid "Group %s deleted"
 msgstr ""
@@ -2871,6 +2871,11 @@ msgstr ""
 #: lxc/auth.go:1439
 #, c-format
 msgid "Identity provider group %s created"
+msgstr ""
+
+#: lxc/auth.go:1489
+#, c-format
+msgid "Identity provider group %s deleted"
 msgstr ""
 
 #: lxc/rebuild.go:32
