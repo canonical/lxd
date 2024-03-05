@@ -164,7 +164,17 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 	recursion := request.QueryParam(r, "recursion")
 	s := d.State()
 
-	hasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
+	}
+
+	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentity)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
+	}
+
+	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
@@ -182,7 +192,7 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 
 		groups = make([]dbCluster.AuthGroup, 0, len(groups))
 		for _, group := range allGroups {
-			if hasPermission(entity.AuthGroupURL(group.Name)) {
+			if canViewGroup(entity.AuthGroupURL(group.Name)) {
 				groups = append(groups, group)
 			}
 		}
@@ -247,12 +257,17 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 
 			apiIdentities := make(map[string][]string)
 			for _, identity := range groupsIdentities[group.ID] {
-				apiIdentities[string(identity.AuthMethod)] = append(apiIdentities[string(identity.AuthMethod)], identity.Identifier)
+				authenticationMethod := string(identity.AuthMethod)
+				if canViewIdentity(entity.IdentityURL(authenticationMethod, identity.Identifier)) {
+					apiIdentities[authenticationMethod] = append(apiIdentities[authenticationMethod], identity.Identifier)
+				}
 			}
 
 			idpGroups := make([]string, 0, len(groupsIdentityProviderGroups[group.ID]))
 			for _, idpGroup := range groupsIdentityProviderGroups[group.ID] {
-				idpGroups = append(idpGroups, idpGroup.Name)
+				if canViewIDPGroup(entity.IdentityProviderGroupURL(idpGroup.Name)) {
+					idpGroups = append(idpGroups, idpGroup.Name)
+				}
 			}
 
 			apiGroups = append(apiGroups, api.AuthGroup{
@@ -398,13 +413,23 @@ func getAuthGroup(d *Daemon, r *http.Request) response.Response {
 
 	var apiGroup *api.AuthGroup
 	s := d.State()
+	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentity)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
+	}
+
+	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
+	}
+
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		group, err := dbCluster.GetAuthGroup(ctx, tx.Tx(), groupName)
 		if err != nil {
 			return err
 		}
 
-		apiGroup, err = group.ToAPI(ctx, tx.Tx())
+		apiGroup, err = group.ToAPI(ctx, tx.Tx(), canViewIdentity, canViewIDPGroup)
 		if err != nil {
 			return err
 		}
@@ -465,13 +490,23 @@ func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
 	defer cancel()
 
 	s := d.State()
+	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentity)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
+	}
+
+	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
+	}
+
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		group, err := dbCluster.GetAuthGroup(ctx, tx.Tx(), groupName)
 		if err != nil {
 			return err
 		}
 
-		apiGroup, err := group.ToAPI(ctx, tx.Tx())
+		apiGroup, err := group.ToAPI(ctx, tx.Tx(), canViewIdentity, canViewIDPGroup)
 		if err != nil {
 			return err
 		}
@@ -554,13 +589,23 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 	defer cancel()
 
 	s := d.State()
+	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentity)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
+	}
+
+	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
+	}
+
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		group, err := dbCluster.GetAuthGroup(ctx, tx.Tx(), groupName)
 		if err != nil {
 			return err
 		}
 
-		apiGroup, err := group.ToAPI(ctx, tx.Tx())
+		apiGroup, err := group.ToAPI(ctx, tx.Tx(), canViewIdentity, canViewIDPGroup)
 		if err != nil {
 			return err
 		}
