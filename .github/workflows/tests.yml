@@ -274,7 +274,7 @@ jobs:
           sudo apt-get clean
 
           mkdir -p "$(go env GOPATH)/bin"
-          curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/archive/minio.RELEASE.2024-02-24T17-11-14Z --output "$(go env GOPATH)/bin/minio"
+          curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/minio --output "$(go env GOPATH)/bin/minio"
           chmod +x "$(go env GOPATH)/bin/minio"
 
           # Also grab the latest minio client to maintain compatibility with the server.
