@@ -95,7 +95,7 @@ func networkLoadBalancerConfigAdd(tx *sql.Tx, loadBalancerID int64, config map[s
 }
 
 // UpdateNetworkLoadBalancer updates an existing Network Load Balancer.
-func (c *ClusterTx) UpdateNetworkLoadBalancer(ctx context.Context, networkID int64, loadBalancerID int64, info *api.NetworkLoadBalancerPut) error {
+func (c *ClusterTx) UpdateNetworkLoadBalancer(ctx context.Context, networkID int64, loadBalancerID int64, info api.NetworkLoadBalancerPut) error {
 	var err error
 	var backendsJSON, portsJSON []byte
 
