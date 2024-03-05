@@ -6519,10 +6519,8 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 		return fmt.Errorf("Failed loading instance: %w", err)
 	}
 
-	// The refresh argument passed to MigrationTypes() is always set
-	// to false here. The migration source/sender doesn't need to care whether
-	// or not it's doing a refresh as the migration sink/receiver will know
-	// this, and adjust the migration types accordingly.
+	// The refresh argument passed to MigrationTypes() is always set to false here.
+	// We only know if a refresh is requested if set in the header response from the target.
 	poolMigrationTypes := pool.MigrationTypes(storagePools.InstanceContentType(d), false, args.Snapshots)
 	if len(poolMigrationTypes) == 0 {
 		return fmt.Errorf("No source migration types available")
@@ -6531,6 +6529,13 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	// Convert the pool's migration type options to an offer header to target.
 	// Populate the Fs, ZfsFeatures and RsyncFeatures fields.
 	offerHeader := migration.TypesToHeader(poolMigrationTypes...)
+
+	// In case the target wants to initiate a refresh send the preferred migration type too.
+	// Populate the FsRefresh field.
+	poolMigrationTypesRefresh := pool.MigrationTypes(storagePools.InstanceContentType(d), true, args.Snapshots)
+	if len(poolMigrationTypesRefresh) > 0 {
+		offerHeader.FsRefresh = &poolMigrationTypesRefresh[0].FSType
+	}
 
 	// Offer to send index header.
 	indexHeaderVersion := migration.IndexHeaderVersion
@@ -6587,7 +6592,8 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	d.logger.Debug("Got migration offer response from target")
 
 	// Negotiated migration types.
-	migrationTypes, err := migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
+	// Use the headers flag indicating if a refresh is requested to pick the right set of migration types.
+	migrationTypes, err := migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, pool.MigrationTypes(storagePools.InstanceContentType(d), respHeader.GetRefresh(), args.Snapshots))
 	if err != nil {
 		return fmt.Errorf("Failed to negotiate migration type: %w", err)
 	}
@@ -7082,6 +7088,12 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	// The source will never set Refresh in the offer header.
 	// However, to determine the correct migration type Refresh needs to be set.
 	offerHeader.Refresh = &args.Refresh
+
+	// Use the respective migration types offered by the source when performing a refresh.
+	// Older versions of LXD might not send this field in the offer header.
+	if args.Refresh && offerHeader.FsRefresh != nil {
+		offerHeader.Fs = offerHeader.FsRefresh
+	}
 
 	// Extract the source's migration type and then match it against our pool's supported types and features.
 	// If a match is found the combined features list will be sent back to requester.
