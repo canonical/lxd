@@ -49,7 +49,11 @@ test_authorization() {
   lxc auth group permission remove test-group instance c1 can_exec project=default # Valid
   ! lxc auth group permission remove test-group instance c1 can_exec project=default || false # Already removed
   ! lxc auth group permission add test-group instance c1 not_an_instance_entitlement project=default || false # Invalid entitlement
-  lxc rm c1
+
+  # Test permission is removed automatically when instance is removed.
+  lxc auth group permission add test-group instance c1 can_exec project=default # Valid
+  lxc rm c1 --force
+  ! lxd sql global "SELECT * FROM auth_groups_permissions WHERE entitlement = 'can_exec'" | grep c1 || false # Permission should be removed when instance is removed.
 
   # Network permissions
   ! lxc auth group permission add test-group network n1 can_view project=default || false # Not found

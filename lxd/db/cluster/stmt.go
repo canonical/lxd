@@ -3,6 +3,7 @@
 package cluster
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 )
@@ -59,4 +60,19 @@ func StmtString(code int) (string, error) {
 	}
 
 	return stmt, nil
+}
+
+// applyTriggers adds triggers to the database.
+//
+// Warning: These triggers are applied separately to the schema update mechanism. Changes to these triggers (especially their names)
+// may require a patch.
+func applyTriggers(ctx context.Context, tx *sql.Tx) error {
+	for _, triggerStmt := range entityDeletionTriggers {
+		_, err := tx.ExecContext(ctx, triggerStmt)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

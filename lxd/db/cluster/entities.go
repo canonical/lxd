@@ -627,14 +627,12 @@ func GetEntityURL(ctx context.Context, tx *sql.Tx, entityType entity.Type, entit
 	}
 
 	row := tx.QueryRowContext(ctx, stmt, entityID)
-	if errors.Is(row.Err(), sql.ErrNoRows) {
-		return nil, api.StatusErrorf(http.StatusNotFound, "No entity found with id `%d` and type %q", entityID, entityType)
-	}
-
 	entityRef := &EntityRef{}
 	err := entityRef.scan(row.Scan)
-	if err != nil {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("Failed to scan entity URL: %w", err)
+	} else if err != nil {
+		return nil, api.StatusErrorf(http.StatusNotFound, "No entity found with id `%d` and type %q", entityID, entityType)
 	}
 
 	return entityRef.getURL()
@@ -1140,3 +1138,353 @@ func PopulateEntityReferencesFromURLs(ctx context.Context, tx *sql.Tx, entityURL
 
 	return nil
 }
+
+var entityDeletionTriggers = map[entity.Type]string{
+	entity.TypeImage:                 imageDeletionTrigger,
+	entity.TypeProfile:               profileDeletionTrigger,
+	entity.TypeProject:               projectDeletionTrigger,
+	entity.TypeInstance:              instanceDeletionTrigger,
+	entity.TypeInstanceBackup:        instanceBackupDeletionTrigger,
+	entity.TypeInstanceSnapshot:      instanceSnapshotDeletionTrigger,
+	entity.TypeNetwork:               networkDeletionTrigger,
+	entity.TypeNetworkACL:            networkACLDeletionTrigger,
+	entity.TypeNode:                  nodeDeletionTrigger,
+	entity.TypeOperation:             operationDeletionTrigger,
+	entity.TypeStoragePool:           storagePoolDeletionTrigger,
+	entity.TypeStorageVolume:         storageVolumeDeletionTrigger,
+	entity.TypeStorageVolumeBackup:   storageVolumeBackupDeletionTrigger,
+	entity.TypeStorageVolumeSnapshot: storageVolumeSnapshotDeletionTrigger,
+	entity.TypeWarning:               warningDeletionTrigger,
+	entity.TypeClusterGroup:          clusterGroupDeletionTrigger,
+	entity.TypeStorageBucket:         storageBucketDeletionTrigger,
+	entity.TypeImageAlias:            imageAliasDeletionTrigger,
+	entity.TypeNetworkZone:           networkZoneDeletionTrigger,
+	entity.TypeAuthGroup:             authGroupDeletionTrigger,
+	entity.TypeIdentityProviderGroup: identityProviderGroupDeletionTrigger,
+	entity.TypeIdentity:              identityDeletionTrigger,
+}
+
+// imageDeletionTrigger deletes any permissions or warnings associated with an image when it is deleted.
+var imageDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_image_delete;
+CREATE TRIGGER on_image_delete
+	AFTER DELETE ON images
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeImage, entityTypeImage)
+
+// profileDeletionTrigger deletes any permissions or warnings associated with a profile when it is deleted.
+var profileDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_profile_delete;
+CREATE TRIGGER on_profile_delete
+	AFTER DELETE ON profiles
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeProfile, entityTypeProfile)
+
+// projectDeletionTrigger deletes any permissions or warnings associated with a project when it is deleted.
+var projectDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_project_delete;
+CREATE TRIGGER on_project_delete
+	AFTER DELETE ON projects
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeProject, entityTypeProject)
+
+// instanceDeletionTrigger deletes any permissions or warnings associated with an instance when it is deleted.
+var instanceDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_instance_delete;
+CREATE TRIGGER on_instance_delete
+	AFTER DELETE ON instances
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeInstance, entityTypeInstance)
+
+// instanceBackupDeletionTrigger deletes any permissions or warnings associated with an instance backup when it is deleted.
+var instanceBackupDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_instance_backup_delete;
+CREATE TRIGGER on_instance_backup_delete
+	AFTER DELETE ON instances_backups
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeInstanceBackup, entityTypeInstanceBackup)
+
+// instanceSnapshotDeletionTrigger deletes any permissions or warnings associated with an instance snapshot when it is deleted.
+var instanceSnapshotDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_instance_snaphot_delete;
+CREATE TRIGGER on_instance_snaphot_delete
+	AFTER DELETE ON instances_snapshots
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeInstanceSnapshot, entityTypeInstanceSnapshot)
+
+// networkDeletionTrigger deletes any permissions or warnings associated with a network when it is deleted.
+var networkDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_network_delete;
+CREATE TRIGGER on_network_delete
+	AFTER DELETE ON networks
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeNetwork, entityTypeNetwork)
+
+// networkACLDeletionTrigger deletes any permissions or warnings associated with a network ACL when it is deleted.
+var networkACLDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_network_acl_delete;
+CREATE TRIGGER on_network_acl_delete
+	AFTER DELETE ON networks_acls
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeNetworkACL, entityTypeNetworkACL)
+
+// nodeDeletionTrigger deletes any permissions or warnings associated with a node when it is deleted.
+var nodeDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_node_delete;
+CREATE TRIGGER on_node_delete
+	AFTER DELETE ON nodes
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeNode, entityTypeNode)
+
+// operationDeletionTrigger deletes any permissions or warnings associated with an operation when it is deleted.
+var operationDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_operation_delete;
+CREATE TRIGGER on_operation_delete
+	AFTER DELETE ON operations
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeOperation, entityTypeOperation)
+
+// storagePoolDeletionTrigger deletes any permissions or warnings associated with a storage pool when it is deleted.
+var storagePoolDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_storage_pool_delete;
+CREATE TRIGGER on_storage_pool_delete
+	AFTER DELETE ON storage_pools
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeStoragePool, entityTypeStoragePool)
+
+// storageVolumeDeletionTrigger deletes any permissions or warnings associated with a storage volume when it is deleted.
+var storageVolumeDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_storage_volume_delete;
+CREATE TRIGGER on_storage_volume_delete
+	AFTER DELETE ON storage_volumes
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeStorageVolume, entityTypeStorageVolume)
+
+// storageVolumeBackupDeletionTrigger deletes any permissions or warnings associated with a storage volume backup when it is deleted.
+var storageVolumeBackupDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_storage_volume_backup_delete;
+CREATE TRIGGER on_storage_volume_backup_delete
+	AFTER DELETE ON storage_volumes_backups
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeStorageVolumeBackup, entityTypeStorageVolumeBackup)
+
+// storageVolumeSnapshotDeletionTrigger deletes any permissions or warnings associated with a storage volume snapshot when it is deleted.
+var storageVolumeSnapshotDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_storage_volume_snapshot_delete;
+CREATE TRIGGER on_storage_volume_snapshot_delete
+	AFTER DELETE ON storage_volumes_snapshots
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeStorageVolumeSnapshot, entityTypeStorageVolumeSnapshot)
+
+// warningDeletionTrigger deletes any permissions associated with a warning when it is deleted.
+var warningDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_warning_delete;
+CREATE TRIGGER on_warning_delete
+	AFTER DELETE ON warnings
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	END
+`, entityTypeWarning)
+
+// clusterGroupDeletionTrigger deletes any permissions or warnings associated with a cluster group when it is deleted.
+var clusterGroupDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_cluster_group_delete;
+CREATE TRIGGER on_cluster_group_delete
+	AFTER DELETE ON cluster_groups
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeClusterGroup, entityTypeClusterGroup)
+
+// storageBucketDeletionTrigger deletes any permissions or warnings associated with a storage bucket when it is deleted.
+var storageBucketDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_storage_bucket_delete;
+CREATE TRIGGER on_storage_bucket_delete
+	AFTER DELETE ON storage_buckets
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeStorageBucket, entityTypeStorageBucket)
+
+// networkZoneDeletionTrigger deletes any permissions or warnings associated with a network zone when it is deleted.
+var networkZoneDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_network_zone_delete;
+CREATE TRIGGER on_network_zone_delete
+	AFTER DELETE ON networks_zones
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeNetworkZone, entityTypeNetworkZone)
+
+// imageAliasDeletionTrigger deletes any permissions or warnings associated with an image alias when it is deleted.
+var imageAliasDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_image_alias_delete;
+CREATE TRIGGER on_image_alias_delete
+	AFTER DELETE ON images_aliases
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeImageAlias, entityTypeImageAlias)
+
+// authGroupDeletionTrigger deletes any warnings associated with an auth group when it is deleted. Permissions are
+// related to auth groups via foreign key and will have already been deleted.
+var authGroupDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_auth_group_delete;
+CREATE TRIGGER on_auth_group_delete
+	AFTER DELETE ON auth_groups
+	BEGIN
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeAuthGroup)
+
+// identityProviderGroupDeletionTrigger deletes any permissions or warnings associated with an identity provider group when it is deleted.
+var identityProviderGroupDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_identity_provider_group_delete;
+CREATE TRIGGER on_identity_provider_group_delete
+	AFTER DELETE ON identity_provider_groups
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeIdentityProviderGroup, entityTypeIdentityProviderGroup)
+
+// identityDeletionTrigger deletes any permissions or warnings associated with an identity when it is deleted.
+var identityDeletionTrigger = fmt.Sprintf(`
+DROP TRIGGER IF EXISTS on_identity_delete;
+CREATE TRIGGER on_identity_delete
+	AFTER DELETE ON identities
+	BEGIN
+	DELETE FROM auth_groups_permissions 
+		WHERE entity_type = %d 
+		AND entity_id = OLD.id;
+	DELETE FROM warnings
+		WHERE entity_type_code = %d
+		AND entity_id = OLD.id;
+	END
+`, entityTypeIdentity, entityTypeIdentity)

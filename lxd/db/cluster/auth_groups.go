@@ -6,8 +6,10 @@ import (
 	"fmt"
 
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // Code generation directives.
@@ -60,9 +62,22 @@ func (g *AuthGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.AuthGroup, erro
 		return nil, err
 	}
 
-	entityURLs, err := GetPermissionEntityURLs(ctx, tx, permissions)
+	permissions, danglingPermissions, entityURLs, err := GetPermissionEntityURLs(ctx, tx, permissions)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(danglingPermissions) > 0 {
+		permissionIDs := make([]int, 0, len(danglingPermissions))
+		entityTypes := make([]EntityType, 0, len(danglingPermissions))
+		for _, perm := range danglingPermissions {
+			permissionIDs = append(permissionIDs, perm.ID)
+			if !shared.ValueInSlice(perm.EntityType, entityTypes) {
+				entityTypes = append(entityTypes, perm.EntityType)
+			}
+		}
+
+		logger.Warn("Encountered dangling permissions", logger.Ctx{"permission_ids": permissionIDs, "entity_types": entityTypes})
 	}
 
 	apiPermissions := make([]api.Permission, 0, len(permissions))
@@ -231,15 +246,10 @@ JOIN auth_groups_identity_provider_groups ON identity_provider_groups.id = auth_
 
 // GetPermissionsByAuthGroupID returns the permissions that belong to the group with the given ID.
 func GetPermissionsByAuthGroupID(ctx context.Context, tx *sql.Tx, groupID int) ([]Permission, error) {
-	stmt := fmt.Sprintf(`
-SELECT %s FROM permissions 
-JOIN auth_groups_permissions ON permissions.id = auth_groups_permissions.permission_id 
-WHERE auth_groups_permissions.auth_group_id = ?`, permissionColumns())
-
 	var result []Permission
 	dest := func(scan func(dest ...any) error) error {
 		p := Permission{}
-		err := scan(&p.ID, &p.Entitlement, &p.EntityType, &p.EntityID)
+		err := scan(&p.ID, &p.GroupID, &p.Entitlement, &p.EntityType, &p.EntityID)
 		if err != nil {
 			return err
 		}
@@ -248,7 +258,7 @@ WHERE auth_groups_permissions.auth_group_id = ?`, permissionColumns())
 		return nil
 	}
 
-	err := query.Scan(ctx, tx, stmt, dest, groupID)
+	err := query.Scan(ctx, tx, `SELECT id, auth_group_id, entitlement, entity_type, entity_id FROM auth_groups_permissions WHERE auth_group_id = ?`, dest, groupID)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get permissions for the group with ID `%d`: %w", groupID, err)
 	}
@@ -256,23 +266,19 @@ WHERE auth_groups_permissions.auth_group_id = ?`, permissionColumns())
 	return result, nil
 }
 
-// GetAllPermissionsByAuthGroupIDs returns a map of group ID to the permissions that belong to the auth group with that ID.
-func GetAllPermissionsByAuthGroupIDs(ctx context.Context, tx *sql.Tx) (map[int][]Permission, error) {
-	stmt := fmt.Sprintf(`
-SELECT auth_groups_permissions.auth_group_id, %s 
-FROM permissions 
-JOIN auth_groups_permissions ON permissions.id = auth_groups_permissions.permission_id`, permissionColumns())
+// GetPermissions returns a map of group ID to the permissions that belong to the auth group with that ID.
+func GetPermissions(ctx context.Context, tx *sql.Tx) ([]Permission, error) {
+	stmt := `SELECT id, auth_group_id, entitlement, entity_type, entity_id FROM auth_groups_permissions`
 
-	result := make(map[int][]Permission)
+	var result []Permission
 	dest := func(scan func(dest ...any) error) error {
-		var groupID int
 		p := Permission{}
-		err := scan(&groupID, &p.ID, &p.Entitlement, &p.EntityType, &p.EntityID)
+		err := scan(&p.ID, &p.GroupID, &p.Entitlement, &p.EntityType, &p.EntityID)
 		if err != nil {
 			return err
 		}
 
-		result[groupID] = append(result[groupID], p)
+		result = append(result, p)
 		return nil
 	}
 
@@ -286,18 +292,18 @@ JOIN auth_groups_permissions ON permissions.id = auth_groups_permissions.permiss
 
 // SetAuthGroupPermissions deletes all auth_group -> permission mappings from the `auth_group_permissions` table
 // where the group ID is equal to the given value. Then it inserts a new row for each given permission ID.
-func SetAuthGroupPermissions(ctx context.Context, tx *sql.Tx, groupID int, permissionIDs []int) error {
+func SetAuthGroupPermissions(ctx context.Context, tx *sql.Tx, groupID int, authGroupPermissions []Permission) error {
 	_, err := tx.ExecContext(ctx, `DELETE FROM auth_groups_permissions WHERE auth_group_id = ?`, groupID)
 	if err != nil {
 		return fmt.Errorf("Failed to delete existing permissions for group with ID `%d`: %w", groupID, err)
 	}
 
-	if len(permissionIDs) == 0 {
+	if len(authGroupPermissions) == 0 {
 		return nil
 	}
 
-	for _, permissionID := range permissionIDs {
-		_, err := tx.ExecContext(ctx, `INSERT INTO auth_groups_permissions (auth_group_id, permission_id) VALUES (?, ?);`, groupID, permissionID)
+	for _, permission := range authGroupPermissions {
+		_, err := tx.ExecContext(ctx, `INSERT INTO auth_groups_permissions (auth_group_id, entity_type, entity_id, entitlement) VALUES (?, ?, ?, ?);`, permission.GroupID, permission.EntityType, permission.EntityID, permission.Entitlement)
 		if err != nil {
 			return fmt.Errorf("Failed to write group permissions: %w", err)
 		}

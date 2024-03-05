@@ -31,5 +31,5 @@ func CompareVersions(version1, version2 [2]int) (int, error) {
 		return 2, nil
 	}
 
-	return -1, fmt.Errorf("nodes have inconsistent versions")
+	return -1, fmt.Errorf("Cluster members have inconsistent versions")
 }
