@@ -147,8 +147,7 @@ jobs:
         include: >-
           ${{
             github.event_name != 'push' &&
-              fromJSON('[{"go":"1.21.x","suite":"cluster","backend":"dir"},{"go":"1.21.x","suite":"standalone","backend":"dir"},{"go":"tip","suite":"cluster","backend":"dir"},{"go":"tip","suite":"standalone","backend":"dir"}]') ||
-              fromJSON('[{"go":"1.21.x","suite":"cluster","backend":"dir"},{"go":"1.21.x","suite":"standalone","backend":"dir"}]')
+              fromJSON('[{"go":"tip","suite":"cluster","backend":"dir"},{"go":"tip","suite":"standalone","backend":"dir"}]')
           }}
 
     steps:
@@ -215,10 +214,10 @@ jobs:
         if: matrix.go == 'tip'
 
       - name: Check compatibility with min Go version (${{ matrix.go }})
-        if: matrix.go == '1.21.x'
+        if: matrix.go == '1.22.x'
         run: |
           set -eux
-          go mod tidy -go=1.21.5
+          go mod tidy -go=1.22.0
 
       - name: Install dependencies
         run: |
