@@ -148,7 +148,7 @@ jobs:
           ${{
             github.event_name != 'push' &&
               fromJSON('[{"go":"tip","suite":"cluster","backend":"dir"},{"go":"tip","suite":"standalone","backend":"dir"}]') ||
-              []
+              null
           }}
 
     steps:
