@@ -31,6 +31,8 @@ const (
 //
 // API extension: access_management.
 type Identity struct {
+	IdentityPut `yaml:",inline"`
+
 	// AuthenticationMethod is the authentication method that the identity
 	// authenticates to LXD with.
 	// Example: tls
