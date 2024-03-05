@@ -146,7 +146,7 @@ jobs:
         # Only test with go-tip when the event is not a push
         include: >-
           ${{
-            github.event_name != 'push' && 
+            github.event_name != 'push' &&
               fromJSON('[{"go":"1.21.x","suite":"cluster","backend":"dir"},{"go":"1.21.x","suite":"standalone","backend":"dir"},{"go":"tip","suite":"cluster","backend":"dir"},{"go":"tip","suite":"standalone","backend":"dir"}]') ||
               fromJSON('[{"go":"1.21.x","suite":"cluster","backend":"dir"},{"go":"1.21.x","suite":"standalone","backend":"dir"}]')
           }}
@@ -274,7 +274,7 @@ jobs:
           sudo apt-get clean
 
           mkdir -p "$(go env GOPATH)/bin"
-          curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/minio --output "$(go env GOPATH)/bin/minio"
+          curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/archive/minio.RELEASE.2024-02-24T17-11-14Z --output "$(go env GOPATH)/bin/minio"
           chmod +x "$(go env GOPATH)/bin/minio"
 
           # Also grab the latest minio client to maintain compatibility with the server.
