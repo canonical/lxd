@@ -435,16 +435,16 @@ WHERE auth_groups.name IN (
 
 	res, err := tx.ExecContext(ctx, builder.String(), args...)
 	if err != nil {
-		return fmt.Errorf("Failed to write identity provider group mappings: %w", err)
+		return fmt.Errorf("Failed to write identity auth group associations: %w", err)
 	}
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed to check validity of identity provider group mapping creation: %w", err)
+		return fmt.Errorf("Failed to check validity of identity auth group associations: %w", err)
 	}
 
 	if int(rowsAffected) != len(groupNames) {
-		return fmt.Errorf("Failed to write expected number of rows to identity provider group association table (expected %d, got %d)", len(groupNames), rowsAffected)
+		return fmt.Errorf("Failed to write expected number of rows to identity auth group association table (expected %d, got %d)", len(groupNames), rowsAffected)
 	}
 
 	return nil
