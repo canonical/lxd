@@ -289,8 +289,8 @@ func (i Identity) Subject() (string, error) {
 	return metadata.Subject, nil
 }
 
-// ToAPIInfo converts an Identity to an api.IdentityInfo, executing database queries as necessary.
-func (i *Identity) ToAPIInfo(ctx context.Context, tx *sql.Tx) (*api.IdentityInfo, error) {
+// ToAPI converts an Identity to an api.Identity, executing database queries as necessary.
+func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Identity, error) {
 	groups, err := GetAuthGroupsByIdentityID(ctx, tx, i.ID)
 	if err != nil {
 		return nil, err
@@ -301,13 +301,11 @@ func (i *Identity) ToAPIInfo(ctx context.Context, tx *sql.Tx) (*api.IdentityInfo
 		groupNames = append(groupNames, group.Name)
 	}
 
-	return &api.IdentityInfo{
-		Identity: api.Identity{
-			AuthenticationMethod: string(i.AuthMethod),
-			Type:                 string(i.Type),
-			Identifier:           i.Identifier,
-			Name:                 i.Name,
-		},
+	return &api.Identity{
+		AuthenticationMethod: string(i.AuthMethod),
+		Type:                 string(i.Type),
+		Identifier:           i.Identifier,
+		Name:                 i.Name,
 		IdentityPut: api.IdentityPut{
 			Groups: groupNames,
 		},
