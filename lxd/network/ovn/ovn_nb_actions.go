@@ -541,14 +541,36 @@ func (o *NB) LogicalRouterPortLinkChassisGroup(portName OVNRouterPort, haChassis
 // LogicalSwitchAdd adds a named logical switch.
 // If mayExist is true, then an existing resource of the same name is not treated as an error.
 func (o *NB) LogicalSwitchAdd(switchName OVNSwitch, mayExist bool) error {
-	args := []string{}
+	// Prepare the context with timeout for the transaction.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	if mayExist {
-		args = append(args, "--may-exist")
+	logicalSwitch := ovnNB.LogicalSwitch{
+		Name: string(switchName),
 	}
 
-	args = append(args, "ls-add", string(switchName))
-	_, err := o.nbctl(args...)
+	// Check if already exists.
+	err := o.get(ctx, &logicalSwitch)
+	if err != nil && !errors.Is(err, ovsdbClient.ErrNotFound) {
+		return err
+	}
+
+	if logicalSwitch.UUID != "" {
+		if mayExist {
+			return nil
+		}
+
+		return ErrExists
+	}
+
+	// Create the record.
+	operations, err := o.client.Create(&logicalSwitch)
+	if err != nil {
+		return fmt.Errorf("Failed preparing create operation: %w", err)
+	}
+
+	// Apply the changes and wait for the changes to be take effect in the SB database.
+	err = o.transactAndWaitSB(ctx, operations...)
 	if err != nil {
 		return err
 	}
