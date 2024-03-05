@@ -405,7 +405,7 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 //	          description: Status code
 //	          example: 200
 //	        metadata:
-//	          $ref: "#/definitions/IdentityInfo"
+//	          $ref: "#/definitions/Identity"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
@@ -416,10 +416,10 @@ func getIdentity(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var apiIdentityInfo *api.IdentityInfo
+	var apiIdentity *api.Identity
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		apiIdentityInfo, err = id.ToAPIInfo(ctx, tx.Tx())
+		apiIdentity, err = id.ToAPI(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
@@ -430,7 +430,7 @@ func getIdentity(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return response.SyncResponseETag(true, apiIdentityInfo, apiIdentityInfo)
+	return response.SyncResponseETag(true, apiIdentity, apiIdentity)
 }
 
 // swagger:operation PUT /1.0/auth/identities/{authenticationMethod}/{nameOrIdentifier} identities identity_put
@@ -477,12 +477,12 @@ func updateIdentity(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		apiIdentityInfo, err := id.ToAPIInfo(ctx, tx.Tx())
+		apiIdentity, err := id.ToAPI(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
 
-		err = util.EtagCheck(r, apiIdentityInfo)
+		err = util.EtagCheck(r, apiIdentity)
 		if err != nil {
 			return err
 		}
@@ -565,21 +565,21 @@ func patchIdentity(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
-	var apiIdentityInfo *api.IdentityInfo
+	var apiIdentity *api.Identity
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		apiIdentityInfo, err = id.ToAPIInfo(ctx, tx.Tx())
+		apiIdentity, err = id.ToAPI(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
 
-		err = util.EtagCheck(r, apiIdentityInfo)
+		err = util.EtagCheck(r, apiIdentity)
 		if err != nil {
 			return err
 		}
 
 		for _, groupName := range identityPut.Groups {
-			if !shared.ValueInSlice(groupName, apiIdentityInfo.Groups) {
-				apiIdentityInfo.Groups = append(apiIdentityInfo.Groups, groupName)
+			if !shared.ValueInSlice(groupName, apiIdentity.Groups) {
+				apiIdentity.Groups = append(apiIdentity.Groups, groupName)
 			}
 		}
 
