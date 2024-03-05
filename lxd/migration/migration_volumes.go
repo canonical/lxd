@@ -193,14 +193,8 @@ func MatchTypes(offer *MigrationHeader, fallbackType MigrationFSType, ourTypes [
 				offeredFeatures = offer.GetZfsFeaturesSlice()
 			} else if offerFSType == MigrationFSType_BTRFS {
 				offeredFeatures = offer.GetBtrfsFeaturesSlice()
-			} else if offerFSType == MigrationFSType_RSYNC {
+			} else if shared.ValueInSlice(offerFSType, []MigrationFSType{MigrationFSType_RSYNC, MigrationFSType_BLOCK_AND_RSYNC}) {
 				offeredFeatures = offer.GetRsyncFeaturesSlice()
-				if !shared.ValueInSlice("bidirectional", offeredFeatures) {
-					// If no bi-directional support, this means we are getting a response from
-					// an old LXD server that doesn't support bidirectional negotiation, so
-					// assume LXD 3.7 level. NOTE: Do NOT extend this list of arguments.
-					offeredFeatures = []string{"xattrs", "delete", "compress"}
-				}
 			}
 
 			// Find common features in both our type and offered type.
