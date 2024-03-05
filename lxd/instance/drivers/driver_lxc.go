@@ -5426,11 +5426,6 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 			// Setup rsync options (used for CRIU state transfers).
 			rsyncBwlimit := pool.Driver().Config()["rsync.bwlimit"]
 			rsyncFeatures := respHeader.GetRsyncFeaturesSlice()
-			if !shared.ValueInSlice("bidirectional", rsyncFeatures) {
-				// If no bi-directional support, assume LXD 3.7 level.
-				// NOTE: Do NOT extend this list of arguments.
-				rsyncFeatures = []string{"xattrs", "delete", "compress"}
-			}
 
 			if respHeader.Criu == nil {
 				return fmt.Errorf("Got no CRIU socket type for live migration")
