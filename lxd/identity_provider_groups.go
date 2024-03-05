@@ -28,11 +28,11 @@ var identityProviderGroupsCmd = APIEndpoint{
 	Path: "auth/identity-provider-groups",
 	Get: APIEndpointAction{
 		Handler:       getIdentityProviderGroups,
-		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanViewGroups),
+		AccessHandler: allowAuthenticated,
 	},
 	Post: APIEndpointAction{
 		Handler:       createIdentityProviderGroup,
-		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEditGroups),
+		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanCreateIdentityProviderGroups),
 	},
 }
 
@@ -41,23 +41,23 @@ var identityProviderGroupCmd = APIEndpoint{
 	Path: "auth/identity-provider-groups/{idpGroupName}",
 	Get: APIEndpointAction{
 		Handler:       getIdentityProviderGroup,
-		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanViewGroups),
+		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, auth.EntitlementCanView, "idpGroupName"),
 	},
 	Put: APIEndpointAction{
 		Handler:       updateIdentityProviderGroup,
-		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEditGroups),
+		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, auth.EntitlementCanEdit, "idpGroupName"),
 	},
 	Post: APIEndpointAction{
 		Handler:       renameIdentityProviderGroup,
-		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEditGroups),
+		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, auth.EntitlementCanEdit, "idpGroupName"),
 	},
 	Delete: APIEndpointAction{
 		Handler:       deleteIdentityProviderGroup,
-		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEditGroups),
+		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, auth.EntitlementCanDelete, "idpGroupName"),
 	},
 	Patch: APIEndpointAction{
 		Handler:       patchIdentityProviderGroup,
-		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEditGroups),
+		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, auth.EntitlementCanEdit, "idpGroupName"),
 	},
 }
 
