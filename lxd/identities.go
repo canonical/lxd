@@ -190,44 +190,6 @@ func identityAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 
-// swagger:operation GET /1.0/auth/identities?recursion=2 identities identities_get_recursion2
-//
-//	Get the identities
-//
-//	Returns a list of identities including group membership.
-//
-//	---
-//	produces:
-//	  - application/json
-//	responses:
-//	  "200":
-//	    description: API endpoints
-//	    schema:
-//	      type: object
-//	      description: Sync response
-//	      properties:
-//	        type:
-//	          type: string
-//	          description: Response type
-//	          example: sync
-//	        status:
-//	          type: string
-//	          description: Status description
-//	          example: Success
-//	        status_code:
-//	          type: integer
-//	          description: Status code
-//	          example: 200
-//	        metadata:
-//	          type: array
-//	          description: List of identities
-//	          items:
-//	            $ref: "#/definitions/IdentityInfo"
-//	  "403":
-//	    $ref: "#/responses/Forbidden"
-//	  "500":
-//	    $ref: "#/responses/InternalServerError"
-
 // swagger:operation GET /1.0/auth/identities/{authenticationMethod} identities identities_get_by_auth_method
 //
 //	Get the identities
@@ -308,44 +270,6 @@ func identityAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-
-// swagger:operation GET /1.0/auth/identities/{authenticationMethod}?recursion=2 identities identities_get_by_auth_method_recursion2
-//
-//	Get the identities
-//
-//	Returns a list of identities including group membership.
-//
-//	---
-//	produces:
-//	  - application/json
-//	responses:
-//	  "200":
-//	    description: API endpoints
-//	    schema:
-//	      type: object
-//	      description: Sync response
-//	      properties:
-//	        type:
-//	          type: string
-//	          description: Response type
-//	          example: sync
-//	        status:
-//	          type: string
-//	          description: Status description
-//	          example: Success
-//	        status_code:
-//	          type: integer
-//	          description: Status code
-//	          example: 200
-//	        metadata:
-//	          type: array
-//	          description: List of identities
-//	          items:
-//	            $ref: "#/definitions/IdentityInfo"
-//	  "403":
-//	    $ref: "#/responses/Forbidden"
-//	  "500":
-//	    $ref: "#/responses/InternalServerError"
 func getIdentities(d *Daemon, r *http.Request) response.Response {
 	authenticationMethod, err := url.PathUnescape(mux.Vars(r)["authenticationMethod"])
 	if err != nil {
@@ -368,7 +292,7 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 
 	var identities []dbCluster.Identity
 	var groupsByIdentityID map[int][]dbCluster.AuthGroup
-	var apiIdentityInfo *api.IdentityInfo
+	var apiIdentity *api.Identity
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all identities, filter by authentication method if present.
 		var filters []dbCluster.IdentityFilter
@@ -393,14 +317,14 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 			return nil
 		}
 
-		if recursion == "2" && len(identities) == 1 {
+		if recursion == "1" && len(identities) == 1 {
 			// It's likely that the user can only view themselves. If so we can optimise here by only getting the
 			// groups for that user.
-			apiIdentityInfo, err = identities[0].ToAPIInfo(ctx, tx.Tx())
+			apiIdentity, err = identities[0].ToAPI(ctx, tx.Tx())
 			if err != nil {
 				return err
 			}
-		} else if recursion == "2" {
+		} else if recursion == "1" {
 			// Otherwise, get all groups and populate the identities outside of the transaction.
 			groupsByIdentityID, err = dbCluster.GetAllAuthGroupsByIdentityIDs(ctx, tx.Tx())
 			if err != nil {
@@ -415,25 +339,11 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Optimisation for user that can only view themselves.
-	if apiIdentityInfo != nil {
-		return response.SyncResponse(true, []api.IdentityInfo{*apiIdentityInfo})
+	if apiIdentity != nil {
+		return response.SyncResponse(true, []api.Identity{*apiIdentity})
 	}
 
 	if recursion == "1" {
-		apiIdentities := make([]api.Identity, 0, len(identities))
-		for _, id := range identities {
-			apiIdentities = append(apiIdentities, api.Identity{
-				AuthenticationMethod: string(id.AuthMethod),
-				Type:                 string(id.Type),
-				Identifier:           id.Identifier,
-				Name:                 id.Name,
-			})
-		}
-
-		return response.SyncResponse(true, apiIdentities)
-	}
-
-	if recursion == "2" {
 		// Convert the []cluster.Group in the groupsByIdentityID map to string slices of the group names.
 		groupNamesByIdentityID := make(map[int][]string, len(groupsByIdentityID))
 		for identityID, groups := range groupsByIdentityID {
@@ -442,22 +352,20 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		apiIdentityInfos := make([]api.IdentityInfo, 0, len(identities))
+		apiIdentities := make([]api.Identity, 0, len(identities))
 		for _, id := range identities {
-			apiIdentityInfos = append(apiIdentityInfos, api.IdentityInfo{
-				Identity: api.Identity{
-					AuthenticationMethod: string(id.AuthMethod),
-					Type:                 string(id.Type),
-					Identifier:           id.Identifier,
-					Name:                 id.Name,
-				},
+			apiIdentities = append(apiIdentities, api.Identity{
+				AuthenticationMethod: string(id.AuthMethod),
+				Type:                 string(id.Type),
+				Identifier:           id.Identifier,
+				Name:                 id.Name,
 				IdentityPut: api.IdentityPut{
 					Groups: groupNamesByIdentityID[id.ID],
 				},
 			})
 		}
 
-		return response.SyncResponse(true, apiIdentityInfos)
+		return response.SyncResponse(true, apiIdentities)
 	}
 
 	urls := make([]string, 0, len(identities))
