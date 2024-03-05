@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/db/query"
@@ -416,24 +415,18 @@ func SetIdentityAuthGroups(ctx context.Context, tx *sql.Tx, identityID int, grou
 	}
 
 	args := []any{identityID}
-	var builder strings.Builder
-	builder.WriteString(`
-INSERT INTO identities_auth_groups (identity_id, auth_group_id)
-SELECT ?, auth_groups.id
-FROM auth_groups
-WHERE auth_groups.name IN (
-`)
-	for i, groupName := range groupNames {
-		if i == len(groupNames)-1 {
-			builder.WriteString(`?)`)
-		} else {
-			builder.WriteString(`?, `)
-		}
-
+	for _, groupName := range groupNames {
 		args = append(args, groupName)
 	}
 
-	res, err := tx.ExecContext(ctx, builder.String(), args...)
+	q := fmt.Sprintf(`
+INSERT INTO identities_auth_groups (identity_id, auth_group_id)
+SELECT ?, auth_groups.id
+FROM auth_groups
+WHERE auth_groups.name IN %s
+`, query.Params(len(groupNames)))
+
+	res, err := tx.ExecContext(ctx, q, args...)
 	if err != nil {
 		return fmt.Errorf("Failed to write identity auth group associations: %w", err)
 	}
