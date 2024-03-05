@@ -98,9 +98,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	}
 
 	// The refresh argument passed to MigrationTypes() is always set
-	// to false here. The migration source/sender doesn't need to care whether
-	// or not it's doing a refresh as the migration sink/receiver will know
-	// this, and adjust the migration types accordingly.
+	// We only know if a refresh is requested if set in the header response from the target.
 	poolMigrationTypes = pool.MigrationTypes(storageDrivers.ContentType(srcConfig.Volume.ContentType), false, !s.volumeOnly)
 	if len(poolMigrationTypes) == 0 {
 		return fmt.Errorf("No source migration types available")
@@ -108,6 +106,13 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 
 	// Convert the pool's migration type options to an offer header to target.
 	offerHeader := migration.TypesToHeader(poolMigrationTypes...)
+
+	// In case the target wants to initiate a refresh send the preferred migration type too.
+	// Populate the FsRefresh field.
+	poolMigrationTypesRefresh := pool.MigrationTypes(storageDrivers.ContentType(srcConfig.Volume.ContentType), true, !s.volumeOnly)
+	if len(poolMigrationTypesRefresh) > 0 {
+		offerHeader.FsRefresh = &poolMigrationTypesRefresh[0].FSType
+	}
 
 	// Offer to send index header.
 	indexHeaderVersion := migration.IndexHeaderVersion
@@ -141,6 +146,8 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		return err
 	}
 
+	// Use the headers flag indicating if a refresh is requested to pick the right set of migration types.
+	poolMigrationTypes = pool.MigrationTypes(storageDrivers.ContentType(srcConfig.Volume.ContentType), respHeader.GetRefresh(), !s.volumeOnly)
 	migrationTypes, err := migration.MatchTypes(respHeader, storagePools.FallbackMigrationType(storageDrivers.ContentType(srcConfig.Volume.ContentType)), poolMigrationTypes)
 	if err != nil {
 		logger.Errorf("Failed to negotiate migration type: %v", err)
@@ -290,6 +297,12 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	// The source/sender will never set Refresh. However, to determine the correct migration type
 	// Refresh needs to be set.
 	offerHeader.Refresh = &c.refresh
+
+	// Use the respective migration types offered by the source when performing a refresh.
+	// Older versions of LXD might not send this field in the offer header.
+	if c.refresh && offerHeader.FsRefresh != nil {
+		offerHeader.Fs = offerHeader.FsRefresh
+	}
 
 	// Extract the source's migration type and then match it against our pool's
 	// supported types and features. If a match is found the combined features list
