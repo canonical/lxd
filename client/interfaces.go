@@ -437,9 +437,8 @@ type InstanceServer interface {
 	GetIdentityIdentifiersByAuthenticationMethod(authenticationMethod string) (identifiers []string, err error)
 	GetIdentities() (identities []api.Identity, err error)
 	GetIdentitiesByAuthenticationMethod(authenticationMethod string) (identities []api.Identity, err error)
-	GetIdentitiesInfo() (identityInfos []api.IdentityInfo, err error)
-	GetIdentitiesInfoByAuthenticationMethod(authenticationMethod string) (identityInfos []api.IdentityInfo, err error)
-	GetIdentity(authenticationMethod string, nameOrIdentifier string) (identityInfo *api.IdentityInfo, ETag string, err error)
+	GetIdentity(authenticationMethod string, nameOrIdentifier string) (identity *api.Identity, ETag string, err error)
+	GetCurrentIdentityInfo() (identityInfo *api.IdentityInfo, ETag string, err error)
 	UpdateIdentity(authenticationMethod string, nameOrIdentifier string, identityPut api.IdentityPut, ETag string) error
 	GetIdentityProviderGroupNames() (identityProviderGroupNames []string, err error)
 	GetIdentityProviderGroups() (identityProviderGroups []api.IdentityProviderGroup, err error)
