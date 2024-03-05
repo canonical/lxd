@@ -83,7 +83,7 @@ GPU devices of type `mig` have the following device options:
     :end-before: <!-- config group device-gpu-mig-device-conf end -->
 ```
 
-You must set either `mig.uuid` (NVIDIA drivers 470+) or both `mig.ci` and `mig.gi` (old NVIDIA drivers).
+You must set either {config:option}`device-gpu-mig-device-conf:mig.uuid` (NVIDIA drivers 470+) or both {config:option}`device-gpu-mig-device-conf:mig.ci` and {config:option}`device-gpu-mig-device-conf:mig.gi` (old NVIDIA drivers).
 
 (gpu-sriov)=
 ## `gputype`: `sriov`
