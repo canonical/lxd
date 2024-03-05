@@ -260,14 +260,9 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 
-			apiIdentities := make([]api.Identity, 0, len(groupsIdentities[group.ID]))
+			apiIdentities := make(map[string][]string)
 			for _, identity := range groupsIdentities[group.ID] {
-				apiIdentities = append(apiIdentities, api.Identity{
-					AuthenticationMethod: string(identity.AuthMethod),
-					Type:                 string(identity.Type),
-					Identifier:           identity.Identifier,
-					Name:                 identity.Name,
-				})
+				apiIdentities[string(identity.AuthMethod)] = append(apiIdentities[string(identity.AuthMethod)], identity.Identifier)
 			}
 
 			idpGroups := make([]string, 0, len(groupsIdentityProviderGroups[group.ID]))
