@@ -146,8 +146,7 @@ jobs:
         # Only test with go-tip when the event is not a push
         include: >-
           ${{
-            github.event_name != 'push' &&
-              fromJSON('[{"go":"tip","suite":"cluster","backend":"dir"},{"go":"tip","suite":"standalone","backend":"dir"}]')
+            (github.event_name != 'push' && fromJSON('[{"go":"tip","suite":"cluster","backend":"dir"},{"go":"tip","suite":"standalone","backend":"dir"}]')) || null
           }}
 
     steps:
