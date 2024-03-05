@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-02-20 21:09+0000\n"
+"POT-Creation-Date: 2024-03-05 17:17+0000\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -2973,7 +2973,7 @@ msgstr "指定したコピー先 %q がコピー元のボリュームの場所 %
 msgid "Group %s created"
 msgstr "プロファイル %s を作成しました"
 
-#: lxc/auth.go:186 lxc/auth.go:1489
+#: lxc/auth.go:186
 #, fuzzy, c-format
 msgid "Group %s deleted"
 msgstr "プロファイル %s を削除しました"
@@ -3073,6 +3073,11 @@ msgstr "ISSUE DATE"
 #: lxc/auth.go:1439
 #, fuzzy, c-format
 msgid "Identity provider group %s created"
+msgstr "クラスターグループ %s を作成しました"
+
+#: lxc/auth.go:1489
+#, fuzzy, c-format
+msgid "Identity provider group %s deleted"
 msgstr "クラスターグループ %s を作成しました"
 
 #: lxc/rebuild.go:32

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-02-20 21:09+0000\n"
+"POT-Creation-Date: 2024-03-05 17:17+0000\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -2907,7 +2907,7 @@ msgstr ""
 msgid "Group %s created"
 msgstr ""
 
-#: lxc/auth.go:186 lxc/auth.go:1489
+#: lxc/auth.go:186
 #, c-format
 msgid "Group %s deleted"
 msgstr ""
@@ -3008,6 +3008,11 @@ msgstr ""
 #, c-format
 msgid "Identity provider group %s created"
 msgstr ""
+
+#: lxc/auth.go:1489
+#, fuzzy, c-format
+msgid "Identity provider group %s deleted"
+msgstr "Il nome del container è: %s"
 
 #: lxc/rebuild.go:32
 msgid "If an instance is running, stop it and then rebuild it"
