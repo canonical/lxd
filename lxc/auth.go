@@ -786,7 +786,7 @@ func (c *cmdIdentityList) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	// List identities
-	identities, err := resource.server.GetIdentitiesInfo()
+	identities, err := resource.server.GetIdentities()
 	if err != nil {
 		return err
 	}
