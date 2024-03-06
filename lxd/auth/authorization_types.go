@@ -58,6 +58,18 @@ const (
 	// EntitlementCanDeleteGroups is the `can_delete_groups` Entitlement. It applies to entity.TypeServer.
 	EntitlementCanDeleteGroups Entitlement = "can_delete_groups"
 
+	// EntitlementCanCreateIdentityProviderGroups is the `can_create_identity_provider_groups` Entitlement. It applies to entity.TypeServer.
+	EntitlementCanCreateIdentityProviderGroups Entitlement = "can_create_identity_provider_groups"
+
+	// EntitlementCanViewIdentityProviderGroups is the `can_view_identity_provider_groups` Entitlement. It applies to entity.TypeServer.
+	EntitlementCanViewIdentityProviderGroups Entitlement = "can_view_identity_provider_groups"
+
+	// EntitlementCanEditIdentityProviderGroups is the `can_edit_identity_provider_groups` Entitlement. It applies to entity.TypeServer.
+	EntitlementCanEditIdentityProviderGroups Entitlement = "can_edit_identity_provider_groups"
+
+	// EntitlementCanDeleteIdentityProviderGroups is the `can_delete_identity_provider_groups` Entitlement. It applies to entity.TypeServer.
+	EntitlementCanDeleteIdentityProviderGroups Entitlement = "can_delete_identity_provider_groups"
+
 	// EntitlementStoragePoolManager is the `storage_pool_manager` Entitlement. It applies to entity.TypeServer.
 	EntitlementStoragePoolManager Entitlement = "storage_pool_manager"
 
