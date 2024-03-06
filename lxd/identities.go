@@ -190,44 +190,6 @@ func identityAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 
-// swagger:operation GET /1.0/auth/identities?recursion=2 identities identities_get_recursion2
-//
-//	Get the identities
-//
-//	Returns a list of identities including group membership.
-//
-//	---
-//	produces:
-//	  - application/json
-//	responses:
-//	  "200":
-//	    description: API endpoints
-//	    schema:
-//	      type: object
-//	      description: Sync response
-//	      properties:
-//	        type:
-//	          type: string
-//	          description: Response type
-//	          example: sync
-//	        status:
-//	          type: string
-//	          description: Status description
-//	          example: Success
-//	        status_code:
-//	          type: integer
-//	          description: Status code
-//	          example: 200
-//	        metadata:
-//	          type: array
-//	          description: List of identities
-//	          items:
-//	            $ref: "#/definitions/IdentityInfo"
-//	  "403":
-//	    $ref: "#/responses/Forbidden"
-//	  "500":
-//	    $ref: "#/responses/InternalServerError"
-
 // swagger:operation GET /1.0/auth/identities/{authenticationMethod} identities identities_get_by_auth_method
 //
 //	Get the identities
@@ -308,51 +270,15 @@ func identityAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-
-// swagger:operation GET /1.0/auth/identities/{authenticationMethod}?recursion=2 identities identities_get_by_auth_method_recursion2
-//
-//	Get the identities
-//
-//	Returns a list of identities including group membership.
-//
-//	---
-//	produces:
-//	  - application/json
-//	responses:
-//	  "200":
-//	    description: API endpoints
-//	    schema:
-//	      type: object
-//	      description: Sync response
-//	      properties:
-//	        type:
-//	          type: string
-//	          description: Response type
-//	          example: sync
-//	        status:
-//	          type: string
-//	          description: Status description
-//	          example: Success
-//	        status_code:
-//	          type: integer
-//	          description: Status code
-//	          example: 200
-//	        metadata:
-//	          type: array
-//	          description: List of identities
-//	          items:
-//	            $ref: "#/definitions/IdentityInfo"
-//	  "403":
-//	    $ref: "#/responses/Forbidden"
-//	  "500":
-//	    $ref: "#/responses/InternalServerError"
 func getIdentities(d *Daemon, r *http.Request) response.Response {
 	authenticationMethod, err := url.PathUnescape(mux.Vars(r)["authenticationMethod"])
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to unescape path argument: %w", err))
 	}
 
-	if authenticationMethod != "" {
+	if authenticationMethod == "current" {
+		return getCurrentIdentityInfo(d, r)
+	} else if authenticationMethod != "" {
 		err = auth.ValidateAuthenticationMethod(authenticationMethod)
 		if err != nil {
 			return response.SmartError(err)
@@ -368,7 +294,7 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 
 	var identities []dbCluster.Identity
 	var groupsByIdentityID map[int][]dbCluster.AuthGroup
-	var apiIdentityInfo *api.IdentityInfo
+	var apiIdentity *api.Identity
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all identities, filter by authentication method if present.
 		var filters []dbCluster.IdentityFilter
@@ -393,14 +319,14 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 			return nil
 		}
 
-		if recursion == "2" && len(identities) == 1 {
+		if recursion == "1" && len(identities) == 1 {
 			// It's likely that the user can only view themselves. If so we can optimise here by only getting the
 			// groups for that user.
-			apiIdentityInfo, err = identities[0].ToAPIInfo(ctx, tx.Tx())
+			apiIdentity, err = identities[0].ToAPI(ctx, tx.Tx())
 			if err != nil {
 				return err
 			}
-		} else if recursion == "2" {
+		} else if recursion == "1" {
 			// Otherwise, get all groups and populate the identities outside of the transaction.
 			groupsByIdentityID, err = dbCluster.GetAllAuthGroupsByIdentityIDs(ctx, tx.Tx())
 			if err != nil {
@@ -415,25 +341,11 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Optimisation for user that can only view themselves.
-	if apiIdentityInfo != nil {
-		return response.SyncResponse(true, []api.IdentityInfo{*apiIdentityInfo})
+	if apiIdentity != nil {
+		return response.SyncResponse(true, []api.Identity{*apiIdentity})
 	}
 
 	if recursion == "1" {
-		apiIdentities := make([]api.Identity, 0, len(identities))
-		for _, id := range identities {
-			apiIdentities = append(apiIdentities, api.Identity{
-				AuthenticationMethod: string(id.AuthMethod),
-				Type:                 string(id.Type),
-				Identifier:           id.Identifier,
-				Name:                 id.Name,
-			})
-		}
-
-		return response.SyncResponse(true, apiIdentities)
-	}
-
-	if recursion == "2" {
 		// Convert the []cluster.Group in the groupsByIdentityID map to string slices of the group names.
 		groupNamesByIdentityID := make(map[int][]string, len(groupsByIdentityID))
 		for identityID, groups := range groupsByIdentityID {
@@ -442,22 +354,20 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		apiIdentityInfos := make([]api.IdentityInfo, 0, len(identities))
+		apiIdentities := make([]api.Identity, 0, len(identities))
 		for _, id := range identities {
-			apiIdentityInfos = append(apiIdentityInfos, api.IdentityInfo{
-				Identity: api.Identity{
-					AuthenticationMethod: string(id.AuthMethod),
-					Type:                 string(id.Type),
-					Identifier:           id.Identifier,
-					Name:                 id.Name,
-				},
+			apiIdentities = append(apiIdentities, api.Identity{
+				AuthenticationMethod: string(id.AuthMethod),
+				Type:                 string(id.Type),
+				Identifier:           id.Identifier,
+				Name:                 id.Name,
 				IdentityPut: api.IdentityPut{
 					Groups: groupNamesByIdentityID[id.ID],
 				},
 			})
 		}
 
-		return response.SyncResponse(true, apiIdentityInfos)
+		return response.SyncResponse(true, apiIdentities)
 	}
 
 	urls := make([]string, 0, len(identities))
@@ -497,7 +407,7 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 //	          description: Status code
 //	          example: 200
 //	        metadata:
-//	          $ref: "#/definitions/IdentityInfo"
+//	          $ref: "#/definitions/Identity"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
@@ -508,10 +418,10 @@ func getIdentity(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var apiIdentityInfo *api.IdentityInfo
+	var apiIdentity *api.Identity
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		apiIdentityInfo, err = id.ToAPIInfo(ctx, tx.Tx())
+		apiIdentity, err = id.ToAPI(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
@@ -522,7 +432,120 @@ func getIdentity(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return response.SyncResponseETag(true, apiIdentityInfo, apiIdentityInfo)
+	return response.SyncResponseETag(true, apiIdentity, apiIdentity)
+}
+
+// swagger:operation GET /1.0/auth/identities/current identities identity_get_current
+//
+//	Get the current identity
+//
+//	Gets the identity of the requestor, including contextual authorization information.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/IdentityInfo"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
+	identifier, err := request.GetCtxValue[string](r.Context(), request.CtxUsername)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to get identity identifier: %w", err))
+	}
+
+	protocol, err := request.GetCtxValue[string](r.Context(), request.CtxProtocol)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to get authentication method: %w", err))
+	}
+
+	// Must be a remote API request.
+	err = auth.ValidateAuthenticationMethod(protocol)
+	if err != nil {
+		return response.BadRequest(fmt.Errorf("Current identity information must be requested via the HTTPS API"))
+	}
+
+	// Identity provider groups may not be present.
+	identityProviderGroupNames, _ := request.GetCtxValue[[]string](r.Context(), request.CtxIdentityProviderGroups)
+
+	s := d.State()
+	var apiIdentity *api.Identity
+	var effectiveGroups []string
+	var effectivePermissions []api.Permission
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		id, err := dbCluster.GetIdentity(ctx, tx.Tx(), dbCluster.AuthMethod(protocol), identifier)
+		if err != nil {
+			return fmt.Errorf("Failed to get current identity from database: %w", err)
+		}
+
+		apiIdentity, err = id.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return fmt.Errorf("Failed to populate LXD groups: %w", err)
+		}
+
+		effectiveGroups = apiIdentity.Groups
+		mappedGroups, err := dbCluster.GetDistinctAuthGroupNamesFromIDPGroupNames(ctx, tx.Tx(), identityProviderGroupNames)
+		if err != nil {
+			return fmt.Errorf("Failed to get effective groups: %w", err)
+		}
+
+		for _, mappedGroup := range mappedGroups {
+			if !shared.ValueInSlice(mappedGroup, effectiveGroups) {
+				effectiveGroups = append(effectiveGroups, mappedGroup)
+			}
+		}
+
+		permissions, err := dbCluster.GetDistinctPermissionsByGroupNames(ctx, tx.Tx(), effectiveGroups)
+		if err != nil {
+			return fmt.Errorf("Failed to get effective permissions: %w", err)
+		}
+
+		permissions, entityURLs, err := dbCluster.GetPermissionEntityURLs(ctx, tx.Tx(), permissions)
+		if err != nil {
+			return fmt.Errorf("Failed to get entity URLs for effective permissions: %w", err)
+		}
+
+		effectivePermissions = make([]api.Permission, 0, len(permissions))
+		for _, permission := range permissions {
+			effectivePermissions = append(effectivePermissions, api.Permission{
+				EntityType:      string(permission.EntityType),
+				EntityReference: entityURLs[entity.Type(permission.EntityType)][permission.EntityID].String(),
+				Entitlement:     string(permission.Entitlement),
+			})
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponse(true, api.IdentityInfo{
+		Identity:             *apiIdentity,
+		EffectiveGroups:      effectiveGroups,
+		EffectivePermissions: effectivePermissions,
+	})
 }
 
 // swagger:operation PUT /1.0/auth/identities/{authenticationMethod}/{nameOrIdentifier} identities identity_put
@@ -569,12 +592,12 @@ func updateIdentity(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		apiIdentityInfo, err := id.ToAPIInfo(ctx, tx.Tx())
+		apiIdentity, err := id.ToAPI(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
 
-		err = util.EtagCheck(r, apiIdentityInfo)
+		err = util.EtagCheck(r, apiIdentity)
 		if err != nil {
 			return err
 		}
@@ -657,21 +680,21 @@ func patchIdentity(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
-	var apiIdentityInfo *api.IdentityInfo
+	var apiIdentity *api.Identity
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		apiIdentityInfo, err = id.ToAPIInfo(ctx, tx.Tx())
+		apiIdentity, err = id.ToAPI(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
 
-		err = util.EtagCheck(r, apiIdentityInfo)
+		err = util.EtagCheck(r, apiIdentity)
 		if err != nil {
 			return err
 		}
 
 		for _, groupName := range identityPut.Groups {
-			if !shared.ValueInSlice(groupName, apiIdentityInfo.Groups) {
-				apiIdentityInfo.Groups = append(apiIdentityInfo.Groups, groupName)
+			if !shared.ValueInSlice(groupName, apiIdentity.Groups) {
+				apiIdentity.Groups = append(apiIdentity.Groups, groupName)
 			}
 		}
 

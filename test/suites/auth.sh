@@ -82,6 +82,21 @@ test_authorization() {
   # Check user has been added to the group.
   lxc auth identity list --format csv | grep -Fq 'oidc,OIDC client," ",test-user@example.com,test-group'
 
+  # Test `lxc auth identity info`
+  expected=$(cat << EOF
+groups:
+- test-group
+authentication_method: oidc
+type: OIDC client
+id: test-user@example.com
+name: ' '
+effective_groups:
+- test-group
+effective_permissions: []
+EOF
+)
+  lxc auth identity info oidc: | grep -Fz "${expected}"
+
   ### IDENTITY PROVIDER GROUP MANAGEMENT ###
   lxc auth identity-provider-group create test-idp-group
   ! lxc auth identity-provider-group group add test-idp-group not-found || false # Group not found

@@ -733,10 +733,16 @@ func (c *cmdIdentity) command() *cobra.Command {
 
 	identityListCmd := cmdIdentityList{global: c.global}
 	cmd.AddCommand(identityListCmd.command())
+
 	identityShowCmd := cmdIdentityShow{global: c.global}
 	cmd.AddCommand(identityShowCmd.command())
+
+	identityInfoCmd := cmdIdentityInfo{global: c.global}
+	cmd.AddCommand(identityInfoCmd.command())
+
 	identityEditCmd := cmdIdentityEdit{global: c.global}
 	cmd.AddCommand(identityEditCmd.command())
+
 	identityGroupCmd := cmdIdentityGroup{global: c.global}
 	cmd.AddCommand(identityGroupCmd.command())
 
@@ -786,7 +792,7 @@ func (c *cmdIdentityList) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	// List identities
-	identities, err := resource.server.GetIdentitiesInfo()
+	identities, err := resource.server.GetIdentities()
 	if err != nil {
 		return err
 	}
@@ -863,6 +869,67 @@ func (c *cmdIdentityShow) run(cmd *cobra.Command, args []string) error {
 
 	// Show the identity
 	identity, _, err := resource.server.GetIdentity(authenticationMethod, nameOrID)
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&identity)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
+
+	return nil
+}
+
+// Show current.
+type cmdIdentityInfo struct {
+	global *cmdGlobal
+}
+
+func (c *cmdIdentityInfo) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("info", i18n.G("[<remote>:]"))
+	cmd.Short = i18n.G("View the current identity")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Show the current identity
+
+This command will display permissions for the current user.
+This includes contextual information, such as effective groups and permissions
+that are granted via identity provider group mappings. 
+`))
+
+	cmd.RunE = c.run
+
+	return cmd
+}
+
+func (c *cmdIdentityInfo) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
+	if exit {
+		return err
+	}
+
+	// Connect to LXD
+	var server lxd.InstanceServer
+	if len(args) == 0 {
+		server, err = c.global.conf.GetInstanceServer(c.global.conf.DefaultRemote)
+		if err != nil {
+			return err
+		}
+	} else {
+		resources, err := c.global.ParseServers(args[0])
+		if err != nil {
+			return err
+		}
+
+		server = resources[0].server
+	}
+
+	// Show the identity
+	identity, _, err := server.GetCurrentIdentityInfo()
 	if err != nil {
 		return err
 	}
