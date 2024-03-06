@@ -21,6 +21,199 @@
 				]
 			}
 		},
+		"device-gpu-mdev": {
+			"device-conf": {
+				"keys": [
+					{
+						"id": {
+							"longdesc": "",
+							"shortdesc": "DRM card ID of the GPU device",
+							"type": "string"
+						}
+					},
+					{
+						"mdev": {
+							"defaultdesc": "`0`",
+							"longdesc": "For example: `i915-GVTg_V5_4`",
+							"required": "yes",
+							"shortdesc": "The `mdev` profile to use",
+							"type": "string"
+						}
+					},
+					{
+						"pci": {
+							"longdesc": "",
+							"shortdesc": "PCI address of the GPU device",
+							"type": "string"
+						}
+					},
+					{
+						"productid": {
+							"longdesc": "",
+							"shortdesc": "Product ID of the GPU device",
+							"type": "string"
+						}
+					},
+					{
+						"vendorid": {
+							"longdesc": "",
+							"shortdesc": "Vendor ID of the GPU device",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"device-gpu-mig": {
+			"device-conf": {
+				"keys": [
+					{
+						"id": {
+							"longdesc": "",
+							"shortdesc": "DRM card ID of the GPU device",
+							"type": "string"
+						}
+					},
+					{
+						"mig.ci": {
+							"longdesc": "",
+							"shortdesc": "Existing MIG compute instance ID",
+							"type": "integer"
+						}
+					},
+					{
+						"mig.gi": {
+							"longdesc": "",
+							"shortdesc": "Existing MIG GPU instance ID",
+							"type": "integer"
+						}
+					},
+					{
+						"mig.uuid": {
+							"longdesc": "You can omit the `MIG-` prefix when specifying this option.",
+							"shortdesc": "Existing MIG device UUID",
+							"type": "string"
+						}
+					},
+					{
+						"pci": {
+							"longdesc": "",
+							"shortdesc": "PCI address of the GPU device",
+							"type": "string"
+						}
+					},
+					{
+						"productid": {
+							"longdesc": "",
+							"shortdesc": "Product ID of the GPU device",
+							"type": "string"
+						}
+					},
+					{
+						"vendorid": {
+							"longdesc": "",
+							"shortdesc": "Vendor ID of the GPU device",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"device-gpu-physical": {
+			"device-conf": {
+				"keys": [
+					{
+						"gid": {
+							"condition": "container",
+							"defaultdesc": "`0`",
+							"longdesc": "",
+							"shortdesc": "GID of the device owner in the container",
+							"type": "integer"
+						}
+					},
+					{
+						"id": {
+							"longdesc": "",
+							"shortdesc": "DRM card ID of the GPU device",
+							"type": "string"
+						}
+					},
+					{
+						"mode": {
+							"condition": "container",
+							"defaultdesc": "`0660`",
+							"longdesc": "",
+							"shortdesc": "Mode of the device in the container",
+							"type": "integer"
+						}
+					},
+					{
+						"pci": {
+							"longdesc": "",
+							"shortdesc": "PCI address of the GPU device",
+							"type": "string"
+						}
+					},
+					{
+						"productid": {
+							"longdesc": "",
+							"shortdesc": "Product ID of the GPU device",
+							"type": "string"
+						}
+					},
+					{
+						"uid": {
+							"condition": "container",
+							"defaultdesc": "`0`",
+							"longdesc": "",
+							"shortdesc": "UID of the device owner in the container",
+							"type": "integer"
+						}
+					},
+					{
+						"vendorid": {
+							"longdesc": "",
+							"shortdesc": "Vendor ID of the GPU device",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"device-gpu-sriov": {
+			"device-conf": {
+				"keys": [
+					{
+						"id": {
+							"longdesc": "",
+							"shortdesc": "DRM card ID of the parent GPU device",
+							"type": "string"
+						}
+					},
+					{
+						"pci": {
+							"longdesc": "",
+							"shortdesc": "PCI address of the parent GPU device",
+							"type": "string"
+						}
+					},
+					{
+						"productid": {
+							"longdesc": "",
+							"shortdesc": "Product ID of the parent GPU device",
+							"type": "string"
+						}
+					},
+					{
+						"vendorid": {
+							"longdesc": "",
+							"shortdesc": "Vendor ID of the parent GPU device",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
 		"device-pci": {
 			"device-conf": {
 				"keys": [
