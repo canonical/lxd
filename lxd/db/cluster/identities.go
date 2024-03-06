@@ -319,9 +319,9 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 // GetAuthGroupsByIdentityID returns a slice of groups that the identity with the given ID is a member of.
 func GetAuthGroupsByIdentityID(ctx context.Context, tx *sql.Tx, identityID int) ([]AuthGroup, error) {
 	stmt := `
-SELECT auth_groups.id, auth_groups.name, auth_groups.description 
-FROM auth_groups 
-JOIN identities_auth_groups ON auth_groups.id = identities_auth_groups.auth_group_id 
+SELECT auth_groups.id, auth_groups.name, auth_groups.description
+FROM auth_groups
+JOIN identities_auth_groups ON auth_groups.id = identities_auth_groups.auth_group_id
 WHERE identities_auth_groups.identity_id = ?`
 
 	var result []AuthGroup
@@ -348,8 +348,8 @@ WHERE identities_auth_groups.identity_id = ?`
 // GetAllAuthGroupsByIdentityIDs returns a map of identity ID to slice of groups the identity with that ID is a member of.
 func GetAllAuthGroupsByIdentityIDs(ctx context.Context, tx *sql.Tx) (map[int][]AuthGroup, error) {
 	stmt := `
-SELECT identities_auth_groups.identity_id, auth_groups.id, auth_groups.name, auth_groups.description 
-FROM auth_groups 
+SELECT identities_auth_groups.identity_id, auth_groups.id, auth_groups.name, auth_groups.description
+FROM auth_groups
 JOIN identities_auth_groups ON auth_groups.id = identities_auth_groups.auth_group_id`
 
 	result := make(map[int][]AuthGroup)
