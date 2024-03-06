@@ -143,11 +143,13 @@ jobs:
         go: ["1.22.x"]
         suite: ["cluster", "standalone"]
         backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
-        # Only test with go-tip when the event is not a push
-        include: >-
-          ${{
-            (github.event_name != 'push' && fromJSON('[{"go":"tip","suite":"cluster","backend":"dir"},{"go":"tip","suite":"standalone","backend":"dir"}]')) || null
-          }}
+        include:
+          - go: stable
+            suite: cluster
+            backend: dir
+          - go: stable
+            suite: standalone
+            backend: dir
 
     steps:
       - name: Performance tuning
