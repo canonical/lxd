@@ -52,6 +52,14 @@ func (device Device) Validate(rules map[string]func(value string) error) error {
 		}
 
 		// Allow initial.* configuration.
+
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=initial.*)
+		// Initial volume configuration allows setting unique configurations independent of the default storage pool settings.
+		// See {ref}`devices-disk-initial-config` for more information.
+		// ---
+		//  type: n/a
+		//  required: no
+		//  shortdesc: Initial volume configuration
 		if strings.HasPrefix(k, "initial.") {
 			continue
 		}
