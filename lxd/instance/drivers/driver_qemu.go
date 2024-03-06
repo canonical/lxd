@@ -7306,7 +7306,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// A zero length Snapshots slice indicates volume only migration in
 		// VolumeTargetArgs. So if VolumeOnly was requested, do not populate them.
-		snapOps := []operationlock.InstanceOperation{}
+		snapOps := []*operationlock.InstanceOperation{}
 		if args.Snapshots {
 			volTargetArgs.Snapshots = make([]string, 0, len(snapshots))
 			for _, snap := range snapshots {
@@ -7342,7 +7342,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 						snapInstOp.Done(err)
 					})
 
-					snapOps = append(snapOps, *snapInstOp)
+					snapOps = append(snapOps, snapInstOp)
 				}
 			}
 		}
