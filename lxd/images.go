@@ -973,10 +973,10 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 	var userCanCreateImages bool
 	err := s.Authorizer.CheckPermission(r.Context(), r, entity.ProjectURL(projectName), auth.EntitlementCanCreateImages)
-	if err == nil {
-		userCanCreateImages = true
-	} else if !api.StatusErrorCheck(err, http.StatusForbidden) {
+	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
+	} else if err == nil {
+		userCanCreateImages = true
 	}
 
 	trusted := d.checkTrustedClient(r) == nil && userCanCreateImages
@@ -3013,10 +3013,10 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 
 	var userCanViewImage bool
 	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ImageURL(projectName, info.Fingerprint), auth.EntitlementCanView)
-	if err == nil {
-		userCanViewImage = true
-	} else if !api.StatusErrorCheck(err, http.StatusForbidden) {
+	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
+	} else if err == nil {
+		userCanViewImage = true
 	}
 
 	public := d.checkTrustedClient(r) != nil || !userCanViewImage
@@ -3609,10 +3609,10 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 
 	var userCanViewImageAlias bool
 	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ImageAliasURL(projectName, name), auth.EntitlementCanView)
-	if err == nil {
-		userCanViewImageAlias = true
-	} else if !api.StatusErrorCheck(err, http.StatusForbidden) {
+	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
+	} else if err == nil {
+		userCanViewImageAlias = true
 	}
 
 	public := d.checkTrustedClient(r) != nil || !userCanViewImageAlias
@@ -4049,10 +4049,10 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	// Access control.
 	var userCanViewImage bool
 	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ImageURL(projectName, imgInfo.Fingerprint), auth.EntitlementCanView)
-	if err == nil {
-		userCanViewImage = true
-	} else if !api.StatusErrorCheck(err, http.StatusForbidden) {
+	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
+	} else if err == nil {
+		userCanViewImage = true
 	}
 
 	public := d.checkTrustedClient(r) != nil || !userCanViewImage

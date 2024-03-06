@@ -329,7 +329,7 @@ func getFilteredMetrics(s *state.State, r *http.Request, compress bool, metricSe
 
 	// Get instances the user is allowed to view.
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeInstance)
-	if err != nil && !api.StatusErrorCheck(err, http.StatusForbidden) {
+	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err != nil {
 		// This is counterintuitive. We are unauthorized to get a permission checker for viewing instances because a metric type certificate
