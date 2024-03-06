@@ -341,6 +341,46 @@ You can omit the `MIG-` prefix when specifying this option.
 ```
 
 <!-- config group device-gpu-sriov-device-conf end -->
+<!-- config group device-infiniband-device-conf start -->
+```{config:option} hwaddr device-infiniband-device-conf
+:defaultdesc: "randomly assigned"
+:required: "no"
+:shortdesc: "MAC address of the new interface"
+:type: "string"
+ You can specify either the full 20-byte variant or the short 8-byte variant (which will modify only the last 8 bytes of the parent device).
+```
+
+```{config:option} mtu device-infiniband-device-conf
+:defaultdesc: "parent MTU"
+:required: "no"
+:shortdesc: "MTU of the new interface"
+:type: "integer"
+
+```
+
+```{config:option} name device-infiniband-device-conf
+:defaultdesc: "kernel assigned"
+:required: "no"
+:shortdesc: "Name of the interface inside the instance"
+:type: "string"
+
+```
+
+```{config:option} nictype device-infiniband-device-conf
+:required: "yes"
+:shortdesc: "Device type"
+:type: "string"
+Possible values are `physical` and `sriov`.
+```
+
+```{config:option} parent device-infiniband-device-conf
+:required: "yes"
+:shortdesc: "The name of the host device or bridge"
+:type: "string"
+
+```
+
+<!-- config group device-infiniband-device-conf end -->
 <!-- config group device-nic-bridged-device-conf start -->
 ```{config:option} boot.priority device-nic-bridged-device-conf
 :managed: "no"
