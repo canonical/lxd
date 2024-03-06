@@ -16,6 +16,160 @@ User keys can be used in search.
 ```
 
 <!-- config group cluster-cluster end -->
+<!-- config group device-gpu-mdev-device-conf start -->
+```{config:option} id device-gpu-mdev-device-conf
+:shortdesc: "DRM card ID of the GPU device"
+:type: "string"
+
+```
+
+```{config:option} mdev device-gpu-mdev-device-conf
+:defaultdesc: "`0`"
+:required: "yes"
+:shortdesc: "The `mdev` profile to use"
+:type: "string"
+For example: `i915-GVTg_V5_4`
+```
+
+```{config:option} pci device-gpu-mdev-device-conf
+:shortdesc: "PCI address of the GPU device"
+:type: "string"
+
+```
+
+```{config:option} productid device-gpu-mdev-device-conf
+:shortdesc: "Product ID of the GPU device"
+:type: "string"
+
+```
+
+```{config:option} vendorid device-gpu-mdev-device-conf
+:shortdesc: "Vendor ID of the GPU device"
+:type: "string"
+
+```
+
+<!-- config group device-gpu-mdev-device-conf end -->
+<!-- config group device-gpu-mig-device-conf start -->
+```{config:option} id device-gpu-mig-device-conf
+:shortdesc: "DRM card ID of the GPU device"
+:type: "string"
+
+```
+
+```{config:option} mig.ci device-gpu-mig-device-conf
+:shortdesc: "Existing MIG compute instance ID"
+:type: "integer"
+
+```
+
+```{config:option} mig.gi device-gpu-mig-device-conf
+:shortdesc: "Existing MIG GPU instance ID"
+:type: "integer"
+
+```
+
+```{config:option} mig.uuid device-gpu-mig-device-conf
+:shortdesc: "Existing MIG device UUID"
+:type: "string"
+You can omit the `MIG-` prefix when specifying this option.
+```
+
+```{config:option} pci device-gpu-mig-device-conf
+:shortdesc: "PCI address of the GPU device"
+:type: "string"
+
+```
+
+```{config:option} productid device-gpu-mig-device-conf
+:shortdesc: "Product ID of the GPU device"
+:type: "string"
+
+```
+
+```{config:option} vendorid device-gpu-mig-device-conf
+:shortdesc: "Vendor ID of the GPU device"
+:type: "string"
+
+```
+
+<!-- config group device-gpu-mig-device-conf end -->
+<!-- config group device-gpu-physical-device-conf start -->
+```{config:option} gid device-gpu-physical-device-conf
+:condition: "container"
+:defaultdesc: "`0`"
+:shortdesc: "GID of the device owner in the container"
+:type: "integer"
+
+```
+
+```{config:option} id device-gpu-physical-device-conf
+:shortdesc: "DRM card ID of the GPU device"
+:type: "string"
+
+```
+
+```{config:option} mode device-gpu-physical-device-conf
+:condition: "container"
+:defaultdesc: "`0660`"
+:shortdesc: "Mode of the device in the container"
+:type: "integer"
+
+```
+
+```{config:option} pci device-gpu-physical-device-conf
+:shortdesc: "PCI address of the GPU device"
+:type: "string"
+
+```
+
+```{config:option} productid device-gpu-physical-device-conf
+:shortdesc: "Product ID of the GPU device"
+:type: "string"
+
+```
+
+```{config:option} uid device-gpu-physical-device-conf
+:condition: "container"
+:defaultdesc: "`0`"
+:shortdesc: "UID of the device owner in the container"
+:type: "integer"
+
+```
+
+```{config:option} vendorid device-gpu-physical-device-conf
+:shortdesc: "Vendor ID of the GPU device"
+:type: "string"
+
+```
+
+<!-- config group device-gpu-physical-device-conf end -->
+<!-- config group device-gpu-sriov-device-conf start -->
+```{config:option} id device-gpu-sriov-device-conf
+:shortdesc: "DRM card ID of the parent GPU device"
+:type: "string"
+
+```
+
+```{config:option} pci device-gpu-sriov-device-conf
+:shortdesc: "PCI address of the parent GPU device"
+:type: "string"
+
+```
+
+```{config:option} productid device-gpu-sriov-device-conf
+:shortdesc: "Product ID of the parent GPU device"
+:type: "string"
+
+```
+
+```{config:option} vendorid device-gpu-sriov-device-conf
+:shortdesc: "Vendor ID of the parent GPU device"
+:type: "string"
+
+```
+
+<!-- config group device-gpu-sriov-device-conf end -->
 <!-- config group device-pci-device-conf start -->
 ```{config:option} address device-pci-device-conf
 :required: "yes"
