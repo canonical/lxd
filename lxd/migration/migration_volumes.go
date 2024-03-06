@@ -193,7 +193,7 @@ func MatchTypes(offer *MigrationHeader, fallbackType MigrationFSType, ourTypes [
 				offeredFeatures = offer.GetZfsFeaturesSlice()
 			} else if offerFSType == MigrationFSType_BTRFS {
 				offeredFeatures = offer.GetBtrfsFeaturesSlice()
-			} else if offerFSType == MigrationFSType_RSYNC {
+			} else if shared.ValueInSlice(offerFSType, []MigrationFSType{MigrationFSType_RSYNC, MigrationFSType_RBD_AND_RSYNC}) {
 				// There are other migration types using rsync like MigrationFSType_BLOCK_AND_RSYNC
 				// for which we cannot set the offered features as an older LXD might ignore those
 				// if the migration type is not MigrationFSType_RSYNC.
