@@ -28,11 +28,11 @@ var identityProviderGroupsCmd = APIEndpoint{
 	Path: "auth/identity-provider-groups",
 	Get: APIEndpointAction{
 		Handler:       getIdentityProviderGroups,
-		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanViewGroups),
+		AccessHandler: allowAuthenticated,
 	},
 	Post: APIEndpointAction{
 		Handler:       createIdentityProviderGroup,
-		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEditGroups),
+		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanCreateIdentityProviderGroups),
 	},
 }
 
@@ -41,23 +41,23 @@ var identityProviderGroupCmd = APIEndpoint{
 	Path: "auth/identity-provider-groups/{idpGroupName}",
 	Get: APIEndpointAction{
 		Handler:       getIdentityProviderGroup,
-		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanViewGroups),
+		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, auth.EntitlementCanView, "idpGroupName"),
 	},
 	Put: APIEndpointAction{
 		Handler:       updateIdentityProviderGroup,
-		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEditGroups),
+		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, auth.EntitlementCanEdit, "idpGroupName"),
 	},
 	Post: APIEndpointAction{
 		Handler:       renameIdentityProviderGroup,
-		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEditGroups),
+		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, auth.EntitlementCanEdit, "idpGroupName"),
 	},
 	Delete: APIEndpointAction{
 		Handler:       deleteIdentityProviderGroup,
-		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEditGroups),
+		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, auth.EntitlementCanDelete, "idpGroupName"),
 	},
 	Patch: APIEndpointAction{
 		Handler:       patchIdentityProviderGroup,
-		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEditGroups),
+		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, auth.EntitlementCanEdit, "idpGroupName"),
 	},
 }
 
@@ -144,19 +144,36 @@ var identityProviderGroupCmd = APIEndpoint{
 func getIdentityProviderGroups(d *Daemon, r *http.Request) response.Response {
 	recursion := r.URL.Query().Get("recursion")
 	s := d.State()
+
+	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var apiIDPGroups []*api.IdentityProviderGroup
 	var idpGroups []dbCluster.IdentityProviderGroup
-	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-		idpGroups, err = dbCluster.GetIdentityProviderGroups(ctx, tx.Tx())
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		allIDPGroups, err := dbCluster.GetIdentityProviderGroups(ctx, tx.Tx())
 		if err != nil {
 			return err
+		}
+
+		idpGroups = make([]dbCluster.IdentityProviderGroup, 0, len(allIDPGroups))
+		for _, idpGroup := range allIDPGroups {
+			if canViewIDPGroup(entity.IdentityProviderGroupURL(idpGroup.Name)) {
+				idpGroups = append(idpGroups, idpGroup)
+			}
 		}
 
 		if recursion == "1" {
 			apiIDPGroups = make([]*api.IdentityProviderGroup, 0, len(idpGroups))
 			for _, idpGroup := range idpGroups {
-				apiIDPGroup, err := idpGroup.ToAPI(ctx, tx.Tx())
+				apiIDPGroup, err := idpGroup.ToAPI(ctx, tx.Tx(), canViewGroup)
 				if err != nil {
 					return err
 				}
@@ -223,6 +240,11 @@ func getIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var apiIDPGroup *api.IdentityProviderGroup
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		idpGroup, err := dbCluster.GetIdentityProviderGroup(ctx, tx.Tx(), idpGroupName)
@@ -230,7 +252,7 @@ func getIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		apiIDPGroup, err = idpGroup.ToAPI(ctx, tx.Tx())
+		apiIDPGroup, err = idpGroup.ToAPI(ctx, tx.Tx(), canViewGroup)
 		if err != nil {
 			return err
 		}
@@ -427,13 +449,18 @@ func updateIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		idpGroup, err := dbCluster.GetIdentityProviderGroup(ctx, tx.Tx(), idpGroupName)
 		if err != nil {
 			return err
 		}
 
-		apiIDPGroup, err := idpGroup.ToAPI(ctx, tx.Tx())
+		apiIDPGroup, err := idpGroup.ToAPI(ctx, tx.Tx(), canViewGroup)
 		if err != nil {
 			return err
 		}
@@ -511,6 +538,11 @@ func patchIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var apiIDPGroup *api.IdentityProviderGroup
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		idpGroup, err := dbCluster.GetIdentityProviderGroup(ctx, tx.Tx(), idpGroupName)
@@ -518,7 +550,7 @@ func patchIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		apiIDPGroup, err = idpGroup.ToAPI(ctx, tx.Tx())
+		apiIDPGroup, err = idpGroup.ToAPI(ctx, tx.Tx(), canViewGroup)
 		if err != nil {
 			return err
 		}

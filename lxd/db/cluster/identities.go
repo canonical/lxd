@@ -13,10 +13,12 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 // Code generation directives.
@@ -290,7 +292,7 @@ func (i Identity) Subject() (string, error) {
 }
 
 // ToAPI converts an Identity to an api.Identity, executing database queries as necessary.
-func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Identity, error) {
+func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.PermissionChecker) (*api.Identity, error) {
 	groups, err := GetAuthGroupsByIdentityID(ctx, tx, i.ID)
 	if err != nil {
 		return nil, err
@@ -298,7 +300,9 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Identity, error)
 
 	groupNames := make([]string, 0, len(groups))
 	for _, group := range groups {
-		groupNames = append(groupNames, group.Name)
+		if canViewGroup(entity.AuthGroupURL(group.Name)) {
+			groupNames = append(groupNames, group.Name)
+		}
 	}
 
 	return &api.Identity{

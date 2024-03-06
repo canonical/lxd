@@ -287,7 +287,12 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 
 	recursion := r.URL.Query().Get("recursion")
 	s := d.State()
-	hasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentity)
+	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentity)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -310,7 +315,7 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 
 		// Filter results by what the user is allowed to view.
 		for _, id := range allIdentities {
-			if hasPermission(entity.IdentityURL(string(id.AuthMethod), id.Identifier)) {
+			if canViewIdentity(entity.IdentityURL(string(id.AuthMethod), id.Identifier)) {
 				identities = append(identities, id)
 			}
 		}
@@ -322,7 +327,7 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 		if recursion == "1" && len(identities) == 1 {
 			// It's likely that the user can only view themselves. If so we can optimise here by only getting the
 			// groups for that user.
-			apiIdentity, err = identities[0].ToAPI(ctx, tx.Tx())
+			apiIdentity, err = identities[0].ToAPI(ctx, tx.Tx(), canViewGroup)
 			if err != nil {
 				return err
 			}
@@ -350,7 +355,9 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 		groupNamesByIdentityID := make(map[int][]string, len(groupsByIdentityID))
 		for identityID, groups := range groupsByIdentityID {
 			for _, group := range groups {
-				groupNamesByIdentityID[identityID] = append(groupNamesByIdentityID[identityID], group.Name)
+				if canViewGroup(entity.AuthGroupURL(group.Name)) {
+					groupNamesByIdentityID[identityID] = append(groupNamesByIdentityID[identityID], group.Name)
+				}
 			}
 		}
 
@@ -418,10 +425,16 @@ func getIdentity(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	s := d.State()
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var apiIdentity *api.Identity
-	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		apiIdentity, err = id.ToAPI(ctx, tx.Tx())
+		apiIdentity, err = id.ToAPI(ctx, tx.Tx(), canViewGroup)
 		if err != nil {
 			return err
 		}
@@ -499,7 +512,9 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed to get current identity from database: %w", err)
 		}
 
-		apiIdentity, err = id.ToAPI(ctx, tx.Tx())
+		// Using a permission checker here is redundant, we know who the user is, and we know that they are allowed
+		// to view the groups that they are a member of.
+		apiIdentity, err = id.ToAPI(ctx, tx.Tx(), func(entityURL *api.URL) bool { return true })
 		if err != nil {
 			return fmt.Errorf("Failed to populate LXD groups: %w", err)
 		}
@@ -591,8 +606,13 @@ func updateIdentity(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		apiIdentity, err := id.ToAPI(ctx, tx.Tx())
+		apiIdentity, err := id.ToAPI(ctx, tx.Tx(), canViewGroup)
 		if err != nil {
 			return err
 		}
@@ -680,9 +700,14 @@ func patchIdentity(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var apiIdentity *api.Identity
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		apiIdentity, err = id.ToAPI(ctx, tx.Tx())
+		apiIdentity, err = id.ToAPI(ctx, tx.Tx(), canViewGroup)
 		if err != nil {
 			return err
 		}
@@ -778,7 +803,8 @@ func updateIdentityCache(d *Daemon) {
 		}
 
 		for _, idpGroup := range idpGroups {
-			apiIDPGroup, err := idpGroup.ToAPI(ctx, tx.Tx())
+			// Internal method does not need a permission checker.
+			apiIDPGroup, err := idpGroup.ToAPI(ctx, tx.Tx(), func(_ *api.URL) bool { return true })
 			if err != nil {
 				return err
 			}

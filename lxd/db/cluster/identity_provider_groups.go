@@ -4,8 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 // Code generation directives.
@@ -44,7 +47,7 @@ type IdentityProviderGroupFilter struct {
 }
 
 // ToAPI converts the IdentityProviderGroup to an api.IdentityProviderGroup, making more database calls as necessary.
-func (i *IdentityProviderGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.IdentityProviderGroup, error) {
+func (i *IdentityProviderGroup) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.PermissionChecker) (*api.IdentityProviderGroup, error) {
 	idpGroup := &api.IdentityProviderGroup{
 		IdentityProviderGroupPost: api.IdentityProviderGroupPost{Name: i.Name},
 	}
@@ -56,7 +59,9 @@ func (i *IdentityProviderGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Ide
 
 	groupNames := make([]string, 0, len(groups))
 	for _, group := range groups {
-		groupNames = append(groupNames, group.Name)
+		if canViewGroup(entity.AuthGroupURL(group.Name)) {
+			groupNames = append(groupNames, group.Name)
+		}
 	}
 
 	idpGroup.Groups = groupNames
