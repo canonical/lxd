@@ -341,6 +341,926 @@ You can omit the `MIG-` prefix when specifying this option.
 ```
 
 <!-- config group device-gpu-sriov-device-conf end -->
+<!-- config group device-nic-bridged-device-conf start -->
+```{config:option} boot.priority device-nic-bridged-device-conf
+:managed: "no"
+:shortdesc: "Boot priority for VMs"
+:type: "integer"
+A higher value for this option means that the VM boots first.
+```
+
+```{config:option} host_name device-nic-bridged-device-conf
+:defaultdesc: "randomly assigned"
+:managed: "no"
+:shortdesc: "Name of the interface inside the host"
+:type: "string"
+
+```
+
+```{config:option} hwaddr device-nic-bridged-device-conf
+:defaultdesc: "randomly assigned"
+:managed: "no"
+:shortdesc: "MAC address of the new interface"
+:type: "string"
+
+```
+
+```{config:option} ipv4.address device-nic-bridged-device-conf
+:managed: "no"
+:shortdesc: "IPv4 address to assign to the instance through DHCP"
+:type: "string"
+Set this option to `none` to restrict all IPv4 traffic when {config:option}`device-nic-bridged-device-conf:security.ipv4_filtering` is set.
+```
+
+```{config:option} ipv4.routes device-nic-bridged-device-conf
+:managed: "no"
+:shortdesc: "IPv4 static routes for the NIC to add on the host"
+:type: "string"
+Specify a comma-delimited list of IPv4 static routes for this NIC to add on the host.
+```
+
+```{config:option} ipv4.routes.external device-nic-bridged-device-conf
+:managed: "no"
+:shortdesc: "IPv4 static routes to route to NIC"
+:type: "string"
+Specify a comma-delimited list of IPv4 static routes to route to the NIC and publish on the uplink network (BGP).
+```
+
+```{config:option} ipv6.address device-nic-bridged-device-conf
+:managed: "no"
+:shortdesc: "IPv6 address to assign to the instance through DHCP"
+:type: "string"
+Set this option to `none` to restrict all IPv6 traffic when {config:option}`device-nic-bridged-device-conf:security.ipv6_filtering` is set.
+```
+
+```{config:option} ipv6.routes device-nic-bridged-device-conf
+:managed: "no"
+:shortdesc: "IPv6 static routes for the NIC to add on the host"
+:type: "string"
+Specify a comma-delimited list of IPv6 static routes for this NIC to add on the host.
+```
+
+```{config:option} ipv6.routes.external device-nic-bridged-device-conf
+:managed: "no"
+:shortdesc: "IPv6 static routes to route to NIC"
+:type: "string"
+Specify a comma-delimited list of IPv6 static routes to route to the NIC and publish on the uplink network (BGP).
+```
+
+```{config:option} limits.egress device-nic-bridged-device-conf
+:managed: "no"
+:shortdesc: "I/O limit for outgoing traffic"
+:type: "string"
+Specify the limit in bit/s. Various suffixes are supported (see {ref}`instances-limit-units`).
+```
+
+```{config:option} limits.ingress device-nic-bridged-device-conf
+:managed: "no"
+:shortdesc: "I/O limit for incoming traffic"
+:type: "string"
+Specify the limit in bit/s. Various suffixes are supported (see {ref}`instances-limit-units`).
+```
+
+```{config:option} limits.max device-nic-bridged-device-conf
+:managed: "no"
+:shortdesc: "I/O limit for both incoming and outgoing traffic"
+:type: "string"
+This option is the same as setting both {config:option}`device-nic-bridged-device-conf:limits.ingress` and {config:option}`device-nic-bridged-device-conf:limits.egress`.
+
+Specify the limit in bit/s. Various suffixes are supported (see {ref}`instances-limit-units`).
+```
+
+```{config:option} limits.priority device-nic-bridged-device-conf
+:managed: "no"
+:shortdesc: "`skb->priority` value for outgoing traffic"
+:type: "integer"
+The `skb->priority` value for outgoing traffic is used by the kernel queuing discipline (qdisc) to prioritize network packets.
+Specify the value as a 32-bit unsigned integer.
+
+The effect of this value depends on the particular qdisc implementation, for example, `SKBPRIO` or `QFQ`.
+Consult the kernel qdisc documentation before setting this value.
+```
+
+```{config:option} maas.subnet.ipv4 device-nic-bridged-device-conf
+:managed: "yes"
+:shortdesc: "MAAS IPv4 subnet to register the instance in"
+:type: "string"
+
+```
+
+```{config:option} maas.subnet.ipv6 device-nic-bridged-device-conf
+:managed: "yes"
+:shortdesc: "MAAS IPv6 subnet to register the instance in"
+:type: "string"
+
+```
+
+```{config:option} mtu device-nic-bridged-device-conf
+:defaultdesc: "parent MTU"
+:managed: "yes"
+:shortdesc: "MTU of the new interface"
+:type: "integer"
+
+```
+
+```{config:option} name device-nic-bridged-device-conf
+:defaultdesc: "kernel assigned"
+:managed: "no"
+:shortdesc: "Name of the interface inside the instance"
+:type: "string"
+
+```
+
+```{config:option} network device-nic-bridged-device-conf
+:managed: "no"
+:shortdesc: "Managed network to link the device to"
+:type: "string"
+You can specify this option instead of specifying the `nictype` directly.
+```
+
+```{config:option} parent device-nic-bridged-device-conf
+:managed: "yes"
+:required: "if specifying the `nictype` directly"
+:shortdesc: "Name of the host device"
+:type: "string"
+
+```
+
+```{config:option} queue.tx.length device-nic-bridged-device-conf
+:managed: "no"
+:shortdesc: "Transmit queue length for the NIC"
+:type: "integer"
+
+```
+
+```{config:option} security.ipv4_filtering device-nic-bridged-device-conf
+:defaultdesc: "`false`"
+:managed: "no"
+:shortdesc: "Whether to prevent the instance from spoofing an IPv4 address"
+:type: "bool"
+Set this option to `true` to prevent the instance from spoofing another instance’s IPv4 address.
+This option enables {config:option}`device-nic-bridged-device-conf:security.mac_filtering`.
+```
+
+```{config:option} security.ipv6_filtering device-nic-bridged-device-conf
+:defaultdesc: "`false`"
+:managed: "no"
+:shortdesc: "Whether to prevent the instance from spoofing an IPv6 address"
+:type: "bool"
+Set this option to `true` to prevent the instance from spoofing another instance’s IPv6 address.
+This option enables {config:option}`device-nic-bridged-device-conf:security.mac_filtering`.
+```
+
+```{config:option} security.mac_filtering device-nic-bridged-device-conf
+:defaultdesc: "`false`"
+:managed: "no"
+:shortdesc: "Whether to prevent the instance from spoofing a MAC address"
+:type: "bool"
+Set this option to `true` to prevent the instance from spoofing another instance’s MAC address.
+```
+
+```{config:option} security.port_isolation device-nic-bridged-device-conf
+:defaultdesc: "`false`"
+:managed: "no"
+:shortdesc: "Whether to respect port isolation"
+:type: "bool"
+Set this option to `true` to prevent the NIC from communicating with other NICs in the network that have port isolation enabled.
+```
+
+```{config:option} vlan device-nic-bridged-device-conf
+:managed: "no"
+:shortdesc: "VLAN ID to use for non-tagged traffic"
+:type: "integer"
+Set this option to `none` to remove the port from the default VLAN.
+```
+
+```{config:option} vlan.tagged device-nic-bridged-device-conf
+:managed: "no"
+:shortdesc: "VLAN IDs or VLAN ranges to join for tagged traffic"
+:type: "integer"
+Specify the VLAN IDs or ranges as a comma-delimited list.
+```
+
+<!-- config group device-nic-bridged-device-conf end -->
+<!-- config group device-nic-ipvlan-device-conf start -->
+```{config:option} gvrp device-nic-ipvlan-device-conf
+:defaultdesc: "`false`"
+:shortdesc: "Whether to use GARP VLAN Registration Protocol"
+:type: "bool"
+This option specifies whether to register the VLAN using the GARP VLAN Registration Protocol.
+```
+
+```{config:option} hwaddr device-nic-ipvlan-device-conf
+:defaultdesc: "randomly assigned"
+:shortdesc: "MAC address of the new interface"
+:type: "string"
+
+```
+
+```{config:option} ipv4.address device-nic-ipvlan-device-conf
+:shortdesc: "IPv4 static addresses to add to the instance"
+:type: "string"
+Specify a comma-delimited list of IPv4 static addresses to add to the instance.
+In `l2` mode, you can specify them as CIDR values or singular addresses using a subnet of `/24`.
+```
+
+```{config:option} ipv4.gateway device-nic-ipvlan-device-conf
+:defaultdesc: "`auto` (`l3s`), `-` (`l2`)"
+:shortdesc: "IPv4 gateway"
+:type: "string"
+In `l3s` mode, the option specifies whether to add an automatic default IPv4 gateway.
+Possible values are `auto` and `none`.
+
+In `l2` mode, this option specifies the IPv4 address of the gateway.
+```
+
+```{config:option} ipv4.host_table device-nic-ipvlan-device-conf
+:shortdesc: "Custom policy routing table ID to add IPv4 static routes to"
+:type: "integer"
+The custom policy routing table is in addition to the main routing table.
+```
+
+```{config:option} ipv6.address device-nic-ipvlan-device-conf
+:shortdesc: "IPv6 static addresses to add to the instance"
+:type: "string"
+Specify a comma-delimited list of IPv6 static addresses to add to the instance.
+In `l2` mode, you can specify them as CIDR values or singular addresses using a subnet of `/64`.
+```
+
+```{config:option} ipv6.gateway device-nic-ipvlan-device-conf
+:defaultdesc: "`auto` (`l3s`), `-` (`l2`)"
+:shortdesc: "IPv6 gateway"
+:type: "string"
+In `l3s` mode, the option specifies whether to add an automatic default IPv6 gateway.
+Possible values are `auto` and `none`.
+
+In `l2` mode, this option specifies the IPv6 address of the gateway.
+```
+
+```{config:option} ipv6.host_table device-nic-ipvlan-device-conf
+:shortdesc: "Custom policy routing table ID to add IPv6 static routes to"
+:type: "integer"
+The custom policy routing table is in addition to the main routing table.
+```
+
+```{config:option} mode device-nic-ipvlan-device-conf
+:defaultdesc: "`l3s`"
+:shortdesc: "IPVLAN mode"
+:type: "string"
+Possible values are `l2` and `l3s`.
+```
+
+```{config:option} mtu device-nic-ipvlan-device-conf
+:defaultdesc: "parent MTU"
+:shortdesc: "The MTU of the new interface"
+:type: "integer"
+
+```
+
+```{config:option} name device-nic-ipvlan-device-conf
+:defaultdesc: "kernel assigned"
+:shortdesc: "Name of the interface inside the instance"
+:type: "string"
+
+```
+
+```{config:option} parent device-nic-ipvlan-device-conf
+:required: "yes"
+:shortdesc: "Name of the host device"
+:type: "string"
+
+```
+
+```{config:option} vlan device-nic-ipvlan-device-conf
+:shortdesc: "VLAN ID to attach to"
+:type: "integer"
+
+```
+
+<!-- config group device-nic-ipvlan-device-conf end -->
+<!-- config group device-nic-macvlan-device-conf start -->
+```{config:option} boot.priority device-nic-macvlan-device-conf
+:managed: "no"
+:shortdesc: "Boot priority for VMs"
+:type: "integer"
+A higher value for this option means that the VM boots first.
+```
+
+```{config:option} gvrp device-nic-macvlan-device-conf
+:defaultdesc: "`false`"
+:managed: "no"
+:shortdesc: "Whether to use GARP VLAN Registration Protocol"
+:type: "bool"
+This option specifies whether to register the VLAN using the GARP VLAN Registration Protocol.
+```
+
+```{config:option} hwaddr device-nic-macvlan-device-conf
+:defaultdesc: "randomly assigned"
+:managed: "no"
+:shortdesc: "MAC address of the new interface"
+:type: "string"
+
+```
+
+```{config:option} maas.subnet.ipv4 device-nic-macvlan-device-conf
+:managed: "yes"
+:shortdesc: "MAAS IPv4 subnet to register the instance in"
+:type: "string"
+
+```
+
+```{config:option} maas.subnet.ipv6 device-nic-macvlan-device-conf
+:managed: "yes"
+:shortdesc: "MAAS IPv6 subnet to register the instance in"
+:type: "string"
+
+```
+
+```{config:option} mtu device-nic-macvlan-device-conf
+:defaultdesc: "parent MTU"
+:managed: "yes"
+:shortdesc: "MTU of the new interface"
+:type: "integer"
+
+```
+
+```{config:option} name device-nic-macvlan-device-conf
+:defaultdesc: "kernel assigned"
+:managed: "no"
+:shortdesc: "Name of the interface inside the instance"
+:type: "string"
+
+```
+
+```{config:option} network device-nic-macvlan-device-conf
+:managed: "no"
+:shortdesc: "Managed network to link the device to"
+:type: "string"
+You can specify this option instead of specifying the `nictype` directly.
+```
+
+```{config:option} parent device-nic-macvlan-device-conf
+:managed: "yes"
+:required: "if specifying the `nictype` directly"
+:shortdesc: "Name of the host device"
+:type: "string"
+
+```
+
+```{config:option} vlan device-nic-macvlan-device-conf
+:managed: "no"
+:shortdesc: "VLAN ID to attach to"
+:type: "integer"
+
+```
+
+<!-- config group device-nic-macvlan-device-conf end -->
+<!-- config group device-nic-ovn-device-conf start -->
+```{config:option} acceleration device-nic-ovn-device-conf
+:defaultdesc: "`none`"
+:managed: "no"
+:shortdesc: "Enable hardware offloading"
+:type: "string"
+Possible values are `none`, `sriov`, or `vdpa`.
+See {ref}`devices-nic-hw-acceleration` for more information.
+```
+
+```{config:option} boot.priority device-nic-ovn-device-conf
+:managed: "no"
+:shortdesc: "Boot priority for VMs"
+:type: "integer"
+A higher value for this option means that the VM boots first.
+```
+
+```{config:option} host_name device-nic-ovn-device-conf
+:defaultdesc: "randomly assigned"
+:managed: "no"
+:shortdesc: "Name of the interface inside the host"
+:type: "string"
+
+```
+
+```{config:option} hwaddr device-nic-ovn-device-conf
+:defaultdesc: "randomly assigned"
+:managed: "no"
+:shortdesc: "MAC address of the new interface"
+:type: "string"
+
+```
+
+```{config:option} ipv4.address device-nic-ovn-device-conf
+:managed: "no"
+:shortdesc: "IPv4 address to assign to the instance through DHCP"
+:type: "string"
+
+```
+
+```{config:option} ipv4.routes device-nic-ovn-device-conf
+:managed: "no"
+:shortdesc: "IPv4 static routes to route for the NIC"
+:type: "string"
+Specify a comma-delimited list of IPv4 static routes to route for this NIC.
+```
+
+```{config:option} ipv4.routes.external device-nic-ovn-device-conf
+:managed: "no"
+:shortdesc: "IPv4 static routes to route to NIC"
+:type: "string"
+Specify a comma-delimited list of IPv4 static routes to route to the NIC and publish on the uplink network.
+```
+
+```{config:option} ipv6.address device-nic-ovn-device-conf
+:managed: "no"
+:shortdesc: "IPv6 address to assign to the instance through DHCP"
+:type: "string"
+
+```
+
+```{config:option} ipv6.routes device-nic-ovn-device-conf
+:managed: "no"
+:shortdesc: "IPv6 static routes to route to the NIC"
+:type: "string"
+Specify a comma-delimited list of IPv6 static routes to route to the NIC.
+```
+
+```{config:option} ipv6.routes.external device-nic-ovn-device-conf
+:managed: "no"
+:shortdesc: "IPv6 static routes to route to NIC"
+:type: "string"
+Specify a comma-delimited list of IPv6 static routes to route to the NIC and publish on the uplink network.
+```
+
+```{config:option} name device-nic-ovn-device-conf
+:defaultdesc: "kernel assigned"
+:managed: "no"
+:shortdesc: "Name of the interface inside the instance"
+:type: "string"
+
+```
+
+```{config:option} nested device-nic-ovn-device-conf
+:managed: "no"
+:shortdesc: "Parent NIC name to nest this NIC under"
+:type: "string"
+See also {config:option}`device-nic-ovn-device-conf:vlan`.
+```
+
+```{config:option} network device-nic-ovn-device-conf
+:managed: "yes"
+:required: "yes"
+:shortdesc: "Managed network to link the device to"
+:type: "string"
+
+```
+
+```{config:option} security.acls device-nic-ovn-device-conf
+:managed: "no"
+:shortdesc: "Network ACLs to apply"
+:type: "string"
+Specify a comma-separated list
+```
+
+```{config:option} security.acls.default.egress.action device-nic-ovn-device-conf
+:defaultdesc: "`reject`"
+:managed: "no"
+:shortdesc: "Default action to use for egress traffic"
+:type: "string"
+The specified action is used for all egress traffic that doesn’t match any ACL rule.
+```
+
+```{config:option} security.acls.default.egress.logged device-nic-ovn-device-conf
+:defaultdesc: "`false`"
+:managed: "no"
+:shortdesc: "Whether to log egress traffic that doesn’t match any ACL rule"
+:type: "bool"
+
+```
+
+```{config:option} security.acls.default.ingress.action device-nic-ovn-device-conf
+:defaultdesc: "`reject`"
+:managed: "no"
+:shortdesc: "Default action to use for ingress traffic"
+:type: "string"
+The specified action is used for all ingress traffic that doesn’t match any ACL rule.
+```
+
+```{config:option} security.acls.default.ingress.logged device-nic-ovn-device-conf
+:defaultdesc: "`false`"
+:managed: "no"
+:shortdesc: "Whether to log ingress traffic that doesn’t match any ACL rule"
+:type: "bool"
+
+```
+
+```{config:option} vlan device-nic-ovn-device-conf
+:managed: "no"
+:shortdesc: "VLAN ID to use when nesting"
+:type: "integer"
+See also {config:option}`device-nic-ovn-device-conf:nested`.
+```
+
+<!-- config group device-nic-ovn-device-conf end -->
+<!-- config group device-nic-p2p-device-conf start -->
+```{config:option} boot.priority device-nic-p2p-device-conf
+:shortdesc: "Boot priority for VMs"
+:type: "integer"
+A higher value for this option means that the VM boots first.
+```
+
+```{config:option} host_name device-nic-p2p-device-conf
+:defaultdesc: "randomly assigned"
+:shortdesc: "Name of the interface inside the host"
+:type: "string"
+
+```
+
+```{config:option} hwaddr device-nic-p2p-device-conf
+:defaultdesc: "randomly assigned"
+:shortdesc: "MAC address of the new interface"
+:type: "string"
+
+```
+
+```{config:option} ipv4.routes device-nic-p2p-device-conf
+:shortdesc: "IPv4 static routes for the NIC to add on the host"
+:type: "string"
+Specify a comma-delimited list of IPv4 static routes for this NIC to add on the host.
+```
+
+```{config:option} ipv6.routes device-nic-p2p-device-conf
+:shortdesc: "IPv6 static routes for the NIC to add on the host"
+:type: "string"
+Specify a comma-delimited list of IPv6 static routes for this NIC to add on the host.
+```
+
+```{config:option} limits.egress device-nic-p2p-device-conf
+:shortdesc: "I/O limit for outgoing traffic"
+:type: "string"
+Specify the limit in bit/s. Various suffixes are supported (see {ref}`instances-limit-units`).
+```
+
+```{config:option} limits.ingress device-nic-p2p-device-conf
+:shortdesc: "I/O limit for incoming traffic"
+:type: "string"
+Specify the limit in bit/s. Various suffixes are supported (see {ref}`instances-limit-units`).
+```
+
+```{config:option} limits.max device-nic-p2p-device-conf
+:shortdesc: "I/O limit for both incoming and outgoing traffic"
+:type: "string"
+This option is the same as setting both {config:option}`device-nic-bridged-device-conf:limits.ingress` and {config:option}`device-nic-bridged-device-conf:limits.egress`.
+
+Specify the limit in bit/s. Various suffixes are supported (see {ref}`instances-limit-units`).
+```
+
+```{config:option} limits.priority device-nic-p2p-device-conf
+:shortdesc: "`skb->priority` value for outgoing traffic"
+:type: "integer"
+The `skb->priority` value for outgoing traffic is used by the kernel queuing discipline (qdisc) to prioritize network packets.
+Specify the value as a 32-bit unsigned integer.
+
+The effect of this value depends on the particular qdisc implementation, for example, `SKBPRIO` or `QFQ`.
+Consult the kernel qdisc documentation before setting this value.
+```
+
+```{config:option} mtu device-nic-p2p-device-conf
+:defaultdesc: "kernel assigned"
+:shortdesc: "MTU of the new interface"
+:type: "integer"
+
+```
+
+```{config:option} name device-nic-p2p-device-conf
+:defaultdesc: "kernel assigned"
+:shortdesc: "Name of the interface inside the instance"
+:type: "string"
+
+```
+
+```{config:option} queue.tx.length device-nic-p2p-device-conf
+:shortdesc: "Transmit queue length for the NIC"
+:type: "integer"
+
+```
+
+<!-- config group device-nic-p2p-device-conf end -->
+<!-- config group device-nic-physical-device-conf start -->
+```{config:option} boot.priority device-nic-physical-device-conf
+:managed: "no"
+:shortdesc: "Boot priority for VMs"
+:type: "integer"
+A higher value for this option means that the VM boots first.
+```
+
+```{config:option} gvrp device-nic-physical-device-conf
+:defaultdesc: "`false`"
+:managed: "no"
+:shortdesc: "Whether to use GARP VLAN Registration Protocol"
+:type: "bool"
+This option specifies whether to register the VLAN using the GARP VLAN Registration Protocol.
+```
+
+```{config:option} hwaddr device-nic-physical-device-conf
+:defaultdesc: "randomly assigned"
+:managed: "no"
+:shortdesc: "MAC address of the new interface"
+:type: "string"
+
+```
+
+```{config:option} maas.subnet.ipv4 device-nic-physical-device-conf
+:managed: "no"
+:shortdesc: "MAAS IPv4 subnet to register the instance in"
+:type: "string"
+
+```
+
+```{config:option} maas.subnet.ipv6 device-nic-physical-device-conf
+:managed: "no"
+:shortdesc: "MAAS IPv6 subnet to register the instance in"
+:type: "string"
+
+```
+
+```{config:option} mtu device-nic-physical-device-conf
+:defaultdesc: "parent MTU"
+:managed: "no"
+:shortdesc: "MTU of the new interface"
+:type: "integer"
+
+```
+
+```{config:option} name device-nic-physical-device-conf
+:defaultdesc: "kernel assigned"
+:managed: "no"
+:shortdesc: "Name of the interface inside the instance"
+:type: "string"
+
+```
+
+```{config:option} network device-nic-physical-device-conf
+:managed: "no"
+:shortdesc: "Managed network to link the device to"
+:type: "string"
+You can specify this option instead of specifying the `nictype` directly.
+```
+
+```{config:option} parent device-nic-physical-device-conf
+:managed: "yes"
+:required: "if specifying the `nictype` directly"
+:shortdesc: "Name of the host device"
+:type: "string"
+
+```
+
+```{config:option} vlan device-nic-physical-device-conf
+:managed: "no"
+:shortdesc: "VLAN ID to attach to"
+:type: "integer"
+
+```
+
+<!-- config group device-nic-physical-device-conf end -->
+<!-- config group device-nic-routed-device-conf start -->
+```{config:option} gvrp device-nic-routed-device-conf
+:defaultdesc: "`false`"
+:shortdesc: "Whether to use GARP VLAN Registration Protocol"
+:type: "bool"
+This option specifies whether to register the VLAN using the GARP VLAN Registration Protocol.
+```
+
+```{config:option} host_name device-nic-routed-device-conf
+:defaultdesc: "randomly assigned"
+:shortdesc: "Name of the interface inside the host"
+:type: "string"
+
+```
+
+```{config:option} hwaddr device-nic-routed-device-conf
+:defaultdesc: "randomly assigned"
+:shortdesc: "MAC address of the new interface"
+:type: "string"
+
+```
+
+```{config:option} ipv4.address device-nic-routed-device-conf
+:shortdesc: "IPv4 static addresses to add to the instance"
+:type: "string"
+Specify a comma-delimited list of IPv4 static addresses to add to the instance.
+```
+
+```{config:option} ipv4.gateway device-nic-routed-device-conf
+:defaultdesc: "`auto`"
+:shortdesc: "Whether to add an automatic default IPv4 gateway"
+:type: "string"
+Possible values are `auto` and `none`.
+```
+
+```{config:option} ipv4.host_address device-nic-routed-device-conf
+:defaultdesc: "`192.254.0.1`"
+:shortdesc: "IPv4 address to add to the host-side `veth` interface"
+:type: "string"
+
+```
+
+```{config:option} ipv4.host_table device-nic-routed-device-conf
+:shortdesc: "Custom policy routing table ID to add IPv4 static routes to"
+:type: "integer"
+The custom policy routing table is in addition to the main routing table.
+```
+
+```{config:option} ipv4.neighbor_probe device-nic-routed-device-conf
+:defaultdesc: "`true`"
+:shortdesc: "Whether to probe the parent network for IPv4 address availability"
+:type: "bool"
+
+```
+
+```{config:option} ipv4.routes device-nic-routed-device-conf
+:shortdesc: "IPv4 static routes for the NIC to add on the host"
+:type: "string"
+Specify a comma-delimited list of IPv4 static routes for this NIC to add on the host (without L2 ARP/NDP proxy).
+```
+
+```{config:option} ipv6.address device-nic-routed-device-conf
+:shortdesc: "IPv6 static addresses to add to the instance"
+:type: "string"
+Specify a comma-delimited list of IPv6 static addresses to add to the instance.
+```
+
+```{config:option} ipv6.gateway device-nic-routed-device-conf
+:defaultdesc: "`auto`"
+:shortdesc: "Whether to add an automatic default IPv6 gateway"
+:type: "string"
+Possible values are `auto` and `none`.
+```
+
+```{config:option} ipv6.host_address device-nic-routed-device-conf
+:defaultdesc: "`fe80::1`"
+:shortdesc: "IPv6 address to add to the host-side `veth` interface"
+:type: "string"
+
+```
+
+```{config:option} ipv6.host_table device-nic-routed-device-conf
+:shortdesc: "Custom policy routing table ID to add IPv6 static routes to"
+:type: "integer"
+The custom policy routing table is in addition to the main routing table.
+```
+
+```{config:option} ipv6.neighbor_probe device-nic-routed-device-conf
+:defaultdesc: "`true`"
+:shortdesc: "Whether to probe the parent network for IPv6 address availability"
+:type: "bool"
+
+```
+
+```{config:option} ipv6.routes device-nic-routed-device-conf
+:shortdesc: "IPv6 static routes for the NIC to add on the host"
+:type: "string"
+Specify a comma-delimited list of IPv6 static routes for this NIC to add on the host (without L2 ARP/NDP proxy).
+```
+
+```{config:option} limits.egress device-nic-routed-device-conf
+:shortdesc: "I/O limit for outgoing traffic"
+:type: "string"
+Specify the limit in bit/s. Various suffixes are supported (see {ref}`instances-limit-units`).
+```
+
+```{config:option} limits.ingress device-nic-routed-device-conf
+:shortdesc: "I/O limit for incoming traffic"
+:type: "string"
+Specify the limit in bit/s. Various suffixes are supported (see {ref}`instances-limit-units`).
+```
+
+```{config:option} limits.max device-nic-routed-device-conf
+:shortdesc: "I/O limit for both incoming and outgoing traffic"
+:type: "string"
+This option is the same as setting both {config:option}`device-nic-bridged-device-conf:limits.ingress` and {config:option}`device-nic-bridged-device-conf:limits.egress`.
+
+Specify the limit in bit/s. Various suffixes are supported (see {ref}`instances-limit-units`).
+```
+
+```{config:option} limits.priority device-nic-routed-device-conf
+:shortdesc: "`skb->priority` value for outgoing traffic"
+:type: "integer"
+The `skb->priority` value for outgoing traffic is used by the kernel queuing discipline (qdisc) to prioritize network packets.
+Specify the value as a 32-bit unsigned integer.
+
+The effect of this value depends on the particular qdisc implementation, for example, `SKBPRIO` or `QFQ`.
+Consult the kernel qdisc documentation before setting this value.
+```
+
+```{config:option} mtu device-nic-routed-device-conf
+:defaultdesc: "parent MTU"
+:shortdesc: "The MTU of the new interface"
+:type: "integer"
+
+```
+
+```{config:option} name device-nic-routed-device-conf
+:defaultdesc: "kernel assigned"
+:shortdesc: "Name of the interface inside the instance"
+:type: "string"
+
+```
+
+```{config:option} parent device-nic-routed-device-conf
+:shortdesc: "Name of the host device to join the instance to"
+:type: "string"
+
+```
+
+```{config:option} queue.tx.length device-nic-routed-device-conf
+:shortdesc: "Transmit queue length for the NIC"
+:type: "integer"
+
+```
+
+```{config:option} vlan device-nic-routed-device-conf
+:shortdesc: "VLAN ID to attach to"
+:type: "integer"
+
+```
+
+<!-- config group device-nic-routed-device-conf end -->
+<!-- config group device-nic-sriov-device-conf start -->
+```{config:option} boot.priority device-nic-sriov-device-conf
+:managed: "no"
+:shortdesc: "Boot priority for VMs"
+:type: "integer"
+A higher value for this option means that the VM boots first.
+```
+
+```{config:option} hwaddr device-nic-sriov-device-conf
+:defaultdesc: "randomly assigned"
+:managed: "no"
+:shortdesc: "MAC address of the new interface"
+:type: "string"
+
+```
+
+```{config:option} maas.subnet.ipv4 device-nic-sriov-device-conf
+:managed: "yes"
+:shortdesc: "MAAS IPv4 subnet to register the instance in"
+:type: "string"
+
+```
+
+```{config:option} maas.subnet.ipv6 device-nic-sriov-device-conf
+:managed: "yes"
+:shortdesc: "MAAS IPv6 subnet to register the instance in"
+:type: "string"
+
+```
+
+```{config:option} mtu device-nic-sriov-device-conf
+:defaultdesc: "kernel assigned"
+:managed: "yes"
+:shortdesc: "MTU of the new interface"
+:type: "integer"
+
+```
+
+```{config:option} name device-nic-sriov-device-conf
+:defaultdesc: "kernel assigned"
+:managed: "no"
+:shortdesc: "Name of the interface inside the instance"
+:type: "string"
+
+```
+
+```{config:option} network device-nic-sriov-device-conf
+:managed: "no"
+:shortdesc: "Managed network to link the device to"
+:type: "string"
+You can specify this option instead of specifying the `nictype` directly.
+```
+
+```{config:option} parent device-nic-sriov-device-conf
+:managed: "yes"
+:required: "if specifying the `nictype` directly"
+:shortdesc: "Name of the host device"
+:type: "string"
+
+```
+
+```{config:option} security.mac_filtering device-nic-sriov-device-conf
+:defaultdesc: "`false`"
+:managed: "no"
+:shortdesc: "Whether to prevent the instance from spoofing a MAC address"
+:type: "bool"
+Set this option to `true` to prevent the instance from spoofing another instance’s MAC address.
+```
+
+```{config:option} vlan device-nic-sriov-device-conf
+:managed: "no"
+:shortdesc: "VLAN ID to attach to"
+:type: "integer"
+
+```
+
+<!-- config group device-nic-sriov-device-conf end -->
 <!-- config group device-pci-device-conf start -->
 ```{config:option} address device-pci-device-conf
 :required: "yes"
