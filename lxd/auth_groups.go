@@ -24,7 +24,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
-	"github.com/canonical/lxd/shared/logger"
 )
 
 var authGroupsCmd = APIEndpoint{
@@ -210,24 +209,10 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			// Get the EntityURLs for the permissions. Ignore any dangling permissions.
-			var danglingPermissions []dbCluster.Permission
-			authGroupPermissions, danglingPermissions, entityURLs, err = dbCluster.GetPermissionEntityURLs(ctx, tx.Tx(), authGroupPermissions)
+			// Get the EntityURLs for the permissions.
+			authGroupPermissions, entityURLs, err = dbCluster.GetPermissionEntityURLs(ctx, tx.Tx(), authGroupPermissions)
 			if err != nil {
 				return err
-			}
-
-			if len(danglingPermissions) > 0 {
-				permissionIDs := make([]int, 0, len(danglingPermissions))
-				entityTypes := make([]dbCluster.EntityType, 0, len(danglingPermissions))
-				for _, perm := range danglingPermissions {
-					permissionIDs = append(permissionIDs, perm.ID)
-					if !shared.ValueInSlice(perm.EntityType, entityTypes) {
-						entityTypes = append(entityTypes, perm.EntityType)
-					}
-				}
-
-				logger.Warn("Encountered dangling permissions", logger.Ctx{"permission_ids": permissionIDs, "entity_types": entityTypes})
 			}
 		}
 
@@ -260,14 +245,9 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 
-			apiIdentities := make([]api.Identity, 0, len(groupsIdentities[group.ID]))
+			apiIdentities := make(map[string][]string)
 			for _, identity := range groupsIdentities[group.ID] {
-				apiIdentities = append(apiIdentities, api.Identity{
-					AuthenticationMethod: string(identity.AuthMethod),
-					Type:                 string(identity.Type),
-					Identifier:           identity.Identifier,
-					Name:                 identity.Name,
-				})
+				apiIdentities[string(identity.AuthMethod)] = append(apiIdentities[string(identity.AuthMethod)], identity.Identifier)
 			}
 
 			idpGroups := make([]string, 0, len(groupsIdentityProviderGroups[group.ID]))

@@ -6,10 +6,8 @@ import (
 	"fmt"
 
 	"github.com/canonical/lxd/lxd/db/query"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
-	"github.com/canonical/lxd/shared/logger"
 )
 
 // Code generation directives.
@@ -62,22 +60,9 @@ func (g *AuthGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.AuthGroup, erro
 		return nil, err
 	}
 
-	permissions, danglingPermissions, entityURLs, err := GetPermissionEntityURLs(ctx, tx, permissions)
+	permissions, entityURLs, err := GetPermissionEntityURLs(ctx, tx, permissions)
 	if err != nil {
 		return nil, err
-	}
-
-	if len(danglingPermissions) > 0 {
-		permissionIDs := make([]int, 0, len(danglingPermissions))
-		entityTypes := make([]EntityType, 0, len(danglingPermissions))
-		for _, perm := range danglingPermissions {
-			permissionIDs = append(permissionIDs, perm.ID)
-			if !shared.ValueInSlice(perm.EntityType, entityTypes) {
-				entityTypes = append(entityTypes, perm.EntityType)
-			}
-		}
-
-		logger.Warn("Encountered dangling permissions", logger.Ctx{"permission_ids": permissionIDs, "entity_types": entityTypes})
 	}
 
 	apiPermissions := make([]api.Permission, 0, len(permissions))
@@ -106,14 +91,9 @@ func (g *AuthGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.AuthGroup, erro
 		return nil, err
 	}
 
-	group.Identities = make([]api.Identity, 0, len(identities))
+	group.Identities = make(map[string][]string)
 	for _, identity := range identities {
-		group.Identities = append(group.Identities, api.Identity{
-			AuthenticationMethod: string(identity.AuthMethod),
-			Type:                 string(identity.Type),
-			Identifier:           identity.Identifier,
-			Name:                 identity.Name,
-		})
+		group.Identities[string(identity.AuthMethod)] = append(group.Identities[string(identity.AuthMethod)], identity.Identifier)
 	}
 
 	identityProviderGroups, err := GetIdentityProviderGroupsByGroupID(ctx, tx, g.ID)

@@ -31,6 +31,8 @@ const (
 //
 // API extension: access_management.
 type Identity struct {
+	IdentityPut `yaml:",inline"`
+
 	// AuthenticationMethod is the authentication method that the identity
 	// authenticates to LXD with.
 	// Example: tls
@@ -50,14 +52,23 @@ type Identity struct {
 	Name string `json:"name" yaml:"name"`
 }
 
-// IdentityInfo expands an Identity to include group membership.
+// IdentityInfo expands an Identity to include effective group membership and effective permissions.
+// These fields can only be evaluated for the currently authenticated identity.
 //
 // swagger:model
 //
 // API extension: access_management.
 type IdentityInfo struct {
-	IdentityPut `yaml:",inline"`
-	Identity    `yaml:",inline"`
+	Identity `yaml:",inline"`
+
+	// Effective groups is the combined and deduplicated list of LXD groups that the identity is a direct member of, and
+	// the LXD groups that the identity is an effective member of via identity provider group mappings.
+	// Example: ["foo", "bar"]
+	EffectiveGroups []string `json:"effective_groups" yaml:"effective_groups"`
+
+	// Effective permissions is the combined and deduplicated list of permissions that the identity has by virtue of
+	// direct membership to a LXD group, or effective membership of a LXD group via identity provider group mappings.
+	EffectivePermissions []Permission `json:"effective_permissions" yaml:"effective_permissions"`
 }
 
 // IdentityPut contains the editable fields of an IdentityInfo.
@@ -79,8 +90,8 @@ type IdentityPut struct {
 type AuthGroup struct {
 	AuthGroupsPost `yaml:",inline"`
 
-	// Identities are the identities that are members of the group.
-	Identities []Identity `json:"identities" yaml:"identities"`
+	// Identities is a map of authentication method to slice of identity identifiers.
+	Identities map[string][]string `json:"identities" yaml:"identities"`
 
 	// IdentityProviderGroups are a list of groups from the IdP whose mapping
 	// includes this group.
