@@ -1211,7 +1211,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 	// This way we don't have to retrieve them separately from the database.
 	sourceSnapshots := make([]drivers.Volume, 0, len(srcConfig.VolumeSnapshots))
 	for _, sourceSnap := range srcConfig.VolumeSnapshots {
-		snapshotName := drivers.GetSnapshotVolumeName(srcVolName, sourceSnap.Name)
+		snapshotName := drivers.GetSnapshotVolumeName(srcConfig.Volume.Name, sourceSnap.Name)
 		snapshotStorageName := project.StorageVolume(srcProjectName, snapshotName)
 		sourceSnapshots = append(sourceSnapshots, b.GetVolume(drivers.VolumeTypeCustom, contentType, snapshotStorageName, sourceSnap.Config))
 	}
@@ -1281,7 +1281,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 	vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, dbVol.Config)
 
 	// Get the src volume name on storage.
-	srcVolStorageName := project.StorageVolume(srcProjectName, srcVolName)
+	srcVolStorageName := project.StorageVolume(srcProjectName, srcConfig.Volume.Name)
 	srcVol := srcPool.GetVolume(drivers.VolumeTypeCustom, contentType, srcVolStorageName, srcConfig.Volume.Config)
 
 	if srcPool == b {
@@ -1382,7 +1382,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 		go func() {
 			err := srcPool.MigrateCustomVolume(srcProjectName, aEnd, &migration.VolumeSourceArgs{
 				IndexHeaderVersion: migration.IndexHeaderVersion,
-				Name:               srcVolName,
+				Name:               srcConfig.Volume.Name,
 				Snapshots:          snapshotNames,
 				MigrationType:      migrationTypes[0],
 				TrackProgress:      true, // Do use a progress tracker on sender.
@@ -3766,7 +3766,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	// This way we don't have to retrieve them separately from the database.
 	sourceSnapshots := make([]drivers.Volume, 0, len(srcConfig.VolumeSnapshots))
 	for _, sourceSnap := range srcConfig.VolumeSnapshots {
-		snapshotName := drivers.GetSnapshotVolumeName(srcVolName, sourceSnap.Name)
+		snapshotName := drivers.GetSnapshotVolumeName(srcConfig.Volume.Name, sourceSnap.Name)
 		snapshotStorageName := project.StorageVolume(srcProjectName, snapshotName)
 		sourceSnapshots = append(sourceSnapshots, b.GetVolume(drivers.VolumeTypeCustom, contentType, snapshotStorageName, sourceSnap.Config))
 	}
@@ -3790,7 +3790,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	defer revert.Fail()
 
 	// Get the src volume name on storage.
-	srcVolStorageName := project.StorageVolume(srcProjectName, srcVolName)
+	srcVolStorageName := project.StorageVolume(srcProjectName, srcConfig.Volume.Name)
 	srcVol := srcPool.GetVolume(drivers.VolumeTypeCustom, contentType, srcVolStorageName, srcConfig.Volume.Config)
 
 	// If the source and target are in the same pool then use CreateVolumeFromCopy rather than
@@ -3906,7 +3906,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	go func() {
 		err := srcPool.MigrateCustomVolume(srcProjectName, aEnd, &migration.VolumeSourceArgs{
 			IndexHeaderVersion: migration.IndexHeaderVersion,
-			Name:               srcVolName,
+			Name:               srcConfig.Volume.Name,
 			Snapshots:          snapshotNames,
 			MigrationType:      migrationTypes[0],
 			TrackProgress:      true, // Do use a progress tracker on sender.
