@@ -870,11 +870,11 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, projectName st
 		apiNet.Type = n.Type()
 
 		err = s.Authorizer.CheckPermission(r.Context(), r, entity.NetworkURL(projectName, networkName), auth.EntitlementCanEdit)
-		if err == nil {
-			// Only allow admins to see network config as sensitive info can be stored there.
-			apiNet.Config = n.Config()
-		} else if !api.StatusErrorCheck(err, http.StatusForbidden) {
+		if err != nil && !auth.IsDeniedError(err) {
 			return api.Network{}, err
+		} else if err == nil {
+			// Only allow users that can edit network config to view it as sensitive info can be stored there.
+			apiNet.Config = n.Config()
 		}
 
 		// If no member is specified, we omit the node-specific fields.

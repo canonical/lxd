@@ -638,11 +638,11 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	poolAPI.UsedBy = project.FilterUsedBy(s.Authorizer, r, poolUsedBy)
 
 	err = s.Authorizer.CheckPermission(r.Context(), r, entity.StoragePoolURL(poolName), auth.EntitlementCanEdit)
-	if err != nil && api.StatusErrorCheck(err, http.StatusForbidden) {
-		// Don't allow non-admins to see pool config as sensitive info can be stored there.
-		poolAPI.Config = nil
-	} else if err != nil {
+	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
+	} else if err != nil {
+		// Only allow users that can edit storage pool config to view it as sensitive info can be stored there.
+		poolAPI.Config = nil
 	}
 
 	// If no member is specified and the daemon is clustered, we omit the node-specific fields.
