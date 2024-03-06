@@ -113,7 +113,7 @@ func SetIdentityProviderGroupMapping(ctx context.Context, tx *sql.Tx, identityPr
 
 	q := fmt.Sprintf(`
 INSERT INTO auth_groups_identity_provider_groups (auth_group_id, identity_provider_group_id)
-SELECT ?, auth_groups.id
+SELECT auth_groups.id, ?
 FROM auth_groups
 WHERE auth_groups.name IN %s
 `, query.Params(len(groupNames)))
