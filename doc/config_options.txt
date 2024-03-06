@@ -16,6 +16,177 @@ User keys can be used in search.
 ```
 
 <!-- config group cluster-cluster end -->
+<!-- config group device-disk-device-conf start -->
+```{config:option} boot.priority device-disk-device-conf
+:condition: "virtual machine"
+:required: "no"
+:shortdesc: "Boot priority for VMs"
+:type: "integer"
+A higher value indicates a higher boot precedence for the disk device.
+This is useful for prioritizing boot sources like ISO-backed disks.
+```
+
+```{config:option} ceph.cluster_name device-disk-device-conf
+:defaultdesc: "`ceph`"
+:required: "for Ceph or CephFS sources"
+:shortdesc: "Cluster name of the Ceph cluster"
+:type: "string"
+
+```
+
+```{config:option} ceph.user_name device-disk-device-conf
+:defaultdesc: "`admin`"
+:required: "for Ceph or CephFS sources"
+:shortdesc: "User name of the Ceph cluster"
+:type: "string"
+
+```
+
+```{config:option} initial.* device-disk-device-conf
+:required: "no"
+:shortdesc: "Initial volume configuration"
+:type: "n/a"
+Initial volume configuration allows setting unique configurations independent of the default storage pool settings.
+See {ref}`devices-disk-initial-config` for more information.
+```
+
+```{config:option} io.bus device-disk-device-conf
+:condition: "virtual machine"
+:defaultdesc: "`virtio-scsi`"
+:required: "no"
+:shortdesc: "Bus for the device"
+:type: "string"
+Possible values are `virtio-scsi` or `nvme`.
+```
+
+```{config:option} io.cache device-disk-device-conf
+:condition: "virtual machine"
+:defaultdesc: "`none`"
+:required: "no"
+:shortdesc: "Caching mode for the device"
+:type: "string"
+Possible values are `none`, `writeback`, or `unsafe`.
+```
+
+```{config:option} limits.max device-disk-device-conf
+:required: "no"
+:shortdesc: "I/O limit in byte/s or IOPS for both read and write"
+:type: "string"
+This option is the same as setting both {config:option}`device-disk-device-conf:limits.read` and {config:option}`device-disk-device-conf:limits.write`.
+
+You can specify a value in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in IOPS (must be suffixed with `iops`).
+See also {ref}`storage-configure-io`.
+
+```
+
+```{config:option} limits.read device-disk-device-conf
+:required: "no"
+:shortdesc: "Read I/O limit in byte/s or IOPS"
+:type: "string"
+You can specify a value in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in IOPS (must be suffixed with `iops`).
+See also {ref}`storage-configure-io`.
+```
+
+```{config:option} limits.write device-disk-device-conf
+:required: "no"
+:shortdesc: "Write I/O limit in byte/s or IOPS"
+:type: "string"
+You can specify a value in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in IOPS (must be suffixed with `iops`).
+See also {ref}`storage-configure-io`.
+```
+
+```{config:option} path device-disk-device-conf
+:condition: "container"
+:required: "yes"
+:shortdesc: "Mount path"
+:type: "string"
+This option specifies the path inside the container where the disk will be mounted.
+```
+
+```{config:option} pool device-disk-device-conf
+:condition: "storage volumes managed by LXD"
+:required: "no"
+:shortdesc: "Storage pool to which the disk device belongs"
+:type: "string"
+
+```
+
+```{config:option} propagation device-disk-device-conf
+:defaultdesc: "`private`"
+:required: "no"
+:shortdesc: "How a bind-mount is shared between the instance and the host"
+:type: "string"
+Possible values are `private` (the default), `shared`, `slave`, `unbindable`, `rshared`, `rslave`, `runbindable`, `rprivate`.
+See the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation.
+
+```
+
+```{config:option} raw.mount.options device-disk-device-conf
+:required: "no"
+:shortdesc: "File system specific mount options"
+:type: "string"
+
+```
+
+```{config:option} readonly device-disk-device-conf
+:defaultdesc: "`false`"
+:required: "no"
+:shortdesc: "Whether to make the mount read-only"
+:type: "bool"
+
+```
+
+```{config:option} recursive device-disk-device-conf
+:defaultdesc: "`false`"
+:required: "no"
+:shortdesc: "Whether to recursively mount the source path"
+:type: "bool"
+
+```
+
+```{config:option} required device-disk-device-conf
+:defaultdesc: "`true`"
+:required: "no"
+:shortdesc: "Whether to fail if the source doesn’t exist"
+:type: "bool"
+
+```
+
+```{config:option} shift device-disk-device-conf
+:condition: "container"
+:defaultdesc: "`false`"
+:required: "no"
+:shortdesc: "Whether to set up a UID/GID shifting overlay"
+:type: "bool"
+If enabled, this option sets up a shifting overlay to translate the source UID/GID to match the container instance.
+```
+
+```{config:option} size device-disk-device-conf
+:required: "no"
+:shortdesc: "Disk size"
+:type: "string"
+This option is supported only for the rootfs (`/`).
+
+Specify a value in bytes (various suffixes supported, see {ref}`instances-limit-units`).
+```
+
+```{config:option} size.state device-disk-device-conf
+:condition: "virtual machine"
+:required: "no"
+:shortdesc: "Size of the file-system volume used for saving runtime state"
+:type: "string"
+This option is similar to {config:option}`device-disk-device-conf:size`, but applies to the file-system volume used for saving the runtime state in VMs.
+```
+
+```{config:option} source device-disk-device-conf
+:required: "yes"
+:shortdesc: "Source of a file system or block device"
+:type: "string"
+See {ref}`devices-disk-types` for details.
+
+```
+
+<!-- config group device-disk-device-conf end -->
 <!-- config group device-gpu-mdev-device-conf start -->
 ```{config:option} id device-gpu-mdev-device-conf
 :shortdesc: "DRM card ID of the GPU device"
