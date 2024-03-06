@@ -433,6 +433,119 @@ func getIdentity(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, apiIdentity, apiIdentity)
 }
 
+// swagger:operation GET /1.0/auth/identities/current identities identity_get_current
+//
+//	Get the current identity
+//
+//	Gets the identity of the requestor, including contextual authorization information.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/IdentityInfo"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
+	identifier, err := request.GetCtxValue[string](r.Context(), request.CtxUsername)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to get identity identifier: %w", err))
+	}
+
+	protocol, err := request.GetCtxValue[string](r.Context(), request.CtxProtocol)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to get authentication method: %w", err))
+	}
+
+	// Must be a remote API request.
+	err = auth.ValidateAuthenticationMethod(protocol)
+	if err != nil {
+		return response.BadRequest(fmt.Errorf("Current identity information must be requested via the HTTPS API"))
+	}
+
+	// Identity provider groups may not be present.
+	identityProviderGroupNames, _ := request.GetCtxValue[[]string](r.Context(), request.CtxIdentityProviderGroups)
+
+	s := d.State()
+	var apiIdentity *api.Identity
+	var effectiveGroups []string
+	var effectivePermissions []api.Permission
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		id, err := dbCluster.GetIdentity(ctx, tx.Tx(), dbCluster.AuthMethod(protocol), identifier)
+		if err != nil {
+			return fmt.Errorf("Failed to get current identity from database: %w", err)
+		}
+
+		apiIdentity, err = id.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return fmt.Errorf("Failed to populate LXD groups: %w", err)
+		}
+
+		effectiveGroups = apiIdentity.Groups
+		mappedGroups, err := dbCluster.GetDistinctAuthGroupNamesFromIDPGroupNames(ctx, tx.Tx(), identityProviderGroupNames)
+		if err != nil {
+			return fmt.Errorf("Failed to get effective groups: %w", err)
+		}
+
+		for _, mappedGroup := range mappedGroups {
+			if !shared.ValueInSlice(mappedGroup, effectiveGroups) {
+				effectiveGroups = append(effectiveGroups, mappedGroup)
+			}
+		}
+
+		permissions, err := dbCluster.GetDistinctPermissionsByGroupNames(ctx, tx.Tx(), effectiveGroups)
+		if err != nil {
+			return fmt.Errorf("Failed to get effective permissions: %w", err)
+		}
+
+		permissions, entityURLs, err := dbCluster.GetPermissionEntityURLs(ctx, tx.Tx(), permissions)
+		if err != nil {
+			return fmt.Errorf("Failed to get entity URLs for effective permissions: %w", err)
+		}
+
+		effectivePermissions = make([]api.Permission, 0, len(permissions))
+		for _, permission := range permissions {
+			effectivePermissions = append(effectivePermissions, api.Permission{
+				EntityType:      string(permission.EntityType),
+				EntityReference: entityURLs[entity.Type(permission.EntityType)][permission.EntityID].String(),
+				Entitlement:     string(permission.Entitlement),
+			})
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponse(true, api.IdentityInfo{
+		Identity:             *apiIdentity,
+		EffectiveGroups:      effectiveGroups,
+		EffectivePermissions: effectivePermissions,
+	})
+}
+
 // swagger:operation PUT /1.0/auth/identities/{authenticationMethod}/{nameOrIdentifier} identities identity_put
 //
 //	Update the identity
