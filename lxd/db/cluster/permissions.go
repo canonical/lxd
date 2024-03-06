@@ -3,9 +3,11 @@ package cluster
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net/http"
 
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -110,4 +112,40 @@ func GetPermissionEntityURLs(ctx context.Context, tx *sql.Tx, permissions []Perm
 	}
 
 	return validPermissions, entityURLs, nil
+}
+
+// GetDistinctPermissionsByGroupNames gets all distinct permissions that the groups with the given names have been granted.
+func GetDistinctPermissionsByGroupNames(ctx context.Context, tx *sql.Tx, groupNames []string) ([]Permission, error) {
+	if len(groupNames) == 0 {
+		return nil, nil
+	}
+
+	var args []any
+	for _, effectiveGroup := range groupNames {
+		args = append(args, effectiveGroup)
+	}
+
+	q := fmt.Sprintf(`
+SELECT DISTINCT auth_groups_permissions.entitlement, auth_groups_permissions.entity_type, auth_groups_permissions.entity_id
+FROM auth_groups_permissions
+JOIN auth_groups ON auth_groups_permissions.auth_group_id = auth_groups.id
+WHERE auth_groups.name IN %s`, query.Params(len(groupNames)))
+
+	rows, err := tx.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to query distinct permissions by group names: %w", err)
+	}
+
+	var permissions []Permission
+	for rows.Next() {
+		var permission Permission
+		err := rows.Scan(&permission.Entitlement, &permission.EntityType, &permission.EntityID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to scan effective permissions: %w", err)
+		}
+
+		permissions = append(permissions, permission)
+	}
+
+	return permissions, nil
 }
