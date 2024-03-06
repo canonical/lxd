@@ -34,7 +34,7 @@ However, note that when you specify the `network` option, the `nictype` option i
   When using this method, LXD derives the `nictype` option automatically.
   The value is read-only and cannot be changed.
 
-  Other device options that are inherited from the network are marked with a "yes" in the "Managed" column of the NIC-specific tables of device options.
+  Other device options that are inherited from the network are marked with a "yes" in the "Managed" field of the NIC-specific device options.
   You cannot customize these options directly for the NIC if you're using the `network` method.
 
 See {ref}`networks` for more information.
@@ -59,7 +59,7 @@ The following NICs can be added using only the `nictype` option:
 - [`p2p`](nic-p2p): Creates a virtual device pair, putting one side in the instance and leaving the other side on the host.
 - [`routed`](nic-routed): Creates a virtual device pair to connect the host to the instance and sets up static routes and proxy ARP/NDP entries to allow the instance to join the network of a designated parent interface.
 
-The available device options depend on the NIC type and are listed in the tables in the following sections.
+The available device options depend on the NIC type and are listed in the following sections.
 
 (nic-bridged)=
 ### `nictype`: `bridged`
