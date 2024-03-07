@@ -24,6 +24,8 @@ func AuthenticationMethodFromIdentityType(identityType string) (string, error) {
 	switch identityType {
 	case api.IdentityTypeCertificateClientRestricted, api.IdentityTypeCertificateClientUnrestricted, api.IdentityTypeCertificateServer, api.IdentityTypeCertificateMetrics:
 		return api.AuthenticationMethodTLS, nil
+	case api.IdentityTypeOIDCClient:
+		return api.AuthenticationMethodOIDC, nil
 	}
 
 	return "", fmt.Errorf("Identity type %q not recognized", identityType)
