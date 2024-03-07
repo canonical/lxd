@@ -387,13 +387,13 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	fullSrv.AuthUserMethod = requestor.Protocol
 
 	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanViewConfiguration)
-	if err == nil {
+	if err != nil && !auth.IsDeniedError(err) {
+		return response.SmartError(err)
+	} else if err == nil {
 		fullSrv.Config, err = daemonConfigRender(s)
 		if err != nil {
 			return response.InternalError(err)
 		}
-	} else if !api.StatusErrorCheck(err, http.StatusForbidden) {
-		return response.SmartError(err)
 	}
 
 	return response.SyncResponseETag(true, fullSrv, fullSrv.Config)
