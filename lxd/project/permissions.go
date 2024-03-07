@@ -1509,7 +1509,7 @@ func CheckClusterTargetRestriction(authorizer auth.Authorizer, r *http.Request, 
 	if projectHasRestriction(project, "restricted.cluster.target", "block") && targetFlag != "" {
 		// Allow server administrators to move instances around even when restricted (node evacuation, ...)
 		err := authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanOverrideClusterTargetRestriction)
-		if err != nil && api.StatusErrorCheck(err, http.StatusForbidden) {
+		if err != nil && auth.IsDeniedError(err) {
 			return api.StatusErrorf(http.StatusForbidden, "This project doesn't allow cluster member targeting")
 		} else if err != nil {
 			return err
