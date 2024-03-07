@@ -622,6 +622,8 @@ func (d *ceph) copyVolumeDiff(sourceVolumeName string, targetVolumeName string, 
 	rbdRecvCmd.Stdout = os.Stdout
 	rbdRecvCmd.Stderr = os.Stderr
 
+	d.logger.Debug("Copying RBD volume", logger.Ctx{"srcVolName": sourceVolumeName, "volName": targetVolumeName, "srcParentSnap": sourceParentSnapshot})
+
 	err := rbdRecvCmd.Start()
 	if err != nil {
 		return err
@@ -1169,6 +1171,8 @@ func (d *ceph) sendVolume(conn io.ReadWriteCloser, volumeName string, volumePare
 
 	cmd.Stdout = stdout
 
+	d.logger.Debug("Sending RBD volume", logger.Ctx{"volName": volumeName, "volParentName": volumeParentName})
+
 	err = cmd.Start()
 	if err != nil {
 		return err
@@ -1213,6 +1217,8 @@ func (d *ceph) receiveVolume(volumeName string, conn io.ReadWriteCloser, writeWr
 		_ = stdin.Close()
 		chCopyConn <- err
 	}()
+
+	d.logger.Debug("Receiving RBD volume", logger.Ctx{"volName": volumeName})
 
 	// Run the command.
 	err = cmd.Start()
