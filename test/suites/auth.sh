@@ -351,6 +351,8 @@ user_is_not_project_operator() {
   lxc_remote storage volume create "${pool_name}" vol1
   [ "$(lxc_remote storage volume list "oidc:${pool_name}" -f csv | wc -l)" = 0 ]
   [ "$(lxc_remote storage volume list "oidc:${pool_name}" --all-projects -f csv | wc -l)" = 0 ]
+  [ "$(lxc_remote storage volume list "oidc:" -f csv | wc -l)" = 0 ]
+  [ "$(lxc_remote storage volume list "oidc:" --all-projects -f csv | wc -l)" = 0 ]
   ! lxc_remote storage volume create "oidc:${pool_name}" test-volume || false
   lxc_remote storage volume delete "${pool_name}" vol1
 
