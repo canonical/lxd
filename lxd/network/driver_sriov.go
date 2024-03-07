@@ -24,11 +24,44 @@ func (n *sriov) DBType() db.NetworkType {
 // Validate network config.
 func (n *sriov) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"parent":           validate.Required(validate.IsNotEmpty, validate.IsInterfaceName),
-		"mtu":              validate.Optional(validate.IsNetworkMTU),
-		"vlan":             validate.Optional(validate.IsNetworkVLAN),
+		// lxdmeta:generate(entities=network-sriov; group=network-conf; key=parent)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: Parent interface to create `sriov` NICs on
+		"parent": validate.Required(validate.IsNotEmpty, validate.IsInterfaceName),
+		// lxdmeta:generate(entities=network-sriov; group=network-conf; key=mtu)
+		//
+		// ---
+		//  type: integer
+		//  shortdesc: MTU of the new interface
+		"mtu": validate.Optional(validate.IsNetworkMTU),
+		// lxdmeta:generate(entities=network-sriov; group=network-conf; key=vlan)
+		//
+		// ---
+		//  type: integer
+		//  shortdesc: VLAN ID to attach to
+		"vlan": validate.Optional(validate.IsNetworkVLAN),
+		// lxdmeta:generate(entities=network-sriov; group=network-conf; key=maas.subnet.ipv4)
+		//
+		// ---
+		//  type: string
+		//  condition: IPv4 address; using the `network` property on the NIC
+		//  shortdesc: MAAS IPv4 subnet to register instances in
 		"maas.subnet.ipv4": validate.IsAny,
+		// lxdmeta:generate(entities=network-sriov; group=network-conf; key=maas.subnet.ipv6)
+		//
+		// ---
+		//  type: string
+		//  condition: IPv6 address; using the `network` property on the NIC
+		//  shortdesc: MAAS IPv6 subnet to register instances in
 		"maas.subnet.ipv6": validate.IsAny,
+
+		// lxdmeta:generate(entities=network-sriov; group=network-conf; key=user.*)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: User-provided free-form key/value pairs
 	}
 
 	err := n.validate(config, rules)

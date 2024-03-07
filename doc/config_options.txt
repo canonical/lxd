@@ -2437,6 +2437,46 @@ It is globally unique across all servers and projects.
 ```
 
 <!-- config group instance-volatile end -->
+<!-- config group network-sriov-network-conf start -->
+```{config:option} maas.subnet.ipv4 network-sriov-network-conf
+:condition: "IPv4 address; using the `network` property on the NIC"
+:shortdesc: "MAAS IPv4 subnet to register instances in"
+:type: "string"
+
+```
+
+```{config:option} maas.subnet.ipv6 network-sriov-network-conf
+:condition: "IPv6 address; using the `network` property on the NIC"
+:shortdesc: "MAAS IPv6 subnet to register instances in"
+:type: "string"
+
+```
+
+```{config:option} mtu network-sriov-network-conf
+:shortdesc: "MTU of the new interface"
+:type: "integer"
+
+```
+
+```{config:option} parent network-sriov-network-conf
+:shortdesc: "Parent interface to create `sriov` NICs on"
+:type: "string"
+
+```
+
+```{config:option} user.* network-sriov-network-conf
+:shortdesc: "User-provided free-form key/value pairs"
+:type: "string"
+
+```
+
+```{config:option} vlan network-sriov-network-conf
+:shortdesc: "VLAN ID to attach to"
+:type: "integer"
+
+```
+
+<!-- config group network-sriov-network-conf end -->
 <!-- config group project-features start -->
 ```{config:option} features.images project-features
 :defaultdesc: "`false`"
