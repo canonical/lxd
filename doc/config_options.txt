@@ -1310,6 +1310,24 @@ Set this option to `true` to prevent the instance from spoofing another instance
 ```
 
 <!-- config group device-pci-device-conf end -->
+<!-- config group device-tpm-device-conf start -->
+```{config:option} path device-tpm-device-conf
+:condition: "containers"
+:required: "for containers"
+:shortdesc: "Path inside the container"
+:type: "string"
+For example: `/dev/tpm0`
+```
+
+```{config:option} pathrm device-tpm-device-conf
+:condition: "containers"
+:required: "for containers"
+:shortdesc: "Resource manager path inside the container"
+:type: "string"
+For example: `/dev/tpmrm0`
+```
+
+<!-- config group device-tpm-device-conf end -->
 <!-- config group device-unix-block-device-conf start -->
 ```{config:option} gid device-unix-block-device-conf
 :defaultdesc: "`0`"
