@@ -2517,6 +2517,53 @@ It is globally unique across all servers and projects.
 ```
 
 <!-- config group instance-volatile end -->
+<!-- config group network-macvlan-network-conf start -->
+```{config:option} gvrp network-macvlan-network-conf
+:defaultdesc: "`false`"
+:shortdesc: "Whether to use GARP VLAN Registration Protocol"
+:type: "bool"
+This option specifies whether to register the VLAN using the GARP VLAN Registration Protocol.
+```
+
+```{config:option} maas.subnet.ipv4 network-macvlan-network-conf
+:condition: "IPv4 address; using the `network` property on the NIC"
+:shortdesc: "MAAS IPv4 subnet to register instances in"
+:type: "string"
+
+```
+
+```{config:option} maas.subnet.ipv6 network-macvlan-network-conf
+:condition: "IPv4 address; using the `network` property on the NIC"
+:shortdesc: "MAAS IPv6 subnet to register instances in"
+:type: "string"
+
+```
+
+```{config:option} mtu network-macvlan-network-conf
+:shortdesc: "MTU of the new interface"
+:type: "integer"
+
+```
+
+```{config:option} parent network-macvlan-network-conf
+:shortdesc: "Parent interface to create `macvlan` NICs on"
+:type: "string"
+
+```
+
+```{config:option} user.* network-macvlan-network-conf
+:shortdesc: "User-provided free-form key/value pairs"
+:type: "string"
+
+```
+
+```{config:option} vlan network-macvlan-network-conf
+:shortdesc: "VLAN ID to attach to"
+:type: "integer"
+
+```
+
+<!-- config group network-macvlan-network-conf end -->
 <!-- config group network-sriov-network-conf start -->
 ```{config:option} maas.subnet.ipv4 network-sriov-network-conf
 :condition: "IPv4 address; using the `network` property on the NIC"
