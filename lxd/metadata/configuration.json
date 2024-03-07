@@ -2756,6 +2756,56 @@
 				]
 			}
 		},
+		"network-sriov": {
+			"network-conf": {
+				"keys": [
+					{
+						"maas.subnet.ipv4": {
+							"condition": "IPv4 address; using the `network` property on the NIC",
+							"longdesc": "",
+							"shortdesc": "MAAS IPv4 subnet to register instances in",
+							"type": "string"
+						}
+					},
+					{
+						"maas.subnet.ipv6": {
+							"condition": "IPv6 address; using the `network` property on the NIC",
+							"longdesc": "",
+							"shortdesc": "MAAS IPv6 subnet to register instances in",
+							"type": "string"
+						}
+					},
+					{
+						"mtu": {
+							"longdesc": "",
+							"shortdesc": "MTU of the new interface",
+							"type": "integer"
+						}
+					},
+					{
+						"parent": {
+							"longdesc": "",
+							"shortdesc": "Parent interface to create `sriov` NICs on",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					},
+					{
+						"vlan": {
+							"longdesc": "",
+							"shortdesc": "VLAN ID to attach to",
+							"type": "integer"
+						}
+					}
+				]
+			}
+		},
 		"project": {
 			"features": {
 				"keys": [
