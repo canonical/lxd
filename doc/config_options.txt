@@ -1310,6 +1310,86 @@ Set this option to `true` to prevent the instance from spoofing another instance
 ```
 
 <!-- config group device-pci-device-conf end -->
+<!-- config group device-proxy-device-conf start -->
+```{config:option} bind device-proxy-device-conf
+:defaultdesc: "`host`"
+:required: "no"
+:shortdesc: "Which side to bind on"
+:type: "string"
+Possible values are `host` and `instance`.
+```
+
+```{config:option} connect device-proxy-device-conf
+:required: "yes"
+:shortdesc: "Address and port to connect to"
+:type: "string"
+Use the following format to specify the address and port: `<type>:<addr>:<port>[-<port>][,<port>]`
+```
+
+```{config:option} gid device-proxy-device-conf
+:defaultdesc: "`0`"
+:required: "no"
+:shortdesc: "GID of the owner of the listening Unix socket"
+:type: "integer"
+
+```
+
+```{config:option} listen device-proxy-device-conf
+:required: "yes"
+:shortdesc: "Address and port to bind and listen"
+:type: "string"
+Use the following format to specify the address and port: `<type>:<addr>:<port>[-<port>][,<port>]`
+```
+
+```{config:option} mode device-proxy-device-conf
+:defaultdesc: "`0644`"
+:required: "no"
+:shortdesc: "Mode for the listening Unix socket"
+:type: "integer"
+
+```
+
+```{config:option} nat device-proxy-device-conf
+:defaultdesc: "`false`"
+:required: "no"
+:shortdesc: "Whether to optimize proxying via NAT"
+:type: "bool"
+This option requires that the instance NIC has a static IP address.
+```
+
+```{config:option} proxy_protocol device-proxy-device-conf
+:defaultdesc: "`false`"
+:required: "no"
+:shortdesc: "Whether to use the HAProxy PROXY protocol"
+:type: "bool"
+This option specifies whether to use the HAProxy PROXY protocol to transmit sender information.
+```
+
+```{config:option} security.gid device-proxy-device-conf
+:defaultdesc: "`0`"
+:required: "no"
+:shortdesc: "What GID to drop privilege to"
+:type: "integer"
+
+```
+
+```{config:option} security.uid device-proxy-device-conf
+:defaultdesc: "`0`"
+:required: "no"
+:shortdesc: "What UID to drop privilege to"
+:type: "integer"
+
+```
+
+```{config:option} uid device-proxy-device-conf
+:defaultdesc: "`0`"
+:required: "no"
+:shortdesc: "UID of the owner of the listening Unix socket"
+:type: "integer"
+
+```
+
+<!-- config group device-proxy-device-conf end -->
 <!-- config group device-tpm-device-conf start -->
 ```{config:option} path device-tpm-device-conf
 :condition: "containers"
