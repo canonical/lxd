@@ -805,7 +805,8 @@ func (d *ceph) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots
 	}
 
 	if srcVol.IsSnapshot() {
-		// The target volume was just deleted.
+		// The target volume was just deleted in the step before
+		// as there isn't any common snapshot when refreshing a volume from a snapshot.
 		// Simply copy the source volume again to the target.
 		return d.CreateVolumeFromCopy(vol, srcVol, allowInconsistent, op)
 	}
