@@ -2850,6 +2850,64 @@
 				]
 			}
 		},
+		"network-macvlan": {
+			"network-conf": {
+				"keys": [
+					{
+						"gvrp": {
+							"defaultdesc": "`false`",
+							"longdesc": "This option specifies whether to register the VLAN using the GARP VLAN Registration Protocol.",
+							"shortdesc": "Whether to use GARP VLAN Registration Protocol",
+							"type": "bool"
+						}
+					},
+					{
+						"maas.subnet.ipv4": {
+							"condition": "IPv4 address; using the `network` property on the NIC",
+							"longdesc": "",
+							"shortdesc": "MAAS IPv4 subnet to register instances in",
+							"type": "string"
+						}
+					},
+					{
+						"maas.subnet.ipv6": {
+							"condition": "IPv4 address; using the `network` property on the NIC",
+							"longdesc": "",
+							"shortdesc": "MAAS IPv6 subnet to register instances in",
+							"type": "string"
+						}
+					},
+					{
+						"mtu": {
+							"longdesc": "",
+							"shortdesc": "MTU of the new interface",
+							"type": "integer"
+						}
+					},
+					{
+						"parent": {
+							"longdesc": "",
+							"shortdesc": "Parent interface to create `macvlan` NICs on",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					},
+					{
+						"vlan": {
+							"longdesc": "",
+							"shortdesc": "VLAN ID to attach to",
+							"type": "integer"
+						}
+					}
+				]
+			}
+		},
 		"network-sriov": {
 			"network-conf": {
 				"keys": [

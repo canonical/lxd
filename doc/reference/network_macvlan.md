@@ -28,12 +28,8 @@ The following configuration key namespaces are currently supported for the `macv
 
 The following configuration options are available for the `macvlan` network type:
 
-Key                             | Type      | Condition             | Default                   | Description
-:--                             | :--       | :--                   | :--                       | :--
-`gvrp`                          | bool      | -                     | `false`                   | Register VLAN using GARP VLAN Registration Protocol
-`mtu`                           | integer   | -                     | -                         | The MTU of the new interface
-`parent`                        | string    | -                     | -                         | Parent interface to create `macvlan` NICs on
-`vlan`                          | integer   | -                     | -                         | The VLAN ID to attach to
-`maas.subnet.ipv4`              | string    | IPv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on NIC)
-`maas.subnet.ipv6`              | string    | IPv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on NIC)
-`user.*`                        | string    | -                     | -                         | User-provided free-form key/value pairs
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group network-macvlan-network-conf start -->
+    :end-before: <!-- config group network-macvlan-network-conf end -->
+```
