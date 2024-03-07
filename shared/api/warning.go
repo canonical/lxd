@@ -10,8 +10,6 @@ import (
 //
 // API extension: warnings.
 type Warning struct {
-	WarningPut `yaml:",inline"`
-
 	// UUID of the warning
 	// Example: e9e9da0d-2538-4351-8047-46d4a8ae4dbb
 	UUID string `json:"uuid" yaml:"uuid"`
@@ -47,6 +45,10 @@ type Warning struct {
 	// The severity of this warning
 	// Example: low
 	Severity string `json:"severity" yaml:"severity"`
+
+	// Status of the warning (new, acknowledged, or resolved)
+	// Example: new
+	Status string `json:"status" yaml:"status"`
 
 	// The entity affected by this warning
 	// Example: /1.0/instances/c1?project=default

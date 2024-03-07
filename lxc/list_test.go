@@ -27,16 +27,18 @@ func TestDotPrefixMatch(t *testing.T) {
 func TestShouldShow(t *testing.T) {
 	list := cmdList{}
 	inst := &api.Instance{
-		Name: "foo",
+		Name:         "foo",
+		Type:         "Container",
+		Status:       "Running",
+		Location:     "mem-brain",
+		Architecture: "potato",
+		Description:  "Something which does something",
 		ExpandedConfig: map[string]string{
 			"security.privileged": "1",
 			"user.blah":           "abc",
 			"image.os":            "Debian",
 			"image.description":   "Debian buster amd64 (20200429_05:24)",
 		},
-		Status:   "Running",
-		Location: "mem-brain",
-		Type:     "Container",
 		ExpandedDevices: map[string]map[string]string{
 			"eth0": {
 				"name":    "eth0",
@@ -44,10 +46,6 @@ func TestShouldShow(t *testing.T) {
 				"parent":  "lxdbr0",
 				"nictype": "bridged",
 			},
-		},
-		InstancePut: api.InstancePut{
-			Architecture: "potato",
-			Description:  "Something which does something",
 		},
 	}
 

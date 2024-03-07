@@ -116,15 +116,13 @@ func (i *Instance) ToAPI(ctx context.Context, tx *sql.Tx, globalConfig map[strin
 	}
 
 	return &api.Instance{
-		InstancePut: api.InstancePut{
-			Architecture: archName,
-			Config:       config,
-			Devices:      apiDevices,
-			Ephemeral:    i.Ephemeral,
-			Profiles:     profileNames,
-			Stateful:     i.Stateful,
-			Description:  i.Description,
-		},
+		Architecture:    archName,
+		Config:          config,
+		Devices:         apiDevices,
+		Ephemeral:       i.Ephemeral,
+		Profiles:        profileNames,
+		Stateful:        i.Stateful,
+		Description:     i.Description,
 		CreatedAt:       i.CreationDate,
 		ExpandedConfig:  expandedConfig,
 		ExpandedDevices: expandedDevices.CloneNative(),

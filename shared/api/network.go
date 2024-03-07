@@ -64,22 +64,21 @@ const NetworkStatusUnavailable = "Unavailable"
 //
 // swagger:model
 type Network struct {
-	NetworkPut `yaml:",inline"`
-
 	// The network name
 	// Read only: true
 	// Example: lxdbr0
 	Name string `json:"name" yaml:"name"`
 
+	// Description of the profile
+	// Example: My new LXD bridge
+	//
+	// API extension: entity_description
+	Description string `json:"description" yaml:"description"`
+
 	// The network type
 	// Read only: true
 	// Example: bridge
 	Type string `json:"type" yaml:"type"`
-
-	// List of URLs of objects using this profile
-	// Read only: true
-	// Example: ["/1.0/profiles/default", "/1.0/instances/c1"]
-	UsedBy []string `json:"used_by" yaml:"used_by"`
 
 	// Whether this is a LXD managed network
 	// Read only: true
@@ -95,6 +94,15 @@ type Network struct {
 	// API extension: clustering
 	Status string `json:"status" yaml:"status"`
 
+	// Network configuration map (refer to doc/networks.md)
+	// Example: {"ipv4.address": "10.0.0.1/24", "ipv4.nat": "true", "ipv6.address": "none"}
+	Config map[string]string `json:"config" yaml:"config"`
+
+	// List of URLs of objects using this profile
+	// Read only: true
+	// Example: ["/1.0/profiles/default", "/1.0/instances/c1"]
+	UsedBy []string `json:"used_by" yaml:"used_by"`
+
 	// Cluster members on which the network has been defined
 	// Read only: true
 	// Example: ["lxd01", "lxd02", "lxd03"]
@@ -105,7 +113,16 @@ type Network struct {
 
 // Writable converts a full Network struct into a NetworkPut struct (filters read-only fields).
 func (network *Network) Writable() NetworkPut {
-	return network.NetworkPut
+	return NetworkPut{
+		Description: network.Description,
+		Config:      network.Config,
+	}
+}
+
+// SetWritable sets applicable values from NetworkPut struct to Network struct.
+func (network *Network) SetWritable(put NetworkPut) {
+	network.Description = put.Description
+	network.Config = put.Config
 }
 
 // NetworkLease represents a DHCP lease

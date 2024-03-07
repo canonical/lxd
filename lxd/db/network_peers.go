@@ -350,7 +350,7 @@ func (c *ClusterTx) GetNetworkPeerNames(ctx context.Context, networkID int64) (m
 }
 
 // UpdateNetworkPeer updates an existing Network Peer.
-func (c *ClusterTx) UpdateNetworkPeer(ctx context.Context, networkID int64, peerID int64, info *api.NetworkPeerPut) error {
+func (c *ClusterTx) UpdateNetworkPeer(ctx context.Context, networkID int64, peerID int64, info api.NetworkPeerPut) error {
 	// Update existing Network peer record.
 	res, err := c.tx.ExecContext(ctx, `
 		UPDATE networks_peers

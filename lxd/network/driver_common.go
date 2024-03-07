@@ -829,7 +829,7 @@ func (n *common) bgpGetPeers(config map[string]string) []string {
 }
 
 // forwardValidate validates the forward request.
-func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwardPut) ([]*forwardPortMap, error) {
+func (n *common) forwardValidate(listenAddress net.IP, forward api.NetworkForwardPut) ([]*forwardPortMap, error) {
 	if listenAddress == nil {
 		return nil, fmt.Errorf("Invalid listen address")
 	}
@@ -1149,7 +1149,7 @@ func (n *common) getExternalSubnetInUse(ctx context.Context, tx *db.ClusterTx, u
 }
 
 // loadBalancerValidate validates the load balancer request.
-func (n *common) loadBalancerValidate(listenAddress net.IP, forward *api.NetworkLoadBalancerPut) ([]*loadBalancerPortMap, error) {
+func (n *common) loadBalancerValidate(listenAddress net.IP, forward api.NetworkLoadBalancerPut) ([]*loadBalancerPortMap, error) {
 	if listenAddress == nil {
 		return nil, fmt.Errorf("Invalid listen address")
 	}

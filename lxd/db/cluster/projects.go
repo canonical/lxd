@@ -81,10 +81,8 @@ type ProjectFilter struct {
 // ToAPI converts the database Project struct to an api.Project entry.
 func (p *Project) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Project, error) {
 	apiProject := &api.Project{
-		ProjectPut: api.ProjectPut{
-			Description: p.Description,
-		},
-		Name: p.Name,
+		Name:        p.Name,
+		Description: p.Description,
 	}
 
 	var err error

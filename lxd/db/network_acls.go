@@ -78,9 +78,7 @@ func (c *ClusterTx) GetNetworkACL(ctx context.Context, projectName string, name 
 	var egressJSON string
 
 	acl := api.NetworkACL{
-		NetworkACLPost: api.NetworkACLPost{
-			Name: name,
-		},
+		Name: name,
 	}
 
 	q := `
@@ -237,7 +235,7 @@ func networkACLConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 }
 
 // UpdateNetworkACL updates the Network ACL with the given ID.
-func (c *ClusterTx) UpdateNetworkACL(ctx context.Context, id int64, config *api.NetworkACLPut) error {
+func (c *ClusterTx) UpdateNetworkACL(ctx context.Context, id int64, config api.NetworkACLPut) error {
 	var err error
 	var ingressJSON, egressJSON []byte
 

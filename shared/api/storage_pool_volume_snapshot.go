@@ -49,15 +49,13 @@ type StorageVolumeSnapshotPost struct {
 //
 // API extension: storage_api_volume_snapshots.
 type StorageVolumeSnapshot struct {
-	StorageVolumeSnapshotPut `json:",inline" yaml:",inline"`
-
 	// Snapshot name
 	// Example: snap0
 	Name string `json:"name" yaml:"name"`
 
-	// Storage volume configuration map (refer to doc/storage.md)
-	// Example: {"zfs.remove_snapshots": "true", "size": "50GiB"}
-	Config map[string]string `json:"config" yaml:"config"`
+	// Description of the storage volume
+	// Example: My custom volume
+	Description string `json:"description" yaml:"description"`
 
 	// The content type (filesystem or block)
 	// Example: filesystem
@@ -69,6 +67,16 @@ type StorageVolumeSnapshot struct {
 	// Example: 2021-03-23T20:00:00-04:00
 	// API extension: storage_volumes_created_at
 	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
+
+	// When the snapshot expires (gets auto-deleted)
+	// Example: 2021-03-23T17:38:37.753398689-04:00
+	//
+	// API extension: custom_volume_snapshot_expiry
+	ExpiresAt *time.Time `json:"expires_at" yaml:"expires_at"`
+
+	// Storage volume configuration map (refer to doc/storage.md)
+	// Example: {"zfs.remove_snapshots": "true", "size": "50GiB"}
+	Config map[string]string `json:"config" yaml:"config"`
 }
 
 // StorageVolumeSnapshotPut represents the modifiable fields of a LXD storage volume
@@ -90,5 +98,14 @@ type StorageVolumeSnapshotPut struct {
 
 // Writable converts a full StorageVolumeSnapshot struct into a StorageVolumeSnapshotPut struct (filters read-only fields).
 func (storageVolumeSnapshot *StorageVolumeSnapshot) Writable() StorageVolumeSnapshotPut {
-	return storageVolumeSnapshot.StorageVolumeSnapshotPut
+	return StorageVolumeSnapshotPut{
+		Description: storageVolumeSnapshot.Description,
+		ExpiresAt:   storageVolumeSnapshot.ExpiresAt,
+	}
+}
+
+// SetWritable sets applicable values from StorageVolumeSnapshotPut struct to StorageVolumeSnapshot struct.
+func (storageVolumeSnapshot *StorageVolumeSnapshot) SetWritable(put StorageVolumeSnapshotPut) {
+	storageVolumeSnapshot.Description = put.Description
+	storageVolumeSnapshot.ExpiresAt = put.ExpiresAt
 }

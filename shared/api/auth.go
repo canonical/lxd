@@ -31,8 +31,6 @@ const (
 //
 // API extension: access_management.
 type Identity struct {
-	IdentityPut `yaml:",inline"`
-
 	// AuthenticationMethod is the authentication method that the identity
 	// authenticates to LXD with.
 	// Example: tls
@@ -50,6 +48,22 @@ type Identity struct {
 	// of the certificate if authenticated with TLS.
 	// Example: Jane Doe
 	Name string `json:"name" yaml:"name"`
+
+	// Groups is the list of groups for which the identity is a member.
+	// Example: ["foo", "bar"]
+	Groups []string `json:"groups" yaml:"groups"`
+}
+
+// Writable converts a Identity struct into a IdentityPut struct (filters read-only fields).
+func (i Identity) Writable() IdentityPut {
+	return IdentityPut{
+		Groups: i.Groups,
+	}
+}
+
+// SetWritable sets applicable values from IdentityPut struct to Identity struct.
+func (i *Identity) SetWritable(put IdentityPut) {
+	i.Groups = put.Groups
 }
 
 // IdentityInfo expands an Identity to include effective group membership and effective permissions.
@@ -88,7 +102,16 @@ type IdentityPut struct {
 //
 // API extension: access_management.
 type AuthGroup struct {
-	AuthGroupsPost `yaml:",inline"`
+	// Name is the name of the group.
+	// Example: default-c1-viewers
+	Name string `json:"name" yaml:"name"`
+
+	// Description is a short description of the group.
+	// Example: Viewers of instance c1 in the default project.
+	Description string `json:"description" yaml:"description"`
+
+	// Permissions are a list of permissions.
+	Permissions []Permission `json:"permissions" yaml:"permissions"`
 
 	// Identities is a map of authentication method to slice of identity identifiers.
 	Identities map[string][]string `json:"identities" yaml:"identities"`
@@ -97,6 +120,20 @@ type AuthGroup struct {
 	// includes this group.
 	// Example: ["sales", "operations"]
 	IdentityProviderGroups []string `json:"identity_provider_groups" yaml:"identity_provider_groups"`
+}
+
+// Writable converts a AuthGroup struct into a AuthGroupPut struct (filters read-only fields).
+func (g AuthGroup) Writable() AuthGroupPut {
+	return AuthGroupPut{
+		Description: g.Description,
+		Permissions: g.Permissions,
+	}
+}
+
+// SetWritable sets applicable values from AuthGroupPut struct to AuthGroup struct.
+func (g *AuthGroup) SetWritable(put AuthGroupPut) {
+	g.Description = put.Description
+	g.Permissions = put.Permissions
 }
 
 // AuthGroupsPost is used for creating a new group.
@@ -140,8 +177,24 @@ type AuthGroupPut struct {
 //
 // API extension: access_management.
 type IdentityProviderGroup struct {
-	IdentityProviderGroupPost `yaml:",inline"`
-	IdentityProviderGroupPut  `yaml:",inline"`
+	// Name is the name of the IdP group.
+	Name string `json:"name" yaml:"name"`
+
+	// Groups are the groups the IdP group resolves to.
+	// Example: ["foo", "bar"]
+	Groups []string `json:"groups" yaml:"groups"`
+}
+
+// Writable converts a IdentityProviderGroup struct into a IdentityProviderGroupPut struct (filters read-only fields).
+func (ipg IdentityProviderGroup) Writable() IdentityProviderGroupPut {
+	return IdentityProviderGroupPut{
+		Groups: ipg.Groups,
+	}
+}
+
+// SetWritable sets applicable values from IdentityProviderGroupPut struct to IdentityProviderGroup struct.
+func (ipg *IdentityProviderGroup) SetWritable(put IdentityProviderGroupPut) {
+	ipg.Groups = put.Groups
 }
 
 // IdentityProviderGroupPost is used for renaming an IdentityProviderGroup.
