@@ -30,7 +30,6 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
-	"github.com/canonical/lxd/shared/version"
 )
 
 var projectsCmd = APIEndpoint{
@@ -146,41 +145,41 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	var result any
+	var apiProjects []*api.Project
+	var projectURLs []string
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		projects, err := cluster.GetProjects(ctx, tx.Tx())
+		allProjects, err := cluster.GetProjects(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
 
-		filtered := []api.Project{}
-		for _, project := range projects {
-			if !userHasPermission(entity.ProjectURL(project.Name)) {
-				continue
+		projects := make([]cluster.Project, 0, len(allProjects))
+		for _, project := range allProjects {
+			if userHasPermission(entity.ProjectURL(project.Name)) {
+				projects = append(projects, project)
 			}
-
-			apiProject, err := project.ToAPI(ctx, tx.Tx())
-			if err != nil {
-				return err
-			}
-
-			apiProject.UsedBy, err = projectUsedBy(ctx, tx, &project)
-			if err != nil {
-				return err
-			}
-
-			filtered = append(filtered, *apiProject)
 		}
 
 		if recursion {
-			result = filtered
-		} else {
-			urls := make([]string, len(filtered))
-			for i, p := range filtered {
-				urls[i] = p.URL(version.APIVersion).String()
-			}
+			apiProjects = make([]*api.Project, 0, len(projects))
+			for _, project := range projects {
+				apiProject, err := project.ToAPI(ctx, tx.Tx())
+				if err != nil {
+					return err
+				}
 
-			result = urls
+				apiProject.UsedBy, err = projectUsedBy(ctx, tx, &project)
+				if err != nil {
+					return err
+				}
+
+				apiProjects = append(apiProjects, apiProject)
+			}
+		} else {
+			projectURLs = make([]string, 0, len(projects))
+			for _, project := range projects {
+				projectURLs = append(projectURLs, entity.ProjectURL(project.Name).String())
+			}
 		}
 
 		return nil
@@ -189,7 +188,15 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return response.SyncResponse(true, result)
+	if !recursion {
+		return response.SyncResponse(true, projectURLs)
+	}
+
+	for _, apiProject := range apiProjects {
+		apiProject.UsedBy = projecthelpers.FilterUsedBy(s.Authorizer, r, apiProject.UsedBy)
+	}
+
+	return response.SyncResponse(true, apiProjects)
 }
 
 // projectUsedBy returns a list of URLs for all instances, images, profiles,
