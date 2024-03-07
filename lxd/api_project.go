@@ -195,55 +195,26 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 // projectUsedBy returns a list of URLs for all instances, images, profiles,
 // storage volumes, networks, and acls that use this project.
 func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Project) ([]string, error) {
-	usedBy := []string{}
-	instances, err := cluster.GetInstances(ctx, tx.Tx(), cluster.InstanceFilter{Project: &project.Name})
+	reportedEntityTypes := []entity.Type{
+		entity.TypeInstance,
+		entity.TypeProfile,
+		entity.TypeImage,
+		entity.TypeStorageVolume,
+		entity.TypeNetwork,
+		entity.TypeNetworkACL,
+	}
+
+	entityURLs, err := cluster.GetEntityURLs(ctx, tx.Tx(), project.Name, reportedEntityTypes...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to get project used-by URLs")
 	}
 
-	profiles, err := cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{Project: &project.Name})
-	if err != nil {
-		return nil, err
+	var usedBy []string
+	for _, entityIDToURL := range entityURLs {
+		for _, u := range entityIDToURL {
+			usedBy = append(usedBy, u.String())
+		}
 	}
-
-	images, err := cluster.GetImages(ctx, tx.Tx(), cluster.ImageFilter{Project: &project.Name})
-	if err != nil {
-		return nil, err
-	}
-
-	for _, instance := range instances {
-		apiInstance := api.Instance{Name: instance.Name}
-		usedBy = append(usedBy, apiInstance.URL(version.APIVersion, project.Name).String())
-	}
-
-	for _, profile := range profiles {
-		apiProfile := api.Profile{Name: profile.Name}
-		usedBy = append(usedBy, apiProfile.URL(version.APIVersion, project.Name).String())
-	}
-
-	for _, image := range images {
-		apiImage := api.Image{Fingerprint: image.Fingerprint}
-		usedBy = append(usedBy, apiImage.URL(version.APIVersion, project.Name).String())
-	}
-
-	volumes, err := tx.GetStorageVolumeURIs(ctx, project.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	networks, err := tx.GetNetworkURIs(ctx, project.ID, project.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	acls, err := tx.GetNetworkACLURIs(ctx, project.ID, project.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	usedBy = append(usedBy, volumes...)
-	usedBy = append(usedBy, networks...)
-	usedBy = append(usedBy, acls...)
 
 	return usedBy, nil
 }
@@ -436,6 +407,8 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 		project.Description,
 		project.Config,
 	}
+
+	project.UsedBy = projecthelpers.FilterUsedBy(s.Authorizer, r, project.UsedBy)
 
 	return response.SyncResponseETag(true, project, etag)
 }
