@@ -88,7 +88,7 @@ func networkForwardConfigAdd(tx *sql.Tx, forwardID int64, config map[string]stri
 }
 
 // UpdateNetworkForward updates an existing Network Forward.
-func (c *ClusterTx) UpdateNetworkForward(ctx context.Context, networkID int64, forwardID int64, info *api.NetworkForwardPut) error {
+func (c *ClusterTx) UpdateNetworkForward(ctx context.Context, networkID int64, forwardID int64, info api.NetworkForwardPut) error {
 	var err error
 	var portsJSON []byte
 

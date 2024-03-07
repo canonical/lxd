@@ -473,12 +473,10 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 				// Create a new request from the token data as the user isn't allowed to override anything.
 				req = api.CertificatesPost{
-					CertificatePut: api.CertificatePut{
-						Name:       tokenReq.Name,
-						Type:       tokenReq.Type,
-						Restricted: tokenReq.Restricted,
-						Projects:   tokenReq.Projects,
-					},
+					Name:       tokenReq.Name,
+					Type:       tokenReq.Type,
+					Restricted: tokenReq.Restricted,
+					Projects:   tokenReq.Projects,
 				}
 			} else {
 				// Otherwise check if password matches trust password.
@@ -630,11 +628,9 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	req = api.CertificatesPost{
-		CertificatePut: api.CertificatePut{
-			Certificate: base64.StdEncoding.EncodeToString(cert.Raw),
-			Name:        name,
-			Type:        api.CertificateTypeClient,
-		},
+		Certificate: base64.StdEncoding.EncodeToString(cert.Raw),
+		Name:        name,
+		Type:        api.CertificateTypeClient,
 	}
 
 	err = notifier(func(client lxd.InstanceServer) error {

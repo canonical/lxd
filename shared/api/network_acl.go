@@ -132,8 +132,23 @@ type NetworkACLPut struct {
 //
 // API extension: network_acl.
 type NetworkACL struct {
-	NetworkACLPost `yaml:",inline"`
-	NetworkACLPut  `yaml:",inline"`
+	// The new name for the ACL
+	// Example: bar
+	Name string `json:"name" yaml:"name"` // Name of ACL.
+
+	// Description of the ACL
+	// Example: Web servers
+	Description string `json:"description" yaml:"description"`
+
+	// List of egress rules (order independent)
+	Egress []NetworkACLRule `json:"egress" yaml:"egress"`
+
+	// List of ingress rules (order independent)
+	Ingress []NetworkACLRule `json:"ingress" yaml:"ingress"`
+
+	// ACL configuration map (refer to doc/network-acls.md)
+	// Example: {"user.mykey": "foo"}
+	Config map[string]string `json:"config" yaml:"config"`
 
 	// List of URLs of objects using this profile
 	// Read only: true
@@ -143,7 +158,20 @@ type NetworkACL struct {
 
 // Writable converts a full NetworkACL struct into a NetworkACLPut struct (filters read-only fields).
 func (acl *NetworkACL) Writable() NetworkACLPut {
-	return acl.NetworkACLPut
+	return NetworkACLPut{
+		Description: acl.Description,
+		Ingress:     acl.Ingress,
+		Egress:      acl.Egress,
+		Config:      acl.Config,
+	}
+}
+
+// SetWritable sets applicable values from NetworkACLPut struct to NetworkACL struct.
+func (acl *NetworkACL) SetWritable(put NetworkACLPut) {
+	acl.Description = put.Description
+	acl.Ingress = put.Ingress
+	acl.Egress = put.Egress
+	acl.Config = put.Config
 }
 
 // NetworkACLsPost used for creating an ACL.

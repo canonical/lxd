@@ -154,8 +154,6 @@ type ClusterMemberPost struct {
 //
 // API extension: clustering.
 type ClusterMember struct {
-	ClusterMemberPut `yaml:",inline"`
-
 	// Name of the cluster member
 	// Example: lxd01
 	ServerName string `json:"server_name" yaml:"server_name"`
@@ -181,11 +179,47 @@ type ClusterMember struct {
 	//
 	// API extension: clustering_architecture
 	Architecture string `json:"architecture" yaml:"architecture"`
+
+	// List of roles held by this cluster member
+	// Example: ["database"]
+	//
+	// API extension: clustering_roles
+	Roles []string `json:"roles" yaml:"roles"`
+
+	// Name of the failure domain for this cluster member
+	// Example: rack1
+	//
+	// API extension: clustering_failure_domains
+	FailureDomain string `json:"failure_domain" yaml:"failure_domain"`
+
+	// Cluster member description
+	// Example: AMD Epyc 32c/64t
+	//
+	// API extension: clustering_description
+	Description string `json:"description" yaml:"description"`
+
+	// Additional configuration information
+	// Example: {"scheduler.instance": "all"}
+	//
+	// API extension: clustering_config
+	Config map[string]string `json:"config" yaml:"config"`
+
+	// List of cluster groups this member belongs to
+	// Example: ["group1", "group2"]
+	//
+	// API extension: clustering_groups
+	Groups []string `json:"groups" yaml:"groups"`
 }
 
 // Writable converts a full Profile struct into a ProfilePut struct (filters read-only fields).
 func (member *ClusterMember) Writable() ClusterMemberPut {
-	return member.ClusterMemberPut
+	return ClusterMemberPut{
+		Description:   member.Description,
+		FailureDomain: member.FailureDomain,
+		Roles:         member.Roles,
+		Config:        member.Config,
+		Groups:        member.Groups,
+	}
 }
 
 // ClusterMemberPut represents the modifiable fields of a LXD cluster member
@@ -276,8 +310,17 @@ type ClusterGroupsPost struct {
 //
 // API extension: clustering_groups.
 type ClusterGroup struct {
-	ClusterGroupPut  `yaml:",inline"`
-	ClusterGroupPost `yaml:",inline"`
+	// The new name of the cluster group
+	// Example: group1
+	Name string `json:"name" yaml:"name"`
+
+	// The description of the cluster group
+	// Example: amd64 servers
+	Description string `json:"description" yaml:"description"`
+
+	// List of members in this group
+	// Example: ["node1", "node3"]
+	Members []string `json:"members" yaml:"members"`
 }
 
 // ClusterGroupPost represents the fields required to rename a cluster group.
@@ -308,5 +351,14 @@ type ClusterGroupPut struct {
 
 // Writable converts a full ClusterGroup struct into a ClusterGroupPut struct (filters read-only fields).
 func (c *ClusterGroup) Writable() ClusterGroupPut {
-	return c.ClusterGroupPut
+	return ClusterGroupPut{
+		Description: c.Description,
+		Members:     c.Members,
+	}
+}
+
+// SetWritable sets applicable values from ClusterGroupPut struct to ClusterGroup struct.
+func (c *ClusterGroup) SetWritable(put ClusterGroupPut) {
+	c.Description = put.Description
+	c.Members = put.Members
 }

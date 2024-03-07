@@ -167,7 +167,7 @@ func (c *cmdClusterList) Run(cmd *cobra.Command, args []string) error {
 	// Render the table
 	data := [][]string{}
 	for _, member := range members {
-		roles := member.ClusterMemberPut.Roles
+		roles := member.Roles
 		rolesDelimiter := "\n"
 		if c.flagFormat == "csv" {
 			rolesDelimiter = ","

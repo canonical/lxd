@@ -352,7 +352,7 @@ func storageBucketPoolConfigAdd(tx *sql.Tx, bucketID int64, config map[string]st
 }
 
 // UpdateStoragePoolBucket updates an existing Storage Bucket.
-func (c *ClusterTx) UpdateStoragePoolBucket(ctx context.Context, poolID int64, bucketID int64, info *api.StorageBucketPut) error {
+func (c *ClusterTx) UpdateStoragePoolBucket(ctx context.Context, poolID int64, bucketID int64, info api.StorageBucketPut) error {
 	// Update existing Storage Bucket record.
 	res, err := c.tx.ExecContext(ctx, `
 		UPDATE storage_buckets
@@ -544,7 +544,7 @@ func (c *ClusterTx) CreateStoragePoolBucketKey(ctx context.Context, bucketID int
 }
 
 // UpdateStoragePoolBucketKey updates an existing Storage Bucket Key.
-func (c *ClusterTx) UpdateStoragePoolBucketKey(ctx context.Context, bucketID int64, bucketKeyID int64, info *api.StorageBucketKeyPut) error {
+func (c *ClusterTx) UpdateStoragePoolBucketKey(ctx context.Context, bucketID int64, bucketKeyID int64, info api.StorageBucketKeyPut) error {
 	// Check there isn't another bucket with the same access key on the local server.
 	bucket, err := c.GetStoragePoolLocalBucketByAccessKey(ctx, info.AccessKey)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {

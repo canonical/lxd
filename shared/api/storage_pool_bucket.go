@@ -40,13 +40,17 @@ type StorageBucketPut struct {
 //
 // API extension: storage_buckets.
 type StorageBucket struct {
-	StorageBucketPut `yaml:",inline"`
-
 	// Bucket name
 	// Example: foo
 	//
 	// API extension: storage_buckets
 	Name string `json:"name" yaml:"name"`
+
+	// Description of the storage bucket
+	// Example: My custom bucket
+	//
+	// API extension: storage_buckets
+	Description string `json:"description" yaml:"description"`
 
 	// Bucket S3 URL
 	// Example: https://127.0.0.1:8080/foo
@@ -59,6 +63,12 @@ type StorageBucket struct {
 	//
 	// API extension: storage_buckets
 	Location string `json:"location" yaml:"location"`
+
+	// Storage bucket configuration map
+	// Example: {"size": "50GiB"}
+	//
+	// API extension: storage_buckets
+	Config map[string]string `json:"config" yaml:"config"`
 }
 
 // Etag returns the values used for etag generation.
@@ -68,7 +78,16 @@ func (b *StorageBucket) Etag() []any {
 
 // Writable converts a full StorageBucket struct into a StorageBucketPut struct (filters read-only fields).
 func (b *StorageBucket) Writable() StorageBucketPut {
-	return b.StorageBucketPut
+	return StorageBucketPut{
+		Description: b.Description,
+		Config:      b.Config,
+	}
+}
+
+// SetWritable sets applicable values from StorageBucketPut struct to StorageBucket struct.
+func (b *StorageBucket) SetWritable(put StorageBucketPut) {
+	b.Description = put.Description
+	b.Config = put.Config
 }
 
 // URL returns the URL for the bucket.
@@ -128,13 +147,35 @@ type StorageBucketKeyPut struct {
 //
 // API extension: storage_buckets.
 type StorageBucketKey struct {
-	StorageBucketKeyPut `yaml:",inline"`
-
 	// Key name
 	// Example: my-read-only-key
 	//
 	// API extension: storage_buckets
 	Name string `json:"name" yaml:"name"`
+
+	// Description of the storage bucket key
+	// Example: My read-only bucket key
+	//
+	// API extension: storage_buckets
+	Description string `json:"description" yaml:"description"`
+
+	// Whether the key can perform write actions or not.
+	// Example: read-only
+	//
+	// API extension: storage_buckets
+	Role string `json:"role" yaml:"role"`
+
+	// Access key
+	// Example: 33UgkaIBLBIxb7O1
+	//
+	// API extension: storage_buckets
+	AccessKey string `json:"access-key" yaml:"access-key"`
+
+	// Secret key
+	// Example: kDQD6AOgwHgaQI1UIJBJpPaiLgZuJbq0
+	//
+	// API extension: storage_buckets
+	SecretKey string `json:"secret-key" yaml:"secret-key"`
 }
 
 // URL for the deployment instance set.
@@ -149,5 +190,18 @@ func (b *StorageBucketKey) Etag() []any {
 
 // Writable converts a full StorageBucketKey struct into a StorageBucketKeyPut struct (filters read-only fields).
 func (b *StorageBucketKey) Writable() StorageBucketKeyPut {
-	return b.StorageBucketKeyPut
+	return StorageBucketKeyPut{
+		Description: b.Description,
+		Role:        b.Role,
+		AccessKey:   b.AccessKey,
+		SecretKey:   b.SecretKey,
+	}
+}
+
+// SetWritable sets applicable values from StorageBucketKeyPut struct to StorageBucketKey struct.
+func (b *StorageBucketKey) SetWritable(put StorageBucketKeyPut) {
+	b.Description = put.Description
+	b.Role = put.Role
+	b.AccessKey = put.AccessKey
+	b.SecretKey = put.SecretKey
 }

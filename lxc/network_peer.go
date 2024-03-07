@@ -577,7 +577,7 @@ func (c *cmdNetworkPeerEdit) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return client.UpdateNetworkPeer(resource.name, args[1], newData.NetworkPeerPut, "")
+		return client.UpdateNetworkPeer(resource.name, args[1], newData.Writable(), "")
 	}
 
 	// Get the current config.

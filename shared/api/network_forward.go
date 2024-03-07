@@ -121,8 +121,6 @@ func (f *NetworkForwardPut) Normalise() {
 //
 // API extension: network_forward.
 type NetworkForward struct {
-	NetworkForwardPut `yaml:",inline"`
-
 	// The listen address of the forward
 	// Example: 192.0.2.1
 	ListenAddress string `json:"listen_address" yaml:"listen_address"`
@@ -130,6 +128,24 @@ type NetworkForward struct {
 	// What cluster member this record was found on
 	// Example: lxd01
 	Location string `json:"location" yaml:"location"`
+
+	// Description of the forward listen IP
+	// Example: My public IP forward
+	Description string `json:"description" yaml:"description"`
+
+	// Forward configuration map (refer to doc/network-forwards.md)
+	// Example: {"user.mykey": "foo"}
+	Config map[string]string `json:"config" yaml:"config"`
+
+	// Port forwards (optional)
+	Ports []NetworkForwardPort `json:"ports" yaml:"ports"`
+}
+
+// Normalise normalises the fields in the rule so that they are comparable with ones stored.
+func (f *NetworkForward) Normalise() {
+	fPut := f.Writable()
+	fPut.Normalise()
+	f.SetWritable(fPut)
 }
 
 // Etag returns the values used for etag generation.
@@ -139,5 +155,16 @@ func (f *NetworkForward) Etag() []any {
 
 // Writable converts a full NetworkForward struct into a NetworkForwardPut struct (filters read-only fields).
 func (f *NetworkForward) Writable() NetworkForwardPut {
-	return f.NetworkForwardPut
+	return NetworkForwardPut{
+		Description: f.Description,
+		Config:      f.Config,
+		Ports:       f.Ports,
+	}
+}
+
+// SetWritable sets applicable values from NetworkForwardPut struct to NetworkForward struct.
+func (f *NetworkForward) SetWritable(put NetworkForwardPut) {
+	f.Description = put.Description
+	f.Config = put.Config
+	f.Ports = put.Ports
 }

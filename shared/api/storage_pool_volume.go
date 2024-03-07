@@ -102,25 +102,19 @@ type StorageVolumePostTarget struct {
 //
 // API extension: storage.
 type StorageVolume struct {
-	StorageVolumePut `yaml:",inline"`
-
 	// Volume name
 	// Example: foo
 	Name string `json:"name" yaml:"name"`
 
+	// Description of the storage volume
+	// Example: My custom volume
+	//
+	// API extension: entity_description
+	Description string `json:"description" yaml:"description"`
+
 	// Volume type
 	// Example: custom
 	Type string `json:"type" yaml:"type"`
-
-	// List of URLs of objects using this storage volume
-	// Example: ["/1.0/instances/blah"]
-	UsedBy []string `json:"used_by" yaml:"used_by"`
-
-	// What cluster member this record was found on
-	// Example: lxd01
-	//
-	// API extension: clustering
-	Location string `json:"location" yaml:"location"`
 
 	// Volume content type (filesystem or block)
 	// Example: filesystem
@@ -134,10 +128,24 @@ type StorageVolume struct {
 	// API extension: storage_volumes_all_projects
 	Project string `json:"project" yaml:"project"`
 
+	// What cluster member this record was found on
+	// Example: lxd01
+	//
+	// API extension: clustering
+	Location string `json:"location" yaml:"location"`
+
 	// Volume creation timestamp
 	// Example: 2021-03-23T20:00:00-04:00
 	// API extension: storage_volumes_created_at
 	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
+
+	// Storage volume configuration map (refer to doc/storage.md)
+	// Example: {"zfs.remove_snapshots": "true", "size": "50GiB"}
+	Config map[string]string `json:"config" yaml:"config"`
+
+	// List of URLs of objects using this storage volume
+	// Example: ["/1.0/instances/blah"]
+	UsedBy []string `json:"used_by" yaml:"used_by"`
 }
 
 // URL returns the URL for the volume.
@@ -245,6 +253,15 @@ type StorageVolumeSource struct {
 }
 
 // Writable converts a full StorageVolume struct into a StorageVolumePut struct (filters read-only fields).
-func (storageVolume *StorageVolume) Writable() StorageVolumePut {
-	return storageVolume.StorageVolumePut
+func (v *StorageVolume) Writable() StorageVolumePut {
+	return StorageVolumePut{
+		Description: v.Description,
+		Config:      v.Config,
+	}
+}
+
+// SetWritable sets applicable values from StorageVolumePut struct to StorageVolume struct.
+func (v *StorageVolume) SetWritable(put StorageVolumePut) {
+	v.Description = put.Description
+	v.Config = put.Config
 }

@@ -13,15 +13,14 @@ import (
 func TestValueOf_Instance(t *testing.T) {
 	date := time.Date(2020, 1, 29, 11, 10, 32, 0, time.UTC)
 	instance := api.Instance{
-		InstancePut: api.InstancePut{
-			Architecture: "x86_64",
-			Config: map[string]string{
-				"image.os": "BusyBox",
-			},
-			Stateful: false,
+		Name:         "c1",
+		Status:       "Running",
+		Architecture: "x86_64",
+		Stateful:     false,
+		CreatedAt:    date,
+		Config: map[string]string{
+			"image.os": "BusyBox",
 		},
-		CreatedAt: date,
-		Name:      "c1",
 		ExpandedConfig: map[string]string{
 			"image.os": "BusyBox",
 		},
@@ -32,7 +31,6 @@ func TestValueOf_Instance(t *testing.T) {
 				"type": "disk",
 			},
 		},
-		Status: "Running",
 	}
 
 	cases := map[string]any{}

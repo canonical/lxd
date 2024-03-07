@@ -22,7 +22,31 @@ const CertificateTypeUnknown = "unknown"
 //
 // swagger:model
 type CertificatesPost struct {
-	CertificatePut `yaml:",inline"`
+	// Name associated with the certificate
+	// Example: castiana
+	Name string `json:"name" yaml:"name"`
+
+	// Usage type for the certificate
+	// Example: client
+	Type string `json:"type" yaml:"type"`
+
+	// Whether to limit the certificate to listed projects
+	// Example: true
+	//
+	// API extension: certificate_project
+	Restricted bool `json:"restricted" yaml:"restricted"`
+
+	// List of allowed projects (applies when restricted)
+	// Example: ["default", "foo", "bar"]
+	//
+	// API extension: certificate_project
+	Projects []string `json:"projects" yaml:"projects"`
+
+	// The certificate itself, as base64 encoded X509 PEM certificate
+	// Example: base64 encoded X509 PEM certificate
+	//
+	// API extension: certificate_self_renewal
+	Certificate string `json:"certificate" yaml:"certificate"`
 
 	// Server trust password (used to add an untrusted client)
 	// Example: blah
@@ -61,7 +85,7 @@ type CertificatePut struct {
 	// API extension: certificate_project
 	Projects []string `json:"projects" yaml:"projects"`
 
-	// The certificate itself, as PEM encoded X509 (or as base64 encoded X509 on POST)
+	// The certificate itself, as PEM encoded X509 certificate
 	// Example: X509 PEM certificate
 	//
 	// API extension: certificate_self_renewal
@@ -72,7 +96,31 @@ type CertificatePut struct {
 //
 // swagger:model
 type Certificate struct {
-	CertificatePut `yaml:",inline"`
+	// Name associated with the certificate
+	// Example: castiana
+	Name string `json:"name" yaml:"name"`
+
+	// Usage type for the certificate
+	// Example: client
+	Type string `json:"type" yaml:"type"`
+
+	// Whether to limit the certificate to listed projects
+	// Example: true
+	//
+	// API extension: certificate_project
+	Restricted bool `json:"restricted" yaml:"restricted"`
+
+	// List of allowed projects (applies when restricted)
+	// Example: ["default", "foo", "bar"]
+	//
+	// API extension: certificate_project
+	Projects []string `json:"projects" yaml:"projects"`
+
+	// The certificate itself, as PEM encoded X509 certificate
+	// Example: X509 PEM certificate
+	//
+	// API extension: certificate_self_renewal
+	Certificate string `json:"certificate" yaml:"certificate"`
 
 	// SHA256 fingerprint of the certificate
 	// Read only: true
@@ -82,7 +130,22 @@ type Certificate struct {
 
 // Writable converts a full Certificate struct into a CertificatePut struct (filters read-only fields).
 func (c *Certificate) Writable() CertificatePut {
-	return c.CertificatePut
+	return CertificatePut{
+		Name:        c.Name,
+		Type:        c.Type,
+		Restricted:  c.Restricted,
+		Projects:    c.Projects,
+		Certificate: c.Certificate,
+	}
+}
+
+// SetWritable sets applicable values from CertificatePut struct to Certificate struct.
+func (c *Certificate) SetWritable(put CertificatePut) {
+	c.Name = put.Name
+	c.Type = put.Type
+	c.Restricted = put.Restricted
+	c.Projects = put.Projects
+	c.Certificate = put.Certificate
 }
 
 // URL returns the URL for the certificate.

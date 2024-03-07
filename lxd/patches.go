@@ -325,7 +325,7 @@ func patchNetworkACLRemoveDefaults(name string, d *Daemon) error {
 
 				// Write back modified config if needed.
 				if modified {
-					err = tx.UpdateNetworkACL(ctx, aclID, &acl.NetworkACLPut)
+					err = tx.UpdateNetworkACL(ctx, aclID, acl.Writable())
 					if err != nil {
 						return fmt.Errorf("Failed updating network ACL %d: %w", aclID, err)
 					}
@@ -1495,7 +1495,7 @@ func patchStorageSetVolumeUUID(_ string, d *Daemon) error {
 				bucket.Config["volatile.uuid"] = uuid.New().String()
 
 				err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, ct *db.ClusterTx) error {
-					return ct.UpdateStoragePoolBucket(d.shutdownCtx, pool, bucket.ID, &bucket.StorageBucketPut)
+					return ct.UpdateStoragePoolBucket(d.shutdownCtx, pool, bucket.ID, bucket.Writable())
 				})
 				if err != nil {
 					return err

@@ -36,18 +36,39 @@ type ContainerSnapshotPut struct {
 
 // ContainerSnapshot represents a LXD conainer snapshot.
 type ContainerSnapshot struct {
-	ContainerSnapshotPut `yaml:",inline"`
-
-	CreatedAt       time.Time                    `json:"created_at" yaml:"created_at"`
-	ExpandedConfig  map[string]string            `json:"expanded_config" yaml:"expanded_config"`
-	ExpandedDevices map[string]map[string]string `json:"expanded_devices" yaml:"expanded_devices"`
-	LastUsedAt      time.Time                    `json:"last_used_at" yaml:"last_used_at"`
 	Name            string                       `json:"name" yaml:"name"`
 	Stateful        bool                         `json:"stateful" yaml:"stateful"`
+	Ephemeral       bool                         `json:"ephemeral" yaml:"ephemeral"`
+	Architecture    string                       `json:"architecture" yaml:"architecture"`
+	CreatedAt       time.Time                    `json:"created_at" yaml:"created_at"`
+	ExpiresAt       time.Time                    `json:"expires_at" yaml:"expires_at"`
+	LastUsedAt      time.Time                    `json:"last_used_at" yaml:"last_used_at"`
+	Profiles        []string                     `json:"profiles" yaml:"profiles"`
+	Config          map[string]string            `json:"config" yaml:"config"`
+	Devices         map[string]map[string]string `json:"devices" yaml:"devices"`
+	ExpandedConfig  map[string]string            `json:"expanded_config" yaml:"expanded_config"`
+	ExpandedDevices map[string]map[string]string `json:"expanded_devices" yaml:"expanded_devices"`
 }
 
 // Writable converts a full ContainerSnapshot struct into a ContainerSnapshotPut struct
 // (filters read-only fields).
 func (c *ContainerSnapshot) Writable() ContainerSnapshotPut {
-	return c.ContainerSnapshotPut
+	return ContainerSnapshotPut{
+		Architecture: c.Architecture,
+		Ephemeral:    c.Ephemeral,
+		ExpiresAt:    c.ExpiresAt,
+		Profiles:     c.Profiles,
+		Config:       c.Config,
+		Devices:      c.Devices,
+	}
+}
+
+// SetWritable sets applicable values from ContainerSnapshotPut struct to ContainerSnapshot struct.
+func (c *ContainerSnapshot) SetWritable(put ContainerSnapshotPut) {
+	c.Architecture = put.Architecture
+	c.Ephemeral = put.Ephemeral
+	c.ExpiresAt = put.ExpiresAt
+	c.Profiles = put.Profiles
+	c.Config = put.Config
+	c.Devices = put.Devices
 }

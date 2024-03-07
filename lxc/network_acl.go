@@ -587,7 +587,7 @@ func (c *cmdNetworkACLEdit) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return resource.server.UpdateNetworkACL(resource.name, newdata.NetworkACLPut, "")
+		return resource.server.UpdateNetworkACL(resource.name, newdata.Writable(), "")
 	}
 
 	// Get the current config.

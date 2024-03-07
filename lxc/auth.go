@@ -560,7 +560,7 @@ func (c *cmdGroupPermissionAdd) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Group %q already has entitlement %q on entity %q", resource.name, permission.Entitlement, permission.EntityReference)
 	}
 
-	return resource.server.UpdateAuthGroup(resource.name, group.AuthGroupPut, eTag)
+	return resource.server.UpdateAuthGroup(resource.name, group.Writable(), eTag)
 }
 
 type cmdGroupPermissionRemove struct {
@@ -628,8 +628,8 @@ func (c *cmdGroupPermissionRemove) run(cmd *cobra.Command, args []string) error 
 		return fmt.Errorf("Group %q does not have entitlement %q on entity %q", resource.name, permission.Entitlement, permission.EntityReference)
 	}
 
-	group.AuthGroupPut.Permissions = permissions
-	return resource.server.UpdateAuthGroup(resource.name, group.AuthGroupPut, eTag)
+	group.Permissions = permissions
+	return resource.server.UpdateAuthGroup(resource.name, group.Writable(), eTag)
 }
 
 // parsePermissionArgs parses the `<entity_type> [<entity_name>] <entitlement> [<key>=<value>...]` arguments of
@@ -832,7 +832,7 @@ func (c *cmdIdentityShow) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show identity configurations
 
-The argument must be a concatenation of the authentication method and either the 
+The argument must be a concatenation of the authentication method and either the
 name or identifier of the identity, delimited by a forward slash. This command
 will fail if an identity name is used that is not unique within the authentication
 method. Use the identifier instead if this occurs.
@@ -1151,7 +1151,7 @@ func (c *cmdIdentityGroupAdd) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Identity %q is already a member of group %q", resource.name, args[1])
 	}
 
-	return resource.server.UpdateIdentity(authenticationMethod, nameOrID, identity.IdentityPut, eTag)
+	return resource.server.UpdateIdentity(authenticationMethod, nameOrID, identity.Writable(), eTag)
 }
 
 type cmdIdentityGroupRemove struct {
@@ -1218,8 +1218,8 @@ func (c *cmdIdentityGroupRemove) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Identity %q is not a member of group %q", resource.name, args[0])
 	}
 
-	identity.IdentityPut.Groups = groups
-	return resource.server.UpdateIdentity(authenticationMethod, nameOrID, identity.IdentityPut, eTag)
+	identity.Groups = groups
+	return resource.server.UpdateIdentity(authenticationMethod, nameOrID, identity.Writable(), eTag)
 }
 
 type cmdPermission struct {
@@ -1912,7 +1912,7 @@ func (c *cmdIdentityProviderGroupGroupAdd) run(cmd *cobra.Command, args []string
 		return fmt.Errorf("Identity group %q is already mapped to group %q", resource.name, args[1])
 	}
 
-	return resource.server.UpdateIdentityProviderGroup(resource.name, idpGroup.IdentityProviderGroupPut, eTag)
+	return resource.server.UpdateIdentityProviderGroup(resource.name, idpGroup.Writable(), eTag)
 }
 
 type cmdIdentityProviderGroupGroupRemove struct {
@@ -1974,6 +1974,6 @@ func (c *cmdIdentityProviderGroupGroupRemove) run(cmd *cobra.Command, args []str
 		return fmt.Errorf("Identity provider group %q is not mapped to group %q", resource.name, args[1])
 	}
 
-	idpGroup.IdentityProviderGroupPut.Groups = groups
-	return resource.server.UpdateIdentityProviderGroup(resource.name, idpGroup.IdentityProviderGroupPut, eTag)
+	idpGroup.Groups = groups
+	return resource.server.UpdateIdentityProviderGroup(resource.name, idpGroup.Writable(), eTag)
 }

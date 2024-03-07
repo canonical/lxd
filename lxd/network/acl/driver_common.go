@@ -585,27 +585,27 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 	defer revert.Fail()
 
 	if clientType == request.ClientTypeNormal {
-		oldConfig := d.info.NetworkACLPut
+		oldConfig := d.info.Writable()
 
 		err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Update database. Its important this occurs before we attempt to apply to networks using the ACL
 			// as usage functions will inspect the database.
-			return tx.UpdateNetworkACL(ctx, d.id, config)
+			return tx.UpdateNetworkACL(ctx, d.id, *config)
 		})
 		if err != nil {
 			return err
 		}
 
 		// Apply changes internally and reinitialise.
-		d.info.NetworkACLPut = *config
+		d.info.SetWritable(*config)
 		d.init(d.state, d.id, d.projectName, d.info)
 
 		revert.Add(func() {
 			_ = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return tx.UpdateNetworkACL(ctx, d.id, &oldConfig)
+				return tx.UpdateNetworkACL(ctx, d.id, oldConfig)
 			})
 
-			d.info.NetworkACLPut = oldConfig
+			d.info.SetWritable(oldConfig)
 			d.init(d.state, d.id, d.projectName, d.info)
 		})
 	}
@@ -687,7 +687,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 		}
 
 		err = notifier(func(client lxd.InstanceServer) error {
-			return client.UseProject(d.projectName).UpdateNetworkACL(d.info.Name, d.info.NetworkACLPut, "")
+			return client.UseProject(d.projectName).UpdateNetworkACL(d.info.Name, d.info.Writable(), "")
 		})
 		if err != nil {
 			return err

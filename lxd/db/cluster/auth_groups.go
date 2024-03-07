@@ -50,10 +50,8 @@ type AuthGroupFilter struct {
 // ToAPI converts the Group to an api.AuthGroup, making extra database queries as necessary.
 func (g *AuthGroup) ToAPI(ctx context.Context, tx *sql.Tx, canViewIdentity auth.PermissionChecker, canViewIDPGroup auth.PermissionChecker) (*api.AuthGroup, error) {
 	group := &api.AuthGroup{
-		AuthGroupsPost: api.AuthGroupsPost{
-			AuthGroupPost: api.AuthGroupPost{Name: g.Name},
-			AuthGroupPut:  api.AuthGroupPut{Description: g.Description},
-		},
+		Name:        g.Name,
+		Description: g.Description,
 	}
 
 	permissions, err := GetPermissionsByAuthGroupID(ctx, tx, g.ID)
@@ -117,9 +115,9 @@ func (g *AuthGroup) ToAPI(ctx context.Context, tx *sql.Tx, canViewIdentity auth.
 // GetIdentitiesByAuthGroupID returns the identities that are members of the group with the given ID.
 func GetIdentitiesByAuthGroupID(ctx context.Context, tx *sql.Tx, groupID int) ([]Identity, error) {
 	stmt := `
-SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata 
-FROM identities 
-JOIN identities_auth_groups ON identities.id = identities_auth_groups.identity_id 
+SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
+FROM identities
+JOIN identities_auth_groups ON identities.id = identities_auth_groups.identity_id
 WHERE identities_auth_groups.auth_group_id = ?`
 
 	var result []Identity
@@ -146,8 +144,8 @@ WHERE identities_auth_groups.auth_group_id = ?`
 // GetAllIdentitiesByAuthGroupIDs returns a map of group IDs to the identities that are members of the group with that ID.
 func GetAllIdentitiesByAuthGroupIDs(ctx context.Context, tx *sql.Tx) (map[int][]Identity, error) {
 	stmt := `
-SELECT identities_auth_groups.auth_group_id, identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata 
-FROM identities 
+SELECT identities_auth_groups.auth_group_id, identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
+FROM identities
 JOIN identities_auth_groups ON identities.id = identities_auth_groups.identity_id`
 
 	result := make(map[int][]Identity)
@@ -175,9 +173,9 @@ JOIN identities_auth_groups ON identities.id = identities_auth_groups.identity_i
 // GetIdentityProviderGroupsByGroupID returns the identity provider groups that map to the group with the given ID.
 func GetIdentityProviderGroupsByGroupID(ctx context.Context, tx *sql.Tx, groupID int) ([]IdentityProviderGroup, error) {
 	stmt := `
-SELECT identity_provider_groups.id, identity_provider_groups.name 
-FROM identity_provider_groups 
-JOIN auth_groups_identity_provider_groups ON identity_provider_groups.id = auth_groups_identity_provider_groups.identity_provider_group_id 
+SELECT identity_provider_groups.id, identity_provider_groups.name
+FROM identity_provider_groups
+JOIN auth_groups_identity_provider_groups ON identity_provider_groups.id = auth_groups_identity_provider_groups.identity_provider_group_id
 WHERE auth_groups_identity_provider_groups.auth_group_id = ?`
 
 	var result []IdentityProviderGroup
@@ -204,8 +202,8 @@ WHERE auth_groups_identity_provider_groups.auth_group_id = ?`
 // GetAllIdentityProviderGroupsByGroupIDs returns a map of group IDs to the IdentityProviderGroups that map to the group with that ID.
 func GetAllIdentityProviderGroupsByGroupIDs(ctx context.Context, tx *sql.Tx) (map[int][]IdentityProviderGroup, error) {
 	stmt := `
-SELECT auth_groups_identity_provider_groups.auth_group_id, identity_provider_groups.id, identity_provider_groups.name 
-FROM identity_provider_groups 
+SELECT auth_groups_identity_provider_groups.auth_group_id, identity_provider_groups.id, identity_provider_groups.name
+FROM identity_provider_groups
 JOIN auth_groups_identity_provider_groups ON identity_provider_groups.id = auth_groups_identity_provider_groups.identity_provider_group_id`
 
 	result := make(map[int][]IdentityProviderGroup)

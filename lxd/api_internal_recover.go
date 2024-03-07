@@ -164,11 +164,12 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 
 				// If pool doesn't exist in DB, initialise a temporary pool with the supplied info.
 				poolInfo := api.StoragePool{
-					Name:           p.Name,
-					Driver:         p.Driver,
-					StoragePoolPut: p.StoragePoolPut,
-					Status:         api.StoragePoolStatusCreated,
+					Name:   p.Name,
+					Driver: p.Driver,
+					Status: api.StoragePoolStatusCreated,
 				}
+
+				poolInfo.SetWritable(p.StoragePoolPut)
 
 				pool, err = storagePools.NewTemporary(s, &poolInfo)
 				if err != nil {
