@@ -423,10 +423,10 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	// Handle requests by non-admin users.
 	var userCanCreateCertificates bool
 	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanCreateIdentities)
-	if err == nil {
-		userCanCreateCertificates = true
-	} else if !api.StatusErrorCheck(err, http.StatusForbidden) {
+	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
+	} else if err == nil {
+		userCanCreateCertificates = true
 	}
 
 	if !trusted || !userCanCreateCertificates {
@@ -871,10 +871,10 @@ func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificateP
 
 	var userCanEditCertificate bool
 	err = s.Authorizer.CheckPermission(r.Context(), r, entity.CertificateURL(dbInfo.Fingerprint), auth.EntitlementCanEdit)
-	if err == nil {
-		userCanEditCertificate = true
-	} else if !api.StatusErrorCheck(err, http.StatusForbidden) {
+	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
+	} else if err == nil {
+		userCanEditCertificate = true
 	}
 
 	// Non-admins are able to change their own certificate but no other fields.
@@ -1026,10 +1026,10 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 
 	var userCanEditCertificate bool
 	err = s.Authorizer.CheckPermission(r.Context(), r, entity.CertificateURL(certInfo.Fingerprint), auth.EntitlementCanDelete)
-	if err == nil {
-		userCanEditCertificate = true
-	} else if api.StatusErrorCheck(err, http.StatusForbidden) {
+	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
+	} else if err == nil {
+		userCanEditCertificate = true
 	}
 
 	// Non-admins are able to delete only their own certificate.
