@@ -12,6 +12,7 @@ import (
 func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	var remote string
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
 	if strings.Contains(toComplete, ":") {
 		remote = strings.Split(toComplete, ":")[0]
@@ -38,11 +39,12 @@ func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirec
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, _ := g.cmpRemotes(true)
+		remotes, directives := g.cmpRemotes(false)
 		results = append(results, remotes...)
+		cmpDirectives |= directives
 	}
 
-	return results, cobra.ShellCompDirectiveNoFileComp
+	return results, cmpDirectives
 }
 
 func (g *cmdGlobal) cmpInstanceAllKeys() ([]string, cobra.ShellCompDirective) {
@@ -56,6 +58,7 @@ func (g *cmdGlobal) cmpInstanceAllKeys() ([]string, cobra.ShellCompDirective) {
 
 func (g *cmdGlobal) cmpInstances(toComplete string) ([]string, cobra.ShellCompDirective) {
 	var results []string
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
 	resources, _ := g.ParseServers(toComplete)
 
@@ -78,15 +81,17 @@ func (g *cmdGlobal) cmpInstances(toComplete string) ([]string, cobra.ShellCompDi
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, _ := g.cmpRemotes(false)
+		remotes, directives := g.cmpRemotes(false)
 		results = append(results, remotes...)
+		cmpDirectives |= directives
 	}
 
-	return results, cobra.ShellCompDirectiveNoFileComp
+	return results, cmpDirectives
 }
 
 func (g *cmdGlobal) cmpNetworks(toComplete string) ([]string, cobra.ShellCompDirective) {
 	var results []string
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
 	resources, _ := g.ParseServers(toComplete)
 
@@ -112,11 +117,12 @@ func (g *cmdGlobal) cmpNetworks(toComplete string) ([]string, cobra.ShellCompDir
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, _ := g.cmpRemotes(false)
+		remotes, directives := g.cmpRemotes(false)
 		results = append(results, remotes...)
+		cmpDirectives |= directives
 	}
 
-	return results, cobra.ShellCompDirectiveNoFileComp
+	return results, cmpDirectives
 }
 
 func (g *cmdGlobal) cmpNetworkConfigs(networkName string) ([]string, cobra.ShellCompDirective) {
@@ -222,6 +228,7 @@ func (g *cmdGlobal) cmpProfileConfigs(profileName string) ([]string, cobra.Shell
 
 func (g *cmdGlobal) cmpProfiles(toComplete string, includeRemotes bool) ([]string, cobra.ShellCompDirective) {
 	var results []string
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
 	resources, _ := g.ParseServers(toComplete)
 
@@ -244,11 +251,12 @@ func (g *cmdGlobal) cmpProfiles(toComplete string, includeRemotes bool) ([]strin
 	}
 
 	if includeRemotes && !strings.Contains(toComplete, ":") {
-		remotes, _ := g.cmpRemotes(false)
+		remotes, directives := g.cmpRemotes(false)
 		results = append(results, remotes...)
+		cmpDirectives |= directives
 	}
 
-	return results, cobra.ShellCompDirectiveNoFileComp
+	return results, cmpDirectives
 }
 
 func (g *cmdGlobal) cmpProjectConfigs(projectName string) ([]string, cobra.ShellCompDirective) {
@@ -275,6 +283,7 @@ func (g *cmdGlobal) cmpProjectConfigs(projectName string) ([]string, cobra.Shell
 
 func (g *cmdGlobal) cmpProjects(toComplete string) ([]string, cobra.ShellCompDirective) {
 	results := []string{}
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
 	resources, _ := g.ParseServers(toComplete)
 
@@ -300,11 +309,12 @@ func (g *cmdGlobal) cmpProjects(toComplete string) ([]string, cobra.ShellCompDir
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, _ := g.cmpRemotes(false)
+		remotes, directives := g.cmpRemotes(false)
 		results = append(results, remotes...)
+		cmpDirectives |= directives
 	}
 
-	return results, cobra.ShellCompDirectiveNoFileComp
+	return results, cmpDirectives
 }
 
 func (g *cmdGlobal) cmpRemotes(includeAll bool) ([]string, cobra.ShellCompDirective) {
