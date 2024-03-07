@@ -5353,7 +5353,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 	// is running, and if we are doing a non-optimized transfer (i.e using rsync or raw block transfer) then we
 	// should do a two stage transfer to minimize downtime.
 	instanceRunning := args.Live || (respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_NONE)
-	nonOptimizedMigration := volSourceArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volSourceArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC
+	nonOptimizedMigration := volSourceArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || shared.ValueInSlice(volSourceArgs.MigrationType.FSType, []migration.MigrationFSType{migration.MigrationFSType_BLOCK_AND_RSYNC, migration.MigrationFSType_RBD_AND_RSYNC})
 	if instanceRunning && nonOptimizedMigration {
 		// Indicate this info to the storage driver so that it can alter its behaviour if needed.
 		volSourceArgs.MultiSync = true

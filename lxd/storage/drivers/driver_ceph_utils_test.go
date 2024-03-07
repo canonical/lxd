@@ -149,3 +149,160 @@ func Example_ceph_parseParent() {
 	// pool container test-project_c4  block  <nil>
 	// pool zombie_container test-project_c1_28e7a7ab-740a-490c-8118-7caf7810f83b  filesystem zombie_snapshot_1027f4ab-de11-4cee-8015-bd532a1fed76 <nil>
 }
+
+func Test_ceph_findLastCommonSnapshot(t *testing.T) {
+	tests := []struct {
+		name             string
+		targetSnapshots  []Volume
+		refreshSnapshots []string
+		want             int
+	}{
+		{
+			"Volume without target snapshots",
+			[]Volume{},
+			[]string{},
+			-1,
+		},
+		{
+			"Volume without target snapshots that requires refresh (no valid use case, just to test)",
+			[]Volume{},
+			[]string{"snap0"},
+			-1,
+		},
+		{
+			"Volume that requires refreshing everything",
+			[]Volume{
+				{
+					name: "v1/snap0",
+				},
+				{
+					name: "v1/snap1",
+				},
+				{
+					name: "v1/snap2",
+				},
+			},
+			[]string{"snap0", "snap1", "snap2"},
+			-1,
+		},
+		{
+			"Volume with the first snapshot requiring refresh",
+			[]Volume{
+				{
+					name: "v1/snap0",
+				},
+				{
+					name: "v1/snap1",
+				},
+				{
+					name: "v1/snap2",
+				},
+			},
+			[]string{"snap0"},
+			-1,
+		},
+		{
+			"Volume with target snapshots and nothing to refresh",
+			[]Volume{
+				{
+					name: "v1/snap0",
+				},
+				{
+					name: "v1/snap1",
+				},
+				{
+					name: "v1/snap2",
+				},
+			},
+			[]string{},
+			2,
+		},
+		{
+			"Volume with target snapshots and the last one to refresh",
+			[]Volume{
+				{
+					name: "v1/snap0",
+				},
+				{
+					name: "v1/snap1",
+				},
+				{
+					name: "v1/snap2",
+				},
+			},
+			[]string{"snap2"},
+			1,
+		},
+		{
+			"Volume with target snapshots and the last two to refresh",
+			[]Volume{
+				{
+					name: "v1/snap0",
+				},
+				{
+					name: "v1/snap1",
+				},
+				{
+					name: "v1/snap2",
+				},
+				{
+					name: "v1/snap3",
+				},
+				{
+					name: "v1/snap4",
+				},
+			},
+			[]string{"snap3", "snap4"},
+			2,
+		},
+		{
+			"Volume with target snapshots and an out of order sync",
+			[]Volume{
+				{
+					name: "v1/snap0",
+				},
+				{
+					name: "v1/snap1",
+				},
+				{
+					name: "v1/snap2",
+				},
+			},
+			[]string{"snap1"},
+			0,
+		},
+		{
+			"Volume with target snapshots and multiple out of order syncs",
+			[]Volume{
+				{
+					name: "v1/snap0",
+				},
+				{
+					name: "v1/snap1",
+				},
+				{
+					name: "v1/snap2",
+				},
+				{
+					name: "v1/snap3",
+				},
+				{
+					name: "v1/snap4",
+				},
+			},
+			[]string{"snap1", "snap3"},
+			0,
+		},
+	}
+
+	d := &ceph{}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := d.findLastCommonSnapshotIndex(tt.targetSnapshots, tt.refreshSnapshots)
+			if got != tt.want {
+				t.Errorf("Found wrong last common snapshot: %d != %d", got, tt.want)
+			}
+		})
+	}
+}

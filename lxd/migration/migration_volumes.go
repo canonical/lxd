@@ -137,7 +137,7 @@ func TypesToHeader(types ...Type) *MigrationHeader {
 
 	// Check all the types for an Rsync method, if found add its features to the header's RsyncFeatures list.
 	for _, t := range types {
-		if t.FSType != MigrationFSType_RSYNC && t.FSType != MigrationFSType_BLOCK_AND_RSYNC {
+		if !shared.ValueInSlice(t.FSType, []MigrationFSType{MigrationFSType_RSYNC, MigrationFSType_BLOCK_AND_RSYNC, MigrationFSType_RBD_AND_RSYNC}) {
 			continue
 		}
 
@@ -193,7 +193,7 @@ func MatchTypes(offer *MigrationHeader, fallbackType MigrationFSType, ourTypes [
 				offeredFeatures = offer.GetZfsFeaturesSlice()
 			} else if offerFSType == MigrationFSType_BTRFS {
 				offeredFeatures = offer.GetBtrfsFeaturesSlice()
-			} else if offerFSType == MigrationFSType_RSYNC {
+			} else if shared.ValueInSlice(offerFSType, []MigrationFSType{MigrationFSType_RSYNC, MigrationFSType_RBD_AND_RSYNC}) {
 				// There are other migration types using rsync like MigrationFSType_BLOCK_AND_RSYNC
 				// for which we cannot set the offered features as an older LXD might ignore those
 				// if the migration type is not MigrationFSType_RSYNC.
