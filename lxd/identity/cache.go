@@ -186,3 +186,21 @@ func (c *Cache) GetByOIDCSubject(subject string) (*CacheEntry, error) {
 
 	return nil, api.StatusErrorf(http.StatusNotFound, "Identity with OIDC subject %q not found", subject)
 }
+
+// GetIdentityProviderGroupMapping returns the auth groups that the given identity provider group maps to or an
+// api.StatusError with http.StatusNotFound.
+func (c *Cache) GetIdentityProviderGroupMapping(idpGroup string) ([]string, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	lxdGroups, ok := c.identityProviderGroups[idpGroup]
+	if !ok {
+		return nil, api.StatusErrorf(http.StatusNotFound, "No mapping found for identity provider group %q", idpGroup)
+	}
+
+	if lxdGroups == nil {
+		return nil, api.StatusErrorf(http.StatusNotFound, "No mapping found for identity provider group %q", idpGroup)
+	}
+
+	return *lxdGroups, nil
+}
