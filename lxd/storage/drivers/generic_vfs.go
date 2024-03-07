@@ -159,8 +159,14 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol VolumeCopy, conn io.R
 		}
 
 		rsyncArgs = []string{"--exclude", genericVolumeDiskFile}
-	} else if vol.contentType == ContentTypeBlock && volSrcArgs.MigrationType.FSType != migration.MigrationFSType_BLOCK_AND_RSYNC || vol.contentType == ContentTypeFS && volSrcArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
-		return ErrNotSupported
+	} else if vol.contentType == ContentTypeBlock {
+		if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_BLOCK_AND_RSYNC {
+			return ErrNotSupported
+		}
+	} else if vol.contentType == ContentTypeFS {
+		if !shared.ValueInSlice(volSrcArgs.MigrationType.FSType, []migration.MigrationFSType{migration.MigrationFSType_RSYNC, migration.MigrationFSType_RBD_AND_RSYNC}) {
+			return ErrNotSupported
+		}
 	}
 
 	// Define function to send a filesystem volume.
@@ -296,7 +302,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 		if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_BLOCK_AND_RSYNC {
 			return ErrNotSupported
 		}
-	} else if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
+	} else if !shared.ValueInSlice(volTargetArgs.MigrationType.FSType, []migration.MigrationFSType{migration.MigrationFSType_RSYNC, migration.MigrationFSType_RBD_AND_RSYNC}) {
 		return ErrNotSupported
 	}
 

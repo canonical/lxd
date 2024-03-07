@@ -5,11 +5,12 @@ option go_package = "lxd/migration";
 package migration;
 
 enum MigrationFSType {
-	RSYNC		= 0;
-	BTRFS		= 1;
-	ZFS		= 2;
-	RBD		= 3;
+	RSYNC		    = 0;
+	BTRFS		    = 1;
+	ZFS		        = 2;
+	RBD		        = 3;
 	BLOCK_AND_RSYNC	= 4;
+	RBD_AND_RSYNC   = 5;
 }
 
 enum CRIUType {
