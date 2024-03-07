@@ -549,7 +549,7 @@ func (d *ceph) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser
 	// This will recursively call this function again and fall back to the generic way of refreshing.
 	if vol.IsVMBlock() {
 		// Ensure that the volume's snapshots are also replaced with their filesystem counterpart.
-		var fsVolSnapshots []Volume
+		fsVolSnapshots := make([]Volume, 0, len(vol.Snapshots))
 		for _, snapshot := range vol.Snapshots {
 			fsVolSnapshots = append(fsVolSnapshots, snapshot.NewVMBlockFilesystemVolume())
 		}
@@ -709,12 +709,12 @@ func (d *ceph) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots
 	// This will recursively call this function again and fall back to the generic way of refreshing.
 	if srcVol.IsVMBlock() {
 		// Ensure that the volume's snapshots are also replaced with their filesystem counterpart.
-		var srcFsVolSnapshots []Volume
+		srcFsVolSnapshots := make([]Volume, 0, len(srcVol.Snapshots))
 		for _, snapshot := range srcVol.Snapshots {
 			srcFsVolSnapshots = append(srcFsVolSnapshots, snapshot.NewVMBlockFilesystemVolume())
 		}
 
-		var fsVolSnapshots []Volume
+		fsVolSnapshots := make([]Volume, 0, len(vol.Snapshots))
 		for _, snapshot := range vol.Snapshots {
 			fsVolSnapshots = append(fsVolSnapshots, snapshot.NewVMBlockFilesystemVolume())
 		}
@@ -1644,7 +1644,7 @@ func (d *ceph) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs
 	// This will recursively call this function again and fall back to the generic way of refreshing.
 	if vol.IsVMBlock() {
 		// Ensure that the volume's snapshots are also replaced with their filesystem counterpart.
-		var fsVolSnapshots []Volume
+		fsVolSnapshots := make([]Volume, 0, len(vol.Snapshots))
 		for _, snapshot := range vol.Snapshots {
 			fsVolSnapshots = append(fsVolSnapshots, snapshot.NewVMBlockFilesystemVolume())
 		}
