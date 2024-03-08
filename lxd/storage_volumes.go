@@ -84,6 +84,11 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 //      type: string
 //      example: default
 //    - in: query
+//      name: all-projects
+//      description: Indicates whether volumes from all projects should be returned
+//      type: bool
+//      example: true
+//    - in: query
 //      name: target
 //      description: Cluster member name
 //      type: string
@@ -145,6 +150,11 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 //      type: string
 //      example: default
 //    - in: query
+//      name: all-projects
+//      description: Indicates whether volumes from all projects should be returned
+//      type: bool
+//      example: true
+//    - in: query
 //      name: target
 //      description: Cluster member name
 //      type: string
@@ -199,6 +209,11 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 //      type: string
 //      example: default
 //    - in: query
+//      name: all-projects
+//      description: Indicates whether volumes from all projects should be returned
+//      type: bool
+//      example: true
+//    - in: query
 //      name: target
 //      description: Cluster member name
 //      type: string
@@ -252,6 +267,11 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 //	    description: Project name
 //	    type: string
 //	    example: default
+//	  - in: query
+//	    name: all-projects
+//	    description: Indicates whether volumes from all projects should be returned
+//	    type: bool
+//	    example: true
 //	  - in: query
 //	    name: target
 //	    description: Cluster member name
