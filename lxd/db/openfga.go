@@ -191,7 +191,10 @@ func (o *openfgaStore) ReadUserTuple(ctx context.Context, store string, tk *open
 }
 
 // ReadUsersetTuples is called on check requests. It is used to read all the "users" that have a given relation to
-// a given object.
+// a given object. In this context, the "user" may not be the identity making requests to LXD. In OpenFGA, a "user"
+// is any entity that can be related to an object (https://openfga.dev/docs/concepts#what-is-a-user). For example, in
+// our model, `project` can be related to `instance` via a `project` relation, so `project:/1.0/projects/default` could
+// be considered a user. The opposite is not true, so an `instance` cannot be a user.
 //
 // Observations:
 //   - The input filter always has an object and a relation.
@@ -271,11 +274,13 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 
 		return nil
 	})
-	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+	if err != nil {
+		if !api.StatusErrorCheck(err, http.StatusNotFound) {
+			// If we have a not found error then there are no tuples to return, but the datastore shouldn't return an error.
+			return storage.NewStaticTupleIterator(nil), nil
+		}
+
 		return nil, err
-	} else if err != nil {
-		// If we have a not found error then there are no tuples to return, but the datastore shouldn't return an error.
-		return storage.NewStaticTupleIterator(nil), nil
 	}
 
 	// Return the groups as tuples relating them to the object via the relation.
@@ -298,7 +303,7 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 //
 // Observations:
 //
-// - This method appears to be called in three scenarios:
+// - This method appears to be called in four scenarios:
 //  1. Listing objects related to the server object via `server`.
 //  2. Listing objects related to project objects via `project`.
 //  3. Listing objects that a group is related to via an entitlement.
