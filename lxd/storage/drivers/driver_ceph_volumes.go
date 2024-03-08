@@ -1660,17 +1660,27 @@ func (d *ceph) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs
 
 	if vol.IsSnapshot() {
 		parentName, snapOnlyName, _ := api.GetParentAndSnapshotName(vol.name)
-		sendName := fmt.Sprintf("%s/snapshots_%s_%s_start_clone", d.name, parentName, snapOnlyName)
+		snapOnlyName = fmt.Sprintf("snapshot_%s", snapOnlyName)
+		parentVol := NewVolume(d, vol.pool, vol.volType, vol.contentType, parentName, nil, nil)
+		cloneVol := NewVolume(d, vol.pool, vol.volType, vol.contentType, fmt.Sprintf("%s_clone", parentName), nil, nil)
 
-		cloneVol := NewVolume(d, d.name, vol.volType, vol.contentType, vol.name, nil, nil)
-
-		// Mounting the volume snapshot will create the clone "snapshots_<parent>_<snap>_start_clone".
-		err := d.MountVolumeSnapshot(cloneVol, op)
+		// Ensure the snapshot is protected so that it allows creating a clone from it.
+		err := d.rbdProtectVolumeSnapshot(parentVol, snapOnlyName)
 		if err != nil {
 			return err
 		}
 
-		defer func() { _, _ = d.UnmountVolumeSnapshot(cloneVol, op) }()
+		defer func() { _ = d.rbdUnprotectVolumeSnapshot(parentVol, snapOnlyName) }()
+
+		// Create a clone from the volumes snapshot which can then be migrated.
+		err = d.rbdCreateClone(parentVol, snapOnlyName, cloneVol)
+		if err != nil {
+			return err
+		}
+
+		defer func() { _ = d.rbdDeleteVolume(cloneVol) }()
+
+		sendSnapName := d.getRBDVolumeName(cloneVol, "", false, true)
 
 		// Setup progress tracking.
 		var wrapper *ioprogress.ProgressTracker
@@ -1678,12 +1688,7 @@ func (d *ceph) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs
 			wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
 		}
 
-		err = d.sendVolume(conn, sendName, "", wrapper)
-		if err != nil {
-			return err
-		}
-
-		return nil
+		return d.sendVolume(conn, sendSnapName, "", wrapper)
 	}
 
 	var lastSnap string
