@@ -6,19 +6,10 @@ They cannot be part of a {ref}`profile <profiles>`.
 
 The following instance properties are available:
 
-```{list-table}
-   :header-rows: 1
-   :widths: 2 1 4
-
-* - Property
-  - Read-only
-  - Description
-* - `name`
-  - yes
-  - Instance name (see {ref}`instance-name-requirements`)
-* - `architecture`
-  - no
-  - Instance architecture
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group instance-property-instance-conf start -->
+    :end-before: <!-- config group instance-property-instance-conf end -->
 ```
 
 (instance-name-requirements)=

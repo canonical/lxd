@@ -2850,6 +2850,28 @@
 				]
 			}
 		},
+		"instance-property": {
+			"instance-conf": {
+				"keys": [
+					{
+						"architecture": {
+							"longdesc": "",
+							"readonly": "no",
+							"shortdesc": "Instance architecture",
+							"type": "string"
+						}
+					},
+					{
+						"name": {
+							"longdesc": "See {ref}`instance-name-requirements`.",
+							"readonly": "yes",
+							"shortdesc": "Instance name",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
 		"network-bridge": {
 			"network-conf": {
 				"keys": [
