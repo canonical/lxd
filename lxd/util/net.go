@@ -73,7 +73,7 @@ func (a *inMemoryAddr) String() string {
 // CanonicalNetworkAddress parses the given network address and returns a string of the form "host:port",
 // possibly filling it with the default port if it's missing. It will also wrap a bare IPv6 address with square
 // brackets if needed.
-func CanonicalNetworkAddress(address string, defaultPort int) string {
+func CanonicalNetworkAddress(address string, defaultPort int64) string {
 	host, port, err := net.SplitHostPort(address)
 	if err != nil {
 		ip := net.ParseIP(address)
@@ -96,7 +96,7 @@ func CanonicalNetworkAddress(address string, defaultPort int) string {
 
 // CanonicalNetworkAddressFromAddressAndPort returns a network address from separate address and port values.
 // The address accepts values such as "[::]", "::" and "localhost".
-func CanonicalNetworkAddressFromAddressAndPort(address string, port int, defaultPort int) string {
+func CanonicalNetworkAddressFromAddressAndPort(address string, port int64, defaultPort int64) string {
 	// Because we accept just the host part of an IPv6 listen address (e.g. `[::]`) don't use net.JoinHostPort.
 	// If a bare IP address is supplied then CanonicalNetworkAddress will use net.JoinHostPort if needed.
 	return CanonicalNetworkAddress(fmt.Sprintf("%s:%d", address, port), defaultPort)
