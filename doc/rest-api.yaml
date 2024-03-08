@@ -15052,6 +15052,11 @@ paths:
                   in: query
                   name: project
                   type: string
+                - description: Indicates whether volumes from all projects should be returned
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: bool
                 - description: Cluster member name
                   example: lxd01
                   in: query
@@ -15152,6 +15157,11 @@ paths:
                   in: query
                   name: project
                   type: string
+                - description: Indicates whether volumes from all projects should be returned
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: bool
                 - description: Cluster member name
                   example: lxd01
                   in: query
@@ -16080,6 +16090,11 @@ paths:
                   in: query
                   name: project
                   type: string
+                - description: Indicates whether volumes from all projects should be returned
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: bool
                 - description: Cluster member name
                   example: lxd01
                   in: query
@@ -16128,6 +16143,11 @@ paths:
                   in: query
                   name: project
                   type: string
+                - description: Indicates whether volumes from all projects should be returned
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: bool
                 - description: Cluster member name
                   example: lxd01
                   in: query
