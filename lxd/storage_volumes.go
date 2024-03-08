@@ -517,7 +517,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 			continue
 		}
 
-		urls = append(urls, dbVol.StorageVolume.URL(version.APIVersion, poolName).String())
+		urls = append(urls, dbVol.StorageVolume.URL(version.APIVersion).String())
 	}
 
 	return response.SyncResponse(true, urls)
