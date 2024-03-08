@@ -44,6 +44,18 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
+var storageVolumesCmd = APIEndpoint{
+	Path: "storage-volumes",
+
+	Get: APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowAuthenticated},
+}
+
+var storageVolumesTypeCmd = APIEndpoint{
+	Path: "storage-volumes/{type}",
+
+	Get: APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowAuthenticated},
+}
+
 var storagePoolVolumesCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/volumes",
 
@@ -67,6 +79,244 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 	Post:   APIEndpointAction{Handler: storagePoolVolumePost, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanEdit, "poolName", "type", "volumeName")},
 	Put:    APIEndpointAction{Handler: storagePoolVolumePut, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanEdit, "poolName", "type", "volumeName")},
 }
+
+// swagger:operation GET /1.0/storage-volumes storage storage_volumes_get
+//
+//  Get the storage volumes
+//
+//  Returns a list of storage volumes (URLs).
+//
+//  ---
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//    - in: query
+//      name: all-projects
+//      description: Indicates whether volumes from all projects should be returned
+//      type: bool
+//      example: true
+//    - in: query
+//      name: target
+//      description: Cluster member name
+//      type: string
+//      example: lxd01
+//    - in: query
+//      name: filter
+//      description: Collection filter
+//      type: string
+//      example: default
+//  responses:
+//    "200":
+//      description: API endpoints
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of endpoints
+//            items:
+//              type: string
+//            example: |-
+//              [
+//                "/1.0/storage-pools/local/volumes/container/a1",
+//                "/1.0/storage-pools/local/volumes/container/a2",
+//                "/1.0/storage-pools/local/volumes/custom/backups",
+//                "/1.0/storage-pools/local/volumes/custom/images"
+//              ]
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/storage-volumes?recursion=1 storage storage_pool_volumes_get_recursion1
+//
+//  Get the storage volumes
+//
+//  Returns a list of storage volumes (structs).
+//
+//  ---
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//    - in: query
+//      name: all-projects
+//      description: Indicates whether volumes from all projects should be returned
+//      type: bool
+//      example: true
+//    - in: query
+//      name: target
+//      description: Cluster member name
+//      type: string
+//      example: lxd01
+//    - in: query
+//      name: filter
+//      description: Collection filter
+//      type: string
+//      example: default
+//  responses:
+//    "200":
+//      description: API endpoints
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of storage volumes
+//            items:
+//              $ref: "#/definitions/StorageVolume"
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/storage-volumes/{type} storage storage_pool_volumes_type_get
+//
+//  Get the storage volumes
+//
+//  Returns a list of storage volumes (URLs) (type specific endpoint).
+//
+//  ---
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//    - in: query
+//      name: all-projects
+//      description: Indicates whether volumes from all projects should be returned
+//      type: bool
+//      example: true
+//    - in: query
+//      name: target
+//      description: Cluster member name
+//      type: string
+//      example: lxd01
+//  responses:
+//    "200":
+//      description: API endpoints
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of endpoints
+//            items:
+//              type: string
+//            example: |-
+//              [
+//                "/1.0/storage-pools/local/volumes/custom/backups",
+//                "/1.0/storage-pools/local/volumes/custom/images"
+//              ]
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/storage-volumes/{type}?recursion=1 storage storage_pool_volumes_type_get_recursion1
+//
+//	Get the storage volumes
+//
+//	Returns a list of storage volumes (structs) (type specific endpoint).
+//
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: query
+//	    name: all-projects
+//	    description: Indicates whether volumes from all projects should be returned
+//	    type: bool
+//	    example: true
+//	  - in: query
+//	    name: target
+//	    description: Cluster member name
+//	    type: string
+//	    example: lxd01
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of storage volumes
+//	          items:
+//	            $ref: "#/definitions/StorageVolume"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/storage-pools/{poolName}/volumes storage storage_pool_volumes_get
 //
@@ -321,6 +571,9 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Check if current route is in /1.0/storage-volumes
+	allPools := poolName == ""
+
 	// Get the name of the volume type.
 	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
 	if err != nil {
@@ -344,13 +597,15 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 
 	var poolID int64
 
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		poolID, err = tx.GetStoragePoolID(ctx, poolName)
+	if !allPools {
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			poolID, err = tx.GetStoragePoolID(ctx, poolName)
 
-		return err
-	})
-	if err != nil {
-		return response.SmartError(err)
+			return err
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	// Detect project mode.
@@ -430,6 +685,29 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 
 				filters = append(filters, filter)
 			}
+		}
+
+		if allPools {
+			poolNames, err := tx.GetStoragePoolNames(ctx)
+			if err != nil {
+				return fmt.Errorf("Failed to get storage volumes: %w", err)
+			}
+
+			for _, pool := range poolNames {
+				poolID, err := tx.GetStoragePoolID(ctx, pool)
+				if err != nil {
+					return fmt.Errorf("Failed to get storage volumes: %w", err)
+				}
+
+				poolVolumes, err := tx.GetStoragePoolVolumes(ctx, poolID, memberSpecific, filters...)
+				if err != nil {
+					return fmt.Errorf("Failed loading storage volumes: %w", err)
+				}
+
+				dbVolumes = append(dbVolumes, poolVolumes...)
+			}
+
+			return err
 		}
 
 		dbVolumes, err = tx.GetStoragePoolVolumes(ctx, poolID, memberSpecific, filters...)
