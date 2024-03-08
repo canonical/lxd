@@ -18,7 +18,7 @@ const (
 	DriverTLS string = "tls"
 
 	// DriverEmbeddedOpenFGA is the default authorization driver. It currently falls back to DriverTLS for all TLS
-	// clients. It cannot be initialised until after the cluster database to be operational.
+	// clients. It cannot be initialised until after the cluster database is operational.
 	DriverEmbeddedOpenFGA string = "embedded-openfga"
 )
 
