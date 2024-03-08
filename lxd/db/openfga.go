@@ -274,11 +274,13 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 
 		return nil
 	})
-	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+	if err != nil {
+		if !api.StatusErrorCheck(err, http.StatusNotFound) {
+			// If we have a not found error then there are no tuples to return, but the datastore shouldn't return an error.
+			return storage.NewStaticTupleIterator(nil), nil
+		}
+
 		return nil, err
-	} else if err != nil {
-		// If we have a not found error then there are no tuples to return, but the datastore shouldn't return an error.
-		return storage.NewStaticTupleIterator(nil), nil
 	}
 
 	// Return the groups as tuples relating them to the object via the relation.
