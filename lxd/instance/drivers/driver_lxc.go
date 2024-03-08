@@ -6588,8 +6588,20 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 
 	// Generate the container metadata
 	containerMeta := make(map[string]string)
+	// lxdmeta:generate(entities=instance-property; group=instance-conf; key=name)
+	// See {ref}`instance-name-requirements`.
+	// ---
+	//  type: string
+	//  readonly: yes
+	//  shortdesc: Instance name
 	containerMeta["name"] = d.name
 	containerMeta["type"] = "container"
+	// lxdmeta:generate(entities=instance-property; group=instance-conf; key=architecture)
+	//
+	// ---
+	//  type: string
+	//  readonly: no
+	//  shortdesc: Instance architecture
 	containerMeta["architecture"] = arch
 
 	if d.ephemeral {
