@@ -1173,23 +1173,23 @@ func TaskIDs(pid int) (int64, int64, int64, int64, error) {
 }
 
 // FindTGID returns the task group leader ID from /proc/<pid> fd
-func FindTGID(procFd int) (int, error) {
+func FindTGID(procFd int) (uint32, error) {
 	var statusFile *os.File
 	fd, err := unix.Openat(procFd, "status", unix.O_RDONLY|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return -1, err
+		return 0, err
 	}
 
 	statusFile = os.NewFile(uintptr(fd), "/proc/<pid>/status")
 	status, err := io.ReadAll(statusFile)
 	_ = statusFile.Close()
 	if err != nil {
-		return -1, err
+		return 0, err
 	}
 
 	reTGID, err := regexp.Compile(`^Tgid:\s+([0-9]+)`)
 	if err != nil {
-		return -1, err
+		return 0, err
 	}
 
 	for _, line := range strings.Split(string(status), "\n") {
@@ -1197,14 +1197,14 @@ func FindTGID(procFd int) (int, error) {
 		if len(m) > 1 {
 			result, err := strconv.ParseUint(m[1], 10, 32)
 			if err != nil {
-				return -1, err
+				return 0, err
 			}
 
-			return int(result), nil
+			return uint32(result), nil
 		}
 	}
 
-	return -1, nil
+	return 0, fmt.Errorf("Task group leader ID not found")
 }
 
 // CallForkmknod executes fork mknod.
@@ -2243,7 +2243,7 @@ func (s *Server) HandleBpfSyscall(c Instance, siov *Iovec) int {
 	}
 
 	tgid, err := FindTGID(siov.procFd)
-	if err != nil || tgid == -1 {
+	if err != nil {
 		ctx["syscall_continue"] = "true"
 		ctx["syscall_handler_reason"] = "Could not find thread group leader ID"
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
