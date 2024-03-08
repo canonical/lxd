@@ -1139,6 +1139,57 @@ func PopulateEntityReferencesFromURLs(ctx context.Context, tx *sql.Tx, entityURL
 	return nil
 }
 
+// GetEntityReferenceFromURL gets a single EntityRef by parsing the given api.URL and finding the ID of the entity.
+// It is used by the OpenFGA datastore implementation to find permissions for the entity with the given URL.
+func GetEntityReferenceFromURL(ctx context.Context, tx *sql.Tx, entityURL *api.URL) (*EntityRef, error) {
+	// Parse the URL to get the majority of the fields of the EntityRef for that URL.
+	entityType, projectName, location, pathArgs, err := entity.ParseURL(entityURL.URL)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get entity ID from URL: %w", err)
+	}
+
+	// Populate the result map.
+	entityRef := &EntityRef{
+		EntityType:  EntityType(entityType),
+		ProjectName: projectName,
+		Location:    location,
+		PathArgs:    pathArgs,
+	}
+
+	// If the given URL is the server url it is valid but there is no need to perform a query for it, the entity
+	// ID of the server is always zero (by virtue of being the zero value for int).
+	if entityType == entity.TypeServer {
+		return entityRef, nil
+	}
+
+	// Get the statement corresponding to the entity type.
+	stmt, ok := entityIDFromURLStatements[entityType]
+	if !ok {
+		return nil, fmt.Errorf("Could not get entity ID from URL: No statement found for entity type %q", entityType)
+	}
+
+	args := []any{0, projectName, location}
+	for _, pathArg := range pathArgs {
+		args = append(args, pathArg)
+	}
+
+	row := tx.QueryRowContext(ctx, stmt, args...)
+
+	var rowID, entityID int
+	err = row.Scan(&rowID, &entityID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, api.StatusErrorf(http.StatusNotFound, "No such entity %q", entityURL.String())
+		}
+
+		return nil, fmt.Errorf("Failed to get entityID from URL: %w", err)
+	}
+
+	entityRef.EntityID = entityID
+
+	return entityRef, nil
+}
+
 var entityDeletionTriggers = map[entity.Type]string{
 	entity.TypeImage:                 imageDeletionTrigger,
 	entity.TypeProfile:               profileDeletionTrigger,

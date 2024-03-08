@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/openfga/openfga/pkg/storage"
+
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -12,8 +14,12 @@ import (
 )
 
 const (
-	// DriverTLS is the default TLS authorization driver. It is not compatible with OIDC authentication.
+	// DriverTLS is used at start up to allow communication between cluster members and initialise the cluster database.
 	DriverTLS string = "tls"
+
+	// DriverEmbeddedOpenFGA is the default authorization driver. It currently falls back to DriverTLS for all TLS
+	// clients. It cannot be initialised until after the cluster database to be operational.
+	DriverEmbeddedOpenFGA string = "embedded-openfga"
 )
 
 // ErrUnknownDriver is the "Unknown driver" error.
@@ -21,6 +27,9 @@ var ErrUnknownDriver = fmt.Errorf("Unknown driver")
 
 var authorizers = map[string]func() authorizer{
 	DriverTLS: func() authorizer { return &tls{} },
+	DriverEmbeddedOpenFGA: func() authorizer {
+		return &embeddedOpenFGA{}
+	},
 }
 
 type authorizer interface {
@@ -89,13 +98,21 @@ type Authorizer interface {
 // Opts is used as part of the LoadAuthorizer function so that only the relevant configuration fields are passed into a
 // particular driver.
 type Opts struct {
-	config map[string]any
+	config           map[string]any
+	openfgaDatastore storage.OpenFGADatastore
 }
 
 // WithConfig can be passed into LoadAuthorizer to pass in driver specific configuration.
 func WithConfig(c map[string]any) func(*Opts) {
 	return func(o *Opts) {
 		o.config = c
+	}
+}
+
+// WithOpenFGADatastore should be passed into LoadAuthorizer when using the embedded openfga driver.
+func WithOpenFGADatastore(store storage.OpenFGADatastore) func(*Opts) {
+	return func(o *Opts) {
+		o.openfgaDatastore = store
 	}
 }
 

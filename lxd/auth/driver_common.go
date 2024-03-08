@@ -37,6 +37,8 @@ type requestDetails struct {
 	isAllProjectsRequest bool
 	projectName          string
 	isPKI                bool
+	idpGroups            []string
+	forwardedIDPGroups   []string
 }
 
 func (r *requestDetails) isInternalOrUnix() bool {
@@ -67,6 +69,14 @@ func (r *requestDetails) authenticationProtocol() string {
 	return r.protocol
 }
 
+func (r *requestDetails) identityProviderGroups() []string {
+	if r.protocol == "cluster" {
+		return r.forwardedIDPGroups
+	}
+
+	return r.idpGroups
+}
+
 func (c *commonAuthorizer) requestDetails(r *http.Request) (*requestDetails, error) {
 	if r == nil {
 		return nil, fmt.Errorf("Cannot inspect nil request")
@@ -74,65 +84,46 @@ func (c *commonAuthorizer) requestDetails(r *http.Request) (*requestDetails, err
 		return nil, fmt.Errorf("Request URL is not set")
 	}
 
-	val := r.Context().Value(request.CtxUsername)
-	if val == nil {
-		return nil, fmt.Errorf("Username not present in request context")
+	var err error
+	d := &requestDetails{}
+
+	// Request protocol cannot be empty.
+	d.protocol, err = request.GetCtxValue[string](r.Context(), request.CtxProtocol)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting protocol: %w", err)
 	}
 
-	username, ok := val.(string)
-	if !ok {
-		return nil, fmt.Errorf("Request context username has incorrect type")
+	// Forwarded protocol can be empty.
+	d.forwardedProtocol, _ = request.GetCtxValue[string](r.Context(), request.CtxForwardedProtocol)
+
+	// If we're in a CA environment, it's possible for a certificate to be trusted despite not being present in the trust store.
+	// We rely on the validation of the certificate (and its potential revocation) having been done in CheckTrustState.
+	d.isPKI = d.authenticationProtocol() == api.AuthenticationMethodTLS && shared.PathExists(shared.VarPath("server.ca"))
+
+	// Username cannot be empty.
+	d.userName, err = request.GetCtxValue[string](r.Context(), request.CtxUsername)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting username: %w", err)
 	}
 
-	val = r.Context().Value(request.CtxProtocol)
-	if val == nil {
-		return nil, fmt.Errorf("Protocol not present in request context")
-	}
+	// Forwarded username can be empty.
+	d.forwardedUsername, _ = request.GetCtxValue[string](r.Context(), request.CtxForwardedUsername)
 
-	protocol, ok := val.(string)
-	if !ok {
-		return nil, fmt.Errorf("Request context protocol has incorrect type")
-	}
+	// Check for identity provider groups.
+	d.idpGroups, _ = request.GetCtxValue[[]string](r.Context(), request.CtxIdentityProviderGroups)
+	d.forwardedIDPGroups, _ = request.GetCtxValue[[]string](r.Context(), request.CtxForwardedIdentityProviderGroups)
 
-	pkiMode := false
-	if protocol == api.AuthenticationMethodTLS && shared.PathExists(shared.VarPath("server.ca")) {
-		// If we're in a CA environment, it's possible for a certificate to be trusted despite not being present in the trust store.
-		// We rely on the validation of the certificate (and its potential revocation) having been done in CheckTrustState.
-		pkiMode = true
-	}
-
-	var forwardedUsername string
-	val = r.Context().Value(request.CtxForwardedUsername)
-	if val != nil {
-		forwardedUsername, ok = val.(string)
-		if !ok {
-			return nil, fmt.Errorf("Request context forwarded username has incorrect type")
-		}
-	}
-
-	var forwardedProtocol string
-	val = r.Context().Value(request.CtxForwardedProtocol)
-	if val != nil {
-		forwardedProtocol, ok = val.(string)
-		if !ok {
-			return nil, fmt.Errorf("Request context forwarded username has incorrect type")
-		}
-	}
-
+	// Check if the request is for all projects.
 	values, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse request query parameters: %w", err)
 	}
 
-	return &requestDetails{
-		userName:             username,
-		protocol:             protocol,
-		forwardedUsername:    forwardedUsername,
-		forwardedProtocol:    forwardedProtocol,
-		isAllProjectsRequest: shared.IsTrue(values.Get("all-projects")),
-		projectName:          request.ProjectParam(r),
-		isPKI:                pkiMode,
-	}, nil
+	// Get project details.
+	d.isAllProjectsRequest = shared.IsTrue(values.Get("all-projects"))
+	d.projectName = request.ProjectParam(r)
+
+	return d, nil
 }
 
 // Driver returns the driver name.
