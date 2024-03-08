@@ -2367,3 +2367,7 @@ through the new server-level configuration key `instances.migration.stateful`. I
 
 Adds new APIs under `/1.0/auth` for viewing and managing identities, groups, and permissions.
 Adds an embedded OpenFGA authorization driver for enforcing fine-grained permissions.
+
+## `vm_disk_io_limits`
+
+Adds the ability to limit disk I/O for virtual machines.

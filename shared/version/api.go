@@ -400,6 +400,7 @@ var APIExtensions = []string{
 	"instances_migration_stateful",
 	"container_syscall_filtering_allow_deny_syntax",
 	"access_management",
+	"vm_disk_io_limits",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
