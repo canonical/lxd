@@ -2388,3 +2388,7 @@ For more information on access control for OIDC clients, see {ref}`fine-grained-
 ## `vm_disk_io_limits`
 
 Adds the ability to limit disk I/O for virtual machines.
+
+## `storage_volumes_all`
+
+This API extension adds support for listing storage volumes from all storage pools via `/1.0/storage-volumes` or `/1.0/storage-volumes/{type}` to filter by volume type. Also adds a `pool` field to storage volumes.
