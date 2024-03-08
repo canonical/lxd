@@ -3499,7 +3499,7 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 		if ok {
 			target, err := req.GetString("target")
 			if err != nil {
-				return api.StatusErrorf(http.StatusBadRequest, "%v", err)
+				return api.StatusErrorf(http.StatusBadRequest, "%w", err)
 			}
 
 			imgAlias.Target = target
@@ -3509,7 +3509,7 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 		if ok {
 			description, err := req.GetString("description")
 			if err != nil {
-				return api.StatusErrorf(http.StatusBadRequest, "%v", err)
+				return api.StatusErrorf(http.StatusBadRequest, "%w", err)
 			}
 
 			imgAlias.Description = description
