@@ -30,7 +30,6 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
-	"github.com/canonical/lxd/shared/version"
 )
 
 var projectsCmd = APIEndpoint{
@@ -146,41 +145,41 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	var result any
+	var apiProjects []*api.Project
+	var projectURLs []string
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		projects, err := cluster.GetProjects(ctx, tx.Tx())
+		allProjects, err := cluster.GetProjects(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
 
-		filtered := []api.Project{}
-		for _, project := range projects {
-			if !userHasPermission(entity.ProjectURL(project.Name)) {
-				continue
+		projects := make([]cluster.Project, 0, len(allProjects))
+		for _, project := range allProjects {
+			if userHasPermission(entity.ProjectURL(project.Name)) {
+				projects = append(projects, project)
 			}
-
-			apiProject, err := project.ToAPI(ctx, tx.Tx())
-			if err != nil {
-				return err
-			}
-
-			apiProject.UsedBy, err = projectUsedBy(ctx, tx, &project)
-			if err != nil {
-				return err
-			}
-
-			filtered = append(filtered, *apiProject)
 		}
 
 		if recursion {
-			result = filtered
-		} else {
-			urls := make([]string, len(filtered))
-			for i, p := range filtered {
-				urls[i] = p.URL(version.APIVersion).String()
-			}
+			apiProjects = make([]*api.Project, 0, len(projects))
+			for _, project := range projects {
+				apiProject, err := project.ToAPI(ctx, tx.Tx())
+				if err != nil {
+					return err
+				}
 
-			result = urls
+				apiProject.UsedBy, err = projectUsedBy(ctx, tx, &project)
+				if err != nil {
+					return err
+				}
+
+				apiProjects = append(apiProjects, apiProject)
+			}
+		} else {
+			projectURLs = make([]string, 0, len(projects))
+			for _, project := range projects {
+				projectURLs = append(projectURLs, entity.ProjectURL(project.Name).String())
+			}
 		}
 
 		return nil
@@ -189,61 +188,40 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return response.SyncResponse(true, result)
+	if !recursion {
+		return response.SyncResponse(true, projectURLs)
+	}
+
+	for _, apiProject := range apiProjects {
+		apiProject.UsedBy = projecthelpers.FilterUsedBy(s.Authorizer, r, apiProject.UsedBy)
+	}
+
+	return response.SyncResponse(true, apiProjects)
 }
 
 // projectUsedBy returns a list of URLs for all instances, images, profiles,
 // storage volumes, networks, and acls that use this project.
 func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Project) ([]string, error) {
-	usedBy := []string{}
-	instances, err := cluster.GetInstances(ctx, tx.Tx(), cluster.InstanceFilter{Project: &project.Name})
+	reportedEntityTypes := []entity.Type{
+		entity.TypeInstance,
+		entity.TypeProfile,
+		entity.TypeImage,
+		entity.TypeStorageVolume,
+		entity.TypeNetwork,
+		entity.TypeNetworkACL,
+	}
+
+	entityURLs, err := cluster.GetEntityURLs(ctx, tx.Tx(), project.Name, reportedEntityTypes...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to get project used-by URLs")
 	}
 
-	profiles, err := cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{Project: &project.Name})
-	if err != nil {
-		return nil, err
+	var usedBy []string
+	for _, entityIDToURL := range entityURLs {
+		for _, u := range entityIDToURL {
+			usedBy = append(usedBy, u.String())
+		}
 	}
-
-	images, err := cluster.GetImages(ctx, tx.Tx(), cluster.ImageFilter{Project: &project.Name})
-	if err != nil {
-		return nil, err
-	}
-
-	for _, instance := range instances {
-		apiInstance := api.Instance{Name: instance.Name}
-		usedBy = append(usedBy, apiInstance.URL(version.APIVersion, project.Name).String())
-	}
-
-	for _, profile := range profiles {
-		apiProfile := api.Profile{Name: profile.Name}
-		usedBy = append(usedBy, apiProfile.URL(version.APIVersion, project.Name).String())
-	}
-
-	for _, image := range images {
-		apiImage := api.Image{Fingerprint: image.Fingerprint}
-		usedBy = append(usedBy, apiImage.URL(version.APIVersion, project.Name).String())
-	}
-
-	volumes, err := tx.GetStorageVolumeURIs(ctx, project.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	networks, err := tx.GetNetworkURIs(ctx, project.ID, project.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	acls, err := tx.GetNetworkACLURIs(ctx, project.ID, project.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	usedBy = append(usedBy, volumes...)
-	usedBy = append(usedBy, networks...)
-	usedBy = append(usedBy, acls...)
 
 	return usedBy, nil
 }
@@ -436,6 +414,8 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 		project.Description,
 		project.Config,
 	}
+
+	project.UsedBy = projecthelpers.FilterUsedBy(s.Authorizer, r, project.UsedBy)
 
 	return response.SyncResponseETag(true, project, etag)
 }

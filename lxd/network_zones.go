@@ -179,6 +179,7 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 
 			netzoneInfo := netzone.Info()
 			netzoneInfo.UsedBy, _ = netzone.UsedBy() // Ignore errors in UsedBy, will return nil.
+			netzoneInfo.UsedBy = project.FilterUsedBy(s.Authorizer, r, netzoneInfo.UsedBy)
 
 			resultMap = append(resultMap, *netzoneInfo)
 		}
@@ -386,6 +387,8 @@ func networkZoneGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	info.UsedBy = project.FilterUsedBy(s.Authorizer, r, info.UsedBy)
 
 	return response.SyncResponseETag(true, info, netzone.Etag())
 }
