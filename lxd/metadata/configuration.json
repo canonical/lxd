@@ -3422,6 +3422,181 @@
 				]
 			}
 		},
+		"network-physical": {
+			"network-conf": {
+				"keys": [
+					{
+						"bgp.peers.NAME.address": {
+							"condition": "BGP server",
+							"longdesc": "The address can be IPv4 or IPv6.",
+							"shortdesc": "Peer address for use by `ovn` downstream networks",
+							"type": "string"
+						}
+					},
+					{
+						"bgp.peers.NAME.asn": {
+							"condition": "BGP server",
+							"longdesc": "",
+							"shortdesc": "Peer AS number for use by `ovn` downstream networks",
+							"type": "integer"
+						}
+					},
+					{
+						"bgp.peers.NAME.holdtime": {
+							"condition": "BGP server",
+							"defaultdesc": "`180`",
+							"longdesc": "Specify the peer session hold time in seconds.",
+							"required": "no",
+							"shortdesc": "Peer session hold time",
+							"type": "integer"
+						}
+					},
+					{
+						"bgp.peers.NAME.password": {
+							"condition": "BGP server",
+							"defaultdesc": "(no password)",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Peer session password for use by `ovn` downstream networks",
+							"type": "string"
+						}
+					},
+					{
+						"dns.nameservers": {
+							"condition": "standard mode",
+							"longdesc": "Specify a list of DNS server IPs.",
+							"shortdesc": "DNS server IPs on physical network",
+							"type": "string"
+						}
+					},
+					{
+						"gvrp": {
+							"defaultdesc": "`false`",
+							"longdesc": "This option specifies whether to register the VLAN using the GARP VLAN Registration Protocol.",
+							"shortdesc": "Whether to use GARP VLAN Registration Protocol",
+							"type": "bool"
+						}
+					},
+					{
+						"ipv4.gateway": {
+							"condition": "standard mode",
+							"longdesc": "Use CIDR notation.",
+							"shortdesc": "IPv4 address for the gateway and network",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.ovn.ranges": {
+							"longdesc": "Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.",
+							"shortdesc": "IPv4 ranges to use for child OVN network routers",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.routes": {
+							"condition": "IPv4 address",
+							"longdesc": "Specify a comma-separated list of IPv4 CIDR subnets that can be used with the child OVN network's {config:option}`device-nic-ovn-device-conf:ipv4.routes.external` setting.",
+							"shortdesc": "Additional IPv4 CIDR subnets",
+							"type": "string"
+						}
+					},
+					{
+						"ipv4.routes.anycast": {
+							"condition": "IPv4 address",
+							"defaultdesc": "`false`",
+							"longdesc": "If set to `true`, this option allows the overlapping routes to be used on multiple networks/NICs at the same time.",
+							"shortdesc": "Whether to allow IPv4 routes on multiple networks/NICs",
+							"type": "bool"
+						}
+					},
+					{
+						"ipv6.gateway": {
+							"condition": "standard mode",
+							"longdesc": "Use CIDR notation.",
+							"shortdesc": "IPv6 address for the gateway and network",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.ovn.ranges": {
+							"longdesc": "Specify a comma-separated list of IPv6 ranges in FIRST-LAST format.",
+							"shortdesc": "IPv6 ranges to use for child OVN network routers",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.routes": {
+							"condition": "IPv6 address",
+							"longdesc": "Specify a comma-separated list of IPv6 CIDR subnets that can be used with the child OVN network's {config:option}`device-nic-ovn-device-conf:ipv6.routes.external` setting.",
+							"shortdesc": "Additional IPv6 CIDR subnets",
+							"type": "string"
+						}
+					},
+					{
+						"ipv6.routes.anycast": {
+							"condition": "IPv6 address",
+							"defaultdesc": "`false`",
+							"longdesc": "If set to `true`, this option allows the overlapping routes to be used on multiple networks/NICs at the same time.",
+							"shortdesc": "Whether to allow IPv6 routes on multiple networks/NICs",
+							"type": "bool"
+						}
+					},
+					{
+						"maas.subnet.ipv4": {
+							"condition": "IPv4 address; using the `network` property on the NIC",
+							"longdesc": "",
+							"shortdesc": "MAAS IPv4 subnet to register instances in",
+							"type": "string"
+						}
+					},
+					{
+						"maas.subnet.ipv6": {
+							"condition": "IPv6 address; using the `network` property on the NIC",
+							"longdesc": "",
+							"shortdesc": "MAAS IPv6 subnet to register instances in",
+							"type": "string"
+						}
+					},
+					{
+						"mtu": {
+							"longdesc": "",
+							"shortdesc": "MTU of the new interface",
+							"type": "integer"
+						}
+					},
+					{
+						"ovn.ingress_mode": {
+							"condition": "standard mode",
+							"defaultdesc": "`l2proxy`",
+							"longdesc": "Possible values are `l2proxy` (proxy ARP/NDP) and `routed`.",
+							"shortdesc": "How OVN NIC external IPs are advertised on uplink network",
+							"type": "string"
+						}
+					},
+					{
+						"parent": {
+							"longdesc": "",
+							"shortdesc": "Existing interface to use for network",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					},
+					{
+						"vlan": {
+							"longdesc": "",
+							"shortdesc": "VLAN ID to attach to",
+							"type": "integer"
+						}
+					}
+				]
+			}
+		},
 		"network-sriov": {
 			"network-conf": {
 				"keys": [

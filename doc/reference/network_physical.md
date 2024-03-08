@@ -27,29 +27,11 @@ The following configuration key namespaces are currently supported for the `phys
 
 The following configuration options are available for the `physical` network type:
 
-Key                             | Type      | Condition             | Default                   | Description
-:--                             | :--       | :--                   | :--                       | :--
-`gvrp`                          | bool      | -                     | `false`                   | Register VLAN using GARP VLAN Registration Protocol
-`mtu`                           | integer   | -                     | -                         | The MTU of the new interface
-`parent`                        | string    | -                     | -                         | Existing interface to use for network
-`vlan`                          | integer   | -                     | -                         | The VLAN ID to attach to
-`bgp.peers.NAME.address`        | string    | BGP server            | -                         | Peer address (IPv4 or IPv6) for use by `ovn` downstream networks
-`bgp.peers.NAME.asn`            | integer   | BGP server            | -                         | Peer AS number for use by `ovn` downstream networks
-`bgp.peers.NAME.password`       | string    | BGP server            | - (no password)           | Peer session password (optional) for use by `ovn` downstream networks
-`bgp.peers.NAME.holdtime`       | integer   | BGP server            | `180`                     | Peer session hold time (in seconds; optional)
-`dns.nameservers`               | string    | standard mode         | -                         | List of DNS server IPs on `physical` network
-`ipv4.gateway`                  | string    | standard mode         | -                         | IPv4 address for the gateway and network (CIDR)
-`ipv4.ovn.ranges`               | string    | -                     | -                         | Comma-separated list of IPv4 ranges to use for child OVN network routers (FIRST-LAST format)
-`ipv4.routes`                   | string    | IPv4 address          | -                         | Comma-separated list of additional IPv4 CIDR subnets that can be used with child OVN networks `ipv4.routes.external` setting
-`ipv4.routes.anycast`           | bool      | IPv4 address          | `false`                   | Allow the overlapping routes to be used on multiple networks/NIC at the same time
-`ipv6.gateway`                  | string    | standard mode         | -                         | IPv6 address for the gateway and network (CIDR)
-`ipv6.ovn.ranges`               | string    | -                     | -                         | Comma-separated list of IPv6 ranges to use for child OVN network routers (FIRST-LAST format)
-`ipv6.routes`                   | string    | IPv6 address          | -                         | Comma-separated list of additional IPv6 CIDR subnets that can be used with child OVN networks `ipv6.routes.external` setting
-`ipv6.routes.anycast`           | bool      | IPv6 address          | `false`                   | Allow the overlapping routes to be used on multiple networks/NIC at the same time
-`maas.subnet.ipv4`              | string    | IPv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on NIC)
-`maas.subnet.ipv6`              | string    | IPv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on NIC)
-`ovn.ingress_mode`              | string    | standard mode         | `l2proxy`                 | Sets the method how OVN NIC external IPs will be advertised on uplink network: `l2proxy` (proxy ARP/NDP) or `routed`
-`user.*`                        | string    | -                     | -                         | User-provided free-form key/value pairs
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group network-physical-network-conf start -->
+    :end-before: <!-- config group network-physical-network-conf end -->
+```
 
 (network-physical-features)=
 ## Supported features
