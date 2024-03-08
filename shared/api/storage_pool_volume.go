@@ -116,6 +116,12 @@ type StorageVolume struct {
 	// Example: custom
 	Type string `json:"type" yaml:"type"`
 
+	// Name of the pool the volume is using
+	// Example: "default"
+	//
+	// API extension: storage_volumes_all
+	Pool string `json:"pool" yaml:"pool"`
+
 	// Volume content type (filesystem or block)
 	// Example: filesystem
 	//
