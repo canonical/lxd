@@ -416,7 +416,7 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 			// Apply TCP timeouts if remote connection is TCP (rather than Unix).
 			err := tcp.SetTimeouts(remoteTCP, 10*time.Second)
 			if err != nil {
-				return api.StatusErrorf(http.StatusInternalServerError, "Failed setting TCP timeouts on remote connection: %v", err)
+				return api.StatusErrorf(http.StatusInternalServerError, "Failed setting TCP timeouts on remote connection: %w", err)
 			}
 		}
 
