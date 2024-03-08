@@ -1148,7 +1148,7 @@ func GetEntityReferenceFromURL(ctx context.Context, tx *sql.Tx, entityURL *api.U
 		return nil, fmt.Errorf("Failed to get entity ID from URL: %w", err)
 	}
 
-	// Populate the result map.
+	// Populate the fields we know from the URL.
 	entityRef := &EntityRef{
 		EntityType:  EntityType(entityType),
 		ProjectName: projectName,
@@ -1168,6 +1168,9 @@ func GetEntityReferenceFromURL(ctx context.Context, tx *sql.Tx, entityURL *api.U
 		return nil, fmt.Errorf("Could not get entity ID from URL: No statement found for entity type %q", entityType)
 	}
 
+	// The first bind argument in all entityIDFromURL queries is an index that we use to correspond output of large UNION
+	// queries (see PopulateEntityReferencesFromURLs). In this case we are only querying for one ID, so the `0` argument
+	// is a placeholder.
 	args := []any{0, projectName, location}
 	for _, pathArg := range pathArgs {
 		args = append(args, pathArg)
