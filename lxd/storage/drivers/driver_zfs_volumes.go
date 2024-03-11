@@ -727,14 +727,15 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 		var recvStderr bytes.Buffer
 		receiver.Stderr = &recvStderr
 
+		var sendStderr bytes.Buffer
+		sender.Stderr = &sendStderr
+
 		// Run the transfer.
 		err := receiver.Start()
 		if err != nil {
 			return fmt.Errorf("Failed starting ZFS receive: %w", err)
 		}
 
-		var sendStderr bytes.Buffer
-		sender.Stderr = &sendStderr
 		err = sender.Start()
 		if err != nil {
 			_ = receiver.Process.Kill()
