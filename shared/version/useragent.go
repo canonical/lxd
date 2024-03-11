@@ -32,6 +32,9 @@ func getUserAgent() string {
 
 	// Initial version string
 	agent := fmt.Sprintf("LXD %s", Version)
+	if IsLTSVersion {
+		agent = fmt.Sprintf("%s LTS", agent)
+	}
 
 	// OS information
 	agent = fmt.Sprintf("%s (%s)", agent, strings.Join(osTokens, "; "))
