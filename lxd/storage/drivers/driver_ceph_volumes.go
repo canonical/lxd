@@ -1644,13 +1644,20 @@ func (d *ceph) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs
 	}
 
 	if vol.IsSnapshot() {
+		unlock, err := vol.MountLock()
+		if err != nil {
+			return err
+		}
+
+		defer unlock()
+
 		parentName, snapOnlyName, _ := api.GetParentAndSnapshotName(vol.name)
 		snapOnlyName = fmt.Sprintf("snapshot_%s", snapOnlyName)
 		parentVol := NewVolume(d, vol.pool, vol.volType, vol.contentType, parentName, nil, nil)
 		cloneVol := NewVolume(d, vol.pool, vol.volType, vol.contentType, fmt.Sprintf("%s_clone", parentName), nil, nil)
 
 		// Ensure the snapshot is protected so that it allows creating a clone from it.
-		err := d.rbdProtectVolumeSnapshot(parentVol, snapOnlyName)
+		err = d.rbdProtectVolumeSnapshot(parentVol, snapOnlyName)
 		if err != nil {
 			return err
 		}
