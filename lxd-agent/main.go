@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -37,6 +38,9 @@ func main() {
 	// Version handling
 	app.SetVersionTemplate("{{.Version}}\n")
 	app.Version = version.Version
+	if version.IsLTSVersion {
+		app.Version = fmt.Sprintf("%s LTS", version.Version)
+	}
 
 	// Run the main command and handle errors
 	err := app.Execute()
