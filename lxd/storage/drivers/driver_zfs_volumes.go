@@ -756,7 +756,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 
 		err = receiver.Wait()
 		if err != nil {
-			_ = receiver.Process.Kill()
+			_ = sender.Process.Kill()
 			return fmt.Errorf("Failed ZFS receive: %w (%s)", err, recvStderr.String())
 		}
 
