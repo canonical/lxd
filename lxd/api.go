@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
@@ -71,7 +72,24 @@ func restServer(d *Daemon) *http.Server {
 	uiEnabled := uiPath != "" && shared.PathExists(uiPath)
 	if uiEnabled {
 		uiHTTPDir := uiHTTPDir{http.Dir(uiPath)}
-		mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/", http.FileServer(uiHTTPDir)))
+
+		// Serve the LXD user interface.
+		uiHandler := http.StripPrefix("/ui/", http.FileServer(uiHTTPDir))
+
+		// Set security headers
+		uiHandlerWithSecurity := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Permissions-Policy", "interest-cohort=()")
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+			w.Header().Set("X-Xss-Protection", "1; mode=block")
+
+			uiHandler.ServeHTTP(w, r)
+		})
+
+		// Enable gzip compression
+		uiHandlerWithGzip := gorillaHandlers.CompressHandler(uiHandlerWithSecurity)
+
+		mux.PathPrefix("/ui/").Handler(uiHandlerWithGzip)
 		mux.HandleFunc("/ui", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
 		})
