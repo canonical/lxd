@@ -832,7 +832,11 @@ func (d *btrfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshot
 			err := sender.Wait()
 			if err != nil {
 				_ = receiver.Process.Kill()
-				senderErr <- fmt.Errorf("Failed BTRFS send: %w (%s)", err, strings.TrimSpace(sendStderr.String()))
+
+				// This removes any newlines in the error message.
+				msg := strings.ReplaceAll(strings.TrimSpace(sendStderr.String()), "\n", " ")
+
+				senderErr <- fmt.Errorf("Failed BTRFS send: %w (%s)", err, msg)
 				return
 			}
 
@@ -842,7 +846,11 @@ func (d *btrfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshot
 		err = receiver.Wait()
 		if err != nil {
 			_ = sender.Process.Kill()
-			return fmt.Errorf("Failed BTRFS receive: %w (%s)", err, strings.TrimSpace(recvStderr.String()))
+
+			// This removes any newlines in the error message.
+			msg := strings.ReplaceAll(strings.TrimSpace(recvStderr.String()), "\n", " ")
+
+			return fmt.Errorf("Failed BTRFS receive: %w (%s)", err, msg)
 		}
 
 		err = <-senderErr
