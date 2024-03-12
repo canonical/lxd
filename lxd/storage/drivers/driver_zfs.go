@@ -497,7 +497,7 @@ func (d *zfs) Update(changedConfig map[string]string) error {
 			return err
 		}
 
-		_, err = shared.RunCommand("zpool", "online", "-e", d.name, loopPath)
+		_, err = shared.RunCommand("zpool", "online", "-e", d.config["zfs.pool_name"], loopPath)
 		if err != nil {
 			return err
 		}
