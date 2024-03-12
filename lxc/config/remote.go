@@ -80,10 +80,18 @@ func (c *Config) GetInstanceServer(name string) (lxd.InstanceServer, error) {
 			var netErr *net.OpError
 
 			if errors.As(err, &netErr) {
-				return nil, fmt.Errorf("The LXD daemon doesn't appear to be started (socket path: %s)", netErr.Addr)
+				if errors.Is(err, os.ErrNotExist) {
+					return nil, fmt.Errorf("LXD unix socket %q not found: Please check LXD is running", netErr.Addr)
+				}
+
+				if errors.Is(err, os.ErrPermission) {
+					return nil, fmt.Errorf("LXD unix socket %q not accessible: permission denied", netErr.Addr)
+				}
+
+				return nil, fmt.Errorf("LXD unix socket %q not accessible: %w", netErr.Addr, err)
 			}
 
-			return nil, err
+			return nil, fmt.Errorf("LXD unix socket not accessible: %w", err)
 		}
 
 		if remote.Project != "" && remote.Project != "default" {
