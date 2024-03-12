@@ -388,7 +388,7 @@ func (r *ProtocolLXD) GetPermissions(args GetPermissionsArgs) ([]api.Permission,
 	}
 
 	var permissions []api.Permission
-	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &permissions)
+	_, err = r.UseProject("").(*ProtocolLXD).queryStruct(http.MethodGet, u.String(), nil, "", &permissions)
 	if err != nil {
 		return nil, err
 	}
@@ -413,7 +413,7 @@ func (r *ProtocolLXD) GetPermissionsInfo(args GetPermissionsArgs) ([]api.Permiss
 	}
 
 	var permissions []api.PermissionInfo
-	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &permissions)
+	_, err = r.UseProject("").(*ProtocolLXD).queryStruct(http.MethodGet, u.String(), nil, "", &permissions)
 	if err != nil {
 		return nil, err
 	}
