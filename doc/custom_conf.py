@@ -295,8 +295,11 @@ else:
 # Generate man pages content
 
 os.makedirs('.sphinx/deps/manpages', exist_ok=True)
-subprocess.run([lxc, 'manpage', '.sphinx/deps/manpages/', '--format=md'],
-               check=True)
+if (os.path.isfile(lxc)):
+    subprocess.run([lxc, 'manpage', '.sphinx/deps/manpages/', '--format=md'],
+                   check=True)
+else:
+    print('No man page content generated.')
 
 # Preprocess man pages content
 
