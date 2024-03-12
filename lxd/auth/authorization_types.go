@@ -25,9 +25,6 @@ const (
 	// EntitlementServerViewer is the `viewer` Entitlement. It applies to entity.TypeServer.
 	EntitlementServerViewer Entitlement = "viewer"
 
-	// EntitlementCanViewConfiguration is the `can_view_configuration` Entitlement. It applies to entity.TypeServer.
-	EntitlementCanViewConfiguration Entitlement = "can_view_configuration"
-
 	// EntitlementPermissionManager is the `permission_manager` Entitlement. It applies to entity.TypeServer.
 	EntitlementPermissionManager Entitlement = "permission_manager"
 
@@ -296,7 +293,6 @@ var allEntitlements = []Entitlement{
 	EntitlementCanDelete,
 	EntitlementServerAdmin,
 	EntitlementServerViewer,
-	EntitlementCanViewConfiguration,
 	EntitlementPermissionManager,
 	EntitlementCanViewPermissions,
 	EntitlementCanCreateIdentities,
