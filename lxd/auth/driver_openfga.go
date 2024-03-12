@@ -245,7 +245,14 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 			}
 		}
 
-		l.Info("Access denied", logger.Ctx{"http_code": responseCode})
+		// For some entities, a GET request will check if the caller has permission edit permission and conditionally
+		// populate configuration that may be sensitive. To reduce log verbosity, only log these cases at debug level.
+		if entitlement == EntitlementCanEdit && r.Method == http.MethodGet {
+			l.Debug("Access denied", logger.Ctx{"http_code": responseCode})
+		} else {
+			l.Info("Access denied", logger.Ctx{"http_code": responseCode})
+		}
+
 		return api.StatusErrorf(responseCode, http.StatusText(responseCode))
 	}
 
