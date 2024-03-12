@@ -44,6 +44,11 @@ test_tls_restrictions() {
   ! lxc_remote project list localhost: | grep -q default || false
   lxc_remote project list localhost: | grep -q blah
 
+  # Validate that the restricted caller cannot edit or delete the project.
+  ! lxc_remote project set localhost:blah user.foo=bar || false
+  ! lxc_remote project delete localhost:blah || false
+
+  # Validate restricted caller cannot create projects.
   ! lxc_remote project create localhost:blah1 || false
 
   # Ensure we can create and view resources that are not enabled for the project (e.g. their effective project is
