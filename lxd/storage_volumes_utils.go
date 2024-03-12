@@ -85,7 +85,7 @@ func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolNam
 }
 
 // storagePoolVolumeUsedByGet returns a list of URL resources that use the volume.
-func storagePoolVolumeUsedByGet(s *state.State, requestProjectName string, poolName string, vol *db.StorageVolume) ([]string, error) {
+func storagePoolVolumeUsedByGet(s *state.State, requestProjectName string, vol *db.StorageVolume) ([]string, error) {
 	// Handle instance volumes.
 	if vol.Type == cluster.StoragePoolVolumeTypeNameContainer || vol.Type == cluster.StoragePoolVolumeTypeNameVM {
 		volName, snapName, isSnap := api.GetParentAndSnapshotName(vol.Name)
@@ -102,7 +102,7 @@ func storagePoolVolumeUsedByGet(s *state.State, requestProjectName string, poolN
 	}
 
 	// Check if the daemon itself is using it.
-	used, err := storagePools.VolumeUsedByDaemon(s, poolName, vol.Name)
+	used, err := storagePools.VolumeUsedByDaemon(s, vol.Pool, vol.Name)
 	if err != nil {
 		return []string{}, err
 	}
@@ -116,7 +116,7 @@ func storagePoolVolumeUsedByGet(s *state.State, requestProjectName string, poolN
 
 	// Pass false to expandDevices, as we only want to see instances directly using a volume, rather than their
 	// profiles using a volume.
-	err = storagePools.VolumeUsedByInstanceDevices(s, poolName, vol.Project, &vol.StorageVolume, false, func(inst db.InstanceArgs, p api.Project, usedByDevices []string) error {
+	err = storagePools.VolumeUsedByInstanceDevices(s, vol.Pool, vol.Project, &vol.StorageVolume, false, func(inst db.InstanceArgs, p api.Project, usedByDevices []string) error {
 		volumeUsedBy = append(volumeUsedBy, api.NewURL().Path(version.APIVersion, "instances", inst.Name).Project(inst.Project).String())
 		return nil
 	})
@@ -124,7 +124,7 @@ func storagePoolVolumeUsedByGet(s *state.State, requestProjectName string, poolN
 		return []string{}, err
 	}
 
-	err = storagePools.VolumeUsedByProfileDevices(s, poolName, requestProjectName, &vol.StorageVolume, func(profileID int64, profile api.Profile, p api.Project, usedByDevices []string) error {
+	err = storagePools.VolumeUsedByProfileDevices(s, vol.Pool, requestProjectName, &vol.StorageVolume, func(profileID int64, profile api.Profile, p api.Project, usedByDevices []string) error {
 		volumeUsedBy = append(volumeUsedBy, api.NewURL().Path(version.APIVersion, "profiles", profile.Name).Project(p.Name).String())
 		return nil
 	})
