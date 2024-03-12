@@ -1,0 +1,17 @@
+{% extends "page.html" %}
+
+{% block content -%}
+<section>
+  <h1>Page not found</h1>
+  <div class="sd-container-fluid sd-sphinx-override sd-mb-4 docutils">
+    <div class="sd-row sd-row-cols-1 sd-row-cols-xs-1 sd-row-cols-sm-1 sd-row-cols-md-2 sd-row-cols-lg-2 sd-g-5 sd-g-xs-5 sd-g-sm-5 sd-g-md-5 sd-g-lg-5 docutils">
+      <div class="sd-col sd-d-flex-column docutils">
+        {{ body }}
+      </div>
+      <div class="sd-col sd-d-flex-column docutils">
+        <img alt="Penguin with a question mark" class="align-center" height="283" src="{{ pathto('_static/404.svg',1) }}" width="287" />
+      </div>
+    </div>
+  </div>
+</section>
+{%- endblock content %}

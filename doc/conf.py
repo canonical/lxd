@@ -1,7 +1,10 @@
 import sys
+import os
 
 sys.path.append('./')
 from custom_conf import *
+sys.path.append('.sphinx/')
+from build_requirements import *
 
 # Configuration file for the Sphinx documentation builder.
 # You should not do any modifications to this file. Put your custom
@@ -17,42 +20,68 @@ from custom_conf import *
 
 extensions = [
     'sphinx_design',
-    'sphinx_tabs.tabs',
-    'sphinx_reredirects',
-    'canonical.youtube-links',
-    'canonical.related-links',
-    'canonical.custom-rst-roles',
-    'canonical.terminal-output',
     'sphinx_copybutton',
-    'sphinxext.opengraph',
-    'myst_parser',
-    'sphinxcontrib.jquery',
-    'notfound.extension'
+    'sphinxcontrib.jquery'
 ]
+
+# Only add redirects extension if any redirects are specified.
+if AreRedirectsDefined():
+    extensions.append('sphinx_reredirects')
+
+# Only add myst extensions if any configuration is present.
+if IsMyStParserUsed():
+    extensions.append('myst_parser')
+
+    # Additional MyST syntax
+    myst_enable_extensions = [
+        'substitution',
+        'deflist',
+        'linkify'
+    ]
+    myst_enable_extensions.extend(custom_myst_extensions)
+
+# Only add Open Graph extension if any configuration is present.
+if IsOpenGraphConfigured():
+    extensions.append('sphinxext.opengraph')
+
 extensions.extend(custom_extensions)
+extensions = DeduplicateExtensions(extensions)
 
 ### Configuration for extensions
-
-# Additional MyST syntax
-myst_enable_extensions = [
-    'substitution',
-    'deflist',
-    'linkify'
-]
 
 # Used for related links
 if not 'discourse_prefix' in html_context and 'discourse' in html_context:
     html_context['discourse_prefix'] = html_context['discourse'] + '/t/'
 
-# The default for notfound_urls_prefix usually works, but not for
-# documentation on documentation.ubuntu.com
+# The URL prefix for the notfound extension depends on whether the documentation uses versions.
+# For documentation on documentation.ubuntu.com, we also must add the slug.
+url_version = ''
+url_lang = ''
+
+# Determine if the URL uses versions and language
+if 'READTHEDOCS_CANONICAL_URL' in os.environ and os.environ['READTHEDOCS_CANONICAL_URL']:
+    url_parts = os.environ['READTHEDOCS_CANONICAL_URL'].split('/')
+
+    if len(url_parts) >= 2 and 'READTHEDOCS_VERSION' in os.environ and os.environ['READTHEDOCS_VERSION'] == url_parts[-2]:
+        url_version = url_parts[-2] + '/'
+
+    if len(url_parts) >= 3 and 'READTHEDOCS_LANGUAGE' in os.environ and os.environ['READTHEDOCS_LANGUAGE'] == url_parts[-3]:
+        url_lang = url_parts[-3] + '/'
+
+# Set notfound_urls_prefix to the slug (if defined) and the version/language affix
 if slug:
-    notfound_urls_prefix = '/' + slug + '/en/latest/'
+    notfound_urls_prefix = '/' + slug  + '/' + url_lang + url_version
+elif len(url_lang + url_version) > 0:
+    notfound_urls_prefix = '/' + url_lang + url_version
+else:
+    notfound_urls_prefix = ''
 
 notfound_context = {
     'title': 'Page not found',
-    'body': '<h1>Page not found</h1>\n\n<p>Sorry, but the documentation page that you are looking for was not found.</p>\n<p>Documentation changes over time, and pages are moved around. We try to redirect you to the updated content where possible, but unfortunately, that didn\'t work this time (maybe because the content you were looking for does not exist in this version of the documentation).</p>\n<p>You can try to use the navigation to locate the content you\'re looking for, or search for a similar page.</p>\n',
+    'body': '<p><strong>Sorry, but the documentation page that you are looking for was not found.</strong></p>\n\n<p>Documentation changes over time, and pages are moved around. We try to redirect you to the updated content where possible, but unfortunately, that didn\'t work this time (maybe because the content you were looking for does not exist in this version of the documentation).</p>\n<p>You can try to use the navigation to locate the content you\'re looking for, or search for a similar page.</p>\n',
 }
+
+notfound_template = '404.html'
 
 # Default image for OGP (to prevent font errors, see
 # https://github.com/canonical/sphinx-docs-starter-pack/pull/54 )
@@ -91,6 +120,7 @@ linkcheck_anchors_ignore_for_url = [
 ]
 linkcheck_anchors_ignore_for_url.extend(custom_linkcheck_anchors_ignore_for_url)
 
+# Tags cannot be added directly in custom_conf.py, so add them here
 for tag in custom_tags:
     tags.add(tag)
 
@@ -111,6 +141,11 @@ if builder == 'dirhtml' or builder == 'html':
 html_theme = 'furo'
 html_last_updated_fmt = ''
 html_permalinks_icon = '¶'
+
+if html_title == '':
+    html_theme_options = {
+        'sidebar_hide_name': True
+        }
 
 ############################################################
 ### Additional files
