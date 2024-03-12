@@ -446,7 +446,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	// Pre-fill UsedBy if using filtering.
 	if clauses != nil && len(clauses.Clauses) > 0 {
 		for i, vol := range dbVolumes {
-			volumeUsedBy, err := storagePoolVolumeUsedByGet(s, requestProjectName, poolName, vol)
+			volumeUsedBy, err := storagePoolVolumeUsedByGet(s, requestProjectName, vol)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -495,7 +495,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 
 			// Fill in UsedBy if we haven't previously done so.
 			if clauses == nil || len(clauses.Clauses) == 0 {
-				volumeUsedBy, err := storagePoolVolumeUsedByGet(s, requestProjectName, poolName, dbVol)
+				volumeUsedBy, err := storagePoolVolumeUsedByGet(s, requestProjectName, dbVol)
 				if err != nil {
 					return response.InternalError(err)
 				}
@@ -1769,7 +1769,7 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	volumeUsedBy, err := storagePoolVolumeUsedByGet(s, requestProjectName, poolName, dbVolume)
+	volumeUsedBy, err := storagePoolVolumeUsedByGet(s, requestProjectName, dbVolume)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2195,7 +2195,7 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	volumeUsedBy, err := storagePoolVolumeUsedByGet(s, requestProjectName, poolName, dbVolume)
+	volumeUsedBy, err := storagePoolVolumeUsedByGet(s, requestProjectName, dbVolume)
 	if err != nil {
 		return response.SmartError(err)
 	}
