@@ -802,6 +802,8 @@ func (d *btrfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshot
 		targetSubvolPath := filepath.Join(GetPoolMountPath(target.pool), fmt.Sprintf("%s-snapshots/%s", target.volType, target.name))
 		originSubvolPath := filepath.Join(GetPoolMountPath(origin.pool), fmt.Sprintf("%s-snapshots/%s", origin.volType, origin.name))
 
+		d.logger.Debug("Sending subvolume", logger.Ctx{"name": src.Name(), "source": src.MountPath(), "parent": originSubvolPath, "target": targetSubvolPath})
+
 		receiver := exec.Command("btrfs", "receive", targetSubvolPath)
 		sender = exec.Command("btrfs", "send", "-p", originSubvolPath, srcSubvolPath)
 
@@ -892,6 +894,9 @@ func (d *btrfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshot
 		}
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Create temporary snapshot of the source volume.
 	snapUUID := uuid.New().String()
 
@@ -905,14 +910,29 @@ func (d *btrfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshot
 		return err
 	}
 
+	revert.Add(func() {
+		_ = d.DeleteVolumeSnapshot(srcSnap, op)
+	})
+
 	// Transfer temporary snapshot to target; this creates a new snapshot for target.
 	parentSnap, err := srcVol.NewSnapshot(srcSnapshotsAll[len(srcSnapshotsAll)-1])
 	if err != nil {
 		return err
 	}
 
+	targetSnap, err := vol.NewSnapshot(snapUUID)
+	if err != nil {
+		return err
+	}
+
 	err = transfer(srcSnap, vol.Volume, parentSnap)
 	if err != nil {
+		// Cleanup the potentially left over temporary snapshot transferred to target.
+		revertErr := d.setSubvolumeReadonlyProperty(targetSnap.MountPath(), false)
+		if revertErr == nil {
+			_ = d.deleteSubvolume(targetSnap.MountPath(), false)
+		}
+
 		return err
 	}
 
@@ -922,11 +942,6 @@ func (d *btrfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshot
 	}
 
 	err = d.deleteSubvolume(vol.MountPath(), false)
-	if err != nil {
-		return err
-	}
-
-	targetSnap, err := vol.NewSnapshot(snapUUID)
 	if err != nil {
 		return err
 	}
@@ -945,6 +960,7 @@ func (d *btrfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshot
 		return err
 	}
 
+	revert.Success()
 	return nil
 }
 
