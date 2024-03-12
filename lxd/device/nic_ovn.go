@@ -872,15 +872,18 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 		}
 	}
 
-	instanceUUID := d.inst.LocalConfig()["volatile.uuid"]
-	err = d.network.InstanceDevicePortStop(ovsExternalOVNPort, &network.OVNInstanceNICStopOpts{
-		InstanceUUID: instanceUUID,
-		DeviceName:   d.name,
-		DeviceConfig: d.config,
-	})
-	if err != nil {
-		// Don't fail here as we still want the postStop hook to run to clean up the local veth pair.
-		d.logger.Error("Failed to remove OVN device port", logger.Ctx{"err": err})
+	// If the devices config is invalid validateConfig() won't populate this field.
+	if d.network != nil {
+		instanceUUID := d.inst.LocalConfig()["volatile.uuid"]
+		err = d.network.InstanceDevicePortStop(ovsExternalOVNPort, &network.OVNInstanceNICStopOpts{
+			InstanceUUID: instanceUUID,
+			DeviceName:   d.name,
+			DeviceConfig: d.config,
+		})
+		if err != nil {
+			// Don't fail here as we still want the postStop hook to run to clean up the local veth pair.
+			d.logger.Error("Failed to remove OVN device port", logger.Ctx{"err": err})
+		}
 	}
 
 	// Remove BGP announcements.
