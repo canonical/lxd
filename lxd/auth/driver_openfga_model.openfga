@@ -25,7 +25,6 @@ type server
     define viewer: [identity, service_account, group#member]
     define can_edit: [identity, service_account, group#member] or admin
     define can_view: [identity:*, service_account:*]
-    define can_view_configuration: [identity, service_account, group#member] or can_edit or viewer
     define permission_manager: [identity, service_account, group#member]
     define can_view_permissions: [identity, service_account, group#member] or permission_manager or admin
     define can_create_identities: [identity, service_account, group#member] or permission_manager or admin
