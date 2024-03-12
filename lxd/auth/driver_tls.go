@@ -94,6 +94,11 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *a
 		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
 	}
 
+	// Don't allow project modifications.
+	if entityType == entity.TypeProject && (entitlement == EntitlementCanEdit || entitlement == EntitlementCanDelete) {
+		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
+	}
+
 	// Check project level permissions against the certificates project list.
 	if !shared.ValueInSlice(projectName, id.Projects) {
 		return api.StatusErrorf(http.StatusForbidden, "User does not have permission for project %q", projectName)
