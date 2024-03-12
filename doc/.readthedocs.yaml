@@ -12,6 +12,8 @@ build:
     golang: "1.21"
     python: "3.11"
   jobs:
+    post_checkout:
+      - cd doc; python3 .sphinx/build_requirements.py
     pre_build:
       - go build -ldflags "-s -w" -o trimpath -o lxc.bin ./lxc
     post_build:

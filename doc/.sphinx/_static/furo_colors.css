@@ -1,8 +1,9 @@
 body {
     --color-code-background: #f8f8f8;
     --color-code-foreground: black;
-    --font-stack: Ubuntu, -apple-system, Segoe UI, Roboto, Oxygen, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
-    --font-stack--monospace: Ubuntu Mono, Consolas, Monaco, Courier, monospace;
+    --code-font-size: 1rem;
+    --font-stack: Ubuntu variable, Ubuntu, -apple-system, Segoe UI, Roboto, Oxygen, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+    --font-stack--monospace: Ubuntu Mono variable, Ubuntu Mono, Consolas, Monaco, Courier, monospace;
     --color-foreground-primary: #111;
     --color-foreground-secondary: var(--color-foreground-primary);
     --color-foreground-muted: #333;

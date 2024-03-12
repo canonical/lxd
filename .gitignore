@@ -24,6 +24,7 @@ doc/html/
 doc/reference/manpages/**/*.md
 doc/.sphinx/deps/
 doc/.sphinx/.doctrees/
+doc/.sphinx/requirements.txt
 doc/.sphinx/themes/
 doc/.sphinx/venv/
 doc/.sphinx/warnings.txt
