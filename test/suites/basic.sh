@@ -673,4 +673,11 @@ test_basic_usage() {
 test_server_info() {
   # Ensure server always reports support for containers.
   lxc query /1.0 | jq -e '.environment.instance_types | contains(["container"])'
+
+  # Ensure the version number has the format (X.Y.Z for LTSes and X.Y otherwise)
+  if lxc query /1.0 | jq -e '.environment.server_lts == true'; then
+    lxc query /1.0 | jq -re '.environment.server_version' | grep -E '[0-9]+\.[0-9]+\.[0-9]+'
+  else
+    lxc query /1.0 | jq -re '.environment.server_version' | grep -xE '[0-9]+\.[0-9]+'
+  fi
 }
