@@ -1,3 +1,5 @@
+//go:build linux && cgo && !agent
+
 package auth
 
 import (
@@ -21,6 +23,16 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 )
+
+const (
+	// DriverEmbeddedOpenFGA is the default authorization driver. It currently falls back to DriverTLS for all TLS
+	// clients. It cannot be initialised until after the cluster database is operational.
+	DriverEmbeddedOpenFGA string = "embedded-openfga"
+)
+
+func init() {
+	authorizers[DriverEmbeddedOpenFGA] = func() authorizer { return &embeddedOpenFGA{} }
+}
 
 //go:embed driver_openfga_model.openfga
 var model string
