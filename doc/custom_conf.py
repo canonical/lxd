@@ -15,6 +15,10 @@ import filecmp
 #
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
+#
+# If you're not familiar with Sphinx and don't want to use advanced
+# features, it is sufficient to update the settings in the "Project
+# information" section.
 
 ############################################################
 ### Project information
@@ -24,8 +28,10 @@ import filecmp
 project = 'Canonical LXD'
 author = 'LXD contributors'
 
-# Uncomment if your product uses release numbers
-# release = '1.0'
+# The title you want to display for the documentation in the sidebar.
+# You might want to include a version number here.
+# To not display any title, set this option to an empty string.
+html_title = ''
 
 with open("../shared/version/flex.go") as fd:
     version = fd.readlines()[3].split()[-1].strip("\"")
@@ -46,26 +52,35 @@ with open("../shared/version/flex.go") as fd:
 
 copyright = '2014-%s %s' % (datetime.date.today().year, author)
 
-## Open Graph configuration - defines what is displayed in the website preview
-# The URL of the documentation output
+## Open Graph configuration - defines what is displayed as a link preview
+## when linking to the documentation from another website (see https://ogp.me/)
+# The URL where the documentation will be hosted (leave empty if you
+# don't know yet)
+# NOTE: If no ogp_* variable is defined (e.g. if you remove this section) the
+# sphinxext.opengraph extension will be disabled.
 ogp_site_url = 'https://documentation.ubuntu.com/lxd/en/latest/'
 # The documentation website name (usually the same as the product name)
 ogp_site_name = 'LXD documentation'
-# An image or logo that is used in the preview
+# The URL of an image or logo that is used in the preview
 ogp_image = 'https://documentation.ubuntu.com/lxd/en/latest/_static/tag.png'
 
-# Update with the favicon for your product (default is the circle of friends)
+# Update with the local path to the favicon for your product
+# (default is the circle of friends)
 html_favicon = '.sphinx/_static/favicon.ico'
 
 # (Some settings must be part of the html_context dictionary, while others
 #  are on root level. Don't move the settings.)
 html_context = {
 
-    # Change to the link to your product website (without "https://")
+    # Change to the link to the website of your product (without "https://")
+    # For example: "ubuntu.com/lxd" or "microcloud.is"
+    # If there is no product website, edit the header template to remove the
+    # link (see the readme for instructions).
     'product_page': 'canonical.com/lxd',
 
-    # Add your product tag to ".sphinx/_static" and change the path
-    # here (start with "_static"), default is the circle of friends
+    # Add your product tag (the orange part of your logo, will be used in the
+    # header) to ".sphinx/_static" and change the path here (start with "_static")
+    # (default is the circle of friends)
     'product_tag': '_static/tag.png',
 
     # Change to the discourse instance you want to be able to link to
@@ -79,7 +94,11 @@ html_context = {
         'ubuntu': 'https://discourse.ubuntu.com/t/'
     },
 
-    # Change to the GitHub info for your project
+    # Change to the Mattermost channel you want to link to
+    # (use an empty value if you don't want to link)
+    'mattermost': '',
+
+    # Change to the GitHub URL for your project
     'github_url': 'https://github.com/canonical/lxd',
 
     # Change to the branch for this version of the documentation
@@ -91,7 +110,11 @@ html_context = {
 
     # Change to an empty value if your GitHub repo doesn't have issues enabled.
     # This will disable the feedback button and the issue link in the footer.
-    'github_issues': 'enabled'
+    'github_issues': 'enabled',
+
+    # Controls the existence of Previous / Next buttons at the bottom of pages
+    # Valid options: none, prev, next, both
+    'sequential_nav': "both"
 }
 
 # If your project is on documentation.ubuntu.com, specify the project
@@ -104,6 +127,9 @@ slug = "lxd"
 
 # Set up redirects (https://documatt.gitlab.io/sphinx-reredirects/usage.html)
 # For example: 'explanation/old-name.html': '../how-to/prettify.html',
+# You can also configure redirects in the Read the Docs project dashboard
+# (see https://docs.readthedocs.io/en/stable/guides/redirects.html).
+# NOTE: If this variable is not defined, set to None, or the dictionary is empty,
 
 redirects = {
     'howto/instances_snapshots/index': '../instances_backup/',
@@ -140,13 +166,38 @@ linkcheck_exclude_documents = [r'.*/manpages/.*']
 
 ## The following settings are appended to the default configuration.
 ## Use them to extend the default functionality.
+# NOTE: Remove this variable to disable the MyST parser extensions.
+custom_myst_extensions = []
 
-# Add extensions
+# Add custom Sphinx extensions as needed.
+# This array contains recommended extensions that should be used.
+# NOTE: The following extensions are handled automatically and do
+# not need to be added here: myst_parser, sphinx_copybutton, sphinx_design,
+# sphinx_reredirects, sphinxcontrib.jquery, sphinxext.opengraph
 custom_extensions = [
+    'sphinx_tabs.tabs',
+    'canonical.youtube-links',
+    'canonical.related-links',
+    'canonical.custom-rst-roles',
+    'canonical.terminal-output',
+    'notfound.extension',
     'sphinx.ext.intersphinx',
     'canonical.config-options',
     'sphinx_remove_toctrees',
     'canonical.filtered-toc'
+]
+
+# Add custom required Python modules that must be added to the
+# .sphinx/requirements.txt file.
+# NOTE: The following modules are handled automatically and do not need to be
+# added here: canonical-sphinx-extensions, furo, linkify-it-py, myst-parser,
+# pyspelling, sphinx, sphinx-autobuild, sphinx-copybutton, sphinx-design,
+# sphinx-notfound-page, sphinx-reredirects, sphinx-tabs, sphinxcontrib-jquery,
+# sphinxext-opengraph
+custom_required_modules = [
+    'gitpython',
+    'pyyaml',
+    'sphinx-remove-toctrees'
 ]
 
 # Add files or directories that should be excluded from processing.
@@ -173,6 +224,8 @@ custom_html_js_files = []
 # You can disable it by setting the following configuration to True.
 disable_feedback_button = False
 
+# Add tags that you want to use for conditional inclusion of text
+# (https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#tags)
 custom_tags = []
 
 ############################################################
@@ -210,10 +263,6 @@ intersphinx_mapping = {
 
 html_extra_path = ['.sphinx/_extra']
 
-html_theme_options = {
-    "sidebar_hide_name": True,
-}
-
 # Download and link swagger-ui files
 if not os.path.isdir('.sphinx/deps/swagger-ui'):
     Repo.clone_from('https://github.com/swagger-api/swagger-ui', '.sphinx/deps/swagger-ui', depth=1, single_branch=True, b='v5.11.7')
@@ -246,8 +295,11 @@ else:
 # Generate man pages content
 
 os.makedirs('.sphinx/deps/manpages', exist_ok=True)
-subprocess.run([lxc, 'manpage', '.sphinx/deps/manpages/', '--format=md'],
-               check=True)
+if (os.path.isfile(lxc)):
+    subprocess.run([lxc, 'manpage', '.sphinx/deps/manpages/', '--format=md'],
+                   check=True)
+else:
+    print('No man page content generated.')
 
 # Preprocess man pages content
 
