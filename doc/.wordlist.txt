@@ -11,6 +11,7 @@ AppArmor
 ARMv
 ARP
 ASN
+Auth
 AXFR
 backend
 backends
@@ -97,6 +98,7 @@ hotplugging
 HTTPS
 HWE
 ICMP
+IdP
 idmap
 idmapped
 idmaps
@@ -117,6 +119,7 @@ jq
 JSON
 kB
 kbit
+Keycloak
 KiB
 kibi
 Kibit
@@ -203,6 +206,7 @@ QFQ
 qgroup
 qgroups
 RADOS
+RBAC
 RBD
 README
 reconfiguring
