@@ -13,24 +13,10 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
-const (
-	// DriverTLS is used at start up to allow communication between cluster members and initialise the cluster database.
-	DriverTLS string = "tls"
-
-	// DriverEmbeddedOpenFGA is the default authorization driver. It currently falls back to DriverTLS for all TLS
-	// clients. It cannot be initialised until after the cluster database is operational.
-	DriverEmbeddedOpenFGA string = "embedded-openfga"
-)
+var authorizers = map[string]func() authorizer{}
 
 // ErrUnknownDriver is the "Unknown driver" error.
 var ErrUnknownDriver = fmt.Errorf("Unknown driver")
-
-var authorizers = map[string]func() authorizer{
-	DriverTLS: func() authorizer { return &tls{} },
-	DriverEmbeddedOpenFGA: func() authorizer {
-		return &embeddedOpenFGA{}
-	},
-}
 
 type authorizer interface {
 	Authorizer
