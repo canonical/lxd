@@ -1,3 +1,5 @@
+//go:build linux && cgo && !agent
+
 package auth
 
 import (
@@ -13,6 +15,15 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 )
+
+const (
+	// DriverTLS is used at start up to allow communication between cluster members and initialise the cluster database.
+	DriverTLS string = "tls"
+)
+
+func init() {
+	authorizers[DriverTLS] = func() authorizer { return &tls{} }
+}
 
 type tls struct {
 	commonAuthorizer
