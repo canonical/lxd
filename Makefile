@@ -132,7 +132,8 @@ update-metadata: build
 doc-setup: client
 	@echo "Setting up documentation build environment"
 	python3 -m venv doc/.sphinx/venv
-	. $(SPHINXENV) ; pip3 install gitpython pyyaml
+	# Workaround for https://github.com/canonical/sphinx-docs-starter-pack/issues/197
+	. $(SPHINXENV) ; pip install --require-virtualenv gitpython pyyaml
 	. $(SPHINXENV) ; cd doc && LOCAL_SPHINX_BUILD=True python3 .sphinx/build_requirements.py
 	. $(SPHINXENV) ; pip install --require-virtualenv --upgrade -r doc/.sphinx/requirements.txt --log doc/.sphinx/venv/pip_install.log
 	@test ! -f doc/.sphinx/venv/pip_list.txt || \
