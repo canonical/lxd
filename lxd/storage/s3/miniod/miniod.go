@@ -44,6 +44,7 @@ type Process struct {
 	bucketName   string
 	transactions uint
 	url          url.URL
+	consoleURL   url.URL
 	username     string
 	password     string
 	cancel       *cancel.Canceller
@@ -187,13 +188,25 @@ func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, e
 	miniosMu.Unlock()
 
 	// Find free random port for minio process to listen on.
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:0", minioHost))
+	listener1, err := net.Listen("tcp", fmt.Sprintf("%s:0", minioHost))
 	if err != nil {
 		return nil, fmt.Errorf("Failed finding free listen port for bucket MinIO process: %w", err)
 	}
 
-	listenPort := listener.Addr().(*net.TCPAddr).Port
-	err = listener.Close()
+	listener2, err := net.Listen("tcp", fmt.Sprintf("%s:0", minioHost))
+	if err != nil {
+		return nil, fmt.Errorf("Failed finding free listen port for bucket MinIO process: %w", err)
+	}
+
+	listenPort := listener1.Addr().(*net.TCPAddr).Port
+	consolePort := listener2.Addr().(*net.TCPAddr).Port
+
+	err = listener1.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	err = listener2.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -202,6 +215,7 @@ func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, e
 		bucketName:   bucketName,
 		transactions: 1,
 		url:          api.NewURL().Scheme("http").Host(fmt.Sprintf("%s:%d", minioHost, listenPort)).URL,
+		consoleURL:   api.NewURL().Scheme("http").Host(fmt.Sprintf("%s:%d", minioHost, consolePort)).URL,
 		username:     minioAdminUser,      // Persistent admin user required to keep config between restarts.
 		password:     uuid.New().String(), // Random admin password for service.
 		cancel:       cancel.New(context.Background()),
@@ -223,6 +237,7 @@ func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, e
 		"server",
 		bucketPath,
 		"--address", minioProc.url.Host,
+		"--console-address", minioProc.consoleURL.Host,
 	}
 
 	l := logger.AddContext(logger.Ctx{"bucketName": bucketName, "bucketPath": bucketPath, "listenPort": listenPort})
