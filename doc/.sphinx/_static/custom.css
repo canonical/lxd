@@ -1,18 +1,129 @@
-/** Fix the font weight (300 for normal, 400 for slightly bold) **/
+/**
+    Ubuntu variable font definitions.
+    Based on https://github.com/canonical/vanilla-framework/blob/main/scss/_base_fontfaces.scss
 
-div.page, h1, h2, h3, h4, h5, h6, .sidebar-tree .current-page>.reference, button, input, optgroup, select, textarea, th.head {
-    font-weight: 300
+    When font files are updated in Vanilla, the links to font files will need to be updated here as well.
+*/
+
+/* default font set */
+@font-face {
+  font-family: 'Ubuntu variable';
+  font-stretch: 100%; /*  min and max value for the width axis, expressed as percentage */
+  font-style: normal;
+  font-weight: 100 800; /*  min and max value for the weight axis */
+  src: url('https://assets.ubuntu.com/v1/f1ea362b-Ubuntu%5Bwdth,wght%5D-latin-v0.896a.woff2') format('woff2-variations');
 }
 
-.toc-tree li.scroll-current>.reference, dl.glossary dt, dl.simple dt, dl:not([class]) dt {
+@font-face {
+  font-family: 'Ubuntu variable';
+  font-stretch: 100%; /*  min and max value for the width axis, expressed as percentage */
+  font-style: italic;
+  font-weight: 100 800; /*  min and max value for the weight axis */
+  src: url('https://assets.ubuntu.com/v1/90b59210-Ubuntu-Italic%5Bwdth,wght%5D-latin-v0.896a.woff2') format('woff2-variations');
+}
+
+@font-face {
+  font-family: 'Ubuntu Mono variable';
+  font-style: normal;
+  font-weight: 100 800; /*  min and max value for the weight axis */
+  src: url('https://assets.ubuntu.com/v1/d5fc1819-UbuntuMono%5Bwght%5D-latin-v0.869.woff2') format('woff2-variations');
+}
+
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Ubuntu variable';
+  font-stretch: 100%; /*  min and max value for the width axis, expressed as percentage */
+  font-style: normal;
+  font-weight: 100 800; /*  min and max value for the weight axis */
+  src: url('https://assets.ubuntu.com/v1/77cd6650-Ubuntu%5Bwdth,wght%5D-cyrillic-extended-v0.896a.woff2') format('woff2-variations');
+  unicode-range: U+0460-052F, U+20B4, U+2DE0-2DFF, U+A640-A69F;
+}
+
+/* cyrillic */
+@font-face {
+  font-family: 'Ubuntu variable';
+  font-stretch: 100%; /*  min and max value for the width axis, expressed as percentage */
+  font-style: normal;
+  font-weight: 100 800; /*  min and max value for the weight axis */
+  src: url('https://assets.ubuntu.com/v1/2702fce5-Ubuntu%5Bwdth,wght%5D-cyrillic-v0.896a.woff2') format('woff2-variations');
+  unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+/* greek-ext */
+@font-face {
+  font-family: 'Ubuntu variable';
+  font-stretch: 100%; /*  min and max value for the width axis, expressed as percentage */
+  font-style: normal;
+  font-weight: 100 800; /*  min and max value for the weight axis */
+  src: url('https://assets.ubuntu.com/v1/5c108b7d-Ubuntu%5Bwdth,wght%5D-greek-extended-v0.896a.woff2') format('woff2-variations');
+  unicode-range: U+1F00-1FFF;
+}
+
+/* greek */
+@font-face {
+  font-family: 'Ubuntu variable';
+  font-stretch: 100%; /*  min and max value for the width axis, expressed as percentage */
+  font-style: normal;
+  font-weight: 100 800; /*  min and max value for the weight axis */
+  src: url('https://assets.ubuntu.com/v1/0a14c405-Ubuntu%5Bwdth,wght%5D-greek-v0.896a.woff2') format('woff2-variations');
+  unicode-range: U+0370-03FF;
+}
+
+/* latin-ext */
+@font-face {
+  font-family: 'Ubuntu variable';
+  font-stretch: 100%; /*  min and max value for the width axis, expressed as percentage */
+  font-style: normal;
+  font-weight: 100 800; /*  min and max value for the weight axis */
+  src: url('https://assets.ubuntu.com/v1/19f68eeb-Ubuntu%5Bwdth,wght%5D-latin-extended-v0.896a.woff2') format('woff2-variations');
+  unicode-range: U+0100-024F, U+1E00-1EFF, U+20A0-20AB, U+20AD-20CF, U+2C60-2C7F, U+A720-A7FF;
+}
+
+
+/** Define font-weights as per Vanilla
+    Based on: https://github.com/canonical/vanilla-framework/blob/main/scss/_base_typography-definitions.scss
+
+    regular text: 400,
+    bold: 550,
+    thin: 300,
+
+    h1: bold,
+    h2: 180;
+    h3: bold,
+    h4: 275,
+    h5: bold,
+    h6: regular
+*/
+
+/* default regular text */
+html {
     font-weight: 400;
 }
+
+/* heading specific definitions */
+h1, h3, h5 { font-weight: 550; }
+h2 { font-weight: 180; }
+h4 { font-weight: 275; }
+
+/* bold */
+.toc-tree li.scroll-current>.reference,
+dl.glossary dt,
+dl.simple dt,
+dl:not([class]) dt {
+    font-weight: 550;
+}
+
 
 /** Table styling **/
 
 th.head {
     text-transform: uppercase;
     font-size: var(--font-size--small);
+    text-align: initial;
+}
+
+table.align-center th.head {
+    text-align: center
 }
 
 table.docutils {
@@ -57,32 +168,54 @@ a.headerlink {
     border-left: 2px solid var(--color-brand-primary);
 }
 
-/** Some tweaks for issue #16 **/
+/** Some tweaks for Sphinx tabs **/
 
 [role="tablist"] {
     border-bottom: 1px solid var(--color-sidebar-item-background--hover);
 }
 
-.sphinx-tabs-tab[aria-selected="true"] {
+.sphinx-tabs-tab[aria-selected="true"],  .sd-tab-set>input:checked+label{
     border: 0;
     border-bottom: 2px solid var(--color-brand-primary);
-    background-color: var(--color-sidebar-item-background--current);
-    font-weight:300;
+    font-weight: 400;
+    font-size: 1rem;
+    color: var(--color-brand-primary);
 }
 
-.sphinx-tabs-tab{
+body[data-theme="dark"] .sphinx-tabs-tab[aria-selected="true"] {
+    background: var(--color-background-primary);
+    border-bottom: 2px solid var(--color-brand-primary);
+}
+
+button.sphinx-tabs-tab[aria-selected="false"]:hover, .sd-tab-set>input:not(:checked)+label:hover {
+    border-bottom: 2px solid var(--color-foreground-border);
+}
+
+button.sphinx-tabs-tab[aria-selected="false"]{
+    border-bottom: 2px solid var(--color-background-primary);
+}
+
+body[data-theme="dark"] .sphinx-tabs-tab {
+    background: var(--color-background-primary);
+}
+
+.sphinx-tabs-tab, .sd-tab-set>label{
     color: var(--color-brand-primary);
-    font-weight:300;
+    font-family: var(--font-stack);
+    font-weight: 400;
+    font-size: 1rem;
+    padding: 1em 1.25em .5em
 }
 
 .sphinx-tabs-panel {
     border: 0;
     border-bottom: 1px solid var(--color-sidebar-item-background--hover);
     background: var(--color-background-primary);
+    padding: 0.75rem 0 0.75rem 0;
 }
 
-button.sphinx-tabs-tab:hover {
-    background-color: var(--color-sidebar-item-background--hover);
+body[data-theme="dark"] .sphinx-tabs-panel {
+    background: var(--color-background-primary);
 }
 
 /** Custom classes to fix scrolling in tables by decreasing the
@@ -186,4 +319,40 @@ details summary {
 .rst-versions .rst-current-version {
     color: var(--color-version-popup);
     font-weight: bolder;
+}
+
+/* Code-block copybutton invisible by default
+   (overriding Furo config to achieve default copybutton setting). */
+.highlight button.copybtn {
+   opacity: 0;
+}
+
+/* Mimicking the 'Give feedback' button for UX consistency */
+.sidebar-search-container input[type=submit] {
+    color: #FFFFFF;
+    border: 2px solid #D6410D;
+    padding: var(--sidebar-search-input-spacing-vertical) var(--sidebar-search-input-spacing-horizontal);
+    background: #D6410D;
+    font-weight: bold;
+    font-size: var(--font-size--small);
+    cursor: pointer;
+}
+
+.sidebar-search-container input[type=submit]:hover {
+    text-decoration: underline;
+}
+
+/* Make inline code the same size as code blocks */
+p code.literal {
+    border: 0;
+    font-size: var(--code-font-size);
+}
+
+.admonition p code.literal {
+    font-size: var(--admonition-font-size);
+}
+
+/* Exception for LXD: smaller font size for option table fields */
+.configoption .fields p code.literal {
+    font-size: var(--font-size--small--2);
 }
