@@ -13,7 +13,7 @@ See the [LXD-UI GitHub repository](https://github.com/canonical/lxd-ui) for the 
 ```
 
 The LXD web UI provides you with a graphical interface to manage your LXD server and instances.
-It is currently in an early stage and does not provide full functionality yet, but eventually, it will be an alternative to the LXD command-line client.
+It does not provide full functionality yet, but it is constantly evolving, already covering many of the features of the LXD command-line client.
 
 Complete the following steps to access the LXD web UI:
 
