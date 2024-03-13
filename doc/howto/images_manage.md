@@ -217,7 +217,7 @@ To include information about each alias, add `recursion=1`:
 
     lxc query --request GET /1.0/images/aliases?recursion=1
 
-See [`GET /1.0/images/aliases`](swagger:/images/aliases_get) and [`GET /1.0/images/aliases?recursion=1`](swagger:/images/aliases_get_recursion1) for more information.
+See [`GET /1.0/images/aliases`](swagger:/images/images_aliases_get) and [`GET /1.0/images/aliases?recursion=1`](swagger:/images/images_aliases_get_recursion1) for more information.
 
 You can directly assign an alias to an image when you {ref}`copy or import <images-copy>` or {ref}`publish <images-create-publish>` it.
 Alternatively, send a POST request to the `/1.0/images/aliases` endpoint to create an alias:
@@ -227,7 +227,7 @@ Alternatively, send a POST request to the `/1.0/images/aliases` endpoint to crea
       "target": "<image_fingerprint>"
     }'
 
-See [`POST /1.0/images/aliases`](swagger:/images/aliases_post) for more information.
+See [`POST /1.0/images/aliases`](swagger:/images/images_aliases_post) for more information.
 
 You can also delete an alias:
 
@@ -239,13 +239,13 @@ To rename an alias, send a POST request to the alias:
       "name": "<new_alias_name>"
     }'
 
-If you want to keep the alias name, but point the alias to a different image (for example, a newer version), send a PUT request to the alias:
+If you want to keep the alias name, but point the alias to a different image (for example, a newer version), send a PATCH request to the alias:
 
-    lxc query --request PUT /1.0/images/aliases/<alias_name> --data '{
+    lxc query --request PATCH /1.0/images/aliases/<alias_name> --data '{
       "target": "<new_fingerprint>"
     }'
 
-See [`DELETE /1.0/images/aliases/{name}`](swagger:/images/alias_delete), [`POST /1.0/images/aliases/{name}`](swagger:/images/alias_post), and [`PUT /1.0/images/aliases/{name}`](swagger:/images/alias_put) for more information.
+See [`DELETE /1.0/images/aliases/{name}`](swagger:/images/image_alias_delete), [`POST /1.0/images/aliases/{name}`](swagger:/images/images_alias_post), and [`PATCH /1.0/images/aliases/{name}`](swagger:/images/images_alias_patch) for more information.
 ```
 ````
 
