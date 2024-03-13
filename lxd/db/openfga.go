@@ -262,7 +262,7 @@ func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filt
 
 		// Get all groups with the permission.
 		q := `
-SELECT auth_groups.name 
+SELECT auth_groups.name
 FROM auth_groups_permissions
 JOIN auth_groups ON auth_groups_permissions.auth_group_id = auth_groups.id
 WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity_type = ? AND auth_groups_permissions.entity_id = ?
@@ -460,8 +460,8 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 	// Construct a query to list permissions with the given entity type and entitlement for the given group.
 	q := `
 SELECT auth_groups_permissions.entity_type, auth_groups_permissions.entity_id, auth_groups_permissions.entitlement
-FROM auth_groups_permissions 
-JOIN auth_groups ON auth_groups_permissions.auth_group_id = auth_groups.id 
+FROM auth_groups_permissions
+JOIN auth_groups ON auth_groups_permissions.auth_group_id = auth_groups.id
 WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity_type = ? AND auth_groups.name = ?
 `
 	groupName := userURLPathArguments[0]
