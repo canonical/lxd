@@ -43,7 +43,7 @@ func (t *tls) load(ctx context.Context, identityCache *identity.Cache, opts Opts
 func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *api.URL, entitlement Entitlement) error {
 	details, err := t.requestDetails(r)
 	if err != nil {
-		return api.StatusErrorf(http.StatusForbidden, "Failed to extract request details: %w", err)
+		return fmt.Errorf("Failed to extract request details: %w", err)
 	}
 
 	if details.isInternalOrUnix() || details.isPKI {
@@ -128,7 +128,7 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 
 	details, err := t.requestDetails(r)
 	if err != nil {
-		return nil, api.StatusErrorf(http.StatusForbidden, "Failed to extract request details: %w", err)
+		return nil, fmt.Errorf("Failed to extract request details: %w", err)
 	}
 
 	if details.isInternalOrUnix() || details.isPKI {
