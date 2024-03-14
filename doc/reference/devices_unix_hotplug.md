@@ -24,3 +24,11 @@ The implementation depends on `systemd-udev` to be run on the host.
     :start-after: <!-- config group device-unix-hotplug-device-conf start -->
     :end-before: <!-- config group device-unix-hotplug-device-conf end -->
 ```
+
+## Configuration examples
+
+Add a `unix-hotplug` device to an instance by specifying its vendor ID and product ID:
+
+    lxc config device add <instance_name> <device_name> unix-hotplug vendorid=<vendor_ID> productid=<product_ID>
+
+See {ref}`instances-configure-devices` for more information.

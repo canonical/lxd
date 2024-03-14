@@ -23,6 +23,18 @@ You can read from the device and write to it.
     :end-before: <!-- config group device-unix-block-device-conf end -->
 ```
 
+## Configuration examples
+
+Add a `unix-block` device to an instance by specifying its source and path:
+
+    lxc config device add <instance_name> <device_name> unix-block source=<path_on_host> path=<path_on_instance>
+
+If you want to use the same path on the instance as on the host, you can omit the `source` option:
+
+    lxc config device add <instance_name> <device_name> unix-block path=<path_to_the_device>
+
+See {ref}`instances-configure-devices` for more information.
+
 (devices-unix-block-hotplugging)=
 ## Hotplugging
 
