@@ -20,7 +20,6 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
-	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -256,11 +255,6 @@ func networkZonesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	err = s.Authorizer.AddNetworkZone(r.Context(), projectName, req.Name)
-	if err != nil {
-		logger.Error("Failed to add network zone to authorizer", logger.Ctx{"name": req.Name, "project": projectName, "error": err})
-	}
-
 	lc := lifecycle.NetworkZoneCreated.Event(netzone, request.CreateRequestor(r), nil)
 	s.Events.SendLifecycle(projectName, lc)
 
@@ -312,11 +306,6 @@ func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 	err = netzone.Delete()
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	err = s.Authorizer.DeleteNetworkZone(r.Context(), projectName, zoneName)
-	if err != nil {
-		logger.Error("Failed to remove network zone from authorizer", logger.Ctx{"name": zoneName, "project": projectName, "error": err})
 	}
 
 	s.Events.SendLifecycle(projectName, lifecycle.NetworkZoneDeleted.Event(netzone, request.CreateRequestor(r), nil))
