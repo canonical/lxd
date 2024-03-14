@@ -169,13 +169,19 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 	}
 
 	// Construct OpenFGA objects for the user (identity) and the entity.
-	entityType, _, _, _, err := entity.ParseURL(entityURL.URL)
+	entityType, projectName, location, pathArguments, err := entity.ParseURL(entityURL.URL)
 	if err != nil {
 		return fmt.Errorf("Authorization driver failed to parse entity URL %q: %w", entityURL.String(), err)
 	}
 
+	// Ensure the URL is in the standard format (e.g. has a project parameter even if it's the default project).
+	standardisedEntityURL, err := entityType.URL(projectName, location, pathArguments...)
+	if err != nil {
+		return fmt.Errorf("Failed to standardise entity URL: %w", err)
+	}
+
 	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(protocol, username).String())
-	entityObject := fmt.Sprintf("%s:%s", entityType, entityURL.String())
+	entityObject := fmt.Sprintf("%s:%s", entityType, standardisedEntityURL.String())
 
 	// Construct an OpenFGA check request.
 	req := &openfgav1.CheckRequest{
@@ -398,7 +404,24 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 	// Return a permission checker that constructs an OpenFGA object from the given URL and returns true if the object is
 	// found in the list of objects in the response.
 	return func(entityURL *api.URL) bool {
-		object := fmt.Sprintf("%s:%s", entityType, entityURL.String())
+		parsedEntityType, projectName, location, pathArguments, err := entity.ParseURL(entityURL.URL)
+		if err != nil {
+			l.Error("Failed to parse permission checker entity URL", logger.Ctx{"url": entityURL.String(), "error": err})
+			return false
+		}
+
+		if parsedEntityType != entityType {
+			l.Error("Unexpected permission checker input URL", logger.Ctx{"expected_entity_type": entityType, "actual_entity_type": parsedEntityType, "url": entityURL.String()})
+			return false
+		}
+
+		standardisedEntityURL, err := entityType.URL(projectName, location, pathArguments...)
+		if err != nil {
+			l.Error("Failed to standardise permission checker entity URL", logger.Ctx{"url": entityURL.String(), "error": err})
+			return false
+		}
+
+		object := fmt.Sprintf("%s:%s", entityType, standardisedEntityURL.String())
 		return shared.ValueInSlice(object, objects)
 	}, nil
 }
