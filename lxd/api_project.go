@@ -320,11 +320,6 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed creating project %q: %w", project.Name, err))
 	}
 
-	err = s.Authorizer.AddProject(r.Context(), id, project.Name)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	requestor := request.CreateRequestor(r)
 	lc := lifecycle.ProjectCreated.Event(project.Name, requestor, nil)
 	s.Events.SendLifecycle(project.Name, lc)
@@ -775,7 +770,6 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 
 	// Perform the rename.
 	run := func(op *operations.Operation) error {
-		var id int64
 		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			project, err := cluster.GetProject(ctx, tx.Tx(), req.Name)
 			if err != nil && !response.IsNotFoundError(err) {
@@ -800,11 +794,6 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Only empty projects can be renamed")
 			}
 
-			id, err = cluster.GetProjectID(ctx, tx.Tx(), name)
-			if err != nil {
-				return fmt.Errorf("Failed getting project ID for project %q: %w", name, err)
-			}
-
 			err = projectValidateName(req.Name)
 			if err != nil {
 				return err
@@ -812,11 +801,6 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 
 			return cluster.RenameProject(ctx, tx.Tx(), name, req.Name)
 		})
-		if err != nil {
-			return err
-		}
-
-		err = s.Authorizer.RenameProject(r.Context(), id, name, req.Name)
 		if err != nil {
 			return err
 		}
@@ -866,7 +850,6 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(fmt.Errorf("The 'default' project cannot be deleted"))
 	}
 
-	var id int64
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := cluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
@@ -882,19 +865,9 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Only empty projects can be removed")
 		}
 
-		id, err = cluster.GetProjectID(ctx, tx.Tx(), name)
-		if err != nil {
-			return fmt.Errorf("Fetch project id %q: %w", name, err)
-		}
-
 		return cluster.DeleteProject(ctx, tx.Tx(), name)
 	})
 
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = s.Authorizer.DeleteProject(r.Context(), id, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
