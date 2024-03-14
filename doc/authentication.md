@@ -67,12 +67,7 @@ The workflow to authenticate with the server is similar to that of SSH, where an
 
 To revoke trust to a client, remove its certificate from the server with [`lxc config trust remove <fingerprint>`](lxc_config_trust_remove.md).
 
-It's possible to restrict a TLS client to one or multiple projects.
-In this case, the client will also be prevented from performing global configuration changes or altering the configuration (limits, restrictions) of the projects it's allowed access to.
-
-To restrict access, use [`lxc config trust edit <fingerprint>`](lxc_config_trust_edit.md).
-Set the `restricted` key to `true` and specify a list of projects to restrict the client to.
-If the list of projects is empty, the client will not be allowed access to any of them.
+TLS clients can be restricted to a subset of projects, see {ref}`restricted-tls-certs` for more information.
 
 (authentication-add-certs)=
 #### Adding trusted certificates to the server
@@ -140,18 +135,17 @@ Note that the generated certificates are not automatically trusted. You must sti
 
 LXD supports using [OpenID Connect](https://openid.net/connect/) to authenticate users through an {abbr}`OIDC (OpenID Connect)` Identity Provider.
 
-```{note}
-OpenID Connect authentication is currently under development.
-Starting with LXD 5.13, authentication through OpenID Connect is supported, but there is no user role handling in place so far.
-Any user that authenticates through the configured OIDC Identity Provider gets full access to LXD.
-```
-
 To configure LXD to use OIDC authentication, set the [`oidc.*`](server-options-oidc) server configuration options.
 Your OIDC provider must be configured to enable the [Device Authorization Grant](https://oauth.net/2/device-flow/) type.
 
 To add a remote pointing to a LXD server configured with OIDC authentication, run [`lxc remote add <remote_name> <remote_address>`](lxc_remote_add.md).
-You are then prompted to authenticate through your web browser, where you must confirm the device code that LXD uses.
-The LXD client then retrieves and stores the access and refresh tokens and provides those to LXD for all interactions.
+You are then prompted to authenticate through your web browser, where you must confirm that the device code displayed in the browser matches the device code that is displayed in the terminal window.
+The LXD client then retrieves and stores an access token, which it provides to LXD for all interactions.
+The identity provider might also provide a refresh token.
+In this case, the LXD client uses this refresh token to attempt to retrieve another access token when the current access token has expired.
+
+When an OIDC client initially authenticates with LXD, it does not have access to the majority of the LXD API.
+OIDC clients must be granted access by an administrator, see {ref}`fine-grained-authorization`.
 
 (authentication-server-certificate)=
 ## TLS server certificate
