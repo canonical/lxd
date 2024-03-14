@@ -93,7 +93,7 @@ Add a `bridged` network device to an instance, connecting to an existing bridge 
 
     lxc config device add <instance_name> <device_name> nic nictype=bridged parent=<existing_bridge>
 
-See {ref}`network-create` and {ref}`instances-configure-devices`for more information.
+See {ref}`network-create` and {ref}`instances-configure-devices` for more information.
 
 (nic-macvlan)=
 ### `nictype`: `macvlan`
@@ -128,7 +128,7 @@ Add a `macvlan` network device to an instance, connecting to an existing network
 
     lxc config device add <instance_name> <device_name> nic nictype=macvlan parent=<existing_NIC>
 
-See {ref}`network-create` and {ref}`instances-configure-devices`for more information.
+See {ref}`network-create` and {ref}`instances-configure-devices` for more information.
 
 (nic-sriov)=
 ### `nictype`: `sriov`
@@ -179,7 +179,7 @@ Add a `sriov` network device to an instance, connecting to an existing SR-IOV-en
 
     lxc config device add <instance_name> <device_name> nic nictype=sriov parent=<sriov_enabled_NIC>
 
-See {ref}`network-create` and {ref}`instances-configure-devices`for more information.
+See {ref}`network-create` and {ref}`instances-configure-devices` for more information.
 
 (nic-physical)=
 ### `nictype`: `physical`
