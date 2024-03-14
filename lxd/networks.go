@@ -507,11 +507,6 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = s.Authorizer.AddNetwork(r.Context(), projectName, req.Name)
-	if err != nil {
-		logger.Error("Failed to add network to authorizer", logger.Ctx{"name": req.Name, "project": projectName, "error": err})
-	}
-
 	requestor := request.CreateRequestor(r)
 	s.Events.SendLifecycle(projectName, lifecycle.NetworkCreated.Event(n, requestor, nil))
 
@@ -1032,11 +1027,6 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = s.Authorizer.DeleteNetwork(r.Context(), projectName, networkName)
-	if err != nil {
-		logger.Error("Failed to remove network from authorizer", logger.Ctx{"name": networkName, "project": projectName, "error": err})
-	}
-
 	requestor := request.CreateRequestor(r)
 	s.Events.SendLifecycle(projectName, lifecycle.NetworkDeleted.Event(n, requestor, nil))
 
@@ -1162,11 +1152,6 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	err = n.Rename(req.Name)
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	err = s.Authorizer.RenameNetwork(r.Context(), projectName, networkName, req.Name)
-	if err != nil {
-		logger.Error("Failed to rename network in authorizer", logger.Ctx{"old_name": networkName, "new_name": req.Name, "project": projectName, "error": err})
 	}
 
 	requestor := request.CreateRequestor(r)
