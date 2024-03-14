@@ -9,6 +9,74 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func (g *cmdGlobal) cmpClusterGroupNames(toComplete string) ([]string, cobra.ShellCompDirective) {
+	var results []string
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
+
+	resources, _ := g.ParseServers(toComplete)
+
+	if len(resources) <= 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+
+	cluster, _, err := resource.server.GetCluster()
+	if err != nil || !cluster.Enabled {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	results, err = resource.server.GetClusterGroupNames()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	return results, cmpDirectives
+}
+
+func (g *cmdGlobal) cmpClusterGroups(toComplete string) ([]string, cobra.ShellCompDirective) {
+	var results []string
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
+
+	resources, _ := g.ParseServers(toComplete)
+
+	if len(resources) <= 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+
+	cluster, _, err := resource.server.GetCluster()
+	if err != nil || !cluster.Enabled {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	groups, err := resource.server.GetClusterGroupNames()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	for _, group := range groups {
+		var name string
+
+		if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
+			name = group
+		} else {
+			name = fmt.Sprintf("%s:%s", resource.remote, name)
+		}
+
+		results = append(results, name)
+	}
+
+	if !strings.Contains(toComplete, ":") {
+		remotes, directives := g.cmpRemotes(false)
+		results = append(results, remotes...)
+		cmpDirectives |= directives
+	}
+
+	return results, cmpDirectives
+}
+
 func (g *cmdGlobal) cmpClusterMemberConfigs(memberName string) ([]string, cobra.ShellCompDirective) {
 	// Parse remote
 	resources, err := g.ParseServers(memberName)
@@ -38,7 +106,7 @@ func (g *cmdGlobal) cmpClusterMemberConfigs(memberName string) ([]string, cobra.
 }
 
 func (g *cmdGlobal) cmpClusterMembers(toComplete string) ([]string, cobra.ShellCompDirective) {
-	results := []string{}
+	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
 	resources, _ := g.ParseServers(toComplete)
@@ -160,7 +228,7 @@ func (g *cmdGlobal) cmpInstances(toComplete string) ([]string, cobra.ShellCompDi
 }
 
 func (g *cmdGlobal) cmpInstanceNamesFromRemote(toComplete string) ([]string, cobra.ShellCompDirective) {
-	results := []string{}
+	var results []string
 
 	resources, _ := g.ParseServers(toComplete)
 
@@ -314,7 +382,7 @@ func (g *cmdGlobal) cmpProfileConfigs(profileName string) ([]string, cobra.Shell
 }
 
 func (g *cmdGlobal) cmpProfileNamesFromRemote(toComplete string) ([]string, cobra.ShellCompDirective) {
-	results := []string{}
+	var results []string
 
 	resources, _ := g.ParseServers(toComplete)
 
@@ -384,7 +452,7 @@ func (g *cmdGlobal) cmpProjectConfigs(projectName string) ([]string, cobra.Shell
 }
 
 func (g *cmdGlobal) cmpProjects(toComplete string) ([]string, cobra.ShellCompDirective) {
-	results := []string{}
+	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
 	resources, _ := g.ParseServers(toComplete)
@@ -434,7 +502,7 @@ func (g *cmdGlobal) cmpRemotes(includeAll bool) ([]string, cobra.ShellCompDirect
 }
 
 func (g *cmdGlobal) cmpRemoteNames() ([]string, cobra.ShellCompDirective) {
-	results := []string{}
+	var results []string
 
 	for remoteName := range g.conf.Remotes {
 		results = append(results, remoteName)
@@ -477,7 +545,7 @@ func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra
 			return nil, compdir
 		}
 
-		results := []string{}
+		var results []string
 		for _, pool := range pools {
 			if strings.HasSuffix(pool, ":") {
 				results = append(results, pool)
@@ -495,7 +563,7 @@ func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra
 		return nil, compdir
 	}
 
-	results := []string{}
+	var results []string
 	for _, volume := range volumes {
 		results = append(results, fmt.Sprintf("%s/%s", pool, volume))
 	}
@@ -504,7 +572,7 @@ func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra
 }
 
 func (g *cmdGlobal) cmpStoragePools(toComplete string) ([]string, cobra.ShellCompDirective) {
-	results := []string{}
+	var results []string
 
 	resources, _ := g.ParseServers(toComplete)
 
