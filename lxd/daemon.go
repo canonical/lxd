@@ -238,13 +238,17 @@ type APIEndpointAction struct {
 
 // allowAuthenticated is an AccessHandler which allows only authenticated requests. This should be used in conjunction
 // with further access control within the handler (e.g. to filter resources the user is able to view/edit).
-func allowAuthenticated(d *Daemon, r *http.Request) response.Response {
-	err := d.checkTrustedClient(r)
+func allowAuthenticated(_ *Daemon, r *http.Request) response.Response {
+	trusted, err := request.GetCtxValue[bool](r.Context(), request.CtxTrusted)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	return response.EmptySyncResponse
+	if trusted {
+		return response.EmptySyncResponse
+	}
+
+	return response.Forbidden(nil)
 }
 
 // allowPermission is a wrapper to check access against a given object, an object being an image, instance, network, etc.
