@@ -1629,12 +1629,19 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
-	hasPermission, authorizationErr := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeImage)
-	if authorizationErr != nil && !api.StatusErrorCheck(authorizationErr, http.StatusForbidden) {
-		return response.SmartError(authorizationErr)
+
+	// Check if the caller is authenticated via the request context.
+	trusted, err := request.GetCtxValue[bool](r.Context(), request.CtxTrusted)
+	if err != nil {
+		return response.InternalError(fmt.Errorf("Failed getting authentication status: %w", err))
 	}
 
-	public := d.checkTrustedClient(r) != nil || authorizationErr != nil
+	// Get a permission checker. If the caller is not authenticated, the permission checker will deny all.
+	// However, the permission checker will not be called for public images.
+	canViewImage, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeImage)
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	clauses, err := filter.Parse(filterStr, filter.QueryOperatorSet())
 	if err != nil {
@@ -1643,7 +1650,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 	var result any
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		result, err = doImagesGet(ctx, tx, util.IsRecursionRequest(r), projectName, public, clauses, hasPermission)
+		result, err = doImagesGet(ctx, tx, util.IsRecursionRequest(r), projectName, !trusted, clauses, canViewImage)
 		if err != nil {
 			return err
 		}
