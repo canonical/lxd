@@ -404,6 +404,7 @@ var APIExtensions = []string{
 	"storage_volumes_all",
 	"instances_files_modify_permissions",
 	"image_restriction_nesting",
+	"container_syscall_intercept_finit_module",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
