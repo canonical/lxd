@@ -32,6 +32,7 @@ func (c *commonAuthorizer) init(driverName string, l logger.Logger) error {
 }
 
 type requestDetails struct {
+	trusted              bool
 	userName             string
 	protocol             string
 	forwardedUsername    string
@@ -88,6 +89,16 @@ func (c *commonAuthorizer) requestDetails(r *http.Request) (*requestDetails, err
 
 	var err error
 	d := &requestDetails{}
+
+	d.trusted, err = request.GetCtxValue[bool](r.Context(), request.CtxTrusted)
+	if err != nil {
+		return nil, api.StatusErrorf(http.StatusInternalServerError, "Failed getting authentication status: %w", err)
+	}
+
+	// If request is not trusted, no other values should be extracted.
+	if !d.trusted {
+		return d, nil
+	}
 
 	// Request protocol cannot be empty.
 	d.protocol, err = request.GetCtxValue[string](r.Context(), request.CtxProtocol)
