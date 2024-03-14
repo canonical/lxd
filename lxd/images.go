@@ -3007,7 +3007,6 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		userCanViewImage = true
 	}
 
-	public := d.checkTrustedClient(r) != nil || !userCanViewImage
 	secret := r.FormValue("secret")
 
 	op, err := imageValidSecret(s, r, projectName, info.Fingerprint, secret)
@@ -3015,8 +3014,9 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if !info.Public && public && op == nil {
-		return response.NotFound(fmt.Errorf("Image %q not found", info.Fingerprint))
+	// If the caller does not have permission to view the image and the secret was invalid, return generic not found.
+	if !info.Public && !userCanViewImage && op == nil {
+		return response.NotFound(nil)
 	}
 
 	etag := []any{info.Public, info.AutoUpdate, info.Properties}
