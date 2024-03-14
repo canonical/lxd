@@ -29,3 +29,13 @@ When a device is passed to the instance, it vanishes from the host.
     :start-after: <!-- config group device-unix-usb-device-conf start -->
     :end-before: <!-- config group device-unix-usb-device-conf end -->
 ```
+
+## Configuration examples
+
+Add a `usb` device to an instance by specifying its vendor ID and product ID:
+
+    lxc config device add <instance_name> <device_name> usb vendorid=<vendor_ID> productid=<product_ID>
+
+To determine the vendor ID and product ID, you can use {command}`lsusb`, for example.
+
+See {ref}`instances-configure-devices` for more information.
