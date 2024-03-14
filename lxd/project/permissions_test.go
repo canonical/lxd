@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -175,8 +177,30 @@ func TestCheckClusterTargetRestriction_RestrictedTrue(t *testing.T) {
 	p, err := dbProject.ToAPI(ctx, tx.Tx())
 	require.NoError(t, err)
 
-	req := &http.Request{}
-	authorizer, err := auth.LoadAuthorizer(context.Background(), auth.DriverTLS, logger.Log, &identity.Cache{})
+	testKeyPair := shared.TestingKeyPair()
+	testCertFingerprint := testKeyPair.Fingerprint()
+	testCertX509, err := testKeyPair.PublicKeyX509()
+	require.NoError(t, err)
+
+	req := &http.Request{URL: &url.URL{}}
+	request.SetCtxValue(req, request.CtxTrusted, true)
+	request.SetCtxValue(req, request.CtxProtocol, api.AuthenticationMethodTLS)
+	request.SetCtxValue(req, request.CtxUsername, testCertFingerprint)
+
+	identityCache := &identity.Cache{}
+	err = identityCache.ReplaceAll([]identity.CacheEntry{
+		{
+			IdentityType:         api.IdentityTypeCertificateClientRestricted,
+			AuthenticationMethod: api.AuthenticationMethodTLS,
+			Identifier:           testCertFingerprint,
+			Name:                 "test certificate",
+			Certificate:          testCertX509,
+			Projects:             []string{dbProject.Name},
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	authorizer, err := auth.LoadAuthorizer(context.Background(), auth.DriverTLS, logger.Log, identityCache)
 	require.NoError(t, err)
 
 	err = project.CheckClusterTargetRestriction(authorizer, req, p, "n1")
@@ -205,8 +229,9 @@ func TestCheckClusterTargetRestriction_RestrictedTrueWithOverride(t *testing.T) 
 		URL: &api.NewURL().Path("1.0", "instances").WithQuery("target", "node01").URL,
 	}
 
-	req = req.WithContext(context.WithValue(req.Context(), request.CtxProtocol, "tls"))
+	req = req.WithContext(context.WithValue(req.Context(), request.CtxProtocol, api.AuthenticationMethodTLS))
 	req = req.WithContext(context.WithValue(req.Context(), request.CtxUsername, "my-certificate-fingerprint"))
+	req = req.WithContext(context.WithValue(req.Context(), request.CtxTrusted, true))
 	identityCache := &identity.Cache{}
 
 	// Unrestricted client certificates can override the cluster target restriction.
