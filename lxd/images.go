@@ -3615,11 +3615,9 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 		userCanViewImageAlias = true
 	}
 
-	public := d.checkTrustedClient(r) != nil || !userCanViewImageAlias
-
 	var alias api.ImageAliasesEntry
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		_, alias, err = tx.GetImageAlias(ctx, projectName, name, !public)
+		_, alias, err = tx.GetImageAlias(ctx, projectName, name, userCanViewImageAlias)
 
 		return err
 	})
