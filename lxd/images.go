@@ -4055,7 +4055,6 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		userCanViewImage = true
 	}
 
-	public := d.checkTrustedClient(r) != nil || !userCanViewImage
 	secret := r.FormValue("secret")
 
 	if r.RemoteAddr == "@devlxd" {
@@ -4068,8 +4067,9 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		if !imgInfo.Public && public && op == nil {
-			return response.NotFound(fmt.Errorf("Image %q not found", imgInfo.Fingerprint))
+		// If the image is not public and the caller cannot view it, return a generic not found error.
+		if !imgInfo.Public && !userCanViewImage && op == nil {
+			return response.NotFound(nil)
 		}
 	}
 
