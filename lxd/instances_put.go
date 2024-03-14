@@ -102,15 +102,21 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var names []string
-	var instances []instance.Instance
 	for _, inst := range c {
 		if inst.Project().Name != projectName {
 			continue
 		}
 
-		// Only allow changing the state of instances the user has permission for.
+		// Check permission for all instances so that we apply the state change to all or none.
 		if !userHasPermission(entity.InstanceURL(inst.Project().Name, inst.Name())) {
+			return response.Forbidden(nil)
+		}
+	}
+
+	var names []string
+	var instances []instance.Instance
+	for _, inst := range c {
+		if inst.Project().Name != projectName {
 			continue
 		}
 
