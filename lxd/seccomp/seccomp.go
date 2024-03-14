@@ -737,6 +737,15 @@ func InstanceNeedsIntercept(s *state.State, c Instance) (bool, error) {
 		needed = true
 	}
 
+	if config["linux.kernel_modules.load"] == "ondemand" {
+		err := lxcSupportSeccompNotifyContinue(s)
+		if err != nil {
+			return needed, err
+		}
+
+		needed = true
+	}
+
 	return needed, nil
 }
 
@@ -812,6 +821,10 @@ func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 
 		if shared.IsTrue(config["security.syscalls.intercept.sysinfo"]) {
 			policy += seccompNotifySysinfo
+		}
+
+		if config["linux.kernel_modules.load"] == "ondemand" {
+			policy += seccompNotifyModule
 		}
 
 		if shared.IsTrue(config["security.syscalls.intercept.mount"]) {

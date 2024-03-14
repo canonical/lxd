@@ -854,6 +854,7 @@ func isContainerLowLevelOptionForbidden(key string) bool {
 	if shared.ValueInSlice(key, []string{
 		"boot.host_shutdown_timeout",
 		"linux.kernel_modules",
+		"linux.kernel_modules.load",
 		"raw.apparmor",
 		"raw.idmap",
 		"raw.lxc",
