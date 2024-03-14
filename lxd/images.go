@@ -1206,12 +1206,6 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed syncing image between nodes: %w", err)
 		}
 
-		// Add the image to the authorizer.
-		err = s.Authorizer.AddImage(r.Context(), projectName, info.Fingerprint)
-		if err != nil {
-			logger.Error("Failed to add image to authorizer", logger.Ctx{"fingerprint": info.Fingerprint, "project": projectName, "error": err})
-		}
-
 		s.Events.SendLifecycle(projectName, lifecycle.ImageCreated.Event(info.Fingerprint, projectName, op.Requestor(), logger.Ctx{"type": info.Type}))
 
 		return nil
@@ -2803,12 +2797,6 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		// Remove main image file from disk.
 		imageDeleteFromDisk(imgInfo.Fingerprint)
 
-		// Remove image from authorizer.
-		err = s.Authorizer.DeleteImage(r.Context(), projectName, imgInfo.Fingerprint)
-		if err != nil {
-			logger.Error("Failed to remove image from authorizer", logger.Ctx{"fingerprint": imgInfo.Fingerprint, "project": projectName, "error": err})
-		}
-
 		s.Events.SendLifecycle(projectName, lifecycle.ImageDeleted.Event(imgInfo.Fingerprint, projectName, op.Requestor(), nil))
 
 		return nil
@@ -3338,12 +3326,6 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Add the image alias to the authorizer.
-	err = s.Authorizer.AddImageAlias(r.Context(), projectName, req.Name)
-	if err != nil {
-		logger.Error("Failed to add image alias to authorizer", logger.Ctx{"name": req.Name, "project": projectName, "error": err})
-	}
-
 	requestor := request.CreateRequestor(r)
 	lc := lifecycle.ImageAliasCreated.Event(req.Name, projectName, requestor, logger.Ctx{"target": req.Target})
 	s.Events.SendLifecycle(projectName, lc)
@@ -3680,12 +3662,6 @@ func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Remove image alias from authorizer.
-	err = s.Authorizer.DeleteImageAlias(r.Context(), projectName, name)
-	if err != nil {
-		logger.Error("Failed to remove image alias from authorizer", logger.Ctx{"name": name, "project": projectName, "error": err})
-	}
-
 	requestor := request.CreateRequestor(r)
 	s.Events.SendLifecycle(projectName, lifecycle.ImageAliasDeleted.Event(name, projectName, requestor, nil))
 
@@ -3956,12 +3932,6 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	// Rename image alias in authorizer.
-	err = s.Authorizer.RenameImageAlias(r.Context(), projectName, name, req.Name)
-	if err != nil {
-		logger.Error("Failed to rename image alias in authorizer", logger.Ctx{"old_name": name, "new_name": req.Name, "project": projectName})
 	}
 
 	requestor := request.CreateRequestor(r)

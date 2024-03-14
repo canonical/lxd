@@ -385,12 +385,6 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// Add the storage pool to the authorizer.
-	err = s.Authorizer.AddStoragePool(r.Context(), req.Name)
-	if err != nil {
-		logger.Error("Failed to add storage pool to authorizer", logger.Ctx{"name": pool.Name, "error": err})
-	}
-
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 	return resp
@@ -1024,12 +1018,6 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	err = dbStoragePoolDeleteAndUpdateCache(s, pool.Name())
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	// Remove the storage pool from the authorizer.
-	err = s.Authorizer.DeleteStoragePool(r.Context(), pool.Name())
-	if err != nil {
-		logger.Error("Failed to remove storage pool from authorizer", logger.Ctx{"name": pool.Name(), "error": err})
 	}
 
 	requestor := request.CreateRequestor(r)

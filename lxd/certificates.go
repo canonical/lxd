@@ -641,12 +641,6 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Add the certificate resource to the authorizer.
-	err = s.Authorizer.AddCertificate(r.Context(), fingerprint)
-	if err != nil {
-		logger.Error("Failed to add certificate to authorizer", logger.Ctx{"fingerprint": fingerprint, "error": err})
-	}
-
 	// Reload the identity cache to add the new certificate.
 	s.UpdateIdentityCache()
 
@@ -1084,12 +1078,6 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	// Remove the certificate from the authorizer.
-	err = s.Authorizer.DeleteCertificate(r.Context(), certInfo.Fingerprint)
-	if err != nil {
-		logger.Error("Failed to remove certificate from authorizer", logger.Ctx{"fingerprint": certInfo.Fingerprint, "error": err})
 	}
 
 	// Reload the cache.
