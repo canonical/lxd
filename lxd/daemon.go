@@ -293,20 +293,6 @@ func allowPermission(entityType entity.Type, entitlement auth.Entitlement, muxVa
 	}
 }
 
-// Convenience function around Authenticate.
-func (d *Daemon) checkTrustedClient(r *http.Request) error {
-	trusted, _, _, _, err := d.Authenticate(nil, r)
-	if !trusted || err != nil {
-		if err != nil {
-			return err
-		}
-
-		return fmt.Errorf("Not authorized")
-	}
-
-	return nil
-}
-
 // Authenticate validates an incoming http Request
 // It will check over what protocol it came, what type of request it is and
 // will validate the TLS certificate or OIDC token.
