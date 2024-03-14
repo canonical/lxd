@@ -2368,6 +2368,23 @@ through the new server-level configuration key `instances.migration.stateful`. I
 Adds new APIs under `/1.0/auth` for viewing and managing identities, groups, and permissions.
 Adds an embedded OpenFGA authorization driver for enforcing fine-grained permissions.
 
+```{important}
+Prior to the addition of this extension, all OIDC clients were given full access to LXD (equivalent to Unix socket access).
+This extension revokes access to all OIDC clients.
+To regain access, a user must:
+1. Make a call to the OIDC enabled LXD remote (e.g. `lxc info`) to ensure that their OIDC identity is added to the LXD database.
+2. Create a group: `lxc auth group create <group_name>`
+3. Grant the group a suitable permission.
+   As all OIDC clients prior to this extension have had full access to LXD, the corresponding permission is `admin` on `server`.
+   To grant this permission to your group, run: `lxc auth group permission add <group_name> server admin`
+4. Add themselves to the group. To do this, run: `lxc auth identity group add oidc/<email_address> <group_name>`
+
+Steps 2 to 4 above cannot be performed via OIDC authentication (access has been revoked).
+They must be performed by a sufficiently privileged user, either via Unix socket or unrestricted TLS client certificate.
+
+For more information on access control for OIDC clients, see {ref}`fine-grained-authorization`.
+```
+
 ## `vm_disk_io_limits`
 
 Adds the ability to limit disk I/O for virtual machines.
