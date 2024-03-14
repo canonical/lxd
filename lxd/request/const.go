@@ -42,6 +42,9 @@ const (
 	// specified in the URL. (For example, if a project has `features.networks=false`, any networks in this project actually
 	// belong to the default project).
 	CtxEffectiveProjectName CtxKey = "effective_project_name"
+
+	// CtxTrusted is a boolean value that indicates whether the request was authenticated or not.
+	CtxTrusted CtxKey = "trusted"
 )
 
 // Headers.
