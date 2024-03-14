@@ -69,6 +69,14 @@ func (c *cmdConfigTemplateCreate) command() *cobra.Command {
 
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpInstances(toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -112,6 +120,18 @@ func (c *cmdConfigTemplateDelete) command() *cobra.Command {
 
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpInstances(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpInstanceConfigTemplates(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -153,6 +173,18 @@ func (c *cmdConfigTemplateEdit) command() *cobra.Command {
 		`Edit instance file templates`))
 
 	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpInstances(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpInstanceConfigTemplates(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }
@@ -243,6 +275,14 @@ func (c *cmdConfigTemplateList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpInstances(toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 
@@ -301,6 +341,18 @@ func (c *cmdConfigTemplateShow) command() *cobra.Command {
 		`Show content of instance file templates`))
 
 	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpInstances(toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpInstanceConfigTemplates(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	return cmd
 }
