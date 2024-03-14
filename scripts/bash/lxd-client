@@ -61,6 +61,16 @@ _have lxc && {
       COMPREPLY=( $( compgen -W "$( lxc storage volume list --format=csv | cut -d, -f1 )" "$cur" ) )
     }
 
+    _lxd_auth_groups()
+    {
+      COMPREPLY=( $( compgen -W "$( lxc auth group list --format=csv | cut -d, -f1 )" "$cur" ) )
+    }
+
+    _lxd_idp_groups()
+    {
+      COMPREPLY=( $( compgen -W "$( lxc auth identity-provider-group list --format=csv | cut -d, -f1 )" "$cur" ) )
+    }
+
     COMPREPLY=()
     # ignore special --foo args
     if [[ ${COMP_WORDS[COMP_CWORD]} == -* ]]; then
@@ -71,7 +81,7 @@ _have lxc && {
       export LXD_DIR=${LXD_DIR:-"${SNAP_COMMON}/lxd/"}
     fi
 
-    lxc_cmds="alias cluster config console copy delete exec export file \
+    lxc_cmds="alias auth cluster config console copy delete exec export file \
       help image import info init launch list manpage monitor move network \
       operation pause profile project publish query remote rename \
       restart restore shell snapshot start stop storage version"
@@ -165,6 +175,8 @@ _have lxc && {
       security.unmapped security.shifted zfs.remove_snapshots zfs.use_refquota zfs.reserve_space
       zfs.delegate"
 
+    auth_entity_types="server group image instance network profile project storage_pool storage_volume"
+
     if [ $COMP_CWORD -eq 1 ]; then
       COMPREPLY=( $(compgen -W "$lxc_cmds" -- ${COMP_WORDS[COMP_CWORD]}) )
       return 0
@@ -180,6 +192,103 @@ _have lxc && {
     fi
 
     case ${no_dashargs[1]} in
+      "auth")
+        case $pos in
+          2)
+            COMPREPLY=( $(compgen -W "group identity identity-provider-group idp-group permission" -- $cur) )
+            ;;
+          3)
+            case ${no_dashargs[2]} in
+              "group")
+                COMPREPLY=( $(compgen -W "create delete edit list permission rename show" -- $cur) )
+                ;;
+              "identity"|"user")
+                COMPREPLY=( $(compgen -W "edit group info list show" -- $cur) )
+                ;;
+              "identity-provider-group"|"idp-group")
+                COMPREPLY=( $(compgen -W "create delete edit group list rename show" -- $cur) )
+                ;;
+              "permission"|"perm")
+                COMPREPLY=( $(compgen -W "list" -- $cur) )
+                ;;
+            esac
+            ;;
+          4)
+            case ${no_dashargs[2]} in
+              "group")
+                case ${no_dashargs[3]} in
+                  "permission"|"perm")
+                    COMPREPLY=( $(compgen -W "add remove" -- $cur) )
+                    ;;
+                  "delete"|"edit"|"rename"|"show")
+                    _lxd_auth_groups
+                    ;;
+                esac
+                ;;
+              "identity"|"user")
+                case ${no_dashargs[3]} in
+                  "group")
+                    COMPREPLY=( $(compgen -W "add remove" -- "$cur" ) )
+                    ;;
+                esac
+                ;;
+              "identity-provider-group"|"idp-group")
+                case ${no_dashargs[3]} in
+                  "delete"|"edit"|"rename"|"show")
+                    _lxd_idp_groups
+                    ;;
+                  "group")
+                    COMPREPLY=( $(compgen -W "add remove" -- "$cur") )
+                    ;;
+                esac
+                ;;
+            esac
+            ;;
+          5)
+            case ${no_dashargs[2]} in
+              "group")
+                case ${no_dashargs[3]} in
+                  "permission"|"perm")
+                    _lxd_auth_groups
+                    ;;
+                esac
+                ;;
+              "identity-provider-group"|"idp-group")
+                case ${no_dashargs[3]} in
+                  "group")
+                    _lxd_idp_groups
+                    ;;
+                esac
+                ;;
+            esac
+            ;;
+          6)
+            case ${no_dashargs[2]} in
+              "group")
+                case ${no_dashargs[3]} in
+                  "permission"|"perm")
+                    COMPREPLY=( $(compgen -W "$auth_entity_types" -- "$cur" ) )
+                    ;;
+                esac
+                ;;
+              "identity"|"user")
+                case ${no_dashargs[3]} in
+                  "group")
+                    _lxd_auth_groups
+                    ;;
+                esac
+                ;;
+              "identity-provider-group"|"idp-group")
+                case ${no_dashargs[3]} in
+                  "group")
+                    _lxd_auth_groups
+                    ;;
+                esac
+                ;;
+            esac
+            ;;
+        esac
+        ;;
       "config")
         case $pos in
           2)
