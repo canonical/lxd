@@ -46,6 +46,11 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *a
 		return fmt.Errorf("Failed to extract request details: %w", err)
 	}
 
+	// Untrusted requests are denied.
+	if !details.trusted {
+		return api.StatusErrorf(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+	}
+
 	if details.isInternalOrUnix() || details.isPKI {
 		return nil
 	}
@@ -129,6 +134,11 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 	details, err := t.requestDetails(r)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to extract request details: %w", err)
+	}
+
+	// Untrusted requests are denied.
+	if !details.trusted {
+		return allowFunc(false), nil
 	}
 
 	if details.isInternalOrUnix() || details.isPKI {
