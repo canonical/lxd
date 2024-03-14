@@ -1270,29 +1270,31 @@ func (c *cmdPermissionList) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	remote := ""
-	if len(args) > 0 {
-		remote = args[0]
+	filters := args
+	remote := c.global.conf.DefaultRemote
+
+	// If there are arguments, and first argument contains a colon and does not contain an equals, use it as the remote name.
+	if len(args) > 0 && strings.Contains(args[0], ":") && !strings.Contains(args[0], "=") {
+		var err error
+		remote, _, err = c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return err
+		}
+
+		filters = args[1:]
 	}
 
-	if len(args) > 1 {
-		args = args[1:]
-	}
-
-	// Parse remote
-	resources, err := c.global.ParseServers(remote)
+	client, err := c.global.conf.GetInstanceServer(remote)
 	if err != nil {
 		return err
 	}
 
-	resource := resources[0]
-
 	projectName := ""
 	entityType := entity.Type("")
-	for _, arg := range args {
-		k, v, ok := strings.Cut(arg, "=")
+	for _, filter := range filters {
+		k, v, ok := strings.Cut(filter, "=")
 		if !ok {
-			return fmt.Errorf("Badly formatted supplementary argument %q", arg)
+			return fmt.Errorf("Badly formatted supplementary argument %q", filter)
 		}
 
 		if k == "project" {
@@ -1301,14 +1303,14 @@ func (c *cmdPermissionList) run(cmd *cobra.Command, args []string) error {
 			entityType = entity.Type(v)
 			err = entityType.Validate()
 			if err != nil {
-				return fmt.Errorf("Invalid entity type in supplementary argument %q: %w", arg, err)
+				return fmt.Errorf("Invalid entity type in supplementary argument %q: %w", filter, err)
 			}
 		} else {
-			return fmt.Errorf("Available filters are `entity_type` and `project`, got %q", arg)
+			return fmt.Errorf("Available filters are `entity_type` and `project`, got %q", filter)
 		}
 	}
 
-	permissionsInfo, err := resource.server.GetPermissionsInfo(lxd.GetPermissionsArgs{
+	permissionsInfo, err := client.GetPermissionsInfo(lxd.GetPermissionsArgs{
 		EntityType:  string(entityType),
 		ProjectName: projectName,
 	})
