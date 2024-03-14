@@ -1791,9 +1791,21 @@ See {ref}`cluster-evacuate` for more information.
 ```{config:option} linux.kernel_modules instance-miscellaneous
 :condition: "container"
 :liveupdate: "yes"
-:shortdesc: "Kernel modules to load before starting the instance"
+:shortdesc: "Kernel modules to load or allow loading"
 :type: "string"
 Specify the kernel modules as a comma-separated list.
+
+The modules are loaded before the instance starts, or they can be loaded by a privileged user if {config:option}`instance-miscellaneous:linux.kernel_modules.load` is set to `ondemand`.
+```
+
+```{config:option} linux.kernel_modules.load instance-miscellaneous
+:condition: "container"
+:defaultdesc: "`boot`"
+:liveupdate: "no"
+:shortdesc: "How to load kernel modules"
+:type: "string"
+This option specifies how to load the kernel modules that are specified in {config:option}`instance-miscellaneous:linux.kernel_modules`.
+Possible values are `boot` (load the modules when booting the container) and `ondemand` (intercept the `finit_modules()` syscall and allow a privileged user in the container's user namespace to load the modules).
 ```
 
 ```{config:option} linux.sysctl.* instance-miscellaneous

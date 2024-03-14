@@ -2060,8 +2060,18 @@
 						"linux.kernel_modules": {
 							"condition": "container",
 							"liveupdate": "yes",
-							"longdesc": "Specify the kernel modules as a comma-separated list.",
-							"shortdesc": "Kernel modules to load before starting the instance",
+							"longdesc": "Specify the kernel modules as a comma-separated list.\n\nThe modules are loaded before the instance starts, or they can be loaded by a privileged user if {config:option}`instance-miscellaneous:linux.kernel_modules.load` is set to `ondemand`.",
+							"shortdesc": "Kernel modules to load or allow loading",
+							"type": "string"
+						}
+					},
+					{
+						"linux.kernel_modules.load": {
+							"condition": "container",
+							"defaultdesc": "`boot`",
+							"liveupdate": "no",
+							"longdesc": "This option specifies how to load the kernel modules that are specified in {config:option}`instance-miscellaneous:linux.kernel_modules`.\nPossible values are `boot` (load the modules when booting the container) and `ondemand` (intercept the `finit_modules()` syscall and allow a privileged user in the container's user namespace to load the modules).",
+							"shortdesc": "How to load kernel modules",
 							"type": "string"
 						}
 					},
