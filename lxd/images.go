@@ -979,14 +979,13 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		userCanCreateImages = true
 	}
 
-	trusted := d.checkTrustedClient(r) == nil && userCanCreateImages
-
 	secret := r.Header.Get("X-LXD-secret")
 	fingerprint := r.Header.Get("X-LXD-fingerprint")
 
 	var imageMetadata map[string]any
 
-	if !trusted && (secret == "" || fingerprint == "") {
+	// If user does not have permission to create images. They must provide a secret and a fingerprint.
+	if !userCanCreateImages && (secret == "" || fingerprint == "") {
 		return response.Forbidden(nil)
 	}
 
@@ -998,7 +997,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 	if op != nil {
 		imageMetadata = op.Metadata
-	} else if !trusted {
+	} else if !userCanCreateImages {
 		return response.Forbidden(nil)
 	}
 
