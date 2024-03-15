@@ -491,7 +491,7 @@ _have lxc && {
             ;;
           3)
             case ${no_dashargs[2]} in
-              "show"|"get"|"set"|"unset"|"delete"|"edit")
+              "delete"|"edit"|"get"|"info"|"set"|"show"|"unset")
                 _lxd_storage_pools
                 ;;
             esac
