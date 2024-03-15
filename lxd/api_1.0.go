@@ -234,14 +234,11 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		AuthMethods:   authMethods,
 	}
 
-	// If untrusted, return now
-	if d.checkTrustedClient(r) != nil {
-		return response.SyncResponseETag(true, srv, nil)
-	}
-
-	// If not authorized, return now.
+	// If not authorized, return now. Untrusted users are not authorized.
 	err := s.Authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanView)
-	if err != nil {
+	if err != nil && auth.IsDeniedError(err) {
+		return response.SyncResponseETag(true, srv, nil)
+	} else if err != nil {
 		return response.SmartError(err)
 	}
 

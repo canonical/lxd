@@ -798,23 +798,23 @@ func validatePermissions(permissions []api.Permission) error {
 		entityType := entity.Type(permission.EntityType)
 		err := entityType.Validate()
 		if err != nil {
-			return api.StatusErrorf(http.StatusBadRequest, "Failed to validate entity type for permission with entity reference %q and entitlement %q: %v", permission.EntityReference, permission.Entitlement, err)
+			return api.StatusErrorf(http.StatusBadRequest, "Failed to validate entity type for permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
 		}
 
 		entitlement := auth.Entitlement(permission.Entitlement)
 		err = auth.Validate(entitlement)
 		if err != nil {
-			return api.StatusErrorf(http.StatusBadRequest, "Failed to validate entitlement for permission with entity reference %q and entitlement %q: %v", permission.EntityReference, permission.Entitlement, err)
+			return api.StatusErrorf(http.StatusBadRequest, "Failed to validate entitlement for permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
 		}
 
 		u, err := url.Parse(permission.EntityReference)
 		if err != nil {
-			return api.StatusErrorf(http.StatusBadRequest, "Failed to parse permission with entity reference %q and entitlement %q: %v", permission.EntityReference, permission.Entitlement, err)
+			return api.StatusErrorf(http.StatusBadRequest, "Failed to parse permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
 		}
 
 		referenceEntityType, _, _, _, err := entity.ParseURL(*u)
 		if err != nil {
-			return api.StatusErrorf(http.StatusBadRequest, "Failed to parse permission with entity reference %q and entitlement %q: %v", permission.EntityReference, permission.Entitlement, err)
+			return api.StatusErrorf(http.StatusBadRequest, "Failed to parse permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
 		}
 
 		if entityType != referenceEntityType {
@@ -823,7 +823,7 @@ func validatePermissions(permissions []api.Permission) error {
 
 		err = auth.ValidateEntitlement(entityType, entitlement)
 		if err != nil {
-			return api.StatusErrorf(http.StatusBadRequest, "Failed to validate group permission with entity reference %q and entitlement %q: %v", permission.EntityReference, permission.Entitlement, err)
+			return api.StatusErrorf(http.StatusBadRequest, "Failed to validate group permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
 		}
 	}
 

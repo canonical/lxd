@@ -31,6 +31,7 @@ func (c *commonAuthorizer) init(driverName string, l logger.Logger) error {
 }
 
 type requestDetails struct {
+	trusted              bool
 	userName             string
 	protocol             string
 	forwardedUsername    string
@@ -80,18 +81,28 @@ func (r *requestDetails) identityProviderGroups() []string {
 
 func (c *commonAuthorizer) requestDetails(r *http.Request) (*requestDetails, error) {
 	if r == nil {
-		return nil, fmt.Errorf("Cannot inspect nil request")
+		return nil, api.StatusErrorf(http.StatusInternalServerError, "Cannot inspect nil request")
 	} else if r.URL == nil {
-		return nil, fmt.Errorf("Request URL is not set")
+		return nil, api.StatusErrorf(http.StatusInternalServerError, "Request URL is not set")
 	}
 
 	var err error
 	d := &requestDetails{}
 
+	d.trusted, err = request.GetCtxValue[bool](r.Context(), request.CtxTrusted)
+	if err != nil {
+		return nil, api.StatusErrorf(http.StatusInternalServerError, "Failed getting authentication status: %w", err)
+	}
+
+	// If request is not trusted, no other values should be extracted.
+	if !d.trusted {
+		return d, nil
+	}
+
 	// Request protocol cannot be empty.
 	d.protocol, err = request.GetCtxValue[string](r.Context(), request.CtxProtocol)
 	if err != nil {
-		return nil, fmt.Errorf("Failed getting protocol: %w", err)
+		return nil, api.StatusErrorf(http.StatusInternalServerError, "Failed getting protocol: %w", err)
 	}
 
 	// Forwarded protocol can be empty.
@@ -104,7 +115,7 @@ func (c *commonAuthorizer) requestDetails(r *http.Request) (*requestDetails, err
 	// Username cannot be empty.
 	d.userName, err = request.GetCtxValue[string](r.Context(), request.CtxUsername)
 	if err != nil {
-		return nil, fmt.Errorf("Failed getting username: %w", err)
+		return nil, api.StatusErrorf(http.StatusInternalServerError, "Failed getting username: %w", err)
 	}
 
 	// Forwarded username can be empty.
@@ -117,7 +128,7 @@ func (c *commonAuthorizer) requestDetails(r *http.Request) (*requestDetails, err
 	// Check if the request is for all projects.
 	values, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse request query parameters: %w", err)
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Failed to parse request query parameters: %w", err)
 	}
 
 	// Get project details.

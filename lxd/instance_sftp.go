@@ -90,7 +90,7 @@ func instanceSFTPHandler(d *Daemon, r *http.Request) response.Response {
 
 		resp.instConn, err = inst.FileSFTPConn()
 		if err != nil {
-			return response.SmartError(api.StatusErrorf(http.StatusInternalServerError, "Failed getting instance SFTP connection: %v", err))
+			return response.SmartError(api.StatusErrorf(http.StatusInternalServerError, "Failed getting instance SFTP connection: %w", err))
 		}
 	}
 
@@ -119,7 +119,7 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter) error {
 
 	remoteConn, _, err := hijacker.Hijack()
 	if err != nil {
-		return api.StatusErrorf(http.StatusInternalServerError, "Failed to hijack connection: %v", err)
+		return api.StatusErrorf(http.StatusInternalServerError, "Failed to hijack connection: %w", err)
 	}
 
 	defer func() { _ = remoteConn.Close() }()
@@ -129,7 +129,7 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter) error {
 		// Apply TCP timeouts if remote connection is TCP (rather than Unix).
 		err = tcp.SetTimeouts(remoteTCP, 0)
 		if err != nil {
-			return api.StatusErrorf(http.StatusInternalServerError, "Failed setting TCP timeouts on remote connection: %v", err)
+			return api.StatusErrorf(http.StatusInternalServerError, "Failed setting TCP timeouts on remote connection: %w", err)
 		}
 	}
 
