@@ -78,9 +78,18 @@ func restServer(d *Daemon) *http.Server {
 
 		// Set security headers
 		uiHandlerWithSecurity := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Disables the FLoC (Federated Learning of Cohorts) feature on the browser,
+			// preventing the current page from being included in the user's FLoC calculation.
+			// FLoC is a proposed replacement for third-party cookies to enable interest-based advertising.
 			w.Header().Set("Permissions-Policy", "interest-cohort=()")
+			// Prevents the browser from trying to guess the MIME type, which can have security implications.
+			// This tells the browser to strictly follow the MIME type provided in the Content-Type header.
 			w.Header().Set("X-Content-Type-Options", "nosniff")
+			// Restricts the page from being displayed in a frame, iframe, or object to avoid click jacking attacks,
+			// but allows it if the site is navigating to the same origin.
 			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+			// Sets the Content Security Policy (CSP) for the page, which helps mitigate XSS attacks and data injection attacks.
+			// The policy allows loading resources (scripts, styles, images, etc.) only from the same origin ('self'), data URLs, and all subdomains of ubuntu.com.
 			w.Header().Set("Content-Security-Policy", "default-src 'self' data: https://*.ubuntu.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'")
 
 			uiHandler.ServeHTTP(w, r)
