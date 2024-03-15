@@ -85,6 +85,7 @@ var patches = []patch{
 	{name: "storage_unset_invalid_block_settings", stage: patchPostDaemonStorage, run: patchStorageUnsetInvalidBlockSettings},
 	{name: "candid_rbac_remove_config_keys", stage: patchPreDaemonStorage, run: patchRemoveCandidRBACConfigKeys},
 	{name: "storage_set_volume_uuid", stage: patchPostDaemonStorage, run: patchStorageSetVolumeUUID},
+	{name: "storage_set_volume_uuid_v2", stage: patchPostDaemonStorage, run: patchStorageSetVolumeUUIDV2},
 }
 
 type patch struct {
@@ -1541,6 +1542,102 @@ func patchStorageSetVolumeUUID(_ string, d *Daemon) error {
 
 				return nil
 			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// patchStorageSetVolumeUUIDV2 sets a unique volatile.uuid field for each volume and its snapshots using an idempotent SQL query.
+func patchStorageSetVolumeUUIDV2(_ string, d *Daemon) error {
+	type volumeConfigEntry struct {
+		id    string
+		value *string
+	}
+
+	// Gets a list of `volatile.uuid` settings for all storage volumes.
+	getVolumeUUIDs := func(volumesTable string, volumesConfigTable string, volumesConfigTableID string) ([]volumeConfigEntry, error) {
+		rows, err := d.State().DB.Cluster.DB().QueryContext(d.shutdownCtx, fmt.Sprintf(`
+SELECT %[1]s.id, %[2]s.value
+FROM %[1]s
+	LEFT JOIN %[2]s
+		ON %[2]s.%[3]s = %[1]s.id
+		AND %[2]s.key = "volatile.uuid"
+		`, volumesTable, volumesConfigTable, volumesConfigTableID))
+		if err != nil {
+			return nil, err
+		}
+
+		defer func() { _ = rows.Close() }()
+
+		var volumeUUIDs []volumeConfigEntry
+
+		for rows.Next() {
+			var r volumeConfigEntry
+			err = rows.Scan(&r.id, &r.value)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to scan row into struct: %w", err)
+			}
+
+			volumeUUIDs = append(volumeUUIDs, r)
+		}
+
+		return volumeUUIDs, nil
+	}
+
+	// Sets a volume's `volatile.uuid` config setting.
+	setVolumeUUID := func(volumeID string, volumesConfigTable string, volumesConfigTableID string) error {
+		_, err := d.State().DB.Cluster.DB().ExecContext(d.shutdownCtx, fmt.Sprintf(`
+INSERT OR IGNORE INTO %s (%s, key, value) VALUES (?, "volatile.uuid", ?)
+	`, volumesConfigTable, volumesConfigTableID), volumeID, uuid.New().String())
+		return err
+	}
+
+	// Get the "volatile.uuid" setting of all storage volumes.
+	volumeUUIDs, err := getVolumeUUIDs("storage_volumes", "storage_volumes_config", "storage_volume_id")
+	if err != nil {
+		return err
+	}
+
+	// Set a new "volatile.uuid" for all volumes which are missing the config key.
+	for _, volumeUUID := range volumeUUIDs {
+		if volumeUUID.value == nil {
+			err := setVolumeUUID(volumeUUID.id, "storage_volumes_config", "storage_volume_id")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Get the "volatile.uuid" setting of all storage volume snapshots.
+	volumeSnapshotsUUIDs, err := getVolumeUUIDs("storage_volumes_snapshots", "storage_volumes_snapshots_config", "storage_volume_snapshot_id")
+	if err != nil {
+		return err
+	}
+
+	// Set a new "volatile.uuid" for all volumes which are missing the config key.
+	for _, volumeSnapshotUUID := range volumeSnapshotsUUIDs {
+		if volumeSnapshotUUID.value == nil {
+			err := setVolumeUUID(volumeSnapshotUUID.id, "storage_volumes_snapshots_config", "storage_volume_snapshot_id")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Get the "volatile.uuid" setting of all storage buckets.
+	bucketUUIDs, err := getVolumeUUIDs("storage_buckets", "storage_buckets_config", "storage_bucket_id")
+	if err != nil {
+		return err
+	}
+
+	// Set a new "volatile.uuid" for all buckets which are missing the config key.
+	for _, bucketUUID := range bucketUUIDs {
+		if bucketUUID.value == nil {
+			err := setVolumeUUID(bucketUUID.id, "storage_buckets_config", "storage_bucket_id")
 			if err != nil {
 				return err
 			}
