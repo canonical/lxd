@@ -238,13 +238,17 @@ type APIEndpointAction struct {
 
 // allowAuthenticated is an AccessHandler which allows only authenticated requests. This should be used in conjunction
 // with further access control within the handler (e.g. to filter resources the user is able to view/edit).
-func allowAuthenticated(d *Daemon, r *http.Request) response.Response {
-	err := d.checkTrustedClient(r)
+func allowAuthenticated(_ *Daemon, r *http.Request) response.Response {
+	trusted, err := request.GetCtxValue[bool](r.Context(), request.CtxTrusted)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	return response.EmptySyncResponse
+	if trusted {
+		return response.EmptySyncResponse
+	}
+
+	return response.Forbidden(nil)
 }
 
 // allowPermission is a wrapper to check access against a given object, an object being an image, instance, network, etc.
@@ -291,20 +295,6 @@ func allowPermission(entityType entity.Type, entitlement auth.Entitlement, muxVa
 
 		return response.EmptySyncResponse
 	}
-}
-
-// Convenience function around Authenticate.
-func (d *Daemon) checkTrustedClient(r *http.Request) error {
-	trusted, _, _, _, err := d.Authenticate(nil, r)
-	if !trusted || err != nil {
-		if err != nil {
-			return err
-		}
-
-		return fmt.Errorf("Not authorized")
-	}
-
-	return nil
 }
 
 // Authenticate validates an incoming http Request
@@ -578,6 +568,9 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			_ = response.Forbidden(err).Render(w)
 			return
 		}
+
+		// Set the "trusted" value in the request context.
+		request.SetCtxValue(r, request.CtxTrusted, trusted)
 
 		// Reject internal queries to remote, non-cluster, clients
 		if version == "internal" && !shared.ValueInSlice(protocol, []string{"unix", "cluster"}) {
