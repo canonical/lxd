@@ -48,7 +48,7 @@ func TestURL(t *testing.T) {
 			name:               "projects",
 			rawURL:             "/1.0/projects/my-project",
 			expectedEntityType: TypeProject,
-			expectedProject:    "",
+			expectedProject:    "my-project",
 			expectedPathArgs:   []string{"my-project"},
 			expectedErr:        nil,
 		},
