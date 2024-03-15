@@ -370,7 +370,7 @@ _have lxc && {
             ;;
         esac
         ;;
-      "storage_pools")
+      "storage")
         case $pos in
           2)
             COMPREPLY=( $(compgen -W "list show create get set unset delete edit" -- $cur) )
