@@ -373,7 +373,7 @@ _have lxc && {
       "storage")
         case $pos in
           2)
-            COMPREPLY=( $(compgen -W "list show create get set unset delete edit" -- $cur) )
+            COMPREPLY=( $(compgen -W "bucket create delete edit get info list set show unset volume" -- $cur) )
             ;;
           3)
             case ${no_dashargs[2]} in
