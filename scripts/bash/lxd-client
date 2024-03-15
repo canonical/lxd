@@ -19,7 +19,7 @@ _have lxc && {
 
     _lxd_images()
     {
-      COMPREPLY=( $( compgen -W "$( lxc image list --format=csv | cut -d, -f1 )" "$cur" ) )
+      COMPREPLY=( $( compgen -W "$( lxc image list --format=csv --columns=l )" "$cur" ) )
     }
 
     _lxd_remotes()
