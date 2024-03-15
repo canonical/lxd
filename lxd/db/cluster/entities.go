@@ -233,7 +233,7 @@ var profileEntityByID = fmt.Sprintf(`%s WHERE profiles.id = ?`, profileEntities)
 var profileEntitiesByProjectName = fmt.Sprintf(`%s WHERE projects.name = ?`, profileEntities)
 
 // projectEntities returns all entities of type entity.TypeProject.
-var projectEntities = fmt.Sprintf(`SELECT %d, projects.id, '', '', json_array(projects.name) FROM projects`, entityTypeProject)
+var projectEntities = fmt.Sprintf(`SELECT %d, projects.id, projects.name, '', json_array(projects.name) FROM projects`, entityTypeProject)
 
 // projectEntities gets the entity of type entity.TypeProject with a particular ID.
 var projectEntityByID = fmt.Sprintf(`%s WHERE id = ?`, projectEntities)
@@ -779,7 +779,7 @@ WHERE projects.name = ?
 var projectIDFromURL = `
 SELECT ?, projects.id 
 FROM projects 
-WHERE '' = ? 
+WHERE projects.name = ? 
 	AND '' = ? 
 	AND projects.name = ?`
 
