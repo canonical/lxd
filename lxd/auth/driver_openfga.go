@@ -115,7 +115,12 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 	// Inspect request.
 	details, err := e.requestDetails(r)
 	if err != nil {
-		return api.StatusErrorf(http.StatusForbidden, "Failed to extract request details: %v", err)
+		return fmt.Errorf("Failed to extract request details: %w", err)
+	}
+
+	// Untrusted requests are denied.
+	if !details.trusted {
+		return api.StatusErrorf(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 
 	// Cluster or unix socket requests have admin permission.
@@ -287,7 +292,12 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 	// Inspect request.
 	details, err := e.requestDetails(r)
 	if err != nil {
-		return nil, api.StatusErrorf(http.StatusForbidden, "Failed to extract request details: %v", err)
+		return nil, fmt.Errorf("Failed to extract request details: %w", err)
+	}
+
+	// Untrusted requests are denied.
+	if !details.trusted {
+		return allowFunc(false), nil
 	}
 
 	// Cluster or unix socket requests have admin permission.

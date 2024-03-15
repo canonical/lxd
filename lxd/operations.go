@@ -257,14 +257,44 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 			projectName = api.ProjectDefaultName
 		}
 
+		// Separate resources by entity type. If there are multiple entries of a particular entity type we can reduce
+		// the number of calls to the authorizer.
 		objectType, entitlement := op.Permission()
+		urlsByEntityType := make(map[entity.Type][]api.URL)
 		if objectType != "" {
 			for _, v := range op.Resources() {
 				for _, u := range v {
-					err = s.Authorizer.CheckPermission(r.Context(), r, &u, entitlement)
+					entityType, _, _, _, err := entity.ParseURL(u.URL)
 					if err != nil {
-						return response.SmartError(err)
+						return response.InternalError(fmt.Errorf("Failed to parse operation resource entity URL: %w", err))
 					}
+
+					urlsByEntityType[entityType] = append(urlsByEntityType[entityType], u)
+				}
+			}
+		}
+
+		for entityType, urls := range urlsByEntityType {
+			// If only one entry of this type, check directly.
+			if len(urls) == 1 {
+				err := s.Authorizer.CheckPermission(r.Context(), r, &urls[0], entitlement)
+				if err != nil {
+					return response.SmartError(err)
+				}
+
+				continue
+			}
+
+			// Otherwise get a permission checker for the entity type.
+			hasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, entitlement, entityType)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			// Check each URL.
+			for _, u := range urls {
+				if !hasPermission(&u) {
+					return response.Forbidden(nil)
 				}
 			}
 		}
@@ -906,7 +936,11 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 
 	secret := r.FormValue("secret")
 
-	trusted, _, _, _, _ := d.Authenticate(nil, r)
+	trusted, err := request.GetCtxValue[bool](r.Context(), request.CtxTrusted)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to get authentication status: %w", err))
+	}
+
 	if !trusted && secret == "" {
 		return response.Forbidden(nil)
 	}

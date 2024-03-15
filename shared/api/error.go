@@ -8,32 +8,30 @@ import (
 
 // StatusErrorf returns a new StatusError containing the specified status and message.
 func StatusErrorf(status int, format string, a ...any) StatusError {
-	var msg string
-	if len(a) > 0 {
-		msg = fmt.Sprintf(format, a...)
-	} else {
-		msg = format
-	}
-
 	return StatusError{
 		status: status,
-		msg:    msg,
+		err:    fmt.Errorf(format, a...),
 	}
 }
 
 // StatusError error type that contains an HTTP status code and message.
 type StatusError struct {
 	status int
-	msg    string
+	err    error
 }
 
-// Error returns the error message or the http.StatusText() of the status code if message is empty.
+// Error returns the error message or the http.StatusText() of the status code if error message is empty.
 func (e StatusError) Error() string {
-	if e.msg != "" {
-		return e.msg
+	if e.err != nil && e.err.Error() != "" {
+		return e.err.Error()
 	}
 
 	return http.StatusText(e.status)
+}
+
+// Unwrap implements the xerrors.Wrapper interface for StatusError.
+func (e StatusError) Unwrap() error {
+	return e.err
 }
 
 // Status returns the HTTP status code.

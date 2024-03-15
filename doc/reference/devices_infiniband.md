@@ -21,14 +21,6 @@ LXD supports two different kinds of network types for InfiniBand devices:
   Therefore, you must pre-configure the number of virtual functions by configuring the corresponding kernel module.
   ```
 
-To create a `physical` `infiniband` device, use the following command:
-
-    lxc config device add <instance_name> <device_name> infiniband nictype=physical parent=<device>
-
-To create an `sriov` `infiniband` device, use the following command:
-
-    lxc config device add <instance_name> <device_name> infiniband nictype=sriov parent=<sriov_enabled_device>
-
 ## Device options
 
 `infiniband` devices have the following device options:
@@ -38,3 +30,15 @@ To create an `sriov` `infiniband` device, use the following command:
     :start-after: <!-- config group device-infiniband-device-conf start -->
     :end-before: <!-- config group device-infiniband-device-conf end -->
 ```
+
+## Configuration examples
+
+Add a `physical` `infiniband` device to an instance:
+
+    lxc config device add <instance_name> <device_name> infiniband nictype=physical parent=<device>
+
+Add an `sriov` `infiniband` device to an instance:
+
+    lxc config device add <instance_name> <device_name> infiniband nictype=sriov parent=<sriov_enabled_device>
+
+See {ref}`instances-configure-devices` for more information.

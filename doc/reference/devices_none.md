@@ -14,3 +14,11 @@ Its only purpose is to stop inheriting devices that come from profiles.
 To do so, add a device with the same name as the one that you do not want to inherit, but with the device type `none`.
 
 You can add this device either in a profile that is applied after the profile that contains the original device, or directly on the instance.
+
+## Configuration examples
+
+Add a `none` device to an instance:
+
+    lxc config device add <instance_name> <device_name> none
+
+See {ref}`instances-configure-devices` for more information.

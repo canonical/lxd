@@ -409,18 +409,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Check if the user is already trusted.
-	trusted, _, _, _, err := d.Authenticate(nil, r)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// User isn't an admin and is already trusted, can't add more certs.
-	if trusted && req.Certificate == "" && !req.Token {
-		return response.BadRequest(fmt.Errorf("Client is already trusted"))
-	}
-
-	// Handle requests by non-admin users.
+	// Check if the caller has permission to create certificates.
 	var userCanCreateCertificates bool
 	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanCreateIdentities)
 	if err != nil && !auth.IsDeniedError(err) {
@@ -429,7 +418,17 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		userCanCreateCertificates = true
 	}
 
-	if !trusted || !userCanCreateCertificates {
+	trusted, err := request.GetCtxValue[bool](r.Context(), request.CtxTrusted)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to get authentication status: %w", err))
+	}
+
+	// If caller is already trusted and does not have permission to create certificates, they cannot create more certificates.
+	if trusted && !userCanCreateCertificates && req.Certificate == "" && !req.Token {
+		return response.BadRequest(fmt.Errorf("Client is already trusted"))
+	}
+
+	if !userCanCreateCertificates {
 		// Non-admin cannot issue tokens.
 		if req.Token {
 			return response.Forbidden(nil)
@@ -639,12 +638,6 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	// Add the certificate resource to the authorizer.
-	err = s.Authorizer.AddCertificate(r.Context(), fingerprint)
-	if err != nil {
-		logger.Error("Failed to add certificate to authorizer", logger.Ctx{"fingerprint": fingerprint, "error": err})
 	}
 
 	// Reload the identity cache to add the new certificate.
@@ -1084,12 +1077,6 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	// Remove the certificate from the authorizer.
-	err = s.Authorizer.DeleteCertificate(r.Context(), certInfo.Fingerprint)
-	if err != nil {
-		logger.Error("Failed to remove certificate from authorizer", logger.Ctx{"fingerprint": certInfo.Fingerprint, "error": err})
 	}
 
 	// Reload the cache.
