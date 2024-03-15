@@ -41,6 +41,18 @@ GPU devices of type `physical` have the following device options:
     :end-before: <!-- config group device-gpu-physical-device-conf end -->
 ```
 
+### Configuration examples
+
+Add all GPUs from the host system as a `physical` GPU device to an instance:
+
+    lxc config device add <instance_name> <device_name> gpu gputype=physical
+
+Add a specific GPU from the host system as a `physical` GPU device to an instance by specifying its PCI address:
+
+    lxc config device add <instance_name> <device_name> gpu gputype=physical pci=<pci_address>
+
+See {ref}`instances-configure-devices` for more information.
+
 (gpu-mdev)=
 ## `gputype`: `mdev`
 
@@ -61,6 +73,14 @@ GPU devices of type `mdev` have the following device options:
     :start-after: <!-- config group device-gpu-mdev-device-conf start -->
     :end-before: <!-- config group device-gpu-mdev-device-conf end -->
 ```
+
+### Configuration examples
+
+Add an `mdev` GPU device to an instance by specifying its `mdev` profile and the PCI address of the GPU:
+
+    lxc config device add <instance_name> <device_name> gpu gputype=mdev mdev=<mdev_profile> pci=<pci_address>
+
+See {ref}`instances-configure-devices` for more information.
 
 (gpu-mig)=
 ## `gputype`: `mig`
@@ -85,6 +105,14 @@ GPU devices of type `mig` have the following device options:
 
 You must set either {config:option}`device-gpu-mig-device-conf:mig.uuid` (NVIDIA drivers 470+) or both {config:option}`device-gpu-mig-device-conf:mig.ci` and {config:option}`device-gpu-mig-device-conf:mig.gi` (old NVIDIA drivers).
 
+### Configuration examples
+
+Add a `mig` GPU device to an instance by specifying its UUID and the PCI address of the GPU:
+
+    lxc config device add <instance_name> <device_name> gpu gputype=mig mig.uuid=<mig_uuid> pci=<pci_address>
+
+See {ref}`instances-configure-devices` for more information.
+
 (gpu-sriov)=
 ## `gputype`: `sriov`
 
@@ -104,3 +132,11 @@ GPU devices of type `sriov` have the following device options:
     :start-after: <!-- config group device-gpu-sriov-device-conf start -->
     :end-before: <!-- config group device-gpu-sriov-device-conf end -->
 ```
+
+### Configuration examples
+
+Add a `sriov` GPU device to an instance by specifying the PCI address of the parent GPU:
+
+    lxc config device add <instance_name> <device_name> gpu gputype=sriov pci=<pci_address>
+
+See {ref}`instances-configure-devices` for more information.
