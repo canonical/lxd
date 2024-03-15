@@ -68,6 +68,11 @@ func restServer(d *Daemon) *http.Server {
 	mux.SkipClean(true)
 	mux.UseEncodedPath() // Allow encoded values in path segments.
 
+	// Enable gzip compression globally.
+	mux.Use(func(next http.Handler) http.Handler {
+		return gorillaHandlers.CompressHandler(next)
+	})
+
 	uiPath := os.Getenv("LXD_UI")
 	uiEnabled := uiPath != "" && shared.PathExists(uiPath)
 	if uiEnabled {
@@ -86,10 +91,7 @@ func restServer(d *Daemon) *http.Server {
 			uiHandler.ServeHTTP(w, r)
 		})
 
-		// Enable gzip compression
-		uiHandlerWithGzip := gorillaHandlers.CompressHandler(uiHandlerWithSecurity)
-
-		mux.PathPrefix("/ui/").Handler(uiHandlerWithGzip)
+		mux.PathPrefix("/ui/").Handler(uiHandlerWithSecurity)
 		mux.HandleFunc("/ui", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
 		})
