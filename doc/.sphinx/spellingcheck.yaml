@@ -27,3 +27,4 @@ matrix:
       - img
       - a.p-navigation__link
       - kbd
+      - strong.command
