@@ -3598,10 +3598,14 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 				return err
 			}
 
-			// Reset img volume variables as we just deleted the old one.
+			// Reset img volume as we just deleted the old one.
 			imgDBVol = nil
-			imgVol = b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
 		}
+	}
+
+	if imgDBVol == nil {
+		// Instantiate a new volume including its own UUID.
+		imgVol = b.GetNewVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
 	}
 
 	// Check if we already have a suitable volume on storage device.
