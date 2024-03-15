@@ -66,6 +66,12 @@ int mkdir_p(const char *dir, mode_t mode)
 	return 0;
 }
 
+__attribute__((noreturn))
+static void die(const char *s)  {
+	perror(s);
+	exit(1);
+}
+
 int setup_ns() {
 	int wstatus;
 	ssize_t ret;
@@ -94,40 +100,41 @@ int setup_ns() {
 		ret = lxc_read_nointr(pipe_fds[0], nspath, 1);
 		close(pipe_fds[0]);
 		if (ret < 0) {
-			return -1;
+			die("cannot read from pipe");
 		}
 
 		// Create the mountpoint
 		if (mkdir("/var/snap/lxd/common/ns", 0700) < 0 && errno != EEXIST) {
-			return -1;
+			die("cannot mkdir /var/snap/lxd/common/ns");
 		}
 
 		// Mount a tmpfs
 		if (mount("tmpfs", "/var/snap/lxd/common/ns", "tmpfs", 0, "size=1M,mode=0700") < 0) {
-			return -1;
+			die("cannot mount tmpfs on /var/snap/lxd/common/ns");
 		}
 
 		// Mark the tmpfs mount as MS_PRIVATE
 		if (mount("none", "/var/snap/lxd/common/ns", NULL, MS_REC|MS_PRIVATE, NULL) < 0) {
-			return -1;
+			die("cannot change propagation on /var/snap/lxd/common/ns");
 		}
 
 		// Store reference to the mntns
 		if (snprintf(nspath, PATH_MAX, "/proc/%u/ns/mnt", (unsigned)getppid()) < 0) {
-			return -1;
+			die("cannot capture reference to parent's mount ns");
 		}
 
 		fd = open("/var/snap/lxd/common/ns/shmounts", O_CREAT | O_RDWR, 0600);
 		if (fd < 0) {
-			return -1;
+			die("cannot open /var/snap/lxd/common/ns/shmounts");
 		}
 		close(fd);
 
 		if (mount(nspath, "/var/snap/lxd/common/ns/shmounts", NULL, MS_BIND, NULL) < 0) {
-			return -1;
+			die("cannot bind mount ns to /var/snap/lxd/common/ns/shmounts");
 		}
 
-		return 0;
+		/* the child is done */
+		exit(0);
 	}
 
 	close(pipe_fds[0]);
