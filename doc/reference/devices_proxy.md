@@ -78,3 +78,19 @@ However, when using NAT mode, you must specify an IP address on the LXD host.
     :start-after: <!-- config group device-proxy-device-conf start -->
     :end-before: <!-- config group device-proxy-device-conf end -->
 ```
+
+## Configuration examples
+
+Add a `proxy` device that forwards traffic from one address (the `listen` address) to another address (the `connect` address) using NAT mode:
+
+    lxc config device add <instance_name> <device_name> proxy nat=true listen=tcp:<ip_address>:<port> connect=tcp:<ip_address>:<port>
+
+Add a `proxy` device that forwards traffic going to a specific IP to a Unix socket on an instance that might not have a network connection:
+
+    lxc config device add <instance_name> <device_name> proxy listen=tcp:<ip_address>:<port> connect=unix:/<socket_path_on_instance>
+
+Add a `proxy` device that forwards traffic going to a Unix socket on an instance that might not have a network connection to a specific IP address:
+
+    lxc config device add <instance_name> <device_name> proxy bind=instance listen=unix:/<socket_path_on_instance> connect=tcp:<ip_address>:<port>
+
+See {ref}`instances-configure-devices` for more information.
