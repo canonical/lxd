@@ -1260,7 +1260,7 @@
 					},
 					{
 						"ipv4.host_address": {
-							"defaultdesc": "`192.254.0.1`",
+							"defaultdesc": "`169.254.0.1`",
 							"longdesc": "",
 							"shortdesc": "IPv4 address to add to the host-side `veth` interface",
 							"type": "string"

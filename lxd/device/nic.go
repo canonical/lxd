@@ -481,7 +481,7 @@ func nicValidationRules(requiredFields []string, optionalFields []string, instCo
 		//
 		// ---
 		//  type: string
-		//  defaultdesc: `192.254.0.1`
+		//  defaultdesc: `169.254.0.1`
 		//  shortdesc: IPv4 address to add to the host-side `veth` interface
 		"ipv4.host_address": validate.Optional(validate.IsNetworkAddressV4),
 		// lxdmeta:generate(entities=device-nic-routed; group=device-conf; key=ipv6.host_address)
