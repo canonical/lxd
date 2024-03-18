@@ -6,7 +6,7 @@ _have lxc && {
       local state=$1
       local keys=$2
       local project
-      project=$(lxc project list -f csv | sed -n 's/^\([^(]\+\) (current),.*/\1/ p')
+      project=$(lxc project list --format=csv | sed -n 's/^\([^(]\+\) (current),.*/\1/ p')
       project=${project:-"default"}
 
       local cmd="lxc list --format=csv --columns=ns --project $project"
