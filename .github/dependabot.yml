@@ -19,6 +19,20 @@ updates:
     labels: []
     schedule:
       interval: "weekly"
+    target-branch: "stable-5.21"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    labels: []
+    schedule:
+      interval: "weekly"
+    target-branch: "stable-5.21"
+
+  - package-ecosystem: "gomod"
+    directory: "/"
+    labels: []
+    schedule:
+      interval: "weekly"
     target-branch: "stable-5.0"
 
   - package-ecosystem: "github-actions"
