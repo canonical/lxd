@@ -2407,3 +2407,8 @@ This extension adds a new image restriction, `requirements.nesting` which when `
 
 Adds the {config:option}`instance-miscellaneous:linux.kernel_modules.load` container configuration option. If the option is set to `ondemand`, the `finit_modules()` syscall is intercepted and a privileged user in the container's user namespace can load the Linux kernel modules specified in the
 allow list {config:option}`instance-miscellaneous:linux.kernel_modules`.
+
+## `device_usb_serial`
+
+This adds new configuration keys `serial`, `busnum` and `devnum` for device type `usb`.
+Feature has been added, to make it possible to distinguish between devices with identical `vendorid` and `productid`.
