@@ -27,7 +27,7 @@ require (
 	github.com/lxc/go-lxc v0.0.0-20230926171149-ccae595aa49e
 	github.com/mattn/go-colorable v0.1.13
 	github.com/mattn/go-sqlite3 v1.14.22
-	github.com/mdlayher/ndp v1.0.1
+	github.com/mdlayher/ndp v1.1.0
 	github.com/mdlayher/netx v0.0.0-20230430222610-7e21880baee8
 	github.com/mdlayher/vsock v1.2.1
 	github.com/miekg/dns v1.1.58
