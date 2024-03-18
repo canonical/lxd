@@ -176,6 +176,12 @@ func (r *ProtocolLXD) addClientHeaders(req *http.Request) {
 	}
 }
 
+// SupportsAuthentication returns whether the client can attempt to make trusted connections to its target server.
+// A unix client, or an http client with TLS certificates will be considered to support authentication.
+func (r *ProtocolLXD) SupportsAuthentication() bool {
+	return r.supportsAuthentication
+}
+
 // RequireAuthenticated sets whether we expect to be authenticated with the server.
 func (r *ProtocolLXD) RequireAuthenticated(authenticated bool) {
 	r.requireAuthenticated = authenticated

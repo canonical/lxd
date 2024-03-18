@@ -426,6 +426,7 @@ type InstanceServer interface {
 	DeleteWarning(UUID string) (err error)
 
 	// Authorization functions
+	SupportsAuthentication() bool
 	GetAuthGroupNames() (groupNames []string, err error)
 	GetAuthGroups() (groups []api.AuthGroup, err error)
 	GetAuthGroup(groupName string) (group *api.AuthGroup, ETag string, err error)
