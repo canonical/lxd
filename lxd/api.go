@@ -68,6 +68,11 @@ func restServer(d *Daemon) *http.Server {
 	mux.SkipClean(true)
 	mux.UseEncodedPath() // Allow encoded values in path segments.
 
+	// Enable gzip compression globally.
+	mux.Use(func(next http.Handler) http.Handler {
+		return gorillaHandlers.CompressHandler(next)
+	})
+
 	uiPath := os.Getenv("LXD_UI")
 	uiEnabled := uiPath != "" && shared.PathExists(uiPath)
 	if uiEnabled {
@@ -95,10 +100,7 @@ func restServer(d *Daemon) *http.Server {
 			uiHandler.ServeHTTP(w, r)
 		})
 
-		// Enable gzip compression
-		uiHandlerWithGzip := gorillaHandlers.CompressHandler(uiHandlerWithSecurity)
-
-		mux.PathPrefix("/ui/").Handler(uiHandlerWithGzip)
+		mux.PathPrefix("/ui/").Handler(uiHandlerWithSecurity)
 		mux.HandleFunc("/ui", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
 		})
@@ -109,7 +111,21 @@ func restServer(d *Daemon) *http.Server {
 	docEnabled := documentationPath != "" && shared.PathExists(documentationPath)
 	if docEnabled {
 		documentationHTTPDir := documentationHTTPDir{http.Dir(documentationPath)}
-		mux.PathPrefix("/documentation/").Handler(http.StripPrefix("/documentation/", http.FileServer(documentationHTTPDir)))
+
+		// Serve the LXD documentation.
+		documentationHandler := http.StripPrefix("/documentation/", http.FileServer(documentationHTTPDir))
+
+		// Set security headers
+		documentationHandlerWithSecurity := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Permissions-Policy", "interest-cohort=()")
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+			w.Header().Set("X-Xss-Protection", "1; mode=block")
+
+			documentationHandler.ServeHTTP(w, r)
+		})
+
+		mux.PathPrefix("/documentation/").Handler(documentationHandlerWithSecurity)
 		mux.HandleFunc("/documentation", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/documentation/", http.StatusMovedPermanently)
 		})
