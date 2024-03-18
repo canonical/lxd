@@ -567,10 +567,12 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 	})
 
 	progress := cli.ProgressRenderer{Format: "Transferring instance: %s"}
-	_, err = op.AddHandler(progress.UpdateOp)
-	if err != nil {
-		progress.Done("")
-		return err
+	if server.SupportsAuthentication() {
+		_, err = op.AddHandler(progress.UpdateOp)
+		if err != nil {
+			progress.Done("")
+			return err
+		}
 	}
 
 	err = transferRootfs(ctx, server, op, fullPath, c.flagRsyncArgs, config.InstanceArgs.Type)

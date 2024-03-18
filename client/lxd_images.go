@@ -653,8 +653,10 @@ func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (RemoteOpe
 			rop.targetOp = op
 			rop.handlerLock.Unlock()
 
-			for _, handler := range rop.handlers {
-				_, _ = rop.targetOp.AddHandler(handler)
+			if r.supportsAuthentication {
+				for _, handler := range rop.handlers {
+					_, _ = rop.targetOp.AddHandler(handler)
+				}
 			}
 
 			err = rop.targetOp.Wait()
@@ -854,8 +856,10 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 			rop.targetOp = op
 			rop.handlerLock.Unlock()
 
-			for _, handler := range rop.handlers {
-				_, _ = rop.targetOp.AddHandler(handler)
+			if r.supportsAuthentication {
+				for _, handler := range rop.handlers {
+					_, _ = rop.targetOp.AddHandler(handler)
+				}
 			}
 
 			err = rop.targetOp.Wait()

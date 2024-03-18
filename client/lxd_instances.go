@@ -266,8 +266,10 @@ func (r *ProtocolLXD) tryRebuildInstance(instanceName string, req api.InstanceRe
 			rop.targetOp = op
 			rop.handlerLock.Unlock()
 
-			for _, handler := range rop.handlers {
-				_, _ = rop.targetOp.AddHandler(handler)
+			if r.supportsAuthentication {
+				for _, handler := range rop.handlers {
+					_, _ = rop.targetOp.AddHandler(handler)
+				}
 			}
 
 			err = rop.targetOp.Wait()
@@ -754,8 +756,10 @@ func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op
 			rop.targetOp = op
 			rop.handlerLock.Unlock()
 
-			for _, handler := range rop.handlers {
-				_, _ = rop.targetOp.AddHandler(handler)
+			if r.supportsAuthentication {
+				for _, handler := range rop.handlers {
+					_, _ = rop.targetOp.AddHandler(handler)
+				}
 			}
 
 			err = rop.targetOp.Wait()
@@ -1111,8 +1115,10 @@ func (r *ProtocolLXD) tryMigrateInstance(source InstanceServer, name string, req
 
 			rop.targetOp = op
 
-			for _, handler := range rop.handlers {
-				_, _ = rop.targetOp.AddHandler(handler)
+			if source.SupportsAuthentication() {
+				for _, handler := range rop.handlers {
+					_, _ = rop.targetOp.AddHandler(handler)
+				}
 			}
 
 			err = rop.targetOp.Wait()
@@ -2110,8 +2116,10 @@ func (r *ProtocolLXD) tryMigrateInstanceSnapshot(source InstanceServer, instance
 
 			rop.targetOp = op
 
-			for _, handler := range rop.handlers {
-				_, _ = rop.targetOp.AddHandler(handler)
+			if source.SupportsAuthentication() {
+				for _, handler := range rop.handlers {
+					_, _ = rop.targetOp.AddHandler(handler)
+				}
 			}
 
 			err = rop.targetOp.Wait()

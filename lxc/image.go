@@ -264,10 +264,12 @@ func (c *cmdImageCopy) Run(cmd *cobra.Command, args []string) error {
 		Quiet:  c.global.flagQuiet,
 	}
 
-	_, err = op.AddHandler(progress.UpdateOp)
-	if err != nil {
-		progress.Done("")
-		return err
+	if destinationServer.SupportsAuthentication() {
+		_, err = op.AddHandler(progress.UpdateOp)
+		if err != nil {
+			progress.Done("")
+			return err
+		}
 	}
 
 	// Wait for operation to finish
@@ -1373,9 +1375,11 @@ func (c *cmdImageRefresh) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		// Register progress handler
-		_, err = op.AddHandler(progress.UpdateOp)
-		if err != nil {
-			return err
+		if resource.server.SupportsAuthentication() {
+			_, err = op.AddHandler(progress.UpdateOp)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Wait for the refresh to happen

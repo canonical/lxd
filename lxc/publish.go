@@ -254,10 +254,12 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 		Quiet:  c.global.flagQuiet,
 	}
 
-	_, err = op.AddHandler(progress.UpdateOp)
-	if err != nil {
-		progress.Done("")
-		return err
+	if s.SupportsAuthentication() {
+		_, err = op.AddHandler(progress.UpdateOp)
+		if err != nil {
+			progress.Done("")
+			return err
+		}
 	}
 
 	// Wait for the copy to complete

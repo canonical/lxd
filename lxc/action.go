@@ -183,10 +183,12 @@ func (c *cmdAction) doActionAll(action string, resource remoteResource) error {
 		Quiet: c.global.flagQuiet,
 	}
 
-	_, err = op.AddHandler(progress.UpdateOp)
-	if err != nil {
-		progress.Done("")
-		return err
+	if d.SupportsAuthentication() {
+		_, err = op.AddHandler(progress.UpdateOp)
+		if err != nil {
+			progress.Done("")
+			return err
+		}
 	}
 
 	err = cli.CancelableWait(op, &progress)
@@ -274,10 +276,12 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 		Quiet: c.global.flagQuiet,
 	}
 
-	_, err = op.AddHandler(progress.UpdateOp)
-	if err != nil {
-		progress.Done("")
-		return err
+	if d.SupportsAuthentication() {
+		_, err = op.AddHandler(progress.UpdateOp)
+		if err != nil {
+			progress.Done("")
+			return err
+		}
 	}
 
 	// Wait for operation to finish

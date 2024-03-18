@@ -97,10 +97,12 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 			Quiet: c.global.flagQuiet,
 		}
 
-		_, err = op.AddHandler(progress.UpdateOp)
-		if err != nil {
-			progress.Done("")
-			return err
+		if d.SupportsAuthentication() {
+			_, err = op.AddHandler(progress.UpdateOp)
+			if err != nil {
+				progress.Done("")
+				return err
+			}
 		}
 
 		err = cli.CancelableWait(op, &progress)
@@ -141,10 +143,12 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 			Quiet: c.global.flagQuiet,
 		}
 
-		_, err = op.AddHandler(progress.UpdateOp)
-		if err != nil {
-			progress.Done("")
-			return err
+		if d.SupportsAuthentication() {
+			_, err = op.AddHandler(progress.UpdateOp)
+			if err != nil {
+				progress.Done("")
+				return err
+			}
 		}
 
 		// Wait for operation to finish
@@ -189,10 +193,12 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 			Quiet: c.global.flagQuiet,
 		}
 
-		_, err = op.AddHandler(progress.UpdateOp)
-		if err != nil {
-			progress.Done("")
-			return err
+		if d.SupportsAuthentication() {
+			_, err = op.AddHandler(progress.UpdateOp)
+			if err != nil {
+				progress.Done("")
+				return err
+			}
 		}
 
 		err = cli.CancelableWait(op, &progress)

@@ -361,10 +361,12 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 			Quiet:  c.global.flagQuiet,
 		}
 
-		_, err = op.AddHandler(progress.UpdateOp)
-		if err != nil {
-			progress.Done("")
-			return nil, "", err
+		if d.SupportsAuthentication() {
+			_, err = op.AddHandler(progress.UpdateOp)
+			if err != nil {
+				progress.Done("")
+				return nil, "", err
+			}
 		}
 
 		err = cli.CancelableWait(op, &progress)

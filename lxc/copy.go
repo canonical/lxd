@@ -337,10 +337,12 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		Quiet:  c.global.flagQuiet,
 	}
 
-	_, err = op.AddHandler(progress.UpdateOp)
-	if err != nil {
-		progress.Done("")
-		return err
+	if dest.SupportsAuthentication() {
+		_, err = op.AddHandler(progress.UpdateOp)
+		if err != nil {
+			progress.Done("")
+			return err
+		}
 	}
 
 	// Wait for the copy to complete
@@ -381,10 +383,12 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			Quiet:  c.global.flagQuiet,
 		}
 
-		_, err = op.AddHandler(progress.UpdateOp)
-		if err != nil {
-			progress.Done("")
-			return err
+		if dest.SupportsAuthentication() {
+			_, err = op.AddHandler(progress.UpdateOp)
+			if err != nil {
+				progress.Done("")
+				return err
+			}
 		}
 
 		// Wait for the copy to complete

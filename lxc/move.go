@@ -315,11 +315,14 @@ func moveClusterInstance(conf *config.Config, sourceResource string, destResourc
 		Quiet:  quiet,
 	}
 
-	_, err = op.AddHandler(progress.UpdateOp)
-	if err != nil {
-		progress.Done("")
-		return err
+	if source.SupportsAuthentication() {
+		_, err = op.AddHandler(progress.UpdateOp)
+		if err != nil {
+			progress.Done("")
+			return err
+		}
 	}
+
 	// Wait for the move to complete
 	err = cli.CancelableWait(op, &progress)
 	if err != nil {

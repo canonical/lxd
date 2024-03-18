@@ -463,10 +463,12 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 		}
 
 		progress := cli.ProgressRenderer{Format: "Transferring container: %s"}
-		_, err = op.AddHandler(progress.UpdateOp)
-		if err != nil {
-			progress.Done("")
-			return err
+		if d.SupportsAuthentication() {
+			_, err = op.AddHandler(progress.UpdateOp)
+			if err != nil {
+				progress.Done("")
+				return err
+			}
 		}
 
 		rootfs, _ := getRootfs(conf)

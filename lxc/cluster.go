@@ -1254,10 +1254,12 @@ func (c *cmdClusterEvacuateAction) Run(cmd *cobra.Command, args []string) error 
 		Quiet:  c.global.flagQuiet,
 	}
 
-	_, err = op.AddHandler(progress.UpdateOp)
-	if err != nil {
-		progress.Done("")
-		return err
+	if resource.server.SupportsAuthentication() {
+		_, err = op.AddHandler(progress.UpdateOp)
+		if err != nil {
+			progress.Done("")
+			return err
+		}
 	}
 
 	err = op.Wait()

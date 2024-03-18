@@ -775,9 +775,11 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 			_ = op.UpdateMetadata(newOp.Metadata)
 		}
 
-		_, err = destOp.AddHandler(handler)
-		if err != nil {
-			return err
+		if dest.SupportsAuthentication() {
+			_, err = destOp.AddHandler(handler)
+			if err != nil {
+				return err
+			}
 		}
 
 		err = destOp.Wait()

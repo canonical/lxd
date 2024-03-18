@@ -207,8 +207,10 @@ func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) 
 
 			rop.targetOp = op
 
-			for _, handler := range rop.handlers {
-				_, _ = rop.targetOp.AddHandler(handler)
+			if r.supportsAuthentication {
+				for _, handler := range rop.handlers {
+					_, _ = rop.targetOp.AddHandler(handler)
+				}
 			}
 
 			err = rop.targetOp.Wait()
@@ -570,8 +572,10 @@ func (r *ProtocolLXD) tryMigrateContainer(source InstanceServer, name string, re
 
 			rop.targetOp = op
 
-			for _, handler := range rop.handlers {
-				_, _ = rop.targetOp.AddHandler(handler)
+			if source.SupportsAuthentication() {
+				for _, handler := range rop.handlers {
+					_, _ = rop.targetOp.AddHandler(handler)
+				}
 			}
 
 			err = rop.targetOp.Wait()
@@ -1262,8 +1266,10 @@ func (r *ProtocolLXD) tryMigrateContainerSnapshot(source InstanceServer, contain
 
 			rop.targetOp = op
 
-			for _, handler := range rop.handlers {
-				_, _ = rop.targetOp.AddHandler(handler)
+			if source.SupportsAuthentication() {
+				for _, handler := range rop.handlers {
+					_, _ = rop.targetOp.AddHandler(handler)
+				}
 			}
 
 			err = rop.targetOp.Wait()

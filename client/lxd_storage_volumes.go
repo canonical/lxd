@@ -438,8 +438,10 @@ func (r *ProtocolLXD) tryMigrateStoragePoolVolume(source InstanceServer, pool st
 				chDone:   make(chan bool),
 			}
 
-			for _, handler := range rop.handlers {
-				_, _ = rop.targetOp.AddHandler(handler)
+			if source.SupportsAuthentication() {
+				for _, handler := range rop.handlers {
+					_, _ = rop.targetOp.AddHandler(handler)
+				}
 			}
 
 			err = rop.targetOp.Wait()
@@ -500,8 +502,10 @@ func (r *ProtocolLXD) tryCreateStoragePoolVolume(pool string, req api.StorageVol
 				chDone:   make(chan bool),
 			}
 
-			for _, handler := range rop.handlers {
-				_, _ = rop.targetOp.AddHandler(handler)
+			if r.SupportsAuthentication() {
+				for _, handler := range rop.handlers {
+					_, _ = rop.targetOp.AddHandler(handler)
+				}
 			}
 
 			err = rop.targetOp.Wait()
