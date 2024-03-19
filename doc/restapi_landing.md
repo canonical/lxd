@@ -8,11 +8,11 @@ relatedlinks: '[Directly&#32;interacting&#32;with&#32;the&#32;LXD&#32;API](https
 ```{toctree}
 :maxdepth: 1
 
+Main API documentation <rest-api>
+api
+Main API extensions <api-extensions>
 Events API documentation <events>
 Instance API <dev-lxd>
-Main API documentation <rest-api>
-Main API extensions <api-extensions>
-api
 ```
 
 ## Related topics

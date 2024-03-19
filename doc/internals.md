@@ -3,10 +3,10 @@
 ```{filtered-toctree}
 :titlesonly:
 
-:diataxis:/daemon-behavior
 :diataxis:/environment
-:diataxis:/syscall-interception
 :diataxis:/reference/uefi_variables
+:diataxis:/daemon-behavior
+:diataxis:/syscall-interception
 :diataxis:User namespace setup </userns-idmap>
 ```
 
