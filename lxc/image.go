@@ -109,17 +109,30 @@ hash or alias name (if one is set).`))
 	return cmd
 }
 
-func (c *cmdImage) dereferenceAlias(d lxd.ImageServer, imageType string, inName string) string {
+// dereferenceAlias resolves an alias (or a fingerprint) to an image and returns the image and its etag.
+func (c *cmdImage) dereferenceAlias(d lxd.ImageServer, imageType string, inName string) (image *api.Image, etag string, err error) {
 	if inName == "" {
 		inName = "default"
 	}
 
-	result, _, _ := d.GetImageAliasType(imageType, inName)
-	if result == nil {
-		return inName
+	result, _, err := d.GetImageAliasType(imageType, inName)
+	if err != nil {
+		// Maybe that inName is a fingerprint and can't be found as an alias
+		image, etag, errImage := d.GetImage(inName)
+		if errImage != nil {
+			return nil, "", fmt.Errorf(i18n.G("Failed fetching fingerprint %q: %w"), inName, errImage)
+		}
+
+		return image, etag, nil
 	}
 
-	return result.Target
+	// Alias could be resolved, return its image
+	image, etag, err = d.GetImage(result.Target)
+	if err != nil {
+		return nil, "", fmt.Errorf(i18n.G("Failed fetching fingerprint %q for alias %q: %w"), result.Target, inName, err)
+	}
+
+	return image, etag, nil
 }
 
 // Copy.
@@ -229,8 +242,7 @@ func (c *cmdImageCopy) Run(cmd *cobra.Command, args []string) error {
 		imgInfo.Public = true
 	} else {
 		// Resolve any alias and then grab the image information from the source
-		image := c.image.dereferenceAlias(sourceServer, imageType, name)
-		imgInfo, _, err = sourceServer.GetImage(image)
+		imgInfo, _, err = c.image.dereferenceAlias(sourceServer, imageType, name)
 		if err != nil {
 			return err
 		}
@@ -335,8 +347,12 @@ func (c *cmdImageDelete) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("Image identifier missing"))
 		}
 
-		image := c.image.dereferenceAlias(resource.server, "", resource.name)
-		op, err := resource.server.DeleteImage(image)
+		image, _, err := c.image.dereferenceAlias(resource.server, "", resource.name)
+		if err != nil {
+			return err
+		}
+
+		op, err := resource.server.DeleteImage(image.Fingerprint)
 		if err != nil {
 			return err
 		}
@@ -404,9 +420,9 @@ func (c *cmdImageEdit) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Resolve any aliases
-	image := c.image.dereferenceAlias(resource.server, "", resource.name)
-	if image == "" {
-		image = resource.name
+	image, etag, err := c.image.dereferenceAlias(resource.server, "", resource.name)
+	if err != nil {
+		return err
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -422,16 +438,10 @@ func (c *cmdImageEdit) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return resource.server.UpdateImage(image, newdata, "")
+		return resource.server.UpdateImage(image.Fingerprint, newdata, "")
 	}
 
-	// Extract the current value
-	imgInfo, etag, err := resource.server.GetImage(image)
-	if err != nil {
-		return err
-	}
-
-	brief := imgInfo.Writable()
+	brief := image.Writable()
 	data, err := yaml.Marshal(&brief)
 	if err != nil {
 		return err
@@ -448,7 +458,7 @@ func (c *cmdImageEdit) Run(cmd *cobra.Command, args []string) error {
 		newdata := api.ImagePut{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
-			err = resource.server.UpdateImage(image, newdata, etag)
+			err = resource.server.UpdateImage(image.Fingerprint, newdata, etag)
 		}
 
 		// Respawn the editor
@@ -522,11 +532,14 @@ func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
 		imageType = "virtual-machine"
 	}
 
-	fingerprint := c.image.dereferenceAlias(remoteServer, imageType, name)
+	image, _, err := c.image.dereferenceAlias(remoteServer, imageType, name)
+	if err != nil {
+		return err
+	}
 
 	// Default target is current directory
 	target := "."
-	targetMeta := fingerprint
+	targetMeta := image.Fingerprint
 	if len(args) > 1 {
 		target = args[1]
 		if shared.IsDir(shared.HostPathFollow(args[1])) {
@@ -566,7 +579,7 @@ func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Download the image
-	resp, err := remoteServer.GetImageFile(fingerprint, req)
+	resp, err := remoteServer.GetImageFile(image.Fingerprint, req)
 	if err != nil {
 		_ = os.Remove(targetMeta)
 		_ = os.Remove(targetRootfs)
@@ -914,8 +927,7 @@ func (c *cmdImageInfo) Run(cmd *cobra.Command, args []string) error {
 		imageType = "virtual-machine"
 	}
 
-	image := c.image.dereferenceAlias(remoteServer, imageType, name)
-	info, _, err := remoteServer.GetImage(image)
+	info, _, err := c.image.dereferenceAlias(remoteServer, imageType, name)
 	if err != nil {
 		return err
 	}
@@ -1361,13 +1373,17 @@ func (c *cmdImageRefresh) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("Image identifier missing"))
 		}
 
-		image := c.image.dereferenceAlias(resource.server, "", resource.name)
+		image, _, err := c.image.dereferenceAlias(resource.server, "", resource.name)
+		if err != nil {
+			return err
+		}
+
 		progress := cli.ProgressRenderer{
 			Format: i18n.G("Refreshing the image: %s"),
 			Quiet:  c.global.flagQuiet,
 		}
 
-		op, err := resource.server.RefreshImage(image)
+		op, err := resource.server.RefreshImage(image.Fingerprint)
 		if err != nil {
 			return err
 		}
@@ -1448,13 +1464,12 @@ func (c *cmdImageShow) Run(cmd *cobra.Command, args []string) error {
 		imageType = "virtual-machine"
 	}
 
-	image := c.image.dereferenceAlias(remoteServer, imageType, name)
-	info, _, err := remoteServer.GetImage(image)
+	image, _, err := c.image.dereferenceAlias(remoteServer, imageType, name)
 	if err != nil {
 		return err
 	}
 
-	properties := info.Writable()
+	properties := image.Writable()
 	data, err := yaml.Marshal(&properties)
 	if err != nil {
 		return err
@@ -1501,13 +1516,12 @@ func (c *cmdImageGetProp) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get the corresponding property
-	image := c.image.dereferenceAlias(remoteServer, "", name)
-	info, _, err := remoteServer.GetImage(image)
+	image, _, err := c.image.dereferenceAlias(remoteServer, "", name)
 	if err != nil {
 		return err
 	}
 
-	prop, propFound := info.Properties[args[1]]
+	prop, propFound := image.Properties[args[1]]
 	if !propFound {
 		return fmt.Errorf(i18n.G("Property not found"))
 	}
@@ -1554,17 +1568,16 @@ func (c *cmdImageSetProp) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Show properties
-	image := c.image.dereferenceAlias(resource.server, "", resource.name)
-	info, etag, err := resource.server.GetImage(image)
+	image, etag, err := c.image.dereferenceAlias(resource.server, "", resource.name)
 	if err != nil {
 		return err
 	}
 
-	properties := info.Writable()
+	properties := image.Writable()
 	properties.Properties[args[1]] = args[2]
 
 	// Update image
-	err = resource.server.UpdateImage(image, properties, etag)
+	err = resource.server.UpdateImage(image.Fingerprint, properties, etag)
 	if err != nil {
 		return err
 	}
