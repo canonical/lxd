@@ -8334,6 +8334,12 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 		d.logger.Warn("Failed to get oom kills", logger.Ctx{"err": err})
 	}
 
+	// If we failed to get OOM kills, because of a couple of reasons (instance stopped, cgroup controller not available, etc),
+	// we default to 0 instead of -1 for the MemoryOOMKillsTotal metric (a total of `-1` would be misleading).
+	if oomKills < 0 {
+		oomKills = 0
+	}
+
 	out.AddSamples(metrics.MemoryOOMKillsTotal, metrics.Sample{Value: float64(oomKills)})
 
 	// Handle swap.
@@ -8342,6 +8348,12 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 		if err != nil && isRunning {
 			d.logger.Warn("Failed to get swap usage", logger.Ctx{"err": err})
 		} else {
+			// If we failed to get swap memory usage, because of a couple of reasons (instance stopped, cgroup controller not available, etc),
+			// we default to 0 instead of -1 for the MemorySwapBytes metric (`-1` bytes would be misleading).
+			if swapUsage < 0 {
+				swapUsage = 0
+			}
+
 			out.AddSamples(metrics.MemorySwapBytes, metrics.Sample{Value: float64(swapUsage)})
 		}
 	}
@@ -8364,6 +8376,12 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	if err != nil && isRunning {
 		d.logger.Warn("Failed to get CPUs", logger.Ctx{"err": err})
 	} else {
+		// If we failed to get the number of total effective CPUs, because of a couple of reasons (instance stopped, cgroup controller not available, etc),
+		// we default to 0 instead of -1 for the CPUs metric (a total of `-1` would be misleading).
+		if CPUs < 0 {
+			CPUs = 0
+		}
+
 		out.AddSamples(metrics.CPUs, metrics.Sample{Value: float64(CPUs)})
 	}
 
