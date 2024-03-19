@@ -8244,6 +8244,16 @@ func (d *lxc) Info() instance.Info {
 	}
 }
 
+// Helper function to adapt metric value based on instance state.
+func adaptMetricValueWithState(value float64, isInstanceRunning bool) float64 {
+	// Set value to 0 if instance is not running.
+	if !isInstanceRunning {
+		return 0
+	}
+
+	return value
+}
+
 // Metrics returns the metric set for the LXC driver. It collects various metrics related to memory, CPU, disk, filesystem, and network usage.
 func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
 	state := instance.PowerStateStopped
