@@ -6202,6 +6202,11 @@ definitions:
                 example: foo
                 type: string
                 x-go-name: Name
+            pool:
+                description: Name of the pool the volume is using
+                example: '"default"'
+                type: string
+                x-go-name: Pool
             project:
                 description: Project containing the volume.
                 example: default
@@ -16232,6 +16237,240 @@ paths:
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Get the storage pools
+            tags:
+                - storage
+    /1.0/storage-volumes:
+        get:
+            description: Returns a list of storage volumes (URLs).
+            operationId: storage_volumes_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Indicates whether volumes from all projects should be returned
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: bool
+                - description: Cluster member name
+                  example: lxd01
+                  in: query
+                  name: target
+                  type: string
+                - description: Collection filter
+                  example: default
+                  in: query
+                  name: filter
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of endpoints
+                                example: |-
+                                    [
+                                      "/1.0/storage-pools/local/volumes/container/a1",
+                                      "/1.0/storage-pools/local/volumes/container/a2",
+                                      "/1.0/storage-pools/local/volumes/custom/backups",
+                                      "/1.0/storage-pools/local/volumes/custom/images"
+                                    ]
+                                items:
+                                    type: string
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the storage volumes
+            tags:
+                - storage
+    /1.0/storage-volumes/{type}:
+        get:
+            description: Returns a list of storage volumes (URLs) (type specific endpoint).
+            operationId: storage_pool_volumes_type_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Indicates whether volumes from all projects should be returned
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: bool
+                - description: Cluster member name
+                  example: lxd01
+                  in: query
+                  name: target
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of endpoints
+                                example: |-
+                                    [
+                                      "/1.0/storage-pools/local/volumes/custom/backups",
+                                      "/1.0/storage-pools/local/volumes/custom/images"
+                                    ]
+                                items:
+                                    type: string
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the storage volumes
+            tags:
+                - storage
+    /1.0/storage-volumes/{type}?recursion=1:
+        get:
+            description: Returns a list of storage volumes (structs) (type specific endpoint).
+            operationId: storage_pool_volumes_type_get_recursion1
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Indicates whether volumes from all projects should be returned
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: bool
+                - description: Cluster member name
+                  example: lxd01
+                  in: query
+                  name: target
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of storage volumes
+                                items:
+                                    $ref: '#/definitions/StorageVolume'
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the storage volumes
+            tags:
+                - storage
+    /1.0/storage-volumes?recursion=1:
+        get:
+            description: Returns a list of storage volumes (structs).
+            operationId: storage_pool_volumes_get_recursion1
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Indicates whether volumes from all projects should be returned
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: bool
+                - description: Cluster member name
+                  example: lxd01
+                  in: query
+                  name: target
+                  type: string
+                - description: Collection filter
+                  example: default
+                  in: query
+                  name: filter
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of storage volumes
+                                items:
+                                    $ref: '#/definitions/StorageVolume'
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the storage volumes
             tags:
                 - storage
     /1.0/warnings:
