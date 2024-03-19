@@ -34,12 +34,12 @@ Instance devices
   See {ref}`devices` for a reference of available devices and the corresponding instance device options, and {ref}`instances-configure-devices` for instructions on how to add and configure instance devices.
 
 ```{toctree}
-:maxdepth: 1
+:maxdepth: 2
 :hidden:
 
-../reference/devices.md
-../reference/instance_options.md
 ../reference/instance_properties.md
+../reference/instance_options.md
+../reference/devices.md
 ../reference/instance_units.md
 ```
 
