@@ -8322,7 +8322,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 				memoryCached = int64(v)
 			}
 
-			out.AddSamples(metricType, metrics.Sample{Value: float64(v)})
+			out.AddSamples(metricType, metrics.Sample{Value: adaptMetricValueWithState(float64(v), isRunning)})
 		}
 	}
 
@@ -8333,9 +8333,9 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	}
 
 	if memoryLimit > 0 {
-		out.AddSamples(metrics.MemoryMemTotalBytes, metrics.Sample{Value: float64(memoryLimit)})
-		out.AddSamples(metrics.MemoryMemAvailableBytes, metrics.Sample{Value: float64(memoryLimit - memoryUsage + memoryCached)})
-		out.AddSamples(metrics.MemoryMemFreeBytes, metrics.Sample{Value: float64(memoryLimit - memoryUsage)})
+		out.AddSamples(metrics.MemoryMemTotalBytes, metrics.Sample{Value: adaptMetricValueWithState(float64(memoryLimit), isRunning)})
+		out.AddSamples(metrics.MemoryMemAvailableBytes, metrics.Sample{Value: adaptMetricValueWithState(float64(memoryLimit-memoryUsage+memoryCached), isRunning)})
+		out.AddSamples(metrics.MemoryMemFreeBytes, metrics.Sample{Value: adaptMetricValueWithState(float64(memoryLimit-memoryUsage), isRunning)})
 	}
 
 	// Get oom kills.
@@ -8350,7 +8350,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 		oomKills = 0
 	}
 
-	out.AddSamples(metrics.MemoryOOMKillsTotal, metrics.Sample{Value: float64(oomKills)})
+	out.AddSamples(metrics.MemoryOOMKillsTotal, metrics.Sample{Value: adaptMetricValueWithState(float64(oomKills), isRunning)})
 
 	// Handle swap.
 	if d.state.OS.CGInfo.Supports(cgroup.MemorySwapUsage, cg) {
@@ -8364,7 +8364,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 				swapUsage = 0
 			}
 
-			out.AddSamples(metrics.MemorySwapBytes, metrics.Sample{Value: float64(swapUsage)})
+			out.AddSamples(metrics.MemorySwapBytes, metrics.Sample{Value: adaptMetricValueWithState(float64(swapUsage), isRunning)})
 		}
 	}
 
@@ -8376,8 +8376,8 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 		for cpu, stats := range usage {
 			cpuID := strconv.Itoa(int(cpu))
 
-			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: float64(stats.System) / 1000000000, Labels: map[string]string{"mode": "system", "cpu": cpuID}})
-			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: float64(stats.User) / 1000000000, Labels: map[string]string{"mode": "user", "cpu": cpuID}})
+			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: adaptMetricValueWithState(float64(stats.System)/1000000000, isRunning), Labels: map[string]string{"mode": "system", "cpu": cpuID}})
+			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: adaptMetricValueWithState(float64(stats.User)/1000000000, isRunning), Labels: map[string]string{"mode": "user", "cpu": cpuID}})
 		}
 	}
 
@@ -8392,7 +8392,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 			CPUs = 0
 		}
 
-		out.AddSamples(metrics.CPUs, metrics.Sample{Value: float64(CPUs)})
+		out.AddSamples(metrics.CPUs, metrics.Sample{Value: adaptMetricValueWithState(float64(CPUs), isRunning)})
 	}
 
 	// Get disk stats
@@ -8403,10 +8403,10 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 		for disk, stats := range diskStats {
 			labels := map[string]string{"device": disk}
 
-			out.AddSamples(metrics.DiskReadBytesTotal, metrics.Sample{Value: float64(stats.ReadBytes), Labels: labels})
-			out.AddSamples(metrics.DiskReadsCompletedTotal, metrics.Sample{Value: float64(stats.ReadsCompleted), Labels: labels})
-			out.AddSamples(metrics.DiskWrittenBytesTotal, metrics.Sample{Value: float64(stats.WrittenBytes), Labels: labels})
-			out.AddSamples(metrics.DiskWritesCompletedTotal, metrics.Sample{Value: float64(stats.WritesCompleted), Labels: labels})
+			out.AddSamples(metrics.DiskReadBytesTotal, metrics.Sample{Value: adaptMetricValueWithState(float64(stats.ReadBytes), isRunning), Labels: labels})
+			out.AddSamples(metrics.DiskReadsCompletedTotal, metrics.Sample{Value: adaptMetricValueWithState(float64(stats.ReadsCompleted), isRunning), Labels: labels})
+			out.AddSamples(metrics.DiskWrittenBytesTotal, metrics.Sample{Value: adaptMetricValueWithState(float64(stats.WrittenBytes), isRunning), Labels: labels})
+			out.AddSamples(metrics.DiskWritesCompletedTotal, metrics.Sample{Value: adaptMetricValueWithState(float64(stats.WritesCompleted), isRunning), Labels: labels})
 		}
 	}
 
@@ -8424,14 +8424,14 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	for name, state := range networkState {
 		labels := map[string]string{"device": name}
 
-		out.AddSamples(metrics.NetworkReceiveBytesTotal, metrics.Sample{Value: float64(state.Counters.BytesReceived), Labels: labels})
-		out.AddSamples(metrics.NetworkReceivePacketsTotal, metrics.Sample{Value: float64(state.Counters.PacketsReceived), Labels: labels})
-		out.AddSamples(metrics.NetworkTransmitBytesTotal, metrics.Sample{Value: float64(state.Counters.BytesSent), Labels: labels})
-		out.AddSamples(metrics.NetworkTransmitPacketsTotal, metrics.Sample{Value: float64(state.Counters.PacketsSent), Labels: labels})
-		out.AddSamples(metrics.NetworkReceiveErrsTotal, metrics.Sample{Value: float64(state.Counters.ErrorsReceived), Labels: labels})
-		out.AddSamples(metrics.NetworkTransmitErrsTotal, metrics.Sample{Value: float64(state.Counters.ErrorsSent), Labels: labels})
-		out.AddSamples(metrics.NetworkReceiveDropTotal, metrics.Sample{Value: float64(state.Counters.PacketsDroppedInbound), Labels: labels})
-		out.AddSamples(metrics.NetworkTransmitDropTotal, metrics.Sample{Value: float64(state.Counters.PacketsDroppedOutbound), Labels: labels})
+		out.AddSamples(metrics.NetworkReceiveBytesTotal, metrics.Sample{Value: adaptMetricValueWithState(float64(state.Counters.BytesReceived), isRunning), Labels: labels})
+		out.AddSamples(metrics.NetworkReceivePacketsTotal, metrics.Sample{Value: adaptMetricValueWithState(float64(state.Counters.PacketsReceived), isRunning), Labels: labels})
+		out.AddSamples(metrics.NetworkTransmitBytesTotal, metrics.Sample{Value: adaptMetricValueWithState(float64(state.Counters.BytesSent), isRunning), Labels: labels})
+		out.AddSamples(metrics.NetworkTransmitPacketsTotal, metrics.Sample{Value: adaptMetricValueWithState(float64(state.Counters.PacketsSent), isRunning), Labels: labels})
+		out.AddSamples(metrics.NetworkReceiveErrsTotal, metrics.Sample{Value: adaptMetricValueWithState(float64(state.Counters.ErrorsReceived), isRunning), Labels: labels})
+		out.AddSamples(metrics.NetworkTransmitErrsTotal, metrics.Sample{Value: adaptMetricValueWithState(float64(state.Counters.ErrorsSent), isRunning), Labels: labels})
+		out.AddSamples(metrics.NetworkReceiveDropTotal, metrics.Sample{Value: adaptMetricValueWithState(float64(state.Counters.PacketsDroppedInbound), isRunning), Labels: labels})
+		out.AddSamples(metrics.NetworkTransmitDropTotal, metrics.Sample{Value: adaptMetricValueWithState(float64(state.Counters.PacketsDroppedOutbound), isRunning), Labels: labels})
 	}
 
 	// Get number of processes
@@ -8439,7 +8439,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	if err != nil && isRunning {
 		d.logger.Warn("Failed to get total number of processes", logger.Ctx{"err": err})
 	} else {
-		out.AddSamples(metrics.ProcsTotal, metrics.Sample{Value: float64(pids)})
+		out.AddSamples(metrics.ProcsTotal, metrics.Sample{Value: adaptMetricValueWithState(float64(pids), isRunning)})
 	}
 
 	return out, nil
@@ -8466,6 +8466,8 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 
 		mountMap[fields[0]] = mountInfo{Mountpoint: fields[1], FSType: fields[2]}
 	}
+
+	isRunning := d.IsRunning()
 
 	// Get disk devices
 	for _, dev := range d.expandedDevices {
@@ -8576,9 +8578,9 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 
 		// Add sample
 		statfsBsize := uint64(statfs.Bsize)
-		out.AddSamples(metrics.FilesystemSizeBytes, metrics.Sample{Value: float64(statfs.Blocks * statfsBsize), Labels: labels})
-		out.AddSamples(metrics.FilesystemAvailBytes, metrics.Sample{Value: float64(statfs.Bavail * statfsBsize), Labels: labels})
-		out.AddSamples(metrics.FilesystemFreeBytes, metrics.Sample{Value: float64(statfs.Bfree * statfsBsize), Labels: labels})
+		out.AddSamples(metrics.FilesystemSizeBytes, metrics.Sample{Value: adaptMetricValueWithState(float64(statfs.Blocks*statfsBsize), isRunning), Labels: labels})
+		out.AddSamples(metrics.FilesystemAvailBytes, metrics.Sample{Value: adaptMetricValueWithState(float64(statfs.Bavail*statfsBsize), isRunning), Labels: labels})
+		out.AddSamples(metrics.FilesystemFreeBytes, metrics.Sample{Value: adaptMetricValueWithState(float64(statfs.Bfree*statfsBsize), isRunning), Labels: labels})
 	}
 
 	return out, nil
