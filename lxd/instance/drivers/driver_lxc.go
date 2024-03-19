@@ -8246,8 +8246,7 @@ func (d *lxc) Info() instance.Info {
 
 // Metrics returns the metric set for the LXC driver. It collects various metrics related to memory, CPU, disk, filesystem, and network usage.
 func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
-	isRunning := d.IsRunning()
-	if !isRunning {
+	if !d.IsRunning() {
 		return nil, ErrInstanceIsStopped
 	}
 
@@ -8274,7 +8273,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 
 	// Get memory stats.
 	memStats, err := cg.GetMemoryStats()
-	if err != nil && isRunning {
+	if err != nil {
 		d.logger.Warn("Failed to get memory stats", logger.Ctx{"err": err})
 	} else {
 		for k, v := range memStats {
@@ -8316,7 +8315,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 
 	// Get memory usage.
 	memoryUsage, err := cg.GetMemoryUsage()
-	if err != nil && isRunning {
+	if err != nil {
 		d.logger.Warn("Failed to get memory usage", logger.Ctx{"err": err})
 	}
 
@@ -8328,8 +8327,14 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 
 	// Get oom kills.
 	oomKills, err := cg.GetOOMKills()
-	if err != nil && isRunning {
+	if err != nil {
 		d.logger.Warn("Failed to get oom kills", logger.Ctx{"err": err})
+	}
+
+	// If we failed to get OOM kills, because of a couple of reasons (instance stopped, cgroup controller not available, etc),
+	// we default to 0 instead of -1 for the MemoryOOMKillsTotal metric (a total of `-1` would be misleading).
+	if oomKills < 0 {
+		oomKills = 0
 	}
 
 	out.AddSamples(metrics.MemoryOOMKillsTotal, metrics.Sample{Value: float64(oomKills)})
@@ -8337,16 +8342,22 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	// Handle swap.
 	if d.state.OS.CGInfo.Supports(cgroup.MemorySwapUsage, cg) {
 		swapUsage, err := cg.GetMemorySwapUsage()
-		if err != nil && isRunning {
+		if err != nil {
 			d.logger.Warn("Failed to get swap usage", logger.Ctx{"err": err})
 		} else {
+			// If we failed to get swap memory usage, because of a couple of reasons (instance stopped, cgroup controller not available, etc),
+			// we default to 0 instead of -1 for the MemorySwapBytes metric (`-1` bytes would be misleading).
+			if swapUsage < 0 {
+				swapUsage = 0
+			}
+
 			out.AddSamples(metrics.MemorySwapBytes, metrics.Sample{Value: float64(swapUsage)})
 		}
 	}
 
 	// Get CPU stats
 	usage, err := cg.GetCPUAcctUsageAll()
-	if err != nil && isRunning {
+	if err != nil {
 		d.logger.Warn("Failed to get CPU usage", logger.Ctx{"err": err})
 	} else {
 		for cpu, stats := range usage {
@@ -8359,15 +8370,21 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 
 	// Get CPUs.
 	CPUs, err := cg.GetEffectiveCPUs()
-	if err != nil && isRunning {
+	if err != nil {
 		d.logger.Warn("Failed to get CPUs", logger.Ctx{"err": err})
 	} else {
+		// If we failed to get the number of total effective CPUs, because of a couple of reasons (instance stopped, cgroup controller not available, etc),
+		// we default to 0 instead of -1 for the CPUs metric (a total of `-1` would be misleading).
+		if CPUs < 0 {
+			CPUs = 0
+		}
+
 		out.AddSamples(metrics.CPUs, metrics.Sample{Value: float64(CPUs)})
 	}
 
 	// Get disk stats
 	diskStats, err := cg.GetIOStats()
-	if err != nil && isRunning {
+	if err != nil {
 		d.logger.Warn("Failed to get disk stats", logger.Ctx{"err": err})
 	} else {
 		for disk, stats := range diskStats {
@@ -8382,7 +8399,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 
 	// Get filesystem stats
 	fsStats, err := d.getFSStats()
-	if err != nil && isRunning {
+	if err != nil {
 		d.logger.Warn("Failed to get fs stats", logger.Ctx{"err": err})
 	} else {
 		out.Merge(fsStats)
@@ -8406,7 +8423,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 
 	// Get number of processes
 	pids, err := d.processesState(d.InitPID())
-	if err != nil && isRunning {
+	if err != nil {
 		d.logger.Warn("Failed to get total number of processes", logger.Ctx{"err": err})
 	} else {
 		out.AddSamples(metrics.ProcsTotal, metrics.Sample{Value: float64(pids)})
