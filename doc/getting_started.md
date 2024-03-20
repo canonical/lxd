@@ -43,7 +43,7 @@ You can also find a series of demos and tutorials on YouTube:
 :maxdepth: 1
 
 :topical:/tutorial/first_steps
-:topical:/explanation/containers_and_vms
+:topical:/explanation/instances
 :topical:/requirements
 :topical:Install LXD </installing>
 :topical:Initialize LXD </howto/initialize>
