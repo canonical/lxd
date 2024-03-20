@@ -12,9 +12,9 @@ import (
 	"sync"
 
 	"github.com/canonical/lxd/lxd/project"
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 // iptablesChainNICFilterPrefix chain prefix used for NIC specific filtering rules.

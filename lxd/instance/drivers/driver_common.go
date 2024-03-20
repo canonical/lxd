@@ -29,12 +29,12 @@ import (
 	"github.com/canonical/lxd/lxd/maas"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 // ErrExecCommandNotFound indicates the command is not found.
@@ -321,7 +321,7 @@ func (d *common) Snapshots() ([]instance.Instance, error) {
 func (d *common) VolatileSet(changes map[string]string) error {
 	// Quick check.
 	for key := range changes {
-		if !strings.HasPrefix(key, shared.ConfigVolatilePrefix) {
+		if !strings.HasPrefix(key, instancetype.ConfigVolatilePrefix) {
 			return fmt.Errorf("Only volatile keys can be modified with VolatileSet")
 		}
 	}
@@ -919,7 +919,7 @@ func (d *common) validateStartup(stateful bool, statusCode api.StatusCode) error
 	// pre-start check here before the isStartableStatusCode check below so that if there is a problem loading
 	// the instance status because the storage pool isn't available we don't mask the StatusServiceUnavailable
 	// error with an ERROR status code from the instance check instead.
-	_, rootDiskConf, err := shared.GetRootDiskDevice(d.expandedDevices.CloneNative())
+	_, rootDiskConf, err := instancetype.GetRootDiskDevice(d.expandedDevices.CloneNative())
 	if err != nil {
 		return err
 	}
@@ -1099,7 +1099,7 @@ func (d *common) getRootDiskDevice() (string, map[string]string, error) {
 	}
 
 	// Retrieve the instance's storage pool.
-	name, configuration, err := shared.GetRootDiskDevice(devices.CloneNative())
+	name, configuration, err := instancetype.GetRootDiskDevice(devices.CloneNative())
 	if err != nil {
 		return "", nil, err
 	}

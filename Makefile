@@ -111,7 +111,7 @@ update-schema:
 .PHONY: update-api
 update-api:
 ifeq "$(LXD_OFFLINE)" ""
-	(cd / ; go install -v -x github.com/go-swagger/go-swagger/cmd/swagger@latest)
+	(cd / ; go install github.com/go-swagger/go-swagger/cmd/swagger@latest)
 endif
 	swagger generate spec -o doc/rest-api.yaml -w ./lxd -m
 
@@ -135,7 +135,7 @@ doc: doc-setup doc-incremental
 .PHONY: doc-incremental
 doc-incremental:
 	@echo "Build the documentation"
-	. $(SPHINXENV) ; LOCAL_SPHINX_BUILD=True sphinx-build -c doc/ -b dirhtml doc/ doc/html/ -d doc/.sphinx/.doctrees -w doc/.sphinx/warnings.txt
+	. $(SPHINXENV) ; LOCAL_SPHINX_BUILD=True sphinx-build -c doc/ -b dirhtml doc/ doc/html/ -d doc/.sphinx/.doctrees -w doc/.sphinx/warnings.txt -j auto
 
 .PHONY: doc-serve
 doc-serve:
@@ -143,11 +143,11 @@ doc-serve:
 
 .PHONY: doc-spellcheck
 doc-spellcheck: doc
-	. $(SPHINXENV) ; python3 -m pyspelling -c doc/.sphinx/.spellcheck.yaml
+	. $(SPHINXENV) ; python3 -m pyspelling -c doc/.sphinx/spellingcheck.yaml -j $(shell nproc)
 
 .PHONY: doc-linkcheck
 doc-linkcheck: doc-setup
-	. $(SPHINXENV) ; LOCAL_SPHINX_BUILD=True sphinx-build -c doc/ -b linkcheck doc/ doc/html/ -d doc/.sphinx/.doctrees
+	. $(SPHINXENV) ; LOCAL_SPHINX_BUILD=True sphinx-build -c doc/ -b linkcheck doc/ doc/html/ -d doc/.sphinx/.doctrees -j auto
 
 .PHONY: doc-lint
 doc-lint:
@@ -196,9 +196,9 @@ endif
 .PHONY: check
 check: default
 ifeq "$(LXD_OFFLINE)" ""
-	(cd / ; go install -v -x github.com/rogpeppe/godeps@latest)
-	(cd / ; go install -v -x github.com/tsenart/deadcode@latest)
-	(cd / ; go install -v -x golang.org/x/lint/golint@latest)
+	(cd / ; go install github.com/rogpeppe/godeps@latest)
+	(cd / ; go install github.com/tsenart/deadcode@latest)
+	(cd / ; go install golang.org/x/lint/golint@latest)
 endif
 	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	cd test && ./main.sh
@@ -251,7 +251,7 @@ update-po:
 .PHONY: update-pot
 update-pot:
 ifeq "$(LXD_OFFLINE)" ""
-	(cd / ; go install -v -x github.com/snapcore/snapd/i18n/xgettext-go@2.57.1)
+	(cd / ; go install github.com/snapcore/snapd/i18n/xgettext-go@2.57.1)
 endif
 	xgettext-go -o po/$(DOMAIN).pot --add-comments-tag=TRANSLATORS: --sort-output --package-name=$(DOMAIN) --msgid-bugs-address=lxd@lists.canonical.com --keyword=i18n.G --keyword-plural=i18n.NG lxc/*.go lxc/*/*.go
 
@@ -278,12 +278,12 @@ endif
 	flake8 test/deps/import-busybox
 	shellcheck --shell sh test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh
 	shellcheck test/extras/*.sh
-	run-parts --exit-on-error --regex '.sh' test/lint
+	run-parts --verbose --exit-on-error --regex '.sh' test/lint
 
 .PHONY: staticcheck
 staticcheck:
 ifeq ($(shell command -v staticcheck),)
-	(cd / ; go install -v -x honnef.co/go/tools/cmd/staticcheck@latest)
+	(cd / ; go install honnef.co/go/tools/cmd/staticcheck@latest)
 endif
 	# To get advance notice of deprecated function usage, consider running:
 	#   sed -i 's/^go 1\.[0-9]\+$/go 1.20/' go.mod

@@ -13,10 +13,10 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	deviceconfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/idmap"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
 )
@@ -183,7 +183,7 @@ func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instanc
 			return true
 		}
 
-		if strings.HasPrefix(key, shared.ConfigVolatilePrefix) {
+		if strings.HasPrefix(key, instancetype.ConfigVolatilePrefix) {
 			if strings.HasSuffix(key, ".apply_quota") {
 				return true
 			}
@@ -197,7 +197,7 @@ func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instanc
 	}
 
 	for key, value := range config {
-		if !strings.HasPrefix(key, shared.ConfigVolatilePrefix) {
+		if !strings.HasPrefix(key, instancetype.ConfigVolatilePrefix) {
 			continue
 		}
 
@@ -1301,7 +1301,7 @@ func getInstanceLimits(instance api.Instance, keys []string, skipUnset bool) (ma
 		parser := aggregateLimitConfigValueParsers[key]
 
 		if key == "limits.disk" {
-			_, device, err := shared.GetRootDiskDevice(instance.Devices)
+			_, device, err := instancetype.GetRootDiskDevice(instance.Devices)
 			if err != nil {
 				return nil, fmt.Errorf("Failed getting root disk device for instance %q in project %q: %w", instance.Name, instance.Project, err)
 			}

@@ -71,9 +71,16 @@ func (s *OS) initAppArmor() []cluster.Warning {
 
 	/* Detect AppArmor confinment */
 	profile := util.AppArmorProfile()
-	if profile != "unconfined" && profile != "" {
+	/* if AppArmor is enabled on the system but there is no profile then
+	   the application has the profile name "unconfined", or if AppArmor
+	   is not supported then the label will be empty and finally newer
+	   AppArmor releases support a profile mode "unconfined" where an
+	   application can have a profile defined for it which effectively
+	   is equivalent to the traditional "unconfined" label - in this case
+	   the label will have the suffix " (unconfined)" */
+	if profile != "unconfined" && profile != "" && !strings.HasSuffix(profile, "(unconfined)") {
 		if s.AppArmorAvailable {
-			logger.Warnf("Per-container AppArmor profiles are disabled because LXD is already protected by AppArmor")
+			logger.Warnf("Per-container AppArmor profiles are disabled because LXD is already protected by AppArmor via profile %q", profile)
 		}
 
 		s.AppArmorConfined = true

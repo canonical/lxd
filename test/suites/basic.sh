@@ -639,3 +639,8 @@ test_basic_usage() {
   remaining_instances="$(lxc list --format csv)"
   [ -z "${remaining_instances}" ]
 }
+
+test_server_info() {
+  # Ensure server always reports support for containers.
+  lxc query /1.0 | jq -e '.environment.instance_types | contains(["container"])'
+}

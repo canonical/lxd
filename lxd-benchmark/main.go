@@ -96,8 +96,8 @@ func main() {
 	app.Example = `  # Spawn 20 Ubuntu containers in batches of 4
   lxd-benchmark launch --count 20 --parallel 4
 
-  # Create 50 Alpine containers in batches of 10
-  lxd-benchmark init --count 50 --parallel 10 images:alpine/edge
+  # Create 50 Ubuntu Minimal 22.04 containers in batches of 10
+  lxd-benchmark init --count 50 --parallel 10 ubuntu-minimal:22.04
 
   # Delete all test containers using dynamic batch size
   lxd-benchmark delete`

@@ -49,6 +49,29 @@ macOS               | [Homebrew](https://formulae.brew.sh/formula/lxc)  | `brew 
 
 For more instructions on installing LXD for a wide variety of Linux distributions and operating systems, and to install LXD from source, see [How to install LXD](https://documentation.ubuntu.com/lxd/en/stable-5.0/installing/) in the documentation.
 
+## Client SDK packages
+
+The LXD project provides SDK client packages for interacting with LXD servers from your own software.
+
+These SDKs are licensed as Apache-2.0.
+
+Language  | URL
+---       | ---
+Go        | https://pkg.go.dev/github.com/canonical/lxd/client
+Python    | https://github.com/canonical/pylxd
+
+For more information on using the LXD API, see [REST API](https://documentation.ubuntu.com/lxd/en/latest/restapi_landing/) in the documentation.
+
+## Tools for managing LXD
+
+If you are looking for tools (beyond `lxc` CLI) to manage LXD at scale (from single server to wide clusters), the following projects can be useful:
+
+Tool                        | Link
+---                         | ---
+Ansible - connection plugin | https://galaxy.ansible.com/ui/repo/published/community/general/content/connection/lxd/
+Ansible - inventory plugin  | https://galaxy.ansible.com/ui/repo/published/community/general/content/inventory/lxd/
+Terraform provider          | https://registry.terraform.io/providers/terraform-lxd/lxd
+
 ## Security
 
 <!-- Include start security -->

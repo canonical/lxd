@@ -12,6 +12,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -212,16 +213,16 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 }
 
 func instanceActionToOptype(action string) (operationtype.Type, error) {
-	switch shared.InstanceAction(action) {
-	case shared.Start:
+	switch instancetype.InstanceAction(action) {
+	case instancetype.Start:
 		return operationtype.InstanceStart, nil
-	case shared.Stop:
+	case instancetype.Stop:
 		return operationtype.InstanceStop, nil
-	case shared.Restart:
+	case instancetype.Restart:
 		return operationtype.InstanceRestart, nil
-	case shared.Freeze:
+	case instancetype.Freeze:
 		return operationtype.InstanceFreeze, nil
-	case shared.Unfreeze:
+	case instancetype.Unfreeze:
 		return operationtype.InstanceUnfreeze, nil
 	}
 
@@ -240,10 +241,10 @@ func doInstanceStatePut(inst instance.Instance, req api.InstanceStatePut) error 
 
 	timeout := time.Duration(req.Timeout) * time.Second
 
-	switch shared.InstanceAction(req.Action) {
-	case shared.Start:
+	switch instancetype.InstanceAction(req.Action) {
+	case instancetype.Start:
 		return inst.Start(req.Stateful)
-	case shared.Stop:
+	case instancetype.Stop:
 		if req.Stateful {
 			return inst.Stop(req.Stateful)
 		} else if req.Timeout == 0 {
@@ -252,11 +253,11 @@ func doInstanceStatePut(inst instance.Instance, req api.InstanceStatePut) error 
 			return inst.Shutdown(timeout)
 		}
 
-	case shared.Restart:
+	case instancetype.Restart:
 		return inst.Restart(timeout)
-	case shared.Freeze:
+	case instancetype.Freeze:
 		return inst.Freeze()
-	case shared.Unfreeze:
+	case instancetype.Unfreeze:
 		return inst.Unfreeze()
 	}
 

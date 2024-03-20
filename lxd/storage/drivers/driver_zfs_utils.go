@@ -24,10 +24,10 @@ const (
 	// zfsISOVolSuffix suffix used for iso content type volumes.
 	zfsISOVolSuffix = ".iso"
 
-	// zfsMinBlockSize is a minimum value for recordsize and volblocksize properties.
+	// zfsMinBlocksize is a minimum value for recordsize and volblocksize properties.
 	zfsMinBlocksize = 512
 
-	// zfsMinBlockSize is a maximum value for recordsize and volblocksize properties.
+	// zfsMaxBlocksize is a maximum value for recordsize and volblocksize properties.
 	zfsMaxBlocksize = 16 * 1024 * 1024
 
 	// zfsMaxVolBlocksize is a maximum value for volblocksize property.
@@ -437,7 +437,7 @@ func ValidateZfsBlocksize(value string) error {
 	}
 
 	if sizeBytes < zfsMinBlocksize || sizeBytes > zfsMaxBlocksize || (sizeBytes&(sizeBytes-1)) != 0 {
-		return fmt.Errorf("Value should be between 512 and 16MiB, and be power of 2")
+		return fmt.Errorf("Value should be between 512B and 16MiB, and be power of 2")
 	}
 
 	return nil

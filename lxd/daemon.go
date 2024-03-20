@@ -41,6 +41,7 @@ import (
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/firewall"
 	"github.com/canonical/lxd/lxd/fsmonitor"
+	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -49,7 +50,6 @@ import (
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
-	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/rsync"
 	"github.com/canonical/lxd/lxd/seccomp"
 	"github.com/canonical/lxd/lxd/state"
@@ -63,8 +63,8 @@ import (
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/cancel"
-	"github.com/canonical/lxd/shared/idmap"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -1120,7 +1120,7 @@ func (d *Daemon) init() error {
 			// leader.
 			d.gateway.Cluster = d.db.Cluster
 			taskFunc, taskSchedule := cluster.HeartbeatTask(d.gateway)
-			hbGroup := task.Group{}
+			hbGroup := task.NewGroup()
 			d.taskClusterHeartbeat = hbGroup.Add(taskFunc, taskSchedule)
 			hbGroup.Start(d.shutdownCtx)
 			d.gateway.WaitUpgradeNotification()
@@ -1484,6 +1484,8 @@ func (d *Daemon) init() error {
 		d.startClusterTasks()
 	}
 
+	d.tasks = *task.NewGroup()
+
 	// FIXME: There's no hard reason for which we should not run these
 	//        tasks in mock mode. However it requires that we tweak them so
 	//        they exit gracefully without blocking (something we should do
@@ -1543,6 +1545,8 @@ func (d *Daemon) startClusterTasks() {
 	// Run asynchronously so that connecting to remote members doesn't delay starting up other cluster tasks.
 	go cluster.EventsUpdateListeners(d.endpoints, d.db.Cluster, d.serverCert, nil, d.events.Inject)
 
+	d.clusterTasks = *task.NewGroup()
+
 	// Heartbeats
 	d.taskClusterHeartbeat = d.clusterTasks.Add(cluster.HeartbeatTask(d.gateway))
 
@@ -1558,7 +1562,7 @@ func (d *Daemon) startClusterTasks() {
 
 func (d *Daemon) stopClusterTasks() {
 	_ = d.clusterTasks.Stop(3 * time.Second)
-	d.clusterTasks = task.Group{}
+	d.clusterTasks = *task.NewGroup()
 }
 
 // numRunningInstances returns the number of running instances.

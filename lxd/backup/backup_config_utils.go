@@ -14,7 +14,6 @@ import (
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/state"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/osarch"
 )
@@ -95,7 +94,7 @@ func ParseConfigYamlFile(path string) (*config.Config, error) {
 // specified. Returns true if a root disk device has been found and updated otherwise false.
 func updateRootDevicePool(devices map[string]map[string]string, poolName string) bool {
 	if devices != nil {
-		devName, _, err := shared.GetRootDiskDevice(devices)
+		devName, _, err := instancetype.GetRootDiskDevice(devices)
 		if err == nil {
 			devices[devName]["pool"] = poolName
 			return true

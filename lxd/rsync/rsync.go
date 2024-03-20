@@ -12,9 +12,9 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/ioprogress"
-	"github.com/canonical/lxd/shared/linux"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -79,8 +79,9 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArg
 		"--sparse",
 		"--devices",
 		"--delete",
-		"--checksum",
 		"--numeric-ids",
+		// Checks for file modifications on nanoseconds granularity.
+		"--modify-window=-1",
 	}
 
 	if xattrs {
@@ -309,6 +310,9 @@ func Recv(path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTrac
 		"--devices",
 		"--partial",
 		"--sparse",
+		// This flag is only required on the receiving end.
+		// Checks for file modifications on nanoseconds granularity.
+		"--modify-window=-1",
 	}
 
 	if len(features) > 0 {
