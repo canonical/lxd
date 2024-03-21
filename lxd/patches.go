@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -147,6 +148,45 @@ func patchesApply(d *Daemon, stage patchStage) error {
 	}
 
 	return nil
+}
+
+// selectedPatchClusterMember returns true if the current node is eligible to execute a patch.
+// Use this function to deterministically coordinate the execution of patches on a single cluster member.
+// The member selection isn't based on the raft leader election which allows getting the same
+// results even if the raft cluster is currently running any kind of election.
+func selectedPatchClusterMember(d *Daemon) (bool, error) {
+	// If not clustered indicate to apply the patch.
+	if d.serverName == "none" {
+		return true, nil
+	}
+
+	// Get a list of all cluster members.
+	var clusterMembers []string
+	err := d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		nodeInfos, err := tx.GetNodes(ctx)
+		if err != nil {
+			return err
+		}
+
+		for _, nodeInfo := range nodeInfos {
+			clusterMembers = append(clusterMembers, nodeInfo.Name)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+
+	if len(clusterMembers) == 0 {
+		return false, fmt.Errorf("Clustered but no member found")
+	}
+
+	// Sort the cluster members by name.
+	sort.Strings(clusterMembers)
+
+	// If the first cluster member in the sorted list matches the current node indicate to apply the patch.
+	return clusterMembers[0] == d.serverName, nil
 }
 
 // Patches begin here
