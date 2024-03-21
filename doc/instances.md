@@ -6,7 +6,23 @@ relatedlinks: '[How&#32;to&#32;install&#32;a&#32;Windows&#32;11&#32;VM&#32;using
 # Instances
 
 ```{only} diataxis
-The following how-to guides cover common operations related to instances:
+The following how-to guides cover common operations related to instances.
+
+How to create and manage instances:
+```
+
+```{filtered-toctree}
+:titlesonly:
+
+:diataxis:Create instances </howto/instances_create.md>
+:diataxis:Configure instances </howto/instances_configure.md>
+:diataxis:Manage instances </howto/instances_manage.md>
+:diataxis:Use profiles </profiles.md>
+:diataxis:Troubleshoot errors </howto/instances_troubleshoot.md>
+```
+
+```{only} diataxis
+How to work with instances:
 ```
 
 ```{filtered-toctree}
@@ -14,15 +30,31 @@ The following how-to guides cover common operations related to instances:
 
 :diataxis:Access files </howto/instances_access_files.md>
 :diataxis:Access the console </howto/instances_console.md>
-:diataxis:Add a routed NIC to a VM </howto/instances_routed_nic_vm.md>
-:diataxis:Back up instances </howto/instances_backup.md>
-:diataxis:Configure instances </howto/instances_configure.md>
-:diataxis:Create instances </howto/instances_create.md>
-:diataxis:Manage instances </howto/instances_manage.md>
 :diataxis:Run commands </instance-exec.md>
-:diataxis:Troubleshoot errors </howto/instances_troubleshoot.md>
 :diataxis:Use cloud-init </cloud-init>
-:diataxis:Use profiles </profiles.md>
+:diataxis:Add a routed NIC to a VM </howto/instances_routed_nic_vm.md>
+```
+
+```{only} diataxis
+How to export and move instances:
+```
+
+```{filtered-toctree}
+:titlesonly:
+
+:diataxis:Back up instances </howto/instances_backup.md>
+:diataxis:Move instances </howto/move_instances>
+```
+
+```{only} diataxis
+How to import instances:
+```
+
+```{filtered-toctree}
+:titlesonly:
+
+:diataxis:Import existing machines </howto/import_machines_to_instances>
+:diataxis:Migrate from LXC </howto/migrate_from_lxc>
 ```
 
 ## Related topics
