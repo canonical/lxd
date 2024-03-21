@@ -2,17 +2,28 @@
 # Images
 
 ```{only} diataxis
-The following how-to guides cover common operations related to images:
+The following how-to guides cover common operations related to images.
+
+How to work with existing images:
 ```
 
 ```{filtered-toctree}
 :titlesonly:
 
+:diataxis:Use remote images </howto/images_remote>
+:diataxis:Manage images </howto/images_manage>
 :diataxis:Associate profiles </howto/images_profiles>
+```
+
+```{only} diataxis
+How to import and create images:
+```
+
+```{filtered-toctree}
+:titlesonly:
+
 :diataxis:Copy and import images </howto/images_copy>
 :diataxis:Create images </howto/images_create>
-:diataxis:Manage images </howto/images_manage>
-:diataxis:Use remote images </howto/images_remote>
 ```
 
 ## Related topics

@@ -8,11 +8,9 @@ discourse: 14345
 ```{youtube} https://www.youtube.com/watch?v=F9GALjHtnUU
 ```
 
-LXD provides a tool (`lxd-migrate`) to create a LXD instance based on an existing disk or image.
+If you have an existing machine, either physical or virtual (VM or container), you can use the `lxd-migrate` tool to create a LXD instance based on your existing disk or image.
 
-You can run the tool on any Linux machine.
-It connects to a LXD server and creates a blank instance, which you can configure during or after the migration.
-The tool then copies the data from the disk or image that you provide to the instance.
+The tool copies the provided partition, disk or image to the LXD storage pool of the provided LXD server, sets up an instance using that storage and allows you to configure additional settings for the new instance.
 
 ```{note}
 If you want to configure your new instance during the migration process, set up the entities that you want your instance to use before starting the migration process.
