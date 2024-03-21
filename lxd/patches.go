@@ -82,6 +82,7 @@ var patches = []patch{
 	{name: "storage_zfs_unset_invalid_block_settings_v2", stage: patchPostDaemonStorage, run: patchStorageZfsUnsetInvalidBlockSettingsV2},
 	{name: "storage_unset_invalid_block_settings", stage: patchPostDaemonStorage, run: patchStorageUnsetInvalidBlockSettings},
 	{name: "storage_move_custom_iso_block_volumes_v2", stage: patchPostDaemonStorage, run: patchStorageRenameCustomISOBlockVolumesV2},
+	{name: "storage_unset_invalid_block_settings_v2", stage: patchPostDaemonStorage, run: patchStorageUnsetInvalidBlockSettingsV2},
 }
 
 type patch struct {
@@ -1341,6 +1342,25 @@ func patchStorageRenameCustomISOBlockVolumesV2(name string, d *Daemon) error {
 	}
 
 	return nil
+}
+
+// patchStorageUnsetInvalidBlockSettingsV2 removes invalid block settings from LVM and Ceph RBD volumes.
+// Its using an idempotent SQL query.
+func patchStorageUnsetInvalidBlockSettingsV2(_ string, d *Daemon) error {
+	// Use a subquery to get all volumes matching the criteria
+	// as dqlite doesn't understand the `DELETE FROM xyz JOIN ...` syntax.
+	_, err := d.State().DB.Cluster.DB().ExecContext(d.shutdownCtx, `
+DELETE FROM storage_volumes_config
+	WHERE storage_volumes_config.storage_volume_id IN (
+		SELECT storage_volumes.id FROM storage_volumes
+			LEFT JOIN storage_pools ON storage_pools.id = storage_volumes.storage_pool_id
+				WHERE storage_volumes.type = 2
+				AND storage_volumes.content_type = 1
+				AND storage_pools.driver IN ("lvm", "ceph")
+	)
+	AND storage_volumes_config.key IN ("block.filesystem", "block.mount_options")
+	`)
+	return err
 }
 
 // Patches end here
