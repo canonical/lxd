@@ -6,17 +6,28 @@ discourse: 7735
 # Storage
 
 ```{only} diataxis
-The following how-to guides cover common operations related to storage:
+The following how-to guides cover common operations related to storage.
+
+How to create, manage, and use storage:
+```
+
+```{filtered-toctree}
+:titlesonly:
+
+:diataxis:Manage pools </howto/storage_pools>
+:diataxis:Manage volumes </howto/storage_volumes>
+:diataxis:Manage buckets </howto/storage_buckets>
+:diataxis:Create an instance in a pool </howto/storage_create_instance>
+```
+
+```{only} diataxis
+How to export and move custom storage volumes:
 ```
 
 ```{filtered-toctree}
 :titlesonly:
 
 :diataxis:Back up a volume </howto/storage_backup_volume>
-:diataxis:Create an instance in a pool </howto/storage_create_instance>
-:diataxis:Manage buckets </howto/storage_buckets>
-:diataxis:Manage pools </howto/storage_pools>
-:diataxis:Manage volumes </howto/storage_volumes>
 :diataxis:Move or copy a volume </howto/storage_move_volume>
 ```
 
