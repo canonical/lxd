@@ -1799,7 +1799,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 	}
 
 	// Determine whether an optimized image should be used.
-	useOptimizedImage, err := b.shouldUseOptimizedImage(fingerprint, contentType, volumeConfig, op)
+	useOptimizedImage, err := b.shouldUseOptimizedImage(fingerprint, contentType, volumeConfig)
 	if err != nil {
 		return err
 	}
@@ -3704,7 +3704,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 // shouldUseOptimizedImage determines if an optimized image should be used based on the provided volume config.
 // It returns true if the volume config aligns with the pool's default configuration, and an optimized image does
 // not exist or also matches the pool's default confgiuration.
-func (b *lxdBackend) shouldUseOptimizedImage(fingerprint string, contentType drivers.ContentType, volConfig map[string]string, op *operations.Operation) (bool, error) {
+func (b *lxdBackend) shouldUseOptimizedImage(fingerprint string, contentType drivers.ContentType, volConfig map[string]string) (bool, error) {
 	canOptimizeImage := b.driver.Info().OptimizedImages
 
 	// If the volume config is empty, the default pool configuration is used, making the driver's support
@@ -6503,7 +6503,7 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 			// Get a new volume from the one returned by the storage driver.
 			// This sets a new UUID for the volume that will be used later on for its database entry.
 			poolVol = b.GetNewVolume(poolVol.Type(), poolVol.ContentType(), poolVol.Name(), poolVol.Config())
-			err = b.detectUnknownBuckets(&poolVol, projectVols, op)
+			err = b.detectUnknownBuckets(&poolVol, projectVols)
 			if err != nil {
 				return nil, err
 			}
@@ -6783,7 +6783,7 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 // detectUnknownBuckets detects if a bucket is unknown and if so attempts to discover the filesystem of the
 // bucket. It then runs a series of consistency checks, and if all checks out, it generates a simulated backup
 // config for the bucket and adds it to projectVols.
-func (b *lxdBackend) detectUnknownBuckets(vol *drivers.Volume, projectVols map[string][]*backupConfig.Config, op *operations.Operation) error {
+func (b *lxdBackend) detectUnknownBuckets(vol *drivers.Volume, projectVols map[string][]*backupConfig.Config) error {
 	projectName, bucketName := project.StorageVolumeParts(vol.Name())
 
 	// Check if any entry for the bucket already exists in the DB.
