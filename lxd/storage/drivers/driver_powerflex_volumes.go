@@ -281,7 +281,8 @@ func (d *powerflex) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteC
 		return nil
 	}
 
-	return genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+	_, err := genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+	return err
 }
 
 // RefreshVolume updates an existing volume to match the state of another.
