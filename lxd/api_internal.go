@@ -885,24 +885,6 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 			return fmt.Errorf(`Storage volume for snapshot %q already exists in the database`, snapInstName)
 		}
 
-		if snapErr == nil {
-			err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return tx.DeleteInstance(ctx, projectName, snapInstName)
-			})
-			if err != nil {
-				return err
-			}
-		}
-
-		if dbVolume != nil {
-			err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return tx.RemoveStoragePoolVolume(ctx, projectName, snapInstName, instanceDBVolType, pool.ID())
-			})
-			if err != nil {
-				return err
-			}
-		}
-
 		baseImage := snap.Config["volatile.base_image"]
 
 		arch, err := osarch.ArchitectureId(snap.Architecture)
