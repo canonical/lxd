@@ -111,6 +111,16 @@ test_storage_volume_snapshots() {
   lxc storage volume delete "${storage_pool}" "vol1"
   lxc storage volume delete "${storage_pool}" "vol1-snap0"
 
+  # Check snapshot restore of type block volumes.
+  lxc storage volume create "${storage_pool}" "vol1" --type block
+  lxc storage volume snapshot "${storage_pool}" "vol1" "snap0"
+  lxc storage volume restore "${storage_pool}" "vol1" "snap0"
+  lxc storage volume delete "${storage_pool}" "vol1"
+
+  # Check filesystem specific config keys cannot be applied on type block volumes.
+  ! lxc storage volume create "${storage_pool}" "vol1" --type block block.filesystem=btrfs || false
+  ! lxc storage volume create "${storage_pool}" "vol1" --type block block.mount_options=xyz || false
+
   # Check snapshot copy (mode pull).
   lxc launch testimage "c1"
   lxc storage volume create "${storage_pool}" "vol1"

@@ -111,6 +111,10 @@ type ServerEnvironment struct {
 	// Example: 4.11
 	ServerVersion string `json:"server_version" yaml:"server_version"`
 
+	// Whether the version is an LTS release
+	// Example: false
+	ServerLTS bool `json:"server_lts" yaml:"server_lts"`
+
 	// List of active storage drivers (separate by " | ")
 	// Example: dir | zfs
 	Storage string `json:"storage" yaml:"storage"`

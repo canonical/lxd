@@ -2110,3 +2110,8 @@ when moving an instance between projects and/or storage pools.
 This API extension enables querying a server's supported instance types.
 When querying the `/1.0` endpoint, a new field named `instance_types` is added to the retrieved data.
 This field indicates which instance types are supported by the server.
+
+## `server_version_lts`
+
+The API extension adds indication whether the LXD version is an LTS release.
+This is indicated when command `lxc version` is executed or when `/1.0` endpoint is queried.

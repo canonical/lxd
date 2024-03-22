@@ -285,6 +285,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		Server:                 "lxd",
 		ServerPid:              os.Getpid(),
 		ServerVersion:          version.Version,
+		ServerLTS:              version.IsLTSVersion,
 		ServerClustered:        s.ServerClustered,
 		ServerEventMode:        string(cluster.ServerEventMode()),
 		ServerName:             serverName,
@@ -427,7 +428,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		logger.Debug("Handling config changed notification")
 		changed := make(map[string]string)
 		for key, value := range req.Config {
-			changed[key] = value.(string)
+			changed[key], _ = value.(string)
 		}
 
 		// Get the current (updated) config.
@@ -447,7 +448,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		d.globalConfigMu.Unlock()
 
 		// Run any update triggers.
-		err = doApi10UpdateTriggers(d, nil, changed, s.LocalConfig, config)
+		err = doAPI10UpdateTriggers(d, nil, changed, s.LocalConfig, config)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -465,7 +466,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		return response.PreconditionFailed(err)
 	}
 
-	return doApi10Update(d, r, req, false)
+	return doAPI10Update(d, r, req, false)
 }
 
 // swagger:operation PATCH /1.0 server server_patch
@@ -534,10 +535,10 @@ func api10Patch(d *Daemon, r *http.Request) response.Response {
 		return response.EmptySyncResponse
 	}
 
-	return doApi10Update(d, r, req, true)
+	return doAPI10Update(d, r, req, true)
 }
 
-func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) response.Response {
+func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) response.Response {
 	s := d.State()
 
 	// First deal with config specific to the local daemon
@@ -574,14 +575,15 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 				return fmt.Errorf("Cannot fetch node config from database: %w", err)
 			}
 
-			newClusterHTTPSAddress, found := nodeValues["cluster.https_address"]
-			if !found && patch {
+			newClusterHTTPSAddress := ""
+			newClusterHTTPSAddressAny, found := nodeValues["cluster.https_address"]
+			if found {
+				newClusterHTTPSAddress, _ = newClusterHTTPSAddressAny.(string)
+			} else if patch {
 				newClusterHTTPSAddress = curConfig["cluster.https_address"]
-			} else if !found {
-				newClusterHTTPSAddress = ""
 			}
 
-			if curConfig["cluster.https_address"] != newClusterHTTPSAddress.(string) {
+			if curConfig["cluster.https_address"] != newClusterHTTPSAddress {
 				return fmt.Errorf("Changing cluster.https_address is currently not supported")
 			}
 		}
@@ -765,7 +767,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	d.globalConfigMu.Unlock()
 
 	// Run any update triggers.
-	err = doApi10UpdateTriggers(d, nodeChanged, clusterChanged, newNodeConfig, newClusterConfig)
+	err = doAPI10UpdateTriggers(d, nodeChanged, clusterChanged, newNodeConfig, newClusterConfig)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -777,7 +779,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	return response.EmptySyncResponse
 }
 
-func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, nodeConfig *node.Config, clusterConfig *clusterConfig.Config) error {
+func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, nodeConfig *node.Config, clusterConfig *clusterConfig.Config) error {
 	s := d.State()
 
 	maasChanged := false

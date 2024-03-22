@@ -690,7 +690,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 					return nil
 				})
-				if err != nil && err.Error() != "This certificate already exists" {
+				if err != nil && !api.StatusErrorCheck(err, http.StatusConflict) {
 					return fmt.Errorf("Failed adding local trusted certificate %q (%s): %w", trustedCert.Name, trustedCert.Fingerprint, err)
 				}
 			}
@@ -766,7 +766,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			changes[k], _ = v.(string)
 		}
 
-		err = doApi10UpdateTriggers(d, nil, changes, nodeConfig, currentClusterConfig)
+		err = doAPI10UpdateTriggers(d, nil, changes, nodeConfig, currentClusterConfig)
 		if err != nil {
 			return err
 		}
@@ -894,11 +894,11 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 
 		// Send the response before replacing the LXD daemon process.
 		f, ok := w.(http.Flusher)
-		if ok {
-			f.Flush()
-		} else {
+		if !ok {
 			return fmt.Errorf("http.ResponseWriter is not type http.Flusher")
 		}
+
+		f.Flush()
 
 		return nil
 	})
@@ -1978,11 +1978,11 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 			// Send the response before replacing the LXD daemon process.
 			f, ok := w.(http.Flusher)
-			if ok {
-				f.Flush()
-			} else {
+			if !ok {
 				return fmt.Errorf("http.ResponseWriter is not type http.Flusher")
 			}
+
+			f.Flush()
 
 			return nil
 		})
