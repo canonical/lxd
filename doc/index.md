@@ -30,6 +30,7 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 ```{grid-item} [How-to guides](howto/index)
 
 **Step-by-step guides** covering key operations and common tasks
+test
 ```
 
 ````
