@@ -1380,3 +1380,33 @@ func TargetDetect(target string) (targetNode string, targetGroup string) {
 
 	return
 }
+
+// ApplyDeviceOverrides handles the logic for applying device overrides.
+// Receives the profile and local devices and the device overrides.
+// Returns the resulting list of devices.
+func ApplyDeviceOverrides(localDevices map[string]map[string]string, profileDevices map[string]map[string]string, deviceOverrides map[string]map[string]string) (map[string]map[string]string, error) {
+	// Allow setting device overrides.
+	for deviceName := range deviceOverrides {
+		_, isLocalDevice := localDevices[deviceName]
+		if isLocalDevice {
+			// Apply overrides to local device.
+			for k, v := range deviceOverrides[deviceName] {
+				localDevices[deviceName][k] = v
+			}
+		} else {
+			// Check device exists in expanded profile devices.
+			profileDeviceConfig, found := profileDevices[deviceName]
+			if !found {
+				return nil, fmt.Errorf("Cannot override config for device %q: Device not found in profile devices", deviceName)
+			}
+
+			for k, v := range deviceOverrides[deviceName] {
+				profileDeviceConfig[k] = v
+			}
+
+			localDevices[deviceName] = profileDeviceConfig
+		}
+	}
+
+	return localDevices, nil
+}
