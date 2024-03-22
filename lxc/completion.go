@@ -429,6 +429,26 @@ func (g *cmdGlobal) cmpNetworkForwards(networkName string) ([]string, cobra.Shel
 	return results, cmpDirectives
 }
 
+func (g *cmdGlobal) cmpNetworkLoadBalancers(networkName string) ([]string, cobra.ShellCompDirective) {
+	var results []string
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
+
+	resources, _ := g.ParseServers(networkName)
+
+	if len(resources) <= 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+
+	results, err := resource.server.GetNetworkForwardAddresses(networkName)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	return results, cmpDirectives
+}
+
 func (g *cmdGlobal) cmpNetworks(toComplete string) ([]string, cobra.ShellCompDirective) {
 	var results []string
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
