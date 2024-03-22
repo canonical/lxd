@@ -13,6 +13,7 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxc/config"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/i18n"
@@ -282,46 +283,16 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 	// that would be applied server-side.
 	if needProfileExpansion {
 		// If the list of profiles is empty then LXD would apply the default profile on the server side.
-		serverSideProfiles := req.Profiles
-		if len(serverSideProfiles) == 0 {
-			serverSideProfiles = []string{"default"}
-		}
-
-		// Get the effective expanded devices by overlaying each profile's devices in order.
-		for _, profileName := range serverSideProfiles {
-			profile, _, err := d.GetProfile(profileName)
-			if err != nil {
-				return nil, "", fmt.Errorf(i18n.G("Failed loading profile %q for device override: %w"), profileName, err)
-			}
-
-			for k, v := range profile.Devices {
-				profileDevices[k] = v
-			}
+		profileDevices, err = getProfileDevices(d, req.Profiles)
+		if err != nil {
+			return nil, "", err
 		}
 	}
 
 	// Apply device overrides.
-	for deviceName := range deviceOverrides {
-		_, isLocalDevice := devicesMap[deviceName]
-		if isLocalDevice {
-			// Apply overrides to local device.
-			for k, v := range deviceOverrides[deviceName] {
-				devicesMap[deviceName][k] = v
-			}
-		} else {
-			// Check device exists in expanded profile devices.
-			profileDeviceConfig, found := profileDevices[deviceName]
-			if !found {
-				return nil, "", fmt.Errorf(i18n.G("Cannot override config for device %q: Device not found in profile devices"), deviceName)
-			}
-
-			for k, v := range deviceOverrides[deviceName] {
-				profileDeviceConfig[k] = v
-			}
-
-			// Add device to local devices.
-			devicesMap[deviceName] = profileDeviceConfig
-		}
+	devicesMap, err = shared.ApplyDeviceOverrides(devicesMap, profileDevices, deviceOverrides)
+	if err != nil {
+		return nil, "", err
 	}
 
 	req.Devices = devicesMap
