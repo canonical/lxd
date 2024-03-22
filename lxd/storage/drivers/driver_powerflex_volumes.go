@@ -250,10 +250,12 @@ func (d *powerflex) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allo
 	// Copy "lazy" with snapshots.
 	// If clone copies are enforced by the pools config or the volume has snapshots that need to be copied,
 	// fallback to simply copying the contents between source and target volumes.
-	err := genericVFSCopyVolume(d, nil, vol, srcVol, srcVolumeSnapshots, false, allowInconsistent, op)
+	cleanup, err := genericVFSCopyVolume(d, nil, vol, srcVol, srcVolumeSnapshots, false, allowInconsistent, op)
 	if err != nil {
 		return err
 	}
+
+	revert.Add(cleanup)
 
 	revert.Success()
 	return nil
@@ -284,7 +286,8 @@ func (d *powerflex) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteC
 
 // RefreshVolume updates an existing volume to match the state of another.
 func (d *powerflex) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
-	return genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
+	_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
+	return err
 }
 
 // DeleteVolume deletes a volume of the storage device.
