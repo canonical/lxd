@@ -165,7 +165,8 @@ func (d *lvm) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
 func (d *lvm) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
-	return genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+	_, err := genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+	return err
 }
 
 // RefreshVolume provides same-pool volume and specific snapshots syncing functionality.
