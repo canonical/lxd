@@ -2,16 +2,25 @@
 # LXD server and client
 
 ```{only} diataxis
-The following how-to guides cover common operations related to the LXD server and the LXD client:
+The following how-to guides cover common operations related to the LXD server:
 ```
 
 ```{filtered-toctree}
 :titlesonly:
 
-:diataxis:Add command aliases </howto/lxc_alias>
-:diataxis:Add remote servers </remotes>
-:diataxis:Configure the LXD server </howto/server_configure>
 :diataxis:Expose LXD to the network </howto/server_expose>
+:diataxis:Configure the LXD server </howto/server_configure>
+```
+
+```{only} diataxis
+The following how-to guides cover common operations related to the LXD client (`lxc`):
+```
+
+```{filtered-toctree}
+:titlesonly:
+
+:diataxis:Add remote servers </remotes>
+:diataxis:Add command aliases </howto/lxc_alias>
 ```
 
 ## Related topics
