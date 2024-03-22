@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 
-	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
@@ -67,11 +66,6 @@ func restServer(d *Daemon) *http.Server {
 	mux.StrictSlash(false) // Don't redirect to URL with trailing slash.
 	mux.SkipClean(true)
 	mux.UseEncodedPath() // Allow encoded values in path segments.
-
-	// Enable gzip compression globally.
-	mux.Use(func(next http.Handler) http.Handler {
-		return gorillaHandlers.CompressHandler(next)
-	})
 
 	uiPath := os.Getenv("LXD_UI")
 	uiEnabled := uiPath != "" && shared.PathExists(uiPath)
