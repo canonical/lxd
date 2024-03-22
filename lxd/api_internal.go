@@ -791,28 +791,12 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 
 	// Apply device overrides.
 	// Do this before calling internalImportRootDevicePopulate so that device overrides are taken into account.
-	for deviceName := range deviceOverrides {
-		_, isLocalDevice := backupConf.Container.Devices[deviceName]
-		if isLocalDevice {
-			// Apply overrides to local device.
-			for k, v := range deviceOverrides[deviceName] {
-				backupConf.Container.Devices[deviceName][k] = v
-			}
-		} else {
-			// Check device exists in expanded profile devices.
-			profileDeviceConfig, found := backupConf.Container.ExpandedDevices[deviceName]
-			if !found {
-				return fmt.Errorf("Cannot override config for device %q: Device not found in profile devices", deviceName)
-			}
-
-			for k, v := range deviceOverrides[deviceName] {
-				profileDeviceConfig[k] = v
-			}
-
-			// Add device to local devices.
-			backupConf.Container.Devices[deviceName] = profileDeviceConfig
-		}
+	resultingDevices, err := shared.ApplyDeviceOverrides(backupConf.Container.Devices, backupConf.Container.ExpandedDevices, deviceOverrides)
+	if err != nil {
+		return err
 	}
+
+	backupConf.Container.Devices = resultingDevices
 
 	// Add root device if needed.
 	// And ensure root device is associated with same pool as instance has been imported to.
