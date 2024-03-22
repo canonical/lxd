@@ -520,46 +520,13 @@ func (d *ceph) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 }
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
-func (d *ceph) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
-	if volTargetArgs.ClusterMoveSourceName != "" {
-		err := vol.EnsureMountPath()
-		if err != nil {
-			return err
-		}
-
-		if vol.IsVMBlock() {
-			fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume())
-			err := d.CreateVolumeFromMigration(fsVol, conn, volTargetArgs, preFiller, op)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
-	}
-
+// It returns the cleanup hooks required to revert any changes made during the migration.
+func (d *ceph) createVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) (revert.Hook, error) {
 	// Handle simple rsync and block_and_rsync through generic.
 	if shared.ValueInSlice(volTargetArgs.MigrationType.FSType, []migration.MigrationFSType{migration.MigrationFSType_RSYNC, migration.MigrationFSType_BLOCK_AND_RSYNC}) || volTargetArgs.MigrationType.FSType == migration.MigrationFSType_RBD_AND_RSYNC && vol.contentType == ContentTypeFS {
 		return genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
 	} else if !shared.ValueInSlice(volTargetArgs.MigrationType.FSType, []migration.MigrationFSType{migration.MigrationFSType_RBD, migration.MigrationFSType_RBD_AND_RSYNC}) {
-		return ErrNotSupported
-	}
-
-	// Migrate (receive) the VMs filesystem volume too.
-	// This will recursively call this function again and fall back to the generic way of refreshing.
-	if vol.IsVMBlock() {
-		// Ensure that the volume's snapshots are also replaced with their filesystem counterpart.
-		fsVolSnapshots := make([]Volume, 0, len(vol.Snapshots))
-		for _, snapshot := range vol.Snapshots {
-			fsVolSnapshots = append(fsVolSnapshots, snapshot.NewVMBlockFilesystemVolume())
-		}
-
-		fsVolCopy := NewVolumeCopy(vol.NewVMBlockFilesystemVolume(), fsVolSnapshots...)
-
-		err := d.CreateVolumeFromMigration(fsVolCopy, conn, volTargetArgs, preFiller, op)
-		if err != nil {
-			return err
-		}
+		return nil, ErrNotSupported
 	}
 
 	var lastCommonSnapshotName string
@@ -585,7 +552,7 @@ func (d *ceph) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser
 			if lastCommonSnapshotFound {
 				ok, err := d.hasVolume(d.getRBDVolumeName(vol.Volume, fmt.Sprintf("snapshot_%s", targetSnapshotName), false, false))
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				// The snapshot does not exist on the target.
@@ -597,7 +564,7 @@ func (d *ceph) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser
 				// This happens if not the latest snapshot on the target side gets deleted and requires refresh.
 				_, err = d.deleteVolumeSnapshot(vol.Volume, fmt.Sprintf("snapshot_%s", targetSnapshotName))
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 		}
@@ -608,7 +575,7 @@ func (d *ceph) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser
 		// between the latest snapshot and source volume and apply it on the target volume.
 		err := d.restoreVolume(vol.Volume, vol.Snapshots[lastCommonSnapshotIndex], op)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	} else {
 		// In case of refresh first delete the already existing volume.
@@ -617,7 +584,7 @@ func (d *ceph) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser
 			// Delete the volume as we will create a new sparse copy.
 			_, err := d.deleteVolume(vol.Volume)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 
@@ -627,14 +594,17 @@ func (d *ceph) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser
 		// if the volume is of type snapshot, it will get recreated later from copy.
 		err := d.rbdCreateVolume(vol.Volume, vol.ConfigSize())
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	err := vol.Volume.EnsureMountPath()
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	revert := revert.New()
+	defer revert.Fail()
 
 	targetVolumeName := d.getRBDVolumeName(vol.Volume, "", false, true)
 
@@ -661,18 +631,22 @@ func (d *ceph) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser
 
 			err := d.receiveVolume(targetVolumeName, conn, wrapper)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			snapVol, err := vol.NewSnapshot(targetSnapshotName)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			err = snapVol.EnsureMountPath()
 			if err != nil {
-				return err
+				return nil, err
 			}
+
+			// Ensure to cleanup the snapshot on the target volume in case of error.
+			// When retrying the migration there shouldn't be any left over snapshot from before.
+			revert.Add(func() { _, _ = d.deleteVolumeSnapshot(vol.Volume, fmt.Sprintf("snapshot_%s", targetSnapshotName)) })
 		}
 	}
 
@@ -695,7 +669,69 @@ func (d *ceph) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser
 	wrapper := migration.ProgressWriter(op, "fs_progress", vol.name)
 
 	// Apply the diff.
-	return d.receiveVolume(targetVolumeName, conn, wrapper)
+	err = d.receiveVolume(targetVolumeName, conn, wrapper)
+	if err != nil {
+		return nil, err
+	}
+
+	cleanup := revert.Clone().Fail
+	revert.Success()
+	return cleanup, nil
+}
+
+// CreateVolumeFromMigration creates a volume being sent via a migration.
+func (d *ceph) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+	if volTargetArgs.ClusterMoveSourceName != "" {
+		err := vol.EnsureMountPath()
+		if err != nil {
+			return err
+		}
+
+		if vol.IsVMBlock() {
+			fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume())
+			err := d.CreateVolumeFromMigration(fsVol, conn, volTargetArgs, preFiller, op)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Migrate (receive) the VMs filesystem volume too.
+	// This will fall back to the generic way of refreshing.
+	if vol.IsVMBlock() {
+		// Ensure that the volume's snapshots are also replaced with their filesystem counterpart.
+		fsVolSnapshots := make([]Volume, 0, len(vol.Snapshots))
+		for _, snapshot := range vol.Snapshots {
+			fsVolSnapshots = append(fsVolSnapshots, snapshot.NewVMBlockFilesystemVolume())
+		}
+
+		fsVolCopy := NewVolumeCopy(vol.NewVMBlockFilesystemVolume(), fsVolSnapshots...)
+
+		// Migrate the VMs filesystem volume and record the cleanup hooks.
+		// This allows cleaning up any changes made during the generic migration.
+		cleanup, err := d.createVolumeFromMigration(fsVolCopy, conn, volTargetArgs, preFiller, op)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(cleanup)
+	}
+
+	// Migrate the actual volume and record the cleanup hooks.
+	cleanup, err := d.createVolumeFromMigration(vol, conn, volTargetArgs, preFiller, op)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(cleanup)
+
+	revert.Success()
+	return nil
 }
 
 // refreshVolume updates an existing volume to match the state of another.
