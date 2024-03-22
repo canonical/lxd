@@ -22,14 +22,17 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 
 ````{grid} 1 1 2 2
 
-```{grid-item} [Tutorials](tutorial/index)
+```{grid-item-card} [Tutorials](tutorial/index)
 
-**Start here**: a hands-on introduction to LXD for new users
+**Start here**: a hands-on introduction to LXD for new users, guiding you through your {ref}`first-steps`
 ```
 
-```{grid-item} [How-to guides](howto/index)
+```{grid-item-card} [How-to guides](howto/index)
 
 **Step-by-step guides** covering key operations and common tasks
+- {ref}`howtos-getstarted`
+- {ref}`howtos-work`
+- {ref}`howtos-production`
 ```
 
 ````
@@ -37,14 +40,24 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 ````{grid} 1 1 2 2
 :reverse:
 
-```{grid-item} [Reference](reference/index)
+```{grid-item-card} [Reference](reference/index)
 
-**Technical information** - specifications, APIs, architecture
+**Technical information**
+- {ref}`reference-general`
+- {ref}`reference-config`
+- {ref}`reference-production`
+- {ref}`reference-api`
+- {ref}`reference-manpages`
+- {ref}`reference-internal`
 ```
 
-```{grid-item} [Explanation](explanation/index)
+```{grid-item-card} [Explanation](explanation/index)
 
-**Discussion and clarification** of key topics, for example, {ref}`Security <security>`
+**Discussion and clarification** of key topics
+- {ref}`explanation-concepts`
+- {ref}`explanation-entities`
+- {ref}`explanation-iam`
+- {ref}`explanation-production` (including {ref}`Security <security>`)
 ```
 
 ````
