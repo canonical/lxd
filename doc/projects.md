@@ -12,9 +12,9 @@ The following how-to guides cover common operations related to projects:
 ```{filtered-toctree}
 :titlesonly:
 
-:diataxis:Confine projects to users </howto/projects_confine>
 :diataxis:Create and configure </howto/projects_create>
 :diataxis:Work with projects </howto/projects_work>
+:diataxis:Confine projects to users </howto/projects_confine>
 ```
 
 ## Related topics

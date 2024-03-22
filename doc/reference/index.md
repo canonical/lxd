@@ -3,6 +3,7 @@
 
 The reference material in this section provides technical descriptions of LXD.
 
+(reference-general)=
 ## General information
 
 Before you start using LXD, you should check the system requirements.
@@ -19,6 +20,7 @@ You should also be aware of the supported architectures, the available image ser
 Container environment </container-environment>
 ```
 
+(reference-config)=
 ## Configuration options
 
 LXD is highly configurable.
@@ -38,6 +40,7 @@ Configuration option index </config-options>
 Cluster configuration </reference/cluster_member_config>
 ```
 
+(reference-production)=
 ## Production setup
 
 Once you are ready for production, make sure your LXD server is configured to support the required load.
@@ -51,6 +54,7 @@ Production server settings </reference/server_settings>
 /reference/provided_metrics
 ```
 
+(reference-api)=
 ## REST API
 
 All communication between LXD and its clients happens using a RESTful API over HTTP.
@@ -63,6 +67,7 @@ Check the list of API extensions to see if a feature is available in your versio
 /restapi_landing
 ```
 
+(reference-manpages)=
 ## Man pages
 
 `lxc` is the command line client for LXD.
@@ -75,6 +80,7 @@ Its usage is documented in the help pages for the `lxc` commands and subcommands
 /reference/manpages
 ```
 
+(reference-internal)=
 ## Implementation details
 
 You don't need to be aware of the internal implementation details to use LXD.

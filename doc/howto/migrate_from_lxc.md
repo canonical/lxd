@@ -4,10 +4,10 @@
 ```{youtube} https://www.youtube.com/watch?v=F9GALjHtnUU
 ```
 
-LXD provides a tool (`lxc-to-lxd`) that you can use to import LXC containers into your LXD server.
+If you are using LXC and want to migrate all or some of your LXC containers to a LXD installation on the same machine, you can use the `lxc-to-lxd` tool.
 The LXC containers must exist on the same machine as the LXD server.
 
-The tool analyzes the LXC containers and migrates both their data and their configuration into new LXD containers.
+The tool analyzes the LXC configuration and copies the data and configuration of your existing LXC containers into new LXD containers.
 
 ```{note}
 Alternatively, you can use the `lxd-migrate` tool within a LXC container to migrate it to LXD (see {ref}`import-machines-to-instances`).

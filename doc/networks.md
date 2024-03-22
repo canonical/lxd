@@ -6,23 +6,33 @@ discourse: 13021
 # Networking
 
 ```{only} diataxis
-The following how-to guides cover common operations related to networking:
+The following how-to guides cover common operations related to networking.
+
+How to create and configure a network:
 ```
 
 ```{filtered-toctree}
 :titlesonly:
 
-:diataxis:Configure a network </howto/network_configure>
-:diataxis:Configure as BGP server </howto/network_bgp>
-:diataxis:Configure forwards </howto/network_forwards>
-:diataxis:Configure network ACLs </howto/network_acls>
-:diataxis:Configure network zones </howto/network_zones>
 :diataxis:Create a network </howto/network_create>
-:diataxis:Display IPAM information </howto/network_ipam>
+:diataxis:Configure a network </howto/network_configure>
 ```
 
 ```{only} diataxis
-The following how-to guides apply to managed bridge networks only:
+How to configure specific networking features:
+```
+
+```{filtered-toctree}
+:titlesonly:
+
+:diataxis:Configure as BGP server </howto/network_bgp>
+:diataxis:Configure network ACLs </howto/network_acls>
+:diataxis:Configure forwards </howto/network_forwards>
+:diataxis:Configure network zones </howto/network_zones>
+```
+
+```{only} diataxis
+How to configure specific networking features (managed bridge networks only):
 ```
 
 ```{filtered-toctree}
@@ -33,15 +43,25 @@ The following how-to guides apply to managed bridge networks only:
 ```
 
 ```{only} diataxis
-The following how-to guides apply to OVN networks only:
+How to configure specific networking features (OVN networks only):
 ```
 
 ```{filtered-toctree}
 :titlesonly:
 
+:diataxis:Set up OVN </howto/network_ovn_setup>
 :diataxis:Configure load balancers </howto/network_load_balancers>
 :diataxis:Configure peer routing </howto/network_ovn_peers>
-:diataxis:Set up OVN </howto/network_ovn_setup>
+```
+
+```{only} diataxis
+How to troubleshoot your networking setup:
+```
+
+```{filtered-toctree}
+:titlesonly:
+
+:diataxis:Display IPAM information </howto/network_ipam>
 ```
 
 ## Related topics
