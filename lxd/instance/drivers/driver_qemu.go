@@ -8707,13 +8707,33 @@ func (d *qemu) version() (*version.DottedVersion, error) {
 	return qemuVer, nil
 }
 
+// defaultVMmetrics returns the default metrics (all the metrics usually returned but set with a sentinel value of `0`)
+// for a QEMU instance.
+func (d *qemu) defaultVMmetrics() (*metrics.MetricSet, error) {
+	m := metrics.Metrics{
+		CPU:        make(map[string]metrics.CPUMetrics),
+		Disk:       make(map[string]metrics.DiskMetrics),
+		Network:    make(map[string]metrics.NetworkMetrics),
+		Memory:     metrics.MemoryMetrics{},
+		Filesystem: make(map[string]metrics.FilesystemMetrics),
+	}
+
+	// The running state is hard-coded here as if we've made it to this point, the VM is running.
+	metricSet, err := metrics.MetricSetFromAPI(&m, map[string]string{"project": d.project.Name, "name": d.name, "type": instancetype.VM.String(), "state": instance.PowerStateStopped})
+	if err != nil {
+		return nil, err
+	}
+
+	return metricSet, nil
+}
+
 // Metrics returns the metrics of the QEMU instance.
 // If the instance is not running, it returns ErrInstanceIsStopped.
 // If agent metrics are enabled, it tries to get the metrics from the agent.
 // If the agent is not reachable, it falls back to getting the metrics directly from QEMU.
 func (d *qemu) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
 	if !d.IsRunning() {
-		return nil, ErrInstanceIsStopped
+		return d.defaultVMmetrics()
 	}
 
 	if d.agentMetricsEnabled() {
