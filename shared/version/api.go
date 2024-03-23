@@ -403,6 +403,7 @@ var APIExtensions = []string{
 	"vm_disk_io_limits",
 	"storage_volumes_all",
 	"instances_files_modify_permissions",
+	"image_restriction_nesting",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
