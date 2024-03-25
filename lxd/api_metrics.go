@@ -331,31 +331,30 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 }
 
 func getFilteredMetrics(s *state.State, r *http.Request, compress bool, metricSet *metrics.MetricSet) response.Response {
+	// Ignore filtering in case the authentication for metrics is disabled.
 	if !s.GlobalConfig.MetricsAuthentication() {
 		return response.SyncResponsePlain(true, compress, metricSet.String())
 	}
 
-	// Get instances the user is allowed to view.
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeInstance)
-	if err != nil && !auth.IsDeniedError(err) {
-		return response.SmartError(err)
-	} else if err != nil {
-		// This is counterintuitive. We are unauthorized to get a permission checker for viewing instances because a metric type certificate
-		// can't view instances. However, in order to get to this point we must already have auth.EntitlementCanViewMetrics. So we can view
-		// the metrics but we can't do any filtering, so just return the metrics.
-		return response.SyncResponsePlain(true, compress, metricSet.String())
-	}
-
-	// Filter by project name and instance name.
-	metricSet.FilterSamples(userHasPermission)
-
-	userHasPermission, err = s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeProject)
+	userHasProjectPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanViewMetrics, entity.TypeProject)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	// Filter by project only.
-	metricSet.FilterSamples(userHasPermission)
+	userHasServerPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanViewMetrics, entity.TypeServer)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Filter all metrics for view permissions.
+	// Internal server metrics without labels are compared against the server entity.
+	metricSet.FilterSamples(func(labels map[string]string) bool {
+		if labels["project"] != "" {
+			return userHasProjectPermission(entity.ProjectURL(labels["project"]))
+		}
+
+		return userHasServerPermission(entity.ServerURL())
+	})
 
 	return response.SyncResponsePlain(true, compress, metricSet.String())
 }
