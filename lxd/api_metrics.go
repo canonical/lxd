@@ -49,7 +49,15 @@ func allowMetrics(d *Daemon, r *http.Request) response.Response {
 		return response.EmptySyncResponse
 	}
 
-	return allowPermission(entity.TypeServer, auth.EntitlementCanViewMetrics)(d, r)
+	entityType := entity.TypeServer
+
+	// Check for individual permissions on project if set.
+	projectName := request.QueryParam(r, "project")
+	if projectName != "" {
+		entityType = entity.TypeProject
+	}
+
+	return allowPermission(entityType, auth.EntitlementCanViewMetrics)(d, r)
 }
 
 // swagger:operation GET /1.0/metrics metrics metrics_get
