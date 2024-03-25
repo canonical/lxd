@@ -495,7 +495,7 @@
           "hide": false,
           "instant": true,
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "Disk reads",
           "range": false,
           "refId": "A"
         }
@@ -567,7 +567,7 @@
           "hide": false,
           "instant": true,
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "Disk writes",
           "range": false,
           "refId": "A"
         }
@@ -639,7 +639,7 @@
           "hide": false,
           "instant": true,
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "Network RX",
           "range": false,
           "refId": "A"
         }
@@ -711,7 +711,7 @@
           "hide": false,
           "instant": true,
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "Network TX",
           "range": false,
           "refId": "A"
         }
