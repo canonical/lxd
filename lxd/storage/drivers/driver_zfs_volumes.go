@@ -887,7 +887,8 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 func (d *zfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	// Handle simple rsync and block_and_rsync through generic.
 	if volTargetArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volTargetArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
-		return genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+		_, err := genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+		return err
 	} else if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_ZFS {
 		return ErrNotSupported
 	}
@@ -1369,7 +1370,8 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 			// refresh instead.
 			if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
 				d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
-				return genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
+				_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
+				return err
 			}
 
 			return fmt.Errorf("Failed to transfer snapshot %q: %w", snap.name, err)
@@ -1386,7 +1388,8 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 				// refresh instead.
 				if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
 					d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
-					return genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
+					_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
+					return err
 				}
 
 				return fmt.Errorf("Failed to transfer snapshot %q: %w", snap.name, err)
@@ -1415,7 +1418,8 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 		// refresh instead.
 		if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
 			d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
-			return genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
+			_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
+			return err
 		}
 
 		return fmt.Errorf("Failed to transfer main volume: %w", err)
@@ -1432,7 +1436,8 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 			// refresh instead.
 			if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
 				d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
-				return genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
+				_, err := genericVFSCopyVolume(d, nil, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
+				return err
 			}
 
 			return fmt.Errorf("Failed to transfer main volume: %w", err)
