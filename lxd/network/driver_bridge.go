@@ -407,19 +407,19 @@ func (n *bridge) Validate(config map[string]string) error {
 			allowedNets = append(allowedNets, dhcpSubnet)
 		}
 
-		ovnRanges, err := parseIPRanges(config["ipv4.ovn.ranges"], allowedNets...)
+		ovnRanges, err := shared.ParseIPRanges(config["ipv4.ovn.ranges"], allowedNets...)
 		if err != nil {
 			return fmt.Errorf("Failed parsing ipv4.ovn.ranges: %w", err)
 		}
 
-		dhcpRanges, err := parseIPRanges(config["ipv4.dhcp.ranges"], allowedNets...)
+		dhcpRanges, err := shared.ParseIPRanges(config["ipv4.dhcp.ranges"], allowedNets...)
 		if err != nil {
 			return fmt.Errorf("Failed parsing ipv4.dhcp.ranges: %w", err)
 		}
 
 		for _, ovnRange := range ovnRanges {
 			for _, dhcpRange := range dhcpRanges {
-				if IPRangesOverlap(ovnRange, dhcpRange) {
+				if ovnRange.Overlaps(dhcpRange) {
 					return fmt.Errorf(`The range specified in "ipv4.ovn.ranges" (%q) cannot overlap with "ipv4.dhcp.ranges"`, ovnRange)
 				}
 			}
@@ -439,7 +439,7 @@ func (n *bridge) Validate(config map[string]string) error {
 			allowedNets = append(allowedNets, dhcpSubnet)
 		}
 
-		ovnRanges, err := parseIPRanges(config["ipv6.ovn.ranges"], allowedNets...)
+		ovnRanges, err := shared.ParseIPRanges(config["ipv6.ovn.ranges"], allowedNets...)
 		if err != nil {
 			return fmt.Errorf("Failed parsing ipv6.ovn.ranges: %w", err)
 		}
@@ -447,14 +447,14 @@ func (n *bridge) Validate(config map[string]string) error {
 		// If stateful DHCPv6 is enabled, check OVN ranges don't overlap with DHCPv6 stateful ranges.
 		// Otherwise SLAAC will be being used to generate client IPs and predefined ranges aren't used.
 		if dhcpSubnet != nil && shared.IsTrue(config["ipv6.dhcp.stateful"]) {
-			dhcpRanges, err := parseIPRanges(config["ipv6.dhcp.ranges"], allowedNets...)
+			dhcpRanges, err := shared.ParseIPRanges(config["ipv6.dhcp.ranges"], allowedNets...)
 			if err != nil {
 				return fmt.Errorf("Failed parsing ipv6.dhcp.ranges: %w", err)
 			}
 
 			for _, ovnRange := range ovnRanges {
 				for _, dhcpRange := range dhcpRanges {
-					if IPRangesOverlap(ovnRange, dhcpRange) {
+					if ovnRange.Overlaps(dhcpRange) {
 						return fmt.Errorf(`The range specified in "ipv6.ovn.ranges" (%q) cannot overlap with "ipv6.dhcp.ranges"`, ovnRange)
 					}
 				}
