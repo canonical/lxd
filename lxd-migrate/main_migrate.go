@@ -111,6 +111,19 @@ func (c *cmdMigrateData) render() string {
 }
 
 func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
+	// Detect local server.
+	local, err := c.connectLocal()
+	if err == nil {
+		useLocal, err := c.global.asker.AskBool("The local LXD server is the target [default=yes]: ", "yes")
+		if err != nil {
+			return nil, "", err
+		}
+
+		if useLocal {
+			return local, "", nil
+		}
+	}
+
 	// Server address
 	serverURL, err := c.global.asker.AskString("Please provide LXD server URL: ", "", nil)
 	if err != nil {
