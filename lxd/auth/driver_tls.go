@@ -76,7 +76,7 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *a
 
 	if !isRestricted {
 		return nil
-	} else if id.IdentityType == api.IdentityTypeCertificateMetrics && entitlement == EntitlementCanViewMetrics {
+	} else if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == EntitlementCanViewMetrics {
 		return nil
 	}
 
@@ -166,7 +166,7 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 
 	if !isRestricted {
 		return allowFunc(true), nil
-	} else if id.IdentityType == api.IdentityTypeCertificateMetrics && entitlement == EntitlementCanViewMetrics {
+	} else if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == EntitlementCanViewMetrics {
 		return allowFunc(true), nil
 	}
 
@@ -178,6 +178,9 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 	// Check server level object types
 	switch entityType {
 	case entity.TypeServer:
+		// We have to keep EntitlementCanViewMetrics here for backwards compatibility with older versions of LXD.
+		// Historically when viewing the metrics endpoint for a specific project with a restricted certificate
+		// also the internal server metrics get returned.
 		if entitlement == EntitlementCanView || entitlement == EntitlementCanViewResources || entitlement == EntitlementCanViewMetrics {
 			return allowFunc(true), nil
 		}
