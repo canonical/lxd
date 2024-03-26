@@ -12,11 +12,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/securecookie"
-	"github.com/zitadel/oidc/v2/pkg/client"
-	"github.com/zitadel/oidc/v2/pkg/client/rp"
-	httphelper "github.com/zitadel/oidc/v2/pkg/http"
-	"github.com/zitadel/oidc/v2/pkg/oidc"
-	"github.com/zitadel/oidc/v2/pkg/op"
+	"github.com/zitadel/oidc/v3/pkg/client"
+	"github.com/zitadel/oidc/v3/pkg/client/rp"
+	httphelper "github.com/zitadel/oidc/v3/pkg/http"
+	"github.com/zitadel/oidc/v3/pkg/oidc"
+	"github.com/zitadel/oidc/v3/pkg/op"
 	"golang.org/x/crypto/hkdf"
 
 	"github.com/canonical/lxd/lxd/identity"
@@ -43,7 +43,7 @@ const (
 
 // Verifier holds all information needed to verify an access token offline.
 type Verifier struct {
-	accessTokenVerifier op.AccessTokenVerifier
+	accessTokenVerifier *op.AccessTokenVerifier
 	relyingParty        rp.RelyingParty
 	identityCache       *identity.Cache
 
@@ -92,7 +92,7 @@ func (e AuthError) Unwrap() error {
 
 // Auth extracts OIDC tokens from the request, verifies them, and returns the subject.
 func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Request) (*AuthenticationResult, error) {
-	err := o.ensureConfig(r.Host)
+	err := o.ensureConfig(ctx, r.Host)
 	if err != nil {
 		return nil, fmt.Errorf("Authorization failed: %w", err)
 	}
@@ -160,7 +160,7 @@ func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken stri
 		return nil, fmt.Errorf("Failed to get OIDC identity from identity cache by their subject (%s): %w", claims.Subject, err)
 	}
 
-	userInfo, err := rp.Userinfo(accessToken, oidc.BearerToken, claims.Subject, o.relyingParty)
+	userInfo, err := rp.Userinfo[*oidc.UserInfo](ctx, accessToken, oidc.BearerToken, claims.Subject, o.relyingParty)
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to call user info endpoint with given access token: %w", err)}
 	}
@@ -198,7 +198,7 @@ func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWrite
 	}
 
 	// If ID token verification failed (or it wasn't provided, try refreshing the token).
-	tokens, err := rp.RefreshAccessToken(o.relyingParty, refreshToken, "", "")
+	tokens, err := rp.RefreshTokens[*oidc.IDTokenClaims](ctx, o.relyingParty, refreshToken, "", "")
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to refresh ID tokens: %w", err)}
 	}
@@ -273,7 +273,7 @@ func (o *Verifier) getGroupsFromClaims(customClaims map[string]any) []string {
 
 // Login is a http.Handler than initiates the login flow for the UI.
 func (o *Verifier) Login(w http.ResponseWriter, r *http.Request) {
-	err := o.ensureConfig(r.Host)
+	err := o.ensureConfig(r.Context(), r.Host)
 	if err != nil {
 		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Login failed: %w", err).Error()).Render(w)
 		return
@@ -296,7 +296,7 @@ func (o *Verifier) Logout(w http.ResponseWriter, r *http.Request) {
 
 // Callback is a http.HandlerFunc which implements the code exchange required on the /oidc/callback endpoint.
 func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
-	err := o.ensureConfig(r.Host)
+	err := o.ensureConfig(r.Context(), r.Host)
 	if err != nil {
 		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("OIDC callback failed: %w", err).Error()).Render(w)
 		return
@@ -368,9 +368,9 @@ func (o *Verifier) ExpireConfig() {
 // ensureConfig ensures that the relyingParty and accessTokenVerifier fields of the Verifier are non-nil. Additionally,
 // if the given host is different from the Verifier host we reset the relyingParty to ensure the callback URL is set
 // correctly.
-func (o *Verifier) ensureConfig(host string) error {
+func (o *Verifier) ensureConfig(ctx context.Context, host string) error {
 	if o.relyingParty == nil || host != o.host || time.Now().After(o.configExpiry) {
-		err := o.setRelyingParty(host)
+		err := o.setRelyingParty(ctx, host)
 		if err != nil {
 			return err
 		}
@@ -380,7 +380,7 @@ func (o *Verifier) ensureConfig(host string) error {
 	}
 
 	if o.accessTokenVerifier == nil {
-		err := o.setAccessTokenVerifier()
+		err := o.setAccessTokenVerifier(ctx)
 		if err != nil {
 			return err
 		}
@@ -390,7 +390,7 @@ func (o *Verifier) ensureConfig(host string) error {
 }
 
 // setRelyingParty sets the relyingParty on the Verifier. The host argument is used to set a valid callback URL.
-func (o *Verifier) setRelyingParty(host string) error {
+func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 	// The relying party sets cookies for the following values:
 	// - "state": Used to prevent CSRF attacks (https://datatracker.ietf.org/doc/html/rfc6749#section-10.12).
 	// - "pkce": Used to prevent authorization code interception attacks (https://datatracker.ietf.org/doc/html/rfc7636).
@@ -428,7 +428,7 @@ func (o *Verifier) setRelyingParty(host string) error {
 		oidcScopes = append(oidcScopes, o.groupsClaim)
 	}
 
-	relyingParty, err := rp.NewRelyingPartyOIDC(o.issuer, o.clientID, "", fmt.Sprintf("https://%s/oidc/callback", host), oidcScopes, options...)
+	relyingParty, err := rp.NewRelyingPartyOIDC(ctx, o.issuer, o.clientID, "", fmt.Sprintf("https://%s/oidc/callback", host), oidcScopes, options...)
 	if err != nil {
 		return fmt.Errorf("Failed to get OIDC relying party: %w", err)
 	}
@@ -439,12 +439,12 @@ func (o *Verifier) setRelyingParty(host string) error {
 
 // setAccessTokenVerifier sets the accessTokenVerifier on the Verifier. It uses the oidc.KeySet from the relyingParty if
 // it is set, otherwise it calls the discovery endpoint (/.well-known/openid-configuration).
-func (o *Verifier) setAccessTokenVerifier() error {
+func (o *Verifier) setAccessTokenVerifier(ctx context.Context) error {
 	var keySet oidc.KeySet
 	if o.relyingParty != nil {
-		keySet = o.relyingParty.IDTokenVerifier().KeySet()
+		keySet = o.relyingParty.IDTokenVerifier().KeySet
 	} else {
-		discoveryConfig, err := client.Discover(o.issuer, http.DefaultClient)
+		discoveryConfig, err := client.Discover(ctx, o.issuer, http.DefaultClient)
 		if err != nil {
 			return fmt.Errorf("Failed calling OIDC discovery endpoint: %w", err)
 		}
