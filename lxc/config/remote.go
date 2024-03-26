@@ -12,7 +12,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/zitadel/oidc/v2/pkg/oidc"
+	"github.com/zitadel/oidc/v3/pkg/oidc"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
