@@ -161,7 +161,7 @@ jobs:
           # optimize ext4 FSes for performance, not reliability
           for fs in $(findmnt --noheading --type ext4 --list --uniq | awk '{print $1}'); do
             # nombcache and data=writeback cannot be changed on remount
-            sudo mount -o remount,noatime,barrier=0,commit=6000 "${fs}"
+            sudo mount -o remount,noatime,barrier=0,commit=6000 "${fs}" || true
           done
 
           # disable dpkg from calling sync()
@@ -174,7 +174,7 @@ jobs:
           sudo snap remove lxd --purge
           # Purge older snap revisions that are disabled/superseded by newer revisions of the same snap
           snap list --all | while read -r name _ rev _ _ notes _; do
-            [ "${notes}" = "disabled" ] && snap remove "${name}" --revision "${rev}" --purge
+            [[ "${notes}" =~ disabled$ ]] && snap remove "${name}" --revision "${rev}" --purge
           done || true
 
           # This was inspired from https://github.com/easimon/maximize-build-space
@@ -391,22 +391,32 @@ jobs:
           CGO_ENABLED: 0
           GOARCH: amd64
         run: |
-          go build -o bin/lxc.x86_64 ./lxc
+          go build -ldflags "-s -w" -o trimpath -o bin/lxc.x86_64 ./lxc
 
       - name: Build static lxc (aarch64)
         env:
           CGO_ENABLED: 0
           GOARCH: arm64
         run: |
-          go build -o bin/lxc.aarch64 ./lxc
+          go build -ldflags "-s -w" -o trimpath -o bin/lxc.aarch64 ./lxc
+
+      - name: Build static lxd-benchmark
+        if: runner.os == 'Linux'
+        env:
+          CGO_ENABLED: 0
+        run: |
+          set -eux
+          GOARCH=amd64 go build -ldflags "-s -w" -o trimpath -o bin/lxd-benchmark.x86_64 ./lxd-benchmark
+          GOARCH=arm64 go build -ldflags "-s -w" -o trimpath -o bin/lxd-benchmark.aarch64 ./lxd-benchmark
 
       - name: Build static lxd-migrate
         if: runner.os == 'Linux'
         env:
           CGO_ENABLED: 0
         run: |
-          GOARCH=amd64 go build -o bin/lxd-migrate.x86_64 ./lxd-migrate
-          GOARCH=arm64 go build -o bin/lxd-migrate.aarch64 ./lxd-migrate
+          set -eux
+          GOARCH=amd64 go build -ldflags "-s -w" -o trimpath -o bin/lxd-migrate.x86_64 ./lxd-migrate
+          GOARCH=arm64 go build -ldflags "-s -w" -o trimpath -o bin/lxd-migrate.aarch64 ./lxd-migrate
 
       - name: Unit tests (client)
         env:

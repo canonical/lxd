@@ -545,7 +545,7 @@ func (r *ProtocolLXD) CreateInstanceFromBackup(args InstanceBackupArgs) (Operati
 		return nil, err
 	}
 
-	if args.PoolName == "" && args.Name == "" {
+	if args.PoolName == "" && args.Name == "" && len(args.Devices) == 0 {
 		// Send the request
 		op, _, err := r.queryOperation("POST", path, args.BackupFile, "", true)
 		if err != nil {
@@ -569,6 +569,13 @@ func (r *ProtocolLXD) CreateInstanceFromBackup(args InstanceBackupArgs) (Operati
 		}
 	}
 
+	if len(args.Devices) > 0 {
+		err = r.CheckExtension("import_instance_devices")
+		if err != nil {
+			return nil, fmt.Errorf("Cannot use device override: %w", err)
+		}
+	}
+
 	// Prepare the HTTP request
 	reqURL, err := r.setQueryAttributes(fmt.Sprintf("%s/1.0%s", r.httpBaseURL.String(), path))
 	if err != nil {
@@ -588,6 +595,21 @@ func (r *ProtocolLXD) CreateInstanceFromBackup(args InstanceBackupArgs) (Operati
 
 	if args.Name != "" {
 		req.Header.Set("X-LXD-name", args.Name)
+	}
+
+	if len(args.Devices) > 0 {
+		devProps := url.Values{}
+
+		for dev := range args.Devices {
+			props := url.Values{}
+			for k, v := range args.Devices[dev] {
+				props.Set(k, v)
+			}
+
+			devProps.Set(dev, props.Encode())
+		}
+
+		req.Header.Set("X-LXD-devices", devProps.Encode())
 	}
 
 	// Send the request

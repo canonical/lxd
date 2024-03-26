@@ -21,6 +21,7 @@ import (
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/ip"
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/network/acl"
@@ -4124,7 +4125,7 @@ func (n *ovn) ovnNICExternalRoutes(ovnProjectNetworksWithOurUplink map[string][]
 	err := n.state.DB.Cluster.InstanceList(context.TODO(), func(inst db.InstanceArgs, p api.Project) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
-		devices := db.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
+		devices := instancetype.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
 
 		// Iterate through each of the instance's devices, looking for OVN NICs that are linked to networks
 		// that use our uplink.
@@ -4249,7 +4250,7 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 					return nil
 				}
 
-				devices := db.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
+				devices := instancetype.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
 
 				// Iterate through each of the instance's devices, looking for NICs that are linked
 				// this network.

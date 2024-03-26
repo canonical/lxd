@@ -100,7 +100,7 @@ func checkTotalInstanceCountLimit(info *projectInfo) error {
 	return nil
 }
 
-func getTotalInstanceCountLimit(info *projectInfo) (int, int, error) {
+func getTotalInstanceCountLimit(info *projectInfo) (instanceCount int, limit int, err error) {
 	overallValue, ok := info.Project.Config["limits.instances"]
 	if ok {
 		limit, err := strconv.Atoi(overallValue)
@@ -128,7 +128,7 @@ func checkInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) 
 	return nil
 }
 
-func getInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) (int, int, error) {
+func getInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) (instanceCount int, limit int, err error) {
 	var key string
 	switch instanceType {
 	case instancetype.Container:
@@ -139,7 +139,6 @@ func getInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) (i
 		return -1, -1, fmt.Errorf("Unexpected instance type %q", instanceType)
 	}
 
-	instanceCount := 0
 	for _, inst := range info.Instances {
 		if inst.Type == instanceType.String() {
 			instanceCount++
@@ -1242,8 +1241,8 @@ func expandInstancesConfigAndDevices(instances []api.Instance, profiles []api.Pr
 		}
 
 		expandedInstances[i] = instance
-		expandedInstances[i].Config = db.ExpandInstanceConfig(instance.Config, apiProfiles)
-		expandedInstances[i].Devices = db.ExpandInstanceDevices(deviceconfig.NewDevices(instance.Devices), apiProfiles).CloneNative()
+		expandedInstances[i].Config = instancetype.ExpandInstanceConfig(instance.Config, apiProfiles)
+		expandedInstances[i].Devices = instancetype.ExpandInstanceDevices(deviceconfig.NewDevices(instance.Devices), apiProfiles).CloneNative()
 	}
 
 	return expandedInstances, nil

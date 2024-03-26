@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/device/pci"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/ip"
 	"github.com/canonical/lxd/lxd/network/openvswitch"
 	"github.com/canonical/lxd/lxd/state"
@@ -60,8 +61,8 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 	// Check if any instances are using the VF device.
 	err = s.DB.Cluster.InstanceList(context.TODO(), func(dbInst db.InstanceArgs, p api.Project) error {
 		// Expand configs so we take into account profile devices.
-		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, dbInst.Profiles)
-		dbInst.Devices = db.ExpandInstanceDevices(dbInst.Devices, dbInst.Profiles)
+		dbInst.Config = instancetype.ExpandInstanceConfig(dbInst.Config, dbInst.Profiles)
+		dbInst.Devices = instancetype.ExpandInstanceDevices(dbInst.Devices, dbInst.Profiles)
 
 		for name, dev := range dbInst.Devices {
 			// If device references a parent host interface name, mark that as reserved.

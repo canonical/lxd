@@ -28,6 +28,11 @@ const (
 
 	// CtxForwardedProtocol is the forwarded protocol field in request context.
 	CtxForwardedProtocol CtxKey = "forwarded_protocol"
+
+	// CtxEffectiveProjectName is used to indicate that the effective project of a resource is different from the project
+	// specified in the URL. (For example, if a project has `features.networks=false`, any networks in this project actually
+	// belong to the default project).
+	CtxEffectiveProjectName CtxKey = "effective_project_name"
 )
 
 // Headers.

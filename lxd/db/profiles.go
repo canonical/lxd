@@ -7,12 +7,19 @@ import (
 	"fmt"
 
 	"github.com/canonical/lxd/lxd/db/cluster"
-	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/shared/api"
 )
 
 // GetProfileNames returns the names of all profiles in the given project.
 func (c *Cluster) GetProfileNames(project string) ([]string, error) {
+	q := `
+SELECT profiles.name
+ FROM profiles
+ JOIN projects ON projects.id = profiles.project_id
+WHERE projects.name = ?
+`
+	var result [][]any
+
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		enabled, err := cluster.ProjectHasProfiles(context.Background(), tx.tx, project)
 		if err != nil {
@@ -23,24 +30,19 @@ func (c *Cluster) GetProfileNames(project string) ([]string, error) {
 			project = "default"
 		}
 
+		inargs := []any{project}
+		var name string
+		outfmt := []any{name}
+
+		result, err = queryScan(ctx, tx, q, inargs, outfmt)
+		if err != nil {
+			return err
+		}
+
 		return nil
 	})
 	if err != nil {
 		return nil, err
-	}
-
-	q := `
-SELECT profiles.name
- FROM profiles
- JOIN projects ON projects.id = profiles.project_id
-WHERE projects.name = ?
-`
-	inargs := []any{project}
-	var name string
-	outfmt := []any{name}
-	result, err := queryScan(c, q, inargs, outfmt)
-	if err != nil {
-		return []string{}, err
 	}
 
 	response := []string{}
@@ -111,6 +113,17 @@ func (c *Cluster) GetProfiles(projectName string, profileNames []string) ([]api.
 // GetInstancesWithProfile gets the names of the instance associated with the
 // profile with the given name in the given project.
 func (c *Cluster) GetInstancesWithProfile(project, profile string) (map[string][]string, error) {
+	q := `SELECT instances.name, projects.name FROM instances
+		JOIN instances_profiles ON instances.id == instances_profiles.instance_id
+		JOIN projects ON projects.id == instances.project_id
+		WHERE instances_profiles.profile_id ==
+		  (SELECT profiles.id FROM profiles
+		   JOIN projects ON projects.id == profiles.project_id
+		   WHERE profiles.name=? AND projects.name=?)`
+
+	results := map[string][]string{}
+	var output [][]any
+
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		enabled, err := cluster.ProjectHasProfiles(context.Background(), tx.tx, project)
 		if err != nil {
@@ -121,26 +134,17 @@ func (c *Cluster) GetInstancesWithProfile(project, profile string) (map[string][
 			project = "default"
 		}
 
+		inargs := []any{profile, project}
+		var name string
+		outfmt := []any{name, name}
+
+		output, err = queryScan(ctx, tx, q, inargs, outfmt)
+		if err != nil {
+			return err
+		}
+
 		return nil
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	q := `SELECT instances.name, projects.name FROM instances
-		JOIN instances_profiles ON instances.id == instances_profiles.instance_id
-		JOIN projects ON projects.id == instances.project_id
-		WHERE instances_profiles.profile_id ==
-		  (SELECT profiles.id FROM profiles
-		   JOIN projects ON projects.id == profiles.project_id
-		   WHERE profiles.name=? AND projects.name=?)`
-
-	results := map[string][]string{}
-	inargs := []any{profile, project}
-	var name string
-	outfmt := []any{name, name}
-
-	output, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -163,60 +167,9 @@ DELETE FROM profiles_config WHERE profile_id NOT IN (SELECT id FROM profiles);
 DELETE FROM profiles_devices WHERE profile_id NOT IN (SELECT id FROM profiles);
 DELETE FROM profiles_devices_config WHERE profile_device_id NOT IN (SELECT id FROM profiles_devices);
 `
-	err := exec(c, stmt)
-	if err != nil {
+
+	return c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		_, err := tx.tx.ExecContext(ctx, stmt)
 		return err
-	}
-
-	return nil
-}
-
-// ExpandInstanceConfig expands the given instance config with the config
-// values of the given profiles.
-func ExpandInstanceConfig(config map[string]string, profiles []api.Profile) map[string]string {
-	expandedConfig := map[string]string{}
-
-	// Apply all the profiles
-	profileConfigs := make([]map[string]string, len(profiles))
-	for i, profile := range profiles {
-		profileConfigs[i] = profile.Config
-	}
-
-	for i := range profileConfigs {
-		for k, v := range profileConfigs[i] {
-			expandedConfig[k] = v
-		}
-	}
-
-	// Stick the given config on top
-	for k, v := range config {
-		expandedConfig[k] = v
-	}
-
-	return expandedConfig
-}
-
-// ExpandInstanceDevices expands the given instance devices with the devices
-// defined in the given profiles.
-func ExpandInstanceDevices(devices deviceConfig.Devices, profiles []api.Profile) deviceConfig.Devices {
-	expandedDevices := deviceConfig.Devices{}
-
-	// Apply all the profiles
-	profileDevices := make([]deviceConfig.Devices, len(profiles))
-	for i, profile := range profiles {
-		profileDevices[i] = deviceConfig.NewDevices(profile.Devices)
-	}
-
-	for i := range profileDevices {
-		for k, v := range profileDevices[i] {
-			expandedDevices[k] = v
-		}
-	}
-
-	// Stick the given devices on top
-	for k, v := range devices {
-		expandedDevices[k] = v
-	}
-
-	return expandedDevices
+	})
 }

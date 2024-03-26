@@ -769,7 +769,7 @@ func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName st
 
 		// Expand devices for usage check if expandDevices is true.
 		if expandDevices {
-			devices = db.ExpandInstanceDevices(devices.Clone(), inst.Profiles)
+			devices = instancetype.ExpandInstanceDevices(devices.Clone(), inst.Profiles)
 		}
 
 		var usedByDevices []string

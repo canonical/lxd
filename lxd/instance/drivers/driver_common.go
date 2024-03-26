@@ -499,8 +499,8 @@ func (d *common) deviceVolatileSetFunc(devName string) func(save map[string]stri
 
 // expandConfig applies the config of each profile in order, followed by the local config.
 func (d *common) expandConfig() error {
-	d.expandedConfig = db.ExpandInstanceConfig(d.localConfig, d.profiles)
-	d.expandedDevices = db.ExpandInstanceDevices(d.localDevices, d.profiles)
+	d.expandedConfig = instancetype.ExpandInstanceConfig(d.localConfig, d.profiles)
+	d.expandedDevices = instancetype.ExpandInstanceDevices(d.localDevices, d.profiles)
 
 	return nil
 }
@@ -683,8 +683,8 @@ func (d *common) updateProgress(progress string) {
 // unpopulated then the insert querty is retried until it succeeds or a retry limit is reached.
 // If the insert succeeds or the key is found to have been populated then the value of the key is returned.
 func (d *common) insertConfigkey(key string, value string) (string, error) {
-	err := query.Retry(func() error {
-		err := query.Transaction(context.TODO(), d.state.DB.Cluster.DB(), func(ctx context.Context, tx *sql.Tx) error {
+	err := query.Retry(context.TODO(), func(ctx context.Context) error {
+		err := query.Transaction(ctx, d.state.DB.Cluster.DB(), func(ctx context.Context, tx *sql.Tx) error {
 			return db.CreateInstanceConfig(tx, d.id, map[string]string{key: value})
 		})
 		if err != nil {
@@ -991,7 +991,7 @@ func (d *common) warningsDelete() error {
 // canMigrate determines if the given instance can be migrated and whether the migration
 // can be live. In "auto" mode, the function checks each attached device of the instance
 // to ensure they are all migratable.
-func (d *common) canMigrate(inst instance.Instance) (bool, bool) {
+func (d *common) canMigrate(inst instance.Instance) (canMigrate bool, canLiveMigrate bool) {
 	// Check policy for the instance.
 	config := d.ExpandedConfig()
 	val, ok := config["cluster.evacuate"]

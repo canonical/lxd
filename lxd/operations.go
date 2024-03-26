@@ -64,7 +64,7 @@ func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdown
 				logger.Error("Failed cleaning up operations")
 			}
 
-			return nil
+			return nil //nolint:revive // False positive: raises "return in a defer function has no effect".
 		})
 	}()
 
@@ -985,6 +985,7 @@ type operationWebSocket struct {
 	op  *operations.Operation
 }
 
+// Render implements response.Response for operationWebSocket.
 func (r *operationWebSocket) Render(w http.ResponseWriter) error {
 	chanErr, err := r.op.Connect(r.req, w)
 	if err != nil {
@@ -995,6 +996,7 @@ func (r *operationWebSocket) Render(w http.ResponseWriter) error {
 	return err
 }
 
+// String implements fmt.Stringer for operationWebSocket.
 func (r *operationWebSocket) String() string {
 	_, md, err := r.op.Render()
 	if err != nil {

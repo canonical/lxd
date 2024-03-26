@@ -9,6 +9,7 @@ Feel free to remove anything which doesn't apply to you and add more information
 
  * Distribution:
  * Distribution version:
+ * The output of "snap list --all lxd core20 core22 core24 snapd":
  * The output of "lxc info" or if that fails:
    * Kernel version:
    * LXC version:

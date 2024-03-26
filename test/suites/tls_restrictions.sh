@@ -46,6 +46,36 @@ test_tls_restrictions() {
 
   ! lxc_remote project create localhost:blah1 || false
 
+  # Ensure we can create and view resources that are not enabled for the project (e.g. their effective project is
+  # the default project).
+
+  # Networks are disabled when projects are created.
+  lxc_remote network create localhost:blah-network --project blah
+  lxc_remote network show localhost:blah-network --project blah
+  lxc_remote network list localhost: --project blah | grep blah-network
+  lxc_remote network rm localhost:blah-network --project blah
+
+  # Network zones are disabled when projects are created.
+  lxc_remote network zone create localhost:blah-zone --project blah
+  lxc_remote network zone show localhost:blah-zone --project blah
+  lxc_remote network zone list localhost: --project blah | grep blah-zone
+  lxc_remote network zone delete localhost:blah-zone --project blah
+
+  # Unset the profiles feature (the default is false).
+  lxc project unset blah features.profiles
+  lxc_remote profile create localhost:blah-profile --project blah
+  lxc_remote profile show localhost:blah-profile --project blah
+  lxc_remote profile list localhost: --project blah | grep blah-profile
+  lxc_remote profile delete localhost:blah-profile --project blah
+
+  # Unset the storage volumes feature (the default is false).
+  lxc project unset blah features.storage.volumes
+  lxc_remote storage volume create "localhost:${pool_name}" blah-volume --project blah
+  lxc_remote storage volume show "localhost:${pool_name}" blah-volume --project blah
+  lxc_remote storage volume list "localhost:${pool_name}" --project blah
+  lxc_remote storage volume list "localhost:${pool_name}" --project blah | grep blah-volume
+  lxc_remote storage volume delete "localhost:${pool_name}" blah-volume --project blah
+
   # Cleanup
   lxc config trust show "${FINGERPRINT}" | sed -e "s/restricted: true/restricted: false/" | lxc config trust edit "${FINGERPRINT}"
   lxc project delete blah

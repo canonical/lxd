@@ -598,6 +598,7 @@ func (d *proxy) killProxyProc(pidPath string) error {
 	return nil
 }
 
+// Remove removes the proxy device.
 func (d *proxy) Remove() error {
 	err := warnings.DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.DB.Cluster, d.inst.Project().Name, warningtype.ProxyBridgeNetfilterNotEnabled, cluster.TypeInstance, d.inst.ID())
 	if err != nil {

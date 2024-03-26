@@ -1011,6 +1011,47 @@ func (d *qemu) saveState(monitor *qmp.Monitor) error {
 	return nil
 }
 
+// validateRootDiskStatefulStop validates the state of the root disk before stopping the instance.
+func (d *qemu) validateRootDiskStatefulStop() error {
+	// checks if the root disk device exists and retrieves the storage pool.
+	_, rootDiskDevice, err := d.getRootDiskDevice()
+	if err != nil {
+		return fmt.Errorf("Failed getting root disk: %w", err)
+	}
+
+	// Don't access d.storagePool directly since it isn't populated at this stage.
+	pool, err := d.getStoragePool()
+	if err != nil {
+		return err
+	}
+
+	stateDiskSizeStr := pool.Driver().Info().DefaultVMBlockFilesystemSize
+	if rootDiskDevice["size.state"] != "" {
+		stateDiskSizeStr = rootDiskDevice["size.state"]
+	}
+
+	stateDiskSize, err := units.ParseByteSizeString(stateDiskSizeStr)
+	if err != nil {
+		return fmt.Errorf("Failed parsing root disk size.state: %w", err)
+	}
+
+	memoryLimitStr := QEMUDefaultMemSize
+	if d.expandedConfig["limits.memory"] != "" {
+		memoryLimitStr = d.expandedConfig["limits.memory"]
+	}
+
+	memoryLimit, err := units.ParseByteSizeString(memoryLimitStr)
+	if err != nil {
+		return fmt.Errorf("Failed parsing limits.memory: %w", err)
+	}
+
+	if stateDiskSize < memoryLimit {
+		return fmt.Errorf("When migration.stateful is enabled the root disk's size.state setting should be set to at least the limits.memory size in order to accommodate the stateful stop file")
+	}
+
+	return nil
+}
+
 // validateStartup checks any constraints that would prevent start up from succeeding under normal circumstances.
 func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
 	err := d.common.validateStartup(stateful, statusCode)
@@ -1021,46 +1062,6 @@ func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
 	// Cannot perform stateful start unless config is appropriately set.
 	if stateful && shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
 		return fmt.Errorf("Stateful start requires migration.stateful to be set to true")
-	}
-
-	// The "size.state" of the instance root disk device must be larger than the instance memory.
-	// Otherwise, there will not be enough disk space to write the instance state to disk during any subsequent stops.
-	// (Only check when migration.stateful is true, otherwise the memory won't be dumped when this instance stops).
-	if shared.IsTrue(d.expandedConfig["migration.stateful"]) {
-		_, rootDiskDevice, err := d.getRootDiskDevice()
-		if err != nil {
-			return err
-		}
-
-		// Don't access d.storagePool directly since it isn't populated at this stage.
-		pool, err := d.getStoragePool()
-		if err != nil {
-			return err
-		}
-
-		stateDiskSizeStr := pool.Driver().Info().DefaultVMBlockFilesystemSize
-		if rootDiskDevice["size.state"] != "" {
-			stateDiskSizeStr = rootDiskDevice["size.state"]
-		}
-
-		stateDiskSize, err := units.ParseByteSizeString(stateDiskSizeStr)
-		if err != nil {
-			return err
-		}
-
-		memoryLimitStr := QEMUDefaultMemSize
-		if d.expandedConfig["limits.memory"] != "" {
-			memoryLimitStr = d.expandedConfig["limits.memory"]
-		}
-
-		memoryLimit, err := units.ParseByteSizeString(memoryLimitStr)
-		if err != nil {
-			return err
-		}
-
-		if stateDiskSize < memoryLimit {
-			return fmt.Errorf("Stateful start requires that the instance limits.memory is less than size.state on the root disk device")
-		}
 	}
 
 	return nil
@@ -1358,7 +1359,6 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		d.logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback", logger.Ctx{"err": errUnsupported})
 
 		if errUnsupported == device.ErrMissingVirtiofsd {
-			// Create a warning if virtiofsd is missing.
 			_ = d.state.DB.Cluster.UpsertWarning(d.node, d.project.Name, dbCluster.TypeInstance, d.ID(), warningtype.MissingVirtiofsd, "Using 9p as a fallback")
 		} else {
 			// Resolve previous warning.
@@ -2461,6 +2461,9 @@ cp -Ra --no-preserve=ownership "${PREFIX}/.mnt/"* "${PREFIX}"
 # Unmount the temporary mount.
 umount "${PREFIX}/.mnt"
 rmdir "${PREFIX}/.mnt"
+
+# Attempt to restore SELinux labels.
+restorecon -R "${PREFIX}" >/dev/null 2>&1 || true
 `
 
 	err = os.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-setup"), []byte(lxdAgentSetupScript), 0500)
@@ -2503,6 +2506,11 @@ cp udev/99-lxd-agent.rules /lib/udev/rules.d/
 cp systemd/lxd-agent.service /lib/systemd/system/
 cp systemd/lxd-agent-setup /lib/systemd/
 systemctl daemon-reload
+
+# SELinux handling.
+if getenforce >/dev/null 2>&1; then
+    semanage fcontext -a -t bin_t /run/lxd_agent/lxd-agent
+fi
 
 echo ""
 echo "LXD agent has been installed, reboot to confirm setup."
@@ -4245,8 +4253,15 @@ func (d *qemu) Stop(stateful bool) error {
 	}
 
 	// Check for stateful.
-	if stateful && shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
-		return fmt.Errorf("Stateful stop requires migration.stateful to be set to true")
+	if stateful {
+		if shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
+			return fmt.Errorf("Stateful stop requires migration.stateful to be set to true")
+		}
+
+		err := d.validateRootDiskStatefulStop()
+		if err != nil {
+			return err
+		}
 	}
 
 	// Setup a new operation.

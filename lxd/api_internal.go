@@ -665,7 +665,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 
 	if backupConf.Pool == nil {
 		// We don't know what kind of storage type the pool is.
-		return fmt.Errorf(`No storage pool struct in the backup file found. The storage pool needs to be recovered manually`)
+		return fmt.Errorf("No storage pool struct in the backup file found. The storage pool needs to be recovered manually")
 	}
 
 	// Try to retrieve the storage pool the instance supposedly lives on.
@@ -694,7 +694,7 @@ func internalImportFromBackup(s *state.State, projectName string, instName strin
 	}
 
 	// Check snapshots are consistent.
-	existingSnapshots, err := pool.CheckInstanceBackupFileSnapshots(backupConf, projectName, false, nil)
+	existingSnapshots, err := pool.CheckInstanceBackupFileSnapshots(backupConf, projectName, nil)
 	if err != nil {
 		return fmt.Errorf("Failed checking snapshots: %w", err)
 	}
@@ -918,7 +918,7 @@ func internalImportRootDevicePopulate(instancePoolName string, localDevices map[
 	expandedRootName, expandedRootConfig, _ := instancetype.GetRootDiskDevice(expandedDevices)
 
 	// Extract root disk from expanded profile devices.
-	profileExpandedDevices := db.ExpandInstanceDevices(deviceConfig.NewDevices(localDevices), profiles)
+	profileExpandedDevices := instancetype.ExpandInstanceDevices(deviceConfig.NewDevices(localDevices), profiles)
 	profileExpandedRootName, profileExpandedRootConfig, _ := instancetype.GetRootDiskDevice(profileExpandedDevices.CloneNative())
 
 	// Record whether we need to add a new local disk device.

@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 )
@@ -318,22 +319,22 @@ func (d *common) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.O
 }
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
-func (d *common) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
+func (d *common) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
 	return nil, nil, ErrNotSupported
 }
 
 // CreateVolumeFromCopy copies an existing storage volume (with or without snapshots) into a new volume.
-func (d *common) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, allowInconsistent bool, op *operations.Operation) error {
+func (d *common) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // CreateVolumeFromMigration creates a new volume (with or without snapshots) from a migration data stream.
-func (d *common) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+func (d *common) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // RefreshVolume updates an existing volume to match the state of another.
-func (d *common) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, allowInconsistent bool, op *operations.Operation) error {
+func (d *common) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
@@ -404,12 +405,12 @@ func (d *common) RenameVolume(vol Volume, newVolName string, op *operations.Oper
 }
 
 // MigrateVolume streams the volume (with or without snapshots).
-func (d *common) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
+func (d *common) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // BackupVolume creates an exported version of a volume.
-func (d *common) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
+func (d *common) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
@@ -438,8 +439,40 @@ func (d *common) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string
 	return nil, ErrNotSupported
 }
 
+// CheckVolumeSnapshots checks that the volume's snapshots, according to the storage driver, match those provided.
+func (d *common) CheckVolumeSnapshots(vol Volume, snapVols []Volume, op *operations.Operation) error {
+	// Use the volume's driver reference to pick the actual method as implemented by the driver.
+	storageSnapshotNames, err := vol.driver.VolumeSnapshots(vol, op)
+	if err != nil {
+		return err
+	}
+
+	// Create a list of all wanted snapshots.
+	wantedSnapshotNames := make([]string, 0, len(snapVols))
+	for _, snap := range snapVols {
+		_, snapName, _ := api.GetParentAndSnapshotName(snap.name)
+		wantedSnapshotNames = append(wantedSnapshotNames, snapName)
+	}
+
+	// Check if the provided list of volume snapshots matches the ones from storage.
+	for _, wantedSnapshotName := range wantedSnapshotNames {
+		if !shared.StringInSlice(wantedSnapshotName, storageSnapshotNames) {
+			return fmt.Errorf("Snapshot %q expected but not in storage", wantedSnapshotName)
+		}
+	}
+
+	// Check if the snapshots in storage match the ones from the provided list.
+	for _, storageSnapshotName := range storageSnapshotNames {
+		if !shared.StringInSlice(storageSnapshotName, wantedSnapshotNames) {
+			return fmt.Errorf("Snapshot %q in storage but not expected", storageSnapshotName)
+		}
+	}
+
+	return nil
+}
+
 // RestoreVolume resets a volume to its snapshotted state.
-func (d *common) RestoreVolume(vol Volume, snapshotName string, op *operations.Operation) error {
+func (d *common) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
