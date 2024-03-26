@@ -18,8 +18,11 @@ const (
 	// IdentityTypeCertificateServer represents cluster member authentication.
 	IdentityTypeCertificateServer = "Server certificate"
 
-	// IdentityTypeCertificateMetrics represents identities that may only view metrics.
-	IdentityTypeCertificateMetrics = "Metrics certificate"
+	// IdentityTypeCertificateMetricsRestricted represents identities that may only view metrics and are not privileged.
+	IdentityTypeCertificateMetricsRestricted = "Metrics certificate (restricted)"
+
+	// IdentityTypeCertificateMetricsUnrestricted represents identities that may only view metrics and are privileged.
+	IdentityTypeCertificateMetricsUnrestricted = "Metrics certificate (unrestricted)"
 
 	// IdentityTypeOIDCClient represents an identity that authenticates with OIDC.
 	IdentityTypeOIDCClient = "OIDC client"
