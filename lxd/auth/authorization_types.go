@@ -103,7 +103,7 @@ const (
 	// EntitlementCanViewResources is the `can_view_resources` Entitlement. It applies to entity.TypeServer.
 	EntitlementCanViewResources Entitlement = "can_view_resources"
 
-	// EntitlementCanViewMetrics is the `can_view_metrics` Entitlement. It applies to entity.TypeServer.
+	// EntitlementCanViewMetrics is the `can_view_metrics` Entitlement. It applies to entity.TypeServer and entity.TypeProject.
 	EntitlementCanViewMetrics Entitlement = "can_view_metrics"
 
 	// EntitlementCanViewWarnings is the `can_view_warnings` Entitlement. It applies to entity.TypeServer.
