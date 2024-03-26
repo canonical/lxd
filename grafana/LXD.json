@@ -23,7 +23,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "9.3.2"
+      "version": "10.4.1"
     },
     {
       "type": "panel",
@@ -163,7 +163,6 @@
         "y": 1
       },
       "id": 350,
-      "links": [],
       "options": {
         "displayLabels": [],
         "legend": {
@@ -269,7 +268,6 @@
         "y": 1
       },
       "id": 364,
-      "links": [],
       "options": {
         "displayLabels": [],
         "legend": {
@@ -374,7 +372,6 @@
         "y": 1
       },
       "id": 351,
-      "links": [],
       "options": {
         "displayLabels": [],
         "legend": {
@@ -420,11 +417,14 @@
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
-          "exemplar": true,
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "sum(lxd_filesystem_size_bytes{job=\"$job\",project=\"$project\",mountpoint=\"/\"} - lxd_filesystem_avail_bytes) - \nsum(topk(${top}, lxd_filesystem_size_bytes{job=\"$job\",project=\"$project\",mountpoint=\"/\"} - lxd_filesystem_avail_bytes))",
           "hide": false,
+          "instant": true,
           "interval": "",
           "legendFormat": "Others",
+          "range": false,
           "refId": "B"
         }
       ],
@@ -477,21 +477,26 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.3.2",
+      "pluginVersion": "10.4.1",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
-          "exemplar": true,
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "sum(increase(lxd_disk_read_bytes_total{job=\"$job\",project=\"$project\"}[$__range]))",
           "hide": false,
+          "instant": true,
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "Disk reads",
+          "range": false,
           "refId": "A"
         }
       ],
@@ -544,21 +549,26 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.3.2",
+      "pluginVersion": "10.4.1",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
-          "exemplar": true,
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "sum(increase(lxd_disk_written_bytes_total{job=\"$job\",project=\"$project\"}[$__range]))",
           "hide": false,
+          "instant": true,
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "Disk writes",
+          "range": false,
           "refId": "A"
         }
       ],
@@ -611,21 +621,26 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.3.2",
+      "pluginVersion": "10.4.1",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
-          "exemplar": true,
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "sum(increase(lxd_network_receive_bytes_total{job=\"$job\",project=\"$project\"}[$__range]))*8",
           "hide": false,
+          "instant": true,
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "Network RX",
+          "range": false,
           "refId": "A"
         }
       ],
@@ -678,21 +693,26 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.3.2",
+      "pluginVersion": "10.4.1",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
-          "exemplar": true,
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "sum(increase(lxd_network_transmit_bytes_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__range]))*8",
           "hide": false,
+          "instant": true,
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "Network TX",
+          "range": false,
           "refId": "A"
         }
       ],
@@ -747,7 +767,6 @@
         "y": 9
       },
       "id": 417,
-      "links": [],
       "options": {
         "displayLabels": [],
         "legend": {
@@ -854,7 +873,6 @@
         "y": 9
       },
       "id": 468,
-      "links": [],
       "options": {
         "displayLabels": [],
         "legend": {
@@ -961,7 +979,6 @@
         "y": 9
       },
       "id": 469,
-      "links": [],
       "options": {
         "displayLabels": [],
         "legend": {
@@ -1068,7 +1085,6 @@
         "y": 9
       },
       "id": 470,
-      "links": [],
       "options": {
         "displayLabels": [],
         "legend": {
@@ -1140,6 +1156,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1153,6 +1170,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "smooth",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1160,7 +1178,7 @@
               "type": "linear"
             },
             "showPoints": "never",
-            "spanNulls": false,
+            "spanNulls": true,
             "stacking": {
               "group": "A",
               "mode": "normal"
@@ -1223,7 +1241,6 @@
         "y": 15
       },
       "id": 328,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [],
@@ -1266,6 +1283,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1279,6 +1297,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "smooth",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1394,7 +1413,6 @@
         "y": 15
       },
       "id": 354,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [],
@@ -1428,13 +1446,15 @@
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
-          "exemplar": true,
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "sum(lxd_memory_MemTotal_bytes{job=\"$job\",project=\"$project\"} - lxd_memory_MemFree_bytes - lxd_memory_Cached_bytes)",
           "format": "time_series",
           "hide": false,
           "interval": "",
           "intervalFactor": 1,
           "legendFormat": "RAM Used",
+          "range": true,
           "refId": "B",
           "step": 240
         },
@@ -1495,6 +1515,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1508,6 +1529,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "smooth",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1515,7 +1537,7 @@
               "type": "linear"
             },
             "showPoints": "never",
-            "spanNulls": false,
+            "spanNulls": true,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -1529,7 +1551,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               }
             ]
           },
@@ -1563,10 +1586,12 @@
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
-          "exemplar": true,
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "sum(lxd_procs_total{job=\"$job\",project=\"$project\"})",
           "interval": "",
           "legendFormat": "Processes",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -1586,6 +1611,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1600,6 +1626,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "smooth",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1607,7 +1634,7 @@
               "type": "linear"
             },
             "showPoints": "never",
-            "spanNulls": false,
+            "spanNulls": true,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -1622,7 +1649,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               }
             ]
           },
@@ -1657,7 +1685,6 @@
         "y": 25
       },
       "id": 326,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [],
@@ -1677,12 +1704,14 @@
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
-          "exemplar": true,
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "sum(lxd_filesystem_size_bytes{mountpoint=\"/\",job=\"$job\",project=\"$project\"} - lxd_filesystem_avail_bytes)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
           "legendFormat": "Disk used",
+          "range": true,
           "refId": "A",
           "step": 240
         },
@@ -1691,13 +1720,15 @@
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
-          "exemplar": true,
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "sum(lxd_filesystem_size_bytes{mountpoint=\"/\",job=\"$job\",project=\"$project\"})",
           "format": "time_series",
           "hide": false,
           "interval": "",
           "intervalFactor": 1,
           "legendFormat": "Disk quota",
+          "range": true,
           "refId": "B",
           "step": 240
         }
@@ -1718,6 +1749,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1731,6 +1763,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineStyle": {
               "fill": "solid"
@@ -1741,7 +1774,7 @@
               "type": "linear"
             },
             "showPoints": "never",
-            "spanNulls": false,
+            "spanNulls": true,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -1756,7 +1789,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               }
             ]
           },
@@ -1791,7 +1825,6 @@
         "y": 34
       },
       "id": 338,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [],
@@ -1811,12 +1844,14 @@
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
-          "exemplar": true,
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "sum(rate(lxd_disk_written_bytes_total{job=\"$job\",project=\"$project\"}[$__rate_interval]))",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
           "legendFormat": "Written bytes",
+          "range": true,
           "refId": "A",
           "step": 240
         },
@@ -1825,12 +1860,14 @@
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
-          "exemplar": true,
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "sum(rate(lxd_disk_read_bytes_total{job=\"$job\",project=\"$project\"}[$__rate_interval]))",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
           "legendFormat": "Read bytes",
+          "range": true,
           "refId": "B",
           "step": 240
         }
@@ -1851,6 +1888,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1864,6 +1902,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "smooth",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1871,7 +1910,7 @@
               "type": "linear"
             },
             "showPoints": "never",
-            "spanNulls": false,
+            "spanNulls": true,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -1886,7 +1925,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               }
             ]
           },
@@ -1921,7 +1961,6 @@
         "y": 34
       },
       "id": 336,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [],
@@ -1941,11 +1980,13 @@
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
-          "exemplar": true,
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "sum(rate(lxd_disk_writes_completed_total{job=\"$job\",project=\"$project\"}[$__rate_interval]))",
           "interval": "",
           "intervalFactor": 1,
           "legendFormat": "Writes completed",
+          "range": true,
           "refId": "A",
           "step": 240
         },
@@ -1954,11 +1995,13 @@
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
-          "exemplar": true,
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "sum(rate(lxd_disk_reads_completed_total{job=\"$job\",project=\"$project\"}[$__rate_interval]))",
           "interval": "",
           "intervalFactor": 1,
           "legendFormat": "Reads completed",
+          "range": true,
           "refId": "B",
           "step": 240
         }
@@ -1979,6 +2022,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1992,6 +2036,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "smooth",
             "lineWidth": 1,
             "pointSize": 5,
@@ -2013,7 +2058,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               }
             ]
           },
@@ -2081,12 +2127,14 @@
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
-          "exemplar": true,
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "sum(rate(lxd_network_receive_bytes_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__rate_interval]))*8",
           "hide": false,
           "interval": "",
           "intervalFactor": 1,
           "legendFormat": "RX",
+          "range": true,
           "refId": "B"
         }
       ],
@@ -2106,6 +2154,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -2119,6 +2168,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "smooth",
             "lineWidth": 1,
             "pointSize": 5,
@@ -2140,7 +2190,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               }
             ]
           },
@@ -2237,6 +2288,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -2250,6 +2302,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "smooth",
             "lineWidth": 1,
             "pointSize": 5,
@@ -2272,7 +2325,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               }
             ]
           },
@@ -2312,7 +2366,6 @@
         "y": 49
       },
       "id": 366,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [
@@ -2334,12 +2387,14 @@
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
-          "exemplar": true,
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "sum(rate(lxd_network_receive_errs_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__rate_interval]))",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
           "legendFormat": "RX errors",
+          "range": true,
           "refId": "A",
           "step": 240
         },
@@ -2348,12 +2403,14 @@
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
-          "exemplar": true,
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "sum(rate(lxd_network_transmit_errs_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__rate_interval]))",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
           "legendFormat": "TX errors",
+          "range": true,
           "refId": "B",
           "step": 240
         },
@@ -2362,13 +2419,15 @@
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
-          "exemplar": true,
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "sum(rate(lxd_network_receive_drop_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__rate_interval]))",
           "format": "time_series",
           "hide": false,
           "interval": "",
           "intervalFactor": 1,
           "legendFormat": "RX drop",
+          "range": true,
           "refId": "C",
           "step": 240
         },
@@ -2377,13 +2436,15 @@
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
-          "exemplar": true,
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "sum(rate(lxd_network_transmit_drop_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__rate_interval]))",
           "format": "time_series",
           "hide": false,
           "interval": "",
           "intervalFactor": 1,
           "legendFormat": "TX drop",
+          "range": true,
           "refId": "D",
           "step": 240
         }
@@ -2418,6 +2479,9 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
@@ -2429,6 +2493,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "smooth",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -2436,7 +2501,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
-                "spanNulls": false,
+                "spanNulls": true,
                 "stacking": {
                   "group": "A",
                   "mode": "normal"
@@ -2452,7 +2517,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -2495,10 +2561,9 @@
             "h": 10,
             "w": 12,
             "x": 0,
-            "y": 55
+            "y": 2
           },
           "id": 353,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [],
@@ -2518,11 +2583,13 @@
                 "type": "prometheus",
                 "uid": "${DS_LXD}"
               },
-              "exemplar": true,
+              "editorMode": "code",
+              "exemplar": false,
               "expr": "sum(rate(lxd_cpu_seconds_total{mode!=\"idle\",job=\"$job\",project=\"$project\",name=\"$name\"}[$__rate_interval])) by (mode) * 100",
               "hide": false,
               "interval": "",
               "legendFormat": "{{mode}}",
+              "range": true,
               "refId": "C"
             }
           ],
@@ -2542,6 +2609,9 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
@@ -2553,6 +2623,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "smooth",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -2560,7 +2631,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
-                "spanNulls": false,
+                "spanNulls": true,
                 "stacking": {
                   "group": "A",
                   "mode": "normal"
@@ -2576,7 +2647,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -2664,10 +2736,9 @@
             "h": 10,
             "w": 12,
             "x": 12,
-            "y": 55
+            "y": 2
           },
           "id": 324,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [],
@@ -2687,13 +2758,15 @@
                 "type": "prometheus",
                 "uid": "${DS_LXD}"
               },
-              "exemplar": true,
+              "editorMode": "code",
+              "exemplar": false,
               "expr": "sum(lxd_memory_MemTotal_bytes{job=\"$job\",project=\"$project\",name=\"$name\"})",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "RAM Total",
+              "range": true,
               "refId": "A",
               "step": 240
             },
@@ -2702,13 +2775,15 @@
                 "type": "prometheus",
                 "uid": "${DS_LXD}"
               },
-              "exemplar": true,
+              "editorMode": "code",
+              "exemplar": false,
               "expr": "sum(lxd_memory_MemTotal_bytes{job=\"$job\",project=\"$project\",name=\"$name\"} - lxd_memory_MemFree_bytes - lxd_memory_Cached_bytes)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "RAM Used",
+              "range": true,
               "refId": "B",
               "step": 240
             },
@@ -2717,13 +2792,15 @@
                 "type": "prometheus",
                 "uid": "${DS_LXD}"
               },
-              "exemplar": true,
+              "editorMode": "code",
+              "exemplar": false,
               "expr": "sum(lxd_memory_Cached_bytes{job=\"$job\",project=\"$project\",name=\"$name\"})",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "RAM Cache",
+              "range": true,
               "refId": "C",
               "step": 240
             },
@@ -2732,12 +2809,14 @@
                 "type": "prometheus",
                 "uid": "${DS_LXD}"
               },
-              "exemplar": true,
+              "editorMode": "code",
+              "exemplar": false,
               "expr": "sum(lxd_memory_MemFree_bytes{job=\"$job\",project=\"$project\",name=\"$name\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "RAM Free",
+              "range": true,
               "refId": "D",
               "step": 240
             },
@@ -2746,12 +2825,14 @@
                 "type": "prometheus",
                 "uid": "${DS_LXD}"
               },
-              "exemplar": true,
+              "editorMode": "code",
+              "exemplar": false,
               "expr": "sum(lxd_memory_Swap_bytes{job=\"$job\",project=\"$project\",name=\"$name\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "SWAP Used",
+              "range": true,
               "refId": "E",
               "step": 240
             }
@@ -2772,6 +2853,9 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
@@ -2783,6 +2867,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -2790,7 +2875,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
-                "spanNulls": false,
+                "spanNulls": true,
                 "stacking": {
                   "group": "A",
                   "mode": "none"
@@ -2804,7 +2889,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -2816,7 +2902,7 @@
             "h": 10,
             "w": 12,
             "x": 0,
-            "y": 65
+            "y": 12
           },
           "id": 342,
           "options": {
@@ -2838,10 +2924,12 @@
                 "type": "prometheus",
                 "uid": "${DS_LXD}"
               },
-              "exemplar": true,
+              "editorMode": "code",
+              "exemplar": false,
               "expr": "lxd_procs_total{job=\"$job\",project=\"$project\",name=\"$name\"}",
               "interval": "",
               "legendFormat": "Processes",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -2861,6 +2949,9 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
@@ -2872,6 +2963,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -2879,7 +2971,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
-                "spanNulls": false,
+                "spanNulls": true,
                 "stacking": {
                   "group": "A",
                   "mode": "none"
@@ -2896,7 +2988,8 @@
                 "mode": "percentage",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2912,10 +3005,9 @@
             "h": 10,
             "w": 12,
             "x": 12,
-            "y": 65
+            "y": 12
           },
           "id": 14,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [],
@@ -2935,12 +3027,14 @@
                 "type": "prometheus",
                 "uid": "${DS_LXD}"
               },
-              "exemplar": true,
+              "editorMode": "code",
+              "exemplar": false,
               "expr": "100 - ((lxd_filesystem_avail_bytes{job=\"$job\",project=\"$project\",name=\"$name\"} * 100) / lxd_filesystem_size_bytes)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "{{mountpoint}}",
+              "range": true,
               "refId": "A",
               "step": 240
             }
@@ -2961,6 +3055,9 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
@@ -2972,6 +3069,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -2979,7 +3077,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
-                "spanNulls": false,
+                "spanNulls": true,
                 "stacking": {
                   "group": "A",
                   "mode": "none"
@@ -2994,7 +3092,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -3019,10 +3118,9 @@
             "h": 10,
             "w": 12,
             "x": 0,
-            "y": 75
+            "y": 22
           },
           "id": 334,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -3047,12 +3145,14 @@
                 "type": "prometheus",
                 "uid": "${DS_LXD}"
               },
-              "exemplar": true,
+              "editorMode": "code",
+              "exemplar": false,
               "expr": "rate(lxd_disk_written_bytes_total{job=\"$job\",project=\"$project\",name=\"$name\"}[$__rate_interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "{{device}} - Written bytes",
+              "range": true,
               "refId": "A",
               "step": 240
             },
@@ -3061,12 +3161,14 @@
                 "type": "prometheus",
                 "uid": "${DS_LXD}"
               },
-              "exemplar": true,
+              "editorMode": "code",
+              "exemplar": false,
               "expr": "rate(lxd_disk_read_bytes_total{job=\"$job\",project=\"$project\",name=\"$name\"}[$__rate_interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "{{device}} - Read bytes",
+              "range": true,
               "refId": "B",
               "step": 240
             }
@@ -3087,6 +3189,9 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
@@ -3098,6 +3203,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -3105,7 +3211,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
-                "spanNulls": false,
+                "spanNulls": true,
                 "stacking": {
                   "group": "A",
                   "mode": "none"
@@ -3120,7 +3226,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -3145,10 +3252,9 @@
             "h": 10,
             "w": 12,
             "x": 12,
-            "y": 75
+            "y": 22
           },
           "id": 358,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -3185,11 +3291,13 @@
                 "type": "prometheus",
                 "uid": "${DS_LXD}"
               },
-              "exemplar": true,
+              "editorMode": "code",
+              "exemplar": false,
               "expr": "rate(lxd_disk_reads_completed_total{job=\"$job\",project=\"$project\",name=\"$name\"}[$__rate_interval])",
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "{{device}} - Reads completed",
+              "range": true,
               "refId": "B",
               "step": 240
             }
@@ -3210,6 +3318,9 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
@@ -3221,6 +3332,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "smooth",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -3242,7 +3354,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -3274,7 +3387,7 @@
             "h": 10,
             "w": 12,
             "x": 0,
-            "y": 85
+            "y": 32
           },
           "id": 356,
           "options": {
@@ -3310,12 +3423,14 @@
                 "type": "prometheus",
                 "uid": "${DS_LXD}"
               },
-              "exemplar": true,
+              "editorMode": "code",
+              "exemplar": false,
               "expr": "rate(lxd_network_receive_bytes_total{device!=\"lo\",job=\"$job\",project=\"$project\",name=\"$name\"}[$__rate_interval])*8",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "{{device}} - RX",
+              "range": true,
               "refId": "B"
             },
             {
@@ -3337,17 +3452,18 @@
                 "type": "prometheus",
                 "uid": "${DS_LXD}"
               },
-              "exemplar": true,
+              "editorMode": "code",
+              "exemplar": false,
               "expr": "rate(lxd_network_receive_bytes_total{device=\"lo\",job=\"$job\",project=\"$project\",name=\"$name\"}[$__rate_interval])*8",
               "hide": true,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "RX {{device}}",
+              "range": true,
               "refId": "D"
             }
           ],
           "title": "Network Traffic",
-          "transformations": [],
           "transparent": true,
           "type": "timeseries"
         },
@@ -3362,6 +3478,9 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
@@ -3373,6 +3492,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -3380,7 +3500,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
-                "spanNulls": false,
+                "spanNulls": true,
                 "stacking": {
                   "group": "A",
                   "mode": "none"
@@ -3395,7 +3515,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -3427,10 +3548,9 @@
             "h": 5,
             "w": 12,
             "x": 12,
-            "y": 85
+            "y": 32
           },
           "id": 357,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [],
@@ -3450,12 +3570,14 @@
                 "type": "prometheus",
                 "uid": "${DS_LXD}"
               },
-              "exemplar": true,
+              "editorMode": "code",
+              "exemplar": false,
               "expr": "rate(lxd_network_transmit_packets_total{device!=\"lo\",job=\"$job\",project=\"$project\",name=\"$name\"}[$__rate_interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "TX {{device}}",
+              "range": true,
               "refId": "A",
               "step": 240
             },
@@ -3464,12 +3586,14 @@
                 "type": "prometheus",
                 "uid": "${DS_LXD}"
               },
-              "exemplar": true,
+              "editorMode": "code",
+              "exemplar": false,
               "expr": "rate(lxd_network_receive_packets_total{device!=\"lo\",job=\"$job\",project=\"$project\",name=\"$name\"}[$__rate_interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "RX {{device}}",
+              "range": true,
               "refId": "B",
               "step": 240
             },
@@ -3478,13 +3602,15 @@
                 "type": "prometheus",
                 "uid": "${DS_LXD}"
               },
-              "exemplar": true,
+              "editorMode": "code",
+              "exemplar": false,
               "expr": "rate(lxd_network_transmit_packets_total{device=\"lo\",job=\"$job\",project=\"$project\",name=\"$name\"}[$__rate_interval])",
               "format": "time_series",
               "hide": true,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "TX {{device}}",
+              "range": true,
               "refId": "C",
               "step": 240
             },
@@ -3493,13 +3619,15 @@
                 "type": "prometheus",
                 "uid": "${DS_LXD}"
               },
-              "exemplar": true,
+              "editorMode": "code",
+              "exemplar": false,
               "expr": "rate(lxd_network_receive_packets_total{device=\"lo\",job=\"$job\",project=\"$project\",name=\"$name\"}[$__rate_interval])",
               "format": "time_series",
               "hide": true,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "RX {{device}}",
+              "range": true,
               "refId": "D",
               "step": 240
             }
@@ -3519,6 +3647,9 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
@@ -3530,6 +3661,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -3537,7 +3669,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
-                "spanNulls": false,
+                "spanNulls": true,
                 "stacking": {
                   "group": "A",
                   "mode": "none"
@@ -3552,7 +3684,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3568,10 +3701,9 @@
             "h": 5,
             "w": 12,
             "x": 12,
-            "y": 90
+            "y": 37
           },
           "id": 346,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -3658,7 +3790,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 60
+        "y": 68
       },
       "id": 521,
       "panels": [],
@@ -3674,7 +3806,7 @@
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 61
+        "y": 69
       },
       "id": 572,
       "options": {
@@ -3711,7 +3843,7 @@
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 68
+        "y": 76
       },
       "id": 573,
       "options": {
@@ -3741,8 +3873,7 @@
     }
   ],
   "refresh": false,
-  "schemaVersion": 37,
-  "style": "dark",
+  "schemaVersion": 39,
   "tags": [],
   "templating": {
     "list": [
@@ -3896,6 +4027,6 @@
   "timezone": "",
   "title": "LXD",
   "uid": "bGY-LSB7k",
-  "version": 15,
+  "version": 16,
   "weekStart": ""
 }
