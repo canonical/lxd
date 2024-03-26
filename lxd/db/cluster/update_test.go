@@ -777,14 +777,15 @@ func TestUpdateFromV69(t *testing.T) {
 INSERT INTO certificates (fingerprint, type, name, certificate, restricted) VALUES ('eeef45f0570ce713864c86ec60c8d88f60b4844d3a8849b262c77cb18e88394d', 1, 'restricted-client', ?, 1);
 INSERT INTO certificates (fingerprint, type, name, certificate, restricted) VALUES ('86ec60c8d88f60b4844d3a8849b262c77cb18e88394deeef45f0570ce713864c', 1, 'unrestricted-client', ?, 0);
 INSERT INTO certificates (fingerprint, type, name, certificate, restricted) VALUES ('49b262c77cb18e88394d8e6ec60c8d8eef45f0570ce713864c8f60b4844d3a88', 2, 'server', ?, 0);
-INSERT INTO certificates (fingerprint, type, name, certificate, restricted) VALUES ('60c8d8eef45f0570ce713864c8f60b4844d3a8849b262c77cb18e88394d8e6ec', 3, 'metrics', ?, 0);
+INSERT INTO certificates (fingerprint, type, name, certificate, restricted) VALUES ('60c8d8eef45f0570ce713864c8f60b4844d3a8849b262c77cb18e88394d8e6ec', 3, 'metrics', ?, 1);
+INSERT INTO certificates (fingerprint, type, name, certificate, restricted) VALUES ('47c88da8fd0cb9a8d44768a445e6c27aee44e078ce74cbaec0726de427bac056', 3, 'metrics', ?, 0);
 INSERT INTO projects (name, description) VALUES ('p1', '');
 INSERT INTO projects (name, description) VALUES ('p2', '');
 INSERT INTO projects (name, description) VALUES ('p3', '');
 INSERT INTO certificates_projects (certificate_id, project_id) VALUES (1, 2);
 INSERT INTO certificates_projects (certificate_id, project_id) VALUES (1, 3);
 INSERT INTO certificates_projects (certificate_id, project_id) VALUES (1, 4);
-`, c1, c2, c1, c2)
+`, c1, c2, c1, c2, c2)
 		require.NoError(t, err)
 	})
 	require.NoError(t, err)
@@ -833,7 +834,14 @@ INSERT INTO certificates_projects (certificate_id, project_id) VALUES (1, 4);
 	assert.Equal(t, c1, metadata.Certificate)
 
 	identity = getTLSIdentityByFingerprint("60c8d8eef45f0570ce713864c8f60b4844d3a8849b262c77cb18e88394d8e6ec")
-	assert.Equal(t, api.IdentityTypeCertificateMetrics, string(identity.Type))
+	assert.Equal(t, api.IdentityTypeCertificateMetricsRestricted, string(identity.Type))
+	assert.Equal(t, "metrics", identity.Name)
+	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
+	require.NoError(t, err)
+	assert.Equal(t, c2, metadata.Certificate)
+
+	identity = getTLSIdentityByFingerprint("47c88da8fd0cb9a8d44768a445e6c27aee44e078ce74cbaec0726de427bac056")
+	assert.Equal(t, api.IdentityTypeCertificateMetricsUnrestricted, string(identity.Type))
 	assert.Equal(t, "metrics", identity.Name)
 	err = json.Unmarshal([]byte(identity.Metadata), &metadata)
 	require.NoError(t, err)
