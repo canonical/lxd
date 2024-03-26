@@ -22,7 +22,7 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 
 ````{grid} 1 1 2 2
 
-```{grid-item-card} [Tutorials](tutorial/index)
+```{grid-item-card} [Tutorial](tutorial/first_steps)
 
 **Start here**: a hands-on introduction to LXD for new users, guiding you through your {ref}`first-steps`
 ```
@@ -108,7 +108,7 @@ The LXD project is sponsored by [Canonical Ltd](https://www.canonical.com).
 :titlesonly:
 
 :diataxis:self
-:diataxis:tutorial/index
+:diataxis:Tutorial <tutorial/first_steps>
 :diataxis:howto/index
 :diataxis:explanation/index
 :diataxis:reference/index
