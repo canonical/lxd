@@ -58,7 +58,11 @@ func (cert *Certificate) ToIdentityType() (IdentityType, error) {
 	case certificate.TypeServer:
 		return api.IdentityTypeCertificateServer, nil
 	case certificate.TypeMetrics:
-		return api.IdentityTypeCertificateMetrics, nil
+		if cert.Restricted {
+			return api.IdentityTypeCertificateMetricsRestricted, nil
+		}
+
+		return api.IdentityTypeCertificateMetricsUnrestricted, nil
 	}
 
 	return "", fmt.Errorf("Unknown certificate type `%d`", cert.Type)
@@ -178,7 +182,7 @@ func GetCertificates(ctx context.Context, tx *sql.Tx, filters ...CertificateFilt
 			case certificate.TypeServer:
 				identityTypes = append(identityTypes, api.IdentityTypeCertificateServer)
 			case certificate.TypeMetrics:
-				identityTypes = append(identityTypes, api.IdentityTypeCertificateMetrics)
+				identityTypes = append(identityTypes, api.IdentityTypeCertificateMetricsRestricted, api.IdentityTypeCertificateMetricsUnrestricted)
 			}
 		}
 
@@ -278,9 +282,16 @@ func DeleteCertificates(ctx context.Context, tx *sql.Tx, name string, certificat
 		return DeleteIdentitys(ctx, tx, name, api.IdentityTypeCertificateClientUnrestricted)
 	} else if certificateType == certificate.TypeServer {
 		return DeleteIdentitys(ctx, tx, name, api.IdentityTypeCertificateServer)
+	} else if certificateType == certificate.TypeMetrics {
+		err := DeleteIdentitys(ctx, tx, name, api.IdentityTypeCertificateMetricsRestricted)
+		if err != nil {
+			return err
+		}
+
+		return DeleteIdentitys(ctx, tx, name, api.IdentityTypeCertificateMetricsUnrestricted)
 	}
 
-	return DeleteIdentitys(ctx, tx, name, api.IdentityTypeCertificateMetrics)
+	return nil
 }
 
 // UpdateCertificate updates the certificate matching the given key parameters.
