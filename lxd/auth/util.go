@@ -152,6 +152,7 @@ func EntitlementsByEntityType(entityType entity.Type) ([]Entitlement, error) {
 			EntitlementCanDeleteStorageBuckets,
 			EntitlementCanViewOperations,
 			EntitlementCanViewEvents,
+			EntitlementCanViewMetrics,
 		}, nil
 	case entity.TypeServer:
 		return []Entitlement{
