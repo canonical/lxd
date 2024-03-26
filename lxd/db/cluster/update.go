@@ -228,7 +228,8 @@ CREATE TABLE identities_projects (
 INSERT INTO identities (id, auth_method, type, identifier, name, metadata) SELECT id, 1, 1, fingerprint, name, json_object('cert', certificate) FROM certificates WHERE type = 1 AND restricted = 1;
 INSERT INTO identities (id, auth_method, type, identifier, name, metadata) SELECT id, 1, 2, fingerprint, name, json_object('cert', certificate) FROM certificates WHERE type = 1 AND restricted = 0;
 INSERT INTO identities (id, auth_method, type, identifier, name, metadata) SELECT id, 1, 3, fingerprint, name, json_object('cert', certificate) FROM certificates WHERE type = 2;
-INSERT INTO identities (id, auth_method, type, identifier, name, metadata) SELECT id, 1, 4, fingerprint, name, json_object('cert', certificate) FROM certificates WHERE type = 3;
+INSERT INTO identities (id, auth_method, type, identifier, name, metadata) SELECT id, 1, 4, fingerprint, name, json_object('cert', certificate) FROM certificates WHERE type = 3 AND restricted = 1;
+INSERT INTO identities (id, auth_method, type, identifier, name, metadata) SELECT id, 1, 6, fingerprint, name, json_object('cert', certificate) FROM certificates WHERE type = 3 AND restricted = 0;
 INSERT INTO identities_projects (identity_id, project_id) SELECT certificate_id, project_id FROM certificates_projects;
 
 DROP TABLE certificates;
