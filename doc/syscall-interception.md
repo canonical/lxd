@@ -42,7 +42,7 @@ All file types other than character devices are currently sent to the
 kernel as usual, so enabling this feature doesn't change their behavior
 at all.
 
-This can be enabled by setting `security.syscalls.intercept.mknod` to `true`.
+This can be enabled by setting {config:option}`instance-security:security.syscalls.intercept.mknod` to `true`.
 
 ### `bpf`
 
@@ -54,8 +54,8 @@ can facilitate timing based attacks.
 
 LXD's eBPF support is currently restricted to programs managing devices
 cgroup entries. To enable it, you need to set both
-`security.syscalls.intercept.bpf` and
-`security.syscalls.intercept.bpf.devices` to true.
+{config:option}`instance-security:security.syscalls.intercept.bpf` and
+{config:option}`instance-security:security.syscalls.intercept.bpf.devices` to true.
 
 ### `mount`
 
@@ -66,22 +66,22 @@ a handful of virtual and network file systems.
 To allow mounting physical file systems, system call interception can be used.
 LXD offers a variety of options to handle this.
 
-`security.syscalls.intercept.mount` is used to control the entire
+{config:option}`instance-security:security.syscalls.intercept.mount` is used to control the entire
 feature and needs to be turned on for any of the other options to work.
 
-`security.syscalls.intercept.mount.allowed` allows specifying a list of
+{config:option}`instance-security:security.syscalls.intercept.mount.allowed` allows specifying a list of
 file systems which can be directly mounted in the container. This is the
 most dangerous option as it allows the user to feed data that is not trusted at
 the kernel. This can easily be used to crash the host system or to
 attack it. It should only ever be used in trusted environments.
 
-`security.syscalls.intercept.mount.shift` can be set on top of that so
+{config:option}`instance-security:security.syscalls.intercept.mount.shift` can be set on top of that so
 the resulting mount is shifted to the UID/GID map used by the container.
 This is needed to avoid everything showing up as `nobody`/`nogroup` inside
 of unprivileged containers.
 
 The much safer alternative to those is
-`security.syscalls.intercept.mount.fuse` which can be set to pairs of
+{config:option}`instance-security:security.syscalls.intercept.mount.fuse` which can be set to pairs of
 file-system name and FUSE handler. When this is set, an attempt at
 mounting one of the configured file systems will be transparently
 redirected to instead calling the FUSE equivalent of that file system.
@@ -118,7 +118,7 @@ attributes we care about. As we only allow the attributes above, this
 may result in breakage for other attributes that would have been
 previously allowed by the kernel.
 
-This can be enabled by setting `security.syscalls.intercept.setxattr` to `true`.
+This can be enabled by setting {config:option}`instance-security:security.syscalls.intercept.setxattr` to `true`.
 
 ### `sysinfo`
 

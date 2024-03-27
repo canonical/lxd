@@ -63,7 +63,7 @@ For example: `lxc network zone set lxd.example.net peers.whatever.address=192.0.
 ```{note}
 It is not enough for the address to be of the same machine that `dig` is calling from; it needs to
 match as a string with what the DNS server in `lxd` thinks is the exact remote address. `dig` binds to
-`0.0.0.0`, therefore the address you need is most likely the same that you provided to `core.dns_address`.
+`0.0.0.0`, therefore the address you need is most likely the same that you provided to {config:option}`server-core:core.dns_address`.
 ```
 
 For example, running `dig @<DNS_server_IP> -p <DNS_server_PORT> axfr lxd.example.net` might give the following output:

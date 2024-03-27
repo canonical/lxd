@@ -93,21 +93,21 @@ See {ref}`instance-options-limits-kernel` for more information.
 
 You have different options to limit CPU usage:
 
-- Set `limits.cpu` to restrict which CPUs the instance can see and use.
+- Set {config:option}`instance-resource-limits:limits.cpu` to restrict which CPUs the instance can see and use.
   See {ref}`instance-options-limits-cpu` for how to set this option.
-- Set `limits.cpu.allowance` to restrict the load an instance can put on the available CPUs.
+- Set {config:option}`instance-resource-limits:limits.cpu.allowance` to restrict the load an instance can put on the available CPUs.
   This option is available only for containers.
   See {ref}`instance-options-limits-cpu-container` for how to set this option.
 
 It is possible to set both options at the same time to restrict both which CPUs are visible to the instance and the allowed usage of those instances.
-However, if you use `limits.cpu.allowance` with a time limit, you should avoid using `limits.cpu` in addition, because that puts a lot of constraints on the scheduler and might lead to less efficient allocations.
+However, if you use {config:option}`instance-resource-limits:limits.cpu.allowance` with a time limit, you should avoid using {config:option}`instance-resource-limits:limits.cpu` in addition, because that puts a lot of constraints on the scheduler and might lead to less efficient allocations.
 
 The CPU limits are implemented through a mix of the `cpuset` and `cpu` cgroup controllers.
 
 (instance-options-limits-cpu)=
 #### CPU pinning
 
-`limits.cpu` results in CPU pinning through the `cpuset` controller.
+{config:option}`instance-resource-limits:limits.cpu` results in CPU pinning through the `cpuset` controller.
 You can specify either which CPUs or how many CPUs are visible and available to the instance:
 
 - To specify which CPUs to use, set `limits.cpu` to either a set of CPUs (for example, `1,2,3`) or a CPU range (for example, `0-3`).
@@ -119,18 +119,18 @@ You can specify either which CPUs or how many CPUs are visible and available to 
 ##### CPU limits for virtual machines
 
 ```{note}
-LXD supports live-updating the `limits.cpu` option.
+LXD supports live-updating the {config:option}`instance-resource-limits:limits.cpu` option.
 However, for virtual machines, this only means that the respective CPUs are hotplugged.
 Depending on the guest operating system, you might need to either restart the instance or complete some manual actions to bring the new CPUs online.
 ```
 
 LXD virtual machines default to having just one vCPU allocated, which shows up as matching the host CPU vendor and type, but has a single core and no threads.
 
-When `limits.cpu` is set to a single integer, LXD allocates multiple vCPUs and exposes them to the guest as full cores.
+When {config:option}`instance-resource-limits:limits.cpu` is set to a single integer, LXD allocates multiple vCPUs and exposes them to the guest as full cores.
 Those vCPUs are not pinned to specific physical cores on the host.
 The number of vCPUs can be updated while the VM is running.
 
-When `limits.cpu` is set to a range or comma-separated list of CPU IDs (as provided by [`lxc info --resources`](lxc_info.md)), the vCPUs are pinned to those physical cores.
+When {config:option}`instance-resource-limits:limits.cpu` is set to a range or comma-separated list of CPU IDs (as provided by [`lxc info --resources`](lxc_info.md)), the vCPUs are pinned to those physical cores.
 In this scenario, LXD checks whether the CPU configuration lines up with a realistic hardware topology and if it does, it replicates that topology in the guest.
 When doing CPU pinning, it is not possible to change the configuration while the VM is running.
 
@@ -144,24 +144,24 @@ All this allows for very high performance operations in the guest as the guest s
 (instance-options-limits-cpu-container)=
 #### Allowance and priority (container only)
 
-`limits.cpu.allowance` drives either the CFS scheduler quotas when passed a time constraint, or the generic CPU shares mechanism when passed a percentage value:
+{config:option}`instance-resource-limits:limits.cpu.allowance` drives either the CFS scheduler quotas when passed a time constraint, or the generic CPU shares mechanism when passed a percentage value:
 
 - The time constraint (for example, `20ms/50ms`) is a hard limit.
-  For example, if you want to allow the container to use a maximum of one CPU, set `limits.cpu.allowance` to a value like `100ms/100ms`.
+  For example, if you want to allow the container to use a maximum of one CPU, set {config:option}`instance-resource-limits:limits.cpu.allowance` to a value like `100ms/100ms`.
   The value is relative to one CPU worth of time, so to restrict to two CPUs worth of time, use something like `100ms/50ms` or `200ms/100ms`.
 - When using a percentage value, the limit is a soft limit that is applied only when under load.
   It is used to calculate the scheduler priority for the instance, relative to any other instance that is using the same CPU or CPUs.
-  For example, to limit the CPU usage of the container to one CPU when under load, set `limits.cpu.allowance` to `100%`.
+  For example, to limit the CPU usage of the container to one CPU when under load, set {config:option}`instance-resource-limits:limits.cpu.allowance` to `100%`.
 
-`limits.cpu.nodes` can be used to restrict the CPUs that the instance can use to a specific set of NUMA nodes.
-To specify which NUMA nodes to use, set `limits.cpu.nodes` to either a set of NUMA node IDs (for example, `0,1`) or a set of NUMA node ranges (for example, `0-1,2-4`).
+{config:option}`instance-resource-limits:limits.cpu.nodes` can be used to restrict the CPUs that the instance can use to a specific set of NUMA nodes.
+To specify which NUMA nodes to use, set {config:option}`instance-resource-limits:limits.cpu.nodes` to either a set of NUMA node IDs (for example, `0,1`) or a set of NUMA node ranges (for example, `0-1,2-4`).
 
-`limits.cpu.priority` is another factor that is used to compute the scheduler priority score when a number of instances sharing a set of CPUs have the same percentage of CPU assigned to them.
+{config:option}`instance-resource-limits:limits.cpu.priority` is another factor that is used to compute the scheduler priority score when a number of instances sharing a set of CPUs have the same percentage of CPU assigned to them.
 
 (instance-options-limits-hugepages)=
 ### Huge page limits
 
-LXD allows to limit the number of huge pages available to a container through the `limits.hugepage.[size]` key.
+LXD allows to limit the number of huge pages available to a container through the `limits.hugepage.[size]` key (for example, {config:option}`instance-resource-limits:limits.hugepages.1MB`).
 
 Architectures often expose multiple huge-page sizes.
 The available huge-page sizes depend on the architecture.
@@ -176,7 +176,7 @@ Limiting huge pages is done through the `hugetlb` cgroup controller, which means
 (instance-options-limits-kernel)=
 ### Kernel resource limits
 
-For container instances, LXD exposes a generic namespaced key `limits.kernel.*` that can be used to set resource limits.
+For container instances, LXD exposes a generic namespaced key {config:option}`instance-resource-limits:limits.kernel.*` that can be used to set resource limits.
 
 It is generic in the sense that LXD does not perform any validation on the resource that is specified following the `limits.kernel.*` prefix.
 LXD cannot know about all the possible resources that a given kernel supports.
@@ -266,7 +266,7 @@ For example:
 - To add devices that are not supported by LXD before the machines boots.
 - To remove devices that conflict with the guest OS.
 
-To override the configuration, set the `raw.qemu.conf` option.
+To override the configuration, set the {config:option}`instance-raw:raw.qemu.conf` option.
 It supports a format similar to `qemu.conf`, with some additions.
 Since it is a multi-line configuration option, you can use it to modify multiple sections or keys.
 
