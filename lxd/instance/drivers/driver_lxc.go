@@ -8246,14 +8246,12 @@ func (d *lxc) Info() instance.Info {
 
 // Metrics returns the metric set for the LXC driver. It collects various metrics related to memory, CPU, disk, filesystem, and network usage.
 func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
-	state := instance.PowerStateStopped
 	isRunning := d.IsRunning()
-
-	if isRunning {
-		state = instance.PowerStateRunning
+	if !isRunning {
+		return nil, ErrInstanceIsStopped
 	}
 
-	out := metrics.NewMetricSet(map[string]string{"project": d.project.Name, "name": d.name, "type": instancetype.Container.String(), "state": state})
+	out := metrics.NewMetricSet(map[string]string{"project": d.project.Name, "name": d.name, "type": instancetype.Container.String()})
 
 	cc, err := d.initLXC(false)
 	if err != nil {
