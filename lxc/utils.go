@@ -39,6 +39,34 @@ func runBatch(names []string, action func(name string) error) []batchResult {
 	return results
 }
 
+// getProfileDevices retrieves devices from a list of profiles, if the list is empty the default profile is used.
+func getProfileDevices(destRemote lxd.InstanceServer, serverSideProfiles []string) (map[string]map[string]string, error) {
+	var profiles []string
+
+	// If the list of profiles is empty then LXD would apply the default profile on the server side.
+	if len(serverSideProfiles) == 0 {
+		profiles = []string{"default"}
+	} else {
+		profiles = serverSideProfiles
+	}
+
+	profileDevices := make(map[string]map[string]string)
+
+	// Get the effective expanded devices by overlaying each profile's devices in order.
+	for _, profileName := range profiles {
+		profile, _, err := destRemote.GetProfile(profileName)
+		if err != nil {
+			return nil, fmt.Errorf(i18n.G("Failed loading profile %q: %w"), profileName, err)
+		}
+
+		for deviceName, device := range profile.Devices {
+			profileDevices[deviceName] = device
+		}
+	}
+
+	return profileDevices, nil
+}
+
 // Add a device to an instance.
 func instanceDeviceAdd(client lxd.InstanceServer, name string, devName string, dev map[string]string) error {
 	// Get the instance entry
