@@ -390,19 +390,19 @@ func instanceFileHead(s *state.State, inst instance.Instance, path string, r *ht
 //	    description: Raw file content
 //	  - in: header
 //	    name: X-LXD-uid
-//	    description: File owner UID
+//	    description: Base 10 32-bit integer for the file owner UID
 //	    schema:
 //	      type: integer
 //	    example: 1000
 //	  - in: header
 //	    name: X-LXD-gid
-//	    description: File owner GID
+//	    description: Base 10 32-bit integer for the file owner GID
 //	    schema:
 //	      type: integer
 //	    example: 1000
 //	  - in: header
 //	    name: X-LXD-mode
-//	    description: File mode
+//	    description: Base 10 (no leading `0`) or base 8 (leading `0`) unix permissions bits (other bits are truncated)
 //	    schema:
 //	      type: integer
 //	    example: 0644
