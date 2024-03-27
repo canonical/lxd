@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-03-20 09:12+0000\n"
+"POT-Creation-Date: 2024-03-27 16:16+0000\n"
 "PO-Revision-Date: 2022-03-10 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Marathi <https://hosted.weblate.org/projects/linux-containers/"
@@ -85,7 +85,7 @@ msgid ""
 "### Note that the name is shown but cannot be changed"
 msgstr ""
 
-#: lxc/image.go:375
+#: lxc/image.go:391
 msgid ""
 "### This is a YAML representation of the image properties.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -288,7 +288,7 @@ msgstr ""
 msgid "%d (id: %d, online: %v, NUMA node: %v)"
 msgstr ""
 
-#: lxc/image.go:1086
+#: lxc/image.go:1098
 #, c-format
 msgid "%s (%d more)"
 msgstr ""
@@ -298,12 +298,12 @@ msgstr ""
 msgid "%s (%s) (%d available)"
 msgstr ""
 
-#: lxc/file.go:916
+#: lxc/file.go:917
 #, c-format
 msgid "%s is not a directory"
 msgstr ""
 
-#: lxc/file.go:806
+#: lxc/file.go:807
 #, c-format
 msgid "'%s' isn't a supported file type"
 msgstr ""
@@ -339,7 +339,7 @@ msgstr ""
 msgid "--console only works with a single instance"
 msgstr ""
 
-#: lxc/init.go:125
+#: lxc/init.go:126
 msgid "--empty cannot be combined with an image name"
 msgstr ""
 
@@ -380,15 +380,15 @@ msgstr ""
 msgid "<old alias> <new alias>"
 msgstr ""
 
-#: lxc/remote.go:816 lxc/remote.go:871
+#: lxc/remote.go:826 lxc/remote.go:883
 msgid "<remote>"
 msgstr ""
 
-#: lxc/remote.go:909
+#: lxc/remote.go:923
 msgid "<remote> <URL>"
 msgstr ""
 
-#: lxc/remote.go:745
+#: lxc/remote.go:753
 msgid "<remote> <new-name>"
 msgstr ""
 
@@ -396,7 +396,7 @@ msgstr ""
 msgid "<source path>... [<remote>:]<instance>/<path>"
 msgstr ""
 
-#: lxc/image.go:646
+#: lxc/image.go:659
 msgid ""
 "<tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] [key=value...]"
 msgstr ""
@@ -409,23 +409,23 @@ msgstr ""
 msgid "ADDRESS"
 msgstr ""
 
-#: lxc/alias.go:139 lxc/image.go:1050 lxc/image_alias.go:234
+#: lxc/alias.go:139 lxc/image.go:1062 lxc/image_alias.go:234
 msgid "ALIAS"
 msgstr ""
 
-#: lxc/image.go:1051
+#: lxc/image.go:1063
 msgid "ALIASES"
 msgstr ""
 
-#: lxc/cluster.go:182 lxc/image.go:1056 lxc/list.go:554
+#: lxc/cluster.go:182 lxc/image.go:1068 lxc/list.go:554
 msgid "ARCHITECTURE"
 msgstr ""
 
-#: lxc/remote.go:728
+#: lxc/remote.go:735
 msgid "AUTH TYPE"
 msgstr ""
 
-#: lxc/remote.go:98
+#: lxc/remote.go:100
 msgid "Accept certificate"
 msgstr ""
 
@@ -470,11 +470,11 @@ msgstr ""
 msgid "Add new aliases"
 msgstr ""
 
-#: lxc/remote.go:87
+#: lxc/remote.go:89
 msgid "Add new remote servers"
 msgstr ""
 
-#: lxc/remote.go:88
+#: lxc/remote.go:90
 msgid ""
 "Add new remote servers\n"
 "\n"
@@ -528,7 +528,7 @@ msgstr ""
 msgid "Address: %s"
 msgstr ""
 
-#: lxc/remote.go:557
+#: lxc/remote.go:560
 #, c-format
 msgid "Admin password (or token) for %s:"
 msgstr ""
@@ -552,7 +552,7 @@ msgstr ""
 msgid "Aliases already exists: %s"
 msgstr ""
 
-#: lxc/image.go:971
+#: lxc/image.go:983
 msgid "Aliases:"
 msgstr ""
 
@@ -560,7 +560,7 @@ msgstr ""
 msgid "All projects"
 msgstr ""
 
-#: lxc/remote.go:179
+#: lxc/remote.go:181
 msgid "All server addresses are unavailable"
 msgstr ""
 
@@ -568,7 +568,7 @@ msgstr ""
 msgid "Alternative certificate name"
 msgstr ""
 
-#: lxc/image.go:942 lxc/info.go:476
+#: lxc/image.go:954 lxc/info.go:476
 #, c-format
 msgid "Architecture: %s"
 msgstr ""
@@ -587,7 +587,7 @@ msgstr ""
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
-#: lxc/init.go:346
+#: lxc/init.go:317
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
@@ -631,7 +631,7 @@ msgid ""
 "as well as retrieve past log entries from it."
 msgstr ""
 
-#: lxc/remote.go:543
+#: lxc/remote.go:546
 #, c-format
 msgid "Authentication type '%s' not supported by server"
 msgstr ""
@@ -641,16 +641,16 @@ msgstr ""
 msgid "Auto negotiation: %v"
 msgstr ""
 
-#: lxc/image.go:172
+#: lxc/image.go:185
 msgid "Auto update is only available in pull mode"
 msgstr ""
 
-#: lxc/image.go:981
+#: lxc/image.go:993
 #, c-format
 msgid "Auto update: %s"
 msgstr ""
 
-#: lxc/remote.go:134
+#: lxc/remote.go:136
 msgid "Available projects:"
 msgstr ""
 
@@ -676,7 +676,7 @@ msgstr ""
 msgid "Backups:"
 msgstr ""
 
-#: lxc/utils.go:97
+#: lxc/utils.go:125
 #, c-format
 msgid "Bad device override syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
@@ -687,7 +687,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:139 lxc/init.go:216 lxc/move.go:380 lxc/project.go:129
+#: lxc/copy.go:139 lxc/init.go:217 lxc/move.go:380 lxc/project.go:129
 #, c-format
 msgid "Bad key=value pair: %q"
 msgstr ""
@@ -697,7 +697,7 @@ msgstr ""
 msgid "Bad key=value pair: %s"
 msgstr ""
 
-#: lxc/image.go:753
+#: lxc/image.go:766
 #, c-format
 msgid "Bad property: %s"
 msgstr ""
@@ -778,7 +778,7 @@ msgstr ""
 msgid "CUDA Version: %v"
 msgstr ""
 
-#: lxc/image.go:980
+#: lxc/image.go:992
 #, c-format
 msgid "Cached: %s"
 msgstr ""
@@ -791,7 +791,7 @@ msgstr ""
 msgid "Can't override configuration or profiles in local rename"
 msgstr ""
 
-#: lxc/image.go:205
+#: lxc/image.go:218
 msgid "Can't provide a name for the target image"
 msgstr ""
 
@@ -799,12 +799,12 @@ msgstr ""
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 
-#: lxc/utils.go:210 lxc/utils.go:230
+#: lxc/utils.go:238 lxc/utils.go:258
 #, c-format
 msgid "Can't read from stdin: %w"
 msgstr ""
 
-#: lxc/remote.go:851
+#: lxc/remote.go:862
 msgid "Can't remove the default remote"
 msgstr ""
 
@@ -833,14 +833,8 @@ msgstr ""
 msgid "Can't unset key '%s', it's not currently set"
 msgstr ""
 
-#: lxc/remote.go:103
+#: lxc/remote.go:105
 msgid "Candid domain to use"
-msgstr ""
-
-#: lxc/init.go:315
-#, c-format
-msgid ""
-"Cannot override config for device %q: Device not found in profile devices"
 msgstr ""
 
 #: lxc/storage_volume.go:415
@@ -876,13 +870,13 @@ msgstr ""
 msgid "Certificate add token for %s deleted"
 msgstr ""
 
-#: lxc/remote.go:216
+#: lxc/remote.go:218
 #, c-format
 msgid ""
 "Certificate fingerprint mismatch between certificate token and server %q"
 msgstr ""
 
-#: lxc/remote.go:444
+#: lxc/remote.go:447
 #, c-format
 msgid "Certificate fingerprint: %s"
 msgstr ""
@@ -896,7 +890,7 @@ msgstr ""
 msgid "Client %s certificate add token:"
 msgstr ""
 
-#: lxc/remote.go:597
+#: lxc/remote.go:600
 msgid "Client certificate now trusted by server:"
 msgstr ""
 
@@ -951,7 +945,7 @@ msgid "Cluster member %s removed from group %s"
 msgstr ""
 
 #: lxc/config.go:101 lxc/config.go:385 lxc/config.go:528 lxc/config.go:734
-#: lxc/config.go:857 lxc/copy.go:61 lxc/info.go:45 lxc/init.go:56
+#: lxc/config.go:857 lxc/copy.go:61 lxc/info.go:45 lxc/init.go:57
 #: lxc/move.go:66 lxc/network.go:296 lxc/network.go:719 lxc/network.go:788
 #: lxc/network.go:1130 lxc/network.go:1215 lxc/network.go:1279
 #: lxc/network_forward.go:170 lxc/network_forward.go:234
@@ -982,7 +976,7 @@ msgstr ""
 msgid "Clustering enabled"
 msgstr ""
 
-#: lxc/image.go:1041 lxc/list.go:132 lxc/storage_volume.go:1400
+#: lxc/image.go:1053 lxc/list.go:132 lxc/storage_volume.go:1400
 #: lxc/warning.go:92
 msgid "Columns"
 msgstr ""
@@ -1007,7 +1001,7 @@ msgstr ""
 msgid "Compression algorithm to use (none for uncompressed)"
 msgstr ""
 
-#: lxc/copy.go:53 lxc/init.go:49
+#: lxc/copy.go:53 lxc/init.go:50
 msgid "Config key/value to apply to the new instance"
 msgstr ""
 
@@ -1021,7 +1015,7 @@ msgstr ""
 
 #: lxc/cluster.go:717 lxc/cluster_group.go:339 lxc/config.go:268
 #: lxc/config.go:343 lxc/config_metadata.go:147 lxc/config_trust.go:314
-#: lxc/image.go:453 lxc/network.go:682 lxc/network_acl.go:620
+#: lxc/image.go:463 lxc/network.go:682 lxc/network_acl.go:620
 #: lxc/network_forward.go:635 lxc/network_peer.go:610 lxc/network_zone.go:551
 #: lxc/network_zone.go:1143 lxc/profile.go:518 lxc/project.go:314
 #: lxc/storage.go:306 lxc/storage_volume.go:993 lxc/storage_volume.go:1025
@@ -1051,15 +1045,15 @@ msgstr ""
 msgid "Copy a stateful instance stateless"
 msgstr ""
 
-#: lxc/image.go:151
+#: lxc/image.go:164
 msgid "Copy aliases from source"
 msgstr ""
 
-#: lxc/image.go:143
+#: lxc/image.go:156
 msgid "Copy images between servers"
 msgstr ""
 
-#: lxc/image.go:144
+#: lxc/image.go:157
 msgid ""
 "Copy images between servers\n"
 "\n"
@@ -1107,16 +1101,16 @@ msgstr ""
 msgid "Copy the volume without its snapshots"
 msgstr ""
 
-#: lxc/copy.go:62 lxc/image.go:156 lxc/move.go:67 lxc/profile.go:252
+#: lxc/copy.go:62 lxc/image.go:169 lxc/move.go:67 lxc/profile.go:252
 #: lxc/storage_volume.go:338
 msgid "Copy to a project different from the source"
 msgstr ""
 
-#: lxc/image.go:154
+#: lxc/image.go:167
 msgid "Copy virtual machine images"
 msgstr ""
 
-#: lxc/image.go:260
+#: lxc/image.go:272
 #, c-format
 msgid "Copying the image: %s"
 msgstr ""
@@ -1135,12 +1129,12 @@ msgstr ""
 msgid "Cores:"
 msgstr ""
 
-#: lxc/remote.go:479
+#: lxc/remote.go:482
 #, c-format
 msgid "Could not close server cert file %q: %w"
 msgstr ""
 
-#: lxc/remote.go:222 lxc/remote.go:463
+#: lxc/remote.go:224 lxc/remote.go:466
 msgid "Could not create server cert dir"
 msgstr ""
 
@@ -1169,7 +1163,7 @@ msgstr ""
 msgid "Could not write new remote certificate for remote '%s' with error: %v"
 msgstr ""
 
-#: lxc/remote.go:474
+#: lxc/remote.go:477
 #, c-format
 msgid "Could not write server cert file %q: %w"
 msgstr ""
@@ -1182,7 +1176,7 @@ msgstr ""
 msgid "Create a cluster group"
 msgstr ""
 
-#: lxc/init.go:59
+#: lxc/init.go:60
 msgid "Create a virtual machine"
 msgstr ""
 
@@ -1190,7 +1184,7 @@ msgstr ""
 msgid "Create aliases for existing images"
 msgstr ""
 
-#: lxc/init.go:58
+#: lxc/init.go:59
 msgid "Create an empty instance"
 msgstr ""
 
@@ -1214,7 +1208,7 @@ msgid ""
 "running state, including process memory state, TCP connections, ..."
 msgstr ""
 
-#: lxc/init.go:41 lxc/init.go:42
+#: lxc/init.go:42 lxc/init.go:43
 msgid "Create instances from images"
 msgstr ""
 
@@ -1262,21 +1256,21 @@ msgstr ""
 msgid "Create storage pools"
 msgstr ""
 
-#: lxc/copy.go:63 lxc/init.go:57
+#: lxc/copy.go:63 lxc/init.go:58
 msgid "Create the instance with no profiles applied"
 msgstr ""
 
-#: lxc/image.go:949 lxc/info.go:487
+#: lxc/image.go:961 lxc/info.go:487
 #, c-format
 msgid "Created: %s"
 msgstr ""
 
-#: lxc/init.go:162
+#: lxc/init.go:163
 #, c-format
 msgid "Creating %s"
 msgstr ""
 
-#: lxc/init.go:160
+#: lxc/init.go:161
 msgid "Creating the instance"
 msgstr ""
 
@@ -1289,7 +1283,7 @@ msgstr ""
 msgid "DEFAULT TARGET ADDRESS"
 msgstr ""
 
-#: lxc/cluster.go:184 lxc/cluster_group.go:438 lxc/image.go:1055
+#: lxc/cluster.go:184 lxc/cluster_group.go:438 lxc/image.go:1067
 #: lxc/image_alias.go:237 lxc/list.go:557 lxc/network.go:981
 #: lxc/network_acl.go:148 lxc/network_forward.go:145 lxc/network_peer.go:140
 #: lxc/network_zone.go:139 lxc/network_zone.go:742 lxc/operation.go:172
@@ -1338,7 +1332,7 @@ msgstr ""
 msgid "Delete image aliases"
 msgstr ""
 
-#: lxc/image.go:308 lxc/image.go:309
+#: lxc/image.go:320 lxc/image.go:321
 msgid "Delete images"
 msgstr ""
 
@@ -1419,13 +1413,13 @@ msgstr ""
 #: lxc/config_trust.go:534 lxc/config_trust.go:580 lxc/config_trust.go:651
 #: lxc/console.go:36 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:41
 #: lxc/export.go:32 lxc/file.go:78 lxc/file.go:118 lxc/file.go:167
-#: lxc/file.go:237 lxc/file.go:459 lxc/file.go:967 lxc/image.go:37
-#: lxc/image.go:144 lxc/image.go:309 lxc/image.go:360 lxc/image.go:487
-#: lxc/image.go:648 lxc/image.go:881 lxc/image.go:1016 lxc/image.go:1335
-#: lxc/image.go:1415 lxc/image.go:1474 lxc/image.go:1526 lxc/image.go:1582
+#: lxc/file.go:237 lxc/file.go:459 lxc/file.go:968 lxc/image.go:37
+#: lxc/image.go:157 lxc/image.go:321 lxc/image.go:376 lxc/image.go:497
+#: lxc/image.go:661 lxc/image.go:894 lxc/image.go:1028 lxc/image.go:1347
+#: lxc/image.go:1431 lxc/image.go:1489 lxc/image.go:1540 lxc/image.go:1595
 #: lxc/image_alias.go:24 lxc/image_alias.go:60 lxc/image_alias.go:107
 #: lxc/image_alias.go:152 lxc/image_alias.go:255 lxc/import.go:28
-#: lxc/info.go:33 lxc/init.go:42 lxc/launch.go:24 lxc/list.go:49 lxc/main.go:82
+#: lxc/info.go:33 lxc/init.go:43 lxc/launch.go:24 lxc/list.go:49 lxc/main.go:82
 #: lxc/manpage.go:22 lxc/monitor.go:33 lxc/move.go:37 lxc/network.go:32
 #: lxc/network.go:131 lxc/network.go:216 lxc/network.go:289 lxc/network.go:368
 #: lxc/network.go:418 lxc/network.go:503 lxc/network.go:588 lxc/network.go:716
@@ -1460,9 +1454,9 @@ msgstr ""
 #: lxc/profile.go:934 lxc/project.go:29 lxc/project.go:93 lxc/project.go:158
 #: lxc/project.go:221 lxc/project.go:348 lxc/project.go:409 lxc/project.go:510
 #: lxc/project.go:567 lxc/project.go:646 lxc/project.go:677 lxc/project.go:730
-#: lxc/project.go:789 lxc/publish.go:33 lxc/query.go:34 lxc/remote.go:33
-#: lxc/remote.go:88 lxc/remote.go:624 lxc/remote.go:660 lxc/remote.go:748
-#: lxc/remote.go:819 lxc/remote.go:873 lxc/remote.go:911 lxc/rename.go:21
+#: lxc/project.go:789 lxc/publish.go:33 lxc/query.go:34 lxc/remote.go:34
+#: lxc/remote.go:90 lxc/remote.go:628 lxc/remote.go:666 lxc/remote.go:756
+#: lxc/remote.go:829 lxc/remote.go:885 lxc/remote.go:925 lxc/rename.go:21
 #: lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:33 lxc/storage.go:92
 #: lxc/storage.go:166 lxc/storage.go:216 lxc/storage.go:340 lxc/storage.go:410
 #: lxc/storage.go:582 lxc/storage.go:661 lxc/storage.go:757 lxc/storage.go:843
@@ -1521,7 +1515,7 @@ msgstr ""
 msgid "Device %s removed from %s"
 msgstr ""
 
-#: lxc/utils.go:53 lxc/utils.go:77
+#: lxc/utils.go:81 lxc/utils.go:105
 #, c-format
 msgid "Device already exists: %s"
 msgstr ""
@@ -1552,11 +1546,11 @@ msgstr ""
 msgid "Device: %s"
 msgstr ""
 
-#: lxc/init.go:406
+#: lxc/init.go:377
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr ""
 
-#: lxc/image.go:663
+#: lxc/image.go:676
 msgid "Directory import is not available on this platform"
 msgstr ""
 
@@ -1564,7 +1558,7 @@ msgstr ""
 msgid "Directory to run the command in (default /root)"
 msgstr ""
 
-#: lxc/file.go:975
+#: lxc/file.go:976
 msgid "Disable authentication when using SSH SFTP listener"
 msgstr ""
 
@@ -1648,7 +1642,7 @@ msgstr ""
 msgid "Edit files in instances"
 msgstr ""
 
-#: lxc/image.go:359 lxc/image.go:360
+#: lxc/image.go:375 lxc/image.go:376
 msgid "Edit image properties"
 msgstr ""
 
@@ -1708,7 +1702,7 @@ msgstr ""
 msgid "Edit trust configurations as YAML"
 msgstr ""
 
-#: lxc/image.go:1067 lxc/list.go:614 lxc/storage_volume.go:1535
+#: lxc/image.go:1079 lxc/list.go:614 lxc/storage_volume.go:1535
 #: lxc/warning.go:235
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
@@ -1741,7 +1735,7 @@ msgstr ""
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr ""
 
-#: lxc/copy.go:56 lxc/init.go:52
+#: lxc/copy.go:56 lxc/init.go:53
 msgid "Ephemeral instance"
 msgstr ""
 
@@ -1824,20 +1818,20 @@ msgstr ""
 msgid "Expires at"
 msgstr ""
 
-#: lxc/image.go:955
+#: lxc/image.go:967
 #, c-format
 msgid "Expires: %s"
 msgstr ""
 
-#: lxc/image.go:957
+#: lxc/image.go:969
 msgid "Expires: never"
 msgstr ""
 
-#: lxc/image.go:486
+#: lxc/image.go:496
 msgid "Export and download images"
 msgstr ""
 
-#: lxc/image.go:487
+#: lxc/image.go:497
 msgid ""
 "Export and download images\n"
 "\n"
@@ -1865,7 +1859,7 @@ msgstr ""
 msgid "Exporting the backup: %s"
 msgstr ""
 
-#: lxc/image.go:555
+#: lxc/image.go:568
 #, c-format
 msgid "Exporting the image: %s"
 msgstr ""
@@ -1878,7 +1872,7 @@ msgstr ""
 msgid "FILENAME"
 msgstr ""
 
-#: lxc/config_trust.go:411 lxc/image.go:1052 lxc/image.go:1053
+#: lxc/config_trust.go:411 lxc/image.go:1064 lxc/image.go:1065
 #: lxc/image_alias.go:235
 msgid "FINGERPRINT"
 msgstr ""
@@ -1887,32 +1881,32 @@ msgstr ""
 msgid "FIRST SEEN"
 msgstr ""
 
-#: lxc/file.go:1218
+#: lxc/file.go:1219
 #, c-format
 msgid "Failed SSH handshake with client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1241
+#: lxc/file.go:1242
 #, c-format
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
 
-#: lxc/utils.go:267
+#: lxc/utils.go:295
 #, c-format
 msgid "Failed checking instance exists \"%s:%s\": %w"
 msgstr ""
 
-#: lxc/utils.go:259
+#: lxc/utils.go:287
 #, c-format
 msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
 msgstr ""
 
-#: lxc/file.go:1268
+#: lxc/file.go:1269
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1053
+#: lxc/file.go:1054
 #, c-format
 msgid "Failed connecting to instance SFTP: %w"
 msgstr ""
@@ -1932,7 +1926,17 @@ msgstr ""
 msgid "Failed deleting instance snapshot %q in project %q: %w"
 msgstr ""
 
-#: lxc/file.go:1174
+#: lxc/image.go:132
+#, c-format
+msgid "Failed fetching fingerprint %q for alias %q: %w"
+msgstr ""
+
+#: lxc/image.go:123
+#, c-format
+msgid "Failed fetching fingerprint %q: %w"
+msgstr ""
+
+#: lxc/file.go:1175
 #, c-format
 msgid "Failed generating SSH host key: %w"
 msgstr ""
@@ -1942,12 +1946,12 @@ msgstr ""
 msgid "Failed getting peer's status: %w"
 msgstr ""
 
-#: lxc/init.go:294
+#: lxc/utils.go:59
 #, c-format
-msgid "Failed loading profile %q for device override: %w"
+msgid "Failed loading profile %q: %w"
 msgstr ""
 
-#: lxc/file.go:1179
+#: lxc/file.go:1180
 #, c-format
 msgid "Failed parsing SSH host key: %w"
 msgstr ""
@@ -1957,21 +1961,21 @@ msgstr ""
 msgid "Failed starting command: %w"
 msgstr ""
 
-#: lxc/file.go:1079
+#: lxc/file.go:1080
 #, c-format
 msgid "Failed starting sshfs: %w"
 msgstr ""
 
-#: lxc/file.go:1206
+#: lxc/file.go:1207
 #, c-format
 msgid "Failed to accept incoming connection: %w"
 msgstr ""
 
-#: lxc/remote.go:188
+#: lxc/remote.go:190
 msgid "Failed to add remote"
 msgstr ""
 
-#: lxc/remote.go:239
+#: lxc/remote.go:241
 #, c-format
 msgid "Failed to close server cert file %q: %w"
 msgstr ""
@@ -1981,47 +1985,47 @@ msgstr ""
 msgid "Failed to connect to cluster member: %w"
 msgstr ""
 
-#: lxc/remote.go:229
+#: lxc/remote.go:231
 #, c-format
 msgid "Failed to create %q: %w"
 msgstr ""
 
-#: lxc/utils.go:185
+#: lxc/utils.go:213
 #, c-format
 msgid "Failed to create alias %s: %w"
 msgstr ""
 
-#: lxc/remote.go:254
+#: lxc/remote.go:256
 #, c-format
 msgid "Failed to create certificate: %w"
 msgstr ""
 
-#: lxc/remote.go:261
+#: lxc/remote.go:263
 #, c-format
 msgid "Failed to find project: %w"
 msgstr ""
 
-#: lxc/file.go:1191
+#: lxc/file.go:1192
 #, c-format
 msgid "Failed to listen for connection: %w"
 msgstr ""
 
-#: lxc/copy.go:361
+#: lxc/copy.go:391
 #, c-format
 msgid "Failed to refresh target instance '%s': %v"
 msgstr ""
 
-#: lxc/utils.go:174
+#: lxc/utils.go:202
 #, c-format
 msgid "Failed to remove alias %s: %w"
 msgstr ""
 
-#: lxc/file.go:801
+#: lxc/file.go:802
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
 
-#: lxc/remote.go:234
+#: lxc/remote.go:236
 #, c-format
 msgid "Failed to write server cert file %q: %w"
 msgstr ""
@@ -2035,7 +2039,7 @@ msgstr ""
 msgid "Filtering isn't supported yet"
 msgstr ""
 
-#: lxc/image.go:940
+#: lxc/image.go:952
 #, c-format
 msgid "Fingerprint: %s"
 msgstr ""
@@ -2094,12 +2098,12 @@ msgstr ""
 
 #: lxc/alias.go:112 lxc/cluster.go:120 lxc/cluster.go:828
 #: lxc/cluster_group.go:384 lxc/config_template.go:242 lxc/config_trust.go:352
-#: lxc/config_trust.go:434 lxc/image.go:1042 lxc/image_alias.go:157
+#: lxc/config_trust.go:434 lxc/image.go:1054 lxc/image_alias.go:157
 #: lxc/list.go:133 lxc/network.go:912 lxc/network.go:1003 lxc/network_acl.go:97
 #: lxc/network_allocations.go:57 lxc/network_forward.go:89
 #: lxc/network_peer.go:84 lxc/network_zone.go:88 lxc/network_zone.go:692
 #: lxc/operation.go:108 lxc/profile.go:617 lxc/project.go:411
-#: lxc/project.go:791 lxc/remote.go:664 lxc/storage.go:584
+#: lxc/project.go:791 lxc/remote.go:670 lxc/storage.go:584
 #: lxc/storage_volume.go:1418 lxc/warning.go:93
 msgid "Format (csv|json|table|yaml|compact)"
 msgstr ""
@@ -2136,7 +2140,7 @@ msgstr ""
 msgid "Frequency: %vMhz (min: %vMhz, max: %vMhz)"
 msgstr ""
 
-#: lxc/remote.go:731
+#: lxc/remote.go:738
 msgid "GLOBAL"
 msgstr ""
 
@@ -2152,7 +2156,7 @@ msgstr ""
 msgid "Generate manpages for all commands"
 msgstr ""
 
-#: lxc/remote.go:157 lxc/remote.go:390
+#: lxc/remote.go:159 lxc/remote.go:393
 msgid "Generating a client certificate. This may take a minute..."
 msgstr ""
 
@@ -2160,7 +2164,7 @@ msgstr ""
 msgid "Get a summary of resource allocations"
 msgstr ""
 
-#: lxc/image.go:1473 lxc/image.go:1474
+#: lxc/image.go:1488 lxc/image.go:1489
 msgid "Get image properties"
 msgstr ""
 
@@ -2293,22 +2297,22 @@ msgstr ""
 msgid "Hugepages:\n"
 msgstr ""
 
-#: lxc/file.go:1291
+#: lxc/file.go:1292
 #, c-format
 msgid "I/O copy from SSH to instance failed: %v"
 msgstr ""
 
-#: lxc/file.go:1280
+#: lxc/file.go:1281
 #, c-format
 msgid "I/O copy from instance to SSH failed: %v"
 msgstr ""
 
-#: lxc/file.go:1103
+#: lxc/file.go:1104
 #, c-format
 msgid "I/O copy from instance to sshfs failed: %v"
 msgstr ""
 
-#: lxc/file.go:1113
+#: lxc/file.go:1114
 #, c-format
 msgid "I/O copy from sshfs to instance failed: %v"
 msgstr ""
@@ -2363,7 +2367,7 @@ msgstr ""
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 
-#: lxc/main.go:386
+#: lxc/main.go:388
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -2385,11 +2389,11 @@ msgstr ""
 msgid "Ignore the instance state"
 msgstr ""
 
-#: lxc/image.go:1396
+#: lxc/image.go:1412
 msgid "Image already up to date."
 msgstr ""
 
-#: lxc/image.go:277
+#: lxc/image.go:289
 msgid "Image copied successfully!"
 msgstr ""
 
@@ -2397,25 +2401,25 @@ msgstr ""
 msgid "Image expiration date (format: rfc3339)"
 msgstr ""
 
-#: lxc/image.go:631
+#: lxc/image.go:644
 msgid "Image exported successfully!"
 msgstr ""
 
-#: lxc/image.go:332 lxc/image.go:1358
+#: lxc/image.go:344 lxc/image.go:1370
 msgid "Image identifier missing"
 msgstr ""
 
-#: lxc/image.go:400 lxc/image.go:1550
+#: lxc/image.go:416 lxc/image.go:1564
 #, c-format
 msgid "Image identifier missing: %s"
 msgstr ""
 
-#: lxc/image.go:851
+#: lxc/image.go:864
 #, c-format
 msgid "Image imported with fingerprint: %s"
 msgstr ""
 
-#: lxc/image.go:1394
+#: lxc/image.go:1410
 msgid "Image refreshed successfully!"
 msgstr ""
 
@@ -2435,14 +2439,14 @@ msgstr ""
 msgid "Import custom storage volumes"
 msgstr ""
 
-#: lxc/image.go:648
+#: lxc/image.go:661
 msgid ""
 "Import image into the image store\n"
 "\n"
 "Directory import is only available on Linux and must be performed as root."
 msgstr ""
 
-#: lxc/image.go:647
+#: lxc/image.go:660
 msgid "Import images into the image store"
 msgstr ""
 
@@ -2472,11 +2476,11 @@ msgstr ""
 msgid "Instance Only"
 msgstr ""
 
-#: lxc/file.go:1105
+#: lxc/file.go:1106
 msgid "Instance disconnected"
 msgstr ""
 
-#: lxc/file.go:1282
+#: lxc/file.go:1283
 #, c-format
 msgid "Instance disconnected for client %q"
 msgstr ""
@@ -2485,12 +2489,12 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr ""
 
-#: lxc/init.go:417
+#: lxc/init.go:388
 #, c-format
 msgid "Instance name is: %s"
 msgstr ""
 
-#: lxc/file.go:1025
+#: lxc/file.go:1026
 msgid "Instance path cannot be used in SSH SFTP listener mode"
 msgstr ""
 
@@ -2499,11 +2503,11 @@ msgstr ""
 msgid "Instance published with fingerprint: %s"
 msgstr ""
 
-#: lxc/init.go:55
+#: lxc/init.go:56
 msgid "Instance type"
 msgstr ""
 
-#: lxc/remote.go:342
+#: lxc/remote.go:345
 #, c-format
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr ""
@@ -2537,12 +2541,12 @@ msgstr ""
 msgid "Invalid instance name: %s"
 msgstr ""
 
-#: lxc/file.go:1020
+#: lxc/file.go:1021
 #, c-format
 msgid "Invalid instance path: %q"
 msgstr ""
 
-#: lxc/utils.go:224
+#: lxc/utils.go:252
 #, c-format
 msgid "Invalid key=value configuration: %s"
 msgstr ""
@@ -2575,7 +2579,7 @@ msgstr ""
 msgid "Invalid new snapshot name, parent volume must be the same as source"
 msgstr ""
 
-#: lxc/main.go:482
+#: lxc/main.go:489
 msgid "Invalid number of arguments"
 msgstr ""
 
@@ -2584,7 +2588,7 @@ msgstr ""
 msgid "Invalid path %s"
 msgstr ""
 
-#: lxc/remote.go:331
+#: lxc/remote.go:334
 #, c-format
 msgid "Invalid protocol: %s"
 msgstr ""
@@ -2610,7 +2614,7 @@ msgstr ""
 msgid "IsSM: %s (%s)"
 msgstr ""
 
-#: lxc/image.go:152
+#: lxc/image.go:165
 msgid "Keep the image up to date after initial copy"
 msgstr ""
 
@@ -2653,12 +2657,12 @@ msgstr ""
 msgid "Last Used: %s"
 msgstr ""
 
-#: lxc/image.go:961
+#: lxc/image.go:973
 #, c-format
 msgid "Last used: %s"
 msgstr ""
 
-#: lxc/image.go:963
+#: lxc/image.go:975
 msgid "Last used: never"
 msgstr ""
 
@@ -2751,11 +2755,11 @@ msgid ""
 "Filters may be part of the image hash or part of the image alias name.\n"
 msgstr ""
 
-#: lxc/image.go:1015
+#: lxc/image.go:1027
 msgid "List images"
 msgstr ""
 
-#: lxc/image.go:1016
+#: lxc/image.go:1028
 msgid ""
 "List images\n"
 "\n"
@@ -2920,7 +2924,7 @@ msgid ""
 "    U - Current disk usage"
 msgstr ""
 
-#: lxc/remote.go:659 lxc/remote.go:660
+#: lxc/remote.go:665 lxc/remote.go:666
 msgid "List the available remotes"
 msgstr ""
 
@@ -3036,7 +3040,7 @@ msgstr ""
 msgid "MTU: %d"
 msgstr ""
 
-#: lxc/image.go:150 lxc/image.go:653
+#: lxc/image.go:163 lxc/image.go:666
 msgid "Make image public"
 msgstr ""
 
@@ -3167,7 +3171,7 @@ msgid ""
 "\"custom\" (user created) volumes."
 msgstr ""
 
-#: lxc/remote.go:32 lxc/remote.go:33
+#: lxc/remote.go:33 lxc/remote.go:34
 msgid "Manage the list of remote servers"
 msgstr ""
 
@@ -3393,7 +3397,7 @@ msgstr ""
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 
-#: lxc/file.go:966 lxc/file.go:967
+#: lxc/file.go:967 lxc/file.go:968
 msgid "Mount files from instances"
 msgstr ""
 
@@ -3442,7 +3446,7 @@ msgstr ""
 msgid "Multiple rules match. Use --force to remove them all"
 msgstr ""
 
-#: lxc/image.go:665
+#: lxc/image.go:678
 msgid "Must run as root to import from directory"
 msgstr ""
 
@@ -3454,7 +3458,7 @@ msgstr ""
 #: lxc/config_trust.go:409 lxc/config_trust.go:514 lxc/list.go:565
 #: lxc/network.go:976 lxc/network_acl.go:147 lxc/network_peer.go:139
 #: lxc/network_zone.go:138 lxc/network_zone.go:741 lxc/profile.go:657
-#: lxc/project.go:487 lxc/remote.go:725 lxc/storage.go:634
+#: lxc/project.go:487 lxc/remote.go:732 lxc/storage.go:634
 #: lxc/storage_volume.go:1506
 msgid "NAME"
 msgstr ""
@@ -3476,8 +3480,8 @@ msgid "NICs:"
 msgstr ""
 
 #: lxc/network.go:953 lxc/operation.go:154 lxc/project.go:455
-#: lxc/project.go:460 lxc/project.go:465 lxc/project.go:470 lxc/remote.go:681
-#: lxc/remote.go:686 lxc/remote.go:691
+#: lxc/project.go:460 lxc/project.go:465 lxc/project.go:470 lxc/remote.go:688
+#: lxc/remote.go:693 lxc/remote.go:698
 msgid "NO"
 msgstr ""
 
@@ -3504,7 +3508,7 @@ msgstr ""
 msgid "Name"
 msgstr ""
 
-#: lxc/remote.go:139
+#: lxc/remote.go:141
 msgid "Name of the project to use for this remote:"
 msgstr ""
 
@@ -3573,7 +3577,7 @@ msgstr ""
 msgid "Network forward %s deleted"
 msgstr ""
 
-#: lxc/init.go:53
+#: lxc/init.go:54
 msgid "Network name"
 msgstr ""
 
@@ -3620,11 +3624,11 @@ msgstr ""
 msgid "New alias to define at target"
 msgstr ""
 
-#: lxc/image.go:153 lxc/image.go:654
+#: lxc/image.go:166 lxc/image.go:667
 msgid "New aliases to add to the image"
 msgstr ""
 
-#: lxc/copy.go:54 lxc/init.go:51 lxc/move.go:59
+#: lxc/copy.go:54 lxc/init.go:52 lxc/move.go:59
 msgid "New key/value to apply to a specific device"
 msgstr ""
 
@@ -3692,11 +3696,11 @@ msgstr ""
 msgid "Only \"custom\" volumes can be snapshotted"
 msgstr ""
 
-#: lxc/remote.go:325
+#: lxc/remote.go:328
 msgid "Only https URLs are supported for simplestreams"
 msgstr ""
 
-#: lxc/image.go:742
+#: lxc/image.go:755
 msgid "Only https:// is supported for remote image import"
 msgstr ""
 
@@ -3759,11 +3763,11 @@ msgstr ""
 msgid "PROJECT"
 msgstr ""
 
-#: lxc/remote.go:727
+#: lxc/remote.go:734
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:1054 lxc/remote.go:729
+#: lxc/image.go:1066 lxc/remote.go:736
 msgid "PUBLIC"
 msgstr ""
 
@@ -3779,7 +3783,7 @@ msgstr ""
 msgid "Partitions:"
 msgstr ""
 
-#: lxc/main.go:349
+#: lxc/main.go:351
 #, c-format
 msgid "Password for %s: "
 msgstr ""
@@ -3792,7 +3796,7 @@ msgstr ""
 msgid "Perform an incremental copy"
 msgstr ""
 
-#: lxc/remote.go:180
+#: lxc/remote.go:182
 msgid "Please provide an alternate server address (empty to abort):"
 msgstr ""
 
@@ -3804,7 +3808,7 @@ msgstr ""
 msgid "Please provide cluster member name: "
 msgstr ""
 
-#: lxc/remote.go:455
+#: lxc/remote.go:458
 msgid "Please type 'y', 'n' or the fingerprint:"
 msgstr ""
 
@@ -3817,13 +3821,13 @@ msgstr ""
 msgid "Ports:"
 msgstr ""
 
-#: lxc/file.go:1083
+#: lxc/file.go:1084
 msgid "Press ctrl+c to finish"
 msgstr ""
 
 #: lxc/cluster.go:718 lxc/cluster_group.go:340 lxc/config.go:269
 #: lxc/config.go:344 lxc/config_metadata.go:148 lxc/config_template.go:206
-#: lxc/config_trust.go:315 lxc/image.go:454 lxc/network.go:683
+#: lxc/config_trust.go:315 lxc/image.go:464 lxc/network.go:683
 #: lxc/network_acl.go:621 lxc/network_forward.go:636 lxc/network_peer.go:611
 #: lxc/network_zone.go:552 lxc/network_zone.go:1144 lxc/profile.go:519
 #: lxc/project.go:315 lxc/storage.go:307 lxc/storage_volume.go:994
@@ -3892,7 +3896,7 @@ msgstr ""
 msgid "Profile %s renamed to %s"
 msgstr ""
 
-#: lxc/copy.go:55 lxc/init.go:50
+#: lxc/copy.go:55 lxc/init.go:51
 msgid "Profile to apply to the new instance"
 msgstr ""
 
@@ -3905,11 +3909,11 @@ msgstr ""
 msgid "Profiles %s applied to %s"
 msgstr ""
 
-#: lxc/image.go:993
+#: lxc/image.go:1005
 msgid "Profiles:"
 msgstr ""
 
-#: lxc/image.go:991
+#: lxc/image.go:1003
 msgid "Profiles: "
 msgstr ""
 
@@ -3928,15 +3932,15 @@ msgstr ""
 msgid "Project %s renamed to %s"
 msgstr ""
 
-#: lxc/remote.go:104
+#: lxc/remote.go:106
 msgid "Project to use for the remote"
 msgstr ""
 
-#: lxc/image.go:966
+#: lxc/image.go:978
 msgid "Properties:"
 msgstr ""
 
-#: lxc/image.go:1509
+#: lxc/image.go:1523
 msgid "Property not found"
 msgstr ""
 
@@ -4026,11 +4030,11 @@ msgid ""
 "pool \"default\"."
 msgstr ""
 
-#: lxc/remote.go:102
+#: lxc/remote.go:104
 msgid "Public image server"
 msgstr ""
 
-#: lxc/image.go:944
+#: lxc/image.go:956
 #, c-format
 msgid "Public: %s"
 msgstr ""
@@ -4048,7 +4052,7 @@ msgstr ""
 msgid "Pull files from instances"
 msgstr ""
 
-#: lxc/file.go:408 lxc/file.go:748
+#: lxc/file.go:408 lxc/file.go:749
 #, c-format
 msgid "Pulling %s from %s: %%s"
 msgstr ""
@@ -4057,7 +4061,7 @@ msgstr ""
 msgid "Push files into instances"
 msgstr ""
 
-#: lxc/file.go:682 lxc/file.go:848
+#: lxc/file.go:683 lxc/file.go:849
 #, c-format
 msgid "Pushing %s to %s: %%s"
 msgstr ""
@@ -4066,7 +4070,7 @@ msgstr ""
 msgid "Query path must start with /"
 msgstr ""
 
-#: lxc/image.go:492 lxc/image.go:884 lxc/image.go:1418
+#: lxc/image.go:502 lxc/image.go:897 lxc/image.go:1434
 msgid "Query virtual machine images"
 msgstr ""
 
@@ -4091,51 +4095,51 @@ msgstr ""
 msgid "Refresh and update the existing storage volume copies"
 msgstr ""
 
-#: lxc/image.go:1334 lxc/image.go:1335
+#: lxc/image.go:1346 lxc/image.go:1347
 msgid "Refresh images"
 msgstr ""
 
-#: lxc/copy.go:383
+#: lxc/copy.go:413
 #, c-format
 msgid "Refreshing instance: %s"
 msgstr ""
 
-#: lxc/image.go:1363
+#: lxc/image.go:1379
 #, c-format
 msgid "Refreshing the image: %s"
 msgstr ""
 
-#: lxc/remote.go:777
+#: lxc/remote.go:786
 #, c-format
 msgid "Remote %s already exists"
 msgstr ""
 
-#: lxc/project.go:756 lxc/remote.go:768 lxc/remote.go:839 lxc/remote.go:893
-#: lxc/remote.go:931
+#: lxc/project.go:756 lxc/remote.go:777 lxc/remote.go:850 lxc/remote.go:906
+#: lxc/remote.go:946
 #, c-format
 msgid "Remote %s doesn't exist"
 msgstr ""
 
-#: lxc/remote.go:294
+#: lxc/remote.go:297
 #, c-format
 msgid "Remote %s exists as <%s>"
 msgstr ""
 
-#: lxc/remote.go:847
+#: lxc/remote.go:858
 #, c-format
 msgid "Remote %s is global and cannot be removed"
 msgstr ""
 
-#: lxc/remote.go:772 lxc/remote.go:843 lxc/remote.go:935
+#: lxc/remote.go:781 lxc/remote.go:854 lxc/remote.go:950
 #, c-format
 msgid "Remote %s is static and cannot be modified"
 msgstr ""
 
-#: lxc/remote.go:99
+#: lxc/remote.go:101
 msgid "Remote admin password"
 msgstr ""
 
-#: lxc/remote.go:288
+#: lxc/remote.go:291
 msgid "Remote names may not contain colons"
 msgstr ""
 
@@ -4193,7 +4197,7 @@ msgstr ""
 msgid "Remove profiles from instances"
 msgstr ""
 
-#: lxc/remote.go:818 lxc/remote.go:819
+#: lxc/remote.go:828 lxc/remote.go:829
 msgid "Remove remotes"
 msgstr ""
 
@@ -4242,7 +4246,7 @@ msgstr ""
 msgid "Rename projects"
 msgstr ""
 
-#: lxc/remote.go:747 lxc/remote.go:748
+#: lxc/remote.go:755 lxc/remote.go:756
 msgid "Rename remotes"
 msgstr ""
 
@@ -4319,7 +4323,7 @@ msgstr ""
 msgid "Retrieve the instance's console log"
 msgstr ""
 
-#: lxc/init.go:360
+#: lxc/init.go:331
 #, c-format
 msgid "Retrieving image: %s"
 msgstr ""
@@ -4348,7 +4352,7 @@ msgstr ""
 msgid "SEVERITY"
 msgstr ""
 
-#: lxc/image.go:1057
+#: lxc/image.go:1069
 msgid "SIZE"
 msgstr ""
 
@@ -4364,12 +4368,12 @@ msgstr ""
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/file.go:1211
+#: lxc/file.go:1212
 #, c-format
 msgid "SSH client connected %q"
 msgstr ""
 
-#: lxc/file.go:1212
+#: lxc/file.go:1213
 #, c-format
 msgid "SSH client disconnected %q"
 msgstr ""
@@ -4379,7 +4383,7 @@ msgstr ""
 msgid "STATE"
 msgstr ""
 
-#: lxc/remote.go:730
+#: lxc/remote.go:737
 msgid "STATIC"
 msgstr ""
 
@@ -4403,19 +4407,19 @@ msgstr ""
 msgid "Send a raw query to LXD"
 msgstr ""
 
-#: lxc/remote.go:101
+#: lxc/remote.go:103
 msgid "Server authentication type (tls or candid)"
 msgstr ""
 
-#: lxc/remote.go:453
+#: lxc/remote.go:456
 msgid "Server certificate NACKed by user"
 msgstr ""
 
-#: lxc/remote.go:593
+#: lxc/remote.go:596
 msgid "Server doesn't trust us after authentication"
 msgstr ""
 
-#: lxc/remote.go:100
+#: lxc/remote.go:102
 msgid "Server protocol (lxd or simplestreams)"
 msgstr ""
 
@@ -4428,7 +4432,7 @@ msgstr ""
 msgid "Set a cluster member's configuration keys"
 msgstr ""
 
-#: lxc/file.go:976
+#: lxc/file.go:977
 msgid "Set authentication user when using SSH SFTP listener"
 msgstr ""
 
@@ -4454,7 +4458,7 @@ msgid ""
 "    lxc profile device set [<remote>:]<profile> <device> <key> <value>"
 msgstr ""
 
-#: lxc/image.go:1525 lxc/image.go:1526
+#: lxc/image.go:1539 lxc/image.go:1540
 msgid "Set image properties"
 msgstr ""
 
@@ -4592,7 +4596,7 @@ msgid ""
 "    lxc storage volume set [<remote>:]<pool> [<type>/]<volume> <key> <value>"
 msgstr ""
 
-#: lxc/remote.go:910 lxc/remote.go:911
+#: lxc/remote.go:924 lxc/remote.go:925
 msgid "Set the URL for the remote"
 msgstr ""
 
@@ -4656,7 +4660,7 @@ msgstr ""
 msgid "Set the key as an instance property"
 msgstr ""
 
-#: lxc/file.go:974
+#: lxc/file.go:975
 msgid "Setup SSH SFTP listener on address:port instead of mounting"
 msgstr ""
 
@@ -4692,7 +4696,7 @@ msgstr ""
 msgid "Show full device configuration"
 msgstr ""
 
-#: lxc/image.go:1414 lxc/image.go:1415
+#: lxc/image.go:1430 lxc/image.go:1431
 msgid "Show image properties"
 msgstr ""
 
@@ -4768,7 +4772,7 @@ msgstr ""
 msgid "Show storage volume state information"
 msgstr ""
 
-#: lxc/remote.go:623 lxc/remote.go:624
+#: lxc/remote.go:627 lxc/remote.go:628
 msgid "Show the default remote"
 msgstr ""
 
@@ -4796,7 +4800,7 @@ msgstr ""
 msgid "Show trust configurations"
 msgstr ""
 
-#: lxc/image.go:880 lxc/image.go:881
+#: lxc/image.go:893 lxc/image.go:894
 msgid "Show useful information about images"
 msgstr ""
 
@@ -4808,7 +4812,7 @@ msgstr ""
 msgid "Show warning"
 msgstr ""
 
-#: lxc/image.go:941
+#: lxc/image.go:953
 #, c-format
 msgid "Size: %.2fMiB"
 msgstr ""
@@ -4840,7 +4844,7 @@ msgstr ""
 msgid "Some instances failed to %s"
 msgstr ""
 
-#: lxc/image.go:984
+#: lxc/image.go:996
 msgid "Source:"
 msgstr ""
 
@@ -4903,7 +4907,7 @@ msgstr ""
 msgid "Storage pool %s pending on member %s"
 msgstr ""
 
-#: lxc/copy.go:60 lxc/import.go:35 lxc/init.go:54 lxc/move.go:65
+#: lxc/copy.go:60 lxc/import.go:35 lxc/init.go:55 lxc/move.go:65
 msgid "Storage pool name"
 msgstr ""
 
@@ -4956,7 +4960,7 @@ msgstr ""
 msgid "Switch the current project"
 msgstr ""
 
-#: lxc/remote.go:872 lxc/remote.go:873
+#: lxc/remote.go:884 lxc/remote.go:885
 msgid "Switch the default remote"
 msgstr ""
 
@@ -4968,7 +4972,7 @@ msgstr ""
 msgid "TOKEN"
 msgstr ""
 
-#: lxc/config_trust.go:408 lxc/image.go:1059 lxc/image_alias.go:236
+#: lxc/config_trust.go:408 lxc/image.go:1071 lxc/image_alias.go:236
 #: lxc/list.go:571 lxc/network.go:977 lxc/network.go:1051
 #: lxc/network_allocations.go:26 lxc/operation.go:171
 #: lxc/storage_volume.go:1505 lxc/warning.go:215
@@ -4979,11 +4983,11 @@ msgstr ""
 msgid "Taken at"
 msgstr ""
 
-#: lxc/file.go:1013
+#: lxc/file.go:1014
 msgid "Target path and --listen flag cannot be used together"
 msgstr ""
 
-#: lxc/file.go:1007
+#: lxc/file.go:1008
 msgid "Target path must be a directory"
 msgstr ""
 
@@ -5033,7 +5037,7 @@ msgid ""
 "restarted"
 msgstr ""
 
-#: lxc/init.go:438
+#: lxc/init.go:409
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
 
@@ -5046,12 +5050,12 @@ msgstr ""
 msgid "The key %q does not exist on cluster member %q"
 msgstr ""
 
-#: lxc/utils.go:347
+#: lxc/utils.go:375
 #, c-format
 msgid "The local image '%q' couldn't be found, trying '%q:%q' instead."
 msgstr ""
 
-#: lxc/utils.go:343
+#: lxc/utils.go:371
 #, c-format
 msgid "The local image '%q' couldn't be found, trying '%q:' instead."
 msgstr ""
@@ -5180,15 +5184,15 @@ msgstr ""
 msgid "Time to wait for the instance to shutdown cleanly"
 msgstr ""
 
-#: lxc/image.go:945
+#: lxc/image.go:957
 msgid "Timestamps:"
 msgstr ""
 
-#: lxc/init.go:440
+#: lxc/init.go:411
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr ""
 
-#: lxc/init.go:439
+#: lxc/init.go:410
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
@@ -5196,7 +5200,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
-#: lxc/main.go:391
+#: lxc/main.go:393
 msgid ""
 "To start your first container, try: lxc launch ubuntu:22.04\n"
 "Or for a virtual machine: lxc launch ubuntu:22.04 --vm"
@@ -5226,7 +5230,7 @@ msgstr ""
 msgid "Transfer mode, one of pull (default), push or relay"
 msgstr ""
 
-#: lxc/image.go:155
+#: lxc/image.go:168
 msgid "Transfer mode. One of pull (default), push or relay"
 msgstr ""
 
@@ -5242,12 +5246,12 @@ msgstr ""
 msgid "Transfer mode. One of pull, push or relay."
 msgstr ""
 
-#: lxc/image.go:764
+#: lxc/image.go:777
 #, c-format
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/copy.go:339 lxc/move.go:314
+#: lxc/copy.go:369 lxc/move.go:314
 #, c-format
 msgid "Transferring instance: %s"
 msgstr ""
@@ -5275,7 +5279,7 @@ msgid ""
 "SPICE graphical output"
 msgstr ""
 
-#: lxc/image.go:943 lxc/info.go:273 lxc/info.go:473 lxc/network.go:833
+#: lxc/image.go:955 lxc/info.go:273 lxc/info.go:473 lxc/network.go:833
 #: lxc/storage_volume.go:1270
 #, c-format
 msgid "Type: %s"
@@ -5290,11 +5294,11 @@ msgstr ""
 msgid "UNLIMITED"
 msgstr ""
 
-#: lxc/image.go:1058
+#: lxc/image.go:1070
 msgid "UPLOAD DATE"
 msgstr ""
 
-#: lxc/cluster.go:180 lxc/remote.go:726
+#: lxc/cluster.go:180 lxc/remote.go:733
 msgid "URL"
 msgstr ""
 
@@ -5322,7 +5326,7 @@ msgstr ""
 msgid "Unable to create a temporary file: %v"
 msgstr ""
 
-#: lxc/remote.go:211 lxc/remote.go:245
+#: lxc/remote.go:213 lxc/remote.go:247
 msgid "Unavailable remote server"
 msgstr ""
 
@@ -5331,12 +5335,12 @@ msgstr ""
 msgid "Unknown certificate type %q"
 msgstr ""
 
-#: lxc/file.go:1234
+#: lxc/file.go:1235
 #, c-format
 msgid "Unknown channel type for client %q: %s"
 msgstr ""
 
-#: lxc/image.go:1075 lxc/list.go:629 lxc/storage_volume.go:1543
+#: lxc/image.go:1087 lxc/list.go:629 lxc/storage_volume.go:1543
 #: lxc/warning.go:243
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
@@ -5347,7 +5351,7 @@ msgstr ""
 msgid "Unknown console type %q"
 msgstr ""
 
-#: lxc/file.go:788
+#: lxc/file.go:789
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr ""
@@ -5374,7 +5378,7 @@ msgstr ""
 msgid "Unset device configuration keys"
 msgstr ""
 
-#: lxc/image.go:1581 lxc/image.go:1582
+#: lxc/image.go:1594 lxc/image.go:1595
 msgid "Unset image properties"
 msgstr ""
 
@@ -5501,7 +5505,7 @@ msgstr ""
 msgid "Update the target profile from the source if it already exists"
 msgstr ""
 
-#: lxc/image.go:952
+#: lxc/image.go:964
 #, c-format
 msgid "Uploaded: %s"
 msgstr ""
@@ -5602,8 +5606,8 @@ msgid "Whether or not to snapshot the instance's running state"
 msgstr ""
 
 #: lxc/network.go:955 lxc/operation.go:156 lxc/project.go:457
-#: lxc/project.go:462 lxc/project.go:467 lxc/project.go:472 lxc/remote.go:683
-#: lxc/remote.go:688 lxc/remote.go:693
+#: lxc/project.go:462 lxc/project.go:467 lxc/project.go:472 lxc/remote.go:690
+#: lxc/remote.go:695 lxc/remote.go:700
 msgid "YES"
 msgstr ""
 
@@ -5655,7 +5659,7 @@ msgstr ""
 msgid "[<remote>:] [<cert>]"
 msgstr ""
 
-#: lxc/image.go:1013 lxc/list.go:46
+#: lxc/image.go:1025 lxc/list.go:46
 msgid "[<remote>:] [<filter>...]"
 msgstr ""
 
@@ -5737,31 +5741,31 @@ msgstr ""
 msgid "[<remote>:]<group> <new-name>"
 msgstr ""
 
-#: lxc/image.go:358 lxc/image.go:879 lxc/image.go:1413
+#: lxc/image.go:374 lxc/image.go:892 lxc/image.go:1429
 msgid "[<remote>:]<image>"
 msgstr ""
 
-#: lxc/image.go:1472 lxc/image.go:1580
+#: lxc/image.go:1487 lxc/image.go:1593
 msgid "[<remote>:]<image> <key>"
 msgstr ""
 
-#: lxc/image.go:1524
+#: lxc/image.go:1538
 msgid "[<remote>:]<image> <key> <value>"
 msgstr ""
 
-#: lxc/image.go:141
+#: lxc/image.go:154
 msgid "[<remote>:]<image> <remote>:"
 msgstr ""
 
-#: lxc/init.go:40 lxc/launch.go:22
+#: lxc/init.go:41 lxc/launch.go:22
 msgid "[<remote>:]<image> [<remote>:][<name>]"
 msgstr ""
 
-#: lxc/image.go:485
+#: lxc/image.go:495
 msgid "[<remote>:]<image> [<target>]"
 msgstr ""
 
-#: lxc/image.go:306 lxc/image.go:1333
+#: lxc/image.go:318 lxc/image.go:1345
 msgid "[<remote>:]<image> [[<remote>:]<image>...]"
 msgstr ""
 
@@ -5836,7 +5840,7 @@ msgid ""
 "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"
 msgstr ""
 
-#: lxc/file.go:965
+#: lxc/file.go:966
 msgid "[<remote>:]<instance>[/<path>] [<target path>]"
 msgstr ""
 
@@ -6160,7 +6164,7 @@ msgstr ""
 msgid "[<remote>:][<instance>] <key>=<value>..."
 msgstr ""
 
-#: lxc/remote.go:86
+#: lxc/remote.go:88
 msgid "[<remote>] <IP|FQDN|URL|token>"
 msgstr ""
 
@@ -6168,7 +6172,7 @@ msgstr ""
 msgid "[[<remote>:]<name>]"
 msgstr ""
 
-#: lxc/project.go:477 lxc/remote.go:716
+#: lxc/project.go:477 lxc/remote.go:723
 msgid "current"
 msgstr ""
 
@@ -6176,7 +6180,7 @@ msgstr ""
 msgid "description"
 msgstr ""
 
-#: lxc/image.go:930
+#: lxc/image.go:942
 msgid "disabled"
 msgstr ""
 
@@ -6184,7 +6188,7 @@ msgstr ""
 msgid "driver"
 msgstr ""
 
-#: lxc/image.go:932
+#: lxc/image.go:944
 msgid "enabled"
 msgstr ""
 
@@ -6265,7 +6269,7 @@ msgid ""
 "    Download a backup tarball of the u1 instance."
 msgstr ""
 
-#: lxc/file.go:969
+#: lxc/file.go:970
 msgid ""
 "lxc file mount foo/root fooroot\n"
 "   To mount /root from the instance foo onto the local fooroot directory."
@@ -6284,7 +6288,7 @@ msgid ""
 "   To push /etc/hosts into the instance \"foo\"."
 msgstr ""
 
-#: lxc/image.go:362
+#: lxc/image.go:378
 msgid ""
 "lxc image edit <image>\n"
 "    Launch a text editor to edit the properties\n"
@@ -6308,7 +6312,7 @@ msgid ""
 "    For LXD server information."
 msgstr ""
 
-#: lxc/init.go:43
+#: lxc/init.go:44
 msgid ""
 "lxc init ubuntu:22.04 u1\n"
 "\n"
@@ -6454,7 +6458,7 @@ msgid ""
 "\t\tCreate a new custom volume using backup0.tar.gz as the source."
 msgstr ""
 
-#: lxc/remote.go:452
+#: lxc/remote.go:455
 msgid "n"
 msgstr ""
 
@@ -6462,11 +6466,11 @@ msgstr ""
 msgid "name"
 msgstr ""
 
-#: lxc/image.go:920 lxc/image.go:925 lxc/image.go:1115
+#: lxc/image.go:932 lxc/image.go:937 lxc/image.go:1127
 msgid "no"
 msgstr ""
 
-#: lxc/remote.go:445
+#: lxc/remote.go:448
 msgid "ok (y/n/[fingerprint])?"
 msgstr ""
 
@@ -6478,16 +6482,16 @@ msgstr ""
 msgid "space used"
 msgstr ""
 
-#: lxc/file.go:1123
+#: lxc/file.go:1124
 msgid "sshfs has stopped"
 msgstr ""
 
-#: lxc/file.go:1082
+#: lxc/file.go:1083
 #, c-format
 msgid "sshfs mounting %q on %q"
 msgstr ""
 
-#: lxc/file.go:1035
+#: lxc/file.go:1036
 msgid "sshfs not found. Try SSH SFTP mode using the --listen flag"
 msgstr ""
 
@@ -6503,11 +6507,11 @@ msgstr ""
 msgid "used by"
 msgstr ""
 
-#: lxc/remote.go:454
+#: lxc/remote.go:457
 msgid "y"
 msgstr ""
 
-#: lxc/cluster.go:498 lxc/delete.go:47 lxc/image.go:922 lxc/image.go:927
-#: lxc/image.go:1112
+#: lxc/cluster.go:498 lxc/delete.go:47 lxc/image.go:934 lxc/image.go:939
+#: lxc/image.go:1124
 msgid "yes"
 msgstr ""
