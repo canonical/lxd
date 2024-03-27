@@ -158,7 +158,11 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 	err := query.Retry(context.TODO(), func(_ context.Context) error {
 		var err error
 		initial, err = schema.Ensure(db)
-		return err
+		if err != nil {
+			return fmt.Errorf("Failed to ensure schema: %w", err)
+		}
+
+		return nil
 	})
 	if someNodesAreBehind {
 		return false, nil
