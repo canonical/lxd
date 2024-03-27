@@ -157,13 +157,13 @@ func (d *common) usedBy(firstOnly bool) ([]string, error) {
 		}
 
 		if firstOnly {
-			return db.ErrInstanceListStop
+			return db.ErrListStop
 		}
 
 		return nil
 	}, d.Info().Name)
 	if err != nil {
-		if err == db.ErrInstanceListStop {
+		if err == db.ErrListStop {
 			return usedBy, nil
 		}
 
