@@ -123,6 +123,66 @@ func (r *ProtocolLXD) GetStoragePoolVolumesAllProjects(pool string) ([]api.Stora
 	return volumes, nil
 }
 
+// GetVolumesWithFilter returns a filtered list of StorageVolume entries for all storage pools.
+func (r *ProtocolLXD) GetVolumesWithFilter(filters []string) ([]api.StorageVolume, error) {
+	err := r.CheckExtension("storage")
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.CheckExtension("storage_volumes_all")
+	if err != nil {
+		return nil, err
+	}
+
+	volumes := []api.StorageVolume{}
+
+	url := api.NewURL().Path("storage-volumes").
+		WithQuery("recursion", "1").
+		WithQuery("filter", parseFilters(filters))
+
+	// Fetch the raw value
+	_, err = r.queryStruct(http.MethodGet, url.String(), nil, "", &volumes)
+	if err != nil {
+		return nil, err
+	}
+
+	return volumes, nil
+}
+
+// GetVolumesWithFilterAllProjects returns a filtered list of StorageVolume entries for all storage pools and for all projects.
+func (r *ProtocolLXD) GetVolumesWithFilterAllProjects(filters []string) ([]api.StorageVolume, error) {
+	err := r.CheckExtension("storage")
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.CheckExtension("storage_volumes_all_projects")
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.CheckExtension("storage_volumes_all")
+	if err != nil {
+		return nil, err
+	}
+
+	volumes := []api.StorageVolume{}
+
+	url := api.NewURL().Path("storage-volumes").
+		WithQuery("recursion", "1").
+		WithQuery("filter", parseFilters(filters)).
+		WithQuery("all-projects", "true")
+
+	// Fetch the raw value.
+	_, err = r.queryStruct(http.MethodGet, url.String(), nil, "", &volumes)
+	if err != nil {
+		return nil, err
+	}
+
+	return volumes, nil
+}
+
 // GetStoragePoolVolumesWithFilter returns a filtered list of StorageVolume entries for the provided pool.
 func (r *ProtocolLXD) GetStoragePoolVolumesWithFilter(pool string, filters []string) ([]api.StorageVolume, error) {
 	err := r.CheckExtension("storage")
