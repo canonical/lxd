@@ -75,7 +75,7 @@ This command migrates all instances on the given server, moving them to other cl
 The evacuated cluster member is then transitioned to an "evacuated" state, which prevents the creation of any instances on it.
 
 You can control how each instance is moved through the {config:option}`instance-miscellaneous:cluster.evacuate` instance configuration key.
-Instances are shut down cleanly, respecting the `boot.host_shutdown_timeout` configuration key.
+Instances are shut down cleanly, respecting the {config:option}`instance-boot:boot.host_shutdown_timeout` configuration key.
 
 When the evacuated server is available again, use the [`lxc cluster restore`](lxc_cluster_restore.md) command to move the server back into a normal running state.
 This command also moves the evacuated instances back from the servers that were temporarily holding them.
