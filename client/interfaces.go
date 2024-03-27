@@ -358,6 +358,10 @@ type InstanceServer interface {
 	UpdateStoragePoolBucketKey(poolName string, bucketName string, keyName string, key api.StorageBucketKeyPut, ETag string) (err error)
 	DeleteStoragePoolBucketKey(poolName string, bucketName string, keyName string) (err error)
 
+	// List all volumes functions ("storage_volumes_all" API extension)
+	GetVolumesWithFilter(filters []string) (volumes []api.StorageVolume, err error)
+	GetVolumesWithFilterAllProjects(filters []string) (volumes []api.StorageVolume, err error)
+
 	// Storage volume functions ("storage" API extension)
 	GetStoragePoolVolumeNames(pool string) (names []string, err error)
 	GetStoragePoolVolumeNamesAllProjects(pool string) (names map[string][]string, err error)

@@ -170,11 +170,11 @@ func UsedBy(ctx context.Context, s *state.State, pool Pool, firstOnly bool, memb
 					}
 				} else {
 					// Handle orphaned image volumes that are not associated to an image.
-					u = vol.URL(version.APIVersion, pool.Name())
+					u = vol.URL(version.APIVersion)
 					usedBy = append(usedBy, u.String())
 				}
 			} else {
-				u = vol.URL(version.APIVersion, pool.Name())
+				u = vol.URL(version.APIVersion)
 				usedBy = append(usedBy, u.String())
 			}
 
