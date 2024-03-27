@@ -235,13 +235,13 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 
 		if firstOnly {
 			// No need to consider other devices.
-			return db.ErrInstanceListStop
+			return db.ErrListStop
 		}
 
 		return nil
 	})
 	if err != nil {
-		if err == db.ErrInstanceListStop {
+		if err == db.ErrListStop {
 			return usedBy, nil
 		}
 
