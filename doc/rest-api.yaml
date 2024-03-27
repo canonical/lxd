@@ -10229,19 +10229,19 @@ paths:
                 - description: Raw file content
                   in: body
                   name: raw_file
-                - description: File owner UID
+                - description: Base 10 32-bit integer for the file owner UID
                   example: 1000
                   in: header
                   name: X-LXD-uid
                   schema:
                     type: integer
-                - description: File owner GID
+                - description: Base 10 32-bit integer for the file owner GID
                   example: 1000
                   in: header
                   name: X-LXD-gid
                   schema:
                     type: integer
-                - description: File mode
+                - description: Base 10 (no leading `0`) or base 8 (leading `0`) unix permissions bits (other bits are truncated)
                   example: 420
                   in: header
                   name: X-LXD-mode
