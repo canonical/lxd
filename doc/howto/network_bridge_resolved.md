@@ -11,9 +11,9 @@ If the system that runs LXD uses `systemd-resolved` to perform DNS lookups, you 
 To do so, add the DNS servers and domains provided by a LXD network bridge to the `resolved` configuration.
 
 ```{note}
-The `dns.mode` option (see {ref}`network-bridge-options`) must be set to `managed` or `dynamic` if you want to use this feature.
+The {config:option}`network-bridge-network-conf:dns.mode` option must be set to `managed` or `dynamic` if you want to use this feature.
 
-Depending on the configured `dns.domain`, you might need to disable DNSSEC in `resolved` to allow for DNS resolution.
+Depending on the configured {config:option}`network-bridge-network-conf:dns.domain`, you might need to disable DNSSEC in `resolved` to allow for DNS resolution.
 This can be done through the `DNSSEC` option in `resolved.conf`.
 ```
 
