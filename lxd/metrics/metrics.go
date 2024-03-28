@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/entity"
 )
 
 // NewMetricSet returns a new MetricSet.
@@ -24,26 +22,14 @@ func NewMetricSet(labels map[string]string) *MetricSet {
 	return &out
 }
 
-// FilterSamples filters the existing MetricSet using the given permission checker. Samples not containing the "project" label are skipped.
-func (m *MetricSet) FilterSamples(permissionChecker func(entityURL *api.URL) bool) {
+// FilterSamples filters the existing samples based on the provided check.
+// When checking a sample for permission its labels get passed into the check function
+// so that the samples relation to specific identity types can be used for verification.
+func (m *MetricSet) FilterSamples(permissionCheck func(labels map[string]string) bool) {
 	for metricType, samples := range m.set {
 		allowedSamples := make([]Sample, 0, len(samples))
 		for _, s := range samples {
-			projectName := s.Labels["project"]
-			instanceName := s.Labels["name"]
-			if projectName == "" {
-				continue
-			}
-
-			var hasPermission bool
-
-			if instanceName != "" {
-				hasPermission = permissionChecker(entity.InstanceURL(projectName, instanceName))
-			} else {
-				hasPermission = permissionChecker(entity.ProjectURL(projectName))
-			}
-
-			if hasPermission {
+			if permissionCheck(s.Labels) {
 				allowedSamples = append(allowedSamples, s)
 			}
 		}
