@@ -252,7 +252,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 			}
 
 			if hdr.Name == srcFile {
-				subVolRecvPath, err := d.receiveSubVolume(tr, targetPath)
+				subVolRecvPath, err := d.receiveSubVolume(tr, targetPath, nil)
 				if err != nil {
 					return "", err
 				}
@@ -661,6 +661,12 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 	receiveVolume := func(v Volume, receivePath string) error {
 		_, snapName, _ := api.GetParentAndSnapshotName(v.name)
 
+		// Setup progress tracking.
+		var wrapper *ioprogress.ProgressTracker
+		if volTargetArgs.TrackProgress {
+			wrapper = migration.ProgressTracker(op, "fs_progress", v.name)
+		}
+
 		for _, subVol := range subvolumes {
 			if subVol.Snapshot != snapName {
 				continue // Skip any subvolumes that dont belong to our volume (empty for main).
@@ -676,7 +682,7 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 			subVolTargetPath := filepath.Join(v.MountPath(), subVol.Path)
 			d.logger.Debug("Receiving volume", logger.Ctx{"name": v.name, "receivePath": receivePath, "path": subVolTargetPath})
 
-			subVolRecvPath, err := d.receiveSubVolume(conn, receivePath)
+			subVolRecvPath, err := d.receiveSubVolume(conn, receivePath, wrapper)
 			if err != nil {
 				return err
 			}
@@ -1473,7 +1479,7 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceT
 
 		// Write the subvolume to the file.
 		d.logger.Debug("Generating optimized volume file", logger.Ctx{"sourcePath": path, "parent": parent, "file": tmpFile.Name(), "name": fileName})
-		err = shared.RunCommandWithFds(context.TODO(), nil, tmpFile, "btrfs", args...)
+		err = shared.RunCommandWithFds(d.state.ShutdownCtx, nil, tmpFile, "btrfs", args...)
 		if err != nil {
 			return err
 		}
@@ -1774,7 +1780,7 @@ func (d *btrfs) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string,
 func (d *btrfs) volumeSnapshotsSorted(vol Volume, op *operations.Operation) ([]string, error) {
 	stdout := bytes.Buffer{}
 
-	err := shared.RunCommandWithFds(context.TODO(), nil, &stdout, "btrfs", "subvolume", "list", GetPoolMountPath(vol.pool))
+	err := shared.RunCommandWithFds(d.state.ShutdownCtx, nil, &stdout, "btrfs", "subvolume", "list", GetPoolMountPath(vol.pool))
 	if err != nil {
 		return nil, err
 	}
