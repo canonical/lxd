@@ -251,6 +251,13 @@ func (i Identity) ToCertificate() (*Certificate, error) {
 		return nil, fmt.Errorf("Failed to check restricted status of identity: %w", err)
 	}
 
+	// Metrics certificates can be both restricted and unrestricted.
+	// But an unrestricted metrics certificate has still less permissions as an unrestricted client certificate.
+	// So it does not have full access to LXD only the metrics endpoint.
+	if i.Type == api.IdentityTypeCertificateMetricsUnrestricted {
+		isRestricted = false
+	}
+
 	c := &Certificate{
 		ID:          i.ID,
 		Fingerprint: i.Identifier,
