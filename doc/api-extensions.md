@@ -2115,3 +2115,9 @@ This field indicates which instance types are supported by the server.
 
 The API extension adds indication whether the LXD version is an LTS release.
 This is indicated when command `lxc version` is executed or when `/1.0` endpoint is queried.
+
+## `instances_files_modify_permissions`
+
+Adds the ability for `POST /1.0/instances/{name}/files` to modify the permissions of files that already exist via the `X-LXD-modify-perm` header.
+
+`X-LXD-modify-perm` should be a comma-separated list of 0 or more of `mode`, `uid`, and `gid`.
