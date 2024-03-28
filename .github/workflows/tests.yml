@@ -52,6 +52,8 @@ jobs:
           path: ${{ steps.ShellCheck.outputs.sarif }}
         if: github.event_name == 'pull_request'
 
+      # XXX: using 1.21 to workaround swagger crashing under 1.22
+      #      https://github.com/go-swagger/go-swagger/issues/3070
       - name: Install Go (1.21)
         uses: actions/setup-go@v5
         with:
@@ -137,7 +139,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.21.x"]
+        go: ["1.22.x"]
         suite: ["cluster", "standalone"]
         backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
         include:
@@ -147,10 +149,10 @@ jobs:
           - go: "1.19.x"
             suite: standalone
             backend: dir
-          - go: tip
+          - go: stable
             suite: cluster
             backend: dir
-          - go: tip
+          - go: stable
             suite: standalone
             backend: dir
 
@@ -201,21 +203,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
-        if: matrix.go != 'tip'
-
-      - name: Install Go (${{ matrix.go }})
-        run: |
-          set -eux
-          HEAD="$(git ls-remote https://github.com/golang/go.git HEAD | awk '{print $1}')"
-          # Tarballs can take time to become available
-          curl --retry 3 --retry-all-errors --retry-delay 45 -sSfL "https://storage.googleapis.com/go-build-snap/go/linux-amd64/${HEAD}.tar.gz" -o gotip.tar.gz
-          ls -lah gotip.tar.gz
-          mkdir -p ~/sdk/gotip
-          tar -C ~/sdk/gotip -xzf gotip.tar.gz
-          rm gotip.tar.gz
-          ~/sdk/gotip/bin/go version
-          echo "PATH=$HOME/go/bin:$HOME/sdk/gotip/bin/:$PATH" >> $GITHUB_ENV
-        if: matrix.go == 'tip'
 
       - name: Check compatibility with min Go version (${{ matrix.go }})
         if: matrix.go == '1.19.x'
@@ -366,7 +353,7 @@ jobs:
       fail-fast: false
       matrix:
         go:
-          - 1.21.x
+          - 1.22.x
         os:
           - ubuntu-latest
           - macos-latest
