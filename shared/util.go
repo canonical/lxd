@@ -257,25 +257,41 @@ func LogPath(path ...string) string {
 	return filepath.Join(items...)
 }
 
+// ParseLXDFileHeaders parses and validates the `X-LXD-*` family of file
+// permissions headers.
+//   - `X-LXD-uid`, `X-LXD-gid`
+//     Base 10 integer
+//   - `X-LXD-mode`
+//     Base 10 integer (no leading `0`) or base 8 integer (leading `0`) for the
+//     unix permissions bits
+//   - `X-LXD-type`
+//     One of `file`, `symlink`, `directory`
+//   - `X-LXD-write`
+//     One of `overwrite`, `append`
 func ParseLXDFileHeaders(headers http.Header) (uid int64, gid int64, mode int, type_ string, write string) {
-	uid, err := strconv.ParseInt(headers.Get("X-LXD-uid"), 10, 64)
+	uid, err := strconv.ParseInt(headers.Get("X-LXD-uid"), 10, 32)
 	if err != nil {
 		uid = -1
 	}
 
-	gid, err = strconv.ParseInt(headers.Get("X-LXD-gid"), 10, 64)
+	gid, err = strconv.ParseInt(headers.Get("X-LXD-gid"), 10, 32)
 	if err != nil {
 		gid = -1
 	}
 
-	mode, err = strconv.Atoi(headers.Get("X-LXD-mode"))
+	mode64, err := strconv.ParseInt(headers.Get("X-LXD-mode"), 10, 0)
 	if err != nil {
-		mode = -1
+		mode64 = -1
 	} else {
 		rawMode, err := strconv.ParseInt(headers.Get("X-LXD-mode"), 0, 0)
 		if err == nil {
-			mode = int(os.FileMode(rawMode) & os.ModePerm)
+			mode64 = rawMode
 		}
+	}
+
+	mode = -1
+	if mode64 >= 0 {
+		mode = int(mode64 & int64(os.ModePerm))
 	}
 
 	type_ = headers.Get("X-LXD-type")
