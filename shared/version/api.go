@@ -402,6 +402,7 @@ var APIExtensions = []string{
 	"access_management",
 	"vm_disk_io_limits",
 	"storage_volumes_all",
+	"instances_files_modify_permissions",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
