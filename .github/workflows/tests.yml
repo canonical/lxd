@@ -353,7 +353,7 @@ jobs:
       fail-fast: false
       matrix:
         go:
-          - 1.21.x
+          - 1.22.x
         os:
           - ubuntu-latest
           - macos-latest
