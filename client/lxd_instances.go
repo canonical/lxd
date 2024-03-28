@@ -1492,12 +1492,16 @@ func (r *ProtocolLXD) GetInstanceFile(instanceName string, filePath string) (io.
 	}
 
 	// Parse the headers
-	uid, gid, mode, fileType, _ := shared.ParseLXDFileHeaders(resp.Header)
+	headers, err := shared.ParseLXDFileHeaders(resp.Header)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	fileResp := InstanceFileResponse{
-		UID:  uid,
-		GID:  gid,
-		Mode: mode,
-		Type: fileType,
+		UID:  headers.UID,
+		GID:  headers.GID,
+		Mode: headers.Mode,
+		Type: headers.Type,
 	}
 
 	if fileResp.Type == "directory" {
