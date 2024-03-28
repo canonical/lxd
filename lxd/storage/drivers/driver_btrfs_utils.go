@@ -3,7 +3,6 @@ package drivers
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"io/fs"
@@ -458,7 +457,7 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 
 	if !d.state.OS.RunningInUserNS {
 		// List all subvolumes in the given filesystem with their UUIDs and received UUIDs.
-		err = shared.RunCommandWithFds(context.TODO(), nil, &stdout, "btrfs", "subvolume", "list", "-u", "-R", poolMountPath)
+		err = shared.RunCommandWithFds(d.state.ShutdownCtx, nil, &stdout, "btrfs", "subvolume", "list", "-u", "-R", poolMountPath)
 		if err != nil {
 			return nil, err
 		}
@@ -496,7 +495,7 @@ func (d *btrfs) getSubVolumeReceivedUUID(vol Volume) (string, error) {
 	poolMountPath := GetPoolMountPath(vol.pool)
 
 	// List all subvolumes in the given filesystem with their UUIDs.
-	err := shared.RunCommandWithFds(context.TODO(), nil, &stdout, "btrfs", "subvolume", "list", "-R", poolMountPath)
+	err := shared.RunCommandWithFds(d.state.ShutdownCtx, nil, &stdout, "btrfs", "subvolume", "list", "-R", poolMountPath)
 	if err != nil {
 		return "", err
 	}
@@ -618,7 +617,7 @@ func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string, tracker *iopro
 		}
 	}
 
-	err = shared.RunCommandWithFds(context.TODO(), stdin, nil, "btrfs", "receive", "-e", receivePath)
+	err = shared.RunCommandWithFds(d.state.ShutdownCtx, stdin, nil, "btrfs", "receive", "-e", receivePath)
 	if err != nil {
 		return "", err
 	}
