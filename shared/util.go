@@ -261,6 +261,10 @@ type LXDFileHeaders struct {
 	GID  int64
 	Mode int
 
+	GIDModifyExisting  bool
+	UIDModifyExisting  bool
+	ModeModifyExisting bool
+
 	Type  string
 	Write string
 }
@@ -276,6 +280,8 @@ type LXDFileHeaders struct {
 //     One of `file`, `symlink`, `directory`
 //   - `X-LXD-write`
 //     One of `overwrite`, `append`
+//   - `X-LXD-modify-perm`
+//     Comma separated list; 0 or more of `mode`, `uid`, `gid`
 func ParseLXDFileHeaders(headers http.Header) (*LXDFileHeaders, error) {
 	var uid, gid int64 = -1, -1
 	var mode = -1
@@ -331,10 +337,32 @@ func ParseLXDFileHeaders(headers http.Header) (*LXDFileHeaders, error) {
 		return nil, fmt.Errorf("Invalid file write mode: %q", write)
 	}
 
+	UIDModifyExisting := false
+	GIDModifyExisting := false
+	modeModifyExisting := false
+
+	modifyPermHeader := headers.Get("X-LXD-modify-perm")
+
+	if modifyPermHeader != "" {
+		for _, perm := range strings.Split(modifyPermHeader, ",") {
+			UIDModifyExisting = UIDModifyExisting || perm == "uid"
+			GIDModifyExisting = GIDModifyExisting || perm == "gid"
+			modeModifyExisting = modeModifyExisting || perm == "mode"
+
+			if !StringInSlice(perm, []string{"uid", "gid", "mode"}) {
+				return nil, fmt.Errorf("Invalid modify-perm field: %q", perm)
+			}
+		}
+	}
+
 	return &LXDFileHeaders{
 		UID:  uid,
 		GID:  gid,
 		Mode: mode,
+
+		UIDModifyExisting:  UIDModifyExisting,
+		GIDModifyExisting:  GIDModifyExisting,
+		ModeModifyExisting: modeModifyExisting,
 
 		Type:  filetype,
 		Write: write,

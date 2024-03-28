@@ -56,10 +56,15 @@ func TestParseLXDFileHeader(t *testing.T) {
 		t.Fatalf("Mismatched UID (%d), GID (%d), or Mode (%d)", headers.UID, headers.GID, headers.Mode)
 	}
 
+	if headers.UIDModifyExisting || headers.GIDModifyExisting || headers.ModeModifyExisting {
+		t.Fatalf("Mismatched `modify-perm` header")
+	}
+
 	header = map[string][]string{
-		"X-Lxd-Uid":  {"0"},
-		"X-Lxd-Gid":  {"99"},
-		"X-Lxd-Mode": {"420"},
+		"X-Lxd-Uid":         {"0"},
+		"X-Lxd-Gid":         {"99"},
+		"X-Lxd-Mode":        {"420"},
+		"X-Lxd-Modify-Perm": {"uid,gid,mode"},
 	}
 
 	headers, err = ParseLXDFileHeaders(header)
@@ -71,14 +76,28 @@ func TestParseLXDFileHeader(t *testing.T) {
 		t.Fatalf("Mismatched UID (%d), GID (%d), or Mode (%d)", headers.UID, headers.GID, headers.Mode)
 	}
 
+	if !headers.UIDModifyExisting || !headers.GIDModifyExisting || !headers.ModeModifyExisting {
+		t.Fatalf("Mismatched `modify-perm` header")
+	}
+
 	header = map[string][]string{
-		"X-Lxd-Type":  {"file"},
-		"X-Lxd-Write": {"append"},
+		"X-Lxd-Mode":        {"0640"},
+		"X-Lxd-Modify-Perm": {"uid,gid"},
+		"X-Lxd-Type":        {"file"},
+		"X-Lxd-Write":       {"append"},
 	}
 
 	headers, err = ParseLXDFileHeaders(header)
 	if err != nil {
 		t.Fatalf("Failed to parse headers %q: %s", header, err)
+	}
+
+	if headers.Mode != 0o640 || headers.UID != -1 || headers.GID != -1 {
+		t.Fatalf("Mismatched UID (%d), GID (%d), or Mode (%d)", headers.UID, headers.GID, headers.Mode)
+	}
+
+	if !headers.UIDModifyExisting || !headers.GIDModifyExisting || headers.ModeModifyExisting {
+		t.Fatalf("Mismatched `modify-perm` header")
 	}
 
 	if headers.Type != "file" || headers.Write != "append" {
@@ -91,6 +110,8 @@ func TestParseLXDFileHeader(t *testing.T) {
 		{"X-Lxd-Mode": {"write"}},
 		{"X-Lxd-Type": {"dir"}},
 		{"X-Lxd-Write": {"Append"}},
+		{"X-Lxd-Modify-Perm": {"GID"}},
+		{"X-Lxd-Modify-Perm": {","}},
 	}
 
 	for _, header := range invalidHeaderTests {
