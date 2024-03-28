@@ -439,20 +439,19 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 	defer func() { _ = client.Close() }()
 
 	// Extract file ownership and mode from headers
-	uid, gid, mode, type_, write := shared.ParseLXDFileHeaders(r.Header)
-
-	if !shared.ValueInSlice(write, []string{"overwrite", "append"}) {
-		return response.BadRequest(fmt.Errorf("Bad file write mode: %s", write))
+	headers, err := shared.ParseLXDFileHeaders(r.Header)
+	if err != nil {
+		return response.BadRequest(err)
 	}
 
 	// Check if the file already exists.
 	_, err = client.Stat(path)
 	exists := err == nil
 
-	if type_ == "file" {
+	if headers.Type == "file" {
 		fileMode := os.O_RDWR
 
-		if write == "overwrite" {
+		if headers.Write == "overwrite" {
 			fileMode |= os.O_CREATE | os.O_TRUNC
 		}
 
@@ -478,16 +477,17 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 
 		if !exists {
 			// Set file permissions.
-			if mode >= 0 {
-				err = file.Chmod(fs.FileMode(mode))
+			if headers.Mode >= 0 {
+				err = file.Chmod(fs.FileMode(headers.Mode))
 				if err != nil {
 					return response.SmartError(err)
 				}
 			}
 
 			// Set file ownership.
-			if uid >= 0 || gid >= 0 {
-				err = file.Chown(int(uid), int(gid))
+			if headers.UID >= 0 || headers.GID >= 0 {
+				// -1 leaves the id unchanged
+				err = file.Chown(int(headers.UID), int(headers.GID))
 				if err != nil {
 					return response.SmartError(err)
 				}
@@ -496,7 +496,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFilePushed.Event(inst, logger.Ctx{"path": path}))
 		return response.EmptySyncResponse
-	} else if type_ == "symlink" {
+	} else if headers.Type == "symlink" {
 		// Figure out target.
 		target, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -517,7 +517,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFilePushed.Event(inst, logger.Ctx{"path": path}))
 		return response.EmptySyncResponse
-	} else if type_ == "directory" {
+	} else if headers.Type == "directory" {
 		// Check if it already exists.
 		if exists {
 			return response.EmptySyncResponse
@@ -530,19 +530,19 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 		}
 
 		// Set file permissions.
-		if mode < 0 {
+		if headers.Mode < 0 {
 			// Default mode for directories (sftp doesn't know about umask).
-			mode = 0750
+			headers.Mode = 0750
 		}
 
-		err = client.Chmod(path, fs.FileMode(mode))
+		err = client.Chmod(path, fs.FileMode(headers.Mode))
 		if err != nil {
 			return response.SmartError(err)
 		}
 
 		// Set file ownership.
-		if uid >= 0 || gid >= 0 {
-			err = client.Chown(path, int(uid), int(gid))
+		if headers.UID >= 0 || headers.GID >= 0 {
+			err = client.Chown(path, int(headers.UID), int(headers.GID))
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -551,7 +551,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFilePushed.Event(inst, logger.Ctx{"path": path}))
 		return response.EmptySyncResponse
 	} else {
-		return response.BadRequest(fmt.Errorf("Bad file type: %s", type_))
+		return response.BadRequest(fmt.Errorf("Bad file type: %s", headers.Type))
 	}
 }
 
