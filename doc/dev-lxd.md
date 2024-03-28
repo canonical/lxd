@@ -214,7 +214,7 @@ This never returns. Each notification is sent as a separate JSON object:
 
 * Description: Download a public/cached image from the host
 * Return: raw image or error
-* Access: Requires `security.devlxd.images` set to `true`
+* Access: Requires {config:option}`instance-security:security.devlxd.images` set to `true`
 
 Return value:
 

@@ -28,19 +28,118 @@ Domain  | Type  | Item      | Value       | Default   | Description
 Reboot the server after changing any of these parameters.
 ```
 
-Parameter                           | Value      | Default   | Description
-:-----                              | :---       | :---      | :---
-`fs.aio-max-nr`                     | `524288`   | `65536`   | Maximum number of concurrent asynchronous I/O operations (you might need to increase this limit further if you have a lot of workloads that use the AIO subsystem, for example, MySQL)
-`fs.inotify.max_queued_events`      | `1048576`  | `16384`   | Upper limit on the number of events that can be queued to the corresponding `inotify` instance (see [`inotify`](https://man7.org/linux/man-pages/man7/inotify.7.html))
-`fs.inotify.max_user_instances`     | `1048576`  | `128`     | Upper limit on the number of `inotify` instances that can be created per real user ID (see [`inotify`](https://man7.org/linux/man-pages/man7/inotify.7.html))
-`fs.inotify.max_user_watches`       | `1048576`  | `8192`    | Upper limit on the number of watches that can be created per real user ID (see [`inotify`](https://man7.org/linux/man-pages/man7/inotify.7.html))
-`kernel.dmesg_restrict`             | `1`        | `0`       | Whether to deny container access to the messages in the kernel ring buffer (note that this will also deny access to non-root users on the host system)
-`kernel.keys.maxbytes`              | `2000000`  | `20000`   | Maximum size of the key ring that non-root users can use
-`kernel.keys.maxkeys`               | `2000`     | `200`     | Maximum number of keys that a non-root user can use (the value should be higher than the number of instances)
-`net.core.bpf_jit_limit`            | `1000000000` | varies  | Limit on the size of eBPF JIT allocations (on kernels < 5.15 that are compiled with `CONFIG_BPF_JIT_ALWAYS_ON=y`, this value might limit the amount of instances that can be created)
-`net.ipv4.neigh.default.gc_thresh3` | `8192`     | `1024`    | Maximum number of entries in the IPv4 ARP table (increase this value if you plan to create over 1024 instances - otherwise, you will get the error `neighbour: ndisc_cache: neighbor table overflow!` when the ARP table gets full and the instances cannot get a network configuration; see [`ip-sysctl`](https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt))
-`net.ipv6.neigh.default.gc_thresh3` | `8192`     | `1024`    | Maximum number of entries in IPv6 ARP table (increase this value if you plan to create over 1024 instances - otherwise, you will get the error `neighbour: ndisc_cache: neighbor table overflow!` when the ARP table gets full and the instances cannot get a network configuration; see [`ip-sysctl`](https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt))
-`vm.max_map_count`                  | `262144`   | `65530`   | Maximum number of memory map areas a process may have (memory map areas are used as a side-effect of calling `malloc`, directly by `mmap` and `mprotect`, and also when loading shared libraries)
+```{config:option} fs.aio-max-nr sysctl
+:shortdesc: "Maximum number of concurrent asynchronous I/O operations"
+:type: "integer"
+:defaultdesc: "`65536`"
+
+Suggested value: `524288`
+
+You might need to increase this limit further if you have a lot of workloads that use the AIO subsystem (for example, MySQL).
+```
+
+```{config:option} fs.inotify.max_queued_events sysctl
+:shortdesc: "Upper limit on the number of events that can be queued"
+:type: "integer"
+:defaultdesc: "`16384`"
+
+Suggested value: `1048576`
+
+This option specifies the maximum number of events that can be queued to the corresponding `inotify` instance (see [`inotify`](https://man7.org/linux/man-pages/man7/inotify.7.html) for more information).
+```
+
+```{config:option} fs.inotify.max_user_instances sysctl
+:shortdesc: "Upper limit on the number of `inotify` instances"
+:type: "integer"
+:defaultdesc: "`128`"
+
+Suggested value: `1048576`
+
+This option specifies the maximum number of `inotify` instances that can be created per real user ID (see [`inotify`](https://man7.org/linux/man-pages/man7/inotify.7.html) for more information).
+```
+
+```{config:option} fs.inotify.max_user_watches sysctl
+:shortdesc: "Upper limit on the number of watches"
+:type: "integer"
+:defaultdesc: "`8192`"
+
+Suggested value: `1048576`
+
+This option specifies the maximum number of watches that can be created per real user ID (see [`inotify`](https://man7.org/linux/man-pages/man7/inotify.7.html) for more information).
+```
+
+```{config:option} kernel.dmesg_restrict sysctl
+:shortdesc: "Whether to deny access to the messages in the kernel ring buffer"
+:type: "integer"
+:defaultdesc: "`0`"
+
+Suggested value: `1`
+
+Set this option to `1` to deny container access to the messages in the kernel ring buffer.
+Note that setting this value to `1` will also deny access to non-root users on the host system.
+```
+
+```{config:option} kernel.keys.maxbytes sysctl
+:shortdesc: "Maximum size of the key ring that non-root users can use"
+:type: "integer"
+:defaultdesc: "`20000`"
+
+Suggested value: `2000000`
+```
+
+```{config:option} kernel.keys.maxkeys sysctl
+:shortdesc: "Maximum number of keys that a non-root user can use"
+:type: "integer"
+:defaultdesc: "`200`"
+
+Suggested value: `2000`
+
+Set this option to a value that is higher than the number of instances.
+```
+
+```{config:option} net.core.bpf_jit_limit sysctl
+:shortdesc: "Limit on the size of eBPF JIT allocations"
+:type: "integer"
+:defaultdesc: "varies"
+
+Suggested value: `1000000000`
+
+On kernels < 5.15 that are compiled with `CONFIG_BPF_JIT_ALWAYS_ON=y`, this value might limit the amount of instances that can be created.
+```
+
+```{config:option} net.ipv4.neigh.default.gc_thresh3 sysctl
+:shortdesc: "Maximum number of entries in the IPv4 ARP table"
+:type: "integer"
+:defaultdesc: "`1024`"
+
+Suggested value: `8192`
+
+Increase this value if you plan to create over 1024 instances.
+Otherwise, you will get the error `neighbour: ndisc_cache: neighbor table overflow!` when the ARP table gets full and the instances cannot get a network configuration.
+See [`ip-sysctl`](https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt) for more information.
+```
+
+```{config:option} net.ipv6.neigh.default.gc_thresh3 sysctl
+:shortdesc: "Maximum number of entries in IPv6 ARP table"
+:type: "integer"
+:defaultdesc: "`1024`"
+
+Suggested value: `8192`
+
+Increase this value if you plan to create over 1024 instances.
+Otherwise, you will get the error `neighbour: ndisc_cache: neighbor table overflow!` when the ARP table gets full and the instances cannot get a network configuration.
+See [`ip-sysctl`](https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt) for more information.
+```
+
+```{config:option} vm.max_map_count sysctl
+:shortdesc: "Maximum number of memory map areas a process may have"
+:type: "integer"
+:defaultdesc: "`65530`"
+
+Suggested value: `262144`
+
+Memory map areas are used as a side-effect of calling `malloc`, directly by `mmap` and `mprotect`, and also when loading shared libraries.
+```
 
 ## Related topics
 

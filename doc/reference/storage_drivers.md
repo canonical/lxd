@@ -45,9 +45,9 @@ Available on `lxd init`                     | yes       | yes   | yes     | yes 
 Object storage                              | yes       | yes   | yes     | yes     | no       | no     | yes         | no
 
 [^1]: Volumes of type `block` will fall back to non-optimized transfer when migrating to an older LXD server that doesn't yet support the `RBD_AND_RSYNC` migration type.
-[^2]: Requires [`lvm.use_thinpool`](storage-lvm-pool-config) to be enabled. Only when refreshing local volumes.
+[^2]: Requires {config:option}`storage-lvm-pool-conf:lvm.use_thinpool` to be enabled. Only when refreshing local volumes.
 [^3]: Only for volumes of type `block`.
-[^4]: Requires [`zfs.delegate`](storage-zfs-vol-config) to be enabled.
+[^4]: Requires {config:option}`storage-zfs-volume-conf:zfs.delegate` to be enabled.
 [^5]: % Include content from [storage_dir.md](storage_dir.md)
 
       ```{include} storage_dir.md

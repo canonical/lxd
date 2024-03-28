@@ -302,7 +302,7 @@ Lastly, attach the custom ISO volume to the VM using the following command:
 ```
 ````
 
-The `boot.priority` configuration key ensures that the VM will boot from the ISO first.
+The {config:option}`device-disk-device-conf:boot.priority` configuration key ensures that the VM will boot from the ISO first.
 Start the VM and {ref}`connect to the console <instances-console>` as there might be a menu you need to interact with:
 
 ````{tabs}

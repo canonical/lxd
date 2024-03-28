@@ -831,7 +831,7 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	//  shortdesc: Whether to use idmapped mounts for syscall interception
 	"security.syscalls.intercept.mount.shift": validate.Optional(validate.IsBool),
 
-	// lxdmeta:generate(entities=instance; group=security; key=security.syscalls.intercept.sched_setcheduler)
+	// lxdmeta:generate(entities=instance; group=security; key=security.syscalls.intercept.sched_setscheduler)
 	// This system call allows increasing process priority.
 	// ---
 	//  type: bool

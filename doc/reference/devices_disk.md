@@ -75,7 +75,7 @@ Initial volume configuration allows setting specific configurations for the root
 These settings are prefixed with `initial.` and are only applied when the instance is created.
 This method allows creating instances that have unique configurations, independent of the default storage pool settings.
 
-For example, you can add an initial volume configuration for `zfs.block_mode` to an existing profile, and this
+For example, you can add an initial volume configuration for {config:option}`storage-zfs-volume-conf:zfs.block_mode` to an existing profile, and this
 will then take effect for each new instance you create using this profile:
 
     lxc profile device set <profile_name> <device_name> initial.zfs.block_mode=true
