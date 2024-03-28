@@ -6,7 +6,7 @@ _have lxc && {
       local state=$1
       local keys=$2
       local project
-      project=$(lxc project list -f csv | sed -n 's/^\([^(]\+\) (current),.*/\1/ p')
+      project=$(lxc project list --format=csv | sed -n 's/^\([^(]\+\) (current),.*/\1/ p')
       project=${project:-"default"}
 
       local cmd="lxc list --format=csv --columns=ns --project $project"
@@ -19,7 +19,7 @@ _have lxc && {
 
     _lxd_images()
     {
-      COMPREPLY=( $( compgen -W "$( lxc image list --format=csv | cut -d, -f1 )" "$cur" ) )
+      COMPREPLY=( $( compgen -W "$( lxc image list --format=csv --columns=l )" "$cur" ) )
     }
 
     _lxd_remotes()
@@ -370,14 +370,14 @@ _have lxc && {
             ;;
         esac
         ;;
-      "storage_pools")
+      "storage")
         case $pos in
           2)
-            COMPREPLY=( $(compgen -W "list show create get set unset delete edit" -- $cur) )
+            COMPREPLY=( $(compgen -W "bucket create delete edit get info list set show unset volume" -- $cur) )
             ;;
           3)
             case ${no_dashargs[2]} in
-              "show"|"get"|"set"|"unset"|"delete"|"edit")
+              "delete"|"edit"|"get"|"info"|"set"|"show"|"unset")
                 _lxd_storage_pools
                 ;;
             esac

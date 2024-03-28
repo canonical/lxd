@@ -1166,10 +1166,12 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 					}
 				}
 
-				// Set soft limit to value 10% less than hard limit
-				err = cg.SetMemorySoftLimit(int64(float64(valueInt) * 0.9))
-				if err != nil {
-					return nil, err
+				if d.state.OS.CGInfo.Layout != cgroup.CgroupsUnified {
+					// Set soft limit to value 10% less than hard limit
+					err = cg.SetMemorySoftLimit(int64(float64(valueInt) * 0.9))
+					if err != nil {
+						return nil, err
+					}
 				}
 			}
 		}
@@ -4583,11 +4585,13 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 						}
 					}
 
-					// Set soft limit to value 10% less than hard limit
-					err = cg.SetMemorySoftLimit(int64(float64(memoryInt) * 0.9))
-					if err != nil {
-						revertMemory()
-						return err
+					if d.state.OS.CGInfo.Layout != cgroup.CgroupsUnified {
+						// Set soft limit to value 10% less than hard limit
+						err = cg.SetMemorySoftLimit(int64(float64(memoryInt) * 0.9))
+						if err != nil {
+							revertMemory()
+							return err
+						}
 					}
 				}
 
@@ -5393,11 +5397,6 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 			// Setup rsync options (used for CRIU state transfers).
 			rsyncBwlimit := pool.Driver().Config()["rsync.bwlimit"]
 			rsyncFeatures := respHeader.GetRsyncFeaturesSlice()
-			if !shared.StringInSlice("bidirectional", rsyncFeatures) {
-				// If no bi-directional support, assume LXD 3.7 level.
-				// NOTE: Do NOT extend this list of arguments.
-				rsyncFeatures = []string{"xattrs", "delete", "compress"}
-			}
 
 			if respHeader.Criu == nil {
 				return fmt.Errorf("Got no CRIU socket type for live migration")

@@ -1211,7 +1211,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 	// This way we don't have to retrieve them separately from the database.
 	sourceSnapshots := make([]drivers.Volume, 0, len(srcConfig.VolumeSnapshots))
 	for _, sourceSnap := range srcConfig.VolumeSnapshots {
-		snapshotName := drivers.GetSnapshotVolumeName(srcVolName, sourceSnap.Name)
+		snapshotName := drivers.GetSnapshotVolumeName(srcConfig.Volume.Name, sourceSnap.Name)
 		snapshotStorageName := project.StorageVolume(srcProjectName, snapshotName)
 		sourceSnapshots = append(sourceSnapshots, b.GetVolume(drivers.VolumeTypeCustom, contentType, snapshotStorageName, sourceSnap.Config))
 	}
@@ -1220,17 +1220,6 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 	// Those were only required to create the list of source volume snapshots.
 	if !snapshots {
 		srcConfig.VolumeSnapshots = nil
-	}
-
-	targetSnaps, err := VolumeDBSnapshotsGet(b, projectName, volName, drivers.VolumeTypeCustom)
-	if err != nil {
-		return err
-	}
-
-	targetSnapshots := make([]drivers.Volume, 0, len(targetSnaps))
-	for _, targetSnap := range targetSnaps {
-		snapshotStorageName := project.StorageVolume(projectName, targetSnap.Name)
-		targetSnapshots = append(targetSnapshots, b.GetVolume(drivers.VolumeTypeCustom, contentType, snapshotStorageName, targetSnap.Config))
 	}
 
 	revert := revert.New()
@@ -1246,6 +1235,12 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 			sourceSnapshotComparable = append(sourceSnapshotComparable, ComparableSnapshot{
 				Name: sourceSnap.Name,
 			})
+		}
+
+		// Get a list of already existing snapshots on the target volume.
+		targetSnaps, err := VolumeDBSnapshotsGet(b, projectName, volName, drivers.VolumeTypeCustom)
+		if err != nil {
+			return err
 		}
 
 		targetSnapshotsComparable := make([]ComparableSnapshot, 0, len(targetSnaps))
@@ -1286,7 +1281,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 	vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, dbVol.Config)
 
 	// Get the src volume name on storage.
-	srcVolStorageName := project.StorageVolume(srcProjectName, srcVolName)
+	srcVolStorageName := project.StorageVolume(srcProjectName, srcConfig.Volume.Name)
 	srcVol := srcPool.GetVolume(drivers.VolumeTypeCustom, contentType, srcVolStorageName, srcConfig.Volume.Config)
 
 	if srcPool == b {
@@ -1313,11 +1308,23 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 
 			revert.Add(func() { _ = VolumeDBDelete(b, projectName, newSnapshotName, vol.Type()) })
 
-			// Extend the list of target snaphots to not require loading all of them again from DB.
-			targetSnapshots = append(targetSnapshots, targetSnapVol)
-
 			// Extend the list of snapshots that require refresh.
 			srcSnapVols = append(srcSnapVols, srcSnap.Name)
+		}
+
+		// Reload the final target volume's snapshots.
+		// Some snapshots might have been removed from the target volume if they aren't anymore present on the source volume.
+		// Other snapshots might require a refresh if they have been deleted from the target volume in the meantime.
+		// Get the snapshots directly from the database to ensure they are in the right order.
+		targetSnaps, err := VolumeDBSnapshotsGet(b, projectName, volName, drivers.VolumeTypeCustom)
+		if err != nil {
+			return err
+		}
+
+		targetSnapshots := make([]drivers.Volume, 0, len(targetSnaps))
+		for _, targetSnap := range targetSnaps {
+			snapshotStorageName := project.StorageVolume(projectName, targetSnap.Name)
+			targetSnapshots = append(targetSnapshots, b.GetVolume(drivers.VolumeTypeCustom, contentType, snapshotStorageName, targetSnap.Config))
 		}
 
 		volCopy := drivers.NewVolumeCopy(vol, targetSnapshots...)
@@ -1375,7 +1382,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 		go func() {
 			err := srcPool.MigrateCustomVolume(srcProjectName, aEnd, &migration.VolumeSourceArgs{
 				IndexHeaderVersion: migration.IndexHeaderVersion,
-				Name:               srcVolName,
+				Name:               srcConfig.Volume.Name,
 				Snapshots:          snapshotNames,
 				MigrationType:      migrationTypes[0],
 				TrackProgress:      true, // Do use a progress tracker on sender.
@@ -3759,7 +3766,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	// This way we don't have to retrieve them separately from the database.
 	sourceSnapshots := make([]drivers.Volume, 0, len(srcConfig.VolumeSnapshots))
 	for _, sourceSnap := range srcConfig.VolumeSnapshots {
-		snapshotName := drivers.GetSnapshotVolumeName(srcVolName, sourceSnap.Name)
+		snapshotName := drivers.GetSnapshotVolumeName(srcConfig.Volume.Name, sourceSnap.Name)
 		snapshotStorageName := project.StorageVolume(srcProjectName, snapshotName)
 		sourceSnapshots = append(sourceSnapshots, b.GetVolume(drivers.VolumeTypeCustom, contentType, snapshotStorageName, sourceSnap.Config))
 	}
@@ -3783,7 +3790,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	defer revert.Fail()
 
 	// Get the src volume name on storage.
-	srcVolStorageName := project.StorageVolume(srcProjectName, srcVolName)
+	srcVolStorageName := project.StorageVolume(srcProjectName, srcConfig.Volume.Name)
 	srcVol := srcPool.GetVolume(drivers.VolumeTypeCustom, contentType, srcVolStorageName, srcConfig.Volume.Config)
 
 	// If the source and target are in the same pool then use CreateVolumeFromCopy rather than
@@ -3899,7 +3906,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	go func() {
 		err := srcPool.MigrateCustomVolume(srcProjectName, aEnd, &migration.VolumeSourceArgs{
 			IndexHeaderVersion: migration.IndexHeaderVersion,
-			Name:               srcVolName,
+			Name:               srcConfig.Volume.Name,
 			Snapshots:          snapshotNames,
 			MigrationType:      migrationTypes[0],
 			TrackProgress:      true, // Do use a progress tracker on sender.
@@ -5798,13 +5805,13 @@ func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarW
 	l.Debug("BackupCustomVolume started")
 	defer l.Debug("BackupCustomVolume finished")
 
-	// Get the volume name on storage.
-	volStorageName := project.StorageVolume(projectName, volName)
-
 	volume, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
 	if err != nil {
 		return err
 	}
+
+	// Get the volume name on storage.
+	volStorageName := project.StorageVolume(projectName, volume.Name)
 
 	contentDBType, err := VolumeContentTypeNameToContentType(volume.ContentType)
 	if err != nil {

@@ -113,7 +113,9 @@ update-api:
 ifeq "$(LXD_OFFLINE)" ""
 	(cd / ; go install github.com/go-swagger/go-swagger/cmd/swagger@latest)
 endif
-	swagger generate spec -o doc/rest-api.yaml -w ./lxd -m
+	@# Generate spec and exclude package from dependency which causes a 'classifier: unknown swagger annotation "extendee"' error.
+	@# For more details see: https://github.com/go-swagger/go-swagger/issues/2917.
+	swagger generate spec -o doc/rest-api.yaml -w ./lxd -m -x github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2/options
 
 .PHONY: update-metadata
 update-metadata: build

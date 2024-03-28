@@ -589,10 +589,12 @@ func (d *ceph) rbdListVolumeSnapshots(vol Volume) ([]string, error) {
 	return snapshots, nil
 }
 
-// copyWithSnapshots creates a non-sparse copy of a container including its snapshots.
+// copyVolumeDiff creates a sparse copy of a volume by exporting and importing the diff
+// between `sourceVolumeName` and its optional `sourceParentSnapshot` onto `targetVolumeName`.
 // This does not introduce a dependency relation between the source RBD storage
 // volume and the target RBD storage volume.
-func (d *ceph) copyWithSnapshots(sourceVolumeName string, targetVolumeName string, sourceParentSnapshot string) error {
+// Unlike the classic RBD export only the modified sectors on the RBD storage volume get copied.
+func (d *ceph) copyVolumeDiff(sourceVolumeName string, targetVolumeName string, sourceParentSnapshot string) error {
 	args := []string{
 		"export-diff",
 		"--id", d.config["ceph.user.name"],
@@ -619,6 +621,8 @@ func (d *ceph) copyWithSnapshots(sourceVolumeName string, targetVolumeName strin
 	rbdRecvCmd.Stdin, _ = rbdSendCmd.StdoutPipe()
 	rbdRecvCmd.Stdout = os.Stdout
 	rbdRecvCmd.Stderr = os.Stderr
+
+	d.logger.Debug("Copying RBD volume", logger.Ctx{"srcVolName": sourceVolumeName, "volName": targetVolumeName, "srcParentSnap": sourceParentSnapshot})
 
 	err := rbdRecvCmd.Start()
 	if err != nil {
@@ -1167,6 +1171,8 @@ func (d *ceph) sendVolume(conn io.ReadWriteCloser, volumeName string, volumePare
 
 	cmd.Stdout = stdout
 
+	d.logger.Debug("Sending RBD volume", logger.Ctx{"volName": volumeName, "volParentName": volumeParentName})
+
 	err = cmd.Start()
 	if err != nil {
 		return err
@@ -1211,6 +1217,8 @@ func (d *ceph) receiveVolume(volumeName string, conn io.ReadWriteCloser, writeWr
 		_ = stdin.Close()
 		chCopyConn <- err
 	}()
+
+	d.logger.Debug("Receiving RBD volume", logger.Ctx{"volName": volumeName})
 
 	// Run the command.
 	err = cmd.Start()
@@ -1263,4 +1271,75 @@ func (d *ceph) resizeVolume(vol Volume, sizeBytes int64, allowShrink bool) error
 	_, err := shared.TryRunCommand("rbd", args...)
 
 	return err
+}
+
+// findLastCommonSnapshotIndex finds the last common snapshot from the list of targetSnapshots based on its name.
+// The list of targetSnapshots represents the wanted list of snapshots on the target volume.
+// This list is identical to the target volume's snapshots in the database.
+// In refreshSnapshots provide a list of snapshot names that require refresh on the target side.
+// The returned number is the index of the last common snapshot in the list of targetSnapshots.
+//
+// The function identifies the last common snapshot based on the following criteria:
+//  1. (Ideal case)
+//     There aren't any snapshots marked for refresh.
+//     Return the index for the last snapshot as this is the last common one.
+//  2. If the first target snapshot matches the first one that requires refresh,
+//     there isn't any common snapshot. Return -1.
+//  3. If the last target snapshot is not the last one that requires refresh,
+//     the snapshots are out of sync.
+//     The last common snapshot is the predecessor of the first one that requires refresh.
+//     Return the index of the last common snapshot.
+//  4. The target is missing the last x snapshots from the source.
+//     The last common snapshot is the predecessor of the first one that requires refresh.
+//     Return the index of the last common snapshot.
+//  5. If there isn't a single target snapshot return -1.
+func (d *ceph) findLastCommonSnapshotIndex(targetSnapshots []Volume, refreshSnapshots []string) int {
+	if len(targetSnapshots) > 0 {
+		// Case 1:
+		// The volume snapshots on the source and target might look like this:
+		// sourceVol   ->   targetVol
+		// \_ snap0         \_ snap0
+		// \_ snap1         \_ snap1
+		// \_ snap2         \_ snap2
+		if len(refreshSnapshots) == 0 {
+			return len(targetSnapshots) - 1
+		}
+
+		// Case 2:
+		// The volume snapshots on the source and target might look like this:
+		// sourceVol   ->   targetVol
+		// \_ snap0
+		// \_ snap1
+		// \_ snap2
+		_, firstTargetSnapshotName, _ := api.GetParentAndSnapshotName(targetSnapshots[0].name)
+		if firstTargetSnapshotName == refreshSnapshots[0] {
+			return -1
+		}
+
+		// Case 3:
+		// The volume snapshots on the source and target might look like this:
+		// sourceVol   ->   targetVol
+		// \_ snap0         \_ snap0
+		// \_ snap1         \_ snap2
+		// \_ snap2
+		// Case 4:
+		// The volume snapshots on the source and target might look like this:
+		// sourceVol   ->   targetVol
+		// \_ snap0         \_ snap0
+		// \_ snap1         \_ snap1
+		// \_ snap2
+		for i, targetSnapshot := range targetSnapshots {
+			// Find the last common snapshot between the source and target.
+			// Start by looking up the position of the first snapshot that requires a refresh.
+			_, targetSnapshotName, _ := api.GetParentAndSnapshotName(targetSnapshot.name)
+			if targetSnapshotName == refreshSnapshots[0] {
+				return i - 1
+			}
+		}
+	}
+
+	// Case 5.
+	// The volume snapshots on the source and target might look like this:
+	// sourceVol   ->   targetVol
+	return -1
 }

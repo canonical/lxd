@@ -2449,7 +2449,7 @@ fail() {
 # Setup the mount target.
 umount -l "${PREFIX}" >/dev/null 2>&1 || true
 mkdir -p "${PREFIX}"
-mount -t tmpfs tmpfs "${PREFIX}" -o mode=0700,nodev,nosuid,noatime,size=25M
+mount -t tmpfs tmpfs "${PREFIX}" -o mode=0700,nodev,nosuid,noatime,size=50M
 mkdir -p "${PREFIX}/.mnt"
 
 # Try virtiofs first.
@@ -6667,6 +6667,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// A zero length Snapshots slice indicates volume only migration in
 		// VolumeTargetArgs. So if VolumeOnly was requested, do not populate them.
+		snapOps := []*operationlock.InstanceOperation{}
 		if args.Snapshots {
 			volTargetArgs.Snapshots = make([]string, 0, len(snapshots))
 			for _, snap := range snapshots {
@@ -6698,8 +6699,11 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					}
 
 					revert.Add(cleanup)
-					//revive:disable-next-line:defer
-					defer snapInstOp.Done(err)
+					revert.Add(func() {
+						snapInstOp.Done(err)
+					})
+
+					snapOps = append(snapOps, snapInstOp)
 				}
 			}
 		}
@@ -6755,6 +6759,10 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			if err != nil {
 				return err
 			}
+		}
+
+		for _, op := range snapOps {
+			op.Done(nil)
 		}
 
 		return nil
@@ -7381,7 +7389,7 @@ func (d *qemu) acquireVsockID(vsockID uint32) (*os.File, error) {
 	revert.Add(func() { _ = vsockF.Close() })
 
 	// The vsock Context ID cannot be supplied as type uint32.
-	vsockIDInt := int(vsockID)
+	vsockIDInt := uint64(vsockID)
 
 	// 0x4008AF60 = VHOST_VSOCK_SET_GUEST_CID = _IOW(VHOST_VIRTIO, 0x60, __u64)
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, vsockF.Fd(), 0x4008AF60, uintptr(unsafe.Pointer(&vsockIDInt)))

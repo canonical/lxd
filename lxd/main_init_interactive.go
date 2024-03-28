@@ -986,7 +986,7 @@ they otherwise would.
 			}
 
 			netPort, err := c.global.asker.AskInt(fmt.Sprintf("Port to bind LXD to [default=%d]: ", shared.HTTPSDefaultPort), 1, 65535, fmt.Sprintf("%d", shared.HTTPSDefaultPort), func(netPort int64) error {
-				address := util.CanonicalNetworkAddressFromAddressAndPort(netAddr, int(netPort), shared.HTTPSDefaultPort)
+				address := util.CanonicalNetworkAddressFromAddressAndPort(netAddr, netPort, shared.HTTPSDefaultPort)
 
 				if err == nil {
 					if server.Config["cluster.https_address"] == address || server.Config["core.https_address"] == address {
@@ -1007,7 +1007,7 @@ they otherwise would.
 				return err
 			}
 
-			config.Node.Config["core.https_address"] = util.CanonicalNetworkAddressFromAddressAndPort(netAddr, int(netPort), shared.HTTPSDefaultPort)
+			config.Node.Config["core.https_address"] = util.CanonicalNetworkAddressFromAddressAndPort(netAddr, netPort, shared.HTTPSDefaultPort)
 		}
 	}
 

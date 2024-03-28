@@ -153,12 +153,6 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 		}
 	}
 
-	// Prepare the JSON response
-	status := api.Success
-	if !r.success {
-		status = api.Failure
-	}
-
 	if r.headers != nil {
 		for h, v := range r.headers {
 			w.Header().Set(h, v)
@@ -191,6 +185,19 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 
 	if w.Header().Get("Connection") != "keep-alive" {
 		w.WriteHeader(code)
+	}
+
+	// Prepare the JSON response
+	status := api.Success
+	if !r.success {
+		status = api.Failure
+
+		// If the metadata is an error, consider the response a SmartError
+		// to propagate the data and preserve the status code.
+		err, ok := r.metadata.(error)
+		if ok {
+			return SmartError(err).Render(w)
+		}
 	}
 
 	// Handle plain text responses.
@@ -409,7 +416,7 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 			// Apply TCP timeouts if remote connection is TCP (rather than Unix).
 			err := tcp.SetTimeouts(remoteTCP, 10*time.Second)
 			if err != nil {
-				return api.StatusErrorf(http.StatusInternalServerError, "Failed setting TCP timeouts on remote connection: %v", err)
+				return api.StatusErrorf(http.StatusInternalServerError, "Failed setting TCP timeouts on remote connection: %w", err)
 			}
 		}
 

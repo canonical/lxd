@@ -142,7 +142,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		configMap[key] = value
 	}
 
-	deviceMap, err := parseDeviceOverrides(c.flagDevice)
+	deviceOverrides, err := parseDeviceOverrides(c.flagDevice)
 	if err != nil {
 		return err
 	}
@@ -181,21 +181,38 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			entry.Profiles = []string{}
 		}
 
-		// Allow setting additional config keys
-		for key, value := range configMap {
-			entry.Config[key] = value
+		// Check to see if any of the overridden devices are for devices that are not yet defined in the
+		// local devices (and thus maybe expected to be coming from profiles).
+		needProfileExpansion := false
+		for deviceName := range deviceOverrides {
+			_, isLocalDevice := entry.Devices[deviceName]
+			if !isLocalDevice {
+				needProfileExpansion = true
+				break
+			}
 		}
 
-		// Allow setting device overrides
-		for k, m := range deviceMap {
-			if entry.Devices[k] == nil {
-				entry.Devices[k] = m
-				continue
-			}
+		profileDevices := make(map[string]map[string]string)
 
-			for key, value := range m {
-				entry.Devices[k][key] = value
+		// If there are device overrides that are expected to be applied to profile devices then perform
+		// profile expansion.
+		if needProfileExpansion {
+			// If the list of profiles is empty then LXD would apply the default profile on the server side.
+			profileDevices, err = getProfileDevices(dest, entry.Profiles)
+			if err != nil {
+				return err
 			}
+		}
+
+		// Apply device overrides.
+		entry.Devices, err = shared.ApplyDeviceOverrides(profileDevices, entry.Devices, deviceOverrides)
+		if err != nil {
+			return err
+		}
+
+		// Allow setting additional config keys.
+		for key, value := range configMap {
+			entry.Config[key] = value
 		}
 
 		// Allow overriding the ephemeral status
@@ -206,9 +223,6 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		}
 
 		rootDiskDeviceKey, _, _ := instancetype.GetRootDiskDevice(entry.Devices)
-		if err != nil {
-			return err
-		}
 
 		if rootDiskDeviceKey != "" && pool != "" {
 			entry.Devices[rootDiskDeviceKey]["pool"] = pool
@@ -272,21 +286,37 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			entry.Profiles = []string{}
 		}
 
-		// Allow setting additional config keys
-		for key, value := range configMap {
-			entry.Config[key] = value
+		// Check to see if any of the devices overrides are for devices that are not yet defined in the
+		// local devices and thus are expected to be coming from profiles.
+		needProfileExpansion := false
+		for deviceName := range deviceOverrides {
+			_, isLocalDevice := entry.Devices[deviceName]
+			if !isLocalDevice {
+				needProfileExpansion = true
+				break
+			}
 		}
 
-		// Allow setting device overrides
-		for k, m := range deviceMap {
-			if entry.Devices[k] == nil {
-				entry.Devices[k] = m
-				continue
-			}
+		profileDevices := make(map[string]map[string]string)
 
-			for key, value := range m {
-				entry.Devices[k][key] = value
+		// If there are device overrides that are expected to be applied to profile devices then perform
+		// profile expansion.
+		if needProfileExpansion {
+			profileDevices, err = getProfileDevices(dest, entry.Profiles)
+			if err != nil {
+				return err
 			}
+		}
+
+		// Apply device overrides.
+		entry.Devices, err = shared.ApplyDeviceOverrides(entry.Devices, profileDevices, deviceOverrides)
+		if err != nil {
+			return err
+		}
+
+		// Allow setting additional config keys.
+		for key, value := range configMap {
+			entry.Config[key] = value
 		}
 
 		// Allow overriding the ephemeral status

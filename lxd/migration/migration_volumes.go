@@ -137,7 +137,7 @@ func TypesToHeader(types ...Type) *MigrationHeader {
 
 	// Check all the types for an Rsync method, if found add its features to the header's RsyncFeatures list.
 	for _, t := range types {
-		if t.FSType != MigrationFSType_RSYNC && t.FSType != MigrationFSType_BLOCK_AND_RSYNC {
+		if t.FSType != MigrationFSType_RSYNC && t.FSType != MigrationFSType_BLOCK_AND_RSYNC && t.FSType != MigrationFSType_RBD_AND_RSYNC {
 			continue
 		}
 
@@ -194,13 +194,13 @@ func MatchTypes(offer *MigrationHeader, fallbackType MigrationFSType, ourTypes [
 			} else if offerFSType == MigrationFSType_BTRFS {
 				offeredFeatures = offer.GetBtrfsFeaturesSlice()
 			} else if offerFSType == MigrationFSType_RSYNC {
+				// There are other migration types using rsync like MigrationFSType_BLOCK_AND_RSYNC
+				// for which we cannot set the offered features as an older LXD might ignore those
+				// if the migration type is not MigrationFSType_RSYNC.
+				// When both the source and target agree on MigrationFSType_BLOCK_AND_RSYNC
+				// the rsync portion of the migration type isn't using any features.
+				// This allows staying backwards compatible with older versions of LXD.
 				offeredFeatures = offer.GetRsyncFeaturesSlice()
-				if !shared.StringInSlice("bidirectional", offeredFeatures) {
-					// If no bi-directional support, this means we are getting a response from
-					// an old LXD server that doesn't support bidirectional negotiation, so
-					// assume LXD 3.7 level. NOTE: Do NOT extend this list of arguments.
-					offeredFeatures = []string{"xattrs", "delete", "compress"}
-				}
 			}
 
 			// Find common features in both our type and offered type.
