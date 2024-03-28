@@ -52,7 +52,7 @@ can be remapped on the receiving host.
 
 LXD supports using different idmaps per container, to further isolate
 containers from each other. This is controlled with two per-container
-configuration keys, `security.idmap.isolated` and `security.idmap.size`.
+configuration keys, {config:option}`instance-security:security.idmap.isolated` and {config:option}`instance-security:security.idmap.size`.
 
 Containers with `security.idmap.isolated` will have a unique ID range computed
 for them among the other containers with `security.idmap.isolated` set (if none
@@ -74,7 +74,7 @@ These properties require a container reboot to take effect.
 LXD also supports customizing bits of the idmap, e.g. to allow users to bind
 mount parts of the host's file system into a container without the need for any
 UID-shifting file system. The per-container configuration key for this is
-`raw.idmap`, and looks like:
+{config:option}`instance-raw:raw.idmap`, and looks like:
 
     both 1000 1000
     uid 50-60 500-510
