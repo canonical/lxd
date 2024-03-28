@@ -407,6 +407,12 @@ func instanceFileHead(s *state.State, inst instance.Instance, path string, r *ht
 //	      type: integer
 //	    example: 0644
 //	  - in: header
+//	    name: X-LXD-modify-perm
+//	    description: Comma-separated list of permissions to set for pre-existing files (0 or more of `uid`, `gid`, `mode`)
+//	    schema:
+//	      type: integer
+//	    example: uid,gid,mode
+//	  - in: header
 //	    name: X-LXD-type
 //	    description: Type of file (file, symlink or directory)
 //	    schema:
@@ -475,16 +481,21 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 			return response.InternalError(err)
 		}
 
-		if !exists {
-			// Set file permissions.
+		/* backwards-compat: the permissions headers did not modify permissions
+		 * for existing files before the `instances_files_modify_permissions`
+		 * api extension.
+		 */
+		if !exists || headers.ModeModifyExisting {
 			if headers.Mode >= 0 {
 				err = file.Chmod(fs.FileMode(headers.Mode))
 				if err != nil {
 					return response.SmartError(err)
 				}
 			}
+		}
 
-			// Set file ownership.
+		// Set file ownership.
+		if !exists || headers.UIDModifyExisting || headers.GIDModifyExisting {
 			if headers.UID >= 0 || headers.GID >= 0 {
 				// -1 leaves the id unchanged
 				err = file.Chown(int(headers.UID), int(headers.GID))
