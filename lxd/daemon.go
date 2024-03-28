@@ -369,7 +369,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 	// Validate metrics certificates.
 	if r.URL.Path == "/1.0/metrics" {
 		for _, i := range r.TLS.PeerCertificates {
-			trusted, username := util.CheckTrustState(*i, d.identityCache.X509Certificates(api.IdentityTypeCertificateMetrics), d.endpoints.NetworkCert(), trustCACertificates)
+			trusted, username := util.CheckTrustState(*i, d.identityCache.X509Certificates(api.IdentityTypeCertificateMetricsRestricted, api.IdentityTypeCertificateMetricsUnrestricted), d.endpoints.NetworkCert(), trustCACertificates)
 			if trusted {
 				return true, username, api.AuthenticationMethodTLS, nil, nil
 			}
