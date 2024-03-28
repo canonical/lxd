@@ -463,7 +463,7 @@ A bridge also lets you use MAC filtering and I/O limits, which cannot be applied
 
 If you're using MAAS to manage the physical network under your LXD host and want to attach your instances directly to a MAAS-managed network, LXD can be configured to interact with MAAS so that it can track your instances.
 
-At the daemon level, you must configure `maas.api.url` and `maas.api.key`, and then set the `maas.subnet.ipv4` and/or `maas.subnet.ipv6` keys on the instance or profile's `nic` entry.
+At the daemon level, you must configure {config:option}`server-miscellaneous:maas.api.url` and {config:option}`server-miscellaneous:maas.api.key`, and then set the NIC-specific `maas.subnet.ipv4` and/or `maas.subnet.ipv6` keys on the instance or profile's `nic` entry.
 
 With this configuration, LXD registers all your instances with MAAS, giving them proper DHCP leases and DNS records.
 

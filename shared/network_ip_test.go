@@ -1,10 +1,8 @@
-package network
+package shared
 
 import (
 	"fmt"
 	"net"
-
-	"github.com/canonical/lxd/shared"
 )
 
 func Example_parseIPRange() {
@@ -37,7 +35,7 @@ func Example_parseIPRange() {
 
 	fmt.Println("With allowed networks")
 	for _, ipRange := range ipRanges {
-		parsedRange, err := parseIPRange(ipRange, allowedv4NetworkA, allowedv4NetworkB, allowedv6NetworkA, allowedv6NetworkB)
+		parsedRange, err := ParseIPRange(ipRange, allowedv4NetworkA, allowedv4NetworkB, allowedv6NetworkA, allowedv6NetworkB)
 		if err != nil {
 			fmt.Printf("Err: %v\n", err)
 			continue
@@ -48,7 +46,7 @@ func Example_parseIPRange() {
 
 	fmt.Println("Without allowed networks")
 	for _, ipRange := range ipRanges {
-		parsedRange, err := parseIPRange(ipRange)
+		parsedRange, err := ParseIPRange(ipRange)
 		if err != nil {
 			fmt.Printf("Err: %v\n", err)
 			continue
@@ -101,27 +99,27 @@ func Example_ipRangesOverlap() {
 	}
 
 	for _, pair := range rangePairs {
-		r0, _ := parseIPRange(pair[0])
-		r1, _ := parseIPRange(pair[1])
-		result := IPRangesOverlap(r0, r1)
+		r0, _ := ParseIPRange(pair[0])
+		r1, _ := ParseIPRange(pair[1])
+		result := r0.Overlaps(r1)
 		fmt.Printf("Range1: %v, Range2: %v, overlapped: %t\n", r0, r1, result)
 	}
 
 	// also do a couple of tests with ranges that have no end
-	singleIPRange := &shared.IPRange{
+	singleIPRange := &IPRange{
 		Start: net.ParseIP("10.1.1.4"),
 	}
 
-	otherRange, _ := parseIPRange("10.1.1.1-10.1.1.6")
+	otherRange, _ := ParseIPRange("10.1.1.1-10.1.1.6")
 
-	fmt.Printf("Range1: %v, Range2: %v, overlapped: %t\n", singleIPRange, otherRange, IPRangesOverlap(singleIPRange, otherRange))
-	fmt.Printf("Range1: %v, Range2: %v, overlapped: %t\n", otherRange, singleIPRange, IPRangesOverlap(otherRange, singleIPRange))
-	fmt.Printf("Range1: %v, Range2: %v, overlapped: %t\n", singleIPRange, singleIPRange, IPRangesOverlap(singleIPRange, singleIPRange))
+	fmt.Printf("Range1: %v, Range2: %v, overlapped: %t\n", singleIPRange, otherRange, singleIPRange.Overlaps(otherRange))
+	fmt.Printf("Range1: %v, Range2: %v, overlapped: %t\n", otherRange, singleIPRange, otherRange.Overlaps(singleIPRange))
+	fmt.Printf("Range1: %v, Range2: %v, overlapped: %t\n", singleIPRange, singleIPRange, singleIPRange.Overlaps(singleIPRange))
 
-	otherRange, _ = parseIPRange("10.1.1.8-10.1.1.9")
+	otherRange, _ = ParseIPRange("10.1.1.8-10.1.1.9")
 
-	fmt.Printf("Range1: %v, Range2: %v, overlapped: %t\n", singleIPRange, otherRange, IPRangesOverlap(singleIPRange, otherRange))
-	fmt.Printf("Range1: %v, Range2: %v, overlapped: %t\n", otherRange, singleIPRange, IPRangesOverlap(otherRange, singleIPRange))
+	fmt.Printf("Range1: %v, Range2: %v, overlapped: %t\n", singleIPRange, otherRange, singleIPRange.Overlaps(otherRange))
+	fmt.Printf("Range1: %v, Range2: %v, overlapped: %t\n", otherRange, singleIPRange, otherRange.Overlaps(singleIPRange))
 
 	// Output:
 	// Range1: 10.1.1.1-10.1.1.2, Range2: 10.1.1.3-10.1.1.4, overlapped: false

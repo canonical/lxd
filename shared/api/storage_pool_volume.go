@@ -116,6 +116,12 @@ type StorageVolume struct {
 	// Example: custom
 	Type string `json:"type" yaml:"type"`
 
+	// Name of the pool the volume is using
+	// Example: "default"
+	//
+	// API extension: storage_volumes_all
+	Pool string `json:"pool" yaml:"pool"`
+
 	// Volume content type (filesystem or block)
 	// Example: filesystem
 	//
@@ -149,14 +155,14 @@ type StorageVolume struct {
 }
 
 // URL returns the URL for the volume.
-func (v *StorageVolume) URL(apiVersion string, poolName string) *URL {
+func (v *StorageVolume) URL(apiVersion string) *URL {
 	u := NewURL()
 
 	volName, snapName, isSnap := GetParentAndSnapshotName(v.Name)
 	if isSnap {
-		u = u.Path(apiVersion, "storage-pools", poolName, "volumes", v.Type, volName, "snapshots", snapName)
+		u = u.Path(apiVersion, "storage-pools", v.Pool, "volumes", v.Type, volName, "snapshots", snapName)
 	} else {
-		u = u.Path(apiVersion, "storage-pools", poolName, "volumes", v.Type, volName)
+		u = u.Path(apiVersion, "storage-pools", v.Pool, "volumes", v.Type, volName)
 	}
 
 	return u.Project(v.Project).Target(v.Location)

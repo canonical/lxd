@@ -197,7 +197,7 @@ def instance_placement(request, candidate_members):
     return # Return empty to allow instance placement to proceed.
 ```
 
-The scriptlet must be applied to LXD by storing it in the `instances.placement.scriptlet` global configuration setting.
+The scriptlet must be applied to LXD by storing it in the {config:option}`server-miscellaneous:instances.placement.scriptlet` global configuration setting.
 
 For example, if the scriptlet is saved inside a file called `instance_placement.star`, then it can be applied to LXD with the following command:
 

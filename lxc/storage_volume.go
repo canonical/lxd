@@ -1396,11 +1396,11 @@ type cmdStorageVolumeList struct {
 
 func (c *cmdStorageVolumeList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("list", i18n.G("[<remote>:]<pool> [<filter>...]"))
+	cmd.Use = usage("list", i18n.G("[<remote>:][<pool>] [<filter>...]"))
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List storage volumes")
 
-	c.defaultColumns = "etndcuL"
+	c.defaultColumns = "petndcuL"
 	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", c.defaultColumns, i18n.G("Columns")+"``")
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, i18n.G("All projects")+"``")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -1411,6 +1411,7 @@ that control which image attributes to output when displaying in table
 or csv format.
 
 Column shorthand chars:
+    p - Storage pool name
     c - Content type (filesystem or block)
     d - Description
     e - Project name
@@ -1427,22 +1428,10 @@ Column shorthand chars:
 }
 
 func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
-	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
+	// Quick checks
+	exit, err := c.global.CheckArgs(cmd, args, 0, -1)
 	if exit {
 		return err
-	}
-
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
-	if err != nil {
-		return err
-	}
-
-	resource := resources[0]
-
-	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing pool name"))
 	}
 
 	// Process the filters
@@ -1451,11 +1440,26 @@ func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 		filters = append(filters, args[1:]...)
 	}
 
+	// Parse resource
+	resource, allVolumes, err := c.getResource(args)
+	if err != nil {
+		return err
+	}
+
 	var volumes []api.StorageVolume
-	if c.flagAllProjects {
-		volumes, err = resource.server.GetStoragePoolVolumesWithFilterAllProjects(resource.name, filters)
+
+	if allVolumes {
+		if c.flagAllProjects {
+			volumes, err = resource.server.GetVolumesWithFilterAllProjects(filters)
+		} else {
+			volumes, err = resource.server.GetVolumesWithFilter(filters)
+		}
 	} else {
-		volumes, err = resource.server.GetStoragePoolVolumesWithFilter(resource.name, filters)
+		if c.flagAllProjects {
+			volumes, err = resource.server.GetStoragePoolVolumesWithFilterAllProjects(resource.name, filters)
+		} else {
+			volumes, err = resource.server.GetStoragePoolVolumesWithFilter(resource.name, filters)
+		}
 	}
 
 	if err != nil {
@@ -1463,7 +1467,7 @@ func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Process the columns
-	columns, err := c.parseColumns(resource.server.IsClustered())
+	columns, err := c.parseColumns(resource.server.IsClustered(), allVolumes)
 	if err != nil {
 		return err
 	}
@@ -1474,7 +1478,7 @@ func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 		row := []string{}
 		for _, column := range columns {
 			if column.NeedsState && !shared.IsSnapshot(vol.Name) && vol.Type != "image" {
-				state, err := resource.server.GetStoragePoolVolumeState(resource.name, vol.Type, vol.Name)
+				state, err := resource.server.GetStoragePoolVolumeState(vol.Pool, vol.Type, vol.Name)
 				if err != nil {
 					return err
 				}
@@ -1504,7 +1508,31 @@ func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 	return cli.RenderTable(c.flagFormat, headers, data, rawData)
 }
 
-func (c *cmdStorageVolumeList) parseColumns(clustered bool) ([]volumeColumn, error) {
+func (c *cmdStorageVolumeList) getResource(args []string) (*remoteResource, bool, error) {
+	var resource remoteResource
+
+	if len(args) == 0 {
+		resources, err := c.global.ParseServers("")
+		if err != nil {
+			return nil, false, err
+		}
+
+		resource = resources[0]
+
+		return &resource, true, nil
+	}
+
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return nil, false, err
+	}
+
+	resource = resources[0]
+
+	return &resource, resource.name == "", nil
+}
+
+func (c *cmdStorageVolumeList) parseColumns(clustered bool, allVolumes bool) ([]volumeColumn, error) {
 	columnsShorthandMap := map[rune]volumeColumn{
 		't': {Name: i18n.G("TYPE"), Data: c.typeColumnData},
 		'n': {Name: i18n.G("NAME"), Data: c.nameColumnData},
@@ -1523,6 +1551,12 @@ func (c *cmdStorageVolumeList) parseColumns(clustered bool) ([]volumeColumn, err
 			}
 		}
 		c.flagColumns = strings.Replace(c.flagColumns, "L", "", -1)
+	}
+
+	if allVolumes {
+		columnsShorthandMap['p'] = volumeColumn{Name: i18n.G("POOL"), Data: c.poolColumnData}
+	} else {
+		c.flagColumns = strings.Replace(c.flagColumns, "p", "", -1)
 	}
 
 	if c.flagAllProjects {
@@ -1550,6 +1584,10 @@ func (c *cmdStorageVolumeList) parseColumns(clustered bool) ([]volumeColumn, err
 	}
 
 	return columns, nil
+}
+
+func (c *cmdStorageVolumeList) poolColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {
+	return vol.Pool
 }
 
 func (c *cmdStorageVolumeList) typeColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {

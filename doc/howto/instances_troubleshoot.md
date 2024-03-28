@@ -71,7 +71,7 @@ The {doc}`container requirements <../container-environment>` specify that every 
 If those directories don't exist, LXD cannot mount them, and `systemd` will then try to do so.
 As this is an unprivileged container, `systemd` does not have the ability to do this, and it then freezes.
 
-So you can see the environment before anything is changed, and you can explicitly change the init system in a container using the `raw.lxc` configuration parameter.
+So you can see the environment before anything is changed, and you can explicitly change the init system in a container using the {config:option}`instance-raw:raw.lxc` configuration parameter.
 This is equivalent to setting `init=/bin/bash` on the Linux kernel command line.
 
     lxc config set systemd raw.lxc 'lxc.init.cmd = /bin/bash'

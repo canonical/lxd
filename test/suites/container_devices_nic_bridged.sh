@@ -689,6 +689,25 @@ test_container_devices_nic_bridged() {
   lxc config device get foo eth0 ipv4.address | grep -Fx '192.0.2.233'
   lxc config device get foo eth0 ipv6.address | grep -Fx '2001:db8::3'
   lxc start foo
+
+  # Test container can be copied with device override to fix conflict.
+  lxc copy foo foo-copy --device eth0,ipv4.address=192.0.2.234 --device eth0,ipv6.address=2001:db8::4 --device eth0,host_name=veth0 --device eth0,ipv4.routes=192.0.2.20/32 --device eth0,ipv6.routes=2001:db8::20/128
+  lxc config device get foo-copy eth0 ipv4.address | grep -Fx '192.0.2.234'
+  lxc config device get foo-copy eth0 ipv6.address | grep -Fx '2001:db8::4'
+  lxc config device get foo-copy eth0 ipv4.routes | grep -Fx '192.0.2.20/32'
+  lxc config device get foo-copy eth0 ipv6.routes | grep -Fx '2001:db8::20/128'
+  lxc start foo-copy
+  lxc delete -f foo-copy
+
+  # Test snapshot can be copied with device override to fix conflict.
+  lxc snapshot foo tester
+  lxc copy foo/tester snap-copy --device eth0,ipv4.address=192.0.2.235 --device eth0,ipv6.address=2001:db8::5 --device eth0,host_name=veth1 --device eth0,ipv4.routes=192.0.2.21/32 --device eth0,ipv6.routes=2001:db8::21/128
+  lxc config device get snap-copy eth0 ipv4.address | grep -Fx '192.0.2.235'
+  lxc config device get snap-copy eth0 ipv6.address | grep -Fx '2001:db8::5'
+  lxc config device get snap-copy eth0 ipv4.routes | grep -Fx '192.0.2.21/32'
+  lxc config device get snap-copy eth0 ipv6.routes | grep -Fx '2001:db8::21/128'
+  lxc start snap-copy
+  lxc delete -f snap-copy
   lxc delete -f foo
 
   # Test container with conflicting addresses rebuilds DHCP lease if original conflicting instance is removed.

@@ -296,14 +296,14 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol VolumeCopy, conn io.R
 
 // genericVFSCreateVolumeFromMigration receives a volume and its snapshots over a non-optimized method.
 // initVolume is run against the main volume (not the snapshots) and is often used for quota initialization.
-func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (revert.Hook, error), vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (revert.Hook, error), vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) (revert.Hook, error) {
 	// Check migration transport type matches volume type.
 	if IsContentBlock(vol.contentType) {
 		if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_BLOCK_AND_RSYNC {
-			return ErrNotSupported
+			return nil, ErrNotSupported
 		}
 	} else if !shared.ValueInSlice(volTargetArgs.MigrationType.FSType, []migration.MigrationFSType{migration.MigrationFSType_RSYNC, migration.MigrationFSType_RBD_AND_RSYNC}) {
-		return ErrNotSupported
+		return nil, ErrNotSupported
 	}
 
 	revert := revert.New()
@@ -313,7 +313,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 	if !volTargetArgs.Refresh {
 		err := d.CreateVolume(vol.Volume, preFiller, op)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		revert.Add(func() { _ = d.DeleteVolume(vol.Volume, op) })
@@ -468,11 +468,12 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 		return nil
 	}, op)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	cleanup := revert.Clone().Fail
 	revert.Success()
-	return nil
+	return cleanup, nil
 }
 
 // genericVFSHasVolume is a generic HasVolume implementation for VFS-only drivers.
@@ -977,9 +978,9 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol VolumeCopy, snapshots [
 
 // genericVFSCopyVolume copies a volume and its snapshots using a non-optimized method.
 // initVolume is run against the main volume (not the snapshots) and is often used for quota initialization.
-func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (revert.Hook, error), vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, refresh bool, allowInconsistent bool, op *operations.Operation) error {
+func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (revert.Hook, error), vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, refresh bool, allowInconsistent bool, op *operations.Operation) (revert.Hook, error) {
 	if vol.contentType != srcVol.contentType {
-		return fmt.Errorf("Content type of source and target must be the same")
+		return nil, fmt.Errorf("Content type of source and target must be the same")
 	}
 
 	bwlimit := d.Config()["rsync.bwlimit"]
@@ -997,7 +998,7 @@ func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (revert.Hook, er
 	if !refresh {
 		err := d.CreateVolume(vol.Volume, nil, op)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		revert.Add(func() { _ = d.DeleteVolume(vol.Volume, op) })
@@ -1136,11 +1137,12 @@ func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (revert.Hook, er
 		return nil
 	}, op)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	cleanup := revert.Clone().Fail
 	revert.Success()
-	return nil
+	return cleanup, nil
 }
 
 // genericVFSListVolumes returns a list of LXD volumes in storage pool.
