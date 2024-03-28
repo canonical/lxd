@@ -5,6 +5,7 @@ lxd-*.tar.gz
 .vagrant
 *~
 tags
+**/*.bak
 
 # Potential binaries
 fuidshift/fuidshift
