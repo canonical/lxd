@@ -1597,6 +1597,24 @@ func (r *ProtocolLXD) CreateInstanceFile(instanceName string, filePath string, a
 		req.Header.Set("X-LXD-write", args.WriteMode)
 	}
 
+	var modifyPerm []string
+
+	if args.UIDModifyExisting {
+		modifyPerm = append(modifyPerm, "uid")
+	}
+
+	if args.GIDModifyExisting {
+		modifyPerm = append(modifyPerm, "gid")
+	}
+
+	if args.ModeModifyExisting {
+		modifyPerm = append(modifyPerm, "mode")
+	}
+
+	if len(modifyPerm) != 0 && r.CheckExtension("instance_files_modify_permissions") == nil {
+		req.Header.Set("X-LXD-modify-perm", strings.Join(modifyPerm, ","))
+	}
+
 	// Send the request
 	resp, err := r.DoHTTP(req)
 	if err != nil {
