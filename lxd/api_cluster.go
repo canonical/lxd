@@ -3402,31 +3402,11 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 			continue
 		}
 
-		// Get candidate cluster members to move instances to.
-		var candidateMembers []db.NodeInfo
-		err := opts.s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			allMembers, err := tx.GetNodes(ctx)
-			if err != nil {
-				return fmt.Errorf("Failed getting cluster members: %w", err)
-			}
-
-			clusterGroupsAllowed := limits.GetRestrictedClusterGroups(&instProject)
-
-			candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, []int{inst.Architecture()}, "", clusterGroupsAllowed, opts.s.GlobalConfig.OfflineThreshold())
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
-		if err != nil {
-			return err
-		}
-
-		targetMemberInfo, err := evacuateClusterSelectTarget(ctx, opts.s, candidateMembers)
+		// Find a new location for the instance.
+		targetMemberInfo, err := evacuateClusterSelectTarget(ctx, opts.s, inst)
 		if err != nil {
 			if api.StatusErrorCheck(err, http.StatusNotFound) {
-				// Skip migration if no target is available
+				// Skip migration if no target is available.
 				l.Warn("No migration target available for instance")
 				continue
 			}
@@ -4486,18 +4466,28 @@ func clusterGroupValidateName(name string) error {
 	return nil
 }
 
-func evacuateClusterSelectTarget(ctx context.Context, s *state.State, candidateMembers []db.NodeInfo) (*db.NodeInfo, error) {
+func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst instance.Instance) (*db.NodeInfo, error) {
 	var targetMemberInfo *db.NodeInfo
-	var err error
+	var candidateMembers []db.NodeInfo
 
-	// Find the least loaded cluster member which supports the instance's architecture.
-	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
+	// Get candidate cluster members to move instances to.
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		allMembers, err := tx.GetNodes(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed getting cluster members: %w", err)
+		}
+
+		instProject := inst.Project()
+		clusterGroupsAllowed := limits.GetRestrictedClusterGroups(&instProject)
+
+		candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, []int{inst.Architecture()}, "", clusterGroupsAllowed, s.GlobalConfig.OfflineThreshold())
 		if err != nil {
 			return err
 		}
 
-		return nil
+		// Find the least loaded cluster member which supports the instance's architecture.
+		targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
+		return err
 	})
 	if err != nil {
 		return nil, err
