@@ -4471,9 +4471,25 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst insta
 			return fmt.Errorf("Failed getting cluster members: %w", err)
 		}
 
+		// Filter candidates by group if needed.
+		_, group := shared.TargetDetect(inst.LocalConfig()["volatile.cluster.target"])
+		if group != "" {
+			newMembers := make([]db.NodeInfo, 0, len(allMembers))
+			for _, member := range allMembers {
+				if !slices.Contains(member.Groups, group) {
+					continue
+				}
+
+				newMembers = append(newMembers, member)
+			}
+
+			allMembers = newMembers
+		}
+
 		instProject := inst.Project()
 		clusterGroupsAllowed := limits.GetRestrictedClusterGroups(&instProject)
 
+		// Filter offline servers.
 		candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, []int{inst.Architecture()}, "", clusterGroupsAllowed, s.GlobalConfig.OfflineThreshold())
 		if err != nil {
 			return err
