@@ -1312,7 +1312,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if targetMemberInfo != nil && targetMemberInfo.Address != "" && targetMemberInfo.Name != s.ServerName {
-		client, err := cluster.Connect(r.Context(), targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+		client, err := cluster.Connect(r.Context(), targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 		if err != nil {
 			return response.SmartError(err)
 		}
