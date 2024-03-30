@@ -809,12 +809,16 @@ func (r *ProtocolLXD) GetContainerFile(containerName string, path string) (io.Re
 	}
 
 	// Parse the headers
-	uid, gid, mode, fileType, _ := shared.ParseLXDFileHeaders(resp.Header)
+	headers, err := shared.ParseLXDFileHeaders(resp.Header)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to parse response headers: %w", err)
+	}
+
 	fileResp := ContainerFileResponse{
-		UID:  uid,
-		GID:  gid,
-		Mode: mode,
-		Type: fileType,
+		UID:  headers.UID,
+		GID:  headers.GID,
+		Mode: headers.Mode,
+		Type: headers.Type,
 	}
 
 	if fileResp.Type == "directory" {
