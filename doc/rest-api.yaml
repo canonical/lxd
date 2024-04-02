@@ -10247,6 +10247,12 @@ paths:
                   name: X-LXD-mode
                   schema:
                     type: integer
+                - description: Comma-separated list of permissions to set for pre-existing files (0 or more of `uid`, `gid`, `mode`)
+                  example: uid,gid,mode
+                  in: header
+                  name: X-LXD-modify-perm
+                  schema:
+                    type: integer
                 - description: Type of file (file, symlink or directory)
                   example: file
                   in: header

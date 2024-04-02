@@ -570,11 +570,15 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	modifyExistingUID := c.file.flagUID != -1
+
 	// Determine the target uid
 	uid := 0
 	if c.file.flagUID >= 0 {
 		uid = c.file.flagUID
 	}
+
+	modifyExistingGID := c.file.flagGID != -1
 
 	// Determine the target gid
 	gid := 0
@@ -637,9 +641,12 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 
 		// Transfer the files
 		args := lxd.InstanceFileArgs{
-			UID:  -1,
-			GID:  -1,
-			Mode: -1,
+			UID:                -1,
+			UIDModifyExisting:  modifyExistingUID,
+			GID:                -1,
+			GIDModifyExisting:  modifyExistingGID,
+			Mode:               -1,
+			ModeModifyExisting: c.file.flagMode != "",
 		}
 
 		if !c.noModeChange {
