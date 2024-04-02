@@ -703,6 +703,12 @@ type InstanceFileArgs struct {
 	// File permissions
 	Mode int
 
+	// Whether to modify the permissions of existing files (see the
+	// instances_files_modify_permissions api extension)
+	GIDModifyExisting  bool
+	UIDModifyExisting  bool
+	ModeModifyExisting bool
+
 	// File type (file or directory)
 	Type string
 

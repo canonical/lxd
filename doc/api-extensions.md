@@ -2392,3 +2392,9 @@ Adds the ability to limit disk I/O for virtual machines.
 ## `storage_volumes_all`
 
 This API extension adds support for listing storage volumes from all storage pools via `/1.0/storage-volumes` or `/1.0/storage-volumes/{type}` to filter by volume type. Also adds a `pool` field to storage volumes.
+
+## `instances_files_modify_permissions`
+
+Adds the ability for `POST /1.0/instances/{name}/files` to modify the permissions of files that already exist via the `X-LXD-modify-perm` header.
+
+`X-LXD-modify-perm` should be a comma-separated list of 0 or more of `mode`, `uid`, and `gid`.
