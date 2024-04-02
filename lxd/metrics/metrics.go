@@ -94,8 +94,7 @@ func (m *MetricSet) String() string {
 		CPUs,
 		GoGoroutines,
 		GoHeapObjects,
-		Containers,
-		VMs,
+		Instances,
 	}
 
 	for _, metricType := range metricTypes {
