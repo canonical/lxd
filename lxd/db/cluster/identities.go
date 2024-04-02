@@ -111,11 +111,12 @@ func (a AuthMethod) Value() (driver.Value, error) {
 type IdentityType string
 
 const (
-	identityTypeCertificateClientRestricted   int64 = 1
-	identityTypeCertificateClientUnrestricted int64 = 2
-	identityTypeCertificateServer             int64 = 3
-	identityTypeCertificateMetrics            int64 = 4
-	identityTypeOIDCClient                    int64 = 5
+	identityTypeCertificateClientRestricted    int64 = 1
+	identityTypeCertificateClientUnrestricted  int64 = 2
+	identityTypeCertificateServer              int64 = 3
+	identityTypeCertificateMetricsRestricted   int64 = 4
+	identityTypeOIDCClient                     int64 = 5
+	identityTypeCertificateMetricsUnrestricted int64 = 6
 )
 
 // Scan implements sql.Scanner for IdentityType. This converts the integer value back into the correct API constant or
@@ -142,8 +143,10 @@ func (i *IdentityType) Scan(value any) error {
 		*i = api.IdentityTypeCertificateClientUnrestricted
 	case identityTypeCertificateServer:
 		*i = api.IdentityTypeCertificateServer
-	case identityTypeCertificateMetrics:
-		*i = api.IdentityTypeCertificateMetrics
+	case identityTypeCertificateMetricsRestricted:
+		*i = api.IdentityTypeCertificateMetricsRestricted
+	case identityTypeCertificateMetricsUnrestricted:
+		*i = api.IdentityTypeCertificateMetricsUnrestricted
 	case identityTypeOIDCClient:
 		*i = api.IdentityTypeOIDCClient
 	default:
@@ -162,8 +165,10 @@ func (i IdentityType) Value() (driver.Value, error) {
 		return identityTypeCertificateClientUnrestricted, nil
 	case api.IdentityTypeCertificateServer:
 		return identityTypeCertificateServer, nil
-	case api.IdentityTypeCertificateMetrics:
-		return identityTypeCertificateMetrics, nil
+	case api.IdentityTypeCertificateMetricsRestricted:
+		return identityTypeCertificateMetricsRestricted, nil
+	case api.IdentityTypeCertificateMetricsUnrestricted:
+		return identityTypeCertificateMetricsUnrestricted, nil
 	case api.IdentityTypeOIDCClient:
 		return identityTypeOIDCClient, nil
 	}
@@ -180,7 +185,9 @@ func (i IdentityType) toCertificateType() (certificate.Type, error) {
 		return certificate.TypeClient, nil
 	case api.IdentityTypeCertificateServer:
 		return certificate.TypeServer, nil
-	case api.IdentityTypeCertificateMetrics:
+	case api.IdentityTypeCertificateMetricsRestricted:
+		return certificate.TypeMetrics, nil
+	case api.IdentityTypeCertificateMetricsUnrestricted:
 		return certificate.TypeMetrics, nil
 	}
 
@@ -242,6 +249,13 @@ func (i Identity) ToCertificate() (*Certificate, error) {
 	isRestricted, err := identity.IsRestrictedIdentityType(string(i.Type))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to check restricted status of identity: %w", err)
+	}
+
+	// Metrics certificates can be both restricted and unrestricted.
+	// But an unrestricted metrics certificate has still less permissions as an unrestricted client certificate.
+	// So it does not have full access to LXD only the metrics endpoint.
+	if i.Type == api.IdentityTypeCertificateMetricsUnrestricted {
+		isRestricted = false
 	}
 
 	c := &Certificate{

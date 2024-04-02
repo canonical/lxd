@@ -40,6 +40,88 @@ func TestUrlsJoin(t *testing.T) {
 	}
 }
 
+func TestParseLXDFileHeader(t *testing.T) {
+	header := map[string][]string{
+		"X-Lxd-Uid":  {"1000"},
+		"X-Lxd-Gid":  {"1001"},
+		"X-Lxd-Mode": {"0700"},
+	}
+
+	headers, err := ParseLXDFileHeaders(header)
+	if err != nil {
+		t.Fatalf("Failed to parse headers %q: %s", header, err)
+	}
+
+	if headers.UID != 1000 || headers.GID != 1001 || headers.Mode != 0o700 {
+		t.Fatalf("Mismatched UID (%d), GID (%d), or Mode (%d)", headers.UID, headers.GID, headers.Mode)
+	}
+
+	if headers.UIDModifyExisting || headers.GIDModifyExisting || headers.ModeModifyExisting {
+		t.Fatalf("Mismatched `modify-perm` header")
+	}
+
+	header = map[string][]string{
+		"X-Lxd-Uid":         {"0"},
+		"X-Lxd-Gid":         {"99"},
+		"X-Lxd-Mode":        {"420"},
+		"X-Lxd-Modify-Perm": {"uid,gid,mode"},
+	}
+
+	headers, err = ParseLXDFileHeaders(header)
+	if err != nil {
+		t.Fatalf("Failed to parse headers %q: %s", header, err)
+	}
+
+	if headers.UID != 0 || headers.GID != 99 || headers.Mode != 0o644 {
+		t.Fatalf("Mismatched UID (%d), GID (%d), or Mode (%d)", headers.UID, headers.GID, headers.Mode)
+	}
+
+	if !headers.UIDModifyExisting || !headers.GIDModifyExisting || !headers.ModeModifyExisting {
+		t.Fatalf("Mismatched `modify-perm` header")
+	}
+
+	header = map[string][]string{
+		"X-Lxd-Mode":        {"0640"},
+		"X-Lxd-Modify-Perm": {"uid,gid"},
+		"X-Lxd-Type":        {"file"},
+		"X-Lxd-Write":       {"append"},
+	}
+
+	headers, err = ParseLXDFileHeaders(header)
+	if err != nil {
+		t.Fatalf("Failed to parse headers %q: %s", header, err)
+	}
+
+	if headers.Mode != 0o640 || headers.UID != -1 || headers.GID != -1 {
+		t.Fatalf("Mismatched UID (%d), GID (%d), or Mode (%d)", headers.UID, headers.GID, headers.Mode)
+	}
+
+	if !headers.UIDModifyExisting || !headers.GIDModifyExisting || headers.ModeModifyExisting {
+		t.Fatalf("Mismatched `modify-perm` header")
+	}
+
+	if headers.Type != "file" || headers.Write != "append" {
+		t.Fatalf("Mismatched Type (%s) or Write (%s)", headers.Type, headers.Write)
+	}
+
+	invalidHeaderTests := []map[string][]string{
+		{"X-Lxd-Uid": {"0xF4"}},
+		{"X-Lxd-Gid": {"0b1101"}},
+		{"X-Lxd-Mode": {"write"}},
+		{"X-Lxd-Type": {"dir"}},
+		{"X-Lxd-Write": {"Append"}},
+		{"X-Lxd-Modify-Perm": {"GID"}},
+		{"X-Lxd-Modify-Perm": {","}},
+	}
+
+	for _, header := range invalidHeaderTests {
+		_, err = ParseLXDFileHeaders(header)
+		if err == nil {
+			t.Fatalf("Parsed invalid headers %q", header)
+		}
+	}
+}
+
 func TestFileCopy(t *testing.T) {
 	helloWorld := []byte("hello world\n")
 	source, err := os.CreateTemp("", "")

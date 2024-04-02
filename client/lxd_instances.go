@@ -1492,12 +1492,16 @@ func (r *ProtocolLXD) GetInstanceFile(instanceName string, filePath string) (io.
 	}
 
 	// Parse the headers
-	uid, gid, mode, fileType, _ := shared.ParseLXDFileHeaders(resp.Header)
+	headers, err := shared.ParseLXDFileHeaders(resp.Header)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	fileResp := InstanceFileResponse{
-		UID:  uid,
-		GID:  gid,
-		Mode: mode,
-		Type: fileType,
+		UID:  headers.UID,
+		GID:  headers.GID,
+		Mode: headers.Mode,
+		Type: headers.Type,
 	}
 
 	if fileResp.Type == "directory" {
@@ -1591,6 +1595,24 @@ func (r *ProtocolLXD) CreateInstanceFile(instanceName string, filePath string, a
 
 	if args.WriteMode != "" {
 		req.Header.Set("X-LXD-write", args.WriteMode)
+	}
+
+	var modifyPerm []string
+
+	if args.UIDModifyExisting {
+		modifyPerm = append(modifyPerm, "uid")
+	}
+
+	if args.GIDModifyExisting {
+		modifyPerm = append(modifyPerm, "gid")
+	}
+
+	if args.ModeModifyExisting {
+		modifyPerm = append(modifyPerm, "mode")
+	}
+
+	if len(modifyPerm) != 0 && r.CheckExtension("instance_files_modify_permissions") == nil {
+		req.Header.Set("X-LXD-modify-perm", strings.Join(modifyPerm, ","))
 	}
 
 	// Send the request

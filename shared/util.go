@@ -257,6 +257,21 @@ func LogPath(path ...string) string {
 	return filepath.Join(items...)
 }
 
+// LXDFileHeaders is extracted from the `X-LXD-*` family of file permissions
+// headers.
+type LXDFileHeaders struct {
+	UID  int64
+	GID  int64
+	Mode int
+
+	GIDModifyExisting  bool
+	UIDModifyExisting  bool
+	ModeModifyExisting bool
+
+	Type  string
+	Write string
+}
+
 // ParseLXDFileHeaders parses and validates the `X-LXD-*` family of file
 // permissions headers.
 //   - `X-LXD-uid`, `X-LXD-gid`
@@ -268,41 +283,52 @@ func LogPath(path ...string) string {
 //     One of `file`, `symlink`, `directory`
 //   - `X-LXD-write`
 //     One of `overwrite`, `append`
-func ParseLXDFileHeaders(headers http.Header) (uid int64, gid int64, mode int, type_ string, write string) {
-	uid, err := strconv.ParseInt(headers.Get("X-LXD-uid"), 10, 32)
-	if err != nil {
-		uid = -1
-	}
+//   - `X-LXD-modify-perm`
+//     Comma separated list; 0 or more of `mode`, `uid`, `gid`
+func ParseLXDFileHeaders(headers http.Header) (*LXDFileHeaders, error) {
+	var uid, gid int64 = -1, -1
+	var mode = -1
+	var err error
 
-	gid, err = strconv.ParseInt(headers.Get("X-LXD-gid"), 10, 32)
-	if err != nil {
-		gid = -1
-	}
-
-	mode64, err := strconv.ParseInt(headers.Get("X-LXD-mode"), 10, 0)
-	if err != nil {
-		mode64 = -1
-	} else {
-		rawMode, err := strconv.ParseInt(headers.Get("X-LXD-mode"), 0, 0)
-		if err == nil {
-			mode64 = rawMode
+	rawUID := headers.Get("X-LXD-uid")
+	if rawUID != "" {
+		uid, err = strconv.ParseInt(rawUID, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid UID: %w", err)
 		}
 	}
 
-	mode = -1
-	if mode64 >= 0 {
+	rawGID := headers.Get("X-LXD-gid")
+	if rawGID != "" {
+		gid, err = strconv.ParseInt(rawGID, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid GID: %w", err)
+		}
+	}
+
+	rawMode := headers.Get("X-LXD-mode")
+	if rawMode != "" {
+		mode64, err := strconv.ParseInt(rawMode, 0, 0)
+		if err != nil || mode64 < 0 {
+			return nil, fmt.Errorf("Invalid Mode: %w", err)
+		}
+
 		mode = int(mode64 & int64(os.ModePerm))
 	}
 
-	type_ = headers.Get("X-LXD-type")
+	filetype := headers.Get("X-LXD-type")
 	/* backwards compat: before "type" was introduced, we could only
 	 * manipulate files
 	 */
-	if type_ == "" {
-		type_ = "file"
+	if filetype == "" {
+		filetype = "file"
 	}
 
-	write = headers.Get("X-LXD-write")
+	if !ValueInSlice(filetype, []string{"file", "symlink", "directory"}) {
+		return nil, fmt.Errorf("Invalid file type: %q", filetype)
+	}
+
+	write := headers.Get("X-LXD-write")
 	/* backwards compat: before "write" was introduced, we could only
 	 * overwrite files
 	 */
@@ -310,7 +336,40 @@ func ParseLXDFileHeaders(headers http.Header) (uid int64, gid int64, mode int, t
 		write = "overwrite"
 	}
 
-	return uid, gid, mode, type_, write
+	if !ValueInSlice(write, []string{"overwrite", "append"}) {
+		return nil, fmt.Errorf("Invalid file write mode: %q", write)
+	}
+
+	UIDModifyExisting := false
+	GIDModifyExisting := false
+	modeModifyExisting := false
+
+	modifyPermHeader := headers.Get("X-LXD-modify-perm")
+
+	if modifyPermHeader != "" {
+		for _, perm := range strings.Split(modifyPermHeader, ",") {
+			UIDModifyExisting = UIDModifyExisting || perm == "uid"
+			GIDModifyExisting = GIDModifyExisting || perm == "gid"
+			modeModifyExisting = modeModifyExisting || perm == "mode"
+
+			if !ValueInSlice(perm, []string{"uid", "gid", "mode"}) {
+				return nil, fmt.Errorf("Invalid modify-perm field: %q", perm)
+			}
+		}
+	}
+
+	return &LXDFileHeaders{
+		UID:  uid,
+		GID:  gid,
+		Mode: mode,
+
+		UIDModifyExisting:  UIDModifyExisting,
+		GIDModifyExisting:  GIDModifyExisting,
+		ModeModifyExisting: modeModifyExisting,
+
+		Type:  filetype,
+		Write: write,
+	}, nil
 }
 
 func ReaderToChannel(r io.Reader, bufferSize int) <-chan []byte {

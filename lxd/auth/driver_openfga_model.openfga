@@ -121,6 +121,7 @@ type project
     define can_delete_storage_buckets: [identity, service_account, group#member] or operator or storage_bucket_manager or can_edit_projects from server
     define can_view_operations: [identity, service_account, group#member] or operator or viewer or can_view_projects from server
     define can_view_events: [identity, service_account, group#member] or operator or viewer or can_view_projects from server
+    define can_view_metrics: [identity, service_account, group#member] or operator or viewer or can_view_metrics from server
 type image
   relations
     define project: [project]
