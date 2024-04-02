@@ -23,8 +23,8 @@ func (c *cmdLaunch) Command() *cobra.Command {
 	cmd.Short = i18n.G("Create and start instances from images")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Create and start instances from images`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc launch ubuntu:22.04 u1
+	cmd.Example = cli.FormatSection("", i18n.G(`lxc launch ubuntu:22.04 u1
+    Create and start a container
 
 lxc launch ubuntu:22.04 u1 < config.yaml
     Create and start a container with configuration from config.yaml
