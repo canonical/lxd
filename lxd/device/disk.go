@@ -129,7 +129,6 @@ func (d *disk) CanHotPlug() bool {
 	return true
 }
 
-// validateConfig checks the supplied config for correctness.
 // isRequired indicates whether the supplied device config requires this device to start OK.
 func (d *disk) isRequired(devConfig deviceConfig.Device) bool {
 	// Defaults to required.
