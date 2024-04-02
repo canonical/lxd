@@ -7,6 +7,13 @@ var LocalRemote = Remote{
 	Public: false,
 }
 
+// ImagesRemote is the main image server (over simplestreams).
+var ImagesRemote = Remote{
+	Addr:     "https://images.lxd.canonical.com",
+	Public:   true,
+	Protocol: "simplestreams",
+}
+
 // UbuntuRemote is the Ubuntu image server (over simplestreams).
 var UbuntuRemote = Remote{
 	Addr:     "https://cloud-images.ubuntu.com/releases",
@@ -42,6 +49,7 @@ var UbuntuMinimalDailyRemote = Remote{
 // StaticRemotes is the list of remotes which can't be removed.
 var StaticRemotes = map[string]Remote{
 	"local":                LocalRemote,
+	"images":               ImagesRemote,
 	"ubuntu":               UbuntuRemote,
 	"ubuntu-daily":         UbuntuDailyRemote,
 	"ubuntu-minimal":       UbuntuMinimalRemote,
