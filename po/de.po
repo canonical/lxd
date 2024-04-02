@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-03-27 11:10-0300\n"
+"POT-Creation-Date: 2024-04-02 18:01-0500\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Krombel <krombel@krombel.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -682,12 +682,12 @@ msgstr "%s (%d mehr)"
 msgid "%s (%s) (%d available)"
 msgstr "%s (%d mehr)"
 
-#: lxc/file.go:917
+#: lxc/file.go:924
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s ist kein Verzeichnis"
 
-#: lxc/file.go:807
+#: lxc/file.go:814
 #, c-format
 msgid "'%s' isn't a supported file type"
 msgstr "'%s' ist kein unterstützter Dateityp"
@@ -726,7 +726,7 @@ msgstr "--refresh kann nur mit Containern verwendet werden"
 msgid "--console only works with a single instance"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/init.go:126 lxc/rebuild.go:64
+#: lxc/init.go:130 lxc/rebuild.go:64
 msgid "--empty cannot be combined with an image name"
 msgstr ""
 
@@ -1046,7 +1046,7 @@ msgstr ""
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
-#: lxc/init.go:317 lxc/rebuild.go:131
+#: lxc/init.go:321 lxc/rebuild.go:131
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
@@ -1155,7 +1155,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:139 lxc/init.go:217 lxc/move.go:380 lxc/project.go:129
+#: lxc/copy.go:139 lxc/init.go:221 lxc/move.go:380 lxc/project.go:129
 #, fuzzy, c-format
 msgid "Bad key=value pair: %q"
 msgstr "Alternatives config Verzeichnis."
@@ -1429,7 +1429,7 @@ msgid "Cluster member %s removed from group %s"
 msgstr "Gerät %s wurde von %s entfernt\n"
 
 #: lxc/config.go:105 lxc/config.go:389 lxc/config.go:532 lxc/config.go:738
-#: lxc/config.go:861 lxc/copy.go:61 lxc/info.go:45 lxc/init.go:57
+#: lxc/config.go:861 lxc/copy.go:61 lxc/info.go:45 lxc/init.go:61
 #: lxc/move.go:66 lxc/network.go:300 lxc/network.go:723 lxc/network.go:792
 #: lxc/network.go:1134 lxc/network.go:1219 lxc/network.go:1283
 #: lxc/network_forward.go:170 lxc/network_forward.go:234
@@ -1495,7 +1495,7 @@ msgstr ""
 msgid "Compression algorithm to use (none for uncompressed)"
 msgstr ""
 
-#: lxc/copy.go:53 lxc/init.go:50
+#: lxc/copy.go:53 lxc/init.go:54
 #, fuzzy
 msgid "Config key/value to apply to the new instance"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -1691,7 +1691,7 @@ msgstr ""
 msgid "Create a cluster group"
 msgstr ""
 
-#: lxc/init.go:60
+#: lxc/init.go:64
 #, fuzzy
 msgid "Create a virtual machine"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -1700,7 +1700,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Create aliases for existing images"
 msgstr ""
 
-#: lxc/init.go:59
+#: lxc/init.go:63
 #, fuzzy
 msgid "Create an empty instance"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -1810,7 +1810,7 @@ msgstr "Fehlerhafte Profil URL %s"
 msgid "Create storage pools"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/copy.go:63 lxc/init.go:58
+#: lxc/copy.go:63 lxc/init.go:62
 #, fuzzy
 msgid "Create the instance with no profiles applied"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -1820,12 +1820,12 @@ msgstr "Anhalten des Containers fehlgeschlagen!"
 msgid "Created: %s"
 msgstr "Erstellt: %s"
 
-#: lxc/init.go:163
+#: lxc/init.go:167
 #, c-format
 msgid "Creating %s"
 msgstr "Erstelle %s"
 
-#: lxc/init.go:161
+#: lxc/init.go:165
 #, fuzzy
 msgid "Creating the instance"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -2011,7 +2011,7 @@ msgstr ""
 #: lxc/config_trust.go:534 lxc/config_trust.go:580 lxc/config_trust.go:651
 #: lxc/console.go:36 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:41
 #: lxc/export.go:32 lxc/file.go:78 lxc/file.go:118 lxc/file.go:167
-#: lxc/file.go:237 lxc/file.go:459 lxc/file.go:968 lxc/image.go:37
+#: lxc/file.go:237 lxc/file.go:459 lxc/file.go:975 lxc/image.go:37
 #: lxc/image.go:158 lxc/image.go:324 lxc/image.go:379 lxc/image.go:500
 #: lxc/image.go:664 lxc/image.go:897 lxc/image.go:1031 lxc/image.go:1350
 #: lxc/image.go:1434 lxc/image.go:1492 lxc/image.go:1543 lxc/image.go:1598
@@ -2167,7 +2167,7 @@ msgstr ""
 "Optionen:\n"
 "\n"
 
-#: lxc/init.go:377
+#: lxc/init.go:381
 #, fuzzy
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr ""
@@ -2181,7 +2181,7 @@ msgstr ""
 msgid "Directory to run the command in (default /root)"
 msgstr ""
 
-#: lxc/file.go:976
+#: lxc/file.go:983
 msgid "Disable authentication when using SSH SFTP listener"
 msgstr ""
 
@@ -2407,7 +2407,7 @@ msgstr ""
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr ""
 
-#: lxc/copy.go:56 lxc/init.go:53
+#: lxc/copy.go:56 lxc/init.go:57
 #, fuzzy
 msgid "Ephemeral instance"
 msgstr "Flüchtiger Container"
@@ -2570,12 +2570,12 @@ msgstr "FINGERABDRUCK"
 msgid "FIRST SEEN"
 msgstr ""
 
-#: lxc/file.go:1219
+#: lxc/file.go:1226
 #, c-format
 msgid "Failed SSH handshake with client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1242
+#: lxc/file.go:1249
 #, c-format
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
@@ -2590,12 +2590,12 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/file.go:1269
+#: lxc/file.go:1276
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1054
+#: lxc/file.go:1061
 #, fuzzy, c-format
 msgid "Failed connecting to instance SFTP: %w"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -2625,7 +2625,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Failed fetching fingerprint %q: %w"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/file.go:1175
+#: lxc/file.go:1182
 #, fuzzy, c-format
 msgid "Failed generating SSH host key: %w"
 msgstr "Akzeptiere Zertifikat"
@@ -2640,7 +2640,7 @@ msgstr ""
 msgid "Failed loading profile %q: %w"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/file.go:1180
+#: lxc/file.go:1187
 #, fuzzy, c-format
 msgid "Failed parsing SSH host key: %w"
 msgstr "Akzeptiere Zertifikat"
@@ -2650,12 +2650,12 @@ msgstr "Akzeptiere Zertifikat"
 msgid "Failed starting command: %w"
 msgstr "Akzeptiere Zertifikat"
 
-#: lxc/file.go:1080
+#: lxc/file.go:1087
 #, fuzzy, c-format
 msgid "Failed starting sshfs: %w"
 msgstr "Akzeptiere Zertifikat"
 
-#: lxc/file.go:1207
+#: lxc/file.go:1214
 #, fuzzy, c-format
 msgid "Failed to accept incoming connection: %w"
 msgstr "Akzeptiere Zertifikat"
@@ -2694,7 +2694,7 @@ msgstr "Akzeptiere Zertifikat"
 msgid "Failed to find project: %w"
 msgstr ""
 
-#: lxc/file.go:1192
+#: lxc/file.go:1199
 #, fuzzy, c-format
 msgid "Failed to listen for connection: %w"
 msgstr "Akzeptiere Zertifikat"
@@ -2709,7 +2709,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Failed to remove alias %s: %w"
 msgstr "Akzeptiere Zertifikat"
 
-#: lxc/file.go:802
+#: lxc/file.go:809
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -3057,22 +3057,22 @@ msgstr "Anhalten des Containers fehlgeschlagen!"
 msgid "Hugepages:\n"
 msgstr ""
 
-#: lxc/file.go:1292
+#: lxc/file.go:1299
 #, fuzzy, c-format
 msgid "I/O copy from SSH to instance failed: %v"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/file.go:1281
+#: lxc/file.go:1288
 #, fuzzy, c-format
 msgid "I/O copy from instance to SSH failed: %v"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/file.go:1104
+#: lxc/file.go:1111
 #, fuzzy, c-format
 msgid "I/O copy from instance to sshfs failed: %v"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/file.go:1114
+#: lxc/file.go:1121
 #, fuzzy, c-format
 msgid "I/O copy from sshfs to instance failed: %v"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -3268,12 +3268,12 @@ msgstr ""
 msgid "Instance Only"
 msgstr ""
 
-#: lxc/file.go:1106
+#: lxc/file.go:1113
 #, fuzzy
 msgid "Instance disconnected"
 msgstr "Entferntes Administrator Passwort"
 
-#: lxc/file.go:1283
+#: lxc/file.go:1290
 #, c-format
 msgid "Instance disconnected for client %q"
 msgstr ""
@@ -3282,7 +3282,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr ""
 
-#: lxc/init.go:388
+#: lxc/init.go:392
 #, c-format
 msgid "Instance name is: %s"
 msgstr ""
@@ -3291,7 +3291,7 @@ msgstr ""
 msgid "Instance name must be specified"
 msgstr ""
 
-#: lxc/file.go:1026
+#: lxc/file.go:1033
 msgid "Instance path cannot be used in SSH SFTP listener mode"
 msgstr ""
 
@@ -3305,7 +3305,7 @@ msgstr "Abbild mit Fingerabdruck %s importiert\n"
 msgid "Instance snapshots cannot be rebuilt: %s"
 msgstr ""
 
-#: lxc/init.go:56
+#: lxc/init.go:60
 msgid "Instance type"
 msgstr ""
 
@@ -3344,7 +3344,7 @@ msgstr "Ungültiges Ziel %s"
 msgid "Invalid instance name: %s"
 msgstr "Ungültige Quelle %s"
 
-#: lxc/file.go:1021
+#: lxc/file.go:1028
 #, fuzzy, c-format
 msgid "Invalid instance path: %q"
 msgstr "Ungültige Quelle %s"
@@ -4392,7 +4392,7 @@ msgstr "Kein Zertifikat für diese Verbindung"
 msgid "Missing storage pool name"
 msgstr "Profilname kann nicht geändert werden"
 
-#: lxc/file.go:586
+#: lxc/file.go:590
 msgid "Missing target directory"
 msgstr ""
 
@@ -4436,7 +4436,7 @@ msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Mehr als eine Datei herunterzuladen, aber das Ziel ist kein Verzeichnis"
 
-#: lxc/file.go:967 lxc/file.go:968
+#: lxc/file.go:974 lxc/file.go:975
 #, fuzzy
 msgid "Mount files from instances"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -4641,7 +4641,7 @@ msgstr "Profil %s erstellt\n"
 msgid "Network load balancer %s deleted"
 msgstr "Profil %s gelöscht\n"
 
-#: lxc/init.go:54
+#: lxc/init.go:58
 msgid "Network name"
 msgstr ""
 
@@ -4694,7 +4694,7 @@ msgstr ""
 msgid "New aliases to add to the image"
 msgstr ""
 
-#: lxc/copy.go:54 lxc/import.go:37 lxc/init.go:52 lxc/move.go:59
+#: lxc/copy.go:54 lxc/import.go:37 lxc/init.go:56 lxc/move.go:59
 #, fuzzy
 msgid "New key/value to apply to a specific device"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -4902,7 +4902,7 @@ msgstr "Erstellt: %s"
 msgid "Ports:"
 msgstr ""
 
-#: lxc/file.go:1084
+#: lxc/file.go:1091
 msgid "Press ctrl+c to finish"
 msgstr ""
 
@@ -4985,7 +4985,7 @@ msgstr "Profil %s wurde auf %s angewandt\n"
 msgid "Profile to apply to the new image"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/copy.go:55 lxc/init.go:51
+#: lxc/copy.go:55 lxc/init.go:55
 #, fuzzy
 msgid "Profile to apply to the new instance"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -5148,7 +5148,7 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Pull files from instances"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/file.go:408 lxc/file.go:749
+#: lxc/file.go:408 lxc/file.go:756
 #, c-format
 msgid "Pulling %s from %s: %%s"
 msgstr ""
@@ -5158,7 +5158,7 @@ msgstr ""
 msgid "Push files into instances"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/file.go:683 lxc/file.go:849
+#: lxc/file.go:690 lxc/file.go:856
 #, c-format
 msgid "Pushing %s to %s: %%s"
 msgstr ""
@@ -5498,7 +5498,7 @@ msgstr ""
 msgid "Retrieve the instance's console log"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/init.go:331
+#: lxc/init.go:335
 #, c-format
 msgid "Retrieving image: %s"
 msgstr ""
@@ -5550,12 +5550,12 @@ msgstr ""
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/file.go:1212
+#: lxc/file.go:1219
 #, c-format
 msgid "SSH client connected %q"
 msgstr ""
 
-#: lxc/file.go:1213
+#: lxc/file.go:1220
 #, fuzzy, c-format
 msgid "SSH client disconnected %q"
 msgstr "Entferntes Administrator Passwort"
@@ -5635,7 +5635,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Set a cluster member's configuration keys"
 msgstr "Alternatives config Verzeichnis."
 
-#: lxc/file.go:977
+#: lxc/file.go:984
 msgid "Set authentication user when using SSH SFTP listener"
 msgstr ""
 
@@ -5917,7 +5917,7 @@ msgstr "Anhalten des Containers fehlgeschlagen!"
 msgid "Set the key as an instance property"
 msgstr ""
 
-#: lxc/file.go:975
+#: lxc/file.go:982
 msgid "Setup SSH SFTP listener on address:port instead of mounting"
 msgstr ""
 
@@ -6263,7 +6263,7 @@ msgstr "Profil %s gelöscht\n"
 msgid "Storage pool %s pending on member %s"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/copy.go:60 lxc/import.go:36 lxc/init.go:55 lxc/move.go:65
+#: lxc/copy.go:60 lxc/import.go:36 lxc/init.go:59 lxc/move.go:65
 #, fuzzy
 msgid "Storage pool name"
 msgstr "Profilname kann nicht geändert werden"
@@ -6343,12 +6343,12 @@ msgstr ""
 msgid "Taken at"
 msgstr ""
 
-#: lxc/file.go:1014
+#: lxc/file.go:1021
 #, fuzzy
 msgid "Target path and --listen flag cannot be used together"
 msgstr "--refresh kann nur mit Containern verwendet werden"
 
-#: lxc/file.go:1008
+#: lxc/file.go:1015
 msgid "Target path must be a directory"
 msgstr ""
 
@@ -6402,7 +6402,7 @@ msgid ""
 "restarted"
 msgstr ""
 
-#: lxc/init.go:409
+#: lxc/init.go:413
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
 
@@ -6568,11 +6568,11 @@ msgstr "Wartezeit bevor der Container gestoppt wird."
 msgid "Timestamps:"
 msgstr "Zeitstempel:\n"
 
-#: lxc/init.go:411
+#: lxc/init.go:415
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr ""
 
-#: lxc/init.go:410
+#: lxc/init.go:414
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
@@ -6717,7 +6717,7 @@ msgstr "Neue entfernte Server hinzufügen"
 msgid "Unknown certificate type %q"
 msgstr "Unbekannter Befehl %s für Abbild"
 
-#: lxc/file.go:1235
+#: lxc/file.go:1242
 #, fuzzy, c-format
 msgid "Unknown channel type for client %q: %s"
 msgstr "Unbekannter Befehl %s für Abbild"
@@ -6733,7 +6733,7 @@ msgstr ""
 msgid "Unknown console type %q"
 msgstr "Unbekannter Befehl %s für Abbild"
 
-#: lxc/file.go:789
+#: lxc/file.go:796
 #, fuzzy, c-format
 msgid "Unknown file type '%s'"
 msgstr "Unbekannter Befehl %s für Abbild"
@@ -7610,7 +7610,7 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/file.go:966
+#: lxc/file.go:973
 #, fuzzy
 msgid "[<remote>:]<instance>[/<path>] [<target path>]"
 msgstr ""
@@ -8479,7 +8479,7 @@ msgid ""
 "    Download a backup tarball of the u1 instance."
 msgstr ""
 
-#: lxc/file.go:970
+#: lxc/file.go:977
 msgid ""
 "lxc file mount foo/root fooroot\n"
 "   To mount /root from the instance foo onto the local fooroot directory."
@@ -8525,14 +8525,19 @@ msgstr ""
 #: lxc/init.go:44
 msgid ""
 "lxc init ubuntu:22.04 u1\n"
+"    Create a container (but do not start it)\n"
 "\n"
 "lxc init ubuntu:22.04 u1 < config.yaml\n"
-"    Create the instance with configuration from config.yaml"
+"    Create a container with configuration from config.yaml\n"
+"\n"
+"lxc init ubuntu:22.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB\n"
+"    Create a virtual machine with 4 cpus and 4GiB of RAM"
 msgstr ""
 
 #: lxc/launch.go:26
 msgid ""
 "lxc launch ubuntu:22.04 u1\n"
+"    Create and start a container\n"
 "\n"
 "lxc launch ubuntu:22.04 u1 < config.yaml\n"
 "    Create and start a container with configuration from config.yaml\n"
@@ -8722,16 +8727,16 @@ msgstr ""
 msgid "space used"
 msgstr ""
 
-#: lxc/file.go:1124
+#: lxc/file.go:1131
 msgid "sshfs has stopped"
 msgstr ""
 
-#: lxc/file.go:1083
+#: lxc/file.go:1090
 #, c-format
 msgid "sshfs mounting %q on %q"
 msgstr ""
 
-#: lxc/file.go:1036
+#: lxc/file.go:1043
 msgid "sshfs not found. Try SSH SFTP mode using the --listen flag"
 msgstr ""
 
