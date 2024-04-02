@@ -109,7 +109,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	metricSet := metrics.NewMetricSet(nil)
 
 	var projectNames []string
-
+	var intMetrics *metrics.MetricSet
 	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Figure out the projects to retrieve.
 		if projectName != "" {
@@ -127,9 +127,8 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		// Add internal metrics.
-		metricSet.Merge(internalMetrics(ctx, s.StartTime, tx))
-
+		// Register internal metrics.
+		intMetrics = internalMetrics(ctx, s.StartTime, tx)
 		return nil
 	})
 	if err != nil {
@@ -228,23 +227,6 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		allProjectInstances[instance.Project().Name][instance.Type()]++
 	}
 
-	for project, instanceCountMap := range allProjectInstances {
-		metricSet.AddSamples(
-			metrics.Containers,
-			metrics.Sample{
-				Labels: map[string]string{"project": project},
-				Value:  float64(instanceCountMap[instancetype.Container]),
-			},
-		)
-		metricSet.AddSamples(
-			metrics.VMs,
-			metrics.Sample{
-				Labels: map[string]string{"project": project},
-				Value:  float64(instanceCountMap[instancetype.VM]),
-			},
-		)
-	}
-
 	// Prepare temporary metrics storage.
 	newMetrics := make(map[string]*metrics.MetricSet, len(projectsToFetch))
 	newMetricsLock := sync.Mutex{}
@@ -268,6 +250,12 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 					// Ignore stopped instances.
 					if !errors.Is(err, instanceDrivers.ErrInstanceIsStopped) {
 						logger.Warn("Failed getting instance metrics", logger.Ctx{"instance": inst.Name(), "project": projectName, "err": err})
+					} else {
+						// If the instance is stopped, we still need to add the project to the cache.
+						// to fetch associated counter metrics.
+						if newMetrics[projectName] == nil {
+							newMetrics[projectName] = metrics.NewMetricSet(nil)
+						}
 					}
 				} else {
 					// Add the metrics.
@@ -304,8 +292,40 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		metricsCache = map[string]metricsCacheEntry{}
 	}
 
+	// Add counter metrics for instances to the metric cache.
+	// We need to do create a distinct metric set for each project.
+	counterMetrics := make(map[string]*metrics.MetricSet, len(allProjectInstances))
+	for project, instanceCountMap := range allProjectInstances {
+		counterMetricSetPerProject := metrics.NewMetricSet(nil)
+		counterMetricSetPerProject.AddSamples(
+			metrics.Instances,
+			metrics.Sample{
+				Labels: map[string]string{"project": project, "type": instancetype.Container.String()},
+				Value:  float64(instanceCountMap[instancetype.Container]),
+			},
+		)
+		counterMetricSetPerProject.AddSamples(
+			metrics.Instances,
+			metrics.Sample{
+				Labels: map[string]string{"project": project, "type": instancetype.VM.String()},
+				Value:  float64(instanceCountMap[instancetype.VM]),
+			},
+		)
+
+		counterMetrics[project] = counterMetricSetPerProject
+	}
+
 	updatedProjects := []string{}
 	for project, entries := range newMetrics {
+		if project == "default" {
+			entries.Merge(intMetrics) // internal metrics are always considered new. Add them to the default project.
+		}
+
+		counterMetric, ok := counterMetrics[project]
+		if ok {
+			entries.Merge(counterMetric)
+		}
+
 		metricsCache[project] = metricsCacheEntry{
 			expiry:  time.Now().Add(cacheDuration),
 			metrics: entries,
