@@ -4,6 +4,7 @@ package db_test
 
 import (
 	"context"
+	"net/http"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -145,7 +147,7 @@ func TestRenameNode(t *testing.T) {
 	_, err = tx.CreateNode("buzz", "5.6.7.8:666")
 	require.NoError(t, err)
 	err = tx.RenameNode(context.Background(), "rusp", "buzz")
-	assert.Equal(t, db.ErrAlreadyDefined, err)
+	assert.True(t, api.StatusErrorCheck(err, http.StatusConflict))
 }
 
 // Remove a new raft node.

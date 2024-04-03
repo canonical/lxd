@@ -4,6 +4,7 @@ package db_test
 
 import (
 	"context"
+	"net/http"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/shared/api"
 )
 
 func init() {
@@ -151,7 +153,7 @@ func TestStoragePoolsCreatePending_AlreadyDefined(t *testing.T) {
 	require.NoError(t, err)
 
 	err = tx.CreatePendingStoragePool(context.Background(), "buzz", "pool1", "dir", map[string]string{})
-	require.Equal(t, db.ErrAlreadyDefined, err)
+	assert.True(t, api.StatusErrorCheck(err, http.StatusConflict))
 }
 
 // If no node with the given name is found, an error is returned.
