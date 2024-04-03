@@ -381,7 +381,7 @@ func (c *ClusterTx) RenameNode(ctx context.Context, old string, new string) erro
 	}
 
 	if count != 0 {
-		return ErrAlreadyDefined
+		return api.StatusErrorf(http.StatusConflict, "A cluster member already exists with name %q", new)
 	}
 
 	stmt := `UPDATE nodes SET name=? WHERE name=?`

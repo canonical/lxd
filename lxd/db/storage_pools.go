@@ -320,7 +320,7 @@ func (c *ClusterTx) CreatePendingStoragePool(ctx context.Context, node string, n
 	}
 
 	if count != 0 {
-		return ErrAlreadyDefined
+		return api.StatusErrorf(http.StatusConflict, "A storage pool already exists with name %q", name)
 	}
 
 	// Insert a node-specific entry pointing to ourselves with state storagePoolPending.
