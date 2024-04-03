@@ -320,3 +320,7 @@ endif
 
 tags: */*.go
 	find . -type f -name '*.go' | gotags -L - -f tags
+
+.PHONY: update-auth
+update-auth:
+	go generate ./lxd/auth
