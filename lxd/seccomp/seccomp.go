@@ -100,6 +100,7 @@ struct lxd_seccomp_data_arch {
 	int nr_bpf;
 	int nr_sched_setscheduler;
 	int nr_sysinfo;
+	int nr_finit_module;
 };
 
 #define LXD_SECCOMP_NOTIFY_MKNOD    0
@@ -109,66 +110,67 @@ struct lxd_seccomp_data_arch {
 #define LXD_SECCOMP_NOTIFY_BPF 4
 #define LXD_SECCOMP_NOTIFY_SCHED_SETSCHEDULER 5
 #define LXD_SECCOMP_NOTIFY_SYSINFO 6
+#define LXD_SECCOMP_NOTIFY_FINIT_MODULE 7
 
 // ordered by likelihood of usage...
 static const struct lxd_seccomp_data_arch seccomp_notify_syscall_table[] = {
-	{ -1, LXD_SECCOMP_NOTIFY_MKNOD, LXD_SECCOMP_NOTIFY_MKNODAT, LXD_SECCOMP_NOTIFY_SETXATTR, LXD_SECCOMP_NOTIFY_MOUNT, LXD_SECCOMP_NOTIFY_BPF, LXD_SECCOMP_NOTIFY_SCHED_SETSCHEDULER, LXD_SECCOMP_NOTIFY_SYSINFO},
+	{ -1, LXD_SECCOMP_NOTIFY_MKNOD, LXD_SECCOMP_NOTIFY_MKNODAT, LXD_SECCOMP_NOTIFY_SETXATTR, LXD_SECCOMP_NOTIFY_MOUNT, LXD_SECCOMP_NOTIFY_BPF, LXD_SECCOMP_NOTIFY_SCHED_SETSCHEDULER, LXD_SECCOMP_NOTIFY_SYSINFO, LXD_SECCOMP_NOTIFY_FINIT_MODULE },
 #ifdef AUDIT_ARCH_X86_64
-	{ AUDIT_ARCH_X86_64,      133, 259, 188, 165, 321, 144, 99 },
+	{ AUDIT_ARCH_X86_64,       133, 259, 188, 165, 321, 144, 99, 313 },
 #endif
 #ifdef AUDIT_ARCH_I386
-	{ AUDIT_ARCH_I386,         14, 297, 226,  21, 357, 156, 116 },
+	{ AUDIT_ARCH_I386,         14, 297, 226,  21, 357, 156, 116, 350 },
 #endif
 #ifdef AUDIT_ARCH_AARCH64
-	{ AUDIT_ARCH_AARCH64,      -1,  33,   5,  21, 386, 156, 179 },
+	{ AUDIT_ARCH_AARCH64,      -1,  33,   5,  21, 386, 156, 179, 273 },
 #endif
 #ifdef AUDIT_ARCH_ARM
-	{ AUDIT_ARCH_ARM,          14, 324, 226,  21, 386, 156, 116 },
+	{ AUDIT_ARCH_ARM,          14, 324, 226,  21, 386, 156, 116, 379 },
 #endif
 #ifdef AUDIT_ARCH_ARMEB
-	{ AUDIT_ARCH_ARMEB,        14, 324, 226,  21, 386, 156, 116 },
+	{ AUDIT_ARCH_ARMEB,        14, 324, 226,  21, 386, 156, 116, 379 },
 #endif
 #ifdef AUDIT_ARCH_S390
-	{ AUDIT_ARCH_S390,         14, 290, 224,  21, 386, 156, 116 },
+	{ AUDIT_ARCH_S390,         14, 290, 224,  21, 386, 156, 116, 344 },
 #endif
 #ifdef AUDIT_ARCH_S390X
-	{ AUDIT_ARCH_S390X,        14, 290, 224,  21, 351, 156, 116 },
+	{ AUDIT_ARCH_S390X,        14, 290, 224,  21, 351, 156, 116, 344 },
 #endif
 #ifdef AUDIT_ARCH_PPC
-	{ AUDIT_ARCH_PPC,          14, 288, 209,  21, 361, 156, 116 },
+	{ AUDIT_ARCH_PPC,          14, 288, 209,  21, 361, 156, 116, 353 },
 #endif
 #ifdef AUDIT_ARCH_PPC64
-	{ AUDIT_ARCH_PPC64,        14, 288, 209,  21, 361, 156, 116 },
+	{ AUDIT_ARCH_PPC64,        14, 288, 209,  21, 361, 156, 116, 353 },
 #endif
 #ifdef AUDIT_ARCH_PPC64LE
-	{ AUDIT_ARCH_PPC64LE,      14, 288, 209,  21, 361, 156, 116 },
+	{ AUDIT_ARCH_PPC64LE,      14, 288, 209,  21, 361, 156, 116, 353 },
 #endif
 #ifdef AUDIT_ARCH_RISCV64
-	{ AUDIT_ARCH_RISCV64,      -1,  33,   5,  40, 280, -1, 179 },
+	{ AUDIT_ARCH_RISCV64,      -1,  33,   5,  40, 280, -1, 179, 273 },
 #endif
 #ifdef AUDIT_ARCH_SPARC
-	{ AUDIT_ARCH_SPARC,        14, 286, 169, 167, 349, 243, 214 },
+	{ AUDIT_ARCH_SPARC,        14, 286, 169, 167, 349, 243, 214, 342 },
 #endif
 #ifdef AUDIT_ARCH_SPARC64
-	{ AUDIT_ARCH_SPARC64,      14, 286, 169, 167, 349, 243, 214 },
+	{ AUDIT_ARCH_SPARC64,      14, 286, 169, 167, 349, 243, 214, 342 },
 #endif
 #ifdef AUDIT_ARCH_MIPS
-	{ AUDIT_ARCH_MIPS,         14, 290, 224,  21,  -1, 141, 4116 },
+	{ AUDIT_ARCH_MIPS,         14, 290, 224,  21,  -1, 141, 4116, 4348 },
 #endif
 #ifdef AUDIT_ARCH_MIPSEL
-	{ AUDIT_ARCH_MIPSEL,       14, 290, 224,  21,  -1, 141, 4116 },
+	{ AUDIT_ARCH_MIPSEL,       14, 290, 224,  21,  -1, 141, 4116, 4348 },
 #endif
 #ifdef AUDIT_ARCH_MIPS64
-	{ AUDIT_ARCH_MIPS64,      131, 249, 180, 160,  -1, 141, 5097 },
+	{ AUDIT_ARCH_MIPS64,      131, 249, 180, 160,  -1, 141, 5097, 5307 },
 #endif
 #ifdef AUDIT_ARCH_MIPS64N32
-	{ AUDIT_ARCH_MIPS64N32,   131, 253, 180, 160,  -1, 141, 4116 },
+	{ AUDIT_ARCH_MIPS64N32,   131, 253, 180, 160,  -1, 141, 4116, 6312 },
 #endif
 #ifdef AUDIT_ARCH_MIPSEL64
-	{ AUDIT_ARCH_MIPSEL64,    131, 249, 180, 160,  -1, 141, 5097 },
+	{ AUDIT_ARCH_MIPSEL64,    131, 249, 180, 160,  -1, 141, 5097, 5307 },
 #endif
 #ifdef AUDIT_ARCH_MIPSEL64N32
-	{ AUDIT_ARCH_MIPSEL64N32, 131, 253, 180, 160,  -1, 141, 4116 },
+	{ AUDIT_ARCH_MIPSEL64N32, 131, 253, 180, 160,  -1, 141, 4116, 6312 },
 #endif
 };
 
@@ -208,6 +210,9 @@ static int seccomp_notify_get_syscall(struct seccomp_notif *req,
 
 		if (entry->nr_sysinfo == req->data.nr)
 			return LXD_SECCOMP_NOTIFY_SYSINFO;
+
+		if (entry->nr_finit_module == req->data.nr)
+			return LXD_SECCOMP_NOTIFY_FINIT_MODULE;
 
 		break;
 	}
@@ -463,6 +468,7 @@ static bool lxd_pid_cap_is_set(pid_t pid, cap_value_t cap, cap_flag_t flag)
 import "C"
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -486,6 +492,7 @@ import (
 	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/subprocess"
 	"github.com/canonical/lxd/lxd/ucred"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -502,6 +509,7 @@ const lxdSeccompNotifyMount = C.LXD_SECCOMP_NOTIFY_MOUNT
 const lxdSeccompNotifyBpf = C.LXD_SECCOMP_NOTIFY_BPF
 const lxdSeccompNotifySchedSetscheduler = C.LXD_SECCOMP_NOTIFY_SCHED_SETSCHEDULER
 const lxdSeccompNotifySysinfo = C.LXD_SECCOMP_NOTIFY_SYSINFO
+const lxdSeccompNotifyFinitModule = C.LXD_SECCOMP_NOTIFY_FINIT_MODULE
 
 const seccompHeader = `2
 `
@@ -511,7 +519,6 @@ const defaultSeccompPolicy = `reject_force_umount  # comment this to allow umoun
 kexec_load errno 38
 open_by_handle_at errno 38
 init_module errno 38
-finit_module errno 38
 delete_module errno 38
 `
 
@@ -534,6 +541,9 @@ const seccompNotifySchedSetscheduler = `sched_setscheduler notify
 `
 
 const seccompNotifySysinfo = `sysinfo notify
+`
+
+const seccompNotifyModule = `finit_module notify
 `
 
 const seccompBlockNewMountAPI = `fsopen errno 38
@@ -1875,6 +1885,197 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 	return 0
 }
 
+type nullWriteCloser struct {
+	*bytes.Buffer
+}
+
+// Close is a no-op closer implementation
+func (nwc *nullWriteCloser) Close() error {
+	return nil
+}
+
+// HandleFinitModuleSyscall handles finit_module syscalls.
+func (s *Server) HandleFinitModuleSyscall(c Instance, siov *Iovec) int {
+	ctx := logger.Ctx{"container": c.Name(),
+		"project":               c.Project().Name,
+		"syscall_number":        siov.req.data.nr,
+		"audit_architecture":    siov.req.data.arch,
+		"seccomp_notify_id":     siov.req.id,
+		"seccomp_notify_flags":  siov.req.flags,
+		"seccomp_notify_pid":    siov.req.pid,
+		"seccomp_notify_fd":     siov.notifyFd,
+		"seccomp_notify_mem_fd": siov.memFd,
+	}
+
+	defer logger.Debug("Handling finit_module syscall", ctx)
+
+	// int fd
+	fd := C.int(siov.req.data.args[0])
+
+	// const char *param_values
+	cBuf := [4096]C.char{}
+	_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&cBuf[0]), C.size_t(4096), C.off_t(siov.req.data.args[1]))
+	if err != nil {
+		ctx["err"] = fmt.Sprintf("Failed to read memory for finit_module syscall: %s", err)
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
+		return int(-C.EFAULT)
+	}
+
+	paramValues := C.GoString(&cBuf[0])
+
+	// disallow specifying module parameters, because
+	// for some modules parameters can be dangerous.
+	// Some modules have parameters like "debug" which can
+	// turn on dangerous debugging features or create performance issues.
+	if string(paramValues) != "" {
+		ctx["err"] = "Forbid setting module parameters"
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
+		return int(-C.EPERM)
+	}
+
+	// int flags
+	flags := C.int(siov.req.data.args[2])
+
+	// disallow specifying flags, because it's not safe:
+	// - MODULE_INIT_IGNORE_MODVERSIONS
+	// - MODULE_INIT_IGNORE_VERMAGIC
+	// this can allow to load a kernel module which is incompatible
+	// with the running kernel and trigger host system crash.
+	if flags != 0 {
+		ctx["err"] = "Forbid setting flags in finit_module()"
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
+		return int(-C.EPERM)
+	}
+
+	containerInitPID := int(siov.msg.init_pid)
+	targetPID := int(siov.req.pid)
+
+	ctInitUserNS, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/user", containerInitPID))
+	if err != nil {
+		ctx["err"] = fmt.Sprintf("Can't get userns for ct init process: %v", err)
+		return int(-C.EPERM)
+	}
+
+	reqUserNS, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/user", targetPID))
+	if err != nil {
+		ctx["err"] = fmt.Sprintf("Can't get userns for requestor process: %v", err)
+		return int(-C.EPERM)
+	}
+
+	ctx["param_values"] = string(paramValues)
+
+	// nested container?
+	if ctInitUserNS != reqUserNS {
+		ctx["err"] = "finit_module() from nested container is forbidden"
+		return int(-C.EPERM)
+	}
+
+	// has CAP_SYS_MODULE capability?
+	if !C.lxd_pid_cap_is_set(C.int(targetPID), C.CAP_SYS_MODULE, C.CAP_EFFECTIVE) {
+		ctx["err"] = "requestor process creds lacks CAP_SYS_MODULE"
+		return int(-C.EPERM)
+	}
+
+	moduleFileFD, err := unix.Openat(siov.procFd, fmt.Sprintf("fd/%d", fd), unix.O_RDONLY|unix.O_CLOEXEC, 0)
+	if err != nil {
+		ctx["err"] = fmt.Sprintf("Can't open module file (unix.Openat): %v", err)
+		return int(-C.EPERM)
+	}
+
+	moduleFile := os.NewFile(uintptr(moduleFileFD), "/proc/<pid>/fd/<fd>")
+	if moduleFile == nil {
+		ctx["err"] = fmt.Sprintf("Can't open module file (os.NewFile): %v", err)
+		return int(-C.EPERM)
+	}
+
+	defer func() { _ = moduleFile.Close() }()
+
+	forksyscallgoargs := []string{
+		"forksyscallgo",
+		"finit_module_parse",         // <syscall_operation>
+		fmt.Sprintf("%d", targetPID), // <PID>
+		fmt.Sprintf("%d", 0),         // <PidFd>
+		fmt.Sprintf("%d", 3),         // <module_fd>
+	}
+
+	var buffer bytes.Buffer
+	var output bytes.Buffer
+	p := subprocess.NewProcessWithFds(util.GetExecPath(), forksyscallgoargs, nil,
+		&nullWriteCloser{&output}, &nullWriteCloser{&buffer})
+
+	// We want to drop privileges, as we use "debug/elf" Golang
+	// package which is considered as not safe for production use.
+	// By spawning an unprivileged process we can safely use this package.
+	p.SetCreds(s.s.OS.UnprivUID, s.s.OS.UnprivGID)
+
+	// Let's set timeout for the helper process.
+	// It's just a precautionary measure to prevent blocakge of a syscall interception
+	// daemon if anything goes wrong inside the debug/elf Golang package internals.
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	err = p.StartWithFiles(timeoutCtx, []*os.File{moduleFile})
+	if err != nil {
+		ctx["err"] = fmt.Sprintf("Can't open module file: %v", err)
+		return int(-C.EPERM)
+	}
+
+	exitCode, err := p.Wait(context.TODO())
+	if err != nil || exitCode != 0 {
+		ctx["err"] = fmt.Sprintf("forksyscallgo finit_module_parse helper failed. Err: %v exitCode: %d stdout: %s stderr: %s",
+			err, exitCode, output.String(), buffer.String())
+		return int(-C.EPERM)
+	}
+
+	moduleName := output.String()
+	ctx["module_name"] = moduleName
+
+	// Check that this module is in the allowlist
+	inAllowList := false
+	kernelModules := c.ExpandedConfig()["linux.kernel_modules"]
+	if kernelModules != "" {
+		for _, module := range strings.Split(kernelModules, ",") {
+			module = strings.TrimPrefix(module, " ")
+
+			if module == moduleName {
+				inAllowList = true
+			}
+		}
+	}
+
+	if !inAllowList {
+		ctx["err"] = fmt.Sprintf("Module %q is not in allowlist (linux.kernel_modules)", moduleName)
+		return int(-C.EPERM)
+	}
+
+	if shared.PathExists(fmt.Sprintf("/sys/module/%s", moduleName)) {
+		return int(-C.EEXIST)
+	}
+
+	err = util.LoadModule(moduleName)
+	if err != nil {
+		ctx["err"] = fmt.Sprintf("Failed to load module %q: %v", moduleName, err)
+		return int(-C.EPERM)
+	}
+
+	return 0
+}
+
 // MountArgs arguments for mount.
 type MountArgs struct {
 	source    string
@@ -2313,6 +2514,8 @@ func (s *Server) handleSyscall(c Instance, siov *Iovec) int {
 		return s.HandleSchedSetschedulerSyscall(c, siov)
 	case lxdSeccompNotifySysinfo:
 		return s.HandleSysinfoSyscall(c, siov)
+	case lxdSeccompNotifyFinitModule:
+		return s.HandleFinitModuleSyscall(c, siov)
 	}
 
 	return int(-C.EINVAL)
