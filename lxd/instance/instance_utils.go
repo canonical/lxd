@@ -974,7 +974,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 		return nil
 	})
 	if err != nil {
-		if err == db.ErrAlreadyDefined {
+		if api.StatusErrorCheck(err, http.StatusConflict) {
 			thing := "Instance"
 			if shared.IsSnapshot(args.Name) {
 				thing = "Snapshot"
