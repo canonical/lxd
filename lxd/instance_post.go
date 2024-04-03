@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"maps"
 	"net/http"
 	"net/url"
@@ -223,35 +221,88 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return operations.OperationResponse(op)
 	}
 
-	// Run the cluster placement after potentially forwarding the request to another member.
-	if target != "" && s.ServerClustered {
+	// Start handling migrations.
+	if inst.IsSnapshot() {
+		return response.BadRequest(errors.New("Instance snapshots cannot be moved on their own"))
+	}
+
+	// Checks for running instances.
+	if inst.IsRunning() && (req.Pool != "" || req.Project != "" || target != "") {
+		// Stateless migrations need the instance stopped.
+		if !req.Live {
+			return response.BadRequest(errors.New("Instance must be stopped to be moved statelessly"))
+		}
+
+		// Storage pool changes require a stopped instance.
+		if req.Pool != "" {
+			return response.BadRequest(errors.New("Instance must be stopped to be moved across storage pools"))
+		}
+
+		// Project changes require a stopped instance.
+		if req.Project != "" {
+			return response.BadRequest(errors.New("Instance must be stopped to be moved across projects"))
+		}
+
+		// Name changes require a stopped instance.
+		if req.Name != "" {
+			return response.BadRequest(errors.New("Instance must be stopped to change their names"))
+		}
+	} else {
+		// Clear Live flag if instance isn't running.
+		req.Live = false
+	}
+
+	// Check for offline sources.
+	if sourceMemberInfo != nil && sourceMemberInfo.IsOffline(s.GlobalConfig.OfflineThreshold()) && (req.Pool != "" || req.Project != "" || req.Name != "") {
+		return response.BadRequest(errors.New("Instance server is currently offline"))
+	}
+
+	// When in a cluster, default to keeping current location.
+	if instLocation == "" && inst.Location() != "" {
+		instLocation = inst.Location()
+	}
+
+	// If clustered, consider a new location for the instance.
+	var targetMemberInfo *db.NodeInfo
+	var targetCandidates []db.NodeInfo
+	if s.ServerClustered && (target != "" || req.Project != "") {
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			p, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
+			var targetGroupName string
+
+			// Load the target project.
+			p, err := dbCluster.GetProject(ctx, tx.Tx(), instProject)
 			if err != nil {
 				return err
 			}
 
-			targetProject, err = p.ToAPI(ctx, tx.Tx())
+			targetProject, err := p.ToAPI(ctx, tx.Tx())
 			if err != nil {
 				return err
 			}
 
+			// Load the cluster members.
 			allMembers, err := tx.GetNodes(ctx)
 			if err != nil {
 				return fmt.Errorf("Failed getting cluster members: %w", err)
 			}
 
-			var targetGroupName string
+			// Check if the current location is fine.
+			targetMemberInfo, _, err = limits.CheckTarget(ctx, s.Authorizer, tx, targetProject, instLocation, allMembers)
+			if err == nil && targetMemberInfo != nil {
+				return nil
+			}
 
+			// If we must change location, validate access to requested member/group (if provided).
 			targetMemberInfo, targetGroupName, err = limits.CheckTarget(ctx, s.Authorizer, tx, targetProject, target, allMembers)
 			if err != nil {
 				return err
 			}
 
+			// If no specific server, get a list of allowed candidates.
 			if targetMemberInfo == nil {
 				clusterGroupsAllowed := limits.GetRestrictedClusterGroups(targetProject)
 
-				candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, []int{inst.Architecture()}, targetGroupName, clusterGroupsAllowed, s.GlobalConfig.OfflineThreshold())
+				targetCandidates, err = tx.GetCandidateMembers(ctx, allMembers, []int{inst.Architecture()}, targetGroupName, clusterGroupsAllowed, s.GlobalConfig.OfflineThreshold())
 				if err != nil {
 					return err
 				}
@@ -263,6 +314,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
+		// If no specific server and a placement scriplet exists, call it with the candidates.
 		if targetMemberInfo == nil && s.GlobalConfig.InstancesPlacementScriptlet() != "" {
 			leaderInfo, err := s.LeaderInfo()
 			if err != nil {
@@ -282,7 +334,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				Reason:  apiScriptlet.InstancePlacementReasonRelocation,
 			}
 
-			targetMemberInfo, err = scriptlet.InstancePlacementRun(r.Context(), logger.Log, s, &req, candidateMembers, leaderInfo.Address)
+			targetMemberInfo, err = scriptlet.InstancePlacementRun(r.Context(), logger.Log, s, &req, targetCandidates, leaderInfo.Address)
 			if err != nil {
 				return response.BadRequest(fmt.Errorf("Failed instance placement scriptlet: %w", err))
 			}
@@ -294,7 +346,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 			// The instance might already be placed on the node with least number of instances.
 			// Therefore remove it from the list of possible candidates if existent.
-			for _, candidateMember := range candidateMembers {
+			for _, candidateMember := range targetCandidates {
 				if candidateMember.Name != inst.Location() {
 					filteredCandidateMembers = append(filteredCandidateMembers, candidateMember)
 				}
@@ -314,140 +366,44 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return response.InternalError(err)
+	// Check that we're not requested to move to the same location we're currently on.
+	if target != "" && targetMemberInfo.Name == inst.Location() {
+		return response.BadRequest(errors.New("Requested target server is the same as current server"))
 	}
 
-	rdr1 := io.NopCloser(bytes.NewBuffer(body))
-	rdr2 := io.NopCloser(bytes.NewBuffer(body))
-
-	reqRaw := shared.Jmap{}
-	err = json.NewDecoder(rdr1).Decode(&reqRaw)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	req := api.InstancePost{}
-	err = json.NewDecoder(rdr2).Decode(&req)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	// Check if stateful indicator supplied and default to true if not (for backward compatibility).
-	_, err = reqRaw.GetBool("live")
-	if err != nil {
-		req.Live = true
-	}
-
-	// If new instance name not supplied, assume it will be keeping its current name.
-	if req.Name == "" {
-		req.Name = inst.Name()
-	}
-
-	// Check the new instance name is valid.
-	err = instancetype.ValidName(req.Name, false)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	if req.Migration {
-		// Server-side instance migration.
-		if req.Pool != "" || req.Project != "" {
-			// Check if user has access to target project.
-			if req.Project != "" {
-				err := s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(req.Project), auth.EntitlementCanCreateInstances)
-				if err != nil {
-					return response.SmartError(err)
-				}
-			}
-
-			// Setup the instance move operation.
-			run := func(op *operations.Operation) error {
-				return instancePostMigration(s, inst, req, op)
-			}
-
-			resources := map[string][]api.URL{}
-			resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-			op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil)
-			if err != nil {
-				return response.InternalError(err)
-			}
-
-			return operations.OperationResponse(op)
-		}
-
-		if targetMemberInfo != nil {
-			var backups []string
-
-			// Check if instance has backups.
-			err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-				backups, err = tx.GetInstanceBackups(ctx, projectName, name)
-				return err
-			})
-			if err != nil {
-				err = fmt.Errorf("Failed to fetch instance's backups: %w", err)
-				return response.SmartError(err)
-			}
-
-			if len(backups) > 0 {
-				return response.BadRequest(errors.New("Instance has backups"))
-			}
-
-			run := func(op *operations.Operation) error {
-				return migrateInstance(r.Context(), s, inst, targetMemberInfo.Name, req, op)
-			}
-
-			resources := map[string][]api.URL{}
-			resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-
-			if inst.Type() == instancetype.Container {
-				resources["containers"] = resources["instances"]
-			}
-
-			op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil)
-			if err != nil {
-				return response.InternalError(err)
-			}
-
-			return operations.OperationResponse(op)
-		}
-
-		// We keep the req.ContainerOnly for backward compatibility.
-		instanceOnly := req.InstanceOnly || req.ContainerOnly //nolint:staticcheck,unused
-		ws, err := newMigrationSource(inst, req.Live, instanceOnly, req.AllowInconsistent, "", req.Target)
+	// If the instance needs to move, make sure it doesn't have backups.
+	if targetMemberInfo != nil && targetMemberInfo.Name != inst.Location() {
+		// Check if instance has backups.
+		var backups []string
+		err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			backups, err = tx.GetInstanceBackups(ctx, projectName, name)
+			return err
+		})
 		if err != nil {
-			return response.InternalError(err)
+			err = fmt.Errorf("Failed to fetch instance's backups: %w", err)
+			return response.SmartError(err)
+		}
+
+		if len(backups) > 0 {
+			return response.BadRequest(errors.New("Instances with backups cannot be moved"))
+		}
+	}
+
+	// Server-side instance migration.
+	if req.Pool != "" || req.Project != "" || target != "" {
+		// Clear targetMemberInfo if no target change required.
+		if targetMemberInfo != nil && inst.Location() == targetMemberInfo.Name {
+			targetMemberInfo = nil
+		}
+
+		// Setup the instance move operation.
+		run := func(op *operations.Operation) error {
+			return instancePostMigration(s, inst, req, op)
 		}
 
 		resources := map[string][]api.URL{}
 		resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-
-		if inst.Type() == instancetype.Container {
-			resources["containers"] = resources["instances"]
-		}
-
-		run := func(op *operations.Operation) error {
-			return ws.Do(s, op)
-		}
-
-		cancel := func(op *operations.Operation) error {
-			ws.disconnect()
-			return nil
-		}
-
-		if req.Target != nil {
-			// Push mode.
-			op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil)
-			if err != nil {
-				return response.InternalError(err)
-			}
-
-			return operations.OperationResponse(op)
-		}
-
-		// Pull mode.
-		op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassWebsocket, operationtype.InstanceMigrate, resources, ws.Metadata(), run, cancel, ws.Connect)
+		op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -455,30 +411,35 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return operations.OperationResponse(op)
 	}
 
-	var id int
-
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// Check that the name isn't already in use.
-		id, _ = tx.GetInstanceID(ctx, projectName, req.Name)
-
-		return nil
-	})
-	if id > 0 {
-		return response.Conflict(fmt.Errorf("Name %q already in use", req.Name))
-	}
-
-	run := func(*operations.Operation) error {
-		return inst.Rename(req.Name, true)
+	// Cross-server instance migration.
+	ws, err := newMigrationSource(inst, req.Live, req.InstanceOnly, req.AllowInconsistent, "", req.Target)
+	if err != nil {
+		return response.InternalError(err)
 	}
 
 	resources := map[string][]api.URL{}
 	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-
-	if inst.Type() == instancetype.Container {
-		resources["containers"] = resources["instances"]
+	run := func(op *operations.Operation) error {
+		return ws.Do(s, op)
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceRename, resources, nil, run, nil, nil)
+	cancel := func(op *operations.Operation) error {
+		ws.disconnect()
+		return nil
+	}
+
+	if req.Target != nil {
+		// Push mode.
+		op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		return operations.OperationResponse(op)
+	}
+
+	// Pull mode.
+	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassWebsocket, operationtype.InstanceMigrate, resources, ws.Metadata(), run, cancel, ws.Connect)
 	if err != nil {
 		return response.InternalError(err)
 	}
