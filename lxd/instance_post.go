@@ -73,55 +73,36 @@ import (
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instancePost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Don't mess with instance while in setup mode.
 	<-d.waitReady.Done()
 
-	s := d.State()
-
+	// Parse the request URL.
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	projectName := request.ProjectParam(r)
+	target := request.QueryParam(r, "target")
 
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
 	}
 
+	// Quick checks.
 	if shared.IsSnapshot(name) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
-	// Flag indicating whether the node running the instance is offline.
-	sourceNodeOffline := false
-
-	var targetProject *api.Project
-	var targetMemberInfo *db.NodeInfo
-	var candidateMembers []db.NodeInfo
-
-	target := request.QueryParam(r, "target")
-	if !s.ServerClustered && target != "" {
+	if target != "" && !s.ServerClustered {
 		return response.BadRequest(errors.New("Target only allowed when clustered"))
 	}
 
-	// A POST to /instances/<name>?target=<member> is meant to be used to
-	// move an instance from one member to another within a cluster.
-	//
-	// Determine if either the source node (the one currently
-	// running the instance) or the target node are offline.
-	//
-	// If the target node is offline, we return an error.
-	//
-	// If the source node is offline and the instance is backed by
-	// ceph, we'll just assume that the instance is not running
-	// and it's safe to move it.
-	//
-	// TODO: add some sort of "force" flag to the API, to signal
-	//       that the user really wants to move the instance even
-	//       if we can't know for sure that it's indeed not
-	//       running?
+	// Check if the server the instance is running on is currently online.
+	var sourceMemberInfo *db.NodeInfo
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Load source node.
 		sourceAddress, err := tx.GetNodeAddressOfInstance(ctx, projectName, name, instanceType)
@@ -131,16 +112,15 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 		if sourceAddress == "" {
 			// Local node.
-			sourceNodeOffline = false
 			return nil
 		}
 
-		sourceMemberInfo, err := tx.GetNodeByAddress(ctx, sourceAddress)
+		info, err := tx.GetNodeByAddress(ctx, sourceAddress)
 		if err != nil {
 			return fmt.Errorf("Failed to get source member for %q: %w", sourceAddress, err)
 		}
 
-		sourceNodeOffline = sourceMemberInfo.IsOffline(s.GlobalConfig.OfflineThreshold())
+		sourceMemberInfo = &info
 
 		return nil
 	})
@@ -148,29 +128,20 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Check whether to forward the request to the node that is running the
-	// instance. Here are the possible cases:
-	//
-	// 1. No "?target=<member>" parameter was passed. In this case this is
-	//    just an instance rename, with no move, and we want the request to be
-	//    handled by the node which is actually running the instance.
-	//
-	// 2. The "?target=<member>" parameter was set and the node running the
-	//    instance is online. In this case we want to forward the request to
-	//    that node, which might do things like unmapping the RBD volume for
-	//    ceph instances.
-	//
-	// 3. The "?target=<member>" parameter was set but the node running the
-	//    instance is offline. We don't want to forward to the request to
-	//    that node and we don't want to load the instance here (since
-	//    it's not a local instance): we'll be able to handle the request
-	//    at all only if the instance is backed by ceph. We'll check for
-	//    that just below.
-	//
-	// Cases 1. and 2. are the ones for which the conditional will be true
-	// and we'll either forward the request or load the instance.
-	if target == "" || !sourceNodeOffline {
-		// Handle requests targeted to an instance on a different node.
+	// More checks.
+	if target == "" && sourceMemberInfo != nil && sourceMemberInfo.IsOffline(s.GlobalConfig.OfflineThreshold()) {
+		return response.BadRequest(errors.New("Can't perform action as server is currently offline"))
+	}
+
+	// Handle request forwarding.
+	if sourceMemberInfo != nil && sourceMemberInfo.IsOffline(s.GlobalConfig.OfflineThreshold()) {
+		// Current location of the instance isn't available and we've been asked to relocate it, forward to target.
+		resp := forwardedResponseToNode(r.Context(), s, target)
+		if resp != nil {
+			return resp
+		}
+	} else if target == "" || sourceMemberInfo == nil || !sourceMemberInfo.IsOffline(s.GlobalConfig.OfflineThreshold()) {
+		// Forward the request to the instance's current location (if not local).
 		resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
 		if err != nil {
 			return response.SmartError(err)
@@ -179,15 +150,57 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		if resp != nil {
 			return resp
 		}
-	} else if sourceNodeOffline {
-		// If a target was specified, forward the request to the relevant node.
-		target := request.QueryParam(r, "target")
-		resp := forwardedResponseToNode(r.Context(), s, target)
-		if resp != nil {
-			return resp
+	}
+
+	// Parse the request.
+	req := api.InstancePost{}
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Target instance properties.
+	instProject := projectName
+	instLocation := target
+
+	// Clear instance name if it's the same.
+	if req.Name != "" && req.Name == name {
+		req.Name = ""
+	}
+
+	// Validate the new target project (if provided).
+	if req.Project != "" {
+		// Confirm access to target project.
+		err := s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(req.Project), auth.EntitlementCanCreateInstances)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		instProject = req.Project
+	}
+
+	// Validate the new instance name (if provided).
+	if req.Name != "" {
+		// Check the new instance name is valid.
+		err = instancetype.ValidName(req.Name, false)
+		if err != nil {
+			return response.BadRequest(err)
+		}
+
+		// Check that the new isn't already in use.
+		var id int
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			// Check that the name isn't already in use.
+			id, _ = tx.GetInstanceID(ctx, instProject, req.Name)
+
+			return nil
+		})
+		if id > 0 {
+			return response.Conflict(fmt.Errorf("Name %q already in use", req.Name))
 		}
 	}
 
+	// Load the local instance.
 	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
