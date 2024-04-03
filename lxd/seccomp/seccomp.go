@@ -17,6 +17,7 @@ package seccomp
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/capability.h>
 #include <sys/mount.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -440,6 +441,24 @@ static int handle_bpf_syscall(pid_t pid_target, int notify_fd, int mem_fd,
 #ifndef MS_LAZYTIME
 #define MS_LAZYTIME (1<<25)
 #endif
+
+static bool lxd_pid_cap_is_set(pid_t pid, cap_value_t cap, cap_flag_t flag)
+{
+	int ret;
+	cap_t caps;
+	cap_flag_value_t flagval;
+
+	caps = cap_get_pid(pid);
+	if (!caps)
+		return false;
+
+	ret = cap_get_flag(caps, cap, flag, &flagval);
+	if (ret < 0)
+		return false;
+
+	return flagval == CAP_SET;
+}
+
 */
 import "C"
 

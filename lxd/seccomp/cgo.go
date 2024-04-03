@@ -8,4 +8,5 @@ package seccomp
 // #cgo CFLAGS: -Werror=implicit-function-declaration
 // #cgo CFLAGS: -Werror=return-type -Wendif-labels -Werror=overflow
 // #cgo CFLAGS: -Wnested-externs -fexceptions
+// #cgo pkg-config: libcap
 import "C"
