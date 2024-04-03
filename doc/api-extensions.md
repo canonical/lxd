@@ -2398,3 +2398,7 @@ This API extension adds support for listing storage volumes from all storage poo
 Adds the ability for `POST /1.0/instances/{name}/files` to modify the permissions of files that already exist via the `X-LXD-modify-perm` header.
 
 `X-LXD-modify-perm` should be a comma-separated list of 0 or more of `mode`, `uid`, and `gid`.
+
+## `image_restriction_nesting`
+
+This extension adds a new image restriction, `requirements.nesting` which when `true` indicates that an image cannot be run without nesting.
