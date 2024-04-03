@@ -44,7 +44,7 @@ func TestCluster_Get(t *testing.T) {
 	daemon, cleanup := newTestDaemon(t)
 	defer cleanup()
 
-	client, err := lxd.ConnectLXDUnix(daemon.GetUnixSocket(), nil)
+	client, err := lxd.ConnectLXDUnix(daemon.os.GetUnixSocket(), nil)
 	require.NoError(t, err)
 
 	cluster, _, err := client.GetCluster()
@@ -130,7 +130,7 @@ func (f *clusterFixture) ClientUnix(daemon *Daemon) lxd.InstanceServer {
 	client, ok := f.clients[daemon]
 	if !ok {
 		var err error
-		client, err = lxd.ConnectLXDUnix(daemon.GetUnixSocket(), nil)
+		client, err = lxd.ConnectLXDUnix(daemon.os.GetUnixSocket(), nil)
 		require.NoError(f.t, err)
 	}
 

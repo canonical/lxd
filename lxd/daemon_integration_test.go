@@ -17,7 +17,7 @@ import (
 func TestIntegration_UnixSocket(t *testing.T) {
 	daemon, cleanup := newTestDaemon(t)
 	defer cleanup()
-	client, err := lxd.ConnectLXDUnix(daemon.GetUnixSocket(), nil)
+	client, err := lxd.ConnectLXDUnix(daemon.os.GetUnixSocket(), nil)
 	require.NoError(t, err)
 
 	server, _, err := client.GetServer()
