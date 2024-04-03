@@ -352,7 +352,7 @@ func (c *ClusterTx) CreatePendingNetwork(ctx context.Context, node string, proje
 	}
 
 	if count != 0 {
-		return ErrAlreadyDefined
+		return api.StatusErrorf(http.StatusConflict, "Network %q already exists", name)
 	}
 
 	// Insert the node-specific configuration with state networkPending.
