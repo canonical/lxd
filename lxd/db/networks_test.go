@@ -4,6 +4,7 @@ package db_test
 
 import (
 	"context"
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -94,7 +95,7 @@ func TestNetworksCreatePending_AlreadyDefined(t *testing.T) {
 	require.NoError(t, err)
 
 	err = tx.CreatePendingNetwork(context.Background(), "buzz", api.ProjectDefaultName, "network1", db.NetworkTypeBridge, map[string]string{})
-	require.Equal(t, db.ErrAlreadyDefined, err)
+	assert.True(t, api.StatusErrorCheck(err, http.StatusConflict))
 }
 
 // If no node with the given name is found, an error is returned.
