@@ -206,6 +206,23 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Handle simple instance renaming.
+	if !req.Migration {
+		run := func(*operations.Operation) error {
+			return inst.Rename(req.Name, true)
+		}
+
+		resources := map[string][]api.URL{}
+		resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
+
+		op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceRename, resources, nil, run, nil, nil)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		return operations.OperationResponse(op)
+	}
+
 	// Run the cluster placement after potentially forwarding the request to another member.
 	if target != "" && s.ServerClustered {
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
