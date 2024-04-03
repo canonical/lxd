@@ -125,7 +125,7 @@ test_storage_volume_snapshots() {
   lxc storage volume delete "${storage_pool}" "vol1-snap0"
 
   # Check snapshot restore of type block volumes.
-  lxc storage volume create "${storage_pool}" "vol1" --type block
+  lxc storage volume create "${storage_pool}" "vol1" --type block size=50MiB
   lxc storage volume snapshot "${storage_pool}" "vol1" "snap0"
   lxc storage volume restore "${storage_pool}" "vol1" "snap0"
   lxc storage volume delete "${storage_pool}" "vol1"
