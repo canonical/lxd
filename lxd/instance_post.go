@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
@@ -403,7 +404,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 		// Setup the instance move operation.
 		run := func(op *operations.Operation) error {
-			return instancePostMigration(s, inst, req, op)
+			return migrateInstance(context.TODO(), s, inst, req, sourceMemberInfo, targetMemberInfo, op)
 		}
 
 		resources := map[string][]api.URL{}
@@ -452,343 +453,228 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-// Move an instance.
-func instancePostMigration(s *state.State, inst instance.Instance, req api.InstancePost, op *operations.Operation) error {
-	if inst.IsSnapshot() {
-		return errors.New("Instance snapshots cannot be moved between pools")
+// Perform the server-side migration.
+func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance, req api.InstancePost, sourceMemberInfo *db.NodeInfo, targetMemberInfo *db.NodeInfo, op *operations.Operation) error {
+	// Load the instance storage pool.
+	sourcePool, err := storagePools.LoadByInstance(s, inst)
+	if err != nil {
+		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 
-	if req.Project == "" {
-		req.Project = inst.Project().Name
+	// Get the DB volume type for the instance.
+	volType, err := storagePools.InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
 	}
 
-	statefulStart := false
-	if inst.IsRunning() {
-		if !req.Live {
-			return api.StatusErrorf(http.StatusBadRequest, "Instance must be stopped to move between pools statelessly")
-		}
-
-		statefulStart = true
-		err := inst.Stop(true)
-		if err != nil {
-			return err
-		}
+	volDBType, err := storagePools.VolumeTypeToDBType(volType)
+	if err != nil {
+		return err
 	}
 
-	// Copy config from instance to avoid modifying it.
-	localConfig := make(map[string]string)
-	maps.Copy(localConfig, inst.LocalConfig())
-
-	// Set user defined configuration entries.
-	maps.Copy(localConfig, req.Config)
-
-	// Get instance local devices and then set user defined devices.
-	localDevices := inst.LocalDevices().Clone()
-	for devName, dev := range req.Devices {
-		localDevices[devName] = dev
-	}
-
-	// Apply previous profiles, if provided profiles are nil.
-	if req.Profiles == nil {
-		req.Profiles = make([]string, 0, len(inst.Profiles()))
-		for _, p := range inst.Profiles() {
-			req.Profiles = append(req.Profiles, p.Name)
-		}
-	}
-
-	apiProfiles := []api.Profile{}
-	if len(req.Profiles) > 0 {
-		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			profiles, err := dbCluster.GetProfilesIfEnabled(ctx, tx.Tx(), req.Project, req.Profiles)
+	// Handle migration of an instance away from an offline server (on shared storage).
+	if targetMemberInfo != nil && sourceMemberInfo != nil && sourceMemberInfo.IsOffline(s.GlobalConfig.OfflineThreshold()) && sourcePool.Driver().Info().Remote {
+		// Update the database records.
+		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err := tx.UpdateInstanceNode(ctx, inst.Project().Name, inst.Name(), inst.Name(), targetMemberInfo.Name, sourcePool.ID(), volDBType)
 			if err != nil {
-				return err
-			}
-
-			profileConfigs, err := dbCluster.GetConfig(ctx, tx.Tx(), "profile")
-			if err != nil {
-				return err
-			}
-
-			profileDevices, err := dbCluster.GetDevices(ctx, tx.Tx(), "profile")
-			if err != nil {
-				return err
-			}
-
-			apiProfiles = make([]api.Profile, 0, len(profiles))
-			for _, profile := range profiles {
-				apiProfile, err := profile.ToAPI(ctx, tx.Tx(), profileConfigs, profileDevices)
-				if err != nil {
-					return err
-				}
-
-				apiProfiles = append(apiProfiles, *apiProfile)
+				return fmt.Errorf("Failed updating cluster member to %q for instance %q: %w", targetMemberInfo.Name, inst.Name(), err)
 			}
 
 			return nil
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed to relink instance database data: %w", err)
 		}
-	}
 
-	// Check if root disk device is present in the instance config. If instance config has no
-	// root disk device configured, check if the same root disk device will be applied with new
-	// profiles in the target project. If the new root disk device differs from the existing
-	// one, add the existing one as a local device to the instance (we don't want to move root
-	// disk device if not necessary, as this is an expensive operation).
-	rootDevKey, rootDev, err := instancetype.GetRootDiskDevice(localDevices.CloneNative())
-	if err != nil && !errors.Is(err, instancetype.ErrNoRootDisk) {
-		return err
-	} else if errors.Is(err, instancetype.ErrNoRootDisk) {
-		// Find currently applied root disk device from expanded devices.
-		rootDevKey, rootDev, err = instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+		// Import the instance into the storage.
+		_, err = sourcePool.ImportInstance(inst, nil, nil)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed creating mount point of instance on target node: %w", err)
 		}
 
-		// Iterate over profiles that will be applied in the target project and find
-		// the new root disk device. Iterate in reverse order to respect profile
-		// precedence.
-		var profileRootDev map[string]string
-		for i := len(apiProfiles) - 1; i >= 0; i-- {
-			_, profileRootDev, err = instancetype.GetRootDiskDevice(apiProfiles[i].Devices)
-			if err == nil {
-				break
+		// Perform any remaining instance rename.
+		if req.Name != "" {
+			err = inst.Rename(req.Name, true)
+			if err != nil {
+				return err
 			}
 		}
 
-		// If current root disk device would be replaced according to the new profiles,
-		// add current root disk device to local instance devices (to retain it).
-		if profileRootDev == nil ||
-			profileRootDev["pool"] != rootDev["pool"] ||
-			profileRootDev["size"] != rootDev["size"] ||
-			profileRootDev["size.state"] != rootDev["size.state"] {
-			localDevices[rootDevKey] = rootDev
-		}
-	}
-
-	// Set specific storage pool for the instance, if provided.
-	if req.Pool != "" {
-		rootDev["pool"] = req.Pool
-		localDevices[rootDevKey] = rootDev
-	}
-
-	// Specify the target instance config with the new name.
-	args := db.InstanceArgs{
-		Name:         req.Name,
-		BaseImage:    localConfig["volatile.base_image"],
-		Config:       localConfig,
-		Devices:      localDevices,
-		Profiles:     apiProfiles,
-		Project:      req.Project,
-		Type:         inst.Type(),
-		Architecture: inst.Architecture(),
-		Description:  inst.Description(),
-		Ephemeral:    inst.IsEphemeral(),
-		Stateful:     inst.IsStateful(),
-	}
-
-	// If we are moving the instance to a new pool but keeping the same instance name, then we need to create
-	// the copy of the instance on the new pool with a temporary name that is different from the source to
-	// avoid conflicts. Then after the source instance has been deleted we will rename the new instance back
-	// to the original name.
-	if req.Name == inst.Name() && req.Project == inst.Project().Name {
-		args.Name, err = instance.MoveTemporaryName(inst)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Copy instance to new target instance.
-	targetInst, err := instanceCreateAsCopy(s, instanceCreateAsCopyOpts{
-		sourceInstance:           inst,
-		targetInstance:           args,
-		instanceOnly:             req.InstanceOnly,
-		applyTemplateTrigger:     false, // Don't apply templates when moving.
-		allowInconsistent:        req.AllowInconsistent,
-		overrideSnapshotProfiles: req.OverrideSnapshotProfiles,
-	}, op)
-	if err != nil {
-		return err
-	}
-
-	// Update any permissions relating to the old instance to point to the new instance before it is deleted.
-	// Warnings relating to the old instance will be deleted.
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		q := `UPDATE auth_groups_permissions SET entity_id = ? WHERE entity_type = ? AND entity_id = ?`
-		_, err = tx.Tx().ExecContext(ctx, q, targetInst.ID(), dbCluster.EntityType(entity.TypeInstance), inst.ID())
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to copy instance permissions: %w", err)
-	}
-
-	// Delete original instance.
-	err = inst.Delete(true)
-	if err != nil {
-		return err
-	}
-
-	// Rename copy from temporary name to original name if needed.
-	if req.Name == inst.Name() && req.Project == inst.Project().Name {
-		err = targetInst.Rename(req.Name, false) // Don't apply templates when moving.
-		if err != nil {
-			return err
-		}
-	}
-
-	if statefulStart {
-		err = targetInst.Start(true)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// Migrate an instance to another cluster node (supports both local and remote storage).
-// Source and target members must be online.
-func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, srcMember db.NodeInfo, newMember db.NodeInfo, stateful bool, allowInconsistent bool) (func(op *operations.Operation) error, error) {
-	srcMemberOffline := srcMember.IsOffline(s.GlobalConfig.OfflineThreshold())
-
-	// Make sure that the source member is online if we end up being called from another member after a
-	// redirection due to the source member being offline.
-	if srcMemberOffline {
-		return nil, errors.New("The cluster member hosting the instance is offline")
+		return nil
 	}
 
 	// Save the original value of the "volatile.apply_template" config key,
-	// since we'll want to preserve it in the copied instance.
-	origVolatileApplyTemplate := srcInst.LocalConfig()["volatile.apply_template"]
+	// since we'll want to preserve it in the copied container.
+	instVolatileApplyTemplate := inst.LocalConfig()["volatile.apply_template"]
 
-	// Check we can convert the instance to the volume types needed.
-	volType, err := storagePools.InstanceTypeToVolumeType(srcInst.Type())
+	// Get the current instance info.
+	instInfoRaw, _, err := inst.Render()
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("Failed getting source instance info: %w", err)
 	}
 
-	volDBType, err := storagePools.VolumeTypeToDBType(volType)
-	if err != nil {
-		return nil, err
+	targetInstInfo, ok := instInfoRaw.(*api.Instance)
+	if !ok {
+		return fmt.Errorf("Unexpected result from source instance render: %w", err)
 	}
 
-	run := func(op *operations.Operation) error {
-		srcInstName := srcInst.Name()
-		projectName := srcInst.Project().Name
+	// Apply the config overrides.
+	maps.Copy(targetInstInfo.Config, req.Config)
 
-		if newInstName == "" {
-			newInstName = srcInstName
-		}
+	// Apply the device overrides.
+	maps.Copy(targetInstInfo.Devices, req.Devices)
 
-		networkCert := s.Endpoints.NetworkCert()
+	// Apply the profile overrides.
+	if req.Profiles != nil {
+		targetInstInfo.Profiles = req.Profiles
+	}
 
-		// Connect to the destination member, i.e. the member to migrate the instance to.
-		// Use the notify argument to indicate to the destination that we are moving an instance between
-		// cluster members.
-		dest, err := cluster.Connect(ctx, newMember.Address, networkCert, s.ServerCert(), true)
-		if err != nil {
-			return fmt.Errorf("Failed to connect to destination server %q: %w", newMember.Address, err)
-		}
-
-		dest = dest.UseTarget(newMember.Name).UseProject(projectName)
-
-		resources := map[string][]api.URL{}
-		resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", srcInstName)}
-
-		srcInstRunning := srcInst.IsRunning()
-		live := stateful && srcInstRunning
-
-		// During a stateful migration we expect the migration process to stop the instance on the source
-		// once the migration is complete. However when doing a stateless migration and the instance is
-		// running we must forcefully stop the instance on the source before starting the migration copy
-		// so that it is as consistent as possible.
-		if !stateful && srcInstRunning {
-			err := srcInst.Stop(false)
-			if err != nil {
-				return fmt.Errorf("Failed statelessly stopping instance %q: %w", srcInstName, err)
-			}
-		}
-
-		// Rename instance if requested.
-		if newInstName != srcInstName {
-			err = srcInst.Rename(newInstName, true)
-			if err != nil {
-				return fmt.Errorf("Failed renaming instance %q to %q: %w", srcInstName, newInstName, err)
-			}
-
-			srcInst, err = instance.LoadByProjectAndName(s, projectName, newInstName)
-			if err != nil {
-				return fmt.Errorf("Failed loading renamed instance: %w", err)
-			}
-
-			srcInstName = srcInst.Name()
-		}
-
-		snapshots, err := srcInst.Snapshots()
-		if err != nil {
-			return fmt.Errorf("Failed getting source instance snapshots: %w", err)
-		}
-
-		// Setup migration source.
-		srcRenderRes, _, err := srcInst.Render()
-		if err != nil {
-			return fmt.Errorf("Failed getting source instance info: %w", err)
-		}
-
-		srcInstInfo, ok := srcRenderRes.(*api.Instance)
-		if !ok {
-			return fmt.Errorf("Unexpected result from source instance render: %w", err)
-		}
-
-		srcMigration, err := newMigrationSource(srcInst, live, false, allowInconsistent, srcInstName, nil)
-		if err != nil {
-			return fmt.Errorf("Failed setting up instance migration on source: %w", err)
-		}
-
-		run := func(op *operations.Operation) error {
-			return srcMigration.Do(s, op)
-		}
-
-		cancel := func(op *operations.Operation) error {
-			srcMigration.disconnect()
-			return nil
-		}
-
-		srcOp, err := operations.OperationCreate(ctx, s, projectName, operations.OperationClassWebsocket, operationtype.InstanceMigrate, resources, srcMigration.Metadata(), run, cancel, srcMigration.Connect)
+	// Handle storage pool override.
+	if req.Pool != "" {
+		rootDevKey, rootDev, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 		if err != nil {
 			return err
 		}
 
-		err = srcOp.Start()
+		// Apply the override.
+		rootDev["pool"] = req.Pool
+
+		// Add the device to local config.
+		targetInstInfo.Devices[rootDevKey] = rootDev
+	}
+
+	// Handle local changes (name, project, storage).
+
+	// Handle the renames first.
+	if req.Name != "" {
+		err := inst.Rename(req.Name, true)
 		if err != nil {
-			return fmt.Errorf("Failed starting migration source operation: %w", err)
+			return err
 		}
 
-		sourceSecrets := make(map[string]string, len(srcMigration.conns))
-		for connName, conn := range srcMigration.conns {
-			sourceSecrets[connName] = conn.Secret()
+		inst, err = instance.LoadByProjectAndName(s, inst.Project().Name, req.Name)
+		if err != nil {
+			return err
 		}
 
-		// Request pull mode migration on destination.
-		destOp, err := dest.CreateInstance(api.InstancesPost{
-			Name:        newInstName,
-			InstancePut: srcInstInfo.Writable(),
-			Type:        api.InstanceType(srcInstInfo.Type),
+		// Clear the rename part of the request.
+		req.Name = ""
+	}
+
+	// Handle pool and project moves.
+	if req.Project != "" || req.Pool != "" {
+		// Get a local client.
+		target, err := lxd.ConnectLXDUnix(s.OS.GetUnixSocket(), nil)
+		if err != nil {
+			return err
+		}
+
+		if targetMemberInfo != nil {
+			target = target.UseTarget(targetMemberInfo.Name)
+		} else if s.ServerClustered {
+			target = target.UseTarget(inst.Location())
+		}
+
+		targetProject := inst.Project().Name
+		if req.Project != "" {
+			target = target.UseProject(req.Project)
+			targetProject = req.Project
+		}
+
+		// Check if we have a root disk in local config.
+		_, _, err = instancetype.GetRootDiskDevice(targetInstInfo.Devices)
+		if err != nil && req.Project != "" {
+			// If not and we're dealing with project copy, let's get one.
+			var newRootDev map[string]string
+
+			// Get current root disk.
+			currentRootDevKey, currentRootDev, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+			if err != nil {
+				return err
+			}
+
+			// Load the profiles.
+			profiles := []api.Profile{}
+
+			err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+				rawProfiles, err := dbCluster.GetProfilesIfEnabled(ctx, tx.Tx(), targetProject, targetInstInfo.Profiles)
+				if err != nil {
+					return err
+				}
+
+				profileConfigs, err := dbCluster.GetConfig(ctx, tx.Tx(), "profile")
+				if err != nil {
+					return err
+				}
+
+				profileDevices, err := dbCluster.GetDevices(ctx, tx.Tx(), "profile")
+				if err != nil {
+					return err
+				}
+
+				for _, profile := range rawProfiles {
+					apiProfile, err := profile.ToAPI(ctx, tx.Tx(), profileConfigs, profileDevices)
+					if err != nil {
+						return err
+					}
+
+					profiles = append(profiles, *apiProfile)
+				}
+
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+
+			// Go through expected profiles and look for a root disk.
+			for _, profile := range profiles {
+				_, dev, err := instancetype.GetRootDiskDevice(profile.Devices)
+				if err != nil {
+					continue
+				}
+
+				newRootDev = dev
+				break
+			}
+
+			// Check if root disk coming from profiles is suitable, if not, copy the current one.
+			if newRootDev == nil ||
+				newRootDev["pool"] != currentRootDev["pool"] ||
+				newRootDev["size"] != currentRootDev["size"] ||
+				newRootDev["size.state"] != currentRootDev["size.state"] {
+				targetInstInfo.Devices[currentRootDevKey] = currentRootDev
+			}
+		}
+
+		// Use a temporary instance name if needed.
+		targetInstName := inst.Name()
+		if req.Project == "" {
+			targetInstName, err = instance.MoveTemporaryName(inst)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Create the target instance.
+		destOp, err := target.CreateInstance(api.InstancesPost{
+			Name:        targetInstName,
+			InstancePut: targetInstInfo.Writable(),
+			Type:        api.InstanceType(targetInstInfo.Type),
 			Source: api.InstanceSource{
-				Type:        api.SourceTypeMigration,
-				Mode:        "pull",
-				Operation:   "https://" + srcMember.Address + srcOp.URL(),
-				Websockets:  sourceSecrets,
-				Certificate: string(networkCert.PublicKey()),
-				Live:        live,
-				Source:      srcInstName,
+				Type:                     "copy",
+				Source:                   inst.Name(),
+				Project:                  inst.Project().Name,
+				InstanceOnly:             req.InstanceOnly,
+				OverrideSnapshotProfiles: req.OverrideSnapshotProfiles,
 			},
 		})
 		if err != nil {
 			return fmt.Errorf("Failed requesting instance create on destination: %w", err)
 		}
 
+		// Setup a progress handler.
 		handler := func(newOp api.Operation) {
 			_ = op.UpdateMetadata(newOp.Metadata)
 		}
@@ -798,25 +684,179 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 			return err
 		}
 
-		err = srcOp.Wait(context.Background())
-		if err != nil {
-			return fmt.Errorf("Instance move to destination failed on source: %w", err)
-		}
-
+		// Wait for the migration to complete.
 		err = destOp.Wait()
 		if err != nil {
 			return fmt.Errorf("Instance move to destination failed: %w", err)
 		}
 
+		// Update any permissions relating to the old instance to point to the new instance before it is deleted.
+		// Warnings relating to the old instance will be deleted.
+		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			q := `UPDATE auth_groups_permissions SET entity_id = ? WHERE entity_type = ? AND entity_id = ?`
+			targetInstID, err := dbCluster.GetInstanceID(ctx, tx.Tx(), targetProject, inst.Name())
+			if err != nil {
+				return err
+			}
+
+			_, err = tx.Tx().ExecContext(ctx, q, targetInstID, dbCluster.EntityType(entity.TypeInstance), inst.ID())
+			return err
+		})
+		if err != nil {
+			return fmt.Errorf("Failed to copy instance permissions: %w", err)
+		}
+
+		// Delete the source instance.
+		err = inst.Delete(true)
+		if err != nil {
+			return err
+		}
+
+		// If using a temporary name, rename it.
+		if targetInstName != inst.Name() {
+			op, err := target.RenameInstance(targetInstName, api.InstancePost{Name: inst.Name()})
+			if err != nil {
+				return err
+			}
+
+			err = op.Wait()
+			if err != nil {
+				return err
+			}
+		}
+
+		// Reload the instance.
+		inst, err = instance.LoadByProjectAndName(s, targetProject, inst.Name())
+		if err != nil {
+			return err
+		}
+
+		// Clear the pool and project part of the request.
+		req.Pool = ""
+		req.Project = ""
+	}
+
+	// Handle remote migrations (location changes).
+	if targetMemberInfo != nil && inst.Location() != targetMemberInfo.Name {
+		// Get the client.
+		networkCert := s.Endpoints.NetworkCert()
+		target, err := cluster.Connect(ctx, targetMemberInfo.Address, networkCert, s.ServerCert(), true)
+		if err != nil {
+			return fmt.Errorf("Failed to connect to destination server %q: %w", targetMemberInfo.Address, err)
+		}
+
+		target = target.UseProject(inst.Project().Name)
+		if targetMemberInfo != nil {
+			target = target.UseTarget(targetMemberInfo.Name)
+		}
+
+		// Get the source member info if missing.
+		if sourceMemberInfo == nil {
+			err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+				// Get the source member info.
+				srcMember, err := tx.GetNodeByName(ctx, inst.Location())
+				if err != nil {
+					return fmt.Errorf("Failed getting current cluster member of instance %q", inst.Name())
+				}
+
+				sourceMemberInfo = &srcMember
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		}
+
+		// Get the current instance snapshot list.
+		snapshots, err := inst.Snapshots()
+		if err != nil {
+			return fmt.Errorf("Failed getting source instance snapshots: %w", err)
+		}
+
+		// Setup a new migration source.
+		sourceMigration, err := newMigrationSource(inst, req.Live, false, req.AllowInconsistent, inst.Name(), nil)
+		if err != nil {
+			return fmt.Errorf("Failed setting up instance migration on source: %w", err)
+		}
+
+		run := func(op *operations.Operation) error {
+			return sourceMigration.Do(s, op)
+		}
+
+		cancel := func(op *operations.Operation) error {
+			sourceMigration.disconnect()
+			return nil
+		}
+
+		resources := map[string][]api.URL{}
+		resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", inst.Name())}
+		sourceOp, err := operations.OperationCreate(ctx, s, inst.Project().Name, operations.OperationClassWebsocket, operationtype.InstanceMigrate, resources, sourceMigration.Metadata(), run, cancel, sourceMigration.Connect)
+		if err != nil {
+			return err
+		}
+
+		// Start the migration source.
+		err = sourceOp.Start()
+		if err != nil {
+			return fmt.Errorf("Failed starting migration source operation: %w", err)
+		}
+
+		// Extract the migration secrets.
+		sourceSecrets := make(map[string]string, len(sourceMigration.conns))
+		for connName, conn := range sourceMigration.conns {
+			sourceSecrets[connName] = conn.Secret()
+		}
+
+		// Create the target instance.
+		destOp, err := target.CreateInstance(api.InstancesPost{
+			Name:        inst.Name(),
+			InstancePut: targetInstInfo.Writable(),
+			Type:        api.InstanceType(targetInstInfo.Type),
+			Source: api.InstanceSource{
+				Type:        api.SourceTypeMigration,
+				Mode:        "pull",
+				Operation:   "https://" + sourceMemberInfo.Address + sourceOp.URL(),
+				Websockets:  sourceSecrets,
+				Certificate: string(networkCert.PublicKey()),
+				Live:        req.Live,
+				Source:      inst.Name(),
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("Failed requesting instance create on destination: %w", err)
+		}
+
+		// Setup a progress handler.
+		handler := func(newOp api.Operation) {
+			_ = op.UpdateMetadata(newOp.Metadata)
+		}
+
+		_, err = destOp.AddHandler(handler)
+		if err != nil {
+			return err
+		}
+
+		// Wait for the migration to complete.
+		err = destOp.Wait()
+		if err != nil {
+			return fmt.Errorf("Instance move to destination failed: %w", err)
+		}
+
+		err = sourceOp.Wait(context.Background())
+		if err != nil {
+			return fmt.Errorf("Instance move to destination failed on source: %w", err)
+		}
+
+		// Update the database post-migration.
 		err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Update instance DB record to indicate its location on the new cluster member.
-			err = tx.UpdateInstanceNode(ctx, projectName, srcInstName, newInstName, newMember.Name, srcPool.ID(), volDBType)
+			err = tx.UpdateInstanceNode(ctx, inst.Project().Name, inst.Name(), inst.Name(), targetMemberInfo.Name, sourcePool.ID(), volDBType)
 			if err != nil {
-				return fmt.Errorf("Failed updating cluster member to %q for instance %q: %w", newMember.Name, newInstName, err)
+				return fmt.Errorf("Failed updating cluster member to %q for instance %q: %w", targetMemberInfo.Name, inst.Name(), err)
 			}
 
 			// Restore the original value of "volatile.apply_template".
-			id, err := dbCluster.GetInstanceID(ctx, tx.Tx(), projectName, newInstName)
+			id, err := dbCluster.GetInstanceID(ctx, tx.Tx(), inst.Project().Name, inst.Name())
 			if err != nil {
 				return fmt.Errorf("Failed to get ID of moved instance: %w", err)
 			}
@@ -826,9 +866,9 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 				return fmt.Errorf("Failed to remove volatile.apply_template config key: %w", err)
 			}
 
-			if origVolatileApplyTemplate != "" {
+			if instVolatileApplyTemplate != "" {
 				config := map[string]string{
-					"volatile.apply_template": origVolatileApplyTemplate,
+					"volatile.apply_template": instVolatileApplyTemplate,
 				}
 
 				err = tx.CreateInstanceConfig(ctx, int(id), config)
@@ -844,8 +884,8 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 		}
 
 		// Cleanup instance paths on source member if using remote shared storage.
-		if srcPool.Driver().Info().Remote {
-			err = srcPool.CleanupInstancePaths(srcInst, nil)
+		if sourcePool.Driver().Info().Remote {
+			err = sourcePool.CleanupInstancePaths(inst, nil)
 			if err != nil {
 				return fmt.Errorf("Failed cleaning up instance paths on source member: %w", err)
 			}
@@ -858,154 +898,18 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 				// Delete the snapshots in reverse order.
 				k = snapshotCount - 1 - k
 
-				err = srcPool.DeleteInstanceSnapshot(snapshots[k], nil)
+				err = sourcePool.DeleteInstanceSnapshot(snapshots[k], nil)
 				if err != nil {
 					return fmt.Errorf("Failed delete instance snapshot %q on source member: %w", snapshots[k].Name(), err)
 				}
 			}
 
-			err = srcPool.DeleteInstance(srcInst, nil)
+			err = sourcePool.DeleteInstance(inst, nil)
 			if err != nil {
 				return fmt.Errorf("Failed deleting instance on source member: %w", err)
 			}
 		}
-
-		if !stateful && srcInstRunning {
-			req := api.InstanceStatePut{
-				Action: "start",
-			}
-
-			op, err := dest.UpdateInstanceState(newInstName, req, "")
-			if err != nil {
-				return err
-			}
-
-			err = op.Wait()
-			if err != nil {
-				return fmt.Errorf("Failed starting instance %q: %w", newInstName, err)
-			}
-		}
-
-		return nil
 	}
 
-	return run, nil
-}
-
-// instancePostClusteringMigrateWithRemoteStorage handles moving a remote shared storage instance from a source member that is offline.
-// This function must be run on the target cluster member to move the instance to.
-func instancePostClusteringMigrateWithRemoteStorage(s *state.State, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, newMember db.NodeInfo) (func(op *operations.Operation) error, error) {
-	// Sense checks to avoid unexpected behaviour.
-	if !srcPool.Driver().Info().Remote {
-		return nil, errors.New("Source instance's storage pool is not remote shared storage")
-	}
-
-	// Check this function is only run on the target member.
-	if s.ServerName != newMember.Name {
-		return nil, errors.New("Remote shared storage instance move when source member is offline must be run on target member")
-	}
-
-	// Check we can convert the instance to the volume types needed.
-	volType, err := storagePools.InstanceTypeToVolumeType(srcInst.Type())
-	if err != nil {
-		return nil, err
-	}
-
-	volDBType, err := storagePools.VolumeTypeToDBType(volType)
-	if err != nil {
-		return nil, err
-	}
-
-	run := func(op *operations.Operation) error {
-		projectName := srcInst.Project().Name
-		srcInstName := srcInst.Name()
-
-		// Re-link the database entries against the new member name.
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			err := tx.UpdateInstanceNode(ctx, projectName, srcInstName, srcInstName, newMember.Name, srcPool.ID(), volDBType)
-			if err != nil {
-				return fmt.Errorf("Failed updating cluster member to %q for instance %q: %w", newMember.Name, srcInstName, err)
-			}
-
-			return nil
-		})
-		if err != nil {
-			return fmt.Errorf("Failed to relink instance database data: %w", err)
-		}
-
-		if srcInstName != newInstName {
-			err = srcInst.Rename(newInstName, true)
-			if err != nil {
-				return fmt.Errorf("Failed renaming instance %q to %q: %w", srcInstName, newInstName, err)
-			}
-
-			srcInst, err = instance.LoadByProjectAndName(s, projectName, newInstName)
-			if err != nil {
-				return fmt.Errorf("Failed loading renamed instance: %w", err)
-			}
-
-			srcInstName = srcInst.Name()
-		}
-
-		_, err = srcPool.ImportInstance(srcInst, nil, nil)
-		if err != nil {
-			return fmt.Errorf("Failed creating mount point of instance on target node: %w", err)
-		}
-
-		return nil
-	}
-
-	return run, nil
-}
-
-func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance, targetNode string, req api.InstancePost, op *operations.Operation) error {
-	// If target isn't the same as the instance's location.
-	if targetNode == inst.Location() {
-		return errors.New("Target must be different than instance's current location")
-	}
-
-	var err error
-	var srcMember, newMember db.NodeInfo
-
-	// If the source member is online then get its address so we can connect to it and see if the
-	// instance is running later.
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		srcMember, err = tx.GetNodeByName(ctx, inst.Location())
-		if err != nil {
-			return fmt.Errorf("Failed getting current cluster member of instance %q", inst.Name())
-		}
-
-		newMember, err = tx.GetNodeByName(ctx, targetNode)
-		if err != nil {
-			return fmt.Errorf("Failed loading new cluster member for instance: %w", err)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	// Retrieve storage pool of the source instance.
-	srcPool, err := storagePools.LoadByInstance(s, inst)
-	if err != nil {
-		return fmt.Errorf("Failed loading instance storage pool: %w", err)
-	}
-
-	// Only use instancePostClusteringMigrateWithRemoteStorage when source member is offline and storage location is remote.
-	if srcMember.IsOffline(s.GlobalConfig.OfflineThreshold()) && srcPool.Driver().Info().Remote {
-		f, err := instancePostClusteringMigrateWithRemoteStorage(s, srcPool, inst, req.Name, newMember)
-		if err != nil {
-			return err
-		}
-
-		return f(op)
-	}
-
-	f, err := instancePostClusteringMigrate(ctx, s, srcPool, inst, req.Name, srcMember, newMember, req.Live, req.AllowInconsistent)
-	if err != nil {
-		return err
-	}
-
-	return f(op)
+	return nil
 }
