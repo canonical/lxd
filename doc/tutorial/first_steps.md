@@ -7,7 +7,7 @@ It covers installing and initializing LXD, creating and configuring some instanc
 After going through these steps, you will have a general idea of how to use LXD, and you can start exploring more advanced use cases!
 
 ```{note}
-Ensure that you have 20 MiB free disk space before starting this tutorial.
+Ensure that you have 20 GiB free disk space before starting this tutorial.
 ```
 
 ## Install and initialize LXD
