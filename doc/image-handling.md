@@ -61,6 +61,7 @@ Key                                         | Type      | Default      | Descrip
 :--                                         | :---      | :------      | :----------
 `requirements.secureboot`                   | string    | -            | If set to `false`, indicates that the image cannot boot under secure boot.
 `requirements.cgroup`                       | string    | -            | If set to `v1`, indicates that the image requires the host to run cgroup v1.
+`requirements.nesting`                      | bool      | -            | If set to `true`, indicates that the image cannot work without nesting enabled.
 
 ## Related topics
 
