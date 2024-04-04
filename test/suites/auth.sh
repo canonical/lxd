@@ -12,7 +12,6 @@ test_authorization() {
 
   # Entity types with no entitlements
   ! lxc auth group permission add test-group container fake_name can_view || false # No entitlements defined for containers (use instance).
-  ! lxc auth group permission add test-group certificate "${tls_user_fingerprint}" can_view || false # No entitlements defined for certificates (use identity).
   ! lxc auth group permission add test-group instance_backup fake_name can_view || false # No entitlements defined for instance backups (use can_manage_backups on parent instance).
   ! lxc auth group permission add test-group instance_snapshot fake_name can_view || false # No entitlements defined for instance snapshots (use can_manage_snapshots on parent instance).
   ! lxc auth group permission add test-group node fake_name can_view || false # No entitlements defined for cluster members (use server entitlements).
