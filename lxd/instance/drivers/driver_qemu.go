@@ -7464,6 +7464,11 @@ func (d *qemu) CGroup() (*cgroup.CGroup, error) {
 	return nil, instance.ErrNotImplemented
 }
 
+// SetAffinity is not implemented for VMs.
+func (d *qemu) SetAffinity(set []string) error {
+	return nil
+}
+
 // FileSFTPConn returns a connection to the agent SFTP endpoint.
 func (d *qemu) FileSFTPConn() (net.Conn, error) {
 	// VMs, unlike containers, cannot perform file operations if not running and using the lxd-agent.
