@@ -191,12 +191,7 @@ func getPermissions(d *Daemon, r *http.Request) response.Response {
 	var apiPermissionInfos []api.PermissionInfo
 	for entityType, entities := range entityURLs {
 		for entityID, entityURL := range entities {
-			entitlements, err := auth.EntitlementsByEntityType(entityType)
-			if err != nil {
-				return response.InternalError(fmt.Errorf("Failed to list available entitlements for entity type %q: %w", entityType, err))
-			}
-
-			for _, entitlement := range entitlements {
+			for _, entitlement := range auth.EntitlementsByEntityType(entityType) {
 				if recursion == "1" {
 					permissionInfo := api.PermissionInfo{
 						Permission: api.Permission{
