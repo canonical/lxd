@@ -86,20 +86,30 @@ _have lxc && {
       operation pause profile project publish query remote rename \
       restart restore shell snapshot start stop storage version"
 
-    global_keys="backups.compression_algorithm,
-      core.https_address core.https_allowed_credentials \
-      core.https_allowed_headers core.https_allowed_methods \
-      core.https_allowed_origin \
+    global_keys="acme.agree_tos acme.ca_url acme.domain acme.email \
+      backups.compression_algorithm \
+      core.bgp_address core.bgp_asn core.bgp_routerid \
+      core.debug_address \
+      core.dns_address \
+      core.https_address \
+      core.https_allowed_credential core.https_allowed_headers core.https_allowed_methods core.https_allowed_origin \
+      core.https_trusted_proxy \
       core.metrics_address core.metrics_authentication \
+      core.proxy_http core.proxy_https core.proxy_ignore_hosts \
+      core.remote_token_expiry \
+      core.shutdown_timeout \
       core.storage_buckets_address \
-      core.proxy_https core.proxy_http core.proxy_ignore_hosts \
-      core.trust_password core.bgp_address core.bgp_asn core.bgp_routerid \
-      core.debug_address cluster.offline_threshold \
+      core.syslog_socket \
+      core.trust_ca_certificates \
+      core.trust_password \
+      cluster.healing_threshold cluster.https_address cluster.images_minimal_replica cluster.join_token_expiry cluster.max_standby cluster.max_voters cluster.offline_threshold \
       images.auto_update_cached images.auto_update_interval \
-      images.compression_algorithm images.remote_cache_expiry \
-      maas.api.url maas.api.key maas.machine cluster.images_minimal_replica \
-      network.ovn.integration_bridge network.ovn.northbound_connection \
-      oidc.client.id oidc.issuer oidc.audience \
+      images.compression_algorithm images.default_architecture images.remote_cache_expiry \
+      instances.migration.stateful instances.nic.host_name instances.placement.scriptlet \
+      loki.api.ca_cert loki.api.url loki.auth.password loki.auth.username loki.instance loki.labels loki.loglevel loki.types \
+      maas.api.key maas.api.url maas.machine \
+      network.ovn.ca_cert network.ovn.client_cert network.ovn.client_key network.ovn.integration_bridge network.ovn.northbound_connection \
+      oidc.audience oidc.client.id oidc.groups.claim oidc.issuer \
       storage.backups_volume storage.images_volume"
 
     container_keys="boot.autostart boot.autostart.delay \
