@@ -112,39 +112,55 @@ _have lxc && {
       oidc.audience oidc.client.id oidc.groups.claim oidc.issuer \
       storage.backups_volume storage.images_volume"
 
-    container_keys="boot.autostart boot.autostart.delay \
-      boot.autostart.priority boot.stop.priority \
-      boot.host_shutdown_timeout environment. \
+    instance_keys="agent.nic_config \
+      boot.autostart boot.autostart.delay boot.autostart.priority \
+      boot.debug_edk2 \
+      boot.host_shutdown_timeout \
+      boot.stop.priority \
+      cloud-init.network-config cloud-init.user-data cloud-init.vendor-data \
+      cluster.evacutate \
+      environment. \
       limits.cpu limits.cpu.allowance limits.cpu.priority \
-      limits.disk.priority limits.memory limits.memory.enforce \
-      limits.memory.hugepages limits.kernel \
+      limits.disk.priority \
+      limits.hugepages.1GB limits.hugepages.1MB limits.hugepages.2MB limits.hugepages.64KB \
+      limits.memory limits.memory.enforce \
+      limits.memory.hugepages
       limits.memory.swap limits.memory.swap.priority \
-      limits.processes linux.kernel_modules migration.incremental.memory \
-      migration.incremental.memory.goal nvidia.runtime \
-      nvidia.driver.capabilities nvidia.require.cuda nvidia.require.driver \
-      migration.incremental.memory.iterations raw.apparmor raw.idmap raw.qemu \
-      raw.qemu.conf raw.lxc raw.seccomp security.idmap.base security.idmap.isolated \
-      security.idmap.size security.devlxd security.devlxd.images \
-      security.nesting security.privileged security.protection.delete \
-      security.protection.shift security.secureboot security.csm \
+      limits.processes \
+      limits.kernel. \
+      linux.kernel_modules \
+      linux.sysctl. \
+      migration.incremental.memory migration.incremental.memory.goal migration.incremental.memory.iterations migration.stateful \
+      nvidia.driver.capabilities nvidia.require.cuda nvidia.require.driver nvidia.runtime \
+      raw.apparmor raw.idmap raw.qemu raw.qemu.conf raw.lxc raw.seccomp \
+      security.agent.metrics \
+      security.csm \
+      security.devlxd security.devlxd.images \
+      security.idmap.base security.idmap.isolated security.idmap.size \
+      security.nesting security.privileged \
+      security.protection.delete security.protection.shift \
+      security.secureboot \
       security.sev security.sev.es security.sev.policy.es security.sev.session.dh security.sev.session.data \
       security.syscalls.allow \
       security.syscalls.deny \
       security.syscalls.deny_compat security.syscalls.deny_default \
       security.syscalls.intercept.bpf security.syscalls.intercept.bpf.devices \
-      security.syscalls.intercept.mknod security.syscalls.intercept.mount \
-      security.syscalls.intercept.mount.allowed \
-      security.syscalls.intercept.mount.fuse \
+      security.syscalls.intercept.mknod \
+      security.syscalls.intercept.mount security.syscalls.intercept.mount.allowed security.syscalls.intercept.mount.fuse security.syscalls.intercept.mount.shift \
       security.syscalls.intercept.sched_setscheduler \
       security.syscalls.intercept.setxattr \
       security.syscalls.intercept.sysinfo \
-      security.syscalls.intercept.mount.shift \
-      snapshots.schedule snapshots.schedule.stopped snapshots.pattern \
-      snapshots.expiry \
-      volatile.apply_quota volatile.apply_template volatile.base_image \
+      snapshots.expiry snapshots.pattern snapshots.schedule snapshots.schedule.stopped \
+      user. \
+      volatile.apply_nvram \
+      volatile.apply_template \
+      volatile.base_image \
+      volatile.cloud_init.instance-id \
+      volatile.evacuate.origin \
       volatile.idmap.base volatile.idmap.current volatile.idmap.next \
       volatile.last_state.idmap volatile.last_state.power \
-      cloud-init.network-config cloud-init.user-data cloud-init.vendor-data"
+      volatile.uuid volatile.uuid.generation \
+      volatile.vsock_id"
 
     device_keys="limits.ingress limits.egress ipv4.routes \
       ipv4.routes.external ipv6.routes ipv6.routes.external parent \
@@ -342,7 +358,7 @@ _have lxc && {
                 _lxd_names
                 ;;
               "get"|"set"|"unset")
-                COMPREPLY=( $(compgen -W "$container_keys" -- $cur) )
+                COMPREPLY=( $(compgen -W "$instance_keys" -- $cur) )
                 ;;
             esac
             ;;
@@ -435,7 +451,7 @@ _have lxc && {
                 _lxd_profiles
                 ;;
               *)
-                COMPREPLY=( $(compgen -W "$container_keys" -- $cur) )
+                COMPREPLY=( $(compgen -W "$instance_keys" -- $cur) )
                 ;;
             esac
             ;;
