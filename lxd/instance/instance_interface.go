@@ -102,6 +102,7 @@ type Instance interface {
 	// Live configuration.
 	CGroup() (*cgroup.CGroup, error)
 	VolatileSet(changes map[string]string) error
+	SetAffinity(set []string) error
 
 	// File handling.
 	FileSFTPConn() (net.Conn, error)
