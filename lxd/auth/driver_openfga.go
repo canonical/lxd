@@ -215,7 +215,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 	for _, projectName := range identityCacheEntry.Projects {
 		req.ContextualTuples.TupleKeys = append(req.ContextualTuples.TupleKeys, &openfgav1.TupleKey{
 			User:     userObject,
-			Relation: string(EntitlementProjectOperator),
+			Relation: string(EntitlementOperator),
 			Object:   fmt.Sprintf("%s:%s", entity.TypeProject, entity.ProjectURL(projectName).String()),
 		})
 	}
@@ -384,7 +384,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 	for _, projectName := range identityCacheEntry.Projects {
 		req.ContextualTuples.TupleKeys = append(req.ContextualTuples.TupleKeys, &openfgav1.TupleKey{
 			User:     userObject,
-			Relation: string(EntitlementProjectOperator),
+			Relation: string(EntitlementOperator),
 			Object:   fmt.Sprintf("%s:%s", entity.TypeProject, entity.ProjectURL(projectName).String()),
 		})
 	}
