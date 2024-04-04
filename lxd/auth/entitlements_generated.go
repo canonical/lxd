@@ -10,13 +10,13 @@ import (
 type Entitlement string
 
 const (
-	// EntitlementCanView is the "can_view" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypeProfile, entity.TypeProject, entity.TypeStorageBucket, entity.TypeStorageVolume.
+	// EntitlementCanView is the "can_view" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypeProfile, entity.TypeProject, entity.TypeStorageBucket, entity.TypeStorageVolume.
 	EntitlementCanView Entitlement = "can_view"
 
-	// EntitlementCanEdit is the "can_edit" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypeProfile, entity.TypeProject, entity.TypeServer, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
+	// EntitlementCanEdit is the "can_edit" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypeProfile, entity.TypeProject, entity.TypeServer, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
 	EntitlementCanEdit Entitlement = "can_edit"
 
-	// EntitlementCanDelete is the "can_delete" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypeProfile, entity.TypeProject, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
+	// EntitlementCanDelete is the "can_delete" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypeProfile, entity.TypeProject, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
 	EntitlementCanDelete Entitlement = "can_delete"
 
 	// EntitlementAdmin is the "admin" entitlement. It applies to the following entities: entity.TypeServer.
@@ -279,7 +279,6 @@ const (
 
 	// EntitlementCanExec is the "can_exec" entitlement. It applies to the following entities: entity.TypeInstance.
 	EntitlementCanExec Entitlement = "can_exec"
-
 )
 
 var entityTypeToEntitlements = map[entity.Type][]Entitlement{
@@ -291,11 +290,21 @@ var entityTypeToEntitlements = map[entity.Type][]Entitlement{
 		// Grants permission to delete the certificate.
 		EntitlementCanDelete,
 	},
+	entity.TypeAuthGroup: {
+		// Grants permission to view the group. Identities can always view groups that they are a member of.
+		EntitlementCanView,
+		// Grants permission to edit the group.
+		EntitlementCanEdit,
+		// Grants permission to delete the group.
+		EntitlementCanDelete,
+	},
 	entity.TypeIdentity: {
 		// Grants permission to view the identity.
 		EntitlementCanView,
 		// Grants permission to edit the identity.
 		EntitlementCanEdit,
+		// Grants permission to delete the identity.
+		EntitlementCanDelete,
 	},
 	entity.TypeIdentityProviderGroup: {
 		// Grants permission to view the identity provider group.
