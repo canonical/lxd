@@ -9,6 +9,9 @@ type identity
 
     # Grants permission to edit the identity.
     define can_edit: [identity, service_account, group#member] or can_edit_identities from server
+
+    # Grants permission to delete the identity.
+    define can_delete: [identity, service_account, group#member] or can_delete_identities from server
 type service_account
 type group
   relations
