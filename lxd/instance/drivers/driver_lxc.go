@@ -4185,7 +4185,6 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			d.release()
 			d.cConfig = false
 			_, _ = d.initLXC(true)
-			cgroup.TaskSchedulerTrigger("container", d.name, "changed")
 		}
 	}()
 
@@ -4410,6 +4409,8 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			return err
 		}
 	}
+
+	cpuLimitWasChanged := false
 
 	// Apply the live changes
 	if isRunning {
@@ -4665,8 +4666,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 					}
 				}
 			} else if key == "limits.cpu" || key == "limits.cpu.nodes" {
-				// Trigger a scheduler re-run
-				cgroup.TaskSchedulerTrigger("container", d.name, "changed")
+				cpuLimitWasChanged = true
 			} else if key == "limits.cpu.priority" || key == "limits.cpu.allowance" {
 				// Skip if no cpu CGroup
 				if !d.state.OS.CGInfo.Supports(cgroup.CPU, cg) {
@@ -4867,6 +4867,11 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// Success, update the closure to mark that the changes should be kept.
 	undoChanges = false
+
+	if cpuLimitWasChanged {
+		// Trigger a scheduler re-run
+		cgroup.TaskSchedulerTrigger("container", d.name, "changed")
+	}
 
 	if userRequested {
 		if d.isSnapshot {
