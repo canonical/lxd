@@ -1704,26 +1704,10 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 				return err
 			}
 		}
-	} else {
-		// Confirm nothing weird is going on.
-		if len(cpuInfo.vcpus) != len(pids) {
-			err = fmt.Errorf("QEMU has less vCPUs than configured")
-			op.Done(err)
-			return err
-		}
-
-		for i, pid := range pids {
-			set := unix.CPUSet{}
-			set.Set(int(cpuInfo.vcpus[uint64(i)]))
-
-			// Apply the pin.
-			err := unix.SchedSetaffinity(pid, &set)
-			if err != nil {
-				op.Done(err)
-				return err
-			}
-		}
 	}
+
+	// Trigger a rebalance
+	cgroup.TaskSchedulerTrigger("virtual-machine", d.name, "started")
 
 	// Run monitor hooks from devices.
 	for _, monHook := range monHooks {
@@ -4930,6 +4914,9 @@ func (d *qemu) Stop(stateful bool) error {
 		return err
 	}
 
+	// Trigger a rebalance
+	cgroup.TaskSchedulerTrigger("virtual-machine", d.name, "stopped")
+
 	return nil
 }
 
@@ -5591,6 +5578,8 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		return err
 	}
 
+	cpuLimitWasChanged := false
+
 	if isRunning {
 		// Only certain keys can be changed on a running VM.
 		liveUpdateKeys := []string{
@@ -5669,6 +5658,8 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 				if err != nil {
 					return fmt.Errorf("Failed updating cpu limit: %w", err)
 				}
+
+				cpuLimitWasChanged = true
 			} else if key == "limits.memory" {
 				err = d.updateMemoryLimit(value)
 				if err != nil {
@@ -5791,6 +5782,11 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// Changes have been applied and recorded, do not revert if an error occurs from here.
 	revert.Success()
+
+	if cpuLimitWasChanged {
+		// Trigger a scheduler re-run
+		cgroup.TaskSchedulerTrigger("virtual-machine", d.name, "changed")
+	}
 
 	if isRunning {
 		// Send devlxd notifications only for user.* key changes
