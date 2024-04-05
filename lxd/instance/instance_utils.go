@@ -699,7 +699,7 @@ func ValidName(instanceName string, isSnapshot bool) error {
 		}
 	} else {
 		if strings.Contains(instanceName, shared.SnapshotDelimiter) {
-			return fmt.Errorf("The character %q is reserved for snapshots", shared.SnapshotDelimiter)
+			return fmt.Errorf("Invalid instance name: Cannot contain slashes")
 		}
 
 		err := validate.IsHostname(instanceName)
