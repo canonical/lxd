@@ -265,23 +265,15 @@ func (d Nftables) networkSetupOutboundNAT(networkName string, SNATV4 *SNATOpts, 
 }
 
 // networkSetupICMPDHCPDNSAccess sets up basic nftables overrides for ICMP, DHCP and DNS.
-func (d Nftables) networkSetupICMPDHCPDNSAccess(networkName string, ipVersions []uint) error {
-	ipFamilies := []string{}
-	for _, ipVersion := range ipVersions {
-		switch ipVersion {
-		case 4:
-			ipFamilies = append(ipFamilies, "ip")
-		case 6:
-			ipFamilies = append(ipFamilies, "ip6")
-		}
-	}
-
+// This should be called with at least one of (ip4Address, ip6Address) != nil.
+func (d Nftables) networkSetupICMPDHCPDNSAccess(networkName string, ip4Address net.IP, ip6Address net.IP) error {
 	tplFields := map[string]any{
 		"namespace":      nftablesNamespace,
 		"chainSeparator": nftablesChainSeparator,
 		"networkName":    networkName,
+		"ip4Address":     ip4Address.String(),
+		"ip6Address":     ip6Address.String(),
 		"family":         "inet",
-		"ipFamilies":     ipFamilies,
 	}
 
 	err := d.applyNftConfig(nftablesNetICMPDHCPDNS, tplFields)
@@ -315,7 +307,7 @@ func (d Nftables) networkSetupACLChainAndJumpRules(networkName string) error {
 }
 
 // NetworkSetup configure network firewall.
-func (d Nftables) NetworkSetup(networkName string, opts Opts) error {
+func (d Nftables) NetworkSetup(networkName string, ip4Address net.IP, ip6Address net.IP, opts Opts) error {
 	// Do this first before adding other network rules, so jump to ACL rules come first.
 	if opts.ACL {
 		err := d.networkSetupACLChainAndJumpRules(networkName)
@@ -331,21 +323,20 @@ func (d Nftables) NetworkSetup(networkName string, opts Opts) error {
 		}
 	}
 
-	dhcpDNSAccess := []uint{}
 	var ip4ForwardingAllow, ip6ForwardingAllow *bool
 
 	if opts.FeaturesV4 != nil || opts.FeaturesV6 != nil {
 		if opts.FeaturesV4 != nil {
-			if opts.FeaturesV4.ICMPDHCPDNSAccess {
-				dhcpDNSAccess = append(dhcpDNSAccess, 4)
+			if !opts.FeaturesV4.ICMPDHCPDNSAccess {
+				ip4Address = nil
 			}
 
 			ip4ForwardingAllow = &opts.FeaturesV4.ForwardingAllow
 		}
 
 		if opts.FeaturesV6 != nil {
-			if opts.FeaturesV6.ICMPDHCPDNSAccess {
-				dhcpDNSAccess = append(dhcpDNSAccess, 6)
+			if !opts.FeaturesV6.ICMPDHCPDNSAccess {
+				ip6Address = nil
 			}
 
 			ip6ForwardingAllow = &opts.FeaturesV6.ForwardingAllow
@@ -356,7 +347,7 @@ func (d Nftables) NetworkSetup(networkName string, opts Opts) error {
 			return err
 		}
 
-		err = d.networkSetupICMPDHCPDNSAccess(networkName, dhcpDNSAccess)
+		err = d.networkSetupICMPDHCPDNSAccess(networkName, ip4Address, ip6Address)
 		if err != nil {
 			return err
 		}
