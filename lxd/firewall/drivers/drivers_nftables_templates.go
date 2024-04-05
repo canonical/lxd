@@ -46,15 +46,23 @@ chain in{{.chainSeparator}}{{.networkName}} {
 
 	iifname "{{.networkName}}" tcp dport 53 accept
 	iifname "{{.networkName}}" udp dport 53 accept
+	iifname "lo" tcp dport 53 accept
+	iifname "lo" udp dport 53 accept
 
-	{{- range .ipFamilies}}
-	{{if eq . "ip" -}}
+	{{if ne .ip4Address "<nil>" -}}
+	ip daddr == "{{.ip4Address}}" tcp dport 53 drop
+	ip daddr == "{{.ip4Address}}" udp dport 53 drop
+
 	iifname "{{$.networkName}}" icmp type {3, 11, 12} accept
 	iifname "{{$.networkName}}" udp dport 67 accept
-	{{else -}}
+	{{- end}}
+
+	{{if ne .ip6Address "<nil>" -}}
+	ip6 daddr == "{{.ip6Address}}" tcp dport 53 drop
+	ip6 daddr == "{{.ip6Address}}" udp dport 53 drop
+
 	iifname "{{$.networkName}}" icmpv6 type {1, 2, 3, 4, 133, 135, 136, 143} accept
 	iifname "{{$.networkName}}" udp dport 547 accept
-	{{- end}}
 	{{- end}}
 }
 

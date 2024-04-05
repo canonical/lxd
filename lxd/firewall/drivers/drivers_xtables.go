@@ -379,11 +379,17 @@ func (d Xtables) networkSetupOutboundNAT(networkName string, subnet *net.IPNet, 
 }
 
 // networkSetupICMPDHCPDNSAccess sets up basic iptables overrides for ICMP, DHCP and DNS.
-func (d Xtables) networkSetupICMPDHCPDNSAccess(networkName string, ipVersion uint) error {
+func (d Xtables) networkSetupICMPDHCPDNSAccess(networkName string, networkAddress net.IP, ipVersion uint) error {
 	var rules [][]string
 	if ipVersion == 4 {
 		rules = [][]string{
 			{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "udp", "--dport", "67", "-j", "ACCEPT"},
+			// Prevent DNS requests to the bridge's dnsmasq except from lo and the bridge
+			// `rules` is reversed when applied (iptablesPrepend(...)), so the drop rules come first
+			{"4", networkName, "filter", "INPUT", "-d", networkAddress.String(), "-p", "udp", "--dport", "53", "-j", "DROP"},
+			{"4", networkName, "filter", "INPUT", "-d", networkAddress.String(), "-p", "tcp", "--dport", "53", "-j", "DROP"},
+			{"4", networkName, "filter", "INPUT", "-i", "lo", "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
+			{"4", networkName, "filter", "INPUT", "-i", "lo", "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
 			{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
 			{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
 			{"4", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "udp", "--sport", "67", "-j", "ACCEPT"},
@@ -398,6 +404,10 @@ func (d Xtables) networkSetupICMPDHCPDNSAccess(networkName string, ipVersion uin
 	} else if ipVersion == 6 {
 		rules = [][]string{
 			{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "udp", "--dport", "547", "-j", "ACCEPT"},
+			{"6", networkName, "filter", "INPUT", "-d", networkAddress.String(), "-p", "udp", "--dport", "53", "-j", "DROP"},
+			{"6", networkName, "filter", "INPUT", "-d", networkAddress.String(), "-p", "tcp", "--dport", "53", "-j", "DROP"},
+			{"6", networkName, "filter", "INPUT", "-i", "lo", "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
+			{"6", networkName, "filter", "INPUT", "-i", "lo", "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
 			{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
 			{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
 			{"6", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "udp", "--sport", "547", "-j", "ACCEPT"},
@@ -441,7 +451,7 @@ func (d Xtables) networkSetupDHCPv4Checksum(networkName string) error {
 }
 
 // NetworkSetup configure network firewall.
-func (d Xtables) NetworkSetup(networkName string, opts Opts) error {
+func (d Xtables) NetworkSetup(networkName string, ipv4Address net.IP, ipv6Address net.IP, opts Opts) error {
 	if opts.SNATV4 != nil {
 		err := d.networkSetupOutboundNAT(networkName, opts.SNATV4.Subnet, opts.SNATV4.SNATAddress, opts.SNATV4.Append)
 		if err != nil {
@@ -458,7 +468,7 @@ func (d Xtables) NetworkSetup(networkName string, opts Opts) error {
 
 	if opts.FeaturesV4 != nil {
 		if opts.FeaturesV4.ICMPDHCPDNSAccess {
-			err := d.networkSetupICMPDHCPDNSAccess(networkName, 4)
+			err := d.networkSetupICMPDHCPDNSAccess(networkName, ipv4Address, 4)
 			if err != nil {
 				return err
 			}
@@ -477,7 +487,7 @@ func (d Xtables) NetworkSetup(networkName string, opts Opts) error {
 
 	if opts.FeaturesV6 != nil {
 		if opts.FeaturesV6.ICMPDHCPDNSAccess {
-			err := d.networkSetupICMPDHCPDNSAccess(networkName, 6)
+			err := d.networkSetupICMPDHCPDNSAccess(networkName, ipv6Address, 6)
 			if err != nil {
 				return err
 			}
