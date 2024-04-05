@@ -678,7 +678,7 @@ func ValidName(instanceName string, isSnapshot bool) error {
 
 		// Snapshot part is more flexible, but doesn't allow space or / character.
 		if strings.ContainsAny(snapshotName, " /") {
-			return fmt.Errorf("Invalid instance snapshot name: Cannot contain space or / characters")
+			return fmt.Errorf("Invalid instance snapshot name: Cannot contain spaces or slashes")
 		}
 	} else {
 		if strings.Contains(instanceName, shared.SnapshotDelimiter) {
