@@ -4185,7 +4185,6 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			d.release()
 			d.cConfig = false
 			_, _ = d.initLXC(true)
-			cgroup.TaskSchedulerTrigger("container", d.name, "changed")
 		}
 	}()
 
@@ -4410,6 +4409,8 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			return err
 		}
 	}
+
+	cpuLimitWasChanged := false
 
 	// Apply the live changes
 	if isRunning {
@@ -4665,8 +4666,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 					}
 				}
 			} else if key == "limits.cpu" || key == "limits.cpu.nodes" {
-				// Trigger a scheduler re-run
-				cgroup.TaskSchedulerTrigger("container", d.name, "changed")
+				cpuLimitWasChanged = true
 			} else if key == "limits.cpu.priority" || key == "limits.cpu.allowance" {
 				// Skip if no cpu CGroup
 				if !d.state.OS.CGInfo.Supports(cgroup.CPU, cg) {
@@ -4867,6 +4867,11 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// Success, update the closure to mark that the changes should be kept.
 	undoChanges = false
+
+	if cpuLimitWasChanged {
+		// Trigger a scheduler re-run
+		cgroup.TaskSchedulerTrigger("container", d.name, "changed")
+	}
 
 	if userRequested {
 		if d.isSnapshot {
@@ -8191,6 +8196,29 @@ func (d *lxc) CGroup() (*cgroup.CGroup, error) {
 	}
 
 	return d.cgroup(cc, true)
+}
+
+// SetAffinity sets affinity in the container according with a set provided.
+func (d *lxc) SetAffinity(set []string) error {
+	sort.Strings(set)
+	affinitySet := strings.Join(set, ",")
+
+	// Confirm the container didn't just stop
+	if d.InitPID() <= 0 {
+		return nil
+	}
+
+	cg, err := d.CGroup()
+	if err != nil {
+		return fmt.Errorf("Unable to get cgroup struct: %w", err)
+	}
+
+	err = cg.SetCpuset(affinitySet)
+	if err != nil {
+		return fmt.Errorf("Unable to set cgroup cpuset to %q: %w", affinitySet, err)
+	}
+
+	return nil
 }
 
 func (d *lxc) cgroup(cc *liblxc.Container, running bool) (*cgroup.CGroup, error) {

@@ -390,26 +390,26 @@ func fillFixedInstances(fixedInstances map[int64][]instance.Instance, inst insta
 	}
 }
 
-// deviceTaskBalance is used to balance the CPU load across containers running on a host.
+// deviceTaskBalance is used to balance the CPU load across instances running on a host.
 // It first checks if CGroup support is available and returns if it isn't.
 // It then retrieves the effective CPU list (the CPUs that are guaranteed to be online) and isolates any isolated CPUs.
-// After that, it loads all instances of containers running on the node and iterates through them.
+// After that, it loads all instances running on the node and iterates through them.
 //
-// For each container, it checks its CPU limits and determines whether it is pinned to specific CPUs or can use the load-balancing mechanism.
+// For each instance, it checks its CPU limits and determines whether it is pinned to specific CPUs or can use the load-balancing mechanism.
 // If it is pinned, the function adds it to the fixedInstances map with the CPU numbers it is pinned to.
-// If not, the container will be included in the load-balancing calculation,
+// If not, the instance will be included in the load-balancing calculation,
 // and the number of CPUs it can use is determined by taking the minimum of its assigned CPUs and the available CPUs. Note that if
 // NUMA placement is enabled (`limits.cpu.nodes` is not empty), we apply a similar load-balancing logic to the `fixedInstances` map
 // with a constraint being the number of vCPUs and the CPU pool being the CPUs pinned to a set of NUMA nodes.
 //
-// Next, the function balance the CPU usage by iterating over all the CPUs and dividing the containers into those that
-// are pinned to a specific CPU and those that are load-balanced. For the pinned containers,
+// Next, the function balance the CPU usage by iterating over all the CPUs and dividing the instances into those that
+// are pinned to a specific CPU and those that are load-balanced. For the pinned instances,
 // it adds them to the pinning map with the CPU number it's pinned to.
-// For the load-balanced containers, it sorts the available CPUs based on their usage count and assigns them to containers
+// For the load-balanced instances, it sorts the available CPUs based on their usage count and assigns them to instances
 // in ascending order until the required number of CPUs have been assigned.
-// Finally, the pinning map is used to set the new CPU pinning for each container, updating it to the new balanced state.
+// Finally, the pinning map is used to set the new CPU pinning for each instance, updating it to the new balanced state.
 //
-// Overall, this function ensures that the CPU resources of the host are utilized effectively amongst all the containers running on it.
+// Overall, this function ensures that the CPU resources of the host are utilized effectively amongst all the instances running on it.
 func deviceTaskBalance(s *state.State) {
 	min := func(x, y int) int {
 		if x < y {
@@ -465,7 +465,7 @@ func deviceTaskBalance(s *state.State) {
 	}
 
 	// Iterate through the instances
-	instances, err := instance.LoadNodeAll(s, instancetype.Container)
+	instances, err := instance.LoadNodeAll(s, instancetype.Any)
 	if err != nil {
 		logger.Error("Problem loading instances list", logger.Ctx{"err": err})
 		return
@@ -511,8 +511,8 @@ func deviceTaskBalance(s *state.State) {
 			cpulimit = effectiveCpus
 		}
 
-		// Check that the container is running.
-		// We use InitPID here rather than IsRunning because this task is triggered during the container's
+		// Check that the instance is running.
+		// We use InitPID here rather than IsRunning because this task can be triggered during the container's
 		// onStart hook, which is during the time that the start lock is held, which causes IsRunning to
 		// return false (because the container hasn't fully started yet) but it is sufficiently started to
 		// have its cgroup CPU limits set.
@@ -531,16 +531,16 @@ func deviceTaskBalance(s *state.State) {
 			}
 		} else {
 			// Pinned
-			containerCpus, err := resources.ParseCpuset(cpulimit)
+			instanceCpus, err := resources.ParseCpuset(cpulimit)
 			if err != nil {
 				return
 			}
 
 			if len(numaCpus) > 0 {
-				logger.Warnf("The pinned CPUs: %v, override the NUMA configuration with the CPUs: %v", containerCpus, numaCpus)
+				logger.Warnf("The pinned CPUs: %v, override the NUMA configuration with the CPUs: %v", instanceCpus, numaCpus)
 			}
 
-			fillFixedInstances(fixedInstances, c, cpus, containerCpus, len(containerCpus), false)
+			fillFixedInstances(fixedInstances, c, cpus, instanceCpus, len(instanceCpus), false)
 		}
 	}
 
@@ -561,7 +561,7 @@ func deviceTaskBalance(s *state.State) {
 	for cpu, ctns := range fixedInstances {
 		c, ok := usage[cpu]
 		if !ok {
-			logger.Errorf("Internal error: container using unavailable cpu")
+			logger.Errorf("Internal error: instance using unavailable cpu")
 			continue
 		}
 
@@ -603,22 +603,10 @@ func deviceTaskBalance(s *state.State) {
 	}
 
 	// Set the new pinning
-	for ctn, set := range pinning {
-		// Confirm the container didn't just stop
-		if ctn.InitPID() <= 0 {
-			continue
-		}
-
-		sort.Strings(set)
-		cg, err := ctn.CGroup()
+	for inst, set := range pinning {
+		err = inst.SetAffinity(set)
 		if err != nil {
-			logger.Error("balance: Unable to get cgroup struct", logger.Ctx{"name": ctn.Name(), "err": err, "value": strings.Join(set, ",")})
-			continue
-		}
-
-		err = cg.SetCpuset(strings.Join(set, ","))
-		if err != nil {
-			logger.Error("balance: Unable to set cpuset", logger.Ctx{"name": ctn.Name(), "err": err, "value": strings.Join(set, ",")})
+			logger.Error("Error setting CPU affinity for the instance", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "err": err})
 		}
 	}
 }
