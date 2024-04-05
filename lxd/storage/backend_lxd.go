@@ -715,6 +715,31 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	l.Debug("CreateInstanceFromBackup started")
 	defer l.Debug("CreateInstanceFromBackup finished")
 
+	// Validate the names in the backup.yaml file as these could be malicious.
+	err := instance.ValidName(srcBackup.Name, false)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	err = instance.ValidName(srcBackup.Config.Container.Name, false)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, snapName := range srcBackup.Snapshots {
+		err = instance.ValidName(snapName, true)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	for _, snap := range srcBackup.Config.Snapshots {
+		err = instance.ValidName(snap.Name, true)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
 	// Get the volume name on storage.
 	volStorageName := project.Instance(srcBackup.Project, srcBackup.Name)
 
@@ -738,6 +763,11 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	var volumeConfig map[string]string
 
 	if srcBackup.Config != nil && srcBackup.Config.Volume != nil {
+		err = ValidVolumeName(srcBackup.Config.Volume.Name)
+		if err != nil {
+			return nil, nil, err
+		}
+
 		volumeConfig = srcBackup.Config.Volume.Config
 	}
 
@@ -746,6 +776,11 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 
 	sourceSnapshots := make([]drivers.Volume, 0, len(srcBackup.Config.VolumeSnapshots))
 	for _, volSnap := range srcBackup.Config.VolumeSnapshots {
+		err = ValidVolumeName(volSnap.Name)
+		if err != nil {
+			return nil, nil, err
+		}
+
 		snapshotName := drivers.GetSnapshotVolumeName(srcBackup.Name, volSnap.Name)
 		snapshotStorageName := project.Instance(srcBackup.Project, snapshotName)
 
