@@ -278,7 +278,7 @@ ifeq ($(shell command -v flake8),)
 	exit 1
 endif
 	flake8 test/deps/import-busybox
-	shellcheck --shell sh test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh
+	shellcheck --shell bash test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh
 	shellcheck test/extras/*.sh
 	run-parts --verbose --exit-on-error --regex '.sh' test/lint
 
