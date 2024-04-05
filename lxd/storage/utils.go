@@ -1249,3 +1249,16 @@ func CompareSnapshots(sourceSnapshots []ComparableSnapshot, targetSnapshots []Co
 
 	return syncFromSource, deleteFromTarget
 }
+
+// ValidVolumeName validates a volume name.
+func ValidVolumeName(volumeName string) error {
+	if volumeName == "" {
+		return fmt.Errorf("Invalid volume name: Cannot be empty")
+	}
+
+	if strings.Contains(volumeName, shared.SnapshotDelimiter) {
+		return fmt.Errorf("Invalid volume name %q: Cannot contain slashes", volumeName)
+	}
+
+	return nil
+}
