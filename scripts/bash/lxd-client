@@ -129,6 +129,7 @@ _have lxc && {
       limits.processes \
       limits.kernel. \
       linux.kernel_modules \
+      linux.kernel_modules.load \
       linux.sysctl. \
       migration.incremental.memory migration.incremental.memory.goal migration.incremental.memory.iterations migration.stateful \
       nvidia.driver.capabilities nvidia.require.cuda nvidia.require.driver nvidia.runtime \
