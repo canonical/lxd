@@ -7188,6 +7188,31 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 		return fmt.Errorf("Valid volume snapshot config not found in index")
 	}
 
+	// Validate the names in the index.yaml file as these could be malicious.
+	err := ValidVolumeName(srcBackup.Name)
+	if err != nil {
+		return err
+	}
+
+	err = ValidVolumeName(srcBackup.Config.Volume.Name)
+	if err != nil {
+		return err
+	}
+
+	for _, snapName := range srcBackup.Snapshots {
+		err = ValidVolumeName(snapName)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, snap := range srcBackup.Config.VolumeSnapshots {
+		err = ValidVolumeName(snap.Name)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Check whether we are allowed to create volumes.
 	req := api.StorageVolumesPost{
 		StorageVolumePut: api.StorageVolumePut{
@@ -7196,7 +7221,7 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 		Name: srcBackup.Name,
 	}
 
-	err := b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+	err = b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return project.AllowVolumeCreation(b.state.GlobalConfig, tx, srcBackup.Project, req)
 	})
 	if err != nil {
