@@ -2402,3 +2402,7 @@ Adds the ability for `POST /1.0/instances/{name}/files` to modify the permission
 ## `image_restriction_nesting`
 
 This extension adds a new image restriction, `requirements.nesting` which when `true` indicates that an image cannot be run without nesting.
+## `container_syscall_intercept_finit_module`
+
+Adds the `linux.kernel_modules.load` container configuration option. If the option is set to `ondemand`, the `finit_modules()` syscall is intercepted and a privileged user in the container's user namespace can load the Linux kernel modules specified in the
+allow list `linux.kernel_modules`.

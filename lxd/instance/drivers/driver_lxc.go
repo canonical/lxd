@@ -1934,7 +1934,8 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 
 	// Load any required kernel modules
 	kernelModules := d.expandedConfig["linux.kernel_modules"]
-	if kernelModules != "" {
+	kernelModulesLoadPolicy := d.expandedConfig["linux.kernel_modules.load"]
+	if kernelModulesLoadPolicy != "ondemand" && kernelModules != "" {
 		for _, module := range strings.Split(kernelModules, ",") {
 			module = strings.TrimPrefix(module, " ")
 			err := util.LoadModule(module)
@@ -4465,6 +4466,10 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 					}
 				}
 			} else if key == "linux.kernel_modules" && value != "" {
+				if d.expandedConfig["linux.kernel_modules.load"] == "ondemand" {
+					continue
+				}
+
 				for _, module := range strings.Split(value, ",") {
 					module = strings.TrimPrefix(module, " ")
 					err := util.LoadModule(module)
