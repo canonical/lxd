@@ -673,21 +673,21 @@ func ValidName(instanceName string, isSnapshot bool) error {
 		parentName, snapshotName, _ := api.GetParentAndSnapshotName(instanceName)
 		err := validate.IsHostname(parentName)
 		if err != nil {
-			return fmt.Errorf("Invalid instance name: %w", err)
+			return fmt.Errorf("Invalid instance name %q: %w", parentName, err)
 		}
 
 		// Snapshot part is more flexible, but doesn't allow space or / character.
 		if strings.ContainsAny(snapshotName, " /") {
-			return fmt.Errorf("Invalid instance snapshot name: Cannot contain space or / characters")
+			return fmt.Errorf("Invalid instance snapshot name %q: Cannot contain spaces or slashes", snapshotName)
 		}
 	} else {
 		if strings.Contains(instanceName, shared.SnapshotDelimiter) {
-			return fmt.Errorf("The character %q is reserved for snapshots", shared.SnapshotDelimiter)
+			return fmt.Errorf("Invalid instance name %q: Cannot contain slashes", instanceName)
 		}
 
 		err := validate.IsHostname(instanceName)
 		if err != nil {
-			return fmt.Errorf("Invalid instance name: %w", err)
+			return fmt.Errorf("Invalid instance name %q: %w", instanceName, err)
 		}
 	}
 
