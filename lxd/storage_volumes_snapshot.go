@@ -579,13 +579,10 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 		return response.BadRequest(err)
 	}
 
-	// Quick checks.
-	if req.Name == "" {
-		return response.BadRequest(fmt.Errorf("No name provided"))
-	}
-
-	if strings.Contains(req.Name, "/") {
-		return response.BadRequest(fmt.Errorf("Storage volume names may not contain slashes"))
+	// Check new volume name is valid.
+	err = storagePools.ValidVolumeName(req.Name)
+	if err != nil {
+		return response.BadRequest(err)
 	}
 
 	// This is a migration request so send back requested secrets.
