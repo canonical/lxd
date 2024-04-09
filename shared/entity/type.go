@@ -159,17 +159,14 @@ func ParseURL(u url.URL) (entityType Type, projectName string, location string, 
 	}
 
 	if !strings.HasPrefix(path, "/"+version.APIVersion+"/") {
-		return "", "", "", nil, fmt.Errorf("URL %q does not contain LXD API version", u.String())
+		return nil, "", "", nil, fmt.Errorf("URL %q does not contain LXD API version", u.String())
 	}
 
 	pathParts := strings.Split(strings.TrimPrefix(path, "/"+version.APIVersion+"/"), "/")
 
 entityTypeLoop:
-	for _, currentEntityType := range entityTypes {
-		entityPath, err := currentEntityType.path()
-		if err != nil {
-			return "", "", "", nil, fmt.Errorf("Failed to get path of entity type %q: %w", currentEntityType, err)
-		}
+	for _, currentEntityType := range types {
+		entityPath := currentEntityType.PathTemplate()
 
 		// Skip if we don't have the same number of slashes.
 		if len(pathParts) != len(entityPath) {
@@ -181,7 +178,7 @@ entityTypeLoop:
 			if entityPathPart == pathPlaceholder {
 				pathArgument, err := url.PathUnescape(pathParts[i])
 				if err != nil {
-					return "", "", "", nil, fmt.Errorf("Failed to unescape path element %q from url %q: %w", pathParts[i], u.String(), err)
+					return nil, "", "", nil, fmt.Errorf("Failed to unescape path element %q from url %q: %w", pathParts[i], u.String(), err)
 				}
 
 				pathArgs = append(pathArgs, pathArgument)
@@ -198,11 +195,11 @@ entityTypeLoop:
 		break
 	}
 
-	if entityType == "" {
-		return "", "", "", nil, fmt.Errorf("Failed to match entity URL %q", u.String())
+	if entityType == nil {
+		return nil, "", "", nil, fmt.Errorf("Failed to match entity URL %q", u.String())
 	}
 
-	requiresProject, _ := entityType.RequiresProject()
+	requiresProject := entityType.RequiresProject()
 	projectName = ""
 	if requiresProject {
 		projectName = u.Query().Get("project")
