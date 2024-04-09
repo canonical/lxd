@@ -186,32 +186,32 @@ func (e EntityType) OnDeleteTriggerSQL() string {
 }
 
 const (
-	entityTypeNone                  int64 = -1
-	entityTypeContainer             int64 = 0
-	entityTypeImage                 int64 = 1
-	entityTypeProfile               int64 = 2
-	entityTypeProject               int64 = 3
-	entityTypeCertificate           int64 = 4
-	entityTypeInstance              int64 = 5
-	entityTypeInstanceBackup        int64 = 6
-	entityTypeInstanceSnapshot      int64 = 7
-	entityTypeNetwork               int64 = 8
-	entityTypeNetworkACL            int64 = 9
-	entityTypeNode                  int64 = 10
-	entityTypeOperation             int64 = 11
-	entityTypeStoragePool           int64 = 12
-	entityTypeStorageVolume         int64 = 13
-	entityTypeStorageVolumeBackup   int64 = 14
-	entityTypeStorageVolumeSnapshot int64 = 15
-	entityTypeWarning               int64 = 16
-	entityTypeClusterGroup          int64 = 17
-	entityTypeStorageBucket         int64 = 18
-	entityTypeNetworkZone           int64 = 19
-	entityTypeImageAlias            int64 = 20
-	entityTypeServer                int64 = 21
-	entityTypeAuthGroup             int64 = 22
-	entityTypeIdentityProviderGroup int64 = 23
-	entityTypeIdentity              int64 = 24
+	entityTypeCodeNone                  int64 = -1
+	entityTypeCodeContainer             int64 = 0
+	entityTypeCodeImage                 int64 = 1
+	entityTypeCodeProfile               int64 = 2
+	entityTypeCodeProject               int64 = 3
+	entityTypeCodeCertificate           int64 = 4
+	entityTypeCodeInstance              int64 = 5
+	entityTypeCodeInstanceBackup        int64 = 6
+	entityTypeCodeInstanceSnapshot      int64 = 7
+	entityTypeCodeNetwork               int64 = 8
+	entityTypeCodeNetworkACL            int64 = 9
+	entityTypeCodeClusterMember         int64 = 10
+	entityTypeCodeOperation             int64 = 11
+	entityTypeCodeStoragePool           int64 = 12
+	entityTypeCodeStorageVolume         int64 = 13
+	entityTypeCodeStorageVolumeBackup   int64 = 14
+	entityTypeCodeStorageVolumeSnapshot int64 = 15
+	entityTypeCodeWarning               int64 = 16
+	entityTypeCodeClusterGroup          int64 = 17
+	entityTypeCodeStorageBucket         int64 = 18
+	entityTypeCodeNetworkZone           int64 = 19
+	entityTypeCodeImageAlias            int64 = 20
+	entityTypeCodeServer                int64 = 21
+	entityTypeCodeAuthGroup             int64 = 22
+	entityTypeCodeIdentityProviderGroup int64 = 23
+	entityTypeCodeIdentity              int64 = 24
 )
 
 // Scan implements sql.Scanner for EntityType. This converts the integer value back into the correct entity.Type
