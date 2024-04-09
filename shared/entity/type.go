@@ -88,25 +88,15 @@ func TypeFromString(name string) (Type, error) {
 
 // nRequiredPathArguments returns the number of path arguments (mux variables) that are required to create a unique URL
 // for the given Type.
-func (t Type) nRequiredPathArguments() (int, error) {
-	err := t.Validate()
-	if err != nil {
-		return 0, err
-	}
-
-	typePath, err := t.path()
-	if err != nil {
-		return 0, err
-	}
-
+func nRequiredPathArguments(t Type) int {
 	nRequiredPathArguments := 0
-	for _, element := range typePath {
+	for _, element := range t.PathTemplate() {
 		if element == pathPlaceholder {
 			nRequiredPathArguments++
 		}
 	}
 
-	return nRequiredPathArguments, nil
+	return nRequiredPathArguments
 }
 
 // URL returns a string URL for the Type.
