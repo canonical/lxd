@@ -6,6 +6,10 @@ It covers installing and initializing LXD, creating and configuring some instanc
 
 After going through these steps, you will have a general idea of how to use LXD, and you can start exploring more advanced use cases!
 
+```{note}
+Ensure that you have 20 GiB free disk space before starting this tutorial.
+```
+
 ## Install and initialize LXD
 
 The easiest way to install LXD is to install the snap package.
@@ -56,9 +60,13 @@ If you prefer a different installation method, or use a Linux distribution that 
 LXD is image based and can load images from different image servers.
 In this tutorial, we will use the official [`ubuntu:`](https://cloud-images.ubuntu.com/releases/) image server.
 
-You can list all images that are available on this server with:
+You can list all images (long list) that are available on this image server with:
 
     lxc image list ubuntu:
+
+You can list the images used in this tutorial with:
+
+    lxc image list ubuntu: 22.04 architecture=$(uname -m)
 
 See {ref}`images` for more information about the images that LXD uses.
 
