@@ -2,11 +2,11 @@ package entity
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 	"runtime"
 	"strings"
 
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
@@ -67,19 +67,23 @@ var entityTypes = []Type{
 	TypeIdentityProviderGroup,
 }
 
-// String implements fmt.Stringer for Type.
-func (t Type) String() string {
-	return string(t)
+// nameToType is an internal map of TypeName to Type. It is populated on init from the types list.
+var nameToType = make(map[TypeName]Type, len(types))
+
+func init() {
+	for _, t := range types {
+		nameToType[t.Name()] = t
+	}
 }
 
-// Validate returns an error if the Type is not in the list of allowed types. If the allowEmpty argument is set to true
-// an empty string is allowed. This is to accommodate that warnings may not refer to a specific entity type.
-func (t Type) Validate() error {
-	if !shared.ValueInSlice(t, entityTypes) {
-		return fmt.Errorf("Unknown entity type %q", t)
+// TypeFromString returns the Type with the given name, or an error if there is no Type with said name.
+func TypeFromString(name string) (Type, error) {
+	t, ok := nameToType[TypeName(name)]
+	if !ok {
+		return nil, api.StatusErrorf(http.StatusNotFound, "Entity type %q not found", name)
 	}
 
-	return nil
+	return t, nil
 }
 
 // nRequiredPathArguments returns the number of path arguments (mux variables) that are required to create a unique URL
