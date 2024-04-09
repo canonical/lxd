@@ -67,10 +67,17 @@ func StmtString(code int) (string, error) {
 // Warning: These triggers are applied separately to the schema update mechanism. Changes to these triggers (especially their names)
 // may require a patch.
 func applyTriggers(ctx context.Context, tx *sql.Tx) error {
-	for _, triggerStmt := range entityDeletionTriggers {
-		_, err := tx.ExecContext(ctx, triggerStmt)
-		if err != nil {
-			return err
+	for _, entityType := range entityTypes {
+		if entityType.OnDeleteTriggerName() != "" {
+			_, err := tx.ExecContext(ctx, fmt.Sprintf(`DROP TRIGGER IF EXISTS %s`, entityType.OnDeleteTriggerName()))
+			if err != nil {
+				return err
+			}
+
+			_, err = tx.ExecContext(ctx, entityType.OnDeleteTriggerSQL())
+			if err != nil {
+				return err
+			}
 		}
 	}
 
