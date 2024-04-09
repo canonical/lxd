@@ -360,19 +360,23 @@ func GetEntityURL(ctx context.Context, tx *sql.Tx, entityType entity.Type, entit
 // This method combines the above queries into a single query using the UNION operator. If no entity types are given, this function will
 // return URLs for all entity types. If no project name is given, this function will return URLs for all projects. This may result in
 // stupendously large queries, so use with caution!
-func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, entityTypes ...entity.Type) (map[entity.Type]map[int]*api.URL, error) { //nolint:unused // This will be used in a forthcoming feature.
+func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, entityTypesFilter ...entity.Type) (map[entity.TypeName]map[int]*api.URL, error) {
 	var stmts []string
 	var args []any
-	result := make(map[entity.Type]map[int]*api.URL)
+	result := make(map[entity.TypeName]map[int]*api.URL)
 
+	entityTypeNames := make([]entity.TypeName, 0, len(entityTypesFilter))
+	for _, entityType := range entityTypesFilter {
+		entityTypeNames = append(entityTypeNames, entityType.Name())
+	}
 	// If the server entity type is in the list of entity types, or if we are getting all entity types and
 	// not filtering by project, we need to add a server URL to the result. The entity ID of the server entity type is
 	// always zero.
-	if shared.ValueInSlice(entity.TypeServer, entityTypes) || (len(entityTypes) == 0 && projectName == "") {
-		result[entity.TypeServer] = map[int]*api.URL{0: entity.ServerURL()}
+	if shared.ValueInSlice(entity.TypeNameServer, entityTypeNames) || (len(entityTypes) == 0 && projectName == "") {
+		result[entity.TypeNameServer] = map[int]*api.URL{0: entity.TypeServer.URL()}
 
 		// Return early if there are no other entity types in the list (no queries to execute).
-		if len(entityTypes) == 1 {
+		if len(entityTypesFilter) == 1 {
 			return result, nil
 		}
 	}
@@ -381,47 +385,63 @@ func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, entityTy
 	// If the project is not empty, each statement will need an argument for the project name.
 	// Additionally, pre-populate the result map as we know the entity types in advance (this is so that we don't have
 	// to check and assign on each loop iteration when scanning rows).
-	if len(entityTypes) == 0 && projectName == "" {
-		for entityType, stmt := range entityStatementsAll {
-			stmts = append(stmts, stmt)
-			result[entityType] = make(map[int]*api.URL)
+	if len(entityTypesFilter) == 0 && projectName == "" {
+		for _, dbEntityType := range entityTypes {
+			stmt := dbEntityType.AllURLsQuery()
+			if stmt != "" {
+				stmts = append(stmts, stmt)
+				result[dbEntityType.Name()] = make(map[int]*api.URL)
+			}
 		}
-	} else if len(entityTypes) == 0 && projectName != "" {
-		for entityType, stmt := range entityStatementsByProjectName {
-			stmts = append(stmts, stmt)
-			args = append(args, projectName)
-			result[entityType] = make(map[int]*api.URL)
+	} else if len(entityTypesFilter) == 0 && projectName != "" {
+		for _, dbEntityType := range entityTypes {
+			stmt := dbEntityType.URLsByProjectQuery()
+			if stmt != "" {
+				stmts = append(stmts, stmt)
+				args = append(args, projectName)
+				result[dbEntityType.Name()] = make(map[int]*api.URL)
+			}
 		}
 	} else if projectName == "" {
-		for _, entityType := range entityTypes {
+		for _, entityType := range entityTypesFilter {
 			// We've already added the server url to the result.
-			if entityType == entity.TypeServer {
+			if entity.Equal(entity.TypeServer, entityType) {
 				continue
 			}
 
-			stmt, ok := entityStatementsAll[entityType]
-			if !ok {
+			dbEntityType, err := EntityTypeFromName(entityType.Name())
+			if err != nil {
+				return nil, fmt.Errorf("Could not get entity URLs: %w", err)
+			}
+
+			stmt := dbEntityType.AllURLsQuery()
+			if stmt == "" {
 				return nil, fmt.Errorf("Could not get entity URLs: No statement found for entity type %q", entityType)
 			}
 
 			stmts = append(stmts, stmt)
-			result[entityType] = make(map[int]*api.URL)
+			result[entityType.Name()] = make(map[int]*api.URL)
 		}
 	} else {
-		for _, entityType := range entityTypes {
+		for _, entityType := range entityTypesFilter {
 			// We've already added the server url to the result.
-			if entityType == entity.TypeServer {
+			if entity.Equal(entity.TypeServer, entityType) {
 				continue
 			}
 
-			stmt, ok := entityStatementsByProjectName[entityType]
-			if !ok {
+			dbEntityType, err := EntityTypeFromName(entityType.Name())
+			if err != nil {
+				return nil, fmt.Errorf("Could not get entity URLs: %w", err)
+			}
+
+			stmt := dbEntityType.URLsByProjectQuery()
+			if stmt == "" {
 				return nil, fmt.Errorf("Could not get entity URLs: No statement found for entity type %q", entityType)
 			}
 
 			stmts = append(stmts, stmt)
 			args = append(args, projectName)
-			result[entityType] = make(map[int]*api.URL)
+			result[entityType.Name()] = make(map[int]*api.URL)
 		}
 	}
 
@@ -444,7 +464,7 @@ func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, entityTy
 			return nil, err
 		}
 
-		result[entity.Type(entityRef.EntityType)][entityRef.EntityID] = u
+		result[entityRef.EntityType.Name()][entityRef.EntityID] = u
 	}
 
 	return result, nil
