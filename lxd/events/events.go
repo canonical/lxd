@@ -189,7 +189,7 @@ func (s *Server) broadcast(event api.Event, eventSource EventSource) error {
 		}
 
 		// If the event is project specific, ensure we have permission to view it.
-		if event.Project != "" && !listener.projectPermissionFunc(entity.ProjectURL(event.Project)) {
+		if event.Project != "" && !listener.projectPermissionFunc(entity.TypeProject.URL(event.Project)) {
 			continue
 		}
 
