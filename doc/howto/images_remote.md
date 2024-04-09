@@ -68,6 +68,7 @@ For example:
 
     ubuntu:22.04
     ubuntu-minimal:22.04
+    images:alpine/edge
     local:ed7509d7e83f
 
 (images-remote-default)=

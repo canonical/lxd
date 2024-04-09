@@ -28,10 +28,15 @@ The `cloud-init` actions are run only once on the first start of the instance.
 Rebooting the instance does not re-trigger the actions.
 ```
 
+(cloud-init-support)=
 ## `cloud-init` support in images
 
-To use `cloud-init`, you must base your instance on an image that has `cloud-init` installed, which is the case for all images from the `ubuntu` and `ubuntu-daily` {ref}`image servers <remote-image-servers>`.
-However, images for Ubuntu releases prior to `20.04` require special handling to integrate properly with `cloud-init`, so that `lxc exec` works correctly with virtual machines that use those images. Refer to {ref}`vm-cloud-init-config`.
+To use `cloud-init`, you must base your instance on an image that has `cloud-init` installed:
+
+* All images from the `ubuntu` and `ubuntu-daily` {ref}`image servers <remote-image-servers>` have `cloud-init` support.
+  However, images for Ubuntu releases prior to `20.04` require special handling to integrate properly with `cloud-init`, so that `lxc exec` works correctly with virtual machines that use those images. Refer to [VM `cloud-init`](vm-cloud-init-config).
+* Images from the [`images` remote](https://images.lxd.canonical.com/) have `cloud-init`-enabled variants, which are usually bigger in size than the default variant.
+  The cloud variants use the `/cloud` suffix, for example, `images:alpine/edge/cloud`.
 
 ## Configuration options
 

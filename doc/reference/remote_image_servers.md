@@ -1,5 +1,5 @@
 ---
-discourse: 16647
+discourse: ubuntu:43824,16647
 relatedlinks: https://www.youtube.com/watch?v=pM0EgUqj2a0
 ---
 
@@ -7,6 +7,17 @@ relatedlinks: https://www.youtube.com/watch?v=pM0EgUqj2a0
 # Remote image servers
 
 The [`lxc`](lxc.md) CLI command comes pre-configured with the following default remote image servers:
+
+`images:`
+: This server provides unofficial images for a variety of Linux distributions.
+  The images are built to be compact and minimal, and therefore the default image variants do not include `cloud-init`.
+  Where possible, `/cloud` variants that include `cloud-init` are provided.
+  See [`cloud-init` support in images](cloud-init-support).
+
+  This server does not provide official Ubuntu images (for those, use the `ubuntu:` server).
+  It does, however, provide desktop variants of current Ubuntu releases.
+
+  See [`images.lxd.canonical.com`](https://images.lxd.canonical.com) for an overview of available images.
 
 `ubuntu:`
 : This server provides official stable Ubuntu images.
