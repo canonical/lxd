@@ -18,7 +18,7 @@ const (
 
 // Event creates the lifecycle event for an action on a Certificate.
 func (a IdentityProviderGroupAction) Event(identityProviderGroupName string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	u := entity.IdentityProviderGroupURL(identityProviderGroupName)
+	u := entity.TypeIdentityProviderGroup.URL(identityProviderGroupName)
 
 	return api.EventLifecycle{
 		Action:    string(a),
