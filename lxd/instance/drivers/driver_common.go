@@ -1064,8 +1064,13 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 
 // warningsDelete deletes any persistent warnings for the instance.
 func (d *common) warningsDelete() error {
-	err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.DeleteWarnings(ctx, tx.Tx(), dbCluster.EntityType(entity.TypeInstance), d.ID())
+	clusterEntityType, err := dbCluster.EntityTypeFromName(entity.TypeNameInstance)
+	if err != nil {
+		return fmt.Errorf("Failed to get database entity of type %q: %w", entity.TypeNameInstance, err)
+	}
+
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return dbCluster.DeleteWarnings(ctx, tx.Tx(), clusterEntityType, d.ID())
 	})
 	if err != nil {
 		return fmt.Errorf("Failed deleting persistent warnings: %w", err)
