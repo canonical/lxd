@@ -12,85 +12,27 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-// Type represents a resource type in LXD that is addressable via the API.
-type Type string
+// TypeName is a concrete type to be used as the Name of a Type.
+type TypeName string
 
-const (
-	// TypeContainer represents container resources.
-	TypeContainer Type = "container"
+// Type is a representation of a LXD API resource. To add a new Type, implement this interface and add it to the list of
+// types below. If the Type must be representable in the database, you must also add a new EntityType in the lxd/db/cluster
+// package.
+type Type interface {
+	// Stringer - All Type implementations must implement fmt.Stringer. This should be the result of Name, cast to a string.
+	fmt.Stringer
 
-	// TypeImage represents image resources.
-	TypeImage Type = "image"
+	// RequiresProject must return true if the entity type requires a project query parameter to be uniquely addressable
+	// via the API.
+	RequiresProject() bool
 
-	// TypeProfile represents profile resources.
-	TypeProfile Type = "profile"
+	// Name must return a unique TypeName for this entity type.
+	Name() TypeName
 
-	// TypeProject represents project resources.
-	TypeProject Type = "project"
-
-	// TypeCertificate represents certificate resources.
-	TypeCertificate Type = "certificate"
-
-	// TypeInstance represents instance resources.
-	TypeInstance Type = "instance"
-
-	// TypeInstanceBackup represents instance backup resources.
-	TypeInstanceBackup Type = "instance_backup"
-
-	// TypeInstanceSnapshot represents instance snapshot resources.
-	TypeInstanceSnapshot Type = "instance_snapshot"
-
-	// TypeNetwork represents network resources.
-	TypeNetwork Type = "network"
-
-	// TypeNetworkACL represents network acl resources.
-	TypeNetworkACL Type = "network_acl"
-
-	// TypeNode represents node resources.
-	TypeNode Type = "node"
-
-	// TypeOperation represents operation resources.
-	TypeOperation Type = "operation"
-
-	// TypeStoragePool represents storage pool resources.
-	TypeStoragePool Type = "storage_pool"
-
-	// TypeStorageVolume represents storage volume resources.
-	TypeStorageVolume Type = "storage_volume"
-
-	// TypeStorageVolumeBackup represents storage volume backup resources.
-	TypeStorageVolumeBackup Type = "storage_volume_backup"
-
-	// TypeStorageVolumeSnapshot represents storage volume snapshot resources.
-	TypeStorageVolumeSnapshot Type = "storage_volume_snapshot"
-
-	// TypeWarning represents warning resources.
-	TypeWarning Type = "warning"
-
-	// TypeClusterGroup represents cluster group resources.
-	TypeClusterGroup Type = "cluster_group"
-
-	// TypeStorageBucket represents storage bucket resources.
-	TypeStorageBucket Type = "storage_bucket"
-
-	// TypeServer represents the top level /1.0 resource.
-	TypeServer Type = "server"
-
-	// TypeImageAlias represents image alias resources.
-	TypeImageAlias Type = "image_alias"
-
-	// TypeNetworkZone represents network zone resources.
-	TypeNetworkZone Type = "network_zone"
-
-	// TypeIdentity represents identity resources.
-	TypeIdentity Type = "identity"
-
-	// TypeAuthGroup represents authorization group resources.
-	TypeAuthGroup Type = "group"
-
-	// TypeIdentityProviderGroup represents identity provider group resources.
-	TypeIdentityProviderGroup Type = "identity_provider_group"
-)
+	// PathTemplate must return a slice containing elements of the URL for this entity after version.APIVersion. The
+	// pathPlaceholder must be used in place of path arguments (mux variables).
+	PathTemplate() []string
+}
 
 const (
 	// pathPlaceholder is used to indicate that a path argument is expected in a URL.
