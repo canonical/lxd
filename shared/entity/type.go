@@ -104,33 +104,22 @@ func nRequiredPathArguments(t Type) int {
 // If the Type is project specific and no project name is given, the project name will be set to api.ProjectDefaultName.
 //
 // Warning: All arguments to this function will be URL encoded. They must not be URL encoded before calling this method.
-func (t Type) URL(projectName string, location string, pathArguments ...string) (*api.URL, error) {
-	requiresProject, err := t.RequiresProject()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to check if entity type %q is project specific: %w", t, err)
-	}
+func URL(t Type, projectName string, location string, pathArguments ...string) (*api.URL, error) {
+	requiresProject := t.RequiresProject()
 
 	if requiresProject && projectName == "" {
 		projectName = api.ProjectDefaultName
 	}
 
-	nRequiredPathArguments, err := t.nRequiredPathArguments()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to check number of required path arguments for entity type %q: %w", t, err)
-	}
+	nRequiredPathArguments := nRequiredPathArguments(t)
 
 	if len(pathArguments) != nRequiredPathArguments {
-		return nil, fmt.Errorf("Entity type %q requires `%d` path arguments but `%d` were given", t, nRequiredPathArguments, len(pathArguments))
-	}
-
-	pathParts, err := t.path()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get path template for entity type %q: %w", t, err)
+		return nil, fmt.Errorf("Entity type %q requires `%d` path arguments but `%d` were given", t.Name(), nRequiredPathArguments, len(pathArguments))
 	}
 
 	argIdx := 0
 	path := []string{version.APIVersion}
-	for _, pathPart := range pathParts {
+	for _, pathPart := range t.PathTemplate() {
 		if pathPart == pathPlaceholder {
 			pathPart = pathArguments[argIdx]
 			argIdx++
