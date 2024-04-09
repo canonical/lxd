@@ -39,7 +39,9 @@ const (
 	pathPlaceholder = "{pathArgument}"
 )
 
-var entityTypes = []Type{
+// types is a list of all Type implementations. To add a new entity type, create a new type that implements Type,
+// instantiate it, and add it to this list.
+var types = []Type{
 	TypeContainer,
 	TypeImage,
 	TypeProfile,
@@ -50,7 +52,7 @@ var entityTypes = []Type{
 	TypeInstanceSnapshot,
 	TypeNetwork,
 	TypeNetworkACL,
-	TypeNode,
+	TypeClusterMember,
 	TypeOperation,
 	TypeStoragePool,
 	TypeStorageVolume,
