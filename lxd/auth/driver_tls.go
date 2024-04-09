@@ -90,19 +90,18 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *a
 		return fmt.Errorf("Failed to parse entity URL: %w", err)
 	}
 
-	if entityType == entity.TypeProject {
+	if entity.Equal(entity.TypeProject, entityType) {
 		projectName = pathArgs[0]
 	}
 
 	// Check server level object types
-	switch entityType {
-	case entity.TypeServer:
+	if entity.Equal(entity.TypeServer, entityType) {
 		if entitlement == EntitlementCanView || entitlement == EntitlementCanViewResources || entitlement == EntitlementCanViewMetrics {
 			return nil
 		}
 
 		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
-	case entity.TypeStoragePool, entity.TypeCertificate:
+	} else if entity.Equal(entity.TypeStoragePool, entityType) || entity.Equal(entity.TypeCertificate, entityType) {
 		if entitlement == EntitlementCanView {
 			return nil
 		}
@@ -111,7 +110,7 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *a
 	}
 
 	// Don't allow project modifications.
-	if entityType == entity.TypeProject && (entitlement == EntitlementCanEdit || entitlement == EntitlementCanDelete) {
+	if entity.Equal(entity.TypeProject, entityType) && (entitlement == EntitlementCanEdit || entitlement == EntitlementCanDelete) {
 		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
 	}
 
@@ -176,8 +175,7 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 	}
 
 	// Check server level object types
-	switch entityType {
-	case entity.TypeServer:
+	if entity.Equal(entity.TypeServer, entityType) {
 		// We have to keep EntitlementCanViewMetrics here for backwards compatibility with older versions of LXD.
 		// Historically when viewing the metrics endpoint for a specific project with a restricted certificate
 		// also the internal server metrics get returned.
@@ -186,7 +184,7 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 		}
 
 		return allowFunc(false), nil
-	case entity.TypeStoragePool, entity.TypeCertificate:
+	} else if entity.Equal(entity.TypeStoragePool, entityType) || entity.Equal(entity.TypeCertificate, entityType) {
 		if entitlement == EntitlementCanView {
 			return allowFunc(true), nil
 		}
@@ -216,7 +214,7 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 		}
 
 		// If it's a project URL, the project name is in the path, not the query parameter.
-		if eType == entity.TypeProject {
+		if entity.Equal(entity.TypeProject, eType) {
 			project = pathArgs[0]
 		}
 
