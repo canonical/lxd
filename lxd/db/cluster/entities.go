@@ -330,18 +330,23 @@ func (e *EntityRef) getURL() (*api.URL, error) {
 
 // GetEntityURL returns the *api.URL of a single entity by its type and ID.
 func GetEntityURL(ctx context.Context, tx *sql.Tx, entityType entity.Type, entityID int) (*api.URL, error) {
-	if entityType == entity.TypeServer {
-		return entity.ServerURL(), nil
+	if entity.Equal(entity.TypeServer, entityType) {
+		return entity.TypeServer.URL(), nil
 	}
 
-	stmt, ok := entityStatementsByID[entityType]
-	if !ok {
-		return nil, fmt.Errorf("Could not get entity URL: No statement found for entity type %q", entityType)
+	dbEntityType, err := EntityTypeFromName(entityType.Name())
+	if err != nil {
+		return nil, fmt.Errorf("Could not get entity URL: %w", err)
+	}
+
+	stmt := dbEntityType.URLByIDQuery()
+	if stmt == "" {
+		return nil, fmt.Errorf("Could not get entity URL: No URL from ID statement found for entity type %q", entityType)
 	}
 
 	row := tx.QueryRowContext(ctx, stmt, entityID)
 	entityRef := &EntityRef{}
-	err := entityRef.scan(row.Scan)
+	err = entityRef.scan(row.Scan)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("Failed to scan entity URL: %w", err)
 	} else if err != nil {
