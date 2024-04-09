@@ -164,7 +164,7 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 	resultString := []string{}
 	resultMap := []api.NetworkZone{}
 	for _, zoneName := range zoneNames {
-		if !userHasPermission(entity.NetworkZoneURL(projectName, zoneName)) {
+		if !userHasPermission(entity.TypeNetworkZone.URL(projectName, zoneName)) {
 			continue
 		}
 

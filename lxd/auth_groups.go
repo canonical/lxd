@@ -183,7 +183,7 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 	var authGroupPermissions []dbCluster.Permission
 	groupsIdentities := make(map[int][]dbCluster.Identity)
 	groupsIdentityProviderGroups := make(map[int][]dbCluster.IdentityProviderGroup)
-	entityURLs := make(map[entity.Type]map[int]*api.URL)
+	entityURLs := make(map[entity.TypeName]map[int]*api.URL)
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		allGroups, err := dbCluster.GetAuthGroups(ctx, tx.Tx())
 		if err != nil {
@@ -192,7 +192,7 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 
 		groups = make([]dbCluster.AuthGroup, 0, len(groups))
 		for _, group := range allGroups {
-			if canViewGroup(entity.AuthGroupURL(group.Name)) {
+			if canViewGroup(entity.TypeAuthGroup.URL(group.Name)) {
 				groups = append(groups, group)
 			}
 		}
@@ -248,8 +248,8 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 				apiPermissions = make([]api.Permission, 0, len(permissions))
 				for _, permission := range permissions {
 					apiPermissions = append(apiPermissions, api.Permission{
-						EntityType:      string(permission.EntityType),
-						EntityReference: entityURLs[entity.Type(permission.EntityType)][permission.EntityID].String(),
+						EntityType:      string(permission.EntityType.Name()),
+						EntityReference: entityURLs[permission.EntityType.Name()][permission.EntityID].String(),
 						Entitlement:     string(permission.Entitlement),
 					})
 				}
@@ -258,14 +258,14 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 			apiIdentities := make(map[string][]string)
 			for _, identity := range groupsIdentities[group.ID] {
 				authenticationMethod := string(identity.AuthMethod)
-				if canViewIdentity(entity.IdentityURL(authenticationMethod, identity.Identifier)) {
+				if canViewIdentity(entity.TypeIdentity.URL(authenticationMethod, identity.Identifier)) {
 					apiIdentities[authenticationMethod] = append(apiIdentities[authenticationMethod], identity.Identifier)
 				}
 			}
 
 			idpGroups := make([]string, 0, len(groupsIdentityProviderGroups[group.ID]))
 			for _, idpGroup := range groupsIdentityProviderGroups[group.ID] {
-				if canViewIDPGroup(entity.IdentityProviderGroupURL(idpGroup.Name)) {
+				if canViewIDPGroup(entity.TypeIdentityProviderGroup.URL(idpGroup.Name)) {
 					idpGroups = append(idpGroups, idpGroup.Name)
 				}
 			}
@@ -284,7 +284,7 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 
 	groupURLs := make([]string, 0, len(groups))
 	for _, group := range groups {
-		groupURLs = append(groupURLs, entity.AuthGroupURL(group.Name).String())
+		groupURLs = append(groupURLs, entity.TypeAuthGroup.URL(group.Name).String())
 	}
 
 	return response.SyncResponse(true, groupURLs)
@@ -362,7 +362,7 @@ func createAuthGroup(d *Daemon, r *http.Request) response.Response {
 	lc := lifecycle.AuthGroupCreated.Event(group.Name, request.CreateRequestor(r), nil)
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
-	return response.SyncResponseLocation(true, nil, entity.AuthGroupURL(group.Name).String())
+	return response.SyncResponseLocation(true, nil, entity.TypeAuthGroup.URL(group.Name).String())
 }
 
 // swagger:operation GET /1.0/auth/groups/{groupName} auth_groups auth_group_get
@@ -728,7 +728,7 @@ func renameAuthGroup(d *Daemon, r *http.Request) response.Response {
 	lc := lifecycle.AuthGroupRenamed.Event(groupPost.Name, request.CreateRequestor(r), map[string]any{"old_name": groupName})
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
-	return response.SyncResponseLocation(true, nil, entity.AuthGroupURL(groupPost.Name).String())
+	return response.SyncResponseLocation(true, nil, entity.TypeAuthGroup.URL(groupPost.Name).String())
 }
 
 // swagger:operation DELETE /1.0/auth/groups/{groupName} auth_groups auth_group_delete
@@ -795,8 +795,7 @@ func deleteAuthGroup(d *Daemon, r *http.Request) response.Response {
 // entity reference (URL), and d) that the entitlement is valid for the entity type.
 func validatePermissions(permissions []api.Permission) error {
 	for _, permission := range permissions {
-		entityType := entity.Type(permission.EntityType)
-		err := entityType.Validate()
+		entityType, err := entity.TypeFromString(permission.EntityType)
 		if err != nil {
 			return api.StatusErrorf(http.StatusBadRequest, "Failed to validate entity type for permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
 		}
@@ -815,7 +814,7 @@ func validatePermissions(permissions []api.Permission) error {
 			return api.StatusErrorf(http.StatusBadRequest, "Failed to parse permission with entity reference %q and entitlement %q: Entity type does not correspond to entity reference", permission.EntityReference, permission.Entitlement)
 		}
 
-		err = auth.ValidateEntitlement(entityType, auth.Entitlement(permission.Entitlement))
+		err = auth.ValidateEntitlement(entityType.Name(), auth.Entitlement(permission.Entitlement))
 		if err != nil {
 			return api.StatusErrorf(http.StatusBadRequest, "Failed to validate group permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
 		}
@@ -847,8 +846,17 @@ func upsertPermissions(ctx context.Context, tx *sql.Tx, groupID int, permissions
 
 	authGroupPermissions := make([]dbCluster.Permission, 0, len(permissions))
 	for permission, apiURL := range permissionToURL {
+		entityType, err := entity.TypeFromString(permission.EntityType)
+		if err != nil {
+			return api.StatusErrorf(http.StatusBadRequest, "Invalid entity type %q: %w", permission.EntityType, err)
+		}
+
 		entitlement := auth.Entitlement(permission.Entitlement)
-		entityType := dbCluster.EntityType(permission.EntityType)
+		dbEntityType, err := dbCluster.EntityTypeFromName(entityType.Name())
+		if err != nil {
+			return api.StatusErrorf(http.StatusInternalServerError, "Missing database definition for entity type %q: %w", entityType.Name(), err)
+		}
+
 		entityRef, ok := entityReferences[apiURL]
 		if !ok {
 			return api.StatusErrorf(http.StatusBadRequest, "Missing entity ID for permission with URL %q", permission.EntityReference)
@@ -857,7 +865,7 @@ func upsertPermissions(ctx context.Context, tx *sql.Tx, groupID int, permissions
 		authGroupPermissions = append(authGroupPermissions, dbCluster.Permission{
 			GroupID:     groupID,
 			Entitlement: entitlement,
-			EntityType:  entityType,
+			EntityType:  dbEntityType,
 			EntityID:    entityRef.EntityID,
 		})
 	}

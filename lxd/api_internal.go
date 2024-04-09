@@ -148,12 +148,12 @@ type internalImageOptimizePost struct {
 }
 
 type internalWarningCreatePost struct {
-	Location   string      `json:"location"    yaml:"location"`
-	Project    string      `json:"project"     yaml:"project"`
-	EntityType entity.Type `json:"entity_type" yaml:"entity_type"`
-	EntityID   int         `json:"entity_id"   yaml:"entity_id"`
-	TypeCode   int         `json:"type_code"   yaml:"type_code"`
-	Message    string      `json:"message"     yaml:"message"`
+	Location   string `json:"location"    yaml:"location"`
+	Project    string `json:"project"     yaml:"project"`
+	EntityType string `json:"entity_type" yaml:"entity_type"`
+	EntityID   int    `json:"entity_id"   yaml:"entity_id"`
+	TypeCode   int    `json:"type_code"   yaml:"type_code"`
+	Message    string `json:"message"     yaml:"message"`
 }
 
 // internalCreateWarning creates a warning, and is used for testing only.
@@ -165,15 +165,16 @@ func internalCreateWarning(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// If entity type is set, check it is valid and fail if it isn't.
+	var entityType entity.Type
 	if req.EntityType != "" {
-		err = req.EntityType.Validate()
+		entityType, err = entity.TypeFromString(req.EntityType)
 		if err != nil {
 			return response.BadRequest(fmt.Errorf("Invalid entity type: %w", err))
 		}
 	}
 
 	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return tx.UpsertWarning(ctx, req.Location, req.Project, req.EntityType, req.EntityID, warningtype.Type(req.TypeCode), req.Message)
+		return tx.UpsertWarning(ctx, req.Location, req.Project, entityType, req.EntityID, warningtype.Type(req.TypeCode), req.Message)
 	})
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to create warning: %w", err))

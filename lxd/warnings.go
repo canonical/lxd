@@ -503,10 +503,6 @@ func pruneResolvedWarnings(ctx context.Context, s *state.State) error {
 
 // getWarningEntityURL fetches the entity corresponding to the warning from the database, and generates a URL.
 func getWarningEntityURL(ctx context.Context, tx *sql.Tx, warning *cluster.Warning) (string, error) {
-	if warning.EntityID == -1 || warning.EntityType == "" {
-		return "", nil
-	}
-
 	u, err := cluster.GetEntityURL(ctx, tx, entity.Type(warning.EntityType), warning.EntityID)
 	if err != nil {
 		return "", fmt.Errorf("Failed to get warning entity URL: %w", err)

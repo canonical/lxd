@@ -176,7 +176,7 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 	resultString := []string{}
 	resultMap := []api.NetworkACL{}
 	for _, aclName := range aclNames {
-		if !userHasPermission(entity.NetworkACLURL(projectName, aclName)) {
+		if !userHasPermission(entity.TypeNetworkACL.URL(projectName, aclName)) {
 			continue
 		}
 

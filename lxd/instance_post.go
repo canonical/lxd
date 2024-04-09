@@ -324,7 +324,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		if req.Pool != "" || req.Project != "" {
 			// Check if user has access to target project.
 			if req.Project != "" {
-				err := s.Authorizer.CheckPermission(r.Context(), r, entity.ProjectURL(req.Project), auth.EntitlementCanCreateInstances)
+				err := s.Authorizer.CheckPermission(r.Context(), r, entity.TypeProject.URL(req.Project), auth.EntitlementCanCreateInstances)
 				if err != nil {
 					return response.SmartError(err)
 				}

@@ -155,7 +155,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 
 		projects := make([]cluster.Project, 0, len(allProjects))
 		for _, project := range allProjects {
-			if userHasPermission(entity.ProjectURL(project.Name)) {
+			if userHasPermission(entity.TypeProject.URL(project.Name)) {
 				projects = append(projects, project)
 			}
 		}
@@ -178,7 +178,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 		} else {
 			projectURLs = make([]string, 0, len(projects))
 			for _, project := range projects {
-				projectURLs = append(projectURLs, entity.ProjectURL(project.Name).String())
+				projectURLs = append(projectURLs, entity.TypeProject.URL(project.Name).String())
 			}
 		}
 
@@ -213,7 +213,7 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Proje
 
 	entityURLs, err := cluster.GetEntityURLs(ctx, tx.Tx(), project.Name, reportedEntityTypes...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get project used-by URLs")
+		return nil, fmt.Errorf("Failed to get project used-by URLs: %w", err)
 	}
 
 	var usedBy []string

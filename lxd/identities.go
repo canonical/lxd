@@ -99,7 +99,7 @@ func identityAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http
 			return response.SmartError(err)
 		}
 
-		err = s.Authorizer.CheckPermission(r.Context(), r, entity.IdentityURL(authenticationMethod, id.Identifier), entitlement)
+		err = s.Authorizer.CheckPermission(r.Context(), r, entity.TypeIdentity.URL(authenticationMethod, id.Identifier), entitlement)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -315,7 +315,7 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 
 		// Filter results by what the user is allowed to view.
 		for _, id := range allIdentities {
-			if canViewIdentity(entity.IdentityURL(string(id.AuthMethod), id.Identifier)) {
+			if canViewIdentity(entity.TypeIdentity.URL(string(id.AuthMethod), id.Identifier)) {
 				identities = append(identities, id)
 			}
 		}
@@ -355,7 +355,7 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 		groupNamesByIdentityID := make(map[int][]string, len(groupsByIdentityID))
 		for identityID, groups := range groupsByIdentityID {
 			for _, group := range groups {
-				if canViewGroup(entity.AuthGroupURL(group.Name)) {
+				if canViewGroup(entity.TypeAuthGroup.URL(group.Name)) {
 					groupNamesByIdentityID[identityID] = append(groupNamesByIdentityID[identityID], group.Name)
 				}
 			}
@@ -377,7 +377,7 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 
 	urls := make([]string, 0, len(identities))
 	for _, id := range identities {
-		urls = append(urls, entity.IdentityURL(string(id.AuthMethod), id.Identifier).String())
+		urls = append(urls, entity.TypeIdentity.URL(string(id.AuthMethod), id.Identifier).String())
 	}
 
 	return response.SyncResponse(true, urls)
@@ -542,8 +542,8 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 		effectivePermissions = make([]api.Permission, 0, len(permissions))
 		for _, permission := range permissions {
 			effectivePermissions = append(effectivePermissions, api.Permission{
-				EntityType:      string(permission.EntityType),
-				EntityReference: entityURLs[entity.Type(permission.EntityType)][permission.EntityID].String(),
+				EntityType:      string(permission.EntityType.Name()),
+				EntityReference: entityURLs[permission.EntityType.Name()][permission.EntityID].String(),
 				Entitlement:     string(permission.Entitlement),
 			})
 		}

@@ -49,12 +49,14 @@ func allowMetrics(d *Daemon, r *http.Request) response.Response {
 		return response.EmptySyncResponse
 	}
 
-	entityType := entity.TypeServer
+	var entityType entity.Type
 
 	// Check for individual permissions on project if set.
 	projectName := request.QueryParam(r, "project")
 	if projectName != "" {
 		entityType = entity.TypeProject
+	} else {
+		entityType = entity.TypeServer
 	}
 
 	return allowPermission(entityType, auth.EntitlementCanViewMetrics)(d, r)
@@ -368,10 +370,10 @@ func getFilteredMetrics(s *state.State, r *http.Request, compress bool, metricSe
 	// Internal server metrics without labels are compared against the server entity.
 	metricSet.FilterSamples(func(labels map[string]string) bool {
 		if labels["project"] != "" {
-			return userHasProjectPermission(entity.ProjectURL(labels["project"]))
+			return userHasProjectPermission(entity.TypeProject.URL(labels["project"]))
 		}
 
-		return userHasServerPermission(entity.ServerURL())
+		return userHasServerPermission(entity.TypeServer.URL())
 	})
 
 	return response.SyncResponsePlain(true, compress, metricSet.String())

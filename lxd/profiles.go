@@ -173,7 +173,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		if recursion {
 			apiProfiles = make([]*api.Profile, 0, len(profiles))
 			for _, profile := range profiles {
-				if !userHasPermission(entity.ProfileURL(p.Name, profile.Name)) {
+				if !userHasPermission(entity.TypeProfile.URL(p.Name, profile.Name)) {
 					continue
 				}
 
@@ -192,7 +192,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		} else {
 			profileURLs = make([]string, 0, len(profiles))
 			for _, profile := range profiles {
-				profileURL := entity.ProfileURL(p.Name, profile.Name)
+				profileURL := entity.TypeProfile.URL(p.Name, profile.Name)
 				if userHasPermission(profileURL) {
 					profileURLs = append(profileURLs, profileURL.String())
 				}

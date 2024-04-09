@@ -2235,7 +2235,7 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 
 		revert.Add(func() {
 			_ = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return tx.UpsertWarningLocalNode(ctx, "", "", -1, warningtype.UnableToUpdateClusterCertificate, err.Error())
+				return tx.UpsertWarningLocalNode(ctx, "", nil, -1, warningtype.UnableToUpdateClusterCertificate, err.Error())
 			})
 		})
 

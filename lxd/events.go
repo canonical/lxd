@@ -63,7 +63,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 
 	var projectPermissionFunc auth.PermissionChecker
 	if projectName != "" {
-		err := s.Authorizer.CheckPermission(r.Context(), r, entity.ProjectURL(projectName), auth.EntitlementCanViewEvents)
+		err := s.Authorizer.CheckPermission(r.Context(), r, entity.TypeProject.URL(projectName), auth.EntitlementCanViewEvents)
 		if err != nil {
 			return err
 		}
@@ -75,7 +75,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 		}
 	}
 
-	canViewPrivilegedEvents := s.Authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanViewPrivilegedEvents) == nil
+	canViewPrivilegedEvents := s.Authorizer.CheckPermission(r.Context(), r, entity.TypeServer.URL(), auth.EntitlementCanViewPrivilegedEvents) == nil
 
 	types := strings.Split(r.FormValue("type"), ",")
 	if len(types) == 1 && types[0] == "" {
