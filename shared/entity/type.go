@@ -217,10 +217,10 @@ entityTypeLoop:
 // urlMust is used internally when we know that creation of an *api.URL ought to succeed. If an error does occur an
 // empty string is return and the error is logged with as much context as possible, including the file and line number
 // of the caller.
-func (t Type) urlMust(projectName string, location string, pathArguments ...string) *api.URL {
-	ref, err := t.URL(projectName, location, pathArguments...)
+func urlMust(t Type, projectName string, location string, pathArguments ...string) *api.URL {
+	ref, err := URL(t, projectName, location, pathArguments...)
 	if err != nil {
-		logCtx := logger.Ctx{"entity_type": t, "project_name": projectName, "location": location, "path_aguments": pathArguments}
+		logCtx := logger.Ctx{"entity_type": t.Name(), "project_name": projectName, "location": location, "path_aguments": pathArguments}
 
 		// Get the second caller (we expect the first caller to be internal to this package since this method is not exported).
 		_, file, line, ok := runtime.Caller(2)
