@@ -89,7 +89,7 @@ func restServer(d *Daemon) *http.Server {
 			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
 			// Sets the Content Security Policy (CSP) for the page, which helps mitigate XSS attacks and data injection attacks.
 			// The policy allows loading resources (scripts, styles, images, etc.) only from the same origin ('self'), data URLs, and all subdomains of ubuntu.com.
-			w.Header().Set("Content-Security-Policy", "default-src 'self' data: https://*.ubuntu.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'")
+			w.Header().Set("Content-Security-Policy", "default-src 'self' data: https://*.ubuntu.com https://*.canonical.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'")
 
 			uiHandler.ServeHTTP(w, r)
 		})
