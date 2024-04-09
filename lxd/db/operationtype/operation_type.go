@@ -282,5 +282,5 @@ func (t Type) Permission() (entity.Type, auth.Entitlement) {
 		return entity.TypeStorageVolume, auth.EntitlementCanEdit
 	}
 
-	return "", ""
+	return nil, ""
 }
