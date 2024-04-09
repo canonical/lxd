@@ -7,22 +7,183 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"net/http"
 	"strings"
 
-	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
 
-// EntityType is a database representation of an entity type.
+// EntityType is a wrapper for the underlying entityType. Allowing us to implement sql.Scanner and driver.Valuer.
+// The zero-value of EntityType (with nil 'entityType') behaves as a "server" entity type. This corresponds with the
+// behaviour of the warnings system in that if a warning is created against no specific entity it is considered cluster-wide.
+type EntityType struct {
+	entityType entityType
+}
+
+// entityType is a database representation of an entity type. This type is not exported because it cannot be used
+// directly by other packages, this is because we can't implement sql.Scanner or driver.Valuer on an interface type.
+// Instead, this type is wrapped by EntityType.
 //
-// EntityType is defined on string so that entity.Type constants can be converted by casting. The sql.Scanner and
-// driver.Valuer interfaces are implemented on this type such that the string constants are converted into their int64
-// counterparts as they are written to the database, or converted back into an EntityType as they are read from the
-// database. It is not possible to read/write invalid entity types from/to the database when using this type.
-type EntityType string
+// To create a new database entity type, implement this interface and add it to the entityTypes list below.
+type entityType interface {
+	entity.Type
+
+	// Code must return the entity type code for the entity type that is being implemented.
+	Code() int64
+
+	// AllURLsQuery must return a SQL query that returns the information required for generating a unique URL for the entity in a common format.
+	// Each row returned by this query must contain the following columns:
+	// 1. Entity type. Including the entity type in the result allows for querying multiple entity types at once by performing
+	//    a UNION of two or more queries.
+	// 2. Entity ID. The caller will likely have an entity type and an ID that they are trying to get a URL for (see warnings
+	//    API/table). In other cases the caller may want to list all URLs of a particular type, so returning the ID along with
+	//    the URL allows for subsequent mapping or usage.
+	// 3. The project name (empty if the entity is not project specific).
+	// 4. The location (target) of the entity. Some entities require this parameter for uniqueness (e.g. storage volumes and buckets).
+	// 5. Path arguments that comprise the URL of the entity. These are returned as a JSON array in the order that they appear
+	//    in the URL.
+	AllURLsQuery() string
+
+	// URLByIDQuery must return a SQL query that returns data in the same format as AllURLs. It must accept a bind argument
+	// that is the ID of the entity in the database.
+	URLByIDQuery() string
+
+	// URLsByProjectQuery must return a SQL query that returns data in the same format as AllURLs. It must accept a bind
+	// argument that is the name of the project that contains the entity.
+	URLsByProjectQuery() string
+
+	// IDFromURLQuery must return a SQL query that returns the ID of an entity by the information contained in its unique URL in a common format.
+	// These queries are not used in isolation, they are used together as part of a larger UNION query.
+	// Because of this, all queries expect as arguments the project name, the location, and the path arguments of the URL.
+	// Some entity types don't require a project name or location, so that's why they explicitly check for an empty project
+	// name or location being passed in.
+	// Additionally, all of the queries accept an index number as their first binding argument so that the results can be correlated in
+	// the calling function (see PopulateEntityReferencesFromURLs below).
+	//
+	// TODO: We could avoid a query snippet per entity by making these snippets support multiple entities for a single entity type.
+	// (e.g. `WHERE projects.name IN (?, ...) AND instances.name IN (?, ...)` we'd need to be very careful!).
+	IDFromURLQuery() string
+
+	// OnDeleteTriggerName must return the name of the trigger that runs when the entity type is deleted.
+	OnDeleteTriggerName() string
+
+	// OnDeleteTriggerSQL must return SQL that creates a trigger with name OnDeleteTriggerName that runs when entities of
+	// the type are deleted from the database.
+	OnDeleteTriggerSQL() string
+}
+
+// RequiresProject implements entity.Type for EntityType by calling RequiresProject on the underlying entityType. If the
+// underlying entityType is nil, we default to `entityTypeServer`.
+func (e EntityType) RequiresProject() bool {
+	if e.entityType == nil {
+		return entityTypeServer{}.RequiresProject()
+	}
+
+	return e.entityType.RequiresProject()
+}
+
+// Name implements entity.Type for EntityType by calling Name on the underlying entityType. If the underlying entityType
+// is nil, we default to `entityTypeServer`.
+func (e EntityType) Name() entity.TypeName {
+	if e.entityType == nil {
+		return entityTypeServer{}.Name()
+	}
+
+	return e.entityType.Name()
+}
+
+// PathTemplate implements entity.Type for EntityType by calling PathTemplate on the underlying entityType. If the
+// underlying entityType is nil, we default to `entityTypeServer`.
+func (e EntityType) PathTemplate() []string {
+	if e.entityType == nil {
+		return entityTypeServer{}.PathTemplate()
+	}
+
+	return e.entityType.PathTemplate()
+}
+
+// String implements fmt.Stringer for EntityType by calling String on the underlying entityType. If the underlying
+// entityType is nil, we default to `entityTypeServer`.
+func (e EntityType) String() string {
+	if e.entityType == nil {
+		return entityTypeServer{}.String()
+	}
+
+	return e.entityType.String()
+}
+
+// Code implements entityType for EntityType by calling Code on the underlying entityType. If the underlying entityType
+// is nil, we default to `entityTypeServer`.
+func (e EntityType) Code() int64 {
+	if e.entityType == nil {
+		return entityTypeServer{}.Code()
+	}
+
+	return e.entityType.Code()
+}
+
+// AllURLsQuery implements entityType for EntityType by calling AllURLsQuery on the underlying entityType. If the
+// underlying entityType is nil, we default to `entityTypeServer`.
+func (e EntityType) AllURLsQuery() string {
+	if e.entityType == nil {
+		return entityTypeServer{}.AllURLsQuery()
+	}
+
+	return e.entityType.AllURLsQuery()
+}
+
+// URLByIDQuery implements entityType for EntityType by calling URLByIDQuery on the underlying entityType. If the
+// underlying entityType is nil, we default to `entityTypeServer`.
+func (e EntityType) URLByIDQuery() string {
+	if e.entityType == nil {
+		return entityTypeServer{}.URLByIDQuery()
+	}
+
+	return e.entityType.URLByIDQuery()
+}
+
+// URLsByProjectQuery implements entityType for EntityType by calling URLsByProjectQuery on the underlying entityType.
+// If the underlying entityType is nil, we implement the method for 'entityTypeCodeServer'.
+func (e EntityType) URLsByProjectQuery() string {
+	if e.entityType == nil {
+		return entityTypeServer{}.URLsByProjectQuery()
+	}
+
+	return e.entityType.URLsByProjectQuery()
+}
+
+// IDFromURLQuery implements entityType for EntityType by calling IDFromURLQuery on the underlying entityType. If the
+// underlying entityType is nil, we default to `entityTypeServer`.
+func (e EntityType) IDFromURLQuery() string {
+	if e.entityType == nil {
+		return entityTypeServer{}.IDFromURLQuery()
+	}
+
+	return e.entityType.IDFromURLQuery()
+}
+
+// OnDeleteTriggerName implements entityType for EntityType by calling OnDeleteTriggerName on the underlying entityType.
+// If the underlying entityType is nil, we default to `entityTypeServer`.
+func (e EntityType) OnDeleteTriggerName() string {
+	if e.entityType == nil {
+		return entityTypeServer{}.OnDeleteTriggerName()
+	}
+
+	return e.entityType.OnDeleteTriggerName()
+}
+
+// OnDeleteTriggerSQL  implements entityType for EntityType by calling OnDeleteTriggerSQL  on the underlying entityType.
+// If the underlying entityType is nil, we default to `entityTypeServer`.
+func (e EntityType) OnDeleteTriggerSQL() string {
+	if e.entityType == nil {
+		return entityTypeServer{}.OnDeleteTriggerSQL()
+	}
+
+	return e.entityType.OnDeleteTriggerSQL()
+}
 
 const (
 	entityTypeNone                  int64 = -1
