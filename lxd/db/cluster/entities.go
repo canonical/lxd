@@ -320,7 +320,7 @@ func (e *EntityRef) scan(scan func(dest ...any) error) error {
 
 // getURL is a convenience for generating a URL from the EntityRef.
 func (e *EntityRef) getURL() (*api.URL, error) {
-	u, err := entity.Type(e.EntityType).URL(e.ProjectName, e.Location, e.PathArgs...)
+	u, err := entity.URL(e.EntityType, e.ProjectName, e.Location, e.PathArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create entity URL: %w", err)
 	}
