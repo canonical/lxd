@@ -152,15 +152,19 @@ For example, to set a default volume size for a storage pool, use the following 
 
 ## View storage volumes
 
-You can display a list of all available storage volumes in a storage pool and check their configuration.
+You can display a list of all available storage volumes and check their configuration.
 
-To list all available storage volumes in a storage pool, use the following command:
+To list all available storage volumes, use the following command:
 
-    lxc storage volume list <pool_name>
+    lxc storage volume list
 
 To display the storage volumes for all projects (not only the default project), add the `--all-projects` flag.
 
-The resulting table contains the {ref}`storage volume type <storage-volume-types>` and the {ref}`content type <storage-content-types>` for each storage volume in the pool.
+You can also display the storage volumes in a specific storage pool by specifying the pool name:
+
+    lxc storage volume list <pool_name>
+
+The resulting table contains, among other information, the {ref}`storage volume type <storage-volume-types>` and the {ref}`content type <storage-content-types>` for each storage volume.
 
 ```{note}
 Custom storage volumes might use the same name as instance volumes (for example, you might have a container named `c1` with a container storage volume named `c1` and a custom storage volume named `c1`).
