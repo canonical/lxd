@@ -185,6 +185,46 @@ func (e EntityType) OnDeleteTriggerSQL() string {
 	return e.entityType.OnDeleteTriggerSQL()
 }
 
+// entityTypes is a list of all entity types.
+var entityTypes = []EntityType{
+	{entityType: entityTypeContainer{}},
+	{entityType: entityTypeImage{}},
+	{entityType: entityTypeProfile{}},
+	{entityType: entityTypeProject{}},
+	{entityType: entityTypeCertificate{}},
+	{entityType: entityTypeInstance{}},
+	{entityType: entityTypeInstanceBackup{}},
+	{entityType: entityTypeInstanceSnapshot{}},
+	{entityType: entityTypeNetwork{}},
+	{entityType: entityTypeNetworkACL{}},
+	{entityType: entityTypeClusterMember{}},
+	{entityType: entityTypeOperation{}},
+	{entityType: entityTypeStoragePool{}},
+	{entityType: entityTypeStorageVolume{}},
+	{entityType: entityTypeStorageVolumeBackup{}},
+	{entityType: entityTypeStorageVolumeSnapshot{}},
+	{entityType: entityTypeWarning{}},
+	{entityType: entityTypeClusterGroup{}},
+	{entityType: entityTypeStorageBucket{}},
+	{entityType: entityTypeNetworkZone{}},
+	{entityType: entityTypeImageAlias{}},
+	{entityType: entityTypeServer{}},
+	{entityType: entityTypeAuthGroup{}},
+	{entityType: entityTypeIdentityProviderGroup{}},
+	{entityType: entityTypeIdentity{}},
+}
+
+// EntityTypeFromName returns the EntityType that has the given entity.TypeName, or an error if none are found.
+func EntityTypeFromName(entityTypeName entity.TypeName) (EntityType, error) {
+	for _, entityType := range entityTypes {
+		if entityTypeName == entityType.Name() {
+			return entityType, nil
+		}
+	}
+
+	return EntityType{}, fmt.Errorf("Missing database entity type definition for entity type %q", entityTypeName)
+}
+
 const (
 	entityTypeCodeNone                  int64 = -1
 	entityTypeCodeContainer             int64 = 0
