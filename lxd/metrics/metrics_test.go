@@ -20,7 +20,7 @@ func TestMetricSet_FilterSamples(t *testing.T) {
 
 	m := newMetricSet()
 	filter := func(labels map[string]string) bool {
-		return entity.InstanceURL(labels["project"], labels["name"]).String() == entity.InstanceURL("default", "jammy").String()
+		return entity.TypeInstance.URL(labels["project"], labels["name"]).String() == entity.TypeInstance.URL("default", "jammy").String()
 	}
 
 	m.FilterSamples(filter)
@@ -30,7 +30,7 @@ func TestMetricSet_FilterSamples(t *testing.T) {
 
 	m = newMetricSet()
 	filter = func(labels map[string]string) bool {
-		return entity.InstanceURL(labels["project"], labels["name"]).String() == entity.InstanceURL("not-default", "jammy").String()
+		return entity.TypeInstance.URL(labels["project"], labels["name"]).String() == entity.TypeInstance.URL("not-default", "jammy").String()
 	}
 
 	m.FilterSamples(filter)
