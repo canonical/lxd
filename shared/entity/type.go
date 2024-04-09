@@ -171,65 +171,6 @@ func (t Type) URL(projectName string, location string, pathArguments ...string) 
 	return u, nil
 }
 
-// path returns the elements of the path that comprise the url of the Type. Placeholders are used where path arguments
-// are expected.
-func (t Type) path() ([]string, error) {
-	switch t {
-	case TypeContainer:
-		return []string{"containers", pathPlaceholder}, nil
-	case TypeImage:
-		return []string{"images", pathPlaceholder}, nil
-	case TypeProfile:
-		return []string{"profiles", pathPlaceholder}, nil
-	case TypeProject:
-		return []string{"projects", pathPlaceholder}, nil
-	case TypeCertificate:
-		return []string{"certificates", pathPlaceholder}, nil
-	case TypeInstance:
-		return []string{"instances", pathPlaceholder}, nil
-	case TypeInstanceBackup:
-		return []string{"instances", pathPlaceholder, "backups", pathPlaceholder}, nil
-	case TypeInstanceSnapshot:
-		return []string{"instances", pathPlaceholder, "snapshots", pathPlaceholder}, nil
-	case TypeNetwork:
-		return []string{"networks", pathPlaceholder}, nil
-	case TypeNetworkACL:
-		return []string{"network-acls", pathPlaceholder}, nil
-	case TypeNode:
-		return []string{"cluster", "members", pathPlaceholder}, nil
-	case TypeOperation:
-		return []string{"operations", pathPlaceholder}, nil
-	case TypeStoragePool:
-		return []string{"storage-pools", pathPlaceholder}, nil
-	case TypeStorageVolume:
-		return []string{"storage-pools", pathPlaceholder, "volumes", pathPlaceholder, pathPlaceholder}, nil
-	case TypeStorageVolumeBackup:
-		return []string{"storage-pools", pathPlaceholder, "volumes", pathPlaceholder, pathPlaceholder, "backups", pathPlaceholder}, nil
-	case TypeStorageVolumeSnapshot:
-		return []string{"storage-pools", pathPlaceholder, "volumes", pathPlaceholder, pathPlaceholder, "snapshots", pathPlaceholder}, nil
-	case TypeStorageBucket:
-		return []string{"storage-pools", pathPlaceholder, "buckets", pathPlaceholder}, nil
-	case TypeWarning:
-		return []string{"warnings", pathPlaceholder}, nil
-	case TypeClusterGroup:
-		return []string{"cluster", "groups", pathPlaceholder}, nil
-	case TypeServer:
-		return []string{}, nil
-	case TypeImageAlias:
-		return []string{"images", "aliases", pathPlaceholder}, nil
-	case TypeNetworkZone:
-		return []string{"network-zones", pathPlaceholder}, nil
-	case TypeIdentity:
-		return []string{"auth", "identities", pathPlaceholder, pathPlaceholder}, nil
-	case TypeAuthGroup:
-		return []string{"auth", "groups", pathPlaceholder}, nil
-	case TypeIdentityProviderGroup:
-		return []string{"auth", "identity-provider-groups", pathPlaceholder}, nil
-	default:
-		return nil, fmt.Errorf("Missing path definition for entity type %q", t)
-	}
-}
-
 // ParseURL parses a raw URL string and returns the Type, project, location, and path arguments (mux vars).
 //
 // Path arguments are returned in the order they are found in the URL. If there is no project query parameter and the
