@@ -492,9 +492,14 @@ func PopulateEntityReferencesFromURLs(ctx context.Context, tx *sql.Tx, entityURL
 			return fmt.Errorf("Failed to get entity IDs from URLs: %w", err)
 		}
 
+		dbEntityType, err := EntityTypeFromName(entityType.Name())
+		if err != nil {
+			return fmt.Errorf("Failed to get entity IDs from URLs: %w", err)
+		}
+
 		// Populate the result map.
 		entityURLMap[entityURL] = &EntityRef{
-			EntityType:  EntityType(entityType),
+			EntityType:  dbEntityType,
 			ProjectName: projectName,
 			Location:    location,
 			PathArgs:    pathArgs,
@@ -502,13 +507,13 @@ func PopulateEntityReferencesFromURLs(ctx context.Context, tx *sql.Tx, entityURL
 
 		// If the given URL is the server url it is valid but there is no need to perform a query for it, the entity
 		// ID of the server is always zero (by virtue of being the zero value for int).
-		if entityType == entity.TypeServer {
+		if entity.Equal(entity.TypeServer, entityType) {
 			continue
 		}
 
 		// Get the statement corresponding to the entity type.
-		stmt, ok := entityIDFromURLStatements[entityType]
-		if !ok {
+		stmt := dbEntityType.IDFromURLQuery()
+		if stmt == "" {
 			return fmt.Errorf("Could not get entity IDs from URLs: No statement found for entity type %q", entityType)
 		}
 
@@ -561,7 +566,7 @@ func PopulateEntityReferencesFromURLs(ctx context.Context, tx *sql.Tx, entityURL
 
 	// Check that all given URLs have been resolved to an ID.
 	for u, ref := range entityURLMap {
-		if ref.EntityID == 0 && ref.EntityType != EntityType(entity.TypeServer) {
+		if ref.EntityID == 0 && !entity.Equal(entity.TypeServer, ref.EntityType) {
 			return fmt.Errorf("Failed to find entity ID for URL %q", u.String())
 		}
 	}
