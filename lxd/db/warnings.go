@@ -45,15 +45,20 @@ func (c *ClusterTx) UpsertWarning(ctx context.Context, nodeName string, projectN
 
 	now := time.Now().UTC()
 
-	if entityType != "" {
+	clusterEntityType := cluster.EntityType{}
+	if entityType != nil {
 		// Validate that the entity exists.
 		_, err := cluster.GetEntityURL(ctx, c.Tx(), entityType, entityID)
 		if err != nil {
 			return fmt.Errorf("Failed to validate warning: %w", err)
 		}
+
+		clusterEntityType, err = cluster.EntityTypeFromName(entityType.Name())
+		if err != nil {
+			return fmt.Errorf("Failed to get database definition for entity type %q: %w", entityType.Name(), err)
+		}
 	}
 
-	clusterEntityType := cluster.EntityType(entityType)
 	filter := cluster.WarningFilter{
 		TypeCode:   &typeCode,
 		Node:       &nodeName,
@@ -187,9 +192,7 @@ func (c *ClusterTx) createWarning(ctx context.Context, object cluster.Warning) (
 		args[1] = object.Project
 	}
 
-	if object.EntityType != "" {
-		args[2] = object.EntityType
-	}
+	args[2] = object.EntityType
 
 	if object.EntityID != -1 {
 		args[3] = object.EntityID

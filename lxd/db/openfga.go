@@ -87,8 +87,7 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleK
 		return nil, fmt.Errorf("Read: Listing all entities of type not supported")
 	}
 
-	entityType := entity.Type(entityTypeStr)
-	err := entityType.Validate()
+	entityType, err := entity.TypeFromString(entityTypeStr)
 	if err != nil {
 		return nil, fmt.Errorf("Read: Invalid object filter %q: %w", obj, err)
 	}
@@ -107,10 +106,7 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleK
 		return nil, fmt.Errorf("Entity URL %q does not match tuple entity type (expected %q, got %q)", entityURL, entityType, urlEntityType)
 	}
 
-	requiresProject, err := entityType.RequiresProject()
-	if err != nil {
-		return nil, err
-	}
+	requiresProject := entityType.RequiresProject()
 
 	var tuples []*openfgav1.Tuple
 	switch relation {
@@ -127,7 +123,7 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleK
 				Key: &openfgav1.TupleKey{
 					Object:   obj,
 					Relation: relation,
-					User:     fmt.Sprintf("%s:%s", entity.TypeProject, entity.ProjectURL(projectName).String()),
+					User:     fmt.Sprintf("%s:%s", entity.TypeProject, entity.TypeProject.URL(projectName).String()),
 				},
 			},
 		}
@@ -145,7 +141,7 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleK
 				Key: &openfgav1.TupleKey{
 					Object:   obj,
 					Relation: relation,
-					User:     fmt.Sprintf("%s:%s", entity.TypeServer, entity.ServerURL().String()),
+					User:     fmt.Sprintf("%s:%s", entity.TypeServer, entity.TypeServer.URL().String()),
 				},
 			},
 		}
@@ -178,13 +174,18 @@ func (o *openfgaStore) ReadUserTuple(ctx context.Context, store string, tk *open
 	}
 
 	// Only allow `identity` for the User type.
-	userEntityType, _, ok := strings.Cut(user, ":")
+	userEntityTypeStr, _, ok := strings.Cut(user, ":")
 	if !ok {
 		return nil, fmt.Errorf("ReadUserTuple: Unexpected format of user field %q", user)
 	}
 
-	if entity.Type(userEntityType) != entity.TypeIdentity {
-		return nil, fmt.Errorf("ReadUserTuple: Entity type %q not supported", userEntityType)
+	userEntityType, err := entity.TypeFromString(userEntityTypeStr)
+	if err != nil {
+		return nil, fmt.Errorf("ReadUserTuple: Failed to parse user entity type: %w", err)
+	}
+
+	if userEntityType != entity.TypeIdentity {
+		return nil, fmt.Errorf("ReadUserTuple: Entity type %q not supported", userEntityTypeStr)
 	}
 
 	return nil, nil
@@ -226,20 +227,24 @@ func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filt
 		return nil, fmt.Errorf("ReadUsersetTuples: Listing all entities of type not supported")
 	}
 
-	entityType := entity.Type(entityTypeStr)
-	err := entityType.Validate()
+	entityType, err := entity.TypeFromString(entityTypeStr)
 	if err != nil {
 		return nil, fmt.Errorf("ReadUsersetTuples: Invalid object filter %q: %w", filter.Object, err)
 	}
 
+	dbEntityType, err := cluster.EntityTypeFromName(entityType.Name())
+	if err != nil {
+		return nil, fmt.Errorf("ReadUserSetTuples: Failed to get database entity type definition: %w", err)
+	}
+
 	// Check for type-bound public access exception.
-	if entityType == entity.TypeServer && filter.Relation == "can_view" {
+	if entity.Equal(entity.TypeServer, entityType) && filter.Relation == "can_view" {
 		return storage.NewStaticTupleIterator([]*openfgav1.Tuple{
 			// Only returning one tuple here for the identity. When adding service accounts, we'll need
 			// to add another tuple to account for them.
 			{
 				Key: &openfgav1.TupleKey{
-					Object:   fmt.Sprintf("%s:%s", entity.TypeServer, entity.ServerURL().String()),
+					Object:   fmt.Sprintf("%s:%s", entity.TypeServer, entity.TypeServer.URL().String()),
 					Relation: string(auth.EntitlementCanView),
 					User:     fmt.Sprintf("%s:*", entity.TypeIdentity),
 				},
@@ -267,7 +272,7 @@ FROM auth_groups_permissions
 JOIN auth_groups ON auth_groups_permissions.auth_group_id = auth_groups.id
 WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity_type = ? AND auth_groups_permissions.entity_id = ?
 `
-		groupNames, err = query.SelectStrings(ctx, tx.Tx(), q, filter.Relation, cluster.EntityType(entityType), entityRef.EntityID)
+		groupNames, err = query.SelectStrings(ctx, tx.Tx(), q, filter.Relation, dbEntityType, entityRef.EntityID)
 		if err != nil {
 			return err
 		}
@@ -291,7 +296,7 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 				Object:   filter.Object,
 				Relation: filter.Relation,
 				// Members of the group have the permission ("#member"), not the group itself.
-				User: fmt.Sprintf("%s:%s#member", entity.TypeAuthGroup, entity.AuthGroupURL(groupName)),
+				User: fmt.Sprintf("%s:%s#member", entity.TypeAuthGroup, entity.TypeAuthGroup.URL(groupName)),
 			},
 		})
 	}
@@ -361,8 +366,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 	}
 
 	// Validate the entity type.
-	entityType := entity.Type(filter.ObjectType)
-	err := entityType.Validate()
+	entityType, err := entity.TypeFromString(filter.ObjectType)
 	if err != nil {
 		return nil, fmt.Errorf("ReadStartingWithUser: Invalid entity type %q: %w", entityType, err)
 	}
@@ -374,8 +378,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 	}
 
 	// Validate the user entity type.
-	userEntityType := entity.Type(userTypeStr)
-	err = userEntityType.Validate()
+	userEntityType, err := entity.TypeFromString(userTypeStr)
 	if err != nil {
 		return nil, fmt.Errorf("ReadStartingWithUser: Invalid user type %q: %w", userTypeStr, err)
 	}
@@ -408,7 +411,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 		}
 
 		// Get the entity URLs with the given type and project (if set).
-		var entityURLs map[entity.Type]map[int]*api.URL
+		var entityURLs map[entity.TypeName]map[int]*api.URL
 		err = o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
 			entityURLs, err = cluster.GetEntityURLs(ctx, tx.Tx(), projectName, entityType)
 			if err != nil {
@@ -423,13 +426,13 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 
 		// Compose the expected tuples relating the server/project to the entities.
 		var tuples []*openfgav1.Tuple
-		for _, entityURL := range entityURLs[entityType] {
+		for _, entityURL := range entityURLs[entityType.Name()] {
 			if filter.Relation == "project" {
 				tuples = append(tuples, &openfgav1.Tuple{
 					Key: &openfgav1.TupleKey{
 						Object:   fmt.Sprintf("%s:%s", entityType, entityURL.String()),
 						Relation: "project",
-						User:     fmt.Sprintf("%s:%s", entity.TypeProject, entity.ProjectURL(projectName)),
+						User:     fmt.Sprintf("%s:%s", entity.TypeProject, entity.TypeProject.URL(projectName)),
 					},
 				})
 			} else {
@@ -437,7 +440,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 					Key: &openfgav1.TupleKey{
 						Object:   fmt.Sprintf("%s:%s", entityType, entityURL.String()),
 						Relation: "server",
-						User:     fmt.Sprintf("%s:%s", entity.TypeServer, entity.ServerURL()),
+						User:     fmt.Sprintf("%s:%s", entity.TypeServer, entity.TypeServer.URL()),
 					},
 				})
 			}
@@ -448,7 +451,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 
 	// Return an empty iterator (nil) when the user entity type is "identity", as we expect these tuples to be passed in
 	// contextually. Note: We will likely need to update this if/when we add service accounts.
-	if userEntityType == entity.TypeIdentity {
+	if entity.Equal(entity.TypeIdentity, userEntityType) {
 		return nil, nil
 	}
 
@@ -465,9 +468,20 @@ JOIN auth_groups ON auth_groups_permissions.auth_group_id = auth_groups.id
 WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity_type = ? AND auth_groups.name = ?
 `
 	groupName := userURLPathArguments[0]
-	args := []any{filter.Relation, cluster.EntityType(filter.ObjectType), groupName}
 
-	var entityURLs map[entity.Type]map[int]*api.URL
+	objectEntityType, err := entity.TypeFromString(filter.ObjectType)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid object type filter %q: %w", filter.ObjectType, err)
+	}
+
+	objectDBEntityType, err := cluster.EntityTypeFromName(objectEntityType.Name())
+	if err != nil {
+		return nil, fmt.Errorf("Missing database entity definition for object filter %q: %w", filter.ObjectType, err)
+	}
+
+	args := []any{filter.Relation, objectDBEntityType, groupName}
+
+	var entityURLs map[entity.TypeName]map[int]*api.URL
 	var permissions []cluster.Permission
 	err = o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
 		rows, err := tx.Tx().QueryContext(ctx, q, args...)
@@ -503,10 +517,10 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 	for _, permission := range permissions {
 		tuples = append(tuples, &openfgav1.Tuple{
 			Key: &openfgav1.TupleKey{
-				Object:   fmt.Sprintf("%s:%s", permission.EntityType, entityURLs[entity.Type(permission.EntityType)][permission.EntityID].String()),
+				Object:   fmt.Sprintf("%s:%s", permission.EntityType, entityURLs[permission.EntityType.Name()][permission.EntityID].String()),
 				Relation: string(permission.Entitlement),
 				// Members of the group have the permission ("#member"), not the group itself.
-				User: fmt.Sprintf("%s:%s#member", entity.TypeAuthGroup, entity.AuthGroupURL(groupName)),
+				User: fmt.Sprintf("%s:%s#member", entity.TypeAuthGroup, entity.TypeAuthGroup.URL(groupName)),
 			},
 		})
 	}
