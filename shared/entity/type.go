@@ -99,6 +99,11 @@ func nRequiredPathArguments(t Type) int {
 	return nRequiredPathArguments
 }
 
+// Equal returns true if the expected Type is equal to the expected Type.
+func Equal(expected Type, actual Type) bool {
+	return expected.Name() == actual.Name()
+}
+
 // URL returns a string URL for the Type.
 //
 // If the Type is project specific and no project name is given, the project name will be set to api.ProjectDefaultName.
