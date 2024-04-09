@@ -204,7 +204,7 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 	var filteredDBBuckets []*db.StorageBucket
 
 	for _, bucket := range dbBuckets {
-		if !userHasPermission(entity.StorageBucketURL(requestProjectName, "", poolName, bucket.Name)) {
+		if !userHasPermission(entity.TypeStorageBucket.URL(requestProjectName, "", poolName, bucket.Name)) {
 			continue
 		}
 
