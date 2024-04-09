@@ -583,9 +583,14 @@ func GetEntityReferenceFromURL(ctx context.Context, tx *sql.Tx, entityURL *api.U
 		return nil, fmt.Errorf("Failed to get entity ID from URL: %w", err)
 	}
 
+	dbEntityType, err := EntityTypeFromName(entityType.Name())
+	if err != nil {
+		return nil, fmt.Errorf("Could not get entity ID from UR: %w", err)
+	}
+
 	// Populate the fields we know from the URL.
 	entityRef := &EntityRef{
-		EntityType:  EntityType(entityType),
+		EntityType:  dbEntityType,
 		ProjectName: projectName,
 		Location:    location,
 		PathArgs:    pathArgs,
@@ -593,13 +598,13 @@ func GetEntityReferenceFromURL(ctx context.Context, tx *sql.Tx, entityURL *api.U
 
 	// If the given URL is the server url it is valid but there is no need to perform a query for it, the entity
 	// ID of the server is always zero (by virtue of being the zero value for int).
-	if entityType == entity.TypeServer {
+	if entity.Equal(entity.TypeServer, entityType) {
 		return entityRef, nil
 	}
 
 	// Get the statement corresponding to the entity type.
-	stmt, ok := entityIDFromURLStatements[entityType]
-	if !ok {
+	stmt := dbEntityType.IDFromURLQuery()
+	if stmt == "" {
 		return nil, fmt.Errorf("Could not get entity ID from URL: No statement found for entity type %q", entityType)
 	}
 
