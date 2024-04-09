@@ -82,17 +82,6 @@ func (t Type) Validate() error {
 	return nil
 }
 
-// RequiresProject returns true if an entity of the Type can only exist within the context of a project. Operations and
-// warnings may still be project specific but it is not an absolute requirement.
-func (t Type) RequiresProject() (bool, error) {
-	err := t.Validate()
-	if err != nil {
-		return false, err
-	}
-
-	return !shared.ValueInSlice(t, []Type{TypeProject, TypeCertificate, TypeNode, TypeOperation, TypeStoragePool, TypeWarning, TypeClusterGroup, TypeServer, TypeAuthGroup, TypeIdentityProviderGroup, TypeIdentity}), nil
-}
-
 // nRequiredPathArguments returns the number of path arguments (mux variables) that are required to create a unique URL
 // for the given Type.
 func (t Type) nRequiredPathArguments() (int, error) {
