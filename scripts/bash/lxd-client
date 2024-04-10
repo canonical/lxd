@@ -82,7 +82,7 @@ _have lxc && {
     fi
 
     lxc_cmds="alias auth cluster config console copy delete exec export file \
-      help image import info init launch list manpage monitor move network \
+      help image import info init launch list monitor move network \
       operation pause profile project publish query remote rename \
       restart restore shell snapshot start stop storage version"
 
