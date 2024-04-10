@@ -358,7 +358,7 @@ _have lxc && {
         ;;
       "remote")
         COMPREPLY=( $(compgen -W \
-          "add remove list rename set-url set-default get-default" -- $cur) )
+          "add get-default list remove rename set-url switch" -- $cur) )
         ;;
       "restore")
         case $pos in
