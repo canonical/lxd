@@ -203,6 +203,24 @@ fine_grained_authorization() {
   user_is_not_server_operator
   user_is_not_project_manager
   user_is_not_project_operator
+
+  lxc auth group permission remove test-group project default can_view_events
+
+  echo "==> Checking 'can_view_warnings' entitlement..."
+  # Delete previous warnings
+  lxc query --wait /1.0/warnings\?recursion=1 | jq -r '.[].uuid' | xargs -n1 lxc warning delete
+
+  # Create a global warning (no node and no project)
+  lxc query --wait -X POST -d '{\"type_code\": 0, \"message\": \"authorization warning\"}' /internal/testing/warnings
+
+  # Check we are not able to view warnings currently
+  ! lxc_remote warning list oidc: || false
+
+  # Add "can_view_warnings" permission to group.
+  lxc auth group permission add test-group server can_view_warnings
+
+  # Check we can view the warning we just created.
+  [ "$(lxc_remote query oidc:/1.0/warnings?recursion=1 | jq -r '[.[] | select(.last_message == "authorization warning")] | length')" = 1 ]
 }
 
 user_is_not_server_admin() {
