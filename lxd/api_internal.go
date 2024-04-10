@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -160,32 +158,14 @@ type internalWarningCreatePost struct {
 
 // internalCreateWarning creates a warning, and is used for testing only.
 func internalCreateWarning(d *Daemon, r *http.Request) response.Response {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return response.InternalError(err)
-	}
-
-	rdr1 := io.NopCloser(bytes.NewBuffer(body))
-	rdr2 := io.NopCloser(bytes.NewBuffer(body))
-
-	reqRaw := shared.Jmap{}
-	err = json.NewDecoder(rdr1).Decode(&reqRaw)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
 	req := internalWarningCreatePost{}
-	err = json.NewDecoder(rdr2).Decode(&req)
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
-
-	entityTypeStr, _ := reqRaw.GetString("entity_type")
-	req.EntityID, _ = reqRaw.GetInt("entity_id")
 
 	// If entity type is set, check it is valid and fail if it isn't.
-	if entityTypeStr != "" {
-		req.EntityType = entity.Type(entityTypeStr)
+	if req.EntityType != "" {
 		err = req.EntityType.Validate()
 		if err != nil {
 			return response.BadRequest(fmt.Errorf("Invalid entity type: %w", err))
