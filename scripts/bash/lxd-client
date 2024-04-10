@@ -387,7 +387,7 @@ _have lxc && {
       "start")
         _lxd_names "(STOPPED|FROZEN)"
         ;;
-      "exec"|"console"|"stop"|"shell")
+      "exec"|"console"|"pause"|"stop"|"shell")
         _lxd_names "(RUNNING|READY)"
         ;;
       "file")
