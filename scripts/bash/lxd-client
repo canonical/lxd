@@ -416,6 +416,9 @@ _have lxc && {
             esac
         esac
         ;;
+      "warning")
+        COMPREPLY=( $(compgen -W "acknowledge delete list show" -- $cur) )
+        ;;
       *)
         ;;
     esac
