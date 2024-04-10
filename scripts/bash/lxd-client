@@ -399,7 +399,7 @@ _have lxc && {
       "image")
         COMPREPLY=( $(compgen -W "import copy delete refresh export info list show edit alias" -- $cur) )
         ;;
-      "init"|"launch")
+      "init"|"launch"|"rebuild")
         _lxd_images
         ;;
       "network")
