@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"net/http"
 	"strings"
 
@@ -272,124 +271,26 @@ func (e *EntityType) Scan(value any) error {
 		return fmt.Errorf("Entity should be an integer, got `%v` (%T)", intValue, intValue)
 	}
 
-	switch entityTypeInt {
-	case entityTypeNone:
-		*e = ""
-	case entityTypeContainer:
-		*e = EntityType(entity.TypeContainer)
-	case entityTypeImage:
-		*e = EntityType(entity.TypeImage)
-	case entityTypeProfile:
-		*e = EntityType(entity.TypeProfile)
-	case entityTypeProject:
-		*e = EntityType(entity.TypeProject)
-	case entityTypeCertificate:
-		*e = EntityType(entity.TypeCertificate)
-	case entityTypeInstance:
-		*e = EntityType(entity.TypeInstance)
-	case entityTypeInstanceBackup:
-		*e = EntityType(entity.TypeInstanceBackup)
-	case entityTypeInstanceSnapshot:
-		*e = EntityType(entity.TypeInstanceSnapshot)
-	case entityTypeNetwork:
-		*e = EntityType(entity.TypeNetwork)
-	case entityTypeNetworkACL:
-		*e = EntityType(entity.TypeNetworkACL)
-	case entityTypeNode:
-		*e = EntityType(entity.TypeNode)
-	case entityTypeOperation:
-		*e = EntityType(entity.TypeOperation)
-	case entityTypeStoragePool:
-		*e = EntityType(entity.TypeStoragePool)
-	case entityTypeStorageVolume:
-		*e = EntityType(entity.TypeStorageVolume)
-	case entityTypeStorageVolumeBackup:
-		*e = EntityType(entity.TypeStorageVolumeBackup)
-	case entityTypeStorageVolumeSnapshot:
-		*e = EntityType(entity.TypeStorageVolumeSnapshot)
-	case entityTypeWarning:
-		*e = EntityType(entity.TypeWarning)
-	case entityTypeClusterGroup:
-		*e = EntityType(entity.TypeClusterGroup)
-	case entityTypeStorageBucket:
-		*e = EntityType(entity.TypeStorageBucket)
-	case entityTypeNetworkZone:
-		*e = EntityType(entity.TypeNetworkZone)
-	case entityTypeImageAlias:
-		*e = EntityType(entity.TypeImageAlias)
-	case entityTypeServer:
-		*e = EntityType(entity.TypeServer)
-	case entityTypeAuthGroup:
-		*e = EntityType(entity.TypeAuthGroup)
-	case entityTypeIdentityProviderGroup:
-		*e = EntityType(entity.TypeIdentityProviderGroup)
-	case entityTypeIdentity:
-		*e = EntityType(entity.TypeIdentity)
-	default:
-		return fmt.Errorf("Unknown entity type %d", entityTypeInt)
+	// If the code is entityTypeCodeNone we set the underlying entityType to the default value of entityTypeServer.
+	if entityTypeInt == entityTypeCodeNone {
+		e.entityType = entityTypeServer{}
+		return nil
 	}
 
-	return nil
+	// Iterate through our types, if we find a matching code, set the underlying entityType and return.
+	for _, entityType := range entityTypes {
+		if entityType.Code() == entityTypeInt {
+			e.entityType = entityType.entityType
+			return nil
+		}
+	}
+
+	return fmt.Errorf("Unknown entity type %d", entityTypeInt)
 }
 
 // Value implements driver.Valuer for EntityType. This converts the EntityType into an integer or throws an error.
 func (e EntityType) Value() (driver.Value, error) {
-	switch e {
-	case "":
-		return entityTypeNone, nil
-	case EntityType(entity.TypeContainer):
-		return entityTypeContainer, nil
-	case EntityType(entity.TypeImage):
-		return entityTypeImage, nil
-	case EntityType(entity.TypeProfile):
-		return entityTypeProfile, nil
-	case EntityType(entity.TypeProject):
-		return entityTypeProject, nil
-	case EntityType(entity.TypeCertificate):
-		return entityTypeCertificate, nil
-	case EntityType(entity.TypeInstance):
-		return entityTypeInstance, nil
-	case EntityType(entity.TypeInstanceBackup):
-		return entityTypeInstanceBackup, nil
-	case EntityType(entity.TypeInstanceSnapshot):
-		return entityTypeInstanceSnapshot, nil
-	case EntityType(entity.TypeNetwork):
-		return entityTypeNetwork, nil
-	case EntityType(entity.TypeNetworkACL):
-		return entityTypeNetworkACL, nil
-	case EntityType(entity.TypeNode):
-		return entityTypeNode, nil
-	case EntityType(entity.TypeOperation):
-		return entityTypeOperation, nil
-	case EntityType(entity.TypeStoragePool):
-		return entityTypeStoragePool, nil
-	case EntityType(entity.TypeStorageVolume):
-		return entityTypeStorageVolume, nil
-	case EntityType(entity.TypeStorageVolumeBackup):
-		return entityTypeStorageVolumeBackup, nil
-	case EntityType(entity.TypeStorageVolumeSnapshot):
-		return entityTypeStorageVolumeSnapshot, nil
-	case EntityType(entity.TypeWarning):
-		return entityTypeWarning, nil
-	case EntityType(entity.TypeClusterGroup):
-		return entityTypeClusterGroup, nil
-	case EntityType(entity.TypeStorageBucket):
-		return entityTypeStorageBucket, nil
-	case EntityType(entity.TypeNetworkZone):
-		return entityTypeNetworkZone, nil
-	case EntityType(entity.TypeImageAlias):
-		return entityTypeImageAlias, nil
-	case EntityType(entity.TypeServer):
-		return entityTypeServer, nil
-	case EntityType(entity.TypeAuthGroup):
-		return entityTypeAuthGroup, nil
-	case EntityType(entity.TypeIdentityProviderGroup):
-		return entityTypeIdentityProviderGroup, nil
-	case EntityType(entity.TypeIdentity):
-		return entityTypeIdentity, nil
-	default:
-		return nil, fmt.Errorf("Unknown entity type %q", e)
-	}
+	return e.Code(), nil
 }
 
 // EntityRef represents the expected format of entity URL queries.
