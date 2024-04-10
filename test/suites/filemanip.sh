@@ -38,6 +38,16 @@ test_filemanip() {
 
   lxc exec filemanip --project=test -- rm -rf /tmp/ptest/source
 
+  # Test explicitly specifying permissions on push for files that already exist
+  lxc file push "${TEST_DIR}"/source/foo filemanip/tmp/foo
+  lxc file push --mode=664 --uid=1202 --gid=1203 "${TEST_DIR}"/source/foo filemanip/tmp/foo
+
+  [ "$(lxc exec filemanip --project=test -- stat -c "%u" /tmp/foo)" = "1202" ]
+  [ "$(lxc exec filemanip --project=test -- stat -c "%g" /tmp/foo)" = "1203" ]
+  [ "$(lxc exec filemanip --project=test -- stat -c "%a" /tmp/foo)" = "664" ]
+
+  lxc exec filemanip --project=test -- rm /tmp/foo
+
   # Test pushing/pulling a file with spaces
   echo "foo" > "${TEST_DIR}/source/file with spaces"
 
