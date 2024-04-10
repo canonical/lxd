@@ -83,8 +83,8 @@ _have lxc && {
 
     lxc_cmds="alias auth cluster config console copy delete exec export file \
       help image import info init launch list monitor move network \
-      operation pause profile project publish query remote rename \
-      restart restore shell snapshot start stop storage version"
+      operation pause profile project publish query rebuild remote rename \
+      restart restore shell snapshot start stop storage version warning"
 
     global_keys="acme.agree_tos acme.ca_url acme.domain acme.email \
       backups.compression_algorithm \
