@@ -7477,7 +7477,7 @@ func (d *qemu) SetAffinity(set []string) error {
 
 	// Confirm nothing weird is going on.
 	if len(set) != len(pids) {
-		return fmt.Errorf("QEMU has less vCPUs (%v) than configured (%v)", pids, set)
+		return fmt.Errorf("QEMU has different count of vCPUs (%v) than configured (%v)", pids, set)
 	}
 
 	for i, pid := range pids {
@@ -9018,6 +9018,26 @@ func (d *qemu) setCPUs(count int) error {
 				d.logger.Warn("Failed to add CPU device", logger.Ctx{"err": err})
 			})
 		}
+	}
+
+	cpusWereSeen := false
+	for i := 0; i < 50; i++ {
+		// Get the list of PIDs from the VM.
+		pids, err := monitor.GetCPUs()
+		if err != nil {
+			return fmt.Errorf("Failed to get VM instance's QEMU process list: %w", err)
+		}
+
+		if count == len(pids) {
+			cpusWereSeen = true
+			break
+		}
+
+		time.Sleep(200 * time.Millisecond)
+	}
+
+	if !cpusWereSeen {
+		return fmt.Errorf("Failed to wait until all vCPUs (%d) come online", count)
 	}
 
 	revert.Success()
