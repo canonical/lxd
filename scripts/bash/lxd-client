@@ -239,7 +239,7 @@ _have lxc && {
           _lxd_names
         fi
         ;;
-      "delete"|"info"|"move"|"publish"|"restart"|"snapshot"|"rename")
+      "delete"|"info"|"move"|"publish"|"rename"|"restart"|"snapshot")
         _lxd_names
         ;;
       "start")
