@@ -1680,33 +1680,37 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// onStop hook isn't triggered prematurely (as this function's reverter will clean up on failure to start).
 	monitor.SetOnDisconnectEvent(false)
 
-	// Get the list of PIDs from the VM.
-	pids, err := monitor.GetCPUs()
-	if err != nil {
-		op.Done(err)
-		return err
-	}
+	// We need to hotplug vCPUs now if:
+	// - architecture supports hotplug
+	// - no explicit vCPU pinning was specified (cpuInfo.vcpus == nil)
+	// - we have more than one vCPU set
+	if d.architectureSupportsCPUHotplug() && cpuInfo.vcpus == nil && cpuInfo.cores > 1 {
+		// Setup CPUs and core scheduling for hotpluggable CPU systems.
+		err := d.setCPUs(cpuInfo.cores)
+		if err != nil {
+			err = fmt.Errorf("Failed to add CPUs: %w", err)
+			op.Done(err)
+			return err
+		}
+	} else {
+		// Setup just core scheduling if we don't need to hotplug vCPUs
 
-	err = d.setCoreSched(pids)
-	if err != nil {
-		err = fmt.Errorf("Failed to allocate new core scheduling domain for vCPU threads: %w", err)
-		op.Done(err)
-		return err
-	}
+		// Get the list of PIDs from the VM.
+		pids, err := monitor.GetCPUs()
+		if err != nil {
+			op.Done(err)
+			return err
+		}
 
-	// Apply CPU pinning.
-	if cpuInfo.vcpus == nil {
-		if d.architectureSupportsCPUHotplug() && cpuInfo.cores > 1 {
-			err := d.setCPUs(cpuInfo.cores)
-			if err != nil {
-				err = fmt.Errorf("Failed to add CPUs: %w", err)
-				op.Done(err)
-				return err
-			}
+		err = d.setCoreSched(pids)
+		if err != nil {
+			err = fmt.Errorf("Failed to allocate new core scheduling domain for vCPU threads: %w", err)
+			op.Done(err)
+			return err
 		}
 	}
 
-	// Trigger a rebalance
+	// Trigger a rebalance procedure which will set vCPU affinity (pinning) (explicit or implicit)
 	cgroup.TaskSchedulerTrigger("virtual-machine", d.name, "started")
 
 	// Run monitor hooks from devices.
@@ -9020,10 +9024,11 @@ func (d *qemu) setCPUs(count int) error {
 		}
 	}
 
+	var pids []int
 	cpusWereSeen := false
 	for i := 0; i < 50; i++ {
 		// Get the list of PIDs from the VM.
-		pids, err := monitor.GetCPUs()
+		pids, err = monitor.GetCPUs()
 		if err != nil {
 			return fmt.Errorf("Failed to get VM instance's QEMU process list: %w", err)
 		}
@@ -9038,6 +9043,12 @@ func (d *qemu) setCPUs(count int) error {
 
 	if !cpusWereSeen {
 		return fmt.Errorf("Failed to wait until all vCPUs (%d) come online", count)
+	}
+
+	// actualize core scheduling data
+	err = d.setCoreSched(pids)
+	if err != nil {
+		return fmt.Errorf("Failed to allocate new core scheduling domain for vCPU threads: %w", err)
 	}
 
 	revert.Success()
