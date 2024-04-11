@@ -112,6 +112,30 @@ jobs:
           set -eux
           make
 
+      - name: Check lxd-agent binary size
+        run: |
+          set -eux
+          # Build lxd-agent the same way as done in the snap
+          CGO_ENABLED=0 go build -trimpath -o "/tmp/bin/lxd-agent" -tags=agent,netgo github.com/canonical/lxd/lxd-agent
+          strip -s "/tmp/bin/lxd-agent"
+
+          CURRENT_SIZE="$(stat --format=%s /tmp/bin/lxd-agent)"
+          MIN_SIZE="$((16 * 1024 * 1024))" # 16MiB
+          MAX_SIZE="$((17 * 1024 * 1024))" # 17MiB
+
+          echo "lxd-agent binary size: ${CURRENT_SIZE} bytes"
+          if [ "${CURRENT_SIZE}" -gt "${MAX_SIZE}" ]; then
+            echo "FAIL: lxd-agent binary size exceeds ${MAX_SIZE} bytes"
+            exit 1
+          fi
+
+          # XXX: check for when we need to lower the MAX_SIZE/MIN_SIZE
+          if [ "${CURRENT_SIZE}" -lt "${MIN_SIZE}" ]; then
+            echo "Congratulations: the lxd-agent binary size reduced below ${MIN_SIZE} bytes"
+            echo "It is now time to edit the workflow job to use smaller MAX_SIZE/MIN_SIZE"
+            exit 1
+          fi
+
       - name: Run static analysis
         env:
           GITHUB_BEFORE: ${{ github.event.before }}
