@@ -45,6 +45,7 @@ type ImageDownloadArgs struct {
 	StoragePool       string
 	Budget            int64
 	SourceProjectName string
+	UserRequested     bool
 }
 
 // imageOperationLock acquires a lock for operating on an image and returns the unlock function.
@@ -252,30 +253,43 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 		ctxMap = logger.Ctx{"fingerprint": info.Fingerprint}
 		logger.Debug("Image already exists in the DB", ctxMap)
 
-		// If not requested in a particular pool, we're done.
-		if args.StoragePool == "" {
-			return info, nil
-		}
-
-		ctxMap["pool"] = args.StoragePool
-
 		var poolID int64
 		var poolIDs []int64
-
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			// Get the ID of the target storage pool.
-			poolID, err = tx.GetStoragePoolID(ctx, args.StoragePool)
-			if err != nil {
+			// If the image already exists, is cached and that it is
+			// requested to be downloaded from an explicit `image copy` operation, then disable its `cache` parameter
+			// so that it won't be candidate for auto removal.
+			if imgInfo.Cached && args.UserRequested {
+				err = tx.UnsetImageCached(ctx, args.ProjectName, imgInfo.Fingerprint)
+				if err != nil {
+					return err
+				}
+			}
+
+			if args.StoragePool != "" {
+				ctxMap["pool"] = args.StoragePool
+
+				// Get the ID of the target storage pool.
+				poolID, err = tx.GetStoragePoolID(ctx, args.StoragePool)
+				if err != nil {
+					return err
+				}
+
+				// Check if the image is already in the pool.
+				poolIDs, err = tx.GetPoolsWithImage(ctx, info.Fingerprint)
+
 				return err
 			}
 
-			// Check if the image is already in the pool.
-			poolIDs, err = tx.GetPoolsWithImage(ctx, info.Fingerprint)
-
-			return err
+			return nil
 		})
 		if err != nil {
 			return nil, err
+		}
+
+		// If not requested in a particular pool, we're done.
+		if args.StoragePool == "" {
+			return info, nil
 		}
 
 		if shared.ValueInSlice(poolID, poolIDs) {
