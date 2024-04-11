@@ -219,6 +219,13 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Proje
 	var usedBy []string
 	for _, entityIDToURL := range entityURLs {
 		for _, u := range entityIDToURL {
+			// Omit the project query parameter if it is the default project.
+			if u.Query().Get("project") == api.ProjectDefaultName {
+				q := u.Query()
+				q.Del("project")
+				u.RawQuery = q.Encode()
+			}
+
 			usedBy = append(usedBy, u.String())
 		}
 	}
