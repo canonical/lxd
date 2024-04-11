@@ -216,8 +216,9 @@ func (t Type) URL(projectName string, location string, pathArguments ...string) 
 
 	u := api.NewURL().Path(path...)
 
-	// Always set project parameter if provided (operations and warnings may be project specific but it is not a requirement).
-	if projectName != "" {
+	// Set project parameter if provided and the entity type is not TypeProject (operations and warnings may be project
+	// specific but it is not a requirement).
+	if projectName != "" && t != TypeProject {
 		u = u.WithQuery("project", projectName)
 	}
 
