@@ -169,10 +169,16 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 		}
 	}
 
-	// Construct OpenFGA objects for the user (identity) and the entity.
-	entityType, _, _, _, err := entity.ParseURL(entityURL.URL)
+	// Deconstruct the given URL.
+	entityType, projectName, location, pathArguments, err := entity.ParseURL(entityURL.URL)
 	if err != nil {
 		return fmt.Errorf("Authorization driver failed to parse entity URL %q: %w", entityURL.String(), err)
+	}
+
+	// Construct the URL in a standardised form (adding the project parameter if it was not present).
+	entityURL, err = entityType.URL(projectName, location, pathArguments...)
+	if err != nil {
+		return fmt.Errorf("Failed to standardize entity URL: %w", err)
 	}
 
 	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(id.AuthenticationMethod, id.Identifier).String())
@@ -387,7 +393,24 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 	// Return a permission checker that constructs an OpenFGA object from the given URL and returns true if the object is
 	// found in the list of objects in the response.
 	return func(entityURL *api.URL) bool {
-		object := fmt.Sprintf("%s:%s", entityType, entityURL.String())
+		parsedEntityType, projectName, location, pathArguments, err := entity.ParseURL(entityURL.URL)
+		if err != nil {
+			l.Error("Failed to parse permission checker entity URL", logger.Ctx{"url": entityURL.String(), "err": err})
+			return false
+		}
+
+		if parsedEntityType != entityType {
+			l.Error("Unexpected permission checker input URL", logger.Ctx{"expected_entity_type": entityType, "actual_entity_type": parsedEntityType, "url": entityURL.String()})
+			return false
+		}
+
+		standardisedEntityURL, err := entityType.URL(projectName, location, pathArguments...)
+		if err != nil {
+			l.Error("Failed to standardise permission checker entity URL", logger.Ctx{"url": entityURL.String(), "err": err})
+			return false
+		}
+
+		object := fmt.Sprintf("%s:%s", entityType, standardisedEntityURL.String())
 		return shared.ValueInSlice(object, objects)
 	}, nil
 }
