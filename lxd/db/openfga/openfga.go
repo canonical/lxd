@@ -407,7 +407,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 		return nil, fmt.Errorf("ReadStartingWithUser: Failed to parse user entity URL %q: %w", userURL, err)
 	}
 
-	_, _, _, userURLPathArguments, err := entity.ParseURL(*u)
+	_, projectName, _, userURLPathArguments, err := entity.ParseURL(*u)
 	if err != nil {
 		return nil, fmt.Errorf("ReadStartingWithUser: Unexpected user entity URL %q: %w", userURL, err)
 	}
@@ -419,13 +419,6 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 			return nil, fmt.Errorf("ReadStartingWithUser: Cannot list project relations for non-project entities")
 		} else if filter.Relation == "server" && userEntityType != entity.TypeServer {
 			return nil, fmt.Errorf("ReadStartingWithUser: Cannot list server relations for non-server entities")
-		}
-
-		// If the filter is by project, we want to filter entity URLs by the project name.
-		var projectName string
-		if filter.Relation == "project" {
-			// The project name is the first path argument of a project URL.
-			projectName = userURLPathArguments[0]
 		}
 
 		// Get the entity URLs with the given type and project (if set).
