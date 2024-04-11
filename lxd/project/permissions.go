@@ -1478,34 +1478,17 @@ func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string)
 			continue
 		}
 
-		entityType, projectName, location, pathArguments, err := entity.ParseURL(*u)
+		entityType, _, _, _, err := entity.ParseURL(*u)
 		if err != nil {
 			logger.Warn("Failed to parse project used-by entity URL", logger.Ctx{"url": entry, "err": err})
 			continue
 		}
 
-		entityURL, err := entityType.URL(projectName, location, pathArguments...)
-		if err != nil {
-			logger.Warn("Failed to create canonical entity URL for project used-by filtering", logger.Ctx{"url": entry, "err": err})
-			continue
-		}
-
-		urlsByEntityType[entityType] = append(urlsByEntityType[entityType], entityURL)
+		urlsByEntityType[entityType] = append(urlsByEntityType[entityType], &api.URL{URL: *u})
 	}
 
 	// Filter the entries.
 	usedBy := make([]string, 0, len(entries))
-
-	// Used-by lists do not include the project query parameter if it is the default project.
-	appendUsedBy := func(u *api.URL) {
-		if u.Query().Get("project") == api.ProjectDefaultName {
-			q := u.Query()
-			q.Del("project")
-			u.RawQuery = q.Encode()
-		}
-
-		usedBy = append(usedBy, u.String())
-	}
 
 	for entityType, urls := range urlsByEntityType {
 		// If only one entry of this type, check directly.
@@ -1515,7 +1498,7 @@ func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string)
 				continue
 			}
 
-			appendUsedBy(urls[0])
+			usedBy = append(usedBy, urls[0].String())
 			continue
 		}
 
@@ -1529,7 +1512,7 @@ func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string)
 		// Check each url and append.
 		for _, u := range urls {
 			if canViewEntity(u) {
-				appendUsedBy(u)
+				usedBy = append(usedBy, u.String())
 			}
 		}
 	}
