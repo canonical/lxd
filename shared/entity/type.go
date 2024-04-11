@@ -215,6 +215,11 @@ entityTypeLoop:
 		}
 	}
 
+	// If it's a project URL the project name is not a query parameter, it's in the path.
+	if Equal(TypeProject, entityType) {
+		projectName = pathArguments[0]
+	}
+
 	return entityType, projectName, u.Query().Get("target"), pathArguments, nil
 }
 
