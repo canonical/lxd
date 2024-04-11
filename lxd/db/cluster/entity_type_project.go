@@ -20,7 +20,7 @@ func (e entityTypeProject) Code() int64 {
 // the project name of the Project, the location of the Project, and the path arguments of the
 // Project in the order that they are found in its URL.
 func (e entityTypeProject) AllURLsQuery() string {
-	return fmt.Sprintf(`SELECT %d, projects.id, '', '', json_array(projects.name) FROM projects`, e.Code())
+	return fmt.Sprintf(`SELECT %d, projects.id, projects.name, '', json_array(projects.name) FROM projects`, e.Code())
 }
 
 // URLsByProjectQuery returns an empty string because Project entities are not project specific.
@@ -43,7 +43,7 @@ func (e entityTypeProject) IDFromURLQuery() string {
 	return `
 SELECT ?, projects.id 
 FROM projects 
-WHERE '' = ? 
+WHERE projects.name = ? 
 	AND '' = ? 
 	AND projects.name = ?`
 }
