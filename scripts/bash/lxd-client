@@ -82,9 +82,9 @@ _have lxc && {
     fi
 
     lxc_cmds="alias auth cluster config console copy delete exec export file \
-      help image import info init launch list manpage monitor move network \
-      operation pause profile project publish query remote rename \
-      restart restore shell snapshot start stop storage version"
+      help image import info init launch list monitor move network \
+      operation pause profile project publish query rebuild remote rename \
+      restart restore shell snapshot start stop storage version warning"
 
     global_keys="acme.agree_tos acme.ca_url acme.domain acme.email \
       backups.compression_algorithm \
@@ -381,13 +381,13 @@ _have lxc && {
           _lxd_names
         fi
         ;;
-      "delete"|"info"|"move"|"publish"|"restart"|"snapshot"|"rename")
+      "delete"|"info"|"move"|"publish"|"rename"|"restart"|"snapshot")
         _lxd_names
         ;;
       "start")
         _lxd_names "(STOPPED|FROZEN)"
         ;;
-      "exec"|"console"|"stop"|"shell")
+      "exec"|"console"|"pause"|"stop"|"shell")
         _lxd_names "(RUNNING|READY)"
         ;;
       "file")
@@ -399,7 +399,7 @@ _have lxc && {
       "image")
         COMPREPLY=( $(compgen -W "import copy delete refresh export info list show edit alias" -- $cur) )
         ;;
-      "init"|"launch")
+      "init"|"launch"|"rebuild")
         _lxd_images
         ;;
       "network")
@@ -500,7 +500,7 @@ _have lxc && {
         ;;
       "remote")
         COMPREPLY=( $(compgen -W \
-          "add remove list rename set-url set-default get-default" -- $cur) )
+          "add get-default list remove rename set-url switch" -- $cur) )
         ;;
       "restore")
         case $pos in
@@ -557,6 +557,9 @@ _have lxc && {
                 ;;
             esac
         esac
+        ;;
+      "warning")
+        COMPREPLY=( $(compgen -W "acknowledge delete list show" -- $cur) )
         ;;
       *)
         ;;
