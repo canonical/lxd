@@ -11,6 +11,10 @@ test_metrics() {
   lxc project create foo -c features.images=false -c features.profiles=false
   lxc launch testimage c3 --project foo
 
+  # create but dont start a container in separate non default project to check for stopped instance accounting.
+  lxc project create foo2 -c features.images=false -c features.profiles=false
+  lxc init testimage c4 --project foo2
+
   # c1 metrics should show as the container is running
   lxc query "/1.0/metrics" | grep "name=\"c1\""
   lxc query "/1.0/metrics?project=default" | grep "name=\"c1\""
@@ -22,9 +26,11 @@ test_metrics() {
   # Check that we can get the count of existing instances.
   lxc query /1.0/metrics | grep -xF 'lxd_instances{project="default",type="container"} 2'
   lxc query /1.0/metrics | grep -xF 'lxd_instances{project="foo",type="container"} 1'
+  lxc query /1.0/metrics | grep -xF 'lxd_instances{project="foo2",type="container"} 1'
   # Ensure lxd_instances reports VM count properly (0)
   lxc query /1.0/metrics | grep -xF 'lxd_instances{project="default",type="virtual-machine"} 0'
   lxc query /1.0/metrics | grep -xF 'lxd_instances{project="foo",type="virtual-machine"} 0'
+  lxc query /1.0/metrics | grep -xF 'lxd_instances{project="foo2",type="virtual-machine"} 0'
 
   # c3 metrics from another project also show up for non metrics unrestricted certificate
   lxc query "/1.0/metrics" | grep "name=\"c3\""
@@ -121,5 +127,7 @@ test_metrics() {
 
   lxc delete -f c1 c2
   lxc delete -f c3 --project foo
+  lxc delete -f c4 --project foo2
   lxc project rm foo
+  lxc project rm foo2
 }
