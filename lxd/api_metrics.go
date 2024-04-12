@@ -315,7 +315,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	updatedProjects := []string{}
 	for project, entries := range newMetrics {
-		if project == "default" {
+		if project == api.ProjectDefaultName {
 			entries.Merge(intMetrics) // internal metrics are always considered new. Add them to the default project.
 		}
 
