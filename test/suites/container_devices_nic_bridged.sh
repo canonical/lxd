@@ -14,20 +14,23 @@ test_container_devices_nic_bridged() {
   ctMAC="0a:92:a7:0d:b7:d9"
   ipRand=$(shuf -i 0-9 -n 1)
   brName="lxdt$$"
+  dnsDomain="blah"
 
   # Standard bridge with random subnet and a bunch of options
   lxc network create "${brName}"
   lxc network set "${brName}" dns.mode managed
-  lxc network set "${brName}" dns.domain blah
+  lxc network set "${brName}" dns.domain "${dnsDomain}"
   lxc network set "${brName}" ipv4.nat true
   lxc network set "${brName}" ipv4.routing false
   lxc network set "${brName}" ipv6.routing false
+  lxc network set "${brName}" ipv4.dhcp.ranges 192.0.2.100-192.0.2.200
+  lxc network set "${brName}" ipv6.dhcp.ranges 2001:db8::100-2001:db8::f00
   lxc network set "${brName}" ipv6.dhcp.stateful true
   lxc network set "${brName}" bridge.hwaddr 00:11:22:33:44:55
   lxc network set "${brName}" ipv4.address 192.0.2.1/24
   lxc network set "${brName}" ipv6.address 2001:db8::1/64
   lxc network set "${brName}" ipv4.routes 192.0.3.0/24
-  lxc network set "${brName}" ipv6.routes 2001:db7::/64
+  lxc network set "${brName}" ipv6.routes 2001:db8::/64
   [ "$(cat /sys/class/net/${brName}/address)" = "00:11:22:33:44:55" ]
 
   # Record how many nics we started with.
@@ -428,6 +431,82 @@ test_container_devices_nic_bridged() {
   if [ "$busyboxUdhcpc6" = "1" ]; then
         lxc exec "${ctName}" -- udhcpc6 -f -i eth0 -n -q -t5 2>&1 | grep 'IPv6 obtained'
   fi
+
+  # Check that dnsmasq will resolve on the lo
+  # If testImage can't request a dhcp6 lease, it won't have an ip6 addr, so just
+  # check the A record; we only care about access to dnsmasq here, not the
+  # record itself.
+  dig -4 +retry=0 +notcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+  dig -6 +retry=0 +notcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+  dig -4 +retry=0 +tcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+  dig -6 +retry=0 +tcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+
+  # Check that dnsmasq will resolve from the bridge
+  # testImage doesn't have dig, so we create a netns with eth0 connected to the
+  # bridge instead
+  ip link add veth_left type veth peer veth_right
+  ip link set veth_left master "${brName}" up
+
+  ip netns add testdns
+  ip link set dev veth_right netns testdns
+
+  ip netns exec testdns ip link set veth_right name eth0
+  ip netns exec testdns ip link set dev eth0 up
+  ip netns exec testdns ip addr add 192.0.2.20/24 dev eth0
+  ip netns exec testdns ip addr add 2001:db8::20/64 dev eth0
+
+  ip addr
+  ip netns exec testdns ip addr
+
+  # Give eth0 a chance to finish duplicate addr detection (ipv6)
+  while ip netns exec testdns ip a | grep "tentative"; do
+    sleep 0.5
+  done
+
+  ip netns exec testdns dig -4 +retry=0 +notcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+  ip netns exec testdns dig -6 +retry=0 +notcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+  ip netns exec testdns dig -4 +retry=0 +tcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+  ip netns exec testdns dig -6 +retry=0 +tcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+
+  ip netns exec testdns ip link delete eth0
+  ip netns delete testdns
+
+  # Ensure that dnsmasq is inaccessible from outside its managed bridge and the host lo
+  # This creates a new net namespace `testdns`, a bridge `testbr0`, and veths
+  # between; we need dns requests to come from an interface that isn't the
+  # lxd-managed bridge or the host's loopback, and `dig` doesn't let you specify
+  # the interface to use, only the source ip
+  testbr0Addr4=10.10.10.1
+  testbr0Addr6=fc00:feed:beef::1
+
+  ip link add veth_left type veth peer veth_right
+  ip link add testbr0 type bridge
+  ip link set testbr0 up
+  ip addr add "${testbr0Addr4}/24" dev testbr0
+  ip addr add "${testbr0Addr6}/64" dev testbr0
+  ip link set veth_left master testbr0 up
+
+  ip netns add testdns
+  ip link set dev veth_right netns testdns
+
+  ip netns exec testdns ip link set veth_right name eth0
+  ip netns exec testdns ip link set dev eth0 up
+  ip netns exec testdns ip addr add 10.10.10.2/24 dev eth0
+  ip netns exec testdns ip addr add fc00:feed:beef::2/64 dev eth0
+  ip netns exec testdns ip route add default via "${testbr0Addr4}" dev eth0
+  ip netns exec testdns ip -6 route add default via "${testbr0Addr6}" dev eth0
+
+  ip addr
+  ip netns exec testdns ip addr
+
+  ! ip netns exec testdns dig -4 +retry=0 +notcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+  ! ip netns exec testdns dig -6 +retry=0 +notcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+  ! ip netns exec testdns dig -4 +retry=0 +tcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+  ! ip netns exec testdns dig -6 +retry=0 +tcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+
+  ip netns exec testdns ip link delete eth0
+  ip netns delete testdns
+  ip link delete testbr0
 
   # Delete container, check LXD releases lease.
   lxc delete "${ctName}" -f
