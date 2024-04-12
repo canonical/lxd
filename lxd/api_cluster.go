@@ -3269,6 +3269,9 @@ func evacuateClusterMember(s *state.State, gateway *cluster.Gateway, r *http.Req
 			return err
 		}
 
+		// Stop networks after evacuation.
+		networkShutdown(s)
+
 		revert.Success()
 		return nil
 	}
@@ -3438,6 +3441,12 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 		var sourceNode db.NodeInfo
 
 		metadata := make(map[string]any)
+
+		// Restart the networks.
+		err = networkStartup(d.State())
+		if err != nil {
+			return err
+		}
 
 		// Restart the local instances.
 		for _, inst := range localInstances {
