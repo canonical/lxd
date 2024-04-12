@@ -4,9 +4,7 @@ test_network_zone() {
 
   poolName=$(lxc profile device get default root pool)
 
-  # Enable the DNS server
   lxc config unset core.https_address
-  lxc config set core.dns_address "${LXD_ADDR}"
 
   # Create a network
   netName=lxdt$$
@@ -73,14 +71,17 @@ test_network_zone() {
   done
 
   # Setup DNS peers
-  lxc network zone set lxd.example.net peers.test.address=127.0.0.1
-  lxc network zone set lxdfoo.example.net peers.test.address=127.0.0.1 --project=foo
-  lxc network zone set 2.0.192.in-addr.arpa peers.test.address=127.0.0.1
-  lxc network zone set 0.1.0.1.2.4.2.4.2.4.2.4.2.4.d.f.ip6.arpa peers.test.address=127.0.0.1
+  lxc network zone set lxd.example.net peers.test.address=192.0.2.1
+  lxc network zone set lxdfoo.example.net peers.test.address=192.0.2.1 --project=foo
+  lxc network zone set 2.0.192.in-addr.arpa peers.test.address=192.0.2.1
+  lxc network zone set 0.1.0.1.2.4.2.4.2.4.2.4.2.4.d.f.ip6.arpa peers.test.address=192.0.2.1
+
+  # Enable the DNS listener on the bridge itself
+  lxc config set core.dns_address 192.0.2.1:8853
 
   # Check the zones
-  DNS_ADDR="$(echo "${LXD_ADDR}" | cut -d: -f1)"
-  DNS_PORT="$(echo "${LXD_ADDR}" | cut -d: -f2)"
+  DNS_ADDR="$(lxc config get core.dns_address | cut -d: -f1)"
+  DNS_PORT="$(lxc config get core.dns_address | cut -d: -f2)"
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net | grep "${netName}.gw.lxd.example.net.\s\+300\s\+IN\s\+A\s\+"
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net | grep "c1.lxd.example.net.\s\+300\s\+IN\s\+A\s\+"
@@ -137,6 +138,12 @@ test_network_zone() {
   lxc network zone record list lxdfoo.example.net --project foo
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxdfoo.example.net | grep -Fc demo.lxdfoo.example.net | grep -Fx 6
   lxc network zone record entry remove lxdfoo.example.net demo A 1.1.1.1 --project foo
+
+  # Check that the listener survives a restart of LXD
+  shutdown_lxd "${LXD_DIR}"
+  respawn_lxd "${LXD_DIR}" true
+
+  dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net
 
   # Cleanup
   lxc delete -f c1
