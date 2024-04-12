@@ -49,7 +49,7 @@ func LaunchContainers(c lxd.ContainerServer, count int, parallel int, image stri
 
 	fingerprint, err := ensureImage(c, image)
 	if err != nil {
-		return duration, err
+		return duration, fmt.Errorf("Failed ensuring image: %w", err)
 	}
 
 	batchStart := func(index int, wg *sync.WaitGroup) {
