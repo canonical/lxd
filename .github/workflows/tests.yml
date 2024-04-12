@@ -112,29 +112,40 @@ jobs:
           set -eux
           make
 
-      - name: Check lxd-agent binary size
+      - name: Check lxc/lxd-agent binary sizes
         run: |
           set -eux
-          # Build lxd-agent the same way as done in the snap
+
+          # Build lxc/lxd-agent the same way as done in the snap
+          go build -trimpath -o "/tmp/bin/lxc" github.com/canonical/lxd/lxc
           CGO_ENABLED=0 go build -trimpath -o "/tmp/bin/lxd-agent" -tags=agent,netgo github.com/canonical/lxd/lxd-agent
-          strip -s "/tmp/bin/lxd-agent"
+          strip -s /tmp/bin/*
 
-          CURRENT_SIZE="$(stat --format=%s /tmp/bin/lxd-agent)"
-          MIN_SIZE="$((16 * 1024 * 1024))" # 16MiB
-          MAX_SIZE="$((17 * 1024 * 1024))" # 17MiB
+          # bin/min/max (sizes are in MiB)
+          SIZES="lxc 13 14
+                 lxd-agent 16 17"
+          MIB="$((1024 * 1024))"
 
-          echo "lxd-agent binary size: ${CURRENT_SIZE} bytes"
-          if [ "${CURRENT_SIZE}" -gt "${MAX_SIZE}" ]; then
-            echo "FAIL: lxd-agent binary size exceeds ${MAX_SIZE} bytes"
-            exit 1
-          fi
+          while read -r bin min max; do
+            cur="$(stat --format=%s "/tmp/bin/${bin}")"
+            min_mib="$((min * MIB))"
+            max_mib="$((max * MIB))"
+            rm -f "/tmp/bin/${bin}"
 
-          # XXX: check for when we need to lower the MAX_SIZE/MIN_SIZE
-          if [ "${CURRENT_SIZE}" -lt "${MIN_SIZE}" ]; then
-            echo "Congratulations: the lxd-agent binary size reduced below ${MIN_SIZE} bytes"
-            echo "It is now time to edit the workflow job to use smaller MAX_SIZE/MIN_SIZE"
-            exit 1
-          fi
+            if [ "${cur}" -gt "${max_mib}" ]; then
+              echo "FAIL: ${bin} binary size exceeds ${max}MiB"
+              exit 1
+            fi
+
+            # XXX: check for when we need to lower the min/max sizes
+            if [ "${cur}" -lt "${min_mib}" ]; then
+              echo "Congratulations: ${bin} binary size reduced below ${min}MiB"
+              echo "It is now time to edit the workflow job to use smaller min/max sizes for ${bin}"
+              exit 1
+            fi
+
+            echo "OK: ${bin} is between ${min} and ${max}MiB"
+          done <<< ${SIZES}
 
       - name: Run static analysis
         env:
