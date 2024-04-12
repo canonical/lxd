@@ -219,12 +219,14 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	// Total number of instances, both running and stopped.
 	for _, instance := range instances {
-		_, ok := allProjectInstances[instance.Project().Name]
+		projectName := instance.Project().Name
+
+		_, ok := allProjectInstances[projectName]
 		if !ok {
-			allProjectInstances[instance.Project().Name] = make(map[instancetype.Type]int)
+			allProjectInstances[projectName] = make(map[instancetype.Type]int)
 		}
 
-		allProjectInstances[instance.Project().Name][instance.Type()]++
+		allProjectInstances[projectName][instance.Type()]++
 	}
 
 	// Prepare temporary metrics storage.
