@@ -41,6 +41,7 @@ var StaticRemotes = map[string]Remote{
 // DefaultRemotes is the list of default remotes
 var DefaultRemotes = map[string]Remote{
 	"local":        LocalRemote,
+	"images":       ImagesRemote,
 	"ubuntu":       UbuntuRemote,
 	"ubuntu-daily": UbuntuDailyRemote,
 }
