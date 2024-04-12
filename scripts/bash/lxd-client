@@ -1,6 +1,11 @@
 _have lxc && {
   _lxd_complete()
   {
+    _lxd_operations()
+    {
+      COMPREPLY=( $( compgen -W "$( lxc operation list --format=csv | cut -d, -f1 )" -- "$cur" ) )
+    }
+
     _lxd_names()
     {
       local state=$1
@@ -426,6 +431,20 @@ _have lxc && {
                 _lxd_profiles
                 ;;
             esac
+        esac
+        ;;
+      "operation")
+        case $pos in
+          2)
+            COMPREPLY=( $(compgen -W "delete list show" -- "$cur") )
+            ;;
+          3)
+            case ${no_dashargs[2]} in
+              "delete"|"show")
+                _lxd_operations
+                ;;
+            esac
+            ;;
         esac
         ;;
       "profile")
