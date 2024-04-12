@@ -245,8 +245,8 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Fetch what's missing.
+	wg.Add(len(instances))
 	for _, inst := range instances {
-		wg.Add(1)
 		instMetricsCh <- inst
 	}
 
