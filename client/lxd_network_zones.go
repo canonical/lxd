@@ -44,6 +44,23 @@ func (r *ProtocolLXD) GetNetworkZones() ([]api.NetworkZone, error) {
 	return zones, nil
 }
 
+// GetNetworkZonesAllProjects returns a list of network zones across all projects as NetworkZone structs.
+func (r *ProtocolLXD) GetNetworkZonesAllProjects() ([]api.NetworkZone, error) {
+	err := r.CheckExtension("network_zones_all_projects")
+	if err != nil {
+		return nil, err
+	}
+
+	zones := []api.NetworkZone{}
+	uri := "/network-zones?all-projects=true&recursion=1"
+	_, err = r.queryStruct("GET", uri, nil, "", &zones)
+	if err != nil {
+		return nil, err
+	}
+
+	return zones, nil
+}
+
 // GetNetworkZone returns a Network zone entry for the provided name.
 func (r *ProtocolLXD) GetNetworkZone(name string) (*api.NetworkZone, string, error) {
 	err := r.CheckExtension("network_dns")
