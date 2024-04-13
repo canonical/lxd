@@ -2535,3 +2535,7 @@ Adds a new {config:option}`device-unix-hotplug-device-conf:ownership.inherit` co
 ## `unix_device_hotplug_subsystem_device_option`
 
 Adds a new {config:option}`device-unix-hotplug-device-conf:subsystem` configuration option for `unix-hotplug` devices. This adds support for detecting `unix-hotplug` devices by subsystem, and can be used in conjunction with {config:option}`device-unix-hotplug-device-conf:productid` and {config:option}`device-unix-hotplug-device-conf:vendorid`.
+
+## `network_zones_all_projects`
+
+This adds support for listing network zones across all projects using the `all-projects` parameter in `GET /1.0/network-zones` requests.
