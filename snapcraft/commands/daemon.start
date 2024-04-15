@@ -204,6 +204,12 @@ if [ "${lvm_external:-"false"}" = "true" ]; then
     ln -s "${SNAP}/wrappers/run-host" "/run/bin/lvresize"
 fi
 
+if [ "${zfs_external:-"false"}" = "true" ]; then
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/zfs"
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/zpool"
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/zvol_id"
+fi
+
 # Detect presence of sideloaded lxd-agent executable.
 if [ -x "${SNAP_COMMON}/lxd-agent.debug" ]; then
     echo "==> WARNING: Using a custom debug lxd-agent binary!"
@@ -367,22 +373,28 @@ echo "==> Rotating logs"
 logrotate -f "${SNAP}/etc/logrotate.conf" -s "/etc/logrotate.status" || true
 
 # Setup for ZFS
-if [ -e /sys/module/zfs/version ]; then
-    read -r VERSION < /sys/module/zfs/version
-else
-    VERSION=$(nsenter -t 1 -m modinfo -F version zfs 2>/dev/null || true)
-fi
+if [ "${zfs_external:-"false"}" = "false" ]; then
+    if [ -e /sys/module/zfs/version ]; then
+        read -r VERSION < /sys/module/zfs/version
+    else
+        VERSION=$(nsenter -t 1 -m modinfo -F version zfs 2>/dev/null || true)
+    fi
 
-ZFS_VER="$(echo "${VERSION}" | cut -c 1-3)"
+    ZFS_VER="$(echo "${VERSION}" | cut -c 1-3)"
 
-if [ -d "${SNAP_CURRENT}/zfs-${ZFS_VER}/bin" ]; then
-    echo "==> Setting up ZFS (${ZFS_VER})"
-    export LD_LIBRARY_PATH="${SNAP_CURRENT}/zfs-${ZFS_VER}/lib/:${LD_LIBRARY_PATH}"
-    export PATH="${SNAP_CURRENT}/zfs-${ZFS_VER}/bin:${PATH}"
-elif [ -n "${ZFS_VER}" ]; then
-    echo "==> Unsupported ZFS version (${ZFS_VER})"
+    if [ -d "${SNAP_CURRENT}/zfs-${ZFS_VER}/bin" ]; then
+        echo "==> Setting up ZFS (${ZFS_VER})"
+        export LD_LIBRARY_PATH="${SNAP_CURRENT}/zfs-${ZFS_VER}/lib/:${LD_LIBRARY_PATH}"
+        export PATH="${SNAP_CURRENT}/zfs-${ZFS_VER}/bin:${PATH}"
+    elif [ -n "${ZFS_VER}" ]; then
+        echo "==> Unsupported ZFS version (${ZFS_VER})"
+        echo "Consider installing ZFS tools in the host and use zfs.external"
+    else
+        echo "==> No ZFS support"
+        echo "Consider installing ZFS tools in the host and use zfs.external"
+    fi
 else
-    echo "==> No ZFS support"
+    echo "==> Using ZFS tools from the host system"
 fi
 
 # Escape resource limits
