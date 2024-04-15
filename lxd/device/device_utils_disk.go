@@ -279,7 +279,7 @@ func diskAddRootUserNSEntry(idmaps []idmap.IdmapEntry, hostRootID int64) []idmap
 				needsNSGIDRootEntry = false // Root GID mapping already present.
 			}
 
-			if !needsNSUIDRootEntry && needsNSGIDRootEntry {
+			if !needsNSUIDRootEntry && !needsNSGIDRootEntry {
 				break // If we've found a root entry for UID and GID then we don't need to add one.
 			}
 		}
