@@ -40,6 +40,10 @@ test_network_zone() {
   # Create zone in project.
   lxc network zone create lxdfoo.example.net --project foo
 
+  # Check listing zones from all projects.
+  lxc network zone list --all-projects -fcsv | grep -q default,lxd.example.net || false
+  lxc network zone list --all-projects -fcsv | grep -q foo,lxdfoo.example.net || false
+
   # Check associating a network to a missing zone isn't allowed.
   ! lxc network set "${netName}" dns.zone.forward missing || false
   ! lxc network set "${netName}" dns.zone.reverse.ipv4 missing || false
