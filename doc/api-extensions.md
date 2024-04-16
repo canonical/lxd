@@ -682,9 +682,9 @@ allows configuration of backup compression.
 This introduces a few extra configuration keys when using {config:option}`instance-nvidia:nvidia.runtime` and the `libnvidia-container` library.
 Those keys translate pretty much directly to the matching NVIDIA container environment variables:
 
-* `nvidia.driver.capabilities` => `NVIDIA_DRIVER_CAPABILITIES`
-* `nvidia.require.cuda` => `NVIDIA_REQUIRE_CUDA`
-* `nvidia.require.driver` => `NVIDIA_REQUIRE_DRIVER`
+* {config:option}`instance-nvidia:nvidia.driver.capabilities` => `NVIDIA_DRIVER_CAPABILITIES`
+* {config:option}`instance-nvidia:nvidia.require.cuda` => `NVIDIA_REQUIRE_CUDA`
+* {config:option}`instance-nvidia:nvidia.require.driver` => `NVIDIA_REQUIRE_DRIVER`
 
 ## `storage_api_volume_snapshots`
 
@@ -757,7 +757,7 @@ copy/move of containers between projects.
 
 This adds support for configuring a server network address which differs from
 the REST API client network address. When bootstrapping a new cluster, clients
-can set the new `cluster.https_address` configuration key to specify the address of
+can set the new {config:option}`server-cluster:cluster.https_address` configuration key to specify the address of
 the initial server. When joining a new server, clients can set the
 {config:option}`server-core:core.https_address` configuration key of the joining server to the REST API
 address the joining server should listen at, and set the `server_address`
@@ -769,7 +769,7 @@ joining server).
 ## `clustering_image_replication`
 
 Enable image replication across the nodes in the cluster.
-A new `cluster.images_minimal_replica` configuration key was introduced can be used
+A new {config:option}`server-cluster:cluster.images_minimal_replica` configuration key was introduced can be used
 to specify to the minimal numbers of nodes for image replication.
 
 ## `container_protection_shift`
@@ -780,7 +780,7 @@ from having their file system shifted.
 ## `snapshot_expiry`
 
 This adds support for snapshot expiration. The task is run minutely. The configuration
-option `snapshots.expiry` takes an expression in the form of `1M 2H 3d 4w 5m
+option {config:option}`instance-snapshots:snapshots.expiry` takes an expression in the form of `1M 2H 3d 4w 5m
 6y` (1 minute, 2 hours, 3 days, 4 weeks, 5 months, 6 years), however not all
 parts have to be used.
 
@@ -824,14 +824,14 @@ Exposes the state of optional kernel features through the server environment.
 
 ## `id_map_current`
 
-This introduces a new internal `volatile.idmap.current` key which is
+This introduces a new internal {config:option}`instance-volatile:volatile.idmap.current` key which is
 used to track the current mapping for the container.
 
 This effectively gives us:
 
-* `volatile.last_state.idmap` => On-disk idmap
-* `volatile.idmap.current` => Current kernel map
-* `volatile.idmap.next` => Next on-disk idmap
+* {config:option}`instance-volatile:volatile.last_state.idmap` => On-disk idmap
+* {config:option}`instance-volatile:volatile.idmap.current` => Current kernel map
+* {config:option}`instance-volatile:volatile.idmap.next` => Next on-disk idmap
 
 This is required to implement environments where the on-disk map isn't
 changed but the kernel map is (e.g. `idmapped mounts`).
@@ -851,7 +851,7 @@ Those keys control the source address used for outbound traffic from the bridge.
 
 ## `container_nic_routes`
 
-This introduces the `ipv4.routes` and `ipv6.routes` properties on `nic` type devices.
+This introduces the {config:option}`device-nic-bridged-device-conf:ipv4.routes` and {config:option}`device-nic-bridged-device-conf:ipv6.routes` properties on `nic` type devices.
 This allows adding static routes on host to container's NIC.
 
 ## `cluster_internal_copy`
@@ -878,7 +878,7 @@ This introduces the `ipvlan` `nic` device type.
 
 ## `network_vlan_sriov`
 
-This introduces VLAN (`vlan`) and MAC filtering (`security.mac_filtering`) support for SR-IOV devices.
+This introduces VLAN ({config:option}`device-nic-sriov-device-conf:vlan`) and MAC filtering ({config:option}`device-nic-sriov-device-conf:security.mac_filtering`) support for SR-IOV devices.
 
 ## `storage_cephfs`
 
@@ -888,7 +888,7 @@ instead.
 
 ## `container_nic_ipfilter`
 
-This introduces container IP filtering (`security.ipv4_filtering` and `security.ipv6_filtering`) support for `bridged` NIC devices.
+This introduces container IP filtering ({config:option}`device-nic-bridged-device-conf:security.ipv4_filtering` and {config:option}`device-nic-bridged-device-conf:security.ipv6_filtering`) support for `bridged` NIC devices.
 
 ## `resources_v2`
 
@@ -923,7 +923,7 @@ elevated permissions.
 
 ## `container_disk_shift`
 
-Adds the `shift` property on `disk` devices which controls the use of the `idmapped mounts` overlay.
+Adds the {config:option}`device-disk-device-conf:shift` property on `disk` devices which controls the use of the `idmapped mounts` overlay.
 
 ## `storage_shifted`
 
@@ -941,8 +941,8 @@ Export InfiniBand character device information (`issm`, `umad`, `uverb`) as part
 
 ## `daemon_storage`
 
-This introduces two new configuration keys `storage.images_volume` and
-`storage.backups_volume` to allow for a storage volume on an existing
+This introduces two new configuration keys {config:option}`server-miscellaneous:storage.images_volume` and
+{config:option}`server-miscellaneous:storage.backups_volume` to allow for a storage volume on an existing
 pool be used for storing the daemon-wide images and backups artifacts.
 
 ## `instances`
@@ -981,20 +981,20 @@ Adds a `FirmwareVersion` field to network card entries.
 
 This adds support for a `compression_algorithm` property when creating a backup (`POST /1.0/containers/<name>/backups`).
 
-Setting this property overrides the server default value (`backups.compression_algorithm`).
+Setting this property overrides the server default value ({config:option}`server-miscellaneous:backups.compression_algorithm`).
 
 ## `ceph_data_pool_name`
 
-This adds support for an optional argument (`ceph.osd.data_pool_name`) when creating
+This adds support for an optional argument ({config:option}`storage-ceph-pool-conf:ceph.osd.data_pool_name`) when creating
 storage pools using Ceph RBD, when this argument is used the pool will store it's
 actual data in the pool specified with `data_pool_name` while keeping the metadata
 in the pool specified by `pool_name`.
 
 ## `container_syscall_intercept_mount`
 
-Adds the `security.syscalls.intercept.mount`,
-`security.syscalls.intercept.mount.allowed`, and
-`security.syscalls.intercept.mount.shift` configuration keys to control whether
+Adds the {config:option}`instance-security:security.syscalls.intercept.mount`,
+{config:option}`instance-security:security.syscalls.intercept.mount.allowed`, and
+{config:option}`instance-security:security.syscalls.intercept.mount.shift` configuration keys to control whether
 and how the `mount` system call will be intercepted by LXD and processed with
 elevated permissions.
 
@@ -1012,7 +1012,7 @@ This introduces the `routed` `nic` device type.
 
 ## `container_syscall_intercept_mount_fuse`
 
-Adds the `security.syscalls.intercept.mount.fuse` key. It can be used to
+Adds the {config:option}`instance-security:security.syscalls.intercept.mount.fuse` key. It can be used to
 redirect file-system mounts to their fuse implementation. To this end, set e.g.
 `security.syscalls.intercept.mount.fuse=ext4=fuse2fs`.
 
@@ -1061,7 +1061,7 @@ This allows it to inherit some of the network's settings and allows better valid
 ## `clustering_sizing`
 
 Support specifying a custom values for database voters and standbys.
-The new `cluster.max_voters` and `cluster.max_standby` configuration keys were introduced
+The new {config:option}`server-cluster:cluster.max_voters` and {config:option}`server-cluster:cluster.max_standby` configuration keys were introduced
 to specify to the ideal number of database voter and standbys.
 
 ## `firewall_driver`
@@ -1092,7 +1092,7 @@ huge pages resources.
 
 ## `container_nic_routed_gateway`
 
-This introduces the `ipv4.gateway` and `ipv6.gateway` NIC configuration keys that can take a value of either `auto` or
+This introduces the {config:option}`device-nic-routed-device-conf:ipv4.gateway` and {config:option}`device-nic-routed-device-conf:ipv6.gateway` NIC configuration keys that can take a value of either `auto` or
 `none`. The default value for the key if unspecified is `auto`. This will cause the current behavior of a default
 gateway being added inside the container and the same gateway address being added to the host-side interface.
 If the value is set to `none` then no default gateway nor will the address be added to the host-side interface.
@@ -1100,7 +1100,7 @@ This allows multiple routed NIC devices to be added to a container.
 
 ## `projects_restrictions`
 
-This introduces support for the `restricted` configuration key on project, which
+This introduces support for the {config:option}`project-restricted:restricted` configuration key on project, which
 can prevent the use of security-sensitive features in a project.
 
 ## `custom_volume_snapshot_expiry`
@@ -1132,11 +1132,11 @@ This adds a writable endpoint for cluster members, allowing the editing of their
 
 ## `container_nic_routed_host_address`
 
-This introduces the `ipv4.host_address` and `ipv6.host_address` NIC configuration keys that can be used to control the
+This introduces the {config:option}`device-nic-routed-device-conf:ipv4.host_address` and {config:option}`device-nic-routed-device-conf:ipv6.host_address` NIC configuration keys that can be used to control the
 host-side `veth` interface's IP addresses. This can be useful when using multiple routed NICs at the same time and
 needing a predictable next-hop address to use.
 
-This also alters the behavior of `ipv4.gateway` and `ipv6.gateway` NIC configuration keys. When they are set to `auto`
+This also alters the behavior of {config:option}`device-nic-routed-device-conf:ipv4.gateway` and {config:option}`device-nic-routed-device-conf:ipv6.gateway` NIC configuration keys. When they are set to `auto`
 the container will have its default gateway set to the value of `ipv4.host_address` or `ipv6.host_address` respectively.
 
 The default values are:
@@ -1148,7 +1148,7 @@ This is backward compatible with the previous default behavior.
 
 ## `container_nic_ipvlan_gateway`
 
-This introduces the `ipv4.gateway` and `ipv6.gateway` NIC configuration keys that can take a value of either `auto` or
+This introduces the {config:option}`device-nic-ipvlan-device-conf:ipv4.gateway` and {config:option}`device-nic-ipvlan-device-conf:ipv6.gateway` NIC configuration keys that can take a value of either `auto` or
 `none`. The default value for the key if unspecified is `auto`. This will cause the current behavior of a default
 gateway being added inside the container and the same gateway address being added to the host-side interface.
 If the value is set to `none` then no default gateway nor will the address be added to the host-side interface.
@@ -1176,23 +1176,23 @@ Those are taken from the OS-release data on the system.
 
 ## `container_nic_routed_host_table`
 
-This introduces the `ipv4.host_table` and `ipv6.host_table` NIC configuration keys that can be used to add static routes
+This introduces the {config:option}`device-nic-routed-device-conf:ipv4.host_table` and {config:option}`device-nic-routed-device-conf:ipv6.host_table` NIC configuration keys that can be used to add static routes
 for the instance's IPs to a custom policy routing table by ID.
 
 ## `container_nic_ipvlan_host_table`
 
-This introduces the `ipv4.host_table` and `ipv6.host_table` NIC configuration keys that can be used to add static routes
+This introduces the {config:option}`device-nic-ipvlan-device-conf:ipv4.host_table` and {config:option}`device-nic-ipvlan-device-conf:ipv6.host_table` NIC configuration keys that can be used to add static routes
 for the instance's IPs to a custom policy routing table by ID.
 
 ## `container_nic_ipvlan_mode`
 
-This introduces the `mode` NIC configuration key that can be used to switch the `ipvlan` mode into either `l2` or `l3s`.
+This introduces the {config:option}`device-nic-ipvlan-device-conf:mode` NIC configuration key that can be used to switch the `ipvlan` mode into either `l2` or `l3s`.
 If not specified, the default value is `l3s` (which is the old behavior).
 
-In `l2` mode the `ipv4.address` and `ipv6.address` keys will accept addresses in either CIDR or singular formats.
+In `l2` mode the {config:option}`device-nic-ipvlan-device-conf:ipv4.address` and {config:option}`device-nic-ipvlan-device-conf:ipv6.address` keys will accept addresses in either CIDR or singular formats.
 If singular format is used, the default subnet size is taken to be /24 and /64 for IPv4 and IPv6 respectively.
 
-In `l2` mode the `ipv4.gateway` and `ipv6.gateway` keys accept only a singular IP address.
+In `l2` mode the {config:option}`device-nic-ipvlan-device-conf:ipv4.gateway` and {config:option}`device-nic-ipvlan-device-conf:ipv6.gateway` keys accept only a singular IP address.
 
 ## `resources_system`
 
@@ -1211,11 +1211,11 @@ This introduces the `dns.search` configuration option on networks.
 
 ## `container_nic_routed_limits`
 
-This introduces `limits.ingress`, `limits.egress` and `limits.max` for routed NICs.
+This introduces {config:option}`device-nic-routed-device-conf:limits.ingress`, {config:option}`device-nic-routed-device-conf:limits.egress` and {config:option}`device-nic-routed-device-conf:limits.max` for routed NICs.
 
 ## `instance_nic_bridged_vlan`
 
-This introduces the `vlan` and `vlan.tagged` settings for `bridged` NICs.
+This introduces the {config:option}`device-nic-bridged-device-conf:vlan` and {config:option}`device-nic-bridged-device-conf:vlan.tagged` settings for `bridged` NICs.
 
 `vlan` specifies the non-tagged VLAN to join, and `vlan.tagged` is a comma-delimited list of tagged VLANs to join.
 
@@ -1298,24 +1298,24 @@ attached to a SPICE Unix socket of the target virtual machine.
 
 ## `projects_limits_disk`
 
-Add `limits.disk` to the available project configuration keys. If set, it limits
+Add {config:option}`project-limits:limits.disk` to the available project configuration keys. If set, it limits
 the total amount of disk space that instances volumes, custom volumes and images
 volumes can use in the project.
 
 ## `network_type_macvlan`
 
-Adds support for additional network type `macvlan` and adds `parent` configuration key for this network type to
+Adds support for additional network type `macvlan` and adds {config:option}`network-macvlan-network-conf:parent` configuration key for this network type to
 specify which parent interface should be used for creating NIC device interfaces on top of.
 
-Also adds `network` configuration key support for `macvlan` NICs to allow them to specify the associated network of
+Also adds {config:option}`device-nic-macvlan-device-conf:network` configuration key support for `macvlan` NICs to allow them to specify the associated network of
 the same type that they should use as the basis for the NIC device.
 
 ## `network_type_sriov`
 
-Adds support for additional network type `sriov` and adds `parent` configuration key for this network type to
+Adds support for additional network type `sriov` and adds {config:option}`network-sriov-network-conf:parent` configuration key for this network type to
 specify which parent interface should be used for creating NIC device interfaces on top of.
 
-Also adds `network` configuration key support for `sriov` NICs to allow them to specify the associated network of
+Also adds {config:option}`device-nic-sriov-device-conf:network` configuration key support for `sriov` NICs to allow them to specify the associated network of
 the same type that they should use as the basis for the NIC device.
 
 ## `container_syscall_intercept_bpf_devices`
@@ -1331,16 +1331,16 @@ type network they should connect to.
 
 Also introduces two new global configuration keys that apply to all `ovn` networks and NIC devices:
 
-* `network.ovn.integration_bridge` - the OVS integration bridge to use.
-* `network.ovn.northbound_connection` - the OVN northbound database connection string.
+* {config:option}`server-miscellaneous:network.ovn.integration_bridge` - the OVS integration bridge to use.
+* {config:option}`server-miscellaneous:network.ovn.northbound_connection` - the OVN northbound database connection string.
 
 ## `projects_networks`
 
-Adds the `features.networks` configuration key to projects and the ability for a project to hold networks.
+Adds the {config:option}`project-features:features.networks` configuration key to projects and the ability for a project to hold networks.
 
 ## `projects_networks_restricted_uplinks`
 
-Adds the `restricted.networks.uplinks` project configuration key to indicate (as a comma-delimited list) which networks
+Adds the {config:option}`project-restricted:restricted.networks.uplinks` project configuration key to indicate (as a comma-delimited list) which networks
 the networks created inside the project can use as their uplink network.
 
 ## `custom_volume_backup`
@@ -1378,21 +1378,21 @@ to disable compression in `rsync` while migrating storage pools.
 
 Adds support for additional network type `physical` that can be used as an uplink for `ovn` networks.
 
-The interface specified by `parent` on the `physical` network will be connected to the `ovn` network's gateway.
+The interface specified by {config:option}`network-physical-network-conf:parent` on the `physical` network will be connected to the `ovn` network's gateway.
 
 ## `network_ovn_external_subnets`
 
 Adds support for `ovn` networks to use external subnets from uplink networks.
 
-Introduces the `ipv4.routes` and `ipv6.routes` setting on `physical` networks that defines the external routes
-allowed to be used in child OVN networks in their `ipv4.routes.external` and `ipv6.routes.external` settings.
+Introduces the {config:option}`network-physical-network-conf:ipv4.routes` and {config:option}`network-physical-network-conf:ipv6.routes` setting on `physical` networks that defines the external routes
+allowed to be used in child OVN networks in their {config:option}`device-nic-ovn-device-conf:ipv4.routes.external` and {config:option}`device-nic-ovn-device-conf:ipv6.routes.external` settings.
 
-Introduces the `restricted.networks.subnets` project setting that specifies which external subnets are allowed to
+Introduces the {config:option}`project-restricted:restricted.networks.subnets` project setting that specifies which external subnets are allowed to
 be used by OVN networks inside the project (if not set then all routes defined on the uplink network are allowed).
 
 ## `network_ovn_nat`
 
-Adds support for `ipv4.nat` and `ipv6.nat` settings on `ovn` networks.
+Adds support for {config:option}`network-ovn-network-conf:ipv4.nat` and {config:option}`network-ovn-network-conf:ipv6.nat` settings on `ovn` networks.
 
 When creating the network if these settings are unspecified, and an equivalent IP address is being generated for
 the subnet, then the appropriate NAT setting will added set to `true`.
@@ -1412,13 +1412,13 @@ This introduces the `tpm` device type.
 
 ## `storage_zfs_clone_copy_rebase`
 
-This introduces `rebase` as a value for `zfs.clone_copy` causing LXD to
+This introduces `rebase` as a value for {config:option}`storage-zfs-pool-conf:zfs.clone_copy` causing LXD to
 track down any `image` dataset in the ancestry line and then perform
 send/receive on top of that.
 
 ## `gpu_mdev`
 
-This adds support for virtual GPUs. It introduces the `mdev` configuration key for GPU devices which takes
+This adds support for virtual GPUs. It introduces the {config:option}`device-gpu-mdev-device-conf:mdev` configuration key for GPU devices which takes
 a supported `mdev` type, e.g. `i915-GVTg_V5_4`.
 
 ## `resources_pci_iommu`
@@ -1435,7 +1435,7 @@ Adds the `usb_address` and `pci_address` fields to the disk entries in the resou
 
 ## `network_physical_ovn_ingress_mode`
 
-Adds `ovn.ingress_mode` setting for `physical` networks.
+Adds {config:option}`network-physical-network-conf:ovn.ingress_mode` setting for `physical` networks.
 
 Sets the method that OVN NIC external IPs will be advertised on uplink network.
 
@@ -1443,20 +1443,20 @@ Either `l2proxy` (proxy ARP/NDP) or `routed`.
 
 ## `network_ovn_dhcp`
 
-Adds `ipv4.dhcp` and `ipv6.dhcp` settings for `ovn` networks.
+Adds {config:option}`network-ovn-network-conf:ipv4.dhcp` and {config:option}`network-ovn-network-conf:ipv6.dhcp` settings for `ovn` networks.
 
 Allows DHCP (and RA for IPv6) to be disabled. Defaults to on.
 
 ## `network_physical_routes_anycast`
 
-Adds `ipv4.routes.anycast` and `ipv6.routes.anycast` Boolean settings for `physical` networks. Defaults to `false`.
+Adds {config:option}`network-physical-network-conf:ipv4.routes.anycast` and {config:option}`network-physical-network-conf:ipv6.routes.anycast` Boolean settings for `physical` networks. Defaults to `false`.
 
 Allows OVN networks using physical network as uplink to relax external subnet/route overlap detection when used
-with `ovn.ingress_mode=routed`.
+with {config:option}`network-physical-network-conf:ovn.ingress_mode` set to `routed`.
 
 ## `projects_limits_instances`
 
-Adds `limits.instances` to the available project configuration keys. If set, it
+Adds {config:option}`project-limits:limits.instances` to the available project configuration keys. If set, it
 limits the total number of instances (VMs and containers) that can be used in the project.
 
 ## `network_state_vlan`
@@ -1470,7 +1470,7 @@ Those contain additional state information relevant to VLAN interfaces:
 
 ## `instance_nic_bridged_port_isolation`
 
-This adds the `security.port_isolation` field for bridged NIC instances.
+This adds the {config:option}`device-nic-bridged-device-conf:security.port_isolation` field for bridged NIC instances.
 
 ## `instance_bulk_state_change`
 
@@ -1510,24 +1510,24 @@ This adds the concept of network ACLs to API under the API endpoint prefix `/1.0
 
 ## `migration_stateful`
 
-Add a new `migration.stateful` configuration key.
+Add a new {config:option}`instance-migration:migration.stateful` configuration key.
 
 ## `disk_state_quota`
 
-This introduces the `size.state` device configuration key on `disk` devices.
+This introduces the {config:option}`device-disk-device-conf:size.state` device configuration key on `disk` devices.
 
 ## `storage_ceph_features`
 
-Adds a new `ceph.rbd.features` configuration key on storage pools to control the RBD features used for new volumes.
+Adds a new {config:option}`storage-ceph-pool-conf:ceph.rbd.features` configuration key on storage pools to control the RBD features used for new volumes.
 
 ## `projects_compression`
 
-Adds new `backups.compression_algorithm` and `images.compression_algorithm` configuration keys which
+Adds new {config:option}`project-specific:backups.compression_algorithm` and {config:option}`project-specific:images.compression_algorithm` configuration keys which
 allows configuration of backup and image compression per-project.
 
 ## `projects_images_remote_cache_expiry`
 
-Add new `images.remote_cache_expiry` configuration key to projects,
+Add new {config:option}`server-images:images.remote_cache_expiry` configuration key to projects,
 allowing for set number of days after which an unused cached remote image will be flushed.
 
 ## `certificate_project`
@@ -1542,17 +1542,17 @@ Adds a new `security.acls` property to OVN networks and OVN NICs, allowing Netwo
 
 ## `projects_images_auto_update`
 
-Adds new `images.auto_update_cached` and `images.auto_update_interval` configuration keys which
+Adds new {config:option}`server-images:images.auto_update_cached` and {config:option}`server-images:images.auto_update_interval` configuration keys which
 allows configuration of images auto update in projects
 
 ## `projects_restricted_cluster_target`
 
-Adds new `restricted.cluster.target` configuration key to project which prevent the user from using --target
+Adds new {config:option}`project-restricted:restricted.cluster.target` configuration key to project which prevent the user from using --target
 to specify what cluster member to place a workload on or the ability to move a workload between members.
 
 ## `images_default_architecture`
 
-Adds new `images.default_architecture` global configuration key and matching per-project key which lets user tell LXD
+Adds new {config:option}`server-images:images.default_architecture` global configuration key and matching per-project key which lets user tell LXD
 what architecture to go with when no specific one is specified as part of the image request.
 
 ## `network_ovn_acl_defaults`
@@ -1571,7 +1571,7 @@ Accessible at API `GET /1.0/projects/<name>/state`.
 
 ## `network_bridge_acl`
 
-Adds a new `security.acls` configuration key to `bridge` networks, allowing Network ACLs to be applied.
+Adds a new {config:option}`network-bridge-network-conf:security.acls` configuration key to `bridge` networks, allowing Network ACLs to be applied.
 
 Also adds `security.acls.default.{in,e}gress.action` and `security.acls.default.{in,e}gress.logged` configuration keys for
 specifying the default behavior for unmatched traffic.
@@ -1590,7 +1590,7 @@ This includes the following endpoints (see  [Restful API](rest-api.md) for detai
 
 ## `projects_restricted_backups_and_snapshots`
 
-Adds new `restricted.backups` and `restricted.snapshots` configuration keys to project which
+Adds new {config:option}`project-restricted:restricted.backups` and {config:option}`project-restricted:restricted.snapshots` configuration keys to project which
 prevents the user from creation of backups and snapshots.
 
 ## `clustering_join_token`
@@ -1638,13 +1638,13 @@ Add a new `USBAddress` (`usb_address`) field to `ResourcesGPUCard` (GPU entries)
 ## `clustering_evacuation`
 
 Adds `POST /1.0/cluster/members/<name>/state` endpoint for evacuating and restoring cluster members.
-It also adds the configuration keys `cluster.evacuate` and `volatile.evacuate.origin` for setting the evacuation method (`auto`, `stop` or `migrate`) and the origin of any migrated instance respectively.
+It also adds the configuration keys {config:option}`instance-miscellaneous:cluster.evacuate` and {config:option}`instance-volatile:volatile.evacuate.origin` for setting the evacuation method (`auto`, `stop` or `migrate`) and the origin of any migrated instance respectively.
 
 ## `network_ovn_nat_address`
 
-This introduces the `ipv4.nat.address` and `ipv6.nat.address` configuration keys for LXD `ovn` networks.
+This introduces the {config:option}`network-ovn-network-conf:ipv4.nat.address` and {config:option}`network-ovn-network-conf:ipv6.nat.address` configuration keys for LXD `ovn` networks.
 Those keys control the source address used for outbound traffic from the OVN virtual network.
-These keys can only be specified when the OVN network's uplink network has `ovn.ingress_mode=routed`.
+These keys can only be specified when the OVN network's uplink network has {config:option}`network-physical-network-conf:ovn.ingress_mode` set to `routed`.
 
 ## `network_bgp`
 
@@ -1665,13 +1665,13 @@ The following network configurations keys (`bridge` and `physical`):
 
 The `nexthop` configuration keys (`bridge`):
 
-* `bgp.ipv4.nexthop`
-* `bgp.ipv6.nexthop`
+* {config:option}`network-bridge-network-conf:bgp.ipv4.nexthop`
+* {config:option}`network-bridge-network-conf:bgp.ipv6.nexthop`
 
 And the following NIC-specific configuration keys (`bridged` NIC type):
 
-* `ipv4.routes.external`
-* `ipv6.routes.external`
+* {config:option}`device-nic-bridged-device-conf:ipv4.routes.external`
+* {config:option}`device-nic-bridged-device-conf:ipv6.routes.external`
 
 ## `network_forward`
 
@@ -1728,7 +1728,7 @@ The following network configuration key:
 
 And the following project configuration key:
 
-* `restricted.networks.zones`
+* {config:option}`project-restricted:restricted.networks.zones`
 
 A new REST API is also introduced to manage DNS zones:
 
@@ -1737,7 +1737,7 @@ A new REST API is also introduced to manage DNS zones:
 
 ## `ovn_nic_acceleration`
 
-Adds new `acceleration` configuration key to OVN NICs which can be used for enabling hardware offloading.
+Adds new {config:option}`device-nic-ovn-device-conf:acceleration` configuration key to OVN NICs which can be used for enabling hardware offloading.
 It takes the values `none` or `sriov`.
 
 ## `certificate_self_renewal`
@@ -1757,9 +1757,9 @@ This adds support for moving storage volume between projects.
 
 This adds a new `cloud-init` configuration key namespace which contains the following keys:
 
-* `cloud-init.vendor-data`
-* `cloud-init.user-data`
-* `cloud-init.network-config`
+* {config:option}`instance-cloud-init:cloud-init.vendor-data`
+* {config:option}`instance-cloud-init:cloud-init.user-data`
+* {config:option}`instance-cloud-init:cloud-init.network-config`
 
  It also adds a new endpoint `/1.0/devices` to `devlxd` which shows an instance's devices.
 
@@ -1790,11 +1790,11 @@ This introduces the following new endpoints:
 
  The following project restriction is added:
 
-* `restricted.cluster.groups`
+* {config:option}`project-restricted:restricted.cluster.groups`
 
 ## `ceph_rbd_du`
 
-Adds a new `ceph.rbd.du` Boolean on Ceph storage pools which allows
+Adds a new {config:option}`storage-ceph-pool-conf:ceph.rbd.du` Boolean on Ceph storage pools which allows
 disabling the use of the potentially slow `rbd du` calls.
 
 ## `instance_get_full`
@@ -1804,7 +1804,7 @@ all instance structs, including the state, snapshots and backup structs.
 
 ## `qemu_metrics`
 
-This adds a new `security.agent.metrics` Boolean which defaults to `true`.
+This adds a new {config:option}`instance-security:security.agent.metrics` Boolean which defaults to `true`.
 When set to `false`, it doesn't connect to the `lxd-agent` for metrics and other state information, but relies on stats from QEMU.
 
 ## `gpu_mig_uuid`
@@ -1821,7 +1821,7 @@ Expose the project an API event belongs to.
 
 ## `clustering_evacuation_live`
 
-This adds `live-migrate` as a configuration option to `cluster.evacuate`, which forces live-migration
+This adds `live-migrate` as a configuration option to {config:option}`instance-miscellaneous:cluster.evacuate`, which forces live-migration
 of instances during cluster evacuation.
 
 ## `instance_allow_inconsistent_copy`
@@ -1847,7 +1847,7 @@ help determine the compatibility between an instance and the host system.
 
 ## `storage_zfs_export`
 
-Introduces the ability to disable zpool export when unmounting pool by setting `zfs.export`.
+Introduces the ability to disable zpool export when unmounting pool by setting {config:option}`storage-zfs-pool-conf:zfs.export`.
 
 ## `network_dns_records`
 
@@ -1872,7 +1872,7 @@ Adds a new `GET /1.0/networks-acls/NAME/log` API to retrieve ACL firewall logs.
 
 ## `storage_zfs_blocksize`
 
-Introduces a new `zfs.blocksize` property for ZFS storage volumes which allows to set volume block size.
+Introduces a new {config:option}`storage-zfs-volume-conf:zfs.blocksize` property for ZFS storage volumes which allows to set volume block size.
 
 ## `metrics_cpu_seconds`
 
@@ -1892,7 +1892,7 @@ It adds the `token` field to `POST /1.0/certificates`.
 
 This adds the ability to disable the `routed` NIC IP neighbor probing for availability on the parent network.
 
-Adds the `ipv4.neighbor_probe` and `ipv6.neighbor_probe` NIC settings. Defaulting to `true` if not specified.
+Adds the {config:option}`device-nic-routed-device-conf:ipv4.neighbor_probe` and {config:option}`device-nic-routed-device-conf:ipv6.neighbor_probe` NIC settings. Defaulting to `true` if not specified.
 
 ## `event_hub`
 
@@ -1905,7 +1905,7 @@ devices.
 
 ## `projects_restricted_intercept`
 
-Adds new `restricted.container.intercept` configuration key to allow usually safe system call interception options.
+Adds new {config:option}`project-restricted:restricted.containers.interception` configuration key to allow usually safe system call interception options.
 
 ## `metrics_authentication`
 
@@ -1932,7 +1932,7 @@ Adds the {config:option}`instance-security:security.syscalls.intercept.sched_set
 
 ## `storage_lvm_thinpool_metadata_size`
 
-Introduces the ability to specify the thin pool metadata volume size via `storage.thinpool_metadata_size`.
+Introduces the ability to specify the thin pool metadata volume size via {config:option}`storage-lvm-pool-conf:lvm.thinpool_metadata_size`.
 
 If this is not specified then the default is to let LVM pick an appropriate thin pool metadata volume size.
 
@@ -1946,7 +1946,7 @@ Implements HEAD on `/1.0/instances/NAME/file`.
 
 ## `instances_nic_host_name`
 
-This introduces the `instances.nic.host_name` server configuration key that can take a value of either `random` or
+This introduces the {config:option}`server-miscellaneous:instances.nic.host_name` server configuration key that can take a value of either `random` or
 `mac`. The default value for the key if unspecified is `random`. If it is set to random then use the random host interface names.
 If it's set to `mac`, then generate a name in the form `lxd1122334455`.
 
@@ -1962,7 +1962,7 @@ Adds the {config:option}`instance-security:security.syscalls.intercept.sysinfo` 
 
 This introduces a `mode` field to the evacuation request which allows
 for overriding the evacuation mode traditionally set through
-`cluster.evacuate`.
+{config:option}`instance-miscellaneous:cluster.evacuate`.
 
 ## `resources_pci_vpd`
 
@@ -1971,11 +1971,11 @@ This struct extracts vendor provided data including the full product name and ad
 
 ## `qemu_raw_conf`
 
-Introduces a `raw.qemu.conf` configuration key to override select sections of the generated `qemu.conf`.
+Introduces a {config:option}`instance-raw:raw.qemu.conf` configuration key to override select sections of the generated `qemu.conf`.
 
 ## `storage_cephfs_fscache`
 
-Add support for `fscache`/`cachefilesd` on CephFS pools through a new `cephfs.fscache` configuration option.
+Add support for `fscache`/`cachefilesd` on CephFS pools through a new {config:option}`storage-cephfs-pool-conf:cephfs.fscache` configuration option.
 
 ## `network_load_balancer`
 
@@ -2017,10 +2017,10 @@ It reports the total number of effective CPUs.
 
 ## `projects_networks_restricted_access`
 
-Adds the `restricted.networks.access` project configuration key to indicate (as a comma-delimited list) which networks can be accessed inside the project.
-If not specified, all networks are accessible (assuming it is also allowed by the `restricted.devices.nic` setting, described below).
+Adds the {config:option}`project-restricted:restricted.networks.access` project configuration key to indicate (as a comma-delimited list) which networks can be accessed inside the project.
+If not specified, all networks are accessible (assuming it is also allowed by the {config:option}`project-restricted:restricted.devices.nic` setting, described below).
 
-This also introduces a change whereby network access is controlled by the project's `restricted.devices.nic` setting:
+This also introduces a change whereby network access is controlled by the project's {config:option}`project-restricted:restricted.devices.nic` setting:
 
 * If `restricted.devices.nic` is set to `managed` (the default if not specified), only managed networks are accessible.
 * If `restricted.devices.nic` is set to `allow`, all networks are accessible (dependent on the `restricted.networks.access` setting).
@@ -2070,7 +2070,7 @@ These include:
 
 ## `cluster_join_token_expiry`
 
-This adds an expiry to cluster join tokens which defaults to 3 hours, but can be changed by setting the `cluster.join_token_expiry` configuration key.
+This adds an expiry to cluster join tokens which defaults to 3 hours, but can be changed by setting the {config:option}`server-cluster:cluster.join_token_expiry` configuration key.
 
 ## `remote_token_expiry`
 
@@ -2089,11 +2089,11 @@ Hotplugging is disabled when using CPU pinning, because this would require hotpl
 
 ## `projects_networks_zones`
 
-This adds support for the `features.networks.zones` project feature, which changes which project network zones are
-associated with when they are created. Previously network zones were tied to the value of `features.networks`,
+This adds support for the {config:option}`project-features:features.networks.zones` project feature, which changes which project network zones are
+associated with when they are created. Previously network zones were tied to the value of {config:option}`project-features:features.networks`,
 meaning they were created in the same project as networks were.
 
-Now this has been decoupled from `features.networks` to allow projects that share a network in the default project
+Now this has been decoupled from {config:option}`project-features:features.networks` to allow projects that share a network in the default project
 (i.e those with `features.networks=false`) to have their own project level DNS zones that give a project oriented
 "view" of the addresses on that shared network (which only includes addresses from instances in their project).
 
@@ -2119,7 +2119,7 @@ Adds `GET /1.0/cluster/members/<member>/state` API endpoint and associated `Clus
 
 Adds support for a Starlark scriptlet to be provided to LXD to allow customized logic that controls placement of new instances in a cluster.
 
-The Starlark scriptlet is provided to LXD via the new global configuration option `instances.placement.scriptlet`.
+The Starlark scriptlet is provided to LXD via the new global configuration option {config:option}`server-miscellaneous:instances.placement.scriptlet`.
 
 ## `storage_pool_source_wipe`
 Adds support for a `source.wipe` Boolean on the storage pool, indicating
@@ -2140,10 +2140,10 @@ This adds the following new configuration options for ZFS storage pools:
 
 Adds support for instance generation ID. The VM or container generation ID will change whenever the instance's place in time moves backwards. As of now, the generation ID is only exposed through to VM type instances. This allows for the VM guest OS to reinitialize any state it needs to avoid duplicating potential state that has already occurred:
 
-* `volatile.uuid.generation`
+* {config:option}`instance-volatile:volatile.uuid.generation`
 
 ## `disk_io_cache`
-This introduces a new `io.cache` property to disk devices which can be used to override the VM caching behavior.
+This introduces a new {config:option}`device-disk-device-conf:io.cache` property to disk devices which can be used to override the VM caching behavior.
 
 ## `amd_sev`
 Adds support for AMD SEV (Secure Encrypted Virtualization) that can be used to encrypt the memory of a guest VM.
@@ -2168,7 +2168,7 @@ This also adds the `CRIUType_VM_QEMU` value of `3` for the migration `CRIUType` 
 This adds support for nesting an `ovn` NIC inside another `ovn` NIC on the same instance.
 This allows for an OVN logical switch port to be tunneled inside another OVN NIC using VLAN tagging.
 
-This feature is configured by specifying the parent NIC name using the `nested` property and the VLAN ID to use for tunneling with the `vlan` property.
+This feature is configured by specifying the parent NIC name using the {config:option}`device-nic-ovn-device-conf:nested` property and the VLAN ID to use for tunneling with the {config:option}`device-nic-ovn-device-conf:vlan` property.
 
 ## `oidc`
 
@@ -2182,7 +2182,7 @@ This adds the following new configuration keys:
 
 ## `network_ovn_l3only`
 This adds the ability to set an `ovn` network into "layer 3 only" mode.
-This mode can be enabled at IPv4 or IPv6 level using `ipv4.l3only` and `ipv6.l3only` configuration options respectively.
+This mode can be enabled at IPv4 or IPv6 level using {config:option}`network-ovn-network-conf:ipv4.l3only` and {config:option}`network-ovn-network-conf:ipv6.l3only` configuration options respectively.
 
 With this mode enabled the following changes are made to the network:
 
@@ -2193,16 +2193,16 @@ With this mode enabled the following changes are made to the network:
 
 ## `ovn_nic_acceleration_vdpa`
 
-This updates the `ovn_nic_acceleration` API extension. The `acceleration` configuration key for OVN NICs can now takes the value `vdpa` to support Virtual Data Path Acceleration (VDPA).
+This updates the `ovn_nic_acceleration` API extension. The {config:option}`device-nic-ovn-device-conf:acceleration` configuration key for OVN NICs can now takes the value `vdpa` to support Virtual Data Path Acceleration (VDPA).
 
 ## `cluster_healing`
 This adds cluster healing which automatically evacuates offline cluster members.
 
 This adds the following new configuration key:
 
-* `cluster.healing_threshold`
+* {config:option}`server-cluster:cluster.healing_threshold`
 
-The configuration key takes an integer, and can be disabled by setting it to 0 (default). If set, the value represents the threshold after which an offline cluster member is to be evacuated. In case the value is lower than `cluster.offline_threshold`, that value will be used instead.
+The configuration key takes an integer, and can be disabled by setting it to 0 (default). If set, the value represents the threshold after which an offline cluster member is to be evacuated. In case the value is lower than {config:option}`server-cluster:cluster.offline_threshold`, that value will be used instead.
 
 When the offline cluster member is evacuated, only remote-backed instances will be migrated. Local instances will be ignored as there is no way of migrating them once the cluster member is offline.
 
@@ -2230,7 +2230,7 @@ This adds the possibility to place a set of CPUs in a desired set of NUMA nodes.
 
 This adds the following new configuration key:
 
-* `limits.cpu.nodes` : (string) comma-separated list of NUMA node IDs or NUMA node ID ranges to place the CPUs (chosen with a dynamic value of `limits.cpu`) in.
+* {config:option}`instance-resource-limits:limits.cpu.nodes` : (string) comma-separated list of NUMA node IDs or NUMA node ID ranges to place the CPUs (chosen with a dynamic value of {config:option}`instance-resource-limits:limits.cpu`) in.
 
 ## `custom_volume_iso`
 This adds the possibility to import ISO images as custom storage volumes.
@@ -2249,7 +2249,7 @@ each `instance`, `network`, `network forward` and `network load-balancer`.
 This allows copying storage volume snapshots to and from remotes.
 
 ## `zfs_delegate`
-This implements a new `zfs.delegate` volume Boolean for volumes on a ZFS storage driver.
+This implements a new {config:option}`storage-zfs-volume-conf:zfs.delegate` volume Boolean for volumes on a ZFS storage driver.
 When enabled and a suitable system is in use (requires ZFS 2.2 or higher), the ZFS dataset will be delegated to the container, allowing for its use through the `zfs` command line tool.
 
 ## `operations_get_query_all_projects`
@@ -2398,3 +2398,12 @@ This API extension adds support for listing storage volumes from all storage poo
 Adds the ability for `POST /1.0/instances/{name}/files` to modify the permissions of files that already exist via the `X-LXD-modify-perm` header.
 
 `X-LXD-modify-perm` should be a comma-separated list of 0 or more of `mode`, `uid`, and `gid`.
+
+## `image_restriction_nesting`
+
+This extension adds a new image restriction, `requirements.nesting` which when `true` indicates that an image cannot be run without nesting.
+
+## `container_syscall_intercept_finit_module`
+
+Adds the {config:option}`instance-miscellaneous:linux.kernel_modules.load` container configuration option. If the option is set to `ondemand`, the `finit_modules()` syscall is intercepted and a privileged user in the container's user namespace can load the Linux kernel modules specified in the
+allow list {config:option}`instance-miscellaneous:linux.kernel_modules`.

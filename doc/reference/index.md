@@ -97,4 +97,5 @@ However, advanced users might be interested in knowing what happens internally.
 :hidden:
 
 Project repository <https://github.com/canonical/lxd>
+Image server <https://images.lxd.canonical.com>
 ```

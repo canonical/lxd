@@ -73,6 +73,7 @@ test_container_devices_nic_bridged_filtering() {
       false
     fi
   else
+    # shellcheck disable=SC2001
     macHex=$(echo "${ctAMAC}" |sed "s/://g")
     macDec=$(printf "%d" 0x"${macHex}")
     macHex=$(printf "0x%x" "${macDec}")
@@ -353,6 +354,7 @@ test_container_devices_nic_bridged_filtering() {
 
   # Check MAC filter is present in firewall.
   ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
+  # shellcheck disable=SC2001
   macHex=$(echo "${ctAMAC}" |sed "s/://g")
 
   if [ "$firewallDriver" = "xtables" ]; then
@@ -639,6 +641,7 @@ test_container_devices_nic_bridged_filtering() {
   # Check MAC filter is present in ebtables.
   ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
   ctAMAC=$(lxc config get "${ctPrefix}A" volatile.eth0.hwaddr)
+  # shellcheck disable=SC2001
   macHex=$(echo "${ctAMAC}" |sed "s/://g")
 
   if [ "$firewallDriver" = "xtables" ]; then
@@ -672,6 +675,7 @@ test_container_devices_nic_bridged_filtering() {
         false
     fi
   else
+    # shellcheck disable=SC2001
     macHex=$(echo "${ctAMAC}" |sed "s/://g")
     macDec=$(printf "%d" 0x"${macHex}")
     macHex=$(printf "0x%x" "${macDec}")
@@ -756,6 +760,7 @@ test_container_devices_nic_bridged_filtering() {
         false
     fi
   else
+    # shellcheck disable=SC2001
     macHex=$(echo "${ctAMAC}" |sed "s/://g")
     macDec=$(printf "%d" 0x"${macHex}")
     macHex=$(printf "0x%x" "${macDec}")

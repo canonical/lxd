@@ -773,6 +773,15 @@ func (c *ClusterTx) SetImageCachedAndLastUseDate(ctx context.Context, projectNam
 	return err
 }
 
+// UnsetImageCached unsets the cached field of the image with the given fingerprint.
+func (c *ClusterTx) UnsetImageCached(ctx context.Context, projectName string, fingerprint string) error {
+	stmt := `UPDATE images SET cached=0 WHERE fingerprint=? AND project_id = (SELECT id FROM projects WHERE name = ? LIMIT 1)`
+
+	_, err := c.tx.ExecContext(ctx, stmt, fingerprint, projectName)
+
+	return err
+}
+
 // UpdateImage updates the image with the given ID.
 func (c *ClusterTx) UpdateImage(ctx context.Context, id int, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, project string, profileIDs []int64) error {
 	arch, err := osarch.ArchitectureId(architecture)

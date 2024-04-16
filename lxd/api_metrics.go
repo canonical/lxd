@@ -219,12 +219,14 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	// Total number of instances, both running and stopped.
 	for _, instance := range instances {
-		_, ok := allProjectInstances[instance.Project().Name]
+		projectName := instance.Project().Name
+
+		_, ok := allProjectInstances[projectName]
 		if !ok {
-			allProjectInstances[instance.Project().Name] = make(map[instancetype.Type]int)
+			allProjectInstances[projectName] = make(map[instancetype.Type]int)
 		}
 
-		allProjectInstances[instance.Project().Name][instance.Type()]++
+		allProjectInstances[projectName][instance.Type()]++
 	}
 
 	// Prepare temporary metrics storage.
@@ -246,27 +248,23 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 			for inst := range instMetricsCh {
 				projectName := inst.Project().Name
 				instanceMetrics, err := inst.Metrics(hostInterfaces)
-				if err != nil {
-					// Ignore stopped instances.
-					if !errors.Is(err, instanceDrivers.ErrInstanceIsStopped) {
-						logger.Warn("Failed getting instance metrics", logger.Ctx{"instance": inst.Name(), "project": projectName, "err": err})
-					} else {
-						// If the instance is stopped, we still need to add the project to the cache.
-						// to fetch associated counter metrics.
-						if newMetrics[projectName] == nil {
-							newMetrics[projectName] = metrics.NewMetricSet(nil)
-						}
-					}
+				if err != nil && !errors.Is(err, instanceDrivers.ErrInstanceIsStopped) {
+					logger.Warn("Failed getting instance metrics", logger.Ctx{"instance": inst.Name(), "project": projectName, "err": err})
 				} else {
-					// Add the metrics.
 					newMetricsLock.Lock()
 
 					// Initialise metrics set for project if needed.
+					// Do this even if the instance is stopped, otherwise the instance counter
+					// metrics won't be included if this is the only instance in the project.
+					// As won't be taken as a "new" metric when looping over newMetrics below.
 					if newMetrics[projectName] == nil {
 						newMetrics[projectName] = metrics.NewMetricSet(nil)
 					}
 
-					newMetrics[projectName].Merge(instanceMetrics)
+					// Add the metrics if available.
+					if instanceMetrics != nil {
+						newMetrics[projectName].Merge(instanceMetrics)
+					}
 
 					newMetricsLock.Unlock()
 				}
@@ -277,8 +275,8 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Fetch what's missing.
+	wg.Add(len(instances))
 	for _, inst := range instances {
-		wg.Add(1)
 		instMetricsCh <- inst
 	}
 
@@ -317,7 +315,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	updatedProjects := []string{}
 	for project, entries := range newMetrics {
-		if project == "default" {
+		if project == api.ProjectDefaultName {
 			entries.Merge(intMetrics) // internal metrics are always considered new. Add them to the default project.
 		}
 

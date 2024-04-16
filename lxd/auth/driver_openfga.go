@@ -215,7 +215,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 	for _, projectName := range identityCacheEntry.Projects {
 		req.ContextualTuples.TupleKeys = append(req.ContextualTuples.TupleKeys, &openfgav1.TupleKey{
 			User:     userObject,
-			Relation: string(EntitlementProjectOperator),
+			Relation: string(EntitlementOperator),
 			Object:   fmt.Sprintf("%s:%s", entity.TypeProject, entity.ProjectURL(projectName).String()),
 		})
 	}
@@ -287,6 +287,19 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 		return func(*api.URL) bool {
 			return b
 		}
+	}
+
+	// There is only one server entity, so no need to do a ListObjects request if the entity type is a server. Instead perform a permission check against
+	// the server URL and return an appropriate PermissionChecker.
+	if entityType == entity.TypeServer {
+		err := e.CheckPermission(r.Context(), r, entity.ServerURL(), entitlement)
+		if err == nil {
+			return allowFunc(true), nil
+		} else if IsDeniedError(err) {
+			return allowFunc(false), nil
+		}
+
+		return nil, fmt.Errorf("Failed to get a permission checker: %w", err)
 	}
 
 	// Inspect request.
@@ -384,7 +397,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 	for _, projectName := range identityCacheEntry.Projects {
 		req.ContextualTuples.TupleKeys = append(req.ContextualTuples.TupleKeys, &openfgav1.TupleKey{
 			User:     userObject,
-			Relation: string(EntitlementProjectOperator),
+			Relation: string(EntitlementOperator),
 			Object:   fmt.Sprintf("%s:%s", entity.TypeProject, entity.ProjectURL(projectName).String()),
 		})
 	}

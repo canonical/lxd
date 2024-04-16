@@ -82,58 +82,86 @@ _have lxc && {
     fi
 
     lxc_cmds="alias auth cluster config console copy delete exec export file \
-      help image import info init launch list manpage monitor move network \
-      operation pause profile project publish query remote rename \
-      restart restore shell snapshot start stop storage version"
+      help image import info init launch list monitor move network \
+      operation pause profile project publish query rebuild remote rename \
+      restart restore shell snapshot start stop storage version warning"
 
-    global_keys="backups.compression_algorithm,
-      core.https_address core.https_allowed_credentials \
-      core.https_allowed_headers core.https_allowed_methods \
-      core.https_allowed_origin \
+    global_keys="acme.agree_tos acme.ca_url acme.domain acme.email \
+      backups.compression_algorithm \
+      core.bgp_address core.bgp_asn core.bgp_routerid \
+      core.debug_address \
+      core.dns_address \
+      core.https_address \
+      core.https_allowed_credential core.https_allowed_headers core.https_allowed_methods core.https_allowed_origin \
+      core.https_trusted_proxy \
       core.metrics_address core.metrics_authentication \
+      core.proxy_http core.proxy_https core.proxy_ignore_hosts \
+      core.remote_token_expiry \
+      core.shutdown_timeout \
       core.storage_buckets_address \
-      core.proxy_https core.proxy_http core.proxy_ignore_hosts \
-      core.trust_password core.bgp_address core.bgp_asn core.bgp_routerid \
-      core.debug_address cluster.offline_threshold \
+      core.syslog_socket \
+      core.trust_ca_certificates \
+      core.trust_password \
+      cluster.healing_threshold cluster.https_address cluster.images_minimal_replica cluster.join_token_expiry cluster.max_standby cluster.max_voters cluster.offline_threshold \
       images.auto_update_cached images.auto_update_interval \
-      images.compression_algorithm images.remote_cache_expiry \
-      maas.api.url maas.api.key maas.machine cluster.images_minimal_replica \
-      network.ovn.integration_bridge network.ovn.northbound_connection \
-      oidc.client.id oidc.issuer oidc.audience \
+      images.compression_algorithm images.default_architecture images.remote_cache_expiry \
+      instances.migration.stateful instances.nic.host_name instances.placement.scriptlet \
+      loki.api.ca_cert loki.api.url loki.auth.password loki.auth.username loki.instance loki.labels loki.loglevel loki.types \
+      maas.api.key maas.api.url maas.machine \
+      network.ovn.ca_cert network.ovn.client_cert network.ovn.client_key network.ovn.integration_bridge network.ovn.northbound_connection \
+      oidc.audience oidc.client.id oidc.groups.claim oidc.issuer \
       storage.backups_volume storage.images_volume"
 
-    container_keys="boot.autostart boot.autostart.delay \
-      boot.autostart.priority boot.stop.priority \
-      boot.host_shutdown_timeout environment. \
+    instance_keys="agent.nic_config \
+      boot.autostart boot.autostart.delay boot.autostart.priority \
+      boot.debug_edk2 \
+      boot.host_shutdown_timeout \
+      boot.stop.priority \
+      cloud-init.network-config cloud-init.user-data cloud-init.vendor-data \
+      cluster.evacutate \
+      environment. \
       limits.cpu limits.cpu.allowance limits.cpu.priority \
-      limits.disk.priority limits.memory limits.memory.enforce \
-      limits.memory.hugepages limits.kernel \
+      limits.disk.priority \
+      limits.hugepages.1GB limits.hugepages.1MB limits.hugepages.2MB limits.hugepages.64KB \
+      limits.memory limits.memory.enforce \
+      limits.memory.hugepages
       limits.memory.swap limits.memory.swap.priority \
-      limits.processes linux.kernel_modules migration.incremental.memory \
-      migration.incremental.memory.goal nvidia.runtime \
-      nvidia.driver.capabilities nvidia.require.cuda nvidia.require.driver \
-      migration.incremental.memory.iterations raw.apparmor raw.idmap raw.qemu \
-      raw.qemu.conf raw.lxc raw.seccomp security.idmap.base security.idmap.isolated \
-      security.idmap.size security.devlxd security.devlxd.images \
-      security.nesting security.privileged security.protection.delete \
-      security.protection.shift security.secureboot security.csm \
+      limits.processes \
+      limits.kernel. \
+      linux.kernel_modules \
+      linux.kernel_modules.load \
+      linux.sysctl. \
+      migration.incremental.memory migration.incremental.memory.goal migration.incremental.memory.iterations migration.stateful \
+      nvidia.driver.capabilities nvidia.require.cuda nvidia.require.driver nvidia.runtime \
+      raw.apparmor raw.idmap raw.qemu raw.qemu.conf raw.lxc raw.seccomp \
+      security.agent.metrics \
+      security.csm \
+      security.devlxd security.devlxd.images \
+      security.idmap.base security.idmap.isolated security.idmap.size \
+      security.nesting security.privileged \
+      security.protection.delete security.protection.shift \
+      security.secureboot \
+      security.sev security.sev.es security.sev.policy.es security.sev.session.dh security.sev.session.data \
       security.syscalls.allow \
       security.syscalls.deny \
       security.syscalls.deny_compat security.syscalls.deny_default \
       security.syscalls.intercept.bpf security.syscalls.intercept.bpf.devices \
-      security.syscalls.intercept.mknod security.syscalls.intercept.mount \
-      security.syscalls.intercept.mount.allowed \
-      security.syscalls.intercept.mount.fuse \
+      security.syscalls.intercept.mknod \
+      security.syscalls.intercept.mount security.syscalls.intercept.mount.allowed security.syscalls.intercept.mount.fuse security.syscalls.intercept.mount.shift \
       security.syscalls.intercept.sched_setscheduler \
       security.syscalls.intercept.setxattr \
       security.syscalls.intercept.sysinfo \
-      security.syscalls.intercept.mount.shift \
-      snapshots.schedule snapshots.schedule.stopped snapshots.pattern \
-      snapshots.expiry \
-      volatile.apply_quota volatile.apply_template volatile.base_image \
+      snapshots.expiry snapshots.pattern snapshots.schedule snapshots.schedule.stopped \
+      user. \
+      volatile.apply_nvram \
+      volatile.apply_template \
+      volatile.base_image \
+      volatile.cloud_init.instance-id \
+      volatile.evacuate.origin \
       volatile.idmap.base volatile.idmap.current volatile.idmap.next \
       volatile.last_state.idmap volatile.last_state.power \
-      cloud-init.network-config cloud-init.user-data cloud-init.vendor-data"
+      volatile.uuid volatile.uuid.generation \
+      volatile.vsock_id"
 
     device_keys="limits.ingress limits.egress ipv4.routes \
       ipv4.routes.external ipv6.routes ipv6.routes.external parent \
@@ -331,7 +359,7 @@ _have lxc && {
                 _lxd_names
                 ;;
               "get"|"set"|"unset")
-                COMPREPLY=( $(compgen -W "$container_keys" -- $cur) )
+                COMPREPLY=( $(compgen -W "$instance_keys" -- $cur) )
                 ;;
             esac
             ;;
@@ -353,13 +381,13 @@ _have lxc && {
           _lxd_names
         fi
         ;;
-      "delete"|"info"|"move"|"publish"|"restart"|"snapshot"|"rename")
+      "delete"|"info"|"move"|"publish"|"rename"|"restart"|"snapshot")
         _lxd_names
         ;;
       "start")
         _lxd_names "(STOPPED|FROZEN)"
         ;;
-      "exec"|"console"|"stop"|"shell")
+      "exec"|"console"|"pause"|"stop"|"shell")
         _lxd_names "(RUNNING|READY)"
         ;;
       "file")
@@ -371,7 +399,7 @@ _have lxc && {
       "image")
         COMPREPLY=( $(compgen -W "import copy delete refresh export info list show edit alias" -- $cur) )
         ;;
-      "init"|"launch")
+      "init"|"launch"|"rebuild")
         _lxd_images
         ;;
       "network")
@@ -424,7 +452,7 @@ _have lxc && {
                 _lxd_profiles
                 ;;
               *)
-                COMPREPLY=( $(compgen -W "$container_keys" -- $cur) )
+                COMPREPLY=( $(compgen -W "$instance_keys" -- $cur) )
                 ;;
             esac
             ;;
@@ -472,7 +500,7 @@ _have lxc && {
         ;;
       "remote")
         COMPREPLY=( $(compgen -W \
-          "add remove list rename set-url set-default get-default" -- $cur) )
+          "add get-default list remove rename set-url switch" -- $cur) )
         ;;
       "restore")
         case $pos in
@@ -529,6 +557,9 @@ _have lxc && {
                 ;;
             esac
         esac
+        ;;
+      "warning")
+        COMPREPLY=( $(compgen -W "acknowledge delete list show" -- $cur) )
         ;;
       *)
         ;;

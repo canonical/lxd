@@ -427,6 +427,7 @@ func imgPostRemoteInfo(s *state.State, r *http.Request, req api.ImagesPost, op *
 		ProjectName:       project,
 		Budget:            budget,
 		SourceProjectName: req.Source.Project,
+		UserRequested:     true,
 	})
 	if err != nil {
 		return nil, err
@@ -529,13 +530,14 @@ func imgPostURLInfo(s *state.State, r *http.Request, req api.ImagesPost, op *ope
 
 	// Import the image
 	info, err := ImageDownload(r, s, op, &ImageDownloadArgs{
-		Server:      url,
-		Protocol:    "direct",
-		Alias:       hash,
-		AutoUpdate:  req.AutoUpdate,
-		Public:      req.Public,
-		ProjectName: project,
-		Budget:      budget,
+		Server:        url,
+		Protocol:      "direct",
+		Alias:         hash,
+		AutoUpdate:    req.AutoUpdate,
+		Public:        req.Public,
+		ProjectName:   project,
+		Budget:        budget,
+		UserRequested: true,
 	})
 	if err != nil {
 		return nil, err

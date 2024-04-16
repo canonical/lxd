@@ -260,10 +260,11 @@ test_remote_usage() {
   # testimage should still exist on the local server.
   lxc_remote image list local: | grep -q testimage
 
-  # Skip the truly remote servers in offline mode.  There should always be
-  # Ubuntu images in the results for the remote servers.
+  # Skip the truly remote servers in offline mode.
+  # There should always be Ubuntu images in the results from cloud-images.ubuntu.com remote.
+  # And test for alpine in the images.lxd.canonical.com remote.
   if [ -z "${LXD_OFFLINE:-}" ]; then
-    lxc_remote image list images: | grep -i -c ubuntu
+    lxc_remote image list images: | grep -i -c alpine
     lxc_remote image list ubuntu: | grep -i -c ubuntu
   fi
 
@@ -337,6 +338,36 @@ test_remote_usage() {
   lxc_remote image show lxd2:"${sum}" | grep -q '\- foo'
   lxc_remote image delete "lxd2:${sum}"
   lxc_remote profile delete lxd2:foo
+
+  lxc_remote image copy localhost:testimage lxd2: --alias bar
+  # Get the `cached` and `aliases` fields for the image `bar` in lxd2
+  cached=$(lxc_remote image info lxd2:bar | awk '/Cached/ { print $2 }')
+  alias=$(lxc_remote image info lxd2:bar | grep -A 1 "Aliases:" | tail -n1 | awk '{print $2}')
+
+  # Check that image is not cached
+  [ "${cached}" = "no" ]
+  # Check that the alias is correct
+  [ "${alias}" = "bar" ]
+
+  # Now, lets delete the image and observe that when its downloaded implicitly as part of an instance create,
+  # the image becomes `cached` and has no alias.
+  fingerprint=$(lxc_remote image info lxd2:bar | awk '/Fingerprint/ { print $2 }')
+  lxc_remote image delete lxd2:bar
+  lxc_remote init localhost:testimage lxd2:c1
+  cached=$(lxc_remote image info "lxd2:${fingerprint}" | awk '/Cached/ { print $2 }')
+  # The `cached` field should be set to `yes` since the image was implicitly downloaded by the instance create operation
+  [ "${cached}" = "yes" ]
+  # There should be no alias for the image
+  ! lxc_remote image info "lxd2:${fingerprint}" | grep -q "Aliases:"
+
+  # Finally, lets copy the remote image explicitly to the local server with an alias like we did before
+  lxc_remote image copy localhost:testimage lxd2: --alias bar
+  cached=$(lxc_remote image info lxd2:bar | awk '/Cached/ { print $2 }')
+  alias=$(lxc_remote image info lxd2:bar | grep -A 1 "Aliases:" | tail -n1 | awk '{print $2}')
+  # The `cached` field should be set to `no` since the image was explicitly copied.
+  [ "${cached}" = "no" ]
+  # The alias should be set to `bar`.
+  [ "${alias}" = "bar" ]
 
   lxc_remote image alias delete localhost:foo
 

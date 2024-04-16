@@ -12,7 +12,6 @@ test_authorization() {
 
   # Entity types with no entitlements
   ! lxc auth group permission add test-group container fake_name can_view || false # No entitlements defined for containers (use instance).
-  ! lxc auth group permission add test-group certificate "${tls_user_fingerprint}" can_view || false # No entitlements defined for certificates (use identity).
   ! lxc auth group permission add test-group instance_backup fake_name can_view || false # No entitlements defined for instance backups (use can_manage_backups on parent instance).
   ! lxc auth group permission add test-group instance_snapshot fake_name can_view || false # No entitlements defined for instance snapshots (use can_manage_snapshots on parent instance).
   ! lxc auth group permission add test-group node fake_name can_view || false # No entitlements defined for cluster members (use server entitlements).
@@ -116,7 +115,7 @@ EOF
   echo "${list_output}" | grep -Fq 'project,/1.0/projects/default,"can_create_image_aliases,can_create_images,can_create_instances,..."'
 
   list_output="$(lxc auth permission list entity_type=server --format csv --max-entitlements 0)"
-  echo "${list_output}" | grep -Fq 'server,/1.0,"admin,can_create_groups,can_create_identities,can_create_projects,can_create_storage_pools,can_delete_groups,can_delete_identities,can_delete_projects,can_delete_storage_pools,can_edit,can_edit_groups,can_edit_identities,can_edit_projects,can_edit_storage_pools,can_override_cluster_target_restriction,can_view,can_view_groups,can_view_identities,can_view_metrics,can_view_permissions,can_view_privileged_events,can_view_projects,can_view_resources,can_view_warnings,permission_manager,project_manager,storage_pool_manager,viewer"'
+  echo "${list_output}" | grep -Fq 'server,/1.0,"admin,can_create_groups,can_create_identities,can_create_identity_provider_groups,can_create_projects,can_create_storage_pools,can_delete_groups,can_delete_identities,can_delete_identity_provider_groups,can_delete_projects,can_delete_storage_pools,can_edit,can_edit_groups,can_edit_identities,can_edit_identity_provider_groups,can_edit_projects,can_edit_storage_pools,can_override_cluster_target_restriction,can_view_groups,can_view_identities,can_view_identity_provider_groups,can_view_metrics,can_view_permissions,can_view_privileged_events,can_view_projects,can_view_resources,can_view_warnings,permission_manager,project_manager,storage_pool_manager,viewer"'
 
   list_output="$(lxc auth permission list entity_type=project --format csv --max-entitlements 0)"
   echo "${list_output}" | grep -Fq 'project,/1.0/projects/default,"can_create_image_aliases,can_create_images,can_create_instances,can_create_network_acls,can_create_network_zones,can_create_networks,can_create_profiles,can_create_storage_buckets,can_create_storage_volumes,can_delete,can_delete_image_aliases,can_delete_images,can_delete_instances,can_delete_network_acls,can_delete_network_zones,can_delete_networks,can_delete_profiles,can_delete_storage_buckets,can_delete_storage_volumes,can_edit,can_edit_image_aliases,can_edit_images,can_edit_instances,can_edit_network_acls,can_edit_network_zones,can_edit_networks,can_edit_profiles,can_edit_storage_buckets,can_edit_storage_volumes,can_operate_instances,can_view,can_view_events,can_view_image_aliases,can_view_images,can_view_instances,can_view_metrics,can_view_network_acls,can_view_network_zones,can_view_networks,can_view_operations,can_view_profiles,can_view_storage_buckets,can_view_storage_volumes,image_alias_manager,image_manager,instance_manager,network_acl_manager,network_manager,network_zone_manager,operator,profile_manager,storage_bucket_manager,storage_volume_manager,viewer"'
@@ -204,6 +203,24 @@ fine_grained_authorization() {
   user_is_not_server_operator
   user_is_not_project_manager
   user_is_not_project_operator
+
+  lxc auth group permission remove test-group project default can_view_events
+
+  echo "==> Checking 'can_view_warnings' entitlement..."
+  # Delete previous warnings
+  lxc query --wait /1.0/warnings\?recursion=1 | jq -r '.[].uuid' | xargs -n1 lxc warning delete
+
+  # Create a global warning (no node and no project)
+  lxc query --wait -X POST -d '{\"type_code\": 0, \"message\": \"authorization warning\"}' /internal/testing/warnings
+
+  # Check we are not able to view warnings currently
+  ! lxc_remote warning list oidc: || false
+
+  # Add "can_view_warnings" permission to group.
+  lxc auth group permission add test-group server can_view_warnings
+
+  # Check we can view the warning we just created.
+  [ "$(lxc_remote query oidc:/1.0/warnings?recursion=1 | jq -r '[.[] | select(.last_message == "authorization warning")] | length')" = 1 ]
 }
 
 user_is_not_server_admin() {
