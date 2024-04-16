@@ -113,8 +113,8 @@ github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e h1:vUmf0yez
 github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e/go.mod h1:YTIHhz/QFSYnu/EhlF2SpU2Uk+32abacUYA5ZPljz1A=
 github.com/distribution/reference v0.5.0 h1:/FUIFXtfc/x2gpa5/VGfiGLuOIdYa1t65IKK2OFGvA0=
 github.com/distribution/reference v0.5.0/go.mod h1:BbU0aIcezP1/5jX/8MP0YiH4SdvB5Y4f/wlDRiLyi3E=
-github.com/docker/docker v25.0.4+incompatible h1:XITZTrq+52tZyZxUOtFIahUf3aH367FLxJzt9vZeAF8=
-github.com/docker/docker v25.0.4+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
+github.com/docker/docker v25.0.5+incompatible h1:UmQydMduGkrD5nQde1mecF/YnSbTOaPeFIeP5C4W+DE=
+github.com/docker/docker v25.0.5+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
 github.com/docker/go-connections v0.5.0 h1:USnMq7hx7gwdVZq1L49hLXaFtUdTADjXGp+uj1Br63c=
 github.com/docker/go-connections v0.5.0/go.mod h1:ov60Kzw0kKElRwhNs9UlUHAE/F9Fe6GLaXnqyDdmEXc=
 github.com/docker/go-units v0.5.0 h1:69rxXcBk27SvSaaxTtLh/8llcHD8vYHT7WSdRZ/jvr4=
@@ -540,8 +540,8 @@ github.com/openfga/api/proto v0.0.0-20240318145204-66b9e5cb403c h1:2UmuAlvXoZGQR
 github.com/openfga/api/proto v0.0.0-20240318145204-66b9e5cb403c/go.mod h1:5LtWOArDX4FlbcfDvBoJAzDEYJKLz/OEUoi+0S2tyM8=
 github.com/openfga/language/pkg/go v0.0.0-20240401190211-052b5357673a h1:aA4Q62xt2sUzhjJekmM6134ftOfTRuf7uSLrHY2kMmY=
 github.com/openfga/language/pkg/go v0.0.0-20240401190211-052b5357673a/go.mod h1:iwtNOC/ypBBmN4ND4JqtLdgskIEN67GRP6HuTVa0dKE=
-github.com/openfga/openfga v1.5.1 h1:u76SHaRUFOvzKAYMbtNMc+Z55FunGbDyS8aApsu21dM=
-github.com/openfga/openfga v1.5.1/go.mod h1:NR0dvko5ary1fo5Z0VWjX6jWJ6KXRsHD/eEh8bJ4HNA=
+github.com/openfga/openfga v1.5.2 h1:CqBGMYv5S0oBZkxxDDlErF7mE6rieL04bTvx5nEHZnM=
+github.com/openfga/openfga v1.5.2/go.mod h1:kL/pxf40rxuqasF8TWnGZAVF1aCkJG8xQZ8U1rVzA/c=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
 github.com/osrg/gobgp/v3 v3.25.0 h1:CIWLUMMBI7K0yqGMg9QuhqAXDlV97bK6f3hrSWH3deY=
 github.com/osrg/gobgp/v3 v3.25.0/go.mod h1:/0UclzjayCRM1hLcUcnb+BaKWsosdN083xajBZx70DU=
