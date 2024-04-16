@@ -22,6 +22,13 @@ There are two different ways how you can use network forwards in this case:
 - Forward traffic from different port numbers of the external address to different instances (and optionally different ports on those instances).
   This method allows to "share" your external IP address and expose more than one instance at a time.
 
+```{tip}
+Network forwards are very similar to using a {ref}`proxy device<devices-proxy>` in NAT mode.
+
+The difference is that network forwards are applied on a network level, while a proxy device is added for an instance.
+In addition, proxy devices can be used to proxy traffic between different connection types (for example, TCP and Unix sockets).
+```
+
 ## Create a network forward
 
 Use the following command to create a network forward:
