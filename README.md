@@ -64,6 +64,7 @@ Tool                        | Link
 ---                         | ---
 Ansible - connection plugin | https://galaxy.ansible.com/ui/repo/published/community/general/content/connection/lxd/
 Ansible - inventory plugin  | https://galaxy.ansible.com/ui/repo/published/community/general/content/inventory/lxd/
+MicroCloud                  | https://canonical.com/microcloud
 Terraform provider          | https://registry.terraform.io/providers/terraform-lxd/lxd
 
 ## Security
