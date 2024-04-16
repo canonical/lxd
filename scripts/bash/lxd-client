@@ -407,7 +407,7 @@ _have lxc && {
         COMPREPLY=( $(compgen -W "$lxc_cmds" -- "$cur") )
         ;;
       "image")
-        COMPREPLY=( $(compgen -W "import copy delete refresh export info list show edit alias" -- "$cur") )
+        COMPREPLY=( $(compgen -W "alias copy delete edit export get-property import info list refresh set-property show unset-property" -- "$cur") )
         ;;
       "init"|"launch"|"rebuild")
         _lxd_images
