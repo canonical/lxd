@@ -35,6 +35,13 @@ To add a `proxy` device, use the following command:
 
     lxc config device add <instance_name> <device_name> proxy listen=<type>:<addr>:<port>[-<port>][,<port>] connect=<type>:<addr>:<port> bind=<host/instance_name>
 
+```{tip}
+Using a proxy device in NAT mode is very similar to adding a {ref}`network forward <network-forwards>`.
+
+The difference is that network forwards are applied on a network level, while a proxy device is added for an instance.
+In addition, network forwards cannot be used to proxy traffic between different connection types.
+```
+
 (devices-proxy-nat-mode)=
 ## NAT mode
 
