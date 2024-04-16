@@ -76,6 +76,11 @@ _have lxc && {
       COMPREPLY=( $( compgen -W "$( lxc auth identity-provider-group list --format=csv | cut -d, -f1 )" -- "$cur" ) )
     }
 
+    _lxd_warnings()
+    {
+      COMPREPLY=( $( compgen -W "$( lxc warning list --all --format=csv | cut -d, -f1 )" -- "$cur" ) )
+    }
+
     COMPREPLY=()
     # ignore special --foo args
     if [[ ${COMP_WORDS[COMP_CWORD]} == -* ]]; then
@@ -576,10 +581,22 @@ _have lxc && {
                 _lxd_profiles
                 ;;
             esac
+            ;;
         esac
         ;;
       "warning")
-        COMPREPLY=( $(compgen -W "acknowledge delete list show" -- $cur) )
+        case $pos in
+          2)
+            COMPREPLY=( $(compgen -W "acknowledge delete list show" -- "$cur") )
+            ;;
+          3)
+            case ${no_dashargs[2]} in
+              "acknowledge"|"delete"|"show")
+                _lxd_warnings
+                ;;
+            esac
+            ;;
+        esac
         ;;
       *)
         ;;
