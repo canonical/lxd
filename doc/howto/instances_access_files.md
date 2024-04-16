@@ -104,6 +104,8 @@ To push a file from your local machine to your instance, enter the following com
 
     lxc file push <local_file_path> <instance_name>/<path_to_file>
 
+You can specify the file permissions by adding the `--gid`, `--uid`, and `--mode` flags.
+
 To push a directory with all contents, enter the following command:
 
     lxc file push -r <local_location> <instance_name>/<path_to_directory>
