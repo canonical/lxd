@@ -53,7 +53,7 @@ _have lxc && {
 
       local query="/1.0/instances/$name/snapshots"
 
-      COMPREPLY=( $( compgen -W "$( lxc query $query | sed -nr "s \s*\"$query/+(\w*)\",* \1 p" )" "$cur" ) )
+      COMPREPLY=( $( compgen -W "$( lxc query "$query" | sed -n "s|^\s*\"$query/\([^\"]\+\)\",\?$|\1|p" )" -- "$cur" ) )
     }
 
     _lxd_storage_pools()
@@ -385,7 +385,7 @@ _have lxc && {
             _lxd_names
             ;;
           3)
-            _lxd_restore_snapshots ${no_dashargs[2]}
+            _lxd_restore_snapshots "${no_dashargs[2]}"
             ;;
         esac
         ;;
