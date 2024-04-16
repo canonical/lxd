@@ -230,6 +230,9 @@ _have lxc && {
     fi
 
     case ${no_dashargs[1]} in
+      "alias")
+        COMPREPLY=( $(compgen -W "add list remove rename" -- "$cur") )
+        ;;
       "auth")
         case $pos in
           2)
