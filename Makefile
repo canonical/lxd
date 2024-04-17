@@ -285,6 +285,11 @@ endif
         echo "lint scripts not executable: $$NOT_EXEC"; \
         exit 1; \
 	fi
+	BAD_NAME="$(shell find test/lint -type f -not -name '*.sh')"; \
+	if [ -n "$$BAD_NAME" ]; then \
+        echo "lint scripts missing .sh extension: $$BAD_NAME"; \
+        exit 1; \
+	fi
 	run-parts --verbose --exit-on-error --regex '.sh' test/lint
 
 .PHONY: staticcheck
