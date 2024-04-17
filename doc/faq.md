@@ -120,3 +120,18 @@ The easiest fix for this problem is to stop the VPN client and unmount the `net_
 
 If you need to keep the VPN client running, mount the `net_cls` cgroup1 in another location and reconfigure your VPN client accordingly.
 See [this Discourse post](https://discuss.linuxcontainers.org/t/help-help-help-cgroup2-related-issue-on-ubuntu-jammy-with-mullvad-and-privateinternetaccess-vpn/14705/18) for instructions for Mullvad VPN.
+
+## Why does LXD not start on Ubuntu 20.04 or earlier?
+
+If you are running LXD on Ubuntu 20.04 or earlier, you might be missing support for ZFS 2.1 in the kernel (see the {ref}`requirements <requirements-zfs>`).
+
+If LXD fails to start, check the `/var/snap/lxd/common/lxd/logs/lxd.log` log file for the following error to see if the reason is missing ZFS support:
+
+    Error: Required tool ‘zpool’ is missing
+
+If you are on Ubuntu 20.04, you can resolve the issue by installing the HWE kernel and rebooting the nodes to provide the required kernel drivers for ZFS 2.1:
+
+    sudo apt-get update
+    sudo apt-get install linux-generic-hwe-20.04
+
+If you are on earlier versions of Ubuntu, you should use a compatible LTS release of LXD.
