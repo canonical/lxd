@@ -280,6 +280,11 @@ endif
 	flake8 test/deps/import-busybox
 	shellcheck --shell bash test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh
 	shellcheck test/extras/*.sh
+	NOT_EXEC="$(shell find test/lint -type f -not -executable)"; \
+	if [ -n "$$NOT_EXEC" ]; then \
+        echo "lint scripts not executable: $$NOT_EXEC"; \
+        exit 1; \
+	fi
 	run-parts --verbose --exit-on-error --regex '.sh' test/lint
 
 .PHONY: staticcheck
