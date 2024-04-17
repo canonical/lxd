@@ -45,6 +45,7 @@ should also be installed.
 For virtual machines, QEMU 6.2 or higher is required. Some features like
 Confidential Guest support require a more recent QEMU and kernel version.
 
+(requirements-zfs)=
 ## ZFS
 
 For the ZFS storage driver, ZFS 2.1 or higher is required. Some features
