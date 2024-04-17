@@ -47,7 +47,7 @@ Confidential Guest support require a more recent QEMU and kernel version.
 
 ## ZFS
 
-For the ZFS storage driver, ZFS 2.1 or higher is required. Some features
+For the ZFS storage driver, ZFS 0.8 or higher is required. Some features
 like `zfs_delegate` requires 2.2 or higher to be used.
 
 ## Additional libraries (and development headers)
