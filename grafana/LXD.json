@@ -3825,8 +3825,8 @@
             "type": "loki",
             "uid": "${DS_LOKI}"
           },
-          "editorMode": "builder",
-          "expr": "{app=\"lxd\", type=\"lifecycle\", instance=\"$job\", project=\"$project\"}",
+          "editorMode": "code",
+          "expr": "{app=\"lxd\", type=\"lifecycle\", instance=\"$job\", project=~\"|$project\"}",
           "queryType": "range",
           "refId": "A"
         }
@@ -3862,8 +3862,8 @@
             "type": "loki",
             "uid": "${DS_LOKI}"
           },
-          "editorMode": "builder",
-          "expr": "{app=\"lxd\", type=\"logging\", instance=\"$job\"}",
+          "editorMode": "code",
+          "expr": "{app=\"lxd\", type=\"logging\", instance=\"$job\", project=~\"|$project\"}",
           "queryType": "range",
           "refId": "A"
         }
