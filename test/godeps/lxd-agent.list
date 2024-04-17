@@ -84,7 +84,6 @@ github.com/fsnotify/fsnotify
 github.com/go-logr/logr
 github.com/go-logr/logr/funcr
 github.com/go-logr/stdr
-github.com/golang/protobuf/proto
 github.com/google/cel-go/cel
 github.com/google/cel-go/checker
 github.com/google/cel-go/checker/decls
