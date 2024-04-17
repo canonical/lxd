@@ -64,6 +64,9 @@ Tool                        | Link
 ---                         | ---
 Ansible - connection plugin | https://galaxy.ansible.com/ui/repo/published/community/general/content/connection/lxd/
 Ansible - inventory plugin  | https://galaxy.ansible.com/ui/repo/published/community/general/content/inventory/lxd/
+Bolt - LXD transport        | https://www.puppet.com/docs/bolt/latest/bolt_transports_reference.html#lxd
+MicroCloud                  | https://canonical.com/microcloud
+Packer - LXD builder        | https://developer.hashicorp.com/packer/integrations/hashicorp/lxd/latest/components/builder/lxd
 Terraform provider          | https://registry.terraform.io/providers/terraform-lxd/lxd
 
 ## Security
