@@ -139,17 +139,24 @@ func (d *zfs) Info() Info {
 // Accepts warnOnExistingPolicyApplyError argument, if true will warn rather than fail if applying current policy
 // to an existing dataset fails.
 func (d zfs) ensureInitialDatasets(warnOnExistingPolicyApplyError bool) error {
-	args := make([]string, 0, len(zfsDefaultSettings))
+	properties := make([]string, 0, len(zfsDefaultSettings))
 	for k, v := range zfsDefaultSettings {
-		args = append(args, fmt.Sprintf("%s=%s", k, v))
+		properties = append(properties, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	err := d.setDatasetProperties(d.config["zfs.pool_name"], args...)
+	properties, err := d.filterRedundantOptions(d.config["zfs.pool_name"], properties...)
 	if err != nil {
-		if warnOnExistingPolicyApplyError {
+		return err
+	}
+
+	if len(properties) > 0 {
+		err := d.setDatasetProperties(d.config["zfs.pool_name"], properties...)
+		if err != nil {
+			if !warnOnExistingPolicyApplyError {
+				return fmt.Errorf("Failed applying policy to existing dataset %q: %w", d.config["zfs.pool_name"], err)
+			}
+
 			d.logger.Warn("Failed applying policy to existing dataset", logger.Ctx{"dataset": d.config["zfs.pool_name"], "err": err})
-		} else {
-			return fmt.Errorf("Failed applying policy to existing dataset %q: %w", d.config["zfs.pool_name"], err)
 		}
 	}
 
@@ -166,12 +173,19 @@ func (d zfs) ensureInitialDatasets(warnOnExistingPolicyApplyError bool) error {
 		}
 
 		if exists {
-			err = d.setDatasetProperties(datasetPath, properties...)
+			properties, err = d.filterRedundantOptions(datasetPath, properties...)
 			if err != nil {
-				if warnOnExistingPolicyApplyError {
+				return err
+			}
+
+			if len(properties) > 0 {
+				err = d.setDatasetProperties(datasetPath, properties...)
+				if err != nil {
+					if !warnOnExistingPolicyApplyError {
+						return fmt.Errorf("Failed applying policy to existing dataset %q: %w", datasetPath, err)
+					}
+
 					d.logger.Warn("Failed applying policy to existing dataset", logger.Ctx{"dataset": datasetPath, "err": err})
-				} else {
-					return fmt.Errorf("Failed applying policy to existing dataset %q: %w", datasetPath, err)
 				}
 			}
 		} else {
