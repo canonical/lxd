@@ -962,7 +962,8 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Get all the volumes using the storage pool on this server.
 			// Only image volumes should remain now.
-			volumes, err := tx.GetStoragePoolVolumes(ctx, pool.ID(), true)
+			poolID := pool.ID() // Create local variable to get the pointer.
+			volumes, err := tx.GetStoragePoolVolumes(ctx, true, db.StorageVolumeFilter{PoolID: &poolID})
 			if err != nil {
 				return fmt.Errorf("Failed loading storage volumes: %w", err)
 			}
