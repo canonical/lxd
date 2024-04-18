@@ -258,9 +258,10 @@ func (c *ClusterTx) GetStoragePoolVolume(ctx context.Context, poolID int64, proj
 		Project: &projectName,
 		Type:    &volumeType,
 		Name:    &volumeName,
+		PoolID:  &poolID,
 	}}
 
-	volumes, err := c.GetStoragePoolVolumes(ctx, poolID, memberSpecific, filters...)
+	volumes, err := c.GetStoragePoolVolumes(ctx, memberSpecific, filters...)
 	volumesLen := len(volumes)
 	if (err == nil && volumesLen <= 0) || errors.Is(err, sql.ErrNoRows) {
 		return nil, api.StatusErrorf(http.StatusNotFound, "Storage volume not found")
