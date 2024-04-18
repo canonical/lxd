@@ -111,7 +111,7 @@ WHERE storage_volumes.id = ?
 	return response, nil
 }
 
-// StorageVolumeFilter used for filtering storage volumes with GetStoragePoolVolumes().
+// StorageVolumeFilter used for filtering storage volumes with GetStorageVolumes().
 type StorageVolumeFilter struct {
 	Type    *int
 	Project *string
@@ -126,11 +126,11 @@ type StorageVolume struct {
 	ID int64
 }
 
-// GetStoragePoolVolumes returns all storage volumes.
+// GetStorageVolumes returns all storage volumes.
 // If there are no volumes, it returns an empty list and no error.
 // Accepts filters for narrowing down the results returned. If memberSpecific is true, then the search is
 // restricted to volumes that belong to this member or belong to all members.
-func (c *ClusterTx) GetStoragePoolVolumes(ctx context.Context, memberSpecific bool, filters ...StorageVolumeFilter) ([]*StorageVolume, error) {
+func (c *ClusterTx) GetStorageVolumes(ctx context.Context, memberSpecific bool, filters ...StorageVolumeFilter) ([]*StorageVolume, error) {
 	var q = &strings.Builder{}
 	args := []any{}
 
@@ -261,7 +261,7 @@ func (c *ClusterTx) GetStoragePoolVolume(ctx context.Context, poolID int64, proj
 		PoolID:  &poolID,
 	}}
 
-	volumes, err := c.GetStoragePoolVolumes(ctx, memberSpecific, filters...)
+	volumes, err := c.GetStorageVolumes(ctx, memberSpecific, filters...)
 	volumesLen := len(volumes)
 	if (err == nil && volumesLen <= 0) || errors.Is(err, sql.ErrNoRows) {
 		return nil, api.StatusErrorf(http.StatusNotFound, "Storage volume not found")
