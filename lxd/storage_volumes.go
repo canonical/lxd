@@ -625,13 +625,10 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Quick checks.
-	if req.Name == "" {
-		return response.BadRequest(fmt.Errorf("No name provided"))
-	}
-
-	if strings.Contains(req.Name, "/") {
-		return response.BadRequest(fmt.Errorf("Storage volume names may not contain slashes"))
+	// Check new volume name is valid.
+	err = storagePools.ValidVolumeName(req.Name)
+	if err != nil {
+		return response.BadRequest(err)
 	}
 
 	// Backward compatibility.
@@ -1020,14 +1017,10 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Quick checks.
-	if req.Name == "" {
-		return response.BadRequest(fmt.Errorf("No name provided"))
-	}
-
-	// Check requested new volume name is not a snapshot volume.
-	if shared.IsSnapshot(req.Name) {
-		return response.BadRequest(fmt.Errorf("Storage volume names may not contain slashes"))
+	// Check new volume name is valid.
+	err = storagePools.ValidVolumeName(req.Name)
+	if err != nil {
+		return response.BadRequest(err)
 	}
 
 	// We currently only allow to create storage volumes of type storagePoolVolumeTypeCustom.

@@ -3,7 +3,6 @@ package drivers
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"io/fs"
@@ -458,7 +457,7 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 
 	if !d.state.OS.RunningInUserNS {
 		// List all subvolumes in the given filesystem with their UUIDs and received UUIDs.
-		err = shared.RunCommandWithFds(context.TODO(), nil, &stdout, "btrfs", "subvolume", "list", "-u", "-R", poolMountPath)
+		err = shared.RunCommandWithFds(d.state.ShutdownCtx, nil, &stdout, "btrfs", "subvolume", "list", "-u", "-R", poolMountPath)
 		if err != nil {
 			return nil, err
 		}
@@ -496,7 +495,7 @@ func (d *btrfs) getSubVolumeReceivedUUID(vol Volume) (string, error) {
 	poolMountPath := GetPoolMountPath(vol.pool)
 
 	// List all subvolumes in the given filesystem with their UUIDs.
-	err := shared.RunCommandWithFds(context.TODO(), nil, &stdout, "btrfs", "subvolume", "list", "-R", poolMountPath)
+	err := shared.RunCommandWithFds(d.state.ShutdownCtx, nil, &stdout, "btrfs", "subvolume", "list", "-R", poolMountPath)
 	if err != nil {
 		return "", err
 	}
@@ -603,13 +602,22 @@ func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string) (*B
 }
 
 // receiveSubVolume receives a subvolume from an io.Reader into the receivePath and returns the path to the received subvolume.
-func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string) (string, error) {
+func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string, tracker *ioprogress.ProgressTracker) (string, error) {
 	files, err := os.ReadDir(receivePath)
 	if err != nil {
 		return "", fmt.Errorf("Failed listing contents of %q: %w", receivePath, err)
 	}
 
-	err = shared.RunCommandWithFds(context.TODO(), r, nil, "btrfs", "receive", "-e", receivePath)
+	// Setup progress tracker.
+	stdin := r
+	if tracker != nil {
+		stdin = &ioprogress.ProgressReader{
+			Reader:  r,
+			Tracker: tracker,
+		}
+	}
+
+	err = shared.RunCommandWithFds(d.state.ShutdownCtx, stdin, nil, "btrfs", "receive", "-e", receivePath)
 	if err != nil {
 		return "", err
 	}

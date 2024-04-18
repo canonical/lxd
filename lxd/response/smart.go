@@ -6,14 +6,12 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/shared/api"
 )
 
 var httpResponseErrors = map[int][]error{
 	http.StatusNotFound:  {os.ErrNotExist, sql.ErrNoRows},
 	http.StatusForbidden: {os.ErrPermission},
-	http.StatusConflict:  {db.ErrAlreadyDefined},
 }
 
 // SmartError returns the right error message based on err.

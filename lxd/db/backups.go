@@ -173,7 +173,7 @@ WHERE projects.name=? AND instances.name=?`
 func (c *Cluster) CreateInstanceBackup(args InstanceBackup) error {
 	_, err := c.getInstanceBackupID(args.Name)
 	if err == nil {
-		return ErrAlreadyDefined
+		return api.StatusErrorf(http.StatusConflict, "Backup for instance %q already exists", args.Name)
 	}
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
@@ -424,7 +424,7 @@ ORDER BY storage_volumes_backups.id`
 func (c *Cluster) CreateStoragePoolVolumeBackup(args StoragePoolVolumeBackup) error {
 	_, err := c.getStoragePoolVolumeBackupID(args.Name)
 	if err == nil {
-		return ErrAlreadyDefined
+		return api.StatusErrorf(http.StatusConflict, "Backup for storage volume %q already exists", args.Name)
 	}
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {

@@ -2610,6 +2610,21 @@ func (d *lxc) onStart(_ map[string]string) error {
 	return nil
 }
 
+// validateStartup checks any constraints that would prevent start up from succeeding under normal circumstances.
+func (d *lxc) validateStartup(stateful bool, statusCode api.StatusCode) error {
+	err := d.common.validateStartup(stateful, statusCode)
+	if err != nil {
+		return err
+	}
+
+	// Ensure nesting is turned on for images that require nesting.
+	if shared.IsTrue(d.localConfig["image.requirements.nesting"]) && shared.IsFalseOrEmpty(d.expandedConfig["security.nesting"]) {
+		return fmt.Errorf("The image used by this instance requires nesting. Please set security.nesting=true on the instance")
+	}
+
+	return nil
+}
+
 // Stop functions.
 func (d *lxc) Stop(stateful bool) error {
 	d.logger.Debug("Stop started", logger.Ctx{"stateful": stateful})
@@ -4179,7 +4194,6 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			d.release()
 			d.cConfig = false
 			_, _ = d.initLXC(true)
-			cgroup.TaskSchedulerTrigger("container", d.name, "changed")
 		}
 	}()
 
@@ -4377,6 +4391,8 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			return err
 		}
 	}
+
+	cpuLimitWasChanged := false
 
 	// Apply the live changes
 	if isRunning {
@@ -4630,8 +4646,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 					return err
 				}
 			} else if key == "limits.cpu" || key == "limits.cpu.nodes" {
-				// Trigger a scheduler re-run
-				cgroup.TaskSchedulerTrigger("container", d.name, "changed")
+				cpuLimitWasChanged = true
 			} else if key == "limits.cpu.priority" || key == "limits.cpu.allowance" {
 				// Skip if no cpu CGroup
 				if !d.state.OS.CGInfo.Supports(cgroup.CPU, cg) {
@@ -4832,6 +4847,11 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// Success, update the closure to mark that the changes should be kept.
 	undoChanges = false
+
+	if cpuLimitWasChanged {
+		// Trigger a scheduler re-run
+		cgroup.TaskSchedulerTrigger("container", d.name, "changed")
+	}
 
 	if userRequested {
 		if d.isSnapshot {

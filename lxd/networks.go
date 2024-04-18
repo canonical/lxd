@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -378,7 +377,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 			return tx.CreatePendingNetwork(ctx, targetNode, projectName, req.Name, netType.DBType(), req.Config)
 		})
 		if err != nil {
-			if err == db.ErrAlreadyDefined {
+			if api.StatusErrorCheck(err, http.StatusConflict) {
 				return response.BadRequest(fmt.Errorf("The network is already defined on member %q", targetNode))
 			}
 
@@ -416,7 +415,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 					// Don't pass in any config, as these nodes don't have any node-specific
 					// config and we don't want to create duplicate global config.
 					err = tx.CreatePendingNetwork(ctx, member.Name, projectName, req.Name, netType.DBType(), nil)
-					if err != nil && !errors.Is(err, db.ErrAlreadyDefined) {
+					if err != nil && !api.StatusErrorCheck(err, http.StatusConflict) {
 						return fmt.Errorf("Failed creating pending network for member %q: %w", member.Name, err)
 					}
 				}

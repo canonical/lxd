@@ -359,6 +359,8 @@ var APIExtensions = []string{
 	"instance_move_config",
 	"server_instance_type_info",
 	"server_version_lts",
+	"instances_files_modify_permissions",
+	"image_restriction_nesting",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

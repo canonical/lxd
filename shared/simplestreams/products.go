@@ -248,12 +248,19 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 							continue
 						}
 
-						srcFingerprint = item.LXDHashSha256SquashFs
+						// Take correct source image fingerprint based on
+						// delta file type.
+						if delta.FileType == "disk-kvm.img.vcdiff" {
+							srcFingerprint = item.LXDHashSha256DiskKvmImg
+						} else if delta.FileType == "squashfs.vcdiff" {
+							srcFingerprint = item.LXDHashSha256SquashFs
+						}
+
 						break
 					}
 
 					if srcFingerprint == "" {
-						// Couldn't find the image
+						// Couldn't find the source image
 						continue
 					}
 

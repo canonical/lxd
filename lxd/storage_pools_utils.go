@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
@@ -18,7 +19,7 @@ func storagePoolDBCreate(s *state.State, poolName string, poolDescription string
 	// Check that the storage pool does not already exist.
 	_, err := s.DB.Cluster.GetStoragePoolID(poolName)
 	if err == nil {
-		return -1, fmt.Errorf("The storage pool already exists: %w", db.ErrAlreadyDefined)
+		return -1, api.StatusErrorf(http.StatusConflict, "Storage pool %q already exists", poolName)
 	}
 
 	// Make sure that we don't pass a nil to the next function.

@@ -55,11 +55,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	// Create the database entry.
 	err = s.DB.Cluster.CreateInstanceBackup(args)
 	if err != nil {
-		if err == db.ErrAlreadyDefined {
-			return fmt.Errorf("Backup %q already exists", args.Name)
-		}
-
-		return fmt.Errorf("Insert backup info into database: %w", err)
+		return fmt.Errorf("Failed creating instance backup record: %w", err)
 	}
 
 	revert.Add(func() { _ = s.DB.Cluster.DeleteInstanceBackup(args.Name) })
@@ -392,11 +388,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	// Create the database entry.
 	err = s.DB.Cluster.CreateStoragePoolVolumeBackup(args)
 	if err != nil {
-		if err == db.ErrAlreadyDefined {
-			return fmt.Errorf("Backup %q already exists", args.Name)
-		}
-
-		return fmt.Errorf("Failed creating backup record: %w", err)
+		return fmt.Errorf("Failed creating storage volume backup record: %w", err)
 	}
 
 	revert.Add(func() { _ = s.DB.Cluster.DeleteStoragePoolVolumeBackup(args.Name) })

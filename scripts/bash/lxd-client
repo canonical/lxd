@@ -1,6 +1,11 @@
 _have lxc && {
   _lxd_complete()
   {
+    _lxd_operations()
+    {
+      COMPREPLY=( $( compgen -W "$( lxc operation list --format=csv | cut -d, -f1 )" -- "$cur" ) )
+    }
+
     _lxd_names()
     {
       local state=$1
@@ -48,7 +53,7 @@ _have lxc && {
 
       local query="/1.0/instances/$name/snapshots"
 
-      COMPREPLY=( $( compgen -W "$( lxc query $query | sed -nr "s \s*\"$query/+(\w*)\",* \1 p" )" "$cur" ) )
+      COMPREPLY=( $( compgen -W "$( lxc query "$query" | sed -n "s|^\s*\"$query/\([^\"]\+\)\",\?$|\1|p" )" -- "$cur" ) )
     }
 
     _lxd_storage_pools()
@@ -59,6 +64,11 @@ _have lxc && {
     _lxd_storage_volumes()
     {
       COMPREPLY=( $( compgen -W "$( lxc storage volume list --format=csv | cut -d, -f1 )" "$cur" ) )
+    }
+
+    _lxd_warnings()
+    {
+      COMPREPLY=( $( compgen -W "$( lxc warning list --all --format=csv | cut -d, -f1 )" -- "$cur" ) )
     }
 
     COMPREPLY=()
@@ -239,13 +249,13 @@ _have lxc && {
           _lxd_names
         fi
         ;;
-      "delete"|"info"|"move"|"publish"|"restart"|"snapshot"|"rename")
+      "delete"|"info"|"move"|"publish"|"rename"|"restart"|"snapshot")
         _lxd_names
         ;;
       "start")
         _lxd_names "(STOPPED|FROZEN)"
         ;;
-      "exec"|"console"|"stop"|"shell")
+      "exec"|"console"|"pause"|"stop"|"shell")
         _lxd_names "(RUNNING|READY)"
         ;;
       "file")
@@ -284,6 +294,20 @@ _have lxc && {
                 _lxd_profiles
                 ;;
             esac
+        esac
+        ;;
+      "operation")
+        case $pos in
+          2)
+            COMPREPLY=( $(compgen -W "delete list show" -- "$cur") )
+            ;;
+          3)
+            case ${no_dashargs[2]} in
+              "delete"|"show")
+                _lxd_operations
+                ;;
+            esac
+            ;;
         esac
         ;;
       "profile")
@@ -358,7 +382,7 @@ _have lxc && {
         ;;
       "remote")
         COMPREPLY=( $(compgen -W \
-          "add remove list rename set-url set-default get-default" -- $cur) )
+          "add get-default list remove rename set-url switch" -- $cur) )
         ;;
       "restore")
         case $pos in
@@ -366,7 +390,7 @@ _have lxc && {
             _lxd_names
             ;;
           3)
-            _lxd_restore_snapshots ${no_dashargs[2]}
+            _lxd_restore_snapshots "${no_dashargs[2]}"
             ;;
         esac
         ;;
@@ -414,6 +438,21 @@ _have lxc && {
                 _lxd_profiles
                 ;;
             esac
+            ;;
+        esac
+        ;;
+      "warning")
+        case $pos in
+          2)
+            COMPREPLY=( $(compgen -W "acknowledge delete list show" -- "$cur") )
+            ;;
+          3)
+            case ${no_dashargs[2]} in
+              "acknowledge"|"delete"|"show")
+                _lxd_warnings
+                ;;
+            esac
+            ;;
         esac
         ;;
       *)
