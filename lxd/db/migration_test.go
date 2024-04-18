@@ -150,7 +150,7 @@ func TestImportPreClusteringData(t *testing.T) {
 			PoolID: &id,
 		}}
 
-		dbVolumes, err = tx.GetStoragePoolVolumes(context.Background(), true, filters...)
+		dbVolumes, err = tx.GetStorageVolumes(context.Background(), true, filters...)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage volumes: %w", err)
 		}
