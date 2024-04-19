@@ -11,21 +11,57 @@ import (
 //
 // API extension: network_forward.
 type NetworkForwardPort struct {
+	// lxdmeta:generate(entities=network-forward; group=port-properties; key=description)
+	//
+	// ---
+	//  type: string
+	//  required: no
+	//  shortdesc: Description of the port or ports
+
 	// Description of the forward port
 	// Example: My web server forward
 	Description string `json:"description" yaml:"description"`
+
+	// lxdmeta:generate(entities=network-forward; group=port-properties; key=protocol)
+	//  Possible values are `tcp` and `udp`.
+	// ---
+	//  type: string
+	//  required: yes
+	//  shortdesc: Protocol for the port or ports
 
 	// Protocol for port forward (either tcp or udp)
 	// Example: tcp
 	Protocol string `json:"protocol" yaml:"protocol"`
 
+	// lxdmeta:generate(entities=network-forward; group=port-properties; key=listen_port)
+	// For example: `80,90-100`
+	// ---
+	//  type: string
+	//  required: yes
+	//  shortdesc: Listen port or ports
+
 	// ListenPort(s) to forward (comma delimited ranges)
 	// Example: 80,81,8080-8090
 	ListenPort string `json:"listen_port" yaml:"listen_port"`
 
+	// lxdmeta:generate(entities=network-forward; group=port-properties; key=target_port)
+	// For example: `70,80-90` or `90`
+	// ---
+	//  type: string
+	//  required: no
+	//  defaultdesc: same as `listen_port`
+	//  shortdesc: Target port or ports
+
 	// TargetPort(s) to forward ListenPorts to (allows for many-to-one)
 	// Example: 80,81,8080-8090
 	TargetPort string `json:"target_port" yaml:"target_port"`
+
+	// lxdmeta:generate(entities=network-forward; group=port-properties; key=target_address)
+	//
+	// ---
+	//  type: string
+	//  required: yes
+	//  shortdesc: IP address to forward to
 
 	// TargetAddress to forward ListenPorts to
 	// Example: 198.51.100.2
@@ -68,6 +104,13 @@ func (p *NetworkForwardPort) Normalise() {
 type NetworkForwardsPost struct {
 	NetworkForwardPut `yaml:",inline"`
 
+	// lxdmeta:generate(entities=network-forward; group=forward-properties; key=listen_address)
+	//
+	// ---
+	//  type: string
+	//  required: no
+	//  shortdesc: IP address to listen on
+
 	// The listen address of the forward
 	// Example: 192.0.2.1
 	ListenAddress string `json:"listen_address" yaml:"listen_address"`
@@ -89,13 +132,34 @@ func (f *NetworkForwardsPost) Normalise() {
 //
 // API extension: network_forward.
 type NetworkForwardPut struct {
+	// lxdmeta:generate(entities=network-forward; group=forward-properties; key=description)
+	//
+	// ---
+	//  type: string
+	//  required: yes
+	//  shortdesc: Description of the network forward
+
 	// Description of the forward listen IP
 	// Example: My public IP forward
 	Description string `json:"description" yaml:"description"`
 
+	// lxdmeta:generate(entities=network-forward; group=forward-properties; key=config)
+	// The only supported keys are `target_address` and `user.*` custom keys.
+	// ---
+	//  type: string set
+	//  required: no
+	//  shortdesc: User-provided free-form key/value pairs
+
 	// Forward configuration map (refer to doc/network-forwards.md)
 	// Example: {"user.mykey": "foo"}
 	Config map[string]string `json:"config" yaml:"config"`
+
+	// lxdmeta:generate(entities=network-forward; group=forward-properties; key=ports)
+	// See {ref}`network-forwards-port-specifications`.
+	// ---
+	//  type: port list
+	//  required: no
+	//  shortdesc: List of port specifications
 
 	// Port forwards (optional)
 	Ports []NetworkForwardPort `json:"ports" yaml:"ports"`
