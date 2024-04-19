@@ -25,6 +25,41 @@ See {ref}`network-ovn-setup` for basic instructions for setting up an OVN networ
     :end-before: <!-- Include end MAC identifier note -->
 ```
 
+(network-ovn-architecture)=
+## OVN networking architecture
+
+The following figure shows the OVN network traffic flow in a LXD cluster:
+
+```{figure} /images/ovn_networking_1.svg
+:width: 100%
+
+OVN networking (one network)
+```
+
+The OVN network connects the different cluster members.
+Network traffic between the cluster members passes through the NIC for inter-cluster traffic (`eth1` in the figure) and is transmitted through an OVN tunnel.
+This traffic between cluster members is referred to as *OVN east/west traffic*.
+
+For outside connectivity, the OVN network requires an uplink network (a {ref}`network-bridge` or a {ref}`network-physical`).
+The OVN network uses a virtual router to connect to the uplink network through the NIC for uplink traffic (`eth0` in the figure).
+The virtual router is active on only one of the cluster members, and can move to a different member at any time.
+Independent of where the router resides, the OVN network is available on all cluster members.
+
+Every instance on any cluster member can connect to the OVN network through its virtual NIC (usually `eth0` for containers and `enp5s0` for virtual machines).
+The traffic between the instances and the uplink network is referred to as *OVN north/south traffic*.
+
+The strengths of using OVN become apparent when looking at a networking architecture with more than one OVN network:
+
+```{figure} /images/ovn_networking_2.svg
+:width: 100%
+
+OVN networking (two networks)
+```
+
+In this case, both depicted OVN networks are completely independent.
+Both networks are available on all cluster members (with each virtual router being active on one random cluster member).
+Each instance can use either of the networks, and the traffic on either network is completely isolated from the other network.
+
 (network-ovn-options)=
 ## Configuration options
 
