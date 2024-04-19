@@ -76,12 +76,11 @@ If you want to forward the traffic to different ports, you have two options:
 
 Network load balancer backends have the following properties:
 
-Property          | Type       | Required | Description
-:--               | :--        | :--      | :--
-`name`            | string     | yes      | Name of the backend
-`target_address`  | string     | yes      | IP address to forward to
-`target_port`     | string     | no       | Target port(s) (e.g. `70,80-90` or `90`), same as the {ref}`port <network-load-balancers-port-specifications>`'s `listen_port` if empty
-`description`     | string     | no       | Description of backend
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group network-load-balancer-load-balancer-backend-properties start -->
+    :end-before: <!-- config group network-load-balancer-load-balancer-backend-properties end -->
+```
 
 (network-load-balancers-port-specifications)=
 ## Configure ports
@@ -101,12 +100,11 @@ The backend(s) specified must have target port(s) settings compatible with the p
 
 Network load balancer ports have the following properties:
 
-Property          | Type         | Required | Description
-:--               | :--          | :--      | :--
-`protocol`        | string       | yes      | Protocol for the port(s) (`tcp` or `udp`)
-`listen_port`     | string       | yes      | Listen port(s) (e.g. `80,90-100`)
-`target_backend`  | backend list | yes      | Backend name(s) to forward to
-`description`     | string       | no       | Description of port(s)
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group network-load-balancer-load-balancer-port-properties start -->
+    :end-before: <!-- config group network-load-balancer-load-balancer-port-properties end -->
+```
 
 ## Edit a network load balancer
 
