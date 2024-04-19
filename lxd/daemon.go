@@ -1395,8 +1395,6 @@ func (d *Daemon) init() error {
 	bgpRouterID := d.localConfig.BGPRouterID()
 	bgpASN := int64(0)
 
-	dnsAddress := d.localConfig.DNSAddress()
-
 	maasAPIURL := ""
 	maasAPIKey := ""
 	maasMachine := d.localConfig.MAASMachine()
@@ -1491,14 +1489,6 @@ func (d *Daemon) init() error {
 
 		return resp, nil
 	})
-	if dnsAddress != "" {
-		err := d.dns.Start(dnsAddress)
-		if err != nil {
-			return err
-		}
-
-		logger.Info("Started DNS server")
-	}
 
 	// Setup the networks.
 	logger.Infof("Initializing networks")
@@ -1508,6 +1498,16 @@ func (d *Daemon) init() error {
 	}
 
 	// Setup tertiary listeners that may use managed network addresses and must be started after networks.
+	dnsAddress := d.localConfig.DNSAddress()
+	if dnsAddress != "" {
+		err = d.dns.Start(dnsAddress)
+		if err != nil {
+			return err
+		}
+
+		logger.Info("Started DNS server")
+	}
+
 	metricsAddress := d.localConfig.MetricsAddress()
 	if metricsAddress != "" {
 		err = d.endpoints.UpMetrics(metricsAddress)
