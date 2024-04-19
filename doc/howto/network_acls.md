@@ -42,13 +42,11 @@ Valid network ACL names must adhere to the following rules:
 
 ACLs have the following properties:
 
-Property         | Type       | Required | Description
-:--              | :--        | :--      | :--
-`name`           | string     | yes      | Unique name of the network ACL in the project
-`description`    | string     | no       | Description of the network ACL
-`ingress`        | rule list  | no       | Ingress traffic rules
-`egress`         | rule list  | no       | Egress traffic rules
-`config`         | string set | no       | Configuration options as key/value pairs (only `user.*` custom keys supported)
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group network-acl-acl-properties start -->
+    :end-before: <!-- config group network-acl-acl-properties end -->
+```
 
 (network-acls-rules)=
 ## Add or remove rules
@@ -94,18 +92,11 @@ If one of the rules in the ACLs matches, the action for that rule is taken and n
 
 ACL rules have the following properties:
 
-Property          | Type       | Required | Description
-:--               | :--        | :--      | :--
-`action`          | string     | yes      | Action to take for matching traffic (`allow`, `reject` or `drop`)
-`state`           | string     | yes      | State of the rule (`enabled`, `disabled` or `logged`), defaulting to `enabled` if not specified
-`description`     | string     | no       | Description of the rule
-`source`          | string     | no       | Comma-separated list of CIDR or IP ranges, source subject name selectors (for ingress rules), or empty for any
-`destination`     | string     | no       | Comma-separated list of CIDR or IP ranges, destination subject name selectors (for egress rules), or empty for any
-`protocol`        | string     | no       | Protocol to match (`icmp4`, `icmp6`, `tcp`, `udp`) or empty for any
-`source_port`     | string     | no       | If protocol is `udp` or `tcp`, then a comma-separated list of ports or port ranges (start-end inclusive), or empty for any
-`destination_port`| string     | no       | If protocol is `udp` or `tcp`, then a comma-separated list of ports or port ranges (start-end inclusive), or empty for any
-`icmp_type`       | string     | no       | If protocol is `icmp4` or `icmp6`, then ICMP type number, or empty for any
-`icmp_code`       | string     | no       | If protocol is `icmp4` or `icmp6`, then ICMP code number, or empty for any
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group network-acl-rule-properties start -->
+    :end-before: <!-- config group network-acl-rule-properties end -->
+```
 
 (network-acls-selectors)=
 ### Use selectors in rules
