@@ -14,6 +14,34 @@ import (
 
 // AddRecord adds a network zone record.
 func (d *zone) AddRecord(req api.NetworkZoneRecordsPost) error {
+	// lxdmeta:generate(entities=network-zone; group=record-properties; key=name)
+	//
+	// ---
+	//  type: string
+	//  required: yes
+	//  shortdesc: Unique name of the record
+
+	// lxdmeta:generate(entities=network-zone; group=record-properties; key=description)
+	//
+	// ---
+	//  type: string
+	//  required: no
+	//  shortdesc: Description of the record
+
+	// lxdmeta:generate(entities=network-zone; group=record-properties; key=entries)
+	//
+	// ---
+	//  type: entry list
+	//  required: no
+	//  shortdesc: List of DNS entries
+
+	// lxdmeta:generate(entities=network-zone; group=record-properties; key=config)
+	// The only supported keys are `user.*` custom keys.
+	// ---
+	//  type: string set
+	//  required: no
+	//  shortdesc: User-provided free-form key/value pairs
+
 	// Validate.
 	err := d.validateRecordConfig(req.NetworkZoneRecordPut)
 	if err != nil {
