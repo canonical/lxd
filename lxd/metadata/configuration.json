@@ -2903,6 +2903,137 @@
 				]
 			}
 		},
+		"network-acl": {
+			"acl-properties": {
+				"keys": [
+					{
+						"config": {
+							"longdesc": "The only supported keys are `user.*` custom keys.",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string set"
+						}
+					},
+					{
+						"description": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Description of the network ACL",
+							"type": "string"
+						}
+					},
+					{
+						"egress": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Egress traffic rules",
+							"type": "rule list"
+						}
+					},
+					{
+						"ingress": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Ingress traffic rules",
+							"type": "rule list"
+						}
+					},
+					{
+						"name": {
+							"longdesc": "",
+							"required": "yes",
+							"shortdesc": "Unique name of the network ACL in the project",
+							"type": "string"
+						}
+					}
+				]
+			},
+			"rule-properties": {
+				"keys": [
+					{
+						"action": {
+							"longdesc": "Possible values are `allow`, `reject`, and `drop`.",
+							"required": "yes",
+							"shortdesc": "Action to take for matching traffic",
+							"type": "string"
+						}
+					},
+					{
+						"description": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Description of the rule",
+							"type": "string"
+						}
+					},
+					{
+						"destination": {
+							"longdesc": "Destinations can be specified as CIDR or IP ranges, destination subject name selectors (for egress rules), or be left empty for any.",
+							"required": "no",
+							"shortdesc": "Comma-separated list of destinations",
+							"type": "string"
+						}
+					},
+					{
+						"destination_port": {
+							"longdesc": "This option is valid only if the protocol is `udp` or `tcp`.\nSpecify a comma-separated list of ports or port ranges (start-end inclusive), or leave the value empty for any.",
+							"required": "no",
+							"shortdesc": "Destination ports or port ranges",
+							"type": "string"
+						}
+					},
+					{
+						"icmp_code": {
+							"longdesc": "This option is valid only if the protocol is `icmp4` or `icmp6`.\nSpecify the ICMP code number, or leave the value empty for any.",
+							"required": "no",
+							"shortdesc": "ICMP message code",
+							"type": "string"
+						}
+					},
+					{
+						"icmp_type": {
+							"longdesc": "This option is valid only if the protocol is `icmp4` or `icmp6`.\nSpecify the ICMP type number, or leave the value empty for any.",
+							"required": "no",
+							"shortdesc": "Type of ICMP message",
+							"type": "string"
+						}
+					},
+					{
+						"protocol": {
+							"longdesc": "Possible values are `icmp4`, `icmp6`, `tcp`, and `udp`.\nLeave the value empty to match any protocol.",
+							"required": "no",
+							"shortdesc": "Protocol to match",
+							"type": "string"
+						}
+					},
+					{
+						"source": {
+							"longdesc": "Sources can be specified as CIDR or IP ranges, source subject name selectors (for ingress rules), or be left empty for any.",
+							"required": "no",
+							"shortdesc": "Comma-separated list of sources",
+							"type": "string"
+						}
+					},
+					{
+						"source_port": {
+							"longdesc": "This option is valid only if the protocol is `udp` or `tcp`.\nSpecify a comma-separated list of ports or port ranges (start-end inclusive), or leave the value empty for any.",
+							"required": "no",
+							"shortdesc": "Source ports or port ranges",
+							"type": "string"
+						}
+					},
+					{
+						"state": {
+							"defaultdesc": "`enabled`",
+							"longdesc": "Possible values are `enabled`, `disabled`, and `logged`.",
+							"required": "yes",
+							"shortdesc": "State of the rule",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
 		"network-bridge": {
 			"network-conf": {
 				"keys": [
@@ -3417,6 +3548,208 @@
 				]
 			}
 		},
+		"network-forward": {
+			"forward-properties": {
+				"keys": [
+					{
+						"config": {
+							"longdesc": "The only supported keys are `target_address` and `user.*` custom keys.",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string set"
+						}
+					},
+					{
+						"description": {
+							"longdesc": "",
+							"required": "yes",
+							"shortdesc": "Description of the network forward",
+							"type": "string"
+						}
+					},
+					{
+						"listen_address": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "IP address to listen on",
+							"type": "string"
+						}
+					},
+					{
+						"ports": {
+							"longdesc": "See {ref}`network-forwards-port-specifications`.",
+							"required": "no",
+							"shortdesc": "List of port specifications",
+							"type": "port list"
+						}
+					}
+				]
+			},
+			"port-properties": {
+				"keys": [
+					{
+						"description": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Description of the port or ports",
+							"type": "string"
+						}
+					},
+					{
+						"listen_port": {
+							"longdesc": "For example: `80,90-100`",
+							"required": "yes",
+							"shortdesc": "Listen port or ports",
+							"type": "string"
+						}
+					},
+					{
+						"protocol": {
+							"longdesc": " Possible values are `tcp` and `udp`.",
+							"required": "yes",
+							"shortdesc": "Protocol for the port or ports",
+							"type": "string"
+						}
+					},
+					{
+						"target_address": {
+							"longdesc": "",
+							"required": "yes",
+							"shortdesc": "IP address to forward to",
+							"type": "string"
+						}
+					},
+					{
+						"target_port": {
+							"defaultdesc": "same as `listen_port`",
+							"longdesc": "For example: `70,80-90` or `90`",
+							"required": "no",
+							"shortdesc": "Target port or ports",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"network-load-balancer": {
+			"load-balancer-backend-properties": {
+				"keys": [
+					{
+						"description": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Description of the backend",
+							"type": "string"
+						}
+					},
+					{
+						"name": {
+							"longdesc": "",
+							"required": "yes",
+							"shortdesc": "Name of the backend",
+							"type": "string"
+						}
+					},
+					{
+						"target_address": {
+							"longdesc": "",
+							"required": "yes",
+							"shortdesc": "IP address to forward to",
+							"type": "string"
+						}
+					},
+					{
+						"target_port": {
+							"defaultdesc": "same as {config:option}`network-load-balancer-load-balancer-port-properties:listen_port`",
+							"longdesc": "For example: `70,80-90` or `90`",
+							"required": "no",
+							"shortdesc": "Target port or ports",
+							"type": "string"
+						}
+					}
+				]
+			},
+			"load-balancer-port-properties": {
+				"keys": [
+					{
+						"description": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Description of the port or ports",
+							"type": "string"
+						}
+					},
+					{
+						"listen_port": {
+							"longdesc": "For example: `80,90-100`",
+							"required": "yes",
+							"shortdesc": "Listen port or ports",
+							"type": "string"
+						}
+					},
+					{
+						"protocol": {
+							"longdesc": "Possible values are `tcp` and `udp`.",
+							"required": "yes",
+							"shortdesc": "Protocol for the port or ports",
+							"type": "string"
+						}
+					},
+					{
+						"target_backend": {
+							"longdesc": "",
+							"required": "yes",
+							"shortdesc": "Backend name or names to forward to",
+							"type": "backend list"
+						}
+					}
+				]
+			},
+			"load-balancer-properties": {
+				"keys": [
+					{
+						"backends": {
+							"longdesc": "See {ref}`network-load-balancers-backend-specifications`.",
+							"required": "no",
+							"shortdesc": "List of backend specifications",
+							"type": "backend list"
+						}
+					},
+					{
+						"config": {
+							"longdesc": "The only supported keys are `user.*` custom keys.",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string set"
+						}
+					},
+					{
+						"description": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Description of the network load balancer",
+							"type": "string"
+						}
+					},
+					{
+						"listen_address": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "IP address to listen on",
+							"type": "string"
+						}
+					},
+					{
+						"ports": {
+							"longdesc": "See {ref}`network-load-balancers-port-specifications`.",
+							"required": "no",
+							"shortdesc": "List of port specifications",
+							"type": "port list"
+						}
+					}
+				]
+			}
+		},
 		"network-macvlan": {
 			"network-conf": {
 				"keys": [
@@ -3687,6 +4020,60 @@
 				]
 			}
 		},
+		"network-peering": {
+			"peering-properties": {
+				"keys": [
+					{
+						"config": {
+							"longdesc": "The only supported keys are `user.*` custom keys.",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string set"
+						}
+					},
+					{
+						"description": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Description of the network peering",
+							"type": "string"
+						}
+					},
+					{
+						"name": {
+							"longdesc": "",
+							"required": "yes",
+							"shortdesc": "Name of the network peering on the local network",
+							"type": "string"
+						}
+					},
+					{
+						"status": {
+							"longdesc": "Indicates if mutual peering exists with the target network.\nThis property is read-only and cannot be updated.",
+							"required": "--",
+							"shortdesc": "Status indicating if pending or created",
+							"type": "string"
+						}
+					},
+					{
+						"target_network": {
+							"longdesc": "This option must be set at create time.",
+							"required": "yes",
+							"shortdesc": "Which network to create a peering with",
+							"type": "string"
+						}
+					},
+					{
+						"target_project": {
+							"longdesc": "This option must be set at create time.",
+							"required": "yes",
+							"shortdesc": "Which project the target network exists in",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
 		"network-physical": {
 			"network-conf": {
 				"keys": [
@@ -3907,6 +4294,89 @@
 							"longdesc": "",
 							"shortdesc": "VLAN ID to attach to",
 							"type": "integer"
+						}
+					}
+				]
+			}
+		},
+		"network-zone": {
+			"config-options": {
+				"keys": [
+					{
+						"dns.nameservers": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Comma-separated list of DNS server FQDNs (for NS records)",
+							"type": "string set"
+						}
+					},
+					{
+						"network.nat": {
+							"defaultdesc": true,
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Whether to generate records for NAT-ed subnets",
+							"type": "bool"
+						}
+					},
+					{
+						"peers.NAME.address": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "IP address of a DNS server",
+							"type": "string"
+						}
+					},
+					{
+						"peers.NAME.key": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "TSIG key for the server",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					}
+				]
+			},
+			"record-properties": {
+				"keys": [
+					{
+						"config": {
+							"longdesc": "The only supported keys are `user.*` custom keys.",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string set"
+						}
+					},
+					{
+						"description": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Description of the record",
+							"type": "string"
+						}
+					},
+					{
+						"entries": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "List of DNS entries",
+							"type": "entry list"
+						}
+					},
+					{
+						"name": {
+							"longdesc": "",
+							"required": "yes",
+							"shortdesc": "Unique name of the record",
+							"type": "string"
 						}
 					}
 				]
