@@ -2563,6 +2563,121 @@ See {ref}`instance-name-requirements`.
 ```
 
 <!-- config group instance-property-instance-conf end -->
+<!-- config group network-acl-acl-properties start -->
+```{config:option} config network-acl-acl-properties
+:required: "no"
+:shortdesc: "User-provided free-form key/value pairs"
+:type: "string set"
+The only supported keys are `user.*` custom keys.
+```
+
+```{config:option} description network-acl-acl-properties
+:required: "no"
+:shortdesc: "Description of the network ACL"
+:type: "string"
+
+```
+
+```{config:option} egress network-acl-acl-properties
+:required: "no"
+:shortdesc: "Egress traffic rules"
+:type: "rule list"
+
+```
+
+```{config:option} ingress network-acl-acl-properties
+:required: "no"
+:shortdesc: "Ingress traffic rules"
+:type: "rule list"
+
+```
+
+```{config:option} name network-acl-acl-properties
+:required: "yes"
+:shortdesc: "Unique name of the network ACL in the project"
+:type: "string"
+
+```
+
+<!-- config group network-acl-acl-properties end -->
+<!-- config group network-acl-rule-properties start -->
+```{config:option} action network-acl-rule-properties
+:required: "yes"
+:shortdesc: "Action to take for matching traffic"
+:type: "string"
+Possible values are `allow`, `reject`, and `drop`.
+```
+
+```{config:option} description network-acl-rule-properties
+:required: "no"
+:shortdesc: "Description of the rule"
+:type: "string"
+
+```
+
+```{config:option} destination network-acl-rule-properties
+:required: "no"
+:shortdesc: "Comma-separated list of destinations"
+:type: "string"
+Destinations can be specified as CIDR or IP ranges, destination subject name selectors (for egress rules), or be left empty for any.
+```
+
+```{config:option} destination_port network-acl-rule-properties
+:required: "no"
+:shortdesc: "Destination ports or port ranges"
+:type: "string"
+This option is valid only if the protocol is `udp` or `tcp`.
+Specify a comma-separated list of ports or port ranges (start-end inclusive), or leave the value empty for any.
+```
+
+```{config:option} icmp_code network-acl-rule-properties
+:required: "no"
+:shortdesc: "ICMP message code"
+:type: "string"
+This option is valid only if the protocol is `icmp4` or `icmp6`.
+Specify the ICMP code number, or leave the value empty for any.
+```
+
+```{config:option} icmp_type network-acl-rule-properties
+:required: "no"
+:shortdesc: "Type of ICMP message"
+:type: "string"
+This option is valid only if the protocol is `icmp4` or `icmp6`.
+Specify the ICMP type number, or leave the value empty for any.
+```
+
+```{config:option} protocol network-acl-rule-properties
+:required: "no"
+:shortdesc: "Protocol to match"
+:type: "string"
+Possible values are `icmp4`, `icmp6`, `tcp`, and `udp`.
+Leave the value empty to match any protocol.
+```
+
+```{config:option} source network-acl-rule-properties
+:required: "no"
+:shortdesc: "Comma-separated list of sources"
+:type: "string"
+Sources can be specified as CIDR or IP ranges, source subject name selectors (for ingress rules), or be left empty for any.
+```
+
+```{config:option} source_port network-acl-rule-properties
+:required: "no"
+:shortdesc: "Source ports or port ranges"
+:type: "string"
+This option is valid only if the protocol is `udp` or `tcp`.
+Specify a comma-separated list of ports or port ranges (start-end inclusive), or leave the value empty for any.
+```
+
+```{config:option} state network-acl-rule-properties
+:defaultdesc: "`enabled`"
+:required: "yes"
+:shortdesc: "State of the rule"
+:type: "string"
+Possible values are `enabled`, `disabled`, and `logged`.
+```
+
+<!-- config group network-acl-rule-properties end -->
 <!-- config group network-bridge-network-conf start -->
 ```{config:option} bgp.ipv4.nexthop network-bridge-network-conf
 :condition: "BGP server"
@@ -3020,6 +3135,172 @@ Possible values are `vxlan` and `gre`.
 ```
 
 <!-- config group network-bridge-network-conf end -->
+<!-- config group network-forward-forward-properties start -->
+```{config:option} config network-forward-forward-properties
+:required: "no"
+:shortdesc: "User-provided free-form key/value pairs"
+:type: "string set"
+The only supported keys are `target_address` and `user.*` custom keys.
+```
+
+```{config:option} description network-forward-forward-properties
+:required: "yes"
+:shortdesc: "Description of the network forward"
+:type: "string"
+
+```
+
+```{config:option} listen_address network-forward-forward-properties
+:required: "no"
+:shortdesc: "IP address to listen on"
+:type: "string"
+
+```
+
+```{config:option} ports network-forward-forward-properties
+:required: "no"
+:shortdesc: "List of port specifications"
+:type: "port list"
+See {ref}`network-forwards-port-specifications`.
+```
+
+<!-- config group network-forward-forward-properties end -->
+<!-- config group network-forward-port-properties start -->
+```{config:option} description network-forward-port-properties
+:required: "no"
+:shortdesc: "Description of the port or ports"
+:type: "string"
+
+```
+
+```{config:option} listen_port network-forward-port-properties
+:required: "yes"
+:shortdesc: "Listen port or ports"
+:type: "string"
+For example: `80,90-100`
+```
+
+```{config:option} protocol network-forward-port-properties
+:required: "yes"
+:shortdesc: "Protocol for the port or ports"
+:type: "string"
+ Possible values are `tcp` and `udp`.
+```
+
+```{config:option} target_address network-forward-port-properties
+:required: "yes"
+:shortdesc: "IP address to forward to"
+:type: "string"
+
+```
+
+```{config:option} target_port network-forward-port-properties
+:defaultdesc: "same as `listen_port`"
+:required: "no"
+:shortdesc: "Target port or ports"
+:type: "string"
+For example: `70,80-90` or `90`
+```
+
+<!-- config group network-forward-port-properties end -->
+<!-- config group network-load-balancer-load-balancer-backend-properties start -->
+```{config:option} description network-load-balancer-load-balancer-backend-properties
+:required: "no"
+:shortdesc: "Description of the backend"
+:type: "string"
+
+```
+
+```{config:option} name network-load-balancer-load-balancer-backend-properties
+:required: "yes"
+:shortdesc: "Name of the backend"
+:type: "string"
+
+```
+
+```{config:option} target_address network-load-balancer-load-balancer-backend-properties
+:required: "yes"
+:shortdesc: "IP address to forward to"
+:type: "string"
+
+```
+
+```{config:option} target_port network-load-balancer-load-balancer-backend-properties
+:defaultdesc: "same as {config:option}`network-load-balancer-load-balancer-port-properties:listen_port`"
+:required: "no"
+:shortdesc: "Target port or ports"
+:type: "string"
+For example: `70,80-90` or `90`
+```
+
+<!-- config group network-load-balancer-load-balancer-backend-properties end -->
+<!-- config group network-load-balancer-load-balancer-port-properties start -->
+```{config:option} description network-load-balancer-load-balancer-port-properties
+:required: "no"
+:shortdesc: "Description of the port or ports"
+:type: "string"
+
+```
+
+```{config:option} listen_port network-load-balancer-load-balancer-port-properties
+:required: "yes"
+:shortdesc: "Listen port or ports"
+:type: "string"
+For example: `80,90-100`
+```
+
+```{config:option} protocol network-load-balancer-load-balancer-port-properties
+:required: "yes"
+:shortdesc: "Protocol for the port or ports"
+:type: "string"
+Possible values are `tcp` and `udp`.
+```
+
+```{config:option} target_backend network-load-balancer-load-balancer-port-properties
+:required: "yes"
+:shortdesc: "Backend name or names to forward to"
+:type: "backend list"
+
+```
+
+<!-- config group network-load-balancer-load-balancer-port-properties end -->
+<!-- config group network-load-balancer-load-balancer-properties start -->
+```{config:option} backends network-load-balancer-load-balancer-properties
+:required: "no"
+:shortdesc: "List of backend specifications"
+:type: "backend list"
+See {ref}`network-load-balancers-backend-specifications`.
+```
+
+```{config:option} config network-load-balancer-load-balancer-properties
+:required: "no"
+:shortdesc: "User-provided free-form key/value pairs"
+:type: "string set"
+The only supported keys are `user.*` custom keys.
+```
+
+```{config:option} description network-load-balancer-load-balancer-properties
+:required: "no"
+:shortdesc: "Description of the network load balancer"
+:type: "string"
+
+```
+
+```{config:option} listen_address network-load-balancer-load-balancer-properties
+:required: "no"
+:shortdesc: "IP address to listen on"
+:type: "string"
+
+```
+
+```{config:option} ports network-load-balancer-load-balancer-properties
+:required: "no"
+:shortdesc: "List of port specifications"
+:type: "port list"
+See {ref}`network-load-balancers-port-specifications`.
+```
+
+<!-- config group network-load-balancer-load-balancer-properties end -->
 <!-- config group network-macvlan-network-conf start -->
 ```{config:option} gvrp network-macvlan-network-conf
 :defaultdesc: "`false`"
@@ -3254,6 +3535,51 @@ The specified action is used for all ingress traffic that doesn’t match any AC
 ```
 
 <!-- config group network-ovn-network-conf end -->
+<!-- config group network-peering-peering-properties start -->
+```{config:option} config network-peering-peering-properties
+:required: "no"
+:shortdesc: "User-provided free-form key/value pairs"
+:type: "string set"
+The only supported keys are `user.*` custom keys.
+```
+
+```{config:option} description network-peering-peering-properties
+:required: "no"
+:shortdesc: "Description of the network peering"
+:type: "string"
+
+```
+
+```{config:option} name network-peering-peering-properties
+:required: "yes"
+:shortdesc: "Name of the network peering on the local network"
+:type: "string"
+
+```
+
+```{config:option} status network-peering-peering-properties
+:required: "--"
+:shortdesc: "Status indicating if pending or created"
+:type: "string"
+Indicates if mutual peering exists with the target network.
+This property is read-only and cannot be updated.
+```
+
+```{config:option} target_network network-peering-peering-properties
+:required: "yes"
+:shortdesc: "Which network to create a peering with"
+:type: "string"
+This option must be set at create time.
+```
+
+```{config:option} target_project network-peering-peering-properties
+:required: "yes"
+:shortdesc: "Which project the target network exists in"
+:type: "string"
+This option must be set at create time.
+```
+
+<!-- config group network-peering-peering-properties end -->
 <!-- config group network-physical-network-conf start -->
 ```{config:option} bgp.peers.NAME.address network-physical-network-conf
 :condition: "BGP server"
@@ -3444,6 +3770,74 @@ Possible values are `l2proxy` (proxy ARP/NDP) and `routed`.
 ```
 
 <!-- config group network-sriov-network-conf end -->
+<!-- config group network-zone-config-options start -->
+```{config:option} dns.nameservers network-zone-config-options
+:required: "no"
+:shortdesc: "Comma-separated list of DNS server FQDNs (for NS records)"
+:type: "string set"
+
+```
+
+```{config:option} network.nat network-zone-config-options
+:defaultdesc: "true"
+:required: "no"
+:shortdesc: "Whether to generate records for NAT-ed subnets"
+:type: "bool"
+
+```
+
+```{config:option} peers.NAME.address network-zone-config-options
+:required: "no"
+:shortdesc: "IP address of a DNS server"
+:type: "string"
+
+```
+
+```{config:option} peers.NAME.key network-zone-config-options
+:required: "no"
+:shortdesc: "TSIG key for the server"
+:type: "string"
+
+```
+
+```{config:option} user.* network-zone-config-options
+:required: "no"
+:shortdesc: "User-provided free-form key/value pairs"
+:type: "string"
+
+```
+
+<!-- config group network-zone-config-options end -->
+<!-- config group network-zone-record-properties start -->
+```{config:option} config network-zone-record-properties
+:required: "no"
+:shortdesc: "User-provided free-form key/value pairs"
+:type: "string set"
+The only supported keys are `user.*` custom keys.
+```
+
+```{config:option} description network-zone-record-properties
+:required: "no"
+:shortdesc: "Description of the record"
+:type: "string"
+
+```
+
+```{config:option} entries network-zone-record-properties
+:required: "no"
+:shortdesc: "List of DNS entries"
+:type: "entry list"
+
+```
+
+```{config:option} name network-zone-record-properties
+:required: "yes"
+:shortdesc: "Unique name of the record"
+:type: "string"
+
+```
+
+<!-- config group network-zone-record-properties end -->
 <!-- config group project-features start -->
 ```{config:option} features.images project-features
 :defaultdesc: "`false`"
