@@ -31,6 +31,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # A non-shallow clone is needed for the Differential ShellCheck
+          fetch-depth: 0
 
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
@@ -43,6 +46,7 @@ jobs:
         uses: redhat-plumbers-in-action/differential-shellcheck@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          strict-check-on-push: true
         if: github.event_name == 'pull_request'
 
       - name: Upload artifact with ShellCheck defects in SARIF format
