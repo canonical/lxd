@@ -119,6 +119,7 @@ For example:
 
     sudo snap-proxy override lxd stable=25846
 
+(howto-snap-configure)=
 ## Configure the snap
 
 The LXD snap has several configuration options that control the behavior of the installed LXD server.
