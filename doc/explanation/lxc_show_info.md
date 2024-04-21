@@ -1,7 +1,7 @@
 (lxc-show-info)=
 # About `lxc` `show` and `info`
 
-For the entities managed by LXD, the `lxc` command provides a 'list' sub-command, and might provide `show` and `info` sub-commands.
+For the entities managed by LXD, the `lxc` command provides a `list` sub-command, and might provide `show` and `info` sub-commands.
 The purpose of the `info` sub-command is to show current state information, and the purpose of the `show` sub-command is to show configuration information and how the entity is used by other entities.
 
 For example, the `lxc network info` command shows IP address and traffic statistics:
@@ -12,8 +12,8 @@ For example, the `lxc network info` command shows IP address and traffic statist
     State: up
 
     Ips:
-      inet    10.247.40.1
-      inet6   fd42:d389:f4a1:53d2::1
+      inet    192.0.2.1
+      inet6   2001:db8:f4a1:53d2::1
       inet6   fe80::216:3eff:fed3:ec41
 
     Network usage:
@@ -25,9 +25,9 @@ For example, the `lxc network info` command shows IP address and traffic statist
 The `lxc network show` command, on the other hand, shows how the network is configured, and which entities are using the network:
 
     config:
-      ipv4.address: 10.247.40.1/24
+      ipv4.address: 192.0.2.1/24
       ipv4.nat: "true"
-      ipv6.address: fd42:d389:f4a1:53d2::1/64
+      ipv6.address: 2001:db8:f4a1:53d2::1/64
       ipv6.nat: "true"
     description: ""
     name: lxdbr0
