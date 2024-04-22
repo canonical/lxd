@@ -767,7 +767,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 			vol := &dbVol.StorageVolume
 
 			volumeName, _, _ := api.GetParentAndSnapshotName(vol.Name)
-			if !userHasPermission(entity.StorageVolumeURL(vol.Project, "", poolName, dbVol.Type, volumeName)) {
+			if !userHasPermission(entity.StorageVolumeURL(vol.Project, "", dbVol.Pool, dbVol.Type, volumeName)) {
 				continue
 			}
 
@@ -791,7 +791,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	for _, dbVol := range dbVolumes {
 		volumeName, _, _ := api.GetParentAndSnapshotName(dbVol.Name)
 
-		if !userHasPermission(entity.StorageVolumeURL(dbVol.Project, "", poolName, dbVol.Type, volumeName)) {
+		if !userHasPermission(entity.StorageVolumeURL(dbVol.Project, "", dbVol.Pool, dbVol.Type, volumeName)) {
 			continue
 		}
 
