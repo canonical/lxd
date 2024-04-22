@@ -544,6 +544,8 @@ github.com/openfga/language/pkg/go v0.0.0-20240401190211-052b5357673a h1:aA4Q62x
 github.com/openfga/language/pkg/go v0.0.0-20240401190211-052b5357673a/go.mod h1:iwtNOC/ypBBmN4ND4JqtLdgskIEN67GRP6HuTVa0dKE=
 github.com/openfga/language/pkg/go v0.0.0-20240409225820-a53ea2892d6d h1:n44DfITs+CLCYJIgsryJkG2ElwOZJ3huekPZKydPi7U=
 github.com/openfga/language/pkg/go v0.0.0-20240409225820-a53ea2892d6d/go.mod h1:wkI4GcY3yNNuFMU2ncHPWqBaF7XylQTkJYfBi2pIpK8=
+github.com/openfga/language/pkg/go v0.0.0-20240415101832-dc43b60dcca8 h1:blfezb4R/kOtcbc47gut7QrxGdYdslkoC+jPjRrOyHo=
+github.com/openfga/language/pkg/go v0.0.0-20240415101832-dc43b60dcca8/go.mod h1:wkI4GcY3yNNuFMU2ncHPWqBaF7XylQTkJYfBi2pIpK8=
 github.com/openfga/openfga v1.5.2 h1:CqBGMYv5S0oBZkxxDDlErF7mE6rieL04bTvx5nEHZnM=
 github.com/openfga/openfga v1.5.2/go.mod h1:kL/pxf40rxuqasF8TWnGZAVF1aCkJG8xQZ8U1rVzA/c=
 github.com/openfga/openfga v1.5.3 h1:Uynmlsx3iz/eiP7wW9n2dbwxDh/kiS/27W6C24Y7oyY=
