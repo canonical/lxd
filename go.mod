@@ -48,7 +48,7 @@ require (
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	github.com/zitadel/oidc/v2 v2.12.0
-	go.starlark.net v0.0.0-20240329153429-e6e8e7ce1b7a
+	go.starlark.net v0.0.0-20240411212711-9b43f0afd521
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.22.0
 	golang.org/x/oauth2 v0.19.0
