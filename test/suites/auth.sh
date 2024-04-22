@@ -316,6 +316,8 @@ user_is_project_operator() {
     lxc_remote network zone delete oidc:test-network-zone
     pool_name="$(lxc_remote storage list oidc: -f csv | cut -d, -f1)"
     lxc_remote storage volume create "oidc:${pool_name}" test-volume
+    lxc_remote query oidc:/1.0/storage-volumes | grep -F "/1.0/storage-pools/${pool_name}/volumes/custom/test-volume"
+    lxc_remote query oidc:/1.0/storage-volumes/custom | grep -F "/1.0/storage-pools/${pool_name}/volumes/custom/test-volume"
     lxc_remote storage volume delete "oidc:${pool_name}" test-volume
     lxc_remote launch testimage oidc:operator-foo
     LXC_LOCAL='' lxc_remote exec oidc:operator-foo -- echo "bar"
