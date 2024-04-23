@@ -509,7 +509,7 @@ func (d *common) deviceVolatileSetFunc(devName string) func(save map[string]stri
 
 // expandConfig applies the config of each profile in order, followed by the local config.
 func (d *common) expandConfig() error {
-	var globalConfigDump map[string]any
+	var globalConfigDump map[string]string
 	if d.state.GlobalConfig != nil {
 		globalConfigDump = d.state.GlobalConfig.Dump()
 	}
