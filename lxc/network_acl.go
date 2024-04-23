@@ -325,6 +325,10 @@ func (c *cmdNetworkACLCreate) command() *cobra.Command {
 	cmd.Use = usage("create", i18n.G("[<remote>:]<ACL> [key=value...]"))
 	cmd.Short = i18n.G("Create new network ACLs")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Create new network ACLs"))
+	cmd.Example = cli.FormatSection("", i18n.G(`lxc network acl create a1
+
+lxc network acl create a1 < config.yaml
+    Create network acl with configuration from config.yaml`))
 
 	cmd.RunE = c.run
 
