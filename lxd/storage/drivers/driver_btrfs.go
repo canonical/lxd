@@ -155,7 +155,7 @@ func (d *btrfs) Create() error {
 	}
 
 	loopPath := loopFilePath(d.name)
-	if d.config["source"] == "" || d.config["source"] == loopPath {
+	if d.config["volatile.initial_source"] == "" || d.config["volatile.initial_source"] == loopPath {
 		// Create a loop based pool.
 		d.config["source"] = loopPath
 
@@ -210,6 +210,8 @@ func (d *btrfs) Create() error {
 		if tryExists(fmt.Sprintf("/dev/disk/by-uuid/%s", devUUID)) {
 			// Override the config to use the UUID.
 			d.config["source"] = devUUID
+		} else {
+			d.config["source"] = d.config["volatile.initial_source"]
 		}
 	} else if d.config["source"] != "" {
 		hostPath := shared.HostPath(d.config["source"])
