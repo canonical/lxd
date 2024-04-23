@@ -333,7 +333,7 @@ _have lxc && {
       "config")
         case $pos in
           2)
-            COMPREPLY=( $(compgen -W "get set unset show edit metadata template device trust uefi" -- "$cur") )
+            COMPREPLY=( $(compgen -W "device edit get metadata set show template trust uefi unset" -- "$cur") )
             ;;
           3)
             case ${no_dashargs[2]} in
@@ -344,13 +344,13 @@ _have lxc && {
                 COMPREPLY=( $(compgen -W "edit get set show unset" -- "$cur") )
                 ;;
               "device")
-                COMPREPLY=( $(compgen -W "add get set unset list show remove" -- "$cur") )
+                COMPREPLY=( $(compgen -W "add get list override remove set show unset" -- "$cur") )
                 ;;
               "metadata")
                 COMPREPLY=( $(compgen -W "show edit" -- "$cur") )
                 ;;
               "template")
-                COMPREPLY=( $(compgen -W "list show create edit delete" -- "$cur") )
+                COMPREPLY=( $(compgen -W "create delete edit list show" -- "$cur") )
                 ;;
               "show"|"edit")
                 _lxd_names
