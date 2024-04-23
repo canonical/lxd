@@ -505,7 +505,7 @@ var ConfigSchema = config.Schema{
 	//  type: string
 	//  scope: global
 	//  shortdesc: Password to be provided by clients to set up a trust
-	"core.trust_password": {Hidden: true, Setter: passwordSetter},
+	"core.trust_password": {Setter: passwordSetter},
 
 	// lxdmeta:generate(entities=server; group=core; key=core.trust_ca_certificates)
 	//
