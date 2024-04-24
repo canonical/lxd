@@ -991,8 +991,8 @@ func (n *common) forwardValidate(listenAddress net.IP, forward api.NetworkForwar
 }
 
 // ForwardCreate returns ErrNotImplemented for drivers that do not support forwards.
-func (n *common) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) error {
-	return ErrNotImplemented
+func (n *common) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) (net.IP, error) {
+	return nil, ErrNotImplemented
 }
 
 // ForwardUpdate returns ErrNotImplemented for drivers that do not support forwards.
@@ -1304,8 +1304,8 @@ func (n *common) loadBalancerValidate(listenAddress net.IP, forward api.NetworkL
 }
 
 // LoadBalancerCreate returns ErrNotImplemented for drivers that do not support load balancers.
-func (n *common) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clientType request.ClientType) error {
-	return ErrNotImplemented
+func (n *common) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clientType request.ClientType) (net.IP, error) {
+	return nil, ErrNotImplemented
 }
 
 // LoadBalancerUpdate returns ErrNotImplemented for drivers that do not support load balancers..

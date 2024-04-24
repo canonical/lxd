@@ -277,12 +277,12 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	err = n.LoadBalancerCreate(req, clientType)
+	listenAddress, err := n.LoadBalancerCreate(req, clientType)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed creating load balancer: %w", err))
 	}
 
-	lc := lifecycle.NetworkLoadBalancerCreated.Event(n, req.ListenAddress, request.CreateRequestor(r), nil)
+	lc := lifecycle.NetworkLoadBalancerCreated.Event(n, listenAddress.String(), request.CreateRequestor(r), nil)
 	s.Events.SendLifecycle(projectName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
