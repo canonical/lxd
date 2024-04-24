@@ -2,8 +2,10 @@ package network
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -212,6 +214,87 @@ func (n *ovn) projectRestrictedSubnets(p *api.Project, uplinkNetworkName string)
 	}
 
 	return projectRestrictedSubnets, nil
+}
+
+func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRoutes []*net.IPNet, projectRestrictedSubnets []*net.IPNet, validator func(*net.IPNet) error) (*net.IPNet, error) {
+	// Ensure a sensible deadline is set.
+	_, hasDeadline := ctx.Deadline()
+	var cancel context.CancelFunc = func() {}
+	if !hasDeadline {
+		ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
+	}
+
+	defer cancel()
+
+	var subnets []*net.IPNet
+	for _, projectRestrictedSubnet := range projectRestrictedSubnets {
+		if (projectRestrictedSubnet.IP.To4() != nil && ipVersion == 4) || (projectRestrictedSubnet.IP.To4() == nil && ipVersion == 6) {
+			subnets = append(subnets, projectRestrictedSubnet)
+		}
+	}
+
+	if projectRestrictedSubnets == nil {
+		for _, uplinkRoute := range uplinkRoutes {
+			if (uplinkRoute.IP.To4() != nil && ipVersion == 4) || (uplinkRoute.IP.To4() == nil && ipVersion == 6) {
+				subnets = append(subnets, uplinkRoute)
+			}
+		}
+	}
+
+	if len(subnets) == 0 {
+		return nil, fmt.Errorf("No IPv%d routes are available for this network", ipVersion)
+	}
+
+	if len(subnets) > 1 {
+		// Shuffle the subnets so we aren't always picking from the same one.
+		for i := range subnets {
+			j := rand.Intn(i + 1)
+			subnets[i], subnets[j] = subnets[j], subnets[i]
+		}
+	}
+
+	// Distribute the deadline across the number of subnets we're attempting to find an address in.
+	deadline, _ := ctx.Deadline()
+	perSubnetTimeout := time.Until(deadline) / time.Duration(len(subnets))
+
+	for _, subnet := range subnets {
+		subnetCtx, subnetCtxCancel := context.WithTimeout(ctx, perSubnetTimeout)
+		addressInSubnet, err := randomAddressInSubnet(subnetCtx, *subnet, func(n net.IP) error {
+			if validator == nil {
+				return nil
+			}
+
+			ipnet, err := ParseIPToNet(n.String())
+			if err != nil {
+				return err
+			}
+
+			return validator(ipnet)
+		})
+
+		subnetCtxCancel()
+
+		// If the timeout for this subnet is exceeded we want to iterate, so ignore the error. If the input context is
+		// cancelled we will exit the loop on the next iteration.
+		if err != nil && errors.Is(err, context.DeadlineExceeded) && ctx.Err() == nil {
+			continue
+		}
+
+		// If the subnet was exhausted, continue to the next subnet.
+		var subnetExhaustedErr noAvailableAddressErr
+		if err != nil && errors.As(err, &subnetExhaustedErr) {
+			continue
+		}
+
+		// Return if we encounter any other error.
+		if err != nil {
+			return nil, fmt.Errorf("Failed to determine an available external address: %w", err)
+		}
+
+		return ParseIPToNet(addressInSubnet.String())
+	}
+
+	return nil, fmt.Errorf("Failed to determine an available external address: %w", context.DeadlineExceeded)
 }
 
 // validateExternalSubnet checks the supplied ipNet is allowed within the uplink routes and project
