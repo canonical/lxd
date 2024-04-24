@@ -5,7 +5,7 @@ discourse: ubuntu:37214, ubuntu:37327
 (installing)=
 # How to install LXD
 
-The easiest way to install LXD is to {ref}`install one of the available packages <installing-from-package>`, but you can also {ref}`install LXD from the sources <installing_from_source>`.
+The easiest way to install LXD is to {ref}`install one of the available packages <installing-from-package>`, but you can also {ref}`install LXD from the sources <installing-from-source>`.
 
 After installing LXD, make sure you have a `lxd` group on your system.
 Users in this group can interact with LXD.
@@ -74,6 +74,12 @@ On Ubuntu 18.04, if you previously had the LXD deb package installed, you can mi
 After successfully running the `lxd.migrate` command, you can then switch to a newer snap channel if desired, like the latest one:
 
         sudo refresh lxd --channel=latest/stable
+```
+
+If you want the current user to be able to interact with the LXD daemon, add it to the `lxd` group as the installation process does not add it for you:
+
+```bash
+getent group lxd | grep -qwF "$USER" || sudo usermod -aG lxd "$USER"
 ```
 
 (installing-other)=
@@ -160,6 +166,7 @@ To download a specific build:
 1. Filter for the branch or tag that you are interested in (for example, the latest release tag or `main`).
 1. Select the latest build and download the suitable artifact.
 
+(installing-from-source)=
 (installing_from_source)=
 ## Install LXD from source
 
@@ -271,6 +278,13 @@ You'll need sub{u,g}ids for root, so that LXD can create the unprivileged contai
 echo "root:1000000:1000000000" | sudo tee -a /etc/subuid /etc/subgid
 ```
 
+By default, only users added to the `lxd` group can interact with the LXD daemon. Installing from source doesn't guarantee that the `lxd` group exists in the system. If you want the current user (or any other user) to be able to interact with the LXD daemon, add it to the `lxd` group:
+
+```bash
+getent group lxd >/dev/null || sudo groupadd --system lxd # create the group if needed
+getent group lxd | grep -qwF "$USER" || sudo usermod -aG lxd "$USER"
+```
+
 Now you can run the daemon (the `--group sudo` bit allows everyone in the `sudo`
 group to talk to LXD; you can create your own group if you want):
 
@@ -289,9 +303,19 @@ Access control for LXD is based on group membership.
 The root user and all members of the `lxd` group can interact with the local daemon.
 See {ref}`security-daemon-access` for more information.
 
-If the `lxd` group is missing on your system, create it and restart the LXD daemon.
-You can then add trusted users to the group.
-Anyone added to this group will have full control over LXD.
+On Ubuntu images, the `lxd` group already exists and the main user is automatically added to it. The group is also created during installation if you {ref}`installed LXD from the snap<installing-from-package>`. If the `lxd` group is missing on your system (as might be the case if you {ref}`installed LXD from the sources <installing-from-source>`), create it and restart the LXD daemon:
+
+```bash
+getent group lxd >/dev/null || sudo groupadd --system lxd
+```
+
+No users are added to the group on installation. You must add trusted users to the group so they can use LXD:
+
+```bash
+getent group lxd | grep -qwF "$USER" || sudo usermod -aG lxd "$USER" # adding current user as an example
+```
+
+Anyone added to this group will have full control over LXD. See {ref}`Access to the LXD daemon<security-daemon-access>` to better understand access control for LXD.
 
 Because group membership is normally only applied at login, you might need to either re-open your user session or use the `newgrp lxd` command in the shell you're using to talk to LXD.
 
