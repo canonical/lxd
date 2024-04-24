@@ -4788,21 +4788,6 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 	if clientType == request.ClientTypeNormal {
 		memberSpecific := false // OVN doesn't support per-member forwards.
 
-		err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			// Check if there is an existing forward using the same listen address.
-			_, _, err := tx.GetNetworkForward(ctx, n.ID(), memberSpecific, forward.ListenAddress)
-
-			return err
-		})
-		if err == nil {
-			return nil, api.StatusErrorf(http.StatusConflict, "A forward for that listen address already exists")
-		}
-
-		portMaps, err := n.forwardValidate(listenAddressNet.IP, forward.NetworkForwardPut)
-		if err != nil {
-			return nil, err
-		}
-
 		// Load the project to get uplink network restrictions.
 		var p *api.Project
 		var uplink *api.Network
@@ -4846,29 +4831,61 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 			return nil, err
 		}
 
-		// Check the listen address subnet is allowed within both the uplink's external routes and any
-		// project restricted subnets.
-		err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, listenAddressNet)
-		if err != nil {
-			return nil, err
-		}
+		checkAddressNotInUse := func(netip *net.IPNet) error {
+			// Check the listen address subnet doesn't fall within any existing OVN network external subnets.
+			for _, externalSubnetUser := range externalSubnetsInUse {
+				// Check if usage is from our own network.
+				if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
+					// Skip checking conflict with our own network's subnet or SNAT address.
+					// But do not allow other conflict with other usage types within our own network.
+					if externalSubnetUser.usageType == subnetUsageNetwork || externalSubnetUser.usageType == subnetUsageNetworkSNAT {
+						continue
+					}
+				}
 
-		// Check the listen address subnet doesn't fall within any existing OVN network external subnets.
-		for _, externalSubnetUser := range externalSubnetsInUse {
-			// Check if usage is from our own network.
-			if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
-				// Skip checking conflict with our own network's subnet or SNAT address.
-				// But do not allow other conflict with other usage types within our own network.
-				if externalSubnetUser.usageType == subnetUsageNetwork || externalSubnetUser.usageType == subnetUsageNetworkSNAT {
-					continue
+				if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
+					// This error is purposefully vague so that it doesn't reveal any names of
+					// resources potentially outside of the network's project.
+					return fmt.Errorf("Forward listen address %q overlaps with another network or NIC", listenAddressNet.String())
 				}
 			}
 
-			if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
-				// This error is purposefully vague so that it doesn't reveal any names of
-				// resources potentially outside of the network's project.
-				return nil, fmt.Errorf("Forward listen address %q overlaps with another network or NIC", listenAddressNet.String())
+			return nil
+		}
+
+		// We're auto-allocating the external IP address if the given listen address is unspecified.
+		if listenAddressNet.IP.IsUnspecified() {
+			ipVersion := 4
+			if forward.ListenAddress == net.IPv6zero.String() {
+				ipVersion = 6
 			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			listenAddressNet, err = n.randomExternalAddress(ctx, ipVersion, uplinkRoutes, projectRestrictedSubnets, checkAddressNotInUse)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to allocate an IPv%d address: %w", ipVersion, err)
+			}
+
+			forward.ListenAddress = listenAddressNet.IP.String()
+		} else {
+			// Check the listen address subnet is allowed within both the uplink's external routes and any
+			// project restricted subnets.
+			err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, listenAddressNet)
+			if err != nil {
+				return nil, err
+			}
+
+			err := checkAddressNotInUse(listenAddressNet)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		portMaps, err := n.forwardValidate(listenAddressNet.IP, forward.NetworkForwardPut)
+		if err != nil {
+			return nil, err
 		}
 
 		client, err := openvswitch.NewOVN(n.state)
