@@ -1,6 +1,9 @@
 package lxd
 
 import (
+	"fmt"
+	"net"
+
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -66,6 +69,18 @@ func (r *ProtocolLXD) CreateNetworkLoadBalancer(networkName string, loadBalancer
 	err := r.CheckExtension("network_load_balancer")
 	if err != nil {
 		return err
+	}
+
+	listenAddressIP := net.ParseIP(loadBalancer.ListenAddress)
+	if listenAddressIP == nil {
+		return fmt.Errorf("Invalid network load balancer listen address: %s", loadBalancer.ListenAddress)
+	}
+
+	if listenAddressIP.IsUnspecified() {
+		err := r.CheckExtension("network_allocate_external_ips")
+		if err != nil {
+			return err
+		}
 	}
 
 	// Send the request.
