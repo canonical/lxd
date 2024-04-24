@@ -563,7 +563,7 @@ jobs:
           go install github.com/canonical/lxd-ci/lxd-snapcraft@latest
           git clone -b "${TARGET}" git+ssh://lxdbot@git.launchpad.net/~canonical-lxd/lxd ~/lxd-pkg-snap-lp
           cd ~/lxd-pkg-snap-lp
-          lxd-snapcraft -set-version "git-${localRev:0:7}" -set-source-commit "${localRev}"
+          lxd-snapcraft -package lxd -set-version "git-${localRev:0:7}" -set-source-commit "${localRev}"
           git add --all
           git commit --all --quiet -s --allow-empty -m "Automatic upstream build (${TARGET})" -m "Upstream commit: ${localRev}"
           git show
