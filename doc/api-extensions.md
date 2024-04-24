@@ -2412,3 +2412,10 @@ allow list {config:option}`instance-miscellaneous:linux.kernel_modules`.
 
 This adds new configuration keys `serial`, `busnum` and `devnum` for device type `usb`.
 Feature has been added, to make it possible to distinguish between devices with identical `vendorid` and `productid`.
+
+## `network_allocate_external_ips`
+
+Adds the ability to use an unspecified IPv4 (`0.0.0.0`) or IPv6 (`::`) address in the `listen_address` field of the request body for `POST /1.0/networks/{networkName}/load-balancers` and `POST /1.0/networks/{networkName}/forwards`.
+If an unspecified IP address is used, supported drivers will allocate an available listen address automatically.
+Allocation of external IP addresses is currently supported by the OVN network driver.
+The OVN driver will allocate IP addresses from the subnets specified in the uplink network's `ipv4.routes` and `ipv6.routes` configuration options.
