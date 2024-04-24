@@ -27,7 +27,7 @@ sphinxcontrib-serializinghtml
 sphinxcontrib-jquery
 tornado
 urllib3
-myst-parser
+myst-parser==2.0.0
 sphinx-tabs
 sphinx-reredirects
 linkify-it-py
