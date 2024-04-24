@@ -75,18 +75,36 @@ To start an instance, send a PUT request to change the instance state:
 See {ref}`instances-manage-start` for more information.
 
 ````
+
+````{group-tab} UI
+
+To create an instance, go to the {guilabel}`Instances` section and click {guilabel}`Create instance`.
+
+On the resulting screen, optionally enter a name and description for the instance.
+Then click {guilabel}`Browse images` to select the image to be used for the instance.
+Depending on the selected image, you might be able to select the {ref}`instance type <expl-instances>` (container or virtual machine).
+You can also specify one or more profiles to use for the instance.
+
+To further tweak the instance configuration or add devices to the instance, go to any of the tabs under {guilabel}`Advanced`.
+You can also edit the full instance configuration on the {guilabel}`YAML configuration` tab.
+
+Finally, click {guilabel}`Create` or {guilabel}`Create and start` to create the instance.
+
+````
 `````
 
 ## Examples
 
-The following examples create the instances, but don't start them.
+The following CLI and API examples create the instances, but don't start them.
 If you are using the CLI client, you can use [`lxc launch`](lxc_launch.md) instead of [`lxc init`](lxc_init.md) to automatically start them after creation.
+
+In the UI, you can choose between {guilabel}`Create` and {guilabel}`Create and start` when you are ready to create the instance.
 
 ### Create a container
 
-To create a container with an Ubuntu 24.04 image from the `ubuntu` server using the instance name `ubuntu-container`, enter the following command:
+To create a container with an Ubuntu 24.04 image from the `ubuntu` server using the instance name `ubuntu-container`:
 
-````{tabs}
+`````{tabs}
 ```{group-tab} CLI
     lxc init ubuntu:24.04 ubuntu-container
 ```
@@ -101,13 +119,19 @@ To create a container with an Ubuntu 24.04 image from the `ubuntu` server using 
       }
     }'
 ```
+````{group-tab} UI
+```{figure} /images/UI/create_instance_ex1.png
+:width: 80%
+:alt: Create an Ubuntu 24.04 container
+```
 ````
+`````
 
 ### Create a virtual machine
 
-To create a virtual machine with an Ubuntu 24.04 image from the `ubuntu` server using the instance name `ubuntu-vm`, enter the following command:
+To create a virtual machine with an Ubuntu 24.04 image from the `ubuntu` server using the instance name `ubuntu-vm`:
 
-````{tabs}
+`````{tabs}
 ```{group-tab} CLI
     lxc init ubuntu:24.04 ubuntu-vm --vm
 ```
@@ -123,11 +147,17 @@ To create a virtual machine with an Ubuntu 24.04 image from the `ubuntu` server 
       "type": "virtual-machine"
     }'
 ```
+````{group-tab} UI
+```{figure} /images/UI/create_instance_ex2.png
+:width: 80%
+:alt: Create an Ubuntu 24.04 VM
+```
 ````
+`````
 
 Or with a bigger disk:
 
-````{tabs}
+`````{tabs}
 ```{group-tab} CLI
     lxc init ubuntu:24.04 ubuntu-vm-big --vm --device root,size=30GiB
 ```
@@ -151,21 +181,27 @@ Or with a bigger disk:
       "type": "virtual-machine"
     }'
 ```
+````{group-tab} UI
+```{figure} /images/UI/create_instance_ex2-2.png
+:width: 80%
+:alt: Configure the size of the root disk
+```
 ````
+`````
 
 ### Create a container with specific configuration options
 
-To create a container and limit its resources to one vCPU and 192 MiB of RAM, enter the following command:
+To create a container and limit its resources to one vCPU and 8 GiB of RAM:
 
-````{tabs}
+`````{tabs}
 ```{group-tab} CLI
-    lxc init ubuntu:24.04 ubuntu-limited --config limits.cpu=1 --config limits.memory=192MiB
+    lxc init ubuntu:24.04 ubuntu-limited --config limits.cpu=1 --config limits.memory=8GiB
 ```
 ```{group-tab} API
     lxc query --request POST /1.0/instances --data '{
       "config": {
         "limits.cpu": "1",
-        "limits.memory": "192MiB"
+        "limits.memory": "8GiB"
       },
       "name": "ubuntu-limited",
       "source": {
@@ -176,18 +212,24 @@ To create a container and limit its resources to one vCPU and 192 MiB of RAM, en
       }
     }'
 ```
+````{group-tab} UI
+```{figure} /images/UI/create_instance_ex3.png
+:width: 80%
+:alt: Configure resource limits
+```
 ````
+`````
 
 ### Create a VM on a specific cluster member
 
-To create a virtual machine on the cluster member `server2`, enter the following command:
+To create a virtual machine on the cluster member `micro2`, enter the following command:
 
-````{tabs}
+`````{tabs}
 ```{group-tab} CLI
-    lxc init ubuntu:24.04 ubuntu-vm-server2 --vm --target server2
+    lxc init ubuntu:24.04 ubuntu-vm-server2 --vm --target micro2
 ```
 ```{group-tab} API
-    lxc query --request POST /1.0/instances?target=server2 --data '{
+    lxc query --request POST /1.0/instances?target=micro2 --data '{
       "name": "ubuntu-vm-server2",
       "source": {
         "alias": "24.04",
@@ -198,12 +240,20 @@ To create a virtual machine on the cluster member `server2`, enter the following
       "type": "virtual-machine"
     }'
 ```
+````{group-tab} UI
+```{figure} /images/UI/create_instance_ex4.png
+:width: 80%
+:alt: Specify which cluster member to create an instance on
+```
 ````
+`````
 
 ### Create a container with a specific instance type
 
 LXD supports simple instance types for clouds.
 Those are represented as a string that can be passed at instance creation time.
+
+The list of supported clouds and instance types can be found at [`images.lxd.canonical.com/meta/instance-types/`](https://images.lxd.canonical.com/meta/instance-types/).
 
 The syntax allows the three following forms:
 
@@ -217,7 +267,7 @@ For example, the following three instance types are equivalent:
 - `aws:t2.micro`
 - `c1-m1`
 
-To create a container with this instance type, enter the following command:
+To create a container with this instance type:
 
 ````{tabs}
 ```{group-tab} CLI
@@ -235,21 +285,64 @@ To create a container with this instance type, enter the following command:
       }
     }'
 ```
+```{group-tab} UI
+Creating an instance with a specific cloud instance type is currently not possible through the UI.
+Configure the corresponding options manually or through a profile.
+```
 ````
-
-The list of supported clouds and instance types can be found at [`images.lxd.canonical.com/meta/instance-types/`](https://images.lxd.canonical.com/meta/instance-types/).
 
 ### Create a VM that boots from an ISO
 
-To create a VM that boots from an ISO, you must first create a VM.
-Let's assume that we want to create a VM and install it from the ISO image.
-In this scenario, use the following command to create an empty VM:
+To create a VM that boots from an ISO:
 
-````{tabs}
-```{group-tab} CLI
+`````{tabs}
+````{group-tab} CLI
+<!-- iso_vm_step1 start -->
+First, create an empty VM that we can later install from the ISO image:
+<!-- iso_vm_step1 end -->
+
     lxc init iso-vm --empty --vm
+
+<!-- iso_vm_step2 start -->
+The second step is to import an ISO image that can later be attached to the VM as a storage volume:
+<!-- iso_vm_step2 end -->
+
+    lxc storage volume import <pool> <path-to-image.iso> iso-volume --type=iso
+
+<!-- iso_vm_step3 start -->
+Lastly, attach the custom ISO volume to the VM using the following command:
+<!-- iso_vm_step3 end -->
+
+    lxc config device add iso-vm iso-volume disk pool=<pool> source=iso-volume boot.priority=10
+
+<!-- iso_vm_step4 start -->
+The {config:option}`device-disk-device-conf:boot.priority` configuration key ensures that the VM will boot from the ISO first.
+Start the VM and {ref}`connect to the console <instances-console>` as there might be a menu you need to interact with:
+<!-- iso_vm_step4 end -->
+
+    lxc start iso-vm --console
+
+<!-- iso_vm_step5 start -->
+Once you're done in the serial console, disconnect from the console using {kbd}`Ctrl`+{kbd}`a` {kbd}`q` and {ref}`connect to the VGA console <instances-console>` using the following command:
+<!-- iso_vm_step5 end -->
+
+    lxc console iso-vm --type=vga
+
+<!-- iso_vm_step6 start -->
+You should now see the installer. After the installation is done, detach the custom ISO volume:
+<!-- iso_vm_step6 end -->
+
+    lxc storage volume detach <pool> iso-volume iso-vm
+
+<!-- iso_vm_step7 start -->
+Now the VM can be rebooted, and it will boot from disk.
+<!-- iso_vm_step7 end -->
+````
+````{group-tab} API
+```{include} instances_create.md
+       :start-after: <!-- iso_vm_step1 start -->
+       :end-before: <!-- iso_vm_step1 end -->
 ```
-```{group-tab} API
     lxc query --request POST /1.0/instances --data '{
       "name": "iso-vm",
       "source": {
@@ -257,16 +350,11 @@ In this scenario, use the following command to create an empty VM:
       },
       "type": "virtual-machine"
     }'
+
+```{include} instances_create.md
+       :start-after: <!-- iso_vm_step2 start -->
+       :end-before: <!-- iso_vm_step2 end -->
 ```
-````
-
-The second step is to import an ISO image that can later be attached to the VM as a storage volume:
-
-`````{tabs}
-````{group-tab} CLI
-    lxc storage volume import <pool> <path-to-image.iso> iso-volume --type=iso
-````
-````{group-tab} API
     curl -X POST -H "Content-Type: application/octet-stream" -H "X-LXD-name: iso-volume" \
     -H "X-LXD-type: iso" --data-binary @<path-to-image.iso> --unix-socket /var/snap/lxd/common/lxd/unix.socket \
     lxd/1.0/storage-pools/<pool>/volumes/custom
@@ -275,16 +363,11 @@ The second step is to import an ISO image that can later be attached to the VM a
 When importing an ISO image, you must send both binary data from a file and additional headers.
 The [`lxc query`](lxc_query.md) command cannot do this, so you need to use `curl` or another tool instead.
 ```
-````
-`````
 
-Lastly, attach the custom ISO volume to the VM using the following command:
-
-````{tabs}
-```{group-tab} CLI
-    lxc config device add iso-vm iso-volume disk pool=<pool> source=iso-volume boot.priority=10
+```{include} instances_create.md
+       :start-after: <!-- iso_vm_step3 start -->
+       :end-before: <!-- iso_vm_step3 end -->
 ```
-```{group-tab} API
     lxc query --request PATCH /1.0/instances/iso-vm --data '{
       "devices": {
         "iso-volume": {
@@ -295,48 +378,32 @@ Lastly, attach the custom ISO volume to the VM using the following command:
         }
       }
     }'
-```
-````
 
-The {config:option}`device-disk-device-conf:boot.priority` configuration key ensures that the VM will boot from the ISO first.
-Start the VM and {ref}`connect to the console <instances-console>` as there might be a menu you need to interact with:
-
-````{tabs}
-```{group-tab} CLI
-    lxc start iso-vm --console
+```{include} instances_create.md
+       :start-after: <!-- iso_vm_step4 start -->
+       :end-before: <!-- iso_vm_step4 end -->
 ```
-```{group-tab} API
     lxc query --request PUT /1.0/instances/iso-vm/state --data '{"action": "start"}'
     lxc query --request POST /1.0/instances/iso-vm/console --data '{
       "height": 24,
       "type": "console",
       "width": 80
     }'
-```
-````
 
-Once you're done in the serial console, disconnect from the console using {kbd}`Ctrl`+{kbd}`a` {kbd}`q` and {ref}`connect to the VGA console <instances-console>` using the following command:
-
-````{tabs}
-```{group-tab} CLI
-    lxc console iso-vm --type=vga
+```{include} instances_create.md
+       :start-after: <!-- iso_vm_step5 start -->
+       :end-before: <!-- iso_vm_step5 end -->
 ```
-```{group-tab} API
     lxc query --request POST /1.0/instances/iso-vm/console --data '{
       "height": 24,
       "type": "vga",
       "width": 80
     }'
+
+```{include} instances_create.md
+       :start-after: <!-- iso_vm_step6 start -->
+       :end-before: <!-- iso_vm_step6 end -->
 ```
-````
-
-You should now see the installer. After the installation is done, detach the custom ISO volume:
-
-`````{tabs}
-````{group-tab} CLI
-    lxc storage volume detach <pool> iso-volume iso-vm
-````
-````{group-tab} API
     lxc query --request GET /1.0/instances/iso-vm
     lxc query --request PUT /1.0/instances/iso-vm --data '{
       [...]
@@ -348,7 +415,14 @@ You should now see the installer. After the installation is done, detach the cus
 You cannot remove the device through a PATCH request, but you must use a PUT request.
 Therefore, get the current configuration first and then provide the relevant configuration with an empty devices list through the PUT request.
 ```
+
+```{include} instances_create.md
+       :start-after: <!-- iso_vm_step7 start -->
+       :end-before: <!-- iso_vm_step7 end -->
+```
+````
+````{group-tab} UI
+In the {guilabel}`Create instance` dialog, click {guilabel}`Use custom ISO` instead of {guilabel}`Browse images`.
+You can then upload your ISO file and install a VM from it.
 ````
 `````
-
-Now the VM can be rebooted, and it will boot from disk.
