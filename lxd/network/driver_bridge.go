@@ -3047,7 +3047,7 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 }
 
 // ForwardCreate creates a network forward.
-func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) error {
+func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) (net.IP, error) {
 	memberSpecific := true // bridge supports per-member forwards.
 
 	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -3057,23 +3057,23 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 		return err
 	})
 	if err == nil {
-		return api.StatusErrorf(http.StatusConflict, "A forward for that listen address already exists")
+		return nil, api.StatusErrorf(http.StatusConflict, "A forward for that listen address already exists")
 	}
 
 	// Convert listen address to subnet so we can check its valid and can be used.
 	listenAddressNet, err := ParseIPToNet(forward.ListenAddress)
 	if err != nil {
-		return fmt.Errorf("Failed parsing address forward listen address %q: %w", forward.ListenAddress, err)
+		return nil, fmt.Errorf("Failed parsing address forward listen address %q: %w", forward.ListenAddress, err)
 	}
 
 	_, err = n.forwardValidate(listenAddressNet.IP, forward.NetworkForwardPut)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	externalSubnetsInUse, err := n.getExternalSubnetInUse()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Check the listen address subnet doesn't fall within any existing network external subnets.
@@ -3090,7 +3090,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 		if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
 			// This error is purposefully vague so that it doesn't reveal any names of
 			// resources potentially outside of the network.
-			return fmt.Errorf("Forward listen address %q overlaps with another network or NIC", listenAddressNet.String())
+			return nil, fmt.Errorf("Forward listen address %q overlaps with another network or NIC", listenAddressNet.String())
 		}
 	}
 
@@ -3106,7 +3106,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 		return err
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	revert.Add(func() {
@@ -3119,7 +3119,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 
 	err = n.forwardSetupFirewall()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Check if hairpin mode needs to be enabled on active NIC bridge ports.
@@ -3145,7 +3145,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 				return err
 			})
 			if err != nil {
-				return fmt.Errorf("Failed loading network forwards: %w", err)
+				return nil, fmt.Errorf("Failed loading network forwards: %w", err)
 			}
 
 			// If we are the first forward on this bridge, enable hairpin mode on active NIC ports.
@@ -3191,7 +3191,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 					}, filter)
 				})
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 		}
@@ -3200,11 +3200,11 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 	// Refresh exported BGP prefixes on local member.
 	err = n.forwardBGPSetupPrefixes()
 	if err != nil {
-		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
+		return nil, fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
 
 	revert.Success()
-	return nil
+	return listenAddressNet.IP, nil
 }
 
 // ForwardUpdate updates a network forward.
