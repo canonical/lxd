@@ -3050,7 +3050,17 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) (net.IP, error) {
 	memberSpecific := true // bridge supports per-member forwards.
 
-	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	// Convert listen address to subnet so we can check its valid and can be used.
+	listenAddressNet, err := ParseIPToNet(forward.ListenAddress)
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing address forward listen address %q: %w", forward.ListenAddress, err)
+	}
+
+	if listenAddressNet.IP.IsUnspecified() {
+		return nil, api.StatusErrorf(http.StatusNotImplemented, "Automatic listen address allocation not supported for drivers of type %q", n.netType)
+	}
+
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Check if there is an existing forward using the same listen address.
 		_, _, err := tx.GetNetworkForward(ctx, n.ID(), memberSpecific, forward.ListenAddress)
 
@@ -3058,12 +3068,6 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 	})
 	if err == nil {
 		return nil, api.StatusErrorf(http.StatusConflict, "A forward for that listen address already exists")
-	}
-
-	// Convert listen address to subnet so we can check its valid and can be used.
-	listenAddressNet, err := ParseIPToNet(forward.ListenAddress)
-	if err != nil {
-		return nil, fmt.Errorf("Failed parsing address forward listen address %q: %w", forward.ListenAddress, err)
 	}
 
 	_, err = n.forwardValidate(listenAddressNet.IP, forward.NetworkForwardPut)
