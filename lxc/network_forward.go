@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"sort"
 	"strings"
@@ -222,41 +224,43 @@ func (c *cmdNetworkForwardShow) Run(cmd *cobra.Command, args []string) error {
 type cmdNetworkForwardCreate struct {
 	global         *cmdGlobal
 	networkForward *cmdNetworkForward
+	flagAllocate   string
 }
 
 func (c *cmdNetworkForwardCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("create", i18n.G("[<remote>:]<network> <listen_address> [key=value...]"))
+	cmd.Use = usage("create", i18n.G("[<remote>:]<network> [<listen_address>] [key=value...]"))
 	cmd.Short = i18n.G("Create new network forwards")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Create new network forwards"))
 	cmd.RunE = c.Run
 
 	cmd.Flags().StringVar(&c.networkForward.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().StringVar(&c.flagAllocate, "allocate", "", i18n.G("Auto-allocate an IPv4 or IPv6 listen address. One of 'ipv4', 'ipv6'.")+"``")
 
 	return cmd
 }
 
 func (c *cmdNetworkForwardCreate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
+	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
 		return err
 	}
 
 	// Parse remote.
-	resources, err := c.global.ParseServers(args[0])
+	remoteName, networkName, err := c.global.conf.ParseRemote(args[0])
 	if err != nil {
 		return err
 	}
 
-	resource := resources[0]
-
-	if resource.name == "" {
+	if networkName == "" {
 		return fmt.Errorf(i18n.G("Missing network name"))
 	}
 
-	if args[1] == "" {
-		return fmt.Errorf(i18n.G("Missing listen address"))
+	transporter, wrapper := newLocationHeaderTransportWrapper()
+	client, err := c.global.conf.GetInstanceServerWithTransportWrapper(remoteName, wrapper)
+	if err != nil {
+		return err
 	}
 
 	// If stdin isn't a terminal, read yaml from it.
@@ -277,38 +281,69 @@ func (c *cmdNetworkForwardCreate) Run(cmd *cobra.Command, args []string) error {
 		forwardPut.Config = map[string]string{}
 	}
 
-	// Get config filters from arguments.
-	for i := 2; i < len(args); i++ {
+	// Get listen address and config from arguments.
+	var listenAddress string
+	for i := 1; i < len(args); i++ {
 		entry := strings.SplitN(args[i], "=", 2)
 		if len(entry) < 2 {
-			return fmt.Errorf(i18n.G("Bad key/value pair: %s"), args[i])
+			// If it's not the first argument it must be a key/value pair.
+			if i != 1 {
+				return fmt.Errorf(i18n.G("Bad key/value pair: %s"), args[i])
+			}
+
+			// Otherwise it is the listen address.
+			listenAddress = args[i]
+			continue
 		}
 
 		forwardPut.Config[entry[0]] = entry[1]
 	}
 
+	if listenAddress != "" && c.flagAllocate != "" {
+		return errors.New("Cannot specify listen address when requesting auto allocation")
+	}
+
+	if listenAddress == "" {
+		if c.flagAllocate == "" {
+			return fmt.Errorf("Must provide a listen address or --allocate=ipv{4,6}")
+		}
+
+		if c.flagAllocate != "ipv4" && c.flagAllocate != "ipv6" {
+			return fmt.Errorf("Invalid --allocate flag %q. Must be one of 'ipv4', or 'ipv6'", c.flagAllocate)
+		}
+
+		if c.flagAllocate == "ipv4" {
+			listenAddress = net.IPv4zero.String()
+		}
+
+		if c.flagAllocate == "ipv6" {
+			listenAddress = net.IPv6zero.String()
+		}
+	}
+
 	// Create the network forward.
 	forward := api.NetworkForwardsPost{
-		ListenAddress:     args[1],
+		ListenAddress:     listenAddress,
 		NetworkForwardPut: forwardPut,
 	}
 
 	forward.Normalise()
-
-	client := resource.server
 
 	// If a target was specified, create the forward on the given member.
 	if c.networkForward.flagTarget != "" {
 		client = client.UseTarget(c.networkForward.flagTarget)
 	}
 
-	err = client.CreateNetworkForward(resource.name, forward)
+	err = client.CreateNetworkForward(networkName, forward)
 	if err != nil {
 		return err
 	}
 
+	parts := strings.Split(transporter.location, "/")
+	listenAddress = parts[len(parts)-1]
+
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Network forward %s created")+"\n", forward.ListenAddress)
+		fmt.Printf(i18n.G("Network forward %s created")+"\n", listenAddress)
 	}
 
 	return nil
