@@ -152,6 +152,11 @@ func (b *mockBackend) CreateInstanceFromMigration(inst instance.Instance, conn i
 	return nil
 }
 
+// CreateInstanceFromConversion ...
+func (b *mockBackend) CreateInstanceFromConversion(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
+	return nil
+}
+
 // RenameInstance ...
 func (b *mockBackend) RenameInstance(inst instance.Instance, newName string, op *operations.Operation) error {
 	return nil
