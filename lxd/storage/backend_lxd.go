@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v2"
 
+	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/backup"
 	backupConfig "github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/cluster/request"
@@ -36,6 +38,7 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/rsync"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/drivers"
@@ -1806,6 +1809,120 @@ func (b *lxdBackend) isoFiller(data io.Reader) func(vol drivers.Volume, rootBloc
 	}
 }
 
+// imageConversionFiller returns a function that converts an image from the given path to the instance's volume.
+// Function returns the unpacked image size on success. Otherwise, it returns -1 for size and an error.
+func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string) func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (sizeInBytes int64, err error) {
+	return func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
+		diskPath, err := b.driver.GetVolumeDiskPath(vol)
+		if err != nil {
+			return -1, fmt.Errorf("Failed getting instance volume disk path: %v", err)
+		}
+
+		// Ensure conversion supports the uploaded image format.
+		supportedImageFormats := []string{"qcow", "qcow2", "raw", "vdi", "vhdx", "vmdk"}
+		if !shared.ValueInSlice(imgFormat, supportedImageFormats) {
+			return -1, fmt.Errorf("Unsupported image format %q, allowed formats are [%s]", imgFormat, strings.Join(supportedImageFormats, ", "))
+		}
+
+		// Convert uploaded image from backups directory into RAW format on the instance volume.
+		cmd := []string{
+			// Use prlimit to limit QEMU to 1 GiB address space and 120 seconds of CPU time.
+			"prlimit", "--cpu=120", "--as=1073741824",
+			"qemu-img", "convert", "-f", imgFormat, "-O", "raw", imgPath, diskPath,
+		}
+
+		b.logger.Debug("Image conversion started")
+		defer b.logger.Debug("Image conversion finished")
+
+		out, err := apparmor.QemuImg(b.state.OS, cmd, imgPath, diskPath)
+		if err != nil {
+			b.logger.Debug("Image conversion failed", logger.Ctx{"error": out})
+			return -1, fmt.Errorf("qemu-img convert: failed to convert image from %q to %q format: %v", imgFormat, "raw", err)
+		}
+
+		// Convert volume size to bytes.
+		volSizeBytes, err := units.ParseByteSizeString(vol.ConfigSize())
+		if err != nil {
+			return -1, err
+		}
+
+		return volSizeBytes, nil
+	}
+}
+
+// recvVolumeFiller returns a function that receives the instance's volume.
+// Function returns the volume size on success. Otherwise, it returns -1 for size and an error.
+func (b *lxdBackend) recvVolumeFiller(conn io.ReadWriteCloser, contentType drivers.ContentType, args migration.VolumeTargetArgs, op *operations.Operation) func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (sizeInBytes int64, err error) {
+	return func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
+		if contentType == drivers.ContentTypeFS {
+			// Receive filesystem.
+			err := b.recvFS(vol.MountPath(), vol.Name(), conn, args, op)
+			if err != nil {
+				return -1, err
+			}
+		} else {
+			// Receive block volume.
+			to, err := os.OpenFile(rootBlockPath, os.O_WRONLY|os.O_TRUNC, 0)
+			if err != nil {
+				return -1, fmt.Errorf("Error opening file for writing %q: %w", rootBlockPath, err)
+			}
+
+			defer func() { _ = to.Close() }()
+
+			err = b.recvBlockVol(to, vol.Name(), conn, args, op)
+			if err != nil {
+				return -1, err
+			}
+		}
+
+		// Convert volume size to bytes.
+		volSizeBytes, err := units.ParseByteSizeString(vol.ConfigSize())
+		if err != nil {
+			return -1, err
+		}
+
+		return volSizeBytes, nil
+	}
+}
+
+func (b *lxdBackend) recvBlockVol(toFile *os.File, volName string, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
+	b.logger.Debug("Receive block volume started", logger.Ctx{"volName": volName})
+	defer b.logger.Debug("Receive block volume finished", logger.Ctx{"volName": volName})
+
+	var wrapper *ioprogress.ProgressTracker
+	if args.TrackProgress {
+		wrapper = migration.ProgressTracker(op, "block_progress", volName)
+	}
+
+	// Setup progress tracker.
+	fromPipe := io.ReadCloser(conn)
+	if wrapper != nil {
+		fromPipe = &ioprogress.ProgressReader{
+			ReadCloser: fromPipe,
+			Tracker:    wrapper,
+		}
+	}
+
+	_, err := io.Copy(toFile, fromPipe)
+	if err != nil {
+		return fmt.Errorf("Error copying from migration connection to %q: %w", toFile.Name(), err)
+	}
+
+	return toFile.Close()
+}
+
+func (b *lxdBackend) recvFS(path string, volName string, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
+	b.logger.Debug("Receiving filesystem volume started", logger.Ctx{"volName": volName, "path": path, "features": args.MigrationType.Features})
+	defer b.logger.Debug("Receiving filesystem volume stopped", logger.Ctx{"volName": volName, "path": path})
+
+	var wrapper *ioprogress.ProgressTracker
+	if args.TrackProgress {
+		wrapper = migration.ProgressTracker(op, "fs_progress", volName)
+	}
+
+	return rsync.Recv(shared.AddSlash(path), conn, wrapper, args.MigrationType.Features)
+}
+
 // CreateInstanceFromImage creates a new volume for an instance populated with the image requested.
 // On failure caller is expected to call DeleteInstance() to clean up.
 func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint string, op *operations.Operation) error {
@@ -2218,6 +2335,223 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		if err != nil {
 			return err
 		}
+	}
+
+	revert.Success()
+	return nil
+}
+
+// CreateInstanceFromConversion receives an image and creates and instance from it.
+// Depending on provided conversionOptions, the image is also converted into the
+// raw format.
+func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
+	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "args": fmt.Sprintf("%+v", args)})
+	l.Debug("CreateInstanceFromConversion started")
+	defer l.Debug("CreateInstanceFromConversion finished")
+
+	err := b.isStatusReady()
+	if err != nil {
+		return err
+	}
+
+	if args.Config != nil {
+		return fmt.Errorf("VolumeTargetArgs.Config cannot be set for conversion")
+	}
+
+	if args.Refresh {
+		return fmt.Errorf("Volume cannot be refreshed during conversion")
+	}
+
+	if len(args.Snapshots) > 0 {
+		return fmt.Errorf("Snapshots cannot be received during conversion")
+	}
+
+	isRemoteClusterMove := args.ClusterMoveSourceName != "" && b.driver.Info().Remote
+	if isRemoteClusterMove {
+		return fmt.Errorf("Conversion cannot be used for moving instances between members")
+	}
+
+	contentType := InstanceContentType(inst)
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	volStorageName := project.Instance(inst.Project().Name, inst.Name())
+	volConfig := make(map[string]string)
+	vol := b.GetNewVolume(volType, contentType, volStorageName, volConfig)
+
+	// Ensure storage volume settings are honored when doing conversion.
+	vol.SetHasSource(false)
+	err = b.driver.FillVolumeConfig(vol)
+	if err != nil {
+		return fmt.Errorf("Failed filling volume config: %w", err)
+	}
+
+	// Check if the volume exists in database
+	dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
+	if err != nil && !response.IsNotFoundError(err) {
+		return err
+	}
+
+	if dbVol != nil {
+		return fmt.Errorf("Volume for instance %q already exists in database", inst.Name())
+	}
+
+	// Check if the volume exists on storage.
+	volExists, err := b.driver.HasVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	if volExists {
+		return fmt.Errorf("Volume already exists on storage but not in database")
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Validate config and create database entry for new storage volume if not refreshing.
+	// Strip unsupported config keys (in case the export was made from a different type of storage pool).
+	err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), args.Description, volType, false, vol.Config(), inst.CreationDate(), time.Time{}, contentType, false, true)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, inst.Name(), volType) })
+
+	// Generate the effective root device volume for instance.
+	err = b.applyInstanceRootDiskOverrides(inst, &vol)
+	if err != nil {
+		return err
+	}
+
+	// Override args.Name and args.Config to ensure volume is created based on instance.
+	args.Config = vol.Config()
+	args.Name = inst.Name()
+
+	// Get instance's root disk device from local devices. Do not use expanded devices, as we want
+	// to determine whether the root disk volume size was explicitly set by the client.
+	canResizeRootDiskSize := true
+	_, rootDiskConf, err := instancetype.GetRootDiskDevice(inst.LocalDevices().CloneNative())
+	if err == nil && rootDiskConf != nil && rootDiskConf["size"] != "" {
+		// User has explicitly configured the root disk device. Therefore, we should not mess
+		// with the root disk configuration.
+		canResizeRootDiskSize = false
+	}
+
+	var srcDiskSize int64
+	var volFiller drivers.VolumeFiller
+
+	if slices.Contains(args.ConversionOptions, "format") {
+		// When conversion option "format" is enabled, we need to upload the image
+		// to a temporary location before converting it into the desired format.
+		// The conversion cannot be done in-place, therefore the image has to be
+		// saved in an intermediate location.
+		conversionID := fmt.Sprintf("conversion_%s_%s", inst.Project().Name, inst.Name())
+		imgPath := filepath.Join(shared.VarPath("backups"), conversionID)
+
+		// Create new file in backups directory.
+		to, err := os.OpenFile(imgPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+		if err != nil {
+			return fmt.Errorf("Error opening file for writing %q: %w", imgPath, err)
+		}
+
+		// Ensure temporary image in backups directory is removed regardless of the conversion success.
+		defer func() {
+			_ = to.Close()
+			_ = os.Remove(imgPath)
+		}()
+
+		// Receive the image for conversion.
+		err = b.recvBlockVol(to, vol.Name(), conn, args, op)
+		if err != nil {
+			return err
+		}
+
+		// Extract image format and size.
+		cmd := []string{
+			// Use prlimit because qemu-img can consume considerable RAM & CPU time if fed
+			// a maliciously crafted disk image. Since cloud tenants are not to be trusted,
+			// ensure QEMU is limited to 1 GiB address space and 2 seconds of CPU time.
+			// This should be more than enough for real world images.
+			"prlimit", "--cpu=2", "--as=1073741824",
+			"qemu-img", "info", imgPath, "--output", "json",
+		}
+
+		out, err := apparmor.QemuImg(b.state.OS, cmd, imgPath, "")
+		if err != nil {
+			return fmt.Errorf("qemu-img info: %v", err)
+		}
+
+		imgInfo := struct {
+			Format string `json:"format"`
+			Bytes  int64  `json:"virtual-size"`
+		}{}
+
+		err = json.Unmarshal([]byte(out), &imgInfo)
+		if err != nil {
+			return fmt.Errorf("Failed to parse image information: %v", err)
+		}
+
+		srcDiskSize = imgInfo.Bytes
+
+		if canResizeRootDiskSize {
+			// Set size of the volume to the uncompressed image size.
+			l.Debug("Setting volume size to uncompressed image size", logger.Ctx{"size": fmt.Sprintf("%d", imgInfo.Bytes)})
+			args.Config["size"] = fmt.Sprintf("%d", imgInfo.Bytes)
+		}
+
+		// Convert received image into intance volume.
+		volFiller.Fill = b.imageConversionFiller(imgPath, imgInfo.Format)
+	} else {
+		// If volume size is provided, then use that as block volume size instead of pool default.
+		// This way if the volume being received is larger than the pool default size, the created
+		// block volume will still be able to accommodate it.
+		if canResizeRootDiskSize && contentType == drivers.ContentTypeBlock && args.VolumeSize > 0 {
+			l.Debug("Setting volume size to source disk size", logger.Ctx{"size": args.VolumeSize})
+			args.Config["size"] = fmt.Sprintf("%d", args.VolumeSize)
+		}
+
+		srcDiskSize = args.VolumeSize
+
+		// If formatting is not required, receive the volume (block / FS) directly
+		// into the instance volume.
+		volFiller.Fill = b.recvVolumeFiller(conn, contentType, args, op)
+	}
+
+	// Parse volume size into bytes.
+	volBytes, err := units.ParseByteSizeString(vol.ConfigSize())
+	if err != nil {
+		return fmt.Errorf("Failed parsing instance volume size")
+	}
+
+	// Parse source disk size into bytes.
+	srcSize, err := units.ParseByteSizeString(fmt.Sprintf("%d", srcDiskSize))
+	if err != nil {
+		return fmt.Errorf("Failed parsing source disk size")
+	}
+
+	// Ensure source disk will fit into the instance volume.
+	if volBytes < srcSize {
+		// Convert to IEC format for nicer error.
+		imgSize := units.GetByteSizeStringIEC(srcSize, 2)
+		volSize := units.GetByteSizeStringIEC(volBytes, 2)
+		return fmt.Errorf("Volume size (%s) is lower then source disk size (%s)", volSize, imgSize)
+	}
+
+	volCopy := drivers.NewVolumeCopy(vol)
+
+	err = b.driver.CreateVolume(volCopy.Volume, &volFiller, op)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() { _ = b.driver.DeleteVolume(volCopy.Volume, op) })
+
+	err = b.ensureInstanceSymlink(inst.Type(), inst.Project().Name, inst.Name(), vol.MountPath())
+	if err != nil {
+		return err
 	}
 
 	revert.Success()
