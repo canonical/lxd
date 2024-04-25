@@ -111,11 +111,12 @@ WHERE storage_volumes.id = ?
 	return response, nil
 }
 
-// StorageVolumeFilter used for filtering storage volumes with GetStoragePoolVolumes().
+// StorageVolumeFilter used for filtering storage volumes with GetStorageVolumes().
 type StorageVolumeFilter struct {
 	Type    *int
 	Project *string
 	Name    *string
+	PoolID  *int64
 }
 
 // StorageVolume represents a database storage volume record.
@@ -125,13 +126,13 @@ type StorageVolume struct {
 	ID int64
 }
 
-// GetStoragePoolVolumes returns all storage volumes attached to a given storage pool.
+// GetStorageVolumes returns all storage volumes.
 // If there are no volumes, it returns an empty list and no error.
 // Accepts filters for narrowing down the results returned. If memberSpecific is true, then the search is
 // restricted to volumes that belong to this member or belong to all members.
-func (c *ClusterTx) GetStoragePoolVolumes(ctx context.Context, poolID int64, memberSpecific bool, filters ...StorageVolumeFilter) ([]*StorageVolume, error) {
+func (c *ClusterTx) GetStorageVolumes(ctx context.Context, memberSpecific bool, filters ...StorageVolumeFilter) ([]*StorageVolume, error) {
 	var q = &strings.Builder{}
-	args := []any{poolID}
+	args := []any{}
 
 	q.WriteString(`
 		SELECT
@@ -148,16 +149,10 @@ func (c *ClusterTx) GetStoragePoolVolumes(ctx context.Context, poolID int64, mem
 		JOIN projects ON projects.id = storage_volumes_all.project_id
 		LEFT JOIN nodes ON nodes.id = storage_volumes_all.node_id
 		JOIN storage_pools ON storage_pools.id = storage_volumes_all.storage_pool_id
-		WHERE storage_volumes_all.storage_pool_id = ?
 	`)
 
-	if memberSpecific {
-		q.WriteString("AND (storage_volumes_all.node_id = ? OR storage_volumes_all.node_id IS NULL) ")
-		args = append(args, c.nodeID)
-	}
-
 	if len(filters) > 0 {
-		q.WriteString("AND (")
+		q.WriteString("WHERE (")
 
 		for i, filter := range filters {
 			// Validate filter.
@@ -174,6 +169,11 @@ func (c *ClusterTx) GetStoragePoolVolumes(ctx context.Context, poolID int64, mem
 			if filter.Type != nil {
 				qFilters = append(qFilters, "storage_volumes_all.type = ?")
 				args = append(args, *filter.Type)
+			}
+
+			if filter.PoolID != nil {
+				qFilters = append(qFilters, "storage_volumes_all.storage_pool_id = ?")
+				args = append(args, *filter.PoolID)
 			}
 
 			if filter.Project != nil {
@@ -198,6 +198,16 @@ func (c *ClusterTx) GetStoragePoolVolumes(ctx context.Context, poolID int64, mem
 		}
 
 		q.WriteString(")")
+
+		if memberSpecific {
+			if len(filters) > 0 {
+				q.WriteString("AND (storage_volumes_all.node_id = ? OR storage_volumes_all.node_id IS NULL) ")
+			} else {
+				q.WriteString("WHERE (storage_volumes_all.node_id = ? OR storage_volumes_all.node_id IS NULL) ")
+			}
+
+			args = append(args, c.nodeID)
+		}
 	}
 
 	var err error
@@ -248,9 +258,10 @@ func (c *ClusterTx) GetStoragePoolVolume(ctx context.Context, poolID int64, proj
 		Project: &projectName,
 		Type:    &volumeType,
 		Name:    &volumeName,
+		PoolID:  &poolID,
 	}}
 
-	volumes, err := c.GetStoragePoolVolumes(ctx, poolID, memberSpecific, filters...)
+	volumes, err := c.GetStorageVolumes(ctx, memberSpecific, filters...)
 	volumesLen := len(volumes)
 	if (err == nil && volumesLen <= 0) || errors.Is(err, sql.ErrNoRows) {
 		return nil, api.StatusErrorf(http.StatusNotFound, "Storage volume not found")
