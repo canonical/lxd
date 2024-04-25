@@ -166,6 +166,7 @@ func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 		clusterMoveSourceName: args.ClusterMoveSourceName,
 		push:                  args.Push,
 		refresh:               args.Refresh,
+		conversionOptions:     args.ConversionOptions,
 	}
 
 	secretNames := []string{api.SecretNameControl, api.SecretNameFilesystem}
@@ -274,6 +275,7 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 		},
 		InstanceOperation: instOp,
 		Refresh:           c.refresh,
+		ConversionOptions: c.conversionOptions,
 	})
 	if err != nil {
 		l.Error("Failed migration on target", logger.Ctx{"err": err})

@@ -184,6 +184,7 @@ type migrationSink struct {
 	push                  bool
 	clusterMoveSourceName string
 	refresh               bool
+	conversionOptions     []string
 }
 
 // MigrationSinkArgs arguments to configure migration sink.
@@ -202,6 +203,9 @@ type migrationSinkArgs struct {
 	Refresh               bool
 	ClusterMoveSourceName string
 	Snapshots             []*migration.Snapshot
+
+	// Conversion specific fields
+	ConversionOptions []string
 
 	// Storage specific fields
 	VolumeOnly bool
