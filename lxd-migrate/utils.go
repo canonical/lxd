@@ -122,6 +122,32 @@ func transferRootDiskForMigration(ctx context.Context, op lxd.Operation, rootfs 
 	return nil
 }
 
+func transferRootDiskForConversion(ctx context.Context, op lxd.Operation, rootfs string, rsyncArgs string, instanceType api.InstanceType) error {
+	opAPI := op.Get()
+
+	// Establish websocket connection.
+	wsFs, err := op.GetWebsocket(opAPI.Metadata[api.SecretNameFilesystem].(string))
+	if err != nil {
+		return err
+	}
+
+	if instanceType == api.InstanceTypeContainer {
+		// Send container filesystem.
+		err = rsyncSend(ctx, wsFs, rootfs, rsyncArgs, instanceType)
+		if err != nil {
+			return fmt.Errorf("Failed sending filesystem volume: %w", err)
+		}
+	} else {
+		// Send VM block volume (image / partition).
+		err := sendBlockVol(ctx, ws.NewWrapper(wsFs), filepath.Join(rootfs, "root.img"))
+		if err != nil {
+			return fmt.Errorf("Failed sending block volume: %w", err)
+		}
+	}
+
+	return op.Wait()
+}
+
 func (c *cmdMigrate) connectLocal() (lxd.InstanceServer, error) {
 	args := lxd.ConnectionArgs{}
 	args.UserAgent = fmt.Sprintf("LXD-MIGRATE %s", version.Version)
