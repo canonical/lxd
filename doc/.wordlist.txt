@@ -39,6 +39,7 @@ OEM
 OLM
 Permalink
 pre
+QCow
 Quickstart
 ReadMe
 reST
@@ -51,4 +52,5 @@ Ubuntu
 UI
 UUID
 VM
+VMDK
 YAML
