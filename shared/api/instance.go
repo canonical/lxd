@@ -418,6 +418,12 @@ type InstanceSource struct {
 	//
 	// API extension: instance_allow_inconsistent_copy
 	AllowInconsistent bool `json:"allow_inconsistent" yaml:"allow_inconsistent"`
+
+	// Optional list of options that are used during image conversion.
+	// Example: ["format"]
+	//
+	// API extension: instance_import_conversion
+	ConversionOptions []string `json:"conversion_options" yaml:"conversion_options"`
 }
 
 // InstanceUEFIVars represents the UEFI variables of a LXD virtual machine.
