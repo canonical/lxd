@@ -48,7 +48,10 @@ lxc init ubuntu:22.04 u1 < config.yaml
     Create a container with configuration from config.yaml
 
 lxc init ubuntu:22.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB
-    Create a virtual machine with 4 cpus and 4GiB of RAM`))
+    Create a virtual machine with 4 vCPUs and 4GiB of RAM
+
+lxc init ubuntu:22.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,size=32GiB
+    Create a virtual machine with 2 vCPUs, 8GiB of RAM and a root disk of 32GiB`))
 
 	cmd.RunE = c.Run
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new instance")+"``")
