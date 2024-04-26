@@ -233,7 +233,7 @@ func (img *Image) URL(apiVersion string, project string) *URL {
 // swagger:model
 type ImageAlias struct {
 	// Name of the alias
-	// Example: ubuntu-22.04
+	// Example: ubuntu-24.04
 	Name string `json:"name" yaml:"name"`
 
 	// Description of the alias
@@ -280,7 +280,7 @@ type ImageAliasesPost struct {
 // swagger:model
 type ImageAliasesEntryPost struct {
 	// Alias name
-	// Example: ubuntu-22.04
+	// Example: ubuntu-24.04
 	Name string `json:"name" yaml:"name"`
 }
 
@@ -302,7 +302,7 @@ type ImageAliasesEntryPut struct {
 // swagger:model
 type ImageAliasesEntry struct {
 	// Alias name
-	// Example: ubuntu-22.04
+	// Example: ubuntu-24.04
 	Name string `json:"name" yaml:"name"`
 
 	// Alias description
