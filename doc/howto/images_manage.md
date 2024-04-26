@@ -44,27 +44,27 @@ To retrieve the list of images from a simple streams server, start at the `strea
 ````{tabs}
 ```{group-tab} CLI
 To filter the results that are displayed, specify a part of the alias or fingerprint after the command.
-For example, to show all Ubuntu 22.04 images, enter the following command:
+For example, to show all Ubuntu 24.04 images, enter the following command:
 
-    lxc image list ubuntu: 22.04
+    lxc image list ubuntu: 24.04
 
 You can specify several filters as well.
-For example, to show all Arm 64-bit Ubuntu 22.04 images, enter the following command:
+For example, to show all Arm 64-bit Ubuntu 24.04 images, enter the following command:
 
-    lxc image list ubuntu: 22.04 arm64
+    lxc image list ubuntu: 24.04 arm64
 
 To filter for properties other than alias or fingerprint, specify the filter in `<key>=<value>` format.
 For example:
 
-    lxc image list ubuntu: 22.04 architecture=x86_64
+    lxc image list ubuntu: 24.04 architecture=x86_64
 ```
 ```{group-tab} API
 You can {ref}`filter <rest-api-filtering>` the images that are displayed by any of their fields.
 
-For example, to show all Ubuntu images, or all images for version 22.04:
+For example, to show all Ubuntu images, or all images for version 24.04:
 
     lxc query --request GET /1.0/images?filter=properties.os+eq+ubuntu
-    lxc query --request GET /1.0/images?filter=properties.version+eq+22.04
+    lxc query --request GET /1.0/images?filter=properties.version+eq+24.04
 
 You can specify several filters as well.
 For example, to show all Arm 64-bit images for virtual machines, enter the following command:
@@ -88,7 +88,7 @@ To view information about an image, enter the following command:
     lxc image info <image_ID>
 
 As the image ID, you can specify either the image's alias or its fingerprint.
-For a remote image, remember to include the remote server (for example, `ubuntu:22.04`).
+For a remote image, remember to include the remote server (for example, `ubuntu:24.04`).
 
 To display only the image properties, enter the following command:
 
@@ -98,9 +98,9 @@ You can also display a specific image property (located under the `properties` k
 
     lxc image get-property <image_ID> <key>
 
-For example, to show the release name of the official Ubuntu 22.04 image, enter the following command:
+For example, to show the release name of the official Ubuntu 24.04 image, enter the following command:
 
-    lxc image get-property ubuntu:22.04 release
+    lxc image get-property ubuntu:24.04 release
 ```
 ```{group-tab} API
 To view all information about an image, query it using its fingerprint:
