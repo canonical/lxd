@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"reflect"
 	"sort"
@@ -415,4 +416,39 @@ func getImgInfo(d lxd.InstanceServer, conf *config.Config, imgRemote string, ins
 	}
 
 	return imgRemoteServer, imgInfo, nil
+}
+
+// newLocationHeaderTransportWrapper returns a new transport wrapper that can be used to inspect the `Location` header
+// upon the response of a resource creation request to LXD.
+func newLocationHeaderTransportWrapper() (*locationHeaderTransport, func(transport *http.Transport) lxd.HTTPTransporter) {
+	transporter := &locationHeaderTransport{}
+	return transporter, func(transport *http.Transport) lxd.HTTPTransporter {
+		transporter.transport = transport
+		return transporter
+	}
+}
+
+// locationHeaderTransport implements lxd.HTTPTransporter by wrapping a http.Transport.
+type locationHeaderTransport struct {
+	transport *http.Transport
+	location  string
+}
+
+// RoundTrip implements http.RoundTripper for locationHeaderTransport. It extracts the `Location` header from the HTTP
+// response for later use. This is useful when the resource is not known in advance (e.g. for auto-allocated IP addresses
+// of network forwards and load-balancers).
+func (c *locationHeaderTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	resp, err := c.transport.RoundTrip(r)
+	if err != nil {
+		return nil, err
+	}
+
+	c.location = resp.Header.Get("Location")
+
+	return resp, err
+}
+
+// Transport returns the underlying transport of cloudInstanceServerTransport (to implement lxd.HTTPTransporter).
+func (c *locationHeaderTransport) Transport() *http.Transport {
+	return c.transport
 }
