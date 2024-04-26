@@ -21,7 +21,7 @@ Enter the following command to create a container:
 
     lxc launch|init <image_server>:<image_name> <instance_name> [flags]
 
-Unless the image is available locally, you must specify the name of the image server and the name of the image (for example, `ubuntu:22.04` for the official 22.04 Ubuntu image).
+Unless the image is available locally, you must specify the name of the image server and the name of the image (for example, `ubuntu:24.04` for the official 24.04 Ubuntu image).
 
 See [`lxc launch --help`](lxc_launch.md) or [`lxc init --help`](lxc_init.md) for a full list of flags.
 The most common flags are:
@@ -37,7 +37,7 @@ Instead of specifying the instance configuration as flags, you can pass it to th
 
 For example, to launch a container with the configuration from `config.yaml`, enter the following command:
 
-    lxc launch ubuntu:22.04 ubuntu-config < config.yaml
+    lxc launch ubuntu:24.04 ubuntu-config < config.yaml
 
 ```{tip}
 Check the contents of an existing instance configuration ([`lxc config show <instance_name> --expanded`](lxc_config_show.md)) to see the required syntax of the YAML file.
@@ -84,17 +84,17 @@ If you are using the CLI client, you can use [`lxc launch`](lxc_launch.md) inste
 
 ### Create a container
 
-To create a container with an Ubuntu 22.04 image from the `ubuntu` server using the instance name `ubuntu-container`, enter the following command:
+To create a container with an Ubuntu 24.04 image from the `ubuntu` server using the instance name `ubuntu-container`, enter the following command:
 
 ````{tabs}
 ```{group-tab} CLI
-    lxc init ubuntu:22.04 ubuntu-container
+    lxc init ubuntu:24.04 ubuntu-container
 ```
 ```{group-tab} API
     lxc query --request POST /1.0/instances --data '{
       "name": "ubuntu-container",
       "source": {
-        "alias": "22.04",
+        "alias": "24.04",
         "protocol": "simplestreams",
         "server": "https://cloud-images.ubuntu.com/releases",
         "type": "image"
@@ -105,17 +105,17 @@ To create a container with an Ubuntu 22.04 image from the `ubuntu` server using 
 
 ### Create a virtual machine
 
-To create a virtual machine with an Ubuntu 22.04 image from the `ubuntu` server using the instance name `ubuntu-vm`, enter the following command:
+To create a virtual machine with an Ubuntu 24.04 image from the `ubuntu` server using the instance name `ubuntu-vm`, enter the following command:
 
 ````{tabs}
 ```{group-tab} CLI
-    lxc init ubuntu:22.04 ubuntu-vm --vm
+    lxc init ubuntu:24.04 ubuntu-vm --vm
 ```
 ```{group-tab} API
     lxc query --request POST /1.0/instances --data '{
       "name": "ubuntu-vm",
       "source": {
-        "alias": "22.04",
+        "alias": "24.04",
         "protocol": "simplestreams",
         "server": "https://cloud-images.ubuntu.com/releases",
         "type": "image"
@@ -129,7 +129,7 @@ Or with a bigger disk:
 
 ````{tabs}
 ```{group-tab} CLI
-    lxc init ubuntu:22.04 ubuntu-vm-big --vm --device root,size=30GiB
+    lxc init ubuntu:24.04 ubuntu-vm-big --vm --device root,size=30GiB
 ```
 ```{group-tab} API
     lxc query --request POST /1.0/instances --data '{
@@ -143,7 +143,7 @@ Or with a bigger disk:
       },
       "name": "ubuntu-vm-big",
       "source": {
-        "alias": "22.04",
+        "alias": "24.04",
         "protocol": "simplestreams",
         "server": "https://cloud-images.ubuntu.com/releases",
         "type": "image"
@@ -159,7 +159,7 @@ To create a container and limit its resources to one vCPU and 192 MiB of RAM, en
 
 ````{tabs}
 ```{group-tab} CLI
-    lxc init ubuntu:22.04 ubuntu-limited --config limits.cpu=1 --config limits.memory=192MiB
+    lxc init ubuntu:24.04 ubuntu-limited --config limits.cpu=1 --config limits.memory=192MiB
 ```
 ```{group-tab} API
     lxc query --request POST /1.0/instances --data '{
@@ -169,7 +169,7 @@ To create a container and limit its resources to one vCPU and 192 MiB of RAM, en
       },
       "name": "ubuntu-limited",
       "source": {
-        "alias": "22.04",
+        "alias": "24.04",
         "protocol": "simplestreams",
         "server": "https://cloud-images.ubuntu.com/releases",
         "type": "image"
@@ -184,13 +184,13 @@ To create a virtual machine on the cluster member `server2`, enter the following
 
 ````{tabs}
 ```{group-tab} CLI
-    lxc init ubuntu:22.04 ubuntu-vm-server2 --vm --target server2
+    lxc init ubuntu:24.04 ubuntu-vm-server2 --vm --target server2
 ```
 ```{group-tab} API
     lxc query --request POST /1.0/instances?target=server2 --data '{
       "name": "ubuntu-vm-server2",
       "source": {
-        "alias": "22.04",
+        "alias": "24.04",
         "protocol": "simplestreams",
         "server": "https://cloud-images.ubuntu.com/releases",
         "type": "image"
@@ -221,14 +221,14 @@ To create a container with this instance type, enter the following command:
 
 ````{tabs}
 ```{group-tab} CLI
-    lxc init ubuntu:22.04 my-instance --type t2.micro
+    lxc init ubuntu:24.04 my-instance --type t2.micro
 ```
 ```{group-tab} API
     lxc query --request POST /1.0/instances --data '{
       "instance_type": "t2.micro",
       "name": "my-instance",
       "source": {
-        "alias": "22.04",
+        "alias": "24.04",
         "protocol": "simplestreams",
         "server": "https://cloud-images.ubuntu.com/releases",
         "type": "image"
