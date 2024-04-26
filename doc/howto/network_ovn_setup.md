@@ -25,7 +25,7 @@ Complete the following steps to create a standalone OVN network that is connecte
 
 1. Create an instance that uses the `ovntest` network:
 
-       lxc init ubuntu:22.04 c1
+       lxc init ubuntu:24.04 c1
        lxc config device override c1 eth0 network=ovntest
        lxc start c1
 
@@ -168,10 +168,10 @@ See the linked YouTube video for the complete tutorial using four machines.
 
 1. To test the OVN network, create some instances and check the network connectivity:
 
-       lxc launch ubuntu:22.04 c1 --network my-ovn
-       lxc launch ubuntu:22.04 c2 --network my-ovn
-       lxc launch ubuntu:22.04 c3 --network my-ovn
-       lxc launch ubuntu:22.04 c4 --network my-ovn
+       lxc launch ubuntu:24.04 c1 --network my-ovn
+       lxc launch ubuntu:24.04 c2 --network my-ovn
+       lxc launch ubuntu:24.04 c3 --network my-ovn
+       lxc launch ubuntu:24.04 c4 --network my-ovn
        lxc list
        lxc exec c4 -- bash
        ping <IP of c1>
