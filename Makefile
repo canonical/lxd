@@ -12,10 +12,8 @@ CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
 
 ifneq "$(wildcard vendor)" ""
-	RAFT_PATH=$(CURDIR)/vendor/raft
 	DQLITE_PATH=$(CURDIR)/vendor/dqlite
 else
-	RAFT_PATH=$(GOPATH)/deps/raft
 	DQLITE_PATH=$(GOPATH)/deps/dqlite
 endif
 
@@ -52,18 +50,7 @@ lxd-migrate:
 
 .PHONY: deps
 deps:
-	@if [ ! -e "$(RAFT_PATH)" ]; then \
-		git clone --depth=1 "https://github.com/canonical/raft" "$(RAFT_PATH)"; \
-	elif [ -e "$(RAFT_PATH)/.git" ]; then \
-		cd "$(RAFT_PATH)"; git pull; \
-	fi
-
-	cd "$(RAFT_PATH)" && \
-		autoreconf -i && \
-		./configure && \
-		make
-
-	# dqlite
+	# dqlite (+raft)
 	@if [ ! -e "$(DQLITE_PATH)" ]; then \
 		git clone --depth=1 "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
 	elif [ -e "$(DQLITE_PATH)/.git" ]; then \
@@ -72,15 +59,15 @@ deps:
 
 	cd "$(DQLITE_PATH)" && \
 		autoreconf -i && \
-		PKG_CONFIG_PATH="$(RAFT_PATH)" ./configure && \
-		make CFLAGS="-I$(RAFT_PATH)/include/" LDFLAGS="-L$(RAFT_PATH)/.libs/"
+		./configure --enable-build-raft && \
+		make
 
 	# environment
 	@echo ""
 	@echo "Please set the following in your environment (possibly ~/.bashrc)"
-	@echo "export CGO_CFLAGS=\"-I$(RAFT_PATH)/include/ -I$(DQLITE_PATH)/include/\""
-	@echo "export CGO_LDFLAGS=\"-L$(RAFT_PATH)/.libs -L$(DQLITE_PATH)/.libs/\""
-	@echo "export LD_LIBRARY_PATH=\"$(RAFT_PATH)/.libs/:$(DQLITE_PATH)/.libs/\""
+	@echo "export CGO_CFLAGS=\"-I$(DQLITE_PATH)/include/\""
+	@echo "export CGO_LDFLAGS=\"-L$(DQLITE_PATH)/.libs/\""
+	@echo "export LD_LIBRARY_PATH=\"$(DQLITE_PATH)/.libs/\""
 	@echo "export CGO_LDFLAGS_ALLOW=\"(-Wl,-wrap,pthread_create)|(-Wl,-z,now)\""
 
 .PHONY: update-gomod
