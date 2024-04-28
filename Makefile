@@ -19,7 +19,6 @@ else
 	DQLITE_PATH=$(GOPATH)/deps/dqlite
 endif
 
-	# raft
 .PHONY: default
 default: build
 
@@ -226,12 +225,9 @@ dist: doc
 	# Download dependencies
 	(cd $(TMP)/lxd-$(VERSION) ; go mod vendor)
 
-	# Download the dqlite libraries
+	# Download the dqlite library
 	git clone --depth=1 https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
 	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
-
-	git clone --depth=1 https://github.com/canonical/raft $(TMP)/lxd-$(VERSION)/vendor/raft
-	(cd $(TMP)/lxd-$(VERSION)/vendor/raft ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
 
 	# Copy doc output
 	cp -r doc/html $(TMP)/lxd-$(VERSION)/doc/html/
