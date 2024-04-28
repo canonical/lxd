@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-        "POT-Creation-Date: 2024-04-02 18:01-0500\n"
+        "POT-Creation-Date: 2024-04-26 15:30-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -442,7 +442,7 @@ msgstr  ""
 msgid   "--console only works with a single instance"
 msgstr  ""
 
-#: lxc/init.go:130 lxc/rebuild.go:64
+#: lxc/init.go:133 lxc/rebuild.go:64
 msgid   "--empty cannot be combined with an image name"
 msgstr  ""
 
@@ -728,7 +728,7 @@ msgstr  ""
 msgid   "As neither could be found, the raw SPICE socket can be found at:"
 msgstr  ""
 
-#: lxc/init.go:321 lxc/rebuild.go:131
+#: lxc/init.go:324 lxc/rebuild.go:131
 msgid   "Asked for a VM but image is of type container"
 msgstr  ""
 
@@ -826,7 +826,7 @@ msgstr  ""
 msgid   "Bad key/value pair: %s"
 msgstr  ""
 
-#: lxc/copy.go:139 lxc/init.go:221 lxc/move.go:380 lxc/project.go:129
+#: lxc/copy.go:139 lxc/init.go:224 lxc/move.go:380 lxc/project.go:129
 #, c-format
 msgid   "Bad key=value pair: %q"
 msgstr  ""
@@ -1081,7 +1081,7 @@ msgstr  ""
 msgid   "Cluster member %s removed from group %s"
 msgstr  ""
 
-#: lxc/config.go:105 lxc/config.go:389 lxc/config.go:532 lxc/config.go:738 lxc/config.go:861 lxc/copy.go:61 lxc/info.go:45 lxc/init.go:61 lxc/move.go:66 lxc/network.go:300 lxc/network.go:723 lxc/network.go:792 lxc/network.go:1134 lxc/network.go:1219 lxc/network.go:1283 lxc/network_forward.go:170 lxc/network_forward.go:234 lxc/network_forward.go:406 lxc/network_forward.go:529 lxc/network_forward.go:671 lxc/network_forward.go:748 lxc/network_forward.go:814 lxc/network_load_balancer.go:172 lxc/network_load_balancer.go:236 lxc/network_load_balancer.go:407 lxc/network_load_balancer.go:530 lxc/network_load_balancer.go:673 lxc/network_load_balancer.go:749 lxc/network_load_balancer.go:813 lxc/network_load_balancer.go:914 lxc/network_load_balancer.go:976 lxc/storage.go:99 lxc/storage.go:347 lxc/storage.go:418 lxc/storage.go:671 lxc/storage.go:765 lxc/storage.go:850 lxc/storage_bucket.go:85 lxc/storage_bucket.go:185 lxc/storage_bucket.go:248 lxc/storage_bucket.go:379 lxc/storage_bucket.go:536 lxc/storage_bucket.go:629 lxc/storage_bucket.go:695 lxc/storage_bucket.go:770 lxc/storage_bucket.go:850 lxc/storage_bucket.go:928 lxc/storage_bucket.go:993 lxc/storage_bucket.go:1129 lxc/storage_volume.go:335 lxc/storage_volume.go:537 lxc/storage_volume.go:616 lxc/storage_volume.go:860 lxc/storage_volume.go:1074 lxc/storage_volume.go:1187 lxc/storage_volume.go:1655 lxc/storage_volume.go:1735 lxc/storage_volume.go:1862 lxc/storage_volume.go:2008 lxc/storage_volume.go:2112 lxc/storage_volume.go:2152 lxc/storage_volume.go:2245 lxc/storage_volume.go:2317 lxc/storage_volume.go:2469
+#: lxc/config.go:105 lxc/config.go:389 lxc/config.go:532 lxc/config.go:738 lxc/config.go:861 lxc/copy.go:61 lxc/info.go:45 lxc/init.go:64 lxc/move.go:66 lxc/network.go:300 lxc/network.go:723 lxc/network.go:792 lxc/network.go:1134 lxc/network.go:1219 lxc/network.go:1283 lxc/network_forward.go:170 lxc/network_forward.go:234 lxc/network_forward.go:406 lxc/network_forward.go:529 lxc/network_forward.go:671 lxc/network_forward.go:748 lxc/network_forward.go:814 lxc/network_load_balancer.go:172 lxc/network_load_balancer.go:236 lxc/network_load_balancer.go:407 lxc/network_load_balancer.go:530 lxc/network_load_balancer.go:673 lxc/network_load_balancer.go:749 lxc/network_load_balancer.go:813 lxc/network_load_balancer.go:914 lxc/network_load_balancer.go:976 lxc/storage.go:99 lxc/storage.go:347 lxc/storage.go:418 lxc/storage.go:671 lxc/storage.go:765 lxc/storage.go:850 lxc/storage_bucket.go:85 lxc/storage_bucket.go:185 lxc/storage_bucket.go:248 lxc/storage_bucket.go:379 lxc/storage_bucket.go:536 lxc/storage_bucket.go:629 lxc/storage_bucket.go:695 lxc/storage_bucket.go:770 lxc/storage_bucket.go:850 lxc/storage_bucket.go:928 lxc/storage_bucket.go:993 lxc/storage_bucket.go:1129 lxc/storage_volume.go:335 lxc/storage_volume.go:537 lxc/storage_volume.go:616 lxc/storage_volume.go:860 lxc/storage_volume.go:1074 lxc/storage_volume.go:1187 lxc/storage_volume.go:1655 lxc/storage_volume.go:1735 lxc/storage_volume.go:1862 lxc/storage_volume.go:2008 lxc/storage_volume.go:2112 lxc/storage_volume.go:2152 lxc/storage_volume.go:2245 lxc/storage_volume.go:2317 lxc/storage_volume.go:2469
 msgid   "Cluster member name"
 msgstr  ""
 
@@ -1120,7 +1120,7 @@ msgstr  ""
 msgid   "Compression algorithm to use (none for uncompressed)"
 msgstr  ""
 
-#: lxc/copy.go:53 lxc/init.go:54
+#: lxc/copy.go:53 lxc/init.go:57
 msgid   "Config key/value to apply to the new instance"
 msgstr  ""
 
@@ -1293,7 +1293,7 @@ msgstr  ""
 msgid   "Create a cluster group"
 msgstr  ""
 
-#: lxc/init.go:64
+#: lxc/init.go:67
 msgid   "Create a virtual machine"
 msgstr  ""
 
@@ -1301,7 +1301,7 @@ msgstr  ""
 msgid   "Create aliases for existing images"
 msgstr  ""
 
-#: lxc/init.go:63
+#: lxc/init.go:66
 msgid   "Create an empty instance"
 msgstr  ""
 
@@ -1392,7 +1392,7 @@ msgstr  ""
 msgid   "Create storage pools"
 msgstr  ""
 
-#: lxc/copy.go:63 lxc/init.go:62
+#: lxc/copy.go:63 lxc/init.go:65
 msgid   "Create the instance with no profiles applied"
 msgstr  ""
 
@@ -1401,12 +1401,12 @@ msgstr  ""
 msgid   "Created: %s"
 msgstr  ""
 
-#: lxc/init.go:167
+#: lxc/init.go:170
 #, c-format
 msgid   "Creating %s"
 msgstr  ""
 
-#: lxc/init.go:165
+#: lxc/init.go:168
 msgid   "Creating the instance"
 msgstr  ""
 
@@ -1609,7 +1609,7 @@ msgstr  ""
 msgid   "Device: %s"
 msgstr  ""
 
-#: lxc/init.go:381
+#: lxc/init.go:384
 msgid   "Didn't get any affected image, instance or snapshot from server"
 msgstr  ""
 
@@ -1819,7 +1819,7 @@ msgstr  ""
 msgid   "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr  ""
 
-#: lxc/copy.go:56 lxc/init.go:57
+#: lxc/copy.go:56 lxc/init.go:60
 msgid   "Ephemeral instance"
 msgstr  ""
 
@@ -2540,7 +2540,7 @@ msgstr  ""
 msgid   "Image refreshed successfully!"
 msgstr  ""
 
-#: lxc/action.go:130 lxc/launch.go:41
+#: lxc/action.go:130 lxc/launch.go:45
 msgid   "Immediately attach to the console"
 msgstr  ""
 
@@ -2613,7 +2613,7 @@ msgstr  ""
 msgid   "Instance name is mandatory"
 msgstr  ""
 
-#: lxc/init.go:392
+#: lxc/init.go:395
 #, c-format
 msgid   "Instance name is: %s"
 msgstr  ""
@@ -2636,7 +2636,7 @@ msgstr  ""
 msgid   "Instance snapshots cannot be rebuilt: %s"
 msgstr  ""
 
-#: lxc/init.go:60
+#: lxc/init.go:63
 msgid   "Instance type"
 msgstr  ""
 
@@ -3763,7 +3763,7 @@ msgstr  ""
 msgid   "Network load balancer %s deleted"
 msgstr  ""
 
-#: lxc/init.go:58
+#: lxc/init.go:61
 msgid   "Network name"
 msgstr  ""
 
@@ -3813,7 +3813,7 @@ msgstr  ""
 msgid   "New aliases to add to the image"
 msgstr  ""
 
-#: lxc/copy.go:54 lxc/import.go:37 lxc/init.go:56 lxc/move.go:59
+#: lxc/copy.go:54 lxc/import.go:37 lxc/init.go:59 lxc/move.go:59
 msgid   "New key/value to apply to a specific device"
 msgstr  ""
 
@@ -4087,7 +4087,7 @@ msgstr  ""
 msgid   "Profile to apply to the new image"
 msgstr  ""
 
-#: lxc/copy.go:55 lxc/init.go:55
+#: lxc/copy.go:55 lxc/init.go:58
 msgid   "Profile to apply to the new instance"
 msgstr  ""
 
@@ -4542,7 +4542,7 @@ msgstr  ""
 msgid   "Retrieve the instance's console log"
 msgstr  ""
 
-#: lxc/init.go:335
+#: lxc/init.go:338
 #, c-format
 msgid   "Retrieving image: %s"
 msgstr  ""
@@ -5142,7 +5142,7 @@ msgstr  ""
 msgid   "Start instances"
 msgstr  ""
 
-#: lxc/launch.go:78
+#: lxc/launch.go:82
 #, c-format
 msgid   "Starting %s"
 msgstr  ""
@@ -5217,7 +5217,7 @@ msgstr  ""
 msgid   "Storage pool %s pending on member %s"
 msgstr  ""
 
-#: lxc/copy.go:60 lxc/import.go:36 lxc/init.go:59 lxc/move.go:65
+#: lxc/copy.go:60 lxc/import.go:36 lxc/init.go:62 lxc/move.go:65
 msgid   "Storage pool name"
 msgstr  ""
 
@@ -5342,7 +5342,7 @@ msgstr  ""
 msgid   "The instance is currently running. Use --force to have it stopped and restarted"
 msgstr  ""
 
-#: lxc/init.go:413
+#: lxc/init.go:416
 msgid   "The instance you are starting doesn't have any network attached to it."
 msgstr  ""
 
@@ -5497,11 +5497,11 @@ msgstr  ""
 msgid   "Timestamps:"
 msgstr  ""
 
-#: lxc/init.go:415
+#: lxc/init.go:418
 msgid   "To attach a network to an instance, use: lxc network attach"
 msgstr  ""
 
-#: lxc/init.go:414
+#: lxc/init.go:417
 msgid   "To create a new network, use: lxc network create"
 msgstr  ""
 
@@ -5567,7 +5567,7 @@ msgstr  ""
 msgid   "Transmit policy"
 msgstr  ""
 
-#: lxc/action.go:287 lxc/launch.go:110
+#: lxc/action.go:287 lxc/launch.go:114
 #, c-format
 msgid   "Try `lxc info --show-log %s` for more info"
 msgstr  ""
@@ -6711,7 +6711,10 @@ msgid   "lxc init ubuntu:22.04 u1\n"
         "    Create a container with configuration from config.yaml\n"
         "\n"
         "lxc init ubuntu:22.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB\n"
-        "    Create a virtual machine with 4 cpus and 4GiB of RAM"
+        "    Create a virtual machine with 4 vCPUs and 4GiB of RAM\n"
+        "\n"
+        "lxc init ubuntu:22.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,size=32GiB\n"
+        "    Create a virtual machine with 2 vCPUs, 8GiB of RAM and a root disk of 32GiB"
 msgstr  ""
 
 #: lxc/launch.go:26
@@ -6725,7 +6728,10 @@ msgid   "lxc launch ubuntu:22.04 u1\n"
         "    Create and start a container using the same size as an AWS t2.micro (1 vCPU, 1GiB of RAM)\n"
         "\n"
         "lxc launch ubuntu:22.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB\n"
-        "    Create and start a virtual machine with 4 vCPUs and 4GiB of RAM"
+        "    Create and start a virtual machine with 4 vCPUs and 4GiB of RAM\n"
+        "\n"
+        "lxc launch ubuntu:22.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,size=32GiB\n"
+        "    Create and start a virtual machine with 2 vCPUs, 8GiB of RAM and a root disk of 32GiB"
 msgstr  ""
 
 #: lxc/list.go:122
