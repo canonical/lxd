@@ -17,7 +17,6 @@ else
 	DQLITE_PATH=$(GOPATH)/deps/dqlite
 endif
 
-	# raft
 .PHONY: default
 default: build
 
