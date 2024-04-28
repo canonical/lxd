@@ -379,7 +379,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   deny /proc/sys/net?*{,/**} wklx,
 
   # Block dangerous paths under /sys
-  deny /sys/[^fdck]*{,/**} wklx,
+  deny /sys/[^cdf]*{,/**} wklx,
   deny /sys/c[^l]*{,/**} wklx,
   deny /sys/cl[^a]*{,/**} wklx,
   deny /sys/cla[^s]*{,/**} wklx,
