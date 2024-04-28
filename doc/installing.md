@@ -216,7 +216,7 @@ Then proceed to the instructions below to actually build and install LXD.
 ### From source: Build a release
 
 The LXD release tarballs bundle a complete dependency tree as well as a
-local copy of `libraft` and `libdqlite` for LXD's database setup.
+local copy `libdqlite` for LXD's database setup.
 
 ```bash
 tar zxvf lxd-4.18.tar.gz
@@ -258,7 +258,7 @@ something like this for a `~/.bashrc` file:
 
 ```bash
 export PATH="${PATH}:$(go env GOPATH)/bin"
-export LD_LIBRARY_PATH="$(go env GOPATH)/deps/dqlite/.libs/:$(go env GOPATH)/deps/raft/.libs/:${LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH="$(go env GOPATH)/deps/dqlite/.libs/:${LD_LIBRARY_PATH}"
 ```
 
 Now, the `lxd` and `lxc` binaries will be available to you and can be used to set up LXD. The binaries will automatically find and use the dependencies built in `$(go env GOPATH)/deps` thanks to the `LD_LIBRARY_PATH` environment variable.
