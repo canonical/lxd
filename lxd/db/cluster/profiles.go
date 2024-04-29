@@ -88,6 +88,7 @@ func (p *Profile) ToAPI(ctx context.Context, tx *sql.Tx, profileConfigs map[int]
 		Description: p.Description,
 		Config:      dbConfig,
 		Devices:     DevicesToAPI(dbDevices),
+		Project:     p.Project,
 	}
 
 	return profile, nil
