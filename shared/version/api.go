@@ -433,6 +433,7 @@ var APIExtensions = []string{
 	"instance_root_volume_attachment",
 	"projects_limits_uplink_ips",
 	"entities_with_entitlements",
+	"profiles_all_projects",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
