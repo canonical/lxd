@@ -51,7 +51,7 @@ See {ref}`instance-options` for a list of available options and information abou
 
 For example, change the memory limit for your container:
 
-````{tabs}
+`````{tabs}
 ```{group-tab} CLI
 To set the memory limit to 8 GiB, enter the following command:
 
@@ -68,15 +68,18 @@ To set the memory limit to 8 GiB, send the following request:
     }'
 ```
 
-```{group-tab} UI
+````{group-tab} UI
 To set the memory limit to 8 GiB, go to the {guilabel}`Configuration` tab of the instance detail page and select {guilabel}`Advanced > Resource limits`.
 Then click {guilabel}`Edit instance`.
 
 Select {guilabel}`Override` for the **Memory limit** and enter 8 GiB as the absolute value.
 
-![Setting the memory limit for an instance to 8 GiB](/images/UI/limits_memory_example.png)
+```{figure} /images/UI/limits_memory_example.png
+   :width: 80%
+   :alt: Setting the memory limit for an instance to 8 GiB
 ```
 ````
+`````
 
 ```{note}
 Some of the instance options are updated immediately while the instance is running.
@@ -202,14 +205,14 @@ See [`PATCH /1.0/instances/{name}`](swagger:/instances/instance_patch) for more 
 ````
 
 ````{group-tab} UI
-The UI currently has limited support for devices.
+The UI does not support all device types yet, but you can configure disk and network devices for your instances.
 
-To attach a device to your instance, you must first create it.
-Then you can update your instance configuration (in the same way as you {ref}`configure instance options <instances-configure-options>`) to attach the device to the instance.
+To attach a device to your instance, or modify an existing device, update your instance configuration (in the same way as you {ref}`configure instance options <instances-configure-options>`).
+Select {guilabel}`Advanced` > {guilabel}`Disk devices` > {guilabel}`Attach disk device` or {guilabel}`Advanced` > {guilabel}`Network devices` > {guilabel}`Attach network` to create a device and attach it to your instance.
 
 ```{note}
 Some of the devices that are displayed in the instance configuration are inherited from a {ref}`profile <profiles>` or defined through a {ref}`project <projects>`.
-These devices cannot be edited for an instance.
+Depending on the type of device, it might not be possible to edit these devices for an instance.
 ```
 
 To add and configure devices that are not currently supported in the UI, follow the instructions in {ref}`instances-configure-edit`.
