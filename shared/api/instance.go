@@ -350,7 +350,7 @@ type InstanceSource struct {
 	Certificate string `json:"certificate" yaml:"certificate"`
 
 	// Image alias name (for image source)
-	// Example: ubuntu/22.04
+	// Example: ubuntu/24.04
 	Alias string `json:"alias,omitempty" yaml:"alias,omitempty"`
 
 	// Image fingerprint (for image source)

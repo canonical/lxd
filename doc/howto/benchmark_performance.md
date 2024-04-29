@@ -47,14 +47,14 @@ Local image
 
   To do so, run a command similar to the following and specify the fingerprint (for example, `2d21da400963`) of the image when you run `lxd-benchmark`:
 
-      lxc image copy ubuntu:22.04 local:
+      lxc image copy ubuntu:24.04 local:
 
   You can also assign an alias to the image and specify that alias (for example, `ubuntu`) when you run `lxd-benchmark`:
 
-      lxc image copy ubuntu:22.04 local: --alias ubuntu
+      lxc image copy ubuntu:24.04 local: --alias ubuntu
 
 Remote image
-: If you want to include the download time in the overall result, specify a remote image (for example, `ubuntu:22.04`).
+: If you want to include the download time in the overall result, specify a remote image (for example, `ubuntu:24.04`).
   The default image that `lxd-benchmark` uses is the latest Ubuntu image (`ubuntu:`), so if you want to use this image, you can leave out the image name when running the tool.
 
 ### Create and launch containers
@@ -74,8 +74,8 @@ For example:
   - Description
 * - `lxd-benchmark init --count 10 --privileged`
   - Create ten privileged containers that use the latest Ubuntu image.
-* - `lxd-benchmark init --count 20 --parallel 4 ubuntu-minimal:22.04`
-  - Create 20 containers that use the Ubuntu Minimal 22.04 image, using four parallel threads.
+* - `lxd-benchmark init --count 20 --parallel 4 ubuntu-minimal:24.04`
+  - Create 20 containers that use the Ubuntu Minimal 24.04 image, using four parallel threads.
 * - `lxd-benchmark init 2d21da400963`
   - Create one container that uses the local image with the fingerprint `2d21da400963`.
 * - `lxd-benchmark init --count 10 ubuntu`
