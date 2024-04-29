@@ -216,7 +216,12 @@ func (c *cmdStorageVolumeAttach) Run(cmd *cobra.Command, args []string) error {
 		case "block", "iso":
 			devName = args[3]
 		case "filesystem":
-			devPath = args[3]
+			if !strings.HasPrefix(args[3], "/") {
+				devPath = path.Join("/", args[3])
+			} else {
+				devPath = args[3]
+			}
+
 			devName = args[1]
 		default:
 			return fmt.Errorf(i18n.G("Unsupported content type for attaching to instances"))
