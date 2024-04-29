@@ -72,7 +72,7 @@ You can list all images (long list) that are available on this image server with
 
 You can list the images used in this tutorial with:
 
-    lxc image list ubuntu: 22.04 architecture=$(uname -m)
+    lxc image list ubuntu: 24.04 architecture=$(uname -m)
 
 See {ref}`images` for more information about the images that LXD uses.
 
@@ -83,9 +83,9 @@ See {ref}`containers-and-vms` for information about the difference between the t
 For managing instances, we use the LXD command line client `lxc`.
 See [About `lxd` and `lxc`](lxd-lxc) if you are confused about when to use the `lxc` command and when to use the `lxd` command.
 
-1. Launch a container called `first` using the Ubuntu 22.04 image:
+1. Launch a container called `first` using the Ubuntu 24.04 image:
 
-       lxc launch ubuntu:22.04 first
+       lxc launch ubuntu:24.04 first
 
    ```{note}
    Launching this container takes a few seconds, because the image must be downloaded and unpacked first.
@@ -93,7 +93,7 @@ See [About `lxd` and `lxc`](lxd-lxc) if you are confused about when to use the `
 
 1. Launch a container called `second` using the same image:
 
-       lxc launch ubuntu:22.04 second
+       lxc launch ubuntu:24.04 second
 
    ```{note}
    Launching this container is quicker than launching the first, because the image is already available.
@@ -103,9 +103,9 @@ See [About `lxd` and `lxc`](lxd-lxc) if you are confused about when to use the `
 
        lxc copy first third
 
-1. Launch a VM called `ubuntu-vm` using the Ubuntu 22.04 image:
+1. Launch a VM called `ubuntu-vm` using the Ubuntu 24.04 image:
 
-       lxc launch ubuntu:22.04 ubuntu-vm --vm
+       lxc launch ubuntu:24.04 ubuntu-vm --vm
 
    ```{note}
    Even though you are using the same image name to launch the instance, LXD downloads a slightly different image that is compatible with VMs.
@@ -159,7 +159,7 @@ Let's create another container with some resource limits:
 
 1. Launch a container and limit it to one vCPU and 192 MiB of RAM:
 
-       lxc launch ubuntu:22.04 limited --config limits.cpu=1 --config limits.memory=192MiB
+       lxc launch ubuntu:24.04 limited --config limits.cpu=1 --config limits.memory=192MiB
 
 1. Check the current configuration and compare it to the configuration of the first (unlimited) container:
 

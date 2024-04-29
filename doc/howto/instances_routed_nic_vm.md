@@ -9,13 +9,13 @@ To configure the gateways with `cloud-init`, firstly initialize an instance:
 
 ````{tabs}
 ```{group-tab} CLI
-    lxc init ubuntu:22.04 my-vm --vm
+    lxc init ubuntu:24.04 my-vm --vm
 ```
 ```{group-tab} API
     lxc query --request POST /1.0/instances --data '{
       "name": "my-vm",
       "source": {
-        "alias": "22.04",
+        "alias": "24.04",
         "protocol": "simplestreams",
         "server": "https://cloud-images.ubuntu.com/releases",
         "type": "image"

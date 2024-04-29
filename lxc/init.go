@@ -41,16 +41,16 @@ func (c *cmdInit) Command() *cobra.Command {
 	cmd.Use = usage("init", i18n.G("[<remote>:]<image> [<remote>:][<name>]"))
 	cmd.Short = i18n.G("Create instances from images")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Create instances from images`))
-	cmd.Example = cli.FormatSection("", i18n.G(`lxc init ubuntu:22.04 u1
+	cmd.Example = cli.FormatSection("", i18n.G(`lxc init ubuntu:24.04 u1
     Create a container (but do not start it)
 
-lxc init ubuntu:22.04 u1 < config.yaml
+lxc init ubuntu:24.04 u1 < config.yaml
     Create a container with configuration from config.yaml
 
-lxc init ubuntu:22.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB
+lxc init ubuntu:24.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB
     Create a virtual machine with 4 vCPUs and 4GiB of RAM
 
-lxc init ubuntu:22.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,size=32GiB
+lxc init ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,size=32GiB
     Create a virtual machine with 2 vCPUs, 8GiB of RAM and a root disk of 32GiB`))
 
 	cmd.RunE = c.Run
