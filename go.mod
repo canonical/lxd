@@ -9,7 +9,7 @@ require (
 	github.com/checkpoint-restore/go-criu/v6 v6.3.0
 	github.com/digitalocean/go-qemu v0.0.0-20230711162256-2e3d0186973e
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
-	github.com/dustinkirkland/golang-petname v0.0.0-20231002161417-6a283f1aaaf2
+	github.com/dustinkirkland/golang-petname v0.0.0-20240428194347-eebcea082ee0
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3
 	github.com/fvbommel/sortorder v1.1.0
 	github.com/go-acme/lego/v4 v4.16.1
