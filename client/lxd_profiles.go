@@ -36,6 +36,23 @@ func (r *ProtocolLXD) GetProfiles() ([]api.Profile, error) {
 	return profiles, nil
 }
 
+// GetProfilesAllProjects returns a list of profiles across all projects as Profile structs.
+func (r *ProtocolLXD) GetProfilesAllProjects() ([]api.Profile, error) {
+	profiles := []api.Profile{}
+	err := r.CheckExtension("profiles_all_projects")
+	if err != nil {
+		return nil, err
+	}
+
+	u := api.NewURL().Path("profiles").WithQuery("recursion", "1").WithQuery("all-projects", "true")
+	_, err = r.queryStruct("GET", u.String(), nil, "", &profiles)
+	if err != nil {
+		return nil, err
+	}
+
+	return profiles, nil
+}
+
 // GetProfile returns a Profile entry for the provided name.
 func (r *ProtocolLXD) GetProfile(name string) (*api.Profile, string, error) {
 	profile := api.Profile{}
