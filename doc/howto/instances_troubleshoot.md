@@ -12,7 +12,7 @@ To troubleshoot the problem, complete the following steps:
 1. Save the relevant log files and debug information:
 
    Instance log
-   : Enter the following command to display the instance log:
+   : Display the instance log:
 
      ````{tabs}
      ```{group-tab} CLI
@@ -21,17 +21,28 @@ To troubleshoot the problem, complete the following steps:
      ```{group-tab} API
          lxc query --request GET /1.0/instances/<instance_name>/logs/lxc.log
      ```
+     ```{group-tab} UI
+     Navigate to the instance detail page and switch to the {guilabel}`Logs` tab to view the available log files.
+     ```
      ````
 
    Console log
-   : Enter the following command to display the console log:
+   : Display the console log:
 
      ````{tabs}
      ```{group-tab} CLI
          lxc console <instance_name> --show-log
+
+     This command is available only for containers.
      ```
      ```{group-tab} API
          lxc query --request GET /1.0/instances/<instance_name>/console
+
+     This endpoint is available only for containers.
+     ```
+     ```{group-tab} UI
+     Navigate to the instance detail page and switch to the {guilabel}`Console` tab to view the console.
+     The console is displayed only when the instance is running.
      ```
      ````
 
