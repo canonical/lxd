@@ -2560,3 +2560,7 @@ Adds `fine_grained` field to `GET /1.0/auth/identities/current` to indicate if t
 interacting with the LXD API is fine-grained (that is, associated permissions are managed via group membership).
 Allows LXD entities to be returned with an `access_entitlements` field if the current identity is fine-grained and the
 GET request to fetch the LXD entities has the `with-access-entitlements=<comma_separated_list_of_candidate_entitlements>` query parameter.
+
+## `profiles_all_projects`
+
+This adds support for listing profiles across all projects using the `all-projects` parameter in `GET /1.0/profiles` requests.
