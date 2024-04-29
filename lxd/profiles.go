@@ -125,6 +125,11 @@ func profileAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.
 //      description: Project name
 //      type: string
 //      example: default
+//    - in: query
+//      name: all-projects
+//      description: Retrieve profiles from all projects
+//      type: boolean
+//      example: true
 //  responses:
 //    "200":
 //      description: API endpoints
@@ -174,6 +179,11 @@ func profileAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.
 //	    description: Project name
 //	    type: string
 //	    example: default
+//	  - in: query
+//	    name: all-projects
+//	    description: Retrieve profiles from all projects
+//	    type: boolean
+//	    example: true
 //	responses:
 //	  "200":
 //	    description: API endpoints
@@ -206,6 +216,13 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	requestProjectName := request.ProjectParam(r)
+	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
+
+	// requestProjectName is only valid for project specific requests.
+	if allProjects && requestProjectName != api.ProjectDefaultName {
+		return response.BadRequest(errors.New("Cannot specify a project when requesting all projects"))
+	}
+
 	p, err := project.ProfileProject(s.DB.Cluster, requestProjectName)
 	if err != nil {
 		return response.SmartError(err)
@@ -226,14 +243,22 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 	var apiProfiles []*api.Profile
 	var profileURLs []string
 	urlToProfile := make(map[*api.URL]auth.EntitlementReporter)
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := dbCluster.ProfileFilter{
-			Project: &p.Name,
-		}
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var profiles []dbCluster.Profile
+		if !allProjects {
+			filter := dbCluster.ProfileFilter{
+				Project: &p.Name,
+			}
 
-		profiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), filter)
-		if err != nil {
-			return err
+			profiles, err = dbCluster.GetProfiles(ctx, tx.Tx(), filter)
+			if err != nil {
+				return err
+			}
+		} else {
+			profiles, err = dbCluster.GetProfiles(ctx, tx.Tx())
+			if err != nil {
+				return err
+			}
 		}
 
 		if recursion {
