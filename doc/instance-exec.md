@@ -1,13 +1,15 @@
 (run-commands)=
 # How to run commands in an instance
 
-LXD allows to run commands inside an instance using the LXD client, without needing to access the instance through the network.
+LXD allows to run commands inside an instance using the LXD client or the API, without needing to access the instance through the network.
 
 For containers, this always works and is handled directly by LXD.
 For virtual machines, the `lxd-agent` process must be running inside of the virtual machine for this to work.
 
-To run commands inside your instance, use the [`lxc exec`](lxc_exec.md) command.
-By running a shell command (for example, `/bin/bash`), you can get shell access to your instance.
+```{note}
+The UI does not currently support sending commands to an instance.
+However, it provides a terminal that gives you {ref}`shell access to your instance <run-commands-shell>`.
+```
 
 ## Run commands inside your instance
 
@@ -141,6 +143,19 @@ Set environment variables as instance options
       }'
   ```
 
+  ```{group-tab} UI
+  To set the `<ENVVAR>` environment variable to `<value>` in the instance, go to the instance detail page, switch to the {guilabel}`Configuration` tab and select {guilabel}`YAML configuration`.
+  Then click {guilabel}`Edit instance`.
+
+  Add the `environment.<ENVVAR>` configuration under the `config` section.
+  For example:
+
+      config:
+        environment.<ENVVAR>: "<value>"
+
+  Click {guilabel}`Save changes`.
+  ```
+
   ````
 
 Pass environment variables to the exec command
@@ -164,7 +179,6 @@ Pass environment variables to the exec command
         }
       }'
   ```
-
   ````
 
 In addition, LXD sets the following default values (unless they are passed in one of the ways described above):
@@ -197,19 +211,26 @@ In addition, LXD sets the following default values (unless they are passed in on
   - `root`
 ```
 
+(run-commands-shell)=
 ## Get shell access to your instance
 
 If you want to run commands directly in your instance, run a shell command inside it.
-For example, enter the following command (assuming that the `/bin/bash` command exists in your instance):
 
 ````{tabs}
 ```{group-tab} CLI
+Enter the following command (assuming that the `/bin/bash` command exists in your instance):
+
     lxc exec <instance_name> -- /bin/bash
 ```
 ```{group-tab} API
+Enter the following command (assuming that the `/bin/bash` command exists in your instance):
+
     lxc query --request POST /1.0/instances/<instance_name>/exec --data '{
       "command": [ "/bin/bash" ]
     }'
+```
+```{group-tab} UI
+Navigate to the instance detail page and switch to the {guilabel}`Terminal` tab to access the shell.
 ```
 ````
 
@@ -226,6 +247,11 @@ To exit the instance shell, enter `exit` or press {kbd}`Ctrl`+{kbd}`d`.
     lxc query --request POST /1.0/instances/<instance_name>/exec --data '{
       "command": [ "su", "--login", "<user_name>" ]
     }'
+```
+```{group-tab} UI
+    su --login <user_name>
+
+To exit the user shell and go back to the root shell, enter `exit` or press {kbd}`Ctrl`+{kbd}`d`.
 ```
 ````
 
