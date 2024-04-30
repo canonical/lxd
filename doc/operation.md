@@ -36,6 +36,7 @@ The following how-to guides cover common operations related to the LXD client (`
 
 :topical:/explanation/lxd_lxc
 :topical:/database
+:topical:/explanation/lxc_show_info
 :topical:Configure the LXD server </howto/server_configure>
 :topical:Add remote servers </remotes>
 :topical:Add command aliases </howto/lxc_alias>
