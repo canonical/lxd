@@ -78,6 +78,9 @@ Alternatively, if you just want to retrieve new log messages from the console in
 See [`GET /1.0/instances/{name}/console`](swagger:/instances/instance_console_get) for more information.
 Note that this operation is supported only for containers, not for VMs.
 ````
+````{group-tab} UI
+Navigate to the instance detail page and switch to the {guilabel}`Console` tab to view the console.
+````
 `````
 
 ## Access the graphical console (for virtual machines)
@@ -108,5 +111,10 @@ To start the VGA console with graphical output for your VM, send a POST request 
     }'
 
 See [`POST /1.0/instances/{name}/console`](swagger:/instances/instance_console_post) for more information.
+```
+```{group-tab} UI
+Navigate to the instance detail page and switch to the {guilabel}`Console` tab to view the console.
+
+For virtual machines, you can switch between the graphic console and the text console.
 ```
 ````
