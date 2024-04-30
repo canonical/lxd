@@ -189,24 +189,47 @@ func (c *cmdStorageVolumeAttach) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Missing pool name"))
 	}
 
+	volName, volType := c.storageVolume.parseVolume("custom", args[1])
+	if volType != "custom" {
+		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be attached to instances"))
+	}
+
 	// Attach the volume
 	devPath := ""
 	devName := ""
 	if len(args) == 3 {
 		devName = args[1]
 	} else if len(args) == 4 {
-		// Only the path has been given to us.
-		devPath = args[3]
-		devName = args[1]
+		client := resource.server
+
+		// Use the provided target.
+		if c.storage.flagTarget != "" && client.IsClustered() {
+			client = client.UseTarget(c.storage.flagTarget)
+		}
+
+		vol, _, err := client.GetStoragePoolVolume(resource.name, volType, volName)
+		if err != nil {
+			return err
+		}
+
+		switch vol.ContentType {
+		case "block", "iso":
+			devName = args[3]
+		case "filesystem":
+			if !strings.HasPrefix(args[3], "/") {
+				devPath = path.Join("/", args[3])
+			} else {
+				devPath = args[3]
+			}
+
+			devName = args[1]
+		default:
+			return fmt.Errorf(i18n.G("Unsupported content type for attaching to instances"))
+		}
 	} else if len(args) == 5 {
 		// Path and device name have been given to us.
 		devName = args[3]
 		devPath = args[4]
-	}
-
-	volName, volType := c.storageVolume.parseVolume("custom", args[1])
-	if volType != "custom" {
-		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be attached to instances"))
 	}
 
 	// Prepare the instance's device entry
