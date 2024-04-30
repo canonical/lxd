@@ -1,9 +1,13 @@
 (instances-access-files)=
 # How to access files in an instance
 
-You can manage files inside an instance using the LXD client without needing to access the instance through the network.
+You can manage files inside an instance using the LXD client or the API without needing to access the instance through the network.
 Files can be individually edited or deleted, pushed from or pulled to the local machine.
-Alternatively, you can mount the instance's file system onto the local machine.
+Alternatively, if you're using the LXD client, you can mount the instance's file system onto the local machine.
+
+```{note}
+The UI does not currently support accessing files in an instance.
+```
 
 For containers, these file operations always work and are handled directly by LXD.
 For virtual machines, the `lxd-agent` process must be running inside of the virtual machine for them to work.
