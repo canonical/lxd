@@ -17,7 +17,8 @@ Name                           | Default                   | Description
 `LXD_CEPH_CEPHFS`              | ""                        | Enables the CephFS tests using the specified cephfs filesystem for `cephfs` pools
 `LXD_CEPH_CEPHOBJECT_RADOSGW`  | ""                        | Enables the Ceph Object tests using the specified radosgw HTTP endpoint for `cephobject` pools
 `LXD_CONCURRENT`               | 0                         | Run concurrency tests, very CPU intensive
-`LXD_DEBUG`                    | 0                         | Run lxd, lxc and the shell in debug mode (very verbose)
+`LXD_VERBOSE`                  | ""                        | Run lxd, lxc and the shell in verbose mode (used in CI; less verbose than `LXD_DEBUG`)
+`LXD_DEBUG`                    | ""                        | Run lxd, lxc and the shell in debug mode (very verbose)
 `LXD_INSPECT`                  | 0                         | Don't teardown the test environment on failure
 `LXD_LOGS `                    | ""                        | Path to a directory to copy all the LXD logs to
 `LXD_OFFLINE`                  | 0                         | Skip anything that requires network access
