@@ -28,6 +28,7 @@ See the {ref}`howtos` for instructions on how to work with these entities, and t
 About storage </explanation/storage>
 /explanation/networks
 /database
+/explanation/lxc_show_info
 ```
 
 (explanation-iam)=
