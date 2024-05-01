@@ -45,6 +45,10 @@ should also be installed.
 For virtual machines, QEMU 6.2 or higher is required. Some features like
 Confidential Guest support require a more recent QEMU and kernel version.
 
+Hardware-assisted virtualization (Intel VT-x, AMD-V, etc) is required for
+running virtual machines. Additional hardware support (Intel VT-d, AMD-Vi) may
+be required for device pass-through.
+
 (requirements-zfs)=
 ## ZFS
 
