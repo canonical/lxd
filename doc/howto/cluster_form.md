@@ -296,6 +296,8 @@ cluster:
 ````
 `````
 
+See {ref}`preseed-yaml-file-fields` for the complete fields of the preseed YAML file.
+
 ### Join additional servers
 
 The required contents of the preseed files depend on whether you configured the bootstrap server to use {ref}`authentication tokens <authentication-token>` (recommended) or a {ref}`trust password <authentication-trust-pw>` for authentication.
@@ -396,6 +398,8 @@ opyQ1VRpAg2sV2C4W8irbNqeUsTeZZxhLqp4vNOXXBBrSqUCdPu1JXADV0kavg1l
 
 ````
 `````
+
+See {ref}`preseed-yaml-file-fields` for the complete fields of the preseed YAML file.
 
 ## Use MicroCloud
 
