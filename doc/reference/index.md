@@ -34,6 +34,7 @@ Check the available configuration options for the LXD server and the different e
 Configuration option index </config-options>
 /server
 /explanation/instance_config
+/reference/preseed_yaml_fields
 /reference/projects
 /reference/storage_drivers
 /reference/networks
