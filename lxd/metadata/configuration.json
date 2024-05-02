@@ -1820,6 +1820,20 @@
 			"device-conf": {
 				"keys": [
 					{
+						"busnum": {
+							"longdesc": "",
+							"shortdesc": "The bus number of which the USB device is attached",
+							"type": "int"
+						}
+					},
+					{
+						"devnum": {
+							"longdesc": "",
+							"shortdesc": "The device number of the USB device",
+							"type": "int"
+						}
+					},
+					{
 						"gid": {
 							"condition": "container",
 							"defaultdesc": "`0`",
@@ -1850,6 +1864,13 @@
 							"longdesc": "The default is `false`, which means that all devices can be hotplugged.",
 							"shortdesc": "Whether this device is required to start the instance",
 							"type": "bool"
+						}
+					},
+					{
+						"serial": {
+							"longdesc": "",
+							"shortdesc": "The serial number of the USB device",
+							"type": "string"
 						}
 					},
 					{
