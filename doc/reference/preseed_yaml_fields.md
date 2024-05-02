@@ -28,6 +28,10 @@ storage_pools:
     name: default
     driver: zfs
 
+storage_volumes:
+- name: my-vol
+  pool: data
+
 profiles:
   - config:
       limits.memory: 2GiB
