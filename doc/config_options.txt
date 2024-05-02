@@ -1567,6 +1567,18 @@ The default is `false`, which means that all devices can be hotplugged.
 
 <!-- config group device-unix-hotplug-device-conf end -->
 <!-- config group device-unix-usb-device-conf start -->
+```{config:option} busnum device-unix-usb-device-conf
+:shortdesc: "The bus number of which the USB device is attached"
+:type: "int"
+
+```
+
+```{config:option} devnum device-unix-usb-device-conf
+:shortdesc: "The device number of the USB device"
+:type: "int"
+
+```
+
 ```{config:option} gid device-unix-usb-device-conf
 :condition: "container"
 :defaultdesc: "`0`"
@@ -1594,6 +1606,12 @@ The default is `false`, which means that all devices can be hotplugged.
 :shortdesc: "Whether this device is required to start the instance"
 :type: "bool"
 The default is `false`, which means that all devices can be hotplugged.
+```
+
+```{config:option} serial device-unix-usb-device-conf
+:shortdesc: "The serial number of the USB device"
+:type: "string"
+
 ```
 
 ```{config:option} uid device-unix-usb-device-conf

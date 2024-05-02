@@ -156,6 +156,8 @@ jobs:
           GITHUB_BEFORE: ${{ github.event.before }}
         run: |
           set -eux
+          sudo chmod o+w ./lxd/metadata/configuration.json
+          sudo chmod o+w ./doc/config_options.txt
           make static-analysis
 
       - name: Unit tests (all)
