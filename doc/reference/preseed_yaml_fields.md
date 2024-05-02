@@ -53,7 +53,7 @@ projects:
       features.storage.volumes: "true"
     description: Default LXD project
     name: default
-    
+
 cluster:
   enabled: true
   server_address: ""
