@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"runtime"
 	"strings"
@@ -49,8 +50,39 @@ func (c *Config) ParseRemote(raw string) (remoteName string, resourceName string
 	return result[0], result[1], nil
 }
 
-// GetInstanceServer returns a InstanceServer struct for the remote.
+// GetInstanceServer returns a lxd.InstanceServer for the remote with the given name.
 func (c *Config) GetInstanceServer(name string) (lxd.InstanceServer, error) {
+	remote, err := c.getPrivateRemoteByName(name)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get connection arguments
+	args, err := c.getConnectionArgs(name)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.connectRemote(*remote, args)
+}
+
+// getPrivateRemoteByName returns the Remote with the given name and ensures that the remote is not public.
+func (c *Config) getPrivateRemoteByName(name string) (*Remote, error) {
+	remote, err := c.getPublicRemoteByName(name)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check the remote is private.
+	if remote.Public || remote.Protocol == "simplestreams" {
+		return nil, fmt.Errorf("The remote isn't a private LXD server")
+	}
+
+	return remote, nil
+}
+
+// getPrivateRemoteByName returns the Remote with the given name.
+func (c *Config) getPublicRemoteByName(name string) (*Remote, error) {
 	// Handle "local" on non-Linux
 	if name == "local" && runtime.GOOS != "linux" {
 		return nil, ErrNotLinux
@@ -62,17 +94,11 @@ func (c *Config) GetInstanceServer(name string) (lxd.InstanceServer, error) {
 		return nil, fmt.Errorf("The remote \"%s\" doesn't exist", name)
 	}
 
-	// Quick checks.
-	if remote.Public || remote.Protocol == "simplestreams" {
-		return nil, fmt.Errorf("The remote isn't a private LXD server")
-	}
+	return &remote, nil
+}
 
-	// Get connection arguments
-	args, err := c.getConnectionArgs(name)
-	if err != nil {
-		return nil, err
-	}
-
+// connectRemote returns a lxd.InstanceServer for the given Remote and configures it with the given lxd.ConnectionArgs.
+func (c *Config) connectRemote(remote Remote, args *lxd.ConnectionArgs) (lxd.InstanceServer, error) {
 	// Unix socket
 	if strings.HasPrefix(remote.Addr, "unix:") {
 		d, err := lxd.ConnectLXDUnix(strings.TrimPrefix(strings.TrimPrefix(remote.Addr, "unix:"), "//"), args)
@@ -105,7 +131,7 @@ func (c *Config) GetInstanceServer(name string) (lxd.InstanceServer, error) {
 		return d, nil
 	}
 
-	// HTTPs
+	// HTTPS
 	if !shared.ValueInSlice(remote.AuthType, []string{api.AuthenticationMethodOIDC}) && (args.TLSClientCert == "" || args.TLSClientKey == "") {
 		return nil, fmt.Errorf("Missing TLS client certificate and key")
 	}
@@ -126,17 +152,30 @@ func (c *Config) GetInstanceServer(name string) (lxd.InstanceServer, error) {
 	return d, nil
 }
 
-// GetImageServer returns a ImageServer struct for the remote.
-func (c *Config) GetImageServer(name string) (lxd.ImageServer, error) {
-	// Handle "local" on non-Linux
-	if name == "local" && runtime.GOOS != "linux" {
-		return nil, ErrNotLinux
+// GetInstanceServerWithTransportWrapper returns a lxd.InstanceServer for the remote with the given name and adds the
+// given transport wrapper to the lxd.ConnectionArgs.
+func (c *Config) GetInstanceServerWithTransportWrapper(name string, wrapper func(*http.Transport) lxd.HTTPTransporter) (lxd.InstanceServer, error) {
+	remote, err := c.getPrivateRemoteByName(name)
+	if err != nil {
+		return nil, err
 	}
 
-	// Get the remote
-	remote, ok := c.Remotes[name]
-	if !ok {
-		return nil, fmt.Errorf("The remote \"%s\" doesn't exist", name)
+	// Get connection arguments
+	args, err := c.getConnectionArgs(name)
+	if err != nil {
+		return nil, err
+	}
+
+	args.TransportWrapper = wrapper
+
+	return c.connectRemote(*remote, args)
+}
+
+// GetImageServer returns a ImageServer struct for the remote.
+func (c *Config) GetImageServer(name string) (lxd.ImageServer, error) {
+	remote, err := c.getPublicRemoteByName(name)
+	if err != nil {
+		return nil, err
 	}
 
 	// Get connection arguments

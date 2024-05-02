@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"sort"
 	"strings"
@@ -224,41 +226,43 @@ func (c *cmdNetworkLoadBalancerShow) Run(cmd *cobra.Command, args []string) erro
 type cmdNetworkLoadBalancerCreate struct {
 	global              *cmdGlobal
 	networkLoadBalancer *cmdNetworkLoadBalancer
+	flagAllocate        string
 }
 
 func (c *cmdNetworkLoadBalancerCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("create", i18n.G("[<remote>:]<network> <listen_address> [key=value...]"))
+	cmd.Use = usage("create", i18n.G("[<remote>:]<network> [<listen_address>] [key=value...]"))
 	cmd.Short = i18n.G("Create new network load balancers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Create new network load balancers"))
 	cmd.RunE = c.Run
 
 	cmd.Flags().StringVar(&c.networkLoadBalancer.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().StringVar(&c.flagAllocate, "allocate", "", i18n.G("Auto-allocate an IPv4 or IPv6 listen address. One of 'ipv4', 'ipv6'.")+"``")
 
 	return cmd
 }
 
 func (c *cmdNetworkLoadBalancerCreate) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
+	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
 		return err
 	}
 
 	// Parse remote.
-	resources, err := c.global.ParseServers(args[0])
+	remoteName, networkName, err := c.global.conf.ParseRemote(args[0])
 	if err != nil {
 		return err
 	}
 
-	resource := resources[0]
-
-	if resource.name == "" {
+	if networkName == "" {
 		return fmt.Errorf(i18n.G("Missing network name"))
 	}
 
-	if args[1] == "" {
-		return fmt.Errorf(i18n.G("Missing listen address"))
+	transporter, wrapper := newLocationHeaderTransportWrapper()
+	client, err := c.global.conf.GetInstanceServerWithTransportWrapper(remoteName, wrapper)
+	if err != nil {
+		return err
 	}
 
 	// If stdin isn't a terminal, read yaml from it.
@@ -279,38 +283,71 @@ func (c *cmdNetworkLoadBalancerCreate) Run(cmd *cobra.Command, args []string) er
 		loadBalancerPut.Config = map[string]string{}
 	}
 
-	// Get config filters from arguments.
-	for i := 2; i < len(args); i++ {
+	// Get listen address and config from arguments.
+	var listenAddress string
+	for i := 1; i < len(args); i++ {
 		entry := strings.SplitN(args[i], "=", 2)
 		if len(entry) < 2 {
-			return fmt.Errorf(i18n.G("Bad key/value pair: %s"), args[i])
+			if len(entry) < 2 {
+				// If it's not the first argument it must be a key/value pair.
+				if i != 1 {
+					return fmt.Errorf(i18n.G("Bad key/value pair: %s"), args[i])
+				}
+
+				// Otherwise it is the listen address.
+				listenAddress = args[i]
+				continue
+			}
 		}
 
 		loadBalancerPut.Config[entry[0]] = entry[1]
 	}
 
+	if listenAddress != "" && c.flagAllocate != "" {
+		return errors.New("Cannot specify listen address when requesting auto allocation")
+	}
+
+	if listenAddress == "" {
+		if c.flagAllocate == "" {
+			return fmt.Errorf("Must provide a listen address or --allocate=ipv{4,6}")
+		}
+
+		if c.flagAllocate != "ipv4" && c.flagAllocate != "ipv6" {
+			return fmt.Errorf("Invalid --allocate flag %q. Must be one of 'ipv4', or 'ipv6'", c.flagAllocate)
+		}
+
+		if c.flagAllocate == "ipv4" {
+			listenAddress = net.IPv4zero.String()
+		}
+
+		if c.flagAllocate == "ipv6" {
+			listenAddress = net.IPv6zero.String()
+		}
+	}
+
 	// Create the network load balancer.
 	loadBalancer := api.NetworkLoadBalancersPost{
-		ListenAddress:          args[1],
+		ListenAddress:          listenAddress,
 		NetworkLoadBalancerPut: loadBalancerPut,
 	}
 
 	loadBalancer.Normalise()
-
-	client := resource.server
 
 	// If a target was specified, create the load balancer on the given member.
 	if c.networkLoadBalancer.flagTarget != "" {
 		client = client.UseTarget(c.networkLoadBalancer.flagTarget)
 	}
 
-	err = client.CreateNetworkLoadBalancer(resource.name, loadBalancer)
+	err = client.CreateNetworkLoadBalancer(networkName, loadBalancer)
 	if err != nil {
 		return err
 	}
 
+	parts := strings.Split(transporter.location, "/")
+	listenAddress = parts[len(parts)-1]
+
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Network load balancer %s created")+"\n", loadBalancer.ListenAddress)
+		fmt.Printf(i18n.G("Network load balancer %s created")+"\n", listenAddress)
 	}
 
 	return nil

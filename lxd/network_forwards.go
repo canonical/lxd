@@ -276,12 +276,12 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	err = n.ForwardCreate(req, clientType)
+	listenAddress, err := n.ForwardCreate(req, clientType)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed creating forward: %w", err))
 	}
 
-	lc := lifecycle.NetworkForwardCreated.Event(n, req.ListenAddress, request.CreateRequestor(r), nil)
+	lc := lifecycle.NetworkForwardCreated.Event(n, listenAddress.String(), request.CreateRequestor(r), nil)
 	s.Events.SendLifecycle(projectName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)

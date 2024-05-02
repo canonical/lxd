@@ -24,11 +24,12 @@ A load balancer is made up of:
 Use the following command to create a network load balancer:
 
 ```bash
-lxc network load-balancer create <network_name> <listen_address> [configuration_options...]
+lxc network load-balancer create <network_name> [<listen_address>] [--allocate=ipv{4,6}] [configuration_options...]
 ```
 
 Each load balancer is assigned to a network.
-It requires a single external listen address (see {ref}`network-load-balancers-listen-addresses` for more information about which addresses can be load-balanced).
+Listen addresses are subject to restrictions (see {ref}`network-load-balancers-listen-addresses` for more information about which addresses can be load-balanced).
+If a listen address is not given, the `--allocate` flag must be provided.
 
 ### Load balancer properties
 
@@ -36,7 +37,7 @@ Network load balancers have the following properties:
 
 Property         | Type         | Required | Description
 :--              | :--          | :--      | :--
-`listen_address` | string       | yes      | IP address to listen on
+`listen_address` | string       | no       | IP address to listen on
 `description`    | string       | no       | Description of the network load balancer
 `config`         | string set   | no       | Configuration options as key/value pairs (only `user.*` custom keys supported)
 `backends`       | backend list | no       | List of {ref}`backend specifications <network-load-balancers-backend-specifications>`
@@ -49,6 +50,7 @@ The following requirements must be met for valid listen addresses:
 
 - Allowed listen addresses must be defined in the uplink network's `ipv{n}.routes` settings or the project's {config:option}`project-restricted:restricted.networks.subnets` setting (if set).
 - The listen address must not overlap with a subnet that is in use with another network or entity in that network.
+- If the `--allocate` flag is provided, an IP address will be allocated from the uplink network's `ipv{n}.routes` or the project's {config:option}`project-restricted:restricted.networks.subnets` setting (if set).
 
 (network-load-balancers-backend-specifications)=
 ## Configure backends
