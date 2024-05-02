@@ -5,6 +5,15 @@ discourse: 16635
 (move-instances)=
 # How to move existing LXD instances between servers
 
+If you use the LXD client, you can move or copy instances from one LXD server (remote or local) to another.
+
+```{note}
+{ref}`Remote servers <remotes>` are a concept of the LXD client.
+Therefore, there is no direct equivalent for moving instances in the API or the UI.
+
+However, you can {ref}`export an instance <instances-backup-export-instance>` from one server and {ref}`import it <instances-backup-import-instance>` to another server.
+```
+
 To move an instance from one LXD server to another, use the [`lxc move`](lxc_move.md) command:
 
     lxc move [<source_remote>:]<source_instance_name> <target_remote>:[<target_instance_name>]
