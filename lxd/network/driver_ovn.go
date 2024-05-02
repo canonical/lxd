@@ -2,8 +2,10 @@ package network
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -212,6 +214,87 @@ func (n *ovn) projectRestrictedSubnets(p *api.Project, uplinkNetworkName string)
 	}
 
 	return projectRestrictedSubnets, nil
+}
+
+func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRoutes []*net.IPNet, projectRestrictedSubnets []*net.IPNet, validator func(*net.IPNet) error) (*net.IPNet, error) {
+	// Ensure a sensible deadline is set.
+	_, hasDeadline := ctx.Deadline()
+	var cancel context.CancelFunc = func() {}
+	if !hasDeadline {
+		ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
+	}
+
+	defer cancel()
+
+	var subnets []*net.IPNet
+	for _, projectRestrictedSubnet := range projectRestrictedSubnets {
+		if (projectRestrictedSubnet.IP.To4() != nil && ipVersion == 4) || (projectRestrictedSubnet.IP.To4() == nil && ipVersion == 6) {
+			subnets = append(subnets, projectRestrictedSubnet)
+		}
+	}
+
+	if projectRestrictedSubnets == nil {
+		for _, uplinkRoute := range uplinkRoutes {
+			if (uplinkRoute.IP.To4() != nil && ipVersion == 4) || (uplinkRoute.IP.To4() == nil && ipVersion == 6) {
+				subnets = append(subnets, uplinkRoute)
+			}
+		}
+	}
+
+	if len(subnets) == 0 {
+		return nil, fmt.Errorf("No IPv%d routes are available for this network", ipVersion)
+	}
+
+	if len(subnets) > 1 {
+		// Shuffle the subnets so we aren't always picking from the same one.
+		for i := range subnets {
+			j := rand.Intn(i + 1)
+			subnets[i], subnets[j] = subnets[j], subnets[i]
+		}
+	}
+
+	// Distribute the deadline across the number of subnets we're attempting to find an address in.
+	deadline, _ := ctx.Deadline()
+	perSubnetTimeout := time.Until(deadline) / time.Duration(len(subnets))
+
+	for _, subnet := range subnets {
+		subnetCtx, subnetCtxCancel := context.WithTimeout(ctx, perSubnetTimeout)
+		addressInSubnet, err := randomAddressInSubnet(subnetCtx, *subnet, func(n net.IP) error {
+			if validator == nil {
+				return nil
+			}
+
+			ipnet, err := ParseIPToNet(n.String())
+			if err != nil {
+				return err
+			}
+
+			return validator(ipnet)
+		})
+
+		subnetCtxCancel()
+
+		// If the timeout for this subnet is exceeded we want to iterate, so ignore the error. If the input context is
+		// cancelled we will exit the loop on the next iteration.
+		if err != nil && errors.Is(err, context.DeadlineExceeded) && ctx.Err() == nil {
+			continue
+		}
+
+		// If the subnet was exhausted, continue to the next subnet.
+		var subnetExhaustedErr noAvailableAddressErr
+		if err != nil && errors.As(err, &subnetExhaustedErr) {
+			continue
+		}
+
+		// Return if we encounter any other error.
+		if err != nil {
+			return nil, fmt.Errorf("Failed to determine an available external address: %w", err)
+		}
+
+		return ParseIPToNet(addressInSubnet.String())
+	}
+
+	return nil, fmt.Errorf("Failed to determine an available external address: %w", context.DeadlineExceeded)
 }
 
 // validateExternalSubnet checks the supplied ipNet is allowed within the uplink routes and project
@@ -4692,33 +4775,18 @@ func (n *ovn) forwardFlattenVIPs(listenAddress net.IP, defaultTargetAddress net.
 }
 
 // ForwardCreate creates a network forward.
-func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) error {
+func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) (net.IP, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Convert listen address to subnet so we can check its valid and can be used.
+	listenAddressNet, err := ParseIPToNet(forward.ListenAddress)
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing %q: %w", forward.ListenAddress, err)
+	}
+
 	if clientType == request.ClientTypeNormal {
 		memberSpecific := false // OVN doesn't support per-member forwards.
-
-		err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			// Check if there is an existing forward using the same listen address.
-			_, _, err := tx.GetNetworkForward(ctx, n.ID(), memberSpecific, forward.ListenAddress)
-
-			return err
-		})
-		if err == nil {
-			return api.StatusErrorf(http.StatusConflict, "A forward for that listen address already exists")
-		}
-
-		// Convert listen address to subnet so we can check its valid and can be used.
-		listenAddressNet, err := ParseIPToNet(forward.ListenAddress)
-		if err != nil {
-			return fmt.Errorf("Failed parsing %q: %w", forward.ListenAddress, err)
-		}
-
-		portMaps, err := n.forwardValidate(listenAddressNet.IP, forward.NetworkForwardPut)
-		if err != nil {
-			return err
-		}
 
 		// Load the project to get uplink network restrictions.
 		var p *api.Project
@@ -4744,53 +4812,85 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 			return nil
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		uplinkRoutes, err := n.uplinkRoutes(uplink)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Get project restricted routes.
 		projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, n.config["network"])
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		externalSubnetsInUse, err := n.getExternalSubnetInUse(n.config["network"])
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		// Check the listen address subnet is allowed within both the uplink's external routes and any
-		// project restricted subnets.
-		err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, listenAddressNet)
-		if err != nil {
-			return err
-		}
+		checkAddressNotInUse := func(netip *net.IPNet) error {
+			// Check the listen address subnet doesn't fall within any existing OVN network external subnets.
+			for _, externalSubnetUser := range externalSubnetsInUse {
+				// Check if usage is from our own network.
+				if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
+					// Skip checking conflict with our own network's subnet or SNAT address.
+					// But do not allow other conflict with other usage types within our own network.
+					if externalSubnetUser.usageType == subnetUsageNetwork || externalSubnetUser.usageType == subnetUsageNetworkSNAT {
+						continue
+					}
+				}
 
-		// Check the listen address subnet doesn't fall within any existing OVN network external subnets.
-		for _, externalSubnetUser := range externalSubnetsInUse {
-			// Check if usage is from our own network.
-			if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
-				// Skip checking conflict with our own network's subnet or SNAT address.
-				// But do not allow other conflict with other usage types within our own network.
-				if externalSubnetUser.usageType == subnetUsageNetwork || externalSubnetUser.usageType == subnetUsageNetworkSNAT {
-					continue
+				if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
+					// This error is purposefully vague so that it doesn't reveal any names of
+					// resources potentially outside of the network's project.
+					return fmt.Errorf("Forward listen address %q overlaps with another network or NIC", listenAddressNet.String())
 				}
 			}
 
-			if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
-				// This error is purposefully vague so that it doesn't reveal any names of
-				// resources potentially outside of the network's project.
-				return fmt.Errorf("Forward listen address %q overlaps with another network or NIC", listenAddressNet.String())
+			return nil
+		}
+
+		// We're auto-allocating the external IP address if the given listen address is unspecified.
+		if listenAddressNet.IP.IsUnspecified() {
+			ipVersion := 4
+			if forward.ListenAddress == net.IPv6zero.String() {
+				ipVersion = 6
 			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			listenAddressNet, err = n.randomExternalAddress(ctx, ipVersion, uplinkRoutes, projectRestrictedSubnets, checkAddressNotInUse)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to allocate an IPv%d address: %w", ipVersion, err)
+			}
+
+			forward.ListenAddress = listenAddressNet.IP.String()
+		} else {
+			// Check the listen address subnet is allowed within both the uplink's external routes and any
+			// project restricted subnets.
+			err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, listenAddressNet)
+			if err != nil {
+				return nil, err
+			}
+
+			err := checkAddressNotInUse(listenAddressNet)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		portMaps, err := n.forwardValidate(listenAddressNet.IP, forward.NetworkForwardPut)
+		if err != nil {
+			return nil, err
 		}
 
 		client, err := openvswitch.NewOVN(n.state)
 		if err != nil {
-			return fmt.Errorf("Failed to get OVN client: %w", err)
+			return nil, fmt.Errorf("Failed to get OVN client: %w", err)
 		}
 
 		var forwardID int64
@@ -4802,7 +4902,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 			return err
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		revert.Add(func() {
@@ -4818,31 +4918,31 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 
 		err = client.LoadBalancerApply(n.getLoadBalancerName(forward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
 		if err != nil {
-			return fmt.Errorf("Failed applying OVN load balancer: %w", err)
+			return nil, fmt.Errorf("Failed applying OVN load balancer: %w", err)
 		}
 
 		// Notify all other members to refresh their BGP prefixes.
 		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), n.state.ServerCert(), cluster.NotifyAll)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		err = notifier(func(client lxd.InstanceServer) error {
 			return client.UseProject(n.project).CreateNetworkForward(n.name, forward)
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	// Refresh exported BGP prefixes on local member.
-	err := n.forwardBGPSetupPrefixes()
+	err = n.forwardBGPSetupPrefixes()
 	if err != nil {
-		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
+		return nil, fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
 
 	revert.Success()
-	return nil
+	return listenAddressNet.IP, nil
 }
 
 // ForwardUpdate updates a network forward.
@@ -5048,33 +5148,18 @@ func (n *ovn) loadBalancerFlattenVIPs(listenAddress net.IP, portMaps []*loadBala
 }
 
 // LoadBalancerCreate creates a network load balancer.
-func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clientType request.ClientType) error {
+func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clientType request.ClientType) (net.IP, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Convert listen address to subnet so we can check its valid and can be used.
+	listenAddressNet, err := ParseIPToNet(loadBalancer.ListenAddress)
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing %q: %w", loadBalancer.ListenAddress, err)
+	}
+
 	if clientType == request.ClientTypeNormal {
 		memberSpecific := false // OVN doesn't support per-member load balancers.
-
-		err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			// Check if there is an existing load balancer using the same listen address.
-			_, _, err := tx.GetNetworkLoadBalancer(ctx, n.ID(), memberSpecific, loadBalancer.ListenAddress)
-
-			return err
-		})
-		if err == nil {
-			return api.StatusErrorf(http.StatusConflict, "A load balancer for that listen address already exists")
-		}
-
-		// Convert listen address to subnet so we can check its valid and can be used.
-		listenAddressNet, err := ParseIPToNet(loadBalancer.ListenAddress)
-		if err != nil {
-			return fmt.Errorf("Failed parsing %q: %w", loadBalancer.ListenAddress, err)
-		}
-
-		portMaps, err := n.loadBalancerValidate(listenAddressNet.IP, loadBalancer.NetworkLoadBalancerPut)
-		if err != nil {
-			return err
-		}
 
 		// Load the project to get uplink network restrictions.
 		var p *api.Project
@@ -5100,53 +5185,85 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 			return nil
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		uplinkRoutes, err := n.uplinkRoutes(uplink)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Get project restricted routes.
 		projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, n.config["network"])
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		externalSubnetsInUse, err := n.getExternalSubnetInUse(n.config["network"])
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		// Check the listen address subnet is allowed within both the uplink's external routes and any
-		// project restricted subnets.
-		err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, listenAddressNet)
-		if err != nil {
-			return err
-		}
+		checkAddressNotInUse := func(netip *net.IPNet) error {
+			// Check the listen address subnet doesn't fall within any existing OVN network external subnets.
+			for _, externalSubnetUser := range externalSubnetsInUse {
+				// Check if usage is from our own network.
+				if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
+					// Skip checking conflict with our own network's subnet or SNAT address.
+					// But do not allow other conflict with other usage types within our own network.
+					if externalSubnetUser.usageType == subnetUsageNetwork || externalSubnetUser.usageType == subnetUsageNetworkSNAT {
+						continue
+					}
+				}
 
-		// Check the listen address subnet doesn't fall within any existing OVN network external subnets.
-		for _, externalSubnetUser := range externalSubnetsInUse {
-			// Check if usage is from our own network.
-			if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
-				// Skip checking conflict with our own network's subnet or SNAT address.
-				// But do not allow other conflict with other usage types within our own network.
-				if externalSubnetUser.usageType == subnetUsageNetwork || externalSubnetUser.usageType == subnetUsageNetworkSNAT {
-					continue
+				if SubnetContains(&externalSubnetUser.subnet, netip) || SubnetContains(netip, &externalSubnetUser.subnet) {
+					// This error is purposefully vague so that it doesn't reveal any names of
+					// resources potentially outside of the network's project.
+					return fmt.Errorf("Load balancer listen address %q overlaps with another network or NIC", netip.String())
 				}
 			}
 
-			if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
-				// This error is purposefully vague so that it doesn't reveal any names of
-				// resources potentially outside of the network's project.
-				return fmt.Errorf("Load balancer listen address %q overlaps with another network or NIC", listenAddressNet.String())
+			return nil
+		}
+
+		// We're auto-allocating the external IP address if the given listen address is unspecified.
+		if listenAddressNet.IP.IsUnspecified() {
+			ipVersion := 4
+			if loadBalancer.ListenAddress == net.IPv6zero.String() {
+				ipVersion = 6
 			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			listenAddressNet, err = n.randomExternalAddress(ctx, ipVersion, uplinkRoutes, projectRestrictedSubnets, checkAddressNotInUse)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to allocate an IPv%d address: %w", ipVersion, err)
+			}
+
+			loadBalancer.ListenAddress = listenAddressNet.IP.String()
+		} else {
+			// Check the listen address subnet is allowed within both the uplink's external routes and any
+			// project restricted subnets.
+			err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, listenAddressNet)
+			if err != nil {
+				return nil, err
+			}
+
+			err := checkAddressNotInUse(listenAddressNet)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		portMaps, err := n.loadBalancerValidate(listenAddressNet.IP, loadBalancer.NetworkLoadBalancerPut)
+		if err != nil {
+			return nil, err
 		}
 
 		client, err := openvswitch.NewOVN(n.state)
 		if err != nil {
-			return fmt.Errorf("Failed to get OVN client: %w", err)
+			return nil, fmt.Errorf("Failed to get OVN client: %w", err)
 		}
 
 		var loadBalancerID int64
@@ -5158,7 +5275,7 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 			return err
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		revert.Add(func() {
@@ -5174,31 +5291,31 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 
 		err = client.LoadBalancerApply(n.getLoadBalancerName(loadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
 		if err != nil {
-			return fmt.Errorf("Failed applying OVN load balancer: %w", err)
+			return nil, fmt.Errorf("Failed applying OVN load balancer: %w", err)
 		}
 
 		// Notify all other members to refresh their BGP prefixes.
 		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), n.state.ServerCert(), cluster.NotifyAll)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		err = notifier(func(client lxd.InstanceServer) error {
 			return client.UseProject(n.project).CreateNetworkLoadBalancer(n.name, loadBalancer)
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	// Refresh exported BGP prefixes on local member.
-	err := n.loadBalancerBGPSetupPrefixes()
+	err = n.loadBalancerBGPSetupPrefixes()
 	if err != nil {
-		return fmt.Errorf("Failed applying BGP prefixes for load balancers: %w", err)
+		return nil, fmt.Errorf("Failed applying BGP prefixes for load balancers: %w", err)
 	}
 
 	revert.Success()
-	return nil
+	return listenAddressNet.IP, nil
 }
 
 // LoadBalancerUpdate updates a network load balancer.

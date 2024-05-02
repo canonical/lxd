@@ -59,12 +59,12 @@ type Network interface {
 	Leases(projectName string, clientType request.ClientType) ([]api.NetworkLease, error)
 
 	// Address Forwards.
-	ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) error
+	ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) (net.IP, error)
 	ForwardUpdate(listenAddress string, newForward api.NetworkForwardPut, clientType request.ClientType) error
 	ForwardDelete(listenAddress string, clientType request.ClientType) error
 
 	// Load Balancers.
-	LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clientType request.ClientType) error
+	LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clientType request.ClientType) (net.IP, error)
 	LoadBalancerUpdate(listenAddress string, newLoadBalancer api.NetworkLoadBalancerPut, clientType request.ClientType) error
 	LoadBalancerDelete(listenAddress string, clientType request.ClientType) error
 

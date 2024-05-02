@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 
 	"github.com/canonical/lxd/shared/api"
@@ -67,6 +68,18 @@ func (r *ProtocolLXD) CreateNetworkForward(networkName string, forward api.Netwo
 	err := r.CheckExtension("network_forward")
 	if err != nil {
 		return err
+	}
+
+	listenAddressIP := net.ParseIP(forward.ListenAddress)
+	if listenAddressIP == nil {
+		return fmt.Errorf("Invalid network forward listen address: %s", forward.ListenAddress)
+	}
+
+	if listenAddressIP.IsUnspecified() {
+		err := r.CheckExtension("network_allocate_external_ips")
+		if err != nil {
+			return err
+		}
 	}
 
 	// Send the request.

@@ -116,7 +116,7 @@ func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey strin
 // It takes in the connection arguments and the Unix socket path as parameters.
 // The function sets up a Unix socket dialer, configures the HTTP transport, and returns the HTTP client with the specified configurations.
 // Any errors encountered during the setup process are also handled by the function.
-func unixHTTPClient(args *ConnectionArgs, path string) (*http.Client, error) {
+func unixHTTPClient(args *ConnectionArgs, path string, transportWrapper func(t *http.Transport) HTTPTransporter) (*http.Client, error) {
 	// Setup a Unix socket dialer
 	unixDial := func(_ context.Context, network, addr string) (net.Conn, error) {
 		raddr, err := net.ResolveUnixAddr("unix", path)
@@ -147,7 +147,11 @@ func unixHTTPClient(args *ConnectionArgs, path string) (*http.Client, error) {
 		client = &http.Client{}
 	}
 
-	client.Transport = transport
+	if transportWrapper != nil {
+		client.Transport = transportWrapper(transport)
+	} else {
+		client.Transport = transport
+	}
 
 	// Setup redirect policy
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
