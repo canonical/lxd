@@ -2410,8 +2410,8 @@ allow list {config:option}`instance-miscellaneous:linux.kernel_modules`.
 
 ## `device_usb_serial`
 
-This adds new configuration keys `serial`, `busnum` and `devnum` for device type `usb`.
-Feature has been added, to make it possible to distinguish between devices with identical `vendorid` and `productid`.
+This adds new configuration keys {config:option}`device-unix-usb-device-conf:serial`, {config:option}`device-unix-usb-device-conf:busnum` and {config:option}`device-unix-usb-device-conf:devnum` for [device type `usb`](devices-usb).
+The feature has been added to make it possible to distinguish between devices with identical {config:option}`device-unix-usb-device-conf:vendorid` and {config:option}`device-unix-usb-device-conf:productid`.
 
 ## `network_allocate_external_ips`
 
