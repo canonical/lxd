@@ -7,7 +7,7 @@ For virtual machines, the gateways must be configured manually or via a mechanis
 
 To configure the gateways with `cloud-init`, firstly initialize an instance:
 
-````{tabs}
+`````{tabs}
 ```{group-tab} CLI
     lxc init ubuntu:24.04 my-vm --vm
 ```
@@ -23,7 +23,13 @@ To configure the gateways with `cloud-init`, firstly initialize an instance:
       "type": "virtual-machine"
     }'
 ```
+````{group-tab} UI
+```{figure} /images/UI/routed_nic_create_instance.png
+:width: 80%
+:alt: Create an Ubuntu 24.04 VM
+```
 ````
+`````
 
 Then add the routed NIC device:
 
@@ -44,9 +50,23 @@ Then add the routed NIC device:
       }
     }'
 ```
+```{group-tab} UI
+You cannot add a routed NIC device through the UI directly.
+Therefore, go to the instance detail page, switch to the {guilabel}`Configuration` tab and select {guilabel}`YAML configuration`.
+Then click {guilabel}`Edit instance` and add the routed NIC device to the `devices` section.
+For example:
+
+    devices:
+      eth0:
+        ipv4.address: 192.0.2.2
+        ipv6.address: 2001:db8::2
+        nictype: routed
+        parent: my-parent
+        type: nic
+```
 ````
 
-In this command, `my-parent-network` is your parent network, and the IPv4 and IPv6 addresses are within the subnet of the parent.
+In this configuration, `my-parent-network` is your parent network, and the IPv4 and IPv6 addresses are within the subnet of the parent.
 
 Next we will add some `netplan` configuration to the instance using the `cloud-init.network-config` configuration key:
 
@@ -93,6 +113,26 @@ Next we will add some `netplan` configuration to the instance using the `cloud-i
       }
     }'
 ```
+```{group-tab} UI
+On the instance detail page, switch to the {guilabel}`Advanced` > {guilabel}`Cloud-init` tab and click {guilabel}`Edit instance`.
+
+Click the {guilabel}`Create override` icon for the {guilabel}`Network config` and enter the following configuration:
+
+    network:
+      version: 2
+      ethernets:
+        enp5s0:
+          routes:
+          - to: default
+            via: 169.254.0.1
+            on-link: true
+          - to: default
+            via: fe80::1
+            on-link: true
+          addresses:
+          - 192.0.2.2/32
+          - 2001:db8::2/128
+```
 ````
 
 This `netplan` configuration adds the {ref}`static link-local next-hop addresses <nic-routed>` (`169.254.0.1` and `fe80::1`) that are required.
@@ -108,7 +148,7 @@ If there is a `lxdbr0` network on the host, the name server can be set to that I
 
 Before you start your instance, make sure that you have {ref}`configured the parent network <nic-routed-parent>` to enable proxy ARP/NDP.
 
-Then start your instance with:
+Then start your instance:
 
 ````{tabs}
 ```{group-tab} CLI
@@ -116,5 +156,8 @@ Then start your instance with:
 ```
 ```{group-tab} API
     lxc query --request PUT /1.0/instances/my-vm/state --data '{"action": "start"}'
+```
+```{group-tab} UI
+Go to the instance list or the respective instance and click the {guilabel}`Start` button (▷).
 ```
 ````

@@ -75,6 +75,19 @@ Note that this feature is not fully supported for containers because of CRIU lim
 
 See [`POST /1.0/instances/{name}/snapshots`](swagger:/instances/instance_snapshots_post) for more information.
 ````
+````{group-tab} UI
+To create a snapshot of an instance, go to the instance detail page and switch to the {guilabel}`Snapshots` tab.
+Click {guilabel}`Create snapshot` to open the dialog to create a snapshot.
+
+The snapshot name is optional.
+If you don't specify one, the name follows the naming pattern defined in {config:option}`instance-snapshots:snapshots.pattern`.
+You can check and update this option by switching to the {guilabel}`Configuration` tab and selecting {guilabel}`Advanced` > {guilabel}`Snapshots`, or simply by clicking {guilabel}`See configuration`.
+
+By default, snapshots are kept forever, unless you specify an expiry date and time, or the {config:option}`instance-snapshots:snapshots.expiry` configuration option is set for the instance.
+
+For virtual machines, you can choose to create a stateful snapshot to capture not only the data included in the instance volume but also the running state of the instance.
+Note that this feature requires {config:option}`instance-migration:migration.stateful` to be enabled.
+````
 `````
 
 (instances-snapshots-delete)=
@@ -134,6 +147,11 @@ To delete a snapshot, send a DELETE request:
 See [`GET /1.0/instances/{name}/snapshots`](swagger:/instances/instance_snapshots_get), [`GET /1.0/instances/{name}/snapshots/{snapshot}`](swagger:/instances/instance_snapshot_get), [`PATCH /1.0/instances/{name}/snapshots/{snapshot}`](swagger:/instances/instance_snapshot_patch), and [`DELETE /1.0/instances/{name}/snapshots/{snapshot}`](swagger:/instances/instance_snapshot_delete) for more information.
 
 ````
+````{group-tab} UI
+To see all snapshots for an instance, go to the instance detail page and switch to the {guilabel}`Snapshots` tab.
+
+From the snapshot list, you can choose to edit the name or expiry date of a specific snapshot, create an image based on the snapshot, restore it to the instance, or delete it.
+````
 `````
 
 ### Schedule instance snapshots
@@ -143,7 +161,7 @@ To do so, set the {config:option}`instance-snapshots:snapshots.schedule` instanc
 
 For example, to configure daily snapshots:
 
-````{tabs}
+`````{tabs}
 ```{group-tab} CLI
     lxc config set <instance_name> snapshots.schedule @daily
 ```
@@ -154,11 +172,17 @@ For example, to configure daily snapshots:
       }
     }'
 ```
+````{group-tab} UI
+```{figure} /images/UI/snapshots_daily.png
+   :width: 80%
+   :alt: Configure daily snapshots
+```
 ````
+`````
 
 To configure taking a snapshot every day at 6 am:
 
-````{tabs}
+`````{tabs}
 ```{group-tab} CLI
     lxc config set <instance_name> snapshots.schedule "0 6 * * *"
 ```
@@ -169,7 +193,12 @@ To configure taking a snapshot every day at 6 am:
       }
     }'
 ```
-````
+````{group-tab} UI
+```{figure} /images/UI/snapshots_cron.png
+   :width: 80%
+   :alt: Configure snapshots daily at 6am
+```
+`````````
 
 When scheduling regular snapshots, consider setting an automatic expiry ({config:option}`instance-snapshots:snapshots.expiry`) and a naming pattern for snapshots ({config:option}`instance-snapshots:snapshots.pattern`).
 You should also configure whether you want to take snapshots of instances that are not running ({config:option}`instance-snapshots:snapshots.schedule.stopped`).
@@ -202,6 +231,11 @@ If the snapshot is stateful (which means that it contains information about the 
 
 See [`PUT /1.0/instances/{name}`](swagger:/instances/instance_put) for more information.
 ```
+```{group-tab} UI
+To restore an instance to a snapshot, click the {guilabel}`Restore snapshot` button ({{restore_button}}) next to the snapshot that you want to restore.
+
+If the snapshot is stateful (which means that it contains information about the running state of the instance), select {guilabel}`Restore the instance state` if you want to restore the state.
+```
 ````
 
 (instances-backup-export)=
@@ -210,6 +244,11 @@ See [`PUT /1.0/instances/{name}`](swagger:/instances/instance_put) for more info
 You can export the full content of your instance to a standalone file that can be stored at any location.
 For highest reliability, store the backup file on a different file system to ensure that it does not get lost or corrupted.
 
+```{note}
+The UI does not currently support exporting and importing instances.
+```
+
+(instances-backup-export-instance)=
 ### Export an instance
 
 `````{tabs}
@@ -271,6 +310,7 @@ See [`POST /1.0/instances/{name}/backups`](swagger:/instances/instance_backups_p
 ````
 `````
 
+(instances-backup-import-instance)=
 ### Restore an instance from an export file
 
 You can import an export file (for example, `/path/to/my-backup.tgz`) as a new instance.
