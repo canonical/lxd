@@ -29,7 +29,7 @@ Complete the following steps to import the [LXD dashboard](https://grafana.com/g
 
       ![Select Prometheus as a data source](/images/grafana_select_prometheus.png)
 
-   1. In the {guilabel}`URL` field, enter the address of your Prometheus installation (`http://localhost:9090/`).
+   1. In the {guilabel}`URL` field, enter the address of your Prometheus installation (`http://localhost:9090/` if running Prometheus locally).
 
       ![Enter Prometheus URL](/images/grafana_configure_prometheus.png)
 
@@ -39,9 +39,9 @@ Complete the following steps to import the [LXD dashboard](https://grafana.com/g
 
    1. Select {guilabel}`Loki`.
 
-      ![Select Loli as another data source](/images/grafana_select_loki.png)
+      ![Select Loki as another data source](/images/grafana_select_loki.png)
 
-   1. In the {guilabel}`URL` field, enter the address of your Loki installation (`http://localhost:3100/`).
+   1. In the {guilabel}`URL` field, enter the address of your Loki installation (`http://localhost:3100/` if running Loki locally).
 
       ![Enter Loki URL](/images/grafana_configure_loki.png)
 
@@ -69,3 +69,8 @@ You can select the project and filter by instances.
 At the bottom of the page, you can see data for each instance.
 
 ![Instance data in the LXD Grafana dashboard](/images/grafana_instances.png)
+
+```{note}
+For proper operation of the Loki part of the dashboard, you need to ensure that the `instance` field matches the Prometheus job name.
+You can change the `instance` field through the `loki.instance` configuration key.
+```
