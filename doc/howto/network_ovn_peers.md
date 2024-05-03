@@ -46,14 +46,11 @@ This behavior prevents users in a different project from discovering whether a p
 
 Peer routing relationships have the following properties:
 
-Property         | Type       | Required | Description
-:--              | :--        | :--      | :--
-`name`           | string     | yes      | Name of the network peering on the local network
-`description`    | string     | no       | Description of the network peering
-`config`         | string set | no       | Configuration options as key/value pairs (only `user.*` custom keys supported)
-`target_project` | string     | yes      | Which project the target network exists in (required at create time)
-`target_network` | string     | yes      | Which network to create a peering with (required at create time)
-`status`         | string     | --       | Status indicating if pending or created (mutual peering exists with the target network)
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group network-peering-peering-properties start -->
+    :end-before: <!-- config group network-peering-peering-properties end -->
+```
 
 ## List routing relationships
 
