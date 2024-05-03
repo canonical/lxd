@@ -81,6 +81,11 @@ func (c *cmdStorageBucketCreate) command() *cobra.Command {
 	cmd.Use = usage("create", i18n.G("[<remote>:]<pool> <bucket> [key=value...]"))
 	cmd.Short = i18n.G("Create new custom storage buckets")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Create new custom storage buckets`))
+	cmd.Example = cli.FormatSection("", i18n.G(`lxc storage bucket create p1 b01
+	Create a new storage bucket name b01 in storage pool p1
+
+lxc storage bucket create p1 b01 < config.yaml
+	Create a new storage bucket name b01 in storage pool p1 using the content of config.yaml`))
 
 	cmd.Flags().StringVar(&c.storageBucket.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.run
