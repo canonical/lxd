@@ -3647,13 +3647,8 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		}
 
 		// Remove the state from the parent container; we only keep this in snapshots.
-		err2 := os.RemoveAll(d.StatePath())
-		if err2 != nil && !os.IsNotExist(err) {
-			op.Done(err)
-			return err
-		}
-
-		if err != nil {
+		err = os.RemoveAll(d.StatePath())
+		if err != nil && !os.IsNotExist(err) {
 			op.Done(err)
 			return err
 		}
