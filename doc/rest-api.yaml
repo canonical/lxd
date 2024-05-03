@@ -1396,11 +1396,12 @@ definitions:
     InitLocalPreseed:
         properties:
             config:
-                additionalProperties: {}
+                additionalProperties:
+                    type: string
                 description: Server configuration map (refer to doc/server.md)
                 example:
                     core.https_address: :8443
-                    core.trust_password: true
+                    core.trust_password: xyz
                 type: object
                 x-go-name: Config
             networks:
@@ -5564,11 +5565,12 @@ definitions:
                 type: string
                 x-go-name: AuthUserName
             config:
-                additionalProperties: {}
+                additionalProperties:
+                    type: string
                 description: Server configuration map (refer to doc/server.md)
                 example:
                     core.https_address: :8443
-                    core.trust_password: true
+                    core.trust_password: xyz
                 type: object
                 x-go-name: Config
             environment:
@@ -5744,11 +5746,12 @@ definitions:
         description: ServerPut represents the modifiable fields of a LXD server configuration
         properties:
             config:
-                additionalProperties: {}
+                additionalProperties:
+                    type: string
                 description: Server configuration map (refer to doc/server.md)
                 example:
                     core.https_address: :8443
-                    core.trust_password: true
+                    core.trust_password: xyz
                 type: object
                 x-go-name: Config
         type: object

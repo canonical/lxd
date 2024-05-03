@@ -28,8 +28,8 @@ func (s Schema) Keys() []string {
 
 // Defaults returns a map of all key names in the schema along with their default
 // values.
-func (s Schema) Defaults() map[string]any {
-	values := make(map[string]any, len(s))
+func (s Schema) Defaults() map[string]string {
+	values := make(map[string]string, len(s))
 	for name, key := range s {
 		values[name] = key.Default
 	}
@@ -61,7 +61,6 @@ func (s Schema) assertKeyType(name string, code Type) {
 type Key struct {
 	Type       Type   // Type of the value. It defaults to String.
 	Default    string // If the key is not set in a Map, use this value instead.
-	Hidden     bool   // Hide this key when dumping the object.
 	Deprecated string // Optional message to set if this config value is deprecated.
 
 	// Optional function used to validate the values. It's called by Map
