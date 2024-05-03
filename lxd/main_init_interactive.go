@@ -29,7 +29,7 @@ import (
 func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.InstanceServer, server *api.Server) (*api.InitPreseed, error) {
 	// Initialize config
 	config := api.InitPreseed{}
-	config.Node.Config = map[string]any{}
+	config.Node.Config = map[string]string{}
 	config.Node.Networks = []api.InitNetworksProjectPost{}
 	config.Node.StoragePools = []api.StoragePoolsPost{}
 	config.Node.Profiles = []api.ProfilesPost{
@@ -447,7 +447,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 					config.Node.Profiles[0].Devices["eth0"]["nictype"] = "bridged"
 				}
 
-				if config.Node.Config["maas.api.url"] != nil {
+				if config.Node.Config["maas.api.url"] != "" {
 					maasConnect, err := c.global.asker.AskBool("Is this interface connected to your MAAS server? (yes/no) [default=yes]: ", "yes")
 					if err != nil {
 						return err

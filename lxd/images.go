@@ -1956,17 +1956,7 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 		if err != nil {
 			logger.Error("Failed to retrieve information about cluster member", logger.Ctx{"err": err, "remote": nodeAddress})
 		} else {
-			vol := ""
-
-			val := resp.Config["storage.images_volume"]
-			if val != nil {
-				var ok bool
-				vol, ok = val.(string)
-				if !ok {
-					return fmt.Errorf("Invalid type for field \"storage.images_volume\"")
-				}
-			}
-
+			vol := resp.Config["storage.images_volume"]
 			skipDistribution := false
 
 			// If storage.images_volume is set on the cluster member, check if

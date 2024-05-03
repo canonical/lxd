@@ -258,21 +258,21 @@ func (c *Config) ClusterHealingThreshold() time.Duration {
 
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
-func (c *Config) Dump() map[string]any {
+func (c *Config) Dump() map[string]string {
 	return c.m.Dump()
 }
 
 // Replace the current configuration with the given values.
 //
 // Return what has actually changed.
-func (c *Config) Replace(values map[string]any) (map[string]string, error) {
+func (c *Config) Replace(values map[string]string) (map[string]string, error) {
 	return c.update(values)
 }
 
 // Patch changes only the configuration keys in the given map.
 //
 // Return what has actually changed.
-func (c *Config) Patch(patch map[string]any) (map[string]string, error) {
+func (c *Config) Patch(patch map[string]string) (map[string]string, error) {
 	values := c.Dump() // Use current values as defaults
 	for name, value := range patch {
 		values[name] = value
@@ -281,7 +281,7 @@ func (c *Config) Patch(patch map[string]any) (map[string]string, error) {
 	return c.update(values)
 }
 
-func (c *Config) update(values map[string]any) (map[string]string, error) {
+func (c *Config) update(values map[string]string) (map[string]string, error) {
 	changed, err := c.m.Change(values)
 	if err != nil {
 		return nil, err
@@ -505,7 +505,7 @@ var ConfigSchema = config.Schema{
 	//  type: string
 	//  scope: global
 	//  shortdesc: Password to be provided by clients to set up a trust
-	"core.trust_password": {Hidden: true, Setter: passwordSetter},
+	"core.trust_password": {Setter: passwordSetter},
 
 	// lxdmeta:generate(entities=server; group=core; key=core.trust_ca_certificates)
 	//
@@ -603,7 +603,7 @@ var ConfigSchema = config.Schema{
 	//  type: string
 	//  scope: global
 	//  shortdesc: Password used for Loki authentication
-	"loki.auth.password": {Hidden: true},
+	"loki.auth.password": {},
 
 	// lxdmeta:generate(entities=server; group=loki; key=loki.api.ca_cert)
 	//
