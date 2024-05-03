@@ -327,6 +327,11 @@ func (d *usb) loadRawValues(p string) (map[string]string, error) {
 	for k := range values {
 		v, err := os.ReadFile(path.Join(p, k))
 		if err != nil {
+			// Not all devices have a serial file.
+			if k == "serial" && os.IsNotExist(err) {
+				continue
+			}
+
 			return nil, err
 		}
 
