@@ -109,7 +109,7 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 				return err
 			}
 		} else if img != nil {
-			err := ensureImageIsLocallyAvailable(s, r, img, args.Project, args.Type)
+			err := ensureImageIsLocallyAvailable(s, r, img, args.Project)
 			if err != nil {
 				return err
 			}
@@ -122,7 +122,7 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 			return err
 		}
 
-		return instanceCreateFromImage(s, r, img, args, op)
+		return instanceCreateFromImage(s, img, args, op)
 	}
 
 	resources := map[string][]api.URL{}
