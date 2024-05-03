@@ -248,4 +248,4 @@ scrape_configs:
       server_name: 'saturn'
 ```
 
-After editing the configuration, restart Prometheus (for example, `snap restart prometheus`) to start scraping.
+After editing the configuration, restart Prometheus (`snap restart prometheus` if using the snap, otherwise `systemctl restart prometheus`) to start scraping.
