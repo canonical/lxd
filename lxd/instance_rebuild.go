@@ -137,7 +137,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 
 	run := func(op *operations.Operation) error {
 		if req.Source.Type == "none" {
-			return instanceRebuildFromEmpty(s, inst, op)
+			return instanceRebuildFromEmpty(inst, op)
 		}
 
 		if req.Source.Server != "" {
