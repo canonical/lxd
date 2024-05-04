@@ -2642,3 +2642,7 @@ This adds a request option to set snapshot's target profile on instance copy to 
 ## `resources_device_fs_uuid`
 
 Adds the field `device_fs_uuid` including the respective UUID to each disk and partition indicating whether or not a filesystem is located on the device.
+
+## `resources_cpu_flags`
+
+Adds CPU flags to resources API.
