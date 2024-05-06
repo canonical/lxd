@@ -2660,3 +2660,7 @@ The same applies when exporting a custom storage volume:
 ## `storage_buckets_all_projects`
 
 This adds support for listing storage buckets across all projects using the `all-projects` parameter in `GET /1.0/storage-pools/POOL/buckets` requests.
+
+## `network_acls_all_projects`
+
+This adds support for listing network ACLs across all projects using the `all-projects` parameter in `GET /1.0/network-acls` requests.
