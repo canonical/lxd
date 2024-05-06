@@ -191,3 +191,5 @@ profiles:
       parent: lxd-my-bridge
       type: nic
 ```
+
+See {ref}`preseed-yaml-file-fields` for the complete fields of the preseed YAML file.
