@@ -45,6 +45,23 @@ func (r *ProtocolLXD) GetNetworkACLs() ([]api.NetworkACL, error) {
 	return acls, nil
 }
 
+// GetNetworkACLsAllProjects returns a list of Network ACLs across all projects.
+func (r *ProtocolLXD) GetNetworkACLsAllProjects() ([]api.NetworkACL, error) {
+	err := r.CheckExtension("network_acls_all_projects")
+	if err != nil {
+		return nil, err
+	}
+
+	acls := []api.NetworkACL{}
+	u := api.NewURL().Path("network-acls").WithQuery("recursion", "1").WithQuery("all-projects", "true")
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &acls)
+	if err != nil {
+		return nil, err
+	}
+
+	return acls, nil
+}
+
 // GetNetworkACL returns a Network ACL entry for the provided name.
 func (r *ProtocolLXD) GetNetworkACL(name string) (*api.NetworkACL, string, error) {
 	err := r.CheckExtension("network_acl")
