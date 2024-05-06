@@ -243,7 +243,12 @@ func doInstanceStatePut(inst instance.Instance, req api.InstanceStatePut) error 
 
 	switch instancetype.InstanceAction(req.Action) {
 	case instancetype.Start:
-		return inst.Start(req.Stateful)
+		if inst.IsFrozen() {
+			return inst.Unfreeze()
+		} else {
+			return inst.Start(req.Stateful)
+		}
+
 	case instancetype.Stop:
 		if req.Stateful {
 			return inst.Stop(req.Stateful)
