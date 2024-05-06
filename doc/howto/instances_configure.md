@@ -164,6 +164,12 @@ To configure instance device options for a device that you have added earlier, u
 
     lxc config device set <instance_name> <device_name> <device_option_key>=<device_option_value> <device_option_key>=<device_option_value> ...
 
+Device options for a device inherited from a profile cannot be updated within the instance. Use the [`lxc config device override`](lxc_config_device_override.md) command to create a copy of the profile device with updated device options. The newly created instance device will override the inherited device.
+
+Specify the instance name, device name and the device options that should be overridden:
+
+    lxc config device override <instance_name> <device_name> <device_option_key>=<device_option_value> <device_option_key>=<device_option_value> ...
+
 ```{note}
 You can also specify device options by using the `--device` flag when {ref}`creating an instance <instances-create>`.
 This is useful if you want to override device options for a device that is provided through a {ref}`profile <profiles>`.
