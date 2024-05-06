@@ -249,6 +249,8 @@ func doInstanceStatePut(inst instance.Instance, req api.InstanceStatePut) error 
 			return inst.Stop(req.Stateful)
 		} else if req.Timeout == 0 {
 			return inst.Stop(false)
+		} else if inst.IsFrozen() {
+			return fmt.Errorf("Cannot shutdown frozen instance (try force to stop)")
 		} else {
 			return inst.Shutdown(timeout)
 		}
