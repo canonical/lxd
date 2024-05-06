@@ -994,8 +994,9 @@ type cmdNetworkList struct {
 	global  *cmdGlobal
 	network *cmdNetwork
 
-	flagFormat string
-	flagTarget string
+	flagFormat      string
+	flagTarget      string
+	flagAllProjects bool
 }
 
 func (c *cmdNetworkList) command() *cobra.Command {
@@ -1009,6 +1010,7 @@ func (c *cmdNetworkList) command() *cobra.Command {
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, i18n.G("Display networks from all projects"))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) != 0 {
@@ -1053,9 +1055,17 @@ func (c *cmdNetworkList) run(cmd *cobra.Command, args []string) error {
 		client = client.UseTarget(c.flagTarget)
 	}
 
-	networks, err := client.GetNetworks()
-	if err != nil {
-		return err
+	var networks []api.Network
+	if c.flagAllProjects {
+		networks, err = client.GetNetworksAllProjects()
+		if err != nil {
+			return err
+		}
+	} else {
+		networks, err = client.GetNetworks()
+		if err != nil {
+			return err
+		}
 	}
 
 	data := [][]string{}
@@ -1081,6 +1091,10 @@ func (c *cmdNetworkList) run(cmd *cobra.Command, args []string) error {
 			strings.ToUpper(network.Status),
 		}
 
+		if c.flagAllProjects {
+			details = append([]string{network.Project}, details...)
+		}
+
 		data = append(data, details)
 	}
 
@@ -1095,6 +1109,10 @@ func (c *cmdNetworkList) run(cmd *cobra.Command, args []string) error {
 		i18n.G("DESCRIPTION"),
 		i18n.G("USED BY"),
 		i18n.G("STATE"),
+	}
+
+	if c.flagAllProjects {
+		header = append([]string{i18n.G("PROJECT")}, header...)
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, networks)
