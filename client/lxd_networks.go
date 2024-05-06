@@ -45,6 +45,24 @@ func (r *ProtocolLXD) GetNetworks() ([]api.Network, error) {
 	return networks, nil
 }
 
+// GetNetworksAllProjects returns a list of networks across all projects.
+func (r *ProtocolLXD) GetNetworksAllProjects() ([]api.Network, error) {
+	err := r.CheckExtension("networks_all_projects")
+	if err != nil {
+		return nil, err
+	}
+
+	networks := []api.Network{}
+
+	u := api.NewURL().Path("networks").WithQuery("recursion", "1").WithQuery("all-projects", "true")
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &networks)
+	if err != nil {
+		return nil, err
+	}
+
+	return networks, nil
+}
+
 // GetNetwork returns a Network entry for the provided name.
 func (r *ProtocolLXD) GetNetwork(name string) (*api.Network, string, error) {
 	err := r.CheckExtension("network")
