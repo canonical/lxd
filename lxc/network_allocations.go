@@ -58,7 +58,8 @@ func (c *cmdNetworkListAllocations) command() *cobra.Command {
 
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 	cmd.Flags().StringVarP(&c.flagProject, "project", "p", "default", i18n.G("Run again a specific project"))
-	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, i18n.G("Run against all projects"))
+	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, i18n.G("Display network allocations from all projects"))
+
 	return cmd
 }
 
@@ -75,7 +76,17 @@ func (c *cmdNetworkListAllocations) run(cmd *cobra.Command, args []string) error
 
 	resource := resources[0]
 	server := resource.server.UseProject(c.flagProject)
-	addresses, err := server.GetNetworkAllocations(c.flagAllProjects)
+
+	if c.flagAllProjects {
+		addresses, err := server.GetNetworkAllocationsAllProjects()
+		if err != nil {
+			return err
+		}
+
+		return c.pretty(addresses)
+	}
+
+	addresses, err := server.GetNetworkAllocations()
 	if err != nil {
 		return err
 	}
