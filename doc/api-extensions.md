@@ -2656,3 +2656,7 @@ When exporting an instance, the specific version can be provided using the `--ex
 The same applies when exporting a custom storage volume:
 
 `lxc storage volume export pool1 vol1 --export-version 2`
+
+## `storage_buckets_all_projects`
+
+This adds support for listing storage buckets across all projects using the `all-projects` parameter in `GET /1.0/storage-pools/POOL/buckets` requests.
