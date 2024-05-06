@@ -1,6 +1,8 @@
 package lxd
 
 import (
+	"net/http"
+
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -35,6 +37,24 @@ func (r *ProtocolLXD) GetStoragePoolBuckets(poolName string) ([]api.StorageBucke
 	// Fetch the raw value.
 	u := api.NewURL().Path("storage-pools", poolName, "buckets").WithQuery("recursion", "1")
 	_, err = r.queryStruct("GET", u.String(), nil, "", &buckets)
+	if err != nil {
+		return nil, err
+	}
+
+	return buckets, nil
+}
+
+// GetStoragePoolBucketsAllProjects returns a list of storage pool buckets across all projects.
+func (r *ProtocolLXD) GetStoragePoolBucketsAllProjects(poolName string) ([]api.StorageBucket, error) {
+	err := r.CheckExtension("storage_buckets_all_projects")
+	if err != nil {
+		return nil, err
+	}
+
+	buckets := []api.StorageBucket{}
+
+	u := api.NewURL().Path("storage-pools", poolName, "buckets").WithQuery("recursion", "1").WithQuery("all-projects", "true")
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &buckets)
 	if err != nil {
 		return nil, err
 	}
