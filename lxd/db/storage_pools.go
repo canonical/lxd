@@ -710,14 +710,6 @@ func (c *ClusterTx) getStoragePool(ctx context.Context, onlyCreated bool, where 
 		pool.Locations = append(pool.Locations, node.Name)
 	}
 
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return -1, nil, nil, api.StatusErrorf(http.StatusNotFound, "Storage pool not found")
-		}
-
-		return -1, nil, nil, err
-	}
-
 	return poolID, &pool, nodes, nil
 }
 
