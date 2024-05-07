@@ -126,6 +126,21 @@ Then send the following request:
       }
     }'
 
+### Configure `cloud-init` through the CLI
+
+If you are using the CLI to configure your instance, write the configuration to a file and include that in your request.
+For example, create `cloud-init.yml` with the following content:
+
+    #cloud-config
+    package_upgrade: true
+    packages:
+      - package1
+      - package2
+
+Then send the following request:
+
+    lxc config set <instance_name> cloud-init.user-data - < ~cloud-init.yml
+
 ## How to check the `cloud-init` status
 
 `cloud-init` runs automatically on the first start of an instance.
