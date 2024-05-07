@@ -195,7 +195,7 @@ func getClient(CID uint32, port int, serverCertificate string) (*http.Client, er
 	return client, nil
 }
 
-func startHTTPServer(d *Daemon, debug bool) error {
+func startHTTPServer(d *Daemon) error {
 	const CIDAny uint32 = 4294967295 // Equivalent to VMADDR_CID_ANY.
 
 	// Setup the listener on wildcard CID for inbound connections from LXD.
@@ -221,7 +221,7 @@ func startHTTPServer(d *Daemon, debug bool) error {
 	}
 
 	// Prepare the HTTP server.
-	servers["http"] = restServer(tlsConfig, cert, debug, d)
+	servers["http"] = restServer(tlsConfig, cert, d)
 
 	// Start the server.
 	go func() {
