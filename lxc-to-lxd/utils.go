@@ -9,7 +9,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
-func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string, rsyncArgs string) error {
+func transferRootfs(op lxd.Operation, rootfs string, rsyncArgs string) error {
 	opAPI := op.Get()
 
 	// Connect to the websockets
