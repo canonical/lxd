@@ -2143,9 +2143,6 @@ SELECT id, name, storage_pool_id, node_id, type, coalesce(description, ''), proj
   FROM storage_volumes
  WHERE snapshot=1
 `
-	if err != nil {
-		return fmt.Errorf("Failed to prepare volume snapshot query: %w", err)
-	}
 
 	// Fetch all snapshot rows in the storage_volumes table.
 	snapshots := make([]snapshot, 0, count)
