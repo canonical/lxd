@@ -1352,7 +1352,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// --quiet options are only supported on >2.67.
 		minVer, _ := version.NewDottedVersion("2.67")
 
-		if err == nil && dnsmasqVersion.Compare(minVer) > 0 {
+		if dnsmasqVersion.Compare(minVer) > 0 {
 			dnsmasqCmd = append(dnsmasqCmd, []string{"--quiet-dhcp", "--quiet-dhcp6", "--quiet-ra"}...)
 		}
 	}
@@ -2726,7 +2726,7 @@ func (n *bridge) DHCPv4Subnet() *net.IPNet {
 				continue
 			}
 
-			if ip != nil && err == nil && ip.To4() != nil && ip.IsGlobalUnicast() {
+			if ip != nil && ip.To4() != nil && ip.IsGlobalUnicast() {
 				return subnet // Use first IPv4 unicast address on host for DHCP subnet.
 			}
 		}
