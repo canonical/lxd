@@ -735,6 +735,16 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	//  shortdesc: Whether to protect the file system from being UID/GID shifted
 	"security.protection.shift": validate.Optional(validate.IsBool),
 
+	// lxdmeta:generate(entities=instance; group=security; key=security.protection.start)
+	// Set this option to `false` to prevent the instance from starting up.
+	// ---
+	//  type: bool
+	//  defaultdesc: `true`
+	//  liveupdate: yes
+	//  condition: container
+	//  shortdesc: Whether to protect the file system from being UID/GID shifted
+	"security.protection.start": validate.Optional(validate.IsBool),
+
 	// lxdmeta:generate(entities=instance; group=security; key=security.syscalls.allow)
 	// A `\n`-separated list of syscalls to allow.
 	// This list must be mutually exclusive with `security.syscalls.deny*`.

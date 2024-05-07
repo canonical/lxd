@@ -2468,6 +2468,15 @@
 						}
 					},
 					{
+						"security.protection.start": {
+							"defaultdesc": "`true`",
+							"liveupdate": "yes",
+							"longdesc": "",
+							"shortdesc": "Prevents the instance from starting",
+							"type": "bool"
+						}
+					},
+					{
 						"security.secureboot": {
 							"condition": "virtual machine",
 							"defaultdesc": "`true`",
