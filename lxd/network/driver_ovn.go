@@ -2978,7 +2978,7 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 		}
 	}
 
-	return n.common.delete(clientType)
+	return n.common.delete()
 }
 
 // Rename renames a network.
