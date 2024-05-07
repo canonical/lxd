@@ -100,7 +100,7 @@ func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (strin
 	var buffer bytes.Buffer
 	var output bytes.Buffer
 	p := subprocess.NewProcessWithFds(cmd[0], cmd[1:], nil, &nullWriteCloser{&output}, &nullWriteCloser{&buffer})
-	if err != nil {
+	if p == nil {
 		return "", fmt.Errorf("Failed creating qemu-img subprocess: %w", err)
 	}
 
