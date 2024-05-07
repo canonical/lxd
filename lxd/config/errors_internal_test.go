@@ -13,5 +13,5 @@ func TestErrorList_Error(t *testing.T) {
 	errors.add("foo", "xxx", "boom")
 	errors.add("bar", "yyy", "ugh")
 	errors.sort()
-	assert.EqualError(t, errors, "cannot set 'bar' to 'yyy': ugh (and 1 more errors)")
+	assert.EqualError(t, errors, "Cannot set 'bar' to 'yyy': ugh (and 1 more errors)")
 }

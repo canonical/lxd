@@ -41,7 +41,7 @@ func (s Schema) Defaults() map[string]string {
 func (s Schema) getKey(name string) (Key, error) {
 	key, ok := s[name]
 	if !ok {
-		return Key{}, fmt.Errorf("Not found in schema", name)
+		return Key{}, fmt.Errorf("Not found in schema")
 	}
 
 	return key, nil
@@ -108,21 +108,21 @@ func (v *Key) validate(value string) error {
 	case String:
 	case Bool:
 		if !shared.ValueInSlice(strings.ToLower(value), booleans) {
-			return fmt.Errorf("invalid boolean")
+			return fmt.Errorf("Invalid boolean")
 		}
 
 	case Int64:
 		_, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return fmt.Errorf("invalid integer")
+			return fmt.Errorf("Invalid integer")
 		}
 
 	default:
-		panic(fmt.Sprintf("unexpected value type: %d", v.Type))
+		return fmt.Errorf("Unexpected value type: %d", v.Type)
 	}
 
 	if v.Deprecated != "" && value != v.Default {
-		return fmt.Errorf("deprecated: %s", v.Deprecated)
+		return fmt.Errorf("Deprecated: %s", v.Deprecated)
 	}
 
 	// Run external validation function

@@ -47,7 +47,7 @@ func (m *Map) Change(changes map[string]string) (map[string]string, error) {
 		// Ensure that we were actually passed a string.
 		s := reflect.ValueOf(change)
 		if s.Kind() != reflect.String {
-			errors.add(name, nil, fmt.Sprintf("invalid type %s", s.Kind()))
+			errors.add(name, nil, fmt.Sprintf("Invalid type %s", s.Kind()))
 			continue
 		}
 
@@ -168,7 +168,7 @@ func (m *Map) GetInt64(name string) (int64, error) {
 
 	n, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to convert to int64: %w", err))
+		return 0, fmt.Errorf("Failed to convert to int64: %w", err)
 	}
 
 	return n, nil
@@ -242,7 +242,7 @@ func (m *Map) set(name string, value string, initial bool) (bool, error) {
 
 	key, ok := m.schema[name]
 	if !ok {
-		return false, fmt.Errorf("unknown key")
+		return false, fmt.Errorf("Unknown key")
 	}
 
 	// When unsetting a config key, the value argument will be empty.

@@ -52,7 +52,9 @@ func TestLoad(t *testing.T) {
 			require.NoError(t, err)
 
 			for name, value := range c.result {
-				assert.Equal(t, value, m.GetRaw(name))
+				rawValue, err := m.GetRaw(name)
+				require.NoError(t, err)
+				assert.Equal(t, value, rawValue)
 			}
 		})
 	}
@@ -71,19 +73,19 @@ func TestLoad_Error(t *testing.T) {
 			`schema has no key with the given name`,
 			config.Schema{},
 			map[string]string{"bar": ""},
-			"cannot set 'bar' to '': unknown key",
+			"Cannot set 'bar' to '': Unknown key",
 		},
 		{
 			`validation fails`,
 			config.Schema{"foo": {Type: config.Bool}},
 			map[string]string{"foo": "yyy"},
-			"cannot set 'foo' to 'yyy': invalid boolean",
+			"Cannot set 'foo' to 'yyy': Invalid boolean",
 		},
 		{
 			`only the first of multiple errors is shown (in key name order)`,
 			config.Schema{"foo": {Type: config.Bool}},
 			map[string]string{"foo": "yyy", "bar": ""},
-			"cannot set 'bar' to '': unknown key (and 1 more errors)",
+			"Cannot set 'bar' to '': Unknown key (and 1 more errors)",
 		},
 	}
 
@@ -150,7 +152,9 @@ func TestChange(t *testing.T) {
 			require.NoError(t, err)
 
 			for name, value := range c.result {
-				assert.Equal(t, value, m.GetRaw(name))
+				rawValue, err := m.GetRaw(name)
+				require.NoError(t, err)
+				assert.Equal(t, value, rawValue)
 			}
 		})
 	}
@@ -225,17 +229,17 @@ func TestMap_ChangeError(t *testing.T) {
 		{
 			`schema has no key with the given name`,
 			map[string]string{"xxx": ""},
-			"cannot set 'xxx' to '': unknown key",
+			"Cannot set 'xxx' to '': Unknown key",
 		},
 		{
 			`validation fails`,
 			map[string]string{"foo": "yyy"},
-			"cannot set 'foo' to 'yyy': invalid boolean",
+			"Cannot set 'foo' to 'yyy': Invalid boolean",
 		},
 		{
 			`custom setter fails`,
 			map[string]string{"egg": "xxx"},
-			"cannot set 'egg' to 'xxx': boom",
+			"Cannot set 'egg' to 'xxx': boom",
 		},
 	}
 
@@ -265,11 +269,13 @@ func TestMap_Dump(t *testing.T) {
 	m, err := config.Load(schema, values)
 	assert.NoError(t, err)
 
-	dump := map[string]string{
+	dumpExpected := map[string]string{
 		"foo": "hello",
 	}
 
-	assert.Equal(t, dump, m.Dump())
+	dump, err := m.Dump()
+	assert.NoError(t, err)
+	assert.Equal(t, dumpExpected, dump)
 }
 
 // The various GetXXX methods return typed values.
@@ -289,14 +295,21 @@ func TestMap_Getters(t *testing.T) {
 	m, err := config.Load(schema, values)
 	assert.NoError(t, err)
 
-	assert.Equal(t, "hello", m.GetString("foo"))
-	assert.Equal(t, true, m.GetBool("bar"))
-	assert.Equal(t, int64(123), m.GetInt64("egg"))
+	s, err := m.GetString("foo")
+	assert.NoError(t, err)
+	assert.Equal(t, "hello", s)
+
+	b, err := m.GetBool("bar")
+	assert.NoError(t, err)
+	assert.Equal(t, true, b)
+
+	i, err := m.GetInt64("egg")
+	assert.NoError(t, err)
+	assert.Equal(t, int64(123), i)
 }
 
-// The various GetXXX methods panic if they are used with the wrong key name or
-// type.
-func TestMap_GettersPanic(t *testing.T) {
+// The various GetXXX methods return an error if they are used with the wrong key name or type.
+func TestMap_GettersReturnError(t *testing.T) {
 	schema := config.Schema{
 		"foo": {},
 		"bar": {Type: config.Bool},
@@ -305,10 +318,21 @@ func TestMap_GettersPanic(t *testing.T) {
 	m, err := config.Load(schema, nil)
 	assert.NoError(t, err)
 
-	assert.Panics(t, func() { m.GetRaw("egg") })
-	assert.Panics(t, func() { m.GetString("bar") })
-	assert.Panics(t, func() { m.GetBool("foo") })
-	assert.Panics(t, func() { m.GetInt64("foo") })
+	r, err := m.GetRaw("egg")
+	assert.Error(t, err)
+	assert.Empty(t, r)
+
+	s, err := m.GetString("bar")
+	assert.Error(t, err)
+	assert.Empty(t, s)
+
+	b, err := m.GetBool("foo")
+	assert.Error(t, err)
+	assert.False(t, b)
+
+	i, err := m.GetInt64("foo")
+	assert.Error(t, err)
+	assert.Zero(t, i)
 }
 
 // A Key setter that always fail.

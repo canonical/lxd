@@ -55,15 +55,17 @@ var validateErrorCases = []struct {
 	value   string
 	message string
 }{
-	{Key{Type: Int64}, "1.2", "invalid integer"},
-	{Key{Type: Bool}, "yyy", "invalid boolean"},
+	{Key{Type: Int64}, "1.2", "Invalid integer"},
+	{Key{Type: Bool}, "yyy", "Invalid boolean"},
 	{Key{Validator: func(string) error { return fmt.Errorf("ugh") }}, "", "ugh"},
-	{Key{Deprecated: "don't use this"}, "foo", "deprecated: don't use this"},
+	{Key{Deprecated: "don't use this"}, "foo", "Deprecated: don't use this"},
 }
 
-// If a value has an expected kind code, a panic is thrown.
+// If a value has an expected kind code, an error is returned.
 func TestKey_UnexpectedKind(t *testing.T) {
 	value := Key{Type: 999}
-	f := func() { _ = value.validate("foo") }
-	assert.PanicsWithValue(t, "unexpected value type: 999", f)
+	err := value.validate("foo")
+	if assert.Error(t, err) {
+		assert.Equal(t, err.Error(), "Unexpected value type: 999")
+	}
 }
