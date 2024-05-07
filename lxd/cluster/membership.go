@@ -294,9 +294,19 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		Name: name,
 	}
 
-	if count > 1 && voters < int(state.GlobalConfig.MaxVoters()) {
+	maxVoters, err := state.GlobalConfig.MaxVoters()
+	if err != nil {
+		return nil, err
+	}
+
+	maxStandBy, err := state.GlobalConfig.MaxStandBy()
+	if err != nil {
+		return nil, err
+	}
+
+	if count > 1 && voters < int(maxVoters) {
 		node.Role = db.RaftVoter
-	} else if standbys < int(state.GlobalConfig.MaxStandBy()) {
+	} else if standbys < int(maxStandBy) {
 		node.Role = db.RaftStandBy
 	}
 
@@ -1100,10 +1110,20 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, 
 		}
 	}
 
+	maxVoters, err := state.GlobalConfig.MaxVoters()
+	if err != nil {
+		return nil, err
+	}
+
+	maxStandBy, err := state.GlobalConfig.MaxStandBy()
+	if err != nil {
+		return nil, err
+	}
+
 	roles := &app.RolesChanges{
 		Config: app.RolesConfig{
-			Voters:   int(state.GlobalConfig.MaxVoters()),
-			StandBys: int(state.GlobalConfig.MaxStandBy()),
+			Voters:   int(maxVoters),
+			StandBys: int(maxStandBy),
 		},
 		State: cluster,
 	}
