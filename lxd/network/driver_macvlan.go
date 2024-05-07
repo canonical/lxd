@@ -83,7 +83,7 @@ func (n *macvlan) Validate(config map[string]string) error {
 func (n *macvlan) Delete(clientType request.ClientType) error {
 	n.logger.Debug("Delete", logger.Ctx{"clientType": clientType})
 
-	return n.common.delete(clientType)
+	return n.common.delete()
 }
 
 // Rename renames a network.
