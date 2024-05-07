@@ -209,7 +209,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 				return err
 			}
 
-			inUse, err := usedByProfileDevices(s, profileDevices, apiProfileProject, networkProjectName, networkName, networkType)
+			inUse, err := usedByProfileDevices(profileDevices, apiProfileProject, networkProjectName, networkName, networkType)
 			if err != nil {
 				return err
 			}
@@ -253,7 +253,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 
 // usedByProfileDevices indicates if network is referenced by a profile's NIC devices.
 // Checks if the device's parent or network properties match the network name.
-func usedByProfileDevices(s *state.State, profileDevices map[string]cluster.Device, profileProject *api.Project, networkProjectName string, networkName string, networkType string) (bool, error) {
+func usedByProfileDevices(profileDevices map[string]cluster.Device, profileProject *api.Project, networkProjectName string, networkName string, networkType string) (bool, error) {
 	// Get the translated network project name from the profiles's project.
 
 	// Skip profiles who's translated network project doesn't match the requested network's project.
