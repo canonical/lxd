@@ -64,7 +64,11 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 			// Expand configs so we take into account profile devices.
 			var globalConfigDump map[string]string
 			if s.GlobalConfig != nil {
-				globalConfigDump = s.GlobalConfig.Dump()
+				var err error
+				globalConfigDump, err = s.GlobalConfig.Dump()
+				if err != nil {
+					return err
+				}
 			}
 
 			dbInst.Config = instancetype.ExpandInstanceConfig(globalConfigDump, dbInst.Config, dbInst.Profiles)
