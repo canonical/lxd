@@ -130,7 +130,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	d := newDaemon(c.global.flagLogDebug, c.global.flagLogVerbose)
 
 	// Start the server.
-	err = startHTTPServer(d, c.global.flagLogDebug)
+	err = startHTTPServer(d)
 	if err != nil {
 		return fmt.Errorf("Failed to start HTTP server: %w", err)
 	}
