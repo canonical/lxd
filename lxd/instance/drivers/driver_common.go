@@ -511,7 +511,11 @@ func (d *common) deviceVolatileSetFunc(devName string) func(save map[string]stri
 func (d *common) expandConfig() error {
 	var globalConfigDump map[string]string
 	if d.state.GlobalConfig != nil {
-		globalConfigDump = d.state.GlobalConfig.Dump()
+		var err error
+		globalConfigDump, err = d.state.GlobalConfig.Dump()
+		if err != nil {
+			return err
+		}
 	}
 
 	d.expandedConfig = instancetype.ExpandInstanceConfig(globalConfigDump, d.localConfig, d.profiles)
@@ -840,7 +844,10 @@ func (d *common) getStartupSnapNameAndExpiry(inst instance.Instance) (string, *t
 // Internal MAAS handling.
 func (d *common) maasUpdate(inst instance.Instance, oldDevices map[string]map[string]string) error {
 	// Check if MAAS is configured
-	maasURL, _ := d.state.GlobalConfig.MAASController()
+	maasURL, _, err := d.state.GlobalConfig.MAASController()
+	if err != nil {
+		return err
+	}
 
 	if maasURL == "" {
 		return nil
@@ -936,7 +943,10 @@ func (d *common) maasInterfaces(inst instance.Instance, devices map[string]map[s
 }
 
 func (d *common) maasRename(inst instance.Instance, newName string) error {
-	maasURL, _ := d.state.GlobalConfig.MAASController()
+	maasURL, _, err := d.state.GlobalConfig.MAASController()
+	if err != nil {
+		return err
+	}
 
 	if maasURL == "" {
 		return nil
@@ -968,7 +978,10 @@ func (d *common) maasRename(inst instance.Instance, newName string) error {
 }
 
 func (d *common) maasDelete(inst instance.Instance) error {
-	maasURL, _ := d.state.GlobalConfig.MAASController()
+	maasURL, _, err := d.state.GlobalConfig.MAASController()
+	if err != nil {
+		return err
+	}
 
 	if maasURL == "" {
 		return nil
