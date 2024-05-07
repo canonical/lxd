@@ -70,7 +70,10 @@ func (m *Map) Change(changes map[string]string) (map[string]string, error) {
 
 	changed := map[string]string{}
 	for _, name := range names {
-		changed[name] = m.GetRaw(name)
+		changed[name], err = m.GetRaw(name)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return changed, err
@@ -79,14 +82,18 @@ func (m *Map) Change(changes map[string]string) (map[string]string, error) {
 // Dump the current configuration held by this Map.
 //
 // Keys that match their default value will not be included in the dump.
-func (m *Map) Dump() map[string]string {
+func (m *Map) Dump() (map[string]string, error) {
 	values := map[string]string{}
 
 	for name, value := range m.values {
 		key, ok := m.schema[name]
 		if ok {
 			// Schema key
-			value := m.GetRaw(name)
+			value, err := m.GetRaw(name)
+			if err != nil {
+				return nil, err
+			}
+
 			if value != key.Default {
 				values[name] = value
 			}
@@ -96,49 +103,75 @@ func (m *Map) Dump() map[string]string {
 		}
 	}
 
-	return values
+	return values, nil
 }
 
 // GetRaw returns the value of the given key, which must be of type String.
-func (m *Map) GetRaw(name string) string {
+func (m *Map) GetRaw(name string) (string, error) {
 	value, ok := m.values[name]
 	// User key?
 	if shared.IsUserConfig(name) {
-		return value
+		return value, nil
 	}
-	// Schema key
-	key := m.schema.mustGetKey(name)
+
 	if !ok {
+		// Schema key
+		key, err := m.schema.getKey(name)
+		if err != nil {
+			return "", fmt.Errorf("Failed to get key %q: %w", name, err)
+		}
+
 		value = key.Default
 	}
 
-	return value
+	return value, nil
 }
 
 // GetString returns the value of the given key, which must be of type String.
-func (m *Map) GetString(name string) string {
+func (m *Map) GetString(name string) (string, error) {
 	if !shared.IsUserConfig(name) {
-		m.schema.assertKeyType(name, String)
+		err := m.schema.assertKeyType(name, String)
+		if err != nil {
+			return "", fmt.Errorf("Failed to assert key type string: %w", err)
+		}
 	}
 
 	return m.GetRaw(name)
 }
 
 // GetBool returns the value of the given key, which must be of type Bool.
-func (m *Map) GetBool(name string) bool {
-	m.schema.assertKeyType(name, Bool)
-	return shared.IsTrue(m.GetRaw(name))
+func (m *Map) GetBool(name string) (bool, error) {
+	err := m.schema.assertKeyType(name, Bool)
+	if err != nil {
+		return false, fmt.Errorf("Failed to assert key type bool: %w", err)
+	}
+
+	value, err := m.GetRaw(name)
+	if err != nil {
+		return false, err
+	}
+
+	return shared.IsTrue(value), nil
 }
 
 // GetInt64 returns the value of the given key, which must be of type Int64.
-func (m *Map) GetInt64(name string) int64 {
-	m.schema.assertKeyType(name, Int64)
-	n, err := strconv.ParseInt(m.GetRaw(name), 10, 64)
+func (m *Map) GetInt64(name string) (int64, error) {
+	err := m.schema.assertKeyType(name, Int64)
 	if err != nil {
-		panic(fmt.Sprintf("cannot convert to int64: %v", err))
+		return 0, fmt.Errorf("Failed to assert key type int64: %w", err)
 	}
 
-	return n
+	value, err := m.GetRaw(name)
+	if err != nil {
+		return 0, err
+	}
+
+	n, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to convert to int64: %w", err))
+	}
+
+	return n, nil
 }
 
 // Update the current values in the map using the newly provided ones. Return a
@@ -224,7 +257,11 @@ func (m *Map) set(name string, value string, initial bool) (bool, error) {
 	}
 
 	// Normalize boolan values, so the comparison below works fine.
-	current := m.GetRaw(name)
+	current, err := m.GetRaw(name)
+	if err != nil {
+		return false, err
+	}
+
 	if key.Type == Bool {
 		value = normalizeBool(value)
 		current = normalizeBool(current)
