@@ -97,7 +97,7 @@ func cpuState() api.InstanceStateCPU {
 func memoryState() api.InstanceStateMemory {
 	memory := api.InstanceStateMemory{}
 
-	stats, err := getMemoryMetrics(nil)
+	stats, err := getMemoryMetrics()
 	if err != nil {
 		return memory
 	}

@@ -33,40 +33,40 @@ var metricsCmd = APIEndpoint{
 func metricsGet(d *Daemon, r *http.Request) response.Response {
 	out := metrics.Metrics{}
 
-	diskStats, err := getDiskMetrics(d)
+	diskStats, err := getDiskMetrics()
 	if err != nil {
 		logger.Warn("Failed to get disk metrics", logger.Ctx{"err": err})
 	} else {
 		out.Disk = diskStats
 	}
 
-	filesystemStats, err := getFilesystemMetrics(d)
+	filesystemStats, err := getFilesystemMetrics()
 	if err != nil {
 		logger.Warn("Failed to get filesystem metrics", logger.Ctx{"err": err})
 	} else {
 		out.Filesystem = filesystemStats
 	}
 
-	memStats, err := getMemoryMetrics(d)
+	memStats, err := getMemoryMetrics()
 	if err != nil {
 		logger.Warn("Failed to get memory metrics", logger.Ctx{"err": err})
 	} else {
 		out.Memory = memStats
 	}
 
-	netStats, err := getNetworkMetrics(d)
+	netStats, err := getNetworkMetrics()
 	if err != nil {
 		logger.Warn("Failed to get network metrics", logger.Ctx{"err": err})
 	} else {
 		out.Network = netStats
 	}
 
-	out.ProcessesTotal, err = getTotalProcesses(d)
+	out.ProcessesTotal, err = getTotalProcesses()
 	if err != nil {
 		logger.Warn("Failed to get total processes", logger.Ctx{"err": err})
 	}
 
-	cpuStats, err := getCPUMetrics(d)
+	cpuStats, err := getCPUMetrics()
 	if err != nil {
 		logger.Warn("Failed to get CPU metrics", logger.Ctx{"err": err})
 	} else {
@@ -76,7 +76,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, &out)
 }
 
-func getCPUMetrics(d *Daemon) (map[string]metrics.CPUMetrics, error) {
+func getCPUMetrics() (map[string]metrics.CPUMetrics, error) {
 	stats, err := os.ReadFile("/proc/stat")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to read /proc/stat: %w", err)
@@ -164,7 +164,7 @@ func getCPUMetrics(d *Daemon) (map[string]metrics.CPUMetrics, error) {
 	return out, nil
 }
 
-func getTotalProcesses(d *Daemon) (uint64, error) {
+func getTotalProcesses() (uint64, error) {
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
 		return 0, fmt.Errorf("Failed to read dir %q: %w", "/proc", err)
@@ -203,7 +203,7 @@ func getTotalProcesses(d *Daemon) (uint64, error) {
 	return pidCount, nil
 }
 
-func getDiskMetrics(d *Daemon) (map[string]metrics.DiskMetrics, error) {
+func getDiskMetrics() (map[string]metrics.DiskMetrics, error) {
 	diskStats, err := os.ReadFile("/proc/diskstats")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to read /proc/diskstats: %w", err)
@@ -256,7 +256,7 @@ func getDiskMetrics(d *Daemon) (map[string]metrics.DiskMetrics, error) {
 	return out, nil
 }
 
-func getFilesystemMetrics(d *Daemon) (map[string]metrics.FilesystemMetrics, error) {
+func getFilesystemMetrics() (map[string]metrics.FilesystemMetrics, error) {
 	mounts, err := os.ReadFile("/proc/mounts")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to read /proc/mounts: %w", err)
@@ -302,7 +302,7 @@ func getFilesystemMetrics(d *Daemon) (map[string]metrics.FilesystemMetrics, erro
 	return out, nil
 }
 
-func getMemoryMetrics(d *Daemon) (metrics.MemoryMetrics, error) {
+func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 	content, err := os.ReadFile("/proc/meminfo")
 	if err != nil {
 		return metrics.MemoryMetrics{}, fmt.Errorf("Failed to read /proc/meminfo: %w", err)
@@ -375,7 +375,7 @@ func getMemoryMetrics(d *Daemon) (metrics.MemoryMetrics, error) {
 	return out, nil
 }
 
-func getNetworkMetrics(d *Daemon) (map[string]metrics.NetworkMetrics, error) {
+func getNetworkMetrics() (map[string]metrics.NetworkMetrics, error) {
 	out := map[string]metrics.NetworkMetrics{}
 
 	for dev, state := range networkState() {
