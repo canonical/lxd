@@ -434,7 +434,7 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 
 // Output a line of code that registers the given statement and declares the
 // associated statement code global variable.
-func (s *Stmt) register(buf *file.Buffer, stmtName, sql string, filters ...string) {
+func (s *Stmt) register(buf *file.Buffer, stmtName, sql string) {
 	if !strings.HasPrefix(sql, "`") || !strings.HasSuffix(sql, "`") {
 		sql = fmt.Sprintf("`\n%s\n`", sql)
 	}
