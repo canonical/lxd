@@ -16,7 +16,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
-func restServer(tlsConfig *tls.Config, cert *x509.Certificate, debug bool, d *Daemon) *http.Server {
+func restServer(tlsConfig *tls.Config, cert *x509.Certificate, d *Daemon) *http.Server {
 	mux := mux.NewRouter()
 	mux.StrictSlash(false) // Don't redirect to URL with trailing slash.
 	mux.UseEncodedPath()   // Allow encoded values in path segments.
@@ -27,13 +27,13 @@ func restServer(tlsConfig *tls.Config, cert *x509.Certificate, debug bool, d *Da
 	})
 
 	for _, c := range api10 {
-		createCmd(mux, "1.0", c, cert, debug, d)
+		createCmd(mux, "1.0", c, cert, d)
 	}
 
 	return &http.Server{Handler: mux, TLSConfig: tlsConfig}
 }
 
-func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Certificate, debug bool, d *Daemon) {
+func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Certificate, d *Daemon) {
 	var uri string
 	if c.Path == "" {
 		uri = fmt.Sprintf("/%s", version)
