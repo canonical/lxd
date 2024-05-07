@@ -44,222 +44,345 @@ func Load(ctx context.Context, tx *db.ClusterTx) (*Config, error) {
 }
 
 // BackupsCompressionAlgorithm returns the compression algorithm to use for backups.
-func (c *Config) BackupsCompressionAlgorithm() string {
+func (c *Config) BackupsCompressionAlgorithm() (string, error) {
 	return c.m.GetString("backups.compression_algorithm")
 }
 
 // MetricsAuthentication checks whether metrics API requires authentication.
-func (c *Config) MetricsAuthentication() bool {
+func (c *Config) MetricsAuthentication() (bool, error) {
 	return c.m.GetBool("core.metrics_authentication")
 }
 
 // BGPASN returns the BGP ASN setting.
-func (c *Config) BGPASN() int64 {
+func (c *Config) BGPASN() (int64, error) {
 	return c.m.GetInt64("core.bgp_asn")
 }
 
 // HTTPSAllowedHeaders returns the relevant CORS setting.
-func (c *Config) HTTPSAllowedHeaders() string {
+func (c *Config) HTTPSAllowedHeaders() (string, error) {
 	return c.m.GetString("core.https_allowed_headers")
 }
 
 // HTTPSAllowedMethods returns the relevant CORS setting.
-func (c *Config) HTTPSAllowedMethods() string {
+func (c *Config) HTTPSAllowedMethods() (string, error) {
 	return c.m.GetString("core.https_allowed_methods")
 }
 
 // HTTPSAllowedOrigin returns the relevant CORS setting.
-func (c *Config) HTTPSAllowedOrigin() string {
+func (c *Config) HTTPSAllowedOrigin() (string, error) {
 	return c.m.GetString("core.https_allowed_origin")
 }
 
 // HTTPSAllowedCredentials returns the relevant CORS setting.
-func (c *Config) HTTPSAllowedCredentials() bool {
+func (c *Config) HTTPSAllowedCredentials() (bool, error) {
 	return c.m.GetBool("core.https_allowed_credentials")
 }
 
 // TrustPassword returns the LXD trust password for authenticating clients.
-func (c *Config) TrustPassword() string {
+func (c *Config) TrustPassword() (string, error) {
 	return c.m.GetString("core.trust_password")
 }
 
 // TrustCACertificates returns whether client certificates are checked
 // against a CA.
-func (c *Config) TrustCACertificates() bool {
+func (c *Config) TrustCACertificates() (bool, error) {
 	return c.m.GetBool("core.trust_ca_certificates")
 }
 
 // ProxyHTTPS returns the configured HTTPS proxy, if any.
-func (c *Config) ProxyHTTPS() string {
+func (c *Config) ProxyHTTPS() (string, error) {
 	return c.m.GetString("core.proxy_https")
 }
 
 // ProxyHTTP returns the configured HTTP proxy, if any.
-func (c *Config) ProxyHTTP() string {
+func (c *Config) ProxyHTTP() (string, error) {
 	return c.m.GetString("core.proxy_http")
 }
 
 // ProxyIgnoreHosts returns the configured ignore-hosts proxy setting, if any.
-func (c *Config) ProxyIgnoreHosts() string {
+func (c *Config) ProxyIgnoreHosts() (string, error) {
 	return c.m.GetString("core.proxy_ignore_hosts")
 }
 
 // HTTPSTrustedProxy returns the configured HTTPS trusted proxy setting, if any.
-func (c *Config) HTTPSTrustedProxy() string {
+func (c *Config) HTTPSTrustedProxy() (string, error) {
 	return c.m.GetString("core.https_trusted_proxy")
 }
 
 // MAASController the configured MAAS url and key, if any.
-func (c *Config) MAASController() (apiURL string, apiKey string) {
-	url := c.m.GetString("maas.api.url")
-	key := c.m.GetString("maas.api.key")
-	return url, key
+func (c *Config) MAASController() (apiURL string, apiKey string, err error) {
+	url, err := c.m.GetString("maas.api.url")
+	if err != nil {
+		return "", "", err
+	}
+
+	key, err := c.m.GetString("maas.api.key")
+	if err != nil {
+		return "", "", err
+	}
+
+	return url, key, err
 }
 
 // OfflineThreshold returns the configured heartbeat threshold, i.e. the
 // number of seconds before after which an unresponsive node is considered
 // offline..
-func (c *Config) OfflineThreshold() time.Duration {
-	n := c.m.GetInt64("cluster.offline_threshold")
-	return time.Duration(n) * time.Second
+func (c *Config) OfflineThreshold() (time.Duration, error) {
+	n, err := c.m.GetInt64("cluster.offline_threshold")
+	if err != nil {
+		return 0, err
+	}
+
+	return time.Duration(n) * time.Second, nil
 }
 
 // ImagesMinimalReplica returns the numbers of nodes for cluster images replication.
-func (c *Config) ImagesMinimalReplica() int64 {
+func (c *Config) ImagesMinimalReplica() (int64, error) {
 	return c.m.GetInt64("cluster.images_minimal_replica")
 }
 
 // MaxVoters returns the maximum number of members in a cluster that will be
 // assigned the voter role.
-func (c *Config) MaxVoters() int64 {
+func (c *Config) MaxVoters() (int64, error) {
 	return c.m.GetInt64("cluster.max_voters")
 }
 
 // MaxStandBy returns the maximum number of standby members in a cluster that
 // will be assigned the stand-by role.
-func (c *Config) MaxStandBy() int64 {
+func (c *Config) MaxStandBy() (int64, error) {
 	return c.m.GetInt64("cluster.max_standby")
 }
 
 // NetworkOVNIntegrationBridge returns the integration OVS bridge to use for OVN networks.
-func (c *Config) NetworkOVNIntegrationBridge() string {
+func (c *Config) NetworkOVNIntegrationBridge() (string, error) {
 	return c.m.GetString("network.ovn.integration_bridge")
 }
 
 // NetworkOVNNorthboundConnection returns the OVN northbound database connection string for OVN networks.
-func (c *Config) NetworkOVNNorthboundConnection() string {
+func (c *Config) NetworkOVNNorthboundConnection() (string, error) {
 	return c.m.GetString("network.ovn.northbound_connection")
 }
 
 // NetworkOVNSSL returns all three SSL configuration keys needed for a connection.
-func (c *Config) NetworkOVNSSL() (caCert string, clientCert string, clientKey string) {
-	return c.m.GetString("network.ovn.ca_cert"), c.m.GetString("network.ovn.client_cert"), c.m.GetString("network.ovn.client_key")
+func (c *Config) NetworkOVNSSL() (caCert string, clientCert string, clientKey string, err error) {
+	caCert, err = c.m.GetString("network.ovn.ca_cert")
+	if err != nil {
+		return "", "", "", err
+	}
+
+	clientCert, err = c.m.GetString("network.ovn.client_cert")
+	if err != nil {
+		return "", "", "", err
+	}
+
+	clientKey, err = c.m.GetString("network.ovn.client_key")
+	if err != nil {
+		return "", "", "", err
+	}
+
+	return caCert, clientCert, clientKey, err
 }
 
 // ShutdownTimeout returns the number of minutes to wait for running operation to complete
 // before LXD server shut down.
-func (c *Config) ShutdownTimeout() time.Duration {
-	n := c.m.GetInt64("core.shutdown_timeout")
-	return time.Duration(n) * time.Minute
+func (c *Config) ShutdownTimeout() (time.Duration, error) {
+	n, err := c.m.GetInt64("core.shutdown_timeout")
+	if err != nil {
+		return 0, err
+	}
+
+	return time.Duration(n) * time.Minute, nil
 }
 
 // ImagesDefaultArchitecture returns the default architecture.
-func (c *Config) ImagesDefaultArchitecture() string {
+func (c *Config) ImagesDefaultArchitecture() (string, error) {
 	return c.m.GetString("images.default_architecture")
 }
 
 // ImagesCompressionAlgorithm returns the compression algorithm to use for images.
-func (c *Config) ImagesCompressionAlgorithm() string {
+func (c *Config) ImagesCompressionAlgorithm() (string, error) {
 	return c.m.GetString("images.compression_algorithm")
 }
 
 // ImagesAutoUpdateCached returns whether or not to auto update cached images.
-func (c *Config) ImagesAutoUpdateCached() bool {
+func (c *Config) ImagesAutoUpdateCached() (bool, error) {
 	return c.m.GetBool("images.auto_update_cached")
 }
 
 // ImagesAutoUpdateIntervalHours returns interval in hours at which to look for update to cached images.
-func (c *Config) ImagesAutoUpdateIntervalHours() int64 {
+func (c *Config) ImagesAutoUpdateIntervalHours() (int64, error) {
 	return c.m.GetInt64("images.auto_update_interval")
 }
 
 // ImagesRemoteCacheExpiryDays returns the number of days after which an unused cached remote image will be flushed.
-func (c *Config) ImagesRemoteCacheExpiryDays() int64 {
+func (c *Config) ImagesRemoteCacheExpiryDays() (int64, error) {
 	return c.m.GetInt64("images.remote_cache_expiry")
 }
 
 // InstancesNICHostname returns hostname mode to use for instance NICs.
-func (c *Config) InstancesNICHostname() string {
+func (c *Config) InstancesNICHostname() (string, error) {
 	return c.m.GetString("instances.nic.host_name")
 }
 
 // InstancesPlacementScriptlet returns the instances placement scriptlet source code.
-func (c *Config) InstancesPlacementScriptlet() string {
+func (c *Config) InstancesPlacementScriptlet() (string, error) {
 	return c.m.GetString("instances.placement.scriptlet")
 }
 
 // InstancesMigrationStateful returns the whether or not to auto enable migration.stateful for all VM instances.
-func (c *Config) InstancesMigrationStateful() bool {
+func (c *Config) InstancesMigrationStateful() (bool, error) {
 	return c.m.GetBool("instances.migration.stateful")
 }
 
 // LokiServer returns all the Loki settings needed to connect to a server.
-func (c *Config) LokiServer() (apiURL string, authUsername string, authPassword string, apiCACert string, instance string, logLevel string, labels []string, types []string) {
-	if c.m.GetString("loki.types") != "" {
-		types = strings.Split(c.m.GetString("loki.types"), ",")
+func (c *Config) LokiServer() (apiURL string, authUsername string, authPassword string, apiCACert string, instance string, logLevel string, labels []string, types []string, err error) {
+	typesString, err := c.m.GetString("loki.types")
+	if err != nil {
+		return "", "", "", "", "", "", nil, nil, err
 	}
 
-	if c.m.GetString("loki.labels") != "" {
-		labels = strings.Split(c.m.GetString("loki.labels"), ",")
+	if typesString != "" {
+		types = strings.Split(typesString, ",")
 	}
 
-	return c.m.GetString("loki.api.url"), c.m.GetString("loki.auth.username"), c.m.GetString("loki.auth.password"), c.m.GetString("loki.api.ca_cert"), c.m.GetString("loki.instance"), c.m.GetString("loki.loglevel"), labels, types
+	labelsString, err := c.m.GetString("loki.labels")
+	if err != nil {
+		return "", "", "", "", "", "", nil, nil, err
+	}
+
+	if labelsString != "" {
+		labels = strings.Split(labelsString, ",")
+	}
+
+	apiURL, err = c.m.GetString("loki.api.url")
+	if err != nil {
+		return "", "", "", "", "", "", nil, nil, err
+	}
+
+	authUsername, err = c.m.GetString("loki.auth.username")
+	if err != nil {
+		return "", "", "", "", "", "", nil, nil, err
+	}
+
+	authPassword, err = c.m.GetString("loki.auth.password")
+	if err != nil {
+		return "", "", "", "", "", "", nil, nil, err
+	}
+
+	apiCACert, err = c.m.GetString("loki.api.ca_cert")
+	if err != nil {
+		return "", "", "", "", "", "", nil, nil, err
+	}
+
+	instance, err = c.m.GetString("loki.instance")
+	if err != nil {
+		return "", "", "", "", "", "", nil, nil, err
+	}
+
+	logLevel, err = c.m.GetString("loki.loglevel")
+	if err != nil {
+		return "", "", "", "", "", "", nil, nil, err
+	}
+
+	return apiURL, authUsername, authPassword, apiCACert, instance, logLevel, labels, types, nil
 }
 
 // ACME returns all ACME settings needed for certificate renewal.
-func (c *Config) ACME() (domain string, email string, caURL string, agreeTOS bool) {
-	return c.m.GetString("acme.domain"), c.m.GetString("acme.email"), c.m.GetString("acme.ca_url"), c.m.GetBool("acme.agree_tos")
+func (c *Config) ACME() (domain string, email string, caURL string, agreeTOS bool, err error) {
+	domain, err = c.m.GetString("acme.domain")
+	if err != nil {
+		return "", "", "", false, err
+	}
+
+	email, err = c.m.GetString("acme.email")
+	if err != nil {
+		return "", "", "", false, err
+	}
+
+	caURL, err = c.m.GetString("acme.ca_url")
+	if err != nil {
+		return "", "", "", false, err
+	}
+
+	agreeTOS, err = c.m.GetBool("acme.agree_tos")
+	if err != nil {
+		return "", "", "", false, err
+	}
+
+	return domain, email, caURL, agreeTOS, nil
 }
 
 // ClusterJoinTokenExpiry returns the cluster join token expiry.
-func (c *Config) ClusterJoinTokenExpiry() string {
+func (c *Config) ClusterJoinTokenExpiry() (string, error) {
 	return c.m.GetString("cluster.join_token_expiry")
 }
 
 // RemoteTokenExpiry returns the time after which a remote add token expires.
-func (c *Config) RemoteTokenExpiry() string {
+func (c *Config) RemoteTokenExpiry() (string, error) {
 	return c.m.GetString("core.remote_token_expiry")
 }
 
 // OIDCServer returns all the OpenID Connect settings needed to connect to a server.
-func (c *Config) OIDCServer() (issuer string, clientID string, audience string, groupsClaim string) {
-	return c.m.GetString("oidc.issuer"), c.m.GetString("oidc.client.id"), c.m.GetString("oidc.audience"), c.m.GetString("oidc.groups.claim")
+func (c *Config) OIDCServer() (issuer string, clientID string, audience string, groupsClaim string, err error) {
+	issuer, err = c.m.GetString("oidc.issuer")
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	clientID, err = c.m.GetString("oidc.client.id")
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	audience, err = c.m.GetString("oidc.audience")
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	groupsClaim, err = c.m.GetString("oidc.groups.claim")
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	return issuer, clientID, audience, groupsClaim, nil
 }
 
 // ClusterHealingThreshold returns the configured healing threshold, i.e. the
 // number of seconds after which an offline node will be evacuated automatically. If the config key
 // is set but its value is lower than cluster.offline_threshold it returns
 // the value of cluster.offline_threshold instead. If this feature is disabled, it returns 0.
-func (c *Config) ClusterHealingThreshold() time.Duration {
-	n := c.m.GetInt64("cluster.healing_threshold")
+func (c *Config) ClusterHealingThreshold() (time.Duration, error) {
+	n, err := c.m.GetInt64("cluster.healing_threshold")
+	if err != nil {
+		return 0, err
+	}
+
 	if n == 0 {
-		return 0
+		return 0, nil
 	}
 
 	healingThreshold := time.Duration(n) * time.Second
-	offlineThreshold := c.OfflineThreshold()
-
-	if healingThreshold < offlineThreshold {
-		return offlineThreshold
+	offlineThreshold, err := c.OfflineThreshold()
+	if err != nil {
+		return 0, err
 	}
 
-	return healingThreshold
+	if healingThreshold < offlineThreshold {
+		return offlineThreshold, nil
+	}
+
+	return healingThreshold, nil
 }
 
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
-func (c *Config) Dump() map[string]string {
-	return c.m.Dump()
+func (c *Config) Dump() (map[string]string, error) {
+	m, err := c.m.Dump()
+	if err != nil {
+		return nil, fmt.Errorf("Failed dumping config map: %w", err)
+	}
+
+	return m, nil
 }
 
 // Replace the current configuration with the given values.
@@ -273,7 +396,11 @@ func (c *Config) Replace(values map[string]string) (map[string]string, error) {
 //
 // Return what has actually changed.
 func (c *Config) Patch(patch map[string]string) (map[string]string, error) {
-	values := c.Dump() // Use current values as defaults
+	values, err := c.Dump() // Use current values as defaults
+	if err != nil {
+		return nil, err
+	}
+
 	for name, value := range patch {
 		values[name] = value
 	}
