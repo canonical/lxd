@@ -137,9 +137,9 @@ For example, create `cloud-init.yml` with the following content:
       - package1
       - package2
 
-Then send the following request:
+Then run the following command:
 
-    lxc config set <instance_name> cloud-init.user-data - < ~cloud-init.yml
+    lxc config set <instance_name> cloud-init.user-data - < cloud-init.yml
 
 ## How to check the `cloud-init` status
 
