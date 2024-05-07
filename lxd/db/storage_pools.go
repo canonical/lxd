@@ -479,7 +479,7 @@ func (c *ClusterTx) GetStoragePools(ctx context.Context, state *StoragePoolState
 	for poolID := range pools {
 		pool := pools[poolID]
 
-		err = c.getStoragePoolConfig(ctx, c, poolID, &pool)
+		err = c.getStoragePoolConfig(ctx, poolID, &pool)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -687,7 +687,7 @@ func (c *ClusterTx) getStoragePool(ctx context.Context, onlyCreated bool, where 
 
 	pool.Status = StoragePoolStateToAPIStatus(state)
 
-	err = c.getStoragePoolConfig(ctx, c, poolID, &pool)
+	err = c.getStoragePoolConfig(ctx, poolID, &pool)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return -1, nil, nil, api.StatusErrorf(http.StatusNotFound, "Storage pool not found")
@@ -736,7 +736,7 @@ func StoragePoolStateToAPIStatus(state StoragePoolState) string {
 }
 
 // getStoragePoolConfig populates the config map of the Storage pool with the given ID.
-func (c *ClusterTx) getStoragePoolConfig(ctx context.Context, tx *ClusterTx, poolID int64, pool *api.StoragePool) error {
+func (c *ClusterTx) getStoragePoolConfig(ctx context.Context, poolID int64, pool *api.StoragePool) error {
 	q := "SELECT key, value FROM storage_pools_config WHERE storage_pool_id=? AND (node_id=? OR node_id IS NULL)"
 
 	pool.Config = map[string]string{}
