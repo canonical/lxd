@@ -10,7 +10,6 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/lxc/config"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -79,7 +78,7 @@ func (c *cmdInfo) Run(cmd *cobra.Command, args []string) error {
 		return c.remoteInfo(d)
 	}
 
-	return c.instanceInfo(d, conf.Remotes[remote], cName, c.flagShowLog)
+	return c.instanceInfo(d, cName, c.flagShowLog)
 }
 
 func (c *cmdInfo) renderGPU(gpu api.ResourcesGPUCard, prefix string, initial bool) {
@@ -445,7 +444,7 @@ func (c *cmdInfo) remoteInfo(d lxd.InstanceServer) error {
 	return nil
 }
 
-func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name string, showLog bool) error {
+func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) error {
 	// Quick checks.
 	if c.flagTarget != "" {
 		return fmt.Errorf(i18n.G("--target cannot be used with instances"))
