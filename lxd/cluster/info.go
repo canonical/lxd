@@ -13,7 +13,7 @@ import (
 
 // Load information about the dqlite node associated with this LXD member
 // should have, such as its ID, address and role.
-func loadInfo(database *db.Node, cert *shared.CertInfo) (*db.RaftNode, error) {
+func loadInfo(database *db.Node) (*db.RaftNode, error) {
 	// Figure out if we actually need to act as dqlite node.
 	var info *db.RaftNode
 	err := database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
