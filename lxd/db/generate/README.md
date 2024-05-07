@@ -32,17 +32,15 @@ each call to the go generation directive `mapper`.
 
 The `table` key can be used to override the generated table name for a specified one.
 
-
 * `//go:generate mapper method -e instance Create references=Config,Device`
 
-For some tables (defined below under [Additional Information](#Additional-Information) as [EntityTable](#EntityTable), the `references=<ReferenceEntity>` key can be provided with the name of
-a [ReferenceTable](#ReferenceTable) or [MapTable](#MapTable) struct. This directive would produce `CreateInstance` in addition to `CreateInstanceConfig` and `CreateInstanceDevices`
-
+For some tables (defined below under [Additional Information](#additional-information) as [EntityTable](#entitytable), the `references=<ReferenceEntity>` key can be provided with the name of
+a [ReferenceTable](#referencetable) or [MapTable](#maptable) struct. This directive would produce `CreateInstance` in addition to `CreateInstanceConfig` and `CreateInstanceDevices`
 
 * //go:generate mapper method -i -e instance_profile Create struct=Instance
 * //go:generate mapper method -i -e instance_profile Create struct=Profile
 
-For some tables (defined below under [Additional Information](#Additional-Information) as [AssociationTable](#AssociationTable), `method` declarations must
+For some tables (defined below under [Additional Information](#additional-information) as [AssociationTable](#associationtable), `method` declarations must
 include a `struct=<Entity>` to indicate the directionality of the function. An invocation can be called for each direction.
 This would produce `CreateInstanceProfiles` and `CreateProfileInstances` respectively.
 
@@ -102,7 +100,6 @@ Type                                | Description
 `Update`                            | Update the columns at a given row, specified by primary key.
 `DeleteOne`                         | Delete exactly one row from the table.
 `DeleteMany`                        | Delete one or more rows from the table.
-
 
 ```go
 //go:generate mapper method -i -e instance GetMany
@@ -200,6 +197,7 @@ type Config struct {
 ```
 
 ### AssociationTable
+
 This is a special type of table that contains two fields of the form `<Entity>ID`, where `<Entity>` corresponds to two other structs present in the same package.
 This will generate code for compound tables of the form `<entity1>_<entity2>` that are generally used to associate two tables together by their IDs.
 
