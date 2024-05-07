@@ -1144,9 +1144,10 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 
 	randString := func(length int) string {
 		var chars = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0987654321")
+		charsLength := len(chars)
 		randStr := make([]rune, length)
 		for i := range randStr {
-			randStr[i] = chars[rand.Intn(len(chars))]
+			randStr[i] = chars[rand.Intn(charsLength)]
 		}
 
 		return string(randStr)
