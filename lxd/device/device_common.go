@@ -101,7 +101,10 @@ func (d *deviceCommon) Remove() error {
 // Accepts optional hwaddr MAC address to use for generating the interface name in mac mode.
 // In mac mode the interface prefix is always "lxd".
 func (d *deviceCommon) generateHostName(prefix string, hwaddr string) (string, error) {
-	hostNameMode := d.state.GlobalConfig.InstancesNICHostname()
+	hostNameMode, err := d.state.GlobalConfig.InstancesNICHostname()
+	if err != nil {
+		return "", err
+	}
 
 	// Handle instances.nic.host_name mac mode if a MAC address has been supplied.
 	if hostNameMode == "mac" && hwaddr != "" {

@@ -368,7 +368,10 @@ func (d *nicOVN) validateEnvironment() error {
 		return fmt.Errorf("Requires name property to start")
 	}
 
-	integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
+	integrationBridge, err := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
+	if err != nil {
+		return err
+	}
 
 	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", integrationBridge)) {
 		return fmt.Errorf("OVS integration bridge device %q doesn't exist", integrationBridge)
@@ -428,7 +431,10 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 				}
 			}
 
-			integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
+			integrationBridge, err := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
+			if err != nil {
+				return nil, err
+			}
 
 			// Find free VF exclusively.
 			network.SRIOVVirtualFunctionMutex.Lock()
@@ -480,7 +486,10 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 				}
 			}
 
-			integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
+			integrationBridge, err := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
+			if err != nil {
+				return nil, err
+			}
 
 			// Find free VF exclusively.
 			network.SRIOVVirtualFunctionMutex.Lock()
@@ -862,7 +871,10 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 	// as if the instance is being migrated, this can cause port conflicts in OVN if the instance comes up on
 	// another LXD host later.
 	if integrationBridgeNICName != "" {
-		integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
+		integrationBridge, err := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
+		if err != nil {
+			return nil, err
+		}
 
 		// Detach host-side end of veth pair from OVS integration bridge.
 		err = ovs.BridgePortDelete(integrationBridge, integrationBridgeNICName)
@@ -1143,7 +1155,10 @@ func (d *nicOVN) setupHostNIC(hostName string, ovnPortName openvswitch.OVNSwitch
 	}
 
 	// Attach host side veth interface to bridge.
-	integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
+	integrationBridge, err := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
+	if err != nil {
+		return nil, err
+	}
 
 	ovs := openvswitch.NewOVS()
 	err = ovs.BridgePortAdd(integrationBridge, hostName, true)
