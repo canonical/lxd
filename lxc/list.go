@@ -950,7 +950,7 @@ func (c *cmdList) matchByLocation(cInfo *api.Instance, cState *api.InstanceState
 	return strings.EqualFold(cInfo.Location, query)
 }
 
-func (c *cmdList) matchByNet(cInfo *api.Instance, cState *api.InstanceState, query string, family string) bool {
+func (c *cmdList) matchByNet(cState *api.InstanceState, query string, family string) bool {
 	// Skip if no state.
 	if cState == nil {
 		return false
@@ -992,11 +992,11 @@ func (c *cmdList) matchByNet(cInfo *api.Instance, cState *api.InstanceState, que
 }
 
 func (c *cmdList) matchByIPV6(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
-	return c.matchByNet(cInfo, cState, query, "ipv6")
+	return c.matchByNet(cState, query, "ipv6")
 }
 
 func (c *cmdList) matchByIPV4(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
-	return c.matchByNet(cInfo, cState, query, "ipv4")
+	return c.matchByNet(cState, query, "ipv4")
 }
 
 func (c *cmdList) mapShorthandFilters() {
