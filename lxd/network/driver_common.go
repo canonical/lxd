@@ -437,7 +437,7 @@ func (n *common) warningsDelete() error {
 }
 
 // delete the network on local server.
-func (n *common) delete(clientType request.ClientType) error {
+func (n *common) delete() error {
 	// Delete any persistent warnings for network.
 	err := n.warningsDelete()
 	if err != nil {

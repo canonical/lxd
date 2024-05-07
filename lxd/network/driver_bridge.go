@@ -506,7 +506,7 @@ func (n *bridge) Delete(clientType request.ClientType) error {
 		return err
 	}
 
-	return n.common.delete(clientType)
+	return n.common.delete()
 }
 
 // Rename renames a network.
