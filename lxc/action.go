@@ -239,6 +239,10 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 			return err
 		}
 
+		if shared.IsFalse(current.ExpandedConfig["security.protection.start"]) {
+			return fmt.Errorf(i18n.G("Cannot start instance ")+"\"%s\""+i18n.G("since security.protection.start is false."), nameArg)
+		}
+
 		// "start" for a frozen instance means "unfreeze"
 		if current.StatusCode == api.Frozen {
 			action = "unfreeze"
