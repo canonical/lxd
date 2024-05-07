@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/lxc/config"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -254,7 +253,7 @@ func (c *cmdList) evaluateShorthandFilter(key string, value string, inst *api.In
 	return false
 }
 
-func (c *cmdList) listInstances(conf *config.Config, d lxd.InstanceServer, instances []api.Instance, filters []string, columns []column) error {
+func (c *cmdList) listInstances(d lxd.InstanceServer, instances []api.Instance, filters []string, columns []column) error {
 	threads := 10
 	if len(instances) < threads {
 		threads = len(instances)
@@ -544,7 +543,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Fetch any remaining data and render the table
-	return c.listInstances(conf, d, instancesFiltered, clientFilters, columns)
+	return c.listInstances(d, instancesFiltered, clientFilters, columns)
 }
 
 func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
