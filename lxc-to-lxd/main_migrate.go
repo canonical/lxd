@@ -471,7 +471,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 
 		rootfs, _ := getRootfs(conf)
 
-		err = transferRootfs(d, op, rootfs, rsyncArgs)
+		err = transferRootfs(op, rootfs, rsyncArgs)
 		if err != nil {
 			return err
 		}
