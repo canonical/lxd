@@ -2341,7 +2341,7 @@ func (d *lxc) Start(stateful bool) error {
 	// Check that we are startable before creating an operation lock.
 	// Must happen before creating operation Start lock to avoid the status check returning Stopped due to the
 	// existence of a Start operation lock.
-	err = d.validateStartup(stateful, d.statusCode())
+	err = d.validateStartup(d.statusCode())
 	if err != nil {
 		return err
 	}
@@ -2571,8 +2571,8 @@ func (d *lxc) onStart(_ map[string]string) error {
 }
 
 // validateStartup checks any constraints that would prevent start up from succeeding under normal circumstances.
-func (d *lxc) validateStartup(stateful bool, statusCode api.StatusCode) error {
-	err := d.common.validateStartup(stateful, statusCode)
+func (d *lxc) validateStartup(statusCode api.StatusCode) error {
+	err := d.common.validateStartup(statusCode)
 	if err != nil {
 		return err
 	}

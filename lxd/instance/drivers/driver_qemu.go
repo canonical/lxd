@@ -1096,7 +1096,7 @@ func (d *qemu) validateRootDiskStatefulStop() error {
 
 // validateStartup checks any constraints that would prevent start up from succeeding under normal circumstances.
 func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
-	err := d.common.validateStartup(stateful, statusCode)
+	err := d.common.validateStartup(statusCode)
 	if err != nil {
 		return err
 	}
