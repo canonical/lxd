@@ -1818,7 +1818,10 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Setup clustered DNS.
-		localClusterAddress := n.state.LocalConfig.ClusterAddress()
+		localClusterAddress, err := n.state.LocalConfig.ClusterAddress()
+		if err != nil {
+			return err
+		}
 
 		// If clusterAddress is non-empty, this indicates the intention for this node to be
 		// part of a cluster and so we should ensure that dnsmasq and forkdns are started
@@ -2384,7 +2387,10 @@ func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 	}
 
 	addresses := []string{}
-	localClusterAddress := n.state.LocalConfig.ClusterAddress()
+	localClusterAddress, err := n.state.LocalConfig.ClusterAddress()
+	if err != nil {
+		return err
+	}
 
 	n.logger.Info("Refreshing forkdns peers")
 
