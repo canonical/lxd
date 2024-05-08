@@ -2011,7 +2011,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 		if instanceRunning {
 			// Attach network interface if requested.
 			if len(runConf.NetworkInterface) > 0 {
-				err = d.deviceAttachNIC(dev.Name(), configCopy, runConf.NetworkInterface)
+				err = d.deviceAttachNIC(dev.Name(), runConf.NetworkInterface)
 				if err != nil {
 					return nil, err
 				}
@@ -2107,7 +2107,7 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string, rawConfig deviceConfig
 }
 
 // deviceAttachNIC live attaches a NIC device to the instance.
-func (d *qemu) deviceAttachNIC(deviceName string, configCopy map[string]string, netIF []deviceConfig.RunConfigItem) error {
+func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfigItem) error {
 	devName := ""
 	for _, dev := range netIF {
 		if dev.Key == "link" {
