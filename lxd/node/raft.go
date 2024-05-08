@@ -35,7 +35,10 @@ func DetermineRaftNode(ctx context.Context, tx *db.NodeTx) (*db.RaftNode, error)
 		return nil, err
 	}
 
-	address := config.ClusterAddress()
+	address, err := config.ClusterAddress()
+	if err != nil {
+		return nil, err
+	}
 
 	// If cluster.https_address is the empty string, then this LXD instance is
 	// not running in clustering mode.

@@ -17,9 +17,11 @@ func TestConfigLoad_Initial(t *testing.T) {
 	defer cleanup()
 
 	config, err := node.ConfigLoad(context.Background(), tx)
-
 	require.NoError(t, err)
-	assert.Equal(t, map[string]string{}, config.Dump())
+
+	dump, err := config.Dump()
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{}, dump)
 }
 
 // If the database contains invalid keys, they are ignored.
@@ -34,10 +36,12 @@ func TestConfigLoad_IgnoreInvalidKeys(t *testing.T) {
 	require.NoError(t, err)
 
 	config, err := node.ConfigLoad(context.Background(), tx)
-
 	require.NoError(t, err)
+
 	values := map[string]string{"core.https_address": "127.0.0.1:666"}
-	assert.Equal(t, values, config.Dump())
+	dump, err := config.Dump()
+	require.NoError(t, err)
+	assert.Equal(t, values, dump)
 }
 
 // Triggers can be specified to execute custom code on config key changes.
@@ -46,9 +50,11 @@ func TestConfigLoad_Triggers(t *testing.T) {
 	defer cleanup()
 
 	config, err := node.ConfigLoad(context.Background(), tx)
-
 	require.NoError(t, err)
-	assert.Equal(t, map[string]string{}, config.Dump())
+
+	dump, err := config.Dump()
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{}, dump)
 }
 
 // If some previously set values are missing from the ones passed to Replace(),
@@ -68,7 +74,9 @@ func TestConfig_ReplaceDeleteValues(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]string{"core.https_address": ""}, changed)
 
-	assert.Equal(t, "", config.HTTPSAddress())
+	address, err := config.HTTPSAddress()
+	assert.NoError(t, err)
+	assert.Equal(t, "", address)
 
 	values, err := tx.Config(context.Background())
 	require.NoError(t, err)
@@ -90,7 +98,9 @@ func TestConfig_PatchKeepsValues(t *testing.T) {
 	_, err = config.Patch(map[string]string{})
 	assert.NoError(t, err)
 
-	assert.Equal(t, "127.0.0.1:666", config.HTTPSAddress())
+	address, err := config.HTTPSAddress()
+	assert.NoError(t, err)
+	assert.Equal(t, "127.0.0.1:666", address)
 
 	values, err := tx.Config(context.Background())
 	require.NoError(t, err)
@@ -111,8 +121,9 @@ func TestHTTPSAddress(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	address, err := config.HTTPSAddress()
 	require.NoError(t, err)
-	assert.Equal(t, "", config.HTTPSAddress())
+	assert.Equal(t, "", address)
 
 	err = nodeDB.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 		config, err = node.ConfigLoad(ctx, tx)
@@ -131,8 +142,9 @@ func TestHTTPSAddress(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	address, err = config.HTTPSAddress()
 	require.NoError(t, err)
-	assert.Equal(t, "127.0.0.1:666", config.HTTPSAddress())
+	assert.Equal(t, "127.0.0.1:666", address)
 }
 
 // The cluster.https_address config key is fetched from the db with a new
@@ -149,7 +161,9 @@ func TestClusterAddress(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, "", nodeConfig.ClusterAddress())
+	address, err := nodeConfig.ClusterAddress()
+	require.NoError(t, err)
+	assert.Equal(t, "", address)
 
 	err = nodeDB.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 		nodeConfig, err = node.ConfigLoad(ctx, tx)
@@ -168,5 +182,7 @@ func TestClusterAddress(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, "127.0.0.1:666", nodeConfig.ClusterAddress())
+	address, err = nodeConfig.ClusterAddress()
+	require.NoError(t, err)
+	assert.Equal(t, "127.0.0.1:666", address)
 }
