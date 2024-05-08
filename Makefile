@@ -23,7 +23,7 @@ endif
 default: lxd
 
 .PHONY: all
-all: client lxd lxd-agent lxd-migrate
+all: client lxd lxd-agent lxd-benchmark lxd-migrate
 
 .PHONY: build
 build: lxd
