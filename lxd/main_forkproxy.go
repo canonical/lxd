@@ -339,7 +339,7 @@ func listenerInstance(epFd C.int, lAddr *deviceConfig.ProxyAddress, cAddr *devic
 				return
 			}
 
-			genericRelay(srcConn, dstConn, true)
+			genericRelay(srcConn, dstConn)
 			rearmUDPFd(epFd, connFd)
 		}()
 
@@ -391,7 +391,7 @@ func listenerInstance(epFd C.int, lAddr *deviceConfig.ProxyAddress, cAddr *devic
 		// Handle OOB if both src and dst are using unix sockets
 		go unixRelay(srcConn, dstConn)
 	} else {
-		go genericRelay(srcConn, dstConn, false)
+		go genericRelay(srcConn, dstConn)
 	}
 
 	return nil
@@ -816,7 +816,7 @@ func proxyCopy(dst net.Conn, src net.Conn) error {
 	return err
 }
 
-func genericRelay(dst net.Conn, src net.Conn, timeout bool) {
+func genericRelay(dst net.Conn, src net.Conn) {
 	relayer := func(src net.Conn, dst net.Conn, ch chan error) {
 		ch <- proxyCopy(src, dst)
 		close(ch)
