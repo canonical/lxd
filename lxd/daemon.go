@@ -1347,7 +1347,7 @@ func (d *Daemon) init() error {
 
 	// Mount the storage pools.
 	logger.Infof("Initializing storage pools")
-	err = storageStartup(d.State(), false)
+	err = storageStartup(d.State())
 	if err != nil {
 		return err
 	}
