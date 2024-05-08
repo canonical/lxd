@@ -29,7 +29,11 @@ import (
 func AllowInstanceCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, req api.InstancesPost) error {
 	var globalConfigDump map[string]string
 	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
+		var err error
+		globalConfigDump, err = globalConfig.Dump()
+		if err != nil {
+			return err
+		}
 	}
 
 	info, err := fetchProject(globalConfigDump, tx, projectName, true)
@@ -238,7 +242,11 @@ func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instanc
 func AllowVolumeCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, req api.StorageVolumesPost) error {
 	var globalConfigDump map[string]string
 	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
+		var err error
+		globalConfigDump, err = globalConfig.Dump()
+		if err != nil {
+			return err
+		}
 	}
 
 	info, err := fetchProject(globalConfigDump, tx, projectName, true)
@@ -276,7 +284,11 @@ func AllowVolumeCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, p
 func GetImageSpaceBudget(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string) (int64, error) {
 	var globalConfigDump map[string]string
 	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
+		var err error
+		globalConfigDump, err = globalConfig.Dump()
+		if err != nil {
+			return -1, err
+		}
 	}
 
 	info, err := fetchProject(globalConfigDump, tx, projectName, true)
@@ -348,7 +360,11 @@ func checkRestrictionsAndAggregateLimits(globalConfig *clusterConfig.Config, tx 
 
 	var globalConfigDump map[string]string
 	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
+		var err error
+		globalConfigDump, err = globalConfig.Dump()
+		if err != nil {
+			return err
+		}
 	}
 
 	instances, err := expandInstancesConfigAndDevices(globalConfigDump, info.Instances, info.Profiles)
@@ -886,7 +902,11 @@ func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, p
 
 	var globalConfigDump map[string]string
 	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
+		var err error
+		globalConfigDump, err = globalConfig.Dump()
+		if err != nil {
+			return err
+		}
 	}
 
 	info, err := fetchProject(globalConfigDump, tx, projectName, true)
@@ -936,7 +956,11 @@ func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, p
 func AllowVolumeUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, volumeName string, req api.StorageVolumePut, currentConfig map[string]string) error {
 	var globalConfigDump map[string]string
 	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
+		var err error
+		globalConfigDump, err = globalConfig.Dump()
+		if err != nil {
+			return err
+		}
 	}
 
 	info, err := fetchProject(globalConfigDump, tx, projectName, true)
@@ -975,7 +999,11 @@ func AllowVolumeUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, pro
 func AllowProfileUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, profileName string, req api.ProfilePut) error {
 	var globalConfigDump map[string]string
 	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
+		var err error
+		globalConfigDump, err = globalConfig.Dump()
+		if err != nil {
+			return err
+		}
 	}
 
 	info, err := fetchProject(globalConfigDump, tx, projectName, true)
@@ -1009,7 +1037,11 @@ func AllowProfileUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, pr
 func AllowProjectUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, config map[string]string, changed []string) error {
 	var globalConfigDump map[string]string
 	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
+		var err error
+		globalConfigDump, err = globalConfig.Dump()
+		if err != nil {
+			return err
+		}
 	}
 
 	info, err := fetchProject(globalConfigDump, tx, projectName, false)
