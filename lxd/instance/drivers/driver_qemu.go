@@ -2298,7 +2298,7 @@ func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error 
 	return nil
 }
 
-func (d *qemu) deviceDetachPath(deviceName string, rawConfig deviceConfig.Device) error {
+func (d *qemu) deviceDetachPath(deviceName string) error {
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
 	mountTag := fmt.Sprintf("lxd_%s", deviceName)
@@ -2475,7 +2475,7 @@ func (d *qemu) deviceStop(dev device.Device, instanceRunning bool, _ string) err
 		// Detach disk from running instance.
 		if configCopy["type"] == "disk" {
 			if configCopy["path"] != "" {
-				err = d.deviceDetachPath(dev.Name(), configCopy)
+				err = d.deviceDetachPath(dev.Name())
 				if err != nil {
 					return err
 				}
