@@ -77,7 +77,7 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 	case "POST":
 		return instanceFilePost(s, inst, path, r)
 	case "DELETE":
-		return instanceFileDelete(s, inst, path, r)
+		return instanceFileDelete(s, inst, path)
 	default:
 		return response.NotFound(fmt.Errorf("Method %q not found", r.Method))
 	}
@@ -597,7 +597,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func instanceFileDelete(s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
+func instanceFileDelete(s *state.State, inst instance.Instance, path string) response.Response {
 	// Get a SFTP client.
 	client, err := inst.FileSFTP()
 	if err != nil {
