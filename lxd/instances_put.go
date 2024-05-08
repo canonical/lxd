@@ -210,7 +210,10 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Get local cluster address.
-		localClusterAddress := s.LocalConfig.ClusterAddress()
+		localClusterAddress, err := s.LocalConfig.ClusterAddress()
+		if err != nil {
+			return err
+		}
 
 		// Record the results.
 		failures := map[string]error{}

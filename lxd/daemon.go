@@ -364,7 +364,10 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 	}
 
 	// Validate normal TLS access.
-	trustCACertificates := d.globalConfig.TrustCACertificates()
+	trustCACertificates, err := d.globalConfig.TrustCACertificates()
+	if err != nil {
+		return false, "", "", nil, err
+	}
 
 	// Validate metrics certificates.
 	if r.URL.Path == "/1.0/metrics" {
@@ -1152,9 +1155,20 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	localHTTPAddress := d.localConfig.HTTPSAddress()
-	localClusterAddress := d.localConfig.ClusterAddress()
-	debugAddress := d.localConfig.DebugAddress()
+	localHTTPAddress, err := d.localConfig.HTTPSAddress()
+	if err != nil {
+		return err
+	}
+
+	localClusterAddress, err := d.localConfig.ClusterAddress()
+	if err != nil {
+		return err
+	}
+
+	debugAddress, err := d.localConfig.DebugAddress()
+	if err != nil {
+		return err
+	}
 
 	if os.Getenv("LISTEN_PID") != "" {
 		d.systemdSocketActivated = true
@@ -1402,28 +1416,85 @@ func (d *Daemon) init() error {
 	d.events.SetLocalLocation(d.serverName)
 
 	// Get daemon configuration.
-	bgpAddress := d.localConfig.BGPAddress()
-	bgpRouterID := d.localConfig.BGPRouterID()
+	bgpAddress, err := d.localConfig.BGPAddress()
+	if err != nil {
+		return err
+	}
+
+	bgpRouterID, err := d.localConfig.BGPRouterID()
+	if err != nil {
+		return err
+	}
+
 	bgpASN := int64(0)
 
 	maasAPIURL := ""
 	maasAPIKey := ""
-	maasMachine := d.localConfig.MAASMachine()
+	maasMachine, err := d.localConfig.MAASMachine()
+	if err != nil {
+		return err
+	}
 
 	// Get specific config keys.
 	d.globalConfigMu.Lock()
-	bgpASN = d.globalConfig.BGPASN()
+	bgpASN, err = d.globalConfig.BGPASN()
+	if err != nil {
+		return err
+	}
 
-	d.proxy = shared.ProxyFromConfig(d.globalConfig.ProxyHTTPS(), d.globalConfig.ProxyHTTP(), d.globalConfig.ProxyIgnoreHosts())
+	proxyHTTPS, err := d.globalConfig.ProxyHTTPS()
+	if err != nil {
+		return err
+	}
 
-	maasAPIURL, maasAPIKey = d.globalConfig.MAASController()
-	d.gateway.HeartbeatOfflineThreshold = d.globalConfig.OfflineThreshold()
-	lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes := d.globalConfig.LokiServer()
-	oidcIssuer, oidcClientID, oidcAudience, oidcGroupsClaim := d.globalConfig.OIDCServer()
-	syslogSocketEnabled := d.localConfig.SyslogSocket()
-	instancePlacementScriptlet := d.globalConfig.InstancesPlacementScriptlet()
+	proxyHTTP, err := d.globalConfig.ProxyHTTP()
+	if err != nil {
+		return err
+	}
 
-	d.endpoints.NetworkUpdateTrustedProxy(d.globalConfig.HTTPSTrustedProxy())
+	proxyIgnoreHosts, err := d.globalConfig.ProxyIgnoreHosts()
+	if err != nil {
+		return err
+	}
+
+	d.proxy = shared.ProxyFromConfig(proxyHTTPS, proxyHTTP, proxyIgnoreHosts)
+
+	maasAPIURL, maasAPIKey, err = d.globalConfig.MAASController()
+	if err != nil {
+		return err
+	}
+
+	d.gateway.HeartbeatOfflineThreshold, err = d.globalConfig.OfflineThreshold()
+	if err != nil {
+		return err
+	}
+
+	lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes, err := d.globalConfig.LokiServer()
+	if err != nil {
+		return err
+	}
+
+	oidcIssuer, oidcClientID, oidcAudience, oidcGroupsClaim, err := d.globalConfig.OIDCServer()
+	if err != nil {
+		return err
+	}
+
+	syslogSocketEnabled, err := d.localConfig.SyslogSocket()
+	if err != nil {
+		return err
+	}
+
+	instancePlacementScriptlet, err := d.globalConfig.InstancesPlacementScriptlet()
+	if err != nil {
+		return err
+	}
+
+	trustedProxy, err := d.globalConfig.HTTPSTrustedProxy()
+	if err != nil {
+		return err
+	}
+
+	d.endpoints.NetworkUpdateTrustedProxy(trustedProxy)
 	d.globalConfigMu.Unlock()
 
 	// Setup Loki logger.
@@ -1509,7 +1580,11 @@ func (d *Daemon) init() error {
 	}
 
 	// Setup tertiary listeners that may use managed network addresses and must be started after networks.
-	dnsAddress := d.localConfig.DNSAddress()
+	dnsAddress, err := d.localConfig.DNSAddress()
+	if err != nil {
+		return err
+	}
+
 	if dnsAddress != "" {
 		err = d.dns.Start(dnsAddress)
 		if err != nil {
@@ -1519,7 +1594,11 @@ func (d *Daemon) init() error {
 		logger.Info("Started DNS server")
 	}
 
-	metricsAddress := d.localConfig.MetricsAddress()
+	metricsAddress, err := d.localConfig.MetricsAddress()
+	if err != nil {
+		return err
+	}
+
 	if metricsAddress != "" {
 		err = d.endpoints.UpMetrics(metricsAddress)
 		if err != nil {
@@ -1527,7 +1606,11 @@ func (d *Daemon) init() error {
 		}
 	}
 
-	storageBucketsAddress := d.localConfig.StorageBucketsAddress()
+	storageBucketsAddress, err := d.localConfig.StorageBucketsAddress()
+	if err != nil {
+		return err
+	}
+
 	if storageBucketsAddress != "" {
 		err = d.endpoints.UpStorageBuckets(storageBucketsAddress)
 		if err != nil {
@@ -1813,10 +1896,15 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	// Handle shutdown (unix.SIGPWR) and reload (unix.SIGTERM) signals.
 	if sig == unix.SIGPWR || sig == unix.SIGTERM {
 		if d.db.Cluster != nil {
+			shutdownTimeout, err := s.GlobalConfig.ShutdownTimeout()
+			if err != nil {
+				return err
+			}
+
 			// waitForOperations will block until all operations are done, or it's forced to shut down.
 			// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
 			// initiated using `lxd shutdown`.
-			waitForOperations(ctx, d.db.Cluster, s.GlobalConfig.ShutdownTimeout())
+			waitForOperations(ctx, d.db.Cluster, shutdownTimeout)
 		}
 
 		// Unmount daemon image and backup volumes if set.
@@ -2123,7 +2211,12 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 		return
 	}
 
-	localClusterAddress := s.LocalConfig.ClusterAddress()
+	localClusterAddress, err := s.LocalConfig.ClusterAddress()
+	if err != nil {
+		logger.Error("Error getting local cluster address", logger.Ctx{"err": err})
+		http.Error(w, "500 failed to get local cluster address", http.StatusInternalServerError)
+		return
+	}
 
 	if hbData.FullStateList {
 		// If there is an ongoing heartbeat round (and by implication this is the leader), then this could
@@ -2162,7 +2255,11 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		return
 	}
 
-	localClusterAddress := s.LocalConfig.ClusterAddress()
+	localClusterAddress, err := s.LocalConfig.ClusterAddress()
+	if err != nil {
+		logger.Error("Error getting local cluster address", logger.Ctx{"err": err})
+		return
+	}
 
 	if !heartbeatData.FullStateList || len(heartbeatData.Members) <= 0 {
 		logger.Error("Heartbeat member refresh task called with partial state list", logger.Ctx{"local": localClusterAddress})
@@ -2181,7 +2278,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	stateChangeTaskFailure := false // Records whether any of the state change tasks failed.
 
 	// Handle potential OVN chassis changes.
-	err := networkUpdateOVNChassis(s, heartbeatData, localClusterAddress)
+	err = networkUpdateOVNChassis(s, heartbeatData, localClusterAddress)
 	if err != nil {
 		stateChangeTaskFailure = true
 		logger.Error("Error restarting OVN networks", logger.Ctx{"err": err})
@@ -2245,8 +2342,17 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 			}
 		}
 
-		maxVoters := s.GlobalConfig.MaxVoters()
-		maxStandBy := s.GlobalConfig.MaxStandBy()
+		maxVoters, err := s.GlobalConfig.MaxVoters()
+		if err != nil {
+			logger.Error("Error getting maximum number of voter members", logger.Ctx{"err": err})
+			return
+		}
+
+		maxStandBy, err := s.GlobalConfig.MaxStandBy()
+		if err != nil {
+			logger.Error("Error getting maximum number of standby members", logger.Ctx{"err": err})
+			return
+		}
 
 		// If there are offline members that have voter or stand-by database roles, let's see if we can
 		// replace them with spare ones. Also, if we don't have enough voters or standbys, let's see if we

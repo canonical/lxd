@@ -375,7 +375,10 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
+	localHTTPSAddress, err := s.LocalConfig.HTTPSAddress()
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Quick check.
 	if req.Token && req.Certificate != "" {
@@ -401,7 +404,10 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		secret = config.TrustPassword()
+		secret, err = config.TrustPassword()
+		if err != nil {
+			return err
+		}
 
 		return nil
 	})
@@ -541,7 +547,10 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// If tokens should expire, add the expiry date to the op's metadata.
-		expiry := s.GlobalConfig.RemoteTokenExpiry()
+		expiry, err := s.GlobalConfig.RemoteTokenExpiry()
+		if err != nil {
+			return response.SmartError(err)
+		}
 
 		if expiry != "" {
 			expiresAt, err := shared.GetExpiry(time.Now(), expiry)

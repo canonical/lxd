@@ -46,7 +46,10 @@ func ensureDownloadedImageFitWithinBudget(s *state.State, r *http.Request, op *o
 	if p.Config["images.auto_update_cached"] != "" {
 		autoUpdate = shared.IsTrue(p.Config["images.auto_update_cached"])
 	} else {
-		autoUpdate = s.GlobalConfig.ImagesAutoUpdateCached()
+		autoUpdate, err = s.GlobalConfig.ImagesAutoUpdateCached()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var budget int64
@@ -1074,7 +1077,10 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			if len(architectures) < 1 {
 				defaultArch := targetProject.Config["images.default_architecture"]
 				if defaultArch == "" {
-					defaultArch = s.GlobalConfig.ImagesDefaultArchitecture()
+					defaultArch, err = s.GlobalConfig.ImagesDefaultArchitecture()
+					if err != nil {
+						return err
+					}
 				}
 
 				if defaultArch != "" {
@@ -1091,7 +1097,12 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 			clusterGroupsAllowed := project.GetRestrictedClusterGroups(targetProject)
 
-			candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, architectures, targetGroupName, clusterGroupsAllowed, s.GlobalConfig.OfflineThreshold())
+			offlineThreshold, err := s.GlobalConfig.OfflineThreshold()
+			if err != nil {
+				return err
+			}
+
+			candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, architectures, targetGroupName, clusterGroupsAllowed, offlineThreshold)
 			if err != nil {
 				return err
 			}
@@ -1120,8 +1131,13 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if s.ServerClustered && !clusterNotification && targetMemberInfo == nil {
+		placementScriptlet, err := s.GlobalConfig.InstancesPlacementScriptlet()
+		if err != nil {
+			return response.SmartError(err)
+		}
+
 		// Run instance placement scriptlet if enabled and no cluster member selected yet.
-		if s.GlobalConfig.InstancesPlacementScriptlet() != "" {
+		if placementScriptlet != "" {
 			leaderAddress, err := d.gateway.LeaderAddress()
 			if err != nil {
 				return response.InternalError(err)
@@ -1136,7 +1152,10 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 			var globalConfigDump map[string]string
 			if s.GlobalConfig != nil {
-				globalConfigDump = s.GlobalConfig.Dump()
+				globalConfigDump, err = s.GlobalConfig.Dump()
+				if err != nil {
+					return response.SmartError(err)
+				}
 			}
 
 			reqExpanded.Config = instancetype.ExpandInstanceConfig(globalConfigDump, reqExpanded.Config, profiles)

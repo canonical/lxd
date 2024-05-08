@@ -222,7 +222,11 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	// Get the authentication methods.
 	authMethods := []string{api.AuthenticationMethodTLS}
 
-	oidcIssuer, oidcClientID, _, _ := s.GlobalConfig.OIDCServer()
+	oidcIssuer, oidcClientID, _, _, err := s.GlobalConfig.OIDCServer()
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	if oidcIssuer != "" && oidcClientID != "" {
 		authMethods = append(authMethods, api.AuthenticationMethodOIDC)
 	}
@@ -237,7 +241,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// If not authorized, return now. Untrusted users are not authorized.
-	err := s.Authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanView)
+	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanView)
 	if err != nil && auth.IsDeniedError(err) {
 		return response.SyncResponseETag(true, srv, nil)
 	} else if err != nil {
@@ -252,7 +256,10 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 	srv.Auth = "trusted"
 
-	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
+	localHTTPSAddress, err := s.LocalConfig.HTTPSAddress()
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	addresses, err := util.ListenAddresses(localHTTPSAddress)
 	if err != nil {
@@ -592,8 +599,13 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 			return fmt.Errorf("Failed to load node config: %w", err)
 		}
 
+		dump, err := newNodeConfig.Dump()
+		if err != nil {
+			return err
+		}
+
 		// Keep old config around in case something goes wrong. In that case the config will be reverted.
-		for k, v := range newNodeConfig.Dump() {
+		for k, v := range dump {
 			oldNodeConfig[k] = v
 		}
 
@@ -617,15 +629,25 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 			}
 		}
 
+		backupsVolume, err := newNodeConfig.StorageBackupsVolume()
+		if err != nil {
+			return err
+		}
+
 		// Validate the storage volumes
-		if nodeValues["storage.backups_volume"] != "" && nodeValues["storage.backups_volume"] != newNodeConfig.StorageBackupsVolume() {
+		if nodeValues["storage.backups_volume"] != "" && nodeValues["storage.backups_volume"] != backupsVolume {
 			err := daemonStorageValidate(s, nodeValues["storage.backups_volume"])
 			if err != nil {
 				return fmt.Errorf("Failed validation of %q: %w", "storage.backups_volume", err)
 			}
 		}
 
-		if nodeValues["storage.images_volume"] != "" && nodeValues["storage.images_volume"] != newNodeConfig.StorageImagesVolume() {
+		imagesVolume, err := newNodeConfig.StorageImagesVolume()
+		if err != nil {
+			return err
+		}
+
+		if nodeValues["storage.images_volume"] != "" && nodeValues["storage.images_volume"] != imagesVolume {
 			err := daemonStorageValidate(s, nodeValues["storage.images_volume"])
 			if err != nil {
 				return fmt.Errorf("Failed validation of %q: %w", "storage.images_volume", err)
@@ -693,8 +715,13 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 			return fmt.Errorf("Failed to load cluster config: %w", err)
 		}
 
+		dump, err := newClusterConfig.Dump()
+		if err != nil {
+			return err
+		}
+
 		// Keep old config around in case something goes wrong. In that case the config will be reverted.
-		for k, v := range newClusterConfig.Dump() {
+		for k, v := range dump {
 			oldClusterConfig[k] = v
 		}
 
@@ -810,7 +837,11 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		case "core.proxy_https":
 			fallthrough
 		case "core.proxy_ignore_hosts":
-			daemonConfigSetProxy(d, clusterConfig)
+			err := daemonConfigSetProxy(d, clusterConfig)
+			if err != nil {
+				return fmt.Errorf("Failed to set proxy configuration: %w", err)
+			}
+
 		case "maas.api.url":
 			fallthrough
 		case "maas.api.key":
@@ -822,7 +853,12 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			}
 
 		case "cluster.offline_threshold":
-			d.gateway.HeartbeatOfflineThreshold = clusterConfig.OfflineThreshold()
+			offlineThreshold, err := clusterConfig.OfflineThreshold()
+			if err != nil {
+				return err
+			}
+
+			d.gateway.HeartbeatOfflineThreshold = offlineThreshold
 			d.taskClusterHeartbeat.Reset()
 		case "images.auto_update_interval":
 			fallthrough
@@ -873,6 +909,11 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		}
 	}
 
+	proxy, err := clusterConfig.HTTPSTrustedProxy()
+	if err != nil {
+		return err
+	}
+
 	// Process some additional keys. We do it sequentially because some keys are
 	// correlated with others, and need to be processed first (for example
 	// core.https_address need to be processed before
@@ -885,7 +926,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			return err
 		}
 
-		s.Endpoints.NetworkUpdateTrustedProxy(clusterConfig.HTTPSTrustedProxy())
+		s.Endpoints.NetworkUpdateTrustedProxy(proxy)
 	}
 
 	value, ok = nodeChanged["cluster.https_address"]
@@ -895,7 +936,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			return err
 		}
 
-		s.Endpoints.NetworkUpdateTrustedProxy(clusterConfig.HTTPSTrustedProxy())
+		s.Endpoints.NetworkUpdateTrustedProxy(proxy)
 	}
 
 	value, ok = nodeChanged["core.debug_address"]
@@ -939,36 +980,61 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	}
 
 	if maasChanged {
-		url, key := clusterConfig.MAASController()
-		machine := nodeConfig.MAASMachine()
-		err := d.setupMAASController(url, key, machine)
+		url, key, err := clusterConfig.MAASController()
+		if err != nil {
+			return err
+		}
+
+		machine, err := nodeConfig.MAASMachine()
+		if err != nil {
+			return err
+		}
+
+		err = d.setupMAASController(url, key, machine)
 		if err != nil {
 			return err
 		}
 	}
 
 	if bgpChanged {
-		address := nodeConfig.BGPAddress()
-		asn := clusterConfig.BGPASN()
-		routerid := nodeConfig.BGPRouterID()
+		address, err := nodeConfig.BGPAddress()
+		if err != nil {
+			return err
+		}
 
-		err := s.BGP.Reconfigure(address, uint32(asn), net.ParseIP(routerid))
+		asn, err := clusterConfig.BGPASN()
+		if err != nil {
+			return err
+		}
+
+		routerid, err := nodeConfig.BGPRouterID()
+		if err != nil {
+			return err
+		}
+
+		err = s.BGP.Reconfigure(address, uint32(asn), net.ParseIP(routerid))
 		if err != nil {
 			return fmt.Errorf("Failed reconfiguring BGP: %w", err)
 		}
 	}
 
 	if dnsChanged {
-		address := nodeConfig.DNSAddress()
+		address, err := nodeConfig.DNSAddress()
+		if err != nil {
+			return err
+		}
 
-		err := s.DNS.Reconfigure(address)
+		err = s.DNS.Reconfigure(address)
 		if err != nil {
 			return fmt.Errorf("Failed reconfiguring DNS: %w", err)
 		}
 	}
 
 	if lokiChanged {
-		lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes := clusterConfig.LokiServer()
+		lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes, err := clusterConfig.LokiServer()
+		if err != nil {
+			return err
+		}
 
 		if lokiURL == "" || lokiLoglevel == "" || len(lokiTypes) == 0 {
 			d.internalListener.RemoveHandler("loki")
@@ -997,7 +1063,10 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	}
 
 	if oidcChanged {
-		oidcIssuer, oidcClientID, oidcAudience, oidcGroupsClaim := clusterConfig.OIDCServer()
+		oidcIssuer, oidcClientID, oidcAudience, oidcGroupsClaim, err := clusterConfig.OIDCServer()
+		if err != nil {
+			return err
+		}
 
 		if oidcIssuer == "" || oidcClientID == "" {
 			d.oidcVerifier = nil
@@ -1016,7 +1085,12 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	}
 
 	if syslogSocketChanged {
-		err := d.setupSyslogSocket(nodeConfig.SyslogSocket())
+		socketEnabled, err := nodeConfig.SyslogSocket()
+		if err != nil {
+			return err
+		}
+
+		err = d.setupSyslogSocket(socketEnabled)
 		if err != nil {
 			return err
 		}

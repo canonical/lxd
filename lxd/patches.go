@@ -421,7 +421,12 @@ func patchDBNodesAutoInc(name string, d *Daemon) error {
 			return err
 		}
 
-		if localConfig.ClusterAddress() == leaderAddress {
+		clusterAddress, err := localConfig.ClusterAddress()
+		if err != nil {
+			return err
+		}
+
+		if clusterAddress == leaderAddress {
 			break // Apply change on leader node.
 		}
 

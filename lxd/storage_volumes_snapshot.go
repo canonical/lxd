@@ -1251,9 +1251,14 @@ func pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, t
 
 				memberCount = len(members)
 
+				offlineThreshold, err := s.GlobalConfig.OfflineThreshold()
+				if err != nil {
+					return err
+				}
+
 				// Filter to online members.
 				for _, member := range members {
-					if member.IsOffline(s.GlobalConfig.OfflineThreshold()) {
+					if member.IsOffline(offlineThreshold) {
 						continue
 					}
 

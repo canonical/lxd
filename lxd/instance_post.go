@@ -139,7 +139,12 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed to get source member for %q: %w", sourceAddress, err)
 		}
 
-		sourceNodeOffline = sourceMemberInfo.IsOffline(s.GlobalConfig.OfflineThreshold())
+		offlineThreshold, err := s.GlobalConfig.OfflineThreshold()
+		if err != nil {
+			return err
+		}
+
+		sourceNodeOffline = sourceMemberInfo.IsOffline(offlineThreshold)
 
 		return nil
 	})
@@ -219,7 +224,12 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			if targetMemberInfo == nil {
 				clusterGroupsAllowed := project.GetRestrictedClusterGroups(targetProject)
 
-				candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, []int{inst.Architecture()}, targetGroupName, clusterGroupsAllowed, s.GlobalConfig.OfflineThreshold())
+				offlineThreshold, err := s.GlobalConfig.OfflineThreshold()
+				if err != nil {
+					return err
+				}
+
+				candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, []int{inst.Architecture()}, targetGroupName, clusterGroupsAllowed, offlineThreshold)
 				if err != nil {
 					return err
 				}
@@ -231,7 +241,12 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		if targetMemberInfo == nil && s.GlobalConfig.InstancesPlacementScriptlet() != "" {
+		placementScriptlet, err := s.GlobalConfig.InstancesPlacementScriptlet()
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if targetMemberInfo == nil && placementScriptlet != "" {
 			leaderAddress, err := d.gateway.LeaderAddress()
 			if err != nil {
 				return response.InternalError(err)
@@ -277,7 +292,12 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		if targetMemberInfo.IsOffline(s.GlobalConfig.OfflineThreshold()) {
+		offlineThreshold, err := s.GlobalConfig.OfflineThreshold()
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if targetMemberInfo.IsOffline(offlineThreshold) {
 			return response.BadRequest(fmt.Errorf("Target cluster member is offline"))
 		}
 	}
@@ -632,7 +652,12 @@ func instancePostMigration(s *state.State, inst instance.Instance, newName strin
 
 // Move a non-ceph instance to another cluster node. Source and target members must be online.
 func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, srcMember db.NodeInfo, newMember db.NodeInfo, stateful bool, allowInconsistent bool) (func(op *operations.Operation) error, error) {
-	srcMemberOffline := srcMember.IsOffline(s.GlobalConfig.OfflineThreshold())
+	offlineThreshold, err := s.GlobalConfig.OfflineThreshold()
+	if err != nil {
+		return nil, err
+	}
+
+	srcMemberOffline := srcMember.IsOffline(offlineThreshold)
 
 	// Make sure that the source member is online if we end up being called from another member after a
 	// redirection due to the source member being offline.
@@ -983,8 +1008,13 @@ func migrateInstance(s *state.State, r *http.Request, inst instance.Instance, ta
 		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 
+	offlineThreshold, err := s.GlobalConfig.OfflineThreshold()
+	if err != nil {
+		return err
+	}
+
 	// Only use instancePostClusteringMigrateWithCeph when source member is offline.
-	if srcMember.IsOffline(s.GlobalConfig.OfflineThreshold()) && srcPool.Driver().Info().Name == "ceph" {
+	if srcMember.IsOffline(offlineThreshold) && srcPool.Driver().Info().Name == "ceph" {
 		f, err := instancePostClusteringMigrateWithCeph(s, r, srcPool, inst, req.Name, newMember, req.Live)
 		if err != nil {
 			return err

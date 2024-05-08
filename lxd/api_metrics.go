@@ -45,7 +45,12 @@ var metricsCmd = APIEndpoint{
 func allowMetrics(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	if !s.GlobalConfig.MetricsAuthentication() {
+	authentication, err := s.GlobalConfig.MetricsAuthentication()
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !authentication {
 		return response.EmptySyncResponse
 	}
 
@@ -349,8 +354,13 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 }
 
 func getFilteredMetrics(s *state.State, r *http.Request, compress bool, metricSet *metrics.MetricSet) response.Response {
+	authentication, err := s.GlobalConfig.MetricsAuthentication()
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Ignore filtering in case the authentication for metrics is disabled.
-	if !s.GlobalConfig.MetricsAuthentication() {
+	if !authentication {
 		return response.SyncResponsePlain(true, compress, metricSet.String())
 	}
 

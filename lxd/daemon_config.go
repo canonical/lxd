@@ -13,19 +13,29 @@ import (
 func daemonConfigRender(state *state.State) (map[string]string, error) {
 	config := map[string]string{}
 
+	dump, err := state.GlobalConfig.Dump()
+	if err != nil {
+		return nil, err
+	}
+
 	// Turn the config into a JSON-compatible map.
-	for key, value := range state.GlobalConfig.Dump() {
+	for key, value := range dump {
 		config[key] = value
 	}
 
 	// Apply the local config.
-	err := state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+	err = state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		nodeConfig, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
 			return err
 		}
 
-		for key, value := range nodeConfig.Dump() {
+		dump, err := nodeConfig.Dump()
+		if err != nil {
+			return err
+		}
+
+		for key, value := range dump {
 			config[key] = value
 		}
 
@@ -38,15 +48,32 @@ func daemonConfigRender(state *state.State) (map[string]string, error) {
 	return config, nil
 }
 
-func daemonConfigSetProxy(d *Daemon, config *clusterConfig.Config) {
+func daemonConfigSetProxy(d *Daemon, config *clusterConfig.Config) error {
+	proxyHTTPS, err := config.ProxyHTTPS()
+	if err != nil {
+		return err
+	}
+
+	proxyHTTP, err := config.ProxyHTTP()
+	if err != nil {
+		return err
+	}
+
+	proxyIgnoreHosts, err := config.ProxyIgnoreHosts()
+	if err != nil {
+		return err
+	}
+
 	// Update the cached proxy function
 	d.proxy = shared.ProxyFromConfig(
-		config.ProxyHTTPS(),
-		config.ProxyHTTP(),
-		config.ProxyIgnoreHosts(),
+		proxyHTTPS,
+		proxyHTTP,
+		proxyIgnoreHosts,
 	)
 
 	if d.oidcVerifier != nil {
 		d.oidcVerifier.ExpireConfig()
 	}
+
+	return nil
 }

@@ -414,7 +414,10 @@ func (s *lxdHTTPServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		<-s.d.setupChan
 
 		// Set CORS headers, unless this is an internal request.
-		setCORSHeaders(rw, req, s.d.State().GlobalConfig)
+		err := setCORSHeaders(rw, req, s.d.State().GlobalConfig)
+		if err != nil {
+			http.Error(rw, fmt.Errorf("Failed to set CORS headers: %w", err).Error(), http.StatusInternalServerError)
+		}
 	}
 
 	// OPTIONS request don't need any further processing
@@ -426,27 +429,45 @@ func (s *lxdHTTPServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	s.r.ServeHTTP(rw, req)
 }
 
-func setCORSHeaders(rw http.ResponseWriter, req *http.Request, config *clusterConfig.Config) {
-	allowedOrigin := config.HTTPSAllowedOrigin()
+func setCORSHeaders(rw http.ResponseWriter, req *http.Request, config *clusterConfig.Config) error {
+	allowedOrigin, err := config.HTTPSAllowedOrigin()
+	if err != nil {
+		return err
+	}
+
 	origin := req.Header.Get("Origin")
 	if allowedOrigin != "" && origin != "" {
 		rw.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 	}
 
-	allowedMethods := config.HTTPSAllowedMethods()
+	allowedMethods, err := config.HTTPSAllowedMethods()
+	if err != nil {
+		return err
+	}
+
 	if allowedMethods != "" && origin != "" {
 		rw.Header().Set("Access-Control-Allow-Methods", allowedMethods)
 	}
 
-	allowedHeaders := config.HTTPSAllowedHeaders()
+	allowedHeaders, err := config.HTTPSAllowedHeaders()
+	if err != nil {
+		return err
+	}
+
 	if allowedHeaders != "" && origin != "" {
 		rw.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
 	}
 
-	allowedCredentials := config.HTTPSAllowedCredentials()
+	allowedCredentials, err := config.HTTPSAllowedCredentials()
+	if err != nil {
+		return err
+	}
+
 	if allowedCredentials {
 		rw.Header().Set("Access-Control-Allow-Credentials", "true")
 	}
+
+	return nil
 }
 
 // Return true if this an API request coming from a cluster node that is

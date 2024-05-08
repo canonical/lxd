@@ -925,7 +925,12 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 
 	// Get current limits and usage.
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		result, err := projecthelpers.GetCurrentAllocations(s.GlobalConfig.Dump(), ctx, tx, name)
+		dump, err := s.GlobalConfig.Dump()
+		if err != nil {
+			return err
+		}
+
+		result, err := projecthelpers.GetCurrentAllocations(dump, ctx, tx, name)
 		if err != nil {
 			return err
 		}

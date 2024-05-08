@@ -96,7 +96,10 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 		if p.Config["backups.compression_algorithm"] != "" {
 			compress = p.Config["backups.compression_algorithm"]
 		} else {
-			compress = s.GlobalConfig.BackupsCompressionAlgorithm()
+			compress, err = s.GlobalConfig.BackupsCompressionAlgorithm()
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -433,7 +436,10 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	if backupRow.CompressionAlgorithm != "" {
 		compress = backupRow.CompressionAlgorithm
 	} else {
-		compress = s.GlobalConfig.BackupsCompressionAlgorithm()
+		compress, err = s.GlobalConfig.BackupsCompressionAlgorithm()
+		if err != nil {
+			return err
+		}
 	}
 
 	// Create the target path if needed.

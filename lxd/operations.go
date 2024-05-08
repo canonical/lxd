@@ -654,8 +654,15 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get local address.
-	localClusterAddress := s.LocalConfig.ClusterAddress()
-	offlineThreshold := s.GlobalConfig.OfflineThreshold()
+	localClusterAddress, err := s.LocalConfig.ClusterAddress()
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	offlineThreshold, err := s.GlobalConfig.OfflineThreshold()
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	memberOnline := func(memberAddress string) bool {
 		for _, member := range members {
@@ -781,8 +788,15 @@ func operationsGetByType(s *state.State, r *http.Request, projectName string, op
 	}
 
 	// Get local address.
-	localClusterAddress := s.LocalConfig.ClusterAddress()
-	offlineThreshold := s.GlobalConfig.OfflineThreshold()
+	localClusterAddress, err := s.LocalConfig.ClusterAddress()
+	if err != nil {
+		return nil, err
+	}
+
+	offlineThreshold, err := s.GlobalConfig.OfflineThreshold()
+	if err != nil {
+		return nil, err
+	}
 
 	memberOnline := func(memberAddress string) bool {
 		for _, member := range members {
@@ -1176,7 +1190,11 @@ func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := d.State()
 
-		localClusterAddress := s.LocalConfig.ClusterAddress()
+		localClusterAddress, err := s.LocalConfig.ClusterAddress()
+		if err != nil {
+			logger.Error("Failed to get local cluster member address", logger.Ctx{"err": err})
+			return
+		}
 
 		leader, err := d.gateway.LeaderAddress()
 		if err != nil {
@@ -1226,9 +1244,12 @@ func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 func autoRemoveOrphanedOperations(ctx context.Context, s *state.State) error {
 	logger.Debug("Removing orphaned operations across the cluster")
 
-	offlineThreshold := s.GlobalConfig.OfflineThreshold()
+	offlineThreshold, err := s.GlobalConfig.OfflineThreshold()
+	if err != nil {
+		return err
+	}
 
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		members, err := tx.GetNodes(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed getting cluster members: %w", err)

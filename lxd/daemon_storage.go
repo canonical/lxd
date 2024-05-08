@@ -29,8 +29,15 @@ func daemonStorageVolumesUnmount(s *state.State) error {
 			return err
 		}
 
-		storageBackups = nodeConfig.StorageBackupsVolume()
-		storageImages = nodeConfig.StorageImagesVolume()
+		storageBackups, err = nodeConfig.StorageBackupsVolume()
+		if err != nil {
+			return err
+		}
+
+		storageImages, err = nodeConfig.StorageImagesVolume()
+		if err != nil {
+			return err
+		}
 
 		return nil
 	})
@@ -85,8 +92,15 @@ func daemonStorageMount(s *state.State) error {
 			return err
 		}
 
-		storageBackups = nodeConfig.StorageBackupsVolume()
-		storageImages = nodeConfig.StorageImagesVolume()
+		storageBackups, err = nodeConfig.StorageBackupsVolume()
+		if err != nil {
+			return err
+		}
+
+		storageImages, err = nodeConfig.StorageImagesVolume()
+		if err != nil {
+			return err
+		}
 
 		return nil
 	})

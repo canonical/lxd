@@ -44,7 +44,10 @@ func acmeProvideChallenge(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// This gives me the correct value
-		clusterAddress := s.LocalConfig.ClusterAddress()
+		clusterAddress, err := s.LocalConfig.ClusterAddress()
+		if err != nil {
+			return response.SmartError(err)
+		}
 
 		if clusterAddress != "" && clusterAddress != leader {
 			// Forward the request to the leader
@@ -76,7 +79,10 @@ func acmeProvideChallenge(d *Daemon, r *http.Request) response.Response {
 func autoRenewCertificate(ctx context.Context, d *Daemon, force bool) error {
 	s := d.State()
 
-	domain, email, caURL, agreeToS := s.GlobalConfig.ACME()
+	domain, email, caURL, agreeToS, err := s.GlobalConfig.ACME()
+	if err != nil {
+		return err
+	}
 
 	if domain == "" || email == "" || !agreeToS {
 		return nil
@@ -90,7 +96,10 @@ func autoRenewCertificate(ctx context.Context, d *Daemon, force bool) error {
 		}
 
 		// Figure out our own cluster address.
-		clusterAddress := s.LocalConfig.ClusterAddress()
+		clusterAddress, err := s.LocalConfig.ClusterAddress()
+		if err != nil {
+			return err
+		}
 
 		if clusterAddress != leader {
 			return nil

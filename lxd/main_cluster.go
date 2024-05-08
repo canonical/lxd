@@ -138,7 +138,11 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		clusterAddress := config.ClusterAddress()
+		clusterAddress, err := config.ClusterAddress()
+		if err != nil {
+			return err
+		}
+
 		if clusterAddress == "" {
 			return fmt.Errorf(`Can't edit cluster configuration as server isn't clustered (missing "cluster.https_address" config)`)
 		}

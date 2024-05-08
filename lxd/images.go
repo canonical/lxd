@@ -305,7 +305,10 @@ func imgPostInstanceInfo(s *state.State, r *http.Request, req api.ImagesPost, op
 		if p.Config["images.compression_algorithm"] != "" {
 			compress = p.Config["images.compression_algorithm"]
 		} else {
-			compress = s.GlobalConfig.ImagesCompressionAlgorithm()
+			compress, err = s.GlobalConfig.ImagesCompressionAlgorithm()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -1870,7 +1873,11 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 			return err
 		}
 
-		vol := config.StorageImagesVolume()
+		vol, err := config.StorageImagesVolume()
+		if err != nil {
+			return err
+		}
+
 		if vol != "" {
 			fields := strings.Split(vol, "/")
 
@@ -1901,7 +1908,10 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 	}
 
 	// Skip own node
-	localClusterAddress := s.LocalConfig.ClusterAddress()
+	localClusterAddress, err := s.LocalConfig.ClusterAddress()
+	if err != nil {
+		return err
+	}
 
 	var poolIDs []int64
 	var poolNames []string
@@ -2108,7 +2118,10 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 				return nil, fmt.Errorf("Unable to fetch project configuration: %w", err)
 			}
 		} else {
-			interval = s.GlobalConfig.ImagesAutoUpdateIntervalHours()
+			interval, err = s.GlobalConfig.ImagesAutoUpdateIntervalHours()
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		// Check if we're supposed to auto update at all (0 disables it)
@@ -2367,7 +2380,10 @@ func pruneLeftoverImages(s *state.State) {
 				return err
 			}
 
-			storageImages = nodeConfig.StorageImagesVolume()
+			storageImages, err = nodeConfig.StorageImagesVolume()
+			if err != nil {
+				return err
+			}
 
 			return nil
 		})
@@ -2464,7 +2480,10 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get an image remote cache expiry days value for each project and store keyed on project name.
-		globalImageRemoteCacheExpiryDays := s.GlobalConfig.ImagesRemoteCacheExpiryDays()
+		globalImageRemoteCacheExpiryDays, err := s.GlobalConfig.ImagesRemoteCacheExpiryDays()
+		if err != nil {
+			return err
+		}
 
 		dbProjects, err := dbCluster.GetProjects(ctx, tx.Tx())
 		if err != nil {
@@ -4479,7 +4498,11 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 
 		// In order to only have one task operation executed per image when syncing the images
 		// across the cluster, only leader node can launch the task, no others.
-		localClusterAddress := s.LocalConfig.ClusterAddress()
+		localClusterAddress, err := s.LocalConfig.ClusterAddress()
+		if err != nil {
+			logger.Error("Failed to get local cluster member address", logger.Ctx{"err": err})
+			return
+		}
 
 		leader, err := d.gateway.LeaderAddress()
 		if err != nil {
@@ -4574,7 +4597,11 @@ func imageSyncBetweenNodes(ctx context.Context, s *state.State, r *http.Request,
 	var syncNodeAddresses []string
 
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		desiredSyncNodeCount = s.GlobalConfig.ImagesMinimalReplica()
+		var err error
+		desiredSyncNodeCount, err = s.GlobalConfig.ImagesMinimalReplica()
+		if err != nil {
+			return err
+		}
 
 		// -1 means that we want to replicate the image on all nodes
 		if desiredSyncNodeCount == -1 {
@@ -4585,8 +4612,6 @@ func imageSyncBetweenNodes(ctx context.Context, s *state.State, r *http.Request,
 
 			desiredSyncNodeCount = int64(nodesCount)
 		}
-
-		var err error
 
 		// Check how many nodes already have this image
 		syncNodeAddresses, err = tx.GetNodesWithImage(ctx, fingerprint)

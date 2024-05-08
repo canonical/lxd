@@ -82,7 +82,10 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	localHTTPAddress := localConfig.HTTPSAddress()
+	localHTTPAddress, err := localConfig.HTTPSAddress()
+	if err != nil {
+		return err
+	}
 
 	// Look for network socket
 	if localHTTPAddress != "" {

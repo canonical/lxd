@@ -403,12 +403,19 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 			return fmt.Errorf("Failed to fetch member configuration: %w", err)
 		}
 
-		localClusterAddress := config.ClusterAddress()
+		localClusterAddress, err := config.ClusterAddress()
+		if err != nil {
+			return err
+		}
+
 		if localClusterAddress != "" {
 			return nil
 		}
 
-		localHTTPSAddress := config.HTTPSAddress()
+		localHTTPSAddress, err := config.HTTPSAddress()
+		if err != nil {
+			return err
+		}
 
 		if util.IsWildCardAddress(localHTTPSAddress) {
 			return fmt.Errorf("Cannot use wildcard core.https_address %q for cluster.https_address. Please specify a new cluster.https_address or core.https_address", localClusterAddress)
@@ -462,7 +469,10 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		return response.BadRequest(fmt.Errorf("No server address provided for this member"))
 	}
 
-	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
+	localHTTPSAddress, err := s.LocalConfig.HTTPSAddress()
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	var config *node.Config
 
@@ -786,7 +796,11 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		d.globalConfig = currentClusterConfig
 		d.globalConfigMu.Unlock()
 
-		existingConfigDump := currentClusterConfig.Dump()
+		existingConfigDump, err := currentClusterConfig.Dump()
+		if err != nil {
+			return err
+		}
+
 		changes := make(map[string]string, len(existingConfigDump))
 		for k, v := range existingConfigDump {
 			changes[k] = v
@@ -1217,11 +1231,16 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed getting max member version: %w", err)
 		}
 
+		offlineThreshold, err := s.GlobalConfig.OfflineThreshold()
+		if err != nil {
+			return err
+		}
+
 		args := db.NodeInfoArgs{
 			LeaderAddress:        leaderAddress,
 			FailureDomains:       failureDomains,
 			MemberFailureDomains: memberFailureDomains,
-			OfflineThreshold:     s.GlobalConfig.OfflineThreshold(),
+			OfflineThreshold:     offlineThreshold,
 			MaxMemberVersion:     maxVersion,
 			RaftNodes:            raftNodes,
 		}
@@ -1301,7 +1320,12 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("This server is not clustered"))
 	}
 
-	expiry, err := shared.GetExpiry(time.Now(), s.GlobalConfig.ClusterJoinTokenExpiry())
+	tokenExpiry, err := s.GlobalConfig.ClusterJoinTokenExpiry()
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	expiry, err := shared.GetExpiry(time.Now(), tokenExpiry)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -1319,9 +1343,14 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed getting cluster members: %w", err)
 		}
 
+		offlineThreshold, err := s.GlobalConfig.OfflineThreshold()
+		if err != nil {
+			return err
+		}
+
 		// Filter to online members.
 		for _, member := range members {
-			if member.State == db.ClusterMemberStateEvacuated || member.IsOffline(s.GlobalConfig.OfflineThreshold()) {
+			if member.State == db.ClusterMemberStateEvacuated || member.IsOffline(offlineThreshold) {
 				continue
 			}
 
@@ -1489,11 +1518,16 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed getting max member version: %w", err)
 		}
 
+		offlineThreshold, err := s.GlobalConfig.OfflineThreshold()
+		if err != nil {
+			return err
+		}
+
 		args := db.NodeInfoArgs{
 			LeaderAddress:        leaderAddress,
 			FailureDomains:       failureDomains,
 			MemberFailureDomains: memberFailureDomains,
-			OfflineThreshold:     s.GlobalConfig.OfflineThreshold(),
+			OfflineThreshold:     offlineThreshold,
 			MaxMemberVersion:     maxVersion,
 			RaftNodes:            raftNodes,
 		}
@@ -1626,11 +1660,16 @@ func updateClusterNode(s *state.State, gateway *cluster.Gateway, r *http.Request
 			return fmt.Errorf("Failed getting max member version: %w", err)
 		}
 
+		offlineThreshold, err := s.GlobalConfig.OfflineThreshold()
+		if err != nil {
+			return err
+		}
+
 		args := db.NodeInfoArgs{
 			LeaderAddress:        leaderAddress,
 			FailureDomains:       failureDomains,
 			MemberFailureDomains: memberFailureDomains,
-			OfflineThreshold:     s.GlobalConfig.OfflineThreshold(),
+			OfflineThreshold:     offlineThreshold,
 			MaxMemberVersion:     maxVersion,
 			RaftNodes:            raftNodes,
 		}
@@ -1923,7 +1962,10 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Redirect all requests to the leader, which is the one with
 	// knowing what nodes are part of the raft cluster.
-	localClusterAddress := s.LocalConfig.ClusterAddress()
+	localClusterAddress, err := s.LocalConfig.ClusterAddress()
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	leader, err := d.gateway.LeaderAddress()
 	if err != nil {
@@ -2268,7 +2310,10 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 			return err
 		}
 
-		localClusterAddress := s.LocalConfig.ClusterAddress()
+		localClusterAddress, err := s.LocalConfig.ClusterAddress()
+		if err != nil {
+			return err
+		}
 
 		revert.Add(func() {
 			// If distributing the new certificate fails, store the certificate. This new file will
@@ -2368,7 +2413,10 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 
 	// Redirect all requests to the leader, which is the one with
 	// knowning what nodes are part of the raft cluster.
-	localClusterAddress := s.LocalConfig.ClusterAddress()
+	localClusterAddress, err := s.LocalConfig.ClusterAddress()
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	leader, err := d.gateway.LeaderAddress()
 	if err != nil {
@@ -2458,7 +2506,10 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 
 	// Redirect all requests to the leader, which is the one with with
 	// up-to-date knowledge of what nodes are part of the raft cluster.
-	localClusterAddress := s.LocalConfig.ClusterAddress()
+	localClusterAddress, err := s.LocalConfig.ClusterAddress()
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	leader, err := d.gateway.LeaderAddress()
 	if err != nil {
@@ -2593,7 +2644,10 @@ func handoverMemberRole(s *state.State, gateway *cluster.Gateway) error {
 	}
 
 	// Figure out our own cluster address.
-	localClusterAddress := s.LocalConfig.ClusterAddress()
+	localClusterAddress, err := s.LocalConfig.ClusterAddress()
+	if err != nil {
+		return err
+	}
 
 	post := &internalClusterPostHandoverRequest{
 		Address: localClusterAddress,
@@ -2691,7 +2745,10 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 
 	// Redirect all requests to the leader, which is the one with
 	// authoritative knowledge of the current raft configuration.
-	localClusterAddress := s.LocalConfig.ClusterAddress()
+	localClusterAddress, err := s.LocalConfig.ClusterAddress()
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	leader, err := d.gateway.LeaderAddress()
 	if err != nil {
@@ -3298,7 +3355,12 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 				return fmt.Errorf("Failed getting cluster members: %w", err)
 			}
 
-			candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, []int{inst.Architecture()}, "", nil, opts.s.GlobalConfig.OfflineThreshold())
+			offlineThreshold, err := opts.s.GlobalConfig.OfflineThreshold()
+			if err != nil {
+				return err
+			}
+
+			candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, []int{inst.Architecture()}, "", nil, offlineThreshold)
 			if err != nil {
 				return err
 			}
@@ -4323,8 +4385,13 @@ func clusterGroupValidateName(name string) error {
 func evacuateClusterSelectTarget(ctx context.Context, s *state.State, gateway *cluster.Gateway, inst instance.Instance, candidateMembers []db.NodeInfo) (*db.NodeInfo, error) {
 	var targetMemberInfo *db.NodeInfo
 
+	placementScriptlet, err := s.GlobalConfig.InstancesPlacementScriptlet()
+	if err != nil {
+		return nil, err
+	}
+
 	// Run instance placement scriptlet if enabled.
-	if s.GlobalConfig.InstancesPlacementScriptlet() != "" {
+	if placementScriptlet != "" {
 		leaderAddress, err := gateway.LeaderAddress()
 		if err != nil {
 			return nil, err
@@ -4387,7 +4454,12 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, gateway *c
 func autoHealClusterTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := d.State()
-		healingThreshold := s.GlobalConfig.ClusterHealingThreshold()
+		healingThreshold, err := s.GlobalConfig.ClusterHealingThreshold()
+		if err != nil {
+			logger.Error("Failed to get cluster healing threshold", logger.Ctx{"err": err})
+			return
+		}
+
 		if healingThreshold == 0 {
 			return // Skip healing if it's disabled.
 		}
@@ -4402,7 +4474,13 @@ func autoHealClusterTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		if s.LocalConfig.ClusterAddress() != leader {
+		clusterAddress, err := s.LocalConfig.ClusterAddress()
+		if err != nil {
+			logger.Error("Failed to get cluster address", logger.Ctx{"err": err})
+			return
+		}
+
+		if clusterAddress != leader {
 			return // Skip healing if not cluster leader.
 		}
 
@@ -4472,7 +4550,12 @@ func autoHealClusterTask(d *Daemon) (task.Func, task.Schedule) {
 func autoHealCluster(ctx context.Context, s *state.State, offlineMembers []db.NodeInfo) error {
 	logger.Info("Healing cluster instances")
 
-	dest, err := cluster.Connect(s.LocalConfig.ClusterAddress(), s.Endpoints.NetworkCert(), s.ServerCert(), nil, true)
+	clusterAddress, err := s.LocalConfig.ClusterAddress()
+	if err != nil {
+		return err
+	}
+
+	dest, err := cluster.Connect(clusterAddress, s.Endpoints.NetworkCert(), s.ServerCert(), nil, true)
 	if err != nil {
 		return err
 	}

@@ -137,7 +137,10 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 	// server/protocol/alias, regardless of whether it's stale or
 	// not (we can assume that it will be not *too* stale since
 	// auto-update is on).
-	interval := s.GlobalConfig.ImagesAutoUpdateIntervalHours()
+	interval, err := s.GlobalConfig.ImagesAutoUpdateIntervalHours()
+	if err != nil {
+		return nil, err
+	}
 
 	if args.PreferCached && interval > 0 && alias != fp {
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {

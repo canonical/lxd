@@ -294,7 +294,10 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 			filteredProjects = []string{projectName}
 		}
 
-		offlineThreshold := s.GlobalConfig.OfflineThreshold()
+		offlineThreshold, err := s.GlobalConfig.OfflineThreshold()
+		if err != nil {
+			return err
+		}
 
 		memberAddressInstances, err = tx.GetInstancesByMemberAddress(ctx, offlineThreshold, filteredProjects, instanceType)
 		if err != nil {
