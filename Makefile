@@ -23,7 +23,7 @@ endif
 default: build
 
 .PHONY: build
-build:
+build: lxd-metadata
 ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing dqlite, run \"make deps\" to setup."
 	exit 1
