@@ -2146,7 +2146,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 
 			for _, mount := range runConf.Mounts {
 				if mount.FSType == "9p" {
-					err = d.deviceAttachPath(dev.Name(), configCopy, mount)
+					err = d.deviceAttachPath(dev.Name())
 					if err != nil {
 						return nil, err
 					}
@@ -2178,7 +2178,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 	return runConf, nil
 }
 
-func (d *qemu) deviceAttachPath(deviceName string, configCopy map[string]string, mount deviceConfig.MountEntryItem) error {
+func (d *qemu) deviceAttachPath(deviceName string) error {
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
 	mountTag := fmt.Sprintf("lxd_%s", deviceName)
