@@ -22,6 +22,10 @@ To update the full image properties, including the `profiles` section, send a PU
 
 See [`PUT /1.0/images/{fingerprint}`](swagger:/images/image_put) for more information.
 ````
+````{group-tab} UI
+The UI does not currently support editing the image configuration.
+Therefore, you cannot associate profiles with an image through the UI.
+````
 `````
 
 Most provided images come with a profile list that includes only the `default` profile.
