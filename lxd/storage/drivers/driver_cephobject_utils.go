@@ -208,7 +208,7 @@ func (d *cephobject) radosgwadminBucketLink(ctx context.Context, bucket string, 
 }
 
 // radosgwadminBucketSetQuota sets bucket quota.
-func (d *cephobject) radosgwadminBucketSetQuota(ctx context.Context, bucket string, user string, size int64) error {
+func (d *cephobject) radosgwadminBucketSetQuota(ctx context.Context, user string, size int64) error {
 	if size > 0 {
 		_, err := d.radosgwadmin(ctx, "quota", "enable", "--quota-scope=bucket", "--uid", user)
 		if err != nil {

@@ -158,7 +158,7 @@ func (d *cephobject) setBucketQuota(bucket Volume, quotaSize string) error {
 		return fmt.Errorf("Failed parsing bucket quota size: %w", err)
 	}
 
-	err = d.radosgwadminBucketSetQuota(context.TODO(), storageBucketName, storageBucketName, sizeBytes)
+	err = d.radosgwadminBucketSetQuota(context.TODO(), storageBucketName, sizeBytes)
 	if err != nil {
 		return fmt.Errorf("Failed setting bucket quota: %w", err)
 	}
