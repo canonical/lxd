@@ -28,11 +28,8 @@ ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing dqlite, run \"make deps\" to setup."
 	exit 1
 endif
-
 	CGO_ENABLED=0 go install -v -tags lxd-metadata ./lxd/lxd-metadata
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
-	CGO_ENABLED=0 go install -v -tags netgo ./lxd-migrate
-	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
 	@echo "LXD built successfully"
 
 .PHONY: client
