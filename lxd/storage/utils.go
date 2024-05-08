@@ -1090,8 +1090,15 @@ func VolumeUsedByDaemon(s *state.State, poolName string, volumeName string) (boo
 			return err
 		}
 
-		storageBackups = nodeConfig.StorageBackupsVolume()
-		storageImages = nodeConfig.StorageImagesVolume()
+		storageBackups, err = nodeConfig.StorageBackupsVolume()
+		if err != nil {
+			return err
+		}
+
+		storageImages, err = nodeConfig.StorageImagesVolume()
+		if err != nil {
+			return err
+		}
 
 		return nil
 	})
