@@ -2335,7 +2335,7 @@ func (d *qemu) deviceDetachPath(deviceName string) error {
 	return nil
 }
 
-func (d *qemu) deviceDetachBlockDevice(deviceName string, rawConfig deviceConfig.Device) error {
+func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
@@ -2480,7 +2480,7 @@ func (d *qemu) deviceStop(dev device.Device, instanceRunning bool, _ string) err
 					return err
 				}
 			} else {
-				err = d.deviceDetachBlockDevice(dev.Name(), configCopy)
+				err = d.deviceDetachBlockDevice(dev.Name())
 				if err != nil {
 					return err
 				}
