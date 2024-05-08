@@ -42,6 +42,11 @@ lxd-agent:
 	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
 	@echo "LXD agent built successfully"
 
+.PHONY: lxd-metadata
+lxd-metadata:
+	CGO_ENABLED=0 go install -v -tags lxd-metadata ./lxd/lxd-metadata
+	@echo "LXD metadata built successfully"
+
 .PHONY: lxd-migrate
 lxd-migrate:
 	CGO_ENABLED=0 go install -v -tags netgo ./lxd-migrate
