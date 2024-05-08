@@ -273,11 +273,16 @@ func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, 
 			return fmt.Errorf("Failed getting max member version: %w", err)
 		}
 
+		offlineThreshold, err := s.GlobalConfig.OfflineThreshold()
+		if err != nil {
+			return err
+		}
+
 		args := db.NodeInfoArgs{
 			LeaderAddress:        leaderAddress,
 			FailureDomains:       failureDomains,
 			MemberFailureDomains: memberFailureDomains,
-			OfflineThreshold:     s.GlobalConfig.OfflineThreshold(),
+			OfflineThreshold:     offlineThreshold,
 			MaxMemberVersion:     maxVersion,
 			RaftNodes:            raftNodes,
 		}
