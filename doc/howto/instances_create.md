@@ -291,6 +291,7 @@ Configure the corresponding options manually or through a profile.
 ```
 ````
 
+(instances-create-iso)=
 ### Create a VM that boots from an ISO
 
 To create a VM that boots from an ISO:

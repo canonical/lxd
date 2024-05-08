@@ -3,6 +3,14 @@
 
 To add images to an image store, you can either copy them from another server or import them from files (either local files or files on a web server).
 
+```{note}
+The UI does not currently support copying or importing images.
+
+There is support for importing custom ISO files, but these ISO files are different from images.
+When you create an instance from a custom ISO file, the ISO file is mounted as a storage volume in a new empty VM, and you can then install the VM from the ISO file.
+See [Content type `iso`](storage-content-types) and {ref}`instances-create-iso` for more information.
+```
+
 ## Copy an image from a remote
 
 `````{tabs}
