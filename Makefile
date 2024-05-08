@@ -22,6 +22,9 @@ endif
 .PHONY: default
 default: lxd
 
+.PHONY: all
+all: client lxd lxd-agent lxd-migrate
+
 .PHONY: build
 build: lxd
 .PHONY: lxd
