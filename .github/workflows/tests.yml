@@ -114,7 +114,7 @@ jobs:
       - name: Run LXD build
         run: |
           set -eux
-          make
+          make lxd
 
       - name: Check lxc/lxd-agent binary sizes
         run: |
@@ -315,7 +315,7 @@ jobs:
       - name: Run LXD build
         run: |
           set -eux
-          make
+          make lxd
 
       - name: Setup MicroCeph
         if: ${{ matrix.backend == 'ceph' }}
