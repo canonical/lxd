@@ -325,7 +325,13 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	s := g.state()
 
 	if s.LocalConfig != nil {
-		localClusterAddress = s.LocalConfig.ClusterAddress()
+		clusterAddress, err := s.LocalConfig.ClusterAddress()
+		if err != nil {
+			logger.Error("Failed to get local cluster address", logger.Ctx{"err": err})
+			return
+		}
+
+		localClusterAddress = clusterAddress
 	}
 
 	var members []db.NodeInfo

@@ -55,7 +55,12 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 			return fmt.Errorf("Failed to fetch node configuration: %w", err)
 		}
 
-		localClusterAddress = config.ClusterAddress()
+		clusterAddress, err := config.ClusterAddress()
+		if err != nil {
+			return err
+		}
+
+		localClusterAddress = clusterAddress
 
 		// Make sure node-local database state is in order.
 		err = membershipCheckNodeStateForBootstrapOrJoin(ctx, tx, localClusterAddress)
@@ -336,7 +341,12 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 			return fmt.Errorf("Failed to fetch node configuration: %w", err)
 		}
 
-		localClusterAddress = config.ClusterAddress()
+		clusterAddress, err := config.ClusterAddress()
+		if err != nil {
+			return err
+		}
+
+		localClusterAddress = clusterAddress
 
 		// Make sure node-local database state is in order.
 		err = membershipCheckNodeStateForBootstrapOrJoin(ctx, tx, localClusterAddress)
@@ -672,7 +682,12 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 			return err
 		}
 
-		localClusterAddress = config.ClusterAddress()
+		clusterAddress, err := config.ClusterAddress()
+		if err != nil {
+			return err
+		}
+
+		localClusterAddress = clusterAddress
 
 		return nil
 	})
@@ -754,7 +769,12 @@ func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string
 		return "", nodes, nil
 	}
 
-	localClusterAddress := state.LocalConfig.ClusterAddress()
+	clusterAddress, err := state.LocalConfig.ClusterAddress()
+	if err != nil {
+		return "", nil, err
+	}
+
+	localClusterAddress := clusterAddress
 
 	// Check if we have a spare node that we can promote to the missing role.
 	candidateAddress := candidates[0].Address
