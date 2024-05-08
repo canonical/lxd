@@ -20,10 +20,12 @@ else
 endif
 
 .PHONY: default
-default: build
+default: lxd
 
 .PHONY: build
-build: lxd-metadata
+build: lxd
+.PHONY: lxd
+lxd: lxd-metadata
 ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing dqlite, run \"make deps\" to setup."
 	exit 1
