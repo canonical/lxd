@@ -2151,7 +2151,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 						return nil, err
 					}
 				} else {
-					err = d.deviceAttachBlockDevice(dev.Name(), configCopy, mount)
+					err = d.deviceAttachBlockDevice(mount)
 					if err != nil {
 						return nil, err
 					}
@@ -2278,7 +2278,7 @@ func (d *qemu) deviceAttachPath(deviceName string) error {
 	return nil
 }
 
-func (d *qemu) deviceAttachBlockDevice(deviceName string, configCopy map[string]string, mount deviceConfig.MountEntryItem) error {
+func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
