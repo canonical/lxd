@@ -37,96 +37,121 @@ func ConfigLoad(ctx context.Context, tx *db.NodeTx) (*Config, error) {
 
 // HTTPSAddress returns the address and port this LXD node should expose its
 // API to, if any.
-func (c *Config) HTTPSAddress() string {
-	networkAddress := c.m.GetString("core.https_address")
-	if networkAddress != "" {
-		return util.CanonicalNetworkAddress(networkAddress, shared.HTTPSDefaultPort)
+func (c *Config) HTTPSAddress() (string, error) {
+	networkAddress, err := c.m.GetString("core.https_address")
+	if err != nil {
+		return "", err
 	}
 
-	return networkAddress
+	if networkAddress != "" {
+		return util.CanonicalNetworkAddress(networkAddress, shared.HTTPSDefaultPort), nil
+	}
+
+	return networkAddress, nil
 }
 
 // BGPAddress returns the address and port to setup the BGP listener on.
-func (c *Config) BGPAddress() string {
+func (c *Config) BGPAddress() (string, error) {
 	return c.m.GetString("core.bgp_address")
 }
 
 // BGPRouterID returns the address to use as a router ID.
-func (c *Config) BGPRouterID() string {
+func (c *Config) BGPRouterID() (string, error) {
 	return c.m.GetString("core.bgp_routerid")
 }
 
 // ClusterAddress returns the address and port this LXD node should use for
 // cluster communication.
-func (c *Config) ClusterAddress() string {
-	clusterAddress := c.m.GetString("cluster.https_address")
-	if clusterAddress != "" {
-		return util.CanonicalNetworkAddress(clusterAddress, shared.HTTPSDefaultPort)
+func (c *Config) ClusterAddress() (string, error) {
+	clusterAddress, err := c.m.GetString("cluster.https_address")
+	if err != nil {
+		return "", err
 	}
 
-	return clusterAddress
+	if clusterAddress != "" {
+		return util.CanonicalNetworkAddress(clusterAddress, shared.HTTPSDefaultPort), nil
+	}
+
+	return clusterAddress, nil
 }
 
 // DebugAddress returns the address and port to setup the pprof listener on.
-func (c *Config) DebugAddress() string {
-	debugAddress := c.m.GetString("core.debug_address")
-	if debugAddress != "" {
-		return util.CanonicalNetworkAddress(debugAddress, shared.HTTPDefaultPort)
+func (c *Config) DebugAddress() (string, error) {
+	debugAddress, err := c.m.GetString("core.debug_address")
+	if err != nil {
+		return "", err
 	}
 
-	return debugAddress
+	if debugAddress != "" {
+		return util.CanonicalNetworkAddress(debugAddress, shared.HTTPDefaultPort), nil
+	}
+
+	return debugAddress, nil
 }
 
 // DNSAddress returns the address and port to setup the DNS listener on.
-func (c *Config) DNSAddress() string {
+func (c *Config) DNSAddress() (string, error) {
 	return c.m.GetString("core.dns_address")
 }
 
 // MetricsAddress returns the address and port to setup the metrics listener on.
-func (c *Config) MetricsAddress() string {
-	metricsAddress := c.m.GetString("core.metrics_address")
-	if metricsAddress != "" {
-		return util.CanonicalNetworkAddress(metricsAddress, shared.HTTPSMetricsDefaultPort)
+func (c *Config) MetricsAddress() (string, error) {
+	metricsAddress, err := c.m.GetString("core.metrics_address")
+	if err != nil {
+		return "", err
 	}
 
-	return metricsAddress
+	if metricsAddress != "" {
+		return util.CanonicalNetworkAddress(metricsAddress, shared.HTTPSMetricsDefaultPort), nil
+	}
+
+	return metricsAddress, nil
 }
 
 // MAASMachine returns the MAAS machine this instance is associated with, if
 // any.
-func (c *Config) MAASMachine() string {
+func (c *Config) MAASMachine() (string, error) {
 	return c.m.GetString("maas.machine")
 }
 
 // StorageBucketsAddress returns the address and port to setup the storage buckets listener on.
-func (c *Config) StorageBucketsAddress() string {
-	objectAddress := c.m.GetString("core.storage_buckets_address")
-	if objectAddress != "" {
-		return util.CanonicalNetworkAddress(objectAddress, shared.HTTPSStorageBucketsDefaultPort)
+func (c *Config) StorageBucketsAddress() (string, error) {
+	objectAddress, err := c.m.GetString("core.storage_buckets_address")
+	if err != nil {
+		return "", err
 	}
 
-	return objectAddress
+	if objectAddress != "" {
+		return util.CanonicalNetworkAddress(objectAddress, shared.HTTPSStorageBucketsDefaultPort), nil
+	}
+
+	return objectAddress, nil
 }
 
 // StorageBackupsVolume returns the name of the pool/volume to use for storing backup tarballs.
-func (c *Config) StorageBackupsVolume() string {
+func (c *Config) StorageBackupsVolume() (string, error) {
 	return c.m.GetString("storage.backups_volume")
 }
 
 // StorageImagesVolume returns the name of the pool/volume to use for storing image tarballs.
-func (c *Config) StorageImagesVolume() string {
+func (c *Config) StorageImagesVolume() (string, error) {
 	return c.m.GetString("storage.images_volume")
 }
 
 // SyslogSocket returns true if the syslog socket is enabled, otherwise false.
-func (c *Config) SyslogSocket() bool {
+func (c *Config) SyslogSocket() (bool, error) {
 	return c.m.GetBool("core.syslog_socket")
 }
 
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
-func (c *Config) Dump() map[string]string {
-	return c.m.Dump()
+func (c *Config) Dump() (map[string]string, error) {
+	dump, err := c.m.Dump()
+	if err != nil {
+		return nil, fmt.Errorf("Failed dumping config map: %w", err)
+	}
+
+	return dump, nil
 }
 
 // Replace the current configuration with the given values.
@@ -136,7 +161,11 @@ func (c *Config) Replace(values map[string]string) (map[string]string, error) {
 
 // Patch changes only the configuration keys in the given map.
 func (c *Config) Patch(patch map[string]string) (map[string]string, error) {
-	values := c.Dump() // Use current values as defaults
+	values, err := c.Dump() // Use current values as defaults
+	if err != nil {
+		return nil, err
+	}
+
 	for name, value := range patch {
 		values[name] = value
 	}
