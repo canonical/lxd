@@ -2296,6 +2296,14 @@ definitions:
                 example: false
                 type: boolean
                 x-go-name: ContainerOnly
+            conversion_options:
+                description: Optional list of options that are used during image conversion.
+                example:
+                    - format
+                items:
+                    type: string
+                type: array
+                x-go-name: ConversionOptions
             fingerprint:
                 description: Image fingerprint (for image source)
                 example: ed56997f7c5b48e8d78986d2467a26109be6fb9f2d92e8c7b08eb8b6cec7629a
