@@ -20,7 +20,7 @@ else
 endif
 
 .PHONY: default
-default: lxd
+default: all
 
 .PHONY: all
 all: client lxd lxd-agent lxd-benchmark lxd-migrate
