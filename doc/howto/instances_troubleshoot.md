@@ -59,7 +59,43 @@ To troubleshoot the problem, complete the following steps:
    If it is, and if you cannot figure out the source of the error from the log information, open a question in the [forum](https://discourse.ubuntu.com/c/lxd/).
    Make sure to include the log files you collected.
 
-## Troubleshooting example
+## Troubleshooting examples
+
+See the following sections for some typical methods of troubleshooting an instance.
+
+### Debug `systemd` `init`
+
+Here is how to enable `systemd` [debug level messages](https://www.freedesktop.org/wiki/Software/systemd/Debugging/) for the `c1` container:
+
+```sh
+lxc config set c1 raw.lxc 'lxc.init.cmd = /sbin/init systemd.log_level=debug'
+
+lxc start c1
+```
+
+Now that the container has started, you can check for the debug messages in the journal:
+
+```sh
+lxc exec c1 -- journalctl
+```
+
+### Emergency `systemd` shell
+
+Here is how to get an `emergency` shell on an instance using `systemd`:
+
+```sh
+lxc config set c1 raw.lxc 'lxc.init.cmd = /sbin/init emergency'
+
+lxc start c1
+```
+
+Now that the container has started, you can enter the emergency shell using the console (hit the {kbd}`Enter` key once in):
+
+```sh
+lxc console c1
+```
+
+### Issue starting RHEL 7 container
 
 In this example, let's investigate a RHEL 7 system in which `systemd` cannot start.
 
