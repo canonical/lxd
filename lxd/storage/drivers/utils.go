@@ -212,10 +212,17 @@ func tryExists(path string) bool {
 }
 
 // fsUUID returns the filesystem UUID for the given block path.
+// error is returned if the given block device exists but has no UUID.
 func fsUUID(path string) (string, error) {
 	val, err := shared.RunCommand("blkid", "-s", "UUID", "-o", "value", path)
 	if err != nil {
 		return "", err
+	}
+
+	// blkid may return 0 and also produce no output for non-empty devices
+	// without a UUID (e.g. a disk device with an MBR/GPT table)
+	if val == "" {
+		return "", fmt.Errorf("No UUID for device %q", path)
 	}
 
 	return strings.TrimSpace(val), nil
