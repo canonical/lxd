@@ -45,6 +45,10 @@ test_storage() {
   [ "$(lxc storage volume get "$storage_pool" "$storage_volume" snapshots.expiry)" = "3d" ]
   lxc storage volume delete "$storage_pool" "$storage_volume"
 
+  # Ensure non-power-of-two sizes are rounded appropriately (most relevant for zfs)
+  lxc storage volume create "$storage_pool" "$storage_volume" --type=block size=13GB
+  lxc storage volume delete "$storage_pool" "$storage_volume"
+
   lxc storage delete "$storage_pool"
 
   # Test btrfs resize
