@@ -64,7 +64,7 @@ To troubleshoot the problem, complete the following steps:
 In this example, let's investigate a RHEL 7 system in which `systemd` cannot start.
 
 ```{terminal}
-:input: lxc console --show-log systemd
+:input: lxc console --show-log rhel7
 
 Console log:
 
@@ -85,33 +85,33 @@ As this is an unprivileged container, `systemd` does not have the ability to do 
 So you can see the environment before anything is changed, and you can explicitly change the init system in a container using the {config:option}`instance-raw:raw.lxc` configuration parameter.
 This is equivalent to setting `init=/bin/bash` on the Linux kernel command line.
 
-    lxc config set systemd raw.lxc 'lxc.init.cmd = /bin/bash'
+    lxc config set rhel7 raw.lxc 'lxc.init.cmd = /bin/bash'
 
 Here is what it looks like:
 
 ```{terminal}
-:input: lxc config set systemd raw.lxc 'lxc.init.cmd = /bin/bash'
+:input: lxc config set rhel7 raw.lxc 'lxc.init.cmd = /bin/bash'
 
-:input: lxc start systemd
-:input: lxc console --show-log systemd
+:input: lxc start rhel7
+:input: lxc console --show-log rhel7
 
 Console log:
 
-[root@systemd /]#
+[root@rhel7 /]#
 ```
 
 Now that the container has started, you can check it and see that things are not running as well as expected:
 
 ```{terminal}
-:input: lxc exec systemd -- bash
+:input: lxc exec rhel7 -- bash
 
-[root@systemd ~]# ls
-[root@systemd ~]# mount
+[root@rhel7 ~]# ls
+[root@rhel7 ~]# mount
 mount: failed to read mtab: No such file or directory
-[root@systemd ~]# cd /
-[root@systemd /]# ls /proc/
+[root@rhel7 ~]# cd /
+[root@rhel7 /]# ls /proc/
 sys
-[root@systemd /]# exit
+[root@rhel7 /]# exit
 ```
 
 Because LXD tries to auto-heal, it created some of the directories when it was starting up.
