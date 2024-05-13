@@ -36,7 +36,7 @@ Complete the following steps to increase the network bandwidth on the LXD host:
 
        net.core.netdev_max_backlog = 182757
 
-   Apply the above sysctl.conf change via:
+   Apply the above `sysctl.conf` change via:
 
        sudo sysctl -p
 
