@@ -29,7 +29,7 @@ Complete the following steps to increase the network bandwidth on the LXD host:
       
    Apply the above `udev` rules via:
 
-       sudo udevadm trigger
+        udevadm trigger
 
 1. Increase the receive queue length (`net.core.netdev_max_backlog`).
    To make the change permanent, add the following configuration to `/etc/sysctl.conf`:
@@ -38,7 +38,7 @@ Complete the following steps to increase the network bandwidth on the LXD host:
 
    Apply the above `sysctl.conf` change via:
 
-       sudo sysctl -p
+        sysctl -p
 
 ## Ubuntu <= 17.04: Increase the network bandwidth on the LXD host
 
@@ -71,4 +71,4 @@ To do this, use one of the following methods:
 - Set the `queue.tx.length` device option on the instance profile or configuration.
   For example, to do this for the LXD default profile:
 
-       sudo lxc profile device set default eth0 queue.tx.length "10000" 
+       lxc profile device set default eth0 queue.tx.length "10000" 
