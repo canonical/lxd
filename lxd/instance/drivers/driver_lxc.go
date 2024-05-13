@@ -1102,6 +1102,20 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 			}
 		}
 
+		nvidiaRequireTegra := d.expandedConfig["nvidia.require.tegra"]
+		if nvidiaRequireTegra != "" {
+			if nvidiaRequireTegra == "base" {
+				nvidiaRequireTegra = "base-only"
+			} else if nvidiaRequireTegra == "all" {
+				nvidiaRequireTegra = "csv-mounts=all"
+			}
+
+			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_REQUIRE_TEGRA=%s", nvidiaRequireTegra))
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		err = lxcSetConfigItem(cc, "lxc.hook.mount", hookPath)
 		if err != nil {
 			return nil, err
