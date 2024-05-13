@@ -17,7 +17,10 @@ In general, you should use small `txqueuelen` values with slow devices with a hi
 For the `net.core.netdev_max_backlog` value, a good guideline is to use the minimum value of the `net.ipv4.tcp_mem` configuration.
 ```
 
-## Ubuntu >= 18.04: Increase the network bandwidth on the LXD host
+## Increase the network bandwidth on the LXD host
+````{tabs}
+
+```{group-tab} Ubuntu >= 18.04
 
 Complete the following steps to increase the network bandwidth on the LXD host:
 
@@ -39,8 +42,8 @@ Complete the following steps to increase the network bandwidth on the LXD host:
    Apply the above `sysctl.conf` change via:
 
         sysctl -p
-
-## Ubuntu <= 17.04: Increase the network bandwidth on the LXD host
+```
+```{group-tab} Ubuntu <= 17.04
 
 Complete the following steps to increase the network bandwidth on the LXD host:
 
@@ -61,6 +64,9 @@ Complete the following steps to increase the network bandwidth on the LXD host:
    To make the change permanent, add the following configuration to `/etc/sysctl.conf`:
 
        net.core.netdev_max_backlog = 182757
+```
+
+````
 
 ## Increase the transmit queue length on the instances
 
