@@ -31,7 +31,7 @@ Complete the following steps to increase the network bandwidth on the LXD host:
 
        sudo udevadm trigger
 
-2. Increase the receive queue length (`net.core.netdev_max_backlog`).
+1. Increase the receive queue length (`net.core.netdev_max_backlog`).
    To make the change permanent, add the following configuration to `/etc/sysctl.conf`:
 
        net.core.netdev_max_backlog = 182757
