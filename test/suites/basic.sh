@@ -387,6 +387,14 @@ test_basic_usage() {
     false
   fi
 
+  # Test freeze/pause
+  lxc freeze foo
+  ! lxc stop foo || false
+  lxc stop -f foo
+  lxc start foo
+  lxc freeze foo
+  lxc start foo
+
   # Test instance types
   lxc launch testimage test-limits -t c0.5-m0.2
   [ "$(lxc config get test-limits limits.cpu)" = "1" ]
@@ -548,6 +556,13 @@ test_basic_usage() {
   lxc start --all
   lxc list | grep c1 | grep RUNNING
   lxc list | grep c2 | grep RUNNING
+
+  lxc freeze c2
+  lxc list | grep c2 | grep FROZEN
+  lxc start --all
+  lxc list | grep c1 | grep RUNNING
+  lxc list | grep c2 | grep RUNNING
+
   ! lxc stop --all c1 || false
   lxc stop --all -f
   lxc list | grep c1 | grep STOPPED
