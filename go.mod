@@ -36,7 +36,7 @@ require (
 	github.com/oklog/ulid/v2 v2.1.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/openfga/api/proto v0.0.0-20240501220219-2b164f5813a7
-	github.com/openfga/language/pkg/go v0.0.0-20240429103126-f3e71ca3287d
+	github.com/openfga/language/pkg/go v0.0.0-20240513164614-7d0da9bc9c63
 	github.com/openfga/openfga v1.5.3
 	github.com/osrg/gobgp/v3 v3.26.0
 	github.com/pkg/sftp v1.13.6
