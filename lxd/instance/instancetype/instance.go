@@ -647,6 +647,21 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	//  shortdesc: Required driver version
 	"nvidia.require.driver": validate.IsAny,
 
+	// lxdmeta:generate(entities=instance; group=nvidia; key=nvidia.require.tegra)
+	// The specified option is used to set the custom `NVIDIA_REQUIRE_TEGRA` environment variable used by the Nvidia LXC hook to set up a Tegra iGPU passthrough.
+	// The possible values are `base` (only the base `l4t.csv` file will be used to bind mount the devices, libraries and symlinks into the container. You can have an example overview of it [here](https://github.com/OE4T/meta-tegra/blob/master/recipes-bsp/tegra-binaries/tegra-configs/l4t.csv))
+	// and `all` (all the CSV files in `/etc/nvidia-container-runtime/` will be used to bind mount the devices, libraries and symlinks into the container).
+	//
+	// See more information for Jetson configuration [here](https://docs.nvidia.com/jetson/archives/r35.3.1/DeveloperGuide/text/RM/PackageManifest.html?highlight=csv#:~:text=etc/nvidia%2Dcontainer%2Druntime/host%2Dfiles%2Dfor%2Dcontainer.d/l4t,Jetson%20Linux%20device%20nodes%20for%20use%20in%20a%20Docker%20container)
+	// and an example Tegra CSV file [here](https://github.com/NVIDIA/nvidia-container-toolkit/blob/main/test/input/csv_samples/jetson.csv)
+	// ---
+	//  type: string
+	//  defaultdesc: empty
+	//  liveupdate: no
+	//  condition: container
+	//  shortdesc: How to configure Tegra iGPU passthrough
+	"nvidia.require.tegra": validate.Optional(validate.IsOneOf("base", "all")),
+
 	// Caller is responsible for full validation of any raw.* value.
 
 	// lxdmeta:generate(entities=instance; group=raw; key=raw.lxc)
