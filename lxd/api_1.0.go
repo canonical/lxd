@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -947,6 +948,10 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		address := nodeConfig.BGPAddress()
 		asn := clusterConfig.BGPASN()
 		routerid := nodeConfig.BGPRouterID()
+
+		if asn > math.MaxUint32 {
+			return fmt.Errorf("Cannot convert BGP ASN to uint32: Upper bound exceeded")
+		}
 
 		err := s.BGP.Reconfigure(address, uint32(asn), net.ParseIP(routerid))
 		if err != nil {
