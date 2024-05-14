@@ -25,7 +25,7 @@ For the `net.core.netdev_max_backlog` value, a good guideline is to use the mini
 Complete the following steps to increase the network bandwidth on the LXD host:
 
 1. Increase the transmit queue length (`txqueuelen`) of both the real NIC (for example, `enp5s0f1`) and the LXD NIC (for example, `lxdbr0`).
-   To make the change permanent, create a file name `/etc/udev/rules.d/60-custom-txqueuelen.rules` with the following content:
+   To make the change permanent, create a file named `/etc/udev/rules.d/60-custom-txqueuelen.rules` with the following content:
 
        KERNEL=="enp5s0f1", RUN+="/sbin/ip link set %k txqueuelen 10000"
        KERNEL=="lxdbr0", RUN+="/sbin/ip link set %k txqueuelen 10000"
