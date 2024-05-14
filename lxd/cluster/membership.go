@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sync"
@@ -294,9 +295,19 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		Name: name,
 	}
 
-	if count > 1 && voters < int(state.GlobalConfig.MaxVoters()) {
+	maxVoters := state.GlobalConfig.MaxVoters()
+	if maxVoters > math.MaxInt {
+		return nil, fmt.Errorf("Cannot convert maximum voter cluster members to int: Upper bound exceeded")
+	}
+
+	maxStandBy := state.GlobalConfig.MaxStandBy()
+	if maxStandBy > math.MaxInt {
+		return nil, fmt.Errorf("Cannot convert maximum standby cluster members to int: Upper bound exceeded")
+	}
+
+	if count > 1 && voters < int(maxVoters) {
 		node.Role = db.RaftVoter
-	} else if standbys < int(state.GlobalConfig.MaxStandBy()) {
+	} else if standbys < int(maxStandBy) {
 		node.Role = db.RaftStandBy
 	}
 
@@ -1100,10 +1111,20 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, 
 		}
 	}
 
+	maxVoters := state.GlobalConfig.MaxVoters()
+	if maxVoters > math.MaxInt {
+		return nil, fmt.Errorf("Cannot convert maximum voter nodes to int: Upper bound exceeded")
+	}
+
+	maxStandBy := state.GlobalConfig.MaxStandBy()
+	if maxStandBy > math.MaxInt {
+		return nil, fmt.Errorf("Cannot convert maximum standby nodes to int: Upper bound exceeded")
+	}
+
 	roles := &app.RolesChanges{
 		Config: app.RolesConfig{
-			Voters:   int(state.GlobalConfig.MaxVoters()),
-			StandBys: int(state.GlobalConfig.MaxStandBy()),
+			Voters:   int(maxVoters),
+			StandBys: int(maxStandBy),
 		},
 		State: cluster,
 	}
