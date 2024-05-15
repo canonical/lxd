@@ -95,11 +95,6 @@ You can (and should!) run these tests locally as well with the following command
 
 ### Document configuration options
 
-```{note}
-We are currently in the process of moving the documentation of configuration options to code comments.
-At the moment, not all configuration options follow this approach.
-```
-
 The documentation of configuration options is extracted from comments in the Go code.
 Look for comments that start with `lxdmeta:generate` in the code.
 
