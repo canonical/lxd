@@ -18,6 +18,7 @@ For the `net.core.netdev_max_backlog` value, a good guideline is to use the mini
 ```
 
 ## Increase the network bandwidth on the LXD host
+
 ````{tabs}
 
 ```{group-tab} Ubuntu >= 18.04
