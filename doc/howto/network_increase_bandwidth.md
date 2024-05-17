@@ -19,6 +19,32 @@ For the `net.core.netdev_max_backlog` value, a good guideline is to use the mini
 
 ## Increase the network bandwidth on the LXD host
 
+````{tabs}
+
+```{group-tab} Ubuntu >= 18.04
+
+Complete the following steps to increase the network bandwidth on the LXD host:
+
+1. Increase the transmit queue length (`txqueuelen`) of both the real NIC (for example, `enp5s0f1`) and the LXD NIC (for example, `lxdbr0`).
+   To make the change permanent, create a file named `/etc/udev/rules.d/60-custom-txqueuelen.rules` with the following content:
+
+       KERNEL=="enp5s0f1", RUN+="/sbin/ip link set %k txqueuelen 10000"
+       KERNEL=="lxdbr0", RUN+="/sbin/ip link set %k txqueuelen 10000"
+   Apply the above `udev` rules via:
+
+        udevadm trigger
+
+1. Increase the receive queue length (`net.core.netdev_max_backlog`).
+   To make the change permanent, add the following configuration to `/etc/sysctl.conf`:
+
+       net.core.netdev_max_backlog = 182757
+
+   Apply the above `sysctl.conf` change via:
+
+        sysctl -p
+```
+```{group-tab} Ubuntu <= 17.04
+
 Complete the following steps to increase the network bandwidth on the LXD host:
 
 1. Increase the transmit queue length (`txqueuelen`) of both the real NIC and the LXD NIC (for example, `lxdbr0`).
@@ -38,6 +64,9 @@ Complete the following steps to increase the network bandwidth on the LXD host:
    To make the change permanent, add the following configuration to `/etc/sysctl.conf`:
 
        net.core.netdev_max_backlog = 182757
+```
+
+````
 
 ## Increase the transmit queue length on the instances
 
@@ -46,3 +75,6 @@ To do this, use one of the following methods:
 
 - Apply the same changes as described above for the LXD host.
 - Set the `queue.tx.length` device option on the instance profile or configuration.
+  For example, to do this for the LXD default profile:
+
+       lxc profile device set default eth0 queue.tx.length "10000"
