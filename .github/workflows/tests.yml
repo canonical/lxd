@@ -504,6 +504,8 @@ jobs:
           woke-args: "*.md **/*.md -c https://github.com/canonical/Inclusive-naming/raw/main/config.yml"
 
       - name: Run link checker
+        # Run link checker on PRs only
+        if: ${{ github.event_name != 'push' }}
         run: |
           set -eux
           make doc-linkcheck
