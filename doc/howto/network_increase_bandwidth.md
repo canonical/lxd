@@ -77,4 +77,4 @@ To do this, use one of the following methods:
 - Set the `queue.tx.length` device option on the instance profile or configuration.
   For example, to do this for the LXD default profile:
 
-       lxc profile device set default eth0 queue.tx.length "10000" 
+       lxc profile device set default eth0 queue.tx.length "10000"
