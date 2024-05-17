@@ -39,4 +39,4 @@ elif ! git log --max-count=1 --format=%H "${target_revision}" >/dev/null 2>&1; t
 fi
 
 echo "Checking for golangci-lint errors between HEAD and ${target_branch} (${target_revision})..."
-golangci-lint run --timeout 5m --new --new-from-rev "${target_revision}"
+golangci-lint run --timeout 5m --new --new-from-rev "${target_revision}" --whole-files
