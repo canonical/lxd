@@ -22,6 +22,14 @@ mdl .tmp/doc -sdoc/.sphinx/.markdownlint/style.rb -udoc/.sphinx/.markdownlint/ru
 
 sed -i '/^$/,$d' .tmp/errors.txt
 
+# Check for unneeded exceptions
+unneeded_exceptions="$(grep -vxFf .tmp/errors.txt doc/.sphinx/.markdownlint/exceptions.txt)" || true
+if [ -n "${unneeded_exceptions}" ]; then
+    echo "Failed due to unneeded exceptions rules!"
+    echo "${unneeded_exceptions}"
+    exit 1
+fi
+
 filtered_errors="$(grep -vxFf doc/.sphinx/.markdownlint/exceptions.txt .tmp/errors.txt)" || true
 
 if [ -z "$filtered_errors" ]; then
