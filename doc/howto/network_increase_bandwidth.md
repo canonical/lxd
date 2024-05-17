@@ -29,7 +29,6 @@ Complete the following steps to increase the network bandwidth on the LXD host:
 
        KERNEL=="enp5s0f1", RUN+="/sbin/ip link set %k txqueuelen 10000"
        KERNEL=="lxdbr0", RUN+="/sbin/ip link set %k txqueuelen 10000"
-      
    Apply the above `udev` rules via:
 
         udevadm trigger
