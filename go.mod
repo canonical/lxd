@@ -1,6 +1,6 @@
 module github.com/canonical/lxd
 
-go 1.22.0
+go 1.22.3
 
 require (
 	github.com/Rican7/retry v0.3.1
@@ -35,7 +35,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/oklog/ulid/v2 v2.1.0
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/openfga/api/proto v0.0.0-20240501220219-2b164f5813a7
+	github.com/openfga/api/proto v0.0.0-20240509182947-591c8fa7765c
 	github.com/openfga/language/pkg/go v0.0.0-20240513164614-7d0da9bc9c63
 	github.com/openfga/openfga v1.5.3
 	github.com/osrg/gobgp/v3 v3.26.0
@@ -145,8 +145,8 @@ require (
 	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/net v0.24.0 // indirect
 	golang.org/x/tools v0.20.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240401170217-c3f982113cda // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240401170217-c3f982113cda // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240506185236-b8a5c65736ae // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240429193739-8cf5692501f6 // indirect
 	google.golang.org/grpc v1.63.2 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
