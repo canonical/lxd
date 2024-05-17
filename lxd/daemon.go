@@ -85,8 +85,8 @@ type Daemon struct {
 
 	// Tasks registry for long-running background tasks
 	// Keep clustering tasks separate as they cause a lot of CPU wakeups
-	tasks        task.Group
-	clusterTasks task.Group
+	tasks        *task.Group
+	clusterTasks *task.Group
 
 	// Indexes of tasks that need to be reset when their execution interval changes
 	taskPruneImages      *task.Task
@@ -162,6 +162,8 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 		config:         config,
 		devlxdEvents:   devlxdEvents,
 		events:         lxdEvents,
+		tasks:          task.NewGroup(),
+		clusterTasks:   task.NewGroup(),
 		db:             &db.DB{},
 		os:             os,
 		setupChan:      make(chan struct{}),
@@ -1488,7 +1490,7 @@ func (d *Daemon) init() error {
 		d.startClusterTasks()
 	}
 
-	d.tasks = *task.NewGroup()
+	d.tasks = task.NewGroup()
 
 	// FIXME: There's no hard reason for which we should not run these
 	//        tasks in mock mode. However it requires that we tweak them so
@@ -1547,7 +1549,7 @@ func (d *Daemon) startClusterTasks() {
 	// Run asynchronously so that connecting to remote members doesn't delay starting up other cluster tasks.
 	go cluster.EventsUpdateListeners(d.endpoints, d.db.Cluster, d.serverCert, nil, d.events.Inject)
 
-	d.clusterTasks = *task.NewGroup()
+	d.clusterTasks = task.NewGroup()
 
 	// Heartbeats
 	d.taskClusterHeartbeat = d.clusterTasks.Add(cluster.HeartbeatTask(d.gateway))
@@ -1564,7 +1566,7 @@ func (d *Daemon) startClusterTasks() {
 
 func (d *Daemon) stopClusterTasks() {
 	_ = d.clusterTasks.Stop(3 * time.Second)
-	d.clusterTasks = *task.NewGroup()
+	d.clusterTasks = task.NewGroup()
 }
 
 // numRunningInstances returns the number of running instances.
