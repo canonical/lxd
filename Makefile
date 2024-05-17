@@ -127,7 +127,7 @@ doc-incremental:
 
 .PHONY: doc-serve
 doc-serve:
-	cd doc/html; python3 -m http.server 8001
+	cd doc/html; python3 -m http.server --bind 127.0.0.1 8001
 
 .PHONY: doc-spellcheck
 doc-spellcheck: doc
