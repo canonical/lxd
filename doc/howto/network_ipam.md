@@ -23,14 +23,35 @@ The resulting output will look something like this:
 +----------------------+-----------------+----------+------+-------------------+
 | /1.0/networks/lxdbr0 | 2001:db8::/32   | network  | true |                   |
 +----------------------+-----------------+----------+------+-------------------+
-| /1.0/instances/u1    | 2001:db8::1/128 | instance | true | 00:16:3e:04:f0:95 |
+| /1.0/instances/u1    | 2001:db8::2/128 | instance | true | 00:16:3e:04:f0:95 |
 +----------------------+-----------------+----------+------+-------------------+
 | /1.0/instances/u1    | 192.0.2.2/32    | instance | true | 00:16:3e:04:f0:95 |
 +----------------------+-----------------+----------+------+-------------------+
-
-...
 ```
 
 Each listed entry lists the IP address (in CIDR notation) of one of the following LXD entities: `network`, `network-forward`, `network-load-balancer`, and `instance`.
 An entry contains an IP address using the CIDR notation.
 It also contains a LXD resource URI, the type of the entity, whether it is in NAT mode, and the hardware address (only for the `instance` entity).
+
+## View DHCP leases for fully controlled networks
+LXD can provide the currently held DHCP leases for {ref}`fully controlled networks<managed-networks>`:
+
+```bash
+lxc network list-leases <network_name>
+```
+
+For example, using `lxdbr0` from above:
+
+```
++-----------+-------------------+-------------+---------+
+| HOSTNAME  |    MAC ADDRESS    | IP ADDRESS  |   TYPE  |
++-----------+-------------------+-------------+---------+
+| lxdbr0.gw |                   | 192.0.2.1   | GATEWAY |
++-----------+-------------------+-------------+---------+
+| lxdbr0.gw |                   | 2001:db8::1 | GATEWAY |
++-----------+----------+--------+-------------+---------+
+| u1        | 00:16:3e:04:f0:95 | 192.0.2.2   | DYNAMIC |
++-----------+-------------------+-------------+---------+
+| u1        | 00:16:3e:04:f0:95 | 2001:db8::2 | DYNAMIC |
++-----------+-------------------+-------------+---------+
+```
