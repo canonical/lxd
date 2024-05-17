@@ -20,6 +20,8 @@ type Group struct {
 }
 
 // NewGroup returns new initialised Group.
+// Do not use `g := *task.NewGroup`; rewriting g can cause races:
+// https://stackoverflow.com/a/73409235/10665284.
 func NewGroup() *Group {
 	return &Group{
 		running: make(map[int]bool),
