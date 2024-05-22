@@ -3355,6 +3355,11 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	// where 9p isn't available in the VM guest OS.
 	configSockPath, _ := d.configVirtiofsdPaths()
 	if shared.PathExists(configSockPath) {
+		shortPath, err := util.ShortenedFilePath(configSockPath, fdFiles)
+		if err != nil {
+			return "", nil, err
+		}
+
 		devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
 		driveConfigVirtioOpts := qemuDriveConfigOpts{
 			dev: qemuDevOpts{
@@ -3364,7 +3369,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 				multifunction: multi,
 			},
 			protocol: "virtio-fs",
-			path:     configSockPath,
+			path:     shortPath,
 		}
 
 		cfg = append(cfg, qemuDriveConfig(&driveConfigVirtioOpts)...)
@@ -3758,6 +3763,11 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 
 		devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
+		shortPath, err := util.ShortenedFilePath(virtiofsdSockPath, fdFiles)
+		if err != nil {
+			return err
+		}
+
 		// Add virtio-fs device as this will be preferred over 9p.
 		driveDirVirtioOpts := qemuDriveDirOpts{
 			dev: qemuDevOpts{
@@ -3768,7 +3778,7 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 			},
 			devName:  driveConf.DevName,
 			mountTag: mountTag,
-			path:     virtiofsdSockPath,
+			path:     shortPath,
 			protocol: "virtio-fs",
 		}
 		*cfg = append(*cfg, qemuDriveDir(&driveDirVirtioOpts)...)
