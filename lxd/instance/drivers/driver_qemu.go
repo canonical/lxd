@@ -2185,7 +2185,15 @@ func (d *qemu) deviceAttachPath(deviceName string, configCopy map[string]string,
 		return fmt.Errorf("Failed to connect to QMP monitor: %w", err)
 	}
 
-	addr, err := net.ResolveUnixAddr("unix", virtiofsdSockPath)
+	// Open a file descriptor to the socket file through O_PATH to avoid acessing the file descriptor to the sockfs inode.
+	socketFile, err := os.OpenFile(virtiofsdSockPath, unix.O_PATH|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return fmt.Errorf("Failed to open device socket file %q: %w", virtiofsdSockPath, err)
+	}
+
+	shortPath := fmt.Sprintf("/dev/fd/%d", socketFile.Fd())
+
+	addr, err := net.ResolveUnixAddr("unix", shortPath)
 	if err != nil {
 		return err
 	}
