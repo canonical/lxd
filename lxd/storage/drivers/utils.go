@@ -826,18 +826,20 @@ func loopFileSizeDefault() (uint64, error) {
 // It tries to enable direct I/O if supported.
 func loopDeviceSetup(sourcePath string) (string, error) {
 	out, err := shared.RunCommand("losetup", "--find", "--nooverlap", "--direct-io=on", "--show", sourcePath)
-	if err != nil {
-		if strings.Contains(err.Error(), "direct io") || strings.Contains(err.Error(), "Invalid argument") {
-			out, err = shared.RunCommand("losetup", "--find", "--nooverlap", "--show", sourcePath)
-			if err != nil {
-				return "", err
-			}
-		} else {
-			return "", err
-		}
+	if err == nil {
+		return strings.TrimSpace(out), nil
 	}
 
-	return strings.TrimSpace(out), nil
+	if !(strings.Contains(err.Error(), "direct io") || strings.Contains(err.Error(), "Invalid argument")) {
+		return "", err
+	}
+
+	out, err = shared.RunCommand("losetup", "--find", "--nooverlap", "--show", sourcePath)
+	if err == nil {
+		return strings.TrimSpace(out), nil
+	}
+
+	return "", err
 }
 
 // loopFileAutoDetach enables auto detach mode for a loop device.
