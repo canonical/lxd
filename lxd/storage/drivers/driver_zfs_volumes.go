@@ -1024,7 +1024,7 @@ func (d *zfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser,
 			return fmt.Errorf("Failed sending ZFS migration header: %w", err)
 		}
 
-		err = conn.Close() //End the frame.
+		err = conn.Close() // End the frame.
 		if err != nil {
 			return fmt.Errorf("Failed closing ZFS migration header frame: %w", err)
 		}
@@ -2517,7 +2517,7 @@ func (d *zfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs 
 			return fmt.Errorf("Failed sending ZFS migration header: %w", err)
 		}
 
-		err = conn.Close() //End the frame.
+		err = conn.Close() // End the frame.
 		if err != nil {
 			return fmt.Errorf("Failed closing ZFS migration header frame: %w", err)
 		}
@@ -3187,7 +3187,7 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 	return cleanup, nil
 }
 
-// UnmountVolume simulates unmounting a volume snapshot.
+// UnmountVolumeSnapshot simulates unmounting a volume snapshot.
 func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
 	unlock, err := snapVol.MountLock()
 	if err != nil {

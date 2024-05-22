@@ -503,6 +503,8 @@ func (d *lvm) Delete(op *operations.Operation) error {
 	return nil
 }
 
+// Validate checks that all provide keys are supported and that no conflicting
+// or missing configuration is present.
 func (d *lvm) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
 		"size": validate.Optional(validate.IsSize),
