@@ -217,13 +217,27 @@ func (d *tpm) startVM() (*deviceConfig.RunConfig, error) {
 		},
 	}
 
-	proc, err := subprocess.NewProcess("swtpm", []string{"socket", "--tpm2", "--tpmstate", fmt.Sprintf("dir=%s", tpmDevPath), "--ctrl", fmt.Sprintf("type=unixio,path=%s", socketPath)}, "", "")
+	var fdFiles []*os.File
+
+	// Ensure passed file is closed after swtpm start has returned.
+	defer func() {
+		for _, file := range fdFiles {
+			_ = file.Close()
+		}
+	}()
+
+	shortPath, err := util.ShortenedFilePath(socketPath, &fdFiles)
+	if err != nil {
+		return nil, err
+	}
+
+	proc, err := subprocess.NewProcess("swtpm", []string{"socket", "--tpm2", "--tpmstate", fmt.Sprintf("dir=%s", tpmDevPath), "--ctrl", fmt.Sprintf("type=unixio,path=%s", shortPath)}, "", "")
 	if err != nil {
 		return nil, err
 	}
 
 	// Start the TPM emulator.
-	err = proc.Start(context.Background())
+	err = proc.StartWithFiles(context.Background(), fdFiles)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to start swtpm for device %q: %w", d.name, err)
 	}
