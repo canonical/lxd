@@ -623,6 +623,7 @@ func (d *zfs) Unmount() (bool, error) {
 	return true, nil
 }
 
+// GetResources returns utilization statistics for the storage pool.
 func (d *zfs) GetResources() (*api.ResourcesStoragePool, error) {
 	// Get the total amount of space.
 	availableStr, err := d.getDatasetProperty(d.config["zfs.pool_name"], "available")
@@ -655,7 +656,8 @@ func (d *zfs) GetResources() (*api.ResourcesStoragePool, error) {
 	return &res, nil
 }
 
-// MigrationType returns the type of transfer methods to be used when doing migrations between pools in preference order.
+// MigrationTypes returns the type of transfer methods to be used when doing
+// migrations between pools in preference order.
 func (d *zfs) MigrationTypes(contentType ContentType, refresh bool, copySnapshots bool) []migration.Type {
 	var rsyncFeatures []string
 
