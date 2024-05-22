@@ -81,6 +81,9 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 	return &ret, nil
 }
 
+// Do performs the migration operation on the source side for the given state and
+// operation. It sets up the necessary websocket connections for control, state,
+// and filesystem, and then initiates the migration process.
 func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name(), "live": s.live, "clusterMoveSourceName": s.clusterMoveSourceName, "push": s.pushOperationURL != ""})
 
@@ -206,6 +209,9 @@ func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	return &sink, nil
 }
 
+// Do performs the migration operation on the target side (sink) for the given
+// state and instance operation. It sets up the necessary websocket connections
+// for control, state, and filesystem, and then receives the migration data.
 func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOperation) error {
 	l := logger.AddContext(logger.Ctx{"project": c.instance.Project().Name, "instance": c.instance.Name(), "live": c.live, "clusterMoveSourceName": c.clusterMoveSourceName, "push": c.push})
 
