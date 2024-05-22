@@ -8,6 +8,7 @@ If you run into problems when using LXD, check the following how-to guides to se
 
 Configure your firewall </howto/network_bridge_firewalld>
 Troubleshoot instances </howto/instances_troubleshoot.md>
+Troubleshoot Dqlite </howto/dqlite_troubleshoot.md>
 ```
 
 Additional instructions are available in the following guides:
