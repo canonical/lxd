@@ -1880,14 +1880,49 @@ func (o *OVN) PortGroupPortClearACLRules(portGroupName OVNPortGroup, portName OV
 	return nil
 }
 
+// loadBalancerUUIDs returns list of UUID records for named load balancer.
+func (o *OVN) loadBalancerUUIDs(loadBalancerName OVNLoadBalancer) ([]string, error) {
+	lbTCPName := fmt.Sprintf("%s-tcp", loadBalancerName)
+	lbUDPName := fmt.Sprintf("%s-udp", loadBalancerName)
+
+	var lbUUIDs []string
+
+	// Use find command in order to workaround OVN bug where duplicate records of same name can exist.
+	for _, lbName := range []string{lbTCPName, lbUDPName} {
+		output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "load_balancer",
+			fmt.Sprintf(`name="%s"`, lbName),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		lbUUIDs = append(lbUUIDs, shared.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)...)
+	}
+
+	return lbUUIDs, nil
+}
+
 // LoadBalancerApply creates a new load balancer (if doesn't exist) on the specified routers and switches.
 // Providing an empty set of vips will delete the load balancer.
 func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNRouter, switches []OVNSwitch, vips ...OVNLoadBalancerVIP) error {
 	lbTCPName := fmt.Sprintf("%s-tcp", loadBalancerName)
 	lbUDPName := fmt.Sprintf("%s-udp", loadBalancerName)
 
-	// Remove existing load balancers if they exist.
-	args := []string{"--if-exists", "lb-del", lbTCPName, "--", "lb-del", lbUDPName}
+	// Remove load balancers if they exist.
+	lbUUIDs, err := o.loadBalancerUUIDs(loadBalancerName)
+	if err != nil {
+		return fmt.Errorf("Failed getting UUIDs: %w", err)
+	}
+
+	var args []string
+
+	for _, lbUUID := range lbUUIDs {
+		if len(args) > 0 {
+			args = append(args, "--")
+		}
+
+		args = append(args, "--if-exists", "destroy", "load_balancer", lbUUID)
+	}
 
 	// ipToString wraps IPv6 addresses in square brackets.
 	ipToString := func(ip net.IP) string {
@@ -1974,9 +2009,11 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 		}
 	}
 
-	_, err := o.nbctl(args...)
-	if err != nil {
-		return err
+	if len(args) > 0 {
+		_, err = o.nbctl(args...)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -1987,15 +2024,19 @@ func (o *OVN) LoadBalancerDelete(loadBalancerNames ...OVNLoadBalancer) error {
 	var args []string
 
 	for _, loadBalancerName := range loadBalancerNames {
-		if len(args) > 0 {
-			args = append(args, "--")
+		lbUUIDs, err := o.loadBalancerUUIDs(loadBalancerName)
+		if err != nil {
+			return fmt.Errorf("Failed getting UUIDs: %w", err)
 		}
 
-		lbTCPName := fmt.Sprintf("%s-tcp", loadBalancerName)
-		lbUDPName := fmt.Sprintf("%s-udp", loadBalancerName)
+		// Remove load balancers if they exist.
+		for _, lbUUID := range lbUUIDs {
+			if len(args) > 0 {
+				args = append(args, "--")
+			}
 
-		// Remove load balancers for loadBalancerName if they exist.
-		args = append(args, "--if-exists", "lb-del", lbTCPName, "--", "lb-del", lbUDPName)
+			args = append(args, "--if-exists", "destroy", "load_balancer", lbUUID)
+		}
 	}
 
 	if len(args) > 0 {
