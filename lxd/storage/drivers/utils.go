@@ -334,7 +334,7 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64, allowUnsafe
 	}
 
 	// Get rounded block size to avoid QEMU boundary issues.
-	sizeBytes = vol.driver.roundVolumeBlockSizeBytes(sizeBytes)
+	sizeBytes = vol.driver.roundVolumeBlockSizeBytes(vol, sizeBytes)
 
 	if shared.PathExists(path) {
 		fi, err := os.Stat(path)
@@ -826,18 +826,20 @@ func loopFileSizeDefault() (uint64, error) {
 // It tries to enable direct I/O if supported.
 func loopDeviceSetup(sourcePath string) (string, error) {
 	out, err := shared.RunCommand("losetup", "--find", "--nooverlap", "--direct-io=on", "--show", sourcePath)
-	if err != nil {
-		if strings.Contains(err.Error(), "direct io") || strings.Contains(err.Error(), "Invalid argument") {
-			out, err = shared.RunCommand("losetup", "--find", "--nooverlap", "--show", sourcePath)
-			if err != nil {
-				return "", err
-			}
-		} else {
-			return "", err
-		}
+	if err == nil {
+		return strings.TrimSpace(out), nil
 	}
 
-	return strings.TrimSpace(out), nil
+	if !(strings.Contains(err.Error(), "direct io") || strings.Contains(err.Error(), "Invalid argument")) {
+		return "", err
+	}
+
+	out, err = shared.RunCommand("losetup", "--find", "--nooverlap", "--show", sourcePath)
+	if err == nil {
+		return strings.TrimSpace(out), nil
+	}
+
+	return "", err
 }
 
 // loopFileAutoDetach enables auto detach mode for a loop device.
@@ -882,4 +884,20 @@ func wipeBlockHeaders(path string) error {
 // IsContentBlock returns true if the content type is either block or iso.
 func IsContentBlock(contentType ContentType) bool {
 	return contentType == ContentTypeBlock || contentType == ContentTypeISO
+}
+
+// roundAbove returns the next multiple of `above` greater than `val`.
+func roundAbove(above, val int64) int64 {
+	if val < above {
+		val = above
+	}
+
+	rounded := int64(val/above) * above
+
+	// Ensure the rounded size is at least x.
+	if rounded < val {
+		rounded += above
+	}
+
+	return rounded
 }
