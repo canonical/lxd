@@ -11,7 +11,7 @@ import (
 )
 
 // GetCurrentAllocations returns the current resource utilization for a given project.
-func GetCurrentAllocations(globalConfig map[string]string, ctx context.Context, tx *db.ClusterTx, projectName string) (map[string]api.ProjectStateResource, error) {
+func GetCurrentAllocations(globalConfig map[string]any, ctx context.Context, tx *db.ClusterTx, projectName string) (map[string]api.ProjectStateResource, error) {
 	result := map[string]api.ProjectStateResource{}
 
 	// Get the project.
