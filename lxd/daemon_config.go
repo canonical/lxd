@@ -10,8 +10,8 @@ import (
 	"github.com/canonical/lxd/shared"
 )
 
-func daemonConfigRender(state *state.State) (map[string]string, error) {
-	config := map[string]string{}
+func daemonConfigRender(state *state.State) (map[string]any, error) {
+	config := map[string]any{}
 
 	// Turn the config into a JSON-compatible map.
 	for key, value := range state.GlobalConfig.Dump() {
