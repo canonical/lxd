@@ -623,6 +623,7 @@ func (d *zfs) Unmount() (bool, error) {
 	return true, nil
 }
 
+// GetResources returns utilization statistics for the storage pool.
 func (d *zfs) GetResources() (*api.ResourcesStoragePool, error) {
 	// Get the total amount of space.
 	availableStr, err := d.getDatasetProperty(d.config["zfs.pool_name"], "available")
@@ -655,7 +656,8 @@ func (d *zfs) GetResources() (*api.ResourcesStoragePool, error) {
 	return &res, nil
 }
 
-// MigrationType returns the type of transfer methods to be used when doing migrations between pools in preference order.
+// MigrationTypes returns the type of transfer methods to be used when doing
+// migrations between pools in preference order.
 func (d *zfs) MigrationTypes(contentType ContentType, refresh bool, copySnapshots bool) []migration.Type {
 	var rsyncFeatures []string
 
@@ -742,4 +744,18 @@ func (d *zfs) patchDropBlockVolumeFilesystemExtension() error {
 	}
 
 	return nil
+}
+
+// roundVolumeBlockSizeBytes returns sizeBytes rounded up to the next multiple
+// of `vol`'s "zfs.blocksize".
+func (d *zfs) roundVolumeBlockSizeBytes(vol Volume, sizeBytes int64) int64 {
+	minBlockSize, err := units.ParseByteSizeString(vol.ExpandedConfig("zfs.blocksize"))
+
+	// minBlockSize will be 0 if zfs.blocksize=""
+	if minBlockSize <= 0 || err != nil {
+		// 16KiB is the default volblocksize
+		minBlockSize = 16 * 1024
+	}
+
+	return roundAbove(minBlockSize, sizeBytes)
 }
