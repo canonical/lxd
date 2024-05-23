@@ -84,7 +84,7 @@ func instanceImageTransfer(s *state.State, r *http.Request, projectName string, 
 	return nil
 }
 
-func ensureImageIsLocallyAvailable(s *state.State, r *http.Request, img *api.Image, projectName string, instanceType instancetype.Type) error {
+func ensureImageIsLocallyAvailable(s *state.State, r *http.Request, img *api.Image, projectName string) error {
 	// Check if the image is available locally or it's on another member.
 	// Ensure we are the only ones operating on this image. Otherwise another instance created at the same
 	// time may also arrive at the conclusion that the image doesn't exist on this cluster member and then
@@ -128,7 +128,7 @@ func ensureImageIsLocallyAvailable(s *state.State, r *http.Request, img *api.Ima
 }
 
 // instanceCreateFromImage creates an instance from a rootfs image.
-func instanceCreateFromImage(s *state.State, r *http.Request, img *api.Image, args db.InstanceArgs, op *operations.Operation) error {
+func instanceCreateFromImage(s *state.State, img *api.Image, args db.InstanceArgs, op *operations.Operation) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -205,7 +205,7 @@ func instanceRebuildFromImage(s *state.State, r *http.Request, inst instance.Ins
 		return fmt.Errorf("Requested image's type %q doesn't match instance type %q", imgType, inst.Type())
 	}
 
-	err = ensureImageIsLocallyAvailable(s, r, img, inst.Project().Name, inst.Type())
+	err = ensureImageIsLocallyAvailable(s, r, img, inst.Project().Name)
 	if err != nil {
 		return err
 	}
@@ -218,7 +218,7 @@ func instanceRebuildFromImage(s *state.State, r *http.Request, inst instance.Ins
 	return nil
 }
 
-func instanceRebuildFromEmpty(s *state.State, inst instance.Instance, op *operations.Operation) error {
+func instanceRebuildFromEmpty(inst instance.Instance, op *operations.Operation) error {
 	err := inst.Rebuild(nil, op) // Rebuild as empty.
 	if err != nil {
 		return fmt.Errorf("Failed rebuilding as an empty instance: %w", err)
@@ -512,7 +512,7 @@ func autoCreateInstanceSnapshots(ctx context.Context, s *state.State, instances 
 
 var instSnapshotsPruneRunning = sync.Map{}
 
-func pruneExpiredInstanceSnapshots(ctx context.Context, s *state.State, snapshots []instance.Instance) error {
+func pruneExpiredInstanceSnapshots(ctx context.Context, snapshots []instance.Instance) error {
 	// Find snapshots to delete
 	for _, snapshot := range snapshots {
 		err := ctx.Err()
@@ -660,7 +660,7 @@ func pruneExpiredAndAutoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.
 		// disk space.
 		if len(expiredSnapshotInstances) > 0 {
 			opRun := func(op *operations.Operation) error {
-				return pruneExpiredInstanceSnapshots(ctx, s, expiredSnapshotInstances)
+				return pruneExpiredInstanceSnapshots(ctx, expiredSnapshotInstances)
 			}
 
 			op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.SnapshotsExpire, nil, nil, opRun, nil, nil, nil)
