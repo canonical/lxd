@@ -465,7 +465,7 @@ func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath st
 		return nil, nil, UnsupportedError{"SEV unsupported"}
 	}
 
-	// Trickery to handle paths > 107 chars.
+	// Trickery to handle paths > 108 chars.
 	socketFileDir, err := os.Open(filepath.Dir(socketPath))
 	if err != nil {
 		return nil, nil, err
