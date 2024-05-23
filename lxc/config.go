@@ -487,6 +487,14 @@ func (c *cmdConfigGet) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		value := resp.Config[args[len(args)-1]]
+		if value == nil {
+			value = ""
+		} else if value == true {
+			value = "true"
+		} else if value == false {
+			value = "false"
+		}
+
 		fmt.Println(value)
 	}
 
@@ -700,7 +708,7 @@ func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if server.Config == nil {
-		server.Config = map[string]string{}
+		server.Config = map[string]any{}
 	}
 
 	for k, v := range keys {
