@@ -1943,10 +1943,14 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 			return fmt.Errorf("Missing VIP target(s)")
 		}
 
+		if len(args) > 0 {
+			args = append(args, "--")
+		}
+
 		if r.Protocol == "udp" {
-			args = append(args, "--", "lb-add", lbUDPName)
+			args = append(args, "lb-add", lbUDPName)
 		} else {
-			args = append(args, "--", "lb-add", lbTCPName)
+			args = append(args, "lb-add", lbTCPName)
 		}
 
 		targetArgs := make([]string, 0, len(r.Targets))
