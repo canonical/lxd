@@ -17,6 +17,10 @@ Once you have a Loki server up and running, you can instruct LXD to send logs to
 
     lxc config set loki.api.url=http://<loki_server_IP>:3100
 
+```{note}
+If Loki logs are to be viewed in the Grafana dashboard, ensure the `loki.instance` configuration key matches the name of the Prometheus job. See {ref}`grafana`.
+```
+
 ## Query Loki logs
 
 Loki logs are typically viewed/queried using Grafana but Loki provides a command line utility called LogCLI allowing to query logs from your Loki server without the need for Grafana.
