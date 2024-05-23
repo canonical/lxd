@@ -30,7 +30,7 @@ const RBDFormatPrefix = "rbd"
 const RBDFormatSeparator = " "
 
 // DiskParseRBDFormat parses an rbd formatted string, and returns the pool name, volume name, and list of options.
-func DiskParseRBDFormat(rbd string) (string, string, []string, error) {
+func DiskParseRBDFormat(rbd string) (poolName string, volumeName string, options []string, err error) {
 	if !strings.HasPrefix(rbd, fmt.Sprintf("%s%s", RBDFormatPrefix, RBDFormatSeparator)) {
 		return "", "", nil, fmt.Errorf("Invalid rbd format, missing prefix")
 	}
