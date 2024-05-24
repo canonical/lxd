@@ -65,7 +65,13 @@ func (m *Map) Change(changes map[string]any) (map[string]string, error) {
 			continue
 		}
 
-		values[name] = change.(string)
+		value, ok := change.(string)
+		if !ok {
+			errors.add(name, nil, fmt.Sprintf("failed to cast value %q to string", change))
+			continue
+		}
+
+		values[name] = value
 	}
 
 	if errors.Len() > 0 {
