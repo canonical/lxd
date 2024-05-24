@@ -1396,8 +1396,7 @@ definitions:
     InitLocalPreseed:
         properties:
             config:
-                additionalProperties:
-                    type: string
+                additionalProperties: {}
                 description: Server configuration map (refer to doc/server.md)
                 example:
                     core.https_address: :8443
@@ -5565,8 +5564,7 @@ definitions:
                 type: string
                 x-go-name: AuthUserName
             config:
-                additionalProperties:
-                    type: string
+                additionalProperties: {}
                 description: Server configuration map (refer to doc/server.md)
                 example:
                     core.https_address: :8443
@@ -5746,8 +5744,7 @@ definitions:
         description: ServerPut represents the modifiable fields of a LXD server configuration
         properties:
             config:
-                additionalProperties:
-                    type: string
+                additionalProperties: {}
                 description: Server configuration map (refer to doc/server.md)
                 example:
                     core.https_address: :8443
