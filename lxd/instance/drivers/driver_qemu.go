@@ -3518,7 +3518,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		// Add TPM device.
 		if len(runConf.TPMDevice) > 0 {
-			err = d.addTPMDeviceConfig(&cfg, runConf.TPMDevice)
+			err = d.addTPMDeviceConfig(&cfg, runConf.TPMDevice, fdFiles)
 			if err != nil {
 				return "", nil, err
 			}
@@ -4709,7 +4709,7 @@ func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHoo
 	return monHook, nil
 }
 
-func (d *qemu) addTPMDeviceConfig(cfg *[]cfgSection, tpmConfig []deviceConfig.RunConfigItem) error {
+func (d *qemu) addTPMDeviceConfig(cfg *[]cfgSection, tpmConfig []deviceConfig.RunConfigItem, fdFiles *[]*os.File) error {
 	var devName, socketPath string
 
 	for _, tpmItem := range tpmConfig {
@@ -4720,9 +4720,14 @@ func (d *qemu) addTPMDeviceConfig(cfg *[]cfgSection, tpmConfig []deviceConfig.Ru
 		}
 	}
 
+	shortPath, err := util.ShortenedFilePath(socketPath, fdFiles)
+	if err != nil {
+		return err
+	}
+
 	tpmOpts := qemuTPMOpts{
 		devName: devName,
-		path:    socketPath,
+		path:    shortPath,
 	}
 	*cfg = append(*cfg, qemuTPM(&tpmOpts)...)
 
