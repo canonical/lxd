@@ -41,7 +41,7 @@ func (s Schema) Defaults() map[string]any {
 func (s Schema) mustGetKey(name string) Key {
 	key, ok := s[name]
 	if !ok {
-		panic(fmt.Sprintf("attempt to access unknown key '%s'", name))
+		panic(fmt.Sprintf("Attempt to access unknown key %q", name))
 	}
 
 	return key
@@ -52,7 +52,7 @@ func (s Schema) mustGetKey(name string) Key {
 func (s Schema) assertKeyType(name string, code Type) {
 	key := s.mustGetKey(name)
 	if key.Type != code {
-		panic(fmt.Sprintf("key '%s' has type code %d, not %d", name, key.Type, code))
+		panic(fmt.Sprintf("Key %q has type code %d, not %d", name, key.Type, code))
 	}
 }
 
@@ -102,21 +102,21 @@ func (v *Key) validate(value string) error {
 	case String:
 	case Bool:
 		if !shared.ValueInSlice(strings.ToLower(value), booleans) {
-			return fmt.Errorf("invalid boolean")
+			return fmt.Errorf("Invalid boolean")
 		}
 
 	case Int64:
 		_, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return fmt.Errorf("invalid integer")
+			return fmt.Errorf("Invalid integer")
 		}
 
 	default:
-		panic(fmt.Sprintf("unexpected value type: %d", v.Type))
+		panic(fmt.Sprintf("Unexpected value type: %d", v.Type))
 	}
 
 	if v.Deprecated != "" && value != v.Default {
-		return fmt.Errorf("deprecated: %s", v.Deprecated)
+		return fmt.Errorf("Deprecated: %q", v.Deprecated)
 	}
 
 	// Run external validation function
