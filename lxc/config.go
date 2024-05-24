@@ -489,9 +489,9 @@ func (c *cmdConfigGet) Run(cmd *cobra.Command, args []string) error {
 		value := resp.Config[args[len(args)-1]]
 		if value == nil {
 			value = ""
-		} else if value == true {
+		} else if value == true { //nolint:revive
 			value = "true"
-		} else if value == false {
+		} else if value == false { //nolint:revive
 			value = "false"
 		}
 
