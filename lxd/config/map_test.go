@@ -71,19 +71,19 @@ func TestLoad_Error(t *testing.T) {
 			`schema has no key with the given name`,
 			config.Schema{},
 			map[string]string{"bar": ""},
-			"cannot set 'bar' to '': unknown key",
+			`Cannot set "bar" to "": Unknown key`,
 		},
 		{
 			`validation fails`,
 			config.Schema{"foo": {Type: config.Bool}},
 			map[string]string{"foo": "yyy"},
-			"cannot set 'foo' to 'yyy': invalid boolean",
+			`Cannot set "foo" to "yyy": Invalid boolean`,
 		},
 		{
 			`only the first of multiple errors is shown (in key name order)`,
 			config.Schema{"foo": {Type: config.Bool}},
 			map[string]string{"foo": "yyy", "bar": ""},
-			"cannot set 'bar' to '': unknown key (and 1 more errors)",
+			`Cannot set "bar" to "": Unknown key (and 1 more errors)`,
 		},
 	}
 
@@ -230,22 +230,22 @@ func TestMap_ChangeError(t *testing.T) {
 		{
 			`schema has no key with the given name`,
 			map[string]any{"xxx": ""},
-			"cannot set 'xxx' to '': unknown key",
+			`Cannot set "xxx" to "": Unknown key`,
 		},
 		{
 			`validation fails`,
 			map[string]any{"foo": "yyy"},
-			"cannot set 'foo' to 'yyy': invalid boolean",
+			`Cannot set "foo" to "yyy": Invalid boolean`,
 		},
 		{
 			`custom setter fails`,
 			map[string]any{"egg": "xxx"},
-			"cannot set 'egg' to 'xxx': boom",
+			`Cannot set "egg" to "xxx": Boom`,
 		},
 		{
 			`non string value`,
 			map[string]any{"egg": 123},
-			"cannot set 'egg': invalid type int",
+			`Cannot set "egg": Invalid type: "int"`,
 		},
 	}
 
@@ -323,7 +323,7 @@ func TestMap_GettersPanic(t *testing.T) {
 
 // A Key setter that always fail.
 func failingSetter(string) (string, error) {
-	return "", fmt.Errorf("boom")
+	return "", fmt.Errorf("Boom")
 }
 
 // A Key setter that uppercases the value.
