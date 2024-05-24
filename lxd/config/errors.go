@@ -14,9 +14,9 @@ type Error struct {
 
 // Error implements the error interface.
 func (e Error) Error() string {
-	message := fmt.Sprintf("cannot set '%s'", e.Name)
+	message := fmt.Sprintf("Cannot set %q", e.Name)
 	if e.Value != nil {
-		message += fmt.Sprintf(" to '%v'", e.Value)
+		message += fmt.Sprintf(" to %q", e.Value)
 	}
 
 	return message + fmt.Sprintf(": %s", e.Reason)
@@ -30,7 +30,7 @@ type ErrorList []*Error
 func (l ErrorList) Error() string {
 	switch len(l) {
 	case 0:
-		return "no errors"
+		return "No errors"
 	case 1:
 		return l[0].Error()
 	}
