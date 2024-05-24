@@ -487,6 +487,14 @@ func (c *cmdConfigGet) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		value := resp.Config[args[len(args)-1]]
+		if value == nil {
+			value = ""
+		} else if value == true { //nolint:revive
+			value = "true"
+		} else if value == false { //nolint:revive
+			value = "false"
+		}
+
 		fmt.Println(value)
 	}
 
@@ -623,9 +631,9 @@ func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 				}
 
 				return op.Wait()
-			} else {
-				return fmt.Errorf(i18n.G("The is no config key to set on an instance snapshot."))
 			}
+
+			return fmt.Errorf(i18n.G("There is no config key to set on an instance snapshot."))
 		}
 
 		inst, etag, err := resource.server.GetInstance(resource.name)
@@ -700,7 +708,7 @@ func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if server.Config == nil {
-		server.Config = map[string]string{}
+		server.Config = map[string]any{}
 	}
 
 	for k, v := range keys {

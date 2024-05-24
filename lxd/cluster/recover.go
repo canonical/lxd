@@ -8,7 +8,7 @@ import (
 	"time"
 
 	dqlite "github.com/canonical/go-dqlite"
-	client "github.com/canonical/go-dqlite/client"
+	"github.com/canonical/go-dqlite/client"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/node"
@@ -111,7 +111,7 @@ func updateLocalAddress(database *db.Node, address string) error {
 			return err
 		}
 
-		newConfig := map[string]string{"cluster.https_address": address}
+		newConfig := map[string]any{"cluster.https_address": address}
 		_, err = config.Patch(newConfig)
 		if err != nil {
 			return err

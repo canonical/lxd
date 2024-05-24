@@ -27,7 +27,7 @@ import (
 // AllowInstanceCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new instance.
 func AllowInstanceCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, req api.InstancesPost) error {
-	var globalConfigDump map[string]string
+	var globalConfigDump map[string]any
 	if globalConfig != nil {
 		globalConfigDump = globalConfig.Dump()
 	}
@@ -236,7 +236,7 @@ func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instanc
 // AllowVolumeCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new custom volume in a project.
 func AllowVolumeCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, req api.StorageVolumesPost) error {
-	var globalConfigDump map[string]string
+	var globalConfigDump map[string]any
 	if globalConfig != nil {
 		globalConfigDump = globalConfig.Dump()
 	}
@@ -274,7 +274,7 @@ func AllowVolumeCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, p
 //
 // If no limit is in place, return -1.
 func GetImageSpaceBudget(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string) (int64, error) {
-	var globalConfigDump map[string]string
+	var globalConfigDump map[string]any
 	if globalConfig != nil {
 		globalConfigDump = globalConfig.Dump()
 	}
@@ -346,7 +346,7 @@ func checkRestrictionsAndAggregateLimits(globalConfig *clusterConfig.Config, tx 
 		return nil
 	}
 
-	var globalConfigDump map[string]string
+	var globalConfigDump map[string]any
 	if globalConfig != nil {
 		globalConfigDump = globalConfig.Dump()
 	}
@@ -884,7 +884,7 @@ func isVMLowLevelOptionForbidden(key string) bool {
 func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, instanceName string, req api.InstancePut, currentConfig map[string]string) error {
 	var updatedInstance *api.Instance
 
-	var globalConfigDump map[string]string
+	var globalConfigDump map[string]any
 	if globalConfig != nil {
 		globalConfigDump = globalConfig.Dump()
 	}
@@ -934,7 +934,7 @@ func AllowInstanceUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, p
 // AllowVolumeUpdate returns an error if any project-specific limit or
 // restriction is violated when updating an existing custom volume.
 func AllowVolumeUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, volumeName string, req api.StorageVolumePut, currentConfig map[string]string) error {
-	var globalConfigDump map[string]string
+	var globalConfigDump map[string]any
 	if globalConfig != nil {
 		globalConfigDump = globalConfig.Dump()
 	}
@@ -973,7 +973,7 @@ func AllowVolumeUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, pro
 // AllowProfileUpdate checks that project limits and restrictions are not
 // violated when changing a profile.
 func AllowProfileUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, profileName string, req api.ProfilePut) error {
-	var globalConfigDump map[string]string
+	var globalConfigDump map[string]any
 	if globalConfig != nil {
 		globalConfigDump = globalConfig.Dump()
 	}
@@ -1007,7 +1007,7 @@ func AllowProfileUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, pr
 
 // AllowProjectUpdate checks the new config to be set on a project is valid.
 func AllowProjectUpdate(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, config map[string]string, changed []string) error {
-	var globalConfigDump map[string]string
+	var globalConfigDump map[string]any
 	if globalConfig != nil {
 		globalConfigDump = globalConfig.Dump()
 	}
@@ -1194,7 +1194,7 @@ type projectInfo struct {
 // If the skipIfNoLimits flag is true, then profiles, instances and volumes
 // won't be loaded if the profile has no limits set on it, and nil will be
 // returned.
-func fetchProject(globalConfig map[string]string, tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*projectInfo, error) {
+func fetchProject(globalConfig map[string]any, tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*projectInfo, error) {
 	ctx := context.Background()
 	dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
 	if err != nil {
@@ -1269,7 +1269,7 @@ func fetchProject(globalConfig map[string]string, tx *db.ClusterTx, projectName 
 
 // Expand the configuration and devices of the given instances, taking the give
 // project profiles into account.
-func expandInstancesConfigAndDevices(globalConfig map[string]string, instances []api.Instance, profiles []api.Profile) ([]api.Instance, error) {
+func expandInstancesConfigAndDevices(globalConfig map[string]any, instances []api.Instance, profiles []api.Profile) ([]api.Instance, error) {
 	expandedInstances := make([]api.Instance, len(instances))
 
 	// Index of all profiles by name.

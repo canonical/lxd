@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-05-02 10:31+0100\n"
+"POT-Creation-Date: 2024-05-24 12:39+0200\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://hosted.weblate.org/projects/linux-containers/"
@@ -5770,10 +5770,6 @@ msgstr ""
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
 
-#: lxc/config.go:635
-msgid "The is no config key to set on an instance snapshot."
-msgstr ""
-
 #: lxc/cluster.go:348
 #, c-format
 msgid "The key %q does not exist on cluster member %q"
@@ -5893,6 +5889,10 @@ msgstr ""
 
 #: lxc/publish.go:84
 msgid "There is no \"image name\".  Did you want an alias?"
+msgstr ""
+
+#: lxc/config.go:636
+msgid "There is no config key to set on an instance snapshot."
 msgstr ""
 
 #: lxc/cluster.go:658
