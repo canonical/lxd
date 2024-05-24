@@ -302,7 +302,11 @@ To create a VM that boots from an ISO:
 First, create an empty VM that we can later install from the ISO image:
 <!-- iso_vm_step1 end -->
 
-    lxc init iso-vm --empty --vm
+    lxc init iso-vm --empty --vm --config limits.cpu=2 --config limits.memory=4GiB --device root,size=30GiB
+
+```{note}
+Adapt the `limits.cpu`, `limits.memory` and root size based on the hardware recommendations for the ISO image used.
+```
 
 <!-- iso_vm_step2 start -->
 The second step is to import an ISO image that can later be attached to the VM as a storage volume:
@@ -364,6 +368,18 @@ lxc start --console iso-vm
 ```
     lxc query --request POST /1.0/instances --data '{
       "name": "iso-vm",
+      "config": {
+        "limits.cpu": "2",
+        "limits.memory": "4GiB"
+      },
+      "devices": {
+        "root": {
+          "path": "/",
+          "pool": "default",
+          "size": "30GiB",
+          "type": "disk"
+        }
+      },
       "source": {
         "type": "none"
       },
