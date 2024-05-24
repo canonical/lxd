@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-05-02 10:31+0100\n"
+"POT-Creation-Date: 2024-05-24 12:39+0200\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -6547,10 +6547,6 @@ msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
 "Le conteneur que vous démarrez n'est attaché à aucune interface réseau."
 
-#: lxc/config.go:635
-msgid "The is no config key to set on an instance snapshot."
-msgstr ""
-
 #: lxc/cluster.go:348
 #, fuzzy, c-format
 msgid "The key %q does not exist on cluster member %q"
@@ -6672,6 +6668,11 @@ msgstr "le périphérique indiqué ne correspond pas au réseau"
 #: lxc/publish.go:84
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr "Il n'existe pas d'\"image\".  Vouliez-vous un alias ?"
+
+#: lxc/config.go:636
+#, fuzzy
+msgid "There is no config key to set on an instance snapshot."
+msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
 #: lxc/cluster.go:658
 msgid "This LXD server is already clustered"
