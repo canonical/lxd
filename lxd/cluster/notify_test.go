@@ -29,7 +29,8 @@ func TestNewNotifier(t *testing.T) {
 	cert := shared.TestingKeyPair()
 
 	f := notifyFixtures{t: t, state: state}
-	defer f.Nodes(cert, 3)()
+	cleanupF := f.Nodes(cert, 3)
+	defer cleanupF()
 
 	// Populate state.LocalConfig after nodes created above.
 	var err error
@@ -49,7 +50,9 @@ func TestNewNotifier(t *testing.T) {
 	hook := func(client lxd.InstanceServer) error {
 		server, _, err := client.GetServer()
 		require.NoError(t, err)
-		peers <- server.Config["cluster.https_address"].(string)
+		address, ok := server.Config["cluster.https_address"].(string)
+		require.True(t, ok)
+		peers <- address
 		return nil
 	}
 
@@ -77,7 +80,8 @@ func TestNewNotify_NotifyAllError(t *testing.T) {
 	cert := shared.TestingKeyPair()
 
 	f := notifyFixtures{t: t, state: state}
-	defer f.Nodes(cert, 3)()
+	cleanupF := f.Nodes(cert, 3)
+	defer cleanupF()
 
 	f.Down(1)
 
@@ -107,7 +111,8 @@ func TestNewNotify_NotifyAlive(t *testing.T) {
 	cert := shared.TestingKeyPair()
 
 	f := notifyFixtures{t: t, state: state}
-	defer f.Nodes(cert, 3)()
+	cleanupF := f.Nodes(cert, 3)
+	defer cleanupF()
 
 	f.Down(1)
 
