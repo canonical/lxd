@@ -8,7 +8,7 @@ import (
 	"time"
 
 	dqlite "github.com/canonical/go-dqlite"
-	client "github.com/canonical/go-dqlite/client"
+	"github.com/canonical/go-dqlite/client"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/node"
