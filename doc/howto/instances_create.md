@@ -338,6 +338,24 @@ You should now see the installer. After the installation is done, detach the cus
 <!-- iso_vm_step7 start -->
 Now the VM can be rebooted, and it will boot from disk.
 <!-- iso_vm_step7 end -->
+
+If the VM installed from an ISO is a Linux distribution using `systemd`, it is possible to install the LXD agent inside of it. This can be done manually or with the help of `cloud-init`:
+
+```sh
+lxc config device add iso-vm config disk source=cloud-init:config
+lxc config set iso-vm cloud-init.user-data - << EOF
+#cloud-config
+runcmd:
+  - mount -t 9p config /mnt
+  - cd /mnt
+  - ./install.sh
+  - cd /
+  - umount /mnt
+  - systemctl start lxd-agent  # XXX: causes a reboot
+EOF
+lxc start --console iso-vm
+```
+
 ````
 ````{group-tab} API
 ```{include} instances_create.md
