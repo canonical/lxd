@@ -324,7 +324,7 @@ func offlineThresholdValidator(value string) error {
 	}
 
 	if threshold <= minThreshold {
-		return fmt.Errorf("Value must be greater than '%d'", minThreshold)
+		return fmt.Errorf("Value must be greater than %d", minThreshold)
 	}
 
 	return nil
