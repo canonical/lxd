@@ -259,9 +259,9 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFileRetrieved.Event(inst, logger.Ctx{"path": path}))
 		return response.SyncResponseHeaders(true, dirEnts, headers)
-	} else {
-		return response.InternalError(fmt.Errorf("Bad file type: %s", fileType))
 	}
+
+	return response.InternalError(fmt.Errorf("Bad file type: %s", fileType))
 }
 
 // swagger:operation HEAD /1.0/instances/{name}/files instances instance_files_head
@@ -561,9 +561,9 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFilePushed.Event(inst, logger.Ctx{"path": path}))
 		return response.EmptySyncResponse
-	} else {
-		return response.BadRequest(fmt.Errorf("Bad file type: %s", headers.Type))
 	}
+
+	return response.BadRequest(fmt.Errorf("Bad file type: %s", headers.Type))
 }
 
 // swagger:operation DELETE /1.0/instances/{name}/files instances instance_files_delete
