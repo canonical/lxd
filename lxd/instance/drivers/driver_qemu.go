@@ -433,11 +433,10 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 			}
 		}
 
-
 		d, ok := inst.(*qemu)
 		if !ok || d == nil {
-		    logger.Error("Failed to cast instance to *qemu")
-		    return
+			logger.Error("Failed to cast instance to *qemu")
+			return
 		}
 
 		if event == qmp.EventAgentStarted {
