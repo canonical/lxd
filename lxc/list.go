@@ -618,14 +618,14 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 		if !strings.Contains(columnEntry, ".") {
 			for _, columnRune := range columnEntry {
 				column, ok := columnsShorthandMap[columnRune]
-				if ok {
-					columns = append(columns, column)
-
-					if column.NeedsState || column.NeedsSnapshots {
-						needsData = true
-					}
-				} else {
+				if !ok {
 					return nil, false, fmt.Errorf(i18n.G("Unknown column shorthand char '%c' in '%s'"), columnRune, columnEntry)
+				}
+
+				columns = append(columns, column)
+
+				if column.NeedsState || column.NeedsSnapshots {
+					needsData = true
 				}
 			}
 		} else {
