@@ -562,7 +562,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 		'm': {i18n.G("MEMORY USAGE"), c.memoryUsageColumnData, true, false},
 		'M': {i18n.G("MEMORY USAGE%"), c.memoryUsagePercentColumnData, true, false},
 		'n': {i18n.G("NAME"), c.nameColumnData, false, false},
-		'N': {i18n.G("PROCESSES"), c.NumberOfProcessesColumnData, true, false},
+		'N': {i18n.G("PROCESSES"), c.numberOfProcessesColumnData, true, false},
 		'p': {i18n.G("PID"), c.PIDColumnData, true, false},
 		'P': {i18n.G("PROFILES"), c.ProfilesColumnData, false, false},
 		'S': {i18n.G("SNAPSHOTS"), c.numberSnapshotsColumnData, false, true},
@@ -922,7 +922,7 @@ func (c *cmdList) LastUsedColumnData(cInfo api.InstanceFull) string {
 	return ""
 }
 
-func (c *cmdList) NumberOfProcessesColumnData(cInfo api.InstanceFull) string {
+func (c *cmdList) numberOfProcessesColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil {
 		return fmt.Sprintf("%d", cInfo.State.Processes)
 	}
