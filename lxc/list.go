@@ -551,7 +551,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 		'4': {i18n.G("IPV4"), c.IP4ColumnData, true, false},
 		'6': {i18n.G("IPV6"), c.IP6ColumnData, true, false},
 		'a': {i18n.G("ARCHITECTURE"), c.architectureColumnData, false, false},
-		'b': {i18n.G("STORAGE POOL"), c.StoragePoolColumnData, false, false},
+		'b': {i18n.G("STORAGE POOL"), c.storagePoolColumnData, false, false},
 		'c': {i18n.G("CREATED AT"), c.CreatedColumnData, false, false},
 		'd': {i18n.G("DESCRIPTION"), c.descriptionColumnData, false, false},
 		'D': {i18n.G("DISK USAGE"), c.diskUsageColumnData, true, false},
@@ -888,7 +888,7 @@ func (c *cmdList) architectureColumnData(cInfo api.InstanceFull) string {
 	return cInfo.Architecture
 }
 
-func (c *cmdList) StoragePoolColumnData(cInfo api.InstanceFull) string {
+func (c *cmdList) storagePoolColumnData(cInfo api.InstanceFull) string {
 	for _, v := range cInfo.ExpandedDevices {
 		if v["type"] == "disk" && v["path"] == "/" {
 			return v["pool"]
