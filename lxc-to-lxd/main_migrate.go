@@ -586,12 +586,12 @@ func convertStorageConfig(conf []string, devices map[string]map[string]string) e
 		if shared.ValueInSlice("optional", strings.Split(parts[3], ",")) {
 			device["optional"] = "true"
 		} else {
-			if strings.HasPrefix(parts[0], "/") {
-				if !shared.PathExists(parts[0]) {
-					return fmt.Errorf("Invalid path: %s", parts[0])
-				}
-			} else {
+			if !strings.HasPrefix(parts[0], "/") {
 				continue
+			}
+
+			if !shared.PathExists(parts[0]) {
+				return fmt.Errorf("Invalid path: %s", parts[0])
 			}
 		}
 
