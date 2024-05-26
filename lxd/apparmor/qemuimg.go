@@ -62,7 +62,7 @@ func (nwc *nullWriteCloser) Close() error {
 // will be added as an allowed command to the AppArmor profile. The remaining elements of the cmd slice are
 // expected to be the qemu-img command and its arguments.
 func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (string, error) {
-	//It is assumed that command starts with a program which sets resource limits, like prlimit or nice
+	// It is assumed that command starts with a program which sets resource limits, like prlimit or nice
 	allowedCmds := []string{"qemu-img", cmd[0]}
 
 	allowedCmdPaths := []string{}
