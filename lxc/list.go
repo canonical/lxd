@@ -552,7 +552,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 		'6': {i18n.G("IPV6"), c.IP6ColumnData, true, false},
 		'a': {i18n.G("ARCHITECTURE"), c.architectureColumnData, false, false},
 		'b': {i18n.G("STORAGE POOL"), c.storagePoolColumnData, false, false},
-		'c': {i18n.G("CREATED AT"), c.CreatedColumnData, false, false},
+		'c': {i18n.G("CREATED AT"), c.createdColumnData, false, false},
 		'd': {i18n.G("DESCRIPTION"), c.descriptionColumnData, false, false},
 		'D': {i18n.G("DISK USAGE"), c.diskUsageColumnData, true, false},
 		'e': {i18n.G("PROJECT"), c.projectColumnData, false, false},
@@ -902,7 +902,7 @@ func (c *cmdList) ProfilesColumnData(cInfo api.InstanceFull) string {
 	return strings.Join(cInfo.Profiles, "\n")
 }
 
-func (c *cmdList) CreatedColumnData(cInfo api.InstanceFull) string {
+func (c *cmdList) createdColumnData(cInfo api.InstanceFull) string {
 	layout := "2006/01/02 15:04 UTC"
 
 	if shared.TimeIsSet(cInfo.CreatedAt) {
