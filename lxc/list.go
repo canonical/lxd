@@ -550,7 +550,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 	columnsShorthandMap := map[rune]column{
 		'4': {i18n.G("IPV4"), c.IP4ColumnData, true, false},
 		'6': {i18n.G("IPV6"), c.IP6ColumnData, true, false},
-		'a': {i18n.G("ARCHITECTURE"), c.ArchitectureColumnData, false, false},
+		'a': {i18n.G("ARCHITECTURE"), c.architectureColumnData, false, false},
 		'b': {i18n.G("STORAGE POOL"), c.StoragePoolColumnData, false, false},
 		'c': {i18n.G("CREATED AT"), c.CreatedColumnData, false, false},
 		'd': {i18n.G("DESCRIPTION"), c.descriptionColumnData, false, false},
@@ -884,7 +884,7 @@ func (c *cmdList) PIDColumnData(cInfo api.InstanceFull) string {
 	return ""
 }
 
-func (c *cmdList) ArchitectureColumnData(cInfo api.InstanceFull) string {
+func (c *cmdList) architectureColumnData(cInfo api.InstanceFull) string {
 	return cInfo.Architecture
 }
 
