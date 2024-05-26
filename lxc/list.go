@@ -702,8 +702,8 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 						v = cInfo.ExpandedDevices[d[0]][d[1]]
 					}
 
-					//// Truncate the data according to the max width.  A negative max width
-					//// indicates there is no effective limit.
+					// Truncate the data according to the max width.  A negative max width
+					// indicates there is no effective limit.
 					if maxWidth > 0 && len(v) > maxWidth {
 						return v[:maxWidth]
 					}
