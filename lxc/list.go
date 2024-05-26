@@ -564,7 +564,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 		'n': {i18n.G("NAME"), c.nameColumnData, false, false},
 		'N': {i18n.G("PROCESSES"), c.numberOfProcessesColumnData, true, false},
 		'p': {i18n.G("PID"), c.PIDColumnData, true, false},
-		'P': {i18n.G("PROFILES"), c.ProfilesColumnData, false, false},
+		'P': {i18n.G("PROFILES"), c.profilesColumnData, false, false},
 		'S': {i18n.G("SNAPSHOTS"), c.numberSnapshotsColumnData, false, true},
 		's': {i18n.G("STATE"), c.statusColumnData, false, false},
 		't': {i18n.G("TYPE"), c.typeColumnData, false, false},
@@ -898,7 +898,7 @@ func (c *cmdList) storagePoolColumnData(cInfo api.InstanceFull) string {
 	return ""
 }
 
-func (c *cmdList) ProfilesColumnData(cInfo api.InstanceFull) string {
+func (c *cmdList) profilesColumnData(cInfo api.InstanceFull) string {
 	return strings.Join(cInfo.Profiles, "\n")
 }
 
