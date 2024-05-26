@@ -349,41 +349,41 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 			}
 
 			// Follow the symlink
-			if targetPath == "-" || c.file.flagRecursive {
-				i := 0
-				for {
-					newPath := strings.TrimSuffix(string(linkTarget), "\n")
-					if !strings.HasPrefix(newPath, "/") {
-						newPath = filepath.Clean(filepath.Join(filepath.Dir(pathSpec[1]), newPath))
-					}
-
-					buf, resp, err = resource.server.GetInstanceFile(pathSpec[0], newPath)
-					if err != nil {
-						return err
-					}
-
-					if resp.Type != "symlink" {
-						break
-					}
-
-					i++
-					if i > 255 {
-						return fmt.Errorf("Too many links")
-					}
-
-					// Update link target for next iteration.
-					linkTarget, err = io.ReadAll(buf)
-					if err != nil {
-						return err
-					}
-				}
-			} else {
+			if !(targetPath == "-" || c.file.flagRecursive) {
 				err = os.Symlink(strings.TrimSpace(string(linkTarget)), targetPath)
 				if err != nil {
 					return err
 				}
 
 				continue
+			}
+
+			i := 0
+			for {
+				newPath := strings.TrimSuffix(string(linkTarget), "\n")
+				if !strings.HasPrefix(newPath, "/") {
+					newPath = filepath.Clean(filepath.Join(filepath.Dir(pathSpec[1]), newPath))
+				}
+
+				buf, resp, err = resource.server.GetInstanceFile(pathSpec[0], newPath)
+				if err != nil {
+					return err
+				}
+
+				if resp.Type != "symlink" {
+					break
+				}
+
+				i++
+				if i > 255 {
+					return fmt.Errorf("Too many links")
+				}
+
+				// Update link target for next iteration.
+				linkTarget, err = io.ReadAll(buf)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
