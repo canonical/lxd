@@ -302,7 +302,11 @@ To create a VM that boots from an ISO:
 First, create an empty VM that we can later install from the ISO image:
 <!-- iso_vm_step1 end -->
 
-    lxc init iso-vm --empty --vm
+    lxc init iso-vm --empty --vm --config limits.cpu=2 --config limits.memory=4GiB --device root,size=30GiB
+
+```{note}
+Adapt the `limits.cpu`, `limits.memory` and root size based on the hardware recommendations for the ISO image used.
+```
 
 <!-- iso_vm_step2 start -->
 The second step is to import an ISO image that can later be attached to the VM as a storage volume:
@@ -338,6 +342,24 @@ You should now see the installer. After the installation is done, detach the cus
 <!-- iso_vm_step7 start -->
 Now the VM can be rebooted, and it will boot from disk.
 <!-- iso_vm_step7 end -->
+
+If the VM installed from an ISO is a Linux distribution using `systemd`, it is possible to install the LXD agent inside of it. This can be done manually or with the help of `cloud-init`:
+
+```sh
+lxc config device add iso-vm config disk source=cloud-init:config
+lxc config set iso-vm cloud-init.user-data - << EOF
+#cloud-config
+runcmd:
+  - mount -t 9p config /mnt
+  - cd /mnt
+  - ./install.sh
+  - cd /
+  - umount /mnt
+  - systemctl start lxd-agent  # XXX: causes a reboot
+EOF
+lxc start --console iso-vm
+```
+
 ````
 ````{group-tab} API
 ```{include} instances_create.md
@@ -346,6 +368,18 @@ Now the VM can be rebooted, and it will boot from disk.
 ```
     lxc query --request POST /1.0/instances --data '{
       "name": "iso-vm",
+      "config": {
+        "limits.cpu": "2",
+        "limits.memory": "4GiB"
+      },
+      "devices": {
+        "root": {
+          "path": "/",
+          "pool": "default",
+          "size": "30GiB",
+          "type": "disk"
+        }
+      },
       "source": {
         "type": "none"
       },
