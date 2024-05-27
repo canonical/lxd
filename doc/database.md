@@ -19,6 +19,7 @@ Dqlite  provides replication, fault-tolerance, and automatic failover without th
 
 When using LXD as a single machine and not as a cluster, the Dqlite database effectively behaves like a regular SQLite database.
 
+(database-location)=
 ## File location
 
 The database files are stored in the `database` sub-directory of your LXD data directory (thus `/var/snap/lxd/common/lxd/database/` if you use the snap, or `/var/lib/lxd/database/` otherwise).

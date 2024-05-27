@@ -18,10 +18,10 @@ crash caused by running out of disk space.
 ## The Dqlite data directory
 
 When investigating Dqlite-related errors, it's essential to look at the
-contents of the Dqlite data directory for the affected node. This is the
-directory where the local instance of Dqlite stores all its data. If you
-installed the LXD snap, you can find this directory at
-`/var/snap/lxd/common/lxd/database/global`.
+contents of the {ref}`Dqlite data directory <database-location>` for the affected node. This is the
+directory where the local instance of Dqlite stores all its data.
+You can find this directory at `/var/snap/lxd/common/lxd/database/global` (if you use
+the snap) or `/var/lib/lxd/database/global` (otherwise).
 
 The data directory contains several types of file. The most important types are:
 
@@ -62,8 +62,10 @@ likely to be there.
 
 ## Interventions
 
-**Important:** Before taking any of the actions below, back up the entire
+```{important}
+Before taking any of the actions below, back up the entire
 Dqlite data directory, so you don't lose data in case something goes wrong.
+```
 
 Here are some actions you can take in response to specific Dqlite errors. They
 are not guaranteed to work in any specific case.
@@ -82,8 +84,8 @@ are not guaranteed to work in any specific case.
 ## Get help
 
 If the tips above don't help with your situation, you can always post on the
-LXD support forum. Please mention Dqlite in your post and include the error
-message(s) you're seeing, LXD logs, and the output of the following command (if
+LXD support forum. Make sure to mention Dqlite in your post and include the error
+message or messages you're seeing, LXD logs, and the output of the following command (if
 you're using the LXD snap):
 
 ```
