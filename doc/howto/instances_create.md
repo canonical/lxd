@@ -305,7 +305,7 @@ First, create an empty VM that we can later install from the ISO image:
     lxc init iso-vm --empty --vm --config limits.cpu=2 --config limits.memory=4GiB --device root,size=30GiB
 
 ```{note}
-Adapt the `limits.cpu`, `limits.memory` and root size based on the hardware recommendations for the ISO image used.
+Adapt the `limits.cpu`, `limits.memory`, and root size based on the hardware recommendations for the ISO image used.
 ```
 
 <!-- iso_vm_step2 start -->
@@ -343,7 +343,11 @@ You should now see the installer. After the installation is done, detach the cus
 Now the VM can be rebooted, and it will boot from disk.
 <!-- iso_vm_step7 end -->
 
-If the VM installed from an ISO is a Linux distribution using `systemd`, it is possible to install the LXD agent inside of it. This can be done manually or with the help of `cloud-init`:
+<!-- iso_vm_step8 start -->
+If the VM installed from an ISO is a Linux distribution using `systemd`, it is possible to install the LXD agent inside of it. This can be done manually or with the help of `cloud-init` (see [VM `cloud-init`](vm-cloud-init-config)).
+<!-- iso_vm_step8 end -->
+
+To install the LXD agent with the help of `cloud-init`:
 
 ```sh
 lxc config device add iso-vm config disk source=cloud-init:config
@@ -385,6 +389,11 @@ lxc start --console iso-vm
       },
       "type": "virtual-machine"
     }'
+
+```{note}
+Adapt the values for `limits.cpu`, `limits.memory`, and `root: size` based on the hardware recommendations for the ISO image used.
+```
+
 
 ```{include} instances_create.md
        :start-after: <!-- iso_vm_step2 start -->
@@ -454,6 +463,11 @@ Therefore, get the current configuration first and then provide the relevant con
 ```{include} instances_create.md
        :start-after: <!-- iso_vm_step7 start -->
        :end-before: <!-- iso_vm_step7 end -->
+```
+
+```{include} instances_create.md
+       :start-after: <!-- iso_vm_step8 start -->
+       :end-before: <!-- iso_vm_step8 end -->
 ```
 ````
 ````{group-tab} UI
