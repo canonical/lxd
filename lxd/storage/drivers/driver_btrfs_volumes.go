@@ -630,7 +630,7 @@ func (d *btrfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteClose
 			return fmt.Errorf("Failed sending BTRFS migration header: %w", err)
 		}
 
-		err = conn.Close() //End the frame.
+		err = conn.Close() // End the frame.
 		if err != nil {
 			return fmt.Errorf("Failed closing BTRFS migration header frame: %w", err)
 		}
@@ -1038,7 +1038,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 			return err
 		}
 
-		_, err = shared.RunCommand("btrfs", "qgroup", "limit", "none", "-e", qgroup, volPath)
+		_, err = shared.RunCommand("btrfs", "qgroup", "limit", "-e", "none", qgroup, volPath)
 		if err != nil {
 			return err
 		}
@@ -1216,7 +1216,7 @@ func (d *btrfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArg
 			return fmt.Errorf("Failed sending BTRFS migration header: %w", err)
 		}
 
-		err = conn.Close() //End the frame.
+		err = conn.Close() // End the frame.
 		if err != nil {
 			return fmt.Errorf("Failed closing BTRFS migration header frame: %w", err)
 		}
