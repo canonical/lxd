@@ -119,6 +119,10 @@ Then send the following request:
       }
     }'
 ```
+```{group-tab} UI
+Go to the {guilabel}`Configuration` tab of the instance detail page and select {guilabel}`Advanced > Cloud init`.
+Then click {guilabel}`Edit instance` and override the configuration for one or more of the `cloud-init` configuration options.
+```
 ````
 
 ### YAML format for `cloud-init` configuration
