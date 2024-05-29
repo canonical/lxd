@@ -102,3 +102,11 @@ func GetQemuFwPaths() ([]string, error) {
 
 	return qemuFwPaths, nil
 }
+
+// AddFileDescriptor adds a file path to the list of files to open and pass file descriptor to other processes.
+// Returns the file descriptor number that the other process will receive.
+func AddFileDescriptor(fdFiles *[]*os.File, file *os.File) int {
+	// Append the tap device file path to the list of files to be opened and passed to qemu.
+	*fdFiles = append(*fdFiles, file)
+	return 2 + len(*fdFiles) // Use 2+fdFiles count, as first user file descriptor is 3.
+}
