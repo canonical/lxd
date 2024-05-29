@@ -108,7 +108,7 @@ const qemuPCIDeviceIDStart = 4
 // qemuDeviceIDPrefix used as part of the name given QEMU devices generated from user added devices.
 const qemuDeviceIDPrefix = "dev-lxd_"
 
-// qemuDeviceNamePrefix used as part of the name given QEMU blockdevs and netdevs generated from user added devices.
+// qemuDeviceNamePrefix used as part of the name given QEMU blockdevs, netdevs and device tags generated from user added devices.
 const qemuDeviceNamePrefix = "lxd_"
 
 // qemuMigrationNBDExportName is the name of the disk device export by the migration NBD server.
@@ -2177,7 +2177,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 func (d *qemu) deviceAttachPath(deviceName string) error {
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	mountTag := fmt.Sprintf("lxd_%s", deviceName)
+	mountTag := d.generateQemuDeviceName(deviceName)
 
 	// Detect virtiofsd path.
 	virtiofsdSockPath := filepath.Join(d.DevicesPath(), fmt.Sprintf("virtio-fs.%s.sock", deviceName))
@@ -2297,7 +2297,7 @@ func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error 
 func (d *qemu) deviceDetachPath(deviceName string) error {
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	mountTag := fmt.Sprintf("lxd_%s", deviceName)
+	mountTag := d.generateQemuDeviceName(deviceName)
 
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -3721,7 +3721,7 @@ func (d *qemu) addRootDriveConfig(qemuDev map[string]string, mountInfo *storageP
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
 func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os.File, agentMounts *[]instancetype.VMAgentMount, driveConf deviceConfig.MountEntryItem) error {
-	mountTag := fmt.Sprintf("lxd_%s", driveConf.DevName)
+	mountTag := d.generateQemuDeviceName(driveConf.DevName)
 
 	agentMount := instancetype.VMAgentMount{
 		Source: mountTag,
@@ -8904,7 +8904,7 @@ func (d *qemu) deviceDetachUSB(usbDev deviceConfig.USBDeviceItem) error {
 	return nil
 }
 
-// Block node names may only be up to 31 characters long, so use a hash if longer.
+// Block node names and device tags may only be up to 31 characters long, so use a hash if longer.
 func (d *qemu) generateQemuDeviceName(name string) string {
 	if len(name) > 27 {
 		// If the name is too long, hash it as SHA-256 (32 bytes).
