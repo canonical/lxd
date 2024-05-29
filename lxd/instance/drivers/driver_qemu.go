@@ -108,11 +108,8 @@ const qemuPCIDeviceIDStart = 4
 // qemuDeviceIDPrefix used as part of the name given QEMU devices generated from user added devices.
 const qemuDeviceIDPrefix = "dev-lxd_"
 
-// qemuNetDevIDPrefix used as part of the name given QEMU netdevs generated from user added devices.
-const qemuNetDevIDPrefix = "lxd_"
-
-// qemuBlockDevIDPrefix used as part of the name given QEMU blockdevs generated from user added devices.
-const qemuBlockDevIDPrefix = "lxd_"
+// qemuDeviceNamePrefix used as part of the name given QEMU blockdevs and netdevs generated from user added devices.
+const qemuDeviceNamePrefix = "lxd_"
 
 // qemuMigrationNBDExportName is the name of the disk device export by the migration NBD server.
 const qemuMigrationNBDExportName = "lxd_root"
@@ -2526,7 +2523,7 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	netDevID := fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName)
+	netDevID := fmt.Sprintf("%s%s", qemuDeviceNamePrefix, escapedDeviceName)
 
 	// Request removal of device.
 	err = monitor.RemoveDevice(deviceID)
@@ -4067,7 +4064,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 	}
 
 	qemuDev["drive"] = qemuDevDrive
-	qemuDev["serial"] = fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, escapedDeviceName)
+	qemuDev["serial"] = fmt.Sprintf("%s%s", qemuDeviceNamePrefix, escapedDeviceName)
 
 	if bus == "virtio-scsi" {
 		qemuDev["channel"] = "0"
@@ -4112,7 +4109,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 		revert := revert.New()
 		defer revert.Fail()
 
-		nodeName := fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, escapedDeviceName)
+		nodeName := fmt.Sprintf("%s%s", qemuDeviceNamePrefix, escapedDeviceName)
 
 		if isRBDImage {
 			secretID := fmt.Sprintf("pool_%s_%s", blockDev["pool"], blockDev["user"])
@@ -4308,7 +4305,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 			}
 
 			qemuNetDev := map[string]any{
-				"id":    fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName),
+				"id":    fmt.Sprintf("%s%s", qemuDeviceNamePrefix, escapedDeviceName),
 				"type":  "tap",
 				"vhost": vhostNetEnabled,
 			}
@@ -8921,7 +8918,7 @@ func (d *qemu) generateQemuDeviceName(name string) string {
 	}
 
 	// Apply the lxd_ prefix.
-	return fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, name)
+	return fmt.Sprintf("%s%s", qemuDeviceNamePrefix, name)
 }
 
 func (d *qemu) setCPUs(count int) error {
