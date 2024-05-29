@@ -111,6 +111,9 @@ const qemuDeviceIDPrefix = "dev-lxd_"
 // qemuDeviceNamePrefix used as part of the name given QEMU blockdevs, netdevs and device tags generated from user added devices.
 const qemuDeviceNamePrefix = "lxd_"
 
+// qemuDeviceNameMaxLength used to indicate the maximum length of a qemu block node name and device tags.
+const qemuDeviceNameMaxLength = 31
+
 // qemuMigrationNBDExportName is the name of the disk device export by the migration NBD server.
 const qemuMigrationNBDExportName = "lxd_root"
 
@@ -8906,7 +8909,8 @@ func (d *qemu) deviceDetachUSB(usbDev deviceConfig.USBDeviceItem) error {
 
 // Block node names and device tags may only be up to 31 characters long, so use a hash if longer.
 func (d *qemu) generateQemuDeviceName(name string) string {
-	if len(name) > 27 {
+	maxNameLength := qemuDeviceNameMaxLength - len(qemuDeviceNamePrefix)
+	if len(name) > maxNameLength {
 		// If the name is too long, hash it as SHA-256 (32 bytes).
 		// Then encode the SHA-256 binary hash as Base64 Raw URL format and trim down to 27 chars.
 		// Raw URL avoids the use of "+" character and the padding "=" character which QEMU doesn't allow.
@@ -8914,7 +8918,7 @@ func (d *qemu) generateQemuDeviceName(name string) string {
 		hash.Write([]byte(name))
 		binaryHash := hash.Sum(nil)
 		name = base64.RawURLEncoding.EncodeToString(binaryHash)
-		name = name[0:27]
+		name = name[0:maxNameLength]
 	}
 
 	// Apply the lxd_ prefix.
