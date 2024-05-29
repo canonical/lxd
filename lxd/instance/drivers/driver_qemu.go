@@ -1214,7 +1214,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	// Add allocated QEMU vhost file descriptor.
-	vsockFD := d.addFileDescriptor(&fdFiles, vsockF)
+	vsockFD := util.AddFileDescriptor(&fdFiles, vsockF)
 
 	volatileSet := make(map[string]string)
 
@@ -1851,7 +1851,7 @@ func (d *qemu) setupSEV(fdFiles *[]*os.File) (*qemuSevOpts, error) {
 			return nil, err
 		}
 
-		dhCertFD = d.addFileDescriptor(fdFiles, dhCert)
+		dhCertFD = util.AddFileDescriptor(fdFiles, dhCert)
 	}
 
 	if d.expandedConfig["security.sev.session.data"] != "" {
@@ -1870,7 +1870,7 @@ func (d *qemu) setupSEV(fdFiles *[]*os.File) (*qemuSevOpts, error) {
 			return nil, err
 		}
 
-		sessionDataFD = d.addFileDescriptor(fdFiles, sessionData)
+		sessionDataFD = util.AddFileDescriptor(fdFiles, sessionData)
 	}
 
 	sevOpts := &qemuSevOpts{}
@@ -3175,7 +3175,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		driveFirmwareOpts := qemuDriveFirmwareOpts{
 			roPath:    fwPath,
-			nvramPath: fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, nvRAMFile)),
+			nvramPath: fmt.Sprintf("/dev/fd/%d", util.AddFileDescriptor(fdFiles, nvRAMFile)),
 		}
 
 		cfg = append(cfg, qemuDriveFirmware(&driveFirmwareOpts)...)
@@ -3661,14 +3661,6 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error
 	return nil
 }
 
-// addFileDescriptor adds a file path to the list of files to open and pass file descriptor to qemu.
-// Returns the file descriptor number that qemu will receive.
-func (d *qemu) addFileDescriptor(fdFiles *[]*os.File, file *os.File) int {
-	// Append the tap device file path to the list of files to be opened and passed to qemu.
-	*fdFiles = append(*fdFiles, file)
-	return 2 + len(*fdFiles) // Use 2+fdFiles count, as first user file descriptor is 3.
-}
-
 // addRootDriveConfig adds the qemu config required for adding the root drive.
 func (d *qemu) addRootDriveConfig(qemuDev map[string]string, mountInfo *storagePools.MountInfo, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) (monitorHook, error) {
 	if rootDriveConf.TargetPath != "/" {
@@ -3778,7 +3770,7 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 		return fmt.Errorf("Invalid file descriptor %q for drive %q: %w", driveConf.DevPath, driveConf.DevName, err)
 	}
 
-	proxyFD := d.addFileDescriptor(fdFiles, os.NewFile(uintptr(fd), driveConf.DevName))
+	proxyFD := util.AddFileDescriptor(fdFiles, os.NewFile(uintptr(fd), driveConf.DevName))
 
 	driveDir9pOpts := qemuDriveDirOpts{
 		dev: qemuDevOpts{
