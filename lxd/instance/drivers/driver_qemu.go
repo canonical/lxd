@@ -2343,7 +2343,7 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	blockDevName := d.blockNodeName(escapedDeviceName)
+	blockDevName := d.generateQemuDeviceName(escapedDeviceName)
 
 	err = monitor.RemoveFDFromFDSet(blockDevName)
 	if err != nil {
@@ -3952,7 +3952,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 		},
 		"discard":   "unmap", // Forward as an unmap request. This is the same as `discard=on` in the qemu config file.
 		"driver":    "file",
-		"node-name": d.blockNodeName(escapedDeviceName),
+		"node-name": d.generateQemuDeviceName(escapedDeviceName),
 		"read-only": false,
 	}
 
@@ -8686,7 +8686,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 
 	// Check io_uring feature.
 	blockDev := map[string]any{
-		"node-name": d.blockNodeName("feature-check"),
+		"node-name": d.generateQemuDeviceName("feature-check"),
 		"driver":    "file",
 		"filename":  blockDevPath.Name(),
 		"aio":       "io_uring",
@@ -8908,7 +8908,7 @@ func (d *qemu) deviceDetachUSB(usbDev deviceConfig.USBDeviceItem) error {
 }
 
 // Block node names may only be up to 31 characters long, so use a hash if longer.
-func (d *qemu) blockNodeName(name string) string {
+func (d *qemu) generateQemuDeviceName(name string) string {
 	if len(name) > 27 {
 		// If the name is too long, hash it as SHA-256 (32 bytes).
 		// Then encode the SHA-256 binary hash as Base64 Raw URL format and trim down to 27 chars.
