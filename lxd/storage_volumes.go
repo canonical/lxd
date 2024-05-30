@@ -81,6 +81,53 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: storagePoolVolumePut, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanEdit, "poolName", "type", "volumeName")},
 }
 
+// storagePoolVolumeTypeAccessHandler returns an access handler which checks the given entitlement on a storage volume.
+func storagePoolVolumeTypeAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
+	return func(d *Daemon, r *http.Request) response.Response {
+		s := d.State()
+		err := addStoragePoolVolumeDetailsToRequestContext(s, r)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		var target string
+
+		// Regardless of whether the caller specified a target parameter, we do not add it to the authorization check if
+		// the storage pool is remote. This is because the volume in the database has a NULL `node_id`, so the URL uniquely
+		// identifies the volume without the target parameter.
+		if !details.pool.Driver().Info().Remote {
+			// If the storage pool is local, we need to add a target parameter to the authorization check URL for the
+			// auth subsystem to consider it unique.
+
+			// If the target parameter was specified, use that.
+			target = request.QueryParam(r, "target")
+
+			if target == "" {
+				// Otherwise, check if the volume is located on another member.
+				if details.forwardingNodeInfo != nil {
+					// Use the name of the forwarding member as the location of the volume.
+					target = details.forwardingNodeInfo.Name
+				} else {
+					// If we're not forwarding the request, use the name of this member as the location of the volume.
+					target = s.ServerName
+				}
+			}
+		}
+
+		err = s.Authorizer.CheckPermission(r.Context(), entity.StorageVolumeURL(request.ProjectParam(r), target, details.pool.Name(), details.volumeTypeName, details.volumeName), entitlement)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
+	}
+}
+
 // swagger:operation GET /1.0/storage-volumes storage storage_volumes_get
 //
 //  Get the storage volumes
