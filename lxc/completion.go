@@ -5,8 +5,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/spf13/cobra"
+
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/shared"
 )
 
 func (g *cmdGlobal) cmpClusterGroupNames(toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -285,6 +287,46 @@ func (g *cmdGlobal) cmpInstances(toComplete string) ([]string, cobra.ShellCompDi
 			}
 
 			results = append(results, name)
+		}
+	}
+
+	if !strings.Contains(toComplete, ":") {
+		remotes, directives := g.cmpRemotes(false)
+		results = append(results, remotes...)
+		cmpDirectives |= directives
+	}
+
+	return results, cmpDirectives
+}
+
+func (g *cmdGlobal) cmpInstancesAndSnapshots(toComplete string) ([]string, cobra.ShellCompDirective) {
+	results := []string{}
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
+
+	resources, _ := g.ParseServers(toComplete)
+
+	if len(resources) > 0 {
+		resource := resources[0]
+
+		if strings.Contains(resource.name, shared.SnapshotDelimiter) {
+			instName := strings.SplitN(resource.name, shared.SnapshotDelimiter, 2)[0]
+			snapshots, _ := resource.server.GetInstanceSnapshotNames(instName)
+			for _, snapshot := range snapshots {
+				results = append(results, fmt.Sprintf("%s/%s", instName, snapshot))
+			}
+		} else {
+			instances, _ := resource.server.GetInstanceNames("")
+			for _, instance := range instances {
+				var name string
+
+				if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
+					name = instance
+				} else {
+					name = fmt.Sprintf("%s:%s", resource.remote, instance)
+				}
+
+				results = append(results, name)
+			}
 		}
 	}
 
