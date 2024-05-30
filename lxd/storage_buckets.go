@@ -34,25 +34,25 @@ var storagePoolBucketsCmd = APIEndpoint{
 var storagePoolBucketCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/buckets/{bucketName}",
 
-	Delete: APIEndpointAction{Handler: storagePoolBucketDelete, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanDelete, "poolName", "bucketName")},
-	Get:    APIEndpointAction{Handler: storagePoolBucketGet, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanView, "poolName", "bucketName")},
-	Patch:  APIEndpointAction{Handler: storagePoolBucketPut, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanEdit, "poolName", "bucketName")},
-	Put:    APIEndpointAction{Handler: storagePoolBucketPut, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanEdit, "poolName", "bucketName")},
+	Delete: APIEndpointAction{Handler: storagePoolBucketDelete, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanDelete)},
+	Get:    APIEndpointAction{Handler: storagePoolBucketGet, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanView)},
+	Patch:  APIEndpointAction{Handler: storagePoolBucketPut, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanEdit)},
+	Put:    APIEndpointAction{Handler: storagePoolBucketPut, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var storagePoolBucketKeysCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/buckets/{bucketName}/keys",
 
-	Get:  APIEndpointAction{Handler: storagePoolBucketKeysGet, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanView, "poolName", "bucketName")},
-	Post: APIEndpointAction{Handler: storagePoolBucketKeysPost, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanEdit, "poolName", "bucketName")},
+	Get:  APIEndpointAction{Handler: storagePoolBucketKeysGet, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanView)},
+	Post: APIEndpointAction{Handler: storagePoolBucketKeysPost, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var storagePoolBucketKeyCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/buckets/{bucketName}/keys/{keyName}",
 
-	Delete: APIEndpointAction{Handler: storagePoolBucketKeyDelete, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanEdit, "poolName", "bucketName")},
-	Get:    APIEndpointAction{Handler: storagePoolBucketKeyGet, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanView, "poolName", "bucketName")},
-	Put:    APIEndpointAction{Handler: storagePoolBucketKeyPut, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanEdit, "poolName", "bucketName")},
+	Delete: APIEndpointAction{Handler: storagePoolBucketKeyDelete, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanEdit)},
+	Get:    APIEndpointAction{Handler: storagePoolBucketKeyGet, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanView)},
+	Put:    APIEndpointAction{Handler: storagePoolBucketKeyPut, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanEdit)},
 }
 
 // storageBucketAccessHandler returns an access handler that checks for the given entitlement against a storage bucket.
