@@ -8490,14 +8490,6 @@ msgstr ""
 
 #, fuzzy
 #~ msgid ""
-#~ "If this is your first run, you will need to import images using the 'lxd-"
-#~ "images' script."
-#~ msgstr ""
-#~ "Falls dies der erste Start ist, sollten Sie mit dem 'lxd-images' Script "
-#~ "Abbilder importieren.\n"
-
-#, fuzzy
-#~ msgid ""
 #~ "Create a read-only snapshot of a container.\n"
 #~ "\n"
 #~ "lxc snapshot [remote:]<source> <snapshot name> [--stateful]"
