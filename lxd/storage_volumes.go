@@ -2728,6 +2728,84 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 	return operations.OperationResponse(op)
 }
 
+const (
+	ctxStoragePool                 = "storage-pool"
+	ctxStorageVolumeRemoteNodeInfo = "storage-volume-forwarding-node-info"
+)
+
+// addStoragePoolVolumeDetailsToRequestContext extracts details from HTTP requests that pertain to a particular storage
+// volume and stores those details in the request context for use in subsequent handlers.
+func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request) error {
+	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
+	if err != nil {
+		return err
+	}
+
+	if shared.IsSnapshot(volumeName) {
+		return api.StatusErrorf(http.StatusBadRequest, "Invalid storage volume %q", volumeName)
+	}
+
+	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+	if err != nil {
+		return err
+	}
+
+	// Convert the volume type name to our internal integer representation.
+	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
+	if err != nil {
+		return api.StatusErrorf(http.StatusBadRequest, err.Error())
+	}
+
+	// Get the name of the storage pool the volume is supposed to be attached to.
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+	if err != nil {
+		return err
+	}
+
+	// Load the storage pool containing the volume. This is required by the access handler as all remote volumes
+	// do not have a location (regardless of whether the caller used a target parameter to send the request to a
+	// particular member).
+	storagePool, err := storagePools.LoadByName(s, poolName)
+	if err != nil {
+		return err
+	}
+
+	request.SetCtxValue(r, ctxStoragePool, storagePool)
+
+	// Get the effective project.
+	actualProject, err := project.StorageVolumeProject(s.DB.Cluster, request.ProjectParam(r), volumeType)
+	if err != nil {
+		return fmt.Errorf("Failed to get effective project name: %w", err)
+	}
+
+	request.SetCtxValue(r, request.CtxEffectiveProjectName, actualProject)
+
+	// If the target is set, we have all the information we need to perform the access check.
+	targetParam := request.QueryParam(r, "target")
+	if targetParam != "" {
+		return nil
+	}
+
+	// If the request has already been forwarded, no reason to perform further logic to determine the location of the
+	// volume.
+	_, err = request.GetCtxValue[string](r.Context(), request.CtxForwardedProtocol)
+	if err == nil {
+		return nil
+	}
+
+	// Get information about the cluster member containing the volume.
+	remoteNodeInfo, err := getRemoteVolumeNodeInfo(s, poolName, actualProject, volumeName, volumeType)
+	if err != nil {
+		return err
+	}
+
+	if remoteNodeInfo != nil {
+		request.SetCtxValue(r, ctxStorageVolumeRemoteNodeInfo, *remoteNodeInfo)
+	}
+
+	return nil
+}
+
 // getRemoteVolumeNodeInfo figures out the cluster member on which the volume with the given name is defined. If it is
 // the local cluster member it returns nil and no error. If it is another cluster member it returns a db.NodeInfo containing
 // the name and address of the remote member. If there is more than one cluster member with a matching volume name, an
