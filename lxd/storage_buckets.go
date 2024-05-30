@@ -55,6 +55,54 @@ var storagePoolBucketKeyCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: storagePoolBucketKeyPut, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanEdit, "poolName", "bucketName")},
 }
 
+// storageBucketAccessHandler returns an access handler that checks for the given entitlement against a storage bucket.
+// The storage pool containing the bucket and the effective project of the bucket are added to the request context for
+// later use.
+func storageBucketAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
+	return func(d *Daemon, r *http.Request) response.Response {
+		s := d.State()
+
+		projectName := request.ProjectParam(r)
+		bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, projectName)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		request.SetCtxValue(r, request.CtxEffectiveProjectName, bucketProjectName)
+
+		poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		pool, err := storagePools.LoadByName(s, poolName)
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
+		}
+
+		request.SetCtxValue(r, ctxStoragePool, pool)
+
+		bucketName, err := url.PathUnescape(mux.Vars(r)["bucketName"])
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// If the storage pool is a remote driver, the URL of the storage bucket will not contain a target parameter
+		// (even if the caller has specified one).
+		target := ""
+		if !pool.Driver().Info().Remote {
+			target = request.QueryParam(r, "target")
+		}
+
+		err = s.Authorizer.CheckPermission(r.Context(), r, entity.StorageBucketURL(projectName, target, pool.Name(), bucketName), entitlement)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
+	}
+}
+
 // API endpoints
 
 // swagger:operation GET /1.0/storage-pools/{poolName}/buckets storage storage_pool_buckets_get
