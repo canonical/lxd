@@ -2729,6 +2729,104 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 	return operations.OperationResponse(op)
 }
 
+// ctxStorageVolumeDetails is the request.CtxKey corresponding to storageVolumeDetails, which is added to the request
+// context in addStoragePoolVolumeDetailsToRequestContext.
+const ctxStorageVolumeDetails request.CtxKey = "storage-volume-details"
+
+// storageVolumeDetails contains details common to all storage volume requests. A value of this type is added to the
+// request context when addStoragePoolVolumeDetailsToRequestContext is called. We do this to avoid repeated logic when
+// parsing the request details and/or making database calls to get the storage pool or effective project. These fields
+// are required for the storage volume access check, and are subsequently available in the storage volume handlers.
+type storageVolumeDetails struct {
+	volumeName         string
+	volumeTypeName     string
+	volumeType         int
+	pool               storagePools.Pool
+	forwardingNodeInfo *db.NodeInfo
+}
+
+// addStoragePoolVolumeDetailsToRequestContext extracts storageVolumeDetails from the http.Request and adds it to the
+// request context with the ctxStorageVolumeDetails request.CtxKey. Additionally, the effective project of the storage
+// bucket is added to the request context under request.CtxEffectiveProjectName.
+func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request) error {
+	var details storageVolumeDetails
+	defer func() {
+		request.SetCtxValue(r, ctxStorageVolumeDetails, details)
+	}()
+
+	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
+	if err != nil {
+		return err
+	}
+
+	details.volumeName = volumeName
+
+	if shared.IsSnapshot(volumeName) {
+		return api.StatusErrorf(http.StatusBadRequest, "Invalid storage volume %q", volumeName)
+	}
+
+	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+	if err != nil {
+		return err
+	}
+
+	details.volumeTypeName = volumeTypeName
+
+	// Convert the volume type name to our internal integer representation.
+	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
+	if err != nil {
+		return api.StatusErrorf(http.StatusBadRequest, err.Error())
+	}
+
+	details.volumeType = volumeType
+
+	// Get the name of the storage pool the volume is supposed to be attached to.
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+	if err != nil {
+		return err
+	}
+
+	// Load the storage pool containing the volume. This is required by the access handler as all remote volumes
+	// do not have a location (regardless of whether the caller used a target parameter to send the request to a
+	// particular member).
+	storagePool, err := storagePools.LoadByName(s, poolName)
+	if err != nil {
+		return err
+	}
+
+	details.pool = storagePool
+
+	// Get the effective project.
+	effectiveProject, err := project.StorageVolumeProject(s.DB.Cluster, request.ProjectParam(r), volumeType)
+	if err != nil {
+		return fmt.Errorf("Failed to get effective project name: %w", err)
+	}
+
+	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProject)
+
+	// If the target is set, we have all the information we need to perform the access check.
+	if request.QueryParam(r, "target") != "" {
+		return nil
+	}
+
+	// If the request has already been forwarded, no reason to perform further logic to determine the location of the
+	// volume.
+	_, err = request.GetCtxValue[string](r.Context(), request.CtxForwardedProtocol)
+	if err == nil {
+		return nil
+	}
+
+	// Get information about the cluster member containing the volume.
+	remoteNodeInfo, err := getRemoteVolumeNodeInfo(r.Context(), s, poolName, effectiveProject, volumeName, volumeType)
+	if err != nil {
+		return err
+	}
+
+	details.forwardingNodeInfo = remoteNodeInfo
+
+	return nil
+}
+
 // getRemoteVolumeNodeInfo figures out the cluster member on which the volume with the given name is defined. If it is
 // the local cluster member it returns nil and no error. If it is another cluster member it returns a db.NodeInfo containing
 // the name and address of the remote member. If there is more than one cluster member with a matching volume name, an
