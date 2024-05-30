@@ -80,6 +80,58 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: storagePoolVolumePut, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanEdit, "poolName", "type", "volumeName")},
 }
 
+// storagePoolVolumeTypeAccessHandler returns an access handler which checks the given entitlement on a storage volume.
+func storagePoolVolumeTypeAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
+	return func(d *Daemon, r *http.Request) response.Response {
+		s := d.State()
+		err := addStoragePoolVolumeDetailsToRequestContext(s, r)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		storagePool, err := request.GetCtxValue[storagePools.Pool](r.Context(), ctxStoragePool)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		var target string
+
+		// If the storage pool is a remote driver, the URL of the storage volume will not contain a target parameter.
+		// (even if the caller has specified one).
+		if !storagePool.Driver().Info().Remote {
+			target = request.QueryParam(r, "target")
+
+			// If the target is unset, check if the request will be forwarded to another node and set that as the target.
+			// Otherwise, set this server name as the target.
+			if target == "" {
+				nodeInfo, err := request.GetCtxValue[db.NodeInfo](r.Context(), ctxStorageVolumeRemoteNodeInfo)
+				if err != nil {
+					target = s.ServerName
+				} else {
+					target = nodeInfo.Name
+				}
+			}
+		}
+
+		err = s.Authorizer.CheckPermission(r.Context(), r, entity.StorageVolumeURL(request.ProjectParam(r), target, storagePool.Name(), volumeTypeName, volumeName), entitlement)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
+	}
+}
+
 // swagger:operation GET /1.0/storage-volumes storage storage_volumes_get
 //
 //  Get the storage volumes
