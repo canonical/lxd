@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
@@ -31,6 +32,7 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
+	"github.com/canonical/lxd/shared/version"
 )
 
 var projectsCmd = APIEndpoint{
@@ -839,6 +841,11 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 //	---
 //	produces:
 //	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: force
+//	    description: Delete project and related artifacts
+//	    type: boolean
 //	responses:
 //	  "200":
 //	    $ref: "#/responses/EmptySyncResponse"
@@ -856,29 +863,246 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	force := shared.IsTrue(r.FormValue("force"))
+
 	// Quick checks.
 	if name == api.ProjectDefaultName {
 		return response.Forbidden(fmt.Errorf("The 'default' project cannot be deleted"))
 	}
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	var usedBy []string
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := cluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return fmt.Errorf("Fetch project %q: %w", name, err)
 		}
 
-		empty, err := projectIsEmpty(ctx, project, tx)
+		if !force {
+			empty, err := projectIsEmpty(ctx, project, tx)
+			if err != nil {
+				return err
+			}
+
+			if !empty {
+				return fmt.Errorf("Only empty projects can be removed.")
+			}
+		} else {
+			usedBy, err = projectUsedBy(ctx, tx, project)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Handle requests to empty the project.
+	if force {
+		type entityInfo struct {
+			pathArgs []string
+			target   string
+		}
+
+		// Parse used by list.
+		defaultProfile := api.NewURL().Path(version.APIVersion, "profiles", api.ProjectDefaultName).Project(name).String()
+		entries := map[entity.Type][]*entityInfo{}
+		var count int
+
+		for _, u := range usedBy {
+			// Skip the default profile.
+			if u == defaultProfile {
+				continue
+			}
+
+			url, err := url.Parse(u)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			entityType, _, target, pathArgs, err := entity.ParseURL(*url)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			if entries[entityType] == nil {
+				entries[entityType] = []*entityInfo{}
+			}
+
+			entries[entityType] = append(entries[entityType], &entityInfo{
+				pathArgs: pathArgs,
+				target:   target,
+			})
+
+			count++
+		}
+
+		// Connect to the local server.
+		target, err := lxd.ConnectLXDUnix(d.UnixSocket(), nil)
 		if err != nil {
-			return err
+			return response.InternalError(err)
 		}
 
-		if !empty {
-			return fmt.Errorf("Only empty projects can be removed")
+		target = target.UseProject(name)
+
+		// Delete instances.
+		for _, instEntInfo := range entries["instances"] {
+			instName := instEntInfo.pathArgs[0]
+			// Get current instance state.
+			instState, _, err := target.GetInstance(instName)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			// If running, force stop it.
+			if instState.StatusCode != api.Stopped {
+				req := api.InstanceStatePut{
+					Action:  "stop",
+					Timeout: -1,
+					Force:   true,
+				}
+
+				op, err := target.UpdateInstanceState(instName, req, "")
+				if err != nil {
+					return response.InternalError(err)
+				}
+
+				err = op.Wait()
+				if err != nil {
+					return response.InternalError(err)
+				}
+			}
+
+			// Get the instance configuration.
+			inst, _, err := target.GetInstance(instName)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			// Clear security.protection.delete if set.
+			if shared.IsTrue(inst.ExpandedConfig["security.protection.delete"]) {
+				inst.Config["security.protection.delete"] = "false"
+				op, err := target.UpdateInstance(instName, inst.Writable(), "")
+				if err != nil {
+					return response.InternalError(err)
+				}
+
+				err = op.Wait()
+				if err != nil {
+					return response.InternalError(err)
+				}
+			}
+
+			// Delete the instance.
+			op, err := target.DeleteInstance(instName)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			err = op.Wait()
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			// Done deleting the instance.
+			count--
 		}
 
+		// Delete profiles.
+		for _, profileEntInfo := range entries[entity.TypeProfile] {
+			profileName := profileEntInfo.pathArgs[0]
+			err := target.DeleteProfile(profileName)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			// Done deleting the profile.
+			count--
+		}
+
+		// Delete images.
+		for _, imageEntInfo := range entries[entity.TypeImage] {
+			imageFingerprint := imageEntInfo.pathArgs[0]
+			op, err := target.DeleteImage(imageFingerprint)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			err = op.Wait()
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			// Done deleting the image.
+			count--
+		}
+
+		// Delete networks.
+		for _, networkEntInfo := range entries[entity.TypeNetwork] {
+			networkName := networkEntInfo.pathArgs[0]
+			err := target.DeleteNetwork(networkName)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			// Done deleting the network.
+			count--
+		}
+
+		// Delete network ACLs.
+		for _, networkACLEntInfo := range entries[entity.TypeNetworkACL] {
+			networkACLName := networkACLEntInfo.pathArgs[0]
+			err := target.DeleteNetworkACL(networkACLName)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			// Done deleting the network ACL.
+			count--
+		}
+
+		// Delete network zones.
+		for _, networkZoneEntInfo := range entries[entity.TypeNetworkZone] {
+			networkZoneName := networkZoneEntInfo.pathArgs[0]
+			err := target.DeleteNetworkZone(networkZoneName)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			// Done deleting the network zone.
+			count--
+		}
+
+		// Delete storage volumes.
+		for _, volumeEntInfo := range entries[entity.TypeStorageVolume] {
+			volPool := volumeEntInfo.pathArgs[0]
+			volType := volumeEntInfo.pathArgs[1]
+			volName := volumeEntInfo.pathArgs[2]
+
+			if volumeEntInfo.target != "" {
+				target.UseTarget(volumeEntInfo.target)
+			}
+
+			err := target.DeleteStoragePoolVolume(volPool, volType, volName)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			// Done deleting the storage volume.
+			count--
+		}
+
+		// Check if anything is left.
+		if count != 0 {
+			return response.BadRequest(fmt.Errorf("Project could not be automatically emptied"))
+		}
+	}
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return cluster.DeleteProject(ctx, tx.Tx(), name)
 	})
-
 	if err != nil {
 		return response.SmartError(err)
 	}
