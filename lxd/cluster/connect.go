@@ -16,7 +16,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/state"
-	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/version"
@@ -119,86 +118,6 @@ func ConnectIfInstanceIsRemote(s *state.State, projectName string, instName stri
 	client = client.UseProject(projectName)
 
 	return client, nil
-}
-
-// ConnectIfVolumeIsRemote figures out the address of the cluster member on which the volume with the given name is
-// defined. If it's not the local cluster member it will connect to it and return the connected client, otherwise
-// it just returns nil. If there is more than one cluster member with a matching volume name, an error is returned.
-func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string, volumeName string, volumeType int, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request) (lxd.InstanceServer, error) {
-	localNodeID := s.DB.Cluster.GetNodeID()
-	var err error
-	var nodes []db.NodeInfo
-	var poolID int64
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		poolID, err = tx.GetStoragePoolID(ctx, poolName)
-		if err != nil {
-			return err
-		}
-
-		nodes, err = tx.GetStorageVolumeNodes(ctx, poolID, projectName, volumeName, volumeType)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil && err != db.ErrNoClusterMember {
-		return nil, err
-	}
-
-	// If volume uses a remote storage driver and so has no explicit cluster member, then we need to check
-	// whether it is exclusively attached to remote instance, and if so then we need to forward the request to
-	// the node whereit is currently used. This avoids conflicting with another member when using it locally.
-	if err == db.ErrNoClusterMember {
-		// GetStoragePoolVolume returns a volume with an empty Location field for remote drivers.
-		var dbVolume *db.StorageVolume
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			dbVolume, err = tx.GetStoragePoolVolume(ctx, poolID, projectName, volumeType, volumeName, true)
-			return err
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(s, poolName, projectName, &dbVolume.StorageVolume)
-		if err != nil {
-			return nil, fmt.Errorf("Failed checking if volume %q is available: %w", volumeName, err)
-		}
-
-		if remoteInstance == nil {
-			// Volume isn't exclusively attached to an instance. Use local cluster member.
-			return nil, nil
-		}
-
-		var instNode db.NodeInfo
-		err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-			instNode, err = tx.GetNodeByName(ctx, remoteInstance.Node)
-			return err
-		})
-		if err != nil {
-			return nil, fmt.Errorf("Failed getting cluster member info for %q: %w", remoteInstance.Node, err)
-		}
-
-		// Replace node list with instance's cluster member node (which might be local member).
-		nodes = []db.NodeInfo{instNode}
-	}
-
-	nodeCount := len(nodes)
-	if nodeCount > 1 {
-		return nil, fmt.Errorf("More than one cluster member has a volume named %q. Please target a specific member", volumeName)
-	} else if nodeCount < 1 {
-		// Should never get here.
-		return nil, fmt.Errorf("Volume %q has empty cluster member list", volumeName)
-	}
-
-	node := nodes[0]
-	if node.ID == localNodeID {
-		// Use local cluster member if volume belongs to this local member.
-		return nil, nil
-	}
-
-	// Connect to remote cluster member.
-	return Connect(node.Address, networkCert, serverCert, r, false)
 }
 
 // SetupTrust is a convenience around InstanceServer.CreateCertificate that adds the given server certificate to
