@@ -56,7 +56,7 @@ import (
 
 type deviceTaskCPU struct {
 	id    int64
-	strId string
+	strID string
 	count *int
 }
 
@@ -67,8 +67,8 @@ func (c deviceTaskCPUs) Less(i, j int) bool { return *c[i].count < *c[j].count }
 func (c deviceTaskCPUs) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 
 func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent, chan device.UnixHotplugEvent, error) {
-	NETLINK_KOBJECT_UEVENT := 15
-	UEVENT_BUFFER_SIZE := 2048
+	NETLINK_KOBJECT_UEVENT := 15 //nolint:revive
+	UEVENT_BUFFER_SIZE := 2048   //nolint:revive
 
 	fd, err := unix.Socket(
 		unix.AF_NETLINK, unix.SOCK_RAW|unix.SOCK_CLOEXEC,
@@ -323,21 +323,21 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 /*
  * fillFixedInstances fills the `fixedInstances` map with the instances that have been pinned to specific CPUs.
  * The `fixedInstances` map is a map of CPU IDs to a list of instances that have been pinned to that CPU.
- * The `targetCpuPool` is a list of CPU IDs that are available for pinning.
- * The `targetCpuNum` is the number of CPUs that are required for pinning.
+ * The `targetCPUPool` is a list of CPU IDs that are available for pinning.
+ * The `targetCPUNum` is the number of CPUs that are required for pinning.
  * The `loadBalancing` flag indicates whether the CPU pinning should be load balanced or not (e.g, NUMA placement when `limits.cpu` is a single number which means
  * a required number of vCPUs per instance that can be chosen within a CPU pool).
  */
-func fillFixedInstances(fixedInstances map[int64][]instance.Instance, inst instance.Instance, effectiveCpus []int64, targetCpuPool []int64, targetCpuNum int, loadBalancing bool) {
-	if len(targetCpuPool) < targetCpuNum {
-		diffCount := len(targetCpuPool) - targetCpuNum
-		logger.Warnf("%v CPUs have been required for pinning, but %v CPUs won't be allocated", len(targetCpuPool), -diffCount)
-		targetCpuNum = len(targetCpuPool)
+func fillFixedInstances(fixedInstances map[int64][]instance.Instance, inst instance.Instance, effectiveCpus []int64, targetCPUPool []int64, targetCPUNum int, loadBalancing bool) {
+	if len(targetCPUPool) < targetCPUNum {
+		diffCount := len(targetCPUPool) - targetCPUNum
+		logger.Warnf("%v CPUs have been required for pinning, but %v CPUs won't be allocated", len(targetCPUPool), -diffCount)
+		targetCPUNum = len(targetCPUPool)
 	}
 
-	// If the `targetCpuPool` has been manually specified (explicit CPU IDs/ranges specified with `limits.cpu`)
-	if len(targetCpuPool) == targetCpuNum && !loadBalancing {
-		for _, nr := range targetCpuPool {
+	// If the `targetCPUPool` has been manually specified (explicit CPU IDs/ranges specified with `limits.cpu`)
+	if len(targetCPUPool) == targetCPUNum && !loadBalancing {
+		for _, nr := range targetCPUPool {
 			if !shared.ValueInSlice(nr, effectiveCpus) {
 				continue
 			}
@@ -353,14 +353,14 @@ func fillFixedInstances(fixedInstances map[int64][]instance.Instance, inst insta
 		return
 	}
 
-	// If we need to load-balance the instance across the CPUs of `targetCpuPool` (e.g, NUMA placement),
-	// the heuristic is to sort the `targetCpuPool` by usage (number of instances already pinned to each CPU)
+	// If we need to load-balance the instance across the CPUs of `targetCPUPool` (e.g, NUMA placement),
+	// the heuristic is to sort the `targetCPUPool` by usage (number of instances already pinned to each CPU)
 	// and then assign the instance to the first `desiredCpuNum` least used CPUs.
 	usage := map[int64]deviceTaskCPU{}
-	for _, id := range targetCpuPool {
+	for _, id := range targetCPUPool {
 		cpu := deviceTaskCPU{}
 		cpu.id = id
-		cpu.strId = fmt.Sprintf("%d", id)
+		cpu.strID = fmt.Sprintf("%d", id)
 
 		count := 0
 		_, ok := fixedInstances[id]
@@ -380,7 +380,7 @@ func fillFixedInstances(fixedInstances map[int64][]instance.Instance, inst insta
 	sort.Sort(sortedUsage)
 	count := 0
 	for _, cpu := range sortedUsage {
-		if count == targetCpuNum {
+		if count == targetCPUNum {
 			break
 		}
 
@@ -563,7 +563,7 @@ func deviceTaskBalance(s *state.State) {
 	for _, id := range cpus {
 		cpu := deviceTaskCPU{}
 		cpu.id = id
-		cpu.strId = fmt.Sprintf("%d", id)
+		cpu.strID = fmt.Sprintf("%d", id)
 		count := 0
 		cpu.count = &count
 
@@ -577,7 +577,7 @@ func deviceTaskBalance(s *state.State) {
 			continue
 		}
 
-		id := c.strId
+		id := c.strID
 		for _, ctn := range ctns {
 			_, ok := pinning[ctn]
 			if ok {
@@ -603,7 +603,7 @@ func deviceTaskBalance(s *state.State) {
 
 			count -= 1
 
-			id := cpu.strId
+			id := cpu.strID
 			_, ok := pinning[ctn]
 			if ok {
 				pinning[ctn] = append(pinning[ctn], id)
@@ -703,7 +703,7 @@ func devicesRegister(instances []instance.Instance) {
 	}
 }
 
-func getHidrawDevInfo(fd int) (string, string, error) {
+func getHidrawDevInfo(fd int) (vendor string, product string, err error) {
 	info := C.struct_hidraw_devinfo{}
 	ret, err := C.get_hidraw_devinfo(C.int(fd), &info)
 	if ret != 0 {
@@ -713,7 +713,7 @@ func getHidrawDevInfo(fd int) (string, string, error) {
 	return fmt.Sprintf("%04x", info.vendor), fmt.Sprintf("%04x", info.product), nil
 }
 
-func ueventParseVendorProduct(props map[string]string, subsystem string, devname string) (string, string, bool) {
+func ueventParseVendorProduct(props map[string]string, subsystem string, devname string) (vendor string, product string, ok bool) {
 	vendor, vendorOk := props["ID_VENDOR_ID"]
 	product, productOk := props["ID_MODEL_ID"]
 
