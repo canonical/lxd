@@ -2002,7 +2002,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 
 	var vol drivers.Volume
-	if isRemoteClusterMove {
+	if isRemoteClusterMove || args.Refresh {
 		// In case it's a cluster move don't instantiate a new volume.
 		// Instead load the existing volume and config from the database.
 		vol = b.GetVolume(volType, contentType, volStorageName, volumeConfig)
@@ -5254,8 +5254,14 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	}
 
 	// Check if the volume exists on storage.
+	var vol drivers.Volume
 	volStorageName := project.StorageVolume(projectName, args.Name)
-	vol := b.GetNewVolume(drivers.VolumeTypeCustom, drivers.ContentType(args.ContentType), volStorageName, volumeConfig)
+	if args.Refresh {
+		vol = b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(args.ContentType), volStorageName, volumeConfig)
+	} else {
+		vol = b.GetNewVolume(drivers.VolumeTypeCustom, drivers.ContentType(args.ContentType), volStorageName, volumeConfig)
+	}
+
 	volExists, err := b.driver.HasVolume(vol)
 	if err != nil {
 		return err
