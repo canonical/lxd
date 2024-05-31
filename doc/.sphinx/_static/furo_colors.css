@@ -11,7 +11,7 @@ body {
     --color-background-hover: #f2f2f2;
     --color-brand-primary: #111;
     --color-brand-content: #06C;
-    --color-api-background: #cdcdcd;
+    --color-api-background: #E3E3E3;
     --color-inline-code-background: rgba(0,0,0,.03);
     --color-sidebar-link-text: #111;
     --color-sidebar-item-background--current: #ebebeb;
@@ -25,9 +25,11 @@ body {
     --color-admonition-title--tip: #24598F;
     --color-admonition-title--important: #C7162B;
     --color-admonition-title--caution: #F99B11;
-    --color-highlighted-background: #EbEbEb;
-    --color-link-underline: var(--color-background-primary);
-    --color-link-underline--hover: var(--color-background-primary);
+    --color-highlighted-background: #EBEBEB;
+    --color-link-underline: var(--color-link);
+    --color-link-underline--hover: var(--color-link);
+    --color-link-underline--visited: var(--color-link--visited);
+    --color-link-underline--visited--hover: var(--color-link--visited);
     --color-version-popup: #772953;
     --color-orange: #FBDDD2;
 }
@@ -55,13 +57,12 @@ body {
         --color-admonition-title--important: #C7162B;
         --color-admonition-title--caution: #F99B11;
         --color-highlighted-background: #666;
-        --color-link-underline: var(--color-background-primary);
-        --color-link-underline--hover: var(--color-background-primary);
         --color-version-popup: #F29879;
         --color-orange: #E95420;
     }
     @media (prefers-color-scheme: dark) {
         body:not([data-theme="light"]) {
+            --color-api-background: #A4A4A4;
             --color-code-background: #202020;
             --color-code-foreground: #d0d0d0;
             --color-foreground-secondary: var(--color-foreground-primary);
@@ -83,8 +84,7 @@ body {
             --color-admonition-title--important: #C7162B;
             --color-admonition-title--caution: #F99B11;
             --color-highlighted-background: #666;
-            --color-link-underline: var(--color-background-primary);
-            --color-link-underline--hover: var(--color-background-primary);
+            --color-link: #F9FCFF;
             --color-version-popup: #F29879;
             --color-orange: #E95420;
         }

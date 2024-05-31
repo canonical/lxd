@@ -98,7 +98,12 @@ html_context = {
     # (use an empty value if you don't want to link)
     'mattermost': '',
 
+    # Change to the Matrix channel you want to link to
+    # (use an empty value if you don't want to link)
+    'matrix': 'https://matrix.to/#/#documentation:ubuntu.com',
+
     # Change to the GitHub URL for your project
+    # This is used, for example, to link to the source files and allow creating GitHub issues directly from the documentation.
     'github_url': 'https://github.com/canonical/lxd',
 
     # Change to the branch for this version of the documentation
@@ -114,7 +119,13 @@ html_context = {
 
     # Controls the existence of Previous / Next buttons at the bottom of pages
     # Valid options: none, prev, next, both
-    'sequential_nav': "both"
+    'sequential_nav': "both",
+
+    # Controls if to display the contributors of a file or not
+    "display_contributors": True,
+
+    # Controls time frame for showing the contributors
+    "display_contributors_since": ""
 }
 
 # If your project is on documentation.ubuntu.com, specify the project
@@ -130,7 +141,7 @@ slug = "lxd"
 # You can also configure redirects in the Read the Docs project dashboard
 # (see https://docs.readthedocs.io/en/stable/guides/redirects.html).
 # NOTE: If this variable is not defined, set to None, or the dictionary is empty,
-
+# the sphinx_reredirects extension will be disabled.
 redirects = {
     'howto/instances_snapshots/index': '../instances_backup/',
     'reference/network_external/index': '../networks/',
@@ -142,7 +153,6 @@ redirects = {
 ############################################################
 
 # Links to ignore when checking links
-
 linkcheck_ignore = [
     'https://127.0.0.1:8443/1.0',
     'https://web.libera.chat/#lxd',
@@ -167,7 +177,8 @@ linkcheck_exclude_documents = [r'.*/manpages/.*']
 
 ## The following settings are appended to the default configuration.
 ## Use them to extend the default functionality.
-# NOTE: Remove this variable to disable the MyST parser extensions.
+
+# Remove this variable to disable the MyST parser extensions.
 custom_myst_extensions = []
 
 # Add custom Sphinx extensions as needed.
@@ -228,6 +239,10 @@ disable_feedback_button = False
 # Add tags that you want to use for conditional inclusion of text
 # (https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#tags)
 custom_tags = []
+
+# If you are using the :manpage: role, set this variable to the URL for the version
+# that you want to link to:
+# manpages_url = "https://manpages.ubuntu.com/manpages/noble/en/man{section}/{page}.{section}.html"
 
 ############################################################
 ### Additional configuration

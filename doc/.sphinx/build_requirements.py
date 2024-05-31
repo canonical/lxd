@@ -1,4 +1,4 @@
-import sys, os
+import sys
 
 sys.path.append('./')
 from custom_conf import *
@@ -82,7 +82,10 @@ if __name__ == "__main__":
         "sphinx-autobuild",
         "sphinx-copybutton",
         "sphinx-design",
-        "sphinxcontrib-jquery"
+        "sphinxcontrib-jquery",
+        "watchfiles",
+        "GitPython"
+
     ]
 
     requirements.extend(custom_required_modules)
