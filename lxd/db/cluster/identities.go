@@ -314,7 +314,7 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 
 	groupNames := make([]string, 0, len(groups))
 	for _, group := range groups {
-		if canViewGroup(entity.AuthGroupURL(group.Name)) {
+		if canViewGroup(entity.TypeAuthGroup.URL(group.Name)) {
 			groupNames = append(groupNames, group.Name)
 		}
 	}

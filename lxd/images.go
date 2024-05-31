@@ -974,7 +974,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	projectName := request.ProjectParam(r)
 
 	var userCanCreateImages bool
-	err := s.Authorizer.CheckPermission(r.Context(), r, entity.ProjectURL(projectName), auth.EntitlementCanCreateImages)
+	err := s.Authorizer.CheckPermission(r.Context(), r, entity.TypeProject.URL(projectName), auth.EntitlementCanCreateImages)
 	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {
@@ -1369,7 +1369,7 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 			continue
 		}
 
-		if !image.Public && !hasPermission(entity.ImageURL(projectName, fingerprint)) {
+		if !image.Public && !hasPermission(entity.TypeImage.URL(projectName, fingerprint)) {
 			continue
 		}
 
@@ -3008,7 +3008,7 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var userCanViewImage bool
-	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ImageURL(projectName, info.Fingerprint), auth.EntitlementCanView)
+	err = s.Authorizer.CheckPermission(r.Context(), r, entity.TypeImage.URL(projectName, info.Fingerprint), auth.EntitlementCanView)
 	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {
@@ -3477,7 +3477,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, name := range names {
-			if !userHasPermission(entity.ImageAliasURL(projectName, name)) {
+			if !userHasPermission(entity.TypeImageAlias.URL(projectName, name)) {
 				continue
 			}
 
@@ -3598,7 +3598,7 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	var userCanViewImageAlias bool
-	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ImageAliasURL(projectName, name), auth.EntitlementCanView)
+	err = s.Authorizer.CheckPermission(r.Context(), r, entity.TypeImageAlias.URL(projectName, name), auth.EntitlementCanView)
 	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {
@@ -4024,7 +4024,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 
 	// Access control.
 	var userCanViewImage bool
-	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ImageURL(projectName, imgInfo.Fingerprint), auth.EntitlementCanView)
+	err = s.Authorizer.CheckPermission(r.Context(), r, entity.TypeImage.URL(projectName, imgInfo.Fingerprint), auth.EntitlementCanView)
 	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {

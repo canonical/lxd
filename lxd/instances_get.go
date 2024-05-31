@@ -317,7 +317,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 		var filteredInstances []db.Instance
 
 		for _, inst := range instances {
-			if !userHasPermission(entity.InstanceURL(inst.Project, inst.Name)) {
+			if !userHasPermission(entity.TypeInstance.URL(inst.Project, inst.Name)) {
 				continue
 			}
 

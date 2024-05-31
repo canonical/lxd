@@ -757,7 +757,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 			vol := &dbVol.StorageVolume
 
 			volumeName, _, _ := api.GetParentAndSnapshotName(vol.Name)
-			if !userHasPermission(entity.StorageVolumeURL(vol.Project, "", dbVol.Pool, dbVol.Type, volumeName)) {
+			if !userHasPermission(entity.TypeStorageVolume.URL(vol.Project, dbVol.Pool, poolName, dbVol.Type, volumeName)) {
 				continue
 			}
 
@@ -781,7 +781,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	for _, dbVol := range dbVolumes {
 		volumeName, _, _ := api.GetParentAndSnapshotName(dbVol.Name)
 
-		if !userHasPermission(entity.StorageVolumeURL(dbVol.Project, "", dbVol.Pool, dbVol.Type, volumeName)) {
+		if !userHasPermission(entity.TypeStorageVolume.URL(dbVol.Project, dbVol.Pool, poolName, dbVol.Type, volumeName)) {
 			continue
 		}
 
@@ -1381,7 +1381,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Check if user has access to effective storage target project
-		err := s.Authorizer.CheckPermission(r.Context(), r, entity.ProjectURL(targetProjectName), auth.EntitlementCanCreateStorageVolumes)
+		err := s.Authorizer.CheckPermission(r.Context(), r, entity.TypeProject.URL(targetProjectName), auth.EntitlementCanCreateStorageVolumes)
 		if err != nil {
 			return response.SmartError(err)
 		}

@@ -125,8 +125,7 @@ func getPermissions(d *Daemon, r *http.Request) response.Response {
 	recursion := r.URL.Query().Get("recursion")
 	var entityTypes []entity.Type
 	if entityTypeFilter != "" {
-		entityType := entity.Type(entityTypeFilter)
-		err := entityType.Validate()
+		entityType, err := entity.TypeFromString(entityTypeFilter)
 		if err != nil {
 			return response.BadRequest(fmt.Errorf("Invalid `entity-type` query parameter %q: %w", entityTypeFilter, err))
 		}
@@ -134,7 +133,7 @@ func getPermissions(d *Daemon, r *http.Request) response.Response {
 		entityTypes = append(entityTypes, entityType)
 	}
 
-	var entityURLs map[entity.Type]map[int]*api.URL
+	var entityURLs map[entity.TypeName]map[int]*api.URL
 	var groups []cluster.AuthGroup
 	var authGroupPermissions []cluster.Permission
 	err := d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -189,13 +188,14 @@ func getPermissions(d *Daemon, r *http.Request) response.Response {
 
 	var apiPermissions []api.Permission
 	var apiPermissionInfos []api.PermissionInfo
-	for entityType, entities := range entityURLs {
+	for entityTypeName, entities := range entityURLs {
+		clusterEntityType, _ := cluster.EntityTypeFromName(entityTypeName)
 		for entityID, entityURL := range entities {
-			for _, entitlement := range auth.EntitlementsByEntityType(entityType) {
+			for _, entitlement := range auth.EntitlementsByEntityType(entityTypeName) {
 				if recursion == "1" {
 					permissionInfo := api.PermissionInfo{
 						Permission: api.Permission{
-							EntityType:      string(entityType),
+							EntityType:      string(entityTypeName),
 							EntityReference: entityURL.String(),
 							Entitlement:     string(entitlement),
 						},
@@ -203,7 +203,7 @@ func getPermissions(d *Daemon, r *http.Request) response.Response {
 						// in scope here. That's why we set it to zero above.
 						Groups: assignedPermissions[cluster.Permission{
 							Entitlement: entitlement,
-							EntityType:  cluster.EntityType(entityType),
+							EntityType:  clusterEntityType,
 							EntityID:    entityID,
 						}],
 					}
@@ -211,7 +211,7 @@ func getPermissions(d *Daemon, r *http.Request) response.Response {
 					apiPermissionInfos = append(apiPermissionInfos, permissionInfo)
 				} else {
 					apiPermissions = append(apiPermissions, api.Permission{
-						EntityType:      string(entityType),
+						EntityType:      string(entityTypeName),
 						EntityReference: entityURL.String(),
 						Entitlement:     string(entitlement),
 					})

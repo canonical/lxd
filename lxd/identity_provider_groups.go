@@ -165,7 +165,7 @@ func getIdentityProviderGroups(d *Daemon, r *http.Request) response.Response {
 
 		idpGroups = make([]dbCluster.IdentityProviderGroup, 0, len(allIDPGroups))
 		for _, idpGroup := range allIDPGroups {
-			if canViewIDPGroup(entity.IdentityProviderGroupURL(idpGroup.Name)) {
+			if canViewIDPGroup(entity.TypeIdentityProviderGroup.URL(idpGroup.Name)) {
 				idpGroups = append(idpGroups, idpGroup)
 			}
 		}
@@ -194,7 +194,7 @@ func getIdentityProviderGroups(d *Daemon, r *http.Request) response.Response {
 
 	idpGroupURLs := make([]string, 0, len(idpGroups))
 	for _, idpGroup := range idpGroups {
-		idpGroupURLs = append(idpGroupURLs, entity.IdentityProviderGroupURL(idpGroup.Name).String())
+		idpGroupURLs = append(idpGroupURLs, entity.TypeIdentityProviderGroup.URL(idpGroup.Name).String())
 	}
 
 	return response.SyncResponse(true, idpGroupURLs)
@@ -338,7 +338,7 @@ func createIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	lc := lifecycle.IdentityProviderGroupCreated.Event(idpGroup.Name, request.CreateRequestor(r), nil)
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
-	return response.SyncResponseLocation(true, nil, entity.IdentityProviderGroupURL(idpGroup.Name).String())
+	return response.SyncResponseLocation(true, nil, entity.TypeIdentityProviderGroup.URL(idpGroup.Name).String())
 }
 
 // swagger:operation POST /1.0/auth/identity-provider-groups/{idpGroupName} identity_provider_groups identity_provider_group_post
@@ -407,7 +407,7 @@ func renameIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 
 	s.UpdateIdentityCache()
 
-	return response.SyncResponseLocation(true, nil, entity.IdentityProviderGroupURL(idpGroupPost.Name).String())
+	return response.SyncResponseLocation(true, nil, entity.TypeIdentityProviderGroup.URL(idpGroupPost.Name).String())
 }
 
 // swagger:operation PUT /1.0/auth/identity-provider-groups/{idpGroupName} identity_provider_groups identity_provider_group_put

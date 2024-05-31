@@ -636,20 +636,19 @@ func (c *cmdGroupPermissionRemove) run(cmd *cobra.Command, args []string) error 
 // `lxc auth group permission add/remove` and returns an api.Permission that can be appended/removed from the list of
 // permissions belonging to a group.
 func parsePermissionArgs(args []string) (*api.Permission, error) {
-	entityType := entity.Type(args[1])
-	err := entityType.Validate()
+	entityType, err := entity.TypeFromString(args[1])
 	if err != nil {
 		return nil, err
 	}
 
-	if entityType == entity.TypeServer {
+	if entity.Equal(entity.TypeServer, entityType) {
 		if len(args) != 3 {
 			return nil, fmt.Errorf("Expected three arguments: `lxc auth group grant [<remote>:]<group> server <entitlement>`")
 		}
 
 		return &api.Permission{
-			EntityType:      string(entityType),
-			EntityReference: entity.ServerURL().String(),
+			EntityType:      string(entityType.Name()),
+			EntityReference: entity.TypeServer.URL().String(),
 			Entitlement:     args[2],
 		}, nil
 	}
@@ -674,7 +673,7 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 	}
 
 	pathArgs := []string{entityName}
-	if entityType == entity.TypeIdentity {
+	if entity.Equal(entity.TypeIdentity, entityType) {
 		authenticationMethod, identifier, ok := strings.Cut(entityName, "/")
 		if !ok {
 			return nil, fmt.Errorf("Malformed identity argument, expected `<authentication_method>/<identifier>`, got %q", entityName)
@@ -684,12 +683,12 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 	}
 
 	projectName, ok := kv["project"]
-	requiresProject, _ := entityType.RequiresProject()
+	requiresProject := entityType.RequiresProject()
 	if requiresProject && !ok {
 		return nil, fmt.Errorf("Entities of type %q require a supplementary project argument `project=<project_name>`", entityType)
 	}
 
-	if entityType == entity.TypeStorageVolume {
+	if entity.Equal(entity.TypeStorageVolume, entityType) {
 		storageVolumeType, ok := kv["type"]
 		if !ok {
 			return nil, fmt.Errorf("Entities of type %q require a supplementary storage volume type argument `type=<storage volume type>`", entityType)
@@ -698,7 +697,7 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 		pathArgs = append([]string{storageVolumeType}, pathArgs...)
 	}
 
-	if entityType == entity.TypeStorageVolume || entityType == entity.TypeStorageBucket {
+	if entity.Equal(entity.TypeStorageVolume, entityType) || entity.Equal(entity.TypeStorageBucket, entityType) {
 		storagePool, ok := kv["pool"]
 		if !ok {
 			return nil, fmt.Errorf("Entities of type %q require a supplementary storage pool argument `pool=<pool_name>`", entityType)
@@ -707,13 +706,13 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 		pathArgs = append([]string{storagePool}, pathArgs...)
 	}
 
-	entityURL, err := entityType.URL(projectName, kv["location"], pathArgs...)
+	entityURL, err := entity.URL(entityType, projectName, kv["location"], pathArgs...)
 	if err != nil {
 		return nil, err
 	}
 
 	return &api.Permission{
-		EntityType:      string(entityType),
+		EntityType:      string(entityType.Name()),
 		EntityReference: entityURL.String(),
 		Entitlement:     entitlement,
 	}, nil
@@ -1290,7 +1289,7 @@ func (c *cmdPermissionList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	projectName := ""
-	entityType := entity.Type("")
+	var entityType string
 	for _, filter := range filters {
 		k, v, ok := strings.Cut(filter, "=")
 		if !ok {
@@ -1300,18 +1299,19 @@ func (c *cmdPermissionList) run(cmd *cobra.Command, args []string) error {
 		if k == "project" {
 			projectName = v
 		} else if k == "entity_type" {
-			entityType = entity.Type(v)
-			err = entityType.Validate()
+			eType, err := entity.TypeFromString(v)
 			if err != nil {
 				return fmt.Errorf("Invalid entity type in supplementary argument %q: %w", filter, err)
 			}
+
+			entityType = string(eType.Name())
 		} else {
 			return fmt.Errorf("Available filters are `entity_type` and `project`, got %q", filter)
 		}
 	}
 
 	permissionsInfo, err := client.GetPermissionsInfo(lxd.GetPermissionsArgs{
-		EntityType:  string(entityType),
+		EntityType:  entityType,
 		ProjectName: projectName,
 	})
 	if err != nil {

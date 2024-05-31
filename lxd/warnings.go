@@ -503,7 +503,7 @@ func pruneResolvedWarnings(ctx context.Context, s *state.State) error {
 
 // getWarningEntityURL fetches the entity corresponding to the warning from the database, and generates a URL.
 func getWarningEntityURL(ctx context.Context, tx *sql.Tx, warning *cluster.Warning) (string, error) {
-	if warning.EntityID == -1 || warning.EntityType == "" {
+	if warning.EntityType.IsNone() {
 		return "", nil
 	}
 

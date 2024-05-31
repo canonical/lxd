@@ -261,7 +261,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 		// the number of calls to the authorizer.
 		objectType, entitlement := op.Permission()
 		urlsByEntityType := make(map[entity.Type][]api.URL)
-		if objectType != "" {
+		if objectType != nil {
 			for _, v := range op.Resources() {
 				for _, u := range v {
 					entityType, _, _, _, err := entity.ParseURL(u.URL)
@@ -535,7 +535,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			if !userHasPermission(entity.ProjectURL(v.Project())) {
+			if !userHasPermission(entity.TypeProject.URL(v.Project())) {
 				continue
 			}
 
@@ -563,7 +563,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			if !userHasPermission(entity.ProjectURL(v.Project())) {
+			if !userHasPermission(entity.TypeProject.URL(v.Project())) {
 				continue
 			}
 

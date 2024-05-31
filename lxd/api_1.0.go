@@ -238,7 +238,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// If not authorized, return now. Untrusted users are not authorized.
-	err := s.Authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanView)
+	err := s.Authorizer.CheckPermission(r.Context(), r, entity.TypeServer.URL(), auth.EntitlementCanView)
 	if err != nil && auth.IsDeniedError(err) {
 		return response.SyncResponseETag(true, srv, nil)
 	} else if err != nil {
@@ -387,7 +387,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	fullSrv.AuthUserMethod = requestor.Protocol
 
 	// Only allow identities that can edit configuration to view it as sensitive information may be stored there.
-	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanEdit)
+	err = s.Authorizer.CheckPermission(r.Context(), r, entity.TypeServer.URL(), auth.EntitlementCanEdit)
 	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {

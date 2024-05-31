@@ -330,8 +330,13 @@ func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newCo
 
 // warningsDelete deletes any persistent warnings for the pool.
 func (b *lxdBackend) warningsDelete() error {
-	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return cluster.DeleteWarnings(ctx, tx.Tx(), cluster.EntityType(entity.TypeStoragePool), int(b.ID()))
+	clusterEntityType, err := cluster.EntityTypeFromName(entity.TypeNameStoragePool)
+	if err != nil {
+		return fmt.Errorf("Failed to get cluster entity of type %q: %w", entity.TypeNameStoragePool, err)
+	}
+
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return cluster.DeleteWarnings(ctx, tx.Tx(), clusterEntityType, int(b.ID()))
 	})
 	if err != nil {
 		return fmt.Errorf("Failed deleting persistent warnings: %w", err)

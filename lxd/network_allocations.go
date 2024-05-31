@@ -141,7 +141,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 		// Get all the networks, their attached instances, their network forwards and their network load balancers.
 		for _, networkName := range networkNames {
-			if !userHasPermission(entity.NetworkURL(projectName, networkName)) {
+			if !userHasPermission(entity.TypeNetwork.URL(projectName, networkName)) {
 				continue
 			}
 

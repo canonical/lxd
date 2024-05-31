@@ -173,13 +173,19 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 		}
 	}
 
-	// Construct OpenFGA objects for the user (identity) and the entity.
-	entityType, _, _, _, err := entity.ParseURL(entityURL.URL)
+	// Deconstruct the given URL.
+	entityType, projectName, location, pathArguments, err := entity.ParseURL(entityURL.URL)
 	if err != nil {
 		return fmt.Errorf("Authorization driver failed to parse entity URL %q: %w", entityURL.String(), err)
 	}
 
-	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(protocol, username).String())
+	// Construct the URL in a standardised form (adding the project parameter if it was not present).
+	entityURL, err = entity.URL(entityType, projectName, location, pathArguments...)
+	if err != nil {
+		return fmt.Errorf("Failed to standardize entity URL: %w", err)
+	}
+
+	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.TypeIdentity.URL(protocol, username).String())
 	entityObject := fmt.Sprintf("%s:%s", entityType, entityURL.String())
 
 	// Construct an OpenFGA check request.
@@ -207,7 +213,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 		req.ContextualTuples.TupleKeys = append(req.ContextualTuples.TupleKeys, &openfgav1.TupleKey{
 			User:     userObject,
 			Relation: "member",
-			Object:   fmt.Sprintf("%s:%s", entity.TypeAuthGroup, entity.AuthGroupURL(groupName).String()),
+			Object:   fmt.Sprintf("%s:%s", entity.TypeAuthGroup, entity.TypeAuthGroup.URL(groupName).String()),
 		})
 	}
 
@@ -216,7 +222,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 		req.ContextualTuples.TupleKeys = append(req.ContextualTuples.TupleKeys, &openfgav1.TupleKey{
 			User:     userObject,
 			Relation: string(EntitlementOperator),
-			Object:   fmt.Sprintf("%s:%s", entity.TypeProject, entity.ProjectURL(projectName).String()),
+			Object:   fmt.Sprintf("%s:%s", entity.TypeProject, entity.TypeProject.URL(projectName).String()),
 		})
 	}
 
@@ -291,8 +297,8 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 
 	// There is only one server entity, so no need to do a ListObjects request if the entity type is a server. Instead perform a permission check against
 	// the server URL and return an appropriate PermissionChecker.
-	if entityType == entity.TypeServer {
-		err := e.CheckPermission(r.Context(), r, entity.ServerURL(), entitlement)
+	if entity.Equal(entity.TypeServer, entityType) {
+		err := e.CheckPermission(r.Context(), r, entity.TypeServer.URL(), entitlement)
 		if err == nil {
 			return allowFunc(true), nil
 		} else if IsDeniedError(err) {
@@ -366,10 +372,10 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 	}
 
 	// Construct an OpenFGA list objects request.
-	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(protocol, username).String())
+	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.TypeIdentity.URL(protocol, username).String())
 	req := &openfgav1.ListObjectsRequest{
 		StoreId:  dummyDatastoreULID,
-		Type:     entityType.String(),
+		Type:     string(entityType.Name()),
 		Relation: string(entitlement),
 		User:     userObject,
 		ContextualTuples: &openfgav1.ContextualTupleKeys{
@@ -389,7 +395,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 		req.ContextualTuples.TupleKeys = append(req.ContextualTuples.TupleKeys, &openfgav1.TupleKey{
 			User:     userObject,
 			Relation: "member",
-			Object:   fmt.Sprintf("%s:%s", entity.TypeAuthGroup, entity.AuthGroupURL(groupName).String()),
+			Object:   fmt.Sprintf("%s:%s", entity.TypeAuthGroup, entity.TypeAuthGroup.URL(groupName).String()),
 		})
 	}
 
@@ -398,7 +404,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 		req.ContextualTuples.TupleKeys = append(req.ContextualTuples.TupleKeys, &openfgav1.TupleKey{
 			User:     userObject,
 			Relation: string(EntitlementOperator),
-			Object:   fmt.Sprintf("%s:%s", entity.TypeProject, entity.ProjectURL(projectName).String()),
+			Object:   fmt.Sprintf("%s:%s", entity.TypeProject, entity.TypeProject.URL(projectName).String()),
 		})
 	}
 
@@ -413,7 +419,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 			err = openFGAInternalError.Internal()
 		}
 
-		return nil, fmt.Errorf("Failed to list OpenFGA objects of type %q with entitlement %q for user %q: %w", entityType.String(), entitlement, username, err)
+		return nil, fmt.Errorf("Failed to list OpenFGA objects of type %q with entitlement %q for user %q: %w", entityType.Name(), entitlement, username, err)
 	}
 
 	objects := resp.GetObjects()
@@ -421,7 +427,24 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 	// Return a permission checker that constructs an OpenFGA object from the given URL and returns true if the object is
 	// found in the list of objects in the response.
 	return func(entityURL *api.URL) bool {
-		object := fmt.Sprintf("%s:%s", entityType, entityURL.String())
+		parsedEntityType, projectName, location, pathArguments, err := entity.ParseURL(entityURL.URL)
+		if err != nil {
+			l.Error("Failed to parse permission checker entity URL", logger.Ctx{"url": entityURL.String(), "error": err})
+			return false
+		}
+
+		if parsedEntityType != entityType {
+			l.Error("Unexpected permission checker input URL", logger.Ctx{"expected_entity_type": entityType, "actual_entity_type": parsedEntityType, "url": entityURL.String()})
+			return false
+		}
+
+		standardisedEntityURL, err := entity.URL(entityType, projectName, location, pathArguments...)
+		if err != nil {
+			l.Error("Failed to standardise permission checker entity URL", logger.Ctx{"url": entityURL.String(), "error": err})
+			return false
+		}
+
+		object := fmt.Sprintf("%s:%s", entityType, standardisedEntityURL.String())
 		return shared.ValueInSlice(object, objects)
 	}, nil
 }
