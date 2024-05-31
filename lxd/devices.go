@@ -514,7 +514,13 @@ func deviceTaskBalance(s *state.State) {
 
 		cpulimit, ok := conf["limits.cpu"]
 		if !ok || cpulimit == "" {
-			cpulimit = effectiveCpus
+			// For VMs empty limits.cpu means 1,
+			// but for containers it means "unlimited"
+			if c.Type() == instancetype.VM {
+				cpulimit = "1"
+			} else {
+				cpulimit = effectiveCpus
+			}
 		}
 
 		// Check that the instance is running.
