@@ -401,13 +401,13 @@ func SetCaps(path string, caps []byte, uid int64) error {
 }
 
 // ShiftACL updates uid and gid for file ACLs when entering/exiting a namespace
-func ShiftACL(path string, shiftIds func(uid int64, gid int64) (int64, int64)) error {
-	err := shiftAclType(path, C.ACL_TYPE_ACCESS, shiftIds)
+func ShiftACL(path string, shiftIDs func(uid int64, gid int64) (int64, int64)) error {
+	err := shiftACLType(path, C.ACL_TYPE_ACCESS, shiftIDs)
 	if err != nil {
 		return err
 	}
 
-	err = shiftAclType(path, C.ACL_TYPE_DEFAULT, shiftIds)
+	err = shiftACLType(path, C.ACL_TYPE_DEFAULT, shiftIDs)
 	if err != nil {
 		return err
 	}
@@ -415,7 +415,7 @@ func ShiftACL(path string, shiftIds func(uid int64, gid int64) (int64, int64)) e
 	return nil
 }
 
-func shiftAclType(path string, aclType int, shiftIds func(uid int64, gid int64) (int64, int64)) error {
+func shiftACLType(path string, aclType int, shiftIDs func(uid int64, gid int64) (int64, int64)) error {
 	// Convert the path to something usable with cgo
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
@@ -430,12 +430,12 @@ func shiftAclType(path string, aclType int, shiftIds func(uid int64, gid int64) 
 
 	// Iterate through all ACL entries
 	update := false
-	for entryId := C.ACL_FIRST_ENTRY; ; entryId = C.ACL_NEXT_ENTRY {
+	for entryID := C.ACL_FIRST_ENTRY; ; entryID = C.ACL_NEXT_ENTRY {
 		var ent C.acl_entry_t
 		var tag C.acl_tag_t
 
 		// Get the ACL entry
-		ret := C.acl_get_entry(acl, C.int(entryId), &ent)
+		ret := C.acl_get_entry(acl, C.int(entryID), &ent)
 		if ret == 0 {
 			break
 		} else if ret < 0 {
@@ -460,15 +460,15 @@ func shiftAclType(path string, aclType int, shiftIds func(uid int64, gid int64) 
 		}
 
 		// Shift the value
-		newId := int64(-1)
+		newID := int64(-1)
 		if tag == C.ACL_USER {
-			newId, _ = shiftIds((int64)(*idp), -1)
+			newID, _ = shiftIDs((int64)(*idp), -1)
 		} else {
-			_, newId = shiftIds(-1, (int64)(*idp))
+			_, newID = shiftIDs(-1, (int64)(*idp))
 		}
 
 		// Update the new entry with the shifted value
-		ret = C.acl_set_qualifier(ent, unsafe.Pointer(&newId))
+		ret = C.acl_set_qualifier(ent, unsafe.Pointer(&newID))
 		if ret == -1 {
 			return fmt.Errorf("Failed to set ACL qualifier on %s", path)
 		}
@@ -487,6 +487,7 @@ func shiftAclType(path string, aclType int, shiftIds func(uid int64, gid int64) 
 	return nil
 }
 
+// SupportsVFS3Fscaps checks if VFS3Fscaps are supported
 func SupportsVFS3Fscaps(prefix string) bool {
 	tmpfile, err := os.CreateTemp(prefix, ".lxd_fcaps_v3_")
 	if err != nil {
@@ -523,6 +524,7 @@ func SupportsVFS3Fscaps(prefix string) bool {
 	return true
 }
 
+// UnshiftACL performs an UID/GID unshift on the ACL xattr value in accordance with idmap (set) provided
 func UnshiftACL(value string, set *IdmapSet) (string, error) {
 	if set == nil {
 		return "", fmt.Errorf("Invalid IdmapSet supplied")
@@ -551,10 +553,10 @@ func UnshiftACL(value string, set *IdmapSet) (string, error) {
 		return "", fmt.Errorf("No valid ACLs found")
 	}
 
-	entry_ptr := C.posix_entry_start(unsafe.Pointer(header))
-	end_entry_ptr := C.posix_entry_end(entry_ptr, C.size_t(count))
-	for entry_ptr != end_entry_ptr {
-		entry := (*C.struct_posix_acl_xattr_entry)(entry_ptr)
+	entryPtr := C.posix_entry_start(unsafe.Pointer(header))
+	endEntryPtr := C.posix_entry_end(entryPtr, C.size_t(count))
+	for entryPtr != endEntryPtr {
+		entry := (*C.struct_posix_acl_xattr_entry)(entryPtr)
 		switch C.le16_to_native(entry.e_tag) {
 		case C.ACL_USER:
 			ouid := int64(C.le32_to_native(entry.e_id))
@@ -584,7 +586,7 @@ func UnshiftACL(value string, set *IdmapSet) (string, error) {
 			logger.Debugf("Ignoring unknown ACL type %d", C.le16_to_native(entry.e_tag))
 		}
 
-		entry_ptr = C.posix_entry_next(entry_ptr)
+		entryPtr = C.posix_entry_next(entryPtr)
 	}
 
 	buf = C.GoBytes(cBuf, C.int(size))
@@ -592,6 +594,7 @@ func UnshiftACL(value string, set *IdmapSet) (string, error) {
 	return string(buf), nil
 }
 
+// UnshiftCaps performs an UID/GID unshift on the security.capability xattr value in accordance with idmap (set) provided
 func UnshiftCaps(value string, set *IdmapSet) (string, error) {
 	if set == nil {
 		return "", fmt.Errorf("Invalid IdmapSet supplied")
@@ -618,14 +621,17 @@ func UnshiftCaps(value string, set *IdmapSet) (string, error) {
 	return string(buf), nil
 }
 
+// IdmapStorageType represents a file system idmapping type
 type IdmapStorageType string
 
+// Define IdmapStorageType type values
 const (
 	IdmapStorageNone     = "none"
 	IdmapStorageIdmapped = "idmapped"
 	IdmapStorageShiftfs  = "shiftfs"
 )
 
+// CanIdmapMount checks if (fstype) filesystem supports idmapped mounts
 func CanIdmapMount(path string, fstype string) bool {
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
