@@ -23,7 +23,15 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   capability dac_read_search,
   capability ipc_lock,
 
-  /sys/devices/**/block/*/queue/max_segments  r,
+  /sys/devices/**/block/*/queue/max_segments r,
+  /sys/devices/**/block/*/queue/zoned r,
+  /sys/devices/virtual/nvme-subsystem/**/queue/max_segments r,
+  /sys/devices/virtual/nvme-subsystem/**/queue/zoned r,
+  /sys/devices/system/node/ r,
+  /sys/devices/system/node/*/meminfo r,
+
+  # PowerFlex storage driver specific for NVMe/TCP mode
+  network inet tcp,
 
 {{range $index, $element := .allowedCmdPaths}}
   {{$element}} mixr,
