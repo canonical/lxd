@@ -551,7 +551,7 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 	}
 
 	if cleanup != nil {
-		defer func() { cleanup() }()
+		defer cleanup()
 	}
 
 	oldSizeBytes, err := BlockDiskSizeBytes(devPath)
@@ -729,11 +729,6 @@ func (d *powerflex) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.
 	mountPath := vol.MountPath()
 	refCount := vol.MountRefCountDecrement()
 
-	volName, err := d.getVolumeName(vol)
-	if err != nil {
-		return false, err
-	}
-
 	// Attempt to unmount the volume.
 	if vol.contentType == ContentTypeFS && filesystem.IsMountPoint(mountPath) {
 		if refCount > 0 {
@@ -750,7 +745,7 @@ func (d *powerflex) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.
 
 		// Attempt to unmap.
 		if !keepBlockDev {
-			err = d.unmapVolume(volName)
+			err = d.unmapVolume(vol)
 			if err != nil {
 				return false, err
 			}
@@ -777,7 +772,7 @@ func (d *powerflex) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.
 				}
 
 				// Attempt to unmap.
-				err := d.unmapVolume(volName)
+				err := d.unmapVolume(vol)
 				if err != nil {
 					return false, err
 				}
