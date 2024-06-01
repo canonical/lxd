@@ -163,8 +163,11 @@ github.com/openfga/openfga/internal/condition/types
 github.com/openfga/openfga/internal/graph
 github.com/openfga/openfga/internal/keys
 github.com/openfga/openfga/internal/server/config
+github.com/openfga/openfga/internal/throttler
+github.com/openfga/openfga/internal/throttler/threshold
 github.com/openfga/openfga/internal/utils
 github.com/openfga/openfga/internal/validation
+github.com/openfga/openfga/pkg/dispatch
 github.com/openfga/openfga/pkg/encoder
 github.com/openfga/openfga/pkg/encrypter
 github.com/openfga/openfga/pkg/gateway
@@ -173,6 +176,7 @@ github.com/openfga/openfga/pkg/middleware/http
 github.com/openfga/openfga/pkg/middleware/validator
 github.com/openfga/openfga/pkg/server
 github.com/openfga/openfga/pkg/server/commands
+github.com/openfga/openfga/pkg/server/commands/listusers
 github.com/openfga/openfga/pkg/server/commands/reverseexpand
 github.com/openfga/openfga/pkg/server/errors
 github.com/openfga/openfga/pkg/storage
@@ -276,7 +280,7 @@ go.opentelemetry.io/otel/sdk/internal
 go.opentelemetry.io/otel/sdk/internal/env
 go.opentelemetry.io/otel/sdk/resource
 go.opentelemetry.io/otel/sdk/trace
-go.opentelemetry.io/otel/semconv/v1.24.0
+go.opentelemetry.io/otel/semconv/v1.25.0
 go.opentelemetry.io/otel/trace
 go.opentelemetry.io/otel/trace/embedded
 go.opentelemetry.io/otel/trace/noop
