@@ -82,6 +82,10 @@ If you want the current user to be able to interact with the LXD daemon, add it 
 getent group lxd | grep -qwF "$USER" || sudo usermod -aG lxd "$USER"
 ```
 
+```{note}
+{{must_start_new_session}}
+```
+
 (installing-other)=
 #### Other installation options
 
@@ -285,6 +289,10 @@ getent group lxd >/dev/null || sudo groupadd --system lxd # create the group if 
 getent group lxd | grep -qwF "$USER" || sudo usermod -aG lxd "$USER"
 ```
 
+```{note}
+{{must_start_new_session}}
+```
+
 Now you can run the daemon (the `--group sudo` bit allows everyone in the `sudo`
 group to talk to LXD; you can create your own group if you want):
 
@@ -313,6 +321,10 @@ No users are added to the group on installation. You must add trusted users to t
 
 ```bash
 getent group lxd | grep -qwF "$USER" || sudo usermod -aG lxd "$USER" # adding current user as an example
+```
+
+```{note}
+{{must_start_new_session}}
 ```
 
 Anyone added to this group will have full control over LXD. See {ref}`Access to the LXD daemon<security-daemon-access>` to better understand access control for LXD.
