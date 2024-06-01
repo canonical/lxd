@@ -54,6 +54,10 @@ If you prefer a different installation method, or use a Linux distribution that 
 
    This is needed to be granted permission to interact with LXD.
 
+    ```{note}
+    {{must_start_new_session}}
+    ```
+
 1. Enter the following command to initialize LXD:
 
        lxd init --minimal
