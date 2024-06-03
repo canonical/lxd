@@ -13,6 +13,7 @@ PA11Y         = $(SPHINXDIR)/node_modules/pa11y/bin/pa11y.js --config $(SPHINXDI
 VENV          = $(VENVDIR)/bin/activate
 TARGET        = *
 ALLFILES      =  *.rst **/*.rst
+ADDPREREQS    ?=
 
 .PHONY: sp-full-help sp-woke-install sp-pa11y-install sp-install sp-run sp-html \
         sp-epub sp-serve sp-clean sp-clean-doc sp-spelling sp-spellcheck sp-linkcheck sp-woke \
@@ -26,9 +27,13 @@ sp-full-help: $(VENVDIR)
 # Shouldn't assume that venv is available on Ubuntu by default; discussion here:
 # https://bugs.launchpad.net/ubuntu/+source/python3.4/+bug/1290847
 $(SPHINXDIR)/requirements.txt:
-	python3 $(SPHINXDIR)/build_requirements.py
 	@python3 -c "import venv" || \
         (echo "You must install python3-venv before you can build the documentation."; exit 1)
+	python3 -m venv $(VENVDIR)
+	@if [ ! -z "$(ADDPREREQS)" ]; then \
+          . $(VENV); pip install --require-virtualenv $(ADDPREREQS); \
+        fi
+	. $(VENV); python3 $(SPHINXDIR)/build_requirements.py
 
 # If requirements are updated, venv should be rebuilt and timestamped.
 $(VENVDIR): $(SPHINXDIR)/requirements.txt

@@ -28,15 +28,9 @@ help:
 client:
 	cd .. && $(MAKE) -f Makefile client
 
-.PHONY: add-prereqs
-add-prereqs:
-	# Workaround for https://github.com/canonical/sphinx-docs-starter-pack/issues/197
-	python3 -m venv .sphinx/venv
-	. .sphinx/venv/bin/activate ; pip install --require-virtualenv gitpython pyyaml
-
 .PHONY: install
-install: client add-prereqs clean-doc
-	$(MAKE) -f Makefile.sp sp-install LOCAL_SPHINX_BUILD=True
+install: client clean-doc
+	$(MAKE) -f Makefile.sp sp-install LOCAL_SPHINX_BUILD=True ADDPREREQS='gitpython pyyaml'
 
 .PHONY: clean-doc
 clean-doc:
@@ -54,7 +48,7 @@ lint:
 
 .PHONY: html incremental
 html incremental:
-	$(MAKE) -f Makefile.sp sp-html LOCAL_SPHINX_BUILD=True
+	$(MAKE) -f Makefile.sp sp-html LOCAL_SPHINX_BUILD=True ADDPREREQS='gitpython pyyaml'
 
 %:
-	$(MAKE) -f Makefile.sp sp-$@ LOCAL_SPHINX_BUILD=True ALLFILES='*.md **/*.md'
+	$(MAKE) -f Makefile.sp sp-$@ LOCAL_SPHINX_BUILD=True ALLFILES='*.md **/*.md' ADDPREREQS='gitpython pyyaml'
