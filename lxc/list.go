@@ -558,7 +558,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 		'e': {i18n.G("PROJECT"), c.projectColumnData, false, false},
 		'f': {i18n.G("BASE IMAGE"), c.baseImageColumnData, false, false},
 		'F': {i18n.G("BASE IMAGE"), c.baseImageFullColumnData, false, false},
-		'l': {i18n.G("LAST USED AT"), c.LastUsedColumnData, false, false},
+		'l': {i18n.G("LAST USED AT"), c.lastUsedColumnData, false, false},
 		'm': {i18n.G("MEMORY USAGE"), c.memoryUsageColumnData, true, false},
 		'M': {i18n.G("MEMORY USAGE%"), c.memoryUsagePercentColumnData, true, false},
 		'n': {i18n.G("NAME"), c.nameColumnData, false, false},
@@ -912,7 +912,7 @@ func (c *cmdList) createdColumnData(cInfo api.InstanceFull) string {
 	return ""
 }
 
-func (c *cmdList) LastUsedColumnData(cInfo api.InstanceFull) string {
+func (c *cmdList) lastUsedColumnData(cInfo api.InstanceFull) string {
 	layout := "2006/01/02 15:04 UTC"
 
 	if !cInfo.LastUsedAt.IsZero() && shared.TimeIsSet(cInfo.LastUsedAt) {
