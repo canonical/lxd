@@ -40,6 +40,7 @@ type cmdList struct {
 	shorthandFilters map[string]func(*api.Instance, *api.InstanceState, string) bool
 }
 
+// Command list instances.
 func (c *cmdList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:] [<filter>...]"))
@@ -445,6 +446,7 @@ func (c *cmdList) showInstances(instances []api.InstanceFull, filters []string, 
 	return cli.RenderTable(c.flagFormat, headers, data, instancesFiltered)
 }
 
+// Run executes the list command.
 func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
