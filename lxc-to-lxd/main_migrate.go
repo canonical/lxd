@@ -33,6 +33,7 @@ type cmdMigrate struct {
 	flagContainers []string
 }
 
+// Command line for lxc-to-lxd.
 func (c *cmdMigrate) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "lxc-to-lxd",
@@ -59,6 +60,7 @@ func (c *cmdMigrate) Command() *cobra.Command {
 	return cmd
 }
 
+// RunE executes the migrate command.
 func (c *cmdMigrate) RunE(cmd *cobra.Command, args []string) error {
 	if (len(c.flagContainers) == 0 && !c.flagAll) || (len(c.flagContainers) > 0 && c.flagAll) {
 		fmt.Fprintln(os.Stderr, "You must either pass container names or --all")
