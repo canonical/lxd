@@ -25,6 +25,7 @@ type cmdInfo struct {
 	flagTarget    string
 }
 
+// Command show instance or server information.
 func (c *cmdInfo) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("info", i18n.G("[<remote>:][<instance>]"))
@@ -46,6 +47,7 @@ lxc info [<remote>:] [--resources]
 	return cmd
 }
 
+// Run executes the info command.
 func (c *cmdInfo) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
