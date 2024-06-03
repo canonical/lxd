@@ -241,12 +241,12 @@ func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRo
 		}
 	}
 
-	if len(subnets) == 0 {
+	switch len(subnets) {
+	case 0:
 		return nil, fmt.Errorf("No IPv%d routes are available for this network", ipVersion)
-	}
-
-	if len(subnets) > 1 {
-		// Shuffle the subnets so we aren't always picking from the same one.
+	case 1: // Do nothing.
+	default:
+		// Shuffle the subnets so we aren't always picking from the first one.
 		for i := range subnets {
 			j := rand.Intn(i + 1)
 			subnets[i], subnets[j] = subnets[j], subnets[i]
