@@ -280,6 +280,7 @@ type udpSession struct {
 	timerLock sync.Mutex
 }
 
+// Command setup network connection proxying.
 func (c *cmdForkproxy) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -403,6 +404,7 @@ type lStruct struct {
 	lAddrIndex int
 }
 
+// Run executes the fork proxy command.
 func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	// Only root should run this
 	if os.Geteuid() != 0 {
