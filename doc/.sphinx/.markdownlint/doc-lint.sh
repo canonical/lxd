@@ -9,28 +9,28 @@ trap "rm -rf .tmp/" EXIT
 
 ## Preprocessing
 
-for fn in $(find doc/ -name '*.md'); do
-    mkdir -p $(dirname ".tmp/$fn");
-    sed -E "s/(\(.+\)=)/\1\n/" $fn > .tmp/$fn;
+for fn in $(find . -name '*.md'); do
+    mkdir -p $(dirname ".tmp/doc/$fn");
+    sed -E "s/(\(.+\)=)/\1\n/" $fn > .tmp/doc/$fn;
 done
 
 rm -rf .tmp/doc/reference/manpages/
 
-mdl .tmp/doc -sdoc/.sphinx/.markdownlint/style.rb -udoc/.sphinx/.markdownlint/rules.rb --ignore-front-matter > .tmp/errors.txt || true
+mdl .tmp/doc -s.sphinx/.markdownlint/style.rb -u.sphinx/.markdownlint/rules.rb --ignore-front-matter > .tmp/errors.txt || true
 
 ## Postprocessing
 
 sed -i '/^$/,$d' .tmp/errors.txt
 
 # Check for unneeded exceptions
-unneeded_exceptions="$(grep -vxFf .tmp/errors.txt doc/.sphinx/.markdownlint/exceptions.txt)" || true
+unneeded_exceptions="$(grep -vxFf .tmp/errors.txt .sphinx/.markdownlint/exceptions.txt)" || true
 if [ -n "${unneeded_exceptions}" ]; then
     echo "Failed due to unneeded exceptions rules!"
     echo "${unneeded_exceptions}"
     exit 1
 fi
 
-filtered_errors="$(grep -vxFf doc/.sphinx/.markdownlint/exceptions.txt .tmp/errors.txt)" || true
+filtered_errors="$(grep -vxFf .sphinx/.markdownlint/exceptions.txt .tmp/errors.txt)" || true
 
 if [ -z "$filtered_errors" ]; then
     echo "Passed!"
