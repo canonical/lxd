@@ -157,6 +157,35 @@ func (d *disk) sourceIsLocalPath(source string) bool {
 	return true
 }
 
+// Check for inadequate sharing of block volumes.
+func (d *disk) checkBlockVolSharing(instanceType instancetype.Type, projectName string, volume *api.StorageVolume) error {
+	if instanceType == instancetype.Any {
+		return fmt.Errorf("Cannot add custom storage block volume to profile if security.shared is false or unset")
+	}
+
+	usedByInstance := false
+
+	err := storagePools.VolumeUsedByInstanceDevices(d.state, d.pool.Name(), projectName, volume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+		// Don't count the current instance.
+		if d.inst != nil && d.inst.Project().Name == inst.Project && d.inst.Name() == inst.Name {
+			return nil
+		}
+
+		usedByInstance = true
+
+		return db.ErrListStop
+	})
+	if err != nil && err != db.ErrListStop {
+		return err
+	}
+
+	if usedByInstance {
+		return fmt.Errorf("Cannot add custom storage block volume to more than one instancen nor to profiles if security.shared is false or unset")
+	}
+
+	return nil
+}
+
 // validateConfig checks the supplied config for correctness.
 func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
@@ -464,28 +493,9 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 
 			// Check that only shared custom storage block volume are added to profiles, or multiple instances.
 			if shared.IsFalseOrEmpty(dbVolume.Config["security.shared"]) && contentType == cluster.StoragePoolVolumeContentTypeBlock {
-				if instConf.Type() == instancetype.Any {
-					return fmt.Errorf("Cannot add custom storage block volume to profile if security.shared is false or unset")
-				}
-
-				usedByInstance := false
-
-				err = storagePools.VolumeUsedByInstanceDevices(d.state, d.pool.Name(), storageProjectName, &dbVolume.StorageVolume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
-					// Don't count the current instance.
-					if d.inst != nil && d.inst.Project().Name == inst.Project && d.inst.Name() == inst.Name {
-						return nil
-					}
-
-					usedByInstance = true
-
-					return db.ErrListStop
-				})
-				if err != nil && err != db.ErrListStop {
+				err := d.checkBlockVolSharing(instConf.Type(), storageProjectName, &dbVolume.StorageVolume)
+				if err != nil {
 					return err
-				}
-
-				if usedByInstance {
-					return fmt.Errorf("Cannot add custom storage block volume to more than one instance if security.shared is false or unset")
 				}
 			}
 		}
