@@ -652,7 +652,8 @@ func (e noAvailableAddressErr) Unwrap() error {
 
 // randomAddressInSubnet finds a random address within a given subnet. If given, the validate function is called for
 // each randomly generated value. Each time validate returns an error, another IP address will be generated until all
-// IPs have been exhausted or the context is cancelled.
+// IPs have been exhausted or the context is cancelled. If no addresses are available in the subnet, a noAvailableAddressErr
+// is returned so that this can be detected by the caller.
 func randomAddressInSubnet(ctx context.Context, subnet net.IPNet, validate func(net.IP) error) (net.IP, error) {
 	ones, size := subnet.Mask.Size()
 	subnetExponent := size - ones
