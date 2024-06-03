@@ -3080,22 +3080,33 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 		return nil, err
 	}
 
-	// Check the listen address subnet doesn't fall within any existing network external subnets.
-	for _, externalSubnetUser := range externalSubnetsInUse {
-		// Check if usage is from our own network.
-		if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
-			// Skip checking conflict with our own network's subnet or SNAT address.
-			// But do not allow other conflict with other usage types within our own network.
-			if externalSubnetUser.usageType == subnetUsageNetwork || externalSubnetUser.usageType == subnetUsageNetworkSNAT {
-				continue
+	checkAddressNotInUse := func(netip *net.IPNet) (bool, error) {
+		// Check the listen address subnet doesn't fall within any existing network external subnets.
+		for _, externalSubnetUser := range externalSubnetsInUse {
+			// Check if usage is from our own network.
+			if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
+				// Skip checking conflict with our own network's subnet or SNAT address.
+				// But do not allow other conflict with other usage types within our own network.
+				if externalSubnetUser.usageType == subnetUsageNetwork || externalSubnetUser.usageType == subnetUsageNetworkSNAT {
+					continue
+				}
+			}
+
+			if SubnetContains(&externalSubnetUser.subnet, netip) || SubnetContains(netip, &externalSubnetUser.subnet) {
+				return false, nil
 			}
 		}
 
-		if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
-			// This error is purposefully vague so that it doesn't reveal any names of
-			// resources potentially outside of the network.
-			return nil, fmt.Errorf("Forward listen address %q overlaps with another network or NIC", listenAddressNet.String())
-		}
+		return true, nil
+	}
+
+	isValid, err := checkAddressNotInUse(listenAddressNet)
+	if err != nil {
+		return nil, err
+	} else if !isValid {
+		// This error is purposefully vague so that it doesn't reveal any names of
+		// resources potentially outside of the network.
+		return nil, fmt.Errorf("Forward listen address %q overlaps with another network or NIC", listenAddressNet.String())
 	}
 
 	revert := revert.New()
