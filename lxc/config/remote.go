@@ -81,7 +81,7 @@ func (c *Config) getPrivateRemoteByName(name string) (*Remote, error) {
 	return remote, nil
 }
 
-// getPrivateRemoteByName returns the Remote with the given name.
+// getPublicRemoteByName returns the Remote with the given name.
 func (c *Config) getPublicRemoteByName(name string) (*Remote, error) {
 	// Handle "local" on non-Linux
 	if name == "local" && runtime.GOOS != "linux" {
