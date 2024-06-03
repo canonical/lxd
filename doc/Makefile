@@ -24,5 +24,37 @@ help:
         "* other possible targets:                    make <TAB twice> \n" \
         "------------------------------------------------------------- \n"
 
+.PHONY: client
+client:
+	cd .. && $(MAKE) -f Makefile client
+
+.PHONY: add-prereqs
+add-prereqs:
+	# Workaround for https://github.com/canonical/sphinx-docs-starter-pack/issues/197
+	python3 -m venv .sphinx/venv
+	. .sphinx/venv/bin/activate ; pip install --require-virtualenv gitpython pyyaml
+
+.PHONY: install
+install: client add-prereqs clean-doc
+	$(MAKE) -f Makefile.sp sp-install LOCAL_SPHINX_BUILD=True
+
+.PHONY: clean-doc
+clean-doc:
+	find reference/manpages/ -name "*.md" -type f -delete
+	$(MAKE) -f Makefile.sp sp-clean-doc
+
+.PHONY: objects
+objects:
+	# provide a decoded version of objects.inv to the UI
+	. .sphinx/venv/bin/activate ; cd _build; python3 -m sphinx.ext.intersphinx 'objects.inv' > objects.inv.txt
+
+.PHONY: lint
+lint:
+	.sphinx/.markdownlint/doc-lint.sh
+
+.PHONY: html incremental
+html incremental:
+	$(MAKE) -f Makefile.sp sp-html LOCAL_SPHINX_BUILD=True
+
 %:
-	$(MAKE) -f Makefile.sp sp-$@
+	$(MAKE) -f Makefile.sp sp-$@ LOCAL_SPHINX_BUILD=True ALLFILES='*.md **/*.md'
