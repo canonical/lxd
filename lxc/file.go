@@ -71,8 +71,7 @@ func fileGetWrapper(server lxd.InstanceServer, inst string, path string) (buf io
 	}
 }
 
-// Command manage files in instances.
-func (c *cmdFile) Command() *cobra.Command {
+func (c *cmdFile) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("file")
 	cmd.Short = i18n.G("Manage files in instances")
@@ -81,23 +80,23 @@ func (c *cmdFile) Command() *cobra.Command {
 
 	// Delete
 	fileDeleteCmd := cmdFileDelete{global: c.global, file: c}
-	cmd.AddCommand(fileDeleteCmd.Command())
+	cmd.AddCommand(fileDeleteCmd.command())
 
 	// Pull
 	filePullCmd := cmdFilePull{global: c.global, file: c}
-	cmd.AddCommand(filePullCmd.Command())
+	cmd.AddCommand(filePullCmd.command())
 
 	// Push
 	filePushCmd := cmdFilePush{global: c.global, file: c}
-	cmd.AddCommand(filePushCmd.Command())
+	cmd.AddCommand(filePushCmd.command())
 
 	// Edit
 	fileEditCmd := cmdFileEdit{global: c.global, file: c, filePull: &filePullCmd, filePush: &filePushCmd}
-	cmd.AddCommand(fileEditCmd.Command())
+	cmd.AddCommand(fileEditCmd.command())
 
 	// Mount
 	fileMountCmd := cmdFileMount{global: c.global, file: c}
-	cmd.AddCommand(fileMountCmd.Command())
+	cmd.AddCommand(fileMountCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -111,8 +110,7 @@ type cmdFileDelete struct {
 	file   *cmdFile
 }
 
-// Command delete files in instances.
-func (c *cmdFileDelete) Command() *cobra.Command {
+func (c *cmdFileDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"))
 	cmd.Aliases = []string{"rm"}
@@ -120,13 +118,12 @@ func (c *cmdFileDelete) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Delete files in instances`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-// Run executes the file delete command.
-func (c *cmdFileDelete) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdFileDelete) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
@@ -163,21 +160,19 @@ type cmdFileEdit struct {
 	filePush *cmdFilePush
 }
 
-// Command edit files in instances.
-func (c *cmdFileEdit) Command() *cobra.Command {
+func (c *cmdFileEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<instance>/<path>"))
 	cmd.Short = i18n.G("Edit files in instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Edit files in instances`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-// Run executes the file edit command.
-func (c *cmdFileEdit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdFileEdit) run(cmd *cobra.Command, args []string) error {
 	c.filePush.noModeChange = true
 
 	// Quick checks.
@@ -188,7 +183,7 @@ func (c *cmdFileEdit) Run(cmd *cobra.Command, args []string) error {
 
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(getStdinFd()) {
-		return c.filePush.Run(cmd, append([]string{os.Stdin.Name()}, args[0]))
+		return c.filePush.run(cmd, append([]string{os.Stdin.Name()}, args[0]))
 	}
 
 	// Create temp file
@@ -207,7 +202,7 @@ func (c *cmdFileEdit) Run(cmd *cobra.Command, args []string) error {
 
 	// Extract current value
 	defer func() { _ = os.Remove(fname) }()
-	err = c.filePull.Run(cmd, append([]string{args[0]}, fname))
+	err = c.filePull.run(cmd, append([]string{args[0]}, fname))
 	if err != nil {
 		return err
 	}
@@ -219,7 +214,7 @@ func (c *cmdFileEdit) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Push the result
-	err = c.filePush.Run(cmd, append([]string{fname}, args[0]))
+	err = c.filePush.run(cmd, append([]string{fname}, args[0]))
 	if err != nil {
 		return err
 	}
@@ -235,8 +230,7 @@ type cmdFilePull struct {
 	edit bool
 }
 
-// Command pull files from the instances.
-func (c *cmdFilePull) Command() *cobra.Command {
+func (c *cmdFilePull) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("pull", i18n.G("[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"))
 	cmd.Short = i18n.G("Pull files from instances")
@@ -248,13 +242,12 @@ func (c *cmdFilePull) Command() *cobra.Command {
 
 	cmd.Flags().BoolVarP(&c.file.flagMkdir, "create-dirs", "p", false, i18n.G("Create any directories necessary"))
 	cmd.Flags().BoolVarP(&c.file.flagRecursive, "recursive", "r", false, i18n.G("Recursively transfer files"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-// Run executes the file pull command.
-func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdFilePull) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
@@ -459,8 +452,7 @@ type cmdFilePush struct {
 	noModeChange bool
 }
 
-// Command push files into the instances.
-func (c *cmdFilePush) Command() *cobra.Command {
+func (c *cmdFilePush) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("push", i18n.G("<source path>... [<remote>:]<instance>/<path>"))
 	cmd.Short = i18n.G("Push files into instances")
@@ -475,13 +467,12 @@ func (c *cmdFilePush) Command() *cobra.Command {
 	cmd.Flags().IntVar(&c.file.flagUID, "uid", -1, i18n.G("Set the file's uid on push")+"``")
 	cmd.Flags().IntVar(&c.file.flagGID, "gid", -1, i18n.G("Set the file's gid on push")+"``")
 	cmd.Flags().StringVar(&c.file.flagMode, "mode", "", i18n.G("Set the file's perms on push")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-// Run executes the file push command.
-func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdFilePush) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
@@ -974,8 +965,7 @@ type cmdFileMount struct {
 	flagAuthUser string
 }
 
-// Command mount files from instances.
-func (c *cmdFileMount) Command() *cobra.Command {
+func (c *cmdFileMount) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("mount", i18n.G("[<remote>:]<instance>[/<path>] [<target path>]"))
 	cmd.Short = i18n.G("Mount files from instances")
@@ -985,7 +975,7 @@ func (c *cmdFileMount) Command() *cobra.Command {
 		`lxc file mount foo/root fooroot
    To mount /root from the instance foo onto the local fooroot directory.`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().StringVar(&c.flagListen, "listen", "", i18n.G("Setup SSH SFTP listener on address:port instead of mounting"))
 	cmd.Flags().BoolVar(&c.flagAuthNone, "no-auth", false, i18n.G("Disable authentication when using SSH SFTP listener"))
 	cmd.Flags().StringVar(&c.flagAuthUser, "auth-user", "", i18n.G("Set authentication user when using SSH SFTP listener"))
@@ -993,8 +983,7 @@ func (c *cmdFileMount) Command() *cobra.Command {
 	return cmd
 }
 
-// Run executes the file mount command.
-func (c *cmdFileMount) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdFileMount) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {

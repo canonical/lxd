@@ -21,7 +21,7 @@ type cmdNetworkPeer struct {
 	global *cmdGlobal
 }
 
-func (c *cmdNetworkPeer) Command() *cobra.Command {
+func (c *cmdNetworkPeer) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("peer")
 	cmd.Short = i18n.G("Manage network peerings")
@@ -29,35 +29,35 @@ func (c *cmdNetworkPeer) Command() *cobra.Command {
 
 	// List.
 	networkPeerListCmd := cmdNetworkPeerList{global: c.global, networkPeer: c}
-	cmd.AddCommand(networkPeerListCmd.Command())
+	cmd.AddCommand(networkPeerListCmd.command())
 
 	// Show.
 	networkPeerShowCmd := cmdNetworkPeerShow{global: c.global, networkPeer: c}
-	cmd.AddCommand(networkPeerShowCmd.Command())
+	cmd.AddCommand(networkPeerShowCmd.command())
 
 	// Create.
 	networkPeerCreateCmd := cmdNetworkPeerCreate{global: c.global, networkPeer: c}
-	cmd.AddCommand(networkPeerCreateCmd.Command())
+	cmd.AddCommand(networkPeerCreateCmd.command())
 
 	// Get,
 	networkPeerGetCmd := cmdNetworkPeerGet{global: c.global, networkPeer: c}
-	cmd.AddCommand(networkPeerGetCmd.Command())
+	cmd.AddCommand(networkPeerGetCmd.command())
 
 	// Set.
 	networkPeerSetCmd := cmdNetworkPeerSet{global: c.global, networkPeer: c}
-	cmd.AddCommand(networkPeerSetCmd.Command())
+	cmd.AddCommand(networkPeerSetCmd.command())
 
 	// Unset.
 	networkPeerUnsetCmd := cmdNetworkPeerUnset{global: c.global, networkPeer: c, networkPeerSet: &networkPeerSetCmd}
-	cmd.AddCommand(networkPeerUnsetCmd.Command())
+	cmd.AddCommand(networkPeerUnsetCmd.command())
 
 	// Edit.
 	networkPeerEditCmd := cmdNetworkPeerEdit{global: c.global, networkPeer: c}
-	cmd.AddCommand(networkPeerEditCmd.Command())
+	cmd.AddCommand(networkPeerEditCmd.command())
 
 	// Delete.
 	networkPeerDeleteCmd := cmdNetworkPeerDelete{global: c.global, networkPeer: c}
-	cmd.AddCommand(networkPeerDeleteCmd.Command())
+	cmd.AddCommand(networkPeerDeleteCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -73,20 +73,20 @@ type cmdNetworkPeerList struct {
 	flagFormat string
 }
 
-func (c *cmdNetworkPeerList) Command() *cobra.Command {
+func (c *cmdNetworkPeerList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]<network>"))
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List available network peers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("List available network peers"))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 
 	return cmd
 }
 
-func (c *cmdNetworkPeerList) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkPeerList) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -151,17 +151,17 @@ type cmdNetworkPeerShow struct {
 	networkPeer *cmdNetworkPeer
 }
 
-func (c *cmdNetworkPeerShow) Command() *cobra.Command {
+func (c *cmdNetworkPeerShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<network> <peer name>"))
 	cmd.Short = i18n.G("Show network peer configurations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Show network peer configurations"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdNetworkPeerShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkPeerShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -208,17 +208,17 @@ type cmdNetworkPeerCreate struct {
 	networkPeer *cmdNetworkPeer
 }
 
-func (c *cmdNetworkPeerCreate) Command() *cobra.Command {
+func (c *cmdNetworkPeerCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<network> <peer_name> <[target project/]target_network> [key=value...]"))
 	cmd.Short = i18n.G("Create new network peering")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Create new network peering"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdNetworkPeerCreate) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkPeerCreate) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
 	if exit {
@@ -324,18 +324,18 @@ type cmdNetworkPeerGet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdNetworkPeerGet) Command() *cobra.Command {
+func (c *cmdNetworkPeerGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<network> <peer_name> <key>"))
 	cmd.Short = i18n.G("Get values for network peer configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Get values for network peer configuration keys"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a network peer property"))
 	return cmd
 }
 
-func (c *cmdNetworkPeerGet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkPeerGet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
@@ -392,7 +392,7 @@ type cmdNetworkPeerSet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdNetworkPeerSet) Command() *cobra.Command {
+func (c *cmdNetworkPeerSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<network> <peer_name> <key>=<value>..."))
 	cmd.Short = i18n.G("Set network peer keys")
@@ -401,13 +401,13 @@ func (c *cmdNetworkPeerSet) Command() *cobra.Command {
 
 For backward compatibility, a single configuration key may still be set with:
     lxc network set [<remote>:]<network> <peer_name> <key> <value>`))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a network peer property"))
 	return cmd
 }
 
-func (c *cmdNetworkPeerSet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkPeerSet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
 	if exit {
@@ -481,18 +481,18 @@ type cmdNetworkPeerUnset struct {
 	flagIsProperty bool
 }
 
-func (c *cmdNetworkPeerUnset) Command() *cobra.Command {
+func (c *cmdNetworkPeerUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<network> <peer_name> <key>"))
 	cmd.Short = i18n.G("Unset network peer configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Unset network peer keys"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a network peer property"))
 	return cmd
 }
 
-func (c *cmdNetworkPeerUnset) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkPeerUnset) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
@@ -502,7 +502,7 @@ func (c *cmdNetworkPeerUnset) Run(cmd *cobra.Command, args []string) error {
 	c.networkPeerSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
-	return c.networkPeerSet.Run(cmd, args)
+	return c.networkPeerSet.run(cmd, args)
 }
 
 // Edit.
@@ -511,12 +511,12 @@ type cmdNetworkPeerEdit struct {
 	networkPeer *cmdNetworkPeer
 }
 
-func (c *cmdNetworkPeerEdit) Command() *cobra.Command {
+func (c *cmdNetworkPeerEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<network> <peer_name>"))
 	cmd.Short = i18n.G("Edit network peer configurations as YAML")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Edit network peer configurations as YAML"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
@@ -537,7 +537,7 @@ func (c *cmdNetworkPeerEdit) helpTemplate() string {
 ### Note that the name, target_project, target_network and status fields cannot be changed.`)
 }
 
-func (c *cmdNetworkPeerEdit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkPeerEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -635,18 +635,18 @@ type cmdNetworkPeerDelete struct {
 	networkPeer *cmdNetworkPeer
 }
 
-func (c *cmdNetworkPeerDelete) Command() *cobra.Command {
+func (c *cmdNetworkPeerDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<network> <peer_name>"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete network peerings")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Delete network peerings"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdNetworkPeerDelete) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkPeerDelete) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {

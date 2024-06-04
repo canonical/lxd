@@ -26,14 +26,14 @@ type cmdPublish struct {
 	flagReuse                bool
 }
 
-func (c *cmdPublish) Command() *cobra.Command {
+func (c *cmdPublish) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("publish", i18n.G("[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"))
 	cmd.Short = i18n.G("Publish instances as images")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Publish instances as images`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagMakePublic, "public", false, i18n.G("Make the image public"))
 	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, i18n.G("New alias to define at target")+"``")
 	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Stop the instance if currently running"))
@@ -44,7 +44,7 @@ func (c *cmdPublish) Command() *cobra.Command {
 	return cmd
 }
 
-func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	iName := ""

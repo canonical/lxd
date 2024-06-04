@@ -16,7 +16,7 @@ type cmdClusterRole struct {
 }
 
 // It uses the cmdGlobal, cmdCluster, and cmdClusterRole structs for context and operation.
-func (c *cmdClusterRole) Command() *cobra.Command {
+func (c *cmdClusterRole) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("role")
 	cmd.Short = i18n.G("Manage cluster roles")
@@ -24,11 +24,11 @@ func (c *cmdClusterRole) Command() *cobra.Command {
 
 	// Add
 	clusterRoleAddCmd := cmdClusterRoleAdd{global: c.global, cluster: c.cluster, clusterRole: c}
-	cmd.AddCommand(clusterRoleAddCmd.Command())
+	cmd.AddCommand(clusterRoleAddCmd.command())
 
 	// Remove
 	clusterRoleRemoveCmd := cmdClusterRoleRemove{global: c.global, cluster: c.cluster, clusterRole: c}
-	cmd.AddCommand(clusterRoleRemoveCmd.Command())
+	cmd.AddCommand(clusterRoleRemoveCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -43,20 +43,20 @@ type cmdClusterRoleAdd struct {
 }
 
 // Setting up the usage, short description, and long description of the command, as well as its RunE method.
-func (c *cmdClusterRoleAdd) Command() *cobra.Command {
+func (c *cmdClusterRoleAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:]<member> <role[,role...]>"))
 	cmd.Short = i18n.G("Add roles to a cluster member")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Add roles to a cluster member`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // It checks and parses input arguments, verifies role assignment, and updates the member's roles.
-func (c *cmdClusterRoleAdd) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdClusterRoleAdd) run(cmd *cobra.Command, args []string) error {
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -99,20 +99,20 @@ type cmdClusterRoleRemove struct {
 }
 
 // Removing the roles from a cluster member, setting up usage, descriptions, and the RunE method.
-func (c *cmdClusterRoleRemove) Command() *cobra.Command {
+func (c *cmdClusterRoleRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<member> <role[,role...]>"))
 	cmd.Short = i18n.G("Remove roles from a cluster member")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Remove roles from a cluster member`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // Run executes the removal of specified roles from a cluster member, checking inputs, validating role assignment, and updating the member's roles.
-func (c *cmdClusterRoleRemove) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdClusterRoleRemove) run(cmd *cobra.Command, args []string) error {
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err

@@ -29,7 +29,7 @@ type cmdMove struct {
 	flagAllowInconsistent bool
 }
 
-func (c *cmdMove) Command() *cobra.Command {
+func (c *cmdMove) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("move", i18n.G("[<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"))
 	cmd.Aliases = []string{"mv"}
@@ -54,7 +54,7 @@ lxc move <old name> <new name> [--instance-only]
 lxc move <instance>/<old snapshot name> <instance>/<new snapshot name>
     Rename a snapshot.`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the target instance")+"``")
 	cmd.Flags().StringArrayVarP(&c.flagDevice, "device", "d", nil, i18n.G("New key/value to apply to a specific device")+"``")
 	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the target instance")+"``")
@@ -70,7 +70,7 @@ lxc move <instance>/<old snapshot name> <instance>/<new snapshot name>
 	return cmd
 }
 
-func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdMove) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.
@@ -253,7 +253,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	del := cmdDelete{global: c.global}
 	del.flagForce = true
 	del.flagForceProtected = true
-	err = del.Run(cmd, args[:1])
+	err = del.run(cmd, args[:1])
 	if err != nil {
 		return fmt.Errorf("Failed to delete original instance after copying it: %w", err)
 	}

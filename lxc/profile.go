@@ -22,7 +22,7 @@ type cmdProfile struct {
 	global *cmdGlobal
 }
 
-func (c *cmdProfile) Command() *cobra.Command {
+func (c *cmdProfile) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("profile")
 	cmd.Short = i18n.G("Manage profiles")
@@ -31,59 +31,59 @@ func (c *cmdProfile) Command() *cobra.Command {
 
 	// Add
 	profileAddCmd := cmdProfileAdd{global: c.global, profile: c}
-	cmd.AddCommand(profileAddCmd.Command())
+	cmd.AddCommand(profileAddCmd.command())
 
 	// Assign
 	profileAssignCmd := cmdProfileAssign{global: c.global, profile: c}
-	cmd.AddCommand(profileAssignCmd.Command())
+	cmd.AddCommand(profileAssignCmd.command())
 
 	// Copy
 	profileCopyCmd := cmdProfileCopy{global: c.global, profile: c}
-	cmd.AddCommand(profileCopyCmd.Command())
+	cmd.AddCommand(profileCopyCmd.command())
 
 	// Create
 	profileCreateCmd := cmdProfileCreate{global: c.global, profile: c}
-	cmd.AddCommand(profileCreateCmd.Command())
+	cmd.AddCommand(profileCreateCmd.command())
 
 	// Delete
 	profileDeleteCmd := cmdProfileDelete{global: c.global, profile: c}
-	cmd.AddCommand(profileDeleteCmd.Command())
+	cmd.AddCommand(profileDeleteCmd.command())
 
 	// Device
 	profileDeviceCmd := cmdConfigDevice{global: c.global, profile: c}
-	cmd.AddCommand(profileDeviceCmd.Command())
+	cmd.AddCommand(profileDeviceCmd.command())
 
 	// Edit
 	profileEditCmd := cmdProfileEdit{global: c.global, profile: c}
-	cmd.AddCommand(profileEditCmd.Command())
+	cmd.AddCommand(profileEditCmd.command())
 
 	// Get
 	profileGetCmd := cmdProfileGet{global: c.global, profile: c}
-	cmd.AddCommand(profileGetCmd.Command())
+	cmd.AddCommand(profileGetCmd.command())
 
 	// List
 	profileListCmd := cmdProfileList{global: c.global, profile: c}
-	cmd.AddCommand(profileListCmd.Command())
+	cmd.AddCommand(profileListCmd.command())
 
 	// Remove
 	profileRemoveCmd := cmdProfileRemove{global: c.global, profile: c}
-	cmd.AddCommand(profileRemoveCmd.Command())
+	cmd.AddCommand(profileRemoveCmd.command())
 
 	// Rename
 	profileRenameCmd := cmdProfileRename{global: c.global, profile: c}
-	cmd.AddCommand(profileRenameCmd.Command())
+	cmd.AddCommand(profileRenameCmd.command())
 
 	// Set
 	profileSetCmd := cmdProfileSet{global: c.global, profile: c}
-	cmd.AddCommand(profileSetCmd.Command())
+	cmd.AddCommand(profileSetCmd.command())
 
 	// Show
 	profileShowCmd := cmdProfileShow{global: c.global, profile: c}
-	cmd.AddCommand(profileShowCmd.Command())
+	cmd.AddCommand(profileShowCmd.command())
 
 	// Unset
 	profileUnsetCmd := cmdProfileUnset{global: c.global, profile: c, profileSet: &profileSetCmd}
-	cmd.AddCommand(profileUnsetCmd.Command())
+	cmd.AddCommand(profileUnsetCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -97,19 +97,19 @@ type cmdProfileAdd struct {
 	profile *cmdProfile
 }
 
-func (c *cmdProfileAdd) Command() *cobra.Command {
+func (c *cmdProfileAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:]<instance> <profile>"))
 	cmd.Short = i18n.G("Add profiles to instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Add profiles to instances`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdProfileAdd) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProfileAdd) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -159,7 +159,7 @@ type cmdProfileAssign struct {
 	profile *cmdProfile
 }
 
-func (c *cmdProfileAssign) Command() *cobra.Command {
+func (c *cmdProfileAssign) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("assign", i18n.G("[<remote>:]<instance> <profiles>"))
 	cmd.Aliases = []string{"apply"}
@@ -176,12 +176,12 @@ lxc profile assign foo default
 lxc profile assign foo ''
     Remove all profile from "foo"`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdProfileAssign) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProfileAssign) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -242,7 +242,7 @@ type cmdProfileCopy struct {
 	flagRefresh       bool
 }
 
-func (c *cmdProfileCopy) Command() *cobra.Command {
+func (c *cmdProfileCopy) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("copy", i18n.G("[<remote>:]<profile> [<remote>:]<profile>"))
 	cmd.Aliases = []string{"cp"}
@@ -252,12 +252,12 @@ func (c *cmdProfileCopy) Command() *cobra.Command {
 	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
 	cmd.Flags().BoolVar(&c.flagRefresh, "refresh", false, i18n.G("Update the target profile from the source if it already exists"))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdProfileCopy) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProfileCopy) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -313,19 +313,19 @@ type cmdProfileCreate struct {
 	profile *cmdProfile
 }
 
-func (c *cmdProfileCreate) Command() *cobra.Command {
+func (c *cmdProfileCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<profile>"))
 	cmd.Short = i18n.G("Create profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Create profiles`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdProfileCreate) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProfileCreate) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -366,7 +366,7 @@ type cmdProfileDelete struct {
 	profile *cmdProfile
 }
 
-func (c *cmdProfileDelete) Command() *cobra.Command {
+func (c *cmdProfileDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<profile>"))
 	cmd.Aliases = []string{"rm"}
@@ -374,12 +374,12 @@ func (c *cmdProfileDelete) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Delete profiles`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdProfileDelete) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProfileDelete) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -417,7 +417,7 @@ type cmdProfileEdit struct {
 	profile *cmdProfile
 }
 
-func (c *cmdProfileEdit) Command() *cobra.Command {
+func (c *cmdProfileEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<profile>"))
 	cmd.Short = i18n.G("Edit profile configurations as YAML")
@@ -427,7 +427,7 @@ func (c *cmdProfileEdit) Command() *cobra.Command {
 		`lxc profile edit <profile> < profile.yaml
     Update a profile using the content of profile.yaml`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
@@ -453,7 +453,7 @@ func (c *cmdProfileEdit) helpTemplate() string {
 ### Note that the name is shown but cannot be changed`)
 }
 
-func (c *cmdProfileEdit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProfileEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -545,20 +545,20 @@ type cmdProfileGet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdProfileGet) Command() *cobra.Command {
+func (c *cmdProfileGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<profile> <key>"))
 	cmd.Short = i18n.G("Get values for profile configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get values for profile configuration keys`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a profile property"))
 	return cmd
 }
 
-func (c *cmdProfileGet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProfileGet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -605,7 +605,7 @@ type cmdProfileList struct {
 	flagFormat string
 }
 
-func (c *cmdProfileList) Command() *cobra.Command {
+func (c *cmdProfileList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
 	cmd.Aliases = []string{"ls"}
@@ -613,13 +613,13 @@ func (c *cmdProfileList) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`List profiles`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 
 	return cmd
 }
 
-func (c *cmdProfileList) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProfileList) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
@@ -667,19 +667,19 @@ type cmdProfileRemove struct {
 	profile *cmdProfile
 }
 
-func (c *cmdProfileRemove) Command() *cobra.Command {
+func (c *cmdProfileRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<instance> <profile>"))
 	cmd.Short = i18n.G("Remove profiles from instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Remove profiles from instances`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdProfileRemove) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProfileRemove) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -742,7 +742,7 @@ type cmdProfileRename struct {
 	profile *cmdProfile
 }
 
-func (c *cmdProfileRename) Command() *cobra.Command {
+func (c *cmdProfileRename) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("[<remote>:]<profile> <new-name>"))
 	cmd.Aliases = []string{"mv"}
@@ -750,12 +750,12 @@ func (c *cmdProfileRename) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Rename profiles`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdProfileRename) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProfileRename) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -795,7 +795,7 @@ type cmdProfileSet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdProfileSet) Command() *cobra.Command {
+func (c *cmdProfileSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<profile> <key><value>..."))
 	cmd.Short = i18n.G("Set profile configuration keys")
@@ -805,12 +805,12 @@ func (c *cmdProfileSet) Command() *cobra.Command {
 For backward compatibility, a single configuration key may still be set with:
     lxc profile set [<remote>:]<profile> <key> <value>`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a profile property"))
 	return cmd
 }
 
-func (c *cmdProfileSet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProfileSet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
@@ -871,19 +871,19 @@ type cmdProfileShow struct {
 	profile *cmdProfile
 }
 
-func (c *cmdProfileShow) Command() *cobra.Command {
+func (c *cmdProfileShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<profile>"))
 	cmd.Short = i18n.G("Show profile configurations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show profile configurations`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdProfileShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProfileShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -927,20 +927,20 @@ type cmdProfileUnset struct {
 	flagIsProperty bool
 }
 
-func (c *cmdProfileUnset) Command() *cobra.Command {
+func (c *cmdProfileUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<profile> <key>"))
 	cmd.Short = i18n.G("Unset profile configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Unset profile configuration keys`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a profile property"))
 
 	return cmd
 }
 
-func (c *cmdProfileUnset) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProfileUnset) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -950,5 +950,5 @@ func (c *cmdProfileUnset) Run(cmd *cobra.Command, args []string) error {
 	c.profileSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
-	return c.profileSet.Run(cmd, args)
+	return c.profileSet.run(cmd, args)
 }

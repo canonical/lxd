@@ -17,8 +17,8 @@ type cmdLaunch struct {
 	flagConsole string
 }
 
-func (c *cmdLaunch) Command() *cobra.Command {
-	cmd := c.init.Command()
+func (c *cmdLaunch) command() *cobra.Command {
+	cmd := c.init.command()
 	cmd.Use = usage("launch", i18n.G("[<remote>:]<image> [<remote>:][<name>]"))
 	cmd.Short = i18n.G("Create and start instances from images")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -40,7 +40,7 @@ lxc launch ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,si
 
 	cmd.Hidden = false
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().StringVar(&c.flagConsole, "console", "", i18n.G("Immediately attach to the console")+"``")
 	cmd.Flags().Lookup("console").NoOptDefVal = "console"
@@ -48,7 +48,7 @@ lxc launch ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,si
 	return cmd
 }
 
-func (c *cmdLaunch) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdLaunch) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.
