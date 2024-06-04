@@ -5,10 +5,11 @@ matrix:
     d: en_US
   dictionary:
     wordlists:
-    - doc/.wordlist.txt
-    output: doc/.sphinx/.wordlist.dic
+    - .wordlist.txt
+    - .custom_wordlist.txt
+    output: .sphinx/.wordlist.dic
   sources:
-  - doc/html/**/*.html|!doc/html/config-options/index.html|!doc/html/reference/manpages/**/*.html
+  - _build/**/*.html|!_build/config-options/index.html|!_build/reference/manpages/**/*.html
   pipeline:
   - pyspelling.filters.html:
       comments: false
@@ -22,9 +23,10 @@ matrix:
       - link
       - title
       - div.relatedlinks
+      - strong.command
       - span.guilabel
       - div.visually-hidden
       - img
       - a.p-navigation__link
+      - a.contributor
       - kbd
-      - strong.command

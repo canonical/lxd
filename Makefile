@@ -125,58 +125,11 @@ update-metadata: build
 	@echo "Generating golang documentation metadata"
 	$(GOPATH)/bin/lxd-metadata . --json ./lxd/metadata/configuration.json --txt ./doc/config_options.txt --substitution-db ./doc/substitutions.yaml
 
-.PHONY: doc-setup
-doc-setup: client
-	@echo "Setting up documentation build environment"
-	python3 -m venv doc/.sphinx/venv
-	# Workaround for https://github.com/canonical/sphinx-docs-starter-pack/issues/197
-	. $(SPHINXENV) ; pip install --require-virtualenv gitpython pyyaml
-	. $(SPHINXENV) ; cd doc && LOCAL_SPHINX_BUILD=True python3 .sphinx/build_requirements.py
-	. $(SPHINXENV) ; pip install --require-virtualenv --upgrade -r doc/.sphinx/requirements.txt --log doc/.sphinx/venv/pip_install.log
-	@test ! -f doc/.sphinx/venv/pip_list.txt || \
-        mv doc/.sphinx/venv/pip_list.txt doc/.sphinx/venv/pip_list.txt.bak
-	$(SPHINXPIPPATH) list --local --format=freeze > doc/.sphinx/venv/pip_list.txt
-	find doc/reference/manpages/ -name "*.md" -type f -delete
-	rm -Rf doc/html
-	rm -Rf doc/.sphinx/.doctrees
-
 .PHONY: doc
-doc: doc-setup doc-incremental doc-objects
+doc: doc-clean doc-install doc-html doc-objects
 
-.PHONY: doc-incremental
-doc-incremental:
-	@echo "Build the documentation"
-	. $(SPHINXENV) ; LOCAL_SPHINX_BUILD=True sphinx-build -c doc/ -b dirhtml doc/ doc/html/ -d doc/.sphinx/.doctrees -w doc/.sphinx/warnings.txt -j auto
-
-.PHONY: doc-objects
-doc-objects:
-	# provide a decoded version of objects.inv to the UI
-	. $(SPHINXENV); cd doc/html; python3 -m sphinx.ext.intersphinx 'objects.inv' > objects.inv.txt
-
-.PHONY: doc-serve
-doc-serve:
-	cd doc/html; python3 -m http.server --bind 127.0.0.1 8001
-
-.PHONY: doc-spellcheck
-doc-spellcheck: doc
-	. $(SPHINXENV) ; python3 -m pyspelling -c doc/.sphinx/spellingcheck.yaml -j $(shell nproc)
-
-.PHONY: doc-linkcheck
-doc-linkcheck: doc-setup
-	. $(SPHINXENV) ; LOCAL_SPHINX_BUILD=True sphinx-build -c doc/ -b linkcheck doc/ doc/html/ -d doc/.sphinx/.doctrees -j auto
-
-.PHONY: doc-lint
-doc-lint:
-	doc/.sphinx/.markdownlint/doc-lint.sh
-
-.PHONY:  woke-install
-woke-install:
-	@type woke >/dev/null 2>&1 || \
-        { echo "Installing \"woke\" snap... \n"; sudo snap install woke; }
-
-.PHONY: doc-woke
-doc-woke: woke-install
-	woke *.md **/*.md -c https://github.com/canonical/Inclusive-naming/raw/main/config.yml
+doc-%:
+	cd doc && $(MAKE) -f Makefile $*
 
 .PHONY: debug
 debug:
@@ -241,7 +194,7 @@ dist: doc
 	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
 
 	# Copy doc output
-	cp -r doc/html $(TMP)/lxd-$(VERSION)/doc/html/
+	cp -r doc/_build $(TMP)/lxd-$(VERSION)/doc/html/
 
 	# Assemble tarball
 	tar --exclude-vcs -C $(TMP) -zcf $(ARCHIVE).gz lxd-$(VERSION)/
