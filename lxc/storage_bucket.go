@@ -22,7 +22,7 @@ type cmdStorageBucket struct {
 	flagTarget string
 }
 
-func (c *cmdStorageBucket) Command() *cobra.Command {
+func (c *cmdStorageBucket) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("bucket")
 	cmd.Short = i18n.G("Manage storage buckets")
@@ -30,39 +30,39 @@ func (c *cmdStorageBucket) Command() *cobra.Command {
 
 	// Create.
 	storageBucketCreateCmd := cmdStorageBucketCreate{global: c.global, storageBucket: c}
-	cmd.AddCommand(storageBucketCreateCmd.Command())
+	cmd.AddCommand(storageBucketCreateCmd.command())
 
 	// Delete.
 	storageBucketDeleteCmd := cmdStorageBucketDelete{global: c.global, storageBucket: c}
-	cmd.AddCommand(storageBucketDeleteCmd.Command())
+	cmd.AddCommand(storageBucketDeleteCmd.command())
 
 	// Edit.
 	storageBucketEditCmd := cmdStorageBucketEdit{global: c.global, storageBucket: c}
-	cmd.AddCommand(storageBucketEditCmd.Command())
+	cmd.AddCommand(storageBucketEditCmd.command())
 
 	// Get.
 	storageBucketGetCmd := cmdStorageBucketGet{global: c.global, storageBucket: c}
-	cmd.AddCommand(storageBucketGetCmd.Command())
+	cmd.AddCommand(storageBucketGetCmd.command())
 
 	// List.
 	storageBucketListCmd := cmdStorageBucketList{global: c.global, storageBucket: c}
-	cmd.AddCommand(storageBucketListCmd.Command())
+	cmd.AddCommand(storageBucketListCmd.command())
 
 	// Set.
 	storageBucketSetCmd := cmdStorageBucketSet{global: c.global, storageBucket: c}
-	cmd.AddCommand(storageBucketSetCmd.Command())
+	cmd.AddCommand(storageBucketSetCmd.command())
 
 	// Show.
 	storageBucketShowCmd := cmdStorageBucketShow{global: c.global, storageBucket: c}
-	cmd.AddCommand(storageBucketShowCmd.Command())
+	cmd.AddCommand(storageBucketShowCmd.command())
 
 	// Unset.
 	storageBucketUnsetCmd := cmdStorageBucketUnset{global: c.global, storageBucket: c, storageBucketSet: &storageBucketSetCmd}
-	cmd.AddCommand(storageBucketUnsetCmd.Command())
+	cmd.AddCommand(storageBucketUnsetCmd.command())
 
 	// Key.
 	storageBucketKeyCmd := cmdStorageBucketKey{global: c.global, storageBucket: c}
-	cmd.AddCommand(storageBucketKeyCmd.Command())
+	cmd.AddCommand(storageBucketKeyCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -76,19 +76,19 @@ type cmdStorageBucketCreate struct {
 	storageBucket *cmdStorageBucket
 }
 
-func (c *cmdStorageBucketCreate) Command() *cobra.Command {
+func (c *cmdStorageBucketCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<pool> <bucket> [key=value...]"))
 	cmd.Short = i18n.G("Create new custom storage buckets")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Create new custom storage buckets`))
 
 	cmd.Flags().StringVar(&c.storageBucket.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageBucketCreate) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageBucketCreate) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
@@ -175,7 +175,7 @@ type cmdStorageBucketDelete struct {
 	storageBucket *cmdStorageBucket
 }
 
-func (c *cmdStorageBucketDelete) Command() *cobra.Command {
+func (c *cmdStorageBucketDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<pool> <bucket>"))
 	cmd.Aliases = []string{"rm"}
@@ -183,12 +183,12 @@ func (c *cmdStorageBucketDelete) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Delete storage buckets`))
 
 	cmd.Flags().StringVar(&c.storageBucket.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageBucketDelete) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageBucketDelete) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -237,7 +237,7 @@ type cmdStorageBucketEdit struct {
 	storageBucket *cmdStorageBucket
 }
 
-func (c *cmdStorageBucketEdit) Command() *cobra.Command {
+func (c *cmdStorageBucketEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<pool> <bucket>"))
 	cmd.Short = i18n.G("Edit storage bucket configurations as YAML")
@@ -246,7 +246,7 @@ func (c *cmdStorageBucketEdit) Command() *cobra.Command {
     Update a storage bucket using the content of bucket.yaml.`))
 
 	cmd.Flags().StringVar(&c.storageBucket.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
@@ -264,7 +264,7 @@ func (c *cmdStorageBucketEdit) helpTemplate() string {
 ###   size: "61203283968"`)
 }
 
-func (c *cmdStorageBucketEdit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageBucketEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -370,7 +370,7 @@ type cmdStorageBucketGet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdStorageBucketGet) Command() *cobra.Command {
+func (c *cmdStorageBucketGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<pool> <bucket> <key>"))
 	cmd.Short = i18n.G("Get values for storage bucket configuration keys")
@@ -378,12 +378,12 @@ func (c *cmdStorageBucketGet) Command() *cobra.Command {
 
 	cmd.Flags().StringVar(&c.storageBucket.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a storage bucket property"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageBucketGet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageBucketGet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
@@ -444,7 +444,7 @@ type cmdStorageBucketList struct {
 	flagFormat    string
 }
 
-func (c *cmdStorageBucketList) Command() *cobra.Command {
+func (c *cmdStorageBucketList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]<pool>"))
 	cmd.Aliases = []string{"ls"}
@@ -453,12 +453,12 @@ func (c *cmdStorageBucketList) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`List storage buckets`))
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageBucketList) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageBucketList) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
@@ -523,7 +523,7 @@ type cmdStorageBucketSet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdStorageBucketSet) Command() *cobra.Command {
+func (c *cmdStorageBucketSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<pool> <bucket> <key>=<value>..."))
 	cmd.Short = i18n.G("Set storage bucket configuration keys")
@@ -535,12 +535,12 @@ For backward compatibility, a single configuration key may still be set with:
 
 	cmd.Flags().StringVar(&c.storageBucket.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a storage bucket property"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageBucketSet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageBucketSet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
 	if exit {
@@ -617,7 +617,7 @@ type cmdStorageBucketShow struct {
 	storageBucket *cmdStorageBucket
 }
 
-func (c *cmdStorageBucketShow) Command() *cobra.Command {
+func (c *cmdStorageBucketShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<pool> <bucket>"))
 	cmd.Short = i18n.G("Show storage bucket configurations")
@@ -627,12 +627,12 @@ func (c *cmdStorageBucketShow) Command() *cobra.Command {
     Will show the properties of a bucket called "data" in the "default" pool.`))
 
 	cmd.Flags().StringVar(&c.storageBucket.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageBucketShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageBucketShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -686,7 +686,7 @@ type cmdStorageBucketUnset struct {
 	flagIsProperty bool
 }
 
-func (c *cmdStorageBucketUnset) Command() *cobra.Command {
+func (c *cmdStorageBucketUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<pool> <bucket> <key>"))
 	cmd.Short = i18n.G("Unset storage bucket configuration keys")
@@ -694,12 +694,12 @@ func (c *cmdStorageBucketUnset) Command() *cobra.Command {
 
 	cmd.Flags().StringVar(&c.storageBucket.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a storage bucket property"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageBucketUnset) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageBucketUnset) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
@@ -709,7 +709,7 @@ func (c *cmdStorageBucketUnset) Run(cmd *cobra.Command, args []string) error {
 	c.storageBucketSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
-	return c.storageBucketSet.Run(cmd, args)
+	return c.storageBucketSet.run(cmd, args)
 }
 
 // Key commands.
@@ -720,7 +720,7 @@ type cmdStorageBucketKey struct {
 	flagTarget string
 }
 
-func (c *cmdStorageBucketKey) Command() *cobra.Command {
+func (c *cmdStorageBucketKey) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("key")
 	cmd.Short = i18n.G("Manage storage bucket keys")
@@ -728,23 +728,23 @@ func (c *cmdStorageBucketKey) Command() *cobra.Command {
 
 	// Create.
 	storageBucketKeyCreateCmd := cmdStorageBucketKeyCreate{global: c.global, storageBucketKey: c}
-	cmd.AddCommand(storageBucketKeyCreateCmd.Command())
+	cmd.AddCommand(storageBucketKeyCreateCmd.command())
 
 	// Delete.
 	storageBucketKeyDeleteCmd := cmdStorageBucketKeyDelete{global: c.global, storageBucketKey: c}
-	cmd.AddCommand(storageBucketKeyDeleteCmd.Command())
+	cmd.AddCommand(storageBucketKeyDeleteCmd.command())
 
 	// Edit.
 	storageBucketKeyEditCmd := cmdStorageBucketKeyEdit{global: c.global, storageBucketKey: c}
-	cmd.AddCommand(storageBucketKeyEditCmd.Command())
+	cmd.AddCommand(storageBucketKeyEditCmd.command())
 
 	// List.
 	storageBucketKeyListCmd := cmdStorageBucketKeyList{global: c.global, storageBucketKey: c}
-	cmd.AddCommand(storageBucketKeyListCmd.Command())
+	cmd.AddCommand(storageBucketKeyListCmd.command())
 
 	// Show.
 	storageBucketKeyShowCmd := cmdStorageBucketKeyShow{global: c.global, storageBucketKey: c}
-	cmd.AddCommand(storageBucketKeyShowCmd.Command())
+	cmd.AddCommand(storageBucketKeyShowCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -759,7 +759,7 @@ type cmdStorageBucketKeyList struct {
 	flagFormat       string
 }
 
-func (c *cmdStorageBucketKeyList) Command() *cobra.Command {
+func (c *cmdStorageBucketKeyList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]<pool> <bucket>"))
 	cmd.Aliases = []string{"ls"}
@@ -769,12 +769,12 @@ func (c *cmdStorageBucketKeyList) Command() *cobra.Command {
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 	cmd.Flags().StringVar(&c.storageBucketKey.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageBucketKeyList) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageBucketKeyList) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -840,7 +840,7 @@ type cmdStorageBucketKeyCreate struct {
 	flagSecretKey    string
 }
 
-func (c *cmdStorageBucketKeyCreate) Command() *cobra.Command {
+func (c *cmdStorageBucketKeyCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<pool> <bucket> <key>"))
 	cmd.Short = i18n.G("Create key for a storage bucket")
@@ -918,7 +918,7 @@ type cmdStorageBucketKeyDelete struct {
 	storageBucketKey *cmdStorageBucketKey
 }
 
-func (c *cmdStorageBucketKeyDelete) Command() *cobra.Command {
+func (c *cmdStorageBucketKeyDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<pool> <bucket> <key>"))
 	cmd.Short = i18n.G("Delete key from a storage bucket")
@@ -982,7 +982,7 @@ type cmdStorageBucketKeyEdit struct {
 	storageBucketKey *cmdStorageBucketKey
 }
 
-func (c *cmdStorageBucketKeyEdit) Command() *cobra.Command {
+func (c *cmdStorageBucketKeyEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<pool> <bucket> <key>"))
 	cmd.Short = i18n.G("Edit storage bucket key as YAML")
@@ -991,7 +991,7 @@ func (c *cmdStorageBucketKeyEdit) Command() *cobra.Command {
     Update a storage bucket key using the content of key.yaml.`))
 
 	cmd.Flags().StringVar(&c.storageBucketKey.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
@@ -1009,7 +1009,7 @@ func (c *cmdStorageBucketKeyEdit) helpTemplate() string {
 ###   size: "61203283968"`)
 }
 
-func (c *cmdStorageBucketKeyEdit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageBucketKeyEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
@@ -1117,7 +1117,7 @@ type cmdStorageBucketKeyShow struct {
 	storageBucketKey *cmdStorageBucketKey
 }
 
-func (c *cmdStorageBucketKeyShow) Command() *cobra.Command {
+func (c *cmdStorageBucketKeyShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<pool> <bucket> <key>"))
 	cmd.Short = i18n.G("Show storage bucket key configurations")
@@ -1127,12 +1127,12 @@ func (c *cmdStorageBucketKeyShow) Command() *cobra.Command {
     Will show the properties of a bucket key called "foo" for a bucket called "data" in the "default" pool.`))
 
 	cmd.Flags().StringVar(&c.storageBucketKey.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageBucketKeyShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageBucketKeyShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {

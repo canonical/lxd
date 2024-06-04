@@ -20,14 +20,14 @@ type cmdRebuild struct {
 	flagForce bool
 }
 
-func (c *cmdRebuild) Command() *cobra.Command {
+func (c *cmdRebuild) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rebuild", i18n.G("[<remote>:]<image> [<remote>:]<instance>"))
 	cmd.Short = i18n.G("Rebuild instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Wipe the instance root disk and re-initialize. The original image is used to re-initialize the instance if a different image or --empty is not specified.`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagEmpty, "empty", false, i18n.G("Rebuild as an empty instance"))
 	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("If an instance is running, stop it and then rebuild it"))
 
@@ -205,7 +205,7 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 	return nil
 }
 
-func (c *cmdRebuild) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdRebuild) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 	if len(args) == 0 {
 		_ = cmd.Usage()

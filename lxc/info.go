@@ -25,8 +25,7 @@ type cmdInfo struct {
 	flagTarget    string
 }
 
-// Command show instance or server information.
-func (c *cmdInfo) Command() *cobra.Command {
+func (c *cmdInfo) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("info", i18n.G("[<remote>:][<instance>]"))
 	cmd.Short = i18n.G("Show instance or server information")
@@ -39,7 +38,7 @@ func (c *cmdInfo) Command() *cobra.Command {
 lxc info [<remote>:] [--resources]
     For LXD server information.`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, i18n.G("Show the instance's last 100 log lines?"))
 	cmd.Flags().BoolVar(&c.flagResources, "resources", false, i18n.G("Show the resources available to the server"))
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
@@ -47,8 +46,7 @@ lxc info [<remote>:] [--resources]
 	return cmd
 }
 
-// Run executes the info command.
-func (c *cmdInfo) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdInfo) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.

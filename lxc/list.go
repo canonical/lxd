@@ -40,8 +40,7 @@ type cmdList struct {
 	shorthandFilters map[string]func(*api.Instance, *api.InstanceState, string) bool
 }
 
-// Command list instances.
-func (c *cmdList) Command() *cobra.Command {
+func (c *cmdList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:] [<filter>...]"))
 	cmd.Aliases = []string{"ls"}
@@ -128,7 +127,7 @@ Custom columns are defined with "[config:|devices:]key[:name][:maxWidth]":
 lxc list -c ns,user.comment:comment
   List instances with their running state and user comment.`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultColumns, i18n.G("Columns")+"``")
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 	cmd.Flags().BoolVar(&c.flagFast, "fast", false, i18n.G("Fast mode (same as --columns=nsacPt)"))
@@ -446,8 +445,7 @@ func (c *cmdList) showInstances(instances []api.InstanceFull, filters []string, 
 	return cli.RenderTable(c.flagFormat, headers, data, instancesFiltered)
 }
 
-// Run executes the list command.
-func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdList) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.
