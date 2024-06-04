@@ -6,9 +6,9 @@ func (s *Server) Debug(zone string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.debug(zone)
+	return s.debug()
 }
 
-func (s *Server) debug(zone string) string {
+func (s *Server) debug() string {
 	return ""
 }

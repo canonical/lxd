@@ -34,7 +34,7 @@ func NetworkLoad(sysOS *sys.OS, n network) error {
 		return err
 	}
 
-	updated, err := dnsmasqProfile(sysOS, n)
+	updated, err := dnsmasqProfile(n)
 	if err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func NetworkLoad(sysOS *sys.OS, n network) error {
 			return err
 		}
 
-		updated, err := forkdnsProfile(sysOS, n)
+		updated, err := forkdnsProfile(n)
 		if err != nil {
 			return err
 		}

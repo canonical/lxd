@@ -442,8 +442,8 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 		}
 
 		d, ok := inst.(*qemu)
-		if !ok {
-			d.logger.Error("Failed to cast instance to *qemu")
+		if !ok || d == nil {
+			logger.Error("Failed to cast instance to *qemu")
 			return
 		}
 
@@ -1095,7 +1095,7 @@ func (d *qemu) validateRootDiskStatefulStop() error {
 
 // validateStartup checks any constraints that would prevent start up from succeeding under normal circumstances.
 func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
-	err := d.common.validateStartup(stateful, statusCode)
+	err := d.common.validateStartup(statusCode)
 	if err != nil {
 		return err
 	}
@@ -2137,7 +2137,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 		if instanceRunning {
 			// Attach network interface if requested.
 			if len(runConf.NetworkInterface) > 0 {
-				err = d.deviceAttachNIC(dev.Name(), configCopy, runConf.NetworkInterface)
+				err = d.deviceAttachNIC(dev.Name(), runConf.NetworkInterface)
 				if err != nil {
 					return nil, err
 				}
@@ -2145,12 +2145,12 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 
 			for _, mount := range runConf.Mounts {
 				if mount.FSType == "9p" {
-					err = d.deviceAttachPath(dev.Name(), configCopy, mount)
+					err = d.deviceAttachPath(dev.Name())
 					if err != nil {
 						return nil, err
 					}
 				} else {
-					err = d.deviceAttachBlockDevice(dev.Name(), configCopy, mount)
+					err = d.deviceAttachBlockDevice(mount)
 					if err != nil {
 						return nil, err
 					}
@@ -2177,7 +2177,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 	return runConf, nil
 }
 
-func (d *qemu) deviceAttachPath(deviceName string, configCopy map[string]string, mount deviceConfig.MountEntryItem) error {
+func (d *qemu) deviceAttachPath(deviceName string) error {
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
 	mountTag := fmt.Sprintf("lxd_%s", deviceName)
@@ -2277,7 +2277,7 @@ func (d *qemu) deviceAttachPath(deviceName string, configCopy map[string]string,
 	return nil
 }
 
-func (d *qemu) deviceAttachBlockDevice(deviceName string, configCopy map[string]string, mount deviceConfig.MountEntryItem) error {
+func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
@@ -2297,7 +2297,7 @@ func (d *qemu) deviceAttachBlockDevice(deviceName string, configCopy map[string]
 	return nil
 }
 
-func (d *qemu) deviceDetachPath(deviceName string, rawConfig deviceConfig.Device) error {
+func (d *qemu) deviceDetachPath(deviceName string) error {
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
 	mountTag := fmt.Sprintf("lxd_%s", deviceName)
@@ -2334,7 +2334,7 @@ func (d *qemu) deviceDetachPath(deviceName string, rawConfig deviceConfig.Device
 	return nil
 }
 
-func (d *qemu) deviceDetachBlockDevice(deviceName string, rawConfig deviceConfig.Device) error {
+func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
@@ -2377,7 +2377,7 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string, rawConfig deviceConfig
 }
 
 // deviceAttachNIC live attaches a NIC device to the instance.
-func (d *qemu) deviceAttachNIC(deviceName string, configCopy map[string]string, netIF []deviceConfig.RunConfigItem) error {
+func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfigItem) error {
 	devName := ""
 	for _, dev := range netIF {
 		if dev.Key == "link" {
@@ -2474,12 +2474,12 @@ func (d *qemu) deviceStop(dev device.Device, instanceRunning bool, _ string) err
 		// Detach disk from running instance.
 		if configCopy["type"] == "disk" {
 			if configCopy["path"] != "" {
-				err = d.deviceDetachPath(dev.Name(), configCopy)
+				err = d.deviceDetachPath(dev.Name())
 				if err != nil {
 					return err
 				}
 			} else {
-				err = d.deviceDetachBlockDevice(dev.Name(), configCopy)
+				err = d.deviceDetachBlockDevice(dev.Name())
 				if err != nil {
 					return err
 				}

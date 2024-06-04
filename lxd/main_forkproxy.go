@@ -280,6 +280,7 @@ type udpSession struct {
 	timerLock sync.Mutex
 }
 
+// Command setup network connection proxying.
 func (c *cmdForkproxy) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -339,7 +340,7 @@ func listenerInstance(epFd C.int, lAddr *deviceConfig.ProxyAddress, cAddr *devic
 				return
 			}
 
-			genericRelay(srcConn, dstConn, true)
+			genericRelay(srcConn, dstConn)
 			rearmUDPFd(epFd, connFd)
 		}()
 
@@ -391,7 +392,7 @@ func listenerInstance(epFd C.int, lAddr *deviceConfig.ProxyAddress, cAddr *devic
 		// Handle OOB if both src and dst are using unix sockets
 		go unixRelay(srcConn, dstConn)
 	} else {
-		go genericRelay(srcConn, dstConn, false)
+		go genericRelay(srcConn, dstConn)
 	}
 
 	return nil
@@ -403,6 +404,7 @@ type lStruct struct {
 	lAddrIndex int
 }
 
+// Run executes the fork proxy command.
 func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	// Only root should run this
 	if os.Geteuid() != 0 {
@@ -698,8 +700,8 @@ func proxyCopy(dst net.Conn, src net.Conn) error {
 	var err error
 
 	// Attempt casting to UDP connections
-	srcUdp, srcIsUdp := src.(*net.UDPConn)
-	dstUdp, dstIsUdp := dst.(*net.UDPConn)
+	srcUDP, srcIsUDP := src.(*net.UDPConn)
+	dstUDP, dstIsUDP := dst.(*net.UDPConn)
 
 	buf := make([]byte, 32*1024)
 	for {
@@ -707,9 +709,9 @@ func proxyCopy(dst net.Conn, src net.Conn) error {
 		var nr int
 		var er error
 
-		if srcIsUdp && srcUdp.RemoteAddr() == nil {
+		if srcIsUDP && srcUDP.RemoteAddr() == nil {
 			var addr net.Addr
-			nr, addr, er = srcUdp.ReadFrom(buf)
+			nr, addr, er = srcUDP.ReadFrom(buf)
 			if er == nil {
 				// Look for existing UDP session
 				udpSessionsLock.Lock()
@@ -746,7 +748,7 @@ func proxyCopy(dst net.Conn, src net.Conn) error {
 				us.timerLock.Unlock()
 
 				dst = us.target
-				dstUdp, dstIsUdp = dst.(*net.UDPConn)
+				dstUDP, dstIsUDP = dst.(*net.UDPConn)
 			}
 		} else {
 			nr, er = src.Read(buf)
@@ -763,7 +765,7 @@ func proxyCopy(dst net.Conn, src net.Conn) error {
 			var nw int
 			var ew error
 
-			if dstIsUdp && dstUdp.RemoteAddr() == nil {
+			if dstIsUDP && dstUDP.RemoteAddr() == nil {
 				var us *udpSession
 
 				udpSessionsLock.Lock()
@@ -783,7 +785,7 @@ func proxyCopy(dst net.Conn, src net.Conn) error {
 				us.timer.Reset(30 * time.Minute)
 				us.timerLock.Unlock()
 
-				nw, ew = dstUdp.WriteTo(buf[0:nr], us.client)
+				nw, ew = dstUDP.WriteTo(buf[0:nr], us.client)
 			} else {
 				nw, ew = dst.Write(buf[0:nr])
 			}
@@ -816,7 +818,7 @@ func proxyCopy(dst net.Conn, src net.Conn) error {
 	return err
 }
 
-func genericRelay(dst net.Conn, src net.Conn, timeout bool) {
+func genericRelay(dst net.Conn, src net.Conn) {
 	relayer := func(src net.Conn, dst net.Conn, ch chan error) {
 		ch <- proxyCopy(src, dst)
 		close(ch)

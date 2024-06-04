@@ -73,11 +73,11 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 	case "GET":
 		return instanceFileGet(s, inst, path, r)
 	case "HEAD":
-		return instanceFileHead(s, inst, path, r)
+		return instanceFileHead(inst, path)
 	case "POST":
 		return instanceFilePost(s, inst, path, r)
 	case "DELETE":
-		return instanceFileDelete(s, inst, path, r)
+		return instanceFileDelete(s, inst, path)
 	default:
 		return response.NotFound(fmt.Errorf("Method %q not found", r.Method))
 	}
@@ -259,9 +259,9 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFileRetrieved.Event(inst, logger.Ctx{"path": path}))
 		return response.SyncResponseHeaders(true, dirEnts, headers)
-	} else {
-		return response.InternalError(fmt.Errorf("Bad file type: %s", fileType))
 	}
+
+	return response.InternalError(fmt.Errorf("Bad file type: %s", fileType))
 }
 
 // swagger:operation HEAD /1.0/instances/{name}/files instances instance_files_head
@@ -314,7 +314,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func instanceFileHead(s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
+func instanceFileHead(inst instance.Instance, path string) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -561,9 +561,9 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFilePushed.Event(inst, logger.Ctx{"path": path}))
 		return response.EmptySyncResponse
-	} else {
-		return response.BadRequest(fmt.Errorf("Bad file type: %s", headers.Type))
 	}
+
+	return response.BadRequest(fmt.Errorf("Bad file type: %s", headers.Type))
 }
 
 // swagger:operation DELETE /1.0/instances/{name}/files instances instance_files_delete
@@ -597,7 +597,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func instanceFileDelete(s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
+func instanceFileDelete(s *state.State, inst instance.Instance, path string) response.Response {
 	// Get a SFTP client.
 	client, err := inst.FileSFTP()
 	if err != nil {
