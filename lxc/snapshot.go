@@ -64,13 +64,13 @@ func (c *cmdSnapshot) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if shared.IsSnapshot(name) {
-		if snapname == "" {
-			fields := strings.SplitN(name, shared.SnapshotDelimiter, 2)
-			name = fields[0]
-			snapname = fields[1]
-		} else {
+		if snapname != "" {
 			return fmt.Errorf(i18n.G("Invalid instance name: %s"), name)
 		}
+
+		fields := strings.SplitN(name, shared.SnapshotDelimiter, 2)
+		name = fields[0]
+		snapname = fields[1]
 	}
 
 	d, err := conf.GetInstanceServer(remote)

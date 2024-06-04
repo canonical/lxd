@@ -38,31 +38,30 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 	var name, image, remote, iremote string
 	var err error
 
-	if len(args) > 0 {
-		if len(args) == 1 {
-			remote, name, err = conf.ParseRemote(args[0])
-			if err != nil {
-				return err
-			}
-		} else if len(args) == 2 {
-			iremote, image, err = conf.ParseRemote(args[0])
-			if err != nil {
-				return err
-			}
-
-			remote, name, err = conf.ParseRemote(args[1])
-			if err != nil {
-				return err
-			}
+	switch len(args) {
+	case 1:
+		remote, name, err = conf.ParseRemote(args[0])
+		if err != nil {
+			return err
 		}
-	} else {
+
+	case 2:
+		iremote, image, err = conf.ParseRemote(args[0])
+		if err != nil {
+			return err
+		}
+
+		remote, name, err = conf.ParseRemote(args[1])
+		if err != nil {
+			return err
+		}
+
+	default:
 		return fmt.Errorf(i18n.G("Missing instance name"))
 	}
 
-	if c.flagEmpty {
-		if len(args) > 1 {
-			return fmt.Errorf(i18n.G("--empty cannot be combined with an image name"))
-		}
+	if c.flagEmpty && len(args) > 1 {
+		return fmt.Errorf(i18n.G("--empty cannot be combined with an image name"))
 	}
 
 	d, err := conf.GetInstanceServer(remote)
