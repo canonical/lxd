@@ -121,7 +121,7 @@ func (c *cmdLaunch) run(cmd *cobra.Command, args []string) error {
 		console := cmdConsole{}
 		console.global = c.global
 		console.flagType = c.flagConsole
-		return console.Console(d, name)
+		return console.runConsole(d, name)
 	}
 
 	return nil

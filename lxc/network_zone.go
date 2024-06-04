@@ -1225,26 +1225,26 @@ func (c *cmdNetworkZoneRecordEntry) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Manage network zone record entries"))
 
 	// Rule Add.
-	cmd.AddCommand(c.CommandAdd())
+	cmd.AddCommand(c.commandAdd())
 
 	// Rule Remove.
-	cmd.AddCommand(c.CommandRemove())
+	cmd.AddCommand(c.commandRemove())
 
 	return cmd
 }
 
-func (c *cmdNetworkZoneRecordEntry) CommandAdd() *cobra.Command {
+func (c *cmdNetworkZoneRecordEntry) commandAdd() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:]<zone> <record> <type> <value>"))
 	cmd.Short = i18n.G("Add a network zone record entry")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Add entries to a network zone record"))
-	cmd.RunE = c.RunAdd
+	cmd.RunE = c.runAdd
 	cmd.Flags().Uint64Var(&c.flagTTL, "ttl", 0, i18n.G("Entry TTL")+"``")
 
 	return cmd
 }
 
-func (c *cmdNetworkZoneRecordEntry) RunAdd(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkZoneRecordEntry) runAdd(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 4, 4)
 	if exit {
@@ -1279,17 +1279,17 @@ func (c *cmdNetworkZoneRecordEntry) RunAdd(cmd *cobra.Command, args []string) er
 	return resource.server.UpdateNetworkZoneRecord(resource.name, args[1], netRecord.Writable(), etag)
 }
 
-func (c *cmdNetworkZoneRecordEntry) CommandRemove() *cobra.Command {
+func (c *cmdNetworkZoneRecordEntry) commandRemove() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<zone> <record> <type> <value>"))
 	cmd.Short = i18n.G("Remove a network zone record entry")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Remove entries from a network zone record"))
-	cmd.RunE = c.RunRemove
+	cmd.RunE = c.runRemove
 
 	return cmd
 }
 
-func (c *cmdNetworkZoneRecordEntry) RunRemove(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkZoneRecordEntry) runRemove(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 4, 4)
 	if exit {
