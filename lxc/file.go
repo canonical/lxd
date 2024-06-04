@@ -43,10 +43,14 @@ type cmdFile struct {
 	flagRecursive bool
 }
 
-func fileGetWrapper(server lxd.InstanceServer, inst string, path string) (buf io.ReadCloser, resp *lxd.InstanceFileResponse, err error) {
+func fileGetWrapper(server lxd.InstanceServer, inst string, path string) (io.ReadCloser, *lxd.InstanceFileResponse, error) {
 	// Signal handling
 	chSignal := make(chan os.Signal, 1)
 	signal.Notify(chSignal, os.Interrupt)
+
+	var buf io.ReadCloser
+	var resp *lxd.InstanceFileResponse
+	var err error
 
 	// Operation handling
 	chDone := make(chan bool)
