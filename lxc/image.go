@@ -1204,14 +1204,14 @@ func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool 
 				list := cmdList{}
 				list.global = c.global
 				if list.dotPrefixMatch(key, configKey) {
-					//try to test filter value as a regexp
+					// Try to test filter value as a regexp.
 					regexpValue := value
 					if !(strings.Contains(value, "^") || strings.Contains(value, "$")) {
 						regexpValue = "^" + regexpValue + "$"
 					}
 
 					r, err := regexp.Compile(regexpValue)
-					//if not regexp compatible use original value
+					// If not regexp compatible use original value.
 					if err != nil {
 						if value == configValue {
 							found = true
