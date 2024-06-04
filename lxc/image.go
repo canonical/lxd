@@ -863,7 +863,11 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 	opAPI := op.Get()
 
 	// Get the fingerprint
-	fingerprint := opAPI.Metadata["fingerprint"].(string)
+	fingerprint, ok := opAPI.Metadata["fingerprint"].(string)
+	if !ok {
+		return fmt.Errorf(`Invalid type %T for "fingerprint" key in operation metadata`, fingerprint)
+	}
+
 	progress.Done(fmt.Sprintf(i18n.G("Image imported with fingerprint: %s"), fingerprint))
 
 	// Add the aliases
@@ -1406,7 +1410,10 @@ func (c *cmdImageRefresh) run(cmd *cobra.Command, args []string) error {
 		refreshed := false
 		flag, ok := opAPI.Metadata["refreshed"]
 		if ok {
-			refreshed = flag.(bool)
+			refreshed, ok = flag.(bool)
+			if !ok {
+				return fmt.Errorf(`Invalid type %T for "refreshed" key in operation metadata`, flag)
+			}
 		}
 
 		if refreshed {
