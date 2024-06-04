@@ -306,7 +306,7 @@ func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 
 	// Delete images if necessary
 	if c.flagReuse && len(existingAliases) > 0 {
-		visitedImages := make(map[string]interface{})
+		visitedImages := make(map[string]any)
 		for _, alias := range existingAliases {
 			image, _, _ := d.GetImage(alias.Target)
 
