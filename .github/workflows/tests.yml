@@ -492,6 +492,12 @@ jobs:
           set -eux
           make doc-lint
 
+      - name: Build docs (Sphinx)
+        run: |
+          set -eux
+          make doc
+          if [ -s doc/.sphinx/warnings.txt ]; then cat doc/.sphinx/warnings.txt; exit 1; fi
+
       - name: Run spell checker
         run: |
           set -eux
@@ -510,18 +516,12 @@ jobs:
           set -eux
           make doc-linkcheck
 
-      - name: Build docs (Sphinx)
-        run: |
-          set -eux
-          make doc
-          if [ -s doc/.sphinx/warnings.txt ]; then cat doc/.sphinx/warnings.txt; exit 1; fi
-
       - name: Upload documentation artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: documentation
-          path: doc/html
+          path: doc/_build
 
   snap:
     name: Trigger snap edge build
