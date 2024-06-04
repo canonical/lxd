@@ -24,6 +24,7 @@ import (
 	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/termios"
 	"github.com/canonical/lxd/shared/units"
 )
@@ -306,6 +307,9 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	reverter := revert.New()
+	defer reverter.Fail()
+
 	for _, resource := range resources {
 		pathSpec := strings.SplitN(resource.name, "/", 2)
 		if len(pathSpec) != 2 {
@@ -403,7 +407,7 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 				return err
 			}
 
-			defer func() { _ = f.Close() }()
+			reverter.Add(func() { _ = f.Close() })
 
 			err = os.Chmod(targetPath, os.FileMode(resp.Mode))
 			if err != nil {
@@ -599,6 +603,9 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Missing target directory"))
 	}
 
+	reverter := revert.New()
+	defer reverter.Fail()
+
 	// Make sure all of the files are accessible by us before trying to push any of them
 	var files []*os.File
 	for _, f := range sourcefilenames {
@@ -612,7 +619,7 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		defer func() { _ = file.Close() }()
+		reverter.Add(func() { _ = file.Close() })
 		files = append(files, file)
 	}
 
