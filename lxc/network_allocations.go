@@ -44,7 +44,7 @@ func (c *cmdNetworkListAllocations) pretty(allocs []api.NetworkAllocations) erro
 	return cli.RenderTable(c.flagFormat, header, data, allocs)
 }
 
-func (c *cmdNetworkListAllocations) Command() *cobra.Command {
+func (c *cmdNetworkListAllocations) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list-allocations")
 	cmd.Short = i18n.G("List network allocations in use")
@@ -52,7 +52,7 @@ func (c *cmdNetworkListAllocations) Command() *cobra.Command {
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.MaximumNArgs(1)
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 	cmd.Flags().StringVarP(&c.flagProject, "project", "p", "default", i18n.G("Run again a specific project"))
@@ -60,7 +60,7 @@ func (c *cmdNetworkListAllocations) Command() *cobra.Command {
 	return cmd
 }
 
-func (c *cmdNetworkListAllocations) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkListAllocations) run(cmd *cobra.Command, args []string) error {
 	remote := ""
 	if len(args) > 0 {
 		remote = args[0]

@@ -25,7 +25,7 @@ type cmdConfig struct {
 
 // Command creates a Cobra command for managing instance and server configurations,
 // including options for device, edit, get, metadata, profile, set, show, template, trust, and unset.
-func (c *cmdConfig) Command() *cobra.Command {
+func (c *cmdConfig) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("config")
 	cmd.Short = i18n.G("Manage instance and server configuration options")
@@ -34,50 +34,50 @@ func (c *cmdConfig) Command() *cobra.Command {
 
 	// Device
 	configDeviceCmd := cmdConfigDevice{global: c.global, config: c}
-	cmd.AddCommand(configDeviceCmd.Command())
+	cmd.AddCommand(configDeviceCmd.command())
 
 	// Edit
 	configEditCmd := cmdConfigEdit{global: c.global, config: c}
-	cmd.AddCommand(configEditCmd.Command())
+	cmd.AddCommand(configEditCmd.command())
 
 	// Get
 	configGetCmd := cmdConfigGet{global: c.global, config: c}
-	cmd.AddCommand(configGetCmd.Command())
+	cmd.AddCommand(configGetCmd.command())
 
 	// Metadata
 	configMetadataCmd := cmdConfigMetadata{global: c.global, config: c}
-	cmd.AddCommand(configMetadataCmd.Command())
+	cmd.AddCommand(configMetadataCmd.command())
 
 	// Profile
 	configProfileCmd := cmdProfile{global: c.global}
-	profileCmd := configProfileCmd.Command()
+	profileCmd := configProfileCmd.command()
 	profileCmd.Hidden = true
 	profileCmd.Deprecated = i18n.G("please use `lxc profile`")
 	cmd.AddCommand(profileCmd)
 
 	// Set
 	configSetCmd := cmdConfigSet{global: c.global, config: c}
-	cmd.AddCommand(configSetCmd.Command())
+	cmd.AddCommand(configSetCmd.command())
 
 	// Show
 	configShowCmd := cmdConfigShow{global: c.global, config: c}
-	cmd.AddCommand(configShowCmd.Command())
+	cmd.AddCommand(configShowCmd.command())
 
 	// Template
 	configTemplateCmd := cmdConfigTemplate{global: c.global, config: c}
-	cmd.AddCommand(configTemplateCmd.Command())
+	cmd.AddCommand(configTemplateCmd.command())
 
 	// Trust
 	configTrustCmd := cmdConfigTrust{global: c.global, config: c}
-	cmd.AddCommand(configTrustCmd.Command())
+	cmd.AddCommand(configTrustCmd.command())
 
 	// Unset
 	configUnsetCmd := cmdConfigUnset{global: c.global, config: c, configSet: &configSetCmd}
-	cmd.AddCommand(configUnsetCmd.Command())
+	cmd.AddCommand(configUnsetCmd.command())
 
 	// Uefi
 	configUefiCmd := cmdConfigUefi{global: c.global, config: c}
-	cmd.AddCommand(configUefiCmd.Command())
+	cmd.AddCommand(configUefiCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -92,7 +92,7 @@ type cmdConfigEdit struct {
 }
 
 // Command creates a Cobra command to edit instance or server configurations using YAML, with optional flags for targeting cluster members.
-func (c *cmdConfigEdit) Command() *cobra.Command {
+func (c *cmdConfigEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:][<instance>[/<snapshot>]]"))
 	cmd.Short = i18n.G("Edit instance or server configurations as YAML")
@@ -103,7 +103,7 @@ func (c *cmdConfigEdit) Command() *cobra.Command {
     Update the instance configuration from config.yaml.`))
 
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
@@ -131,7 +131,7 @@ func (c *cmdConfigEdit) helpTemplate() string {
 }
 
 // Run executes the config edit command, allowing users to edit instance or server configurations via an interactive YAML editor.
-func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
@@ -377,7 +377,7 @@ type cmdConfigGet struct {
 
 // Command creates a Cobra command to fetch values for given instance or server configuration keys,
 // with optional flags for expanded configuration and cluster targeting.
-func (c *cmdConfigGet) Command() *cobra.Command {
+func (c *cmdConfigGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:][<instance>] <key>"))
 	cmd.Short = i18n.G("Get values for instance or server configuration keys")
@@ -387,13 +387,13 @@ func (c *cmdConfigGet) Command() *cobra.Command {
 	cmd.Flags().BoolVarP(&c.flagExpanded, "expanded", "e", false, i18n.G("Access the expanded configuration"))
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as an instance property"))
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // Run fetches and prints the specified configuration key's value for an instance or server, also handling target and expansion flags.
-func (c *cmdConfigGet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigGet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
@@ -510,7 +510,7 @@ type cmdConfigSet struct {
 }
 
 // Command creates a new Cobra command to set instance or server configuration keys and returns it.
-func (c *cmdConfigSet) Command() *cobra.Command {
+func (c *cmdConfigSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:][<instance>] <key>=<value>..."))
 	cmd.Short = i18n.G("Set instance or server configuration keys")
@@ -531,13 +531,13 @@ lxc config set core.trust_password=blah
 
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as an instance property"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // Run executes the "set" command, updating instance or server configuration keys based on provided arguments.
-func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigSet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
@@ -727,7 +727,7 @@ type cmdConfigShow struct {
 }
 
 // Command sets up the "show" command, which displays instance or server configurations based on the provided arguments.
-func (c *cmdConfigShow) Command() *cobra.Command {
+func (c *cmdConfigShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:][<instance>[/<snapshot>]]"))
 	cmd.Short = i18n.G("Show instance or server configurations")
@@ -736,13 +736,13 @@ func (c *cmdConfigShow) Command() *cobra.Command {
 
 	cmd.Flags().BoolVarP(&c.flagExpanded, "expanded", "e", false, i18n.G("Show the expanded configuration"))
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // Run executes the "show" command, displaying the YAML-formatted configuration of a specified server or instance.
-func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
@@ -851,7 +851,7 @@ type cmdConfigUnset struct {
 }
 
 // Command generates a new "unset" command to remove specific configuration keys for an instance or server.
-func (c *cmdConfigUnset) Command() *cobra.Command {
+func (c *cmdConfigUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:][<instance>] <key>"))
 	cmd.Short = i18n.G("Unset instance or server configuration keys")
@@ -860,13 +860,13 @@ func (c *cmdConfigUnset) Command() *cobra.Command {
 
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as an instance property"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // Run executes the "unset" command, delegating to the "set" command to remove specific configuration keys.
-func (c *cmdConfigUnset) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigUnset) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
@@ -876,7 +876,7 @@ func (c *cmdConfigUnset) Run(cmd *cobra.Command, args []string) error {
 	c.configSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
-	return c.configSet.Run(cmd, args)
+	return c.configSet.run(cmd, args)
 }
 
 type cmdConfigUefi struct {
@@ -886,7 +886,7 @@ type cmdConfigUefi struct {
 
 // Command creates a Cobra command for managing virtual machine instance UEFI variables,
 // including options for get, set, unset, show, edit.
-func (c *cmdConfigUefi) Command() *cobra.Command {
+func (c *cmdConfigUefi) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("uefi")
 	cmd.Short = i18n.G("Manage instance UEFI variables")
@@ -895,23 +895,23 @@ func (c *cmdConfigUefi) Command() *cobra.Command {
 
 	// Get
 	configUefiGetCmd := cmdConfigUefiGet{global: c.global, configUefi: c}
-	cmd.AddCommand(configUefiGetCmd.Command())
+	cmd.AddCommand(configUefiGetCmd.command())
 
 	// Set
 	configUefiSetCmd := cmdConfigUefiSet{global: c.global, configUefi: c}
-	cmd.AddCommand(configUefiSetCmd.Command())
+	cmd.AddCommand(configUefiSetCmd.command())
 
 	// Unset
 	configUefiUnsetCmd := cmdConfigUefiUnset{global: c.global, configUefi: c, configSet: &configUefiSetCmd}
-	cmd.AddCommand(configUefiUnsetCmd.Command())
+	cmd.AddCommand(configUefiUnsetCmd.command())
 
 	// Show
 	configUefiShowCmd := cmdConfigUefiShow{global: c.global, configUefi: c}
-	cmd.AddCommand(configUefiShowCmd.Command())
+	cmd.AddCommand(configUefiShowCmd.command())
 
 	// Edit
 	configUefiEditCmd := cmdConfigUefiEdit{global: c.global, configUefi: c}
-	cmd.AddCommand(configUefiEditCmd.Command())
+	cmd.AddCommand(configUefiEditCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -926,20 +926,20 @@ type cmdConfigUefiGet struct {
 }
 
 // Command creates a Cobra command to fetch virtual machine instance UEFI variables.
-func (c *cmdConfigUefiGet) Command() *cobra.Command {
+func (c *cmdConfigUefiGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<instance> <key>"))
 	cmd.Short = i18n.G("Get UEFI variables for instance")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get UEFI variables for instance`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // Run fetches and prints the specified UEFI variable's value.
-func (c *cmdConfigUefiGet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigUefiGet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -981,7 +981,7 @@ type cmdConfigUefiSet struct {
 }
 
 // Command creates a new Cobra command to set virtual machine instance UEFI variables.
-func (c *cmdConfigUefiSet) Command() *cobra.Command {
+func (c *cmdConfigUefiSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<instance> <key>=<value>..."))
 	cmd.Short = i18n.G("Set UEFI variables for instance")
@@ -991,13 +991,13 @@ func (c *cmdConfigUefiSet) Command() *cobra.Command {
 		`lxc config uefi set [<remote>:]<instance> testvar-9073e4e0-60ec-4b6e-9903-4c223c260f3c=aabb
     Set a UEFI variable with name "testvar", GUID 9073e4e0-60ec-4b6e-9903-4c223c260f3c and value "aabb" (HEX-encoded) for the instance.`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // Run executes the "set" command, updating virtual machine instance UEFI variables based on provided arguments.
-func (c *cmdConfigUefiSet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigUefiSet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
@@ -1072,20 +1072,20 @@ type cmdConfigUefiUnset struct {
 }
 
 // Command generates a new "unset" command to remove specific virtual machine instance UEFI variable.
-func (c *cmdConfigUefiUnset) Command() *cobra.Command {
+func (c *cmdConfigUefiUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<instance> <key>"))
 	cmd.Short = i18n.G("Unset UEFI variables for instance")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Unset UEFI variables for instance`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // Run executes the "unset" command, delegating to the "set" command to remove specific UEFI variable.
-func (c *cmdConfigUefiUnset) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigUefiUnset) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -1093,7 +1093,7 @@ func (c *cmdConfigUefiUnset) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	args = append(args, "")
-	return c.configSet.Run(cmd, args)
+	return c.configSet.run(cmd, args)
 }
 
 // Show.
@@ -1103,20 +1103,20 @@ type cmdConfigUefiShow struct {
 }
 
 // Command sets up the "show" command, which displays virtual machine instance UEFI variables based on the provided arguments.
-func (c *cmdConfigUefiShow) Command() *cobra.Command {
+func (c *cmdConfigUefiShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<instance>"))
 	cmd.Short = i18n.G("Show instance UEFI variables")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show instance UEFI variables`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // Run executes the "show" command, displaying the YAML-formatted configuration of a virtual machine instance UEFI variables.
-func (c *cmdConfigUefiShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigUefiShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -1157,7 +1157,7 @@ type cmdConfigUefiEdit struct {
 }
 
 // Command creates a Cobra command to edit virtual machine instance UEFI variables.
-func (c *cmdConfigUefiEdit) Command() *cobra.Command {
+func (c *cmdConfigUefiEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<instance>"))
 	cmd.Short = i18n.G("Edit instance UEFI variables")
@@ -1167,7 +1167,7 @@ func (c *cmdConfigUefiEdit) Command() *cobra.Command {
 		`lxc config uefi edit <instance> < instance_uefi_vars.yaml
     Set the instance UEFI variables from instance_uefi_vars.yaml.`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
@@ -1208,7 +1208,7 @@ func (c *cmdConfigUefiEdit) helpTemplate() string {
 }
 
 // Run executes the config edit command, allowing users to edit virtual machine instance UEFI variables via an interactive YAML editor.
-func (c *cmdConfigUefiEdit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigUefiEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {

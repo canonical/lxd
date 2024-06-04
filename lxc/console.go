@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -29,7 +30,7 @@ type cmdConsole struct {
 	flagType    string
 }
 
-func (c *cmdConsole) Command() *cobra.Command {
+func (c *cmdConsole) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("console", i18n.G("[<remote>:]<instance>"))
 	cmd.Short = i18n.G("Attach to instance consoles")
@@ -39,7 +40,7 @@ func (c *cmdConsole) Command() *cobra.Command {
 This command allows you to interact with the boot console of an instance
 as well as retrieve past log entries from it.`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, i18n.G("Retrieve the instance's console log"))
 	cmd.Flags().StringVarP(&c.flagType, "type", "t", "console", i18n.G("Type of connection to establish: 'console' for serial console, 'vga' for SPICE graphical output")+"``")
 
@@ -94,7 +95,7 @@ func (er stdinMirror) Read(p []byte) (int, error) {
 	return n, err
 }
 
-func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConsole) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.
@@ -140,10 +141,10 @@ func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	return c.Console(d, name)
+	return c.runConsole(d, name)
 }
 
-func (c *cmdConsole) Console(d lxd.InstanceServer, name string) error {
+func (c *cmdConsole) runConsole(d lxd.InstanceServer, name string) error {
 	if c.flagType == "" {
 		c.flagType = "console"
 	}
@@ -288,7 +289,11 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 			return err
 		}
 
-		addr := listener.Addr().(*net.TCPAddr)
+		addr, ok := listener.Addr().(*net.TCPAddr)
+		if !ok {
+			return errors.New("Failed to get TCP listen address")
+		}
+
 		socket = fmt.Sprintf("spice://127.0.0.1:%d", addr.Port)
 	}
 

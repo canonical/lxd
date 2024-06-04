@@ -25,7 +25,7 @@ type cmdExport struct {
 	flagCompressionAlgorithm string
 }
 
-func (c *cmdExport) Command() *cobra.Command {
+func (c *cmdExport) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("export", i18n.G("[<remote>:]<instance> [target] [--instance-only] [--optimized-storage]"))
 	cmd.Short = i18n.G("Export instance backups")
@@ -35,7 +35,7 @@ func (c *cmdExport) Command() *cobra.Command {
 		`lxc export u1 backup0.tar.gz
     Download a backup tarball of the u1 instance.`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagInstanceOnly, "instance-only", false,
 		i18n.G("Whether or not to only backup the instance (without snapshots)"))
 	cmd.Flags().BoolVar(&c.flagOptimizedStorage, "optimized-storage", false,
@@ -45,7 +45,7 @@ func (c *cmdExport) Command() *cobra.Command {
 	return cmd
 }
 
-func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdExport) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.

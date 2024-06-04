@@ -15,7 +15,7 @@ type cmdManpage struct {
 	flagFormat string
 }
 
-func (c *cmdManpage) Command() *cobra.Command {
+func (c *cmdManpage) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("manpage", i18n.G("<target>"))
 	cmd.Short = i18n.G("Generate manpages for all commands")
@@ -24,12 +24,12 @@ func (c *cmdManpage) Command() *cobra.Command {
 	cmd.Hidden = true
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "man", i18n.G("Format (man|md|rest|yaml)")+"``")
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdManpage) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdManpage) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {

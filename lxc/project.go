@@ -22,7 +22,7 @@ type cmdProject struct {
 	global *cmdGlobal
 }
 
-func (c *cmdProject) Command() *cobra.Command {
+func (c *cmdProject) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("project")
 	cmd.Short = i18n.G("Manage projects")
@@ -31,47 +31,47 @@ func (c *cmdProject) Command() *cobra.Command {
 
 	// Create
 	projectCreateCmd := cmdProjectCreate{global: c.global, project: c}
-	cmd.AddCommand(projectCreateCmd.Command())
+	cmd.AddCommand(projectCreateCmd.command())
 
 	// Delete
 	projectDeleteCmd := cmdProjectDelete{global: c.global, project: c}
-	cmd.AddCommand(projectDeleteCmd.Command())
+	cmd.AddCommand(projectDeleteCmd.command())
 
 	// Edit
 	projectEditCmd := cmdProjectEdit{global: c.global, project: c}
-	cmd.AddCommand(projectEditCmd.Command())
+	cmd.AddCommand(projectEditCmd.command())
 
 	// Get
 	projectGetCmd := cmdProjectGet{global: c.global, project: c}
-	cmd.AddCommand(projectGetCmd.Command())
+	cmd.AddCommand(projectGetCmd.command())
 
 	// List
 	projectListCmd := cmdProjectList{global: c.global, project: c}
-	cmd.AddCommand(projectListCmd.Command())
+	cmd.AddCommand(projectListCmd.command())
 
 	// Rename
 	projectRenameCmd := cmdProjectRename{global: c.global, project: c}
-	cmd.AddCommand(projectRenameCmd.Command())
+	cmd.AddCommand(projectRenameCmd.command())
 
 	// Set
 	projectSetCmd := cmdProjectSet{global: c.global, project: c}
-	cmd.AddCommand(projectSetCmd.Command())
+	cmd.AddCommand(projectSetCmd.command())
 
 	// Unset
 	projectUnsetCmd := cmdProjectUnset{global: c.global, project: c, projectSet: &projectSetCmd}
-	cmd.AddCommand(projectUnsetCmd.Command())
+	cmd.AddCommand(projectUnsetCmd.command())
 
 	// Show
 	projectShowCmd := cmdProjectShow{global: c.global, project: c}
-	cmd.AddCommand(projectShowCmd.Command())
+	cmd.AddCommand(projectShowCmd.command())
 
 	// Info
 	projectGetInfo := cmdProjectInfo{global: c.global, project: c}
-	cmd.AddCommand(projectGetInfo.Command())
+	cmd.AddCommand(projectGetInfo.command())
 
 	// Set default
 	projectSwitchCmd := cmdProjectSwitch{global: c.global, project: c}
-	cmd.AddCommand(projectSwitchCmd.Command())
+	cmd.AddCommand(projectSwitchCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -86,7 +86,7 @@ type cmdProjectCreate struct {
 	flagConfig []string
 }
 
-func (c *cmdProjectCreate) Command() *cobra.Command {
+func (c *cmdProjectCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<project>"))
 	cmd.Short = i18n.G("Create projects")
@@ -94,12 +94,12 @@ func (c *cmdProjectCreate) Command() *cobra.Command {
 		`Create projects`))
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new project")+"``")
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdProjectCreate) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProjectCreate) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -150,7 +150,7 @@ type cmdProjectDelete struct {
 	project *cmdProject
 }
 
-func (c *cmdProjectDelete) Command() *cobra.Command {
+func (c *cmdProjectDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<project>"))
 	cmd.Aliases = []string{"rm"}
@@ -158,12 +158,12 @@ func (c *cmdProjectDelete) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Delete projects`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdProjectDelete) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProjectDelete) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -214,7 +214,7 @@ type cmdProjectEdit struct {
 	project *cmdProject
 }
 
-func (c *cmdProjectEdit) Command() *cobra.Command {
+func (c *cmdProjectEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<project>"))
 	cmd.Short = i18n.G("Edit project configurations as YAML")
@@ -224,7 +224,7 @@ func (c *cmdProjectEdit) Command() *cobra.Command {
 		`lxc project edit <project> < project.yaml
     Update a project using the content of project.yaml`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
@@ -250,7 +250,7 @@ func (c *cmdProjectEdit) helpTemplate() string {
 ### Note that the name is shown but cannot be changed`)
 }
 
-func (c *cmdProjectEdit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProjectEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -342,19 +342,19 @@ type cmdProjectGet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdProjectGet) Command() *cobra.Command {
+func (c *cmdProjectGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<project> <key>"))
 	cmd.Short = i18n.G("Get values for project configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get values for project configuration keys`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a project property"))
 	return cmd
 }
 
-func (c *cmdProjectGet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProjectGet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -402,7 +402,7 @@ type cmdProjectList struct {
 	flagFormat string
 }
 
-func (c *cmdProjectList) Command() *cobra.Command {
+func (c *cmdProjectList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
 	cmd.Aliases = []string{"ls"}
@@ -411,12 +411,12 @@ func (c *cmdProjectList) Command() *cobra.Command {
 		`List projects`))
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProjectList) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.
@@ -515,7 +515,7 @@ type cmdProjectRename struct {
 	project *cmdProject
 }
 
-func (c *cmdProjectRename) Command() *cobra.Command {
+func (c *cmdProjectRename) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("[<remote>:]<project> <new-name>"))
 	cmd.Aliases = []string{"mv"}
@@ -523,12 +523,12 @@ func (c *cmdProjectRename) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Rename projects`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdProjectRename) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProjectRename) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -573,7 +573,7 @@ type cmdProjectSet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdProjectSet) Command() *cobra.Command {
+func (c *cmdProjectSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<project> <key>=<value>..."))
 	cmd.Short = i18n.G("Set project configuration keys")
@@ -583,12 +583,12 @@ func (c *cmdProjectSet) Command() *cobra.Command {
 For backward compatibility, a single configuration key may still be set with:
     lxc project set [<remote>:]<project> <key> <value>`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a project property"))
 	return cmd
 }
 
-func (c *cmdProjectSet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProjectSet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
@@ -652,19 +652,19 @@ type cmdProjectUnset struct {
 	flagIsProperty bool
 }
 
-func (c *cmdProjectUnset) Command() *cobra.Command {
+func (c *cmdProjectUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<project> <key>"))
 	cmd.Short = i18n.G("Unset project configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Unset project configuration keys`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a project property"))
 	return cmd
 }
 
-func (c *cmdProjectUnset) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProjectUnset) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -674,7 +674,7 @@ func (c *cmdProjectUnset) Run(cmd *cobra.Command, args []string) error {
 	c.projectSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
-	return c.projectSet.Run(cmd, args)
+	return c.projectSet.run(cmd, args)
 }
 
 // Show.
@@ -683,19 +683,19 @@ type cmdProjectShow struct {
 	project *cmdProject
 }
 
-func (c *cmdProjectShow) Command() *cobra.Command {
+func (c *cmdProjectShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<project>"))
 	cmd.Short = i18n.G("Show project options")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show project options`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdProjectShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProjectShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -736,19 +736,19 @@ type cmdProjectSwitch struct {
 	project *cmdProject
 }
 
-func (c *cmdProjectSwitch) Command() *cobra.Command {
+func (c *cmdProjectSwitch) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("switch", i18n.G("[<remote>:]<project>"))
 	cmd.Short = i18n.G("Switch the current project")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Switch the current project`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdProjectSwitch) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProjectSwitch) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.
@@ -795,7 +795,7 @@ type cmdProjectInfo struct {
 	flagFormat string
 }
 
-func (c *cmdProjectInfo) Command() *cobra.Command {
+func (c *cmdProjectInfo) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("info", i18n.G("[<remote>:]<project> <key>"))
 	cmd.Short = i18n.G("Get a summary of resource allocations")
@@ -803,12 +803,12 @@ func (c *cmdProjectInfo) Command() *cobra.Command {
 		`Get a summary of resource allocations`))
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdProjectInfo) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdProjectInfo) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {

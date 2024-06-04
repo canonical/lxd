@@ -15,19 +15,19 @@ type cmdVersion struct {
 	global *cmdGlobal
 }
 
-func (c *cmdVersion) Command() *cobra.Command {
+func (c *cmdVersion) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("version", i18n.G("[<remote>:]"))
 	cmd.Short = i18n.G("Show local and remote versions")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show local and remote versions`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdVersion) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdVersion) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {

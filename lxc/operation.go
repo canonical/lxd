@@ -17,7 +17,7 @@ type cmdOperation struct {
 	global *cmdGlobal
 }
 
-func (c *cmdOperation) Command() *cobra.Command {
+func (c *cmdOperation) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("operation")
 	cmd.Short = i18n.G("List, show and delete background operations")
@@ -26,15 +26,15 @@ func (c *cmdOperation) Command() *cobra.Command {
 
 	// Delete
 	operationDeleteCmd := cmdOperationDelete{global: c.global, operation: c}
-	cmd.AddCommand(operationDeleteCmd.Command())
+	cmd.AddCommand(operationDeleteCmd.command())
 
 	// List
 	operationListCmd := cmdOperationList{global: c.global, operation: c}
-	cmd.AddCommand(operationListCmd.Command())
+	cmd.AddCommand(operationListCmd.command())
 
 	// Show
 	operationShowCmd := cmdOperationShow{global: c.global, operation: c}
-	cmd.AddCommand(operationShowCmd.Command())
+	cmd.AddCommand(operationShowCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -48,7 +48,7 @@ type cmdOperationDelete struct {
 	operation *cmdOperation
 }
 
-func (c *cmdOperationDelete) Command() *cobra.Command {
+func (c *cmdOperationDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<operation>"))
 	cmd.Aliases = []string{"cancel", "rm"}
@@ -56,12 +56,12 @@ func (c *cmdOperationDelete) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Delete a background operation (will attempt to cancel)`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdOperationDelete) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdOperationDelete) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -98,7 +98,7 @@ type cmdOperationList struct {
 	flagAllProjects bool
 }
 
-func (c *cmdOperationList) Command() *cobra.Command {
+func (c *cmdOperationList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
 	cmd.Aliases = []string{"ls"}
@@ -108,12 +108,12 @@ func (c *cmdOperationList) Command() *cobra.Command {
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, i18n.G("List operations from all projects")+"``")
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdOperationList) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdOperationList) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
@@ -186,7 +186,7 @@ type cmdOperationShow struct {
 	operation *cmdOperation
 }
 
-func (c *cmdOperationShow) Command() *cobra.Command {
+func (c *cmdOperationShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<operation>"))
 	cmd.Short = i18n.G("Show details on a background operation")
@@ -196,12 +196,12 @@ func (c *cmdOperationShow) Command() *cobra.Command {
 		`lxc operation show 344a79e4-d88a-45bf-9c39-c72c26f6ab8a
     Show details on that operation UUID`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdOperationShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdOperationShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {

@@ -23,7 +23,7 @@ type cmdClusterGroup struct {
 }
 
 // Cluster management including assignment, creation, deletion, editing, listing, removal, renaming, and showing details.
-func (c *cmdClusterGroup) Command() *cobra.Command {
+func (c *cmdClusterGroup) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("group")
 	cmd.Short = i18n.G("Manage cluster groups")
@@ -32,39 +32,39 @@ func (c *cmdClusterGroup) Command() *cobra.Command {
 
 	// Assign
 	clusterGroupAssignCmd := cmdClusterGroupAssign{global: c.global, cluster: c.cluster}
-	cmd.AddCommand(clusterGroupAssignCmd.Command())
+	cmd.AddCommand(clusterGroupAssignCmd.command())
 
 	// Create
 	clusterGroupCreateCmd := cmdClusterGroupCreate{global: c.global, cluster: c.cluster}
-	cmd.AddCommand(clusterGroupCreateCmd.Command())
+	cmd.AddCommand(clusterGroupCreateCmd.command())
 
 	// Delete
 	clusterGroupDeleteCmd := cmdClusterGroupDelete{global: c.global, cluster: c.cluster}
-	cmd.AddCommand(clusterGroupDeleteCmd.Command())
+	cmd.AddCommand(clusterGroupDeleteCmd.command())
 
 	// Edit
 	clusterGroupEditCmd := cmdClusterGroupEdit{global: c.global, cluster: c.cluster}
-	cmd.AddCommand(clusterGroupEditCmd.Command())
+	cmd.AddCommand(clusterGroupEditCmd.command())
 
 	// List
 	clusterGroupListCmd := cmdClusterGroupList{global: c.global, cluster: c.cluster}
-	cmd.AddCommand(clusterGroupListCmd.Command())
+	cmd.AddCommand(clusterGroupListCmd.command())
 
 	// Remove
 	clusterGroupRemoveCmd := cmdClusterGroupRemove{global: c.global, cluster: c.cluster}
-	cmd.AddCommand(clusterGroupRemoveCmd.Command())
+	cmd.AddCommand(clusterGroupRemoveCmd.command())
 
 	// Rename
 	clusterGroupRenameCmd := cmdClusterGroupRename{global: c.global, cluster: c.cluster}
-	cmd.AddCommand(clusterGroupRenameCmd.Command())
+	cmd.AddCommand(clusterGroupRenameCmd.command())
 
 	// Show
 	clusterGroupShowCmd := cmdClusterGroupShow{global: c.global, cluster: c.cluster}
-	cmd.AddCommand(clusterGroupShowCmd.Command())
+	cmd.AddCommand(clusterGroupShowCmd.command())
 
 	// Add
 	clusterGroupAddCmd := cmdClusterGroupAdd{global: c.global, cluster: c.cluster}
-	cmd.AddCommand(clusterGroupAddCmd.Command())
+	cmd.AddCommand(clusterGroupAddCmd.command())
 
 	return cmd
 }
@@ -76,7 +76,7 @@ type cmdClusterGroupAssign struct {
 }
 
 // Setting a groups to cluster members, setting usage, description, examples, and the RunE method.
-func (c *cmdClusterGroupAssign) Command() *cobra.Command {
+func (c *cmdClusterGroupAssign) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("assign", i18n.G("[<remote>:]<member> <group>"))
 	cmd.Aliases = []string{"apply"}
@@ -90,13 +90,13 @@ func (c *cmdClusterGroupAssign) Command() *cobra.Command {
 lxc cluster group assign foo default
     Reset "foo" to only using the "default" cluster group.`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // Groups assigning to a cluster member, performing checks, parsing arguments, and updating the member's group configuration.
-func (c *cmdClusterGroupAssign) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdClusterGroupAssign) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -150,20 +150,20 @@ type cmdClusterGroupCreate struct {
 }
 
 // Creation of a new cluster group, defining its usage, short and long descriptions, and the RunE method.
-func (c *cmdClusterGroupCreate) Command() *cobra.Command {
+func (c *cmdClusterGroupCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<group>"))
 	cmd.Short = i18n.G("Create a cluster group")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Create a cluster group`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // It creates new cluster group after performing checks, parsing arguments, and making the server call for creation.
-func (c *cmdClusterGroupCreate) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdClusterGroupCreate) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -206,7 +206,7 @@ type cmdClusterGroupDelete struct {
 }
 
 // It deletes a cluster group, setting up usage, descriptions, aliases, and the RunE method.
-func (c *cmdClusterGroupDelete) Command() *cobra.Command {
+func (c *cmdClusterGroupDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<group>"))
 	cmd.Aliases = []string{"rm"}
@@ -214,13 +214,13 @@ func (c *cmdClusterGroupDelete) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Delete a cluster group`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // It's the deletion of a cluster group after argument checks, parsing, and making the server call for deletion.
-func (c *cmdClusterGroupDelete) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdClusterGroupDelete) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -259,20 +259,20 @@ type cmdClusterGroupEdit struct {
 }
 
 // This Command generates the cobra command that enables the editing of a cluster group's attributes.
-func (c *cmdClusterGroupEdit) Command() *cobra.Command {
+func (c *cmdClusterGroupEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<group>"))
 	cmd.Short = i18n.G("Edit a cluster group")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Edit a cluster group`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // The modification of a cluster group's configuration, either through an editor or via the terminal.
-func (c *cmdClusterGroupEdit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdClusterGroupEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -374,7 +374,7 @@ type cmdClusterGroupList struct {
 }
 
 // Command returns a cobra command to list all the cluster groups in a specified format.
-func (c *cmdClusterGroupList) Command() *cobra.Command {
+func (c *cmdClusterGroupList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
 	cmd.Aliases = []string{"ls"}
@@ -383,13 +383,13 @@ func (c *cmdClusterGroupList) Command() *cobra.Command {
 		`List all the cluster groups`))
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // Run executes the command to list all the cluster groups, their descriptions, and number of members.
-func (c *cmdClusterGroupList) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdClusterGroupList) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
@@ -449,20 +449,20 @@ type cmdClusterGroupRemove struct {
 }
 
 // Removal of a specified member from a specific cluster group.
-func (c *cmdClusterGroupRemove) Command() *cobra.Command {
+func (c *cmdClusterGroupRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<member> <group>"))
 	cmd.Short = i18n.G("Remove member from group")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Remove a cluster member from a cluster group`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // The removal process of a cluster member from a specific cluster group, with verbose output unless the 'quiet' flag is set.
-func (c *cmdClusterGroupRemove) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdClusterGroupRemove) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -521,7 +521,7 @@ type cmdClusterGroupRename struct {
 }
 
 // Renaming a cluster group, defining usage, aliases, and linking the associated runtime function.
-func (c *cmdClusterGroupRename) Command() *cobra.Command {
+func (c *cmdClusterGroupRename) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("[<remote>:]<group> <new-name>"))
 	cmd.Aliases = []string{"mv"}
@@ -529,13 +529,13 @@ func (c *cmdClusterGroupRename) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Rename a cluster group`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // Renaming operation of a cluster group after checking arguments and parsing the remote server, and provides appropriate output.
-func (c *cmdClusterGroupRename) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdClusterGroupRename) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -570,20 +570,20 @@ type cmdClusterGroupShow struct {
 }
 
 // Setting up the 'show' command to display the configurations of a specified cluster group in a remote server.
-func (c *cmdClusterGroupShow) Command() *cobra.Command {
+func (c *cmdClusterGroupShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<group>"))
 	cmd.Short = i18n.G("Show cluster group configurations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show cluster group configurations`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // This retrieves and prints the configuration details of a specified cluster group from a remote server in YAML format.
-func (c *cmdClusterGroupShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdClusterGroupShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -624,19 +624,19 @@ type cmdClusterGroupAdd struct {
 	cluster *cmdCluster
 }
 
-func (c *cmdClusterGroupAdd) Command() *cobra.Command {
+func (c *cmdClusterGroupAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:]<member> <group>"))
 	cmd.Short = i18n.G("Add member to group")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Add a cluster member to a cluster group`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdClusterGroupAdd) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdClusterGroupAdd) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {

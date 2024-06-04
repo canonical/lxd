@@ -17,7 +17,7 @@ type cmdConfigDevice struct {
 	profile *cmdProfile
 }
 
-func (c *cmdConfigDevice) Command() *cobra.Command {
+func (c *cmdConfigDevice) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("device")
 	cmd.Short = i18n.G("Manage devices")
@@ -26,37 +26,37 @@ func (c *cmdConfigDevice) Command() *cobra.Command {
 
 	// Add
 	configDeviceAddCmd := cmdConfigDeviceAdd{global: c.global, config: c.config, profile: c.profile, configDevice: c}
-	cmd.AddCommand(configDeviceAddCmd.Command())
+	cmd.AddCommand(configDeviceAddCmd.command())
 
 	// Get
 	configDeviceGetCmd := cmdConfigDeviceGet{global: c.global, config: c.config, profile: c.profile, configDevice: c}
-	cmd.AddCommand(configDeviceGetCmd.Command())
+	cmd.AddCommand(configDeviceGetCmd.command())
 
 	// List
 	configDeviceListCmd := cmdConfigDeviceList{global: c.global, config: c.config, profile: c.profile, configDevice: c}
-	cmd.AddCommand(configDeviceListCmd.Command())
+	cmd.AddCommand(configDeviceListCmd.command())
 
 	// Override
 	if c.config != nil {
 		configDeviceOverrideCmd := cmdConfigDeviceOverride{global: c.global, config: c.config, profile: c.profile, configDevice: c}
-		cmd.AddCommand(configDeviceOverrideCmd.Command())
+		cmd.AddCommand(configDeviceOverrideCmd.command())
 	}
 
 	// Remove
 	configDeviceRemoveCmd := cmdConfigDeviceRemove{global: c.global, config: c.config, profile: c.profile, configDevice: c}
-	cmd.AddCommand(configDeviceRemoveCmd.Command())
+	cmd.AddCommand(configDeviceRemoveCmd.command())
 
 	// Set
 	configDeviceSetCmd := cmdConfigDeviceSet{global: c.global, config: c.config, profile: c.profile, configDevice: c}
-	cmd.AddCommand(configDeviceSetCmd.Command())
+	cmd.AddCommand(configDeviceSetCmd.command())
 
 	// Show
 	configDeviceShowCmd := cmdConfigDeviceShow{global: c.global, config: c.config, profile: c.profile, configDevice: c}
-	cmd.AddCommand(configDeviceShowCmd.Command())
+	cmd.AddCommand(configDeviceShowCmd.command())
 
 	// Unset
 	configDeviceUnsetCmd := cmdConfigDeviceUnset{global: c.global, config: c.config, profile: c.profile, configDevice: c, configDeviceSet: &configDeviceSetCmd}
-	cmd.AddCommand(configDeviceUnsetCmd.Command())
+	cmd.AddCommand(configDeviceUnsetCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -72,7 +72,7 @@ type cmdConfigDeviceAdd struct {
 	profile      *cmdProfile
 }
 
-func (c *cmdConfigDeviceAdd) Command() *cobra.Command {
+func (c *cmdConfigDeviceAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Short = i18n.G("Add instance devices")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -95,12 +95,12 @@ lxc profile device add [<remote>:]profile1 <device-name> disk pool=some-pool sou
     Will mount the some-volume volume on some-pool onto /opt in the instance.`))
 	}
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigDeviceAdd) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigDeviceAdd) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
 	if exit {
@@ -196,7 +196,7 @@ type cmdConfigDeviceGet struct {
 	profile      *cmdProfile
 }
 
-func (c *cmdConfigDeviceGet) Command() *cobra.Command {
+func (c *cmdConfigDeviceGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	if c.config != nil {
 		cmd.Use = usage("get", i18n.G("[<remote>:]<instance> <device> <key>"))
@@ -208,12 +208,12 @@ func (c *cmdConfigDeviceGet) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get values for device configuration keys`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigDeviceGet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigDeviceGet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
@@ -278,7 +278,7 @@ type cmdConfigDeviceList struct {
 	profile      *cmdProfile
 }
 
-func (c *cmdConfigDeviceList) Command() *cobra.Command {
+func (c *cmdConfigDeviceList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List instance devices")
@@ -290,12 +290,12 @@ func (c *cmdConfigDeviceList) Command() *cobra.Command {
 		cmd.Use = usage("list", i18n.G("[<remote>:]<profile>"))
 	}
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigDeviceList) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigDeviceList) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -349,19 +349,19 @@ type cmdConfigDeviceOverride struct {
 	profile      *cmdProfile
 }
 
-func (c *cmdConfigDeviceOverride) Command() *cobra.Command {
+func (c *cmdConfigDeviceOverride) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("override", i18n.G("[<remote>:]<instance> <device> [key=value...]"))
 	cmd.Short = i18n.G("Copy profile inherited devices and override configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Copy profile inherited devices and override configuration keys`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigDeviceOverride) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigDeviceOverride) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
@@ -437,7 +437,7 @@ type cmdConfigDeviceRemove struct {
 	profile      *cmdProfile
 }
 
-func (c *cmdConfigDeviceRemove) Command() *cobra.Command {
+func (c *cmdConfigDeviceRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	if c.config != nil {
 		cmd.Use = usage("remove", i18n.G("[<remote>:]<instance> <name>..."))
@@ -450,12 +450,12 @@ func (c *cmdConfigDeviceRemove) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Remove instance devices`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigDeviceRemove) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigDeviceRemove) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
@@ -540,7 +540,7 @@ type cmdConfigDeviceSet struct {
 	profile      *cmdProfile
 }
 
-func (c *cmdConfigDeviceSet) Command() *cobra.Command {
+func (c *cmdConfigDeviceSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Short = i18n.G("Set device configuration keys")
 	if c.config != nil {
@@ -559,12 +559,12 @@ For backward compatibility, a single configuration key may still be set with:
     lxc profile device set [<remote>:]<profile> <device> <key> <value>`))
 	}
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigDeviceSet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigDeviceSet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
 	if exit {
@@ -656,7 +656,7 @@ type cmdConfigDeviceShow struct {
 	profile      *cmdProfile
 }
 
-func (c *cmdConfigDeviceShow) Command() *cobra.Command {
+func (c *cmdConfigDeviceShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	if c.config != nil {
 		cmd.Use = usage("show", i18n.G("[<remote>:]<instance>"))
@@ -668,12 +668,12 @@ func (c *cmdConfigDeviceShow) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show full device configuration`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigDeviceShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigDeviceShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -729,7 +729,7 @@ type cmdConfigDeviceUnset struct {
 	profile         *cmdProfile
 }
 
-func (c *cmdConfigDeviceUnset) Command() *cobra.Command {
+func (c *cmdConfigDeviceUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	if c.config != nil {
 		cmd.Use = usage("unset", i18n.G("[<remote>:]<instance> <device> <key>"))
@@ -741,12 +741,12 @@ func (c *cmdConfigDeviceUnset) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Unset device configuration keys`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigDeviceUnset) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigDeviceUnset) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
@@ -754,5 +754,5 @@ func (c *cmdConfigDeviceUnset) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	args = append(args, "")
-	return c.configDeviceSet.Run(cmd, args)
+	return c.configDeviceSet.run(cmd, args)
 }

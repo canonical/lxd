@@ -24,7 +24,7 @@ type cmdNetworkForward struct {
 	flagTarget string
 }
 
-func (c *cmdNetworkForward) Command() *cobra.Command {
+func (c *cmdNetworkForward) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("forward")
 	cmd.Short = i18n.G("Manage network forwards")
@@ -32,39 +32,39 @@ func (c *cmdNetworkForward) Command() *cobra.Command {
 
 	// List.
 	networkForwardListCmd := cmdNetworkForwardList{global: c.global, networkForward: c}
-	cmd.AddCommand(networkForwardListCmd.Command())
+	cmd.AddCommand(networkForwardListCmd.command())
 
 	// Show.
 	networkForwardShowCmd := cmdNetworkForwardShow{global: c.global, networkForward: c}
-	cmd.AddCommand(networkForwardShowCmd.Command())
+	cmd.AddCommand(networkForwardShowCmd.command())
 
 	// Create.
 	networkForwardCreateCmd := cmdNetworkForwardCreate{global: c.global, networkForward: c}
-	cmd.AddCommand(networkForwardCreateCmd.Command())
+	cmd.AddCommand(networkForwardCreateCmd.command())
 
 	// Get.
 	networkForwardGetCmd := cmdNetworkForwardGet{global: c.global, networkForward: c}
-	cmd.AddCommand(networkForwardGetCmd.Command())
+	cmd.AddCommand(networkForwardGetCmd.command())
 
 	// Set.
 	networkForwardSetCmd := cmdNetworkForwardSet{global: c.global, networkForward: c}
-	cmd.AddCommand(networkForwardSetCmd.Command())
+	cmd.AddCommand(networkForwardSetCmd.command())
 
 	// Unset.
 	networkForwardUnsetCmd := cmdNetworkForwardUnset{global: c.global, networkForward: c, networkForwardSet: &networkForwardSetCmd}
-	cmd.AddCommand(networkForwardUnsetCmd.Command())
+	cmd.AddCommand(networkForwardUnsetCmd.command())
 
 	// Edit.
 	networkForwardEditCmd := cmdNetworkForwardEdit{global: c.global, networkForward: c}
-	cmd.AddCommand(networkForwardEditCmd.Command())
+	cmd.AddCommand(networkForwardEditCmd.command())
 
 	// Delete.
 	networkForwardDeleteCmd := cmdNetworkForwardDelete{global: c.global, networkForward: c}
-	cmd.AddCommand(networkForwardDeleteCmd.Command())
+	cmd.AddCommand(networkForwardDeleteCmd.command())
 
 	// Port.
 	networkForwardPortCmd := cmdNetworkForwardPort{global: c.global, networkForward: c}
-	cmd.AddCommand(networkForwardPortCmd.Command())
+	cmd.AddCommand(networkForwardPortCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -80,20 +80,20 @@ type cmdNetworkForwardList struct {
 	flagFormat string
 }
 
-func (c *cmdNetworkForwardList) Command() *cobra.Command {
+func (c *cmdNetworkForwardList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]<network>"))
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List available network forwards")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("List available network forwards"))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 
 	return cmd
 }
 
-func (c *cmdNetworkForwardList) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkForwardList) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -162,19 +162,19 @@ type cmdNetworkForwardShow struct {
 	networkForward *cmdNetworkForward
 }
 
-func (c *cmdNetworkForwardShow) Command() *cobra.Command {
+func (c *cmdNetworkForwardShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<network> <listen_address>"))
 	cmd.Short = i18n.G("Show network forward configurations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Show network forward configurations"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().StringVar(&c.networkForward.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	return cmd
 }
 
-func (c *cmdNetworkForwardShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkForwardShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -227,12 +227,12 @@ type cmdNetworkForwardCreate struct {
 	flagAllocate   string
 }
 
-func (c *cmdNetworkForwardCreate) Command() *cobra.Command {
+func (c *cmdNetworkForwardCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<network> [<listen_address>] [key=value...]"))
 	cmd.Short = i18n.G("Create new network forwards")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Create new network forwards"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().StringVar(&c.networkForward.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().StringVar(&c.flagAllocate, "allocate", "", i18n.G("Auto-allocate an IPv4 or IPv6 listen address. One of 'ipv4', 'ipv6'.")+"``")
@@ -240,7 +240,7 @@ func (c *cmdNetworkForwardCreate) Command() *cobra.Command {
 	return cmd
 }
 
-func (c *cmdNetworkForwardCreate) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkForwardCreate) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
@@ -357,19 +357,19 @@ type cmdNetworkForwardGet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdNetworkForwardGet) Command() *cobra.Command {
+func (c *cmdNetworkForwardGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<network> <listen_address> <key>"))
 	cmd.Short = i18n.G("Get values for network forward configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Get values for network forward configuration keys"))
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a network forward property"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdNetworkForwardGet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkForwardGet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
@@ -426,7 +426,7 @@ type cmdNetworkForwardSet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdNetworkForwardSet) Command() *cobra.Command {
+func (c *cmdNetworkForwardSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<network> <listen_address> <key>=<value>..."))
 	cmd.Short = i18n.G("Set network forward keys")
@@ -435,7 +435,7 @@ func (c *cmdNetworkForwardSet) Command() *cobra.Command {
 
 For backward compatibility, a single configuration key may still be set with:
     lxc network set [<remote>:]<network> <listen_address> <key> <value>`))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a network forward property"))
 	cmd.Flags().StringVar(&c.networkForward.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
@@ -443,7 +443,7 @@ For backward compatibility, a single configuration key may still be set with:
 	return cmd
 }
 
-func (c *cmdNetworkForwardSet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkForwardSet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
 	if exit {
@@ -524,18 +524,18 @@ type cmdNetworkForwardUnset struct {
 	flagIsProperty bool
 }
 
-func (c *cmdNetworkForwardUnset) Command() *cobra.Command {
+func (c *cmdNetworkForwardUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<network> <listen_address> <key>"))
 	cmd.Short = i18n.G("Unset network forward configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Unset network forward keys"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a network forward property"))
 	return cmd
 }
 
-func (c *cmdNetworkForwardUnset) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkForwardUnset) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
@@ -545,7 +545,7 @@ func (c *cmdNetworkForwardUnset) Run(cmd *cobra.Command, args []string) error {
 	c.networkForwardSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
-	return c.networkForwardSet.Run(cmd, args)
+	return c.networkForwardSet.run(cmd, args)
 }
 
 // Edit.
@@ -554,12 +554,12 @@ type cmdNetworkForwardEdit struct {
 	networkForward *cmdNetworkForward
 }
 
-func (c *cmdNetworkForwardEdit) Command() *cobra.Command {
+func (c *cmdNetworkForwardEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<network> <listen_address>"))
 	cmd.Short = i18n.G("Edit network forward configurations as YAML")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Edit network forward configurations as YAML"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().StringVar(&c.networkForward.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
@@ -589,7 +589,7 @@ func (c *cmdNetworkForwardEdit) helpTemplate() string {
 ### Note that the listen_address and location cannot be changed.`)
 }
 
-func (c *cmdNetworkForwardEdit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkForwardEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -695,20 +695,20 @@ type cmdNetworkForwardDelete struct {
 	networkForward *cmdNetworkForward
 }
 
-func (c *cmdNetworkForwardDelete) Command() *cobra.Command {
+func (c *cmdNetworkForwardDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<network> <listen_address>"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete network forwards")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Delete network forwards"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().StringVar(&c.networkForward.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	return cmd
 }
 
-func (c *cmdNetworkForwardDelete) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkForwardDelete) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -758,34 +758,34 @@ type cmdNetworkForwardPort struct {
 	flagRemoveForce bool
 }
 
-func (c *cmdNetworkForwardPort) Command() *cobra.Command {
+func (c *cmdNetworkForwardPort) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("port")
 	cmd.Short = i18n.G("Manage network forward ports")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Manage network forward ports"))
 
 	// Port Add.
-	cmd.AddCommand(c.CommandAdd())
+	cmd.AddCommand(c.commandAdd())
 
 	// Port Remove.
-	cmd.AddCommand(c.CommandRemove())
+	cmd.AddCommand(c.commandRemove())
 
 	return cmd
 }
 
-func (c *cmdNetworkForwardPort) CommandAdd() *cobra.Command {
+func (c *cmdNetworkForwardPort) commandAdd() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:]<network> <listen_address> <protocol> <listen_port(s)> <target_address> [<target_port(s)>]"))
 	cmd.Short = i18n.G("Add ports to a forward")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Add ports to a forward"))
-	cmd.RunE = c.RunAdd
+	cmd.RunE = c.runAdd
 
 	cmd.Flags().StringVar(&c.networkForward.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	return cmd
 }
 
-func (c *cmdNetworkForwardPort) RunAdd(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkForwardPort) runAdd(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 5, 6)
 	if exit {
@@ -838,20 +838,20 @@ func (c *cmdNetworkForwardPort) RunAdd(cmd *cobra.Command, args []string) error 
 	return client.UpdateNetworkForward(resource.name, forward.ListenAddress, forward.Writable(), etag)
 }
 
-func (c *cmdNetworkForwardPort) CommandRemove() *cobra.Command {
+func (c *cmdNetworkForwardPort) commandRemove() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<network> <listen_address> [<protocol>] [<listen_port(s)>]"))
 	cmd.Short = i18n.G("Remove ports from a forward")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Remove ports from a forward"))
 	cmd.Flags().BoolVar(&c.flagRemoveForce, "force", false, i18n.G("Remove all ports that match"))
-	cmd.RunE = c.RunRemove
+	cmd.RunE = c.runRemove
 
 	cmd.Flags().StringVar(&c.networkForward.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	return cmd
 }
 
-func (c *cmdNetworkForwardPort) RunRemove(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkForwardPort) runRemove(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 4)
 	if exit {

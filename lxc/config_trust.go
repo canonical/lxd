@@ -27,7 +27,7 @@ type cmdConfigTrust struct {
 	config *cmdConfig
 }
 
-func (c *cmdConfigTrust) Command() *cobra.Command {
+func (c *cmdConfigTrust) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("trust")
 	cmd.Short = i18n.G("Manage trusted clients")
@@ -36,31 +36,31 @@ func (c *cmdConfigTrust) Command() *cobra.Command {
 
 	// Add
 	configTrustAddCmd := cmdConfigTrustAdd{global: c.global, config: c.config, configTrust: c}
-	cmd.AddCommand(configTrustAddCmd.Command())
+	cmd.AddCommand(configTrustAddCmd.command())
 
 	// Edit
 	configTrustEditCmd := cmdConfigTrustEdit{global: c.global, config: c.config, configTrust: c}
-	cmd.AddCommand(configTrustEditCmd.Command())
+	cmd.AddCommand(configTrustEditCmd.command())
 
 	// List
 	configTrustListCmd := cmdConfigTrustList{global: c.global, config: c.config, configTrust: c}
-	cmd.AddCommand(configTrustListCmd.Command())
+	cmd.AddCommand(configTrustListCmd.command())
 
 	// List tokens
 	configTrustListTokensCmd := cmdConfigTrustListTokens{global: c.global, config: c.config, configTrust: c}
-	cmd.AddCommand(configTrustListTokensCmd.Command())
+	cmd.AddCommand(configTrustListTokensCmd.command())
 
 	// Remove
 	configTrustRemoveCmd := cmdConfigTrustRemove{global: c.global, config: c.config, configTrust: c}
-	cmd.AddCommand(configTrustRemoveCmd.Command())
+	cmd.AddCommand(configTrustRemoveCmd.command())
 
 	// Revoke token
 	configTrustRevokeTokenCmd := cmdConfigTrustRevokeToken{global: c.global, config: c.config, configTrust: c}
-	cmd.AddCommand(configTrustRevokeTokenCmd.Command())
+	cmd.AddCommand(configTrustRevokeTokenCmd.command())
 
 	// Show
 	configTrustShowCmd := cmdConfigTrustShow{global: c.global, config: c.config, configTrust: c}
-	cmd.AddCommand(configTrustShowCmd.Command())
+	cmd.AddCommand(configTrustShowCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -80,7 +80,7 @@ type cmdConfigTrustAdd struct {
 	flagType       string
 }
 
-func (c *cmdConfigTrustAdd) Command() *cobra.Command {
+func (c *cmdConfigTrustAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:] [<cert>]"))
 	cmd.Short = i18n.G("Add new trusted client")
@@ -102,12 +102,12 @@ restricted to one or more projects.
 	cmd.Flags().StringVar(&c.flagName, "name", "", i18n.G("Alternative certificate name")+"``")
 	cmd.Flags().StringVar(&c.flagType, "type", "client", i18n.G("Type of certificate")+"``")
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigTrustAdd) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 2)
 	if exit {
@@ -229,14 +229,14 @@ type cmdConfigTrustEdit struct {
 	configTrust *cmdConfigTrust
 }
 
-func (c *cmdConfigTrustEdit) Command() *cobra.Command {
+func (c *cmdConfigTrustEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<fingerprint>"))
 	cmd.Short = i18n.G("Edit trust configurations as YAML")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Edit trust configurations as YAML`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
@@ -249,7 +249,7 @@ func (c *cmdConfigTrustEdit) helpTemplate() string {
 ### Note that the fingerprint is shown but cannot be changed`)
 }
 
-func (c *cmdConfigTrustEdit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigTrustEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -342,7 +342,7 @@ type cmdConfigTrustList struct {
 	flagFormat string
 }
 
-func (c *cmdConfigTrustList) Command() *cobra.Command {
+func (c *cmdConfigTrustList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
 	cmd.Aliases = []string{"ls"}
@@ -351,12 +351,12 @@ func (c *cmdConfigTrustList) Command() *cobra.Command {
 		`List trusted clients`))
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigTrustList) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigTrustList) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
@@ -425,7 +425,7 @@ type cmdConfigTrustListTokens struct {
 	flagFormat string
 }
 
-func (c *cmdConfigTrustListTokens) Command() *cobra.Command {
+func (c *cmdConfigTrustListTokens) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list-tokens", i18n.G("[<remote>:]"))
 	cmd.Short = i18n.G("List all active certificate add tokens")
@@ -433,12 +433,12 @@ func (c *cmdConfigTrustListTokens) Command() *cobra.Command {
 		`List all active certificate add tokens`))
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigTrustListTokens) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigTrustListTokens) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
@@ -526,7 +526,7 @@ type cmdConfigTrustRemove struct {
 	configTrust *cmdConfigTrust
 }
 
-func (c *cmdConfigTrustRemove) Command() *cobra.Command {
+func (c *cmdConfigTrustRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<fingerprint>"))
 	cmd.Aliases = []string{"rm"}
@@ -534,12 +534,12 @@ func (c *cmdConfigTrustRemove) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Remove trusted client`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigTrustRemove) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigTrustRemove) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
@@ -573,19 +573,19 @@ type cmdConfigTrustRevokeToken struct {
 	configTrust *cmdConfigTrust
 }
 
-func (c *cmdConfigTrustRevokeToken) Command() *cobra.Command {
+func (c *cmdConfigTrustRevokeToken) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("revoke-token", i18n.G("[<remote>:] <name>"))
 	cmd.Short = i18n.G("Revoke certificate add token")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Revoke certificate add token`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigTrustRevokeToken) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigTrustRevokeToken) run(cmd *cobra.Command, args []string) error {
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -644,19 +644,19 @@ type cmdConfigTrustShow struct {
 	configTrust *cmdConfigTrust
 }
 
-func (c *cmdConfigTrustShow) Command() *cobra.Command {
+func (c *cmdConfigTrustShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<fingerprint>"))
 	cmd.Short = i18n.G("Show trust configurations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show trust configurations`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigTrustShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigTrustShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
