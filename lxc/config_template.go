@@ -20,7 +20,7 @@ type cmdConfigTemplate struct {
 	config *cmdConfig
 }
 
-func (c *cmdConfigTemplate) Command() *cobra.Command {
+func (c *cmdConfigTemplate) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("template")
 	cmd.Short = i18n.G("Manage instance file templates")
@@ -29,23 +29,23 @@ func (c *cmdConfigTemplate) Command() *cobra.Command {
 
 	// Create
 	configTemplateCreateCmd := cmdConfigTemplateCreate{global: c.global, config: c.config, configTemplate: c}
-	cmd.AddCommand(configTemplateCreateCmd.Command())
+	cmd.AddCommand(configTemplateCreateCmd.command())
 
 	// Delete
 	configTemplateDeleteCmd := cmdConfigTemplateDelete{global: c.global, config: c.config, configTemplate: c}
-	cmd.AddCommand(configTemplateDeleteCmd.Command())
+	cmd.AddCommand(configTemplateDeleteCmd.command())
 
 	// Edit
 	configTemplateEditCmd := cmdConfigTemplateEdit{global: c.global, config: c.config, configTemplate: c}
-	cmd.AddCommand(configTemplateEditCmd.Command())
+	cmd.AddCommand(configTemplateEditCmd.command())
 
 	// List
 	configTemplateListCmd := cmdConfigTemplateList{global: c.global, config: c.config, configTemplate: c}
-	cmd.AddCommand(configTemplateListCmd.Command())
+	cmd.AddCommand(configTemplateListCmd.command())
 
 	// Show
 	configTemplateShowCmd := cmdConfigTemplateShow{global: c.global, config: c.config, configTemplate: c}
-	cmd.AddCommand(configTemplateShowCmd.Command())
+	cmd.AddCommand(configTemplateShowCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -60,19 +60,19 @@ type cmdConfigTemplateCreate struct {
 	configTemplate *cmdConfigTemplate
 }
 
-func (c *cmdConfigTemplateCreate) Command() *cobra.Command {
+func (c *cmdConfigTemplateCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<instance> <template>"))
 	cmd.Short = i18n.G("Create new instance file templates")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Create new instance file templates`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigTemplateCreate) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigTemplateCreate) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -102,7 +102,7 @@ type cmdConfigTemplateDelete struct {
 	configTemplate *cmdConfigTemplate
 }
 
-func (c *cmdConfigTemplateDelete) Command() *cobra.Command {
+func (c *cmdConfigTemplateDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<instance> <template>"))
 	cmd.Aliases = []string{"rm"}
@@ -110,12 +110,12 @@ func (c *cmdConfigTemplateDelete) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Delete instance file templates`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigTemplateDelete) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigTemplateDelete) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -145,19 +145,19 @@ type cmdConfigTemplateEdit struct {
 	configTemplate *cmdConfigTemplate
 }
 
-func (c *cmdConfigTemplateEdit) Command() *cobra.Command {
+func (c *cmdConfigTemplateEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<instance> <template>"))
 	cmd.Short = i18n.G("Edit instance file templates")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Edit instance file templates`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigTemplateEdit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigTemplateEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -233,7 +233,7 @@ type cmdConfigTemplateList struct {
 	flagFormat string
 }
 
-func (c *cmdConfigTemplateList) Command() *cobra.Command {
+func (c *cmdConfigTemplateList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]<instance>"))
 	cmd.Short = i18n.G("List instance file templates")
@@ -241,12 +241,12 @@ func (c *cmdConfigTemplateList) Command() *cobra.Command {
 		`List instance file templates`))
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigTemplateList) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigTemplateList) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -293,19 +293,19 @@ type cmdConfigTemplateShow struct {
 	configTemplate *cmdConfigTemplate
 }
 
-func (c *cmdConfigTemplateShow) Command() *cobra.Command {
+func (c *cmdConfigTemplateShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<instance> <template>"))
 	cmd.Short = i18n.G("Show content of instance file templates")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show content of instance file templates`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigTemplateShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigTemplateShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {

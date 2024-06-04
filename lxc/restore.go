@@ -17,7 +17,7 @@ type cmdRestore struct {
 	flagStateful bool
 }
 
-func (c *cmdRestore) Command() *cobra.Command {
+func (c *cmdRestore) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("restore", i18n.G("[<remote>:]<instance> <snapshot>"))
 	cmd.Short = i18n.G("Restore instances from snapshots")
@@ -32,13 +32,13 @@ If --stateful is passed, then the running state will be restored too.`))
 lxc restore u1 snap0
     Restore the snapshot.`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagStateful, "stateful", false, i18n.G("Whether or not to restore the instance's running state from snapshot (if available)"))
 
 	return cmd
 }
 
-func (c *cmdRestore) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdRestore) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.

@@ -34,7 +34,7 @@ type cmdExec struct {
 	interactive bool
 }
 
-func (c *cmdExec) Command() *cobra.Command {
+func (c *cmdExec) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("exec", i18n.G("[<remote>:]<instance> [flags] [--] <command line>"))
 	cmd.Short = i18n.G("Execute commands in instances")
@@ -50,7 +50,7 @@ executable, passing the shell commands as arguments, for example:
 
 Mode defaults to non-interactive, interactive mode is selected if both stdin AND stdout are terminals (stderr is ignored).`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().StringArrayVar(&c.flagEnvironment, "env", nil, i18n.G("Environment variable to set (e.g. HOME=/home/foo)")+"``")
 	cmd.Flags().StringVar(&c.flagMode, "mode", "auto", i18n.G("Override the terminal mode (auto, interactive or non-interactive)")+"``")
 	cmd.Flags().BoolVarP(&c.flagForceInteractive, "force-interactive", "t", false, i18n.G("Force pseudo-terminal allocation"))
@@ -80,7 +80,7 @@ func (c *cmdExec) sendTermSize(control *websocket.Conn) error {
 	return control.WriteJSON(msg)
 }
 
-func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdExec) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.
