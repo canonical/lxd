@@ -1131,7 +1131,7 @@ func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state
 }
 
 // TaskIDs returns the task IDs for a process.
-func TaskIDs(pid int) (int64, int64, int64, int64, error) {
+func TaskIDs(pid int) (UID int64, GID int64, fsUID int64, fsGID int64, err error) {
 	status, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
 	if err != nil {
 		return -1, -1, -1, -1, err
@@ -1147,10 +1147,10 @@ func TaskIDs(pid int) (int64, int64, int64, int64, error) {
 		return -1, -1, -1, -1, err
 	}
 
-	var UID int64 = -1
-	var GID int64 = -1
-	var fsUID int64 = -1
-	var fsGID int64 = -1
+	UID = -1
+	GID = -1
+	fsUID = -1
+	fsGID = -1
 	UIDFound := false
 	GIDFound := false
 	for _, line := range strings.Split(string(status), "\n") {
@@ -1249,6 +1249,30 @@ func FindTGID(procFd int) (uint32, error) {
 	return 0, fmt.Errorf("Task group leader ID not found")
 }
 
+// isCapableInCtInitUserns checks if intercepted syscall's caller has a (cap) effective
+// capability in the container's initial user namespace
+func isCapableInCtInitUserns(siov *Iovec, cap C.int) (bool, error) {
+	containerInitPID := int(siov.msg.init_pid)
+	targetPID := int(siov.req.pid)
+
+	ctInitUserNS, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/user", containerInitPID))
+	if err != nil {
+		return false, fmt.Errorf("Can't get userns for container's init process: %w", err)
+	}
+
+	reqUserNS, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/user", targetPID))
+	if err != nil {
+		return false, fmt.Errorf("Can't get userns for requestor process: %w", err)
+	}
+
+	// Ensure that requestor process is in the initial container's userns
+	if ctInitUserNS != reqUserNS {
+		return false, nil
+	}
+
+	return bool(C.lxd_pid_cap_is_set(C.int(targetPID), cap, C.CAP_EFFECTIVE)), nil
+}
+
 // CallForkmknod executes fork mknod.
 func CallForkmknod(c Instance, dev deviceConfig.Device, requestPID int, s *state.State) int {
 	uid, gid, fsuid, fsgid, err := TaskIDs(requestPID)
@@ -1306,6 +1330,11 @@ type MknodArgs struct {
 }
 
 func (s *Server) doDeviceSyscall(c Instance, args *MknodArgs, siov *Iovec) int {
+	l := logger.AddContext(logger.Ctx{
+		"project":  c.Project().Name,
+		"instance": c.Name(),
+	})
+
 	dev := deviceConfig.Device{}
 	dev["type"] = "unix-char"
 	dev["mode"] = fmt.Sprintf("%#o", args.cMode)
@@ -1316,12 +1345,25 @@ func (s *Server) doDeviceSyscall(c Instance, args *MknodArgs, siov *Iovec) int {
 	dev["mode_t"] = fmt.Sprintf("%d", args.cMode)
 	dev["dev_t"] = fmt.Sprintf("%d", args.cDev)
 
+	// has CAP_MKNOD capability?
+	hasCapability, err := isCapableInCtInitUserns(siov, C.CAP_MKNOD)
+	if err != nil {
+		l.Error(fmt.Sprintf("%v", err))
+		return int(-C.EPERM)
+	}
+
+	if !hasCapability {
+		l.Error("Requestor process creds lacks CAP_MKNOD")
+		return int(-C.EPERM)
+	}
+
 	errno := CallForkmknod(c, dev, int(args.cPid), s.s)
 	if errno != int(-C.ENOMEDIUM) {
 		return errno
 	}
 
-	err := c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(args.cPid)), dev, int(args.cPid))
+	l.Debug("Using fallback codepath for mknod syscall interception...")
+	err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(args.cPid)), dev, int(args.cPid))
 	if err != nil {
 		return int(-C.EPERM)
 	}
@@ -1975,32 +2017,17 @@ func (s *Server) HandleFinitModuleSyscall(c Instance, siov *Iovec) int {
 		return int(-C.EPERM)
 	}
 
-	containerInitPID := int(siov.msg.init_pid)
-	targetPID := int(siov.req.pid)
-
-	ctInitUserNS, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/user", containerInitPID))
-	if err != nil {
-		ctx["err"] = fmt.Sprintf("Can't get userns for ct init process: %v", err)
-		return int(-C.EPERM)
-	}
-
-	reqUserNS, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/user", targetPID))
-	if err != nil {
-		ctx["err"] = fmt.Sprintf("Can't get userns for requestor process: %v", err)
-		return int(-C.EPERM)
-	}
-
 	ctx["param_values"] = string(paramValues)
 
-	// nested container?
-	if ctInitUserNS != reqUserNS {
-		ctx["err"] = "finit_module() from nested container is forbidden"
+	// has CAP_SYS_MODULE capability?
+	hasCapability, err := isCapableInCtInitUserns(siov, C.CAP_SYS_MODULE)
+	if err != nil {
+		ctx["err"] = fmt.Sprintf("%v", err)
 		return int(-C.EPERM)
 	}
 
-	// has CAP_SYS_MODULE capability?
-	if !C.lxd_pid_cap_is_set(C.int(targetPID), C.CAP_SYS_MODULE, C.CAP_EFFECTIVE) {
-		ctx["err"] = "requestor process creds lacks CAP_SYS_MODULE"
+	if !hasCapability {
+		ctx["err"] = "Requestor process creds lacks CAP_SYS_MODULE"
 		return int(-C.EPERM)
 	}
 
@@ -2020,10 +2047,10 @@ func (s *Server) HandleFinitModuleSyscall(c Instance, siov *Iovec) int {
 
 	forksyscallgoargs := []string{
 		"forksyscallgo",
-		"finit_module_parse",         // <syscall_operation>
-		fmt.Sprintf("%d", targetPID), // <PID>
-		fmt.Sprintf("%d", 0),         // <PidFd>
-		fmt.Sprintf("%d", 3),         // <module_fd>
+		"finit_module_parse",                 // <syscall_operation>
+		fmt.Sprintf("%d", int(siov.req.pid)), // <PID>
+		fmt.Sprintf("%d", 0),                 // <PidFd>
+		fmt.Sprintf("%d", 3),                 // <module_fd>
 	}
 
 	var buffer bytes.Buffer
