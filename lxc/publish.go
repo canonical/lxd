@@ -272,7 +272,10 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 	opAPI := op.Get()
 
 	// Grab the fingerprint
-	fingerprint := opAPI.Metadata["fingerprint"].(string)
+	fingerprint, ok := opAPI.Metadata["fingerprint"].(string)
+	if !ok {
+		return fmt.Errorf(`Invalid type %T for "fingerprint" key in operation metadata`, fingerprint)
+	}
 
 	// For remote publish, copy to target now
 	if cRemote != iRemote {
