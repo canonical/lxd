@@ -19,6 +19,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
@@ -61,8 +62,7 @@ func setReceivedUUID(path string, UUID string) error {
 
 	copy(args.uuid[:], binUUID)
 
-	// 0xC0C09425 = _IOWR(BTRFS_IOCTL_MAGIC, 37, struct btrfs_ioctl_received_subvol_args)
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, f.Fd(), 0xC0C09425, uintptr(unsafe.Pointer(&args)))
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, f.Fd(), linux.IoctlBtrfsSetReceivedSubvol, uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
 		return fmt.Errorf("Failed setting received UUID: %w", unix.Errno(errno))
 	}
