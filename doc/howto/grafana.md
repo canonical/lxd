@@ -74,7 +74,7 @@ At the bottom of the page, you can see data for each instance.
 For proper operation of the Loki part of the dashboard, you need to ensure that the `instance` field matches the Prometheus job name.
 You can change the `instance` field through the `loki.instance` configuration key.
 
-The Prometheus job_name value can be found in `/var/snap/prometheus/current/prometheus.yml` (if you are using the snap) or `/etc/prometheus/prometheus.yaml` (otherwise).
+The Prometheus `job_name` value can be found in `/var/snap/prometheus/current/prometheus.yml` (if you are using the snap) or `/etc/prometheus/prometheus.yaml` (otherwise).
 
 To set the loki.instance configuration key, run the following command:
 `lxc config set loki.instance=<job_name_value>`
