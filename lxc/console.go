@@ -140,10 +140,10 @@ func (c *cmdConsole) run(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	return c.Console(d, name)
+	return c.runConsole(d, name)
 }
 
-func (c *cmdConsole) Console(d lxd.InstanceServer, name string) error {
+func (c *cmdConsole) runConsole(d lxd.InstanceServer, name string) error {
 	if c.flagType == "" {
 		c.flagType = "console"
 	}

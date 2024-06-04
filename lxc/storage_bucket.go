@@ -845,7 +845,7 @@ func (c *cmdStorageBucketKeyCreate) command() *cobra.Command {
 	cmd.Use = usage("create", i18n.G("[<remote>:]<pool> <bucket> <key>"))
 	cmd.Short = i18n.G("Create key for a storage bucket")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Create key for a storage bucket"))
-	cmd.RunE = c.RunAdd
+	cmd.RunE = c.runAdd
 
 	cmd.Flags().StringVar(&c.storageBucketKey.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().StringVar(&c.flagRole, "role", "read-only", i18n.G("Role (admin or read-only)")+"``")
@@ -855,7 +855,7 @@ func (c *cmdStorageBucketKeyCreate) command() *cobra.Command {
 	return cmd
 }
 
-func (c *cmdStorageBucketKeyCreate) RunAdd(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageBucketKeyCreate) runAdd(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
@@ -923,14 +923,14 @@ func (c *cmdStorageBucketKeyDelete) command() *cobra.Command {
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<pool> <bucket> <key>"))
 	cmd.Short = i18n.G("Delete key from a storage bucket")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Delete key from a storage bucket"))
-	cmd.RunE = c.RunRemove
+	cmd.RunE = c.runRemove
 
 	cmd.Flags().StringVar(&c.storageBucketKey.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	return cmd
 }
 
-func (c *cmdStorageBucketKeyDelete) RunRemove(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageBucketKeyDelete) runRemove(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
