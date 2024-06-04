@@ -131,7 +131,7 @@ Unless specified through a prefix, all volume operations affect "custom" (user c
 	return cmd
 }
 
-func (c *cmdStorageVolume) parseVolume(defaultType string, name string) (string, string) {
+func (c *cmdStorageVolume) parseVolume(defaultType string, name string) (volumeName string, volumeType string) {
 	fields := strings.SplitN(name, "/", 2)
 	if len(fields) == 1 {
 		return fields[0], defaultType
@@ -142,7 +142,7 @@ func (c *cmdStorageVolume) parseVolume(defaultType string, name string) (string,
 	return fields[1], fields[0]
 }
 
-func (c *cmdStorageVolume) parseVolumeWithPool(name string) (string, string) {
+func (c *cmdStorageVolume) parseVolumeWithPool(name string) (volumeName string, poolName string) {
 	fields := strings.SplitN(name, "/", 2)
 	if len(fields) == 1 {
 		return fields[0], ""
