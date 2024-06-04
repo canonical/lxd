@@ -548,8 +548,8 @@ func (c *cmdList) run(cmd *cobra.Command, args []string) error {
 
 func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 	columnsShorthandMap := map[rune]column{
-		'4': {i18n.G("IPV4"), c.IP4ColumnData, true, false},
-		'6': {i18n.G("IPV6"), c.IP6ColumnData, true, false},
+		'4': {i18n.G("IPV4"), c.ipv4ColumnData, true, false},
+		'6': {i18n.G("IPV6"), c.ipv6ColumnData, true, false},
 		'a': {i18n.G("ARCHITECTURE"), c.architectureColumnData, false, false},
 		'b': {i18n.G("STORAGE POOL"), c.storagePoolColumnData, false, false},
 		'c': {i18n.G("CREATED AT"), c.createdColumnData, false, false},
@@ -563,7 +563,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 		'M': {i18n.G("MEMORY USAGE%"), c.memoryUsagePercentColumnData, true, false},
 		'n': {i18n.G("NAME"), c.nameColumnData, false, false},
 		'N': {i18n.G("PROCESSES"), c.numberOfProcessesColumnData, true, false},
-		'p': {i18n.G("PID"), c.PIDColumnData, true, false},
+		'p': {i18n.G("PID"), c.pidColumnData, true, false},
 		'P': {i18n.G("PROFILES"), c.profilesColumnData, false, false},
 		'S': {i18n.G("SNAPSHOTS"), c.numberSnapshotsColumnData, false, true},
 		's': {i18n.G("STATE"), c.statusColumnData, false, false},
@@ -755,7 +755,7 @@ func (c *cmdList) statusColumnData(cInfo api.InstanceFull) string {
 	return strings.ToUpper(cInfo.Status)
 }
 
-func (c *cmdList) IP4ColumnData(cInfo api.InstanceFull) string {
+func (c *cmdList) ipv4ColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil && cInfo.State.Network != nil {
 		ipv4s := []string{}
 		for netName, net := range cInfo.State.Network {
@@ -781,7 +781,7 @@ func (c *cmdList) IP4ColumnData(cInfo api.InstanceFull) string {
 	return ""
 }
 
-func (c *cmdList) IP6ColumnData(cInfo api.InstanceFull) string {
+func (c *cmdList) ipv6ColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil && cInfo.State.Network != nil {
 		ipv6s := []string{}
 		for netName, net := range cInfo.State.Network {
@@ -876,7 +876,7 @@ func (c *cmdList) numberSnapshotsColumnData(cInfo api.InstanceFull) string {
 	return "0"
 }
 
-func (c *cmdList) PIDColumnData(cInfo api.InstanceFull) string {
+func (c *cmdList) pidColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil {
 		return fmt.Sprintf("%d", cInfo.State.Pid)
 	}

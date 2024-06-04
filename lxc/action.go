@@ -267,7 +267,7 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 		console := cmdConsole{}
 		console.global = c.global
 		console.flagType = c.flagConsole
-		return console.Console(d, name)
+		return console.runConsole(d, name)
 	}
 
 	progress := cli.ProgressRenderer{
@@ -294,7 +294,7 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 		console := cmdConsole{}
 		console.global = c.global
 		console.flagType = c.flagConsole
-		return console.Console(d, name)
+		return console.runConsole(d, name)
 	}
 
 	return nil

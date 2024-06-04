@@ -751,20 +751,20 @@ func (c *cmdNetworkACLRule) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Manage network ACL rules"))
 
 	// Rule Add.
-	cmd.AddCommand(c.CommandAdd())
+	cmd.AddCommand(c.commandAdd())
 
 	// Rule Remove.
-	cmd.AddCommand(c.CommandRemove())
+	cmd.AddCommand(c.commandRemove())
 
 	return cmd
 }
 
-func (c *cmdNetworkACLRule) CommandAdd() *cobra.Command {
+func (c *cmdNetworkACLRule) commandAdd() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:]<ACL> <direction> <key>=<value>..."))
 	cmd.Short = i18n.G("Add rules to an ACL")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Add rules to an ACL"))
-	cmd.RunE = c.RunAdd
+	cmd.RunE = c.runAdd
 
 	return cmd
 }
@@ -825,7 +825,7 @@ func (c *cmdNetworkACLRule) parseConfigToRule(config map[string]string) (*api.Ne
 	return &rule, nil
 }
 
-func (c *cmdNetworkACLRule) RunAdd(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkACLRule) runAdd(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
@@ -880,19 +880,19 @@ func (c *cmdNetworkACLRule) RunAdd(cmd *cobra.Command, args []string) error {
 	return resource.server.UpdateNetworkACL(resource.name, netACL.Writable(), etag)
 }
 
-func (c *cmdNetworkACLRule) CommandRemove() *cobra.Command {
+func (c *cmdNetworkACLRule) commandRemove() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<ACL> <direction> <key>=<value>..."))
 	cmd.Short = i18n.G("Remove rules from an ACL")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Remove rules from an ACL"))
 	cmd.Flags().BoolVar(&c.flagRemoveForce, "force", false, i18n.G("Remove all rules that match"))
 
-	cmd.RunE = c.RunRemove
+	cmd.RunE = c.runRemove
 
 	return cmd
 }
 
-func (c *cmdNetworkACLRule) RunRemove(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkACLRule) runRemove(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
