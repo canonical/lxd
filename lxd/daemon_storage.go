@@ -38,7 +38,7 @@ func daemonStorageVolumesUnmount(s *state.State) error {
 		return err
 	}
 
-	unmount := func(storageType string, source string) error {
+	unmount := func(source string) error {
 		// Parse the source.
 		poolName, volumeName, err := daemonStorageSplitVolume(source)
 		if err != nil {
@@ -60,14 +60,14 @@ func daemonStorageVolumesUnmount(s *state.State) error {
 	}
 
 	if storageBackups != "" {
-		err := unmount("backups", storageBackups)
+		err := unmount(storageBackups)
 		if err != nil {
 			return fmt.Errorf("Failed to unmount backups storage: %w", err)
 		}
 	}
 
 	if storageImages != "" {
-		err := unmount("images", storageImages)
+		err := unmount(storageImages)
 		if err != nil {
 			return fmt.Errorf("Failed to unmount images storage: %w", err)
 		}
@@ -94,7 +94,7 @@ func daemonStorageMount(s *state.State) error {
 		return err
 	}
 
-	mount := func(storageType string, source string) error {
+	mount := func(source string) error {
 		// Parse the source.
 		poolName, volumeName, err := daemonStorageSplitVolume(source)
 		if err != nil {
@@ -116,14 +116,14 @@ func daemonStorageMount(s *state.State) error {
 	}
 
 	if storageBackups != "" {
-		err := mount("backups", storageBackups)
+		err := mount(storageBackups)
 		if err != nil {
 			return fmt.Errorf("Failed to mount backups storage: %w", err)
 		}
 	}
 
 	if storageImages != "" {
-		err := mount("images", storageImages)
+		err := mount(storageImages)
 		if err != nil {
 			return fmt.Errorf("Failed to mount images storage: %w", err)
 		}

@@ -453,7 +453,7 @@ func networkNICRouteDelete(routeDev string, routes ...string) {
 	}
 
 	if !network.InterfaceExists(routeDev) {
-		return //Routes will already be gone if device doesn't exist.
+		return // Routes will already be gone if device doesn't exist.
 	}
 
 	for _, r := range routes {
@@ -575,7 +575,7 @@ func networkSetupHostVethLimits(d *deviceCommon, oldConfig deviceConfig.Device, 
 		}
 	}
 
-	if oldConfig == nil || (oldConfig != nil && oldConfig["limits.priority"] != d.config["limits.priority"]) {
+	if oldConfig == nil || oldConfig["limits.priority"] != d.config["limits.priority"] {
 		if networkPriority != 0 {
 			if bridged && d.state.Firewall.String() == "xtables" {
 				return fmt.Errorf("Failed to setup instance device network priority. The xtables firewall driver does not support required functionality.")

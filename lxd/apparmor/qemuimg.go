@@ -53,6 +53,7 @@ type nullWriteCloser struct {
 	*bytes.Buffer
 }
 
+// Close closes the null IO writer.
 func (nwc *nullWriteCloser) Close() error {
 	return nil
 }
@@ -62,7 +63,7 @@ func (nwc *nullWriteCloser) Close() error {
 // will be added as an allowed command to the AppArmor profile. The remaining elements of the cmd slice are
 // expected to be the qemu-img command and its arguments.
 func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (string, error) {
-	//It is assumed that command starts with a program which sets resource limits, like prlimit or nice
+	// It is assumed that command starts with a program which sets resource limits, like prlimit or nice
 	allowedCmds := []string{"qemu-img", cmd[0]}
 
 	allowedCmdPaths := []string{}
@@ -100,7 +101,7 @@ func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (strin
 	var buffer bytes.Buffer
 	var output bytes.Buffer
 	p := subprocess.NewProcessWithFds(cmd[0], cmd[1:], nil, &nullWriteCloser{&output}, &nullWriteCloser{&buffer})
-	if err != nil {
+	if p == nil {
 		return "", fmt.Errorf("Failed creating qemu-img subprocess: %w", err)
 	}
 
@@ -152,7 +153,7 @@ func qemuImgProfileLoad(sysOS *sys.OS, imgPath string, dstPath string, allowedCm
 // qemuImgProfile generates the AppArmor profile template from the given destination path.
 func qemuImgProfile(profileName string, imgPath string, dstPath string, allowedCmdPaths []string) (string, error) {
 	// Render the profile.
-	var sb *strings.Builder = &strings.Builder{}
+	var sb = &strings.Builder{}
 	err := qemuImgProfileTpl.Execute(sb, map[string]any{
 		"name":            profileName,
 		"pathToImg":       imgPath,

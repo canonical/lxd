@@ -33,6 +33,7 @@ type cmdMigrate struct {
 	flagContainers []string
 }
 
+// Command line for lxc-to-lxd.
 func (c *cmdMigrate) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "lxc-to-lxd",
@@ -59,6 +60,7 @@ func (c *cmdMigrate) Command() *cobra.Command {
 	return cmd
 }
 
+// RunE executes the migrate command.
 func (c *cmdMigrate) RunE(cmd *cobra.Command, args []string) error {
 	if (len(c.flagContainers) == 0 && !c.flagAll) || (len(c.flagContainers) > 0 && c.flagAll) {
 		fmt.Fprintln(os.Stderr, "You must either pass container names or --all")
@@ -471,7 +473,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 
 		rootfs, _ := getRootfs(conf)
 
-		err = transferRootfs(d, op, rootfs, rsyncArgs)
+		err = transferRootfs(op, rootfs, rsyncArgs)
 		if err != nil {
 			return err
 		}
@@ -586,12 +588,12 @@ func convertStorageConfig(conf []string, devices map[string]map[string]string) e
 		if shared.ValueInSlice("optional", strings.Split(parts[3], ",")) {
 			device["optional"] = "true"
 		} else {
-			if strings.HasPrefix(parts[0], "/") {
-				if !shared.PathExists(parts[0]) {
-					return fmt.Errorf("Invalid path: %s", parts[0])
-				}
-			} else {
+			if !strings.HasPrefix(parts[0], "/") {
 				continue
+			}
+
+			if !shared.PathExists(parts[0]) {
+				return fmt.Errorf("Invalid path: %s", parts[0])
 			}
 		}
 

@@ -332,9 +332,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 	// Get the identity.
 	identityCacheEntry, err := e.identityCache.Get(protocol, username)
 	if err != nil {
-		if err != nil {
-			return nil, fmt.Errorf("Failed loading identity for %q: %w", username, err)
-		}
+		return nil, fmt.Errorf("Failed loading identity for %q: %w", username, err)
 	}
 
 	// If the identity type is not restricted, allow all (TLS authorization compatibility).

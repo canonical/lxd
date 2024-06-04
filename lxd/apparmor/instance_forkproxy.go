@@ -92,7 +92,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 `))
 
 // forkproxyProfile generates the AppArmor profile template from the given network.
-func forkproxyProfile(sysOS *sys.OS, inst instance, dev device) (string, error) {
+func forkproxyProfile(inst instance, dev device) (string, error) {
 	rootPath := ""
 	if shared.InSnap() {
 		rootPath = "/var/lib/snapd/hostfs"
@@ -155,7 +155,7 @@ func forkproxyProfile(sysOS *sys.OS, inst instance, dev device) (string, error) 
 	}
 
 	// Render the profile.
-	var sb *strings.Builder = &strings.Builder{}
+	var sb = &strings.Builder{}
 	err = forkproxyProfileTpl.Execute(sb, map[string]any{
 		"name":        ForkproxyProfileName(inst, dev),
 		"varPath":     shared.VarPath(""),
@@ -205,7 +205,7 @@ func ForkproxyLoad(sysOS *sys.OS, inst instance, dev device) error {
 		return err
 	}
 
-	updated, err := forkproxyProfile(sysOS, inst, dev)
+	updated, err := forkproxyProfile(inst, dev)
 	if err != nil {
 		return err
 	}

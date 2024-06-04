@@ -1000,7 +1000,7 @@ func (d *common) maasDelete(inst instance.Instance) error {
 }
 
 // validateStartup checks any constraints that would prevent start up from succeeding under normal circumstances.
-func (d *common) validateStartup(stateful bool, statusCode api.StatusCode) error {
+func (d *common) validateStartup(statusCode api.StatusCode) error {
 	// Because the root disk is special and is mounted before the root disk device is setup we duplicate the
 	// pre-start check here before the isStartableStatusCode check below so that if there is a problem loading
 	// the instance status because the storage pool isn't available we don't mask the StatusServiceUnavailable

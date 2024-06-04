@@ -29,6 +29,7 @@ type cmdAgent struct {
 	global *cmdGlobal
 }
 
+// Command line for lxd-agent.
 func (c *cmdAgent) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "lxd-agent [--debug]"
@@ -45,6 +46,7 @@ func (c *cmdAgent) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the agent command.
 func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	// Setup logger.
 	err := logger.InitLogger("", "", c.global.flagLogVerbose, c.global.flagLogDebug, nil)
@@ -130,7 +132,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	d := newDaemon(c.global.flagLogDebug, c.global.flagLogVerbose)
 
 	// Start the server.
-	err = startHTTPServer(d, c.global.flagLogDebug)
+	err = startHTTPServer(d)
 	if err != nil {
 		return fmt.Errorf("Failed to start HTTP server: %w", err)
 	}

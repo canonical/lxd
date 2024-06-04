@@ -19,7 +19,7 @@ func Reset(path string, imports []string, buildComment string, iface bool) error
 	}
 
 	if iface {
-		err := resetInterface(path, imports, buildComment)
+		err := resetInterface(path, buildComment)
 		if err != nil {
 			return err
 		}
@@ -58,7 +58,7 @@ import (
 	return nil
 }
 
-func resetInterface(path string, imports []string, buildComment string) error {
+func resetInterface(path string, buildComment string) error {
 	if strings.HasSuffix(path, "mapper.go") {
 		parts := strings.Split(path, ".")
 		interfacePath := strings.Join(parts[:len(parts)-2], ".") + ".interface.mapper.go"
