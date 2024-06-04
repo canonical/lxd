@@ -33,7 +33,7 @@ type cmdCopy struct {
 	flagAllowInconsistent bool
 }
 
-func (c *cmdCopy) Command() *cobra.Command {
+func (c *cmdCopy) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("copy", i18n.G("[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"))
 	cmd.Aliases = []string{"cp"}
@@ -49,7 +49,7 @@ Transfer modes (--mode):
 The pull transfer mode is the default as it is compatible with all LXD versions.
 `))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new instance")+"``")
 	cmd.Flags().StringArrayVarP(&c.flagDevice, "device", "d", nil, i18n.G("New key/value to apply to a specific device")+"``")
 	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the new instance")+"``")
@@ -450,7 +450,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 	return nil
 }
 
-func (c *cmdCopy) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdCopy) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.

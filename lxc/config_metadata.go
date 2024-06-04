@@ -20,7 +20,7 @@ type cmdConfigMetadata struct {
 	config *cmdConfig
 }
 
-func (c *cmdConfigMetadata) Command() *cobra.Command {
+func (c *cmdConfigMetadata) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("metadata")
 	cmd.Short = i18n.G("Manage instance metadata files")
@@ -29,11 +29,11 @@ func (c *cmdConfigMetadata) Command() *cobra.Command {
 
 	// Edit
 	configMetadataEditCmd := cmdConfigMetadataEdit{global: c.global, config: c.config, configMetadata: c}
-	cmd.AddCommand(configMetadataEditCmd.Command())
+	cmd.AddCommand(configMetadataEditCmd.command())
 
 	// Show
 	configMetadataShowCmd := cmdConfigMetadataShow{global: c.global, config: c.config, configMetadata: c}
-	cmd.AddCommand(configMetadataShowCmd.Command())
+	cmd.AddCommand(configMetadataShowCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -48,14 +48,14 @@ type cmdConfigMetadataEdit struct {
 	configMetadata *cmdConfigMetadata
 }
 
-func (c *cmdConfigMetadataEdit) Command() *cobra.Command {
+func (c *cmdConfigMetadataEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<instance>"))
 	cmd.Short = i18n.G("Edit instance metadata files")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Edit instance metadata files`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
@@ -84,7 +84,7 @@ func (c *cmdConfigMetadataEdit) helpTemplate() string {
 ###     properties: {}`)
 }
 
-func (c *cmdConfigMetadataEdit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigMetadataEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -173,19 +173,19 @@ type cmdConfigMetadataShow struct {
 	configMetadata *cmdConfigMetadata
 }
 
-func (c *cmdConfigMetadataShow) Command() *cobra.Command {
+func (c *cmdConfigMetadataShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<instance>"))
 	cmd.Short = i18n.G("Show instance metadata files")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show instance metadata files`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdConfigMetadataShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdConfigMetadataShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {

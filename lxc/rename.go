@@ -14,18 +14,18 @@ type cmdRename struct {
 	global *cmdGlobal
 }
 
-func (c *cmdRename) Command() *cobra.Command {
+func (c *cmdRename) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"))
 	cmd.Short = i18n.G("Rename instances and snapshots")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Rename instances and snapshots`))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdRename) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdRename) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.
@@ -57,5 +57,5 @@ func (c *cmdRename) Run(cmd *cobra.Command, args []string) error {
 
 	// Call move
 	move := cmdMove{global: c.global}
-	return move.Run(cmd, args)
+	return move.run(cmd, args)
 }

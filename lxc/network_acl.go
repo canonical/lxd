@@ -22,7 +22,7 @@ type cmdNetworkACL struct {
 	global *cmdGlobal
 }
 
-func (c *cmdNetworkACL) Command() *cobra.Command {
+func (c *cmdNetworkACL) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("acl")
 	cmd.Short = i18n.G("Manage network ACLs")
@@ -30,47 +30,47 @@ func (c *cmdNetworkACL) Command() *cobra.Command {
 
 	// List.
 	networkACLListCmd := cmdNetworkACLList{global: c.global, networkACL: c}
-	cmd.AddCommand(networkACLListCmd.Command())
+	cmd.AddCommand(networkACLListCmd.command())
 
 	// Show.
 	networkACLShowCmd := cmdNetworkACLShow{global: c.global, networkACL: c}
-	cmd.AddCommand(networkACLShowCmd.Command())
+	cmd.AddCommand(networkACLShowCmd.command())
 
 	// Show log.
 	networkACLShowLogCmd := cmdNetworkACLShowLog{global: c.global, networkACL: c}
-	cmd.AddCommand(networkACLShowLogCmd.Command())
+	cmd.AddCommand(networkACLShowLogCmd.command())
 
 	// Get.
 	networkACLGetCmd := cmdNetworkACLGet{global: c.global, networkACL: c}
-	cmd.AddCommand(networkACLGetCmd.Command())
+	cmd.AddCommand(networkACLGetCmd.command())
 
 	// Create.
 	networkACLCreateCmd := cmdNetworkACLCreate{global: c.global, networkACL: c}
-	cmd.AddCommand(networkACLCreateCmd.Command())
+	cmd.AddCommand(networkACLCreateCmd.command())
 
 	// Set.
 	networkACLSetCmd := cmdNetworkACLSet{global: c.global, networkACL: c}
-	cmd.AddCommand(networkACLSetCmd.Command())
+	cmd.AddCommand(networkACLSetCmd.command())
 
 	// Unset.
 	networkACLUnsetCmd := cmdNetworkACLUnset{global: c.global, networkACL: c, networkACLSet: &networkACLSetCmd}
-	cmd.AddCommand(networkACLUnsetCmd.Command())
+	cmd.AddCommand(networkACLUnsetCmd.command())
 
 	// Edit.
 	networkACLEditCmd := cmdNetworkACLEdit{global: c.global, networkACL: c}
-	cmd.AddCommand(networkACLEditCmd.Command())
+	cmd.AddCommand(networkACLEditCmd.command())
 
 	// Rename.
 	networkACLRenameCmd := cmdNetworkACLRename{global: c.global, networkACL: c}
-	cmd.AddCommand(networkACLRenameCmd.Command())
+	cmd.AddCommand(networkACLRenameCmd.command())
 
 	// Delete.
 	networkACLDeleteCmd := cmdNetworkACLDelete{global: c.global, networkACL: c}
-	cmd.AddCommand(networkACLDeleteCmd.Command())
+	cmd.AddCommand(networkACLDeleteCmd.command())
 
 	// Rule.
 	networkACLRuleCmd := cmdNetworkACLRule{global: c.global, networkACL: c}
-	cmd.AddCommand(networkACLRuleCmd.Command())
+	cmd.AddCommand(networkACLRuleCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -86,20 +86,20 @@ type cmdNetworkACLList struct {
 	flagFormat string
 }
 
-func (c *cmdNetworkACLList) Command() *cobra.Command {
+func (c *cmdNetworkACLList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List available network ACLS")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("List available network ACL"))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 
 	return cmd
 }
 
-func (c *cmdNetworkACLList) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkACLList) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
@@ -158,17 +158,17 @@ type cmdNetworkACLShow struct {
 	networkACL *cmdNetworkACL
 }
 
-func (c *cmdNetworkACLShow) Command() *cobra.Command {
+func (c *cmdNetworkACLShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<ACL>"))
 	cmd.Short = i18n.G("Show network ACL configurations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Show network ACL configurations"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdNetworkACLShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkACLShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -211,17 +211,17 @@ type cmdNetworkACLShowLog struct {
 	networkACL *cmdNetworkACL
 }
 
-func (c *cmdNetworkACLShowLog) Command() *cobra.Command {
+func (c *cmdNetworkACLShowLog) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show-log", i18n.G("[<remote>:]<ACL>"))
 	cmd.Short = i18n.G("Show network ACL log")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Show network ACL log"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdNetworkACLShowLog) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkACLShowLog) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -259,19 +259,19 @@ type cmdNetworkACLGet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdNetworkACLGet) Command() *cobra.Command {
+func (c *cmdNetworkACLGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<ACL> <key>"))
 	cmd.Short = i18n.G("Get values for network ACL configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Get values for network ACL configuration keys"))
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a network ACL property"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdNetworkACLGet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkACLGet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -320,18 +320,18 @@ type cmdNetworkACLCreate struct {
 	networkACL *cmdNetworkACL
 }
 
-func (c *cmdNetworkACLCreate) Command() *cobra.Command {
+func (c *cmdNetworkACLCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<ACL> [key=value...]"))
 	cmd.Short = i18n.G("Create new network ACLs")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Create new network ACLs"))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdNetworkACLCreate) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkACLCreate) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
@@ -405,7 +405,7 @@ type cmdNetworkACLSet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdNetworkACLSet) Command() *cobra.Command {
+func (c *cmdNetworkACLSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<ACL> <key>=<value>..."))
 	cmd.Short = i18n.G("Set network ACL configuration keys")
@@ -416,12 +416,12 @@ For backward compatibility, a single configuration key may still be set with:
     lxc network set [<remote>:]<ACL> <key> <value>`))
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a network ACL property"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdNetworkACLSet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkACLSet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
@@ -485,18 +485,18 @@ type cmdNetworkACLUnset struct {
 	flagIsProperty bool
 }
 
-func (c *cmdNetworkACLUnset) Command() *cobra.Command {
+func (c *cmdNetworkACLUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<ACL> <key>"))
 	cmd.Short = i18n.G("Unset network ACL configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Unset network ACL configuration keys"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a network ACL property"))
 	return cmd
 }
 
-func (c *cmdNetworkACLUnset) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkACLUnset) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -506,7 +506,7 @@ func (c *cmdNetworkACLUnset) Run(cmd *cobra.Command, args []string) error {
 	c.networkACLSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
-	return c.networkACLSet.Run(cmd, args)
+	return c.networkACLSet.run(cmd, args)
 }
 
 // Edit.
@@ -515,13 +515,13 @@ type cmdNetworkACLEdit struct {
 	networkACL *cmdNetworkACL
 }
 
-func (c *cmdNetworkACLEdit) Command() *cobra.Command {
+func (c *cmdNetworkACLEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<ACL>"))
 	cmd.Short = i18n.G("Edit network ACL configurations as YAML")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Edit network ACL configurations as YAML"))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
@@ -553,7 +553,7 @@ func (c *cmdNetworkACLEdit) helpTemplate() string {
 ### Note that only the ingress and egress rules, description and configuration keys can be changed.`)
 }
 
-func (c *cmdNetworkACLEdit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkACLEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -645,18 +645,18 @@ type cmdNetworkACLRename struct {
 	networkACL *cmdNetworkACL
 }
 
-func (c *cmdNetworkACLRename) Command() *cobra.Command {
+func (c *cmdNetworkACLRename) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("[<remote>:]<ACL> <new-name>"))
 	cmd.Aliases = []string{"mv"}
 	cmd.Short = i18n.G("Rename network ACLs")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Rename network ACLs"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdNetworkACLRename) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkACLRename) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -694,18 +694,18 @@ type cmdNetworkACLDelete struct {
 	networkACL *cmdNetworkACL
 }
 
-func (c *cmdNetworkACLDelete) Command() *cobra.Command {
+func (c *cmdNetworkACLDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<ACL>"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete network ACLs")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Delete network ACLs"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdNetworkACLDelete) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkACLDelete) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -744,7 +744,7 @@ type cmdNetworkACLRule struct {
 	flagRemoveForce bool
 }
 
-func (c *cmdNetworkACLRule) Command() *cobra.Command {
+func (c *cmdNetworkACLRule) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rule")
 	cmd.Short = i18n.G("Manage network ACL rules")

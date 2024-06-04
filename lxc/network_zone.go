@@ -21,7 +21,7 @@ type cmdNetworkZone struct {
 	global *cmdGlobal
 }
 
-func (c *cmdNetworkZone) Command() *cobra.Command {
+func (c *cmdNetworkZone) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("zone")
 	cmd.Short = i18n.G("Manage network zones")
@@ -29,39 +29,39 @@ func (c *cmdNetworkZone) Command() *cobra.Command {
 
 	// List.
 	networkZoneListCmd := cmdNetworkZoneList{global: c.global, networkZone: c}
-	cmd.AddCommand(networkZoneListCmd.Command())
+	cmd.AddCommand(networkZoneListCmd.command())
 
 	// Show.
 	networkZoneShowCmd := cmdNetworkZoneShow{global: c.global, networkZone: c}
-	cmd.AddCommand(networkZoneShowCmd.Command())
+	cmd.AddCommand(networkZoneShowCmd.command())
 
 	// Get.
 	networkZoneGetCmd := cmdNetworkZoneGet{global: c.global, networkZone: c}
-	cmd.AddCommand(networkZoneGetCmd.Command())
+	cmd.AddCommand(networkZoneGetCmd.command())
 
 	// Create.
 	networkZoneCreateCmd := cmdNetworkZoneCreate{global: c.global, networkZone: c}
-	cmd.AddCommand(networkZoneCreateCmd.Command())
+	cmd.AddCommand(networkZoneCreateCmd.command())
 
 	// Set.
 	networkZoneSetCmd := cmdNetworkZoneSet{global: c.global, networkZone: c}
-	cmd.AddCommand(networkZoneSetCmd.Command())
+	cmd.AddCommand(networkZoneSetCmd.command())
 
 	// Unset.
 	networkZoneUnsetCmd := cmdNetworkZoneUnset{global: c.global, networkZone: c, networkZoneSet: &networkZoneSetCmd}
-	cmd.AddCommand(networkZoneUnsetCmd.Command())
+	cmd.AddCommand(networkZoneUnsetCmd.command())
 
 	// Edit.
 	networkZoneEditCmd := cmdNetworkZoneEdit{global: c.global, networkZone: c}
-	cmd.AddCommand(networkZoneEditCmd.Command())
+	cmd.AddCommand(networkZoneEditCmd.command())
 
 	// Delete.
 	networkZoneDeleteCmd := cmdNetworkZoneDelete{global: c.global, networkZone: c}
-	cmd.AddCommand(networkZoneDeleteCmd.Command())
+	cmd.AddCommand(networkZoneDeleteCmd.command())
 
 	// Record.
 	networkZoneRecordCmd := cmdNetworkZoneRecord{global: c.global, networkZone: c}
-	cmd.AddCommand(networkZoneRecordCmd.Command())
+	cmd.AddCommand(networkZoneRecordCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -77,20 +77,20 @@ type cmdNetworkZoneList struct {
 	flagFormat string
 }
 
-func (c *cmdNetworkZoneList) Command() *cobra.Command {
+func (c *cmdNetworkZoneList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List available network zoneS")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("List available network zone"))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 
 	return cmd
 }
 
-func (c *cmdNetworkZoneList) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkZoneList) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
@@ -149,17 +149,17 @@ type cmdNetworkZoneShow struct {
 	networkZone *cmdNetworkZone
 }
 
-func (c *cmdNetworkZoneShow) Command() *cobra.Command {
+func (c *cmdNetworkZoneShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<Zone>"))
 	cmd.Short = i18n.G("Show network zone configurations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Show network zone configurations"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdNetworkZoneShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkZoneShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -204,18 +204,18 @@ type cmdNetworkZoneGet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdNetworkZoneGet) Command() *cobra.Command {
+func (c *cmdNetworkZoneGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<Zone> <key>"))
 	cmd.Short = i18n.G("Get values for network zone configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Get values for network zone configuration keys"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a network zone property"))
 	return cmd
 }
 
-func (c *cmdNetworkZoneGet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkZoneGet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -264,18 +264,18 @@ type cmdNetworkZoneCreate struct {
 	networkZone *cmdNetworkZone
 }
 
-func (c *cmdNetworkZoneCreate) Command() *cobra.Command {
+func (c *cmdNetworkZoneCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<Zone> [key=value...]"))
 	cmd.Short = i18n.G("Create new network zones")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Create new network zones"))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdNetworkZoneCreate) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkZoneCreate) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
@@ -347,7 +347,7 @@ type cmdNetworkZoneSet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdNetworkZoneSet) Command() *cobra.Command {
+func (c *cmdNetworkZoneSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<Zone> <key>=<value>..."))
 	cmd.Short = i18n.G("Set network zone configuration keys")
@@ -357,13 +357,13 @@ func (c *cmdNetworkZoneSet) Command() *cobra.Command {
 For backward compatibility, a single configuration key may still be set with:
     lxc network set [<remote>:]<Zone> <key> <value>`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a network zone property"))
 
 	return cmd
 }
 
-func (c *cmdNetworkZoneSet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkZoneSet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
@@ -427,19 +427,19 @@ type cmdNetworkZoneUnset struct {
 	flagIsProperty bool
 }
 
-func (c *cmdNetworkZoneUnset) Command() *cobra.Command {
+func (c *cmdNetworkZoneUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<Zone> <key>"))
 	cmd.Short = i18n.G("Unset network zone configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Unset network zone configuration keys"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a network zone property"))
 
 	return cmd
 }
 
-func (c *cmdNetworkZoneUnset) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkZoneUnset) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -449,7 +449,7 @@ func (c *cmdNetworkZoneUnset) Run(cmd *cobra.Command, args []string) error {
 	c.networkZoneSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
-	return c.networkZoneSet.Run(cmd, args)
+	return c.networkZoneSet.run(cmd, args)
 }
 
 // Edit.
@@ -458,13 +458,13 @@ type cmdNetworkZoneEdit struct {
 	networkZone *cmdNetworkZone
 }
 
-func (c *cmdNetworkZoneEdit) Command() *cobra.Command {
+func (c *cmdNetworkZoneEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<Zone>"))
 	cmd.Short = i18n.G("Edit network zone configurations as YAML")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Edit network zone configurations as YAML"))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
@@ -484,7 +484,7 @@ func (c *cmdNetworkZoneEdit) helpTemplate() string {
 `)
 }
 
-func (c *cmdNetworkZoneEdit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkZoneEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -576,18 +576,18 @@ type cmdNetworkZoneDelete struct {
 	networkZone *cmdNetworkZone
 }
 
-func (c *cmdNetworkZoneDelete) Command() *cobra.Command {
+func (c *cmdNetworkZoneDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<Zone>"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete network zones")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Delete network zones"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdNetworkZoneDelete) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkZoneDelete) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -625,7 +625,7 @@ type cmdNetworkZoneRecord struct {
 	networkZone *cmdNetworkZone
 }
 
-func (c *cmdNetworkZoneRecord) Command() *cobra.Command {
+func (c *cmdNetworkZoneRecord) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("record")
 	cmd.Short = i18n.G("Manage network zone records")
@@ -633,39 +633,39 @@ func (c *cmdNetworkZoneRecord) Command() *cobra.Command {
 
 	// List.
 	networkZoneRecordListCmd := cmdNetworkZoneRecordList{global: c.global, networkZoneRecord: c}
-	cmd.AddCommand(networkZoneRecordListCmd.Command())
+	cmd.AddCommand(networkZoneRecordListCmd.command())
 
 	// Show.
 	networkZoneRecordShowCmd := cmdNetworkZoneRecordShow{global: c.global, networkZoneRecord: c}
-	cmd.AddCommand(networkZoneRecordShowCmd.Command())
+	cmd.AddCommand(networkZoneRecordShowCmd.command())
 
 	// Get.
 	networkZoneRecordGetCmd := cmdNetworkZoneRecordGet{global: c.global, networkZoneRecord: c}
-	cmd.AddCommand(networkZoneRecordGetCmd.Command())
+	cmd.AddCommand(networkZoneRecordGetCmd.command())
 
 	// Create.
 	networkZoneRecordCreateCmd := cmdNetworkZoneRecordCreate{global: c.global, networkZoneRecord: c}
-	cmd.AddCommand(networkZoneRecordCreateCmd.Command())
+	cmd.AddCommand(networkZoneRecordCreateCmd.command())
 
 	// Set.
 	networkZoneRecordSetCmd := cmdNetworkZoneRecordSet{global: c.global, networkZoneRecord: c}
-	cmd.AddCommand(networkZoneRecordSetCmd.Command())
+	cmd.AddCommand(networkZoneRecordSetCmd.command())
 
 	// Unset.
 	networkZoneRecordUnsetCmd := cmdNetworkZoneRecordUnset{global: c.global, networkZoneRecord: c, networkZoneRecordSet: &networkZoneRecordSetCmd}
-	cmd.AddCommand(networkZoneRecordUnsetCmd.Command())
+	cmd.AddCommand(networkZoneRecordUnsetCmd.command())
 
 	// Edit.
 	networkZoneRecordEditCmd := cmdNetworkZoneRecordEdit{global: c.global, networkZoneRecord: c}
-	cmd.AddCommand(networkZoneRecordEditCmd.Command())
+	cmd.AddCommand(networkZoneRecordEditCmd.command())
 
 	// Delete.
 	networkZoneRecordDeleteCmd := cmdNetworkZoneRecordDelete{global: c.global, networkZoneRecord: c}
-	cmd.AddCommand(networkZoneRecordDeleteCmd.Command())
+	cmd.AddCommand(networkZoneRecordDeleteCmd.command())
 
 	// Entry.
 	networkZoneRecordEntryCmd := cmdNetworkZoneRecordEntry{global: c.global, networkZoneRecord: c}
-	cmd.AddCommand(networkZoneRecordEntryCmd.Command())
+	cmd.AddCommand(networkZoneRecordEntryCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -681,20 +681,20 @@ type cmdNetworkZoneRecordList struct {
 	flagFormat string
 }
 
-func (c *cmdNetworkZoneRecordList) Command() *cobra.Command {
+func (c *cmdNetworkZoneRecordList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]<zone>"))
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List available network zone records")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("List available network zone records"))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 
 	return cmd
 }
 
-func (c *cmdNetworkZoneRecordList) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkZoneRecordList) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -752,17 +752,17 @@ type cmdNetworkZoneRecordShow struct {
 	networkZoneRecord *cmdNetworkZoneRecord
 }
 
-func (c *cmdNetworkZoneRecordShow) Command() *cobra.Command {
+func (c *cmdNetworkZoneRecordShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<zone> <record>"))
 	cmd.Short = i18n.G("Show network zone record configuration")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Show network zone record configurations"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdNetworkZoneRecordShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkZoneRecordShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -804,18 +804,18 @@ type cmdNetworkZoneRecordGet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdNetworkZoneRecordGet) Command() *cobra.Command {
+func (c *cmdNetworkZoneRecordGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<zone> <record> <key>"))
 	cmd.Short = i18n.G("Get values for network zone record configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Get values for network zone record configuration keys"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a network zone record property"))
 	return cmd
 }
 
-func (c *cmdNetworkZoneRecordGet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkZoneRecordGet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
@@ -863,18 +863,18 @@ type cmdNetworkZoneRecordCreate struct {
 	networkZoneRecord *cmdNetworkZoneRecord
 }
 
-func (c *cmdNetworkZoneRecordCreate) Command() *cobra.Command {
+func (c *cmdNetworkZoneRecordCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<zone> <record> [key=value...]"))
 	cmd.Short = i18n.G("Create new network zone record")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Create new network zone record"))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdNetworkZoneRecordCreate) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkZoneRecordCreate) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
@@ -945,20 +945,20 @@ type cmdNetworkZoneRecordSet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdNetworkZoneRecordSet) Command() *cobra.Command {
+func (c *cmdNetworkZoneRecordSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<zone> <record> <key>=<value>..."))
 	cmd.Short = i18n.G("Set network zone record configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Set network zone record configuration keys`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a network zone record property"))
 	return cmd
 }
 
-func (c *cmdNetworkZoneRecordSet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkZoneRecordSet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
 	if exit {
@@ -1021,18 +1021,18 @@ type cmdNetworkZoneRecordUnset struct {
 	flagIsProperty bool
 }
 
-func (c *cmdNetworkZoneRecordUnset) Command() *cobra.Command {
+func (c *cmdNetworkZoneRecordUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<zone> <record> <key>"))
 	cmd.Short = i18n.G("Unset network zone record configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Unset network zone record configuration keys"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a network zone record property"))
 	return cmd
 }
 
-func (c *cmdNetworkZoneRecordUnset) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkZoneRecordUnset) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
@@ -1042,7 +1042,7 @@ func (c *cmdNetworkZoneRecordUnset) Run(cmd *cobra.Command, args []string) error
 	c.networkZoneRecordSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
-	return c.networkZoneRecordSet.Run(cmd, args)
+	return c.networkZoneRecordSet.run(cmd, args)
 }
 
 // Edit.
@@ -1051,13 +1051,13 @@ type cmdNetworkZoneRecordEdit struct {
 	networkZoneRecord *cmdNetworkZoneRecord
 }
 
-func (c *cmdNetworkZoneRecordEdit) Command() *cobra.Command {
+func (c *cmdNetworkZoneRecordEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<zone> <record>"))
 	cmd.Short = i18n.G("Edit network zone record configurations as YAML")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Edit network zone record configurations as YAML"))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
@@ -1077,7 +1077,7 @@ func (c *cmdNetworkZoneRecordEdit) helpTemplate() string {
 `)
 }
 
-func (c *cmdNetworkZoneRecordEdit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkZoneRecordEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -1168,18 +1168,18 @@ type cmdNetworkZoneRecordDelete struct {
 	networkZoneRecord *cmdNetworkZoneRecord
 }
 
-func (c *cmdNetworkZoneRecordDelete) Command() *cobra.Command {
+func (c *cmdNetworkZoneRecordDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<zone> <record>"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete network zone record")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Delete network zone record"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdNetworkZoneRecordDelete) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkZoneRecordDelete) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -1218,7 +1218,7 @@ type cmdNetworkZoneRecordEntry struct {
 	flagTTL uint64
 }
 
-func (c *cmdNetworkZoneRecordEntry) Command() *cobra.Command {
+func (c *cmdNetworkZoneRecordEntry) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("entry")
 	cmd.Short = i18n.G("Manage network zone record entries")

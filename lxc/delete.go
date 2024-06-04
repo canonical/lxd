@@ -23,7 +23,7 @@ type cmdDelete struct {
 	flagInteractive    bool
 }
 
-func (c *cmdDelete) Command() *cobra.Command {
+func (c *cmdDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/<snapshot>]...]"))
 	cmd.Aliases = []string{"rm"}
@@ -31,7 +31,7 @@ func (c *cmdDelete) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Delete instances and snapshots`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force the removal of running instances"))
 	cmd.Flags().BoolVarP(&c.flagInteractive, "interactive", "i", false, i18n.G("Require user confirmation"))
 
@@ -71,7 +71,7 @@ func (c *cmdDelete) doDelete(d lxd.InstanceServer, name string) error {
 	return op.Wait()
 }
 
-func (c *cmdDelete) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdDelete) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
