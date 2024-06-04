@@ -29,6 +29,9 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
   unix (connect, send, receive) type=stream,
 
+  # PowerFlex storage driver specific for NVMe/TCP mode
+  network inet tcp,
+
   @{PROC}/@{pid}/cmdline r,
   @{PROC}/@{pid}/cpuset r,
   {{ .rootPath }}/{etc,lib,usr/lib}/os-release r,
