@@ -265,23 +265,15 @@ func (d Nftables) networkSetupOutboundNAT(networkName string, SNATV4 *SNATOpts, 
 }
 
 // networkSetupICMPDHCPDNSAccess sets up basic nftables overrides for ICMP, DHCP and DNS.
-func (d Nftables) networkSetupICMPDHCPDNSAccess(networkName string, ipVersions []uint) error {
-	ipFamilies := []string{}
-	for _, ipVersion := range ipVersions {
-		switch ipVersion {
-		case 4:
-			ipFamilies = append(ipFamilies, "ip")
-		case 6:
-			ipFamilies = append(ipFamilies, "ip6")
-		}
-	}
-
+// This should be called with at least one of (ip4Address, ip6Address) != nil.
+func (d Nftables) networkSetupICMPDHCPDNSAccess(networkName string, ip4Address net.IP, ip6Address net.IP) error {
 	tplFields := map[string]any{
 		"namespace":      nftablesNamespace,
 		"chainSeparator": nftablesChainSeparator,
 		"networkName":    networkName,
+		"ip4Address":     ip4Address.String(),
+		"ip6Address":     ip6Address.String(),
 		"family":         "inet",
-		"ipFamilies":     ipFamilies,
 	}
 
 	err := d.applyNftConfig(nftablesNetICMPDHCPDNS, tplFields)
@@ -315,7 +307,7 @@ func (d Nftables) networkSetupACLChainAndJumpRules(networkName string) error {
 }
 
 // NetworkSetup configure network firewall.
-func (d Nftables) NetworkSetup(networkName string, opts Opts) error {
+func (d Nftables) NetworkSetup(networkName string, ip4Address net.IP, ip6Address net.IP, opts Opts) error {
 	// Do this first before adding other network rules, so jump to ACL rules come first.
 	if opts.ACL {
 		err := d.networkSetupACLChainAndJumpRules(networkName)
@@ -331,21 +323,20 @@ func (d Nftables) NetworkSetup(networkName string, opts Opts) error {
 		}
 	}
 
-	dhcpDNSAccess := []uint{}
 	var ip4ForwardingAllow, ip6ForwardingAllow *bool
 
 	if opts.FeaturesV4 != nil || opts.FeaturesV6 != nil {
 		if opts.FeaturesV4 != nil {
-			if opts.FeaturesV4.ICMPDHCPDNSAccess {
-				dhcpDNSAccess = append(dhcpDNSAccess, 4)
+			if !opts.FeaturesV4.ICMPDHCPDNSAccess {
+				ip4Address = nil
 			}
 
 			ip4ForwardingAllow = &opts.FeaturesV4.ForwardingAllow
 		}
 
 		if opts.FeaturesV6 != nil {
-			if opts.FeaturesV6.ICMPDHCPDNSAccess {
-				dhcpDNSAccess = append(dhcpDNSAccess, 6)
+			if !opts.FeaturesV6.ICMPDHCPDNSAccess {
+				ip6Address = nil
 			}
 
 			ip6ForwardingAllow = &opts.FeaturesV6.ForwardingAllow
@@ -356,7 +347,7 @@ func (d Nftables) NetworkSetup(networkName string, opts Opts) error {
 			return err
 		}
 
-		err = d.networkSetupICMPDHCPDNSAccess(networkName, dhcpDNSAccess)
+		err = d.networkSetupICMPDHCPDNSAccess(networkName, ip4Address, ip6Address)
 		if err != nil {
 			return err
 		}
@@ -887,30 +878,12 @@ func (d Nftables) aclRuleSubjectToACLMatch(direction string, ipVersion uint, sub
 	for _, subjectCriterion := range subjectCriteria {
 		if validate.IsNetworkRange(subjectCriterion) == nil {
 			criterionParts := strings.SplitN(subjectCriterion, "-", 2)
-			if len(criterionParts) > 1 {
-				ip := net.ParseIP(criterionParts[0])
-				if ip != nil {
-					var subjectIPVersion uint = 4
-					if ip.To4() == nil {
-						subjectIPVersion = 6
-					}
 
-					if ipVersion != subjectIPVersion {
-						partial = true
-						continue // Skip subjects that are not for the ipVersion we are looking for.
-					}
-
-					fieldParts = append(fieldParts, fmt.Sprintf("%s-%s", criterionParts[0], criterionParts[1]))
-				}
-			} else {
+			if len(criterionParts) <= 1 {
 				return nil, false, fmt.Errorf("Invalid IP range %q", subjectCriterion)
 			}
-		} else {
-			ip := net.ParseIP(subjectCriterion)
-			if ip == nil {
-				ip, _, _ = net.ParseCIDR(subjectCriterion)
-			}
 
+			ip := net.ParseIP(criterionParts[0])
 			if ip != nil {
 				var subjectIPVersion uint = 4
 				if ip.To4() == nil {
@@ -922,10 +895,29 @@ func (d Nftables) aclRuleSubjectToACLMatch(direction string, ipVersion uint, sub
 					continue // Skip subjects that are not for the ipVersion we are looking for.
 				}
 
-				fieldParts = append(fieldParts, subjectCriterion)
-			} else {
+				fieldParts = append(fieldParts, fmt.Sprintf("%s-%s", criterionParts[0], criterionParts[1]))
+			}
+		} else {
+			ip := net.ParseIP(subjectCriterion)
+			if ip == nil {
+				ip, _, _ = net.ParseCIDR(subjectCriterion)
+			}
+
+			if ip == nil {
 				return nil, false, fmt.Errorf("Unsupported nftables subject %q", subjectCriterion)
 			}
+
+			var subjectIPVersion uint = 4
+			if ip.To4() == nil {
+				subjectIPVersion = 6
+			}
+
+			if ipVersion != subjectIPVersion {
+				partial = true
+				continue // Skip subjects that are not for the ipVersion we are looking for.
+			}
+
+			fieldParts = append(fieldParts, subjectCriterion)
 		}
 	}
 
