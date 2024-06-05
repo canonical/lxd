@@ -10,14 +10,12 @@ AppArmor
 ARMv
 ARP
 ASN
-Auth
 AXFR
 backend
 backends
 balancers
 benchmarking
 BGP
-bibi
 BitLocker
 bool
 bootable
@@ -44,11 +42,9 @@ CRL
 cron
 CSV
 CUDA
-customizable
 dataset
 DCO
 dereferenced
-devtmpfs
 DHCP
 DHCPv
 Diffie
@@ -84,7 +80,6 @@ Golang
 goroutines
 GPUs
 HAProxy
-hardcoded
 Hellman
 Homebrew
 hotplug
@@ -99,10 +94,8 @@ idmapped
 idmaps
 incrementing
 InfiniBand
-InfluxDB
 init
 initramfs
-integrations
 IOPS
 IOV
 IPAM
@@ -162,7 +155,6 @@ OpenMetrics
 OpenSSL
 OpenSUSE
 OSD
-overcommit
 overcommitting
 OverlayFS
 OVMF
@@ -203,7 +195,6 @@ RHEL
 rollout
 rootfs
 RSA
-rST
 runtime
 SATA
 scalable
@@ -216,7 +207,6 @@ Seccomp
 SEV
 SFTP
 SHA
-shiftfs
 SIGHUP
 SIGTERM
 simplestreams
@@ -240,12 +230,10 @@ struct
 structs
 subcommand
 subcommands
-subitem
 subnet
 subnets
 subpage
 subpages
-substep
 subtrees
 subvolume
 subvolumes
@@ -259,7 +247,6 @@ sysfs
 syslog
 Tbit
 TCP
-Telegraf
 TiB
 Tibit
 TinyPNG
@@ -300,7 +287,6 @@ VLANs
 VMs
 VPD
 VPN
-VPS
 vSwitch
 vTree
 VXLAN
