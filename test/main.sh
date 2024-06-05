@@ -218,6 +218,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_basic_usage "basic usage"
     run_test test_server_info "server info"
     run_test test_remote_url "remote url handling"
+    run_test test_remote_url_with_token "remote token handling"
     run_test test_remote_admin "remote administration"
     run_test test_remote_usage "remote usage"
 fi
