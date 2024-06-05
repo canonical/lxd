@@ -337,6 +337,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_storage "storage"
     run_test test_storage_volume_snapshots "storage volume snapshots"
     run_test test_init_auto "lxd init auto"
+    run_test test_init_dump "lxd init dump"
     run_test test_init_interactive "lxd init interactive"
     run_test test_init_preseed "lxd init preseed"
     run_test test_storage_profiles "storage profiles"
