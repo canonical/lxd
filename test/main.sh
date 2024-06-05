@@ -260,6 +260,7 @@ fi
 
 if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_projects_default "default project"
+    run_test test_projects_copy "copy/move between projects"
     run_test test_projects_crud "projects CRUD operations"
     run_test test_projects_containers "containers inside projects"
     run_test test_projects_snapshots "snapshots inside projects"
