@@ -144,6 +144,9 @@ spawn_lxd "${LXD_DIR}" true
 LXD_ADDR=$(cat "${LXD_DIR}/lxd.addr")
 export LXD_ADDR
 
+LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
+export LXD_SKIP_TESTS
+
 run_test() {
   TEST_CURRENT=${1}
   TEST_CURRENT_DESCRIPTION=${2:-${1}}
