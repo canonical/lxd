@@ -1,4 +1,4 @@
-test_common_fuidshift() {
+_common_fuidshift() {
   # test some bad arguments
   fail=0
   fuidshift /tmp -t b:0 > /dev/null 2>&1 && fail=1
@@ -6,8 +6,8 @@ test_common_fuidshift() {
   [ "${fail}" -ne 1 ]
 }
 
-test_nonroot_fuidshift() {
-  test_common_fuidshift
+_nonroot_fuidshift() {
+  _common_fuidshift
 
   LXD_FUIDMAP_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
 
@@ -37,8 +37,8 @@ test_nonroot_fuidshift() {
   fi
 }
 
-test_root_fuidshift() {
-  test_nonroot_fuidshift
+_root_fuidshift() {
+  _nonroot_fuidshift
 
   # Todo - test ranges
 }
@@ -50,8 +50,8 @@ test_fuidshift() {
   fi
 
   if [ "$(id -u)" -ne 0 ]; then
-    test_nonroot_fuidshift
+    _nonroot_fuidshift
   else
-    test_root_fuidshift
+    _root_fuidshift
   fi
 }
