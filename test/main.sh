@@ -252,6 +252,7 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_remove_members "clustering config remove members"
     run_test test_clustering_autotarget "clustering autotarget member"
     run_test test_clustering_upgrade "clustering upgrade"
+    run_test test_clustering_upgrade_large "clustering upgrade_large"
     run_test test_clustering_groups "clustering groups"
     run_test test_clustering_events "clustering events"
     run_test test_clustering_uuid "clustering uuid"
