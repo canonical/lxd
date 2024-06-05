@@ -4,17 +4,17 @@ test_container_devices_disk() {
 
   lxc init testimage foo
 
-  test_container_devices_disk_shift
-  test_container_devices_raw_mount_options
-  test_container_devices_disk_ceph
-  test_container_devices_disk_cephfs
-  test_container_devices_disk_socket
-  test_container_devices_disk_char
+  _container_devices_disk_shift
+  _container_devices_raw_mount_options
+  _container_devices_disk_ceph
+  _container_devices_disk_cephfs
+  _container_devices_disk_socket
+  _container_devices_disk_char
 
   lxc delete -f foo
 }
 
-test_container_devices_disk_shift() {
+_container_devices_disk_shift() {
   # shellcheck disable=2039,3043
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
@@ -92,7 +92,7 @@ test_container_devices_disk_shift() {
   lxc stop foo -f
 }
 
-test_container_devices_raw_mount_options() {
+_container_devices_raw_mount_options() {
   configure_loop_device loop_file_1 loop_device_1
   # shellcheck disable=SC2154
   mkfs.vfat "${loop_device_1}"
@@ -121,7 +121,7 @@ test_container_devices_raw_mount_options() {
   deconfigure_loop_device "${loop_file_1}" "${loop_device_1}"
 }
 
-test_container_devices_disk_ceph() {
+_container_devices_disk_ceph() {
   # shellcheck disable=SC2039,3043
   local LXD_BACKEND
 
@@ -146,7 +146,7 @@ test_container_devices_disk_ceph() {
   ceph osd pool rm "${RBD_POOL_NAME}" "${RBD_POOL_NAME}" --yes-i-really-really-mean-it
 }
 
-test_container_devices_disk_cephfs() {
+_container_devices_disk_cephfs() {
   # shellcheck disable=SC2039,3043
   local LXD_BACKEND
 
@@ -163,7 +163,7 @@ test_container_devices_disk_cephfs() {
   lxc delete -f ceph-fs
 }
 
-test_container_devices_disk_socket() {
+_container_devices_disk_socket() {
   lxc start foo
   lxc config device add foo unix-socket disk source="${LXD_DIR}/unix.socket" path=/root/lxd.sock
   [ "$(lxc exec foo -- stat /root/lxd.sock -c '%F')" = "socket" ] || false
@@ -173,7 +173,7 @@ test_container_devices_disk_socket() {
   lxc stop foo -f
 }
 
-test_container_devices_disk_char() {
+_container_devices_disk_char() {
   lxc start foo
   lxc config device add foo char disk source=/dev/zero path=/root/zero
   [ "$(lxc exec foo -- stat /root/zero -c '%F')" = "character special file" ] || false
