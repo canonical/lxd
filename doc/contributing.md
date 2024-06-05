@@ -88,7 +88,7 @@ GitHub runs automatic checks on the documentation to verify the spelling, the va
 
 You can (and should!) run these tests locally as well with the following commands:
 
-- Check the spelling: `make doc-spellcheck`
+- Check the spelling: `make doc-spellcheck` (or `make doc-spelling` to first build the documentation and then check it)
 - Check the validity of links: `make doc-linkcheck`
 - Check the Markdown formatting: `make doc-lint`
 - Check for inclusive language: `make doc-woke`
