@@ -1357,16 +1357,20 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 	}
 
+	var ipv4Address net.IP
+
 	// Configure IPv4.
 	if !shared.ValueInSlice(n.config["ipv4.address"], []string{"", "none"}) {
+		var subnet *net.IPNet
+
 		// Parse the subnet.
-		ipAddress, subnet, err := net.ParseCIDR(n.config["ipv4.address"])
+		ipv4Address, subnet, err = net.ParseCIDR(n.config["ipv4.address"])
 		if err != nil {
 			return fmt.Errorf("Failed parsing ipv4.address: %w", err)
 		}
 
 		// Update the dnsmasq config.
-		dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--listen-address=%s", ipAddress.String()))
+		dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--listen-address=%s", ipv4Address.String()))
 		if n.DHCPv4Subnet() != nil {
 			if !shared.ValueInSlice("--dhcp-no-override", dnsmasqCmd) {
 				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")), fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts"))}...)
@@ -1482,6 +1486,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		return err
 	}
 
+	var ipv6Address net.IP
+
 	// Configure IPv6.
 	if !shared.ValueInSlice(n.config["ipv6.address"], []string{"", "none"}) {
 		// Enable IPv6 for the subnet.
@@ -1490,8 +1496,10 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			return err
 		}
 
+		var subnet *net.IPNet
+
 		// Parse the subnet.
-		ipAddress, subnet, err := net.ParseCIDR(n.config["ipv6.address"])
+		ipv6Address, subnet, err = net.ParseCIDR(n.config["ipv6.address"])
 		if err != nil {
 			return fmt.Errorf("Failed parsing ipv6.address: %w", err)
 		}
@@ -1514,7 +1522,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Update the dnsmasq config.
-		dnsmasqCmd = append(dnsmasqCmd, []string{fmt.Sprintf("--listen-address=%s", ipAddress.String()), "--enable-ra"}...)
+		dnsmasqCmd = append(dnsmasqCmd, []string{fmt.Sprintf("--listen-address=%s", ipv6Address.String()), "--enable-ra"}...)
 		if n.DHCPv6Subnet() != nil {
 			if n.hasIPv6Firewall() {
 				fwOpts.FeaturesV6.ICMPDHCPDNSAccess = true
@@ -1735,6 +1743,9 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")),
 			fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts")),
 			"--dhcp-range", fmt.Sprintf("%s,%s,%s", dhcpalloc.GetIP(hostSubnet, 2).String(), dhcpalloc.GetIP(hostSubnet, -2).String(), expiry)}...)
+
+		// Save the dnsmasq listen address so that firewall rules can be added later
+		ipv4Address = net.ParseIP(addr[0])
 
 		// Setup the tunnel.
 		if n.config["fan.type"] == "ipip" {
@@ -2118,7 +2129,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Setup firewall.
 	n.logger.Debug("Setting up firewall")
-	err = n.state.Firewall.NetworkSetup(n.name, fwOpts)
+	err = n.state.Firewall.NetworkSetup(n.name, ipv4Address, ipv6Address, fwOpts)
 	if err != nil {
 		return fmt.Errorf("Failed to setup firewall: %w", err)
 	}

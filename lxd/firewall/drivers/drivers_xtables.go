@@ -379,11 +379,17 @@ func (d Xtables) networkSetupOutboundNAT(networkName string, subnet *net.IPNet, 
 }
 
 // networkSetupICMPDHCPDNSAccess sets up basic iptables overrides for ICMP, DHCP and DNS.
-func (d Xtables) networkSetupICMPDHCPDNSAccess(networkName string, ipVersion uint) error {
+func (d Xtables) networkSetupICMPDHCPDNSAccess(networkName string, networkAddress net.IP, ipVersion uint) error {
 	var rules [][]string
 	if ipVersion == 4 {
 		rules = [][]string{
 			{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "udp", "--dport", "67", "-j", "ACCEPT"},
+			// Prevent DNS requests to the bridge's dnsmasq except from lo and the bridge
+			// `rules` is reversed when applied (iptablesPrepend(...)), so the drop rules come first
+			{"4", networkName, "filter", "INPUT", "-d", networkAddress.String(), "-p", "udp", "--dport", "53", "-j", "DROP"},
+			{"4", networkName, "filter", "INPUT", "-d", networkAddress.String(), "-p", "tcp", "--dport", "53", "-j", "DROP"},
+			{"4", networkName, "filter", "INPUT", "-i", "lo", "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
+			{"4", networkName, "filter", "INPUT", "-i", "lo", "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
 			{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
 			{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
 			{"4", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "udp", "--sport", "67", "-j", "ACCEPT"},
@@ -398,6 +404,10 @@ func (d Xtables) networkSetupICMPDHCPDNSAccess(networkName string, ipVersion uin
 	} else if ipVersion == 6 {
 		rules = [][]string{
 			{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "udp", "--dport", "547", "-j", "ACCEPT"},
+			{"6", networkName, "filter", "INPUT", "-d", networkAddress.String(), "-p", "udp", "--dport", "53", "-j", "DROP"},
+			{"6", networkName, "filter", "INPUT", "-d", networkAddress.String(), "-p", "tcp", "--dport", "53", "-j", "DROP"},
+			{"6", networkName, "filter", "INPUT", "-i", "lo", "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
+			{"6", networkName, "filter", "INPUT", "-i", "lo", "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
 			{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
 			{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
 			{"6", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "udp", "--sport", "547", "-j", "ACCEPT"},
@@ -441,7 +451,7 @@ func (d Xtables) networkSetupDHCPv4Checksum(networkName string) error {
 }
 
 // NetworkSetup configure network firewall.
-func (d Xtables) NetworkSetup(networkName string, opts Opts) error {
+func (d Xtables) NetworkSetup(networkName string, ipv4Address net.IP, ipv6Address net.IP, opts Opts) error {
 	if opts.SNATV4 != nil {
 		err := d.networkSetupOutboundNAT(networkName, opts.SNATV4.Subnet, opts.SNATV4.SNATAddress, opts.SNATV4.Append)
 		if err != nil {
@@ -458,7 +468,7 @@ func (d Xtables) NetworkSetup(networkName string, opts Opts) error {
 
 	if opts.FeaturesV4 != nil {
 		if opts.FeaturesV4.ICMPDHCPDNSAccess {
-			err := d.networkSetupICMPDHCPDNSAccess(networkName, 4)
+			err := d.networkSetupICMPDHCPDNSAccess(networkName, ipv4Address, 4)
 			if err != nil {
 				return err
 			}
@@ -477,7 +487,7 @@ func (d Xtables) NetworkSetup(networkName string, opts Opts) error {
 
 	if opts.FeaturesV6 != nil {
 		if opts.FeaturesV6.ICMPDHCPDNSAccess {
-			err := d.networkSetupICMPDHCPDNSAccess(networkName, 6)
+			err := d.networkSetupICMPDHCPDNSAccess(networkName, ipv6Address, 6)
 			if err != nil {
 				return err
 			}
@@ -709,20 +719,20 @@ func (d Xtables) aclRuleSubjectToACLMatch(direction string, ipVersion uint, subj
 			ip, _, _ = net.ParseCIDR(subjectCriterion)
 		}
 
-		if ip != nil {
-			var subjectIPVersion uint = 4
-			if ip.To4() == nil {
-				subjectIPVersion = 6
-			}
-
-			if ipVersion != subjectIPVersion {
-				continue // Skip subjects that not for the xtables tool we are using.
-			}
-
-			fieldParts = append(fieldParts, subjectCriterion)
-		} else {
+		if ip == nil {
 			return nil, fmt.Errorf("Unsupported xtables subject %q", subjectCriterion)
 		}
+
+		var subjectIPVersion uint = 4
+		if ip.To4() == nil {
+			subjectIPVersion = 6
+		}
+
+		if ipVersion != subjectIPVersion {
+			continue // Skip subjects that not for the xtables tool we are using.
+		}
+
+		fieldParts = append(fieldParts, subjectCriterion)
 	}
 
 	if len(fieldParts) > 0 {
@@ -1097,7 +1107,7 @@ func (d Xtables) generateFilterEbtablesRules(hostName string, hwAddr string, IPv
 func (d Xtables) generateFilterIptablesRules(parentName string, hostName string, hwAddr string, IPv6Nets []*net.IPNet, parentManaged bool) (rules [][]string, err error) {
 	mac, err := net.ParseMAC(hwAddr)
 	if err != nil {
-		return
+		return [][]string{}, err
 	}
 
 	macHex := hex.EncodeToString(mac)
@@ -1152,7 +1162,7 @@ func (d Xtables) generateFilterIptablesRules(parentName string, hostName string,
 		}
 	}
 
-	return
+	return [][]string{}, err
 }
 
 // matchEbtablesRule compares an active rule to a supplied match rule to see if they match.
@@ -1421,7 +1431,7 @@ func (d Xtables) InstanceClearNetPrio(projectName string, instanceName string, d
 }
 
 // iptablesChainExists checks whether a chain exists in a table, and whether it has any rules.
-func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string) (bool, bool, error) {
+func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string) (exists, hasRules bool, err error) {
 	var cmd string
 	if ipVersion == 4 {
 		cmd = "iptables"
@@ -1431,7 +1441,7 @@ func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string)
 		return false, false, fmt.Errorf("Invalid IP version")
 	}
 
-	_, err := exec.LookPath(cmd)
+	_, err = exec.LookPath(cmd)
 	if err != nil {
 		return false, false, fmt.Errorf("Failed checking %q chain %q exists in table %q: %w", cmd, chain, table, err)
 	}
