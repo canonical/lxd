@@ -1523,6 +1523,7 @@ func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string)
 		canViewEntity, err := authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entityType)
 		if err != nil {
 			logger.Error("Failed to get permission checker for project used-by filtering", logger.Ctx{"entity_type": entityType, "error": err})
+			continue
 		}
 
 		// Check each url and append.
