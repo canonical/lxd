@@ -13,7 +13,6 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/lxd/daemon"
 	"github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -237,12 +236,7 @@ func hoistReq(f func(*Daemon, http.ResponseWriter, *http.Request) *devLxdRespons
 		} else if resp.ctype == "json" {
 			w.Header().Set("Content-Type", "application/json")
 
-			var debugLogger logger.Logger
-			if daemon.Debug {
-				debugLogger = logger.Logger(logger.Log)
-			}
-
-			_ = util.WriteJSON(w, resp.content, debugLogger)
+			_ = util.WriteJSON(w, resp.content, nil)
 		} else if resp.ctype != "websocket" {
 			w.Header().Set("Content-Type", "application/octet-stream")
 			_, _ = fmt.Fprint(w, resp.content.(string))
