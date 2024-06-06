@@ -8,7 +8,7 @@ To do so, set the {config:option}`server-core:core.https_address` server configu
 
 For example, allow access to the LXD server on port `8443`:
 
-````{tabs}
+`````{tabs}
 ```{group-tab} CLI
     lxc config set core.https_address :8443
 ```
@@ -19,7 +19,18 @@ For example, allow access to the LXD server on port `8443`:
       }
     }'
 ```
+````{group-tab} UI
+```{note}
+The UI requires LXD to be exposed to the network.
+Therefore, you must use the CLI or API to originally expose LXD to the network.
+
+Once you have access to the UI, you can use it to update the setting.
+However, be careful when changing the configured value, because using an invalid value might cause you to loose access to the UI.
+```
+
+Go to {guilabel}`Settings` and edit the value for `core.https_address`.
 ````
+`````
 
 To allow access through a specific IP address, use `ip addr` to find an available address and then set it.
 For example:
@@ -59,7 +70,9 @@ To be able to access the remote API, clients must authenticate with the LXD serv
 There are several authentication methods; see {ref}`authentication` for detailed information.
 
 The recommended method is to add the client's TLS certificate to the server's trust store through a trust token.
-To authenticate a client using a trust token, complete the following steps:
+
+See {ref}`access-ui` for instructions on how to authenticate with the LXD server using the UI.
+To authenticate a CLI or API client using a trust token, complete the following steps:
 
 1. On the server, generate a trust token.
 
