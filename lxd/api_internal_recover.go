@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/canonical/lxd/lxd/auth"
+	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	"github.com/canonical/lxd/lxd/backup"
 	backupConfig "github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/db"
@@ -32,13 +32,13 @@ import (
 var internalRecoverValidateCmd = APIEndpoint{
 	Path: "recover/validate",
 
-	Post: APIEndpointAction{Handler: internalRecoverValidate, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Post: APIEndpointAction{Handler: internalRecoverValidate, AccessHandler: allowPermission(entity.TypeServer, authEntity.EntitlementCanEdit)},
 }
 
 var internalRecoverImportCmd = APIEndpoint{
 	Path: "recover/import",
 
-	Post: APIEndpointAction{Handler: internalRecoverImport, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Post: APIEndpointAction{Handler: internalRecoverImport, AccessHandler: allowPermission(entity.TypeServer, authEntity.EntitlementCanEdit)},
 }
 
 // init recover adds API endpoints to handler slice.

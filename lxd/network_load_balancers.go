@@ -9,7 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/canonical/lxd/lxd/auth"
+	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -26,17 +26,17 @@ import (
 var networkLoadBalancersCmd = APIEndpoint{
 	Path: "networks/{networkName}/load-balancers",
 
-	Get:  APIEndpointAction{Handler: networkLoadBalancersGet, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanView, "networkName")},
-	Post: APIEndpointAction{Handler: networkLoadBalancersPost, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
+	Get:  APIEndpointAction{Handler: networkLoadBalancersGet, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanView, "networkName")},
+	Post: APIEndpointAction{Handler: networkLoadBalancersPost, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanEdit, "networkName")},
 }
 
 var networkLoadBalancerCmd = APIEndpoint{
 	Path: "networks/{networkName}/load-balancers/{listenAddress}",
 
-	Delete: APIEndpointAction{Handler: networkLoadBalancerDelete, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
-	Get:    APIEndpointAction{Handler: networkLoadBalancerGet, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanView, "networkName")},
-	Put:    APIEndpointAction{Handler: networkLoadBalancerPut, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
-	Patch:  APIEndpointAction{Handler: networkLoadBalancerPut, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
+	Delete: APIEndpointAction{Handler: networkLoadBalancerDelete, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanEdit, "networkName")},
+	Get:    APIEndpointAction{Handler: networkLoadBalancerGet, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanView, "networkName")},
+	Put:    APIEndpointAction{Handler: networkLoadBalancerPut, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanEdit, "networkName")},
+	Patch:  APIEndpointAction{Handler: networkLoadBalancerPut, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanEdit, "networkName")},
 }
 
 // API endpoints

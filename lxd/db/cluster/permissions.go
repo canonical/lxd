@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/canonical/lxd/lxd/auth"
+	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -18,7 +18,7 @@ import (
 type Permission struct {
 	ID          int
 	GroupID     int
-	Entitlement auth.Entitlement
+	Entitlement authEntity.Entitlement
 	EntityType  EntityType
 	EntityID    int
 }

@@ -14,7 +14,7 @@ import (
 	"github.com/flosch/pongo2"
 	"github.com/gorilla/mux"
 
-	"github.com/canonical/lxd/lxd/auth"
+	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -38,18 +38,18 @@ import (
 var storagePoolVolumeSnapshotsTypeCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots",
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypeGet, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanView, "poolName", "type", "volumeName")},
-	Post: APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypePost, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
+	Get:  APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypeGet, AccessHandler: allowPermission(entity.TypeStorageVolume, authEntity.EntitlementCanView, "poolName", "type", "volumeName")},
+	Post: APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypePost, AccessHandler: allowPermission(entity.TypeStorageVolume, authEntity.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
 }
 
 var storagePoolVolumeSnapshotTypeCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName}",
 
-	Delete: APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeDelete, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeGet, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanView, "poolName", "type", "volumeName")},
-	Post:   APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePost, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePatch, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
-	Put:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePut, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeDelete, AccessHandler: allowPermission(entity.TypeStorageVolume, authEntity.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeGet, AccessHandler: allowPermission(entity.TypeStorageVolume, authEntity.EntitlementCanView, "poolName", "type", "volumeName")},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePost, AccessHandler: allowPermission(entity.TypeStorageVolume, authEntity.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePatch, AccessHandler: allowPermission(entity.TypeStorageVolume, authEntity.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
+	Put:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePut, AccessHandler: allowPermission(entity.TypeStorageVolume, authEntity.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
 }
 
 // swagger:operation POST /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots storage storage_pool_volumes_type_snapshots_post
