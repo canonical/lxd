@@ -34,6 +34,7 @@ type eventsServe struct {
 	s   *state.State
 }
 
+// Render starts event socket.
 func (r *eventsServe) Render(w http.ResponseWriter) error {
 	return eventsSocket(r.s, r.req, w)
 }
