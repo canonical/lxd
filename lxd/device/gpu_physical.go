@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/canonical/lxd/lxd/device/cdi"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	pcidev "github.com/canonical/lxd/lxd/device/pci"
 	"github.com/canonical/lxd/lxd/instance"
@@ -102,6 +103,35 @@ func (d *gpuPhysical) Start() (*deviceConfig.RunConfig, error) {
 // Returns RunConfig populated with mount info required to pass the unix-char devices into the container.
 func (d *gpuPhysical) startContainer() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
+	if d.config["id"] != "" {
+		// Check if the id of the device match a CDI format.
+		cdiID, err := cdi.ToCDI(d.config["id"])
+		if err != nil {
+			return nil, err
+		}
+
+		// The cdiID can be nil if the id doesn't match the general CDI format, but this is not an error.
+		// and we allow the program to continue as the id could be a valid DRM card ID.
+		if cdiID != nil {
+			if cdiID.DeviceType() == cdi.MIG {
+				return nil, fmt.Errorf("MIG GPU notation detected for a `physical` gputype device. Choose a `mig` gputype device instead.")
+			}
+
+			err = startWithCDISpec(d.state, d.inst, cdiID, &runConf)
+			if err != nil {
+				return nil, err
+			}
+
+			// This is used to clean up the CDI hooks file on the postStop hook.
+			err = d.volatileSet(map[string]string{"cdi": "true"})
+			if err != nil {
+				return nil, err
+			}
+
+			return &runConf, nil
+		}
+	}
+
 	gpus, err := resources.GetGPU()
 	if err != nil {
 		return nil, err
@@ -349,9 +379,29 @@ func (d *gpuPhysical) Stop() (*deviceConfig.RunConfig, error) {
 	}
 
 	if d.inst.Type() == instancetype.Container {
-		err := unixDeviceRemove(d.inst.DevicesPath(), "unix", d.name, "", &runConf)
-		if err != nil {
-			return nil, err
+		v := d.volatileGet()
+		if v["cdi"] == "true" {
+			cdiID, err := cdi.ToCDI(d.config["id"])
+			if cdiID == nil {
+				var formattedErr error
+				if err != nil {
+					formattedErr = err
+				} else {
+					formattedErr = fmt.Errorf("Passed GPU device `id` config option is not compliant with the CDI notation")
+				}
+
+				return nil, fmt.Errorf("Could not generate the CDI ID while stoppping the CDI device: %w", formattedErr)
+			}
+
+			err = stopWithCDISpec(d.state, d.inst, cdiID, &runConf)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			err := unixDeviceRemove(d.inst.DevicesPath(), "unix", d.name, "", &runConf)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -365,16 +415,23 @@ func (d *gpuPhysical) postStop() error {
 			"last_state.pci.slot.name": "",
 			"last_state.pci.driver":    "",
 			"vgpu.uuid":                "",
+			"cdi":                      "",
 		})
 	}()
 
 	v := d.volatileGet()
 
 	if d.inst.Type() == instancetype.Container {
-		// Remove host files for this device.
-		err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), "unix", d.name, "")
-		if err != nil {
-			return fmt.Errorf("Failed to delete files for device '%s': %w", d.name, err)
+		// If we are in a CDI mode, the underlying postStop hooks for the various unix-char and disk devices
+		// are already registered when `stopWithCDISpec` is called.
+		//
+		// Else, we only have the unix-char device files to delete.
+		if v["cdi"] != "true" {
+			// Remove host files for this device.
+			err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), "unix", d.name, "")
+			if err != nil {
+				return fmt.Errorf("Failed to delete files for device '%s': %w", d.name, err)
+			}
 		}
 	}
 
@@ -396,21 +453,21 @@ func (d *gpuPhysical) postStop() error {
 
 // deviceNumStringToUint32 converts a device number string (major:minor) into separare major and
 // minor uint32s.
-func (d *gpuPhysical) deviceNumStringToUint32(devNum string) (uint32, uint32, error) {
+func (d *gpuPhysical) deviceNumStringToUint32(devNum string) (major uint32, minor uint32, err error) {
 	devParts := strings.SplitN(devNum, ":", 2)
 	tmp, err := strconv.ParseUint(devParts[0], 10, 32)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	major := uint32(tmp)
+	major = uint32(tmp)
 
 	tmp, err = strconv.ParseUint(devParts[1], 10, 32)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	minor := uint32(tmp)
+	minor = uint32(tmp)
 
 	return major, minor, nil
 }
