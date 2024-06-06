@@ -12,7 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/canonical/lxd/lxd/auth"
+	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
@@ -33,16 +33,16 @@ import (
 var warningsCmd = APIEndpoint{
 	Path: "warnings",
 
-	Get: APIEndpointAction{Handler: warningsGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanViewWarnings)},
+	Get: APIEndpointAction{Handler: warningsGet, AccessHandler: allowPermission(entity.TypeServer, authEntity.EntitlementCanViewWarnings)},
 }
 
 var warningCmd = APIEndpoint{
 	Path: "warnings/{id}",
 
-	Get:    APIEndpointAction{Handler: warningGet, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanViewWarnings)},
-	Patch:  APIEndpointAction{Handler: warningPatch, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
-	Put:    APIEndpointAction{Handler: warningPut, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
-	Delete: APIEndpointAction{Handler: warningDelete, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Get:    APIEndpointAction{Handler: warningGet, AccessHandler: allowPermission(entity.TypeServer, authEntity.EntitlementCanViewWarnings)},
+	Patch:  APIEndpointAction{Handler: warningPatch, AccessHandler: allowPermission(entity.TypeServer, authEntity.EntitlementCanEdit)},
+	Put:    APIEndpointAction{Handler: warningPut, AccessHandler: allowPermission(entity.TypeServer, authEntity.EntitlementCanEdit)},
+	Delete: APIEndpointAction{Handler: warningDelete, AccessHandler: allowPermission(entity.TypeServer, authEntity.EntitlementCanEdit)},
 }
 
 func filterWarnings(warnings []api.Warning, clauses *filter.ClauseSet) ([]api.Warning, error) {

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/canonical/lxd/lxd/auth"
+	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -48,7 +48,7 @@ type AuthGroupFilter struct {
 }
 
 // ToAPI converts the Group to an api.AuthGroup, making extra database queries as necessary.
-func (g *AuthGroup) ToAPI(ctx context.Context, tx *sql.Tx, canViewIdentity auth.PermissionChecker, canViewIDPGroup auth.PermissionChecker) (*api.AuthGroup, error) {
+func (g *AuthGroup) ToAPI(ctx context.Context, tx *sql.Tx, canViewIdentity authEntity.PermissionChecker, canViewIDPGroup authEntity.PermissionChecker) (*api.AuthGroup, error) {
 	group := &api.AuthGroup{
 		Name:        g.Name,
 		Description: g.Description,

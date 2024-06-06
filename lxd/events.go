@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/canonical/lxd/lxd/auth"
+	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/events"
@@ -60,21 +60,21 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 		}
 	}
 
-	var projectPermissionFunc auth.PermissionChecker
+	var projectPermissionFunc authEntity.PermissionChecker
 	if projectName != "" {
-		err := s.Authorizer.CheckPermission(r.Context(), r, entity.ProjectURL(projectName), auth.EntitlementCanViewEvents)
+		err := s.Authorizer.CheckPermission(r.Context(), r, entity.ProjectURL(projectName), authEntity.EntitlementCanViewEvents)
 		if err != nil {
 			return err
 		}
 	} else if allProjects {
 		var err error
-		projectPermissionFunc, err = s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanViewEvents, entity.TypeProject)
+		projectPermissionFunc, err = s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanViewEvents, entity.TypeProject)
 		if err != nil {
 			return err
 		}
 	}
 
-	canViewPrivilegedEvents := s.Authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanViewPrivilegedEvents) == nil
+	canViewPrivilegedEvents := s.Authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), authEntity.EntitlementCanViewPrivilegedEvents) == nil
 
 	types := strings.Split(r.FormValue("type"), ",")
 	if len(types) == 1 && types[0] == "" {

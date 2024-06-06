@@ -7,7 +7,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/canonical/lxd/lxd/auth"
+	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -119,7 +119,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 	result := make([]api.NetworkAllocations, 0)
 
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeNetwork)
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeNetwork)
 	if err != nil {
 		return response.SmartError(err)
 	}
