@@ -4843,7 +4843,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 					}
 				}
 
-				if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
+				if SubnetContains(&externalSubnetUser.subnet, netip) || SubnetContains(netip, &externalSubnetUser.subnet) {
 					return false, nil
 				}
 			}
