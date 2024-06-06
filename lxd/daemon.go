@@ -36,6 +36,7 @@ import (
 	"github.com/canonical/lxd/lxd/daemon"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/openfga"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/dns"
 	"github.com/canonical/lxd/lxd/endpoints"
@@ -1253,7 +1254,7 @@ func (d *Daemon) init() error {
 
 	// Load the embedded OpenFGA authorizer. This cannot be loaded until after the cluster database is initialised,
 	// so the TLS authorizer must be loaded first to set up clustering.
-	d.authorizer, err = auth.LoadAuthorizer(d.shutdownCtx, auth.DriverEmbeddedOpenFGA, logger.Log, d.identityCache, auth.WithOpenFGADatastore(db.NewOpenFGAStore(d.db.Cluster)))
+	d.authorizer, err = auth.LoadAuthorizer(d.shutdownCtx, auth.DriverEmbeddedOpenFGA, logger.Log, d.identityCache, auth.WithOpenFGADatastore(openfga.NewOpenFGAStore(d.db.Cluster)))
 	if err != nil {
 		return err
 	}
