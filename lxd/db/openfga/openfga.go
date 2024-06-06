@@ -1,6 +1,6 @@
 //go:build linux && cgo && !agent
 
-package db
+package openfga
 
 import (
 	"context"
@@ -13,7 +13,8 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/openfga/openfga/pkg/storage"
 
-	"github.com/canonical/lxd/lxd/auth"
+	authEntity "github.com/canonical/lxd/lxd/auth/entity"
+	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
@@ -21,7 +22,7 @@ import (
 )
 
 // NewOpenFGAStore returns a new storage.OpenFGADatastore that is backed directly by the dqlite database.
-func NewOpenFGAStore(clusterDB *Cluster) storage.OpenFGADatastore {
+func NewOpenFGAStore(clusterDB *db.Cluster) storage.OpenFGADatastore {
 	store := &openfgaStore{
 		clusterDB: clusterDB,
 	}
@@ -31,7 +32,7 @@ func NewOpenFGAStore(clusterDB *Cluster) storage.OpenFGADatastore {
 
 // openfgaStore is an implementation of storage.OpenFGADatastore that reads directly from our cluster database.
 type openfgaStore struct {
-	clusterDB *Cluster
+	clusterDB *db.Cluster
 	model     *openfgav1.AuthorizationModel
 }
 
@@ -240,7 +241,7 @@ func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filt
 			{
 				Key: &openfgav1.TupleKey{
 					Object:   fmt.Sprintf("%s:%s", entity.TypeServer, entity.ServerURL().String()),
-					Relation: string(auth.EntitlementCanView),
+					Relation: string(authEntity.EntitlementCanView),
 					User:     fmt.Sprintf("%s:*", entity.TypeIdentity),
 				},
 			},
@@ -253,7 +254,7 @@ func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filt
 	}
 
 	var groupNames []string
-	err = o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
+	err = o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the ID of the entity.
 		entityRef, err := cluster.GetEntityReferenceFromURL(ctx, tx.Tx(), &api.URL{URL: *u})
 		if err != nil {
@@ -409,7 +410,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 
 		// Get the entity URLs with the given type and project (if set).
 		var entityURLs map[entity.Type]map[int]*api.URL
-		err = o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
+		err = o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			entityURLs, err = cluster.GetEntityURLs(ctx, tx.Tx(), projectName, entityType)
 			if err != nil {
 				return err
@@ -469,7 +470,7 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 
 	var entityURLs map[entity.Type]map[int]*api.URL
 	var permissions []cluster.Permission
-	err = o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
+	err = o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		rows, err := tx.Tx().QueryContext(ctx, q, args...)
 		if err != nil {
 			return err
