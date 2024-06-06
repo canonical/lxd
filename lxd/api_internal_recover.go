@@ -239,13 +239,13 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 			var profileProjectname string
 			var networkProjectName string
 
-			if projectInfo != nil {
-				profileProjectname = project.ProfileProjectFromRecord(projectInfo)
-				networkProjectName = project.NetworkProjectFromRecord(projectInfo)
-			} else {
+			if projectInfo == nil {
 				addDependencyError(fmt.Errorf("Project %q", projectName))
 				continue // Skip further validation if project is missing.
 			}
+
+			profileProjectname = project.ProfileProjectFromRecord(projectInfo)
+			networkProjectName = project.NetworkProjectFromRecord(projectInfo)
 
 			for _, poolVol := range poolVols {
 				if poolVol.Container == nil {
