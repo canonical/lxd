@@ -158,6 +158,7 @@ jobs:
           set -eux
           sudo chmod o+w ./lxd/metadata/configuration.json
           sudo chmod o+w ./doc/config_options.txt
+          sudo chmod o+w ./lxd/auth/entity/
           make static-analysis
 
       - name: Unit tests (all)
