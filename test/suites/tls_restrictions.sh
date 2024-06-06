@@ -51,6 +51,27 @@ test_tls_restrictions() {
   # Validate restricted caller cannot create projects.
   ! lxc_remote project create localhost:blah1 || false
 
+  # Set up the test image in the blah project (ensure_import_testimage imports the image into the current project).
+  lxc project switch blah && ensure_import_testimage && lxc project switch default
+
+  # Set up a profile in the blah project. Additionally ensures restricted TLS clients can edit profiles in projects they have access to.
+  lxc profile show default | lxc_remote profile edit localhost:default --project blah
+
+  # Create an instance.
+  lxc_remote init testimage localhost:blah-instance --project blah
+
+  # Create a custom volume.
+  lxc_remote storage volume create "localhost:${pool_name}" blah-volume --project blah
+
+  # There should now be two volume URLs, one instance, one image, and one profile URL in the used-by list.
+  [ "$(lxc_remote project list localhost: --format csv | cut -d, -f9)" = "5" ]
+
+  # Delete resources in project blah so that we can modify project limits.
+  lxc_remote delete localhost:blah-instance --project blah
+  lxc_remote storage volume delete "localhost:${pool_name}" blah-volume --project blah
+  test_image_fingerprint="$(lxc_remote image list localhost: --format csv --columns f --project blah)"
+  lxc_remote image delete "localhost:${test_image_fingerprint}" --project blah
+
   # Ensure we can create and view resources that are not enabled for the project (e.g. their effective project is
   # the default project).
 
