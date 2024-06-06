@@ -52,6 +52,12 @@ For example, to configure where to store image tarballs on a specific cluster me
 
 See [`PATCH /1.0`](swagger:/server/server_patch) for more information.
 ```
+```{group-tab} UI
+Go to {guilabel}`Settings` to configure the server options.
+
+In a cluster setup, server options that apply to the local server are updated only for the server on which you are accessing the UI.
+For example, if you access the UI on `server1` and update the location for storing image tarballs ({config:option}`server-miscellaneous:storage.images_volume`, which has a `local` scope) from `local/pool1` to `local/pool2`, `storage.images_volume` will still be configured to `local/pool1` on `server2`.
+```
 ````
 
 ## Display the server configuration
@@ -75,6 +81,11 @@ In a cluster setup, to show the local environment and configuration for a specif
 
 See [`GET /1.0`](swagger:/server/server_get) for more information.
 ```
+```{group-tab} UI
+Go to {guilabel}`Settings` to view the current server configuration.
+
+In a cluster setup, this view shows the local configuration for the cluster member on which you are accessing the UI.
+```
 ````
 
 ## Edit the full server configuration
@@ -97,5 +108,8 @@ In a cluster setup, to update the full server configuration for a specific clust
     lxc query --request PUT /1.0?target=<cluster_member> '<server_configuration>'
 
 See [`PUT /1.0`](swagger:/server/server_put) for more information.
+```
+```{group-tab} UI
+The UI does not currently support editing the full server configuration.
 ```
 ````

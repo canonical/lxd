@@ -1,6 +1,11 @@
 (lxc-alias)=
 # How to add command aliases
 
+```{note}
+Command aliases are a concept in the LXD CLI.
+They are not applicable to the UI or API.
+```
+
 The LXD command-line client supports adding aliases for commands that you use frequently.
 You can use aliases as shortcuts for longer commands, or to automatically add flags to existing commands.
 
