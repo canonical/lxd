@@ -27,6 +27,20 @@ const MinBlockBoundary = 8192
 // blockBackedAllowedFilesystems allowed filesystems for block volumes.
 var blockBackedAllowedFilesystems = []string{"btrfs", "ext4", "xfs"}
 
+// createPool attempts to create the ZFS pool with the given poolName, pool source, and whether to run with `-f`.
+func createPool(poolName string, source string, force bool) error {
+	args := []string{"create"}
+	if force {
+		args = append(args, "-f")
+	}
+
+	args = append(args, "-m", "none", "-O", "compression=on", poolName, source)
+
+	_, err := shared.RunCommand("zpool", args...)
+
+	return err
+}
+
 // wipeDirectory empties the contents of a directory, but leaves it in place.
 func wipeDirectory(path string) error {
 	// List all entries.

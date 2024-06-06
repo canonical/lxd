@@ -271,7 +271,8 @@ func (d *zfs) Create() error {
 		}
 
 		// Create the zpool.
-		_, err = shared.RunCommand("zpool", "create", "-m", "none", "-O", "compression=on", d.config["zfs.pool_name"], loopPath)
+
+		err = createPool(d.config["zfs.pool_name"], loopPath, false)
 		if err != nil {
 			return err
 		}
@@ -304,13 +305,13 @@ func (d *zfs) Create() error {
 			d.config["source.wipe"] = ""
 
 			// Create the zpool.
-			_, err = shared.RunCommand("zpool", "create", "-f", "-m", "none", "-O", "compression=on", d.config["zfs.pool_name"], d.config["source"])
+			err = createPool(d.config["zfs.pool_name"], d.config["source"], true)
 			if err != nil {
 				return err
 			}
 		} else {
 			// Create the zpool.
-			_, err := shared.RunCommand("zpool", "create", "-m", "none", "-O", "compression=on", d.config["zfs.pool_name"], d.config["source"])
+			err = createPool(d.config["zfs.pool_name"], d.config["source"], false)
 			if err != nil {
 				return err
 			}
