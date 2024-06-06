@@ -16,7 +16,6 @@ import (
 
 	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	"github.com/canonical/lxd/lxd/db"
-	"github.com/canonical/lxd/lxd/db/cluster"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
@@ -1483,7 +1482,7 @@ func volumeDetermineNextSnapshotName(s *state.State, volume db.StorageVolumeArgs
 	} else if count == 1 {
 		var i int
 		_ = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-			i = tx.GetNextStorageVolumeSnapshotIndex(ctx, volume.PoolName, volume.Name, cluster.StoragePoolVolumeTypeCustom, pattern)
+			i = tx.GetNextStorageVolumeSnapshotIndex(ctx, volume.PoolName, volume.Name, dbCluster.StoragePoolVolumeTypeCustom, pattern)
 
 			return nil
 		})
@@ -1524,7 +1523,7 @@ func volumeDetermineNextSnapshotName(s *state.State, volume db.StorageVolumeArgs
 			}
 
 			for _, project := range projects {
-				snaps, err := tx.GetLocalStoragePoolVolumeSnapshotsWithType(ctx, project, volume.Name, cluster.StoragePoolVolumeTypeCustom, poolID)
+				snaps, err := tx.GetLocalStoragePoolVolumeSnapshotsWithType(ctx, project, volume.Name, dbCluster.StoragePoolVolumeTypeCustom, poolID)
 				if err != nil {
 					return err
 				}
@@ -1552,7 +1551,7 @@ func volumeDetermineNextSnapshotName(s *state.State, volume db.StorageVolumeArgs
 		var i int
 
 		_ = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-			i = tx.GetNextStorageVolumeSnapshotIndex(ctx, volume.PoolName, volume.Name, cluster.StoragePoolVolumeTypeCustom, pattern)
+			i = tx.GetNextStorageVolumeSnapshotIndex(ctx, volume.PoolName, volume.Name, dbCluster.StoragePoolVolumeTypeCustom, pattern)
 
 			return nil
 		})
