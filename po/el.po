@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-06-12 10:01+0200\n"
+"POT-Creation-Date: 2024-06-13 10:35+0200\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://hosted.weblate.org/projects/linux-containers/"
@@ -63,7 +63,7 @@ msgid ""
 "###   size: \"61203283968\""
 msgstr ""
 
-#: lxc/config.go:1177
+#: lxc/config.go:1174
 msgid ""
 "### This is a YAML representation of the UEFI variables configuration.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -478,7 +478,7 @@ msgstr ""
 msgid "--empty cannot be combined with an image name"
 msgstr ""
 
-#: lxc/config.go:472 lxc/config.go:771
+#: lxc/config.go:472 lxc/config.go:768
 msgid "--expanded cannot be used with a server"
 msgstr ""
 
@@ -498,7 +498,7 @@ msgstr ""
 msgid "--refresh can only be used with instances"
 msgstr ""
 
-#: lxc/config.go:161 lxc/config.go:422 lxc/config.go:598 lxc/config.go:797
+#: lxc/config.go:161 lxc/config.go:422 lxc/config.go:595 lxc/config.go:794
 #: lxc/info.go:452
 msgid "--target cannot be used with instances"
 msgstr ""
@@ -515,15 +515,15 @@ msgstr ""
 msgid "<old alias> <new alias>"
 msgstr ""
 
-#: lxc/remote.go:821 lxc/remote.go:878
+#: lxc/remote.go:835 lxc/remote.go:892
 msgid "<remote>"
 msgstr ""
 
-#: lxc/remote.go:918
+#: lxc/remote.go:932
 msgid "<remote> <URL>"
 msgstr ""
 
-#: lxc/remote.go:748
+#: lxc/remote.go:762
 msgid "<remote> <new-name>"
 msgstr ""
 
@@ -556,7 +556,7 @@ msgstr ""
 msgid "ARCHITECTURE"
 msgstr ""
 
-#: lxc/remote.go:730
+#: lxc/remote.go:744
 msgid "AUTH TYPE"
 msgstr ""
 
@@ -708,7 +708,7 @@ msgstr ""
 msgid "Admin access key: %s"
 msgstr ""
 
-#: lxc/remote.go:562
+#: lxc/remote.go:574
 #, c-format
 msgid "Admin password (or token) for %s:"
 msgstr ""
@@ -816,7 +816,7 @@ msgid ""
 "as well as retrieve past log entries from it."
 msgstr ""
 
-#: lxc/remote.go:544
+#: lxc/remote.go:547
 #, c-format
 msgid "Authentication type '%s' not supported by server"
 msgstr ""
@@ -995,7 +995,7 @@ msgstr ""
 msgid "Can't read from stdin: %w"
 msgstr ""
 
-#: lxc/remote.go:857
+#: lxc/remote.go:871
 msgid "Can't remove the default remote"
 msgstr ""
 
@@ -1019,7 +1019,7 @@ msgstr ""
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
-#: lxc/config.go:664 lxc/config.go:1034
+#: lxc/config.go:661 lxc/config.go:1031
 #, c-format
 msgid "Can't unset key '%s', it's not currently set"
 msgstr ""
@@ -1067,7 +1067,7 @@ msgid ""
 "Certificate fingerprint mismatch between certificate token and server %q"
 msgstr ""
 
-#: lxc/remote.go:447
+#: lxc/remote.go:450
 #, c-format
 msgid "Certificate fingerprint: %s"
 msgstr ""
@@ -1081,7 +1081,7 @@ msgstr ""
 msgid "Client %s certificate add token:"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/remote.go:599
+#: lxc/remote.go:613
 msgid "Client certificate now trusted by server:"
 msgstr ""
 
@@ -1135,8 +1135,8 @@ msgstr ""
 msgid "Cluster member %s removed from group %s"
 msgstr ""
 
-#: lxc/config.go:105 lxc/config.go:389 lxc/config.go:532 lxc/config.go:738
-#: lxc/config.go:861 lxc/copy.go:61 lxc/info.go:44 lxc/init.go:64
+#: lxc/config.go:105 lxc/config.go:389 lxc/config.go:529 lxc/config.go:735
+#: lxc/config.go:858 lxc/copy.go:61 lxc/info.go:44 lxc/init.go:64
 #: lxc/move.go:66 lxc/network.go:300 lxc/network.go:723 lxc/network.go:792
 #: lxc/network.go:1134 lxc/network.go:1219 lxc/network.go:1283
 #: lxc/network_forward.go:174 lxc/network_forward.go:239
@@ -1215,7 +1215,7 @@ msgid "Config key/value to apply to the target instance"
 msgstr ""
 
 #: lxc/cluster.go:770 lxc/cluster_group.go:339 lxc/config.go:272
-#: lxc/config.go:347 lxc/config.go:1277 lxc/config_metadata.go:147
+#: lxc/config.go:347 lxc/config.go:1274 lxc/config_metadata.go:147
 #: lxc/config_trust.go:314 lxc/image.go:466 lxc/network.go:686
 #: lxc/network_acl.go:620 lxc/network_forward.go:685
 #: lxc/network_load_balancer.go:689 lxc/network_peer.go:610
@@ -1333,12 +1333,12 @@ msgstr ""
 msgid "Cores:"
 msgstr ""
 
-#: lxc/remote.go:482
+#: lxc/remote.go:485
 #, c-format
 msgid "Could not close server cert file %q: %w"
 msgstr ""
 
-#: lxc/remote.go:224 lxc/remote.go:466
+#: lxc/remote.go:224 lxc/remote.go:469
 msgid "Could not create server cert dir"
 msgstr ""
 
@@ -1377,7 +1377,7 @@ msgstr ""
 msgid "Could not write new remote certificate for remote '%s' with error: %v"
 msgstr ""
 
-#: lxc/remote.go:477
+#: lxc/remote.go:480
 #, c-format
 msgid "Could not write server cert file %q: %w"
 msgstr ""
@@ -1672,8 +1672,8 @@ msgstr ""
 #: lxc/cluster_group.go:529 lxc/cluster_group.go:577 lxc/cluster_group.go:631
 #: lxc/cluster_role.go:23 lxc/cluster_role.go:50 lxc/cluster_role.go:106
 #: lxc/config.go:32 lxc/config.go:99 lxc/config.go:384 lxc/config.go:517
-#: lxc/config.go:734 lxc/config.go:858 lxc/config.go:893 lxc/config.go:933
-#: lxc/config.go:988 lxc/config.go:1079 lxc/config.go:1110 lxc/config.go:1164
+#: lxc/config.go:731 lxc/config.go:855 lxc/config.go:890 lxc/config.go:930
+#: lxc/config.go:985 lxc/config.go:1076 lxc/config.go:1107 lxc/config.go:1161
 #: lxc/config_device.go:24 lxc/config_device.go:78 lxc/config_device.go:208
 #: lxc/config_device.go:285 lxc/config_device.go:356 lxc/config_device.go:450
 #: lxc/config_device.go:548 lxc/config_device.go:555 lxc/config_device.go:668
@@ -1736,8 +1736,8 @@ msgstr ""
 #: lxc/project.go:410 lxc/project.go:523 lxc/project.go:580 lxc/project.go:659
 #: lxc/project.go:690 lxc/project.go:743 lxc/project.go:802 lxc/publish.go:33
 #: lxc/query.go:34 lxc/rebuild.go:27 lxc/remote.go:34 lxc/remote.go:90
-#: lxc/remote.go:627 lxc/remote.go:665 lxc/remote.go:751 lxc/remote.go:824
-#: lxc/remote.go:880 lxc/remote.go:920 lxc/rename.go:21 lxc/restore.go:24
+#: lxc/remote.go:641 lxc/remote.go:679 lxc/remote.go:765 lxc/remote.go:838
+#: lxc/remote.go:894 lxc/remote.go:934 lxc/rename.go:21 lxc/restore.go:24
 #: lxc/snapshot.go:28 lxc/storage.go:33 lxc/storage.go:96 lxc/storage.go:170
 #: lxc/storage.go:220 lxc/storage.go:344 lxc/storage.go:414 lxc/storage.go:586
 #: lxc/storage.go:665 lxc/storage.go:761 lxc/storage.go:847
@@ -1951,7 +1951,7 @@ msgstr "  Χρήση δικτύου:"
 msgid "Edit image properties"
 msgstr ""
 
-#: lxc/config.go:1163 lxc/config.go:1164
+#: lxc/config.go:1160 lxc/config.go:1161
 msgid "Edit instance UEFI variables"
 msgstr ""
 
@@ -2080,7 +2080,7 @@ msgstr ""
 msgid "Error retrieving aliases: %w"
 msgstr ""
 
-#: lxc/cluster.go:414 lxc/config.go:624 lxc/config.go:656 lxc/network.go:1194
+#: lxc/cluster.go:414 lxc/config.go:621 lxc/config.go:653 lxc/network.go:1194
 #: lxc/network_acl.go:467 lxc/network_forward.go:519
 #: lxc/network_load_balancer.go:522 lxc/network_peer.go:463
 #: lxc/network_zone.go:409 lxc/network_zone.go:1003 lxc/profile.go:856
@@ -2090,7 +2090,7 @@ msgstr ""
 msgid "Error setting properties: %v"
 msgstr ""
 
-#: lxc/config.go:618 lxc/config.go:650
+#: lxc/config.go:615 lxc/config.go:647
 #, c-format
 msgid "Error unsetting properties: %v"
 msgstr ""
@@ -2324,12 +2324,12 @@ msgstr ""
 msgid "Failed to create alias %s: %w"
 msgstr ""
 
-#: lxc/remote.go:256
+#: lxc/remote.go:259
 #, c-format
 msgid "Failed to create certificate: %w"
 msgstr ""
 
-#: lxc/remote.go:263
+#: lxc/remote.go:266
 #, c-format
 msgid "Failed to find project: %w"
 msgstr ""
@@ -2437,7 +2437,7 @@ msgstr ""
 #: lxc/network_forward.go:93 lxc/network_load_balancer.go:97
 #: lxc/network_peer.go:84 lxc/network_zone.go:88 lxc/network_zone.go:692
 #: lxc/operation.go:108 lxc/profile.go:617 lxc/project.go:412
-#: lxc/project.go:804 lxc/remote.go:669 lxc/storage.go:588
+#: lxc/project.go:804 lxc/remote.go:683 lxc/storage.go:588
 #: lxc/storage_bucket.go:454 lxc/storage_bucket.go:769
 #: lxc/storage_volume.go:1446 lxc/warning.go:93
 msgid "Format (csv|json|table|yaml|compact)"
@@ -2475,7 +2475,7 @@ msgstr ""
 msgid "Frequency: %vMhz (min: %vMhz, max: %vMhz)"
 msgstr ""
 
-#: lxc/remote.go:733
+#: lxc/remote.go:747
 msgid "GLOBAL"
 msgstr ""
 
@@ -2495,11 +2495,11 @@ msgstr ""
 msgid "Generate manpages for all commands"
 msgstr ""
 
-#: lxc/remote.go:159 lxc/remote.go:393
+#: lxc/remote.go:159 lxc/remote.go:396
 msgid "Generating a client certificate. This may take a minute..."
 msgstr ""
 
-#: lxc/config.go:932 lxc/config.go:933
+#: lxc/config.go:929 lxc/config.go:930
 msgid "Get UEFI variables for instance"
 msgstr ""
 
@@ -2907,7 +2907,7 @@ msgstr ""
 msgid "Instance name is: %s"
 msgstr ""
 
-#: lxc/config.go:958 lxc/config.go:1016 lxc/config.go:1135 lxc/config.go:1227
+#: lxc/config.go:955 lxc/config.go:1013 lxc/config.go:1132 lxc/config.go:1224
 msgid "Instance name must be specified"
 msgstr ""
 
@@ -2929,7 +2929,7 @@ msgstr ""
 msgid "Instance type"
 msgstr ""
 
-#: lxc/remote.go:345
+#: lxc/remote.go:348
 #, c-format
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr ""
@@ -3010,7 +3010,7 @@ msgstr ""
 msgid "Invalid path %s"
 msgstr ""
 
-#: lxc/remote.go:334
+#: lxc/remote.go:337
 #, c-format
 msgid "Invalid protocol: %s"
 msgstr ""
@@ -3378,7 +3378,7 @@ msgid ""
 "    U - Current disk usage"
 msgstr ""
 
-#: lxc/remote.go:664 lxc/remote.go:665
+#: lxc/remote.go:678 lxc/remote.go:679
 msgid "List the available remotes"
 msgstr ""
 
@@ -3575,7 +3575,7 @@ msgid ""
 "hash or alias name (if one is set)."
 msgstr ""
 
-#: lxc/config.go:892 lxc/config.go:893
+#: lxc/config.go:889 lxc/config.go:890
 #, fuzzy
 msgid "Manage instance UEFI variables"
 msgstr "  Χρήση δικτύου:"
@@ -4045,7 +4045,7 @@ msgstr ""
 #: lxc/config_trust.go:514 lxc/list.go:564 lxc/network.go:980
 #: lxc/network_acl.go:147 lxc/network_peer.go:139 lxc/network_zone.go:138
 #: lxc/network_zone.go:741 lxc/profile.go:657 lxc/project.go:498
-#: lxc/remote.go:727 lxc/storage.go:638 lxc/storage_bucket.go:506
+#: lxc/remote.go:741 lxc/storage.go:638 lxc/storage_bucket.go:506
 #: lxc/storage_bucket.go:826 lxc/storage_volume.go:1561
 msgid "NAME"
 msgstr ""
@@ -4072,7 +4072,7 @@ msgstr ""
 
 #: lxc/network.go:957 lxc/operation.go:154 lxc/project.go:456
 #: lxc/project.go:461 lxc/project.go:466 lxc/project.go:471 lxc/project.go:476
-#: lxc/project.go:481 lxc/remote.go:687 lxc/remote.go:692 lxc/remote.go:697
+#: lxc/project.go:481 lxc/remote.go:701 lxc/remote.go:706 lxc/remote.go:711
 msgid "NO"
 msgstr ""
 
@@ -4303,7 +4303,7 @@ msgstr ""
 msgid "Only \"custom\" volumes can be snapshotted"
 msgstr ""
 
-#: lxc/remote.go:328
+#: lxc/remote.go:331
 msgid "Only https URLs are supported for simplestreams"
 msgstr ""
 
@@ -4374,11 +4374,11 @@ msgstr ""
 msgid "PROJECT"
 msgstr ""
 
-#: lxc/remote.go:729
+#: lxc/remote.go:743
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:1073 lxc/remote.go:731
+#: lxc/image.go:1073 lxc/remote.go:745
 msgid "PUBLIC"
 msgstr ""
 
@@ -4420,7 +4420,7 @@ msgstr ""
 msgid "Please provide cluster member name: "
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/remote.go:458
+#: lxc/remote.go:461
 msgid "Please type 'y', 'n' or the fingerprint:"
 msgstr ""
 
@@ -4439,7 +4439,7 @@ msgstr ""
 
 #: lxc/auth.go:301 lxc/auth.go:1055 lxc/auth.go:1661 lxc/cluster.go:771
 #: lxc/cluster_group.go:340 lxc/config.go:273 lxc/config.go:348
-#: lxc/config.go:1278 lxc/config_metadata.go:148 lxc/config_template.go:206
+#: lxc/config.go:1275 lxc/config_metadata.go:148 lxc/config_template.go:206
 #: lxc/config_trust.go:315 lxc/image.go:467 lxc/network.go:687
 #: lxc/network_acl.go:621 lxc/network_forward.go:686
 #: lxc/network_load_balancer.go:690 lxc/network_peer.go:611
@@ -4740,28 +4740,28 @@ msgstr ""
 msgid "Refreshing the image: %s"
 msgstr ""
 
-#: lxc/remote.go:781
+#: lxc/remote.go:795
 #, c-format
 msgid "Remote %s already exists"
 msgstr ""
 
-#: lxc/project.go:769 lxc/remote.go:772 lxc/remote.go:845 lxc/remote.go:901
-#: lxc/remote.go:941
+#: lxc/project.go:769 lxc/remote.go:786 lxc/remote.go:859 lxc/remote.go:915
+#: lxc/remote.go:955
 #, c-format
 msgid "Remote %s doesn't exist"
 msgstr ""
 
-#: lxc/remote.go:297
+#: lxc/remote.go:300
 #, c-format
 msgid "Remote %s exists as <%s>"
 msgstr ""
 
-#: lxc/remote.go:853
+#: lxc/remote.go:867
 #, c-format
 msgid "Remote %s is global and cannot be removed"
 msgstr ""
 
-#: lxc/remote.go:776 lxc/remote.go:849 lxc/remote.go:945
+#: lxc/remote.go:790 lxc/remote.go:863 lxc/remote.go:959
 #, c-format
 msgid "Remote %s is static and cannot be modified"
 msgstr ""
@@ -4770,7 +4770,7 @@ msgstr ""
 msgid "Remote admin password"
 msgstr ""
 
-#: lxc/remote.go:291
+#: lxc/remote.go:294
 msgid "Remote names may not contain colons"
 msgstr ""
 
@@ -4860,7 +4860,7 @@ msgstr "  Χρήση δικτύου:"
 msgid "Remove profiles from instances"
 msgstr ""
 
-#: lxc/remote.go:823 lxc/remote.go:824
+#: lxc/remote.go:837 lxc/remote.go:838
 msgid "Remove remotes"
 msgstr ""
 
@@ -4918,7 +4918,7 @@ msgstr ""
 msgid "Rename projects"
 msgstr ""
 
-#: lxc/remote.go:750 lxc/remote.go:751
+#: lxc/remote.go:764 lxc/remote.go:765
 msgid "Rename remotes"
 msgstr ""
 
@@ -4944,7 +4944,7 @@ msgstr ""
 msgid "Request a join token for adding a cluster member"
 msgstr ""
 
-#: lxc/config.go:969
+#: lxc/config.go:966
 msgid "Requested UEFI variable does not exist"
 msgstr ""
 
@@ -5064,7 +5064,7 @@ msgstr ""
 msgid "STATE"
 msgstr ""
 
-#: lxc/remote.go:732
+#: lxc/remote.go:746
 msgid "STATIC"
 msgstr ""
 
@@ -5105,11 +5105,11 @@ msgstr ""
 msgid "Server authentication type (tls or oidc)"
 msgstr ""
 
-#: lxc/remote.go:456
+#: lxc/remote.go:459
 msgid "Server certificate NACKed by user"
 msgstr ""
 
-#: lxc/remote.go:595
+#: lxc/remote.go:609
 msgid "Server doesn't trust us after authentication"
 msgstr ""
 
@@ -5122,7 +5122,7 @@ msgstr ""
 msgid "Server version: %s\n"
 msgstr ""
 
-#: lxc/config.go:987 lxc/config.go:988
+#: lxc/config.go:984 lxc/config.go:985
 msgid "Set UEFI variables for instance"
 msgstr ""
 
@@ -5327,7 +5327,7 @@ msgid ""
 "    lxc storage volume set [<remote>:]<pool> [<type>/]<volume> <key> <value>"
 msgstr ""
 
-#: lxc/remote.go:919 lxc/remote.go:920
+#: lxc/remote.go:933 lxc/remote.go:934
 msgid "Set the URL for the remote"
 msgstr ""
 
@@ -5401,7 +5401,7 @@ msgstr ""
 msgid "Set the key as a storage volume property"
 msgstr ""
 
-#: lxc/config.go:533
+#: lxc/config.go:530
 msgid "Set the key as an instance property"
 msgstr ""
 
@@ -5468,7 +5468,7 @@ msgstr ""
 msgid "Show image properties"
 msgstr ""
 
-#: lxc/config.go:1109 lxc/config.go:1110
+#: lxc/config.go:1106 lxc/config.go:1107
 msgid "Show instance UEFI variables"
 msgstr ""
 
@@ -5476,7 +5476,7 @@ msgstr ""
 msgid "Show instance metadata files"
 msgstr ""
 
-#: lxc/config.go:733 lxc/config.go:734
+#: lxc/config.go:730 lxc/config.go:731
 msgid "Show instance or server configurations"
 msgstr ""
 
@@ -5574,11 +5574,11 @@ msgid ""
 "that are granted via identity provider group mappings. \n"
 msgstr ""
 
-#: lxc/remote.go:626 lxc/remote.go:627
+#: lxc/remote.go:640 lxc/remote.go:641
 msgid "Show the default remote"
 msgstr ""
 
-#: lxc/config.go:737
+#: lxc/config.go:734
 msgid "Show the expanded configuration"
 msgstr ""
 
@@ -5787,7 +5787,7 @@ msgstr ""
 msgid "Switch the current project"
 msgstr ""
 
-#: lxc/remote.go:879 lxc/remote.go:880
+#: lxc/remote.go:893 lxc/remote.go:894
 msgid "Switch the default remote"
 msgstr ""
 
@@ -5989,7 +5989,7 @@ msgstr ""
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
 
-#: lxc/config.go:636
+#: lxc/config.go:633
 #, fuzzy
 msgid "There is no config key to set on an instance snapshot."
 msgstr "  Χρήση δικτύου:"
@@ -6044,7 +6044,7 @@ msgid ""
 "Or for a virtual machine: lxc launch ubuntu:24.04 --vm"
 msgstr ""
 
-#: lxc/config.go:297 lxc/config.go:478 lxc/config.go:685 lxc/config.go:777
+#: lxc/config.go:297 lxc/config.go:478 lxc/config.go:682 lxc/config.go:774
 #: lxc/copy.go:131 lxc/info.go:337 lxc/network.go:821 lxc/storage.go:446
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
@@ -6098,6 +6098,11 @@ msgstr ""
 msgid "Transmit policy"
 msgstr ""
 
+#: lxc/remote.go:564
+#, c-format
+msgid "Trust token for %s: "
+msgstr ""
+
 #: lxc/action.go:287 lxc/launch.go:114
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
@@ -6136,7 +6141,7 @@ msgstr ""
 msgid "UPLOAD DATE"
 msgstr ""
 
-#: lxc/cluster.go:184 lxc/remote.go:728
+#: lxc/cluster.go:184 lxc/remote.go:742
 msgid "URL"
 msgstr ""
 
@@ -6204,7 +6209,7 @@ msgstr ""
 msgid "Unknown output type %q"
 msgstr ""
 
-#: lxc/config.go:1078 lxc/config.go:1079
+#: lxc/config.go:1075 lxc/config.go:1076
 msgid "Unset UEFI variables for instance"
 msgstr ""
 
@@ -6225,7 +6230,7 @@ msgstr ""
 msgid "Unset image properties"
 msgstr ""
 
-#: lxc/config.go:857 lxc/config.go:858
+#: lxc/config.go:854 lxc/config.go:855
 msgid "Unset instance or server configuration keys"
 msgstr ""
 
@@ -6357,7 +6362,7 @@ msgstr ""
 msgid "Unset the key as a storage volume property"
 msgstr ""
 
-#: lxc/config.go:862
+#: lxc/config.go:859
 msgid "Unset the key as an instance property"
 msgstr ""
 
@@ -6504,7 +6509,7 @@ msgstr ""
 
 #: lxc/network.go:959 lxc/operation.go:156 lxc/project.go:458
 #: lxc/project.go:463 lxc/project.go:468 lxc/project.go:473 lxc/project.go:478
-#: lxc/project.go:483 lxc/remote.go:689 lxc/remote.go:694 lxc/remote.go:699
+#: lxc/project.go:483 lxc/remote.go:703 lxc/remote.go:708 lxc/remote.go:713
 msgid "YES"
 msgstr ""
 
@@ -6710,7 +6715,7 @@ msgstr ""
 msgid "[<remote>:]<image> [[<remote>:]<image>...]"
 msgstr ""
 
-#: lxc/config.go:1108 lxc/config.go:1162 lxc/config_device.go:288
+#: lxc/config.go:1105 lxc/config.go:1159 lxc/config_device.go:288
 #: lxc/config_device.go:662 lxc/config_metadata.go:53
 #: lxc/config_metadata.go:178 lxc/config_template.go:238 lxc/console.go:35
 msgid "[<remote>:]<instance>"
@@ -6732,11 +6737,11 @@ msgstr ""
 msgid "[<remote>:]<instance> <device> [key=value...]"
 msgstr ""
 
-#: lxc/config.go:931 lxc/config.go:1077
+#: lxc/config.go:928 lxc/config.go:1074
 msgid "[<remote>:]<instance> <key>"
 msgstr ""
 
-#: lxc/config.go:986
+#: lxc/config.go:983
 msgid "[<remote>:]<instance> <key>=<value>..."
 msgstr ""
 
@@ -7133,7 +7138,7 @@ msgstr ""
 msgid "[<remote>:]<zone> <record> [key=value...]"
 msgstr ""
 
-#: lxc/config.go:97 lxc/config.go:732
+#: lxc/config.go:97 lxc/config.go:729
 msgid "[<remote>:][<instance>[/<snapshot>]]"
 msgstr ""
 
@@ -7141,7 +7146,7 @@ msgstr ""
 msgid "[<remote>:][<instance>]"
 msgstr ""
 
-#: lxc/config.go:382 lxc/config.go:856
+#: lxc/config.go:382 lxc/config.go:853
 msgid "[<remote>:][<instance>] <key>"
 msgstr ""
 
@@ -7161,7 +7166,7 @@ msgstr ""
 msgid "[[<remote>:]<name>]"
 msgstr ""
 
-#: lxc/project.go:488 lxc/remote.go:718
+#: lxc/project.go:488 lxc/remote.go:732
 msgid "current"
 msgstr ""
 
@@ -7267,19 +7272,16 @@ msgid ""
 "    Will set a CPU limit of \"2\" for the instance.\n"
 "\n"
 "lxc config set core.https_address=[::]:8443\n"
-"    Will have LXD listen on IPv4 and IPv6 port 8443.\n"
-"\n"
-"lxc config set core.trust_password=blah\n"
-"    Will set the server's trust password to blah."
+"    Will have LXD listen on IPv4 and IPv6 port 8443."
 msgstr ""
 
-#: lxc/config.go:1166
+#: lxc/config.go:1163
 msgid ""
 "lxc config uefi edit <instance> < instance_uefi_vars.yaml\n"
 "    Set the instance UEFI variables from instance_uefi_vars.yaml."
 msgstr ""
 
-#: lxc/config.go:990
+#: lxc/config.go:987
 msgid ""
 "lxc config uefi set [<remote>:]<instance> "
 "testvar-9073e4e0-60ec-4b6e-9903-4c223c260f3c=aabb\n"
@@ -7524,7 +7526,7 @@ msgid ""
 "\t\tCreate a new custom volume using backup0.tar.gz as the source."
 msgstr ""
 
-#: lxc/remote.go:455
+#: lxc/remote.go:458
 msgid "n"
 msgstr ""
 
@@ -7536,7 +7538,7 @@ msgstr ""
 msgid "no"
 msgstr ""
 
-#: lxc/remote.go:448
+#: lxc/remote.go:451
 msgid "ok (y/n/[fingerprint])?"
 msgstr ""
 
@@ -7573,7 +7575,7 @@ msgstr ""
 msgid "used by"
 msgstr ""
 
-#: lxc/remote.go:457
+#: lxc/remote.go:460
 msgid "y"
 msgstr ""
 
