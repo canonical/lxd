@@ -17,6 +17,7 @@ import (
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/termios"
+	"github.com/canonical/lxd/shared/version"
 )
 
 type cmdNetworkForward struct {
@@ -339,11 +340,19 @@ func (c *cmdNetworkForwardCreate) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	parts := strings.Split(transporter.location, "/")
-	listenAddress = parts[len(parts)-1]
+	forwardURLPrefix := api.NewURL().Path(version.APIVersion, "networks", networkName, "forwards").String()
+	_, err = fmt.Sscanf(transporter.location, forwardURLPrefix+"/%s", &listenAddress)
+	if err != nil {
+		return fmt.Errorf("Received unexpected location header %q: %w", transporter.location, err)
+	}
+
+	addr := net.ParseIP(listenAddress)
+	if addr == nil {
+		return fmt.Errorf("Received invalid IP %q", listenAddress)
+	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Network forward %s created")+"\n", listenAddress)
+		fmt.Printf(i18n.G("Network forward %s created")+"\n", addr.String())
 	}
 
 	return nil

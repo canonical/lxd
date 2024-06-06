@@ -651,9 +651,10 @@ func (e noAvailableAddressErr) Unwrap() error {
 }
 
 // randomAddressInSubnet finds a random address within a given subnet. If given, the validate function is called for
-// each randomly generated value. Each time validate returns an error, another IP address will be generated until all
-// IPs have been exhausted or the context is cancelled.
-func randomAddressInSubnet(ctx context.Context, subnet net.IPNet, validate func(net.IP) error) (net.IP, error) {
+// each randomly generated value. Each time validate returns false, another IP address will be generated until all
+// IPs have been exhausted or the context is cancelled. If no addresses are available in the subnet, a noAvailableAddressErr
+// is returned so that this can be detected by the caller.
+func randomAddressInSubnet(ctx context.Context, subnet net.IPNet, validate func(net.IP) (bool, error)) (net.IP, error) {
 	ones, size := subnet.Mask.Size()
 	subnetExponent := size - ones
 
@@ -673,8 +674,10 @@ func randomAddressInSubnet(ctx context.Context, subnet net.IPNet, validate func(
 	// If the subnet only has one address, or if the subnet is IPv4 and has two addresses return the network address if it is valid.
 	if subnetExponent == 0 || (ip4 != nil && subnetExponent == 1) {
 		if validate != nil {
-			err := validate(subnet.IP)
+			isValid, err := validate(subnet.IP)
 			if err != nil {
+				return nil, err
+			} else if !isValid {
 				return nil, noAvailableAddressErr{error: fmt.Errorf("No available addresses in subnet %q", subnet.String())}
 			}
 		}
@@ -686,8 +689,10 @@ func randomAddressInSubnet(ctx context.Context, subnet net.IPNet, validate func(
 	if subnetExponent == 1 {
 		candidateIP := big.NewInt(0).Add(big.NewInt(0).SetBytes(subnet.IP), big.NewInt(1)).Bytes()
 		if validate != nil {
-			err := validate(candidateIP)
+			isValid, err := validate(candidateIP)
 			if err != nil {
+				return nil, err
+			} else if !isValid {
 				return nil, noAvailableAddressErr{error: fmt.Errorf("No available addresses in subnet %q", subnet.String())}
 			}
 		}
@@ -743,8 +748,10 @@ func randomAddressInSubnet(ctx context.Context, subnet net.IPNet, validate func(
 
 		// Call validate if set.
 		if validate != nil {
-			err = validate(randIP)
+			isValid, err := validate(randIP)
 			if err != nil {
+				return nil, err
+			} else if !isValid {
 				continue
 			}
 		}
