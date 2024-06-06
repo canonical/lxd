@@ -138,7 +138,7 @@ func (s *multiStorage) GetRefreshTokenInfo(ctx context.Context, clientID string,
 
 // RevokeToken implements the op.Storage interface
 // it will be called after parsing and validation of the token revocation request
-func (s *multiStorage) RevokeToken(ctx context.Context, token string, userID string, clientID string) *oidc.Error {
+func (s *multiStorage) RevokeToken(ctx context.Context, token string, userID string, clientID string) error {
 	storage, err := s.storageFromContext(ctx)
 	if err != nil {
 		return err
@@ -272,7 +272,7 @@ func (s *multiStorage) Health(ctx context.Context) error {
 	return nil
 }
 
-func (s *multiStorage) storageFromContext(ctx context.Context) (*Storage, *oidc.Error) {
+func (s *multiStorage) storageFromContext(ctx context.Context) (*Storage, error) {
 	storage, ok := s.issuers[op.IssuerFromContext(ctx)]
 	if !ok {
 		return nil, oidc.ErrInvalidRequest().WithDescription("invalid issuer")
