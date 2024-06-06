@@ -5050,14 +5050,6 @@
 							"shortdesc": "Whether to automatically trust clients signed by the CA",
 							"type": "bool"
 						}
-					},
-					{
-						"core.trust_password": {
-							"longdesc": "",
-							"scope": "global",
-							"shortdesc": "Password to be provided by clients to set up a trust",
-							"type": "string"
-						}
 					}
 				]
 			},
