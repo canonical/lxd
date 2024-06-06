@@ -93,10 +93,6 @@ endif
 	go mod tidy -go=$(GOMIN)
 	go get toolchain@none
 
-	cd test/mini-oidc && go get -t -v -d -u ./...
-	cd test/mini-oidc && go mod tidy -go=$(GOMIN)
-	cd test/mini-oidc && go get toolchain@none
-
 	@echo "Dependencies updated"
 
 .PHONY: update-protobuf
