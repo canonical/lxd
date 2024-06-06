@@ -41,6 +41,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/device"
+	"github.com/canonical/lxd/lxd/device/cdi"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/device/nictype"
 	"github.com/canonical/lxd/lxd/idmap"
@@ -2053,6 +2054,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Create the devices
 	nicID := -1
 	nvidiaDevices := []string{}
+	cdiHookCmds := []string{}
 
 	sortedDevices := d.expandedDevices.Sorted()
 	startDevices := make([]device.Device, 0, len(sortedDevices))
@@ -2223,6 +2225,10 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 				if entry.Key == device.GPUNvidiaDeviceKey {
 					nvidiaDevices = append(nvidiaDevices, entry.Value)
 				}
+
+				if entry.Key == cdi.CDIHookCmdKey {
+					cdiHookCmds = append(cdiHookCmds, entry.Value)
+				}
 			}
 		}
 	}
@@ -2233,6 +2239,29 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		if err != nil {
 			return "", nil, fmt.Errorf("Unable to set NVIDIA_VISIBLE_DEVICES in LXC environment: %w", err)
 		}
+	}
+
+	if len(cdiHookCmds) > 0 {
+		postStartHooks = append(
+			postStartHooks,
+			func() error {
+				cmd, err := d.Exec(api.InstanceExecPost{Command: []string{"sh", "-c", strings.Join(cdiHookCmds, " ; ")}}, nil, nil, nil)
+				if err != nil {
+					return fmt.Errorf("Failed executing post start CDI hook: %w", err)
+				}
+
+				exitStatus, err := cmd.Wait()
+				if err != nil {
+					return fmt.Errorf("Failed waiting post start CDI hook: %w", err)
+				}
+
+				if exitStatus != 0 {
+					return fmt.Errorf("post start CDI hook failed with exit status: %d", exitStatus)
+				}
+
+				return nil
+			},
+		)
 	}
 
 	// Load the LXC raw config.
