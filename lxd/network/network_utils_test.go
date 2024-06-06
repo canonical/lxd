@@ -17,7 +17,7 @@ func Test_randomAddressInSubnet(t *testing.T) {
 		cidr     string
 		wantErr  error
 		wantIP   string
-		validate func(ip net.IP) error
+		validate func(ip net.IP) (bool, error)
 	}{
 		{
 			cidr:   "198.113.14.64/32",
@@ -30,16 +30,12 @@ func Test_randomAddressInSubnet(t *testing.T) {
 		{
 			cidr:    "198.113.14.64/30",
 			wantErr: fmt.Errorf("No available addresses in subnet %q", "198.113.14.64/30"),
-			validate: func(ip net.IP) error {
+			validate: func(ip net.IP) (bool, error) {
 				_, ok := map[string]struct{}{
 					"198.113.14.66": {},
 					"198.113.14.65": {},
 				}[ip.String()]
-				if ok {
-					return errors.New("In use")
-				}
-
-				return nil
+				return !ok, nil
 			},
 		},
 		{
@@ -86,17 +82,13 @@ func Test_randomAddressInSubnet(t *testing.T) {
 		{
 			cidr:    "6db5:f305:4e4a:17c9:9611:8c06:d162:dcf4/126",
 			wantErr: fmt.Errorf("No available addresses in subnet %q", "6db5:f305:4e4a:17c9:9611:8c06:d162:dcf4/126"),
-			validate: func(ip net.IP) error {
+			validate: func(ip net.IP) (bool, error) {
 				_, ok := map[string]struct{}{
 					"6db5:f305:4e4a:17c9:9611:8c06:d162:dcf5": {},
 					"6db5:f305:4e4a:17c9:9611:8c06:d162:dcf6": {},
 					"6db5:f305:4e4a:17c9:9611:8c06:d162:dcf7": {}, // No broadcast address for IPv6.
 				}[ip.String()]
-				if ok {
-					return errors.New("In use")
-				}
-
-				return nil
+				return !ok, nil
 			},
 		},
 		{
@@ -128,6 +120,13 @@ func Test_randomAddressInSubnet(t *testing.T) {
 		},
 		{
 			cidr: "8c50:98c3:8766:6167:3afb:a98e:4444:486a/11",
+		},
+		{
+			cidr:    "6db5:f305:4e4a:17c9:9611:8c06:d162:dcf4/126",
+			wantErr: errors.New("Forced error"),
+			validate: func(ip net.IP) (bool, error) {
+				return false, errors.New("Forced error")
+			},
 		},
 	}
 

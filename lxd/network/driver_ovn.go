@@ -216,7 +216,7 @@ func (n *ovn) projectRestrictedSubnets(p *api.Project, uplinkNetworkName string)
 	return projectRestrictedSubnets, nil
 }
 
-func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRoutes []*net.IPNet, projectRestrictedSubnets []*net.IPNet, validator func(*net.IPNet) error) (*net.IPNet, error) {
+func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRoutes []*net.IPNet, projectRestrictedSubnets []*net.IPNet, validator func(*net.IPNet) (bool, error)) (*net.IPNet, error) {
 	// Ensure a sensible deadline is set.
 	_, hasDeadline := ctx.Deadline()
 	var cancel context.CancelFunc = func() {}
@@ -241,12 +241,12 @@ func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRo
 		}
 	}
 
-	if len(subnets) == 0 {
+	switch len(subnets) {
+	case 0:
 		return nil, fmt.Errorf("No IPv%d routes are available for this network", ipVersion)
-	}
-
-	if len(subnets) > 1 {
-		// Shuffle the subnets so we aren't always picking from the same one.
+	case 1: // Do nothing.
+	default:
+		// Shuffle the subnets so we aren't always picking from the first one.
 		for i := range subnets {
 			j := rand.Intn(i + 1)
 			subnets[i], subnets[j] = subnets[j], subnets[i]
@@ -259,14 +259,14 @@ func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRo
 
 	for _, subnet := range subnets {
 		subnetCtx, subnetCtxCancel := context.WithTimeout(ctx, perSubnetTimeout)
-		addressInSubnet, err := randomAddressInSubnet(subnetCtx, *subnet, func(n net.IP) error {
+		addressInSubnet, err := randomAddressInSubnet(subnetCtx, *subnet, func(n net.IP) (bool, error) {
 			if validator == nil {
-				return nil
+				return true, nil
 			}
 
 			ipnet, err := ParseIPToNet(n.String())
 			if err != nil {
-				return err
+				return false, err
 			}
 
 			return validator(ipnet)
@@ -4831,7 +4831,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 			return nil, err
 		}
 
-		checkAddressNotInUse := func(netip *net.IPNet) error {
+		checkAddressNotInUse := func(netip *net.IPNet) (bool, error) {
 			// Check the listen address subnet doesn't fall within any existing OVN network external subnets.
 			for _, externalSubnetUser := range externalSubnetsInUse {
 				// Check if usage is from our own network.
@@ -4843,14 +4843,12 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 					}
 				}
 
-				if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
-					// This error is purposefully vague so that it doesn't reveal any names of
-					// resources potentially outside of the network's project.
-					return fmt.Errorf("Forward listen address %q overlaps with another network or NIC", listenAddressNet.String())
+				if SubnetContains(&externalSubnetUser.subnet, netip) || SubnetContains(netip, &externalSubnetUser.subnet) {
+					return false, nil
 				}
 			}
 
-			return nil
+			return true, nil
 		}
 
 		// We're auto-allocating the external IP address if the given listen address is unspecified.
@@ -4877,9 +4875,13 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 				return nil, err
 			}
 
-			err := checkAddressNotInUse(listenAddressNet)
+			isValid, err := checkAddressNotInUse(listenAddressNet)
 			if err != nil {
 				return nil, err
+			} else if !isValid {
+				// This error is purposefully vague so that it doesn't reveal any names of
+				// resources potentially outside of the network's project.
+				return nil, fmt.Errorf("Forward listen address %q overlaps with another network or NIC", listenAddressNet.String())
 			}
 		}
 
@@ -5204,7 +5206,7 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 			return nil, err
 		}
 
-		checkAddressNotInUse := func(netip *net.IPNet) error {
+		checkAddressNotInUse := func(netip *net.IPNet) (bool, error) {
 			// Check the listen address subnet doesn't fall within any existing OVN network external subnets.
 			for _, externalSubnetUser := range externalSubnetsInUse {
 				// Check if usage is from our own network.
@@ -5217,13 +5219,11 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 				}
 
 				if SubnetContains(&externalSubnetUser.subnet, netip) || SubnetContains(netip, &externalSubnetUser.subnet) {
-					// This error is purposefully vague so that it doesn't reveal any names of
-					// resources potentially outside of the network's project.
-					return fmt.Errorf("Load balancer listen address %q overlaps with another network or NIC", netip.String())
+					return false, nil
 				}
 			}
 
-			return nil
+			return true, nil
 		}
 
 		// We're auto-allocating the external IP address if the given listen address is unspecified.
@@ -5250,9 +5250,13 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 				return nil, err
 			}
 
-			err := checkAddressNotInUse(listenAddressNet)
+			isValid, err := checkAddressNotInUse(listenAddressNet)
 			if err != nil {
 				return nil, err
+			} else if !isValid {
+				// This error is purposefully vague so that it doesn't reveal any names of
+				// resources potentially outside of the network's project.
+				return nil, fmt.Errorf("Load balancer listen address %q overlaps with another network or NIC", listenAddressNet.String())
 			}
 		}
 
