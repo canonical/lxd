@@ -6,6 +6,11 @@ on:
       - stable-*
   pull_request:
 
+env:
+  CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
+  LXD_REQUIRED_TESTS: "storage_buckets"
+  LXD_SKIP_TESTS: ""
+
 permissions:
   contents: read
 
@@ -25,7 +30,6 @@ jobs:
       CGO_CFLAGS: "-I/home/runner/work/lxd/lxd-test/vendor/dqlite/include/"
       CGO_LDFLAGS: "-L/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
       LD_LIBRARY_PATH: "/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
-      CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
     name: Code
     runs-on: ubuntu-22.04
     steps:
@@ -168,7 +172,6 @@ jobs:
 
   system-tests:
     env:
-      CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
       LXD_CEPH_CLUSTER: "ceph"
       LXD_CEPH_CEPHFS: "cephfs"
       LXD_CEPH_CEPHOBJECT_RADOSGW: "http://127.0.0.1"
@@ -176,7 +179,6 @@ jobs:
       LXD_VERBOSE: "1"
       LXD_OFFLINE: "1"
       LXD_TMPFS: "1"
-      LXD_REQUIRED_TESTS: "test_storage_buckets"
     name: System
     runs-on: ubuntu-22.04
     strategy:
