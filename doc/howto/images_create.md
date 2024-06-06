@@ -41,7 +41,7 @@ To publish an image from an instance:
       }
     }'
 
-To publish an image from a snapshot
+To publish an image from a snapshot:
 
     lxc query --request POST /1.0/images --data '{
       "source": {
@@ -64,6 +64,16 @@ For example:
     }'
 
 See [`POST /1.0/images`](swagger:/images/images_post) for more information.
+```
+```{group-tab} UI
+The UI does not currently support publishing an image from an instance, but you can publish from a snapshot.
+
+To do so, go to the instance detail page and switch to the {guilabel}`Snapshots` tab.
+Then click the {guilabel}`Create image` button ({{create_image_button}}) and optionally enter an alias for the new image.
+You can also choose whether the image should be publicly available.
+
+Publishing the image might take a few minutes.
+You can check the status under {guilabel}`Operations`.
 ```
 ````
 

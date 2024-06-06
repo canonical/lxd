@@ -2341,7 +2341,7 @@ func (d *lxc) Start(stateful bool) error {
 	// Check that we are startable before creating an operation lock.
 	// Must happen before creating operation Start lock to avoid the status check returning Stopped due to the
 	// existence of a Start operation lock.
-	err = d.validateStartup(stateful, d.statusCode())
+	err = d.validateStartup(d.statusCode())
 	if err != nil {
 		return err
 	}
@@ -2571,8 +2571,8 @@ func (d *lxc) onStart(_ map[string]string) error {
 }
 
 // validateStartup checks any constraints that would prevent start up from succeeding under normal circumstances.
-func (d *lxc) validateStartup(stateful bool, statusCode api.StatusCode) error {
-	err := d.common.validateStartup(stateful, statusCode)
+func (d *lxc) validateStartup(statusCode api.StatusCode) error {
+	err := d.common.validateStartup(statusCode)
 	if err != nil {
 		return err
 	}
@@ -3616,13 +3616,8 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		}
 
 		// Remove the state from the parent container; we only keep this in snapshots.
-		err2 := os.RemoveAll(d.StatePath())
-		if err2 != nil && !os.IsNotExist(err) {
-			op.Done(err)
-			return err
-		}
-
-		if err != nil {
+		err = os.RemoveAll(d.StatePath())
+		if err != nil && !os.IsNotExist(err) {
 			op.Done(err)
 			return err
 		}
@@ -8196,6 +8191,29 @@ func (d *lxc) CGroup() (*cgroup.CGroup, error) {
 	}
 
 	return d.cgroup(cc, true)
+}
+
+// SetAffinity sets affinity in the container according with a set provided.
+func (d *lxc) SetAffinity(set []string) error {
+	sort.Strings(set)
+	affinitySet := strings.Join(set, ",")
+
+	// Confirm the container didn't just stop
+	if d.InitPID() <= 0 {
+		return nil
+	}
+
+	cg, err := d.CGroup()
+	if err != nil {
+		return fmt.Errorf("Unable to get cgroup struct: %w", err)
+	}
+
+	err = cg.SetCpuset(affinitySet)
+	if err != nil {
+		return fmt.Errorf("Unable to set cgroup cpuset to %q: %w", affinitySet, err)
+	}
+
+	return nil
 }
 
 func (d *lxc) cgroup(cc *liblxc.Container, running bool) (*cgroup.CGroup, error) {

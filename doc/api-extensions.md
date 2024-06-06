@@ -2407,3 +2407,15 @@ This extension adds a new image restriction, `requirements.nesting` which when `
 
 Adds the {config:option}`instance-miscellaneous:linux.kernel_modules.load` container configuration option. If the option is set to `ondemand`, the `finit_modules()` syscall is intercepted and a privileged user in the container's user namespace can load the Linux kernel modules specified in the
 allow list {config:option}`instance-miscellaneous:linux.kernel_modules`.
+
+## `device_usb_serial`
+
+This adds new configuration keys {config:option}`device-unix-usb-device-conf:serial`, {config:option}`device-unix-usb-device-conf:busnum` and {config:option}`device-unix-usb-device-conf:devnum` for [device type `usb`](devices-usb).
+The feature has been added to make it possible to distinguish between devices with identical {config:option}`device-unix-usb-device-conf:vendorid` and {config:option}`device-unix-usb-device-conf:productid`.
+
+## `network_allocate_external_ips`
+
+Adds the ability to use an unspecified IPv4 (`0.0.0.0`) or IPv6 (`::`) address in the `listen_address` field of the request body for `POST /1.0/networks/{networkName}/load-balancers` and `POST /1.0/networks/{networkName}/forwards`.
+If an unspecified IP address is used, supported drivers will allocate an available listen address automatically.
+Allocation of external IP addresses is currently supported by the OVN network driver.
+The OVN driver will allocate IP addresses from the subnets specified in the uplink network's `ipv4.routes` and `ipv6.routes` configuration options.

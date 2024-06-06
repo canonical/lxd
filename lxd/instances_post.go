@@ -40,7 +40,7 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-func ensureDownloadedImageFitWithinBudget(s *state.State, r *http.Request, op *operations.Operation, p api.Project, img *api.Image, imgAlias string, source api.InstanceSource, imgType string) (*api.Image, error) {
+func ensureDownloadedImageFitWithinBudget(s *state.State, r *http.Request, op *operations.Operation, p api.Project, imgAlias string, source api.InstanceSource, imgType string) (*api.Image, error) {
 	var autoUpdate bool
 	var err error
 	if p.Config["images.auto_update_cached"] != "" {
@@ -104,12 +104,12 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 		}
 
 		if req.Source.Server != "" {
-			img, err = ensureDownloadedImageFitWithinBudget(s, r, op, p, img, imgAlias, req.Source, string(req.Type))
+			img, err = ensureDownloadedImageFitWithinBudget(s, r, op, p, imgAlias, req.Source, string(req.Type))
 			if err != nil {
 				return err
 			}
 		} else if img != nil {
-			err := ensureImageIsLocallyAvailable(s, r, img, args.Project, args.Type)
+			err := ensureImageIsLocallyAvailable(s, r, img, args.Project)
 			if err != nil {
 				return err
 			}
@@ -122,7 +122,7 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 			return err
 		}
 
-		return instanceCreateFromImage(s, r, img, args, op)
+		return instanceCreateFromImage(s, img, args, op)
 	}
 
 	resources := map[string][]api.URL{}

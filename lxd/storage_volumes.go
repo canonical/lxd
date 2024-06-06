@@ -688,29 +688,19 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if allPools {
-			poolNames, err := tx.GetStoragePoolNames(ctx)
+			dbVolumes, err = tx.GetStorageVolumes(ctx, memberSpecific, filters...)
 			if err != nil {
-				return fmt.Errorf("Failed to get storage volumes: %w", err)
-			}
-
-			for _, pool := range poolNames {
-				poolID, err := tx.GetStoragePoolID(ctx, pool)
-				if err != nil {
-					return fmt.Errorf("Failed to get storage volumes: %w", err)
-				}
-
-				poolVolumes, err := tx.GetStoragePoolVolumes(ctx, poolID, memberSpecific, filters...)
-				if err != nil {
-					return fmt.Errorf("Failed loading storage volumes: %w", err)
-				}
-
-				dbVolumes = append(dbVolumes, poolVolumes...)
+				return fmt.Errorf("Failed loading storage volumes: %w", err)
 			}
 
 			return err
 		}
 
-		dbVolumes, err = tx.GetStoragePoolVolumes(ctx, poolID, memberSpecific, filters...)
+		for i := range filters {
+			filters[i].PoolID = &poolID
+		}
+
+		dbVolumes, err = tx.GetStorageVolumes(ctx, memberSpecific, filters...)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage volumes: %w", err)
 		}
@@ -767,7 +757,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 			vol := &dbVol.StorageVolume
 
 			volumeName, _, _ := api.GetParentAndSnapshotName(vol.Name)
-			if !userHasPermission(entity.StorageVolumeURL(vol.Project, "", poolName, dbVol.Type, volumeName)) {
+			if !userHasPermission(entity.StorageVolumeURL(vol.Project, "", dbVol.Pool, dbVol.Type, volumeName)) {
 				continue
 			}
 
@@ -791,7 +781,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	for _, dbVol := range dbVolumes {
 		volumeName, _, _ := api.GetParentAndSnapshotName(dbVol.Name)
 
-		if !userHasPermission(entity.StorageVolumeURL(dbVol.Project, "", poolName, dbVol.Type, volumeName)) {
+		if !userHasPermission(entity.StorageVolumeURL(dbVol.Project, "", dbVol.Pool, dbVol.Type, volumeName)) {
 			continue
 		}
 

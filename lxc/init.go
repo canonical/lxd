@@ -36,21 +36,24 @@ type cmdInit struct {
 	flagVM         bool
 }
 
-func (c *cmdInit) Command() *cobra.Command {
+func (c *cmdInit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("init", i18n.G("[<remote>:]<image> [<remote>:][<name>]"))
 	cmd.Short = i18n.G("Create instances from images")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Create instances from images`))
-	cmd.Example = cli.FormatSection("", i18n.G(`lxc init ubuntu:22.04 u1
+	cmd.Example = cli.FormatSection("", i18n.G(`lxc init ubuntu:24.04 u1
     Create a container (but do not start it)
 
-lxc init ubuntu:22.04 u1 < config.yaml
+lxc init ubuntu:24.04 u1 < config.yaml
     Create a container with configuration from config.yaml
 
-lxc init ubuntu:22.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB
-    Create a virtual machine with 4 cpus and 4GiB of RAM`))
+lxc init ubuntu:24.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB
+    Create a virtual machine with 4 vCPUs and 4GiB of RAM
 
-	cmd.RunE = c.Run
+lxc init ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,size=32GiB
+    Create a virtual machine with 2 vCPUs, 8GiB of RAM and a root disk of 32GiB`))
+
+	cmd.RunE = c.run
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new instance")+"``")
 	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the new instance")+"``")
 	cmd.Flags().StringArrayVarP(&c.flagDevice, "device", "d", nil, i18n.G("New key/value to apply to a specific device")+"``")
@@ -66,7 +69,7 @@ lxc init ubuntu:22.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB
 	return cmd
 }
 
-func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdInit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 2)
 	if exit {

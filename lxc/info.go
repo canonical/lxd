@@ -10,7 +10,6 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/lxc/config"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -26,7 +25,7 @@ type cmdInfo struct {
 	flagTarget    string
 }
 
-func (c *cmdInfo) Command() *cobra.Command {
+func (c *cmdInfo) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("info", i18n.G("[<remote>:][<instance>]"))
 	cmd.Short = i18n.G("Show instance or server information")
@@ -39,7 +38,7 @@ func (c *cmdInfo) Command() *cobra.Command {
 lxc info [<remote>:] [--resources]
     For LXD server information.`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, i18n.G("Show the instance's last 100 log lines?"))
 	cmd.Flags().BoolVar(&c.flagResources, "resources", false, i18n.G("Show the resources available to the server"))
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
@@ -47,7 +46,7 @@ lxc info [<remote>:] [--resources]
 	return cmd
 }
 
-func (c *cmdInfo) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdInfo) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.
@@ -79,7 +78,7 @@ func (c *cmdInfo) Run(cmd *cobra.Command, args []string) error {
 		return c.remoteInfo(d)
 	}
 
-	return c.instanceInfo(d, conf.Remotes[remote], cName, c.flagShowLog)
+	return c.instanceInfo(d, cName, c.flagShowLog)
 }
 
 func (c *cmdInfo) renderGPU(gpu api.ResourcesGPUCard, prefix string, initial bool) {
@@ -447,7 +446,7 @@ func (c *cmdInfo) remoteInfo(d lxd.InstanceServer) error {
 	return nil
 }
 
-func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name string, showLog bool) error {
+func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) error {
 	// Quick checks.
 	if c.flagTarget != "" {
 		return fmt.Errorf(i18n.G("--target cannot be used with instances"))

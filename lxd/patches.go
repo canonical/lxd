@@ -880,7 +880,7 @@ func patchZfsSetContentTypeUserProperty(name string, d *Daemon) error {
 			}
 
 			// Get the pool's custom storage volumes.
-			customVolumes, err := tx.GetStoragePoolVolumes(ctx, poolID, false, db.StorageVolumeFilter{Type: &volTypeCustom})
+			customVolumes, err := tx.GetStorageVolumes(ctx, false, db.StorageVolumeFilter{Type: &volTypeCustom, PoolID: &poolID})
 			if err != nil {
 				return fmt.Errorf("Failed getting custom storage volumes of pool %q: %w", pool, err)
 			}
@@ -979,7 +979,7 @@ func patchStorageZfsUnsetInvalidBlockSettings(_ string, d *Daemon) error {
 			}
 
 			// Get the pool's custom storage volumes.
-			volumes, err := tx.GetStoragePoolVolumes(ctx, poolID, false, db.StorageVolumeFilter{Type: &volTypeCustom}, db.StorageVolumeFilter{Type: &volTypeVM})
+			volumes, err := tx.GetStorageVolumes(ctx, false, db.StorageVolumeFilter{Type: &volTypeCustom, PoolID: &poolID}, db.StorageVolumeFilter{Type: &volTypeVM, PoolID: &poolID})
 			if err != nil {
 				return fmt.Errorf("Failed getting custom storage volumes of pool %q: %w", pool, err)
 			}
@@ -1097,7 +1097,7 @@ func patchStorageZfsUnsetInvalidBlockSettingsV2(_ string, d *Daemon) error {
 			}
 
 			// Get the pool's custom storage volumes.
-			volumes, err := tx.GetStoragePoolVolumes(ctx, poolID, false, db.StorageVolumeFilter{Type: &volTypeCustom}, db.StorageVolumeFilter{Type: &volTypeVM})
+			volumes, err := tx.GetStorageVolumes(ctx, false, db.StorageVolumeFilter{Type: &volTypeCustom, PoolID: &poolID}, db.StorageVolumeFilter{Type: &volTypeVM, PoolID: &poolID})
 			if err != nil {
 				return fmt.Errorf("Failed getting custom storage volumes of pool %q: %w", pool, err)
 			}
@@ -1338,7 +1338,7 @@ func patchStorageRenameCustomISOBlockVolumesV2(name string, d *Daemon) error {
 			}
 
 			// Get the pool's custom storage volumes.
-			customVolumes, err := tx.GetStoragePoolVolumes(ctx, poolID, false, db.StorageVolumeFilter{Type: &volTypeCustom})
+			customVolumes, err := tx.GetStorageVolumes(ctx, false, db.StorageVolumeFilter{Type: &volTypeCustom, PoolID: &poolID})
 			if err != nil {
 				return fmt.Errorf("Failed getting custom storage volumes of pool %q: %w", pool, err)
 			}

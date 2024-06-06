@@ -27,7 +27,7 @@ type cmdQuery struct {
 	flagData     string
 }
 
-func (c *cmdQuery) Command() *cobra.Command {
+func (c *cmdQuery) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("query", i18n.G("[<remote>:]<API path>"))
 	cmd.Short = i18n.G("Send a raw query to LXD")
@@ -37,7 +37,7 @@ func (c *cmdQuery) Command() *cobra.Command {
 		`lxc query -X DELETE --wait /1.0/instances/c1
     Delete local instance "c1".`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagRespWait, "wait", false, i18n.G("Wait for the operation to complete"))
 	cmd.Flags().BoolVar(&c.flagRespRaw, "raw", false, i18n.G("Print the raw response"))
 	cmd.Flags().StringVarP(&c.flagAction, "request", "X", "GET", i18n.G("Action (defaults to GET)")+"``")
@@ -59,7 +59,7 @@ func (c *cmdQuery) pretty(input any) string {
 	return pretty.String()
 }
 
-func (c *cmdQuery) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdQuery) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.

@@ -92,8 +92,8 @@ type Daemon struct {
 
 	// Tasks registry for long-running background tasks
 	// Keep clustering tasks separate as they cause a lot of CPU wakeups
-	tasks        task.Group
-	clusterTasks task.Group
+	tasks        *task.Group
+	clusterTasks *task.Group
 
 	// Indexes of tasks that need to be reset when their execution interval changes
 	taskPruneImages      *task.Task
@@ -180,6 +180,8 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 		config:         config,
 		devlxdEvents:   devlxdEvents,
 		events:         lxdEvents,
+		tasks:          task.NewGroup(),
+		clusterTasks:   task.NewGroup(),
 		db:             &db.DB{},
 		http01Provider: acme.NewHTTP01Provider(),
 		os:             os,
@@ -810,13 +812,24 @@ func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, i
 		return err
 	}
 
-	// Figure out the instance name.
-	if instanceName == "" {
+	// Handle standalone systems.
+	var location string
+	if !d.serverClustered {
+		hostname, err := os.Hostname()
+		if err != nil {
+			return err
+		}
+
+		location = hostname
+		if instanceName == "" {
+			instanceName = hostname
+		}
+	} else if instanceName == "" {
 		instanceName = d.serverName
 	}
 
 	// Start a new client.
-	d.lokiClient = loki.NewClient(d.shutdownCtx, u, cert, key, caCert, instanceName, logLevel, labels, types)
+	d.lokiClient = loki.NewClient(d.shutdownCtx, u, cert, key, caCert, instanceName, location, logLevel, labels, types)
 
 	// Attach the new client to the log handler.
 	d.internalListener.AddHandler("loki", d.lokiClient.HandleEvent)
@@ -1334,7 +1347,7 @@ func (d *Daemon) init() error {
 
 	// Mount the storage pools.
 	logger.Infof("Initializing storage pools")
-	err = storageStartup(d.State(), false)
+	err = storageStartup(d.State())
 	if err != nil {
 		return err
 	}
@@ -1394,8 +1407,6 @@ func (d *Daemon) init() error {
 	bgpAddress := d.localConfig.BGPAddress()
 	bgpRouterID := d.localConfig.BGPRouterID()
 	bgpASN := int64(0)
-
-	dnsAddress := d.localConfig.DNSAddress()
 
 	maasAPIURL := ""
 	maasAPIKey := ""
@@ -1491,14 +1502,6 @@ func (d *Daemon) init() error {
 
 		return resp, nil
 	})
-	if dnsAddress != "" {
-		err := d.dns.Start(dnsAddress)
-		if err != nil {
-			return err
-		}
-
-		logger.Info("Started DNS server")
-	}
 
 	// Setup the networks.
 	logger.Infof("Initializing networks")
@@ -1508,6 +1511,16 @@ func (d *Daemon) init() error {
 	}
 
 	// Setup tertiary listeners that may use managed network addresses and must be started after networks.
+	dnsAddress := d.localConfig.DNSAddress()
+	if dnsAddress != "" {
+		err = d.dns.Start(dnsAddress)
+		if err != nil {
+			return err
+		}
+
+		logger.Info("Started DNS server")
+	}
+
 	metricsAddress := d.localConfig.MetricsAddress()
 	if metricsAddress != "" {
 		err = d.endpoints.UpMetrics(metricsAddress)
@@ -1656,7 +1669,7 @@ func (d *Daemon) init() error {
 		d.startClusterTasks()
 	}
 
-	d.tasks = *task.NewGroup()
+	d.tasks = task.NewGroup()
 
 	// FIXME: There's no hard reason for which we should not run these
 	//        tasks in mock mode. However it requires that we tweak them so
@@ -1718,7 +1731,7 @@ func (d *Daemon) startClusterTasks() {
 	// Run asynchronously so that connecting to remote members doesn't delay starting up other cluster tasks.
 	go cluster.EventsUpdateListeners(d.endpoints, d.db.Cluster, d.serverCert, nil, d.events.Inject)
 
-	d.clusterTasks = *task.NewGroup()
+	d.clusterTasks = task.NewGroup()
 
 	// Heartbeats
 	d.taskClusterHeartbeat = d.clusterTasks.Add(cluster.HeartbeatTask(d.gateway))
@@ -1738,7 +1751,7 @@ func (d *Daemon) startClusterTasks() {
 
 func (d *Daemon) stopClusterTasks() {
 	_ = d.clusterTasks.Stop(3 * time.Second)
-	d.clusterTasks = *task.NewGroup()
+	d.clusterTasks = task.NewGroup()
 }
 
 // numRunningInstances returns the number of running instances.

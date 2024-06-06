@@ -34,11 +34,13 @@ In addition, proxy devices can be used to proxy traffic between different connec
 Use the following command to create a network forward:
 
 ```bash
-lxc network forward create <network_name> <listen_address> [configuration_options...]
+lxc network forward create <network_name> [<listen_address>] [--allocate=ipv{4,6}] [configuration_options...]
 ```
 
 Each forward is assigned to a network.
-It requires a single external listen address (see {ref}`network-forwards-listen-addresses` for more information about which addresses can be forwarded, depending on the network that you are using).
+Specify a single external listen address (see {ref}`network-forwards-listen-addresses` for more information about which addresses can be forwarded, depending on the network that you are using).
+If the network type supports IP allocation, you don't need to specify a listen address.
+If you leave it out, you must provide the `--allocate` flag.
 
 You can specify an optional default target address by adding the `target_address=<IP_address>` configuration option.
 If you do, any traffic that does not match a port specification is forwarded to this address.
@@ -48,12 +50,11 @@ Note that this target address must be within the same subnet as the network that
 
 Network forwards have the following properties:
 
-Property         | Type       | Required | Description
-:--              | :--        | :--      | :--
-`listen_address` | string     | yes      | IP address to listen on
-`description`    | string     | no       | Description of the network forward
-`config`         | string set | no       | Configuration options as key/value pairs (only `target_address` and `user.*` custom keys supported)
-`ports`          | port list  | no       | List of {ref}`port specifications <network-forwards-port-specifications>`
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group network-forward-forward-properties start -->
+    :end-before: <!-- config group network-forward-forward-properties end -->
+```
 
 (network-forwards-listen-addresses)=
 ### Requirements for listen addresses
@@ -63,10 +64,12 @@ The requirements for valid listen addresses vary depending on which network type
 Bridge network
 : - Any non-conflicting listen address is allowed.
   - The listen address must not overlap with a subnet that is in use with another network.
+  - The `--allocate` flag is not supported.
 
 OVN network
 : - Allowed listen addresses must be defined in the uplink network's `ipv{n}.routes` settings or the project's {config:option}`project-restricted:restricted.networks.subnets` setting (if set).
   - The listen address must not overlap with a subnet that is in use with another network.
+  - The `--allocate` flag is supported. If used, the OVN network driver will allocate an IP address from the uplink network's `ipv{n}.routes` or the project's {config:option}`project-restricted:restricted.networks.subnets` setting (if set).
 
 (network-forwards-port-specifications)=
 ## Configure ports
@@ -91,13 +94,11 @@ If you want to forward the traffic to different ports, you have two options:
 
 Network forward ports have the following properties:
 
-Property          | Type       | Required | Description
-:--               | :--        | :--      | :--
-`protocol`        | string     | yes      | Protocol for the port(s) (`tcp` or `udp`)
-`listen_port`     | string     | yes      | Listen port(s) (e.g. `80,90-100`)
-`target_address`  | string     | yes      | IP address to forward to
-`target_port`     | string     | no       | Target port(s) (e.g. `70,80-90` or `90`), same as `listen_port` if empty
-`description`     | string     | no       | Description of port(s)
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group network-forward-port-properties start -->
+    :end-before: <!-- config group network-forward-port-properties end -->
+```
 
 ## Edit a network forward
 

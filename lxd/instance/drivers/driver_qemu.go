@@ -1,5 +1,17 @@
 package drivers
 
+/*
+
+#include <linux/types.h>
+#include <sys/ioctl.h>
+#include <stdint.h>
+
+#define VHOST_VIRTIO 0xAF
+#define VHOST_VSOCK_SET_GUEST_CID	_IOW(VHOST_VIRTIO, 0x60, __u64)
+
+*/
+import "C"
+
 import (
 	"bufio"
 	"bytes"
@@ -430,8 +442,8 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 		}
 
 		d, ok := inst.(*qemu)
-		if !ok {
-			d.logger.Error("Failed to cast instance to *qemu")
+		if !ok || d == nil {
+			logger.Error("Failed to cast instance to *qemu")
 			return
 		}
 
@@ -1083,7 +1095,7 @@ func (d *qemu) validateRootDiskStatefulStop() error {
 
 // validateStartup checks any constraints that would prevent start up from succeeding under normal circumstances.
 func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
-	err := d.common.validateStartup(stateful, statusCode)
+	err := d.common.validateStartup(statusCode)
 	if err != nil {
 		return err
 	}
@@ -1680,50 +1692,38 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// onStop hook isn't triggered prematurely (as this function's reverter will clean up on failure to start).
 	monitor.SetOnDisconnectEvent(false)
 
-	// Get the list of PIDs from the VM.
-	pids, err := monitor.GetCPUs()
-	if err != nil {
-		op.Done(err)
-		return err
-	}
-
-	err = d.setCoreSched(pids)
-	if err != nil {
-		err = fmt.Errorf("Failed to allocate new core scheduling domain for vCPU threads: %w", err)
-		op.Done(err)
-		return err
-	}
-
-	// Apply CPU pinning.
-	if cpuInfo.vcpus == nil {
-		if d.architectureSupportsCPUHotplug() && cpuInfo.cores > 1 {
-			err := d.setCPUs(cpuInfo.cores)
-			if err != nil {
-				err = fmt.Errorf("Failed to add CPUs: %w", err)
-				op.Done(err)
-				return err
-			}
+	// We need to hotplug vCPUs now if:
+	// - architecture supports hotplug
+	// - no explicit vCPU pinning was specified (cpuInfo.vcpus == nil)
+	// - we have more than one vCPU set
+	if d.architectureSupportsCPUHotplug() && cpuInfo.vcpus == nil && cpuInfo.cores > 1 {
+		// Setup CPUs and core scheduling for hotpluggable CPU systems.
+		err := d.setCPUs(cpuInfo.cores)
+		if err != nil {
+			err = fmt.Errorf("Failed to add CPUs: %w", err)
+			op.Done(err)
+			return err
 		}
 	} else {
-		// Confirm nothing weird is going on.
-		if len(cpuInfo.vcpus) != len(pids) {
-			err = fmt.Errorf("QEMU has less vCPUs than configured")
+		// Setup just core scheduling if we don't need to hotplug vCPUs
+
+		// Get the list of PIDs from the VM.
+		pids, err := monitor.GetCPUs()
+		if err != nil {
 			op.Done(err)
 			return err
 		}
 
-		for i, pid := range pids {
-			set := unix.CPUSet{}
-			set.Set(int(cpuInfo.vcpus[uint64(i)]))
-
-			// Apply the pin.
-			err := unix.SchedSetaffinity(pid, &set)
-			if err != nil {
-				op.Done(err)
-				return err
-			}
+		err = d.setCoreSched(pids)
+		if err != nil {
+			err = fmt.Errorf("Failed to allocate new core scheduling domain for vCPU threads: %w", err)
+			op.Done(err)
+			return err
 		}
 	}
+
+	// Trigger a rebalance procedure which will set vCPU affinity (pinning) (explicit or implicit)
+	cgroup.TaskSchedulerTrigger("virtual-machine", d.name, "started")
 
 	// Run monitor hooks from devices.
 	for _, monHook := range monHooks {
@@ -2137,7 +2137,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 		if instanceRunning {
 			// Attach network interface if requested.
 			if len(runConf.NetworkInterface) > 0 {
-				err = d.deviceAttachNIC(dev.Name(), configCopy, runConf.NetworkInterface)
+				err = d.deviceAttachNIC(dev.Name(), runConf.NetworkInterface)
 				if err != nil {
 					return nil, err
 				}
@@ -2145,12 +2145,12 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 
 			for _, mount := range runConf.Mounts {
 				if mount.FSType == "9p" {
-					err = d.deviceAttachPath(dev.Name(), configCopy, mount)
+					err = d.deviceAttachPath(dev.Name())
 					if err != nil {
 						return nil, err
 					}
 				} else {
-					err = d.deviceAttachBlockDevice(dev.Name(), configCopy, mount)
+					err = d.deviceAttachBlockDevice(mount)
 					if err != nil {
 						return nil, err
 					}
@@ -2177,7 +2177,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 	return runConf, nil
 }
 
-func (d *qemu) deviceAttachPath(deviceName string, configCopy map[string]string, mount deviceConfig.MountEntryItem) error {
+func (d *qemu) deviceAttachPath(deviceName string) error {
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
 	mountTag := fmt.Sprintf("lxd_%s", deviceName)
@@ -2277,7 +2277,7 @@ func (d *qemu) deviceAttachPath(deviceName string, configCopy map[string]string,
 	return nil
 }
 
-func (d *qemu) deviceAttachBlockDevice(deviceName string, configCopy map[string]string, mount deviceConfig.MountEntryItem) error {
+func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
@@ -2297,7 +2297,7 @@ func (d *qemu) deviceAttachBlockDevice(deviceName string, configCopy map[string]
 	return nil
 }
 
-func (d *qemu) deviceDetachPath(deviceName string, rawConfig deviceConfig.Device) error {
+func (d *qemu) deviceDetachPath(deviceName string) error {
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
 	mountTag := fmt.Sprintf("lxd_%s", deviceName)
@@ -2334,7 +2334,7 @@ func (d *qemu) deviceDetachPath(deviceName string, rawConfig deviceConfig.Device
 	return nil
 }
 
-func (d *qemu) deviceDetachBlockDevice(deviceName string, rawConfig deviceConfig.Device) error {
+func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
@@ -2377,7 +2377,7 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string, rawConfig deviceConfig
 }
 
 // deviceAttachNIC live attaches a NIC device to the instance.
-func (d *qemu) deviceAttachNIC(deviceName string, configCopy map[string]string, netIF []deviceConfig.RunConfigItem) error {
+func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfigItem) error {
 	devName := ""
 	for _, dev := range netIF {
 		if dev.Key == "link" {
@@ -2474,12 +2474,12 @@ func (d *qemu) deviceStop(dev device.Device, instanceRunning bool, _ string) err
 		// Detach disk from running instance.
 		if configCopy["type"] == "disk" {
 			if configCopy["path"] != "" {
-				err = d.deviceDetachPath(dev.Name(), configCopy)
+				err = d.deviceDetachPath(dev.Name())
 				if err != nil {
 					return err
 				}
 			} else {
-				err = d.deviceDetachBlockDevice(dev.Name(), configCopy)
+				err = d.deviceDetachBlockDevice(dev.Name())
 				if err != nil {
 					return err
 				}
@@ -4930,6 +4930,9 @@ func (d *qemu) Stop(stateful bool) error {
 		return err
 	}
 
+	// Trigger a rebalance
+	cgroup.TaskSchedulerTrigger("virtual-machine", d.name, "stopped")
+
 	return nil
 }
 
@@ -5591,6 +5594,8 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		return err
 	}
 
+	cpuLimitWasChanged := false
+
 	if isRunning {
 		// Only certain keys can be changed on a running VM.
 		liveUpdateKeys := []string{
@@ -5669,6 +5674,8 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 				if err != nil {
 					return fmt.Errorf("Failed updating cpu limit: %w", err)
 				}
+
+				cpuLimitWasChanged = true
 			} else if key == "limits.memory" {
 				err = d.updateMemoryLimit(value)
 				if err != nil {
@@ -5791,6 +5798,11 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// Changes have been applied and recorded, do not revert if an error occurs from here.
 	revert.Success()
+
+	if cpuLimitWasChanged {
+		// Trigger a scheduler re-run
+		cgroup.TaskSchedulerTrigger("virtual-machine", d.name, "changed")
+	}
 
 	if isRunning {
 		// Send devlxd notifications only for user.* key changes
@@ -7464,6 +7476,41 @@ func (d *qemu) CGroup() (*cgroup.CGroup, error) {
 	return nil, instance.ErrNotImplemented
 }
 
+// SetAffinity sets affinity for QEMU processes according with a set provided.
+func (d *qemu) SetAffinity(set []string) error {
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		// this is not an error path, really. Instance can be stopped, for example.
+		d.logger.Debug("Failed connecting to the QMP monitor. Instance is not running?", logger.Ctx{"name": d.Name(), "err": err})
+		return nil
+	}
+
+	// Get the list of PIDs from the VM.
+	pids, err := monitor.GetCPUs()
+	if err != nil {
+		return fmt.Errorf("Failed to get VM instance's QEMU process list: %w", err)
+	}
+
+	// Confirm nothing weird is going on.
+	if len(set) != len(pids) {
+		return fmt.Errorf("QEMU has different count of vCPUs (%v) than configured (%v)", pids, set)
+	}
+
+	for i, pid := range pids {
+		affinitySet := unix.CPUSet{}
+		cpuCoreIndex, _ := strconv.Atoi(set[i])
+		affinitySet.Set(cpuCoreIndex)
+
+		// Apply the pin.
+		err := unix.SchedSetaffinity(pid, &affinitySet)
+		if err != nil {
+			return fmt.Errorf("Failed to set QEMU process affinity: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // FileSFTPConn returns a connection to the agent SFTP endpoint.
 func (d *qemu) FileSFTPConn() (net.Conn, error) {
 	// VMs, unlike containers, cannot perform file operations if not running and using the lxd-agent.
@@ -8058,8 +8105,7 @@ func (d *qemu) acquireVsockID(vsockID uint32) (*os.File, error) {
 	// The vsock Context ID cannot be supplied as type uint32.
 	vsockIDInt := uint64(vsockID)
 
-	// 0x4008AF60 = VHOST_VSOCK_SET_GUEST_CID = _IOW(VHOST_VIRTIO, 0x60, __u64)
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, vsockF.Fd(), 0x4008AF60, uintptr(unsafe.Pointer(&vsockIDInt)))
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, vsockF.Fd(), C.VHOST_VSOCK_SET_GUEST_CID, uintptr(unsafe.Pointer(&vsockIDInt)))
 	if errno != 0 {
 		if !errors.Is(errno, unix.EADDRINUSE) {
 			return nil, fmt.Errorf("Failed ioctl syscall to vhost socket: %q", errno.Error())
@@ -8987,6 +9033,33 @@ func (d *qemu) setCPUs(count int) error {
 				d.logger.Warn("Failed to add CPU device", logger.Ctx{"err": err})
 			})
 		}
+	}
+
+	var pids []int
+	cpusWereSeen := false
+	for i := 0; i < 50; i++ {
+		// Get the list of PIDs from the VM.
+		pids, err = monitor.GetCPUs()
+		if err != nil {
+			return fmt.Errorf("Failed to get VM instance's QEMU process list: %w", err)
+		}
+
+		if count == len(pids) {
+			cpusWereSeen = true
+			break
+		}
+
+		time.Sleep(200 * time.Millisecond)
+	}
+
+	if !cpusWereSeen {
+		return fmt.Errorf("Failed to wait until all vCPUs (%d) come online", count)
+	}
+
+	// actualize core scheduling data
+	err = d.setCoreSched(pids)
+	if err != nil {
+		return fmt.Errorf("Failed to allocate new core scheduling domain for vCPU threads: %w", err)
 	}
 
 	revert.Success()

@@ -26,7 +26,7 @@ type cmdStorage struct {
 	flagTarget string
 }
 
-func (c *cmdStorage) Command() *cobra.Command {
+func (c *cmdStorage) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("storage")
 	cmd.Short = i18n.G("Manage storage pools and volumes")
@@ -35,47 +35,47 @@ func (c *cmdStorage) Command() *cobra.Command {
 
 	// Create
 	storageCreateCmd := cmdStorageCreate{global: c.global, storage: c}
-	cmd.AddCommand(storageCreateCmd.Command())
+	cmd.AddCommand(storageCreateCmd.command())
 
 	// Delete
 	storageDeleteCmd := cmdStorageDelete{global: c.global, storage: c}
-	cmd.AddCommand(storageDeleteCmd.Command())
+	cmd.AddCommand(storageDeleteCmd.command())
 
 	// Edit
 	storageEditCmd := cmdStorageEdit{global: c.global, storage: c}
-	cmd.AddCommand(storageEditCmd.Command())
+	cmd.AddCommand(storageEditCmd.command())
 
 	// Get
 	storageGetCmd := cmdStorageGet{global: c.global, storage: c}
-	cmd.AddCommand(storageGetCmd.Command())
+	cmd.AddCommand(storageGetCmd.command())
 
 	// Info
 	storageInfoCmd := cmdStorageInfo{global: c.global, storage: c}
-	cmd.AddCommand(storageInfoCmd.Command())
+	cmd.AddCommand(storageInfoCmd.command())
 
 	// List
 	storageListCmd := cmdStorageList{global: c.global, storage: c}
-	cmd.AddCommand(storageListCmd.Command())
+	cmd.AddCommand(storageListCmd.command())
 
 	// Set
 	storageSetCmd := cmdStorageSet{global: c.global, storage: c}
-	cmd.AddCommand(storageSetCmd.Command())
+	cmd.AddCommand(storageSetCmd.command())
 
 	// Show
 	storageShowCmd := cmdStorageShow{global: c.global, storage: c}
-	cmd.AddCommand(storageShowCmd.Command())
+	cmd.AddCommand(storageShowCmd.command())
 
 	// Unset
 	storageUnsetCmd := cmdStorageUnset{global: c.global, storage: c, storageSet: &storageSetCmd}
-	cmd.AddCommand(storageUnsetCmd.Command())
+	cmd.AddCommand(storageUnsetCmd.command())
 
 	// Bucket
 	storageBucketCmd := cmdStorageBucket{global: c.global}
-	cmd.AddCommand(storageBucketCmd.Command())
+	cmd.AddCommand(storageBucketCmd.command())
 
 	// Volume
 	storageVolumeCmd := cmdStorageVolume{global: c.global, storage: c}
-	cmd.AddCommand(storageVolumeCmd.Command())
+	cmd.AddCommand(storageVolumeCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -89,7 +89,7 @@ type cmdStorageCreate struct {
 	storage *cmdStorage
 }
 
-func (c *cmdStorageCreate) Command() *cobra.Command {
+func (c *cmdStorageCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<pool> <driver> [key=value...]"))
 	cmd.Short = i18n.G("Create storage pools")
@@ -97,12 +97,12 @@ func (c *cmdStorageCreate) Command() *cobra.Command {
 		`Create storage pools`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageCreate) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageCreate) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
@@ -162,7 +162,7 @@ type cmdStorageDelete struct {
 	storage *cmdStorage
 }
 
-func (c *cmdStorageDelete) Command() *cobra.Command {
+func (c *cmdStorageDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<pool>"))
 	cmd.Aliases = []string{"rm"}
@@ -170,12 +170,12 @@ func (c *cmdStorageDelete) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Delete storage pools`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageDelete) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageDelete) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -213,7 +213,7 @@ type cmdStorageEdit struct {
 	storage *cmdStorage
 }
 
-func (c *cmdStorageEdit) Command() *cobra.Command {
+func (c *cmdStorageEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<pool>"))
 	cmd.Short = i18n.G("Edit storage pool configurations as YAML")
@@ -223,7 +223,7 @@ func (c *cmdStorageEdit) Command() *cobra.Command {
 		`lxc storage edit [<remote>:]<pool> < pool.yaml
     Update a storage pool using the content of pool.yaml.`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
@@ -245,7 +245,7 @@ func (c *cmdStorageEdit) helpTemplate() string {
 ###   zfs.pool_name: default`)
 }
 
-func (c *cmdStorageEdit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -337,7 +337,7 @@ type cmdStorageGet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdStorageGet) Command() *cobra.Command {
+func (c *cmdStorageGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<pool> <key>"))
 	cmd.Short = i18n.G("Get values for storage pool configuration keys")
@@ -346,12 +346,12 @@ func (c *cmdStorageGet) Command() *cobra.Command {
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a storage property"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageGet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageGet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -407,7 +407,7 @@ type cmdStorageInfo struct {
 	flagBytes bool
 }
 
-func (c *cmdStorageInfo) Command() *cobra.Command {
+func (c *cmdStorageInfo) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("info", i18n.G("[<remote>:]<pool>"))
 	cmd.Short = i18n.G("Show useful information about storage pools")
@@ -416,12 +416,12 @@ func (c *cmdStorageInfo) Command() *cobra.Command {
 
 	cmd.Flags().BoolVar(&c.flagBytes, "bytes", false, i18n.G("Show the used and free space in bytes"))
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageInfo) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageInfo) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -578,7 +578,7 @@ type cmdStorageList struct {
 	flagFormat string
 }
 
-func (c *cmdStorageList) Command() *cobra.Command {
+func (c *cmdStorageList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
 	cmd.Aliases = []string{"ls"}
@@ -587,12 +587,12 @@ func (c *cmdStorageList) Command() *cobra.Command {
 		`List available storage pools`))
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageList) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageList) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
@@ -658,7 +658,7 @@ type cmdStorageSet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdStorageSet) Command() *cobra.Command {
+func (c *cmdStorageSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<pool> <key> <value>"))
 	cmd.Short = i18n.G("Set storage pool configuration keys")
@@ -670,12 +670,12 @@ For backward compatibility, a single configuration key may still be set with:
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a storage property"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageSet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageSet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
@@ -754,7 +754,7 @@ type cmdStorageShow struct {
 	flagResources bool
 }
 
-func (c *cmdStorageShow) Command() *cobra.Command {
+func (c *cmdStorageShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<pool>"))
 	cmd.Short = i18n.G("Show storage pool configurations and resources")
@@ -763,12 +763,12 @@ func (c *cmdStorageShow) Command() *cobra.Command {
 
 	cmd.Flags().BoolVar(&c.flagResources, "resources", false, i18n.G("Show the resources available to the storage pool"))
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -840,7 +840,7 @@ type cmdStorageUnset struct {
 	flagIsProperty bool
 }
 
-func (c *cmdStorageUnset) Command() *cobra.Command {
+func (c *cmdStorageUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<pool> <key>"))
 	cmd.Short = i18n.G("Unset storage pool configuration keys")
@@ -849,12 +849,12 @@ func (c *cmdStorageUnset) Command() *cobra.Command {
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a storage property"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageUnset) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageUnset) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -864,5 +864,5 @@ func (c *cmdStorageUnset) Run(cmd *cobra.Command, args []string) error {
 	c.storageSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
-	return c.storageSet.Run(cmd, args)
+	return c.storageSet.run(cmd, args)
 }

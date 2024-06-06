@@ -74,32 +74,25 @@ When configuring `cloud-init` directly for an instance, keep in mind that `cloud
 That means that you must configure `cloud-init` before you start the instance.
 If you are using the CLI client, create the instance with [`lxc init`](lxc_init.md) instead of [`lxc launch`](lxc_launch.md), and then start it after completing the configuration.
 
-### YAML format for `cloud-init` configuration
+To add your configuration:
 
-The `cloud-init` options require YAML's [literal style format](https://yaml.org/spec/1.2.2/#812-literal-style).
-You use a pipe symbol (`|`) to indicate that all indented text after the pipe should be passed to `cloud-init` as a single string, with new lines and indentation preserved.
+````{tabs}
+```{group-tab} CLI
+Write the configuration to a file and pass that file to the `lxc config` command.
+For example, create `cloud-init.yml` with the following content:
 
-The `vendor-data` and `user-data` options usually start with `#cloud-config`.
-
-For example:
-
-```yaml
-config:
-  cloud-init.user-data: |
     #cloud-config
     package_upgrade: true
     packages:
       - package1
       - package2
+
+Then run the following command:
+
+    lxc config set <instance_name> cloud-init.user-data - < cloud-init.yml
 ```
-
-```{tip}
-See {ref}`How to validate user data <cloud-init:check_user_data_cloud_config>` for information on how to check whether the syntax is correct.
-```
-
-### Configure `cloud-init` through the API
-
-If you are using the API to configure your instance, provide the `cloud-init` configuration as a string with escaped newline characters.
+```{group-tab} API
+Provide the `cloud-init` configuration as a string with escaped newline characters.
 
 For example:
 
@@ -125,6 +118,35 @@ Then send the following request:
       "cloud-init.user-data": "'"$(awk -v ORS='\\n' '1' cloud-init.txt)"'"
       }
     }'
+```
+```{group-tab} UI
+Go to the {guilabel}`Configuration` tab of the instance detail page and select {guilabel}`Advanced > Cloud init`.
+Then click {guilabel}`Edit instance` and override the configuration for one or more of the `cloud-init` configuration options.
+```
+````
+
+### YAML format for `cloud-init` configuration
+
+The `cloud-init` options require YAML's [literal style format](https://yaml.org/spec/1.2.2/#812-literal-style).
+You use a pipe symbol (`|`) to indicate that all indented text after the pipe should be passed to `cloud-init` as a single string, with new lines and indentation preserved.
+
+The `vendor-data` and `user-data` options usually start with `#cloud-config`.
+
+For example:
+
+```yaml
+config:
+  cloud-init.user-data: |
+    #cloud-config
+    package_upgrade: true
+    packages:
+      - package1
+      - package2
+```
+
+```{tip}
+See {ref}`How to validate user data <cloud-init:check_user_data_cloud_config>` for information on how to check whether the syntax is correct.
+```
 
 ## How to check the `cloud-init` status
 
@@ -224,6 +246,32 @@ config:
     #cloud-config
     user:
       - name: documentation_example
+```
+
+(cloud-init-lxd-agent)=
+#### Enable the LXD agent
+
+The {ref}`VM images provided by LXD <remote-image-servers>` typically have the LXD agent enabled.
+However, if you use an image or ISO that does not include the LXD agent to create your VM, you can enable the LXD agent as follows:
+
+```yaml
+config:
+  cloud-init.user-data: |
+    #cloud-config
+    runcmd:
+      - mount -t 9p config /mnt
+      - cd /mnt
+      - ./install.sh
+      - cd /
+      - umount /mnt
+      - systemctl start lxd-agent
+```
+
+```{note}
+For these commands to work, the VM must be running a Linux distribution that uses `systemd`.
+
+Depending on the version of `cloud-init` that the distribution has, you might need to add the `config` disk device explicitly.
+See [VM `cloud-init`](vm-cloud-init-config) for instructions.
 ```
 
 ## How to specify network configuration data

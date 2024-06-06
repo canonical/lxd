@@ -1,4 +1,4 @@
-import sys, os
+import sys
 
 sys.path.append('./')
 from custom_conf import *
@@ -82,7 +82,10 @@ if __name__ == "__main__":
         "sphinx-autobuild",
         "sphinx-copybutton",
         "sphinx-design",
-        "sphinxcontrib-jquery"
+        "sphinxcontrib-jquery",
+        "watchfiles",
+        "GitPython"
+
     ]
 
     requirements.extend(custom_required_modules)
@@ -103,7 +106,7 @@ if __name__ == "__main__":
         requirements.append("sphinxext-opengraph")
 
     if IsMyStParserUsed():
-        requirements.append("myst-parser==2.0.0")
+        requirements.append("myst-parser")
         requirements.append("linkify-it-py")
 
     # removes duplicate entries

@@ -14,28 +14,26 @@ SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
 GOMIN=1.22.0
 
 ifneq "$(wildcard vendor)" ""
-	RAFT_PATH=$(CURDIR)/vendor/raft
 	DQLITE_PATH=$(CURDIR)/vendor/dqlite
 else
-	RAFT_PATH=$(GOPATH)/deps/raft
 	DQLITE_PATH=$(GOPATH)/deps/dqlite
 endif
 
-	# raft
 .PHONY: default
-default: build
+default: all
+
+.PHONY: all
+all: client lxd lxd-agent lxd-benchmark lxd-migrate
 
 .PHONY: build
-build:
+build: lxd
+.PHONY: lxd
+lxd: lxd-metadata
 ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing dqlite, run \"make deps\" to setup."
 	exit 1
 endif
-
-	CGO_ENABLED=0 go install -v -tags lxd-metadata ./lxd/lxd-metadata
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
-	CGO_ENABLED=0 go install -v -tags netgo ./lxd-migrate
-	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
 	@echo "LXD built successfully"
 
 .PHONY: client
@@ -48,6 +46,16 @@ lxd-agent:
 	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
 	@echo "LXD agent built successfully"
 
+.PHONY: lxd-benchmark
+lxd-benchmark:
+	CGO_ENABLED=0 go install -v ./lxd-benchmark
+	@echo "LXD benchmark built successfully"
+
+.PHONY: lxd-metadata
+lxd-metadata:
+	CGO_ENABLED=0 go install -v -tags lxd-metadata ./lxd/lxd-metadata
+	@echo "LXD metadata built successfully"
+
 .PHONY: lxd-migrate
 lxd-migrate:
 	CGO_ENABLED=0 go install -v -tags netgo ./lxd-migrate
@@ -55,18 +63,7 @@ lxd-migrate:
 
 .PHONY: deps
 deps:
-	@if [ ! -e "$(RAFT_PATH)" ]; then \
-		git clone --depth=1 "https://github.com/canonical/raft" "$(RAFT_PATH)"; \
-	elif [ -e "$(RAFT_PATH)/.git" ]; then \
-		cd "$(RAFT_PATH)"; git pull; \
-	fi
-
-	cd "$(RAFT_PATH)" && \
-		autoreconf -i && \
-		./configure && \
-		make
-
-	# dqlite
+	# dqlite (+raft)
 	@if [ ! -e "$(DQLITE_PATH)" ]; then \
 		git clone --depth=1 "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
 	elif [ -e "$(DQLITE_PATH)/.git" ]; then \
@@ -75,15 +72,15 @@ deps:
 
 	cd "$(DQLITE_PATH)" && \
 		autoreconf -i && \
-		PKG_CONFIG_PATH="$(RAFT_PATH)" ./configure && \
-		make CFLAGS="-I$(RAFT_PATH)/include/" LDFLAGS="-L$(RAFT_PATH)/.libs/"
+		./configure --enable-build-raft && \
+		make
 
 	# environment
 	@echo ""
 	@echo "Please set the following in your environment (possibly ~/.bashrc)"
-	@echo "export CGO_CFLAGS=\"-I$(RAFT_PATH)/include/ -I$(DQLITE_PATH)/include/\""
-	@echo "export CGO_LDFLAGS=\"-L$(RAFT_PATH)/.libs -L$(DQLITE_PATH)/.libs/\""
-	@echo "export LD_LIBRARY_PATH=\"$(RAFT_PATH)/.libs/:$(DQLITE_PATH)/.libs/\""
+	@echo "export CGO_CFLAGS=\"-I$(DQLITE_PATH)/include/\""
+	@echo "export CGO_LDFLAGS=\"-L$(DQLITE_PATH)/.libs/\""
+	@echo "export LD_LIBRARY_PATH=\"$(DQLITE_PATH)/.libs/\""
 	@echo "export CGO_LDFLAGS_ALLOW=\"(-Wl,-wrap,pthread_create)|(-Wl,-z,now)\""
 
 .PHONY: update-gomod
@@ -128,58 +125,11 @@ update-metadata: build
 	@echo "Generating golang documentation metadata"
 	$(GOPATH)/bin/lxd-metadata . --json ./lxd/metadata/configuration.json --txt ./doc/config_options.txt --substitution-db ./doc/substitutions.yaml
 
-.PHONY: doc-setup
-doc-setup: client
-	@echo "Setting up documentation build environment"
-	python3 -m venv doc/.sphinx/venv
-	# Workaround for https://github.com/canonical/sphinx-docs-starter-pack/issues/197
-	. $(SPHINXENV) ; pip install --require-virtualenv gitpython pyyaml
-	. $(SPHINXENV) ; cd doc && LOCAL_SPHINX_BUILD=True python3 .sphinx/build_requirements.py
-	. $(SPHINXENV) ; pip install --require-virtualenv --upgrade -r doc/.sphinx/requirements.txt --log doc/.sphinx/venv/pip_install.log
-	@test ! -f doc/.sphinx/venv/pip_list.txt || \
-        mv doc/.sphinx/venv/pip_list.txt doc/.sphinx/venv/pip_list.txt.bak
-	$(SPHINXPIPPATH) list --local --format=freeze > doc/.sphinx/venv/pip_list.txt
-	find doc/reference/manpages/ -name "*.md" -type f -delete
-	rm -Rf doc/html
-	rm -Rf doc/.sphinx/.doctrees
-
 .PHONY: doc
-doc: doc-setup doc-incremental doc-objects
+doc: doc-clean doc-install doc-html doc-objects
 
-.PHONY: doc-incremental
-doc-incremental:
-	@echo "Build the documentation"
-	. $(SPHINXENV) ; LOCAL_SPHINX_BUILD=True sphinx-build -c doc/ -b dirhtml doc/ doc/html/ -d doc/.sphinx/.doctrees -w doc/.sphinx/warnings.txt -j auto
-
-.PHONY: doc-objects
-doc-objects:
-	# provide a decoded version of objects.inv to the UI
-	. $(SPHINXENV); cd doc/html; python3 -m sphinx.ext.intersphinx 'objects.inv' > objects.inv.txt
-
-.PHONY: doc-serve
-doc-serve:
-	cd doc/html; python3 -m http.server 8001
-
-.PHONY: doc-spellcheck
-doc-spellcheck: doc
-	. $(SPHINXENV) ; python3 -m pyspelling -c doc/.sphinx/spellingcheck.yaml -j $(shell nproc)
-
-.PHONY: doc-linkcheck
-doc-linkcheck: doc-setup
-	. $(SPHINXENV) ; LOCAL_SPHINX_BUILD=True sphinx-build -c doc/ -b linkcheck doc/ doc/html/ -d doc/.sphinx/.doctrees -j auto
-
-.PHONY: doc-lint
-doc-lint:
-	doc/.sphinx/.markdownlint/doc-lint.sh
-
-.PHONY:  woke-install
-woke-install:
-	@type woke >/dev/null 2>&1 || \
-        { echo "Installing \"woke\" snap... \n"; sudo snap install woke; }
-
-.PHONY: doc-woke
-doc-woke: woke-install
-	woke *.md **/*.md -c https://github.com/canonical/Inclusive-naming/raw/main/config.yml
+doc-%:
+	cd doc && $(MAKE) -f Makefile $*
 
 .PHONY: debug
 debug:
@@ -239,15 +189,12 @@ dist: doc
 	# Download dependencies
 	(cd $(TMP)/lxd-$(VERSION) ; go mod vendor)
 
-	# Download the dqlite libraries
+	# Download the dqlite library
 	git clone --depth=1 https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
 	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
 
-	git clone --depth=1 https://github.com/canonical/raft $(TMP)/lxd-$(VERSION)/vendor/raft
-	(cd $(TMP)/lxd-$(VERSION)/vendor/raft ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
-
 	# Copy doc output
-	cp -r doc/html $(TMP)/lxd-$(VERSION)/doc/html/
+	cp -r doc/_build $(TMP)/lxd-$(VERSION)/doc/html/
 
 	# Assemble tarball
 	tar --exclude-vcs -C $(TMP) -zcf $(ARCHIVE).gz lxd-$(VERSION)/

@@ -27,7 +27,7 @@ type cmdRemote struct {
 }
 
 // Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
-func (c *cmdRemote) Command() *cobra.Command {
+func (c *cmdRemote) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remote")
 	cmd.Short = i18n.G("Manage the list of remote servers")
@@ -36,31 +36,31 @@ func (c *cmdRemote) Command() *cobra.Command {
 
 	// Add
 	remoteAddCmd := cmdRemoteAdd{global: c.global, remote: c}
-	cmd.AddCommand(remoteAddCmd.Command())
+	cmd.AddCommand(remoteAddCmd.command())
 
 	// Get default
 	remoteGetDefaultCmd := cmdRemoteGetDefault{global: c.global, remote: c}
-	cmd.AddCommand(remoteGetDefaultCmd.Command())
+	cmd.AddCommand(remoteGetDefaultCmd.command())
 
 	// List
 	remoteListCmd := cmdRemoteList{global: c.global, remote: c}
-	cmd.AddCommand(remoteListCmd.Command())
+	cmd.AddCommand(remoteListCmd.command())
 
 	// Rename
 	remoteRenameCmd := cmdRemoteRename{global: c.global, remote: c}
-	cmd.AddCommand(remoteRenameCmd.Command())
+	cmd.AddCommand(remoteRenameCmd.command())
 
 	// Remove
 	remoteRemoveCmd := cmdRemoteRemove{global: c.global, remote: c}
-	cmd.AddCommand(remoteRemoveCmd.Command())
+	cmd.AddCommand(remoteRemoveCmd.command())
 
 	// Set default
 	remoteSwitchCmd := cmdRemoteSwitch{global: c.global, remote: c}
-	cmd.AddCommand(remoteSwitchCmd.Command())
+	cmd.AddCommand(remoteSwitchCmd.command())
 
 	// Set URL
 	remoteSetURLCmd := cmdRemoteSetURL{global: c.global, remote: c}
-	cmd.AddCommand(remoteSetURLCmd.Command())
+	cmd.AddCommand(remoteSetURLCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -82,7 +82,7 @@ type cmdRemoteAdd struct {
 }
 
 // Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
-func (c *cmdRemoteAdd) Command() *cobra.Command {
+func (c *cmdRemoteAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>] <IP|FQDN|URL|token>"))
 	cmd.Short = i18n.G("Add new remote servers")
@@ -95,7 +95,7 @@ Basic authentication can be used when combined with the "simplestreams" protocol
   lxc remote add some-name https://LOGIN:PASSWORD@example.com/some/path --protocol=simplestreams
 `))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagAcceptCert, "accept-certificate", false, i18n.G("Accept certificate"))
 	cmd.Flags().StringVar(&c.flagPassword, "password", "", i18n.G("Remote admin password")+"``")
 	cmd.Flags().StringVar(&c.flagProtocol, "protocol", "", i18n.G("Server protocol (lxd or simplestreams)")+"``")
@@ -268,7 +268,7 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 }
 
 // Run is used in the RunE field of the cobra.Command returned by Command.
-func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.
@@ -617,20 +617,20 @@ type cmdRemoteGetDefault struct {
 }
 
 // Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
-func (c *cmdRemoteGetDefault) Command() *cobra.Command {
+func (c *cmdRemoteGetDefault) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get-default")
 	cmd.Short = i18n.G("Show the default remote")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show the default remote`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // Run is used in the RunE field of the cobra.Command returned by Command.
-func (c *cmdRemoteGetDefault) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdRemoteGetDefault) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.
@@ -654,7 +654,7 @@ type cmdRemoteList struct {
 }
 
 // Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
-func (c *cmdRemoteList) Command() *cobra.Command {
+func (c *cmdRemoteList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list")
 	cmd.Aliases = []string{"ls"}
@@ -662,14 +662,14 @@ func (c *cmdRemoteList) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`List the available remotes`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 
 	return cmd
 }
 
 // Run is used in the RunE field of the cobra.Command returned by Command.
-func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdRemoteList) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.
@@ -740,7 +740,7 @@ type cmdRemoteRename struct {
 }
 
 // Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
-func (c *cmdRemoteRename) Command() *cobra.Command {
+func (c *cmdRemoteRename) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("<remote> <new-name>"))
 	cmd.Aliases = []string{"mv"}
@@ -748,13 +748,13 @@ func (c *cmdRemoteRename) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Rename remotes`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // Run is used in the RunE field of the cobra.Command returned by Command.
-func (c *cmdRemoteRename) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdRemoteRename) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.
@@ -813,7 +813,7 @@ type cmdRemoteRemove struct {
 }
 
 // Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
-func (c *cmdRemoteRemove) Command() *cobra.Command {
+func (c *cmdRemoteRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("<remote>"))
 	cmd.Aliases = []string{"rm"}
@@ -821,13 +821,13 @@ func (c *cmdRemoteRemove) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Remove remotes`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // Run is used in the RunE field of the cobra.Command returned by Command.
-func (c *cmdRemoteRemove) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdRemoteRemove) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.
@@ -869,7 +869,7 @@ type cmdRemoteSwitch struct {
 }
 
 // Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
-func (c *cmdRemoteSwitch) Command() *cobra.Command {
+func (c *cmdRemoteSwitch) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Aliases = []string{"set-default"}
 	cmd.Use = usage("switch", i18n.G("<remote>"))
@@ -877,13 +877,13 @@ func (c *cmdRemoteSwitch) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Switch the default remote`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // Run is used in the RunE field of the cobra.Command returned by Command.
-func (c *cmdRemoteSwitch) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdRemoteSwitch) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.
@@ -910,20 +910,20 @@ type cmdRemoteSetURL struct {
 }
 
 // Command returns a cobra.Command for use with (*cobra.Command).AddCommand.
-func (c *cmdRemoteSetURL) Command() *cobra.Command {
+func (c *cmdRemoteSetURL) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set-url", i18n.G("<remote> <URL>"))
 	cmd.Short = i18n.G("Set the URL for the remote")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Set the URL for the remote`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
 // Run is used in the RunE field of the cobra.Command returned by Command.
-func (c *cmdRemoteSetURL) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdRemoteSetURL) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.

@@ -24,23 +24,22 @@ A load balancer is made up of:
 Use the following command to create a network load balancer:
 
 ```bash
-lxc network load-balancer create <network_name> <listen_address> [configuration_options...]
+lxc network load-balancer create <network_name> [<listen_address>] [--allocate=ipv{4,6}] [configuration_options...]
 ```
 
 Each load balancer is assigned to a network.
-It requires a single external listen address (see {ref}`network-load-balancers-listen-addresses` for more information about which addresses can be load-balanced).
+Listen addresses are subject to restrictions (see {ref}`network-load-balancers-listen-addresses` for more information about which addresses can be load-balanced).
+If a listen address is not given, the `--allocate` flag must be provided.
 
 ### Load balancer properties
 
 Network load balancers have the following properties:
 
-Property         | Type         | Required | Description
-:--              | :--          | :--      | :--
-`listen_address` | string       | yes      | IP address to listen on
-`description`    | string       | no       | Description of the network load balancer
-`config`         | string set   | no       | Configuration options as key/value pairs (only `user.*` custom keys supported)
-`backends`       | backend list | no       | List of {ref}`backend specifications <network-load-balancers-backend-specifications>`
-`ports`          | port list    | no       | List of {ref}`port specifications <network-load-balancers-port-specifications>`
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group network-load-balancer-load-balancer-properties start -->
+    :end-before: <!-- config group network-load-balancer-load-balancer-properties end -->
+```
 
 (network-load-balancers-listen-addresses)=
 ### Requirements for listen addresses
@@ -49,6 +48,7 @@ The following requirements must be met for valid listen addresses:
 
 - Allowed listen addresses must be defined in the uplink network's `ipv{n}.routes` settings or the project's {config:option}`project-restricted:restricted.networks.subnets` setting (if set).
 - The listen address must not overlap with a subnet that is in use with another network or entity in that network.
+- If the `--allocate` flag is provided, an IP address will be allocated from the uplink network's `ipv{n}.routes` or the project's {config:option}`project-restricted:restricted.networks.subnets` setting (if set).
 
 (network-load-balancers-backend-specifications)=
 ## Configure backends
@@ -74,12 +74,11 @@ If you want to forward the traffic to different ports, you have two options:
 
 Network load balancer backends have the following properties:
 
-Property          | Type       | Required | Description
-:--               | :--        | :--      | :--
-`name`            | string     | yes      | Name of the backend
-`target_address`  | string     | yes      | IP address to forward to
-`target_port`     | string     | no       | Target port(s) (e.g. `70,80-90` or `90`), same as the {ref}`port <network-load-balancers-port-specifications>`'s `listen_port` if empty
-`description`     | string     | no       | Description of backend
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group network-load-balancer-load-balancer-backend-properties start -->
+    :end-before: <!-- config group network-load-balancer-load-balancer-backend-properties end -->
+```
 
 (network-load-balancers-port-specifications)=
 ## Configure ports
@@ -99,12 +98,11 @@ The backend(s) specified must have target port(s) settings compatible with the p
 
 Network load balancer ports have the following properties:
 
-Property          | Type         | Required | Description
-:--               | :--          | :--      | :--
-`protocol`        | string       | yes      | Protocol for the port(s) (`tcp` or `udp`)
-`listen_port`     | string       | yes      | Listen port(s) (e.g. `80,90-100`)
-`target_backend`  | backend list | yes      | Backend name(s) to forward to
-`description`     | string       | no       | Description of port(s)
+% Include content from [../config_options.txt](../config_options.txt)
+```{include} ../config_options.txt
+    :start-after: <!-- config group network-load-balancer-load-balancer-port-properties start -->
+    :end-before: <!-- config group network-load-balancer-load-balancer-port-properties end -->
+```
 
 ## Edit a network load balancer
 

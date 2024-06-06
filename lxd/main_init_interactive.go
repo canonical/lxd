@@ -26,6 +26,7 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
+// RunInteractive executes the command to interactively configure the LXD daemon.
 func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.InstanceServer, server *api.Server) (*api.InitPreseed, error) {
 	// Initialize config
 	config := api.InitPreseed{}

@@ -138,7 +138,7 @@ func (r *ProtocolLXD) GetPrivateImageFile(fingerprint string, secret string, req
 		unixURI := fmt.Sprintf("http://unix.socket%s", uri)
 
 		// Setup the HTTP client
-		devlxdHTTP, err := unixHTTPClient(nil, "/dev/lxd/sock")
+		devlxdHTTP, err := unixHTTPClient(nil, "/dev/lxd/sock", nil)
 		if err == nil {
 			resp, err := lxdDownloadImage(fingerprint, unixURI, r.httpUserAgent, devlxdHTTP.Do, req)
 			if err == nil {

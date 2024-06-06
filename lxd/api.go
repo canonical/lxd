@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -67,6 +68,8 @@ func restServer(d *Daemon) *http.Server {
 	mux.SkipClean(true)
 	mux.UseEncodedPath() // Allow encoded values in path segments.
 
+	const errorMessage = `<html><title>The UI is not enabled</title><body><p>The UI is not enabled. For instructions to enable it check: <a href="https://documentation.ubuntu.com/lxd/en/latest/howto/access_ui/">How to access the LXD web UI</a></p></body></html>`
+
 	uiPath := os.Getenv("LXD_UI")
 	uiEnabled := uiPath != "" && shared.PathExists(uiPath)
 	if uiEnabled {
@@ -98,6 +101,13 @@ func restServer(d *Daemon) *http.Server {
 		mux.HandleFunc("/ui", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
 		})
+	} else {
+		uiHandlerErrorUINotEnabled := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = fmt.Fprint(w, errorMessage)
+		})
+		mux.PathPrefix("/ui").Handler(uiHandlerErrorUINotEnabled)
 	}
 
 	// Serving the LXD documentation.
@@ -157,9 +167,9 @@ func restServer(d *Daemon) *http.Server {
 		w.Header().Set("Content-Type", "application/json")
 
 		ua := r.Header.Get("User-Agent")
-		if uiEnabled && strings.Contains(ua, "Gecko") {
-			// Web browser handling.
+		if strings.Contains(ua, "Gecko") {
 			http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
+			return
 		} else {
 			// Normal client handling.
 			_ = response.SyncResponse(true, []string{"/1.0"}).Render(w)

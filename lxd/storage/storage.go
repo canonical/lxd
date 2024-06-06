@@ -135,7 +135,8 @@ func UsedBy(ctx context.Context, s *state.State, pool Pool, firstOnly bool, memb
 
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all the volumes using the storage pool.
-		volumes, err := tx.GetStoragePoolVolumes(ctx, pool.ID(), memberSpecific)
+		poolID := pool.ID() // Create local variable to get the pointer.
+		volumes, err := tx.GetStorageVolumes(ctx, memberSpecific, db.StorageVolumeFilter{PoolID: &poolID})
 		if err != nil {
 			return fmt.Errorf("Failed loading storage volumes: %w", err)
 		}
@@ -184,7 +185,6 @@ func UsedBy(ctx context.Context, s *state.State, pool Pool, firstOnly bool, memb
 		}
 
 		// Get all buckets using the storage pool.
-		poolID := pool.ID()
 		filters := []db.StorageBucketFilter{{
 			PoolID: &poolID,
 		}}

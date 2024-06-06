@@ -364,7 +364,7 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 					if err != nil {
 						// Kill Process if started, but could not save the file
 						err2 := p.Stop()
-						if err != nil {
+						if err2 != nil {
 							return fmt.Errorf("Could not kill subprocess while handling saving error: %s: %s", err, err2)
 						}
 

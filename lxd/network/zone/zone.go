@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
@@ -163,11 +163,44 @@ func (d *zone) validateConfig(info *api.NetworkZonePut) error {
 	rules := map[string]func(value string) error{}
 
 	// Regular config keys.
+
+	// lxdmeta:generate(entities=network-zone; group=config-options; key=dns.nameservers)
+	//
+	// ---
+	//  type: string set
+	//  required: no
+	//  shortdesc: Comma-separated list of DNS server FQDNs (for NS records)
 	rules["dns.nameservers"] = validate.IsListOf(validate.IsAny)
+	// lxdmeta:generate(entities=network-zone; group=config-options; key=network.nat)
+	//
+	// ---
+	//  type: bool
+	//  defaultdesc: true
+	//  required: no
+	//  shortdesc: Whether to generate records for NAT-ed subnets
 	rules["network.nat"] = validate.Optional(validate.IsBool)
+	// lxdmeta:generate(entities=network-zone; group=config-options; key=user.*)
+	//
+	// ---
+	//  type: string
+	//  required: no
+	//  shortdesc: User-provided free-form key/value pairs
 
 	// Validate peer config.
 	for k := range info.Config {
+		// lxdmeta:generate(entities=network-zone; group=config-options; key=peers.NAME.address)
+		//
+		// ---
+		//  type: string
+		//  required: no
+		//  shortdesc: IP address of a DNS server
+
+		// lxdmeta:generate(entities=network-zone; group=config-options; key=peers.NAME.key)
+		//
+		// ---
+		//  type: string
+		//  required: no
+		//  shortdesc: TSIG key for the server
 		if !strings.HasPrefix(k, "peers.") {
 			continue
 		}

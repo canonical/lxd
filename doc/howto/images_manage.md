@@ -36,6 +36,9 @@ Public image servers, like the [official Ubuntu image server](https://cloud-imag
 To retrieve the list of images from a simple streams server, start at the `streams/v1/index.sjson` index (for example, [`https://cloud-images.ubuntu.com/releases/streams/v1/index.sjson`](https://cloud-images.ubuntu.com/releases/streams/v1/index.sjson)).
 ```
 ````
+````{group-tab} UI
+Go to {guilabel}`Images` to view all images on the local server.
+````
 `````
 
 (images-manage-filter)=
@@ -44,27 +47,27 @@ To retrieve the list of images from a simple streams server, start at the `strea
 ````{tabs}
 ```{group-tab} CLI
 To filter the results that are displayed, specify a part of the alias or fingerprint after the command.
-For example, to show all Ubuntu 22.04 images, enter the following command:
+For example, to show all Ubuntu 24.04 images, enter the following command:
 
-    lxc image list ubuntu: 22.04
+    lxc image list ubuntu: 24.04
 
 You can specify several filters as well.
-For example, to show all Arm 64-bit Ubuntu 22.04 images, enter the following command:
+For example, to show all Arm 64-bit Ubuntu 24.04 images, enter the following command:
 
-    lxc image list ubuntu: 22.04 arm64
+    lxc image list ubuntu: 24.04 arm64
 
 To filter for properties other than alias or fingerprint, specify the filter in `<key>=<value>` format.
 For example:
 
-    lxc image list ubuntu: 22.04 architecture=x86_64
+    lxc image list ubuntu: 24.04 architecture=x86_64
 ```
 ```{group-tab} API
 You can {ref}`filter <rest-api-filtering>` the images that are displayed by any of their fields.
 
-For example, to show all Ubuntu images, or all images for version 22.04:
+For example, to show all Ubuntu images, or all images for version 24.04:
 
     lxc query --request GET /1.0/images?filter=properties.os+eq+ubuntu
-    lxc query --request GET /1.0/images?filter=properties.version+eq+22.04
+    lxc query --request GET /1.0/images?filter=properties.version+eq+24.04
 
 You can specify several filters as well.
 For example, to show all Arm 64-bit images for virtual machines, enter the following command:
@@ -77,6 +80,12 @@ You can also use a regular expression:
 
 See [`GET /1.0/images`](swagger:/images/images_get) and {ref}`rest-api-filtering` for more information.
 ```
+```{group-tab} UI
+To filter the images that are displayed, use the search box.
+
+For example, to show all Ubuntu images, search for `ubuntu`.
+To display only images for version 24.04, search for `24.04`.
+```
 ````
 
 ## View image information
@@ -88,7 +97,7 @@ To view information about an image, enter the following command:
     lxc image info <image_ID>
 
 As the image ID, you can specify either the image's alias or its fingerprint.
-For a remote image, remember to include the remote server (for example, `ubuntu:22.04`).
+For a remote image, remember to include the remote server (for example, `ubuntu:24.04`).
 
 To display only the image properties, enter the following command:
 
@@ -98,9 +107,9 @@ You can also display a specific image property (located under the `properties` k
 
     lxc image get-property <image_ID> <key>
 
-For example, to show the release name of the official Ubuntu 22.04 image, enter the following command:
+For example, to show the release name of the official Ubuntu 24.04 image, enter the following command:
 
-    lxc image get-property ubuntu:22.04 release
+    lxc image get-property ubuntu:24.04 release
 ```
 ```{group-tab} API
 To view all information about an image, query it using its fingerprint:
@@ -114,6 +123,9 @@ If you don't know the fingerprint but the alias, you can retrieve the fingerprin
     lxc query --request GET /1.0/images/aliases/<alias>
 
 See [`GET /1.0/images/aliases/{name}`](swagger:/images/image_alias_get) for more information.
+```
+```{group-tab} UI
+The UI does not currently support viewing detailed image information.
 ```
 ````
 
@@ -157,6 +169,9 @@ To update the full image properties, including the top-level properties, send a 
 
 See [`PUT /1.0/images/{fingerprint}`](swagger:/images/image_put) for more information.
 ````
+```{group-tab} UI
+The UI does not currently support editing image properties.
+```
 `````
 
 ## Delete an image
@@ -173,6 +188,11 @@ To delete a local copy of an image, send a DELETE request:
     lxc query --request DELETE /1.0/images/<fingerprint>
 
 See [`DELETE /1.0/images/{fingerprint}`](swagger:/images/image_delete) for more information.
+```
+```{group-tab} UI
+In the images list, click the {guilabel}`Delete` button ({{delete_button}}) next to an image to delete it.
+
+You can also select several images and click the {guilabel}`Delete images` button at the top to delete all selected images.
 ```
 ````
 
@@ -247,6 +267,9 @@ If you want to keep the alias name, but point the alias to a different image (fo
 
 See [`DELETE /1.0/images/aliases/{name}`](swagger:/images/image_alias_delete), [`POST /1.0/images/aliases/{name}`](swagger:/images/images_alias_post), and [`PATCH /1.0/images/aliases/{name}`](swagger:/images/images_alias_patch) for more information.
 ```
+```{group-tab} UI
+The UI displays configured aliases in the images list, but it does not currently support configuring image aliases.
+```
 ````
 
 (images-manage-export)=
@@ -275,6 +298,9 @@ Send a query to the `export` endpoint of the image to retrieve it:
 If the image is a {ref}`split image <image-format-split>`, the output file contains two separate tarballs in multipart format.
 
 See [`GET /1.0/images/{fingerprint}/export`](swagger:/images/image_export_get) for more information.
+```
+```{group-tab} UI
+The UI does not currently support exporting images.
 ```
 ````
 

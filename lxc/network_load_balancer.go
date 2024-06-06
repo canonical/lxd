@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"sort"
 	"strings"
@@ -22,7 +24,7 @@ type cmdNetworkLoadBalancer struct {
 	flagTarget string
 }
 
-func (c *cmdNetworkLoadBalancer) Command() *cobra.Command {
+func (c *cmdNetworkLoadBalancer) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("load-balancer")
 	cmd.Short = i18n.G("Manage network load balancers")
@@ -30,43 +32,43 @@ func (c *cmdNetworkLoadBalancer) Command() *cobra.Command {
 
 	// List.
 	networkLoadBalancerListCmd := cmdNetworkLoadBalancerList{global: c.global, networkLoadBalancer: c}
-	cmd.AddCommand(networkLoadBalancerListCmd.Command())
+	cmd.AddCommand(networkLoadBalancerListCmd.command())
 
 	// Show.
 	networkLoadBalancerShowCmd := cmdNetworkLoadBalancerShow{global: c.global, networkLoadBalancer: c}
-	cmd.AddCommand(networkLoadBalancerShowCmd.Command())
+	cmd.AddCommand(networkLoadBalancerShowCmd.command())
 
 	// Create.
 	networkLoadBalancerCreateCmd := cmdNetworkLoadBalancerCreate{global: c.global, networkLoadBalancer: c}
-	cmd.AddCommand(networkLoadBalancerCreateCmd.Command())
+	cmd.AddCommand(networkLoadBalancerCreateCmd.command())
 
 	// Get.
 	networkLoadBalancerGetCmd := cmdNetworkLoadBalancerGet{global: c.global, networkLoadBalancer: c}
-	cmd.AddCommand(networkLoadBalancerGetCmd.Command())
+	cmd.AddCommand(networkLoadBalancerGetCmd.command())
 
 	// Set.
 	networkLoadBalancerSetCmd := cmdNetworkLoadBalancerSet{global: c.global, networkLoadBalancer: c}
-	cmd.AddCommand(networkLoadBalancerSetCmd.Command())
+	cmd.AddCommand(networkLoadBalancerSetCmd.command())
 
 	// Unset.
 	networkLoadBalancerUnsetCmd := cmdNetworkLoadBalancerUnset{global: c.global, networkLoadBalancer: c, networkLoadBalancerSet: &networkLoadBalancerSetCmd}
-	cmd.AddCommand(networkLoadBalancerUnsetCmd.Command())
+	cmd.AddCommand(networkLoadBalancerUnsetCmd.command())
 
 	// Edit.
 	networkLoadBalancerEditCmd := cmdNetworkLoadBalancerEdit{global: c.global, networkLoadBalancer: c}
-	cmd.AddCommand(networkLoadBalancerEditCmd.Command())
+	cmd.AddCommand(networkLoadBalancerEditCmd.command())
 
 	// Delete.
 	networkLoadBalancerDeleteCmd := cmdNetworkLoadBalancerDelete{global: c.global, networkLoadBalancer: c}
-	cmd.AddCommand(networkLoadBalancerDeleteCmd.Command())
+	cmd.AddCommand(networkLoadBalancerDeleteCmd.command())
 
 	// Backend.
 	networkLoadBalancerBackendCmd := cmdNetworkLoadBalancerBackend{global: c.global, networkLoadBalancer: c}
-	cmd.AddCommand(networkLoadBalancerBackendCmd.Command())
+	cmd.AddCommand(networkLoadBalancerBackendCmd.command())
 
 	// Port.
 	networkLoadBalancerPortCmd := cmdNetworkLoadBalancerPort{global: c.global, networkLoadBalancer: c}
-	cmd.AddCommand(networkLoadBalancerPortCmd.Command())
+	cmd.AddCommand(networkLoadBalancerPortCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -82,20 +84,20 @@ type cmdNetworkLoadBalancerList struct {
 	flagFormat string
 }
 
-func (c *cmdNetworkLoadBalancerList) Command() *cobra.Command {
+func (c *cmdNetworkLoadBalancerList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]<network>"))
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List available network load balancers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("List available network load balancers"))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 
 	return cmd
 }
 
-func (c *cmdNetworkLoadBalancerList) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkLoadBalancerList) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
@@ -162,19 +164,19 @@ type cmdNetworkLoadBalancerShow struct {
 	networkLoadBalancer *cmdNetworkLoadBalancer
 }
 
-func (c *cmdNetworkLoadBalancerShow) Command() *cobra.Command {
+func (c *cmdNetworkLoadBalancerShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<network> <listen_address>"))
 	cmd.Short = i18n.G("Show network load balancer configurations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Show network load balancer configurations"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().StringVar(&c.networkLoadBalancer.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	return cmd
 }
 
-func (c *cmdNetworkLoadBalancerShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkLoadBalancerShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -224,41 +226,43 @@ func (c *cmdNetworkLoadBalancerShow) Run(cmd *cobra.Command, args []string) erro
 type cmdNetworkLoadBalancerCreate struct {
 	global              *cmdGlobal
 	networkLoadBalancer *cmdNetworkLoadBalancer
+	flagAllocate        string
 }
 
-func (c *cmdNetworkLoadBalancerCreate) Command() *cobra.Command {
+func (c *cmdNetworkLoadBalancerCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("create", i18n.G("[<remote>:]<network> <listen_address> [key=value...]"))
+	cmd.Use = usage("create", i18n.G("[<remote>:]<network> [<listen_address>] [key=value...]"))
 	cmd.Short = i18n.G("Create new network load balancers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Create new network load balancers"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().StringVar(&c.networkLoadBalancer.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().StringVar(&c.flagAllocate, "allocate", "", i18n.G("Auto-allocate an IPv4 or IPv6 listen address. One of 'ipv4', 'ipv6'.")+"``")
 
 	return cmd
 }
 
-func (c *cmdNetworkLoadBalancerCreate) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkLoadBalancerCreate) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
+	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
 		return err
 	}
 
 	// Parse remote.
-	resources, err := c.global.ParseServers(args[0])
+	remoteName, networkName, err := c.global.conf.ParseRemote(args[0])
 	if err != nil {
 		return err
 	}
 
-	resource := resources[0]
-
-	if resource.name == "" {
+	if networkName == "" {
 		return fmt.Errorf(i18n.G("Missing network name"))
 	}
 
-	if args[1] == "" {
-		return fmt.Errorf(i18n.G("Missing listen address"))
+	transporter, wrapper := newLocationHeaderTransportWrapper()
+	client, err := c.global.conf.GetInstanceServerWithTransportWrapper(remoteName, wrapper)
+	if err != nil {
+		return err
 	}
 
 	// If stdin isn't a terminal, read yaml from it.
@@ -279,38 +283,71 @@ func (c *cmdNetworkLoadBalancerCreate) Run(cmd *cobra.Command, args []string) er
 		loadBalancerPut.Config = map[string]string{}
 	}
 
-	// Get config filters from arguments.
-	for i := 2; i < len(args); i++ {
+	// Get listen address and config from arguments.
+	var listenAddress string
+	for i := 1; i < len(args); i++ {
 		entry := strings.SplitN(args[i], "=", 2)
 		if len(entry) < 2 {
-			return fmt.Errorf(i18n.G("Bad key/value pair: %s"), args[i])
+			if len(entry) < 2 {
+				// If it's not the first argument it must be a key/value pair.
+				if i != 1 {
+					return fmt.Errorf(i18n.G("Bad key/value pair: %s"), args[i])
+				}
+
+				// Otherwise it is the listen address.
+				listenAddress = args[i]
+				continue
+			}
 		}
 
 		loadBalancerPut.Config[entry[0]] = entry[1]
 	}
 
+	if listenAddress != "" && c.flagAllocate != "" {
+		return errors.New("Cannot specify listen address when requesting auto allocation")
+	}
+
+	if listenAddress == "" {
+		if c.flagAllocate == "" {
+			return fmt.Errorf("Must provide a listen address or --allocate=ipv{4,6}")
+		}
+
+		if c.flagAllocate != "ipv4" && c.flagAllocate != "ipv6" {
+			return fmt.Errorf("Invalid --allocate flag %q. Must be one of 'ipv4', or 'ipv6'", c.flagAllocate)
+		}
+
+		if c.flagAllocate == "ipv4" {
+			listenAddress = net.IPv4zero.String()
+		}
+
+		if c.flagAllocate == "ipv6" {
+			listenAddress = net.IPv6zero.String()
+		}
+	}
+
 	// Create the network load balancer.
 	loadBalancer := api.NetworkLoadBalancersPost{
-		ListenAddress:          args[1],
+		ListenAddress:          listenAddress,
 		NetworkLoadBalancerPut: loadBalancerPut,
 	}
 
 	loadBalancer.Normalise()
-
-	client := resource.server
 
 	// If a target was specified, create the load balancer on the given member.
 	if c.networkLoadBalancer.flagTarget != "" {
 		client = client.UseTarget(c.networkLoadBalancer.flagTarget)
 	}
 
-	err = client.CreateNetworkLoadBalancer(resource.name, loadBalancer)
+	err = client.CreateNetworkLoadBalancer(networkName, loadBalancer)
 	if err != nil {
 		return err
 	}
 
+	parts := strings.Split(transporter.location, "/")
+	listenAddress = parts[len(parts)-1]
+
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("Network load balancer %s created")+"\n", loadBalancer.ListenAddress)
+		fmt.Printf(i18n.G("Network load balancer %s created")+"\n", listenAddress)
 	}
 
 	return nil
@@ -324,18 +361,18 @@ type cmdNetworkLoadBalancerGet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdNetworkLoadBalancerGet) Command() *cobra.Command {
+func (c *cmdNetworkLoadBalancerGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<network> <listen_address> <key>"))
 	cmd.Short = i18n.G("Get values for network load balancer configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Get values for network load balancer configuration keys"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a network load balancer property"))
 	return cmd
 }
 
-func (c *cmdNetworkLoadBalancerGet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkLoadBalancerGet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
@@ -392,7 +429,7 @@ type cmdNetworkLoadBalancerSet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdNetworkLoadBalancerSet) Command() *cobra.Command {
+func (c *cmdNetworkLoadBalancerSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<network> <listen_address> <key>=<value>..."))
 	cmd.Short = i18n.G("Set network load balancer keys")
@@ -401,7 +438,7 @@ func (c *cmdNetworkLoadBalancerSet) Command() *cobra.Command {
 
 For backward compatibility, a single configuration key may still be set with:
     lxc network set [<remote>:]<network> <listen_address> <key> <value>`))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a network load balancer property"))
 	cmd.Flags().StringVar(&c.networkLoadBalancer.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
@@ -409,7 +446,7 @@ For backward compatibility, a single configuration key may still be set with:
 	return cmd
 }
 
-func (c *cmdNetworkLoadBalancerSet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkLoadBalancerSet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
 	if exit {
@@ -490,18 +527,18 @@ type cmdNetworkLoadBalancerUnset struct {
 	flagIsProperty bool
 }
 
-func (c *cmdNetworkLoadBalancerUnset) Command() *cobra.Command {
+func (c *cmdNetworkLoadBalancerUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<network> <listen_address> <key>"))
 	cmd.Short = i18n.G("Unset network load balancer configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Unset network load balancer keys"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a network load balancer property"))
 	return cmd
 }
 
-func (c *cmdNetworkLoadBalancerUnset) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkLoadBalancerUnset) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
@@ -511,7 +548,7 @@ func (c *cmdNetworkLoadBalancerUnset) Run(cmd *cobra.Command, args []string) err
 	c.networkLoadBalancerSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
-	return c.networkLoadBalancerSet.Run(cmd, args)
+	return c.networkLoadBalancerSet.run(cmd, args)
 }
 
 // Edit.
@@ -520,12 +557,12 @@ type cmdNetworkLoadBalancerEdit struct {
 	networkLoadBalancer *cmdNetworkLoadBalancer
 }
 
-func (c *cmdNetworkLoadBalancerEdit) Command() *cobra.Command {
+func (c *cmdNetworkLoadBalancerEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<network> <listen_address>"))
 	cmd.Short = i18n.G("Edit network load balancer configurations as YAML")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Edit network load balancer configurations as YAML"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().StringVar(&c.networkLoadBalancer.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
@@ -555,7 +592,7 @@ func (c *cmdNetworkLoadBalancerEdit) helpTemplate() string {
 ### Note that the listen_address and location cannot be changed.`)
 }
 
-func (c *cmdNetworkLoadBalancerEdit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkLoadBalancerEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -662,20 +699,20 @@ type cmdNetworkLoadBalancerDelete struct {
 	networkLoadBalancer *cmdNetworkLoadBalancer
 }
 
-func (c *cmdNetworkLoadBalancerDelete) Command() *cobra.Command {
+func (c *cmdNetworkLoadBalancerDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<network> <listen_address>"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete network load balancers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Delete network load balancers"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().StringVar(&c.networkLoadBalancer.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	return cmd
 }
 
-func (c *cmdNetworkLoadBalancerDelete) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkLoadBalancerDelete) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -724,34 +761,34 @@ type cmdNetworkLoadBalancerBackend struct {
 	networkLoadBalancer *cmdNetworkLoadBalancer
 }
 
-func (c *cmdNetworkLoadBalancerBackend) Command() *cobra.Command {
+func (c *cmdNetworkLoadBalancerBackend) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("backend")
 	cmd.Short = i18n.G("Manage network load balancer backends")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Manage network load balancer backends"))
 
 	// Backend Add.
-	cmd.AddCommand(c.CommandAdd())
+	cmd.AddCommand(c.commandAdd())
 
 	// Backend Remove.
-	cmd.AddCommand(c.CommandRemove())
+	cmd.AddCommand(c.commandRemove())
 
 	return cmd
 }
 
-func (c *cmdNetworkLoadBalancerBackend) CommandAdd() *cobra.Command {
+func (c *cmdNetworkLoadBalancerBackend) commandAdd() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:]<network> <listen_address> <backend_name> <target_address> [<target_port(s)>]"))
 	cmd.Short = i18n.G("Add backends to a load balancer")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Add backend to a load balancer"))
-	cmd.RunE = c.RunAdd
+	cmd.RunE = c.runAdd
 
 	cmd.Flags().StringVar(&c.networkLoadBalancer.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	return cmd
 }
 
-func (c *cmdNetworkLoadBalancerBackend) RunAdd(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkLoadBalancerBackend) runAdd(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 4, 5)
 	if exit {
@@ -803,19 +840,19 @@ func (c *cmdNetworkLoadBalancerBackend) RunAdd(cmd *cobra.Command, args []string
 	return client.UpdateNetworkLoadBalancer(resource.name, loadBalancer.ListenAddress, loadBalancer.Writable(), etag)
 }
 
-func (c *cmdNetworkLoadBalancerBackend) CommandRemove() *cobra.Command {
+func (c *cmdNetworkLoadBalancerBackend) commandRemove() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<network> <listen_address> <backend_name>"))
 	cmd.Short = i18n.G("Remove backends from a load balancer")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Remove backend from a load balancer"))
-	cmd.RunE = c.RunRemove
+	cmd.RunE = c.runRemove
 
 	cmd.Flags().StringVar(&c.networkLoadBalancer.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	return cmd
 }
 
-func (c *cmdNetworkLoadBalancerBackend) RunRemove(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkLoadBalancerBackend) runRemove(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
@@ -889,34 +926,34 @@ type cmdNetworkLoadBalancerPort struct {
 	flagRemoveForce     bool
 }
 
-func (c *cmdNetworkLoadBalancerPort) Command() *cobra.Command {
+func (c *cmdNetworkLoadBalancerPort) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("port")
 	cmd.Short = i18n.G("Manage network load balancer ports")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Manage network load balancer ports"))
 
 	// Port Add.
-	cmd.AddCommand(c.CommandAdd())
+	cmd.AddCommand(c.commandAdd())
 
 	// Port Remove.
-	cmd.AddCommand(c.CommandRemove())
+	cmd.AddCommand(c.commandRemove())
 
 	return cmd
 }
 
-func (c *cmdNetworkLoadBalancerPort) CommandAdd() *cobra.Command {
+func (c *cmdNetworkLoadBalancerPort) commandAdd() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:]<network> <listen_address> <protocol> <listen_port(s)> <backend_name>[,<backend_name>...]"))
 	cmd.Short = i18n.G("Add ports to a load balancer")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Add ports to a load balancer"))
-	cmd.RunE = c.RunAdd
+	cmd.RunE = c.runAdd
 
 	cmd.Flags().StringVar(&c.networkLoadBalancer.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	return cmd
 }
 
-func (c *cmdNetworkLoadBalancerPort) RunAdd(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkLoadBalancerPort) runAdd(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 5, 5)
 	if exit {
@@ -965,20 +1002,20 @@ func (c *cmdNetworkLoadBalancerPort) RunAdd(cmd *cobra.Command, args []string) e
 	return client.UpdateNetworkLoadBalancer(resource.name, loadBalancer.ListenAddress, loadBalancer.Writable(), etag)
 }
 
-func (c *cmdNetworkLoadBalancerPort) CommandRemove() *cobra.Command {
+func (c *cmdNetworkLoadBalancerPort) commandRemove() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<network> <listen_address> [<protocol>] [<listen_port(s)>]"))
 	cmd.Short = i18n.G("Remove ports from a load balancer")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Remove ports from a load balancer"))
 	cmd.Flags().BoolVar(&c.flagRemoveForce, "force", false, i18n.G("Remove all ports that match"))
-	cmd.RunE = c.RunRemove
+	cmd.RunE = c.runRemove
 
 	cmd.Flags().StringVar(&c.networkLoadBalancer.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	return cmd
 }
 
-func (c *cmdNetworkLoadBalancerPort) RunRemove(cmd *cobra.Command, args []string) error {
+func (c *cmdNetworkLoadBalancerPort) runRemove(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 4)
 	if exit {

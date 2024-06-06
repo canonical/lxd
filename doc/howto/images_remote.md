@@ -5,10 +5,13 @@ The [`lxc`](lxc.md) CLI command is pre-configured with several remote image serv
 See {ref}`remote-image-servers` for an overview.
 
 ```{note}
-If you are using the API, you can interact with different LXD servers by using their exposed API addresses.
-See {ref}`server-authenticate` for instructions on how to authenticate with the servers.
+- If you are using the API, you can interact with different LXD servers by using their exposed API addresses.
+  See {ref}`server-authenticate` for instructions on how to authenticate with the servers.
 
-{ref}`images-manage` describes how to interact with images on any LXD server through the API.
+  {ref}`images-manage` describes how to interact with images on any LXD server through the API.
+- The UI is pre-configured with several remote image servers, but does not currently support adding other servers or managing remote images.
+
+  You can see the available remote images (and which server they are hosted on) when you select the base image for a new instance.
 ```
 
 ## List configured remotes
@@ -66,8 +69,8 @@ You are prompted to confirm the remote server fingerprint and then asked for the
 To reference an image, specify its remote and its alias or fingerprint, separated with a colon.
 For example:
 
-    ubuntu:22.04
-    ubuntu-minimal:22.04
+    ubuntu:24.04
+    ubuntu-minimal:24.04
     images:alpine/edge
     local:ed7509d7e83f
 

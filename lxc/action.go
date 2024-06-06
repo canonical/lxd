@@ -20,9 +20,9 @@ type cmdStart struct {
 	action *cmdAction
 }
 
-// The function Command() returns a cobra.Command object representing the "start" command.
+// The function  command() returns a cobra.Command object representing the "start" command.
 // It is used to start one or more instances specified by the user.
-func (c *cmdStart) Command() *cobra.Command {
+func (c *cmdStart) command() *cobra.Command {
 	cmdAction := cmdAction{global: c.global}
 	c.action = &cmdAction
 
@@ -41,9 +41,9 @@ type cmdPause struct {
 	action *cmdAction
 }
 
-// The function Command() returns a cobra.Command object representing the "pause" command.
+// The function  command() returns a cobra.Command object representing the "pause" command.
 // It is used to pause (or freeze) one or more instances specified by the user. This command is hidden and has an alias "freeze".
-func (c *cmdPause) Command() *cobra.Command {
+func (c *cmdPause) command() *cobra.Command {
 	cmdAction := cmdAction{global: c.global}
 	c.action = &cmdAction
 
@@ -63,9 +63,9 @@ type cmdRestart struct {
 	action *cmdAction
 }
 
-// The function Command() returns a cobra.Command object representing the "restart" command.
+// The function  command() returns a cobra.Command object representing the "restart" command.
 // It is used to restart one or more instances specified by the user. This command restarts the instances, which is the opposite of the "pause" command.
-func (c *cmdRestart) Command() *cobra.Command {
+func (c *cmdRestart) command() *cobra.Command {
 	cmdAction := cmdAction{global: c.global}
 	c.action = &cmdAction
 
@@ -86,9 +86,9 @@ type cmdStop struct {
 	action *cmdAction
 }
 
-// The function Command() returns a cobra.Command object representing the "stop" command.
+// The function  command() returns a cobra.Command object representing the "stop" command.
 // It is used to stop one or more instances specified by the user. This command stops the instances, effectively shutting them down.
-func (c *cmdStop) Command() *cobra.Command {
+func (c *cmdStop) command() *cobra.Command {
 	cmdAction := cmdAction{global: c.global}
 	c.action = &cmdAction
 
@@ -116,7 +116,7 @@ type cmdAction struct {
 // It creates a command with a specific action, defines flags based on that action, and assigns appropriate help text.
 func (c *cmdAction) Command(action string) *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	cmd.Flags().BoolVar(&c.flagAll, "all", false, i18n.G("Run against all instances"))
 
@@ -267,7 +267,7 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 		console := cmdConsole{}
 		console.global = c.global
 		console.flagType = c.flagConsole
-		return console.Console(d, name)
+		return console.runConsole(d, name)
 	}
 
 	progress := cli.ProgressRenderer{
@@ -294,7 +294,7 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 		console := cmdConsole{}
 		console.global = c.global
 		console.flagType = c.flagConsole
-		return console.Console(d, name)
+		return console.runConsole(d, name)
 	}
 
 	return nil
@@ -302,7 +302,7 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 
 // Run is a method of the cmdAction structure that implements the execution logic for the given Cobra command.
 // It handles actions on instances (single or all) and manages error handling, console flag restrictions, and batch operations.
-func (c *cmdAction) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdAction) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	var names []string

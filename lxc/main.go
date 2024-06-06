@@ -112,147 +112,147 @@ For help with any of those, simply call them with --help.`))
 
 	// alias sub-command
 	aliasCmd := cmdAlias{global: &globalCmd}
-	app.AddCommand(aliasCmd.Command())
+	app.AddCommand(aliasCmd.command())
 
 	// cluster sub-command
 	clusterCmd := cmdCluster{global: &globalCmd}
-	app.AddCommand(clusterCmd.Command())
+	app.AddCommand(clusterCmd.command())
 
 	// config sub-command
 	configCmd := cmdConfig{global: &globalCmd}
-	app.AddCommand(configCmd.Command())
+	app.AddCommand(configCmd.command())
 
 	// console sub-command
 	consoleCmd := cmdConsole{global: &globalCmd}
-	app.AddCommand(consoleCmd.Command())
+	app.AddCommand(consoleCmd.command())
 
 	// copy sub-command
 	copyCmd := cmdCopy{global: &globalCmd}
-	app.AddCommand(copyCmd.Command())
+	app.AddCommand(copyCmd.command())
 
 	// delete sub-command
 	deleteCmd := cmdDelete{global: &globalCmd}
-	app.AddCommand(deleteCmd.Command())
+	app.AddCommand(deleteCmd.command())
 
 	// exec sub-command
 	execCmd := cmdExec{global: &globalCmd}
-	app.AddCommand(execCmd.Command())
+	app.AddCommand(execCmd.command())
 
 	// export sub-command
 	exportCmd := cmdExport{global: &globalCmd}
-	app.AddCommand(exportCmd.Command())
+	app.AddCommand(exportCmd.command())
 
 	// file sub-command
 	fileCmd := cmdFile{global: &globalCmd}
-	app.AddCommand(fileCmd.Command())
+	app.AddCommand(fileCmd.command())
 
 	// import sub-command
 	importCmd := cmdImport{global: &globalCmd}
-	app.AddCommand(importCmd.Command())
+	app.AddCommand(importCmd.command())
 
 	// info sub-command
 	infoCmd := cmdInfo{global: &globalCmd}
-	app.AddCommand(infoCmd.Command())
+	app.AddCommand(infoCmd.command())
 
 	// image sub-command
 	imageCmd := cmdImage{global: &globalCmd}
-	app.AddCommand(imageCmd.Command())
+	app.AddCommand(imageCmd.command())
 
 	// init sub-command
 	initCmd := cmdInit{global: &globalCmd}
-	app.AddCommand(initCmd.Command())
+	app.AddCommand(initCmd.command())
 
 	// launch sub-command
 	launchCmd := cmdLaunch{global: &globalCmd, init: &initCmd}
-	app.AddCommand(launchCmd.Command())
+	app.AddCommand(launchCmd.command())
 
 	// list sub-command
 	listCmd := cmdList{global: &globalCmd}
-	app.AddCommand(listCmd.Command())
+	app.AddCommand(listCmd.command())
 
 	// manpage sub-command
 	manpageCmd := cmdManpage{global: &globalCmd}
-	app.AddCommand(manpageCmd.Command())
+	app.AddCommand(manpageCmd.command())
 
 	// monitor sub-command
 	monitorCmd := cmdMonitor{global: &globalCmd}
-	app.AddCommand(monitorCmd.Command())
+	app.AddCommand(monitorCmd.command())
 
 	// move sub-command
 	moveCmd := cmdMove{global: &globalCmd}
-	app.AddCommand(moveCmd.Command())
+	app.AddCommand(moveCmd.command())
 
 	// network sub-command
 	networkCmd := cmdNetwork{global: &globalCmd}
-	app.AddCommand(networkCmd.Command())
+	app.AddCommand(networkCmd.command())
 
 	// operation sub-command
 	operationCmd := cmdOperation{global: &globalCmd}
-	app.AddCommand(operationCmd.Command())
+	app.AddCommand(operationCmd.command())
 
 	// pause sub-command
 	pauseCmd := cmdPause{global: &globalCmd}
-	app.AddCommand(pauseCmd.Command())
+	app.AddCommand(pauseCmd.command())
 
 	// publish sub-command
 	publishCmd := cmdPublish{global: &globalCmd}
-	app.AddCommand(publishCmd.Command())
+	app.AddCommand(publishCmd.command())
 
 	// profile sub-command
 	profileCmd := cmdProfile{global: &globalCmd}
-	app.AddCommand(profileCmd.Command())
+	app.AddCommand(profileCmd.command())
 
 	// project sub-command
 	projectCmd := cmdProject{global: &globalCmd}
-	app.AddCommand(projectCmd.Command())
+	app.AddCommand(projectCmd.command())
 
 	// query sub-command
 	queryCmd := cmdQuery{global: &globalCmd}
-	app.AddCommand(queryCmd.Command())
+	app.AddCommand(queryCmd.command())
 
 	// rebuild sub-command
 	rebuildCmd := cmdRebuild{global: &globalCmd}
-	app.AddCommand(rebuildCmd.Command())
+	app.AddCommand(rebuildCmd.command())
 
 	// rename sub-command
 	renameCmd := cmdRename{global: &globalCmd}
-	app.AddCommand(renameCmd.Command())
+	app.AddCommand(renameCmd.command())
 
 	// restart sub-command
 	restartCmd := cmdRestart{global: &globalCmd}
-	app.AddCommand(restartCmd.Command())
+	app.AddCommand(restartCmd.command())
 
 	// remote sub-command
 	remoteCmd := cmdRemote{global: &globalCmd}
-	app.AddCommand(remoteCmd.Command())
+	app.AddCommand(remoteCmd.command())
 
 	// restore sub-command
 	restoreCmd := cmdRestore{global: &globalCmd}
-	app.AddCommand(restoreCmd.Command())
+	app.AddCommand(restoreCmd.command())
 
 	// snapshot sub-command
 	snapshotCmd := cmdSnapshot{global: &globalCmd}
-	app.AddCommand(snapshotCmd.Command())
+	app.AddCommand(snapshotCmd.command())
 
 	// storage sub-command
 	storageCmd := cmdStorage{global: &globalCmd}
-	app.AddCommand(storageCmd.Command())
+	app.AddCommand(storageCmd.command())
 
 	// start sub-command
 	startCmd := cmdStart{global: &globalCmd}
-	app.AddCommand(startCmd.Command())
+	app.AddCommand(startCmd.command())
 
 	// stop sub-command
 	stopCmd := cmdStop{global: &globalCmd}
-	app.AddCommand(stopCmd.Command())
+	app.AddCommand(stopCmd.command())
 
 	// version sub-command
 	versionCmd := cmdVersion{global: &globalCmd}
-	app.AddCommand(versionCmd.Command())
+	app.AddCommand(versionCmd.command())
 
 	// warning sub-command
 	warningCmd := cmdWarning{global: &globalCmd}
-	app.AddCommand(warningCmd.Command())
+	app.AddCommand(warningCmd.command())
 
 	authCmd := cmdAuth{global: &globalCmd}
 	app.AddCommand(authCmd.command())
@@ -400,8 +400,8 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 		}
 
 		if !shared.ValueInSlice(cmd.Name(), []string{"init", "launch"}) {
-			fmt.Fprintf(os.Stderr, i18n.G(`To start your first container, try: lxc launch ubuntu:22.04
-Or for a virtual machine: lxc launch ubuntu:22.04 --vm`)+"\n")
+			fmt.Fprintf(os.Stderr, i18n.G(`To start your first container, try: lxc launch ubuntu:24.04
+Or for a virtual machine: lxc launch ubuntu:24.04 --vm`)+"\n")
 			flush = true
 		}
 

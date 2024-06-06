@@ -545,7 +545,7 @@ func (c *ClusterTx) GetNetworkInAnyState(ctx context.Context, projectName string
 // If stateFilter is -1, then a network can be in any state.
 // Returns network ID, network info, and network cluster member info.
 func (c *ClusterTx) getNetworkByProjectAndName(ctx context.Context, projectName string, networkName string, stateFilter NetworkState) (int64, *api.Network, map[int64]NetworkNode, error) {
-	networkID, networkState, networkType, network, err := c.getPartialNetworkByProjectAndName(ctx, c, projectName, networkName, stateFilter)
+	networkID, networkState, networkType, network, err := c.getPartialNetworkByProjectAndName(ctx, projectName, networkName, stateFilter)
 	if err != nil {
 		return -1, nil, nil, err
 	}
@@ -561,7 +561,7 @@ func (c *ClusterTx) getNetworkByProjectAndName(ctx context.Context, projectName 
 // getPartialNetworkByProjectAndName gets the network with the given project, name and state.
 // If stateFilter is -1, then a network can be in any state.
 // Returns network ID, network state, network type, and partially populated network info.
-func (c *ClusterTx) getPartialNetworkByProjectAndName(ctx context.Context, tx *ClusterTx, projectName string, networkName string, stateFilter NetworkState) (int64, NetworkState, NetworkType, *api.Network, error) {
+func (c *ClusterTx) getPartialNetworkByProjectAndName(ctx context.Context, projectName string, networkName string, stateFilter NetworkState) (int64, NetworkState, NetworkType, *api.Network, error) {
 	var err error
 	var networkID = int64(-1)
 	var network api.Network
@@ -608,7 +608,7 @@ func (c *ClusterTx) networkPopulatePeerInfo(ctx context.Context, tx *ClusterTx, 
 	network.Status = NetworkStateToAPIStatus(networkState)
 	networkFillType(network, networkType)
 
-	err = c.getNetworkConfig(ctx, tx, networkID, network)
+	err = c.getNetworkConfig(ctx, networkID, network)
 	if err != nil {
 		return nil, err
 	}
@@ -703,7 +703,7 @@ func (c *ClusterTx) GetNetworkWithInterface(ctx context.Context, devName string)
 		Type:    "bridge",
 	}
 
-	err = c.getNetworkConfig(ctx, c, id, &network)
+	err = c.getNetworkConfig(ctx, id, &network)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -712,7 +712,7 @@ func (c *ClusterTx) GetNetworkWithInterface(ctx context.Context, devName string)
 }
 
 // getNetworkConfig populates the config map of the Network with the given ID.
-func (c *ClusterTx) getNetworkConfig(ctx context.Context, tx *ClusterTx, networkID int64, network *api.Network) error {
+func (c *ClusterTx) getNetworkConfig(ctx context.Context, networkID int64, network *api.Network) error {
 	q := `
         SELECT key, value
         FROM networks_config

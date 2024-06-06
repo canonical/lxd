@@ -209,7 +209,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 				return err
 			}
 
-			inUse, err := usedByProfileDevices(s, profileDevices, apiProfileProject, networkProjectName, networkName, networkType)
+			inUse, err := usedByProfileDevices(profileDevices, apiProfileProject, networkProjectName, networkName, networkType)
 			if err != nil {
 				return err
 			}
@@ -253,7 +253,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 
 // usedByProfileDevices indicates if network is referenced by a profile's NIC devices.
 // Checks if the device's parent or network properties match the network name.
-func usedByProfileDevices(s *state.State, profileDevices map[string]cluster.Device, profileProject *api.Project, networkProjectName string, networkName string, networkType string) (bool, error) {
+func usedByProfileDevices(profileDevices map[string]cluster.Device, profileProject *api.Project, networkProjectName string, networkName string, networkType string) (bool, error) {
 	// Get the translated network project name from the profiles's project.
 
 	// Skip profiles who's translated network project doesn't match the requested network's project.
@@ -637,6 +637,120 @@ func randomSubnetV6() (string, error) {
 	}
 
 	return "", fmt.Errorf("Failed to automatically find an unused IPv6 subnet, manual configuration required")
+}
+
+// noAvailableAddressErr is used by randomAddressInSubnet to indicate that the subnet was exhausted while searching for
+// IP addresses.
+type noAvailableAddressErr struct {
+	error
+}
+
+// Unwrap implements xerrors.Unwrap for noAvailableAddressErr.
+func (e noAvailableAddressErr) Unwrap() error {
+	return e.error
+}
+
+// randomAddressInSubnet finds a random address within a given subnet. If given, the validate function is called for
+// each randomly generated value. Each time validate returns an error, another IP address will be generated until all
+// IPs have been exhausted or the context is cancelled.
+func randomAddressInSubnet(ctx context.Context, subnet net.IPNet, validate func(net.IP) error) (net.IP, error) {
+	ones, size := subnet.Mask.Size()
+	subnetExponent := size - ones
+
+	// Calculate how many host IPs are available in the subnet.
+	usableHostsBig := big.NewInt(0).Exp(big.NewInt(2), big.NewInt(int64(subnetExponent)), nil)
+
+	// Standardise input.
+	ip4 := subnet.IP.To4()
+	if ip4 != nil {
+		subnet.IP = ip4.Mask(subnet.Mask)
+		usableHostsBig.Sub(usableHostsBig, big.NewInt(2)) // Remove network and broascast address.
+	} else {
+		subnet.IP = subnet.IP.To16().Mask(subnet.Mask)
+		usableHostsBig.Sub(usableHostsBig, big.NewInt(1)) // Remove network address (IPv6 has no broadcast address).
+	}
+
+	// If the subnet only has one address, or if the subnet is IPv4 and has two addresses return the network address if it is valid.
+	if subnetExponent == 0 || (ip4 != nil && subnetExponent == 1) {
+		if validate != nil {
+			err := validate(subnet.IP)
+			if err != nil {
+				return nil, noAvailableAddressErr{error: fmt.Errorf("No available addresses in subnet %q", subnet.String())}
+			}
+		}
+
+		return subnet.IP, nil
+	}
+
+	// If the subnet is IPv6 and has two addresses, return the second one if it is valid.
+	if subnetExponent == 1 {
+		candidateIP := big.NewInt(0).Add(big.NewInt(0).SetBytes(subnet.IP), big.NewInt(1)).Bytes()
+		if validate != nil {
+			err := validate(candidateIP)
+			if err != nil {
+				return nil, noAvailableAddressErr{error: fmt.Errorf("No available addresses in subnet %q", subnet.String())}
+			}
+		}
+
+		return candidateIP, nil
+	}
+
+	networkAddressInt := big.NewInt(0).SetBytes(subnet.IP)
+
+	// Keep track of attempted IPs so that the validate function isn't repeatedly called in case it's expensive.
+	// We don't need to worry about how large this map will grow. It is useful for small subnets where it's likely that
+	// all IPs may be exhausted. The max size of a golang map will be the size of int, it is unfeasible for all of those
+	// IP addresses to be in use (e.g. with `2001:db8::/32` the resource requirements for 2^32 IP addresses to be in use
+	// precludes the possibility of this map growing too large).
+	attempted := make(map[[16]byte]struct{})
+
+	for {
+		// Return on timeout or context cancellation.
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+
+		// If we've attempted all possible addresses then return.
+		if big.NewInt(int64(len(attempted))).Cmp(big.NewInt(0).Sub(usableHostsBig, big.NewInt(1))) == 0 {
+			return nil, noAvailableAddressErr{error: fmt.Errorf("No available addresses in subnet %q", subnet.String())}
+		}
+
+		// Get a random number in range [0, addressRangeSize).
+		randBigInt, err := cryptorand.Int(cryptorand.Reader, usableHostsBig)
+		if err != nil {
+			return nil, err
+		}
+
+		// Add the random number to the network address.
+		randIPInt := big.NewInt(0).Add(networkAddressInt, randBigInt)
+
+		// Add one to it to exclude the network address.
+		randIP := net.IP(big.NewInt(0).Add(randIPInt, big.NewInt(1)).Bytes())
+		randIP = randIP.To16()
+
+		// Convert all IPs to a 16 byte representation so that we have a consistent map key we can use for both IPv4 and IPv6.
+		var IPKey [16]byte
+		copy(IPKey[:], randIP.To16())
+
+		// Retry if we've already attempted this IP.
+		_, ok := attempted[IPKey]
+		if ok {
+			continue
+		}
+
+		// Add the IP to the attempted map.
+		attempted[IPKey] = struct{}{}
+
+		// Call validate if set.
+		if validate != nil {
+			err = validate(randIP)
+			if err != nil {
+				continue
+			}
+		}
+
+		return randIP, nil
+	}
 }
 
 func inRoutingTable(subnet *net.IPNet) bool {

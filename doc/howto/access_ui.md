@@ -7,7 +7,12 @@ The LXD web UI is available as part of the LXD snap.
 See the [LXD-UI GitHub repository](https://github.com/canonical/lxd-ui) for the source code.
 ```
 
-![Graphical console of an instance in the LXD web UI](../images/ui_console.png)
+```{figure} /images/ui_console.png
+:width: 100%
+:alt: Graphical console of an instance in the LXD web UI
+
+Graphical console of an instance in the LXD web UI
+```
 
 ```{youtube} https://www.youtube.com/watch?v=wqEH_d8LC1k
 ```
@@ -25,15 +30,34 @@ Complete the following steps to access the LXD web UI:
    If you have not set up a secure {ref}`authentication-server-certificate`, LXD uses a self-signed certificate, which will cause a security warning in your browser.
    Use your browser's mechanism to continue despite the security warning.
 
-   ![Example for a security warning in Chrome](../images/ui_security_warning.png
-)
+   ```{figure} /images/ui_security_warning.png
+   :width: 80%
+   :alt: Example for a security warning in Chrome
+   ```
 
 1. Set up the certificates that are required for the UI client to authenticate with the LXD server by following the steps presented in the UI.
    These steps include creating a set of certificates, adding the private key to your browser, and adding the public key to the server's trust store.
 
    See {ref}`authentication` for more information.
 
-   ![Instructions for setting up certificates for the UI](../images/ui_set_up_certificates.png
-)
+   ```{figure} /images/ui_set_up_certificates.png
+   :width: 80%
+   :alt: Instructions for setting up certificates for the UI
+   ```
 
 After setting up the certificates, you can start creating instances, editing profiles, or configuring your server.
+
+## Enable or disable the UI
+
+The {ref}`snap configuration option <howto-snap-configure>` `lxd ui.enable` controls whether the UI is enabled for LXD.
+
+Starting with LXD 5.21, the UI is enabled by default.
+If you want to disable it, set the option to `false`:
+
+    sudo snap set lxd ui.enable=false
+    sudo systemctl reload snap.lxd.daemon
+
+To enable it again, or to enable it for older LXD versions (that include the UI), set the option to `true`:
+
+    sudo snap set lxd ui.enable=true
+    sudo systemctl reload snap.lxd.daemon

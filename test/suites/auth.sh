@@ -221,6 +221,36 @@ fine_grained_authorization() {
 
   # Check we can view the warning we just created.
   [ "$(lxc_remote query oidc:/1.0/warnings?recursion=1 | jq -r '[.[] | select(.last_message == "authorization warning")] | length')" = 1 ]
+
+  lxc auth group permission remove test-group server can_view_warnings
+
+  # Check we are not able to view any server config currently.
+  lxc config set user.foo bar
+  [ "$(lxc_remote query oidc:/1.0 | jq '.config | length')" = 0 ]
+  [ "$(lxc_remote query oidc:/1.0 | jq -r '.config."user.foo"')" != "bar" ]
+
+  # Add "can_edit" permission to group.
+  lxc auth group permission add test-group server can_edit
+
+  # Check we can view the server's configuration.
+  [ "$(lxc_remote query oidc:/1.0 | jq -r '.config."user.foo"')" = "bar" ]
+
+  lxc auth group permission remove test-group server can_edit
+
+  # Check we are not able to view any storage pool config currently.
+  lxc storage create test-pool dir
+  lxc storage set test-pool user.foo bar
+  [ "$(lxc_remote query oidc:/1.0/storage-pools/test-pool | jq '.config | length')" = 0 ]
+  [ "$(lxc_remote query oidc:/1.0/storage-pools/test-pool | jq -r '.config."user.foo"')" != "bar" ]
+
+  # Add "can_edit" permission to storage pool.
+  lxc auth group permission add test-group storage_pool test-pool can_edit
+
+  # Check we can view the storage pool's configuration.
+  [ "$(lxc_remote query oidc:/1.0/storage-pools/test-pool | jq -r '.config."user.foo"')" = "bar" ]
+
+  lxc auth group permission remove test-group storage_pool test-pool can_edit
+  lxc storage delete test-pool
 }
 
 user_is_not_server_admin() {
@@ -316,6 +346,8 @@ user_is_project_operator() {
     lxc_remote network zone delete oidc:test-network-zone
     pool_name="$(lxc_remote storage list oidc: -f csv | cut -d, -f1)"
     lxc_remote storage volume create "oidc:${pool_name}" test-volume
+    lxc_remote query oidc:/1.0/storage-volumes | grep -F "/1.0/storage-pools/${pool_name}/volumes/custom/test-volume"
+    lxc_remote query oidc:/1.0/storage-volumes/custom | grep -F "/1.0/storage-pools/${pool_name}/volumes/custom/test-volume"
     lxc_remote storage volume delete "oidc:${pool_name}" test-volume
     lxc_remote launch testimage oidc:operator-foo
     LXC_LOCAL='' lxc_remote exec oidc:operator-foo -- echo "bar"

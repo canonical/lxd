@@ -82,8 +82,6 @@ func (d *zfs) createDataset(dataset string, options ...string) error {
 }
 
 func (d *zfs) createVolume(dataset string, size int64, options ...string) error {
-	size = d.roundVolumeBlockSizeBytes(size)
-
 	args := []string{"create", "-s", "-V", fmt.Sprintf("%d", size)}
 	for _, option := range options {
 		args = append(args, "-o")
@@ -192,6 +190,44 @@ func (d *zfs) getDatasets(dataset string, types string) ([]string, error) {
 	}
 
 	return children, nil
+}
+
+// filterRedundantOptions filters out options for setting dataset properties that match with the values already set.
+func (d *zfs) filterRedundantOptions(dataset string, options ...string) ([]string, error) {
+	var keys, values []string
+
+	// Extract keys and values from options.
+	for _, option := range options {
+		property := strings.Split(option, "=")
+
+		if len(property) != 2 {
+			return nil, fmt.Errorf("Wrongly formatted option %q", option)
+		}
+
+		keys = append(keys, property[0])
+		values = append(values, property[1])
+	}
+
+	// Get current values for the keys.
+	currentProperties, err := d.getDatasetProperties(dataset, keys...)
+	if err != nil {
+		return nil, err
+	}
+
+	var resultantOptions []string
+
+	// Change property values that are different from the current value.
+	for propertyIndex := range keys {
+		if currentProperties[keys[propertyIndex]] == "posix" && values[propertyIndex] == "posixacl" { // "posixacl" is an alias for "posix"
+			continue
+		}
+
+		if currentProperties[keys[propertyIndex]] != values[propertyIndex] {
+			resultantOptions = append(resultantOptions, options[propertyIndex])
+		}
+	}
+
+	return resultantOptions, nil
 }
 
 func (d *zfs) setDatasetProperties(dataset string, options ...string) error {

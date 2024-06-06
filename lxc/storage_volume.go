@@ -36,7 +36,7 @@ type cmdStorageVolume struct {
 	flagDestinationTarget string
 }
 
-func (c *cmdStorageVolume) Command() *cobra.Command {
+func (c *cmdStorageVolume) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("volume")
 	cmd.Short = i18n.G("Manage storage volumes")
@@ -47,83 +47,83 @@ Unless specified through a prefix, all volume operations affect "custom" (user c
 
 	// Attach
 	storageVolumeAttachCmd := cmdStorageVolumeAttach{global: c.global, storage: c.storage, storageVolume: c}
-	cmd.AddCommand(storageVolumeAttachCmd.Command())
+	cmd.AddCommand(storageVolumeAttachCmd.command())
 
 	// Attach profile
 	storageVolumeAttachProfileCmd := cmdStorageVolumeAttachProfile{global: c.global, storage: c.storage, storageVolume: c}
-	cmd.AddCommand(storageVolumeAttachProfileCmd.Command())
+	cmd.AddCommand(storageVolumeAttachProfileCmd.command())
 
 	// Copy
 	storageVolumeCopyCmd := cmdStorageVolumeCopy{global: c.global, storage: c.storage, storageVolume: c}
-	cmd.AddCommand(storageVolumeCopyCmd.Command())
+	cmd.AddCommand(storageVolumeCopyCmd.command())
 
 	// Create
 	storageVolumeCreateCmd := cmdStorageVolumeCreate{global: c.global, storage: c.storage, storageVolume: c}
-	cmd.AddCommand(storageVolumeCreateCmd.Command())
+	cmd.AddCommand(storageVolumeCreateCmd.command())
 
 	// Delete
 	storageVolumeDeleteCmd := cmdStorageVolumeDelete{global: c.global, storage: c.storage, storageVolume: c}
-	cmd.AddCommand(storageVolumeDeleteCmd.Command())
+	cmd.AddCommand(storageVolumeDeleteCmd.command())
 
 	// Detach
 	storageVolumeDetachCmd := cmdStorageVolumeDetach{global: c.global, storage: c.storage, storageVolume: c}
-	cmd.AddCommand(storageVolumeDetachCmd.Command())
+	cmd.AddCommand(storageVolumeDetachCmd.command())
 
 	// Detach profile
 	storageVolumeDetachProfileCmd := cmdStorageVolumeDetachProfile{global: c.global, storage: c.storage, storageVolume: c}
-	cmd.AddCommand(storageVolumeDetachProfileCmd.Command())
+	cmd.AddCommand(storageVolumeDetachProfileCmd.command())
 
 	// Edit
 	storageVolumeEditCmd := cmdStorageVolumeEdit{global: c.global, storage: c.storage, storageVolume: c}
-	cmd.AddCommand(storageVolumeEditCmd.Command())
+	cmd.AddCommand(storageVolumeEditCmd.command())
 
 	// Export
 	storageVolumeExportCmd := cmdStorageVolumeExport{global: c.global, storage: c.storage, storageVolume: c}
-	cmd.AddCommand(storageVolumeExportCmd.Command())
+	cmd.AddCommand(storageVolumeExportCmd.command())
 
 	// Get
 	storageVolumeGetCmd := cmdStorageVolumeGet{global: c.global, storage: c.storage, storageVolume: c}
-	cmd.AddCommand(storageVolumeGetCmd.Command())
+	cmd.AddCommand(storageVolumeGetCmd.command())
 
 	// Import
 	storageVolumeImportCmd := cmdStorageVolumeImport{global: c.global, storage: c.storage, storageVolume: c}
-	cmd.AddCommand(storageVolumeImportCmd.Command())
+	cmd.AddCommand(storageVolumeImportCmd.command())
 
 	// Info
 	storageVolumeInfoCmd := cmdStorageVolumeInfo{global: c.global, storage: c.storage, storageVolume: c}
-	cmd.AddCommand(storageVolumeInfoCmd.Command())
+	cmd.AddCommand(storageVolumeInfoCmd.command())
 
 	// List
 	storageVolumeListCmd := cmdStorageVolumeList{global: c.global, storage: c.storage, storageVolume: c}
-	cmd.AddCommand(storageVolumeListCmd.Command())
+	cmd.AddCommand(storageVolumeListCmd.command())
 
 	// Rename
 	storageVolumeRenameCmd := cmdStorageVolumeRename{global: c.global, storage: c.storage, storageVolume: c}
-	cmd.AddCommand(storageVolumeRenameCmd.Command())
+	cmd.AddCommand(storageVolumeRenameCmd.command())
 
 	// Move
 	storageVolumeMoveCmd := cmdStorageVolumeMove{global: c.global, storage: c.storage, storageVolume: c, storageVolumeCopy: &storageVolumeCopyCmd, storageVolumeRename: &storageVolumeRenameCmd}
-	cmd.AddCommand(storageVolumeMoveCmd.Command())
+	cmd.AddCommand(storageVolumeMoveCmd.command())
 
 	// Set
 	storageVolumeSetCmd := cmdStorageVolumeSet{global: c.global, storage: c.storage, storageVolume: c}
-	cmd.AddCommand(storageVolumeSetCmd.Command())
+	cmd.AddCommand(storageVolumeSetCmd.command())
 
 	// Show
 	storageVolumeShowCmd := cmdStorageVolumeShow{global: c.global, storage: c.storage, storageVolume: c}
-	cmd.AddCommand(storageVolumeShowCmd.Command())
+	cmd.AddCommand(storageVolumeShowCmd.command())
 
 	// Snapshot
 	storageVolumeSnapshotCmd := cmdStorageVolumeSnapshot{global: c.global, storage: c.storage, storageVolume: c}
-	cmd.AddCommand(storageVolumeSnapshotCmd.Command())
+	cmd.AddCommand(storageVolumeSnapshotCmd.command())
 
 	// Restore
 	storageVolumeRestoreCmd := cmdStorageVolumeRestore{global: c.global, storage: c.storage, storageVolume: c}
-	cmd.AddCommand(storageVolumeRestoreCmd.Command())
+	cmd.AddCommand(storageVolumeRestoreCmd.command())
 
 	// Unset
 	storageVolumeUnsetCmd := cmdStorageVolumeUnset{global: c.global, storage: c.storage, storageVolume: c, storageVolumeSet: &storageVolumeSetCmd}
-	cmd.AddCommand(storageVolumeUnsetCmd.Command())
+	cmd.AddCommand(storageVolumeUnsetCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -131,7 +131,7 @@ Unless specified through a prefix, all volume operations affect "custom" (user c
 	return cmd
 }
 
-func (c *cmdStorageVolume) parseVolume(defaultType string, name string) (string, string) {
+func (c *cmdStorageVolume) parseVolume(defaultType string, name string) (volumeName string, volumeType string) {
 	fields := strings.SplitN(name, "/", 2)
 	if len(fields) == 1 {
 		return fields[0], defaultType
@@ -142,7 +142,7 @@ func (c *cmdStorageVolume) parseVolume(defaultType string, name string) (string,
 	return fields[1], fields[0]
 }
 
-func (c *cmdStorageVolume) parseVolumeWithPool(name string) (string, string) {
+func (c *cmdStorageVolume) parseVolumeWithPool(name string) (volumeName string, poolName string) {
 	fields := strings.SplitN(name, "/", 2)
 	if len(fields) == 1 {
 		return fields[0], ""
@@ -158,19 +158,19 @@ type cmdStorageVolumeAttach struct {
 	storageVolume *cmdStorageVolume
 }
 
-func (c *cmdStorageVolumeAttach) Command() *cobra.Command {
+func (c *cmdStorageVolumeAttach) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("attach", i18n.G("[<remote>:]<pool> <volume> <instance> [<device name>] [<path>]"))
 	cmd.Short = i18n.G("Attach new storage volumes to instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Attach new storage volumes to instances`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageVolumeAttach) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeAttach) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 5)
 	if exit {
@@ -189,24 +189,47 @@ func (c *cmdStorageVolumeAttach) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Missing pool name"))
 	}
 
+	volName, volType := c.storageVolume.parseVolume("custom", args[1])
+	if volType != "custom" {
+		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be attached to instances"))
+	}
+
 	// Attach the volume
 	devPath := ""
 	devName := ""
 	if len(args) == 3 {
 		devName = args[1]
 	} else if len(args) == 4 {
-		// Only the path has been given to us.
-		devPath = args[3]
-		devName = args[1]
+		client := resource.server
+
+		// Use the provided target.
+		if c.storage.flagTarget != "" && client.IsClustered() {
+			client = client.UseTarget(c.storage.flagTarget)
+		}
+
+		vol, _, err := client.GetStoragePoolVolume(resource.name, volType, volName)
+		if err != nil {
+			return err
+		}
+
+		switch vol.ContentType {
+		case "block", "iso":
+			devName = args[3]
+		case "filesystem":
+			if !strings.HasPrefix(args[3], "/") {
+				devPath = path.Join("/", args[3])
+			} else {
+				devPath = args[3]
+			}
+
+			devName = args[1]
+		default:
+			return fmt.Errorf(i18n.G("Unsupported content type for attaching to instances"))
+		}
 	} else if len(args) == 5 {
 		// Path and device name have been given to us.
 		devName = args[3]
 		devPath = args[4]
-	}
-
-	volName, volType := c.storageVolume.parseVolume("custom", args[1])
-	if volType != "custom" {
-		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be attached to instances"))
 	}
 
 	// Prepare the instance's device entry
@@ -233,19 +256,19 @@ type cmdStorageVolumeAttachProfile struct {
 	storageVolume *cmdStorageVolume
 }
 
-func (c *cmdStorageVolumeAttachProfile) Command() *cobra.Command {
+func (c *cmdStorageVolumeAttachProfile) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("attach-profile", i18n.G("[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"))
 	cmd.Short = i18n.G("Attach new storage volumes to profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Attach new storage volumes to profiles`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageVolumeAttachProfile) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeAttachProfile) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 5)
 	if exit {
@@ -323,7 +346,7 @@ type cmdStorageVolumeCopy struct {
 	flagRefresh       bool
 }
 
-func (c *cmdStorageVolumeCopy) Command() *cobra.Command {
+func (c *cmdStorageVolumeCopy) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("copy", i18n.G("[<remote>:]<pool>/<volume>[/<snapshot>] [<remote>:]<pool>/<volume>"))
 	cmd.Aliases = []string{"cp"}
@@ -337,12 +360,12 @@ func (c *cmdStorageVolumeCopy) Command() *cobra.Command {
 	cmd.Flags().BoolVar(&c.flagVolumeOnly, "volume-only", false, i18n.G("Copy the volume without its snapshots"))
 	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
 	cmd.Flags().BoolVar(&c.flagRefresh, "refresh", false, i18n.G("Refresh and update the existing storage volume copies"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeCopy) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -527,7 +550,7 @@ type cmdStorageVolumeCreate struct {
 	flagContentType string
 }
 
-func (c *cmdStorageVolumeCreate) Command() *cobra.Command {
+func (c *cmdStorageVolumeCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("create", i18n.G("[<remote>:]<pool> <volume> [key=value...]"))
 	cmd.Short = i18n.G("Create new custom storage volumes")
@@ -536,12 +559,12 @@ func (c *cmdStorageVolumeCreate) Command() *cobra.Command {
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().StringVar(&c.flagContentType, "type", "filesystem", i18n.G("Content type, block or filesystem")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageVolumeCreate) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeCreate) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
@@ -605,7 +628,7 @@ type cmdStorageVolumeDelete struct {
 	storageVolume *cmdStorageVolume
 }
 
-func (c *cmdStorageVolumeDelete) Command() *cobra.Command {
+func (c *cmdStorageVolumeDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<pool> <volume>[/<snapshot>]"))
 	cmd.Aliases = []string{"rm"}
@@ -614,12 +637,12 @@ func (c *cmdStorageVolumeDelete) Command() *cobra.Command {
 		`Delete storage volumes`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageVolumeDelete) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeDelete) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -681,19 +704,19 @@ type cmdStorageVolumeDetach struct {
 	storageVolume *cmdStorageVolume
 }
 
-func (c *cmdStorageVolumeDetach) Command() *cobra.Command {
+func (c *cmdStorageVolumeDetach) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("detach", i18n.G("[<remote>:]<pool> <volume> <instance> [<device name>]"))
 	cmd.Short = i18n.G("Detach storage volumes from instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Detach storage volumes from instances`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageVolumeDetach) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeDetach) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 4)
 	if exit {
@@ -763,19 +786,19 @@ type cmdStorageVolumeDetachProfile struct {
 	storageVolume *cmdStorageVolume
 }
 
-func (c *cmdStorageVolumeDetachProfile) Command() *cobra.Command {
+func (c *cmdStorageVolumeDetachProfile) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("detach-profile", i18n.G("[<remote:>]<pool> <volume> <profile> [<device name>]"))
 	cmd.Short = i18n.G("Detach storage volumes from profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Detach storage volumes from profiles`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageVolumeDetachProfile) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeDetachProfile) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 4)
 	if exit {
@@ -844,7 +867,7 @@ type cmdStorageVolumeEdit struct {
 	storageVolume *cmdStorageVolume
 }
 
-func (c *cmdStorageVolumeEdit) Command() *cobra.Command {
+func (c *cmdStorageVolumeEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<pool> [<type>/]<volume>"))
 	cmd.Short = i18n.G("Edit storage volume configurations as YAML")
@@ -858,7 +881,7 @@ lxc storage volume edit [<remote>:]<pool> [<type>/]<volume> < volume.yaml
     Update a storage volume using the content of pool.yaml.`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
@@ -877,7 +900,7 @@ func (c *cmdStorageVolumeEdit) helpTemplate() string {
 ###   size: "61203283968"`)
 }
 
-func (c *cmdStorageVolumeEdit) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -1053,7 +1076,7 @@ type cmdStorageVolumeGet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdStorageVolumeGet) Command() *cobra.Command {
+func (c *cmdStorageVolumeGet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("get", i18n.G("[<remote>:]<pool> [<type>/]<volume>[/<snapshot>] <key>"))
 	cmd.Short = i18n.G("Get values for storage volume configuration keys")
@@ -1073,12 +1096,12 @@ lxc storage volume get default virtual-machine/data snapshots.expiry
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Get the key as a storage volume property"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageVolumeGet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeGet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
@@ -1168,7 +1191,7 @@ type cmdStorageVolumeInfo struct {
 	storageVolume *cmdStorageVolume
 }
 
-func (c *cmdStorageVolumeInfo) Command() *cobra.Command {
+func (c *cmdStorageVolumeInfo) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("info", i18n.G("[<remote>:]<pool> [<type>/]<volume>"))
 	cmd.Short = i18n.G("Show storage volume state information")
@@ -1185,12 +1208,12 @@ lxc storage volume info default virtual-machine/data
     Returns state information for a virtual machine "data" in pool "default".`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageVolumeInfo) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeInfo) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -1394,7 +1417,7 @@ type cmdStorageVolumeList struct {
 	defaultColumns string
 }
 
-func (c *cmdStorageVolumeList) Command() *cobra.Command {
+func (c *cmdStorageVolumeList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:][<pool>] [<filter>...]"))
 	cmd.Aliases = []string{"ls"}
@@ -1422,12 +1445,12 @@ Column shorthand chars:
     U - Current disk usage`))
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeList) run(cmd *cobra.Command, args []string) error {
 	// Quick checks
 	exit, err := c.global.CheckArgs(cmd, args, 0, -1)
 	if exit {
@@ -1575,11 +1598,11 @@ func (c *cmdStorageVolumeList) parseColumns(clustered bool, allVolumes bool) ([]
 
 		for _, columnRune := range columnEntry {
 			column, ok := columnsShorthandMap[columnRune]
-			if ok {
-				columns = append(columns, column)
-			} else {
+			if !ok {
 				return nil, fmt.Errorf(i18n.G("Unknown column shorthand char '%c' in '%s'"), columnRune, columnEntry)
 			}
+
+			columns = append(columns, column)
 		}
 	}
 
@@ -1643,7 +1666,7 @@ type cmdStorageVolumeMove struct {
 	storageVolumeRename *cmdStorageVolumeRename
 }
 
-func (c *cmdStorageVolumeMove) Command() *cobra.Command {
+func (c *cmdStorageVolumeMove) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("move", i18n.G("[<remote>:]<pool>/<volume> [<remote>:]<pool>/<volume>"))
 	cmd.Aliases = []string{"mv"}
@@ -1655,12 +1678,12 @@ func (c *cmdStorageVolumeMove) Command() *cobra.Command {
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().StringVar(&c.storageVolume.flagDestinationTarget, "destination-target", "", i18n.G("Destination cluster member name")+"``")
 	cmd.Flags().StringVar(&c.storageVolumeCopy.flagTargetProject, "target-project", "", i18n.G("Move to a project different from the source")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageVolumeMove) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeMove) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -1712,10 +1735,10 @@ func (c *cmdStorageVolumeMove) Run(cmd *cobra.Command, args []string) error {
 
 		args = append(args, srcVolName, dstVolName)
 
-		return c.storageVolumeRename.Run(cmd, args)
+		return c.storageVolumeRename.run(cmd, args)
 	}
 
-	return c.storageVolumeCopy.Run(cmd, args)
+	return c.storageVolumeCopy.run(cmd, args)
 }
 
 // Rename.
@@ -1725,7 +1748,7 @@ type cmdStorageVolumeRename struct {
 	storageVolume *cmdStorageVolume
 }
 
-func (c *cmdStorageVolumeRename) Command() *cobra.Command {
+func (c *cmdStorageVolumeRename) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("rename", i18n.G("[<remote>:]<pool> <old name>[/<old snapshot name>] <new name>[/<new snapshot name>]"))
 	cmd.Short = i18n.G("Rename storage volumes and storage volume snapshots")
@@ -1733,12 +1756,12 @@ func (c *cmdStorageVolumeRename) Command() *cobra.Command {
 		`Rename storage volumes`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageVolumeRename) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeRename) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
@@ -1840,7 +1863,7 @@ type cmdStorageVolumeSet struct {
 	flagIsProperty bool
 }
 
-func (c *cmdStorageVolumeSet) Command() *cobra.Command {
+func (c *cmdStorageVolumeSet) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("set", i18n.G("[<remote>:]<pool> [<type>/]<volume> <key>=<value>..."))
 	cmd.Short = i18n.G("Set storage volume configuration keys")
@@ -1861,12 +1884,12 @@ lxc storage volume set default virtual-machine/data snapshots.expiry=7d
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Set the key as a storage volume property"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageVolumeSet) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeSet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
 	if exit {
@@ -1984,7 +2007,7 @@ type cmdStorageVolumeShow struct {
 	storageVolume *cmdStorageVolume
 }
 
-func (c *cmdStorageVolumeShow) Command() *cobra.Command {
+func (c *cmdStorageVolumeShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("show", i18n.G("[<remote>:]<pool> [<type>/]<volume>[/<snapshot>]"))
 	cmd.Short = i18n.G("Show storage volume configurations")
@@ -2006,12 +2029,12 @@ lxc storage volume show default virtual-machine/data/snap0
     Will show the properties of snapshot "snap0" for a virtual machine called "data" in the "default" pool.`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageVolumeShow) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -2093,7 +2116,7 @@ type cmdStorageVolumeUnset struct {
 	flagIsProperty bool
 }
 
-func (c *cmdStorageVolumeUnset) Command() *cobra.Command {
+func (c *cmdStorageVolumeUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("unset", i18n.G("[<remote>:]<pool> [<type>/]<volume> <key>"))
 	cmd.Short = i18n.G("Unset storage volume configuration keys")
@@ -2111,12 +2134,12 @@ lxc storage volume unset default virtual-machine/data snapshots.expiry
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, i18n.G("Unset the key as a storage volume property"))
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageVolumeUnset) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeUnset) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
@@ -2126,7 +2149,7 @@ func (c *cmdStorageVolumeUnset) Run(cmd *cobra.Command, args []string) error {
 	c.storageVolumeSet.flagIsProperty = c.flagIsProperty
 
 	args = append(args, "")
-	return c.storageVolumeSet.Run(cmd, args)
+	return c.storageVolumeSet.run(cmd, args)
 }
 
 // Snapshot.
@@ -2139,14 +2162,14 @@ type cmdStorageVolumeSnapshot struct {
 	flagReuse    bool
 }
 
-func (c *cmdStorageVolumeSnapshot) Command() *cobra.Command {
+func (c *cmdStorageVolumeSnapshot) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("snapshot", i18n.G("[<remote>:]<pool> <volume> [<snapshot>]"))
 	cmd.Short = i18n.G("Snapshot storage volumes")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Snapshot storage volumes`))
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagNoExpiry, "no-expiry", false, i18n.G("Ignore any configured auto-expiry for the storage volume"))
 	cmd.Flags().BoolVar(&c.flagReuse, "reuse", false, i18n.G("If the snapshot name already exists, delete and create a new one"))
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
@@ -2154,7 +2177,7 @@ func (c *cmdStorageVolumeSnapshot) Command() *cobra.Command {
 	return cmd
 }
 
-func (c *cmdStorageVolumeSnapshot) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeSnapshot) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
 	if exit {
@@ -2236,7 +2259,7 @@ type cmdStorageVolumeRestore struct {
 	storageVolume *cmdStorageVolume
 }
 
-func (c *cmdStorageVolumeRestore) Command() *cobra.Command {
+func (c *cmdStorageVolumeRestore) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("restore", i18n.G("[<remote>:]<pool> <volume> <snapshot>"))
 	cmd.Short = i18n.G("Restore storage volume snapshots")
@@ -2244,12 +2267,12 @@ func (c *cmdStorageVolumeRestore) Command() *cobra.Command {
 		`Restore storage volume snapshots`))
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageVolumeRestore) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeRestore) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
@@ -2303,7 +2326,7 @@ type cmdStorageVolumeExport struct {
 	flagCompressionAlgorithm string
 }
 
-func (c *cmdStorageVolumeExport) Command() *cobra.Command {
+func (c *cmdStorageVolumeExport) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("export", i18n.G("[<remote>:]<pool> <volume> [<path>]"))
 	cmd.Short = i18n.G("Export custom storage volume")
@@ -2315,12 +2338,12 @@ func (c *cmdStorageVolumeExport) Command() *cobra.Command {
 		i18n.G("Use storage driver optimized format (can only be restored on a similar pool)"))
 	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", i18n.G("Define a compression algorithm: for backup or none")+"``")
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdStorageVolumeExport) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeExport) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.
@@ -2457,7 +2480,7 @@ type cmdStorageVolumeImport struct {
 	flagType string
 }
 
-func (c *cmdStorageVolumeImport) Command() *cobra.Command {
+func (c *cmdStorageVolumeImport) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("import", i18n.G("[<remote>:]<pool> <backup file> [<volume name>]"))
 	cmd.Short = i18n.G("Import custom storage volumes")
@@ -2467,13 +2490,13 @@ func (c *cmdStorageVolumeImport) Command() *cobra.Command {
 		`lxc storage volume import default backup0.tar.gz
 		Create a new custom volume using backup0.tar.gz as the source.`))
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().StringVar(&c.flagType, "type", "", i18n.G("Import type, backup or iso (default \"backup\")")+"``")
 
 	return cmd
 }
 
-func (c *cmdStorageVolumeImport) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdStorageVolumeImport) run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Quick checks.
