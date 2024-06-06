@@ -24,7 +24,7 @@ func NewMultiStorage(issuers []string) *multiStorage {
 	return &multiStorage{issuers: s}
 }
 
-// CheckUsernamePassword implements the `authenticate` interface of the login
+// CheckUsernamePassword implements the `authenticate` interface of the login.
 func (s *multiStorage) CheckUsernamePassword(ctx context.Context, username, password, id string) error {
 	storage, err := s.storageFromContext(ctx)
 	if err != nil {
