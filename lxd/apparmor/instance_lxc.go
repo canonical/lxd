@@ -84,16 +84,6 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   # Handle tmpfs
   mount fstype=tmpfs,
 
-  # Allow limited modification of mount propagation
-  mount options=(rw,slave) -> /,
-  mount options=(rw,rslave) -> /,
-  mount options=(rw,shared) -> /,
-  mount options=(rw,rshared) -> /,
-  mount options=(rw,private) -> /,
-  mount options=(rw,rprivate) -> /,
-  mount options=(rw,unbindable) -> /,
-  mount options=(rw,runbindable) -> /,
-
   # Allow various ro-bind-*re*-mounts of anything except /proc, /sys and /dev/.lxc
   mount options=(ro,remount,bind) /[^spd]*{,/**},
   mount options=(ro,remount,bind) /d[^e]*{,/**},
