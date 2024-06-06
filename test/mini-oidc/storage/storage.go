@@ -596,7 +596,7 @@ func (s *Storage) createRefreshToken(accessToken *Token, amr []string, authTime 
 }
 
 // renewRefreshToken checks the provided refresh_token and creates a new one based on the current
-func (s *Storage) renewRefreshToken(currentRefreshToken string) (string, string, error) {
+func (s *Storage) renewRefreshToken(currentRefreshToken string) (token string, refreshTokenID string, err error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	refreshToken, ok := s.refreshTokens[currentRefreshToken]
@@ -612,7 +612,7 @@ func (s *Storage) renewRefreshToken(currentRefreshToken string) (string, string,
 		}
 	}
 	// creates a new refresh token based on the current one
-	token := uuid.NewString()
+	token = uuid.NewString()
 	refreshToken.Token = token
 	refreshToken.ID = token
 	s.refreshTokens[token] = refreshToken
