@@ -11,7 +11,7 @@ GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
 SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
-GOMIN=1.22.0
+GOMIN=1.22.3
 
 ifneq "$(wildcard vendor)" ""
 	DQLITE_PATH=$(CURDIR)/vendor/dqlite
@@ -92,10 +92,6 @@ endif
 	go get -t -v -d -u ./...
 	go mod tidy -go=$(GOMIN)
 	go get toolchain@none
-
-	cd test/mini-oidc && go get -t -v -d -u ./...
-	cd test/mini-oidc && go mod tidy -go=$(GOMIN)
-	cd test/mini-oidc && go get toolchain@none
 
 	@echo "Dependencies updated"
 
