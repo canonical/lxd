@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/lxd/auth"
+	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -32,7 +32,7 @@ var identityProviderGroupsCmd = APIEndpoint{
 	},
 	Post: APIEndpointAction{
 		Handler:       createIdentityProviderGroup,
-		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanCreateIdentityProviderGroups),
+		AccessHandler: allowPermission(entity.TypeServer, authEntity.EntitlementCanCreateIdentityProviderGroups),
 	},
 }
 
@@ -41,23 +41,23 @@ var identityProviderGroupCmd = APIEndpoint{
 	Path: "auth/identity-provider-groups/{idpGroupName}",
 	Get: APIEndpointAction{
 		Handler:       getIdentityProviderGroup,
-		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, auth.EntitlementCanView, "idpGroupName"),
+		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, authEntity.EntitlementCanView, "idpGroupName"),
 	},
 	Put: APIEndpointAction{
 		Handler:       updateIdentityProviderGroup,
-		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, auth.EntitlementCanEdit, "idpGroupName"),
+		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, authEntity.EntitlementCanEdit, "idpGroupName"),
 	},
 	Post: APIEndpointAction{
 		Handler:       renameIdentityProviderGroup,
-		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, auth.EntitlementCanEdit, "idpGroupName"),
+		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, authEntity.EntitlementCanEdit, "idpGroupName"),
 	},
 	Delete: APIEndpointAction{
 		Handler:       deleteIdentityProviderGroup,
-		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, auth.EntitlementCanDelete, "idpGroupName"),
+		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, authEntity.EntitlementCanDelete, "idpGroupName"),
 	},
 	Patch: APIEndpointAction{
 		Handler:       patchIdentityProviderGroup,
-		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, auth.EntitlementCanEdit, "idpGroupName"),
+		AccessHandler: allowPermission(entity.TypeIdentityProviderGroup, authEntity.EntitlementCanEdit, "idpGroupName"),
 	},
 }
 
@@ -145,12 +145,12 @@ func getIdentityProviderGroups(d *Daemon, r *http.Request) response.Response {
 	recursion := r.URL.Query().Get("recursion")
 	s := d.State()
 
-	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
+	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeIdentityProviderGroup)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -240,7 +240,7 @@ func getIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
-	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -449,7 +449,7 @@ func updateIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
-	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -538,7 +538,7 @@ func patchIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
-	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(err)
 	}
