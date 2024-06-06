@@ -1,5 +1,8 @@
 # Minimal makefile for Sphinx documentation
 #
+# `Makefile.sp` is from the Sphinx starter pack and should not be
+# modified.
+# Add your customisation to `Makefile` instead.
 
 # You can set these variables from the command line, and also
 # from the environment for the first two.
