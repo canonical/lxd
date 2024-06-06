@@ -34,7 +34,7 @@ func createPool(poolName string, source string, force bool) error {
 		args = append(args, "-f")
 	}
 
-	args = append(args, "-m", "none", "-O", "compression=on", poolName, source)
+	args = append(args, "-m", "none", "-O", "compression=on", "-o", "feature@async_destroy=disabled", poolName, source)
 
 	_, err := shared.RunCommand("zpool", args...)
 
