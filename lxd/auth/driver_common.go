@@ -37,7 +37,6 @@ type requestDetails struct {
 	forwardedUsername    string
 	forwardedProtocol    string
 	isAllProjectsRequest bool
-	projectName          string
 	isPKI                bool
 	idpGroups            []string
 	forwardedIDPGroups   []string
@@ -133,7 +132,6 @@ func (c *commonAuthorizer) requestDetails(r *http.Request) (*requestDetails, err
 
 	// Get project details.
 	d.isAllProjectsRequest = shared.IsTrue(values.Get("all-projects"))
-	d.projectName = request.ProjectParam(r)
 
 	return d, nil
 }

@@ -195,11 +195,6 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 		return allowFunc(false), nil
 	}
 
-	// Error if user does not have access to the project (unless we're getting projects, where we want to filter the results).
-	if !shared.ValueInSlice(details.projectName, id.Projects) && entityType != entity.TypeProject {
-		return nil, api.StatusErrorf(http.StatusForbidden, "User does not have permissions for project %q", details.projectName)
-	}
-
 	effectiveProject, _ := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 
 	// Filter objects by project.
