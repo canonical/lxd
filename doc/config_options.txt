@@ -4453,13 +4453,6 @@ Set this option to `true` to enable the syslog unixgram socket to receive log me
 
 ```
 
-```{config:option} core.trust_password server-core
-:scope: "global"
-:shortdesc: "Password to be provided by clients to set up a trust"
-:type: "string"
-
-```
-
 <!-- config group server-core end -->
 <!-- config group server-images start -->
 ```{config:option} images.auto_update_cached server-images
