@@ -623,7 +623,6 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	var customVolProjectName string
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-
 		if !allProjects {
 			dbProject, err := cluster.GetProject(ctx, tx.Tx(), requestProjectName)
 			if err != nil {
