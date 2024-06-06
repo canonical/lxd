@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/canonical/lxd/lxd/auth"
+	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	"github.com/canonical/lxd/lxd/bgp"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/db"
@@ -90,5 +90,5 @@ type State struct {
 	StartTime time.Time
 
 	// Authorizer.
-	Authorizer auth.Authorizer
+	Authorizer authEntity.Authorizer
 }

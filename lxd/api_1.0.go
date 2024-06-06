@@ -10,7 +10,7 @@ import (
 	"os"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/lxd/auth"
+	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	"github.com/canonical/lxd/lxd/auth/oidc"
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
@@ -34,8 +34,8 @@ import (
 
 var api10Cmd = APIEndpoint{
 	Get:   APIEndpointAction{Handler: api10Get, AllowUntrusted: true},
-	Patch: APIEndpointAction{Handler: api10Patch, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
-	Put:   APIEndpointAction{Handler: api10Put, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Patch: APIEndpointAction{Handler: api10Patch, AccessHandler: allowPermission(entity.TypeServer, authEntity.EntitlementCanEdit)},
+	Put:   APIEndpointAction{Handler: api10Put, AccessHandler: allowPermission(entity.TypeServer, authEntity.EntitlementCanEdit)},
 }
 
 var api10 = []APIEndpoint{
@@ -238,8 +238,8 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// If not authorized, return now. Untrusted users are not authorized.
-	err := s.Authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanView)
-	if err != nil && auth.IsDeniedError(err) {
+	err := s.Authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), authEntity.EntitlementCanView)
+	if err != nil && authEntity.IsDeniedError(err) {
 		return response.SyncResponseETag(true, srv, nil)
 	} else if err != nil {
 		return response.SmartError(err)
@@ -387,8 +387,8 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	fullSrv.AuthUserMethod = requestor.Protocol
 
 	// Only allow identities that can edit configuration to view it as sensitive information may be stored there.
-	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanEdit)
-	if err != nil && !auth.IsDeniedError(err) {
+	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), authEntity.EntitlementCanEdit)
+	if err != nil && !authEntity.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {
 		fullSrv.Config, err = daemonConfigRender(s)

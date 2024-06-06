@@ -9,7 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/canonical/lxd/lxd/auth"
+	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -26,17 +26,17 @@ import (
 var networkForwardsCmd = APIEndpoint{
 	Path: "networks/{networkName}/forwards",
 
-	Get:  APIEndpointAction{Handler: networkForwardsGet, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanView, "networkName")},
-	Post: APIEndpointAction{Handler: networkForwardsPost, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
+	Get:  APIEndpointAction{Handler: networkForwardsGet, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanView, "networkName")},
+	Post: APIEndpointAction{Handler: networkForwardsPost, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanEdit, "networkName")},
 }
 
 var networkForwardCmd = APIEndpoint{
 	Path: "networks/{networkName}/forwards/{listenAddress}",
 
-	Delete: APIEndpointAction{Handler: networkForwardDelete, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanDelete, "networkName")},
-	Get:    APIEndpointAction{Handler: networkForwardGet, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanView, "networkName")},
-	Put:    APIEndpointAction{Handler: networkForwardPut, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
-	Patch:  APIEndpointAction{Handler: networkForwardPut, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
+	Delete: APIEndpointAction{Handler: networkForwardDelete, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanDelete, "networkName")},
+	Get:    APIEndpointAction{Handler: networkForwardGet, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanView, "networkName")},
+	Put:    APIEndpointAction{Handler: networkForwardPut, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanEdit, "networkName")},
+	Patch:  APIEndpointAction{Handler: networkForwardPut, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanEdit, "networkName")},
 }
 
 // API endpoints

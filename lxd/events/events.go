@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/canonical/lxd/lxd/auth"
+	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
@@ -67,7 +67,7 @@ func (s *Server) SetLocalLocation(location string) {
 }
 
 // AddListener creates and returns a new event listener.
-func (s *Server) AddListener(projectName string, allProjects bool, projectPermissionFunc auth.PermissionChecker, connection EventListenerConnection, messageTypes []string, excludeSources []EventSource, recvFunc EventHandler, excludeLocations []string) (*Listener, error) {
+func (s *Server) AddListener(projectName string, allProjects bool, projectPermissionFunc authEntity.PermissionChecker, connection EventListenerConnection, messageTypes []string, excludeSources []EventSource, recvFunc EventHandler, excludeLocations []string) (*Listener, error) {
 	if allProjects && projectName != "" {
 		return nil, fmt.Errorf("Cannot specify project name when listening for events on all projects")
 	}
@@ -244,7 +244,7 @@ type Listener struct {
 
 	allProjects           bool
 	projectName           string
-	projectPermissionFunc auth.PermissionChecker
+	projectPermissionFunc authEntity.PermissionChecker
 	excludeSources        []EventSource
 	excludeLocations      []string
 }

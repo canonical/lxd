@@ -14,9 +14,8 @@ import (
 	"github.com/flosch/pongo2"
 	"github.com/gorilla/mux"
 
-	"github.com/canonical/lxd/lxd/auth"
+	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	"github.com/canonical/lxd/lxd/db"
-	"github.com/canonical/lxd/lxd/db/cluster"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
@@ -38,18 +37,18 @@ import (
 var storagePoolVolumeSnapshotsTypeCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots",
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypeGet, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanView, "poolName", "type", "volumeName")},
-	Post: APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypePost, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
+	Get:  APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypeGet, AccessHandler: allowPermission(entity.TypeStorageVolume, authEntity.EntitlementCanView, "poolName", "type", "volumeName")},
+	Post: APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypePost, AccessHandler: allowPermission(entity.TypeStorageVolume, authEntity.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
 }
 
 var storagePoolVolumeSnapshotTypeCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName}",
 
-	Delete: APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeDelete, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeGet, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanView, "poolName", "type", "volumeName")},
-	Post:   APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePost, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePatch, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
-	Put:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePut, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeDelete, AccessHandler: allowPermission(entity.TypeStorageVolume, authEntity.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeGet, AccessHandler: allowPermission(entity.TypeStorageVolume, authEntity.EntitlementCanView, "poolName", "type", "volumeName")},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePost, AccessHandler: allowPermission(entity.TypeStorageVolume, authEntity.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePatch, AccessHandler: allowPermission(entity.TypeStorageVolume, authEntity.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
+	Put:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePut, AccessHandler: allowPermission(entity.TypeStorageVolume, authEntity.EntitlementCanManageSnapshots, "poolName", "type", "volumeName")},
 }
 
 // swagger:operation POST /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots storage storage_pool_volumes_type_snapshots_post
@@ -1483,7 +1482,7 @@ func volumeDetermineNextSnapshotName(s *state.State, volume db.StorageVolumeArgs
 	} else if count == 1 {
 		var i int
 		_ = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-			i = tx.GetNextStorageVolumeSnapshotIndex(ctx, volume.PoolName, volume.Name, cluster.StoragePoolVolumeTypeCustom, pattern)
+			i = tx.GetNextStorageVolumeSnapshotIndex(ctx, volume.PoolName, volume.Name, dbCluster.StoragePoolVolumeTypeCustom, pattern)
 
 			return nil
 		})
@@ -1524,7 +1523,7 @@ func volumeDetermineNextSnapshotName(s *state.State, volume db.StorageVolumeArgs
 			}
 
 			for _, project := range projects {
-				snaps, err := tx.GetLocalStoragePoolVolumeSnapshotsWithType(ctx, project, volume.Name, cluster.StoragePoolVolumeTypeCustom, poolID)
+				snaps, err := tx.GetLocalStoragePoolVolumeSnapshotsWithType(ctx, project, volume.Name, dbCluster.StoragePoolVolumeTypeCustom, poolID)
 				if err != nil {
 					return err
 				}
@@ -1552,7 +1551,7 @@ func volumeDetermineNextSnapshotName(s *state.State, volume db.StorageVolumeArgs
 		var i int
 
 		_ = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-			i = tx.GetNextStorageVolumeSnapshotIndex(ctx, volume.PoolName, volume.Name, cluster.StoragePoolVolumeTypeCustom, pattern)
+			i = tx.GetNextStorageVolumeSnapshotIndex(ctx, volume.PoolName, volume.Name, dbCluster.StoragePoolVolumeTypeCustom, pattern)
 
 			return nil
 		})

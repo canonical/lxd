@@ -13,6 +13,7 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
+	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -50,15 +51,15 @@ var identityCmd = APIEndpoint{
 	Path: "auth/identities/{authenticationMethod}/{nameOrIdentifier}",
 	Get: APIEndpointAction{
 		Handler:       getIdentity,
-		AccessHandler: identityAccessHandler(auth.EntitlementCanView),
+		AccessHandler: identityAccessHandler(authEntity.EntitlementCanView),
 	},
 	Put: APIEndpointAction{
 		Handler:       updateIdentity,
-		AccessHandler: identityAccessHandler(auth.EntitlementCanEdit),
+		AccessHandler: identityAccessHandler(authEntity.EntitlementCanEdit),
 	},
 	Patch: APIEndpointAction{
 		Handler:       patchIdentity,
-		AccessHandler: identityAccessHandler(auth.EntitlementCanEdit),
+		AccessHandler: identityAccessHandler(authEntity.EntitlementCanEdit),
 	},
 }
 
@@ -69,9 +70,9 @@ const (
 )
 
 // identityAccessHandler performs some initial validation of the request and gets the identity by its name or
-// identifier. If one is found, the identifier is used in the URL that is passed to (auth.Authorizer).CheckPermission.
+// identifier. If one is found, the identifier is used in the URL that is passed to (authEntity.Authorizer).CheckPermission.
 // The cluster.Identity is set in the request context.
-func identityAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
+func identityAccessHandler(entitlement authEntity.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		muxVars := mux.Vars(r)
 		authenticationMethod := muxVars["authenticationMethod"]
@@ -287,12 +288,12 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 
 	recursion := r.URL.Query().Get("recursion")
 	s := d.State()
-	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentity)
+	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeIdentity)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -424,7 +425,7 @@ func getIdentity(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
-	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -604,7 +605,7 @@ func updateIdentity(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
-	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -698,7 +699,7 @@ func patchIdentity(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
-	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(err)
 	}
