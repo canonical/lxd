@@ -108,11 +108,11 @@ const qemuPCIDeviceIDStart = 4
 // qemuDeviceIDPrefix used as part of the name given QEMU devices generated from user added devices.
 const qemuDeviceIDPrefix = "dev-lxd_"
 
-// qemuNetDevIDPrefix used as part of the name given QEMU netdevs generated from user added devices.
-const qemuNetDevIDPrefix = "lxd_"
+// qemuDeviceNamePrefix used as part of the name given QEMU blockdevs, netdevs and device tags generated from user added devices.
+const qemuDeviceNamePrefix = "lxd_"
 
-// qemuBlockDevIDPrefix used as part of the name given QEMU blockdevs generated from user added devices.
-const qemuBlockDevIDPrefix = "lxd_"
+// qemuDeviceNameMaxLength used to indicate the maximum length of a qemu block node name and device tags.
+const qemuDeviceNameMaxLength = 31
 
 // qemuMigrationNBDExportName is the name of the disk device export by the migration NBD server.
 const qemuMigrationNBDExportName = "lxd_root"
@@ -2180,7 +2180,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 func (d *qemu) deviceAttachPath(deviceName string) error {
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	mountTag := fmt.Sprintf("lxd_%s", deviceName)
+	mountTag := d.generateQemuDeviceName(deviceName)
 
 	// Detect virtiofsd path.
 	virtiofsdSockPath := filepath.Join(d.DevicesPath(), fmt.Sprintf("virtio-fs.%s.sock", deviceName))
@@ -2300,7 +2300,7 @@ func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error 
 func (d *qemu) deviceDetachPath(deviceName string) error {
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	mountTag := fmt.Sprintf("lxd_%s", deviceName)
+	mountTag := d.generateQemuDeviceName(deviceName)
 
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -2343,7 +2343,7 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	blockDevName := d.blockNodeName(escapedDeviceName)
+	blockDevName := d.generateQemuDeviceName(escapedDeviceName)
 
 	err = monitor.RemoveFDFromFDSet(blockDevName)
 	if err != nil {
@@ -2526,7 +2526,7 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	netDevID := fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName)
+	netDevID := fmt.Sprintf("%s%s", qemuDeviceNamePrefix, escapedDeviceName)
 
 	// Request removal of device.
 	err = monitor.RemoveDevice(deviceID)
@@ -3724,7 +3724,7 @@ func (d *qemu) addRootDriveConfig(qemuDev map[string]string, mountInfo *storageP
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
 func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os.File, agentMounts *[]instancetype.VMAgentMount, driveConf deviceConfig.MountEntryItem) error {
-	mountTag := fmt.Sprintf("lxd_%s", driveConf.DevName)
+	mountTag := d.generateQemuDeviceName(driveConf.DevName)
 
 	agentMount := instancetype.VMAgentMount{
 		Source: mountTag,
@@ -3952,7 +3952,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 		},
 		"discard":   "unmap", // Forward as an unmap request. This is the same as `discard=on` in the qemu config file.
 		"driver":    "file",
-		"node-name": d.blockNodeName(escapedDeviceName),
+		"node-name": d.generateQemuDeviceName(escapedDeviceName),
 		"read-only": false,
 	}
 
@@ -4067,7 +4067,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 	}
 
 	qemuDev["drive"] = qemuDevDrive
-	qemuDev["serial"] = fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, escapedDeviceName)
+	qemuDev["serial"] = fmt.Sprintf("%s%s", qemuDeviceNamePrefix, escapedDeviceName)
 
 	if bus == "virtio-scsi" {
 		qemuDev["channel"] = "0"
@@ -4112,7 +4112,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 		revert := revert.New()
 		defer revert.Fail()
 
-		nodeName := fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, escapedDeviceName)
+		nodeName := fmt.Sprintf("%s%s", qemuDeviceNamePrefix, escapedDeviceName)
 
 		if isRBDImage {
 			secretID := fmt.Sprintf("pool_%s_%s", blockDev["pool"], blockDev["user"])
@@ -4308,7 +4308,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 			}
 
 			qemuNetDev := map[string]any{
-				"id":    fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName),
+				"id":    fmt.Sprintf("%s%s", qemuDeviceNamePrefix, escapedDeviceName),
 				"type":  "tap",
 				"vhost": vhostNetEnabled,
 			}
@@ -8686,7 +8686,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 
 	// Check io_uring feature.
 	blockDev := map[string]any{
-		"node-name": d.blockNodeName("feature-check"),
+		"node-name": d.generateQemuDeviceName("feature-check"),
 		"driver":    "file",
 		"filename":  blockDevPath.Name(),
 		"aio":       "io_uring",
@@ -8907,9 +8907,10 @@ func (d *qemu) deviceDetachUSB(usbDev deviceConfig.USBDeviceItem) error {
 	return nil
 }
 
-// Block node names may only be up to 31 characters long, so use a hash if longer.
-func (d *qemu) blockNodeName(name string) string {
-	if len(name) > 27 {
+// Block node names and device tags may only be up to 31 characters long, so use a hash if longer.
+func (d *qemu) generateQemuDeviceName(name string) string {
+	maxNameLength := qemuDeviceNameMaxLength - len(qemuDeviceNamePrefix)
+	if len(name) > maxNameLength {
 		// If the name is too long, hash it as SHA-256 (32 bytes).
 		// Then encode the SHA-256 binary hash as Base64 Raw URL format and trim down to 27 chars.
 		// Raw URL avoids the use of "+" character and the padding "=" character which QEMU doesn't allow.
@@ -8917,11 +8918,11 @@ func (d *qemu) blockNodeName(name string) string {
 		hash.Write([]byte(name))
 		binaryHash := hash.Sum(nil)
 		name = base64.RawURLEncoding.EncodeToString(binaryHash)
-		name = name[0:27]
+		name = name[0:maxNameLength]
 	}
 
 	// Apply the lxd_ prefix.
-	return fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, name)
+	return fmt.Sprintf("%s%s", qemuDeviceNamePrefix, name)
 }
 
 func (d *qemu) setCPUs(count int) error {
