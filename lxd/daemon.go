@@ -1298,6 +1298,12 @@ func (d *Daemon) init() error {
 		version.UserAgentFeatures([]string{"cluster"})
 	}
 
+	// Apply all patches that need to be run before the cluster config gets loaded.
+	err = patchesApply(d, patchPreLoadClusterConfig)
+	if err != nil {
+		return err
+	}
+
 	// Load server name and config before patches run (so they can access them from d.State()).
 	err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		config, err := clusterConfig.Load(ctx, tx)
