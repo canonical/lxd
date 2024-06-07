@@ -479,7 +479,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   ### Configuration: unprivileged containers
   pivot_root,
 
-  # Allow modifying mount propagation
+  # Allow unlimited modification of mount propagation
   mount options=(rw,slave) -> /{,**},
   mount options=(rw,rslave) -> /{,**},
   mount options=(rw,shared) -> /{,**},
@@ -522,6 +522,19 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   # Allow remounting things read-only
   mount options=(ro,remount) /,
   mount options=(ro,remount) /**,
+{{- else }}
+
+  ### Configuration: privileged containers
+
+  # Allow limited modification of mount propagation
+  mount options=(rw,slave) -> /,
+  mount options=(rw,rslave) -> /,
+  mount options=(rw,shared) -> /,
+  mount options=(rw,rshared) -> /,
+  mount options=(rw,private) -> /,
+  mount options=(rw,rprivate) -> /,
+  mount options=(rw,unbindable) -> /,
+  mount options=(rw,runbindable) -> /,
 {{- end }}
 
 {{- if .raw }}
