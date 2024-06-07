@@ -63,6 +63,7 @@ storage_pools:
   description: ""
   name: ${storage_pool}
   driver: ${driver}
+storage_volumes: []
 profiles:
 - config: {}
   description: Default LXD profile
