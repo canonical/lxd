@@ -37,6 +37,7 @@ type patchStage int
 // Define the stages that patches can run at.
 const (
 	patchNoStageSet patchStage = iota
+	patchPreLoadClusterConfig
 	patchPreDaemonStorage
 	patchPostDaemonStorage
 	patchPostNetworks
