@@ -114,8 +114,10 @@ test_image_import_existing_alias() {
     lxc delete c
     lxc image export testimage testimage.file
     lxc image delete testimage
+    # XXX: ensure_import_testimage imports a `.tar.xz` image which is why once exported, those extensions are appended
     # the image can be imported with an existing alias
-    lxc image import testimage.file --alias newimage
+    lxc image import testimage.file.tar.xz --alias newimage
+    rm testimage.file.tar.xz
     lxc image delete newimage image2
 }
 
