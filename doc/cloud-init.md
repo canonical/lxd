@@ -248,32 +248,6 @@ config:
       - name: documentation_example
 ```
 
-(cloud-init-lxd-agent)=
-#### Enable the LXD agent
-
-The {ref}`VM images provided by LXD <remote-image-servers>` typically have the LXD agent enabled.
-However, if you use an image or ISO that does not include the LXD agent to create your VM, you can enable the LXD agent as follows:
-
-```yaml
-config:
-  cloud-init.user-data: |
-    #cloud-config
-    runcmd:
-      - mount -t 9p config /mnt
-      - cd /mnt
-      - ./install.sh
-      - cd /
-      - umount /mnt
-      - systemctl start lxd-agent
-```
-
-```{note}
-For these commands to work, the VM must be running a Linux distribution that uses `systemd`.
-
-Depending on the version of `cloud-init` that the distribution has, you might need to add the `config` disk device explicitly.
-See [VM `cloud-init`](vm-cloud-init-config) for instructions.
-```
-
 ## How to specify network configuration data
 
 By default, `cloud-init` configures a DHCP client on an instance's `eth0` interface.
