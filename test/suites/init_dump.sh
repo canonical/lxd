@@ -87,6 +87,16 @@ profiles:
       parent: lxdt$$
       type: nic
   name: test-profile
+projects:
+- config:
+    features.images: "true"
+    features.networks: "true"
+    features.networks.zones: "true"
+    features.profiles: "true"
+    features.storage.buckets: "true"
+    features.storage.volumes: "true"
+  description: Default LXD project
+  name: default
 
 EOF
 
