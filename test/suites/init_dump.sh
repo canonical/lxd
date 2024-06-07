@@ -54,7 +54,6 @@ networks:
     ipv4.address: none
     ipv6.address: none
   description: ""
-  managed: true
   name: lxdt$$
   type: bridge
 storage_pools:
