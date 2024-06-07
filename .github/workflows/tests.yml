@@ -127,7 +127,7 @@ jobs:
 
           # bin/min/max (sizes are in MiB)
           SIZES="lxc 13 14
-                 lxd-agent 16 17"
+                 lxd-agent 11 12"
           MIB="$((1024 * 1024))"
 
           while read -r bin min max; do
@@ -158,6 +158,7 @@ jobs:
           set -eux
           sudo chmod o+w ./lxd/metadata/configuration.json
           sudo chmod o+w ./doc/config_options.txt
+          sudo chmod o+w ./lxd/auth/entity/
           make static-analysis
 
       - name: Unit tests (all)
@@ -244,7 +245,7 @@ jobs:
         if: matrix.go == '1.22.x'
         run: |
           set -eux
-          go mod tidy -go=1.22.0
+          go mod tidy -go=1.22.3
 
       - name: Install dependencies
         run: |
@@ -493,6 +494,7 @@ jobs:
           make doc-lint
 
       - name: Build docs (Sphinx)
+        shell: 'script -q -e -c "export TERM=xterm-256color; bash {0}"'
         run: |
           set -eux
           make doc
@@ -512,6 +514,7 @@ jobs:
       - name: Run link checker
         # Run link checker on PRs only
         if: ${{ github.event_name != 'push' }}
+        shell: 'script -q -e -c "export TERM=xterm-256color; bash {0}"'
         run: |
           set -eux
           make doc-linkcheck

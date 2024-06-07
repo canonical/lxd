@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/canonical/lxd/lxd/auth"
+	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	"github.com/canonical/lxd/lxd/backup"
 	backupConfig "github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/db"
@@ -32,13 +32,13 @@ import (
 var internalRecoverValidateCmd = APIEndpoint{
 	Path: "recover/validate",
 
-	Post: APIEndpointAction{Handler: internalRecoverValidate, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Post: APIEndpointAction{Handler: internalRecoverValidate, AccessHandler: allowPermission(entity.TypeServer, authEntity.EntitlementCanEdit)},
 }
 
 var internalRecoverImportCmd = APIEndpoint{
 	Path: "recover/import",
 
-	Post: APIEndpointAction{Handler: internalRecoverImport, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Post: APIEndpointAction{Handler: internalRecoverImport, AccessHandler: allowPermission(entity.TypeServer, authEntity.EntitlementCanEdit)},
 }
 
 // init recover adds API endpoints to handler slice.
@@ -155,39 +155,39 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 	for _, p := range userPools {
 		pool, err := storagePools.LoadByName(s, p.Name)
 		if err != nil {
-			if response.IsNotFoundError(err) {
-				// If the pool DB record doesn't exist, and we are clustered, then don't proceed
-				// any further as we do not support pool DB record recovery when clustered.
-				if s.ServerClustered {
-					return response.BadRequest(fmt.Errorf("Storage pool recovery not supported when clustered"))
-				}
-
-				// If pool doesn't exist in DB, initialise a temporary pool with the supplied info.
-				poolInfo := api.StoragePool{
-					Name:   p.Name,
-					Driver: p.Driver,
-					Status: api.StoragePoolStatusCreated,
-				}
-
-				poolInfo.SetWritable(p.StoragePoolPut)
-
-				pool, err = storagePools.NewTemporary(s, &poolInfo)
-				if err != nil {
-					return response.SmartError(fmt.Errorf("Failed to initialise unknown pool %q: %w", p.Name, err))
-				}
-
-				// Populate configuration with default values.
-				err := pool.Driver().FillConfig()
-				if err != nil {
-					return response.SmartError(fmt.Errorf("Failed to evaluate the default configuration values for unknown pool %q: %w", p.Name, err))
-				}
-
-				err = pool.Driver().Validate(poolInfo.Config)
-				if err != nil {
-					return response.SmartError(fmt.Errorf("Failed config validation for unknown pool %q: %w", p.Name, err))
-				}
-			} else {
+			if !response.IsNotFoundError(err) {
 				return response.SmartError(fmt.Errorf("Failed loading existing pool %q: %w", p.Name, err))
+			}
+
+			// If the pool DB record doesn't exist, and we are clustered, then don't proceed
+			// any further as we do not support pool DB record recovery when clustered.
+			if s.ServerClustered {
+				return response.BadRequest(fmt.Errorf("Storage pool recovery not supported when clustered"))
+			}
+
+			// If pool doesn't exist in DB, initialise a temporary pool with the supplied info.
+			poolInfo := api.StoragePool{
+				Name:   p.Name,
+				Driver: p.Driver,
+				Status: api.StoragePoolStatusCreated,
+			}
+
+			poolInfo.SetWritable(p.StoragePoolPut)
+
+			pool, err = storagePools.NewTemporary(s, &poolInfo)
+			if err != nil {
+				return response.SmartError(fmt.Errorf("Failed to initialise unknown pool %q: %w", p.Name, err))
+			}
+
+			// Populate configuration with default values.
+			err := pool.Driver().FillConfig()
+			if err != nil {
+				return response.SmartError(fmt.Errorf("Failed to evaluate the default configuration values for unknown pool %q: %w", p.Name, err))
+			}
+
+			err = pool.Driver().Validate(poolInfo.Config)
+			if err != nil {
+				return response.SmartError(fmt.Errorf("Failed config validation for unknown pool %q: %w", p.Name, err))
 			}
 		}
 
@@ -204,7 +204,7 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 		// This way if we are dealing with an existing pool or have successfully created the DB record then
 		// we won't unmount it. As we should leave successfully imported pools mounted.
 		if ourMount {
-			defer func() {
+			defer func() { //nolint:revive
 				cleanupPool := pools[pool.Name()]
 				if cleanupPool != nil && cleanupPool.ID() == storagePools.PoolIDTemporary {
 					_, _ = cleanupPool.Unmount()
@@ -239,13 +239,13 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 			var profileProjectname string
 			var networkProjectName string
 
-			if projectInfo != nil {
-				profileProjectname = project.ProfileProjectFromRecord(projectInfo)
-				networkProjectName = project.NetworkProjectFromRecord(projectInfo)
-			} else {
+			if projectInfo == nil {
 				addDependencyError(fmt.Errorf("Project %q", projectName))
 				continue // Skip further validation if project is missing.
 			}
+
+			profileProjectname = project.ProfileProjectFromRecord(projectInfo)
+			networkProjectName = project.NetworkProjectFromRecord(projectInfo)
 
 			for _, poolVol := range poolVols {
 				if poolVol.Container == nil {

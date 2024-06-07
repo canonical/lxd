@@ -709,20 +709,20 @@ func (d Xtables) aclRuleSubjectToACLMatch(direction string, ipVersion uint, subj
 			ip, _, _ = net.ParseCIDR(subjectCriterion)
 		}
 
-		if ip != nil {
-			var subjectIPVersion uint = 4
-			if ip.To4() == nil {
-				subjectIPVersion = 6
-			}
-
-			if ipVersion != subjectIPVersion {
-				continue // Skip subjects that not for the xtables tool we are using.
-			}
-
-			fieldParts = append(fieldParts, subjectCriterion)
-		} else {
+		if ip == nil {
 			return nil, fmt.Errorf("Unsupported xtables subject %q", subjectCriterion)
 		}
+
+		var subjectIPVersion uint = 4
+		if ip.To4() == nil {
+			subjectIPVersion = 6
+		}
+
+		if ipVersion != subjectIPVersion {
+			continue // Skip subjects that not for the xtables tool we are using.
+		}
+
+		fieldParts = append(fieldParts, subjectCriterion)
 	}
 
 	if len(fieldParts) > 0 {
@@ -1097,7 +1097,7 @@ func (d Xtables) generateFilterEbtablesRules(hostName string, hwAddr string, IPv
 func (d Xtables) generateFilterIptablesRules(parentName string, hostName string, hwAddr string, IPv6Nets []*net.IPNet, parentManaged bool) (rules [][]string, err error) {
 	mac, err := net.ParseMAC(hwAddr)
 	if err != nil {
-		return
+		return [][]string{}, err
 	}
 
 	macHex := hex.EncodeToString(mac)
@@ -1152,7 +1152,7 @@ func (d Xtables) generateFilterIptablesRules(parentName string, hostName string,
 		}
 	}
 
-	return
+	return [][]string{}, err
 }
 
 // matchEbtablesRule compares an active rule to a supplied match rule to see if they match.
@@ -1421,7 +1421,7 @@ func (d Xtables) InstanceClearNetPrio(projectName string, instanceName string, d
 }
 
 // iptablesChainExists checks whether a chain exists in a table, and whether it has any rules.
-func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string) (bool, bool, error) {
+func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string) (exists, hasRules bool, err error) {
 	var cmd string
 	if ipVersion == 4 {
 		cmd = "iptables"
@@ -1431,7 +1431,7 @@ func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string)
 		return false, false, fmt.Errorf("Invalid IP version")
 	}
 
-	_, err := exec.LookPath(cmd)
+	_, err = exec.LookPath(cmd)
 	if err != nil {
 		return false, false, fmt.Errorf("Failed checking %q chain %q exists in table %q: %w", cmd, chain, table, err)
 	}

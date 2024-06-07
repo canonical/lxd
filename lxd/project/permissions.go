@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/canonical/lxd/lxd/auth"
+	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
@@ -1467,7 +1467,7 @@ var aggregateLimitConfigValuePrinters = map[string]func(int64) string{
 }
 
 // FilterUsedBy filters a UsedBy list based on the entities that the requestor is able to view.
-func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string) []string {
+func FilterUsedBy(authorizer authEntity.Authorizer, r *http.Request, entries []string) []string {
 	// Get a map of URLs by entity type. If there are multiple entries of a particular entity type we can reduce the
 	// number of calls to the authorizer.
 	urlsByEntityType := make(map[entity.Type][]*api.URL)
@@ -1510,7 +1510,7 @@ func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string)
 	for entityType, urls := range urlsByEntityType {
 		// If only one entry of this type, check directly.
 		if len(urls) == 1 {
-			err := authorizer.CheckPermission(r.Context(), r, urls[0], auth.EntitlementCanView)
+			err := authorizer.CheckPermission(r.Context(), r, urls[0], authEntity.EntitlementCanView)
 			if err != nil {
 				continue
 			}
@@ -1520,9 +1520,10 @@ func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string)
 		}
 
 		// Otherwise get a permission checker for the entity type.
-		canViewEntity, err := authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entityType)
+		canViewEntity, err := authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entityType)
 		if err != nil {
-			logger.Warn("Failed to get permission checker for project used-by filtering", logger.Ctx{"entity_type": entityType, "error": err})
+			logger.Error("Failed to get permission checker for project used-by filtering", logger.Ctx{"entity_type": entityType, "error": err})
+			continue
 		}
 
 		// Check each url and append.
@@ -1555,11 +1556,11 @@ func projectHasRestriction(project *api.Project, restrictionKey string, blockVal
 }
 
 // CheckClusterTargetRestriction check if user is allowed to use cluster member targeting.
-func CheckClusterTargetRestriction(authorizer auth.Authorizer, r *http.Request, project *api.Project, targetFlag string) error {
+func CheckClusterTargetRestriction(authorizer authEntity.Authorizer, r *http.Request, project *api.Project, targetFlag string) error {
 	if projectHasRestriction(project, "restricted.cluster.target", "block") && targetFlag != "" {
 		// Allow server administrators to move instances around even when restricted (node evacuation, ...)
-		err := authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanOverrideClusterTargetRestriction)
-		if err != nil && auth.IsDeniedError(err) {
+		err := authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), authEntity.EntitlementCanOverrideClusterTargetRestriction)
+		if err != nil && authEntity.IsDeniedError(err) {
 			return api.StatusErrorf(http.StatusForbidden, "This project doesn't allow cluster member targeting")
 		} else if err != nil {
 			return err
@@ -1683,7 +1684,7 @@ func CheckTargetGroup(ctx context.Context, tx *db.ClusterTx, p *api.Project, gro
 // If target is a cluster member and is found in allMembers it returns the resolved node information object.
 // If target is a cluster group it returns the cluster group name.
 // In case of error, neither node information nor cluster group name gets returned.
-func CheckTarget(ctx context.Context, authorizer auth.Authorizer, r *http.Request, tx *db.ClusterTx, p *api.Project, target string, allMembers []db.NodeInfo) (*db.NodeInfo, string, error) {
+func CheckTarget(ctx context.Context, authorizer authEntity.Authorizer, r *http.Request, tx *db.ClusterTx, p *api.Project, target string, allMembers []db.NodeInfo) (*db.NodeInfo, string, error) {
 	targetMemberName, targetGroupName := shared.TargetDetect(target)
 
 	// Check manual cluster member targeting restrictions.

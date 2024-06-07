@@ -5,12 +5,13 @@ package auth
 import (
 	"fmt"
 
+	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/entity"
 )
 
 // ValidateEntitlement returns an error if the given Entitlement does not apply to the entity.Type.
-func ValidateEntitlement(entityType entity.Type, entitlement Entitlement) error {
+func ValidateEntitlement(entityType entity.Type, entitlement authEntity.Entitlement) error {
 	entitlements := EntitlementsByEntityType(entityType)
 	if len(entitlements) == 0 {
 		return fmt.Errorf("No entitlements can be granted against entities of type %q", entityType)
@@ -24,6 +25,6 @@ func ValidateEntitlement(entityType entity.Type, entitlement Entitlement) error 
 }
 
 // EntitlementsByEntityType returns a list of available Entitlement for the entity.Type.
-func EntitlementsByEntityType(entityType entity.Type) []Entitlement {
-	return entityTypeToEntitlements[entityType]
+func EntitlementsByEntityType(entityType entity.Type) []authEntity.Entitlement {
+	return authEntity.EntityTypeToEntitlements[entityType]
 }
