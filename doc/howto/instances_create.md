@@ -344,8 +344,16 @@ Now the VM can be rebooted, and it will boot from disk.
 <!-- iso_vm_step7 end -->
 
 <!-- iso_vm_step8 start -->
-If the VM installed from an ISO is a Linux distribution using `systemd`, it is possible to install the LXD agent inside of it. This can be done manually or with the help of `cloud-init` (see {ref}`cloud-init-lxd-agent` for instructions).
+If the VM installed from an ISO is a Linux distribution using `systemd`, it is possible to install the LXD agent inside of it. This can be done manually as the root user inside the VM:
 <!-- iso_vm_step8 end -->
+
+    mount -t 9p config /mnt
+    cd /mnt
+    ./install.sh
+    cd /
+    umount /mnt
+    systemctl start lxd-agent
+
 
 ````
 ````{group-tab} API
