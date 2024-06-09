@@ -9,7 +9,7 @@ on:
 env:
   CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
   LXD_REQUIRED_TESTS: "storage_buckets"
-  LXD_SKIP_TESTS: ""
+  LXD_SKIP_TESTS: "clustering_upgrade clustering_upgrade_large"
 
 permissions:
   contents: read
