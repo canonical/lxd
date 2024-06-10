@@ -52,7 +52,7 @@ The URL must use HTTPS.
 <!-- Include start add remotes -->
 To add a LXD server as a remote, enter the following command:
 
-    lxc remote add <remote_name> <IP|FQDN|URL> [flags]
+    lxc remote add <remote_name> <IP|FQDN|URL|token> [flags]
 
 Some authentication methods require specific flags (for example, use [`lxc remote add <remote_name> <IP|FQDN|URL> --auth-type=oidc`](lxc_remote_add.md) for OIDC authentication).
 See {ref}`server-authenticate` and {ref}`authentication` for more information.
