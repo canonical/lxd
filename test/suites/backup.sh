@@ -336,11 +336,11 @@ EOF
 }
 
 test_backup_import() {
-  test_backup_import_with_project
-  test_backup_import_with_project fooproject
+  _backup_import_with_project
+  _backup_import_with_project fooproject
 }
 
-test_backup_import_with_project() {
+_backup_import_with_project() {
   project="default"
   pool="lxdtest-$(basename "${LXD_DIR}")"
 
@@ -526,11 +526,11 @@ test_backup_import_with_project() {
 }
 
 test_backup_export() {
-  test_backup_export_with_project
-  test_backup_export_with_project fooproject
+  _backup_export_with_project
+  _backup_export_with_project fooproject
 }
 
-test_backup_export_with_project() {
+_backup_export_with_project() {
   project="default"
 
   if [ "$#" -ne 0 ]; then
@@ -654,21 +654,21 @@ test_backup_rename() {
 }
 
 test_backup_volume_export() {
-  test_backup_volume_export_with_project default "lxdtest-$(basename "${LXD_DIR}")"
-  test_backup_volume_export_with_project fooproject "lxdtest-$(basename "${LXD_DIR}")"
+  _backup_volume_export_with_project default "lxdtest-$(basename "${LXD_DIR}")"
+  _backup_volume_export_with_project fooproject "lxdtest-$(basename "${LXD_DIR}")"
 
   if [ "$lxd_backend" = "ceph" ] && [ -n "${LXD_CEPH_CEPHFS:-}" ]; then
     custom_vol_pool="lxdtest-$(basename "${LXD_DIR}")-cephfs"
     lxc storage create "${custom_vol_pool}" cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")-cephfs"
 
-    test_backup_volume_export_with_project default "${custom_vol_pool}"
-    test_backup_volume_export_with_project fooproject "${custom_vol_pool}"
+    _backup_volume_export_with_project default "${custom_vol_pool}"
+    _backup_volume_export_with_project fooproject "${custom_vol_pool}"
 
     lxc storage rm "${custom_vol_pool}"
   fi
 }
 
-test_backup_volume_export_with_project() {
+_backup_volume_export_with_project() {
   pool="lxdtest-$(basename "${LXD_DIR}")"
   project="$1"
   custom_vol_pool="$2"

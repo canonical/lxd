@@ -44,6 +44,9 @@ profiles:
       type: nic
 EOF
   lxd init --dump > config.yaml
+
+  # XXX: mangle the trust_password field as a workaround
+  sed -i 's/^\( *core.trust_password\): .\+$/\1: true/' config.yaml
 cat <<EOF > expected.yaml
 config:
   core.https_address: 127.0.0.1:9999
@@ -54,15 +57,16 @@ networks:
     ipv4.address: none
     ipv6.address: none
   description: ""
-  managed: true
   name: lxdt$$
   type: bridge
+  project: default
 storage_pools:
 - config:
     source: ${LXD_DIR}/storage-pools/${storage_pool}
   description: ""
   name: ${storage_pool}
   driver: ${driver}
+storage_volumes: []
 profiles:
 - config: {}
   description: Default LXD profile
@@ -86,6 +90,16 @@ profiles:
       parent: lxdt$$
       type: nic
   name: test-profile
+projects:
+- config:
+    features.images: "true"
+    features.networks: "true"
+    features.networks.zones: "true"
+    features.profiles: "true"
+    features.storage.buckets: "true"
+    features.storage.volumes: "true"
+  description: Default LXD project
+  name: default
 
 EOF
 

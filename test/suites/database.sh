@@ -1,5 +1,5 @@
 # Test restore database backups after a failed upgrade.
-test_database_restore(){
+test_database_restore() {
   LXD_RESTORE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
 
   spawn_lxd "${LXD_RESTORE_DIR}" true
@@ -42,7 +42,7 @@ EOF
   kill_lxd "${LXD_RESTORE_DIR}"
 }
 
-test_database_no_disk_space(){
+test_database_no_disk_space() {
   # shellcheck disable=2039,3043
   local LXD_DIR
 

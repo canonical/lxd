@@ -144,6 +144,12 @@ spawn_lxd "${LXD_DIR}" true
 LXD_ADDR=$(cat "${LXD_DIR}/lxd.addr")
 export LXD_ADDR
 
+LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
+export LXD_SKIP_TESTS
+
+LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
+export LXD_REQUIRED_TESTS
+
 run_test() {
   TEST_CURRENT=${1}
   TEST_CURRENT_DESCRIPTION=${2:-${1}}
@@ -212,6 +218,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_basic_usage "basic usage"
     run_test test_server_info "server info"
     run_test test_remote_url "remote url handling"
+    run_test test_remote_url_with_token "remote token handling"
     run_test test_remote_admin "remote administration"
     run_test test_remote_usage "remote usage"
 fi
@@ -245,7 +252,8 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_edit_configuration "clustering config edit"
     run_test test_clustering_remove_members "clustering config remove members"
     run_test test_clustering_autotarget "clustering autotarget member"
-    # run_test test_clustering_upgrade "clustering upgrade"
+    run_test test_clustering_upgrade "clustering upgrade"
+    run_test test_clustering_upgrade_large "clustering upgrade_large"
     run_test test_clustering_groups "clustering groups"
     run_test test_clustering_events "clustering events"
     run_test test_clustering_uuid "clustering uuid"
@@ -253,6 +261,7 @@ fi
 
 if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_projects_default "default project"
+    run_test test_projects_copy "copy/move between projects"
     run_test test_projects_crud "projects CRUD operations"
     run_test test_projects_containers "containers inside projects"
     run_test test_projects_snapshots "snapshots inside projects"
@@ -294,6 +303,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_image_auto_update "image auto-update"
     run_test test_image_prefer_cached "image prefer cached"
     run_test test_image_import_dir "import image from directory"
+    run_test test_image_import_existing_alias "import existing image from alias"
     run_test test_image_refresh "image refresh"
     run_test test_image_acl "image acl"
     run_test test_cloud_init "cloud-init"
@@ -329,6 +339,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_storage "storage"
     run_test test_storage_volume_snapshots "storage volume snapshots"
     run_test test_init_auto "lxd init auto"
+    run_test test_init_dump "lxd init dump"
     run_test test_init_interactive "lxd init interactive"
     run_test test_init_preseed "lxd init preseed"
     run_test test_storage_profiles "storage profiles"

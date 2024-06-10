@@ -1,4 +1,4 @@
-test_image_nil_profile_list() {
+_image_nil_profile_list() {
   # Launch container with default profile list and check its profiles
   ensure_import_testimage
   lxc launch testimage c1
@@ -9,7 +9,7 @@ test_image_nil_profile_list() {
   lxc image delete testimage
 }
 
-test_image_empty_profile_list() {
+_image_empty_profile_list() {
   # Set the profiles to be an empty list
   ensure_import_testimage
   lxc image show testimage | sed "s/profiles.*/profiles: []/; s/- default//" | lxc image edit testimage
@@ -28,7 +28,7 @@ test_image_empty_profile_list() {
   lxc image delete testimage
 }
 
-test_image_alternate_profile_list() {
+_image_alternate_profile_list() {
   # Add three new profiles to the profile list
   ensure_import_testimage
   lxc profile create p1
@@ -58,9 +58,9 @@ test_image_alternate_profile_list() {
 
 test_profiles_project_default() {
   lxc project switch default
-  test_image_nil_profile_list
-  test_image_empty_profile_list
-  test_image_alternate_profile_list
+  _image_nil_profile_list
+  _image_empty_profile_list
+  _image_alternate_profile_list
 }
 
 test_profiles_project_images_profiles() {
@@ -69,9 +69,9 @@ test_profiles_project_images_profiles() {
   storage=$(lxc storage list | grep "^| " | tail -n 1 | cut -d' ' -f2)
   lxc profile device add default root disk path=/ pool="$storage"
 
-  test_image_nil_profile_list
-  test_image_empty_profile_list
-  test_image_alternate_profile_list
+  _image_nil_profile_list
+  _image_empty_profile_list
+  _image_alternate_profile_list
 
   lxc project switch default
   lxc project delete project1
@@ -82,9 +82,9 @@ test_profiles_project_images() {
   lxc project create project1 -c features.profiles=false
   lxc project switch project1
 
-  test_image_nil_profile_list
-  test_image_empty_profile_list
-  test_image_alternate_profile_list
+  _image_nil_profile_list
+  _image_empty_profile_list
+  _image_alternate_profile_list
 
   lxc project switch default
   lxc project delete project1
@@ -96,9 +96,9 @@ test_profiles_project_profiles() {
   storage=$(lxc storage list | grep "^| " | tail -n 1 | cut -d' ' -f2)
   lxc profile device add default root disk path=/ pool="$storage"
 
-  test_image_nil_profile_list
-  test_image_empty_profile_list
-  test_image_alternate_profile_list
+  _image_nil_profile_list
+  _image_empty_profile_list
+  _image_alternate_profile_list
 
   lxc project switch default
   lxc project delete project1
