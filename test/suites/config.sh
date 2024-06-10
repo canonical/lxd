@@ -1,4 +1,4 @@
-ensure_removed() {
+_ensure_removed() {
   bad=0
   lxc exec foo -- stat /dev/ttyS0 && bad=1
   if [ "${bad}" -eq 1 ]; then
@@ -7,42 +7,42 @@ ensure_removed() {
   fi
 }
 
-dounixdevtest() {
+_unix_dev_test() {
     lxc start foo
     lxc config device add foo tty unix-char "$@"
     lxc exec foo -- stat /dev/ttyS0
     lxc restart foo --force
     lxc exec foo -- stat /dev/ttyS0
     lxc config device remove foo tty
-    ensure_removed "was not hot-removed"
+    _ensure_removed "was not hot-removed"
     lxc restart foo --force
-    ensure_removed "removed device re-appeared after container reboot"
+    _ensure_removed "removed device re-appeared after container reboot"
     lxc stop foo --force
 }
 
-testunixdevs() {
+_unix_devs() {
   if [ ! -e /dev/ttyS0 ] || [ ! -e /dev/ttyS1 ]; then
      echo "==> SKIP: /dev/ttyS0 or /dev/ttyS1 are missing"
      return
   fi
 
   echo "Testing passing char device /dev/ttyS0"
-  dounixdevtest path=/dev/ttyS0
+  _unix_dev_test path=/dev/ttyS0
 
   echo "Testing passing char device 4 64"
-  dounixdevtest path=/dev/ttyS0 major=4 minor=64
+  _unix_dev_test path=/dev/ttyS0 major=4 minor=64
 
   echo "Testing passing char device source=/dev/ttyS0"
-  dounixdevtest source=/dev/ttyS0
+  _unix_dev_test source=/dev/ttyS0
 
   echo "Testing passing char device path=/dev/ttyS0 source=/dev/ttyS0"
-  dounixdevtest path=/dev/ttyS0 source=/dev/ttyS0
+  _unix_dev_test path=/dev/ttyS0 source=/dev/ttyS0
 
   echo "Testing passing char device path=/dev/ttyS0 source=/dev/ttyS1"
-  dounixdevtest path=/dev/ttyS0 source=/dev/ttyS1
+  _unix_dev_test path=/dev/ttyS0 source=/dev/ttyS1
 }
 
-ensure_fs_unmounted() {
+_ensure_fs_unmounted() {
   bad=0
   lxc exec foo -- stat /mnt/hello && bad=1
   if [ "${bad}" -eq 1 ]; then
@@ -51,7 +51,7 @@ ensure_fs_unmounted() {
   fi
 }
 
-testloopmounts() {
+_loop_mounts() {
   loopfile=$(mktemp -p "${TEST_DIR}" loop_XXX)
   dd if=/dev/zero of="${loopfile}" bs=1M seek=200 count=1
   mkfs.ext4 -F "${loopfile}"
@@ -78,15 +78,15 @@ testloopmounts() {
   lxc restart foo --force
   lxc exec foo -- stat /mnt/hello
   lxc config device remove foo mnt
-  ensure_fs_unmounted "fs should have been hot-unmounted"
+  _ensure_fs_unmounted "fs should have been hot-unmounted"
   lxc restart foo --force
-  ensure_fs_unmounted "removed fs re-appeared after restart"
+  _ensure_fs_unmounted "removed fs re-appeared after restart"
   lxc stop foo --force
   losetup -d "${lpath}"
   sed -i "\\|^${lpath}|d" "${TEST_DIR}/loops"
 }
 
-test_mount_order() {
+_mount_order() {
   mkdir -p "${TEST_DIR}/order/empty"
   mkdir -p "${TEST_DIR}/order/full"
   touch "${TEST_DIR}/order/full/filler"
@@ -245,11 +245,11 @@ test_config_profiles() {
   lxc config set user.foo bar
   lxc config unset user.foo
 
-  testunixdevs
+  _unix_devs
 
-  testloopmounts
+  _loop_mounts
 
-  test_mount_order
+  _mount_order
 
   lxc delete foo
 
