@@ -52,7 +52,7 @@ require (
 	golang.org/x/sync v0.7.0
 	golang.org/x/sys v0.20.0
 	golang.org/x/term v0.20.0
-	golang.org/x/text v0.15.0
+	golang.org/x/text v0.16.0
 	google.golang.org/protobuf v1.34.1
 	gopkg.in/juju/environschema.v1 v1.0.1
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
@@ -123,9 +123,9 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20240205201215-2c58cdc269a3 // indirect
-	golang.org/x/mod v0.16.0 // indirect
-	golang.org/x/net v0.23.0 // indirect
-	golang.org/x/tools v0.19.0 // indirect
+	golang.org/x/mod v0.17.0 // indirect
+	golang.org/x/net v0.25.0 // indirect
+	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240116215550-a9fa1716bcac // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240205150955-31a09d347014 // indirect
 	google.golang.org/grpc v1.61.0 // indirect
