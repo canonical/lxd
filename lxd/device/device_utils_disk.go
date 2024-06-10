@@ -30,7 +30,7 @@ const RBDFormatPrefix = "rbd"
 const RBDFormatSeparator = " "
 
 // DiskParseRBDFormat parses an rbd formatted string, and returns the pool name, volume name, and list of options.
-func DiskParseRBDFormat(rbd string) (string, string, []string, error) {
+func DiskParseRBDFormat(rbd string) (poolName string, volumeName string, options []string, err error) {
 	if !strings.HasPrefix(rbd, fmt.Sprintf("%s%s", RBDFormatPrefix, RBDFormatSeparator)) {
 		return "", "", nil, fmt.Errorf("Invalid rbd format, missing prefix")
 	}
@@ -465,7 +465,7 @@ func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath st
 		return nil, nil, UnsupportedError{"SEV unsupported"}
 	}
 
-	// Trickery to handle paths > 107 chars.
+	// Trickery to handle paths > 108 chars.
 	socketFileDir, err := os.Open(filepath.Dir(socketPath))
 	if err != nil {
 		return nil, nil, err

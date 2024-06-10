@@ -102,3 +102,24 @@ func GetQemuFwPaths() ([]string, error) {
 
 	return qemuFwPaths, nil
 }
+
+// AddFileDescriptor adds a file path to the list of files to open and pass file descriptor to other processes.
+// Returns the file descriptor number that the other process will receive.
+func AddFileDescriptor(fdFiles *[]*os.File, file *os.File) int {
+	// Append the tap device file path to the list of files to be opened and passed to qemu.
+	*fdFiles = append(*fdFiles, file)
+	return 2 + len(*fdFiles) // Use 2+fdFiles count, as first user file descriptor is 3.
+}
+
+// ShortenedFilePath creates a shorter alternative path to a socket by using the file descriptor to the directory of the socket file.
+// Used to handle paths > 108 chars.
+// Files opened here must be closed outside this function once they are not needed anymore.
+func ShortenedFilePath(originalSockPath string, fdFiles *[]*os.File) (string, error) {
+	// Open a file descriptor to the socket file through O_PATH to avoid acessing the file descriptor to the sockfs inode.
+	socketFile, err := os.OpenFile(originalSockPath, unix.O_PATH|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return "", fmt.Errorf("Failed to open device socket file %q: %w", originalSockPath, err)
+	}
+
+	return fmt.Sprintf("/dev/fd/%d", AddFileDescriptor(fdFiles, socketFile)), nil
+}
