@@ -1226,7 +1226,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	// Add allocated QEMU vhost file descriptor.
-	vsockFD := d.addFileDescriptor(&fdFiles, vsockF)
+	vsockFD := util.AddFileDescriptor(&fdFiles, vsockF)
 
 	volatileSet := make(map[string]string)
 
@@ -1863,7 +1863,7 @@ func (d *qemu) setupSEV(fdFiles *[]*os.File) (*qemuSevOpts, error) {
 			return nil, err
 		}
 
-		dhCertFD = d.addFileDescriptor(fdFiles, dhCert)
+		dhCertFD = util.AddFileDescriptor(fdFiles, dhCert)
 	}
 
 	if d.expandedConfig["security.sev.session.data"] != "" {
@@ -1882,7 +1882,7 @@ func (d *qemu) setupSEV(fdFiles *[]*os.File) (*qemuSevOpts, error) {
 			return nil, err
 		}
 
-		sessionDataFD = d.addFileDescriptor(fdFiles, sessionData)
+		sessionDataFD = util.AddFileDescriptor(fdFiles, sessionData)
 	}
 
 	sevOpts := &qemuSevOpts{}
@@ -2197,7 +2197,15 @@ func (d *qemu) deviceAttachPath(deviceName string) error {
 		return fmt.Errorf("Failed to connect to QMP monitor: %w", err)
 	}
 
-	addr, err := net.ResolveUnixAddr("unix", virtiofsdSockPath)
+	// Open a file descriptor to the socket file through O_PATH to avoid acessing the file descriptor to the sockfs inode.
+	socketFile, err := os.OpenFile(virtiofsdSockPath, unix.O_PATH|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return fmt.Errorf("Failed to open device socket file %q: %w", virtiofsdSockPath, err)
+	}
+
+	shortPath := fmt.Sprintf("/dev/fd/%d", socketFile.Fd())
+
+	addr, err := net.ResolveUnixAddr("unix", shortPath)
 	if err != nil {
 		return err
 	}
@@ -3187,7 +3195,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		driveFirmwareOpts := qemuDriveFirmwareOpts{
 			roPath:    fwPath,
-			nvramPath: fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, nvRAMFile)),
+			nvramPath: fmt.Sprintf("/dev/fd/%d", util.AddFileDescriptor(fdFiles, nvRAMFile)),
 		}
 
 		cfg = append(cfg, qemuDriveFirmware(&driveFirmwareOpts)...)
@@ -3355,6 +3363,11 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	// where 9p isn't available in the VM guest OS.
 	configSockPath, _ := d.configVirtiofsdPaths()
 	if shared.PathExists(configSockPath) {
+		shortPath, err := util.ShortenedFilePath(configSockPath, fdFiles)
+		if err != nil {
+			return "", nil, err
+		}
+
 		devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
 		driveConfigVirtioOpts := qemuDriveConfigOpts{
 			dev: qemuDevOpts{
@@ -3364,7 +3377,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 				multifunction: multi,
 			},
 			protocol: "virtio-fs",
-			path:     configSockPath,
+			path:     shortPath,
 		}
 
 		cfg = append(cfg, qemuDriveConfig(&driveConfigVirtioOpts)...)
@@ -3513,7 +3526,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		// Add TPM device.
 		if len(runConf.TPMDevice) > 0 {
-			err = d.addTPMDeviceConfig(&cfg, runConf.TPMDevice)
+			err = d.addTPMDeviceConfig(&cfg, runConf.TPMDevice, fdFiles)
 			if err != nil {
 				return "", nil, err
 			}
@@ -3673,14 +3686,6 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error
 	return nil
 }
 
-// addFileDescriptor adds a file path to the list of files to open and pass file descriptor to qemu.
-// Returns the file descriptor number that qemu will receive.
-func (d *qemu) addFileDescriptor(fdFiles *[]*os.File, file *os.File) int {
-	// Append the tap device file path to the list of files to be opened and passed to qemu.
-	*fdFiles = append(*fdFiles, file)
-	return 2 + len(*fdFiles) // Use 2+fdFiles count, as first user file descriptor is 3.
-}
-
 // addRootDriveConfig adds the qemu config required for adding the root drive.
 func (d *qemu) addRootDriveConfig(qemuDev map[string]string, mountInfo *storagePools.MountInfo, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) (monitorHook, error) {
 	if rootDriveConf.TargetPath != "/" {
@@ -3766,6 +3771,11 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 
 		devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
+		shortPath, err := util.ShortenedFilePath(virtiofsdSockPath, fdFiles)
+		if err != nil {
+			return err
+		}
+
 		// Add virtio-fs device as this will be preferred over 9p.
 		driveDirVirtioOpts := qemuDriveDirOpts{
 			dev: qemuDevOpts{
@@ -3776,7 +3786,7 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 			},
 			devName:  driveConf.DevName,
 			mountTag: mountTag,
-			path:     virtiofsdSockPath,
+			path:     shortPath,
 			protocol: "virtio-fs",
 		}
 		*cfg = append(*cfg, qemuDriveDir(&driveDirVirtioOpts)...)
@@ -3790,7 +3800,7 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 		return fmt.Errorf("Invalid file descriptor %q for drive %q: %w", driveConf.DevPath, driveConf.DevName, err)
 	}
 
-	proxyFD := d.addFileDescriptor(fdFiles, os.NewFile(uintptr(fd), driveConf.DevName))
+	proxyFD := util.AddFileDescriptor(fdFiles, os.NewFile(uintptr(fd), driveConf.DevName))
 
 	driveDir9pOpts := qemuDriveDirOpts{
 		dev: qemuDevOpts{
@@ -4707,7 +4717,7 @@ func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHoo
 	return monHook, nil
 }
 
-func (d *qemu) addTPMDeviceConfig(cfg *[]cfgSection, tpmConfig []deviceConfig.RunConfigItem) error {
+func (d *qemu) addTPMDeviceConfig(cfg *[]cfgSection, tpmConfig []deviceConfig.RunConfigItem, fdFiles *[]*os.File) error {
 	var devName, socketPath string
 
 	for _, tpmItem := range tpmConfig {
@@ -4718,9 +4728,14 @@ func (d *qemu) addTPMDeviceConfig(cfg *[]cfgSection, tpmConfig []deviceConfig.Ru
 		}
 	}
 
+	shortPath, err := util.ShortenedFilePath(socketPath, fdFiles)
+	if err != nil {
+		return err
+	}
+
 	tpmOpts := qemuTPMOpts{
 		devName: devName,
-		path:    socketPath,
+		path:    shortPath,
 	}
 	*cfg = append(*cfg, qemuTPM(&tpmOpts)...)
 
