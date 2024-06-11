@@ -3,14 +3,14 @@ test_server_config() {
   spawn_lxd "${LXD_SERVERCONFIG_DIR}" true
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  test_server_config_password
-  test_server_config_access
-  test_server_config_storage
+  _server_config_password
+  _server_config_access
+  _server_config_storage
 
   kill_lxd "${LXD_SERVERCONFIG_DIR}"
 }
 
-test_server_config_password() {
+_server_config_password() {
   lxc config set core.trust_password 123456
 
   config=$(lxc config show)
@@ -21,7 +21,7 @@ test_server_config_password() {
   lxc config show | grep -q -v "trust_password"
 }
 
-test_server_config_access() {
+_server_config_access() {
   # test untrusted server GET
   my_curl -X GET "https://$(cat "${LXD_SERVERCONFIG_DIR}/lxd.addr")/1.0" | grep -v -q environment
 
@@ -32,7 +32,7 @@ test_server_config_access() {
   ! curl --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0" | jq .metadata.auth_methods | grep oidc || false
 }
 
-test_server_config_storage() {
+_server_config_storage() {
   # shellcheck disable=2039,3043
   local lxd_backend
 

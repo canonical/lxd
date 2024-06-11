@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -340,8 +341,13 @@ func (c *cmdNetworkForwardCreate) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	networkForwardURL, err := url.Parse(transporter.location)
+	if err != nil {
+		return fmt.Errorf("Received invalid location header %q: %w", transporter.location, err)
+	}
+
 	forwardURLPrefix := api.NewURL().Path(version.APIVersion, "networks", networkName, "forwards").String()
-	_, err = fmt.Sscanf(transporter.location, forwardURLPrefix+"/%s", &listenAddress)
+	_, err = fmt.Sscanf(networkForwardURL.Path, forwardURLPrefix+"/%s", &listenAddress)
 	if err != nil {
 		return fmt.Errorf("Received unexpected location header %q: %w", transporter.location, err)
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -344,8 +345,13 @@ func (c *cmdNetworkLoadBalancerCreate) run(cmd *cobra.Command, args []string) er
 		return err
 	}
 
+	loadBalancerURL, err := url.Parse(transporter.location)
+	if err != nil {
+		return fmt.Errorf("Received invalid location header %q: %w", transporter.location, err)
+	}
+
 	loadBalancerURLPrefix := api.NewURL().Path(version.APIVersion, "networks", networkName, "load-balancers").String()
-	_, err = fmt.Sscanf(transporter.location, loadBalancerURLPrefix+"/%s", &listenAddress)
+	_, err = fmt.Sscanf(loadBalancerURL.Path, loadBalancerURLPrefix+"/%s", &listenAddress)
 	if err != nil {
 		return fmt.Errorf("Received unexpected location header %q: %w", transporter.location, err)
 	}

@@ -1,12 +1,12 @@
 test_container_devices_unix_block() {
-  test_container_devices_unix "unix-block"
+  _container_devices_unix "unix-block"
 }
 
 test_container_devices_unix_char() {
-  test_container_devices_unix "unix-char"
+  _container_devices_unix "unix-char"
 }
 
-test_container_devices_unix() {
+_container_devices_unix() {
   deviceType=$1
   deviceTypeCode=""
   deviceTypeDesc=""

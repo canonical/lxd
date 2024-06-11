@@ -108,11 +108,11 @@ const qemuPCIDeviceIDStart = 4
 // qemuDeviceIDPrefix used as part of the name given QEMU devices generated from user added devices.
 const qemuDeviceIDPrefix = "dev-lxd_"
 
-// qemuNetDevIDPrefix used as part of the name given QEMU netdevs generated from user added devices.
-const qemuNetDevIDPrefix = "lxd_"
+// qemuDeviceNamePrefix used as part of the name given QEMU blockdevs, netdevs and device tags generated from user added devices.
+const qemuDeviceNamePrefix = "lxd_"
 
-// qemuBlockDevIDPrefix used as part of the name given QEMU blockdevs generated from user added devices.
-const qemuBlockDevIDPrefix = "lxd_"
+// qemuDeviceNameMaxLength used to indicate the maximum length of a qemu block node name and device tags.
+const qemuDeviceNameMaxLength = 31
 
 // qemuMigrationNBDExportName is the name of the disk device export by the migration NBD server.
 const qemuMigrationNBDExportName = "lxd_root"
@@ -1226,7 +1226,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	// Add allocated QEMU vhost file descriptor.
-	vsockFD := d.addFileDescriptor(&fdFiles, vsockF)
+	vsockFD := util.AddFileDescriptor(&fdFiles, vsockF)
 
 	volatileSet := make(map[string]string)
 
@@ -1863,7 +1863,7 @@ func (d *qemu) setupSEV(fdFiles *[]*os.File) (*qemuSevOpts, error) {
 			return nil, err
 		}
 
-		dhCertFD = d.addFileDescriptor(fdFiles, dhCert)
+		dhCertFD = util.AddFileDescriptor(fdFiles, dhCert)
 	}
 
 	if d.expandedConfig["security.sev.session.data"] != "" {
@@ -1882,7 +1882,7 @@ func (d *qemu) setupSEV(fdFiles *[]*os.File) (*qemuSevOpts, error) {
 			return nil, err
 		}
 
-		sessionDataFD = d.addFileDescriptor(fdFiles, sessionData)
+		sessionDataFD = util.AddFileDescriptor(fdFiles, sessionData)
 	}
 
 	sevOpts := &qemuSevOpts{}
@@ -2180,7 +2180,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 func (d *qemu) deviceAttachPath(deviceName string) error {
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	mountTag := fmt.Sprintf("lxd_%s", deviceName)
+	mountTag := d.generateQemuDeviceName(deviceName)
 
 	// Detect virtiofsd path.
 	virtiofsdSockPath := filepath.Join(d.DevicesPath(), fmt.Sprintf("virtio-fs.%s.sock", deviceName))
@@ -2197,7 +2197,15 @@ func (d *qemu) deviceAttachPath(deviceName string) error {
 		return fmt.Errorf("Failed to connect to QMP monitor: %w", err)
 	}
 
-	addr, err := net.ResolveUnixAddr("unix", virtiofsdSockPath)
+	// Open a file descriptor to the socket file through O_PATH to avoid acessing the file descriptor to the sockfs inode.
+	socketFile, err := os.OpenFile(virtiofsdSockPath, unix.O_PATH|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return fmt.Errorf("Failed to open device socket file %q: %w", virtiofsdSockPath, err)
+	}
+
+	shortPath := fmt.Sprintf("/dev/fd/%d", socketFile.Fd())
+
+	addr, err := net.ResolveUnixAddr("unix", shortPath)
 	if err != nil {
 		return err
 	}
@@ -2300,7 +2308,7 @@ func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error 
 func (d *qemu) deviceDetachPath(deviceName string) error {
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	mountTag := fmt.Sprintf("lxd_%s", deviceName)
+	mountTag := d.generateQemuDeviceName(deviceName)
 
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -2343,7 +2351,7 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	blockDevName := d.blockNodeName(escapedDeviceName)
+	blockDevName := d.generateQemuDeviceName(escapedDeviceName)
 
 	err = monitor.RemoveFDFromFDSet(blockDevName)
 	if err != nil {
@@ -2526,7 +2534,7 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	netDevID := fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName)
+	netDevID := fmt.Sprintf("%s%s", qemuDeviceNamePrefix, escapedDeviceName)
 
 	// Request removal of device.
 	err = monitor.RemoveDevice(deviceID)
@@ -3187,7 +3195,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		driveFirmwareOpts := qemuDriveFirmwareOpts{
 			roPath:    fwPath,
-			nvramPath: fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, nvRAMFile)),
+			nvramPath: fmt.Sprintf("/dev/fd/%d", util.AddFileDescriptor(fdFiles, nvRAMFile)),
 		}
 
 		cfg = append(cfg, qemuDriveFirmware(&driveFirmwareOpts)...)
@@ -3355,6 +3363,11 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	// where 9p isn't available in the VM guest OS.
 	configSockPath, _ := d.configVirtiofsdPaths()
 	if shared.PathExists(configSockPath) {
+		shortPath, err := util.ShortenedFilePath(configSockPath, fdFiles)
+		if err != nil {
+			return "", nil, err
+		}
+
 		devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
 		driveConfigVirtioOpts := qemuDriveConfigOpts{
 			dev: qemuDevOpts{
@@ -3364,7 +3377,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 				multifunction: multi,
 			},
 			protocol: "virtio-fs",
-			path:     configSockPath,
+			path:     shortPath,
 		}
 
 		cfg = append(cfg, qemuDriveConfig(&driveConfigVirtioOpts)...)
@@ -3513,7 +3526,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		// Add TPM device.
 		if len(runConf.TPMDevice) > 0 {
-			err = d.addTPMDeviceConfig(&cfg, runConf.TPMDevice)
+			err = d.addTPMDeviceConfig(&cfg, runConf.TPMDevice, fdFiles)
 			if err != nil {
 				return "", nil, err
 			}
@@ -3673,14 +3686,6 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error
 	return nil
 }
 
-// addFileDescriptor adds a file path to the list of files to open and pass file descriptor to qemu.
-// Returns the file descriptor number that qemu will receive.
-func (d *qemu) addFileDescriptor(fdFiles *[]*os.File, file *os.File) int {
-	// Append the tap device file path to the list of files to be opened and passed to qemu.
-	*fdFiles = append(*fdFiles, file)
-	return 2 + len(*fdFiles) // Use 2+fdFiles count, as first user file descriptor is 3.
-}
-
 // addRootDriveConfig adds the qemu config required for adding the root drive.
 func (d *qemu) addRootDriveConfig(qemuDev map[string]string, mountInfo *storagePools.MountInfo, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) (monitorHook, error) {
 	if rootDriveConf.TargetPath != "/" {
@@ -3724,7 +3729,7 @@ func (d *qemu) addRootDriveConfig(qemuDev map[string]string, mountInfo *storageP
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
 func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os.File, agentMounts *[]instancetype.VMAgentMount, driveConf deviceConfig.MountEntryItem) error {
-	mountTag := fmt.Sprintf("lxd_%s", driveConf.DevName)
+	mountTag := d.generateQemuDeviceName(driveConf.DevName)
 
 	agentMount := instancetype.VMAgentMount{
 		Source: mountTag,
@@ -3766,6 +3771,11 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 
 		devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
+		shortPath, err := util.ShortenedFilePath(virtiofsdSockPath, fdFiles)
+		if err != nil {
+			return err
+		}
+
 		// Add virtio-fs device as this will be preferred over 9p.
 		driveDirVirtioOpts := qemuDriveDirOpts{
 			dev: qemuDevOpts{
@@ -3776,7 +3786,7 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 			},
 			devName:  driveConf.DevName,
 			mountTag: mountTag,
-			path:     virtiofsdSockPath,
+			path:     shortPath,
 			protocol: "virtio-fs",
 		}
 		*cfg = append(*cfg, qemuDriveDir(&driveDirVirtioOpts)...)
@@ -3790,7 +3800,7 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 		return fmt.Errorf("Invalid file descriptor %q for drive %q: %w", driveConf.DevPath, driveConf.DevName, err)
 	}
 
-	proxyFD := d.addFileDescriptor(fdFiles, os.NewFile(uintptr(fd), driveConf.DevName))
+	proxyFD := util.AddFileDescriptor(fdFiles, os.NewFile(uintptr(fd), driveConf.DevName))
 
 	driveDir9pOpts := qemuDriveDirOpts{
 		dev: qemuDevOpts{
@@ -3952,7 +3962,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 		},
 		"discard":   "unmap", // Forward as an unmap request. This is the same as `discard=on` in the qemu config file.
 		"driver":    "file",
-		"node-name": d.blockNodeName(escapedDeviceName),
+		"node-name": d.generateQemuDeviceName(escapedDeviceName),
 		"read-only": false,
 	}
 
@@ -4067,7 +4077,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 	}
 
 	qemuDev["drive"] = qemuDevDrive
-	qemuDev["serial"] = fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, escapedDeviceName)
+	qemuDev["serial"] = fmt.Sprintf("%s%s", qemuDeviceNamePrefix, escapedDeviceName)
 
 	if bus == "virtio-scsi" {
 		qemuDev["channel"] = "0"
@@ -4112,7 +4122,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 		revert := revert.New()
 		defer revert.Fail()
 
-		nodeName := fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, escapedDeviceName)
+		nodeName := fmt.Sprintf("%s%s", qemuDeviceNamePrefix, escapedDeviceName)
 
 		if isRBDImage {
 			secretID := fmt.Sprintf("pool_%s_%s", blockDev["pool"], blockDev["user"])
@@ -4308,7 +4318,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 			}
 
 			qemuNetDev := map[string]any{
-				"id":    fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName),
+				"id":    fmt.Sprintf("%s%s", qemuDeviceNamePrefix, escapedDeviceName),
 				"type":  "tap",
 				"vhost": vhostNetEnabled,
 			}
@@ -4707,7 +4717,7 @@ func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHoo
 	return monHook, nil
 }
 
-func (d *qemu) addTPMDeviceConfig(cfg *[]cfgSection, tpmConfig []deviceConfig.RunConfigItem) error {
+func (d *qemu) addTPMDeviceConfig(cfg *[]cfgSection, tpmConfig []deviceConfig.RunConfigItem, fdFiles *[]*os.File) error {
 	var devName, socketPath string
 
 	for _, tpmItem := range tpmConfig {
@@ -4718,9 +4728,14 @@ func (d *qemu) addTPMDeviceConfig(cfg *[]cfgSection, tpmConfig []deviceConfig.Ru
 		}
 	}
 
+	shortPath, err := util.ShortenedFilePath(socketPath, fdFiles)
+	if err != nil {
+		return err
+	}
+
 	tpmOpts := qemuTPMOpts{
 		devName: devName,
-		path:    socketPath,
+		path:    shortPath,
 	}
 	*cfg = append(*cfg, qemuTPM(&tpmOpts)...)
 
@@ -8686,7 +8701,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 
 	// Check io_uring feature.
 	blockDev := map[string]any{
-		"node-name": d.blockNodeName("feature-check"),
+		"node-name": d.generateQemuDeviceName("feature-check"),
 		"driver":    "file",
 		"filename":  blockDevPath.Name(),
 		"aio":       "io_uring",
@@ -8907,9 +8922,10 @@ func (d *qemu) deviceDetachUSB(usbDev deviceConfig.USBDeviceItem) error {
 	return nil
 }
 
-// Block node names may only be up to 31 characters long, so use a hash if longer.
-func (d *qemu) blockNodeName(name string) string {
-	if len(name) > 27 {
+// Block node names and device tags may only be up to 31 characters long, so use a hash if longer.
+func (d *qemu) generateQemuDeviceName(name string) string {
+	maxNameLength := qemuDeviceNameMaxLength - len(qemuDeviceNamePrefix)
+	if len(name) > maxNameLength {
 		// If the name is too long, hash it as SHA-256 (32 bytes).
 		// Then encode the SHA-256 binary hash as Base64 Raw URL format and trim down to 27 chars.
 		// Raw URL avoids the use of "+" character and the padding "=" character which QEMU doesn't allow.
@@ -8917,11 +8933,11 @@ func (d *qemu) blockNodeName(name string) string {
 		hash.Write([]byte(name))
 		binaryHash := hash.Sum(nil)
 		name = base64.RawURLEncoding.EncodeToString(binaryHash)
-		name = name[0:27]
+		name = name[0:maxNameLength]
 	}
 
 	// Apply the lxd_ prefix.
-	return fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, name)
+	return fmt.Sprintf("%s%s", qemuDeviceNamePrefix, name)
 }
 
 func (d *qemu) setCPUs(count int) error {
