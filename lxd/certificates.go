@@ -434,13 +434,20 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			return response.Forbidden(nil)
 		}
 
-		// A password is required for non-admin users.
-		if req.Password == "" {
+		// A password/token is required for non-admin users.
+		if req.Password == "" && req.TrustToken == "" {
 			return response.Forbidden(nil)
 		}
 
-		// Check if cluster member join token supplied as password.
-		joinToken, err := shared.JoinTokenDecode(req.Password)
+		var joinTokenEncoded string
+		if req.Password != "" {
+			joinTokenEncoded = req.Password
+		} else if req.TrustToken != "" {
+			joinTokenEncoded = req.TrustToken
+		}
+
+		// Check if cluster member join token supplied as password or token.
+		joinToken, err := shared.JoinTokenDecode(joinTokenEncoded)
 		if err == nil {
 			// If so then check there is a matching join operation.
 			joinOp, err := clusterMemberJoinTokenValid(s, r, api.ProjectDefaultName, joinToken)
@@ -452,8 +459,8 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 				return response.Forbidden(fmt.Errorf("No matching cluster join operation found"))
 			}
 		} else {
-			// Check if certificate add token supplied as password.
-			joinToken, err := shared.CertificateTokenDecode(req.Password)
+			// Check if certificate add token supplied as password or token.
+			joinToken, err := shared.CertificateTokenDecode(joinTokenEncoded)
 			if err == nil {
 				// If so then check there is a matching join operation.
 				joinOp, err := certificateTokenValid(s, r, joinToken)
