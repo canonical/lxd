@@ -24,6 +24,7 @@ type nullWriteCloser struct {
 	*bytes.Buffer
 }
 
+// Close closes the null IO writer.
 func (nwc *nullWriteCloser) Close() error {
 	return nil
 }
