@@ -1,6 +1,6 @@
 //go:build linux && cgo && !agent
 
-package auth
+package drivers
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 	openFGAErrors "github.com/openfga/openfga/pkg/server/errors"
 	"go.uber.org/zap"
 
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -108,7 +108,7 @@ func (e *embeddedOpenFGA) load(ctx context.Context, identityCache *identity.Cach
 
 // CheckPermission checks whether the user who sent the request has the given entitlement on the given entity using the
 // embedded OpenFGA server.
-func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, entityURL *api.URL, entitlement authEntity.Entitlement) error {
+func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, entityURL *api.URL, entitlement auth.Entitlement) error {
 	logCtx := logger.Ctx{"entity_url": entityURL.String(), "entitlement": entitlement, "request_url": r.URL.String(), "method": r.Method}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -196,7 +196,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 			TupleKeys: []*openfgav1.TupleKey{
 				{
 					User:     userObject,
-					Relation: string(authEntity.EntitlementCanView),
+					Relation: string(auth.EntitlementCanView),
 					Object:   userObject,
 				},
 			},
@@ -216,7 +216,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 	for _, projectName := range identityCacheEntry.Projects {
 		req.ContextualTuples.TupleKeys = append(req.ContextualTuples.TupleKeys, &openfgav1.TupleKey{
 			User:     userObject,
-			Relation: string(authEntity.EntitlementOperator),
+			Relation: string(auth.EntitlementOperator),
 			Object:   fmt.Sprintf("%s:%s", entity.TypeProject, entity.ProjectURL(projectName).String()),
 		})
 	}
@@ -242,7 +242,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 			responseCode = http.StatusNotFound
 		} else {
 			// Otherwise, check if we can view the resource.
-			req.TupleKey.Relation = string(authEntity.EntitlementCanView)
+			req.TupleKey.Relation = string(auth.EntitlementCanView)
 
 			l.Debug("Checking OpenFGA relation")
 			resp, err := e.server.Check(ctx, req)
@@ -265,7 +265,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 
 		// For some entities, a GET request will check if the caller has permission edit permission and conditionally
 		// populate configuration that may be sensitive. To reduce log verbosity, only log these cases at debug level.
-		if entitlement == authEntity.EntitlementCanEdit && r.Method == http.MethodGet {
+		if entitlement == auth.EntitlementCanEdit && r.Method == http.MethodGet {
 			l.Debug("Access denied", logger.Ctx{"http_code": responseCode})
 		} else {
 			l.Info("Access denied", logger.Ctx{"http_code": responseCode})
@@ -278,7 +278,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 }
 
 // GetPermissionChecker returns a PermissionChecker using the embedded OpenFGA server.
-func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Request, entitlement authEntity.Entitlement, entityType entity.Type) (authEntity.PermissionChecker, error) {
+func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Request, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
 	logCtx := logger.Ctx{"entity_type": entityType, "entitlement": entitlement, "url": r.URL.String(), "method": r.Method}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -296,7 +296,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 		err := e.CheckPermission(r.Context(), r, entity.ServerURL(), entitlement)
 		if err == nil {
 			return allowFunc(true), nil
-		} else if authEntity.IsDeniedError(err) {
+		} else if auth.IsDeniedError(err) {
 			return allowFunc(false), nil
 		}
 
@@ -376,7 +376,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 			TupleKeys: []*openfgav1.TupleKey{
 				{
 					User:     userObject,
-					Relation: string(authEntity.EntitlementCanView),
+					Relation: string(auth.EntitlementCanView),
 					Object:   userObject,
 				},
 			},
@@ -396,7 +396,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 	for _, projectName := range identityCacheEntry.Projects {
 		req.ContextualTuples.TupleKeys = append(req.ContextualTuples.TupleKeys, &openfgav1.TupleKey{
 			User:     userObject,
-			Relation: string(authEntity.EntitlementOperator),
+			Relation: string(auth.EntitlementOperator),
 			Object:   fmt.Sprintf("%s:%s", entity.TypeProject, entity.ProjectURL(projectName).String()),
 		})
 	}
