@@ -727,7 +727,7 @@ func qemuDriveConfig(opts *qemuDriveConfigOpts) []cfgSection {
 		dev: opts.dev,
 		// Devices use "qemu_" prefix indicating that this is a internally named device.
 		name:          "qemu_config",
-		nameSuffix:    "-drive",
+		nameSuffix:    fmt.Sprintf("-drive-%s", opts.protocol),
 		comment:       fmt.Sprintf("Config drive (%s)", opts.protocol),
 		mountTag:      "config",
 		protocol:      opts.protocol,
