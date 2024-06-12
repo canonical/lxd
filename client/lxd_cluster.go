@@ -31,10 +31,17 @@ func (r *ProtocolLXD) UpdateCluster(cluster api.ClusterPut, ETag string) (Operat
 		return nil, err
 	}
 
-	if cluster.ServerAddress != "" || cluster.ClusterPassword != "" || len(cluster.MemberConfig) > 0 {
+	if cluster.ServerAddress != "" || cluster.ClusterPassword != "" || cluster.ClusterToken != "" || len(cluster.MemberConfig) > 0 {
 		err := r.CheckExtension("clustering_join")
 		if err != nil {
 			return nil, err
+		}
+
+		if cluster.ClusterToken != "" {
+			err := r.CheckExtension("explicit_trust_token")
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
