@@ -65,7 +65,7 @@ func snakeToPascal(str string) string {
 
 func main() {
 	err := func() error {
-		f, err := os.Open("drivers/driver_openfga_model.openfga")
+		f, err := os.Open("drivers/openfga_model.openfga")
 		if err != nil {
 			return fmt.Errorf("Failed to open OpenFGA model file: %w", err)
 		}

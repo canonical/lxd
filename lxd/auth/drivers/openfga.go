@@ -35,7 +35,7 @@ func init() {
 	authorizers[DriverEmbeddedOpenFGA] = func() authorizer { return &embeddedOpenFGA{} }
 }
 
-//go:embed driver_openfga_model.openfga
+//go:embed openfga_model.openfga
 var model string
 
 // embeddedOpenFGA implements Authorizer using an embedded OpenFGA server.
