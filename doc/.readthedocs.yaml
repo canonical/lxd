@@ -10,7 +10,7 @@ build:
   os: ubuntu-22.04
   tools:
     golang: "1.22"
-    python: "3.11"
+    python: "3.12"
   jobs:
     pre_install:
       - pip install gitpython pyyaml
