@@ -1,6 +1,6 @@
 //go:build linux && cgo && !agent
 
-package auth
+package drivers
 
 import (
 	"fmt"

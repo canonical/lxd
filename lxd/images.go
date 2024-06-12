@@ -28,7 +28,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/client"
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -66,46 +66,46 @@ var imagesCmd = APIEndpoint{
 var imageCmd = APIEndpoint{
 	Path: "images/{fingerprint}",
 
-	Delete: APIEndpointAction{Handler: imageDelete, AccessHandler: allowPermission(entity.TypeImage, authEntity.EntitlementCanDelete, "fingerprint")},
+	Delete: APIEndpointAction{Handler: imageDelete, AccessHandler: allowPermission(entity.TypeImage, auth.EntitlementCanDelete, "fingerprint")},
 	Get:    APIEndpointAction{Handler: imageGet, AllowUntrusted: true},
-	Patch:  APIEndpointAction{Handler: imagePatch, AccessHandler: allowPermission(entity.TypeImage, authEntity.EntitlementCanEdit, "fingerprint")},
-	Put:    APIEndpointAction{Handler: imagePut, AccessHandler: allowPermission(entity.TypeImage, authEntity.EntitlementCanEdit, "fingerprint")},
+	Patch:  APIEndpointAction{Handler: imagePatch, AccessHandler: allowPermission(entity.TypeImage, auth.EntitlementCanEdit, "fingerprint")},
+	Put:    APIEndpointAction{Handler: imagePut, AccessHandler: allowPermission(entity.TypeImage, auth.EntitlementCanEdit, "fingerprint")},
 }
 
 var imageExportCmd = APIEndpoint{
 	Path: "images/{fingerprint}/export",
 
 	Get:  APIEndpointAction{Handler: imageExport, AllowUntrusted: true},
-	Post: APIEndpointAction{Handler: imageExportPost, AccessHandler: allowPermission(entity.TypeImage, authEntity.EntitlementCanEdit, "fingerprint")},
+	Post: APIEndpointAction{Handler: imageExportPost, AccessHandler: allowPermission(entity.TypeImage, auth.EntitlementCanEdit, "fingerprint")},
 }
 
 var imageSecretCmd = APIEndpoint{
 	Path: "images/{fingerprint}/secret",
 
-	Post: APIEndpointAction{Handler: imageSecret, AccessHandler: allowPermission(entity.TypeImage, authEntity.EntitlementCanEdit, "fingerprint")},
+	Post: APIEndpointAction{Handler: imageSecret, AccessHandler: allowPermission(entity.TypeImage, auth.EntitlementCanEdit, "fingerprint")},
 }
 
 var imageRefreshCmd = APIEndpoint{
 	Path: "images/{fingerprint}/refresh",
 
-	Post: APIEndpointAction{Handler: imageRefresh, AccessHandler: allowPermission(entity.TypeImage, authEntity.EntitlementCanEdit, "fingerprint")},
+	Post: APIEndpointAction{Handler: imageRefresh, AccessHandler: allowPermission(entity.TypeImage, auth.EntitlementCanEdit, "fingerprint")},
 }
 
 var imageAliasesCmd = APIEndpoint{
 	Path: "images/aliases",
 
 	Get:  APIEndpointAction{Handler: imageAliasesGet, AccessHandler: allowAuthenticated},
-	Post: APIEndpointAction{Handler: imageAliasesPost, AccessHandler: allowPermission(entity.TypeProject, authEntity.EntitlementCanCreateImageAliases)},
+	Post: APIEndpointAction{Handler: imageAliasesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateImageAliases)},
 }
 
 var imageAliasCmd = APIEndpoint{
 	Path: "images/aliases/{name:.*}",
 
-	Delete: APIEndpointAction{Handler: imageAliasDelete, AccessHandler: allowPermission(entity.TypeImageAlias, authEntity.EntitlementCanDelete, "name")},
+	Delete: APIEndpointAction{Handler: imageAliasDelete, AccessHandler: allowPermission(entity.TypeImageAlias, auth.EntitlementCanDelete, "name")},
 	Get:    APIEndpointAction{Handler: imageAliasGet, AllowUntrusted: true},
-	Patch:  APIEndpointAction{Handler: imageAliasPatch, AccessHandler: allowPermission(entity.TypeImageAlias, authEntity.EntitlementCanEdit, "name")},
-	Post:   APIEndpointAction{Handler: imageAliasPost, AccessHandler: allowPermission(entity.TypeImageAlias, authEntity.EntitlementCanEdit, "name")},
-	Put:    APIEndpointAction{Handler: imageAliasPut, AccessHandler: allowPermission(entity.TypeImageAlias, authEntity.EntitlementCanEdit, "name")},
+	Patch:  APIEndpointAction{Handler: imageAliasPatch, AccessHandler: allowPermission(entity.TypeImageAlias, auth.EntitlementCanEdit, "name")},
+	Post:   APIEndpointAction{Handler: imageAliasPost, AccessHandler: allowPermission(entity.TypeImageAlias, auth.EntitlementCanEdit, "name")},
+	Put:    APIEndpointAction{Handler: imageAliasPut, AccessHandler: allowPermission(entity.TypeImageAlias, auth.EntitlementCanEdit, "name")},
 }
 
 /*
@@ -974,8 +974,8 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	projectName := request.ProjectParam(r)
 
 	var userCanCreateImages bool
-	err := s.Authorizer.CheckPermission(r.Context(), r, entity.ProjectURL(projectName), authEntity.EntitlementCanCreateImages)
-	if err != nil && !authEntity.IsDeniedError(err) {
+	err := s.Authorizer.CheckPermission(r.Context(), r, entity.ProjectURL(projectName), auth.EntitlementCanCreateImages)
+	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {
 		userCanCreateImages = true
@@ -1346,7 +1346,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	return &result, imageType, nil
 }
 
-func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectName string, public bool, clauses *filter.ClauseSet, hasPermission authEntity.PermissionChecker) (any, error) {
+func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectName string, public bool, clauses *filter.ClauseSet, hasPermission auth.PermissionChecker) (any, error) {
 	mustLoadObjects := recursion || (clauses != nil && len(clauses.Clauses) > 0)
 
 	fingerprints, err := tx.GetImagesFingerprints(ctx, projectName, public)
@@ -1639,7 +1639,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 	// Get a permission checker. If the caller is not authenticated, the permission checker will deny all.
 	// However, the permission checker will not be called for public images.
-	canViewImage, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeImage)
+	canViewImage, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeImage)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3008,8 +3008,8 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var userCanViewImage bool
-	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ImageURL(projectName, info.Fingerprint), authEntity.EntitlementCanView)
-	if err != nil && !authEntity.IsDeniedError(err) {
+	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ImageURL(projectName, info.Fingerprint), auth.EntitlementCanView)
+	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {
 		userCanViewImage = true
@@ -3457,7 +3457,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeImageAlias)
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeImageAlias)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
@@ -3598,8 +3598,8 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	var userCanViewImageAlias bool
-	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ImageAliasURL(projectName, name), authEntity.EntitlementCanView)
-	if err != nil && !authEntity.IsDeniedError(err) {
+	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ImageAliasURL(projectName, name), auth.EntitlementCanView)
+	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {
 		userCanViewImageAlias = true
@@ -4024,8 +4024,8 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 
 	// Access control.
 	var userCanViewImage bool
-	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ImageURL(projectName, imgInfo.Fingerprint), authEntity.EntitlementCanView)
-	if err != nil && !authEntity.IsDeniedError(err) {
+	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ImageURL(projectName, imgInfo.Fingerprint), auth.EntitlementCanView)
+	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {
 		userCanViewImage = true

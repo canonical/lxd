@@ -14,7 +14,6 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -36,7 +35,7 @@ var authGroupsCmd = APIEndpoint{
 	},
 	Post: APIEndpointAction{
 		Handler:       createAuthGroup,
-		AccessHandler: allowPermission(entity.TypeServer, authEntity.EntitlementCanCreateGroups),
+		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanCreateGroups),
 	},
 }
 
@@ -45,23 +44,23 @@ var authGroupCmd = APIEndpoint{
 	Path: "auth/groups/{groupName}",
 	Get: APIEndpointAction{
 		Handler:       getAuthGroup,
-		AccessHandler: allowPermission(entity.TypeAuthGroup, authEntity.EntitlementCanView, "groupName"),
+		AccessHandler: allowPermission(entity.TypeAuthGroup, auth.EntitlementCanView, "groupName"),
 	},
 	Put: APIEndpointAction{
 		Handler:       updateAuthGroup,
-		AccessHandler: allowPermission(entity.TypeAuthGroup, authEntity.EntitlementCanEdit, "groupName"),
+		AccessHandler: allowPermission(entity.TypeAuthGroup, auth.EntitlementCanEdit, "groupName"),
 	},
 	Post: APIEndpointAction{
 		Handler:       renameAuthGroup,
-		AccessHandler: allowPermission(entity.TypeAuthGroup, authEntity.EntitlementCanEdit, "groupName"),
+		AccessHandler: allowPermission(entity.TypeAuthGroup, auth.EntitlementCanEdit, "groupName"),
 	},
 	Delete: APIEndpointAction{
 		Handler:       deleteAuthGroup,
-		AccessHandler: allowPermission(entity.TypeAuthGroup, authEntity.EntitlementCanDelete, "groupName"),
+		AccessHandler: allowPermission(entity.TypeAuthGroup, auth.EntitlementCanDelete, "groupName"),
 	},
 	Patch: APIEndpointAction{
 		Handler:       patchAuthGroup,
-		AccessHandler: allowPermission(entity.TypeAuthGroup, authEntity.EntitlementCanEdit, "groupName"),
+		AccessHandler: allowPermission(entity.TypeAuthGroup, auth.EntitlementCanEdit, "groupName"),
 	},
 }
 
@@ -165,17 +164,17 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 	recursion := request.QueryParam(r, "recursion")
 	s := d.State()
 
-	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeAuthGroup)
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
 
-	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeIdentity)
+	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentity)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
 
-	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeIdentityProviderGroup)
+	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
@@ -410,12 +409,12 @@ func getAuthGroup(d *Daemon, r *http.Request) response.Response {
 
 	var apiGroup *api.AuthGroup
 	s := d.State()
-	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeIdentity)
+	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentity)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
 
-	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeIdentityProviderGroup)
+	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
@@ -487,12 +486,12 @@ func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
 	defer cancel()
 
 	s := d.State()
-	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeIdentity)
+	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentity)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
 
-	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeIdentityProviderGroup)
+	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
@@ -586,12 +585,12 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 	defer cancel()
 
 	s := d.State()
-	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeIdentity)
+	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentity)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
 
-	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeIdentityProviderGroup)
+	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
@@ -816,7 +815,7 @@ func validatePermissions(permissions []api.Permission) error {
 			return api.StatusErrorf(http.StatusBadRequest, "Failed to parse permission with entity reference %q and entitlement %q: Entity type does not correspond to entity reference", permission.EntityReference, permission.Entitlement)
 		}
 
-		err = auth.ValidateEntitlement(entityType, authEntity.Entitlement(permission.Entitlement))
+		err = auth.ValidateEntitlement(entityType, auth.Entitlement(permission.Entitlement))
 		if err != nil {
 			return api.StatusErrorf(http.StatusBadRequest, "Failed to validate group permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
 		}
@@ -848,7 +847,7 @@ func upsertPermissions(ctx context.Context, tx *sql.Tx, groupID int, permissions
 
 	authGroupPermissions := make([]dbCluster.Permission, 0, len(permissions))
 	for permission, apiURL := range permissionToURL {
-		entitlement := authEntity.Entitlement(permission.Entitlement)
+		entitlement := auth.Entitlement(permission.Entitlement)
 		entityType := dbCluster.EntityType(permission.EntityType)
 		entityRef, ok := entityReferences[apiURL]
 		if !ok {

@@ -1,6 +1,6 @@
 #!/bin/sh -eu
 
-f="lxd/auth/entity/entitlements_generated.go"
+f="lxd/auth/entitlements_generated.go"
 
 hash() {
   md5sum "${f}" | cut -f1 -d" "
