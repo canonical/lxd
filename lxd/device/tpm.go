@@ -3,6 +3,7 @@ package device
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -208,6 +209,9 @@ func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 }
 
 func (d *tpm) startVM() (*deviceConfig.RunConfig, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
 	tpmDevPath := filepath.Join(d.inst.Path(), fmt.Sprintf("tpm.%s", d.name))
 	socketPath := filepath.Join(tpmDevPath, fmt.Sprintf("swtpm-%s.sock", d.name))
 	runConf := deviceConfig.RunConfig{
@@ -217,33 +221,62 @@ func (d *tpm) startVM() (*deviceConfig.RunConfig, error) {
 		},
 	}
 
-	var fdFiles []*os.File
+	// Remove old socket if needed.
+	_ = os.Remove(socketPath)
 
-	// Ensure passed file is closed after swtpm start has returned.
-	defer func() {
-		for _, file := range fdFiles {
-			_ = file.Close()
-		}
-	}()
-
-	shortPath, err := util.ShortenedFilePath(socketPath, &fdFiles)
+	// Trickery to handle paths > 108 chars.
+	socketFileDir, err := os.Open(filepath.Dir(socketPath))
 	if err != nil {
 		return nil, err
 	}
 
-	proc, err := subprocess.NewProcess("swtpm", []string{"socket", "--tpm2", "--tpmstate", fmt.Sprintf("dir=%s", tpmDevPath), "--ctrl", fmt.Sprintf("type=unixio,path=%s", shortPath)}, "", "")
+	defer func() { _ = socketFileDir.Close() }()
+
+	socketFile := fmt.Sprintf("/proc/self/fd/%d/%s", socketFileDir.Fd(), filepath.Base(socketPath))
+
+	listener, err := net.Listen("unix", socketFile)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create unix listener for swtpm: %w", err)
+	}
+
+	revert.Add(func() {
+		_ = listener.Close()
+		_ = os.Remove(socketPath)
+	})
+
+	unixListener, ok := listener.(*net.UnixListener)
+	if !ok {
+		return nil, fmt.Errorf("Failed getting UnixListener for swtpm")
+	}
+
+	revert.Add(func() {
+		_ = unixListener.Close()
+	})
+
+	// Request the unix listener is closed after QEMU has connected on startup.
+	runConf.PostHooks = append(runConf.PostHooks, unixListener.Close)
+
+	unixFile, err := unixListener.File()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to getting unix listener file for swtpm: %w", err)
+	}
+
+	defer func() { _ = unixFile.Close() }()
+
+	proc, err := subprocess.NewProcess("swtpm", []string{"socket", "--tpm2", "--tpmstate", fmt.Sprintf("dir=%s", tpmDevPath), "--ctrl", "type=unixio,fd=3"}, "", "")
 	if err != nil {
 		return nil, err
 	}
 
 	// Start the TPM emulator.
+	fdFiles := []*os.File{
+		unixFile,
+	}
+
 	err = proc.StartWithFiles(context.Background(), fdFiles)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to start swtpm for device %q: %w", d.name, err)
 	}
-
-	revert := revert.New()
-	defer revert.Fail()
 
 	revert.Add(func() { _ = proc.Stop() })
 
@@ -254,6 +287,7 @@ func (d *tpm) startVM() (*deviceConfig.RunConfig, error) {
 		return nil, fmt.Errorf("Failed to save swtpm state for device %q: %w", d.name, err)
 	}
 
+	runConf.Revert = revert.Clone().Fail
 	revert.Success()
 
 	return &runConf, nil
