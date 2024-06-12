@@ -1226,7 +1226,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	// Add allocated QEMU vhost file descriptor.
-	vsockFD := util.AddFileDescriptor(&fdFiles, vsockF)
+	vsockFD := d.addFileDescriptor(&fdFiles, vsockF)
 
 	volatileSet := make(map[string]string)
 
@@ -1863,7 +1863,7 @@ func (d *qemu) setupSEV(fdFiles *[]*os.File) (*qemuSevOpts, error) {
 			return nil, err
 		}
 
-		dhCertFD = util.AddFileDescriptor(fdFiles, dhCert)
+		dhCertFD = d.addFileDescriptor(fdFiles, dhCert)
 	}
 
 	if d.expandedConfig["security.sev.session.data"] != "" {
@@ -1882,7 +1882,7 @@ func (d *qemu) setupSEV(fdFiles *[]*os.File) (*qemuSevOpts, error) {
 			return nil, err
 		}
 
-		sessionDataFD = util.AddFileDescriptor(fdFiles, sessionData)
+		sessionDataFD = d.addFileDescriptor(fdFiles, sessionData)
 	}
 
 	sevOpts := &qemuSevOpts{}
@@ -3195,7 +3195,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		driveFirmwareOpts := qemuDriveFirmwareOpts{
 			roPath:    fwPath,
-			nvramPath: fmt.Sprintf("/dev/fd/%d", util.AddFileDescriptor(fdFiles, nvRAMFile)),
+			nvramPath: fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, nvRAMFile)),
 		}
 
 		cfg = append(cfg, qemuDriveFirmware(&driveFirmwareOpts)...)
@@ -3363,7 +3363,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	// where 9p isn't available in the VM guest OS.
 	configSockPath, _ := d.configVirtiofsdPaths()
 	if shared.PathExists(configSockPath) {
-		shortPath, err := util.ShortenedFilePath(configSockPath, fdFiles)
+		shortPath, err := d.shortenedFilePath(configSockPath, fdFiles)
 		if err != nil {
 			return "", nil, err
 		}
@@ -3771,7 +3771,7 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 
 		devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
-		shortPath, err := util.ShortenedFilePath(virtiofsdSockPath, fdFiles)
+		shortPath, err := d.shortenedFilePath(virtiofsdSockPath, fdFiles)
 		if err != nil {
 			return err
 		}
@@ -3800,7 +3800,7 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 		return fmt.Errorf("Invalid file descriptor %q for drive %q: %w", driveConf.DevPath, driveConf.DevName, err)
 	}
 
-	proxyFD := util.AddFileDescriptor(fdFiles, os.NewFile(uintptr(fd), driveConf.DevName))
+	proxyFD := d.addFileDescriptor(fdFiles, os.NewFile(uintptr(fd), driveConf.DevName))
 
 	driveDir9pOpts := qemuDriveDirOpts{
 		dev: qemuDevOpts{
@@ -4728,7 +4728,7 @@ func (d *qemu) addTPMDeviceConfig(cfg *[]cfgSection, tpmConfig []deviceConfig.Ru
 		}
 	}
 
-	shortPath, err := util.ShortenedFilePath(socketPath, fdFiles)
+	shortPath, err := d.shortenedFilePath(socketPath, fdFiles)
 	if err != nil {
 		return err
 	}
@@ -9088,4 +9088,25 @@ func (d *qemu) architectureSupportsCPUHotplug() bool {
 	info := DriverStatuses()[instancetype.VM].Info
 	_, found := info.Features["cpu_hotplug"]
 	return found
+}
+
+// addFileDescriptor adds a file path to the list of files to open and pass file descriptor to other processes.
+// Returns the file descriptor number that the other process will receive.
+func (d *qemu) addFileDescriptor(fdFiles *[]*os.File, file *os.File) int {
+	// Append the tap device file path to the list of files to be opened and passed to qemu.
+	*fdFiles = append(*fdFiles, file)
+	return 2 + len(*fdFiles) // Use 2+fdFiles count, as first user file descriptor is 3.
+}
+
+// shortenedFilePath creates a shorter alternative path to a socket by using the file descriptor to the directory of the socket file.
+// Used to handle paths > 108 chars.
+// Files opened here must be closed outside this function once they are not needed anymore.
+func (d *qemu) shortenedFilePath(originalSockPath string, fdFiles *[]*os.File) (string, error) {
+	// Open a file descriptor to the socket file through O_PATH to avoid acessing the file descriptor to the sockfs inode.
+	socketFile, err := os.OpenFile(originalSockPath, unix.O_PATH|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return "", fmt.Errorf("Failed to open device socket file %q: %w", originalSockPath, err)
+	}
+
+	return fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, socketFile)), nil
 }
