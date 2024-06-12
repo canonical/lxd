@@ -1,7 +1,7 @@
 (storage-powerflex)=
 # Dell PowerFlex - `powerflex`
 
-[Dell PowerFlex](https://www.dell.com/en-us/dt/storage/powerflex.htm) is a software-defined storage solution from [Dell Technologies](https://dell.com). Among other things it offers the consumption of redundant block storage across the network.
+[Dell PowerFlex](https://www.dell.com/en-us/shop/powerflex/sf/powerflex) is a software-defined storage solution from [Dell Technologies](https://www.dell.com/). Among other things it offers the consumption of redundant block storage across the network.
 
 LXD offers access to PowerFlex storage clusters by making use of the NVMe/TCP transport protocol.
 In addition, PowerFlex offers copy-on-write snapshots, thin provisioning and other features.
