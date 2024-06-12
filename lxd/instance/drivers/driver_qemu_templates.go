@@ -631,6 +631,7 @@ func qemuDriveFirmware(opts *qemuDriveFirmwareOpts) []cfgSection {
 type qemuHostDriveOpts struct {
 	dev           qemuDevOpts
 	name          string
+	namePrefix    string
 	nameSuffix    string
 	comment       string
 	fsdriver      string
