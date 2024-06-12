@@ -657,7 +657,7 @@ func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 	var extraDeviceEntries []cfgEntry
 	var driveSection cfgSection
 	deviceOpts := qemuDevEntriesOpts{dev: opts.dev}
-	nameWithPrefix := fmt.Sprintf("%s%s", opts.namePrefix, opts.name) // Use the lxd_ prefix to specify a user named device.
+	nameWithPrefix := generateQemuDirDriveName(opts.name, opts.namePrefix, "")
 
 	if opts.protocol == "9p" {
 		var readonly string
@@ -710,7 +710,7 @@ func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 	return []cfgSection{
 		driveSection,
 		{
-			name:    fmt.Sprintf(`device "dev-%s%s-%s"`, opts.name, opts.nameSuffix, opts.protocol),
+			name:    fmt.Sprintf(`device "%s"`, generateQemuDirDriveName(opts.name, fmt.Sprintf("%s%s", "dev-", opts.namePrefix), opts.nameSuffix)),
 			entries: append(qemuDeviceEntries(&deviceOpts), extraDeviceEntries...),
 		},
 	}
