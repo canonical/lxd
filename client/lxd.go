@@ -287,9 +287,6 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data any, ETag string)
 
 			// Set the encoding accordingly
 			req.Header.Set("Content-Type", "application/json")
-
-			// Log the data
-			logger.Debugf(logger.Pretty(data))
 		}
 	} else {
 		// No data to be sent along with the request
