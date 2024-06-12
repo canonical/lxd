@@ -1139,6 +1139,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					}
 
 					revert.Add(revertFunc)
+					runConf.Revert = func() { _ = unixListener.Close() }
 
 					// Request the unix listener is closed after QEMU has connected on startup.
 					runConf.PostHooks = append(runConf.PostHooks, unixListener.Close)
@@ -1166,18 +1167,20 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					// Start virtfs-proxy-helper for 9p share (this will rewrite mount.DevPath with
 					// socket FD number so must come after starting virtiofsd).
 					err = func() error {
-						sockFile, cleanup, err := DiskVMVirtfsProxyStart(d.state.OS.ExecPath, d.vmVirtfsProxyHelperPaths(), mount.DevPath, rawIDMaps)
+						unixListener, cleanup, err := DiskVMVirtfsProxyStart(d.state.OS.ExecPath, d.vmVirtfsProxyHelperPaths(), mount.DevPath, rawIDMaps)
 						if err != nil {
 							return err
 						}
 
 						revert.Add(cleanup)
 
+						runConf.Revert = func() { _ = unixListener.Close() }
+
 						// Request the unix socket is closed after QEMU has connected on startup.
-						runConf.PostHooks = append(runConf.PostHooks, sockFile.Close)
+						runConf.PostHooks = append(runConf.PostHooks, unixListener.Close)
 
 						// Use 9p socket FD number as dev path so qemu can connect to the proxy.
-						mount.DevPath = fmt.Sprintf("%d", sockFile.Fd())
+						mount.DevPath = fmt.Sprintf("%d", unixListener.Fd())
 
 						return nil
 					}()
