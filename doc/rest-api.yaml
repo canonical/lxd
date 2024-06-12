@@ -234,6 +234,11 @@ definitions:
                 example: true
                 type: boolean
                 x-go-name: Token
+            trust_token:
+                description: Trust token (used to add an untrusted client)
+                example: blah
+                type: string
+                x-go-name: TrustToken
             type:
                 description: Usage type for the certificate
                 example: client
@@ -645,6 +650,11 @@ definitions:
                 example: blah
                 type: string
                 x-go-name: ClusterPassword
+            cluster_token:
+                description: The cluster join token for the cluster you're trying to join
+                example: blah
+                type: string
+                x-go-name: ClusterToken
             enabled:
                 description: Whether clustering is enabled
                 example: true
@@ -1364,8 +1374,8 @@ definitions:
                 type: string
                 x-go-name: ClusterPassword
             cluster_token:
-                description: A cluster join token
-                example: BASE64-TOKEN
+                description: The cluster join token for the cluster you're trying to join
+                example: blah
                 type: string
                 x-go-name: ClusterToken
             enabled:

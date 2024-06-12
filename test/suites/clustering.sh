@@ -220,11 +220,12 @@ test_clustering_membership() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network create net1 --target node2
 
   # Spawn a third node, using the non-leader node2 as join target.
+  # Join this node using by explicitly specifying a token instead of a password.
   setup_clustering_netns 3
   LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_THREE_DIR}"
   ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 2 "${LXD_THREE_DIR}"
+  spawn_lxd_and_join_cluster_with_token "${ns3}" "${bridge}" "${cert}" 3 2 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}"
 
   # Spawn a fourth node, this will be a non-database node.
   setup_clustering_netns 4

@@ -313,7 +313,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 				return err
 			}
 
-			err = cluster.SetupTrust(serverCert, config.Cluster.ServerName, config.Cluster.ClusterAddress, config.Cluster.ClusterCertificate, config.Cluster.ClusterPassword)
+			err = cluster.SetupTrust(serverCert, config.Cluster.ClusterPut)
 			if err != nil {
 				return fmt.Errorf("Failed to setup trust relationship with cluster: %w", err)
 			}
@@ -321,6 +321,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 			// Now we have setup trust, don't send to server, othwerwise it will try and setup trust
 			// again and if using a one-time join token, will fail.
 			config.Cluster.ClusterPassword = ""
+			config.Cluster.ClusterToken = ""
 
 			// Client parameters to connect to the target cluster member.
 			args := &lxd.ConnectionArgs{

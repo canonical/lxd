@@ -2419,3 +2419,8 @@ Adds the ability to use an unspecified IPv4 (`0.0.0.0`) or IPv6 (`::`) address i
 If an unspecified IP address is used, supported drivers will allocate an available listen address automatically.
 Allocation of external IP addresses is currently supported by the OVN network driver.
 The OVN driver will allocate IP addresses from the subnets specified in the uplink network's `ipv4.routes` and `ipv6.routes` configuration options.
+
+## `explicit_trust_token`
+
+Adds the ability to explicitly specify a trust token when creating a certificate
+and joining an existing cluster.
