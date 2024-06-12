@@ -24,7 +24,7 @@ import (
 	"github.com/canonical/lxd/shared/ws"
 )
 
-func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operation, rootfs string, rsyncArgs string, instanceType api.InstanceType, blockOnly bool) error {
+func transferRootfs(ctx context.Context, op lxd.Operation, rootfs string, rsyncArgs string, instanceType api.InstanceType, blockOnly bool) error {
 	opAPI := op.Get()
 
 	// Connect to the websockets
