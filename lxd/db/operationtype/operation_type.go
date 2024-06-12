@@ -1,7 +1,7 @@
 package operationtype
 
 import (
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/shared/entity"
 )
 
@@ -204,82 +204,82 @@ func (t Type) Description() string {
 	}
 }
 
-// Permission returns the entity.Type and authEntity.Entitlement required to cancel the operation.
-func (t Type) Permission() (entity.Type, authEntity.Entitlement) {
+// Permission returns the entity.Type and auth.Entitlement required to cancel the operation.
+func (t Type) Permission() (entity.Type, auth.Entitlement) {
 	switch t {
 	case BackupCreate:
-		return entity.TypeInstance, authEntity.EntitlementCanManageBackups
+		return entity.TypeInstance, auth.EntitlementCanManageBackups
 	case BackupRename:
-		return entity.TypeInstance, authEntity.EntitlementCanManageBackups
+		return entity.TypeInstance, auth.EntitlementCanManageBackups
 	case BackupRestore:
-		return entity.TypeInstance, authEntity.EntitlementCanManageBackups
+		return entity.TypeInstance, auth.EntitlementCanManageBackups
 	case BackupRemove:
-		return entity.TypeInstance, authEntity.EntitlementCanManageBackups
+		return entity.TypeInstance, auth.EntitlementCanManageBackups
 	case ConsoleShow:
-		return entity.TypeInstance, authEntity.EntitlementCanAccessConsole
+		return entity.TypeInstance, auth.EntitlementCanAccessConsole
 	case InstanceFreeze:
-		return entity.TypeInstance, authEntity.EntitlementCanUpdateState
+		return entity.TypeInstance, auth.EntitlementCanUpdateState
 	case InstanceUnfreeze:
-		return entity.TypeInstance, authEntity.EntitlementCanUpdateState
+		return entity.TypeInstance, auth.EntitlementCanUpdateState
 	case InstanceStart:
-		return entity.TypeInstance, authEntity.EntitlementCanUpdateState
+		return entity.TypeInstance, auth.EntitlementCanUpdateState
 	case InstanceStop:
-		return entity.TypeInstance, authEntity.EntitlementCanUpdateState
+		return entity.TypeInstance, auth.EntitlementCanUpdateState
 	case InstanceRestart:
-		return entity.TypeInstance, authEntity.EntitlementCanUpdateState
+		return entity.TypeInstance, auth.EntitlementCanUpdateState
 	case CommandExec:
-		return entity.TypeInstance, authEntity.EntitlementCanExec
+		return entity.TypeInstance, auth.EntitlementCanExec
 	case SnapshotCreate:
-		return entity.TypeInstance, authEntity.EntitlementCanManageSnapshots
+		return entity.TypeInstance, auth.EntitlementCanManageSnapshots
 	case SnapshotRename:
-		return entity.TypeInstance, authEntity.EntitlementCanManageSnapshots
+		return entity.TypeInstance, auth.EntitlementCanManageSnapshots
 	case SnapshotTransfer:
-		return entity.TypeInstance, authEntity.EntitlementCanManageSnapshots
+		return entity.TypeInstance, auth.EntitlementCanManageSnapshots
 	case SnapshotUpdate:
-		return entity.TypeInstance, authEntity.EntitlementCanManageSnapshots
+		return entity.TypeInstance, auth.EntitlementCanManageSnapshots
 	case SnapshotDelete:
-		return entity.TypeInstance, authEntity.EntitlementCanManageSnapshots
+		return entity.TypeInstance, auth.EntitlementCanManageSnapshots
 
 	case InstanceCreate:
-		return entity.TypeInstance, authEntity.EntitlementCanEdit
+		return entity.TypeInstance, auth.EntitlementCanEdit
 	case InstanceUpdate:
-		return entity.TypeInstance, authEntity.EntitlementCanEdit
+		return entity.TypeInstance, auth.EntitlementCanEdit
 	case InstanceRename:
-		return entity.TypeInstance, authEntity.EntitlementCanEdit
+		return entity.TypeInstance, auth.EntitlementCanEdit
 	case InstanceMigrate:
-		return entity.TypeInstance, authEntity.EntitlementCanEdit
+		return entity.TypeInstance, auth.EntitlementCanEdit
 	case InstanceLiveMigrate:
-		return entity.TypeInstance, authEntity.EntitlementCanEdit
+		return entity.TypeInstance, auth.EntitlementCanEdit
 	case InstanceDelete:
-		return entity.TypeInstance, authEntity.EntitlementCanEdit
+		return entity.TypeInstance, auth.EntitlementCanEdit
 	case InstanceRebuild:
-		return entity.TypeInstance, authEntity.EntitlementCanEdit
+		return entity.TypeInstance, auth.EntitlementCanEdit
 	case SnapshotRestore:
-		return entity.TypeInstance, authEntity.EntitlementCanEdit
+		return entity.TypeInstance, auth.EntitlementCanEdit
 
 	case ImageDownload:
-		return entity.TypeImage, authEntity.EntitlementCanEdit
+		return entity.TypeImage, auth.EntitlementCanEdit
 	case ImageDelete:
-		return entity.TypeImage, authEntity.EntitlementCanEdit
+		return entity.TypeImage, auth.EntitlementCanEdit
 	case ImageToken:
-		return entity.TypeImage, authEntity.EntitlementCanEdit
+		return entity.TypeImage, auth.EntitlementCanEdit
 	case ImageRefresh:
-		return entity.TypeImage, authEntity.EntitlementCanEdit
+		return entity.TypeImage, auth.EntitlementCanEdit
 	case ImagesUpdate:
-		return entity.TypeImage, authEntity.EntitlementCanEdit
+		return entity.TypeImage, auth.EntitlementCanEdit
 	case ImagesSynchronize:
-		return entity.TypeImage, authEntity.EntitlementCanEdit
+		return entity.TypeImage, auth.EntitlementCanEdit
 
 	case CustomVolumeSnapshotsExpire:
-		return entity.TypeStorageVolume, authEntity.EntitlementCanEdit
+		return entity.TypeStorageVolume, auth.EntitlementCanEdit
 	case CustomVolumeBackupCreate:
-		return entity.TypeStorageVolume, authEntity.EntitlementCanManageBackups
+		return entity.TypeStorageVolume, auth.EntitlementCanManageBackups
 	case CustomVolumeBackupRemove:
-		return entity.TypeStorageVolume, authEntity.EntitlementCanManageBackups
+		return entity.TypeStorageVolume, auth.EntitlementCanManageBackups
 	case CustomVolumeBackupRename:
-		return entity.TypeStorageVolume, authEntity.EntitlementCanManageBackups
+		return entity.TypeStorageVolume, auth.EntitlementCanManageBackups
 	case CustomVolumeBackupRestore:
-		return entity.TypeStorageVolume, authEntity.EntitlementCanEdit
+		return entity.TypeStorageVolume, auth.EntitlementCanEdit
 	}
 
 	return "", ""

@@ -20,7 +20,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/canonical/lxd/lxd/archive"
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
 	lxdCluster "github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
@@ -60,24 +60,24 @@ var storagePoolVolumesCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/volumes",
 
 	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowAuthenticated},
-	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: allowPermission(entity.TypeProject, authEntity.EntitlementCanCreateStorageVolumes)},
+	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes)},
 }
 
 var storagePoolVolumesTypeCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/volumes/{type}",
 
 	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowAuthenticated},
-	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: allowPermission(entity.TypeProject, authEntity.EntitlementCanCreateStorageVolumes)},
+	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes)},
 }
 
 var storagePoolVolumeTypeCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}",
 
-	Delete: APIEndpointAction{Handler: storagePoolVolumeDelete, AccessHandler: allowPermission(entity.TypeStorageVolume, authEntity.EntitlementCanDelete, "poolName", "type", "volumeName")},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeGet, AccessHandler: allowPermission(entity.TypeStorageVolume, authEntity.EntitlementCanView, "poolName", "type", "volumeName")},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumePatch, AccessHandler: allowPermission(entity.TypeStorageVolume, authEntity.EntitlementCanEdit, "poolName", "type", "volumeName")},
-	Post:   APIEndpointAction{Handler: storagePoolVolumePost, AccessHandler: allowPermission(entity.TypeStorageVolume, authEntity.EntitlementCanEdit, "poolName", "type", "volumeName")},
-	Put:    APIEndpointAction{Handler: storagePoolVolumePut, AccessHandler: allowPermission(entity.TypeStorageVolume, authEntity.EntitlementCanEdit, "poolName", "type", "volumeName")},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeDelete, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanDelete, "poolName", "type", "volumeName")},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeGet, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanView, "poolName", "type", "volumeName")},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumePatch, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanEdit, "poolName", "type", "volumeName")},
+	Post:   APIEndpointAction{Handler: storagePoolVolumePost, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanEdit, "poolName", "type", "volumeName")},
+	Put:    APIEndpointAction{Handler: storagePoolVolumePut, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanEdit, "poolName", "type", "volumeName")},
 }
 
 // swagger:operation GET /1.0/storage-volumes storage storage_volumes_get
@@ -745,7 +745,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		request.SetCtxValue(r, request.CtxEffectiveProjectName, customVolProjectName)
 	}
 
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeStorageVolume)
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeStorageVolume)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1380,7 +1380,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Check if user has access to effective storage target project
-		err := s.Authorizer.CheckPermission(r.Context(), r, entity.ProjectURL(targetProjectName), authEntity.EntitlementCanCreateStorageVolumes)
+		err := s.Authorizer.CheckPermission(r.Context(), r, entity.ProjectURL(targetProjectName), auth.EntitlementCanCreateStorageVolumes)
 		if err != nil {
 			return response.SmartError(err)
 		}

@@ -9,7 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network"
@@ -25,17 +25,17 @@ import (
 var networkPeersCmd = APIEndpoint{
 	Path: "networks/{networkName}/peers",
 
-	Get:  APIEndpointAction{Handler: networkPeersGet, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanView, "networkName")},
-	Post: APIEndpointAction{Handler: networkPeersPost, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanEdit, "networkName")},
+	Get:  APIEndpointAction{Handler: networkPeersGet, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanView, "networkName")},
+	Post: APIEndpointAction{Handler: networkPeersPost, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
 }
 
 var networkPeerCmd = APIEndpoint{
 	Path: "networks/{networkName}/peers/{peerName}",
 
-	Delete: APIEndpointAction{Handler: networkPeerDelete, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanEdit, "networkName")},
-	Get:    APIEndpointAction{Handler: networkPeerGet, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanView, "networkName")},
-	Put:    APIEndpointAction{Handler: networkPeerPut, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanEdit, "networkName")},
-	Patch:  APIEndpointAction{Handler: networkPeerPut, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanEdit, "networkName")},
+	Delete: APIEndpointAction{Handler: networkPeerDelete, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
+	Get:    APIEndpointAction{Handler: networkPeerGet, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanView, "networkName")},
+	Put:    APIEndpointAction{Handler: networkPeerPut, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
+	Patch:  APIEndpointAction{Handler: networkPeerPut, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
 }
 
 // API endpoints

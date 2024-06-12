@@ -11,7 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -518,7 +518,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		projectName = api.ProjectDefaultName
 	}
 
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanViewOperations, entity.TypeProject)
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanViewOperations, entity.TypeProject)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to get operation permission checker: %w", err))
 	}
