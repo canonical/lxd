@@ -37,7 +37,7 @@ If you prefer a different installation method, or use a Linux distribution that 
           sudo apt install snapd
 
       ```{note}
-      For other Linux distributions, see the [installation instructions](https://snapcraft.io/docs/core/install) in the Snapcraft documentation.
+      For other Linux distributions, see the [installation instructions](https://snapcraft.io/docs/installing-snapd) in the Snapcraft documentation.
       ```
 
 1. Enter the following command to install LXD:
