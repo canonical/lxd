@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/canonical/lxd/lxd/auth"
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/response"
@@ -19,7 +18,7 @@ var permissionsCmd = APIEndpoint{
 	Path: "auth/permissions",
 	Get: APIEndpointAction{
 		Handler:       getPermissions,
-		AccessHandler: allowPermission(entity.TypeServer, authEntity.EntitlementCanViewPermissions),
+		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanViewPermissions),
 	},
 }
 

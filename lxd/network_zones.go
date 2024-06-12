@@ -9,7 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
+	"github.com/canonical/lxd/lxd/auth"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -27,16 +27,16 @@ var networkZonesCmd = APIEndpoint{
 	Path: "network-zones",
 
 	Get:  APIEndpointAction{Handler: networkZonesGet, AccessHandler: allowAuthenticated},
-	Post: APIEndpointAction{Handler: networkZonesPost, AccessHandler: allowPermission(entity.TypeProject, authEntity.EntitlementCanCreateNetworkZones)},
+	Post: APIEndpointAction{Handler: networkZonesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateNetworkZones)},
 }
 
 var networkZoneCmd = APIEndpoint{
 	Path: "network-zones/{zone}",
 
-	Delete: APIEndpointAction{Handler: networkZoneDelete, AccessHandler: allowPermission(entity.TypeNetworkZone, authEntity.EntitlementCanDelete, "zone")},
-	Get:    APIEndpointAction{Handler: networkZoneGet, AccessHandler: allowPermission(entity.TypeNetworkZone, authEntity.EntitlementCanView, "zone")},
-	Put:    APIEndpointAction{Handler: networkZonePut, AccessHandler: allowPermission(entity.TypeNetworkZone, authEntity.EntitlementCanEdit, "zone")},
-	Patch:  APIEndpointAction{Handler: networkZonePut, AccessHandler: allowPermission(entity.TypeNetworkZone, authEntity.EntitlementCanEdit, "zone")},
+	Delete: APIEndpointAction{Handler: networkZoneDelete, AccessHandler: allowPermission(entity.TypeNetworkZone, auth.EntitlementCanDelete, "zone")},
+	Get:    APIEndpointAction{Handler: networkZoneGet, AccessHandler: allowPermission(entity.TypeNetworkZone, auth.EntitlementCanView, "zone")},
+	Put:    APIEndpointAction{Handler: networkZonePut, AccessHandler: allowPermission(entity.TypeNetworkZone, auth.EntitlementCanEdit, "zone")},
+	Patch:  APIEndpointAction{Handler: networkZonePut, AccessHandler: allowPermission(entity.TypeNetworkZone, auth.EntitlementCanEdit, "zone")},
 }
 
 // API endpoints.
@@ -156,7 +156,7 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	request.SetCtxValue(r, request.CtxEffectiveProjectName, projectName)
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeNetworkZone)
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeNetworkZone)
 	if err != nil {
 		return response.InternalError(err)
 	}

@@ -14,7 +14,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -37,17 +37,17 @@ var profilesCmd = APIEndpoint{
 	Path: "profiles",
 
 	Get:  APIEndpointAction{Handler: profilesGet, AccessHandler: allowAuthenticated},
-	Post: APIEndpointAction{Handler: profilesPost, AccessHandler: allowPermission(entity.TypeProject, authEntity.EntitlementCanCreateProfiles)},
+	Post: APIEndpointAction{Handler: profilesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateProfiles)},
 }
 
 var profileCmd = APIEndpoint{
 	Path: "profiles/{name}",
 
-	Delete: APIEndpointAction{Handler: profileDelete, AccessHandler: allowPermission(entity.TypeProfile, authEntity.EntitlementCanDelete, "name")},
-	Get:    APIEndpointAction{Handler: profileGet, AccessHandler: allowPermission(entity.TypeProfile, authEntity.EntitlementCanView, "name")},
-	Patch:  APIEndpointAction{Handler: profilePatch, AccessHandler: allowPermission(entity.TypeProfile, authEntity.EntitlementCanEdit, "name")},
-	Post:   APIEndpointAction{Handler: profilePost, AccessHandler: allowPermission(entity.TypeProfile, authEntity.EntitlementCanEdit, "name")},
-	Put:    APIEndpointAction{Handler: profilePut, AccessHandler: allowPermission(entity.TypeProfile, authEntity.EntitlementCanEdit, "name")},
+	Delete: APIEndpointAction{Handler: profileDelete, AccessHandler: allowPermission(entity.TypeProfile, auth.EntitlementCanDelete, "name")},
+	Get:    APIEndpointAction{Handler: profileGet, AccessHandler: allowPermission(entity.TypeProfile, auth.EntitlementCanView, "name")},
+	Patch:  APIEndpointAction{Handler: profilePatch, AccessHandler: allowPermission(entity.TypeProfile, auth.EntitlementCanEdit, "name")},
+	Post:   APIEndpointAction{Handler: profilePost, AccessHandler: allowPermission(entity.TypeProfile, auth.EntitlementCanEdit, "name")},
+	Put:    APIEndpointAction{Handler: profilePut, AccessHandler: allowPermission(entity.TypeProfile, auth.EntitlementCanEdit, "name")},
 }
 
 // swagger:operation GET /1.0/profiles profiles profiles_get
@@ -153,7 +153,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	request.SetCtxValue(r, request.CtxEffectiveProjectName, p.Name)
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeProfile)
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeProfile)
 	if err != nil {
 		return response.InternalError(err)
 	}

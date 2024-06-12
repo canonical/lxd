@@ -13,7 +13,7 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/openfga/openfga/pkg/storage"
 
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
@@ -241,7 +241,7 @@ func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filt
 			{
 				Key: &openfgav1.TupleKey{
 					Object:   fmt.Sprintf("%s:%s", entity.TypeServer, entity.ServerURL().String()),
-					Relation: string(authEntity.EntitlementCanView),
+					Relation: string(auth.EntitlementCanView),
 					User:     fmt.Sprintf("%s:*", entity.TypeIdentity),
 				},
 			},
