@@ -1,4 +1,4 @@
-package auth
+package drivers
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/openfga/openfga/pkg/storage"
 
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -17,7 +17,7 @@ var authorizers = map[string]func() authorizer{}
 var ErrUnknownDriver = fmt.Errorf("Unknown driver")
 
 type authorizer interface {
-	authEntity.Authorizer
+	auth.Authorizer
 
 	init(driverName string, logger logger.Logger) error
 	load(ctx context.Context, certificateCache *identity.Cache, opts Opts) error
@@ -45,7 +45,7 @@ func WithOpenFGADatastore(store storage.OpenFGADatastore) func(*Opts) {
 }
 
 // LoadAuthorizer instantiates, configures, and initialises an Authorizer.
-func LoadAuthorizer(ctx context.Context, driver string, logger logger.Logger, certificateCache *identity.Cache, options ...func(opts *Opts)) (authEntity.Authorizer, error) {
+func LoadAuthorizer(ctx context.Context, driver string, logger logger.Logger, certificateCache *identity.Cache, options ...func(opts *Opts)) (auth.Authorizer, error) {
 	opts := &Opts{}
 	for _, o := range options {
 		o(opts)
