@@ -739,16 +739,18 @@ type qemuDriveDirOpts struct {
 
 func qemuDriveDir(opts *qemuDriveDirOpts) []cfgSection {
 	return qemuHostDrive(&qemuHostDriveOpts{
-		dev: opts.dev,
-		// Devices use "lxd_" prefix indicating that this is a user named device.
-		name:     fmt.Sprintf("lxd_%s", opts.devName),
-		comment:  fmt.Sprintf("%s drive (%s)", opts.devName, opts.protocol),
-		mountTag: opts.mountTag,
-		protocol: opts.protocol,
-		fsdriver: "proxy",
-		readonly: opts.readonly,
-		path:     opts.path,
-		sockFd:   fmt.Sprintf("%d", opts.proxyFD),
+		dev:  opts.dev,
+		name: opts.devName,
+		// Devices use "lxd_" prefix indicating that this is a user named device
+		namePrefix: qemuDeviceNamePrefix,
+		nameSuffix: fmt.Sprintf("-%s", opts.protocol),
+		comment:    fmt.Sprintf("%s drive (%s)", opts.devName, opts.protocol),
+		mountTag:   opts.mountTag,
+		protocol:   opts.protocol,
+		fsdriver:   "proxy",
+		readonly:   opts.readonly,
+		path:       opts.path,
+		sockFd:     fmt.Sprintf("%d", opts.proxyFD),
 	})
 }
 
