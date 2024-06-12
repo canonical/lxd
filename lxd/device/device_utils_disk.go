@@ -490,6 +490,10 @@ func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath st
 		return nil, nil, fmt.Errorf("Failed getting UnixListener for virtiofsd")
 	}
 
+	revert.Add(func() {
+		_ = unixListener.Close()
+	})
+
 	unixFile, err := unixListener.File()
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to getting unix listener file for virtiofsd: %w", err)
