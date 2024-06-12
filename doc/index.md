@@ -37,16 +37,16 @@ See {ref}`exp-security` for detailed information.
 LXD is free software and developed under the [Apache 2 license](https://www.apache.org/licenses/LICENSE-2.0).
 It’s an open source project that warmly welcomes community projects, contributions, suggestions, fixes and constructive feedback.
 
-The LXD project is sponsored by [Canonical Ltd](https://www.canonical.com).
+The LXD project is sponsored by [Canonical Ltd](https://canonical.com/).
 
 - [Code of Conduct](https://ubuntu.com/community/ethos/code-of-conduct)
 - [Contribute to the project](contributing.md)
-- [Release announcements](https://discourse.ubuntu.com/c/lxd/news/)
+- [Release announcements](https://discourse.ubuntu.com/c/lxd/news/143)
 - [Release tarballs](https://github.com/canonical/lxd/releases/)
 - [Get support](support.md)
 - [Watch tutorials and announcements on YouTube](https://www.youtube.com/c/LXDvideos)
 - [Discuss on IRC](https://web.libera.chat/#lxd) (see [Getting started with IRC](https://discourse.ubuntu.com/t/getting-started-with-irc/37907) if needed)
-- [Ask and answer questions on the forum](https://discourse.ubuntu.com/c/lxd/)
+- [Ask and answer questions on the forum](https://discourse.ubuntu.com/c/lxd/126)
 
 ```{toctree}
 :hidden:
