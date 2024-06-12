@@ -79,7 +79,7 @@ When {config:option}`instance-migration:migration.stateful` is enabled in LXD, v
 (live-migration-containers)=
 ### Live migration for containers
 
-For containers, there is limited support for live migration using [{abbr}`CRIU (Checkpoint/Restore in Userspace)`](https://criu.org/).
+For containers, there is limited support for live migration using [{abbr}`CRIU (Checkpoint/Restore in Userspace)`](https://criu.org/Main_Page).
 However, because of extensive kernel dependencies, only very basic containers (non-`systemd` containers without a network device) can be migrated reliably.
 In most real-world scenarios, you should stop the container, move it over and then start it again.
 
