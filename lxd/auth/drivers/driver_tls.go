@@ -1,6 +1,6 @@
 //go:build linux && cgo && !agent
 
-package auth
+package drivers
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net/http"
 
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared"
@@ -41,7 +41,7 @@ func (t *tls) load(ctx context.Context, identityCache *identity.Cache, opts Opts
 }
 
 // CheckPermission returns an error if the user does not have the given Entitlement on the given Object.
-func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *api.URL, entitlement authEntity.Entitlement) error {
+func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *api.URL, entitlement auth.Entitlement) error {
 	details, err := t.requestDetails(r)
 	if err != nil {
 		return fmt.Errorf("Failed to extract request details: %w", err)
@@ -77,7 +77,7 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *a
 
 	if !isRestricted {
 		return nil
-	} else if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == authEntity.EntitlementCanViewMetrics {
+	} else if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
 		return nil
 	}
 
@@ -98,13 +98,13 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *a
 	// Check server level object types
 	switch entityType {
 	case entity.TypeServer:
-		if entitlement == authEntity.EntitlementCanView || entitlement == authEntity.EntitlementCanViewResources || entitlement == authEntity.EntitlementCanViewMetrics {
+		if entitlement == auth.EntitlementCanView || entitlement == auth.EntitlementCanViewResources || entitlement == auth.EntitlementCanViewMetrics {
 			return nil
 		}
 
 		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
 	case entity.TypeStoragePool, entity.TypeCertificate:
-		if entitlement == authEntity.EntitlementCanView {
+		if entitlement == auth.EntitlementCanView {
 			return nil
 		}
 
@@ -112,7 +112,7 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *a
 	}
 
 	// Don't allow project modifications.
-	if entityType == entity.TypeProject && (entitlement == authEntity.EntitlementCanEdit || entitlement == authEntity.EntitlementCanDelete) {
+	if entityType == entity.TypeProject && (entitlement == auth.EntitlementCanEdit || entitlement == auth.EntitlementCanDelete) {
 		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
 	}
 
@@ -125,7 +125,7 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *a
 }
 
 // GetPermissionChecker returns a function that can be used to check whether a user has the required entitlement on an authorization object.
-func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitlement authEntity.Entitlement, entityType entity.Type) (authEntity.PermissionChecker, error) {
+func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
 	allowFunc := func(b bool) func(*api.URL) bool {
 		return func(*api.URL) bool {
 			return b
@@ -167,7 +167,7 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 
 	if !isRestricted {
 		return allowFunc(true), nil
-	} else if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == authEntity.EntitlementCanViewMetrics {
+	} else if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
 		return allowFunc(true), nil
 	}
 
@@ -182,13 +182,13 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 		// We have to keep EntitlementCanViewMetrics here for backwards compatibility with older versions of LXD.
 		// Historically when viewing the metrics endpoint for a specific project with a restricted certificate
 		// also the internal server metrics get returned.
-		if entitlement == authEntity.EntitlementCanView || entitlement == authEntity.EntitlementCanViewResources || entitlement == authEntity.EntitlementCanViewMetrics {
+		if entitlement == auth.EntitlementCanView || entitlement == auth.EntitlementCanViewResources || entitlement == auth.EntitlementCanViewMetrics {
 			return allowFunc(true), nil
 		}
 
 		return allowFunc(false), nil
 	case entity.TypeStoragePool, entity.TypeCertificate:
-		if entitlement == authEntity.EntitlementCanView {
+		if entitlement == auth.EntitlementCanView {
 			return allowFunc(true), nil
 		}
 
