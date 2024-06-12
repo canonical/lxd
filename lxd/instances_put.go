@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/instance"
@@ -97,7 +97,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 
 	action := instancetype.InstanceAction(req.State.Action)
 
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanUpdateState, entity.TypeInstance)
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanUpdateState, entity.TypeInstance)
 	if err != nil {
 		return response.SmartError(err)
 	}

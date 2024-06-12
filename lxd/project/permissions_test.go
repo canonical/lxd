@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/auth/drivers"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/identity"
@@ -200,7 +200,7 @@ func TestCheckClusterTargetRestriction_RestrictedTrue(t *testing.T) {
 	}, nil)
 	require.NoError(t, err)
 
-	authorizer, err := auth.LoadAuthorizer(context.Background(), auth.DriverTLS, logger.Log, identityCache)
+	authorizer, err := drivers.LoadAuthorizer(context.Background(), drivers.DriverTLS, logger.Log, identityCache)
 	require.NoError(t, err)
 
 	err = project.CheckClusterTargetRestriction(authorizer, req, p, "n1")
@@ -246,7 +246,7 @@ func TestCheckClusterTargetRestriction_RestrictedTrueWithOverride(t *testing.T) 
 	}, nil)
 	require.NoError(t, err)
 
-	authorizer, err := auth.LoadAuthorizer(context.Background(), auth.DriverTLS, logger.Log, identityCache)
+	authorizer, err := drivers.LoadAuthorizer(context.Background(), drivers.DriverTLS, logger.Log, identityCache)
 	require.NoError(t, err)
 
 	err = project.CheckClusterTargetRestriction(authorizer, req, p, "n1")
@@ -272,7 +272,7 @@ func TestCheckClusterTargetRestriction_RestrictedFalse(t *testing.T) {
 	require.NoError(t, err)
 
 	req := &http.Request{}
-	authorizer, err := auth.LoadAuthorizer(context.Background(), auth.DriverTLS, logger.Log, &identity.Cache{})
+	authorizer, err := drivers.LoadAuthorizer(context.Background(), drivers.DriverTLS, logger.Log, &identity.Cache{})
 	require.NoError(t, err)
 
 	err = project.CheckClusterTargetRestriction(authorizer, req, p, "n1")

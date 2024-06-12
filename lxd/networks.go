@@ -15,7 +15,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
@@ -48,29 +48,29 @@ var networksCmd = APIEndpoint{
 	Path: "networks",
 
 	Get:  APIEndpointAction{Handler: networksGet, AccessHandler: allowAuthenticated},
-	Post: APIEndpointAction{Handler: networksPost, AccessHandler: allowPermission(entity.TypeProject, authEntity.EntitlementCanCreateNetworks)},
+	Post: APIEndpointAction{Handler: networksPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateNetworks)},
 }
 
 var networkCmd = APIEndpoint{
 	Path: "networks/{networkName}",
 
-	Delete: APIEndpointAction{Handler: networkDelete, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanDelete, "networkName")},
-	Get:    APIEndpointAction{Handler: networkGet, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanView, "networkName")},
-	Patch:  APIEndpointAction{Handler: networkPatch, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanEdit, "networkName")},
-	Post:   APIEndpointAction{Handler: networkPost, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanEdit, "networkName")},
-	Put:    APIEndpointAction{Handler: networkPut, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanEdit, "networkName")},
+	Delete: APIEndpointAction{Handler: networkDelete, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanDelete, "networkName")},
+	Get:    APIEndpointAction{Handler: networkGet, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanView, "networkName")},
+	Patch:  APIEndpointAction{Handler: networkPatch, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
+	Post:   APIEndpointAction{Handler: networkPost, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
+	Put:    APIEndpointAction{Handler: networkPut, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
 }
 
 var networkLeasesCmd = APIEndpoint{
 	Path: "networks/{networkName}/leases",
 
-	Get: APIEndpointAction{Handler: networkLeasesGet, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanView, "networkName")},
+	Get: APIEndpointAction{Handler: networkLeasesGet, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanView, "networkName")},
 }
 
 var networkStateCmd = APIEndpoint{
 	Path: "networks/{networkName}/state",
 
-	Get: APIEndpointAction{Handler: networkStateGet, AccessHandler: allowPermission(entity.TypeNetwork, authEntity.EntitlementCanView, "networkName")},
+	Get: APIEndpointAction{Handler: networkStateGet, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanView, "networkName")},
 }
 
 // API endpoints
@@ -211,7 +211,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanView, entity.TypeNetwork)
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeNetwork)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -863,8 +863,8 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, projectName st
 		apiNet.Description = n.Description()
 		apiNet.Type = n.Type()
 
-		err = s.Authorizer.CheckPermission(r.Context(), r, entity.NetworkURL(projectName, networkName), authEntity.EntitlementCanEdit)
-		if err != nil && !authEntity.IsDeniedError(err) {
+		err = s.Authorizer.CheckPermission(r.Context(), r, entity.NetworkURL(projectName, networkName), auth.EntitlementCanEdit)
+		if err != nil && !auth.IsDeniedError(err) {
 			return api.Network{}, err
 		} else if err == nil {
 			// Only allow users that can edit network config to view it as sensitive info can be stored there.

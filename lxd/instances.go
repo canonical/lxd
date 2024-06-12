@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/instance"
@@ -35,7 +35,7 @@ var instancesCmd = APIEndpoint{
 	},
 
 	Get:  APIEndpointAction{Handler: instancesGet, AccessHandler: allowAuthenticated},
-	Post: APIEndpointAction{Handler: instancesPost, AccessHandler: allowPermission(entity.TypeProject, authEntity.EntitlementCanCreateInstances)},
+	Post: APIEndpointAction{Handler: instancesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateInstances)},
 	Put:  APIEndpointAction{Handler: instancesPut, AccessHandler: allowAuthenticated},
 }
 
@@ -47,11 +47,11 @@ var instanceCmd = APIEndpoint{
 		{Name: "vm", Path: "virtual-machines/{name}"},
 	},
 
-	Get:    APIEndpointAction{Handler: instanceGet, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanView, "name")},
-	Put:    APIEndpointAction{Handler: instancePut, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanEdit, "name")},
-	Delete: APIEndpointAction{Handler: instanceDelete, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanDelete, "name")},
-	Post:   APIEndpointAction{Handler: instancePost, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanEdit, "name")},
-	Patch:  APIEndpointAction{Handler: instancePatch, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanEdit, "name")},
+	Get:    APIEndpointAction{Handler: instanceGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
+	Put:    APIEndpointAction{Handler: instancePut, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
+	Delete: APIEndpointAction{Handler: instanceDelete, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanDelete, "name")},
+	Post:   APIEndpointAction{Handler: instancePost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
+	Patch:  APIEndpointAction{Handler: instancePatch, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
 }
 
 var instanceUEFIVarsCmd = APIEndpoint{
@@ -61,8 +61,8 @@ var instanceUEFIVarsCmd = APIEndpoint{
 		{Name: "vmUEFIVars", Path: "virtual-machines/{name}/uefi-vars"},
 	},
 
-	Get: APIEndpointAction{Handler: instanceUEFIVarsGet, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanView, "name")},
-	Put: APIEndpointAction{Handler: instanceUEFIVarsPut, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanEdit, "name")},
+	Get: APIEndpointAction{Handler: instanceUEFIVarsGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
+	Put: APIEndpointAction{Handler: instanceUEFIVarsPut, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
 }
 
 var instanceRebuildCmd = APIEndpoint{
@@ -73,7 +73,7 @@ var instanceRebuildCmd = APIEndpoint{
 		{Name: "vmRebuild", Path: "virtual-machines/{name}/rebuild"},
 	},
 
-	Post: APIEndpointAction{Handler: instanceRebuildPost, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanEdit, "name")},
+	Post: APIEndpointAction{Handler: instanceRebuildPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
 }
 
 var instanceStateCmd = APIEndpoint{
@@ -84,8 +84,8 @@ var instanceStateCmd = APIEndpoint{
 		{Name: "vmState", Path: "virtual-machines/{name}/state"},
 	},
 
-	Get: APIEndpointAction{Handler: instanceState, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanView, "name")},
-	Put: APIEndpointAction{Handler: instanceStatePut, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanUpdateState, "name")},
+	Get: APIEndpointAction{Handler: instanceState, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
+	Put: APIEndpointAction{Handler: instanceStatePut, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanUpdateState, "name")},
 }
 
 var instanceSFTPCmd = APIEndpoint{
@@ -96,7 +96,7 @@ var instanceSFTPCmd = APIEndpoint{
 		{Name: "vmFile", Path: "virtual-machines/{name}/sftp"},
 	},
 
-	Get: APIEndpointAction{Handler: instanceSFTPHandler, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanConnectSFTP, "name")},
+	Get: APIEndpointAction{Handler: instanceSFTPHandler, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanConnectSFTP, "name")},
 }
 
 var instanceFileCmd = APIEndpoint{
@@ -107,10 +107,10 @@ var instanceFileCmd = APIEndpoint{
 		{Name: "vmFile", Path: "virtual-machines/{name}/files"},
 	},
 
-	Get:    APIEndpointAction{Handler: instanceFileHandler, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanAccessFiles, "name")},
-	Head:   APIEndpointAction{Handler: instanceFileHandler, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanAccessFiles, "name")},
-	Post:   APIEndpointAction{Handler: instanceFileHandler, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanAccessFiles, "name")},
-	Delete: APIEndpointAction{Handler: instanceFileHandler, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanAccessFiles, "name")},
+	Get:    APIEndpointAction{Handler: instanceFileHandler, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanAccessFiles, "name")},
+	Head:   APIEndpointAction{Handler: instanceFileHandler, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanAccessFiles, "name")},
+	Post:   APIEndpointAction{Handler: instanceFileHandler, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanAccessFiles, "name")},
+	Delete: APIEndpointAction{Handler: instanceFileHandler, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanAccessFiles, "name")},
 }
 
 var instanceSnapshotsCmd = APIEndpoint{
@@ -121,8 +121,8 @@ var instanceSnapshotsCmd = APIEndpoint{
 		{Name: "vmSnapshots", Path: "virtual-machines/{name}/snapshots"},
 	},
 
-	Get:  APIEndpointAction{Handler: instanceSnapshotsGet, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanView, "name")},
-	Post: APIEndpointAction{Handler: instanceSnapshotsPost, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanManageSnapshots, "name")},
+	Get:  APIEndpointAction{Handler: instanceSnapshotsGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
+	Post: APIEndpointAction{Handler: instanceSnapshotsPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanManageSnapshots, "name")},
 }
 
 var instanceSnapshotCmd = APIEndpoint{
@@ -133,11 +133,11 @@ var instanceSnapshotCmd = APIEndpoint{
 		{Name: "vmSnapshot", Path: "virtual-machines/{name}/snapshots/{snapshotName}"},
 	},
 
-	Get:    APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanView, "name")},
-	Post:   APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanManageSnapshots, "name")},
-	Delete: APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanManageSnapshots, "name")},
-	Patch:  APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanManageSnapshots, "name")},
-	Put:    APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanManageSnapshots, "name")},
+	Get:    APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
+	Post:   APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanManageSnapshots, "name")},
+	Delete: APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanManageSnapshots, "name")},
+	Patch:  APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanManageSnapshots, "name")},
+	Put:    APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanManageSnapshots, "name")},
 }
 
 var instanceConsoleCmd = APIEndpoint{
@@ -148,9 +148,9 @@ var instanceConsoleCmd = APIEndpoint{
 		{Name: "vmConsole", Path: "virtual-machines/{name}/console"},
 	},
 
-	Get:    APIEndpointAction{Handler: instanceConsoleLogGet, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanView, "name")},
-	Post:   APIEndpointAction{Handler: instanceConsolePost, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanAccessConsole, "name")},
-	Delete: APIEndpointAction{Handler: instanceConsoleLogDelete, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanEdit, "name")},
+	Get:    APIEndpointAction{Handler: instanceConsoleLogGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
+	Post:   APIEndpointAction{Handler: instanceConsolePost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanAccessConsole, "name")},
+	Delete: APIEndpointAction{Handler: instanceConsoleLogDelete, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
 }
 
 var instanceExecCmd = APIEndpoint{
@@ -161,7 +161,7 @@ var instanceExecCmd = APIEndpoint{
 		{Name: "vmExec", Path: "virtual-machines/{name}/exec"},
 	},
 
-	Post: APIEndpointAction{Handler: instanceExecPost, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanExec, "name")},
+	Post: APIEndpointAction{Handler: instanceExecPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanExec, "name")},
 }
 
 var instanceMetadataCmd = APIEndpoint{
@@ -172,9 +172,9 @@ var instanceMetadataCmd = APIEndpoint{
 		{Name: "vmMetadata", Path: "virtual-machines/{name}/metadata"},
 	},
 
-	Get:   APIEndpointAction{Handler: instanceMetadataGet, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanView, "name")},
-	Patch: APIEndpointAction{Handler: instanceMetadataPatch, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanEdit, "name")},
-	Put:   APIEndpointAction{Handler: instanceMetadataPut, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanEdit, "name")},
+	Get:   APIEndpointAction{Handler: instanceMetadataGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
+	Patch: APIEndpointAction{Handler: instanceMetadataPatch, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
+	Put:   APIEndpointAction{Handler: instanceMetadataPut, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
 }
 
 var instanceMetadataTemplatesCmd = APIEndpoint{
@@ -185,9 +185,9 @@ var instanceMetadataTemplatesCmd = APIEndpoint{
 		{Name: "vmMetadataTemplates", Path: "virtual-machines/{name}/metadata/templates"},
 	},
 
-	Get:    APIEndpointAction{Handler: instanceMetadataTemplatesGet, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanView, "name")},
-	Post:   APIEndpointAction{Handler: instanceMetadataTemplatesPost, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanEdit, "name")},
-	Delete: APIEndpointAction{Handler: instanceMetadataTemplatesDelete, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanEdit, "name")},
+	Get:    APIEndpointAction{Handler: instanceMetadataTemplatesGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
+	Post:   APIEndpointAction{Handler: instanceMetadataTemplatesPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
+	Delete: APIEndpointAction{Handler: instanceMetadataTemplatesDelete, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
 }
 
 var instanceBackupsCmd = APIEndpoint{
@@ -198,8 +198,8 @@ var instanceBackupsCmd = APIEndpoint{
 		{Name: "vmBackups", Path: "virtual-machines/{name}/backups"},
 	},
 
-	Get:  APIEndpointAction{Handler: instanceBackupsGet, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanView, "name")},
-	Post: APIEndpointAction{Handler: instanceBackupsPost, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanManageBackups, "name")},
+	Get:  APIEndpointAction{Handler: instanceBackupsGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
+	Post: APIEndpointAction{Handler: instanceBackupsPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanManageBackups, "name")},
 }
 
 var instanceBackupCmd = APIEndpoint{
@@ -210,9 +210,9 @@ var instanceBackupCmd = APIEndpoint{
 		{Name: "vmBackup", Path: "virtual-machines/{name}/backups/{backupName}"},
 	},
 
-	Get:    APIEndpointAction{Handler: instanceBackupGet, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanView, "name")},
-	Post:   APIEndpointAction{Handler: instanceBackupPost, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanManageBackups, "name")},
-	Delete: APIEndpointAction{Handler: instanceBackupDelete, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanManageBackups, "name")},
+	Get:    APIEndpointAction{Handler: instanceBackupGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
+	Post:   APIEndpointAction{Handler: instanceBackupPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanManageBackups, "name")},
+	Delete: APIEndpointAction{Handler: instanceBackupDelete, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanManageBackups, "name")},
 }
 
 var instanceBackupExportCmd = APIEndpoint{
@@ -223,7 +223,7 @@ var instanceBackupExportCmd = APIEndpoint{
 		{Name: "vmBackupExport", Path: "virtual-machines/{name}/backups/{backupName}/export"},
 	},
 
-	Get: APIEndpointAction{Handler: instanceBackupExportGet, AccessHandler: allowPermission(entity.TypeInstance, authEntity.EntitlementCanManageBackups, "name")},
+	Get: APIEndpointAction{Handler: instanceBackupExportGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanManageBackups, "name")},
 }
 
 type instanceAutostartList []instance.Instance

@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/request"
@@ -106,7 +106,7 @@ type Operation struct {
 	canceler    *cancel.HTTPRequestCanceller
 	description string
 	entityType  entity.Type
-	entitlement authEntity.Entitlement
+	entitlement auth.Entitlement
 	dbOpType    operationtype.Type
 	requestor   *api.EventLifecycleRequestor
 	logger      logger.Logger
@@ -663,7 +663,7 @@ func (op *Operation) SetCanceler(canceler *cancel.HTTPRequestCanceller) {
 }
 
 // Permission returns the operations entity.Type and auth.Entitlement.
-func (op *Operation) Permission() (entity.Type, authEntity.Entitlement) {
+func (op *Operation) Permission() (entity.Type, auth.Entitlement) {
 	return op.entityType, op.entitlement
 }
 

@@ -29,7 +29,7 @@ import (
 	"github.com/canonical/lxd/lxd/acme"
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/auth"
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
+	authDrivers "github.com/canonical/lxd/lxd/auth/drivers"
 	"github.com/canonical/lxd/lxd/auth/oidc"
 	"github.com/canonical/lxd/lxd/bgp"
 	"github.com/canonical/lxd/lxd/cluster"
@@ -157,7 +157,7 @@ type Daemon struct {
 	http01Provider acme.HTTP01Provider
 
 	// Authorization.
-	authorizer authEntity.Authorizer
+	authorizer auth.Authorizer
 
 	// Syslog listener cancel function.
 	syslogSocketCancel context.CancelFunc
@@ -259,7 +259,7 @@ func allowAuthenticated(_ *Daemon, r *http.Request) response.Response {
 // Mux vars should be passed in so that the object we are checking can be created. For example, a certificate object requires
 // a fingerprint, the mux var for certificate fingerprints is "fingerprint", so that string should be passed in.
 // Mux vars should always be passed in with the same order they appear in the API route.
-func allowPermission(entityType entity.Type, entitlement authEntity.Entitlement, muxVars ...string) func(d *Daemon, r *http.Request) response.Response {
+func allowPermission(entityType entity.Type, entitlement auth.Entitlement, muxVars ...string) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		s := d.State()
 		var err error
@@ -845,7 +845,7 @@ func (d *Daemon) init() error {
 	var dbWarnings []dbCluster.Warning
 
 	// Set default authorizer.
-	d.authorizer, err = auth.LoadAuthorizer(d.shutdownCtx, auth.DriverTLS, logger.Log, d.identityCache)
+	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverTLS, logger.Log, d.identityCache)
 	if err != nil {
 		return err
 	}
@@ -1255,7 +1255,7 @@ func (d *Daemon) init() error {
 
 	// Load the embedded OpenFGA authorizer. This cannot be loaded until after the cluster database is initialised,
 	// so the TLS authorizer must be loaded first to set up clustering.
-	d.authorizer, err = auth.LoadAuthorizer(d.shutdownCtx, auth.DriverEmbeddedOpenFGA, logger.Log, d.identityCache, auth.WithOpenFGADatastore(openfga.NewOpenFGAStore(d.db.Cluster)))
+	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverEmbeddedOpenFGA, logger.Log, d.identityCache, authDrivers.WithOpenFGADatastore(openfga.NewOpenFGAStore(d.db.Cluster)))
 	if err != nil {
 		return err
 	}

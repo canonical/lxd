@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -47,7 +47,7 @@ type IdentityProviderGroupFilter struct {
 }
 
 // ToAPI converts the IdentityProviderGroup to an api.IdentityProviderGroup, making more database calls as necessary.
-func (i *IdentityProviderGroup) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup authEntity.PermissionChecker) (*api.IdentityProviderGroup, error) {
+func (i *IdentityProviderGroup) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.PermissionChecker) (*api.IdentityProviderGroup, error) {
 	idpGroup := &api.IdentityProviderGroup{
 		Name: i.Name,
 	}
