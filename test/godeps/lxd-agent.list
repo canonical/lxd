@@ -12,7 +12,7 @@ github.com/canonical/go-dqlite/logging
 github.com/canonical/go-dqlite/tracing
 github.com/canonical/lxd/client
 github.com/canonical/lxd/lxd-agent/api
-github.com/canonical/lxd/lxd/auth/entity
+github.com/canonical/lxd/lxd/auth
 github.com/canonical/lxd/lxd/bgp
 github.com/canonical/lxd/lxd/certificate
 github.com/canonical/lxd/lxd/cgroup
