@@ -643,6 +643,16 @@ type qemuHostDriveOpts struct {
 	protocol      string
 }
 
+// generateQemuDeviceID generates QEMU device IDs.
+// QEMU device IDs may only be up to 64 characters long, so use a hash if longer.
+func generateQemuDirDriveName(name string, prefix string, suffix string) string {
+	// Calculate max length before applying prefix and suffix.
+	maxNameLength := qemuDeviceIDMaxLength - (len(prefix) + len(suffix))
+	name = hashIfLonger(name, maxNameLength)
+
+	return fmt.Sprintf("%s%s%s", prefix, name, suffix)
+}
+
 func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 	var extraDeviceEntries []cfgEntry
 	var driveSection cfgSection
