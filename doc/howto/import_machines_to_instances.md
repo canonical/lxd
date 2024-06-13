@@ -27,7 +27,7 @@ The tool can create both containers and virtual machines:
 
 * When creating a container, you must provide a disk or partition that contains the root file system for the container.
   For example, this could be the `/` root disk of the machine or container where you are running the tool.
-* When creating a virtual machine, you must provide a bootable disk, partition or image.
+* When creating a virtual machine, you must provide a bootable disk, partition, or an image in raw, QCOW, QCOW2, VDI, VHDX, or VMDK format.
   This means that just providing a file system is not sufficient, and you cannot create a virtual machine from a container that you are running.
   It is also not possible to create a virtual machine from the physical machine that you are using to do the migration, because the migration tool would be using the disk that it is copying.
   Instead, you could provide a bootable image, or a bootable partition or disk that is currently not in use.
