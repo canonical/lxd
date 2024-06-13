@@ -78,11 +78,6 @@ func (c *Config) HTTPSAllowedCredentials() bool {
 	return c.m.GetBool("core.https_allowed_credentials")
 }
 
-// TrustPassword returns the LXD trust password for authenticating clients.
-func (c *Config) TrustPassword() string {
-	return c.m.GetString("core.trust_password")
-}
-
 // TrustCACertificates returns whether client certificates are checked
 // against a CA.
 func (c *Config) TrustCACertificates() bool {
@@ -498,14 +493,6 @@ var ConfigSchema = config.Schema{
 	//  defaultdesc: `5`
 	//  shortdesc: How long to wait before shutdown
 	"core.shutdown_timeout": {Type: config.Int64, Default: "5"},
-
-	// lxdmeta:generate(entities=server; group=core; key=core.trust_password)
-	//
-	// ---
-	//  type: string
-	//  scope: global
-	//  shortdesc: Password to be provided by clients to set up a trust
-	"core.trust_password": {Setter: passwordSetter},
 
 	// lxdmeta:generate(entities=server; group=core; key=core.trust_ca_certificates)
 	//
