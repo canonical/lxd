@@ -128,7 +128,7 @@ jobs:
           strip -s /tmp/bin/*
 
           # bin/min/max (sizes are in MiB)
-          SIZES="lxc 13 14
+          SIZES="lxc 14 15
                  lxd-agent 11 12"
           MIB="$((1024 * 1024))"
 
