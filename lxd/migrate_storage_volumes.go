@@ -207,27 +207,27 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 func newStorageMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
 		migrationFields: migrationFields{
-			volumeOnly: args.VolumeOnly,
+			volumeOnly: args.volumeOnly,
 		},
-		url:     args.URL,
-		push:    args.Push,
-		refresh: args.Refresh,
+		url:     args.url,
+		push:    args.push,
+		refresh: args.refresh,
 	}
 
 	secretNames := []string{api.SecretNameControl, api.SecretNameFilesystem}
 	sink.conns = make(map[string]*migrationConn, len(secretNames))
 	for _, connName := range secretNames {
 		if !sink.push {
-			if args.Secrets[connName] == "" {
+			if args.secrets[connName] == "" {
 				return nil, fmt.Errorf("Expected %q connection secret missing from migration sink target request", connName)
 			}
 
-			u, err := url.Parse(fmt.Sprintf("wss://%s/websocket", strings.TrimPrefix(args.URL, "https://")))
+			u, err := url.Parse(fmt.Sprintf("wss://%s/websocket", strings.TrimPrefix(args.url, "https://")))
 			if err != nil {
 				return nil, fmt.Errorf("Failed parsing websocket URL for migration sink %q connection: %w", connName, err)
 			}
 
-			sink.conns[connName] = newMigrationConn(args.Secrets[connName], args.Dialer, u)
+			sink.conns[connName] = newMigrationConn(args.secrets[connName], args.dialer, u)
 		} else {
 			secret, err := shared.RandomCryptoString()
 			if err != nil {
@@ -331,15 +331,15 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 			MigrationType:      respTypes[0],
 			TrackProgress:      true,
 			ContentType:        req.ContentType,
-			Refresh:            args.Refresh,
-			VolumeOnly:         args.VolumeOnly,
+			Refresh:            args.refresh,
+			VolumeOnly:         args.volumeOnly,
 		}
 
 		// A zero length Snapshots slice indicates volume only migration in
 		// VolumeTargetArgs. So if VoluneOnly was requested, do not populate them.
-		if !args.VolumeOnly {
-			volTargetArgs.Snapshots = make([]string, 0, len(args.Snapshots))
-			for _, snap := range args.Snapshots {
+		if !args.volumeOnly {
+			volTargetArgs.Snapshots = make([]string, 0, len(args.snapshots))
+			for _, snap := range args.snapshots {
 				volTargetArgs.Snapshots = append(volTargetArgs.Snapshots, *snap.Name)
 			}
 		}
@@ -428,10 +428,10 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 			// as part of MigrationSinkArgs below.
 			rsyncFeatures := respHeader.GetRsyncFeaturesSlice()
 			args := migrationSinkArgs{
-				RsyncFeatures: rsyncFeatures,
-				Snapshots:     respHeader.Snapshots,
-				VolumeOnly:    c.volumeOnly,
-				Refresh:       c.refresh,
+				rsyncFeatures: rsyncFeatures,
+				snapshots:     respHeader.Snapshots,
+				volumeOnly:    c.volumeOnly,
+				refresh:       c.refresh,
 			}
 
 			fsConn, err := c.conns[api.SecretNameFilesystem].WebsocketIO(context.TODO())

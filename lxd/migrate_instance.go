@@ -161,14 +161,14 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
 		migrationFields: migrationFields{
-			instance:     args.Instance,
-			instanceOnly: args.InstanceOnly,
-			live:         args.Live,
+			instance:     args.instance,
+			instanceOnly: args.instanceOnly,
+			live:         args.live,
 		},
-		url:                   args.URL,
-		clusterMoveSourceName: args.ClusterMoveSourceName,
-		push:                  args.Push,
-		refresh:               args.Refresh,
+		url:                   args.url,
+		clusterMoveSourceName: args.clusterMoveSourceName,
+		push:                  args.push,
+		refresh:               args.refresh,
 	}
 
 	secretNames := []string{api.SecretNameControl, api.SecretNameFilesystem}
@@ -186,16 +186,16 @@ func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	sink.conns = make(map[string]*migrationConn, len(secretNames))
 	for _, connName := range secretNames {
 		if !sink.push {
-			if args.Secrets[connName] == "" {
+			if args.secrets[connName] == "" {
 				return nil, fmt.Errorf("Expected %q connection secret missing from migration sink target request", connName)
 			}
 
-			u, err := url.Parse(fmt.Sprintf("wss://%s/websocket", strings.TrimPrefix(args.URL, "https://")))
+			u, err := url.Parse(fmt.Sprintf("wss://%s/websocket", strings.TrimPrefix(args.url, "https://")))
 			if err != nil {
 				return nil, fmt.Errorf("Failed parsing websocket URL for migration sink %q connection: %w", connName, err)
 			}
 
-			sink.conns[connName] = newMigrationConn(args.Secrets[connName], args.Dialer, u)
+			sink.conns[connName] = newMigrationConn(args.secrets[connName], args.dialer, u)
 		} else {
 			secret, err := shared.RandomCryptoString()
 			if err != nil {
