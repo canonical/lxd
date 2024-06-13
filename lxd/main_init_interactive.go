@@ -21,7 +21,6 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -185,117 +184,42 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 				return nil
 			}
 
-			validInput := func(input string) error {
-				if shared.ValueInSlice(strings.ToLower(input), []string{"yes", "y"}) {
-					return nil
-				} else if shared.ValueInSlice(strings.ToLower(input), []string{"no", "n"}) {
-					return nil
-				} else if validJoinToken(input) != nil {
-					return fmt.Errorf("Not yes/no, or invalid join token")
-				}
-
-				return nil
-			}
-
-			clusterJoinToken, err := c.global.asker.AskString("Do you have a join token? (yes/no/[token]) [default=no]: ", "no", validInput)
+			clusterJoinToken, err := c.global.asker.AskString("Please provide join token: ", "", validJoinToken)
 			if err != nil {
 				return err
 			}
 
-			if !shared.ValueInSlice(strings.ToLower(clusterJoinToken), []string{"no", "n"}) {
-				if shared.ValueInSlice(strings.ToLower(clusterJoinToken), []string{"yes", "y"}) {
-					clusterJoinToken, err = c.global.asker.AskString("Please provide join token: ", "", validJoinToken)
-					if err != nil {
-						return err
-					}
-				}
+			// Set server name from join token
+			config.Cluster.ServerName = joinToken.ServerName
 
-				// Set server name from join token
-				config.Cluster.ServerName = joinToken.ServerName
+			// Attempt to find a working cluster member to use for joining by retrieving the
+			// cluster certificate from each address in the join token until we succeed.
+			for _, clusterAddress := range joinToken.Addresses {
+				config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress, shared.HTTPSDefaultPort)
 
-				// Attempt to find a working cluster member to use for joining by retrieving the
-				// cluster certificate from each address in the join token until we succeed.
-				for _, clusterAddress := range joinToken.Addresses {
-					config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress, shared.HTTPSDefaultPort)
-
-					// Cluster certificate
-					cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
-					if err != nil {
-						fmt.Printf("Error connecting to existing cluster member %q: %v\n", clusterAddress, err)
-						continue
-					}
-
-					certDigest := shared.CertFingerprint(cert)
-					if joinToken.Fingerprint != certDigest {
-						return fmt.Errorf("Certificate fingerprint mismatch between join token and cluster member %q", clusterAddress)
-					}
-
-					config.Cluster.ClusterCertificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
-
-					break // We've found a working cluster member.
-				}
-
-				if config.Cluster.ClusterCertificate == "" {
-					return fmt.Errorf("Unable to connect to any of the cluster members specified in join token")
-				}
-
-				// Raw join token used as cluster password so it can be validated.
-				config.Cluster.ClusterPassword = clusterJoinToken
-			} else {
-				// Ask for server name since no token is provided
-				err = askForServerName()
+				// Cluster certificate
+				cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
 				if err != nil {
-					return err
+					fmt.Printf("Error connecting to existing cluster member %q: %v\n", clusterAddress, err)
+					continue
 				}
 
-				for {
-					// Cluster URL
-					clusterAddress, err := c.global.asker.AskString("IP address or FQDN of an existing cluster member (may include port): ", "", nil)
-					if err != nil {
-						return err
-					}
-
-					config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress, shared.HTTPSDefaultPort)
-
-					// Cluster certificate
-					cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
-					if err != nil {
-						fmt.Printf("Error connecting to existing cluster member: %v\n", err)
-						continue
-					}
-
-					certDigest := shared.CertFingerprint(cert)
-					fmt.Println("Cluster fingerprint:", certDigest)
-					fmt.Println("You can validate this fingerprint by running \"lxc info\" locally on an existing cluster member.")
-
-					validator := func(input string) error {
-						if input == certDigest {
-							return nil
-						} else if shared.ValueInSlice(strings.ToLower(input), []string{"yes", "y"}) {
-							return nil
-						} else if shared.ValueInSlice(strings.ToLower(input), []string{"no", "n"}) {
-							return nil
-						}
-
-						return fmt.Errorf("Not yes/no or fingerprint")
-					}
-
-					fingerprintCorrect, err := c.global.asker.AskString("Is this the correct fingerprint? (yes/no/[fingerprint]) [default=no]: ", "no", validator)
-					if err != nil {
-						return err
-					}
-
-					if shared.ValueInSlice(strings.ToLower(fingerprintCorrect), []string{"no", "n"}) {
-						return fmt.Errorf("User aborted configuration")
-					}
-
-					config.Cluster.ClusterCertificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
-
-					// Cluster password
-					config.Cluster.ClusterPassword = cli.AskPasswordOnce("Cluster trust password: ")
-					break
+				certDigest := shared.CertFingerprint(cert)
+				if joinToken.Fingerprint != certDigest {
+					return fmt.Errorf("Certificate fingerprint mismatch between join token and cluster member %q", clusterAddress)
 				}
+
+				config.Cluster.ClusterCertificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+
+				break // We've found a working cluster member.
 			}
+
+			if config.Cluster.ClusterCertificate == "" {
+				return fmt.Errorf("Unable to connect to any of the cluster members specified in join token")
+			}
+
+			// Pass the raw join token.
+			config.Cluster.ClusterToken = clusterJoinToken
 
 			// Confirm wiping
 			clusterWipeMember, err := c.global.asker.AskBool("All existing data is lost when joining a cluster, continue? (yes/no) [default=no] ", "no")
@@ -320,7 +244,6 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 
 			// Now we have setup trust, don't send to server, othwerwise it will try and setup trust
 			// again and if using a one-time join token, will fail.
-			config.Cluster.ClusterPassword = ""
 			config.Cluster.ClusterToken = ""
 
 			// Client parameters to connect to the target cluster member.
