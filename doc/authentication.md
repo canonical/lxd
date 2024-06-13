@@ -133,7 +133,7 @@ Note that the generated certificates are not automatically trusted. You must sti
 (authentication-openid)=
 ## OpenID Connect authentication
 
-LXD supports using [OpenID Connect](https://openid.net/connect/) to authenticate users through an {abbr}`OIDC (OpenID Connect)` Identity Provider.
+LXD supports using [OpenID Connect](https://openid.net/developers/how-connect-works/) to authenticate users through an {abbr}`OIDC (OpenID Connect)` Identity Provider.
 
 To configure LXD to use OIDC authentication, set the [`oidc.*`](server-options-oidc) server configuration options.
 Your OIDC provider must be configured to enable the [Device Authorization Grant](https://oauth.net/2/device-flow/) type.

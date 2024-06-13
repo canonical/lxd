@@ -92,16 +92,16 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 LXD is free software and released under [AGPL-3.0-only](https://www.gnu.org/licenses/agpl-3.0.en.html) (it may contain some contributions that are licensed under the Apache-2.0 license, see [License and copyright](contributing)).
 It’s an open source project that warmly welcomes community projects, contributions, suggestions, fixes and constructive feedback.
 
-The LXD project is sponsored by [Canonical Ltd](https://www.canonical.com).
+The LXD project is sponsored by [Canonical Ltd](https://canonical.com/).
 
 - [Code of Conduct](https://github.com/canonical/lxd/blob/main/CODE_OF_CONDUCT.md)
 - [Contribute to the project](contributing.md)
-- [Release announcements](https://discourse.ubuntu.com/c/lxd/news/)
+- [Release announcements](https://discourse.ubuntu.com/c/lxd/news/143)
 - [Release tarballs](https://github.com/canonical/lxd/releases/)
 - [Get support](support.md)
 - [Watch tutorials and announcements on YouTube](https://www.youtube.com/c/LXDvideos)
 - [Discuss on IRC](https://web.libera.chat/#lxd) (see [Getting started with IRC](https://discourse.ubuntu.com/t/getting-started-with-irc/37907) if needed)
-- [Ask and answer questions on the forum](https://discourse.ubuntu.com/c/lxd/)
+- [Ask and answer questions on the forum](https://discourse.ubuntu.com/c/lxd/126)
 
 ```{filtered-toctree}
 :hidden:

@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	authEntity "github.com/canonical/lxd/lxd/auth/entity"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance"
@@ -57,7 +57,7 @@ func allowMetrics(d *Daemon, r *http.Request) response.Response {
 		entityType = entity.TypeProject
 	}
 
-	return allowPermission(entityType, authEntity.EntitlementCanViewMetrics)(d, r)
+	return allowPermission(entityType, auth.EntitlementCanViewMetrics)(d, r)
 }
 
 // swagger:operation GET /1.0/metrics metrics metrics_get
@@ -354,12 +354,12 @@ func getFilteredMetrics(s *state.State, r *http.Request, compress bool, metricSe
 		return response.SyncResponsePlain(true, compress, metricSet.String())
 	}
 
-	userHasProjectPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanViewMetrics, entity.TypeProject)
+	userHasProjectPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanViewMetrics, entity.TypeProject)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	userHasServerPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, authEntity.EntitlementCanViewMetrics, entity.TypeServer)
+	userHasServerPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanViewMetrics, entity.TypeServer)
 	if err != nil {
 		return response.SmartError(err)
 	}

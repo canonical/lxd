@@ -16,7 +16,7 @@ You should consider using LXD if you want to containerize different environments
 
 See [Getting started](https://documentation.ubuntu.com/lxd/en/latest/getting_started/) in the LXD documentation for installation instructions and first steps.
 
-- Release announcements: [`https://discourse.ubuntu.com/c/lxd/news/`](https://discourse.ubuntu.com/c/lxd/news/)
+- Release announcements: [`https://discourse.ubuntu.com/c/lxd/news/`](https://discourse.ubuntu.com/c/lxd/news/143)
 - Release tarballs: [`https://github.com/canonical/lxd/releases/`](https://github.com/canonical/lxd/releases/)
 - Documentation: [`https://documentation.ubuntu.com/lxd/en/latest/`](https://documentation.ubuntu.com/lxd/en/latest/)
 
@@ -104,7 +104,7 @@ You can file bug reports and feature requests at: [`https://github.com/canonical
 
 ### Forum
 
-A discussion forum is available at: [`https://discourse.ubuntu.com/c/lxd/`](https://discourse.ubuntu.com/c/lxd/)
+A discussion forum is available at: [`https://discourse.ubuntu.com/c/lxd/`](https://discourse.ubuntu.com/c/lxd/126)
 
 ### IRC
 
@@ -121,7 +121,7 @@ See the [full service description](https://ubuntu.com/legal/ubuntu-pro-descripti
 
 The official documentation is available at: [`https://documentation.ubuntu.com/lxd/en/latest/`](https://documentation.ubuntu.com/lxd/en/latest/)
 
-You can find additional resources on the [website](https://canonical.com/lxd), on [YouTube](https://www.youtube.com/channel/UCuP6xPt0WTeZu32CkQPpbvA) and in the [Tutorials section](https://discourse.ubuntu.com/c/lxd/tutorials/) in the forum.
+You can find additional resources on the [website](https://canonical.com/lxd), on [YouTube](https://www.youtube.com/channel/UCuP6xPt0WTeZu32CkQPpbvA) and in the [Tutorials section](https://discourse.ubuntu.com/c/lxd/tutorials/146) in the forum.
 
 <!-- Include end support -->
 

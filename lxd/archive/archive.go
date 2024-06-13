@@ -24,6 +24,7 @@ type nullWriteCloser struct {
 	*bytes.Buffer
 }
 
+// Close closes the null IO writer.
 func (nwc *nullWriteCloser) Close() error {
 	return nil
 }
@@ -138,11 +139,14 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 		command = "tar"
 		if sysOS.RunningInUserNS {
 			// We can't create char/block devices so avoid extracting them.
+			args = append(args, "--anchored")
 			args = append(args, "--wildcards")
 			args = append(args, "--exclude=dev/*")
+			args = append(args, "--exclude=/dev/*")
 			args = append(args, "--exclude=./dev/*")
 			args = append(args, "--exclude=rootfs/dev/*")
-			args = append(args, "--exclude=rootfs/./dev/*")
+			args = append(args, "--exclude=/rootfs/dev/*")
+			args = append(args, "--exclude=./rootfs/dev/*")
 		}
 
 		args = append(args, "--restrict", "--force-local")

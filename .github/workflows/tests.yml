@@ -160,7 +160,7 @@ jobs:
           set -eux
           sudo chmod o+w ./lxd/metadata/configuration.json
           sudo chmod o+w ./doc/config_options.txt
-          sudo chmod o+w ./lxd/auth/entity/
+          sudo chmod o+w ./po/*
           make static-analysis
 
       - name: Unit tests (all)
@@ -364,7 +364,7 @@ jobs:
           sudo microceph disk add --wipe "${ephemeral_disk}"
           sudo rm -rf /etc/ceph
           sudo ln -s /var/snap/microceph/current/conf/ /etc/ceph
-          sudo microceph enable rgw
+          sudo microceph enable rgw || true # workaround to ignore already enabled rgw
           sudo microceph.ceph osd pool create cephfs_meta 32
           sudo microceph.ceph osd pool create cephfs_data 32
           sudo microceph.ceph fs new cephfs cephfs_meta cephfs_data
