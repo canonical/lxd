@@ -1419,13 +1419,13 @@ func (d *common) devicesRegister(inst instance.Instance) {
 }
 
 // devicesUpdate applies device changes to an instance.
-func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, instanceRunning bool, userRequested bool) error {
+func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, instanceRunning bool, userRequested bool) (devlxdEvents []map[string]any, err error) {
 	revert := revert.New()
 	defer revert.Fail()
 
 	dm, ok := inst.(deviceManager)
 	if !ok {
-		return fmt.Errorf("Instance is not compatible with deviceManager interface")
+		return nil, fmt.Errorf("Instance is not compatible with deviceManager interface")
 	}
 
 	// Remove devices in reverse order to how they were added.
@@ -1446,13 +1446,19 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 			if instanceRunning {
 				err = dm.deviceStop(dev, instanceRunning, "")
 				if err != nil {
-					return fmt.Errorf("Failed to stop device %q: %w", dev.Name(), err)
+					return nil, fmt.Errorf("Failed to stop device %q: %w", dev.Name(), err)
 				}
+
+				devlxdEvents = append(devlxdEvents, map[string]any{
+					"action": "removed",
+					"name":   entry.Name,
+					"config": entry.Config,
+				})
 			}
 
 			err = d.deviceRemove(dev, instanceRunning)
 			if err != nil && err != device.ErrUnsupportedDevType {
-				return fmt.Errorf("Failed to remove device %q: %w", dev.Name(), err)
+				return nil, fmt.Errorf("Failed to remove device %q: %w", dev.Name(), err)
 			}
 		}
 
@@ -1461,7 +1467,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 		// this device (as its an actual removal or a device type change).
 		err = d.deviceVolatileReset(entry.Name, entry.Config, addDevices[entry.Name])
 		if err != nil {
-			return fmt.Errorf("Failed to reset volatile data for device %q: %w", entry.Name, err)
+			return nil, fmt.Errorf("Failed to reset volatile data for device %q: %w", entry.Name, err)
 		}
 	}
 
@@ -1475,7 +1481,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 			}
 
 			if userRequested {
-				return fmt.Errorf("Failed add validation for device %q: %w", entry.Name, err)
+				return nil, fmt.Errorf("Failed add validation for device %q: %w", entry.Name, err)
 			}
 
 			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
@@ -1488,7 +1494,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 		err = d.deviceAdd(dev, instanceRunning)
 		if err != nil {
 			if userRequested {
-				return fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
+				return nil, fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
 			}
 
 			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
@@ -1501,15 +1507,21 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 		if instanceRunning {
 			err = dev.PreStartCheck()
 			if err != nil {
-				return fmt.Errorf("Failed pre-start check for device %q: %w", dev.Name(), err)
+				return nil, fmt.Errorf("Failed pre-start check for device %q: %w", dev.Name(), err)
 			}
 
-			_, err := dm.deviceStart(dev, instanceRunning)
+			_, err = dm.deviceStart(dev, instanceRunning)
 			if err != nil && err != device.ErrUnsupportedDevType {
-				return fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
+				return nil, fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
 			}
 
 			revert.Add(func() { _ = dm.deviceStop(dev, instanceRunning, "") })
+
+			devlxdEvents = append(devlxdEvents, map[string]any{
+				"action": "added",
+				"name":   entry.Name,
+				"config": entry.Config,
+			})
 		}
 	}
 
@@ -1522,7 +1534,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 			}
 
 			if userRequested {
-				return fmt.Errorf("Failed update validation for device %q: %w", entry.Name, err)
+				return nil, fmt.Errorf("Failed update validation for device %q: %w", entry.Name, err)
 			}
 
 			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
@@ -1542,6 +1554,12 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 					if err != nil {
 						l.Error("Failed to stop device after update validation failed", logger.Ctx{"err": err})
 					}
+
+					devlxdEvents = append(devlxdEvents, map[string]any{
+						"action": "updated",
+						"name":   entry.Name,
+						"config": entry.Config,
+					})
 				}
 
 				err = d.deviceRemove(dev, instanceRunning)
@@ -1555,12 +1573,12 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 
 		err = dev.Update(oldExpandedDevices, instanceRunning)
 		if err != nil {
-			return fmt.Errorf("Failed to update device %q: %w", dev.Name(), err)
+			return nil, fmt.Errorf("Failed to update device %q: %w", dev.Name(), err)
 		}
 	}
 
 	revert.Success()
-	return nil
+	return devlxdEvents, nil
 }
 
 // devicesRemove runs device removal function for each device.
