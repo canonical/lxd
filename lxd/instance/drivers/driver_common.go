@@ -1510,18 +1510,31 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 				return nil, fmt.Errorf("Failed pre-start check for device %q: %w", dev.Name(), err)
 			}
 
-			_, err = dm.deviceStart(dev, instanceRunning)
+			runConf, err := dm.deviceStart(dev, instanceRunning)
 			if err != nil && err != device.ErrUnsupportedDevType {
 				return nil, fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
 			}
 
 			revert.Add(func() { _ = dm.deviceStop(dev, instanceRunning, "") })
 
-			devlxdEvents = append(devlxdEvents, map[string]any{
+			event := map[string]any{
 				"action": "added",
 				"name":   entry.Name,
 				"config": entry.Config,
-			})
+			}
+
+			if len(runConf.Mounts) > 0 {
+				for _, opt := range runConf.Mounts[0].Opts {
+					if strings.HasPrefix(opt, "mountTag=") {
+						parts := strings.SplitN(opt, "=", 2)
+						event["mount"] = instancetype.VMAgentMount{
+							Source: parts[1],
+						}
+					}
+				}
+			}
+
+			devlxdEvents = append(devlxdEvents, event)
 		}
 	}
 
