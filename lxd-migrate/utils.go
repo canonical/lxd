@@ -190,7 +190,7 @@ func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 	}
 
 	// Attempt to connect using the system CA
-	args.UserAgent = fmt.Sprintf("LXC-MIGRATE %s", version.Version)
+	args.UserAgent = fmt.Sprintf("LXD-MIGRATE %s", version.Version)
 	instanceServer, err := lxd.ConnectLXD(url, &args)
 
 	var certificate *x509.Certificate
