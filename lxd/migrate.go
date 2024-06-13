@@ -191,7 +191,7 @@ type migrationSink struct {
 	refresh               bool
 }
 
-// MigrationSinkArgs arguments to configure migration sink.
+// migrationSinkArgs arguments to configure migration sink.
 type migrationSinkArgs struct {
 	// General migration fields
 	Dialer  *websocket.Dialer
