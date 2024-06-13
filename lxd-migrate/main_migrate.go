@@ -123,7 +123,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	}
 
 	args := lxd.ConnectionArgs{
-		UserAgent:          fmt.Sprintf("LXC-MIGRATE %s", version.Version),
+		UserAgent:          fmt.Sprintf("LXD-MIGRATE %s", version.Version),
 		InsecureSkipVerify: true,
 	}
 
