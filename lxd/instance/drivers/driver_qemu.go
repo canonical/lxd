@@ -8925,19 +8925,30 @@ func (d *qemu) deviceDetachUSB(usbDev deviceConfig.USBDeviceItem) error {
 	return nil
 }
 
+// hashIfLonger returns a full or partial hash of a name as to fit it within a size limit.
+func hashIfLonger(name string, maxLenght int) string {
+	if len(name) <= maxLenght {
+		return name
+	}
+
+	// If the name is too long, hash it as SHA-256 (32 bytes).
+	// Then encode the SHA-256 binary hash as Base64 Raw URL format and trim down if needed.
+	hash := sha256.New()
+	hash.Write([]byte(name))
+	binaryHash := hash.Sum(nil)
+	// Raw URL avoids the use of "+" character and the padding "=" character which QEMU doesn't allow.
+	hashedName := base64.RawURLEncoding.EncodeToString(binaryHash)
+	if len(hashedName) > maxLenght {
+		hashedName = hashedName[0:maxLenght]
+	}
+
+	return hashedName
+}
+
 // Block node names and device tags may only be up to 31 characters long, so use a hash if longer.
 func (d *qemu) generateQemuDeviceName(name string) string {
 	maxNameLength := qemuDeviceNameMaxLength - len(qemuDeviceNamePrefix)
-	if len(name) > maxNameLength {
-		// If the name is too long, hash it as SHA-256 (32 bytes).
-		// Then encode the SHA-256 binary hash as Base64 Raw URL format and trim down to 27 chars.
-		// Raw URL avoids the use of "+" character and the padding "=" character which QEMU doesn't allow.
-		hash := sha256.New()
-		hash.Write([]byte(name))
-		binaryHash := hash.Sum(nil)
-		name = base64.RawURLEncoding.EncodeToString(binaryHash)
-		name = name[0:maxNameLength]
-	}
+	name = hashIfLonger(name, maxNameLength)
 
 	// Apply the lxd_ prefix.
 	return fmt.Sprintf("%s%s", qemuDeviceNamePrefix, name)
