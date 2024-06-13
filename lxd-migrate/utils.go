@@ -142,6 +142,13 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 	return nil
 }
 
+func (c *cmdMigrate) connectLocal() (lxd.InstanceServer, error) {
+	args := lxd.ConnectionArgs{}
+	args.UserAgent = fmt.Sprintf("LXD-MIGRATE %s", version.Version)
+
+	return lxd.ConnectLXDUnix("", &args)
+}
+
 func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, authType string, token string) (lxd.InstanceServer, string, error) {
 	args := lxd.ConnectionArgs{
 		AuthType: authType,
@@ -190,7 +197,7 @@ func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 	}
 
 	// Attempt to connect using the system CA
-	args.UserAgent = fmt.Sprintf("LXC-MIGRATE %s", version.Version)
+	args.UserAgent = fmt.Sprintf("LXD-MIGRATE %s", version.Version)
 	instanceServer, err := lxd.ConnectLXD(url, &args)
 
 	var certificate *x509.Certificate
