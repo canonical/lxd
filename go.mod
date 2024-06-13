@@ -2,8 +2,6 @@ module github.com/canonical/lxd
 
 go 1.22.3
 
-replace gopkg.in/square/go-jose.v2 v2.6.0 => github.com/go-jose/go-jose v2.6.3+incompatible
-
 require (
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.1.0
