@@ -664,7 +664,7 @@ func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 		}
 
 		driveSection = cfgSection{
-			name:    fmt.Sprintf(`fsdev "%s"`, opts.name),
+			name:    fmt.Sprintf(`fsdev "%s"`, opts.id),
 			comment: opts.comment,
 			entries: []cfgEntry{
 				{key: "fsdriver", value: opts.fsdriver},
@@ -680,11 +680,11 @@ func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 
 		extraDeviceEntries = []cfgEntry{
 			{key: "mount_tag", value: opts.mountTag},
-			{key: "fsdev", value: opts.name},
+			{key: "fsdev", value: opts.id},
 		}
 	} else if opts.protocol == "virtio-fs" {
 		driveSection = cfgSection{
-			name:    fmt.Sprintf(`chardev "%s"`, opts.name),
+			name:    fmt.Sprintf(`chardev "%s"`, opts.id),
 			comment: opts.comment,
 			entries: []cfgEntry{
 				{key: "backend", value: "socket"},
@@ -697,7 +697,7 @@ func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 
 		extraDeviceEntries = []cfgEntry{
 			{key: "tag", value: opts.mountTag},
-			{key: "chardev", value: opts.name},
+			{key: "chardev", value: opts.id},
 		}
 	} else {
 		return []cfgSection{}
