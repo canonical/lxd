@@ -2234,7 +2234,7 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 	reverter.Add(func() { _ = monitor.CloseFile(virtiofsdSockPath) })
 
 	err = monitor.AddCharDevice(map[string]any{
-		"id": mountTag,
+		"id": deviceID,
 		"backend": map[string]any{
 			"type": "socket",
 			"data": map[string]any{
@@ -2252,7 +2252,7 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 		return "", fmt.Errorf("Failed to add the character device: %w", err)
 	}
 
-	reverter.Add(func() { _ = monitor.RemoveCharDevice(mountTag) })
+	reverter.Add(func() { _ = monitor.RemoveCharDevice(deviceID) })
 
 	// Figure out a hotplug slot.
 	pciDevID := qemuPCIDeviceIDStart
@@ -2276,7 +2276,7 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 		"bus":     pciDeviceName,
 		"addr":    "00.0",
 		"tag":     mountTag,
-		"chardev": mountTag,
+		"chardev": deviceID,
 		"id":      deviceID,
 	}
 
@@ -2311,7 +2311,6 @@ func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error 
 
 func (d *qemu) deviceDetachPath(deviceName string) error {
 	deviceID := qemuHostDriveDeviceID(deviceName, "virtio-fs")
-	mountTag := d.generateQemuDeviceName(deviceName)
 
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -2327,7 +2326,7 @@ func (d *qemu) deviceDetachPath(deviceName string) error {
 	waitDuration := time.Duration(time.Second * time.Duration(10))
 	waitUntil := time.Now().Add(waitDuration)
 	for {
-		err = monitor.RemoveCharDevice(mountTag)
+		err = monitor.RemoveCharDevice(deviceID)
 		if err == nil {
 			break
 		}
