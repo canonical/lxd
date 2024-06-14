@@ -2180,8 +2180,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 }
 
 func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) {
-	escapedDeviceName := filesystem.PathNameEncode(deviceName)
-	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
+	deviceID := qemuHostDriveDeviceID(deviceName, "virtio-fs")
 	mountTag = d.generateQemuDeviceName(deviceName)
 
 	// Detect virtiofsd path.
@@ -2308,8 +2307,7 @@ func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error 
 }
 
 func (d *qemu) deviceDetachPath(deviceName string) error {
-	escapedDeviceName := filesystem.PathNameEncode(deviceName)
-	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
+	deviceID := qemuHostDriveDeviceID(deviceName, "virtio-fs")
 	mountTag := d.generateQemuDeviceName(deviceName)
 
 	// Check if the agent is running.
