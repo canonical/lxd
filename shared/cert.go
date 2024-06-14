@@ -328,7 +328,7 @@ func GenerateMemCert(client bool, addHosts bool) ([]byte, []byte, error) {
 		return nil, nil, fmt.Errorf("Failed to generate key: %w", err)
 	}
 
-	validFrom := time.Now()
+	validFrom := time.Now().Add(-time.Minute)
 	validTo := validFrom.Add(10 * 365 * 24 * time.Hour)
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
