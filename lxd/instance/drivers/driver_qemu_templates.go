@@ -5,8 +5,14 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/resources"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared/osarch"
 )
+
+// qemuHostDriveDeviceID returns the device ID to use for a host drive share.
+func qemuHostDriveDeviceID(deviceName string, protocol string) string {
+	return fmt.Sprintf("%s%s-%s", qemuDeviceIDPrefix, filesystem.PathNameEncode(deviceName), protocol)
+}
 
 type cfgEntry struct {
 	key   string
@@ -630,8 +636,8 @@ func qemuDriveFirmware(opts *qemuDriveFirmwareOpts) []cfgSection {
 
 type qemuHostDriveOpts struct {
 	dev           qemuDevOpts
+	id            string
 	name          string
-	nameSuffix    string
 	comment       string
 	fsdriver      string
 	mountTag      string
@@ -698,7 +704,7 @@ func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 	return []cfgSection{
 		driveSection,
 		{
-			name:    fmt.Sprintf(`device "dev-%s%s-%s"`, opts.name, opts.nameSuffix, opts.protocol),
+			name:    fmt.Sprintf(`device "%s"`, opts.id),
 			entries: append(qemuDeviceEntries(&deviceOpts), extraDeviceEntries...),
 		},
 	}
@@ -713,9 +719,9 @@ type qemuDriveConfigOpts struct {
 func qemuDriveConfig(opts *qemuDriveConfigOpts) []cfgSection {
 	return qemuHostDrive(&qemuHostDriveOpts{
 		dev: opts.dev,
+		id:  fmt.Sprintf("dev-qemu_config-drive-%s", opts.protocol),
 		// Devices use "qemu_" prefix indicating that this is a internally named device.
 		name:          "qemu_config",
-		nameSuffix:    "-drive",
 		comment:       fmt.Sprintf("Config drive (%s)", opts.protocol),
 		mountTag:      "config",
 		protocol:      opts.protocol,
@@ -739,6 +745,7 @@ type qemuDriveDirOpts struct {
 func qemuDriveDir(opts *qemuDriveDirOpts) []cfgSection {
 	return qemuHostDrive(&qemuHostDriveOpts{
 		dev: opts.dev,
+		id:  qemuHostDriveDeviceID(opts.devName, opts.protocol),
 		// Devices use "lxd_" prefix indicating that this is a user named device.
 		name:     fmt.Sprintf("lxd_%s", opts.devName),
 		comment:  fmt.Sprintf("%s drive (%s)", opts.devName, opts.protocol),
