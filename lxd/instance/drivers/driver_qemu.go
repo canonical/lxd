@@ -8914,9 +8914,10 @@ func hashIfLonger(name string, maxLength int) string {
 }
 
 // Block node names and device tags may only be up to 31 characters long, so use a hash if longer.
+// Also escapes / to -, and - to --.
 func (d *qemu) generateQemuDeviceName(name string) string {
 	maxNameLength := qemuDeviceNameMaxLength - len(qemuDeviceNamePrefix)
-	name = hashIfLonger(name, maxNameLength)
+	name = hashIfLonger(filesystem.PathNameEncode(name), maxNameLength)
 
 	// Apply the lxd_ prefix.
 	return fmt.Sprintf("%s%s", qemuDeviceNamePrefix, name)
