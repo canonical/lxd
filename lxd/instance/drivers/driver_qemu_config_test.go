@@ -754,7 +754,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 				protocol: "9p",
 			},
 			`# Config drive (9p)
-			[fsdev "qemu_config"]
+			[fsdev "dev-qemu_config-drive-9p"]
 			fsdriver = "local"
 			security_model = "none"
 			readonly = "on"
@@ -765,7 +765,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			bus = "qemu_pcie0"
 			addr = "00.5"
 			mount_tag = "config"
-			fsdev = "qemu_config"`,
+			fsdev = "dev-qemu_config-drive-9p"`,
 		}, {
 			qemuDriveConfigOpts{
 				dev:      qemuDevOpts{"pcie", "qemu_pcie1", "10.2", true},
@@ -773,7 +773,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 				protocol: "virtio-fs",
 			},
 			`# Config drive (virtio-fs)
-			[chardev "qemu_config"]
+			[chardev "dev-qemu_config-drive-virtio-fs"]
 			backend = "socket"
 			path = "/dev/virtio-fs"
 
@@ -783,7 +783,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			addr = "10.2"
 			multifunction = "on"
 			tag = "config"
-			chardev = "qemu_config"`,
+			chardev = "dev-qemu_config-drive-virtio-fs"`,
 		}, {
 			qemuDriveConfigOpts{
 				dev:      qemuDevOpts{"ccw", "devBus", "busAddr", false},
@@ -791,14 +791,14 @@ func TestQemuConfigTemplates(t *testing.T) {
 				protocol: "virtio-fs",
 			},
 			`# Config drive (virtio-fs)
-			[chardev "qemu_config"]
+			[chardev "dev-qemu_config-drive-virtio-fs"]
 			backend = "socket"
 			path = "/var/virtio-fs"
 
 			[device "dev-qemu_config-drive-virtio-fs"]
 			driver = "vhost-user-fs-ccw"
 			tag = "config"
-			chardev = "qemu_config"`,
+			chardev = "dev-qemu_config-drive-virtio-fs"`,
 		}, {
 			qemuDriveConfigOpts{
 				dev:      qemuDevOpts{"ccw", "devBus", "busAddr", true},
@@ -806,7 +806,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 				protocol: "9p",
 			},
 			`# Config drive (9p)
-			[fsdev "qemu_config"]
+			[fsdev "dev-qemu_config-drive-9p"]
 			fsdriver = "local"
 			security_model = "none"
 			readonly = "on"
@@ -816,7 +816,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			driver = "virtio-9p-ccw"
 			multifunction = "on"
 			mount_tag = "config"
-			fsdev = "qemu_config"`,
+			fsdev = "dev-qemu_config-drive-9p"`,
 		}, {
 			qemuDriveConfigOpts{
 				dev:      qemuDevOpts{"ccw", "devBus", "busAddr", true},
@@ -844,7 +844,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 				proxyFD:  5,
 			},
 			`# stub drive (9p)
-			[fsdev "lxd_stub"]
+			[fsdev "dev-lxd_stub-9p"]
 			fsdriver = "proxy"
 			sock_fd = "5"
 			readonly = "off"
@@ -855,7 +855,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			addr = "00.5"
 			multifunction = "on"
 			mount_tag = "mtag"
-			fsdev = "lxd_stub"`,
+			fsdev = "dev-lxd_stub-9p"`,
 		}, {
 			qemuDriveDirOpts{
 				dev:      qemuDevOpts{"pcie", "qemu_pcie1", "10.2", false},
@@ -865,7 +865,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 				protocol: "virtio-fs",
 			},
 			`# vfs drive (virtio-fs)
-			[chardev "lxd_vfs"]
+			[chardev "dev-lxd_vfs-virtio-fs"]
 			backend = "socket"
 			path = "/dev/virtio"
 
@@ -874,7 +874,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			bus = "qemu_pcie1"
 			addr = "10.2"
 			tag = "vtag"
-			chardev = "lxd_vfs"`,
+			chardev = "dev-lxd_vfs-virtio-fs"`,
 		}, {
 			qemuDriveDirOpts{
 				dev:      qemuDevOpts{"ccw", "devBus", "busAddr", true},
@@ -884,7 +884,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 				protocol: "virtio-fs",
 			},
 			`# vfs drive (virtio-fs)
-			[chardev "lxd_vfs"]
+			[chardev "dev-lxd_vfs-virtio-fs"]
 			backend = "socket"
 			path = "/dev/vio"
 
@@ -892,7 +892,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			driver = "vhost-user-fs-ccw"
 			multifunction = "on"
 			tag = "vtag"
-			chardev = "lxd_vfs"`,
+			chardev = "dev-lxd_vfs-virtio-fs"`,
 		}, {
 			qemuDriveDirOpts{
 				dev:      qemuDevOpts{"ccw", "devBus", "busAddr", false},
@@ -903,7 +903,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 				proxyFD:  3,
 			},
 			`# stub2 drive (9p)
-			[fsdev "lxd_stub2"]
+			[fsdev "dev-lxd_stub2-9p"]
 			fsdriver = "proxy"
 			sock_fd = "3"
 			readonly = "on"
@@ -911,7 +911,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			[device "dev-lxd_stub2-9p"]
 			driver = "virtio-9p-ccw"
 			mount_tag = "mtag2"
-			fsdev = "lxd_stub2"`,
+			fsdev = "dev-lxd_stub2-9p"`,
 		}, {
 			qemuDriveDirOpts{
 				dev:      qemuDevOpts{"ccw", "devBus", "busAddr", true},
