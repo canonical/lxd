@@ -11,7 +11,9 @@ import (
 
 // qemuHostDriveDeviceID returns the device ID to use for a host drive share.
 func qemuHostDriveDeviceID(deviceName string, protocol string) string {
-	return fmt.Sprintf("%s%s-%s", qemuDeviceIDPrefix, filesystem.PathNameEncode(deviceName), protocol)
+	suffix := "-" + protocol
+	maxNameLength := qemuDeviceIDMaxLength - (len(qemuDeviceIDPrefix) + len(suffix))
+	return fmt.Sprintf("%s%s%s", qemuDeviceIDPrefix, hashIfLonger(filesystem.PathNameEncode(deviceName), maxNameLength), suffix)
 }
 
 type cfgEntry struct {
