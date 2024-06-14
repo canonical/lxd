@@ -2351,9 +2351,8 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 		return err
 	}
 
-	escapedDeviceName := filesystem.PathNameEncode(deviceName)
-	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	blockDevName := d.generateQemuDeviceName(escapedDeviceName)
+	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, filesystem.PathNameEncode(deviceName))
+	blockDevName := d.generateQemuDeviceName(deviceName)
 
 	err = monitor.RemoveFDFromFDSet(blockDevName)
 	if err != nil {
@@ -3954,8 +3953,6 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 		directCache = false
 	}
 
-	escapedDeviceName := filesystem.PathNameEncode(driveConf.DevName)
-
 	blockDev := map[string]any{
 		"aio": aioMode,
 		"cache": map[string]any{
@@ -3964,7 +3961,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 		},
 		"discard":   "unmap", // Forward as an unmap request. This is the same as `discard=on` in the qemu config file.
 		"driver":    "file",
-		"node-name": d.generateQemuDeviceName(escapedDeviceName),
+		"node-name": d.generateQemuDeviceName(driveConf.DevName),
 		"read-only": false,
 	}
 
@@ -4071,6 +4068,8 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 	if qemuDev == nil {
 		qemuDev = map[string]string{}
 	}
+
+	escapedDeviceName := filesystem.PathNameEncode(driveConf.DevName)
 
 	qemuDev["id"] = fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
 	qemuDevDrive, ok := blockDev["node-name"].(string)
