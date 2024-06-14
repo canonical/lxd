@@ -2187,7 +2187,7 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 	mountTag = d.generateQemuDeviceName(deviceName)
 
 	// Detect virtiofsd path.
-	virtiofsdSockPath := filepath.Join(d.DevicesPath(), fmt.Sprintf("virtio-fs.%s.sock", deviceName))
+	virtiofsdSockPath := filepath.Join(d.DevicesPath(), fmt.Sprintf("virtio-fs.%s.sock", filesystem.PathNameEncode(deviceName)))
 	if !shared.PathExists(virtiofsdSockPath) {
 		return "", fmt.Errorf("Virtiofsd isn't running")
 	}
