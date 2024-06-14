@@ -28,6 +28,7 @@ type eventsServe struct {
 	d   *Daemon
 }
 
+// Render starts event socket.
 func (r *eventsServe) Render(w http.ResponseWriter) error {
 	return eventsSocket(r.d, r.req, w)
 }
