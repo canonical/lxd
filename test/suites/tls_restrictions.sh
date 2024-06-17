@@ -154,7 +154,7 @@ test_certificate_edit() {
 
   curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" -X PATCH -d "{\"restricted\": false}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | grep -F '"error_code":403'
 
-  ! lxc_remote config trust show "${FINGERPRINT}" | sed -e "s/name:.*/name: foo/" | lxc_remote config trust edit localhost:"${FINGERPRINT}" || false
+  ! lxc_remote config trust show "${FINGERPRINT}" | sed -e "s/name:.*/name: bar/" | lxc_remote config trust edit localhost:"${FINGERPRINT}" || false
 
   curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" -X PATCH -d "{\"name\": \"bar\"}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | grep -F '"error_code":403'
 

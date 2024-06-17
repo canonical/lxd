@@ -33,7 +33,7 @@ func TestLoadPreClusteringData(t *testing.T) {
 	assert.Equal(t, "1.2.3.4:666", dump.Data["config"][0][2])
 	rows := []any{int64(1), "core.https_address", "1.2.3.4:666"}
 	assert.Equal(t, rows, dump.Data["config"][0])
-	rows = []any{int64(2), "core.trust_password", "sekret"}
+	rows = []any{int64(2), "user.foo", "bar"}
 	assert.Equal(t, rows, dump.Data["config"][1])
 	rows = []any{int64(3), "maas.machine", "mymaas"}
 	assert.Equal(t, rows, dump.Data["config"][2])
@@ -81,7 +81,7 @@ func TestImportPreClusteringData(t *testing.T) {
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		config, err := tx.Config(ctx)
 		require.NoError(t, err)
-		values := map[string]string{"core.trust_password": "sekret"}
+		values := map[string]string{"user.foo": "bar"}
 		assert.Equal(t, values, config)
 		return nil
 	})
@@ -244,7 +244,7 @@ func newPreClusteringTx(t *testing.T) *sql.Tx {
 		preClusteringNodeSchema,
 		"INSERT INTO certificates VALUES (1, 'abcd:efgh', 1, 'foo', 'FOO')",
 		"INSERT INTO config VALUES(1, 'core.https_address', '1.2.3.4:666')",
-		"INSERT INTO config VALUES(2, 'core.trust_password', 'sekret')",
+		"INSERT INTO config VALUES(2, 'user.foo', 'bar')",
 		"INSERT INTO config VALUES(3, 'maas.machine', 'mymaas')",
 		"INSERT INTO profiles VALUES(1, 'default', 'Default LXD profile')",
 		"INSERT INTO profiles VALUES(2, 'users', '')",

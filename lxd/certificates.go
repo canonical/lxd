@@ -19,7 +19,6 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/cluster"
-	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
@@ -32,7 +31,6 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
-	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -306,7 +304,7 @@ func certificateTokenValid(s *state.State, r *http.Request, addToken *api.Certif
 //  Add a trusted certificate
 //
 //  Adds a certificate to the trust store as an untrusted user.
-//  In this mode, the `password` property must be set to the correct value.
+//  In this mode, the `token` property must be set to the correct value.
 //
 //  The `certificate` field can be omitted in which case the TLS client
 //  certificate in use for the connection will be retrieved and added to the
@@ -342,7 +340,7 @@ func certificateTokenValid(s *state.State, r *http.Request, addToken *api.Certif
 //	Add a trusted certificate
 //
 //	Adds a certificate to the trust store.
-//	In this mode, the `password` property is always ignored.
+//	In this mode, the `token` property is always ignored.
 //
 //	---
 //	consumes:
@@ -392,23 +390,6 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// Access check.
-	// Can't us s.GlobalConfig.TrustPassword() here as global config is not yet updated.
-	var secret string
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		config, err := clusterConfig.Load(ctx, tx)
-		if err != nil {
-			return err
-		}
-
-		secret = config.TrustPassword()
-
-		return nil
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Check if the caller has permission to create certificates.
 	var userCanCreateCertificates bool
 	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanCreateIdentities)
@@ -434,20 +415,13 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			return response.Forbidden(nil)
 		}
 
-		// A password/token is required for non-admin users.
-		if req.Password == "" && req.TrustToken == "" {
+		// A token is required for non-admin users.
+		if req.TrustToken == "" {
 			return response.Forbidden(nil)
 		}
 
-		var joinTokenEncoded string
-		if req.Password != "" {
-			joinTokenEncoded = req.Password
-		} else if req.TrustToken != "" {
-			joinTokenEncoded = req.TrustToken
-		}
-
-		// Check if cluster member join token supplied as password or token.
-		joinToken, err := shared.JoinTokenDecode(joinTokenEncoded)
+		// Check if cluster member join token supplied as token.
+		joinToken, err := shared.JoinTokenDecode(req.TrustToken)
 		if err == nil {
 			// If so then check there is a matching join operation.
 			joinOp, err := clusterMemberJoinTokenValid(s, r, api.ProjectDefaultName, joinToken)
@@ -459,37 +433,33 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 				return response.Forbidden(fmt.Errorf("No matching cluster join operation found"))
 			}
 		} else {
-			// Check if certificate add token supplied as password or token.
-			joinToken, err := shared.CertificateTokenDecode(joinTokenEncoded)
-			if err == nil {
-				// If so then check there is a matching join operation.
-				joinOp, err := certificateTokenValid(s, r, joinToken)
-				if err != nil {
-					return response.InternalError(fmt.Errorf("Failed during search for certificate add token operation: %w", err))
-				}
+			// Check if certificate add token supplied as token.
+			joinToken, err := shared.CertificateTokenDecode(req.TrustToken)
+			if err != nil {
+				return response.Forbidden(nil)
+			}
 
-				if joinOp == nil {
-					return response.Forbidden(fmt.Errorf("No matching certificate add operation found"))
-				}
+			// If so then check there is a matching join operation.
+			joinOp, err := certificateTokenValid(s, r, joinToken)
+			if err != nil {
+				return response.InternalError(fmt.Errorf("Failed during search for certificate add token operation: %w", err))
+			}
 
-				tokenReq, ok := joinOp.Metadata["request"].(api.CertificatesPost)
-				if !ok {
-					return response.InternalError(fmt.Errorf("Bad certificate add operation data"))
-				}
+			if joinOp == nil {
+				return response.Forbidden(fmt.Errorf("No matching certificate add operation found"))
+			}
 
-				// Create a new request from the token data as the user isn't allowed to override anything.
-				req = api.CertificatesPost{
-					Name:       tokenReq.Name,
-					Type:       tokenReq.Type,
-					Restricted: tokenReq.Restricted,
-					Projects:   tokenReq.Projects,
-				}
-			} else {
-				// Otherwise check if password matches trust password.
-				if util.PasswordCheck(secret, req.Password) != nil {
-					logger.Warn("Bad trust password", logger.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
-					return response.Forbidden(nil)
-				}
+			tokenReq, ok := joinOp.Metadata["request"].(api.CertificatesPost)
+			if !ok {
+				return response.InternalError(fmt.Errorf("Bad certificate add operation data"))
+			}
+
+			// Create a new request from the token data as the user isn't allowed to override anything.
+			req = api.CertificatesPost{
+				Name:       tokenReq.Name,
+				Type:       tokenReq.Type,
+				Restricted: tokenReq.Restricted,
+				Projects:   tokenReq.Projects,
 			}
 		}
 	}

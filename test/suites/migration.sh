@@ -13,9 +13,12 @@ test_migration() {
   # workaround for kernel/criu
   umount /sys/kernel/debug >/dev/null 2>&1 || true
 
+  token="$(lxc config trust add --name foo -q)"
   # shellcheck disable=2153
-  lxc_remote remote add l1 "${LXD_ADDR}" --accept-certificate --password foo
-  lxc_remote remote add l2 "${LXD2_ADDR}" --accept-certificate --password foo
+  lxc_remote remote add l1 "${LXD_ADDR}" --accept-certificate --token "${token}"
+
+  token="$(LXD_DIR=${LXD2_DIR} lxc config trust add --name foo -q)"
+  lxc_remote remote add l2 "${LXD2_ADDR}" --accept-certificate --token "${token}"
 
   migration "$LXD2_DIR"
 

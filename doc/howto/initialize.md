@@ -55,7 +55,7 @@ Remote access (see {ref}`security_remote_access` and {ref}`authentication`)
   The default answer is `no`, which means remote access is not allowed.
   If you answer `yes`, you can connect to the server over the network.
 
-  You can choose to add client certificates to the server (manually or through tokens, the recommended way) or set a trust password.
+  You can choose to add client certificates to the server either manually or through tokens.
 
 Automatic image update (see {ref}`about-images`)
 : You can download images from image servers.
@@ -149,7 +149,6 @@ You can use it as a template for your own preseed file and add, change or remove
 # Daemon settings
 config:
   core.https_address: 192.0.2.1:9999
-  core.trust_password: sekret
   images.auto_update_interval: 6
 
 # Storage pools
