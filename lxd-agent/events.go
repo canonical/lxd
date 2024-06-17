@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/events"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -27,6 +28,7 @@ type eventsServe struct {
 	d   *Daemon
 }
 
+// Render starts event socket.
 func (r *eventsServe) Render(w http.ResponseWriter) error {
 	return eventsSocket(r.d, r.req, w)
 }
@@ -115,9 +117,10 @@ func eventsProcess(event api.Event) {
 	}
 
 	type deviceEvent struct {
-		Action string            `json:"action"`
-		Config map[string]string `json:"config"`
-		Name   string            `json:"name"`
+		Action string                    `json:"action"`
+		Config map[string]string         `json:"config"`
+		Name   string                    `json:"name"`
+		Mount  instancetype.VMAgentMount `json:"mount"`
 	}
 
 	e := deviceEvent{}
@@ -143,6 +146,9 @@ func eventsProcess(event api.Event) {
 
 	// Attempt to perform the mount.
 	mntSource := fmt.Sprintf("lxd_%s", e.Name)
+	if e.Mount.Source != "" {
+		mntSource = e.Mount.Source
+	}
 
 	_ = os.MkdirAll(e.Config["path"], 0755)
 	_, err = shared.RunCommand("mount", "-t", "virtiofs", mntSource, e.Config["path"])

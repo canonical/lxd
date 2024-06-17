@@ -4384,7 +4384,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	isRunning := d.IsRunning()
 
 	// Use the device interface to apply update changes.
-	err = d.devicesUpdate(d, removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning, userRequested)
+	devlxdEvents, err := d.devicesUpdate(d, removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning, userRequested)
 	if err != nil {
 		return err
 	}
@@ -4819,41 +4819,9 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			}
 		}
 
-		// Device changes
-		for k, m := range removeDevices {
-			msg := map[string]any{
-				"action": "removed",
-				"name":   k,
-				"config": m,
-			}
-
-			err = d.devlxdEventSend("device", msg)
-			if err != nil {
-				return err
-			}
-		}
-
-		for k, m := range updateDevices {
-			msg := map[string]any{
-				"action": "updated",
-				"name":   k,
-				"config": m,
-			}
-
-			err = d.devlxdEventSend("device", msg)
-			if err != nil {
-				return err
-			}
-		}
-
-		for k, m := range addDevices {
-			msg := map[string]any{
-				"action": "added",
-				"name":   k,
-				"config": m,
-			}
-
-			err = d.devlxdEventSend("device", msg)
+		// Device events.
+		for _, event := range devlxdEvents {
+			err = d.devlxdEventSend("device", event)
 			if err != nil {
 				return err
 			}
