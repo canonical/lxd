@@ -90,12 +90,6 @@ func validDevices(state *state.State, p api.Project, instanceType instancetype.T
 				continue // Don't check the device twice if present in both local and expanded.
 			}
 
-			// Enforce a maximum name length of 64 characters.
-			// This is a safe maximum allowing use for sockets and other filesystem use.
-			if len(deviceName) > 64 {
-				return fmt.Errorf("The maximum device name length is 64 characters")
-			}
-
 			err := device.Validate(instConf, state, deviceName, deviceConfig)
 			if err != nil {
 				if expanded && errors.Is(err, device.ErrUnsupportedDevType) {
