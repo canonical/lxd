@@ -8,9 +8,12 @@ test_image_expiry() {
 
   ensure_import_testimage
 
+  token="$(lxc config trust add --name foo -q)"
   # shellcheck disable=2153
-  lxc_remote remote add l1 "${LXD_ADDR}" --accept-certificate --password foo
-  lxc_remote remote add l2 "${LXD2_ADDR}" --accept-certificate --password foo
+  lxc_remote remote add l1 "${LXD_ADDR}" --accept-certificate --token "${token}"
+
+  token="$(LXD_DIR=${LXD2_DIR} lxc config trust add --name foo -q)"
+  lxc_remote remote add l2 "${LXD2_ADDR}" --accept-certificate --token "${token}"
 
   # Create containers from a remote image in two projects.
   lxc_remote project create l2:p1 -c features.images=true -c features.profiles=false
@@ -131,7 +134,8 @@ test_image_refresh() {
 
   ensure_import_testimage
 
-  lxc_remote remote add l2 "${LXD2_ADDR}" --accept-certificate --password foo
+  token="$(LXD_DIR=${LXD2_DIR} lxc config trust add --name foo -q)"
+  lxc_remote remote add l2 "${LXD2_ADDR}" --accept-certificate --token "${token}"
 
   poolDriver="$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')"
 

@@ -2,16 +2,12 @@ package config
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"golang.org/x/crypto/scrypt"
 
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
@@ -76,11 +72,6 @@ func (c *Config) HTTPSAllowedOrigin() string {
 // HTTPSAllowedCredentials returns the relevant CORS setting.
 func (c *Config) HTTPSAllowedCredentials() bool {
 	return c.m.GetBool("core.https_allowed_credentials")
-}
-
-// TrustPassword returns the LXD trust password for authenticating clients.
-func (c *Config) TrustPassword() string {
-	return c.m.GetString("core.trust_password")
 }
 
 // TrustCACertificates returns whether client certificates are checked
@@ -499,14 +490,6 @@ var ConfigSchema = config.Schema{
 	//  shortdesc: How long to wait before shutdown
 	"core.shutdown_timeout": {Type: config.Int64, Default: "5"},
 
-	// lxdmeta:generate(entities=server; group=core; key=core.trust_password)
-	//
-	// ---
-	//  type: string
-	//  scope: global
-	//  shortdesc: Password to be provided by clients to set up a trust
-	"core.trust_password": {Setter: passwordSetter},
-
 	// lxdmeta:generate(entities=server; group=core; key=core.trust_ca_certificates)
 	//
 	// ---
@@ -833,28 +816,4 @@ func maxStandByValidator(value string) error {
 	}
 
 	return nil
-}
-
-func passwordSetter(value string) (string, error) {
-	// Nothing to do on unset
-	if value == "" {
-		return value, nil
-	}
-
-	// Hash the password
-	buf := make([]byte, 32)
-	_, err := io.ReadFull(rand.Reader, buf)
-	if err != nil {
-		return "", err
-	}
-
-	hash, err := scrypt.Key([]byte(value), buf, 1<<14, 8, 1, 64)
-	if err != nil {
-		return "", err
-	}
-
-	buf = append(buf, hash...)
-	value = hex.EncodeToString(buf)
-
-	return value, nil
 }

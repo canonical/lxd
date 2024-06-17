@@ -37,6 +37,7 @@ type patchStage int
 // Define the stages that patches can run at.
 const (
 	patchNoStageSet patchStage = iota
+	patchPreLoadClusterConfig
 	patchPreDaemonStorage
 	patchPostDaemonStorage
 	patchPostNetworks
@@ -89,6 +90,7 @@ var patches = []patch{
 	{name: "storage_set_volume_uuid_v2", stage: patchPostDaemonStorage, run: patchStorageSetVolumeUUIDV2},
 	{name: "storage_move_custom_iso_block_volumes_v2", stage: patchPostDaemonStorage, run: patchStorageRenameCustomISOBlockVolumesV2},
 	{name: "storage_unset_invalid_block_settings_v2", stage: patchPostDaemonStorage, run: patchStorageUnsetInvalidBlockSettingsV2},
+	{name: "config_remove_core_trust_password", stage: patchPreLoadClusterConfig, run: patchRemoveCoreTrustPassword},
 }
 
 type patch struct {
@@ -1428,6 +1430,21 @@ DELETE FROM storage_volumes_config
 	AND storage_volumes_config.key IN ("block.filesystem", "block.mount_options")
 	`)
 	return err
+}
+
+// patchRemoveCoreTrustPassword removes the core.trust_password config key from the cluster.
+func patchRemoveCoreTrustPassword(_ string, d *Daemon) error {
+	s := d.State()
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.UpdateClusterConfig(map[string]string{
+			"core.trust_password": "",
+		})
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to remove core.trust_password config key: %w", err)
+	}
+
+	return nil
 }
 
 // Patches end here

@@ -133,7 +133,6 @@ spawn_lxd_and_bootstrap_cluster() {
 
     cat > "${LXD_DIR}/preseed.yaml" <<EOF
 config:
-  core.trust_password: sekret
   core.https_address: 10.1.1.101:8443
 EOF
     if [ "${port}" != "" ]; then
@@ -209,97 +208,6 @@ spawn_lxd_and_join_cluster() {
   index="${4}"
   target="${5}"
   LXD_DIR="${6}"
-  driver="dir"
-  port="8443"
-  if [ "$#" -ge  "7" ]; then
-      driver="${7}"
-  fi
-  if [ "$#" -ge  "8" ]; then
-      port="${8}"
-  fi
-
-  echo "==> Spawn additional cluster node in ${ns} with storage driver ${driver}"
-  secret="${LXD_SECRET:-"sekret"}"
-
-  LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
-  (
-    set -e
-
-    # If a custom cluster port was given, we need to first set the REST
-    # API address.
-    if [ "${port}" != "8443" ]; then
-      lxc config set core.https_address "10.1.1.10${index}:8443"
-    fi
-
-    cat > "${LXD_DIR}/preseed.yaml" <<EOF
-cluster:
-  enabled: true
-  server_name: node${index}
-  server_address: 10.1.1.10${index}:${port}
-  cluster_address: 10.1.1.10${target}:8443
-  cluster_certificate: "$cert"
-  cluster_password: ${secret}
-  member_config:
-EOF
-    # Declare the pool only if the driver is not ceph, because
-    # the ceph pool doesn't need to be created on the joining
-    # node (it's shared with the bootstrap one).
-    if [ "${driver}" != "ceph" ]; then
-      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
-  - entity: storage-pool
-    name: data
-    key: source
-    value: ""
-EOF
-      if [ "${driver}" = "zfs" ]; then
-        cat >> "${LXD_DIR}/preseed.yaml" <<EOF
-  - entity: storage-pool
-    name: data
-    key: zfs.pool_name
-    value: lxdtest-$(basename "${TEST_DIR}")-${ns}
-  - entity: storage-pool
-    name: data
-    key: size
-    value: 1GiB
-EOF
-      fi
-      if [ "${driver}" = "lvm" ]; then
-        cat >> "${LXD_DIR}/preseed.yaml" <<EOF
-  - entity: storage-pool
-    name: data
-    key: lvm.vg_name
-    value: lxdtest-$(basename "${TEST_DIR}")-${ns}
-  - entity: storage-pool
-    name: data
-    key: size
-    value: 1GiB
-EOF
-      fi
-      if [ "${driver}" = "btrfs" ]; then
-        cat >> "${LXD_DIR}/preseed.yaml" <<EOF
-  - entity: storage-pool
-    name: data
-    key: size
-    value: 1GiB
-EOF
-      fi
-    fi
-
-    lxd init --preseed < "${LXD_DIR}/preseed.yaml"
-  )
-}
-
-spawn_lxd_and_join_cluster_with_token() {
-  # shellcheck disable=SC2039,SC3043
-  local LXD_NETNS
-
-  set -e
-  ns="${1}"
-  bridge="${2}"
-  cert="${3}"
-  index="${4}"
-  target="${5}"
-  LXD_DIR="${6}"
   if [ -d "${7}" ]; then
     token="$(LXD_DIR=${7} lxc cluster add --quiet "node${index}")"
   else
@@ -308,14 +216,13 @@ spawn_lxd_and_join_cluster_with_token() {
   driver="dir"
   port="8443"
   if [ "$#" -ge  "8" ]; then
-    driver="${8}"
+      driver="${8}"
   fi
   if [ "$#" -ge  "9" ]; then
-    port="${9}"
+      port="${9}"
   fi
 
   echo "==> Spawn additional cluster node in ${ns} with storage driver ${driver}"
-  secret="${LXD_SECRET:-"sekret"}"
 
   LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
   (

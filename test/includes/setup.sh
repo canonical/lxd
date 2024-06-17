@@ -4,7 +4,8 @@ ensure_has_localhost_remote() {
     # shellcheck disable=SC2039,3043
     local addr="${1}"
     if ! lxc remote list | grep -q "localhost"; then
-        lxc remote add localhost "https://${addr}" --accept-certificate --password foo
+        token="$(lxc config trust add --name foo -q)"
+        lxc remote add localhost "https://${addr}" --accept-certificate --token "${token}"
     fi
 }
 

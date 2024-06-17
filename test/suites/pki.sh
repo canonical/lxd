@@ -55,20 +55,20 @@ test_pki() {
     set -e
     export LXD_CONF="${LXC5_DIR}"
 
-    # Try adding remote using an incorrect password.
-    # This should fail, as if the certificate is unknown and password is wrong then no access should be allowed.
-    ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password=bar || false
+    # Try adding remote using an incorrect token.
+    # This should fail, as if the certificate is unknown and token is wrong then no access should be allowed.
+    ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --token=bar || false
 
-    # Add remote using the correct password.
+    # Add remote using the correct token.
     # This should work because the client certificate is signed by the CA.
     token="$(LXD_DIR=${LXD5_DIR} lxc config trust add --name foo -q)"
-    lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password "${token}"
+    lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --token "${token}"
     lxc_remote config trust ls pki-lxd: | grep lxd-client
     fingerprint="$(lxc_remote config trust ls pki-lxd: --format csv | cut -d, -f4)"
     lxc_remote config trust remove pki-lxd:"${fingerprint}"
     lxc_remote remote remove pki-lxd
 
-    # Add remote using a CA-signed client certificate, and not providing a password.
+    # Add remote using a CA-signed client certificate, and not providing a token.
     # This should succeed and tests that the CA trust is working, as adding the client certificate to the trust
     # store without a token would normally fail.
     LXD_DIR=${LXD5_DIR} lxc config set core.trust_ca_certificates true
@@ -78,7 +78,7 @@ test_pki() {
 
     # Add remote using a CA-signed client certificate, and providing an incorrect token.
     # This should succeed as is the same as the test above but with an incorrect token rather than no token.
-    lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password=bar
+    lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --token=bar
     ! lxc_remote config trust ls pki-lxd: | grep lxd-client || false
     lxc_remote remote remove pki-lxd
 
@@ -86,21 +86,23 @@ test_pki() {
     cp "${TEST_DIR}/pki/keys/lxd-client-revoked.crt" "${LXC5_DIR}/client.crt"
     cp "${TEST_DIR}/pki/keys/lxd-client-revoked.key" "${LXC5_DIR}/client.key"
 
-    # Try adding a remote using a revoked client certificate, and the correct password.
+    # Try adding a remote using a revoked client certificate, and the correct token.
     # This should fail, as although revoked certificates can be added to the trust store, they will not be usable.
-    ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password=foo || false
+    token="$(LXD_DIR=${LXD5_DIR} lxc config trust add --name foo -q)"
+    ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --token "${token}" || false
 
-    # Try adding a remote using a revoked client certificate, and an incorrect password.
-    # This should fail, as if the certificate is revoked and password is wrong then no access should be allowed.
-    ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password=incorrect || false
+    # Try adding a remote using a revoked client certificate, and an incorrect token.
+    # This should fail, as if the certificate is revoked and token is wrong then no access should be allowed.
+    ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --token=incorrect || false
   )
 
   # Confirm that a normal, non-PKI certificate doesn't.
   # As LXD_CONF is not set to LXC5_DIR where the CA signed client certs are, this will cause the lxc command to
   # generate a new certificate that isn't trusted by the CA certificate and thus will not be allowed, even with a
-  # correct trust password. This is because the LXD TLS listener in CA mode will not consider a client cert that
+  # correct token. This is because the LXD TLS listener in CA mode will not consider a client cert that
   # is not signed by the CA as valid.
-  ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password=foo || false
+  token="$(LXD_DIR=${LXD5_DIR} lxc config trust add --name foo -q)"
+  ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --token "${token}" || false
 
   kill_lxd "${LXD5_DIR}"
 }
