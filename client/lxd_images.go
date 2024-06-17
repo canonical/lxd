@@ -87,7 +87,12 @@ func (r *ProtocolLXD) GetImageSecret(fingerprint string) (string, error) {
 
 	opAPI := op.Get()
 
-	return opAPI.Metadata["secret"].(string), nil
+	secret, ok := opAPI.Metadata["secret"].(string)
+	if !ok {
+		return "", fmt.Errorf("Failed to extract image secret from operation metadata")
+	}
+
+	return secret, nil
 }
 
 // GetPrivateImage is similar to GetImage but allows passing a secret download token.
@@ -602,7 +607,11 @@ func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (RemoteOpe
 			}
 
 			// Extract the fingerprint
-			fingerprint := op.Metadata["fingerprint"].(string)
+			fingerprint, ok := op.Metadata["fingerprint"].(string)
+			if !ok {
+				rop.err = remoteOperationError("Failed to extract fingerprint from operation metadata", errors)
+				return
+			}
 
 			// Add the aliases
 			for _, entry := range req.Aliases {
