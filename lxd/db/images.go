@@ -145,6 +145,7 @@ func (c *ClusterTx) imageFill(ctx context.Context, id int, image *api.Image, cre
 	_, source, err := c.GetImageSource(ctx, id)
 	if err == nil {
 		image.UpdateSource = &source
+		image.UpdateSource.ImageType = image.Type
 	}
 
 	return nil
