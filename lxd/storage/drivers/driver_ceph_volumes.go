@@ -522,13 +522,6 @@ func (d *ceph) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 // CreateVolumeFromMigration creates a volume being sent via a migration.
 // It returns the cleanup hooks required to revert any changes made during the migration.
 func (d *ceph) createVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) (revert.Hook, error) {
-	// Handle simple rsync and block_and_rsync through generic.
-	if shared.ValueInSlice(volTargetArgs.MigrationType.FSType, []migration.MigrationFSType{migration.MigrationFSType_RSYNC, migration.MigrationFSType_BLOCK_AND_RSYNC}) || volTargetArgs.MigrationType.FSType == migration.MigrationFSType_RBD_AND_RSYNC && vol.contentType == ContentTypeFS {
-		return genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
-	} else if !shared.ValueInSlice(volTargetArgs.MigrationType.FSType, []migration.MigrationFSType{migration.MigrationFSType_RBD, migration.MigrationFSType_RBD_AND_RSYNC}) {
-		return nil, ErrNotSupported
-	}
-
 	var lastCommonSnapshotName string
 	lastCommonSnapshotIndex := d.findLastCommonSnapshotIndex(vol.Snapshots, volTargetArgs.Snapshots)
 	if lastCommonSnapshotIndex >= 0 {
@@ -696,6 +689,18 @@ func (d *ceph) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser
 		}
 
 		return nil
+	}
+
+	// Handle simple rsync and block_and_rsync through generic.
+	if shared.ValueInSlice(volTargetArgs.MigrationType.FSType, []migration.MigrationFSType{migration.MigrationFSType_RSYNC, migration.MigrationFSType_BLOCK_AND_RSYNC}) || volTargetArgs.MigrationType.FSType == migration.MigrationFSType_RBD_AND_RSYNC && vol.contentType == ContentTypeFS {
+		_, err := genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	} else if !shared.ValueInSlice(volTargetArgs.MigrationType.FSType, []migration.MigrationFSType{migration.MigrationFSType_RBD, migration.MigrationFSType_RBD_AND_RSYNC}) {
+		return ErrNotSupported
 	}
 
 	revert := revert.New()
