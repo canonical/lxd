@@ -682,8 +682,8 @@ github.com/zitadel/logging v0.6.0 h1:t5Nnt//r+m2ZhhoTmoPX+c96pbMarqJvW1Vq6xFTank
 github.com/zitadel/logging v0.6.0/go.mod h1:Y4CyAXHpl3Mig6JOszcV5Rqqsojj+3n7y2F591Mp/ow=
 github.com/zitadel/oidc/v2 v2.12.0 h1:4aMTAy99/4pqNwrawEyJqhRb3yY3PtcDxnoDSryhpn4=
 github.com/zitadel/oidc/v2 v2.12.0/go.mod h1:LrRav74IiThHGapQgCHZOUNtnqJG0tcZKHro/91rtLw=
-github.com/zitadel/oidc/v3 v3.24.0 h1:TK2qUpVoX0A8Rd0Z9/1jxf+/nm5gstRKReIEG808xCI=
-github.com/zitadel/oidc/v3 v3.24.0/go.mod h1:A6rYWOlTb/FtvZvUP8tl2wRCJ+wXMovfwcX80yXjMZQ=
+github.com/zitadel/oidc/v3 v3.25.1 h1:mkGimTWzbb8wARUewIqr6LhTPZnZeL6WOeXWy+iz1aI=
+github.com/zitadel/oidc/v3 v3.25.1/go.mod h1:UDwD+PRFbUBzabyPd9JORrakty3/wec7VpKZYi9Ahh0=
 github.com/zitadel/schema v1.3.0 h1:kQ9W9tvIwZICCKWcMvCEweXET1OcOyGEuFbHs4o5kg0=
 github.com/zitadel/schema v1.3.0/go.mod h1:NptN6mkBDFvERUCvZHlvWmmME+gmZ44xzwRXwhzsbtc=
 go.etcd.io/etcd/api/v3 v3.5.0/go.mod h1:cbVKeC6lCfl7j/8jBhAK6aIYO9XOjdptoxU/nLQcPvs=
