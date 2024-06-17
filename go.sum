@@ -540,8 +540,8 @@ github.com/opencontainers/image-spec v1.1.0 h1:8SG7/vwALn54lVB/0yZ/MMwhFrPYtpEHQ
 github.com/opencontainers/image-spec v1.1.0/go.mod h1:W4s4sFTMaBeK1BQLXbG4AdM2szdn85PY75RI83NrTrM=
 github.com/openfga/api/proto v0.0.0-20240529190005-394820dfc109 h1:V92DXyx43GBjLCv4Ky/u2jT8Lr1Hc3g8wNbnDHBfdBM=
 github.com/openfga/api/proto v0.0.0-20240529190005-394820dfc109/go.mod h1:gil5LBD8tSdFQbUkCQdnXsoeU9kDJdJgbGdHkgJfcd0=
-github.com/openfga/language/pkg/go v0.0.0-20240603163217-f5fc1d6b5f85 h1:TEJC/Pr2Q8dqy7qwRFBp4sMonBT+oHDDGZjOcaZmjPg=
-github.com/openfga/language/pkg/go v0.0.0-20240603163217-f5fc1d6b5f85/go.mod h1:mCwEY2IQvyNgfEwbfH0C0ERUwtL8z6UjSAF8zgn5Xbg=
+github.com/openfga/language/pkg/go v0.2.0-beta.0 h1:dTvgDkQImfNnH1iDvxnUIbz4INvKr4kS46dI12oAEzM=
+github.com/openfga/language/pkg/go v0.2.0-beta.0/go.mod h1:mCwEY2IQvyNgfEwbfH0C0ERUwtL8z6UjSAF8zgn5Xbg=
 github.com/openfga/openfga v1.5.4 h1:mVrp0uB9jNWX/5+OtZLM6YOx5Y9Y4r/D/O+LNBF/FGQ=
 github.com/openfga/openfga v1.5.4/go.mod h1:+PoZg9BJeq+h3L0eR52tqNTwghSapCFtmaVKHsUK7QM=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
