@@ -521,7 +521,14 @@ func (d *ceph) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
 // It returns the cleanup hooks required to revert any changes made during the migration.
+// Only the RBD and RBD_AND_RSYNC migration types are covered by this function.
 func (d *ceph) createVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) (revert.Hook, error) {
+	// Fallback to the generic migration for the VM's filesystem volume using rsync.
+	// This is the case if both sides have agreed on using RBD_AND_RSYNC.
+	if volTargetArgs.MigrationType.FSType == migration.MigrationFSType_RBD_AND_RSYNC && vol.contentType == ContentTypeFS {
+		return genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+	}
+
 	var lastCommonSnapshotName string
 	lastCommonSnapshotIndex := d.findLastCommonSnapshotIndex(vol.Snapshots, volTargetArgs.Snapshots)
 	if lastCommonSnapshotIndex >= 0 {
@@ -691,7 +698,7 @@ func (d *ceph) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser
 		return nil
 	}
 
-	// Handle simple rsync and block_and_rsync through generic.
+	// Handle simple RSYNC and BLOCK_AND_RSYNC through the generic function.
 	if shared.ValueInSlice(volTargetArgs.MigrationType.FSType, []migration.MigrationFSType{migration.MigrationFSType_RSYNC, migration.MigrationFSType_BLOCK_AND_RSYNC}) || volTargetArgs.MigrationType.FSType == migration.MigrationFSType_RBD_AND_RSYNC && vol.contentType == ContentTypeFS {
 		_, err := genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
 		if err != nil {
@@ -706,8 +713,9 @@ func (d *ceph) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Migrate (receive) the VMs filesystem volume too.
-	// This will fall back to the generic way of refreshing.
+	// Migrate (receive) the VM's filesystem volume too.
+	// In case of the RBD_AND_RSYNC migration type this falls back to the generic function.
+	// In case of the RBD migration type this is using the Ceph RBD block export/import functions.
 	if vol.IsVMBlock() {
 		// Ensure that the volume's snapshots are also replaced with their filesystem counterpart.
 		fsVolSnapshots := make([]Volume, 0, len(vol.Snapshots))
@@ -717,7 +725,7 @@ func (d *ceph) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser
 
 		fsVolCopy := NewVolumeCopy(vol.NewVMBlockFilesystemVolume(), fsVolSnapshots...)
 
-		// Migrate the VMs filesystem volume and record the cleanup hooks.
+		// Migrate the VM's filesystem volume and record the cleanup hooks.
 		// This allows cleaning up any changes made during the generic migration.
 		cleanup, err := d.createVolumeFromMigration(fsVolCopy, conn, volTargetArgs, preFiller, op)
 		if err != nil {
