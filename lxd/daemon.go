@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -367,23 +368,62 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 		return true, result.Email, api.AuthenticationMethodOIDC, result.IdentityProviderGroups, nil
 	}
 
-	// Validate normal TLS access.
-	trustCACertificates := d.globalConfig.TrustCACertificates()
-
-	// Validate metrics certificates.
-	if r.URL.Path == "/1.0/metrics" {
-		for _, i := range r.TLS.PeerCertificates {
-			trusted, username := util.CheckMutualTLS(*i, d.identityCache.X509Certificates(api.IdentityTypeCertificateMetricsRestricted, api.IdentityTypeCertificateMetricsUnrestricted))
-			if trusted {
-				return true, username, api.AuthenticationMethodTLS, nil, nil
-			}
-		}
+	isMetricsRequest := func(u url.URL) bool {
+		return strings.HasPrefix(u.Path, "/1.0/metrics")
 	}
 
+	// List of candidate identity types for this request. We have already checked server certificates at the beginning of this method
+	// so we only need to consider client and metrics certificates. (OIDC auth was completed above).
+	candidateIdentityTypes := []string{api.IdentityTypeCertificateClientUnrestricted, api.IdentityTypeCertificateClientRestricted}
+	if isMetricsRequest(*r.URL) {
+		// Metrics certificates can only authenticate when calling metrics related endpoints.
+		candidateIdentityTypes = append(candidateIdentityTypes, api.IdentityTypeCertificateMetricsUnrestricted, api.IdentityTypeCertificateMetricsRestricted)
+	}
+
+	// Map of candidate certificates of mTLS check.
+	candidateCertificates := make(map[string]x509.Certificate)
+
+	// If the network cert has a CA, validate the peer certificates against it.
+	if d.endpoints.NetworkCert().CA() != nil {
+		trustCACertificates := d.globalConfig.TrustCACertificates()
+		for _, peerCertificate := range r.TLS.PeerCertificates {
+			trusted, _, fingerprint := util.CheckCASignature(*peerCertificate, d.endpoints.NetworkCert())
+			if !trusted {
+				return false, "", "", nil, nil
+			} else if trustCACertificates {
+				// If CA signed certificates are implicitly trusted via `core.trust_ca_certificates`, return now. Otherwise, continue to mTLS check.
+				// Returning the protocol as auth.AuthenticationMethodPKI will indicate to the auth.Authorizer that
+				// this certificate may not be present in the trust store. If it isn't in the trust store, the caller
+				// has full access to LXD. If it is in the trust store, standard TLS restrictions will apply.
+				return true, fingerprint, auth.AuthenticationMethodPKI, nil, nil
+			}
+
+			// We are trusted by the CA. But because `core.trust_ca_certificates` is false, we also need to check that
+			// the client certificate is in the trust store.
+			id, err := d.identityCache.Get(api.AuthenticationMethodTLS, fingerprint)
+			if err != nil {
+				return false, "", "", nil, nil
+			}
+
+			// The identity type must be in our list of candidate types (e.g. if this certificate is a metrics certificate
+			// and we're on a non-metrics related route).
+			if !shared.ValueInSlice(id.IdentityType, candidateIdentityTypes) {
+				return false, "", "", nil, nil
+			}
+
+			// In CA mode we only consider if this exact certificate is valid via mTLS checks below.
+			candidateCertificates[id.Identifier] = *id.Certificate
+		}
+	} else {
+		// In non-CA mode we consider all certificates that would be valid for this API route.
+		candidateCertificates = d.identityCache.X509Certificates(candidateIdentityTypes...)
+	}
+
+	// Perform mTLS check on candidates.
 	for _, i := range r.TLS.PeerCertificates {
-		trusted, username := util.CheckMutualTLS(*i, d.identityCache.X509Certificates(api.IdentityTypeCertificateClientRestricted, api.IdentityTypeCertificateClientUnrestricted))
+		trusted, fingerprint := util.CheckMutualTLS(*i, candidateCertificates)
 		if trusted {
-			return true, username, api.AuthenticationMethodTLS, nil, nil
+			return true, fingerprint, api.AuthenticationMethodTLS, nil, nil
 		}
 	}
 
