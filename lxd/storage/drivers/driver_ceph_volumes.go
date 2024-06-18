@@ -521,7 +521,14 @@ func (d *ceph) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
 // It returns the cleanup hooks required to revert any changes made during the migration.
+// Only the RBD and RBD_AND_RSYNC migration types are covered by this function.
 func (d *ceph) createVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) (revert.Hook, error) {
+	// Fallback to the generic migration for the VM's filesystem volume using rsync.
+	// This is the case if both sides have agreed on using RBD_AND_RSYNC.
+	if volTargetArgs.MigrationType.FSType == migration.MigrationFSType_RBD_AND_RSYNC && vol.contentType == ContentTypeFS {
+		return genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+	}
+
 	var lastCommonSnapshotName string
 	lastCommonSnapshotIndex := d.findLastCommonSnapshotIndex(vol.Snapshots, volTargetArgs.Snapshots)
 	if lastCommonSnapshotIndex >= 0 {
