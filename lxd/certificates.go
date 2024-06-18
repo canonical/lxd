@@ -670,6 +670,14 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
+		networkCert := s.Endpoints.NetworkCert()
+		if networkCert.CA() != nil {
+			// If we are in CA mode, we only allow adding certificates that are signed by the CA.
+			trusted, _, _ := util.CheckCASignature(*cert, networkCert)
+			if !trusted {
+				return response.Forbidden(fmt.Errorf("The certificate is not trusted by the CA or has been revoked"))
+			}
+		}
 	} else {
 		return response.BadRequest(fmt.Errorf("Can't use TLS data on non-TLS link"))
 	}
