@@ -893,7 +893,7 @@ func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificateP
 
 			trusted := false
 			for _, i := range r.TLS.PeerCertificates {
-				trusted, _ = util.CheckTrustState(*i, trustedCerts, s.Endpoints.NetworkCert(), false)
+				trusted, _ = util.CheckMutualTLS(*i, trustedCerts)
 
 				if trusted {
 					break
@@ -1022,7 +1022,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 
 		trusted := false
 		for _, i := range r.TLS.PeerCertificates {
-			trusted, _ = util.CheckTrustState(*i, trustedCerts, s.Endpoints.NetworkCert(), false)
+			trusted, _ = util.CheckMutualTLS(*i, trustedCerts)
 
 			if trusted {
 				break
