@@ -314,7 +314,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 		for _, i := range r.TLS.PeerCertificates {
 			trusted, fingerprint := util.CheckTrustState(*i, d.identityCache.X509Certificates(api.IdentityTypeCertificateServer), d.endpoints.NetworkCert(), false)
 			if trusted {
-				return true, fingerprint, "cluster", nil, nil
+				return true, fingerprint, auth.AuthenticationMethodCluster, nil, nil
 			}
 		}
 	}
@@ -329,13 +329,13 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 
 			u, err := user.LookupId(fmt.Sprintf("%d", cred.Uid))
 			if err != nil {
-				return true, fmt.Sprintf("uid=%d", cred.Uid), "unix", nil, nil
+				return true, fmt.Sprintf("uid=%d", cred.Uid), auth.AuthenticationMethodUnix, nil, nil
 			}
 
-			return true, u.Username, "unix", nil, nil
+			return true, u.Username, auth.AuthenticationMethodUnix, nil, nil
 		}
 
-		return true, "", "unix", nil, nil
+		return true, "", auth.AuthenticationMethodUnix, nil, nil
 	}
 
 	// Devlxd unix socket credentials on main API.
@@ -577,7 +577,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		request.SetCtxValue(r, request.CtxTrusted, trusted)
 
 		// Reject internal queries to remote, non-cluster, clients
-		if version == "internal" && !shared.ValueInSlice(protocol, []string{"unix", "cluster"}) {
+		if version == "internal" && !shared.ValueInSlice(protocol, []string{auth.AuthenticationMethodUnix, auth.AuthenticationMethodCluster}) {
 			// Except for the initial cluster accept request (done over trusted TLS)
 			if !trusted || c.Path != "cluster/accept" || protocol != api.AuthenticationMethodTLS {
 				logger.Warn("Rejecting remote internal API request", logger.Ctx{"ip": r.RemoteAddr})
@@ -587,7 +587,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		logCtx := logger.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr, "protocol": protocol}
-		if protocol == "cluster" {
+		if protocol == auth.AuthenticationMethodCluster {
 			logCtx["fingerprint"] = username
 		} else {
 			logCtx["username"] = username
@@ -605,7 +605,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			}
 
 			// Add forwarded requestor data.
-			if protocol == "cluster" {
+			if protocol == auth.AuthenticationMethodCluster {
 				// Add authentication/authorization context data.
 				ctx = context.WithValue(ctx, request.CtxForwardedAddress, r.Header.Get(request.HeaderForwardedAddress))
 				ctx = context.WithValue(ctx, request.CtxForwardedUsername, r.Header.Get(request.HeaderForwardedUsername))
