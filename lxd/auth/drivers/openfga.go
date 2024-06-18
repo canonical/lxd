@@ -136,7 +136,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 	l := e.logger.AddContext(logCtx)
 
 	// If the authentication method was TLS, use the TLS driver instead.
-	if protocol == api.AuthenticationMethodTLS {
+	if protocol == api.AuthenticationMethodTLS || protocol == auth.AuthenticationMethodPKI {
 		return e.tlsAuthorizer.CheckPermission(ctx, r, entityURL, entitlement)
 	}
 
@@ -326,7 +326,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 	l := e.logger.AddContext(logCtx)
 
 	// If the authentication method was TLS, use the TLS driver instead.
-	if protocol == api.AuthenticationMethodTLS {
+	if protocol == api.AuthenticationMethodTLS || protocol == auth.AuthenticationMethodPKI {
 		return e.tlsAuthorizer.GetPermissionChecker(ctx, r, entitlement, entityType)
 	}
 
