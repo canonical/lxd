@@ -152,41 +152,78 @@ type ContextAwareRequest interface {
 	WithContext(ctx context.Context) *http.Request
 }
 
-// CheckTrustState checks whether the given client certificate is trusted
-// (i.e. it has a valid time span and it belongs to the given list of trusted
-// certificates).
-// Returns whether or not the certificate is trusted, and the fingerprint of the certificate.
-func CheckTrustState(cert x509.Certificate, trustedCerts map[string]x509.Certificate, networkCert *shared.CertInfo, trustCACertificates bool) (bool, string) {
-	// Extra validity check (should have been caught by TLS stack)
-	if time.Now().Before(cert.NotBefore) || time.Now().After(cert.NotAfter) {
-		return false, ""
+// certificateInDate returns an error if the current time is before the certificates "not before", or after the
+// certificates "not after".
+func certificateInDate(cert x509.Certificate) error {
+	now := time.Now()
+	if now.Before(cert.NotBefore) {
+		return api.StatusErrorf(http.StatusUnauthorized, "Certificate is not yet valid")
 	}
 
-	if networkCert != nil && trustCACertificates {
-		ca := networkCert.CA()
+	if now.After(cert.NotAfter) {
+		return api.StatusErrorf(http.StatusUnauthorized, "Certificate has expired")
+	}
 
-		if ca != nil && cert.CheckSignatureFrom(ca) == nil {
-			// Check whether the certificate has been revoked.
-			crl := networkCert.CRL()
+	return nil
+}
 
-			if crl != nil {
-				if crl.CheckSignatureFrom(ca) != nil {
-					return false, "" // CRL not signed by CA
-				}
+// CheckCASignature returns whether the certificate is signed by the CA, whether the certificate has been revoked, and the
+// certificate fingerprint.
+func CheckCASignature(cert x509.Certificate, networkCert *shared.CertInfo) (trusted bool, revoked bool, fingerprint string) {
+	err := certificateInDate(cert)
+	if err != nil {
+		return false, false, ""
+	}
 
-				for _, revoked := range crl.RevokedCertificates {
-					if cert.SerialNumber.Cmp(revoked.SerialNumber) == 0 {
-						return false, "" // Certificate is revoked, so not trusted anymore.
-					}
-				}
-			}
+	if networkCert == nil {
+		logger.Error("Failed to check certificate has been signed by the CA, no network certificate provided")
+		return false, false, ""
+	}
 
-			// Certificate not revoked, so trust it as is signed by CA cert.
-			return true, shared.CertFingerprint(&cert)
+	ca := networkCert.CA()
+	if ca == nil {
+		logger.Error("Failed to check certificate has been signed by the CA, no CA defined on network certificate")
+		return false, false, ""
+	}
+
+	err = cert.CheckSignatureFrom(ca)
+	if err != nil {
+		// Certificate not signed by CA.
+		return false, false, ""
+	}
+
+	crl := networkCert.CRL()
+	if crl == nil {
+		// No revokation list entries to check.
+		return true, false, shared.CertFingerprint(&cert)
+	}
+
+	err = crl.CheckSignatureFrom(ca)
+	if err != nil {
+		logger.Error("Certificate revokation list has not been signed by server CA", logger.Ctx{"error": err})
+		return false, false, ""
+	}
+
+	for _, revoked := range crl.RevokedCertificateEntries {
+		if cert.SerialNumber.Cmp(revoked.SerialNumber) == 0 {
+			// Certificate has been revoked
+			return false, true, ""
 		}
 	}
 
-	// Check whether client certificate is in trust store.
+	// Certificate not revoked.
+	return true, false, shared.CertFingerprint(&cert)
+}
+
+// CheckMutualTLS checks whether the given certificate is valid and is present in the given trustedCerts map.
+// Returns true if the certificate is trusted, and the fingerprint of the certificate.
+func CheckMutualTLS(cert x509.Certificate, trustedCerts map[string]x509.Certificate) (bool, string) {
+	err := certificateInDate(cert)
+	if err != nil {
+		return false, ""
+	}
+
+	// Check whether client certificate is in the map of trusted certs.
 	for fingerprint, v := range trustedCerts {
 		if bytes.Equal(cert.Raw, v.Raw) {
 			logger.Debug("Matched trusted cert", logger.Ctx{"fingerprint": fingerprint, "subject": v.Subject})
