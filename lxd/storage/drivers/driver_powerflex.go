@@ -157,14 +157,6 @@ func (d *powerflex) Create() error {
 
 // Delete removes the storage pool from the storage device.
 func (d *powerflex) Delete(op *operations.Operation) error {
-	// Disconnect from the NVMe/TCP subsystem.
-	if d.config["powerflex.mode"] == "nvme" {
-		err := d.disconnectNVMeSubsys()
-		if err != nil {
-			return err
-		}
-	}
-
 	// If the user completely destroyed it, call it done.
 	if !shared.PathExists(GetPoolMountPath(d.name)) {
 		return nil
