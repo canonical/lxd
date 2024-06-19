@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/fs"
@@ -197,18 +198,21 @@ func TryUnmount(path string, flags int) error {
 	return nil
 }
 
-// tryExists waits up to 10s for a file to exist.
-func tryExists(path string) bool {
-	// Attempt 20 checks over 10s
-	for i := 0; i < 20; i++ {
-		if shared.PathExists(path) {
-			return true
+// tryExists waits for a file to exist or the context being cancelled.
+// The probe happens at intervals of 500 milliseconds.
+func tryExists(ctx context.Context, path string) bool {
+	for {
+		select {
+		case <-ctx.Done():
+			return false
+		default:
+			if shared.PathExists(path) {
+				return true
+			}
 		}
 
 		time.Sleep(500 * time.Millisecond)
 	}
-
-	return false
 }
 
 // fsUUID returns the filesystem UUID for the given block path.
