@@ -18,6 +18,8 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   # Network access
   network inet dgram,
   network inet6 dgram,
+  network inet stream,
+  network inet6 stream,
 
   # Network-specific paths
   {{ .varPath }}/networks/{{ .networkName }}/dnsmasq.leases r,
