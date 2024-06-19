@@ -71,13 +71,13 @@ func (d *dir) Create() error {
 	sourcePath := shared.HostPath(d.config["source"])
 
 	if !shared.PathExists(sourcePath) {
-		return fmt.Errorf("Source path '%s' doesn't exist", sourcePath)
+		return fmt.Errorf("Source path %q doesn't exist", sourcePath)
 	}
 
 	// Check that if within LXD_DIR, we're at our expected spot.
 	cleanSource := filepath.Clean(sourcePath)
 	if strings.HasPrefix(cleanSource, shared.VarPath()) && cleanSource != GetPoolMountPath(d.name) {
-		return fmt.Errorf("Source path '%s' is within the LXD directory", cleanSource)
+		return fmt.Errorf("Source path %q is within the LXD directory", cleanSource)
 	}
 
 	// Check that the path is currently empty.
@@ -87,7 +87,7 @@ func (d *dir) Create() error {
 	}
 
 	if !isEmpty {
-		return fmt.Errorf("Source path '%s' isn't empty", sourcePath)
+		return fmt.Errorf("Source path %q isn't empty", sourcePath)
 	}
 
 	return nil
