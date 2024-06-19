@@ -876,6 +876,13 @@ func (d *powerflex) getNVMeMappedDevPath(vol Volume, mapVolume bool) (string, re
 	defer revert.Fail()
 
 	if mapVolume {
+		unlock, err := locking.Lock(d.state.ShutdownCtx, "nvme")
+		if err != nil {
+			return "", nil, err
+		}
+
+		defer unlock()
+
 		cleanup, err := d.mapNVMeVolume(vol)
 		if err != nil {
 			return "", nil, err
@@ -1011,6 +1018,13 @@ func (d *powerflex) unmapNVMeVolume(vol Volume) error {
 		return err
 	}
 
+	unlock, err := locking.Lock(d.state.ShutdownCtx, "nvme")
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
+
 	err = client.deleteHostVolumeMapping(host.ID, volume)
 	if err != nil {
 		return err
@@ -1061,16 +1075,8 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 }
 
 // connectNVMeSubsys connects this host to the NVMe subsystem configured in the storage pool.
-// The operation is locked using lock name nvme.
 // The connection can only be established after the first volume is mapped to this host.
 func (d *powerflex) connectNVMeSubsys() error {
-	unlock, err := locking.Lock(d.state.ShutdownCtx, "nvme")
-	if err != nil {
-		return err
-	}
-
-	defer unlock()
-
 	stdout, err := shared.RunCommand("nvme", "list-subsys", "-o", "json")
 	if err != nil {
 		return fmt.Errorf("Failed getting list of NVMe/TCP subsystems: %w", err)
@@ -1116,16 +1122,8 @@ func (d *powerflex) connectNVMeSubsys() error {
 }
 
 // disconnectNVMeSubsys disconnects this host from the NVMe subsystem.
-// The operation is locked using lock name nvme.
 func (d *powerflex) disconnectNVMeSubsys() error {
-	unlock, err := locking.Lock(d.state.ShutdownCtx, "nvme")
-	if err != nil {
-		return err
-	}
-
-	defer unlock()
-
-	_, err = shared.RunCommand("nvme", "disconnect-all")
+	_, err := shared.RunCommand("nvme", "disconnect-all")
 	if err != nil {
 		return fmt.Errorf("Failed disconnecting from PowerFlex NVMe/TCP subsystem: %w", err)
 	}
