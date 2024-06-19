@@ -1,11 +1,13 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"golang.org/x/sys/unix"
 
@@ -207,7 +209,10 @@ func (d *btrfs) Create() error {
 		// Confirm that the symlink is appearing (give it 10s).
 		// In case of timeout it falls back to using the volume's path
 		// instead of its UUID.
-		if tryExists(fmt.Sprintf("/dev/disk/by-uuid/%s", devUUID)) {
+		ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 10*time.Second)
+		defer cancel()
+
+		if tryExists(ctx, fmt.Sprintf("/dev/disk/by-uuid/%s", devUUID)) {
 			// Override the config to use the UUID.
 			d.config["source"] = devUUID
 		} else {
