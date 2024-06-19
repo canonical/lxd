@@ -278,7 +278,8 @@ func (d *Daemon) getTrustedCertificates() map[certificate.Type]map[string]x509.C
 func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted bool, username string, method string, err error) {
 	trustedCerts := d.getTrustedCertificates()
 
-	// Allow internal cluster traffic by checking against the trusted certfificates.
+	// Perform mTLS check against server certificates. If this passes, the request was made by another cluster member
+	// and the protocol is "cluster".
 	if r.TLS != nil {
 		for _, i := range r.TLS.PeerCertificates {
 			trusted, fingerprint := util.CheckMutualTLS(*i, trustedCerts[certificate.TypeServer])
