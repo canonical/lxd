@@ -250,6 +250,9 @@ jobs:
           GOMIN="$(sed -n 's/^GOMIN=\([0-9.]\+\)$/\1/p' Makefile)"
           go mod tidy -go="${GOMIN}"
 
+          DOC_GOMIN="$(sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md)"
+          [ "${GOMIN}" = "${DOC_GOMIN}" ]
+
       - name: Install dependencies
         run: |
           set -eux
