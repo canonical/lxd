@@ -3325,7 +3325,7 @@ test_clustering_remove_members() {
 
   # make sure node6 is a spare ndoe
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node6"
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node6 | grep -qE "\- database-standy$|\- database-leader$|\- database$" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node6 | grep -qE "\- database(|-standy|-leader)$" || false
 
   # waite for leader update table raft_node of local database by heartbeat
   sleep 10s
