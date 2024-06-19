@@ -246,7 +246,7 @@ jobs:
         if: matrix.go == '1.22.x'
         run: |
           set -eux
-          go mod tidy -go=1.22.3
+          go mod tidy -go=1.22.4
 
       - name: Install dependencies
         run: |
