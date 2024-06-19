@@ -40,8 +40,6 @@ golang.org/x/crypto/internal/poly1305
 golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
-golang.org/x/net/internal/socks
-golang.org/x/net/proxy
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
 golang.org/x/sys/unix
