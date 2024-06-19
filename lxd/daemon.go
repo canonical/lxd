@@ -310,7 +310,8 @@ func allowPermission(entityType entity.Type, entitlement auth.Entitlement, muxVa
 // Returns whether trusted or not, the username (or certificate fingerprint) of the trusted client, and the type of
 // client that has been authenticated (cluster, unix, oidc or tls).
 func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted bool, username string, method string, identityProviderGroups []string, err error) {
-	// Allow internal cluster traffic by checking against the trusted certfificates.
+	// Perform mTLS check against server certificates. If this passes, the request was made by another cluster member
+	// and the protocol is auth.AuthenticationMethodCluster.
 	if r.TLS != nil {
 		for _, i := range r.TLS.PeerCertificates {
 			trusted, fingerprint := util.CheckMutualTLS(*i, d.identityCache.X509Certificates(api.IdentityTypeCertificateServer))
