@@ -242,11 +242,14 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
-      - name: Check compatibility with min Go version (${{ matrix.go }})
-        if: matrix.go == '1.22.x'
+      - name: Check compatibility with min Go version
         run: |
           set -eux
-          go mod tidy -go=1.22.3
+          GOMIN="$(sed -n 's/^GOMIN=\([0-9.]\+\)$/\1/p' Makefile)"
+          go mod tidy -go="${GOMIN}"
+
+          DOC_GOMIN="$(sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md)"
+          [ "${GOMIN}" = "${DOC_GOMIN}" ]
 
       - name: Install dependencies
         run: |
