@@ -111,7 +111,7 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 func instanceRefreshTypes(ctx context.Context, d *Daemon) error {
 	// Attempt to download the new definitions
 	downloadParse := func(filename string, target interface{}) error {
-		url := fmt.Sprintf("https://images.linuxcontainers.org/meta/instance-types/%s", filename)
+		url := fmt.Sprintf("https://images.lxd.canonical.com/meta/instance-types/%s", filename)
 
 		httpClient, err := util.HTTPClient("", d.proxy)
 		if err != nil {
