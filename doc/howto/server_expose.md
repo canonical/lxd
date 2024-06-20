@@ -94,6 +94,7 @@ To authenticate a CLI or API client using a trust token, complete the following 
          "type": "client"
        }'
 
+   <!-- include start token API -->
    See [`POST /1.0/certificates`](swagger:/certificates/certificates_post) for more information.
 
    The return value of this query contains an operation that has the information that is required to generate the trust token:
@@ -117,6 +118,7 @@ To authenticate a CLI or API client using a trust token, complete the following 
        echo -n '{"client_name":"<client_name>","fingerprint":"<fingerprint>",'\
        '"addresses":["<server_address>"],'\
        '"secret":"<secret>","expires_at":"0001-01-01T00:00:00Z"}' | base64 -w0
+   <!-- include end token API -->
    ```
    ````
 
@@ -135,6 +137,7 @@ To authenticate a CLI or API client using a trust token, complete the following 
    ```
    ````
    ````{group-tab} API
+   <!-- include start authenticate API -->
    On the client, generate a certificate to use for the connection:
 
        openssl req -x509 -newkey rsa:2048 -keyout "<keyfile_name>" -nodes \
@@ -147,6 +150,7 @@ To authenticate a CLI or API client using a trust token, complete the following 
        --data '{ "trust_token": "<trust_token>" }'
 
    See [`POST /1.0/certificates?public`](swagger:/certificates/certificates_post_untrusted) for more information.
+   <!-- include end authenticate API -->
    ````
    `````
 
