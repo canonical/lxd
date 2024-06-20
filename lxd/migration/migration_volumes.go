@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/ioprogress"
-	"github.com/lxc/lxd/shared/units"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/ioprogress"
+	"github.com/canonical/lxd/shared/units"
 )
 
 // Type represents the migration transport type. It indicates the method by which the migration can

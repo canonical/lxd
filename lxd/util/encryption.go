@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/shared"
 
 	"golang.org/x/crypto/scrypt"
 )

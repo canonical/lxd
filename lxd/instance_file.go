@@ -15,12 +15,12 @@ import (
 	"github.com/pkg/sftp"
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/lifecycle"
-	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/lifecycle"
+	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/shared"
 )
 
 func instanceFileHandler(d *Daemon, r *http.Request) response.Response {

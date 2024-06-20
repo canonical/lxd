@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/lxc/lxd/shared/osarch"
+	"github.com/canonical/lxd/shared/osarch"
 )
 
 // UserAgent contains a string suitable as a user-agent

@@ -13,12 +13,12 @@ import (
 	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/lxd/apparmor"
-	"github.com/lxc/lxd/lxd/sys"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/ioprogress"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/subprocess"
+	"github.com/canonical/lxd/lxd/apparmor"
+	"github.com/canonical/lxd/lxd/sys"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/ioprogress"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/subprocess"
 )
 
 // ExtractWithFds runs extractor process under specifc AppArmor profile.

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/shared"
 )
 
 // Status returns the current VM status.

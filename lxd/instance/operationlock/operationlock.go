@@ -7,8 +7,8 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // TimeoutSeconds number of seconds that the operation lock will be kept for without calling Reset().

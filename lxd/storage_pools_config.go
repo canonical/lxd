@@ -7,10 +7,10 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/units"
-	"github.com/lxc/lxd/shared/validate"
+	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/units"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 var storagePoolConfigKeys = map[string]func(value string) error{

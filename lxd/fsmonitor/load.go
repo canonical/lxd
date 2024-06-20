@@ -6,10 +6,10 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/lxd/fsmonitor/drivers"
-	"github.com/lxc/lxd/lxd/storage/filesystem"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
+	"github.com/canonical/lxd/lxd/fsmonitor/drivers"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/logging"
 )
 
 // New creates a new FSMonitor instance.

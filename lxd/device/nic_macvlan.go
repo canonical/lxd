@@ -3,13 +3,13 @@ package device
 import (
 	"fmt"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/ip"
-	"github.com/lxc/lxd/lxd/network"
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/shared"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/ip"
+	"github.com/canonical/lxd/lxd/network"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/shared"
 )
 
 type nicMACVLAN struct {

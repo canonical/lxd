@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/shared"
 )
 
 // Code generation directives.

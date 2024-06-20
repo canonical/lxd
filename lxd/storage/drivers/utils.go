@@ -13,10 +13,10 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/storage/filesystem"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/idmap"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/idmap"
 )
 
 // MinBlockBoundary minimum block boundary size to use.

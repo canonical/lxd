@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 
 	_ "net/http/pprof" // pprof magic
 )
