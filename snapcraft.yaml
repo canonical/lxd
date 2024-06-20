@@ -687,6 +687,32 @@ parts:
       - bin/nvidia-container-cli*
       - lib/libnvidia-container*.so*
 
+  nvidia-container-toolkit:
+    source: https://github.com/NVIDIA/nvidia-container-toolkit
+    source-depth: 1
+    source-commit: a470818ba7d9166be282cd0039dd2fc9b0a34d73 # v1.16.1
+    source-type: git
+    build-snaps:
+      - go
+    plugin: make
+    override-prime: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      set -ex
+
+      make binaries
+      mkdir -p "${CRAFT_PART_INSTALL}/bin/"
+      cp nvidia-ctk "${CRAFT_PART_INSTALL}/bin/"
+    organize:
+      usr/bin/: bin/
+    prime:
+      - bin/nvidia-ctk
+
   nvme:
     plugin: nil
     stage-packages:
@@ -1606,6 +1632,7 @@ parts:
       - criu
       - lxd
       - shmounts
+      - nvidia-container-toolkit
     plugin: nil
     override-prime: |
       set -x
