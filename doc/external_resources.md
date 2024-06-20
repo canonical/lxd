@@ -4,5 +4,5 @@
 :maxdepth: 1
 
 Project repository <https://github.com/canonical/lxd>
-Image server <https://images.linuxcontainers.org>
+Image server <https://images.lxd.canonical.com>
 ```
