@@ -2161,33 +2161,33 @@ test_clustering_dns() {
   echo "$(date +%s) 00:16:3e:98:05:40 10.140.78.145 test1 ff:2b:a8:0a:df:00:02:00:00:ab:11:36:ea:11:e5:37:e0:85:45" > "${lxdDir}"/networks/lxdtest2/dnsmasq.leases
 
   # Test querying forkdns1 for A record that is on forkdns2 network
-  if ! dig @127.0.1.1"${ipRand}" -p1053 test1.lxd | grep "10.140.78.145" ; then
+  if ! dig @127.0.1.1"${ipRand}" -p1053 test1.lxd | grep -F "10.140.78.145" ; then
     echo "test1.lxd A DNS resolution failed"
     false
   fi
 
   # Test querying forkdns1 for AAAA record when equivalent A record is on forkdns2 network
-  if ! dig @127.0.1.1"${ipRand}" -p1053 AAAA test1.lxd | grep "status: NOERROR" ; then
+  if ! dig @127.0.1.1"${ipRand}" -p1053 AAAA test1.lxd | grep -F "status: NOERROR" ; then
     echo "test1.lxd empty AAAAA DNS resolution failed"
     false
   fi
 
   # Test querying forkdns1 for PTR record that is on forkdns2 network
-  if ! dig @127.0.1.1"${ipRand}" -p1053 -x 10.140.78.145 | grep "test1.lxd" ; then
+  if ! dig @127.0.1.1"${ipRand}" -p1053 -x 10.140.78.145 | grep -F "test1.lxd" ; then
     echo "10.140.78.145 PTR DNS resolution failed"
     false
   fi
 
   # Test querying forkdns1 for A record that is on forkdns2 network with recursion disabled to
   # ensure request isn't relayed
-  if ! dig @127.0.1.1"${ipRand}" -p1053 +norecurse test1.lxd | grep "NXDOMAIN" ; then
+  if ! dig @127.0.1.1"${ipRand}" -p1053 +norecurse test1.lxd | grep -F "NXDOMAIN" ; then
     echo "test1.lxd A norecurse didnt return NXDOMAIN"
     false
   fi
 
   # Test querying forkdns1 for PTR record that is on forkdns2 network with recursion disabled to
   # ensure request isn't relayed
-  if ! dig @127.0.1.1"${ipRand}" -p1053 +norecurse -x 10.140.78.145 | grep "NXDOMAIN" ; then
+  if ! dig @127.0.1.1"${ipRand}" -p1053 +norecurse -x 10.140.78.145 | grep -F "NXDOMAIN" ; then
     echo "10.140.78.145 PTR norecurse didnt return NXDOMAIN"
     false
   fi
@@ -2234,9 +2234,9 @@ test_clustering_recover() {
   sleep 5
 
   # Check the current database nodes
-  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -q "10.1.1.101:8443"
-  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -q "10.1.1.102:8443"
-  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -q "10.1.1.103:8443"
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "10.1.1.101:8443"
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "10.1.1.102:8443"
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "10.1.1.103:8443"
 
   # Create a test project, just to insert something in the database.
   LXD_DIR="${LXD_ONE_DIR}" lxc project create p1
@@ -2255,11 +2255,11 @@ test_clustering_recover() {
   respawn_lxd_cluster_member "${ns1}" "${LXD_ONE_DIR}"
 
   # The project we had created is still there
-  LXD_DIR="${LXD_ONE_DIR}" lxc project list | grep -q p1
+  LXD_DIR="${LXD_ONE_DIR}" lxc project list | grep -qwF p1
 
   # The database nodes have been updated
-  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -q "10.1.1.101:8443"
-  ! LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -q "10.1.1.102:8443" || false
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "10.1.1.101:8443"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -qF "10.1.1.102:8443" || false
 
   # Cleanup the dead node.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node2 --force --yes
@@ -2574,7 +2574,7 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "\- database$"
 
   # The second node is still in the raft_nodes table.
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql local "SELECT * FROM raft_nodes" | grep -q "10.1.1.102"
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql local "SELECT * FROM raft_nodes" | grep -qF "10.1.1.102"
 
   # Force removing the raft node.
   LXD_DIR="${LXD_ONE_DIR}" lxd cluster remove-raft-node -q "10.1.1.102"
@@ -2589,7 +2589,7 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "\- database$"
 
   # The second node is gone from the raft_nodes_table.
-  ! LXD_DIR="${LXD_ONE_DIR}" lxd sql local "SELECT * FROM raft_nodes" | grep -q "10.1.1.102" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxd sql local "SELECT * FROM raft_nodes" | grep -qF "10.1.1.102" || false
 
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
@@ -3324,7 +3324,7 @@ test_clustering_remove_members() {
 
   # make sure node6 is a spare ndoe
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node6"
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node6 | grep -qE "\- database-standy$|\- database-leader$|\- database$" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node6 | grep -qE "\- database(|-standy|-leader)$" || false
 
   # waite for leader update table raft_node of local database by heartbeat
   sleep 10s
