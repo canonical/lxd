@@ -3,7 +3,7 @@
 LXD is a next generation system container and virtual machine manager.
 It offers a unified user experience around full Linux systems running inside containers or virtual machines.
 
-It's image based with pre-made images available for a [wide number of Linux distributions](https://images.linuxcontainers.org)
+It's image based with pre-made images available for a [wide number of Linux distributions](https://images.lxd.canonical.com)
 and is built around a very powerful, yet pretty simple, REST API.
 
 To get a better idea of what LXD is and what it does, you can [try it online](https://linuxcontainers.org/lxd/try-it/)!

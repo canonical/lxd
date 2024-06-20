@@ -866,7 +866,7 @@ definitions:
         x-go-name: Protocol
       server:
         description: URL of the source server
-        example: https://images.linuxcontainers.org
+        example: https://images.lxd.canonical.com
         type: string
         x-go-name: Server
     type: object
@@ -982,7 +982,7 @@ definitions:
         x-go-name: Secret
       server:
         description: URL of the source server
-        example: https://images.linuxcontainers.org
+        example: https://images.lxd.canonical.com
         type: string
         x-go-name: Server
       type:
@@ -1802,7 +1802,7 @@ definitions:
         x-go-name: Websockets
       server:
         description: Remote server URL (for remote images)
-        example: https://images.linuxcontainers.org
+        example: https://images.lxd.canonical.com
         type: string
         x-go-name: Server
       source:
