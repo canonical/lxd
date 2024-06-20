@@ -66,10 +66,11 @@ deps:
 
 	# dqlite
 	@if [ ! -e "$(DQLITE_PATH)" ]; then \
-		git clone --depth=1 "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
+		git clone "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
 	elif [ -e "$(DQLITE_PATH)/.git" ]; then \
 		cd "$(DQLITE_PATH)"; git pull; \
-	fi
+	fi; \
+	git reset --hard 50ee9af350b2fb4e79f9eb58db22c8a0927138de
 
 	cd "$(DQLITE_PATH)" && \
 		autoreconf -i && \
