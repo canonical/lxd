@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"math/rand"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -12,6 +13,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rican7/retry"
+	"github.com/Rican7/retry/backoff"
+	"github.com/Rican7/retry/jitter"
+	"github.com/Rican7/retry/strategy"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
@@ -631,48 +636,73 @@ func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (RemoteOpe
 
 	// Forward targetOp to remote op
 	go func() {
-		success := false
-		var errors []remoteOperationResult
-		for _, serverURL := range urls {
-			req.Source.Server = serverURL
-
-			op, err := r.CreateImage(req, nil)
-			if err != nil {
-				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
-				continue
-			}
-
-			rop.handlerLock.Lock()
-			rop.targetOp = op
-			rop.handlerLock.Unlock()
-
-			for _, handler := range rop.handlers {
-				_, _ = rop.targetOp.AddHandler(handler)
-			}
-
-			err = rop.targetOp.Wait()
-			if err != nil {
-				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
-
-				if shared.IsConnectionError(err) {
-					continue
-				}
-
-				break
-			}
-
-			success = true
-			break
+		// Implements a retry mechanism for the image copy operation.
+		// It Limits the retries to the number of URLs and spaces out with an increasing delay.
+		// Retries is starting from 10 milliseconds and a jitter (random deviation) is added to the delay to prevent synchronized retries.
+		strategies := []strategy.Strategy{
+			strategy.Limit(uint(len(urls))),
+			strategy.BackoffWithJitter(
+				backoff.BinaryExponential(10*time.Millisecond),
+				jitter.Deviation(rand.New(rand.NewSource(time.Now().UnixNano())), 0.5)),
 		}
 
-		if !success {
-			rop.err = remoteOperationError("Failed remote image download", errors)
+		// Perform the retry operation. If all retries fail, the error is stored in rop.err.
+		err := retry.Retry(func(attempt uint) error {
+			return r.tryCopyImageFromURLs(&rop, urls, req)
+		}, strategies...)
+
+		if err != nil {
+			rop.err = err
 		}
 
 		close(rop.chDone)
 	}()
 
 	return &rop, nil
+}
+
+// tryCopyImageFromURLs copies an image from the provided URLs. It iterates over each URL and tries to create the image.
+// If the operation fails for a URL, it continues to the next one. An error is returned if all URL attempts fail.
+func (r *ProtocolLXD) tryCopyImageFromURLs(rop *remoteOperation, urls []string, req api.ImagesPost) error {
+	success := false
+	var errors []remoteOperationResult
+	for _, serverURL := range urls {
+		req.Source.Server = serverURL
+
+		op, err := r.CreateImage(req, nil)
+		if err != nil {
+			errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
+			continue
+		}
+
+		rop.handlerLock.Lock()
+		rop.targetOp = op
+		rop.handlerLock.Unlock()
+
+		for _, handler := range rop.handlers {
+			_, _ = rop.targetOp.AddHandler(handler)
+		}
+
+		err = rop.targetOp.Wait()
+		if err != nil {
+			errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
+
+			if shared.IsConnectionError(err) {
+				continue
+			}
+
+			break
+		}
+
+		success = true
+		break
+	}
+
+	if !success {
+		return remoteOperationError("Failed remote image download", errors)
+	}
+
+	return nil
 }
 
 // CopyImage copies an image from a remote server. Additional options can be passed using ImageCopyArgs.
