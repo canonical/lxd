@@ -17,22 +17,18 @@ See {ref}`authentication-tls-certs` for detailed information.
 To confine the access from the time the client certificate is added, you must either use token authentication or add the client certificate to the server directly.
 If you use password authentication, you can restrict the client certificate only after it has been added.
 
-Use the following command to add a restricted client certificate:
+Follow these instructions:
 
-````{tabs}
+`````{tabs}
+````{group-tab} CLI
 
-```{group-tab} Token authentication
+If you're using token authentication:
 
     lxc config trust add --projects <project_name> --restricted
 
-```
-
-```{group-tab} Add client certificate
+To add the client certificate directly:
 
     lxc config trust add <certificate_file> --projects <project_name> --restricted
-```
-
-````
 
 The client can then add the server as a remote in the usual way ([`lxc remote add <server_name> <token>`](lxc_remote_add.md) or [`lxc remote add <server_name> <server_address>`](lxc_remote_add.md)) and can only access the project or projects that have been specified.
 
@@ -47,6 +43,66 @@ You can specify the `--project` flag when adding a remote.
 This configuration pre-selects the specified project.
 However, it does not confine the client to this project.
 ```
+
+````
+````{group-tab} API
+If you're using token authentication, create the token first:
+
+    lxc query --request POST /1.0/certificates --data '{
+      "name": "<client_name>",
+      "projects": ["<project_name>"]
+      "restricted": true,
+      "token": true,
+      "type": "client",
+    }'
+
+% Include content from [/howto/server_expose.md](/howto/server_expose.md)
+```{include} /howto/server_expose.md
+   :start-after: <!-- include start token API -->
+   :end-before: <!-- include end token API -->
+```
+
+To instead add the client certificate directly, send the following request:
+
+    lxc query --request POST /1.0/certificates --data '{
+      "certificate": "<certificate>",
+      "name": "<client_name>",
+      "projects": ["<project_name>"]
+      "restricted": true,
+      "token": false,
+      "type": "client",
+    }'
+
+The client can then authenticate using this trust token or client certificate and can only access the project or projects that have been specified.
+
+% Include content from [/howto/server_expose.md](/howto/server_expose.md)
+```{include} /howto/server_expose.md
+   :start-after: <!-- include start authenticate API -->
+   :end-before: <!-- include end authenticate API -->
+```
+````
+`````
+
+To confine access for an existing certificate:
+
+````{tabs}
+```{group-tab} CLI
+Use the following command:
+
+    lxc config trust edit <fingerprint>
+```
+```{group-tab} API
+Send the following request:
+
+    lxc query --request PATCH /1.0/certificates/<fingerprint> --data '{
+      "projects": ["<project_name>"],
+      "restricted": true
+      }'
+
+```
+````
+
+Make sure that `restricted` is set to `true` and specify the projects that the certificate should give access to under `projects`.
 
 (projects-confine-users)=
 ## Confine projects to specific LXD users
