@@ -53,10 +53,11 @@ lxd-p2c:
 .PHONY: deps
 deps:
 	@if [ ! -e "$(RAFT_PATH)" ]; then \
-		git clone --depth=1 "https://github.com/canonical/raft" "$(RAFT_PATH)"; \
+		git clone "https://github.com/canonical/raft" "$(RAFT_PATH)"; \
 	elif [ -e "$(RAFT_PATH)/.git" ]; then \
 		cd "$(RAFT_PATH)"; git pull; \
-	fi
+	fi; \
+	git reset --hard abf9c42a9bb63c24920ab9f0bfbc4b7a47e7e5f4
 
 	cd "$(RAFT_PATH)" && \
 		autoreconf -i && \
