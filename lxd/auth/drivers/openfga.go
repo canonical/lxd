@@ -113,8 +113,8 @@ func (e *embeddedOpenFGA) load(ctx context.Context, identityCache *identity.Cach
 
 // CheckPermission checks whether the user who sent the request has the given entitlement on the given entity using the
 // embedded OpenFGA server.
-func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, entityURL *api.URL, entitlement auth.Entitlement) error {
-	logCtx := logger.Ctx{"entity_url": entityURL.String(), "entitlement": entitlement, "request_url": r.URL.String(), "method": r.Method}
+func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.URL, entitlement auth.Entitlement) error {
+	logCtx := logger.Ctx{"entity_url": entityURL.String(), "entitlement": entitlement}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -149,7 +149,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 
 	// If the authentication method was TLS, use the TLS driver instead.
 	if authenticationMethod == api.AuthenticationMethodTLS || authenticationMethod == auth.AuthenticationMethodPKI {
-		return e.tlsAuthorizer.CheckPermission(ctx, r, entityURL, entitlement)
+		return e.tlsAuthorizer.CheckPermission(ctx, entityURL, entitlement)
 	}
 
 	// Get the identity.
@@ -254,7 +254,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 	// If not allowed, decide if the user can view the resource.
 	if !resp.GetAllowed() {
 		responseCode := http.StatusForbidden
-		if r.Method == http.MethodGet {
+		if entitlement == auth.EntitlementCanView {
 			responseCode = http.StatusNotFound
 		} else {
 			// Otherwise, check if we can view the resource.
@@ -280,8 +280,8 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 		}
 
 		// For some entities, a GET request will check if the caller has permission edit permission and conditionally
-		// populate configuration that may be sensitive. To reduce log verbosity, only log these cases at debug level.
-		if entitlement == auth.EntitlementCanEdit && r.Method == http.MethodGet {
+		// populate configuration that may be sensitive. To reduce log verbosity, only log `can_edit` on `server` at debug level.
+		if entitlement == auth.EntitlementCanEdit && entityType == entity.TypeServer {
 			l.Debug("Access denied", logger.Ctx{"http_code": responseCode})
 		} else {
 			l.Info("Access denied", logger.Ctx{"http_code": responseCode})
@@ -294,8 +294,8 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 }
 
 // GetPermissionChecker returns a PermissionChecker using the embedded OpenFGA server.
-func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Request, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
-	logCtx := logger.Ctx{"entity_type": entityType, "entitlement": entitlement, "url": r.URL.String(), "method": r.Method}
+func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
+	logCtx := logger.Ctx{"entity_type": entityType, "entitlement": entitlement}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -309,7 +309,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 	// There is only one server entity, so no need to do a ListObjects request if the entity type is a server. Instead perform a permission check against
 	// the server URL and return an appropriate PermissionChecker.
 	if entityType == entity.TypeServer {
-		err := e.CheckPermission(r.Context(), r, entity.ServerURL(), entitlement)
+		err := e.CheckPermission(ctx, entity.ServerURL(), entitlement)
 		if err == nil {
 			return allowFunc(true), nil
 		} else if auth.IsDeniedError(err) {
@@ -350,7 +350,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 
 	// If the authentication method was TLS, use the TLS driver instead.
 	if authenticationMethod == api.AuthenticationMethodTLS || authenticationMethod == auth.AuthenticationMethodPKI {
-		return e.tlsAuthorizer.GetPermissionChecker(ctx, r, entitlement, entityType)
+		return e.tlsAuthorizer.GetPermissionChecker(ctx, entitlement, entityType)
 	}
 
 	// Get the identity.

@@ -41,7 +41,7 @@ func (t *tls) load(ctx context.Context, identityCache *identity.Cache, opts Opts
 }
 
 // CheckPermission returns an error if the user does not have the given Entitlement on the given Object.
-func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *api.URL, entitlement auth.Entitlement) error {
+func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitlement auth.Entitlement) error {
 	// Untrusted requests are denied.
 	if !auth.IsTrusted(ctx) {
 		return api.StatusErrorf(http.StatusForbidden, http.StatusText(http.StatusForbidden))
@@ -90,11 +90,6 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *a
 		return nil
 	}
 
-	if shared.IsTrue(request.QueryParam(r, "all-projects")) {
-		// Only admins (users with non-restricted certs) can use the all-projects parameter.
-		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
-	}
-
 	entityType, projectName, _, pathArgs, err := entity.ParseURL(entityURL.URL)
 	if err != nil {
 		return fmt.Errorf("Failed to parse entity URL: %w", err)
@@ -134,7 +129,7 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *a
 }
 
 // GetPermissionChecker returns a function that can be used to check whether a user has the required entitlement on an authorization object.
-func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
+func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
 	allowFunc := func(b bool) func(*api.URL) bool {
 		return func(*api.URL) bool {
 			return b
@@ -188,11 +183,6 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 		return allowFunc(true), nil
 	}
 
-	if shared.IsTrue(request.QueryParam(r, "all-projects")) {
-		// Only admins (users with non-restricted certs) can use the all-projects parameter.
-		return nil, api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
-	}
-
 	// Check server level object types
 	switch entityType {
 	case entity.TypeServer:
@@ -212,7 +202,7 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 		return allowFunc(false), nil
 	}
 
-	effectiveProject, _ := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
+	effectiveProject, _ := request.GetCtxValue[string](ctx, request.CtxEffectiveProjectName)
 
 	// Filter objects by project.
 	return func(entityURL *api.URL) bool {
