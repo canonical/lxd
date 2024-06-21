@@ -70,13 +70,13 @@ func tlsCheckCert(r *http.Request, networkCert *shared.CertInfo, serverCert *sha
 		// member before the database is available. It also allows us to switch the server certificate to
 		// the network certificate during cluster upgrade to per-server certificates, and it be trusted.
 		trustedServerCert, _ := x509.ParseCertificate(serverCert.KeyPair().Certificate[0])
-		trusted, _ := util.CheckTrustState(*i, map[string]x509.Certificate{serverCert.Fingerprint(): *trustedServerCert}, networkCert, false)
+		trusted, _ := util.CheckMutualTLS(*i, map[string]x509.Certificate{serverCert.Fingerprint(): *trustedServerCert})
 		if trusted {
 			return true
 		}
 
 		// Check the trusted server certficates list provided.
-		trusted, _ = util.CheckTrustState(*i, trustedCerts[db.CertificateTypeServer], networkCert, false)
+		trusted, _ = util.CheckMutualTLS(*i, trustedCerts[db.CertificateTypeServer])
 		if trusted {
 			return true
 		}
