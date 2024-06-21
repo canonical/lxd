@@ -6,7 +6,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
-// GetCluster returns information about a cluster
+// GetCluster returns information about a cluster.
 //
 // If this client is not trusted, the password must be supplied.
 func (r *ProtocolLXD) GetCluster() (*api.Cluster, string, error) {
