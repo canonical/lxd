@@ -118,35 +118,42 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	// Inspect request.
-	details, err := e.requestDetails(r)
-	if err != nil {
-		return fmt.Errorf("Failed to extract request details: %w", err)
-	}
-
 	// Untrusted requests are denied.
-	if !details.trusted {
+	if !auth.IsTrusted(ctx) {
 		return api.StatusErrorf(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 
+	isRoot, err := auth.IsRootUserFromCtx(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to check caller privilege: %w", err)
+	}
+
 	// Cluster or unix socket requests have admin permission.
-	if details.isInternalOrUnix() {
+	if isRoot {
 		return nil
 	}
 
-	username := details.username()
-	protocol := details.authenticationProtocol()
+	username, err := auth.GetUsernameFromCtx(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to get caller username: %w", err)
+	}
+
+	authenticationMethod, err := auth.GetAuthenticationMethodFromCtx(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to get caller authentication method: %w", err)
+	}
+
 	logCtx["username"] = username
-	logCtx["protocol"] = protocol
+	logCtx["protocol"] = authenticationMethod
 	l := e.logger.AddContext(logCtx)
 
 	// If the authentication method was TLS, use the TLS driver instead.
-	if protocol == api.AuthenticationMethodTLS || protocol == auth.AuthenticationMethodPKI {
+	if authenticationMethod == api.AuthenticationMethodTLS || authenticationMethod == auth.AuthenticationMethodPKI {
 		return e.tlsAuthorizer.CheckPermission(ctx, r, entityURL, entitlement)
 	}
 
 	// Get the identity.
-	identityCacheEntry, err := e.identityCache.Get(protocol, username)
+	identityCacheEntry, err := e.identityCache.Get(authenticationMethod, username)
 	if err != nil {
 		return fmt.Errorf("Failed loading identity for %q: %w", username, err)
 	}
@@ -163,7 +170,11 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 
 	// Combine the users LXD groups with any mappings that have come from the IDP.
 	groups := identityCacheEntry.Groups
-	idpGroups := details.identityProviderGroups()
+	idpGroups, err := auth.GetIdentityProviderGroupsFromCtx(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to get caller identity provider groups: %w", err)
+	}
+
 	for _, idpGroup := range idpGroups {
 		lxdGroups, err := e.identityCache.GetIdentityProviderGroupMapping(idpGroup)
 		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
@@ -185,7 +196,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 		return fmt.Errorf("Authorization driver failed to parse entity URL %q: %w", entityURL.String(), err)
 	}
 
-	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(protocol, username).String())
+	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(authenticationMethod, username).String())
 	entityObject := fmt.Sprintf("%s:%s", entityType, entityURL.String())
 
 	// Construct an OpenFGA check request.
@@ -308,35 +319,42 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 		return nil, fmt.Errorf("Failed to get a permission checker: %w", err)
 	}
 
-	// Inspect request.
-	details, err := e.requestDetails(r)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to extract request details: %w", err)
-	}
-
 	// Untrusted requests are denied.
-	if !details.trusted {
+	if !auth.IsTrusted(ctx) {
 		return allowFunc(false), nil
 	}
 
+	isRoot, err := auth.IsRootUserFromCtx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to check caller privilege: %w", err)
+	}
+
 	// Cluster or unix socket requests have admin permission.
-	if details.isInternalOrUnix() {
+	if isRoot {
 		return allowFunc(true), nil
 	}
 
-	username := details.username()
-	protocol := details.authenticationProtocol()
+	username, err := auth.GetUsernameFromCtx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get caller username: %w", err)
+	}
+
+	authenticationMethod, err := auth.GetAuthenticationMethodFromCtx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get caller authentication method: %w", err)
+	}
+
 	logCtx["username"] = username
-	logCtx["protocol"] = protocol
+	logCtx["protocol"] = authenticationMethod
 	l := e.logger.AddContext(logCtx)
 
 	// If the authentication method was TLS, use the TLS driver instead.
-	if protocol == api.AuthenticationMethodTLS || protocol == auth.AuthenticationMethodPKI {
+	if authenticationMethod == api.AuthenticationMethodTLS || authenticationMethod == auth.AuthenticationMethodPKI {
 		return e.tlsAuthorizer.GetPermissionChecker(ctx, r, entitlement, entityType)
 	}
 
 	// Get the identity.
-	identityCacheEntry, err := e.identityCache.Get(protocol, username)
+	identityCacheEntry, err := e.identityCache.Get(authenticationMethod, username)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading identity for %q: %w", username, err)
 	}
@@ -353,7 +371,11 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 
 	// Combine the users LXD groups with any mappings that have come from the IDP.
 	groups := identityCacheEntry.Groups
-	idpGroups := details.identityProviderGroups()
+	idpGroups, err := auth.GetIdentityProviderGroupsFromCtx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get caller identity provider groups: %w", err)
+	}
+
 	for _, idpGroup := range idpGroups {
 		lxdGroups, err := e.identityCache.GetIdentityProviderGroupMapping(idpGroup)
 		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
@@ -370,7 +392,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 	}
 
 	// Construct an OpenFGA list objects request.
-	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(protocol, username).String())
+	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(authenticationMethod, username).String())
 	req := &openfgav1.ListObjectsRequest{
 		StoreId:  dummyDatastoreULID,
 		Type:     entityType.String(),
