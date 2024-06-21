@@ -281,7 +281,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 	// Allow internal cluster traffic by checking against the trusted certfificates.
 	if r.TLS != nil {
 		for _, i := range r.TLS.PeerCertificates {
-			trusted, fingerprint := util.CheckTrustState(*i, trustedCerts[certificate.TypeServer], d.endpoints.NetworkCert(), false)
+			trusted, fingerprint := util.CheckMutualTLS(*i, trustedCerts[certificate.TypeServer])
 			if trusted {
 				return true, fingerprint, "cluster", nil
 			}
@@ -338,22 +338,68 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 	}
 
 	// Validate normal TLS access.
-	trustCACertificates := d.globalConfig.TrustCACertificates()
+	isMetricsRequest := func(u url.URL) bool {
+		return strings.HasPrefix(u.Path, "/1.0/metrics")
+	}
 
-	// Validate metrics certificates.
-	if r.URL.Path == "/1.0/metrics" {
-		for _, i := range r.TLS.PeerCertificates {
-			trusted, username := util.CheckTrustState(*i, trustedCerts[certificate.TypeMetrics], d.endpoints.NetworkCert(), trustCACertificates)
-			if trusted {
-				return true, username, "tls", nil
+	// List of candidate certificates types for this request. We have already checked server certificates at the beginning of this method
+	// so we only need to consider client and metrics certificates. (OIDC auth was completed above).
+	candidateCertificateTypes := []certificate.Type{certificate.TypeClient}
+	if isMetricsRequest(*r.URL) {
+		// Metrics certificates can only authenticate when calling metrics related endpoints.
+		candidateCertificateTypes = append(candidateCertificateTypes, certificate.TypeMetrics)
+	}
+
+	// Map of candidate certificates of mTLS check.
+	candidateCertificates := make(map[string]x509.Certificate)
+
+	// If the network cert has a CA, validate the peer certificates against it.
+	if d.endpoints.NetworkCert().CA() != nil {
+		trustCACertificates := d.globalConfig.TrustCACertificates()
+		for _, peerCertificate := range r.TLS.PeerCertificates {
+			trusted, _, fingerprint := util.CheckCASignature(*peerCertificate, d.endpoints.NetworkCert())
+			if !trusted {
+				return false, "", "", nil
+			} else if trustCACertificates {
+				// If trusted and `core.trust_ca_certificates` is true, don't continue to mTLS check.
+				return true, fingerprint, "tls", nil
+			}
+
+			// We are trusted by the CA. But because `core.trust_ca_certificates` is false, we also need to check that
+			// the client certificate is in the trust store.
+			var cert x509.Certificate
+			var found bool
+			for _, certType := range candidateCertificateTypes {
+				var ok bool
+				cert, ok = trustedCerts[certType][fingerprint]
+				if ok {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				return false, "", "", nil
+			}
+
+			// In CA mode we only consider if this exact certificate is valid via mTLS checks below.
+			candidateCertificates[fingerprint] = cert
+		}
+	} else {
+		// In non-CA mode we consider all certificates that would be valid for this API route.
+		for _, certType := range candidateCertificateTypes {
+			certsOfType := trustedCerts[certType]
+			for k, v := range certsOfType {
+				candidateCertificates[k] = v
 			}
 		}
 	}
 
+	// Perform mTLS check on candidates.
 	for _, i := range r.TLS.PeerCertificates {
-		trusted, username := util.CheckTrustState(*i, trustedCerts[certificate.TypeClient], d.endpoints.NetworkCert(), trustCACertificates)
+		trusted, fingerprint := util.CheckMutualTLS(*i, candidateCertificates)
 		if trusted {
-			return true, username, "tls", nil
+			return true, fingerprint, "tls", nil
 		}
 	}
 
