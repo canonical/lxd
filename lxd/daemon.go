@@ -302,6 +302,73 @@ func allowPermission(entityType entity.Type, entitlement auth.Entitlement, muxVa
 	}
 }
 
+// allowProjectResourceList should be used instead of allowAuthenticated when listing resources within a project.
+// This prevents a restricted TLS client from listing resources in a project that they do not have access to.
+func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
+	// The caller must be authenticated.
+	if !auth.IsTrusted(r.Context()) {
+		return response.Forbidden(nil)
+	}
+
+	isRoot, err := auth.IsRootUserFromCtx(r.Context())
+	if err != nil {
+		return response.InternalError(fmt.Errorf("Failed to determine caller privilege: %w", err))
+	}
+
+	// A root user can list resources in any project.
+	if isRoot {
+		return response.EmptySyncResponse
+	}
+
+	authenticationMethod, err := auth.GetAuthenticationMethodFromCtx(r.Context())
+	if err != nil {
+		return response.InternalError(fmt.Errorf("Failed to determine caller authentication method: %w", err))
+	}
+
+	// OIDC authenticated clients are governed by fine-grained auth. They can call the endpoint but may see an empty list.
+	if authenticationMethod == api.AuthenticationMethodOIDC {
+		return response.EmptySyncResponse
+	}
+
+	username, err := auth.GetUsernameFromCtx(r.Context())
+	if err != nil {
+		return response.InternalError(fmt.Errorf("Failed to determine caller username: %w", err))
+	}
+
+	id, err := d.identityCache.Get(authenticationMethod, username)
+	if err != nil {
+		if authenticationMethod == auth.AuthenticationMethodPKI && api.StatusErrorCheck(err, http.StatusNotFound) {
+			// PKI user is implicitly trusted if they are not in the identity cache, since `core.trust_ca_certificates` is true.
+			return response.EmptySyncResponse
+		}
+
+		return response.InternalError(fmt.Errorf("Failed loading certificate for %q: %w", username, err))
+	}
+
+	isRestricted, err := identity.IsRestrictedIdentityType(id.IdentityType)
+	if err != nil {
+		return response.InternalError(fmt.Errorf("Failed to check restricted status of identity: %w", err))
+	}
+
+	// Unrestricted TLS clients can list resources in any project.
+	if !isRestricted {
+		return response.EmptySyncResponse
+	}
+
+	// We now have a restricted TLS certificate.
+	// all-projects requests are not allowed
+	if shared.IsTrue(request.QueryParam(r, "all-projects")) {
+		return response.Forbidden(fmt.Errorf("Certificate is restricted"))
+	}
+
+	// Disallow listing resources in projects the caller does not have access to.
+	if !shared.ValueInSlice(request.ProjectParam(r), id.Projects) {
+		return response.Forbidden(fmt.Errorf("Certificate is restricted"))
+	}
+
+	return response.EmptySyncResponse
+}
+
 // Authenticate validates an incoming http Request
 // It will check over what protocol it came, what type of request it is and
 // will validate the TLS certificate or OIDC token.
