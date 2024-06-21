@@ -78,6 +78,7 @@ Enter at least a profile name and click {guilabel}`Create` to save the new profi
 You can either set specific configuration options for a profile or edit the full profile.
 See {ref}`instance-config` (and its subpages) for the available options.
 
+(profiles-set-options)=
 ### Set specific options for a profile
 
 ````{tabs}
