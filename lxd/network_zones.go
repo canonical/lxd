@@ -26,7 +26,7 @@ import (
 var networkZonesCmd = APIEndpoint{
 	Path: "network-zones",
 
-	Get:  APIEndpointAction{Handler: networkZonesGet, AccessHandler: allowAuthenticated},
+	Get:  APIEndpointAction{Handler: networkZonesGet, AccessHandler: allowProjectResourceList},
 	Post: APIEndpointAction{Handler: networkZonesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateNetworkZones)},
 }
 

@@ -29,7 +29,7 @@ import (
 var networkACLsCmd = APIEndpoint{
 	Path: "network-acls",
 
-	Get:  APIEndpointAction{Handler: networkACLsGet, AccessHandler: allowAuthenticated},
+	Get:  APIEndpointAction{Handler: networkACLsGet, AccessHandler: allowProjectResourceList},
 	Post: APIEndpointAction{Handler: networkACLsPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateNetworkACLs)},
 }
 

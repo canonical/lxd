@@ -26,7 +26,7 @@ var privilegedEventTypes = []string{api.EventTypeLogging}
 var eventsCmd = APIEndpoint{
 	Path: "events",
 
-	Get: APIEndpointAction{Handler: eventsGet, AccessHandler: allowAuthenticated},
+	Get: APIEndpointAction{Handler: eventsGet, AccessHandler: allowProjectResourceList},
 }
 
 type eventsServe struct {

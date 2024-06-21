@@ -36,7 +36,7 @@ import (
 var profilesCmd = APIEndpoint{
 	Path: "profiles",
 
-	Get:  APIEndpointAction{Handler: profilesGet, AccessHandler: allowAuthenticated},
+	Get:  APIEndpointAction{Handler: profilesGet, AccessHandler: allowProjectResourceList},
 	Post: APIEndpointAction{Handler: profilesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateProfiles)},
 }
 

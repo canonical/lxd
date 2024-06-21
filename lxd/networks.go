@@ -47,7 +47,7 @@ var networkCreateLock sync.Mutex
 var networksCmd = APIEndpoint{
 	Path: "networks",
 
-	Get:  APIEndpointAction{Handler: networksGet, AccessHandler: allowAuthenticated},
+	Get:  APIEndpointAction{Handler: networksGet, AccessHandler: allowProjectResourceList},
 	Post: APIEndpointAction{Handler: networksPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateNetworks)},
 }
 
