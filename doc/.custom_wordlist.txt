@@ -3,6 +3,7 @@ ABI
 ACL
 ACLs
 AGPL
+AGX
 AIO
 allocator
 AMD
@@ -23,6 +24,7 @@ BPF
 Btrfs
 bugfix
 bugfixes
+CDI
 CentOS
 Ceph
 CephFS
@@ -43,6 +45,7 @@ cron
 CSV
 CUDA
 dataset
+dGPU
 DCO
 dereferenced
 DHCP
@@ -92,6 +95,8 @@ IdP
 idmap
 idmapped
 idmaps
+iGPU
+IGX
 incrementing
 InfiniBand
 init
@@ -102,6 +107,7 @@ IPAM
 IPs
 IPv
 IPVLAN
+Jetson
 JIT
 jq
 kB
@@ -147,6 +153,8 @@ NICs
 NUMA
 NVMe
 NVRAM
+NVIDIA
+OCI
 OData
 OIDC
 OpenFGA
@@ -160,6 +168,7 @@ OverlayFS
 OVMF
 OVN
 OVS
+passthrough
 Pbit
 PCI
 PCIe
@@ -199,6 +208,7 @@ runtime
 SATA
 scalable
 scriptlet
+SDK
 SDN
 SDS
 SDT
@@ -214,6 +224,7 @@ SKBPRIO
 SLAAC
 SMTP
 Snapcraft
+SoC
 Solaris
 SPAs
 SPL
@@ -247,6 +258,8 @@ sysfs
 syslog
 Tbit
 TCP
+TensorRT
+Tegra
 TiB
 Tibit
 TinyPNG
