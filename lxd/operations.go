@@ -39,7 +39,7 @@ var operationCmd = APIEndpoint{
 var operationsCmd = APIEndpoint{
 	Path: "operations",
 
-	Get: APIEndpointAction{Handler: operationsGet, AccessHandler: allowAuthenticated},
+	Get: APIEndpointAction{Handler: operationsGet, AccessHandler: allowProjectResourceList},
 }
 
 var operationWait = APIEndpoint{
