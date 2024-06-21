@@ -36,8 +36,8 @@ type PermissionChecker func(entityURL *api.URL) bool
 type Authorizer interface {
 	Driver() string
 
-	CheckPermission(ctx context.Context, r *http.Request, entityURL *api.URL, entitlement Entitlement) error
-	GetPermissionChecker(ctx context.Context, r *http.Request, entitlement Entitlement, entityType entity.Type) (PermissionChecker, error)
+	CheckPermission(ctx context.Context, entityURL *api.URL, entitlement Entitlement) error
+	GetPermissionChecker(ctx context.Context, entitlement Entitlement, entityType entity.Type) (PermissionChecker, error)
 }
 
 // IsDeniedError returns true if the error is not found or forbidden. This is because the CheckPermission method on
