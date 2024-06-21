@@ -354,12 +354,12 @@ func getFilteredMetrics(s *state.State, r *http.Request, compress bool, metricSe
 		return response.SyncResponsePlain(true, compress, metricSet.String())
 	}
 
-	userHasProjectPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanViewMetrics, entity.TypeProject)
+	userHasProjectPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanViewMetrics, entity.TypeProject)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	userHasServerPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanViewMetrics, entity.TypeServer)
+	userHasServerPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanViewMetrics, entity.TypeServer)
 	if err != nil {
 		return response.SmartError(err)
 	}

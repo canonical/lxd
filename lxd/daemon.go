@@ -293,7 +293,7 @@ func allowPermission(entityType entity.Type, entitlement auth.Entitlement, muxVa
 		}
 
 		// Validate whether the user has the needed permission
-		err = s.Authorizer.CheckPermission(r.Context(), r, entityURL, entitlement)
+		err = s.Authorizer.CheckPermission(r.Context(), entityURL, entitlement)
 		if err != nil {
 			return response.SmartError(err)
 		}

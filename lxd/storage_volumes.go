@@ -745,7 +745,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		request.SetCtxValue(r, request.CtxEffectiveProjectName, customVolProjectName)
 	}
 
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeStorageVolume)
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeStorageVolume)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1380,7 +1380,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Check if user has access to effective storage target project
-		err := s.Authorizer.CheckPermission(r.Context(), r, entity.ProjectURL(targetProjectName), auth.EntitlementCanCreateStorageVolumes)
+		err := s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(targetProjectName), auth.EntitlementCanCreateStorageVolumes)
 		if err != nil {
 			return response.SmartError(err)
 		}
