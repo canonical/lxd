@@ -59,7 +59,12 @@ func (e *embeddedOpenFGA) load(ctx context.Context, identityCache *identity.Cach
 	e.identityCache = identityCache
 
 	// Use the TLS driver for TLS authenticated users for now.
-	tlsDriver := &tls{}
+	tlsDriver := &tls{
+		commonAuthorizer: commonAuthorizer{
+			logger: e.logger,
+		},
+	}
+
 	err := tlsDriver.load(ctx, identityCache, opts)
 	if err != nil {
 		return err
