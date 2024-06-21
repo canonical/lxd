@@ -322,9 +322,13 @@ parts:
     source-type: git
     plugin: nil
     build-packages:
-      - on amd64,arm64:
+      - on amd64:
         - g++
         - acpica-tools
+        - uuid-dev
+      - on arm64:
+        - g++
+        - acpica-tools12
         - uuid-dev
     override-prime: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
