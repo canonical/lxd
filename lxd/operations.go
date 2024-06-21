@@ -277,7 +277,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 		for entityType, urls := range urlsByEntityType {
 			// If only one entry of this type, check directly.
 			if len(urls) == 1 {
-				err := s.Authorizer.CheckPermission(r.Context(), r, &urls[0], entitlement)
+				err := s.Authorizer.CheckPermission(r.Context(), &urls[0], entitlement)
 				if err != nil {
 					return response.SmartError(err)
 				}
@@ -286,7 +286,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Otherwise get a permission checker for the entity type.
-			hasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, entitlement, entityType)
+			hasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), entitlement, entityType)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -518,7 +518,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		projectName = api.ProjectDefaultName
 	}
 
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanViewOperations, entity.TypeProject)
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanViewOperations, entity.TypeProject)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to get operation permission checker: %w", err))
 	}
