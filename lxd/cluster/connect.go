@@ -205,19 +205,19 @@ func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string
 // the trusted pool of the cluster at the given address, using the given password. The certificate is added as
 // type CertificateTypeServer to allow intra-member communication. If a certificate with the same fingerprint
 // already exists with a different name or type, then no error is returned.
-func SetupTrust(serverCert *shared.CertInfo, serverName string, targetAddress string, targetCert string, targetPassword string) error {
+func SetupTrust(serverCert *shared.CertInfo, clusterPut api.ClusterPut) error {
 	// Connect to the target cluster node.
 	args := &lxd.ConnectionArgs{
-		TLSServerCert: targetCert,
+		TLSServerCert: clusterPut.ClusterCertificate,
 		UserAgent:     version.UserAgent,
 	}
 
-	target, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", targetAddress), args)
+	target, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", clusterPut.ClusterAddress), args)
 	if err != nil {
-		return fmt.Errorf("Failed to connect to target cluster node %q: %w", targetAddress, err)
+		return fmt.Errorf("Failed to connect to target cluster node %q: %w", clusterPut.ClusterAddress, err)
 	}
 
-	cert, err := shared.GenerateTrustCertificate(serverCert, serverName)
+	cert, err := shared.GenerateTrustCertificate(serverCert, clusterPut.ServerName)
 	if err != nil {
 		return fmt.Errorf("Failed generating trust certificate: %w", err)
 	}
@@ -228,7 +228,8 @@ func SetupTrust(serverCert *shared.CertInfo, serverName string, targetAddress st
 		Projects:    cert.Projects,
 		Restricted:  cert.Restricted,
 		Certificate: cert.Certificate,
-		Password:    targetPassword,
+		Password:    clusterPut.ClusterPassword,
+		TrustToken:  clusterPut.ClusterToken,
 	}
 
 	err = target.CreateCertificate(post)

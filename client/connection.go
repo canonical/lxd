@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/zitadel/oidc/v2/pkg/oidc"
+	"github.com/zitadel/oidc/v3/pkg/oidc"
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -155,8 +155,9 @@ func ConnectLXDUnix(path string, args *ConnectionArgs) (InstanceServer, error) {
 // ConnectLXDUnixWithContext lets you connect to a remote LXD daemon over a local unix socket with context.Context.
 //
 // If the path argument is empty, then $LXD_SOCKET will be used, if
-// unset $LXD_DIR/unix.socket will be used and if that one isn't set
-// either, then the path will default to /var/lib/lxd/unix.socket.
+// unset $LXD_DIR/unix.socket will be used, if that one isn't set
+// either, then the path will default to /var/snap/lxd/common/lxd/unix.socket
+// if the file exists and is writable or /var/lib/lxd/unix.socket otherwise.
 func ConnectLXDUnixWithContext(ctx context.Context, path string, args *ConnectionArgs) (InstanceServer, error) {
 	logger.Debug("Connecting to a local LXD over a Unix socket")
 
@@ -185,16 +186,19 @@ func ConnectLXDUnixWithContext(ctx context.Context, path string, args *Connectio
 		eventListeners:     make(map[string][]*EventListener),
 	}
 
-	// Determine the socket path
+	// Determine the socket path.
 	if path == "" {
 		path = os.Getenv("LXD_SOCKET")
 		if path == "" {
 			lxdDir := os.Getenv("LXD_DIR")
-			if lxdDir == "" {
-				lxdDir = "/var/lib/lxd"
+			if lxdDir != "" {
+				path = filepath.Join(lxdDir, "unix.socket")
+			} else {
+				path = "/var/snap/lxd/common/lxd/unix.socket"
+				if !shared.PathIsWritable(path) {
+					path = "/var/lib/lxd/unix.socket"
+				}
 			}
-
-			path = filepath.Join(lxdDir, "unix.socket")
 		}
 	}
 

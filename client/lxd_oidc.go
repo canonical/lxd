@@ -13,9 +13,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zitadel/oidc/v2/pkg/client/rp"
-	httphelper "github.com/zitadel/oidc/v2/pkg/http"
-	"github.com/zitadel/oidc/v2/pkg/oidc"
+	"github.com/zitadel/oidc/v3/pkg/client/rp"
+	httphelper "github.com/zitadel/oidc/v3/pkg/http"
+	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"golang.org/x/oauth2"
 )
 
@@ -164,7 +164,10 @@ func (o *oidcClient) getProvider(issuer string, clientID string, groupsClaim str
 		scopes = append(oidcScopes, groupsClaim)
 	}
 
-	provider, err := rp.NewRelyingPartyOIDC(issuer, clientID, "", "", scopes, options...)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	provider, err := rp.NewRelyingPartyOIDC(ctx, issuer, clientID, "", "", scopes, options...)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +187,10 @@ func (o *oidcClient) refresh(issuer string, clientID string, groupsClaim string)
 		return errRefreshAccessToken
 	}
 
-	oauthTokens, err := rp.RefreshAccessToken(provider, o.tokens.RefreshToken, "", "")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	oauthTokens, err := rp.RefreshTokens[*oidc.IDTokenClaims](ctx, provider, o.tokens.RefreshToken, "", "")
 	if err != nil {
 		return errRefreshAccessToken
 	}
@@ -220,7 +226,10 @@ func (o *oidcClient) authenticate(issuer string, clientID string, audience strin
 
 	o.oidcTransport.deviceAuthorizationEndpoint = provider.GetDeviceAuthorizationEndpoint()
 
-	resp, err := rp.DeviceAuthorization(oidcScopes, provider)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT)
+	defer stop()
+
+	resp, err := rp.DeviceAuthorization(ctx, oidcScopes, provider, nil)
 	if err != nil {
 		return err
 	}
@@ -231,9 +240,6 @@ func (o *oidcClient) authenticate(issuer string, clientID string, audience strin
 	fmt.Printf("Code: %s\n\n", resp.UserCode)
 
 	_ = openBrowser(u.String())
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT)
-	defer stop()
 
 	token, err := rp.DeviceAccessToken(ctx, resp.DeviceCode, time.Duration(resp.Interval)*time.Second, provider)
 	if err != nil {

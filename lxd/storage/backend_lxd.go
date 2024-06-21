@@ -2002,7 +2002,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 
 	var vol drivers.Volume
-	if isRemoteClusterMove {
+	if isRemoteClusterMove || args.Refresh {
 		// In case it's a cluster move don't instantiate a new volume.
 		// Instead load the existing volume and config from the database.
 		vol = b.GetVolume(volType, contentType, volStorageName, volumeConfig)
@@ -3588,14 +3588,14 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	}
 
 	// Try and load any existing volume config on this storage pool so we can compare filesystems if needed.
-	imgDBVol, err := VolumeDBGet(b, api.ProjectDefaultName, fingerprint, drivers.VolumeTypeImage)
+	imgDBVol, err := VolumeDBGet(b, api.ProjectDefaultName, image.Fingerprint, drivers.VolumeTypeImage)
 	if err != nil && !response.IsNotFoundError(err) {
 		return err
 	}
 
 	// Create the new image volume. No config for an image volume so set to nil.
 	// Pool config values will be read by the underlying driver if needed.
-	imgVol := b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
+	imgVol := b.GetVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, nil)
 
 	// If an existing DB row was found, check if filesystem is the same as the current pool's filesystem.
 	// If not we need to delete the existing cached image volume and re-create using new filesystem.
@@ -3610,7 +3610,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		}
 
 		// Add existing image volume's config to imgVol.
-		imgVol = b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, imgDBVol.Config)
+		imgVol = b.GetVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, imgDBVol.Config)
 
 		// Check if the volume's block backed mode differs from the pool's current setting for new volumes.
 		blockModeChanged := tmpImgVol.IsBlockBacked() != imgVol.IsBlockBacked()
@@ -3628,7 +3628,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 				l.Debug("Block volume filesystem of pool has changed since cached image volume created, regenerating image volume")
 			}
 
-			err = b.DeleteImage(fingerprint, op)
+			err = b.DeleteImage(image.Fingerprint, op)
 			if err != nil {
 				return err
 			}
@@ -3640,7 +3640,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 
 	if imgDBVol == nil {
 		// Instantiate a new volume including its own UUID.
-		imgVol = b.GetNewVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
+		imgVol = b.GetNewVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, nil)
 	}
 
 	// Check if we already have a suitable volume on storage device.
@@ -3671,14 +3671,14 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 				// If the driver cannot resize the existing image volume to the new policy size
 				// then delete the image volume and try to recreate using the new policy settings.
 				l.Debug("Volume size of pool has changed since cached image volume created and cached volume cannot be resized, regenerating image volume")
-				err = b.DeleteImage(fingerprint, op)
+				err = b.DeleteImage(image.Fingerprint, op)
 				if err != nil {
 					return err
 				}
 
 				// Reset img volume variables as we just deleted the old one.
 				imgDBVol = nil
-				imgVol = b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
+				imgVol = b.GetVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, nil)
 			} else if err != nil {
 				return err
 			} else {
@@ -3698,20 +3698,20 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	}
 
 	volFiller := drivers.VolumeFiller{
-		Fingerprint: fingerprint,
-		Fill:        b.imageFiller(fingerprint, op),
+		Fingerprint: image.Fingerprint,
+		Fill:        b.imageFiller(image.Fingerprint, op),
 	}
 
 	revert := revert.New()
 	defer revert.Fail()
 
 	// Validate config and create database entry for new storage volume.
-	err = VolumeDBCreate(b, api.ProjectDefaultName, fingerprint, "", drivers.VolumeTypeImage, false, imgVol.Config(), time.Now().UTC(), time.Time{}, contentType, false, false)
+	err = VolumeDBCreate(b, api.ProjectDefaultName, image.Fingerprint, "", drivers.VolumeTypeImage, false, imgVol.Config(), time.Now().UTC(), time.Time{}, contentType, false, false)
 	if err != nil {
 		return err
 	}
 
-	revert.Add(func() { _ = VolumeDBDelete(b, api.ProjectDefaultName, fingerprint, drivers.VolumeTypeImage) })
+	revert.Add(func() { _ = VolumeDBDelete(b, api.ProjectDefaultName, image.Fingerprint, drivers.VolumeTypeImage) })
 
 	err = b.driver.CreateVolume(imgVol, &volFiller, op)
 	if err != nil {
@@ -3725,7 +3725,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		imgVol.Config()["volatile.rootfs.size"] = fmt.Sprintf("%d", volFiller.Size)
 
 		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return tx.UpdateStoragePoolVolume(ctx, api.ProjectDefaultName, fingerprint, cluster.StoragePoolVolumeTypeImage, b.id, "", imgVol.Config())
+			return tx.UpdateStoragePoolVolume(ctx, api.ProjectDefaultName, image.Fingerprint, cluster.StoragePoolVolumeTypeImage, b.id, "", imgVol.Config())
 		})
 		if err != nil {
 			return err
@@ -5254,8 +5254,14 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	}
 
 	// Check if the volume exists on storage.
+	var vol drivers.Volume
 	volStorageName := project.StorageVolume(projectName, args.Name)
-	vol := b.GetNewVolume(drivers.VolumeTypeCustom, drivers.ContentType(args.ContentType), volStorageName, volumeConfig)
+	if args.Refresh {
+		vol = b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(args.ContentType), volStorageName, volumeConfig)
+	} else {
+		vol = b.GetNewVolume(drivers.VolumeTypeCustom, drivers.ContentType(args.ContentType), volStorageName, volumeConfig)
+	}
+
 	volExists, err := b.driver.HasVolume(vol)
 	if err != nil {
 		return err

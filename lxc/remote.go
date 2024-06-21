@@ -75,6 +75,7 @@ type cmdRemoteAdd struct {
 
 	flagAcceptCert bool
 	flagPassword   string
+	flagToken      string
 	flagPublic     bool
 	flagProtocol   string
 	flagAuthType   string
@@ -98,6 +99,7 @@ Basic authentication can be used when combined with the "simplestreams" protocol
 	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagAcceptCert, "accept-certificate", false, i18n.G("Accept certificate"))
 	cmd.Flags().StringVar(&c.flagPassword, "password", "", i18n.G("Remote admin password")+"``")
+	cmd.Flags().StringVar(&c.flagToken, "token", "", i18n.G("Remote trust token")+"``")
 	cmd.Flags().StringVar(&c.flagProtocol, "protocol", "", i18n.G("Server protocol (lxd or simplestreams)")+"``")
 	cmd.Flags().StringVar(&c.flagAuthType, "auth-type", "", i18n.G("Server authentication type (tls or oidc)")+"``")
 	cmd.Flags().BoolVar(&c.flagPublic, "public", false, i18n.G("Public image server"))
@@ -551,29 +553,30 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 	// Check if additional authentication is required.
 	if srv.Auth != "trusted" {
 		if c.flagAuthType == api.AuthenticationMethodTLS {
-			// Prompt for trust password
-			if c.flagPassword == "" {
+			req := api.CertificatesPost{}
+
+			if c.flagToken != "" && d.(lxd.InstanceServer).HasExtension("explicit_trust_token") {
+				req.TrustToken = c.flagToken
+			} else if c.flagPassword == "" {
+				// If the token is not set fallback to prompt for trust password.
 				fmt.Printf(i18n.G("Admin password (or token) for %s:")+" ", server)
 				pwd, err := term.ReadPassword(0)
 				if err != nil {
-					/* We got an error, maybe this isn't a terminal, let's try to
-					 * read it as a file */
+					// We got an error, maybe this isn't a terminal, let's try to read it as a file.
 					pwd, err = shared.ReadStdin()
 					if err != nil {
 						return err
 					}
 				}
 				fmt.Println("")
-				c.flagPassword = string(pwd)
-			}
-
-			// Add client certificate to trust store
-			req := api.CertificatesPost{
-				Password: c.flagPassword,
+				req.Password = string(pwd)
+			} else {
+				req.Password = c.flagPassword
 			}
 
 			req.Type = api.CertificateTypeClient
 
+			// Add client certificate to trust store.
 			err = d.(lxd.InstanceServer).CreateCertificate(req)
 			if err != nil {
 				return err
@@ -582,7 +585,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 			d.(lxd.InstanceServer).RequireAuthenticated(true)
 		}
 
-		// And check if trusted now
+		// And check if trusted now.
 		srv, _, err = d.(lxd.InstanceServer).GetServer()
 		if err != nil {
 			return err

@@ -15,12 +15,11 @@ var forkdnsProfileTpl = template.Must(template.New("forkdnsProfile").Parse(`#inc
 profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
 
-  # Capabilities
-  capability net_bind_service,
-
   # Network access
   network inet dgram,
   network inet6 dgram,
+  network inet stream,
+  network inet6 stream,
 
   # Network-specific paths
   {{ .varPath }}/networks/{{ .networkName }}/dnsmasq.leases r,

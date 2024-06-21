@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -9,6 +10,7 @@ import (
 
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
@@ -71,13 +73,13 @@ func (d *dir) Create() error {
 	sourcePath := shared.HostPath(d.config["source"])
 
 	if !shared.PathExists(sourcePath) {
-		return fmt.Errorf("Source path '%s' doesn't exist", sourcePath)
+		return fmt.Errorf("Source path %q doesn't exist", sourcePath)
 	}
 
 	// Check that if within LXD_DIR, we're at our expected spot.
 	cleanSource := filepath.Clean(sourcePath)
 	if strings.HasPrefix(cleanSource, shared.VarPath()) && cleanSource != GetPoolMountPath(d.name) {
-		return fmt.Errorf("Source path '%s' is within the LXD directory", cleanSource)
+		return fmt.Errorf("Source path %q is within the LXD directory", cleanSource)
 	}
 
 	// Check that the path is currently empty.
@@ -87,7 +89,22 @@ func (d *dir) Create() error {
 	}
 
 	if !isEmpty {
-		return fmt.Errorf("Source path '%s' isn't empty", sourcePath)
+		// If directory is not empty, the "lost+found" subdirectory is acceptable when
+		// the source path is the root of a mounted filesystem.
+		if !filesystem.IsMountPoint(sourcePath) {
+			return fmt.Errorf("Source path %q isn't empty", sourcePath)
+		}
+
+		entries, err := os.ReadDir(sourcePath)
+		if err != nil {
+			return fmt.Errorf("Failed to read directory content of source path %q", sourcePath)
+		}
+
+		for _, e := range entries {
+			if e.Name() != "lost+found" {
+				return fmt.Errorf("Source path %q isn't empty", sourcePath)
+			}
+		}
 	}
 
 	return nil

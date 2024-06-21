@@ -225,28 +225,45 @@ fine_grained_authorization() {
   lxc auth group permission remove test-group server can_view_warnings
 
   # Check we are not able to view any server config currently.
-  lxc config set user.foo bar
+  # Here we explicitly use two settings that contain actual passwords.
+  lxc config set core.trust_password foo2
+  lxc config set loki.auth.password bar2
   [ "$(lxc_remote query oidc:/1.0 | jq '.config | length')" = 0 ]
-  [ "$(lxc_remote query oidc:/1.0 | jq -r '.config."user.foo"')" != "bar" ]
+  [ "$(lxc_remote query oidc:/1.0 | jq -r '.config."core.trust_password"')" = "null" ]
+  [ "$(lxc_remote query oidc:/1.0 | jq -r '.config."loki.auth.password"')" = "null" ]
+
+  # Check we are not able to set any server config currently.
+  ! lxc_remote config set oidc: core.trust_password foo3 || false
+  ! lxc_remote config set oidc: loki.auth.password bar3 || false
 
   # Add "can_edit" permission to group.
   lxc auth group permission add test-group server can_edit
 
-  # Check we can view the server's configuration.
-  [ "$(lxc_remote query oidc:/1.0 | jq -r '.config."user.foo"')" = "bar" ]
+  # Check we can view the server's config.
+  # As the core.trust_password is stored as scrypt value together with its hash, we cannot easily compare it against the original value.
+  [ "$(lxc_remote query oidc:/1.0 | jq -r '.config."core.trust_password"')" = "true" ]
+  [ "$(lxc_remote query oidc:/1.0 | jq -r '.config."loki.auth.password"')" = "true" ]
+
+  # Check we can modify the server's config.
+  lxc_remote config set oidc: core.trust_password foo3
+  lxc_remote config set oidc: loki.auth.password bar3
+
+  # Reset the trust password to prevent side effects.
+  lxc config set core.trust_password foo
 
   lxc auth group permission remove test-group server can_edit
+  lxc config unset loki.auth.password
 
   # Check we are not able to view any storage pool config currently.
   lxc storage create test-pool dir
   lxc storage set test-pool user.foo bar
   [ "$(lxc_remote query oidc:/1.0/storage-pools/test-pool | jq '.config | length')" = 0 ]
-  [ "$(lxc_remote query oidc:/1.0/storage-pools/test-pool | jq -r '.config."user.foo"')" != "bar" ]
+  [ "$(lxc_remote query oidc:/1.0/storage-pools/test-pool | jq -r '.config."user.foo"')" = "null" ]
 
   # Add "can_edit" permission to storage pool.
   lxc auth group permission add test-group storage_pool test-pool can_edit
 
-  # Check we can view the storage pool's configuration.
+  # Check we can view the storage pool's config.
   [ "$(lxc_remote query oidc:/1.0/storage-pools/test-pool | jq -r '.config."user.foo"')" = "bar" ]
 
   lxc auth group permission remove test-group storage_pool test-pool can_edit

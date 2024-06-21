@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-06-05 14:18+0100\n"
+"POT-Creation-Date: 2024-06-21 13:49+0100\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -379,7 +379,7 @@ msgstr ""
 "###   source: /home/chb/mnt/lxd_test/default.img\n"
 "###   zfs.pool_name: default"
 
-#: lxc/network_forward.go:570
+#: lxc/network_forward.go:585
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the network forward.\n"
@@ -418,7 +418,7 @@ msgstr ""
 "###   source: /home/chb/mnt/lxd_test/default.img\n"
 "###   zfs.pool_name: default"
 
-#: lxc/network_load_balancer.go:573
+#: lxc/network_load_balancer.go:588
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the network load balancer.\n"
@@ -759,15 +759,15 @@ msgstr ""
 msgid "<old alias> <new alias>"
 msgstr ""
 
-#: lxc/remote.go:818 lxc/remote.go:875
+#: lxc/remote.go:821 lxc/remote.go:878
 msgid "<remote>"
 msgstr ""
 
-#: lxc/remote.go:915
+#: lxc/remote.go:918
 msgid "<remote> <URL>"
 msgstr ""
 
-#: lxc/remote.go:745
+#: lxc/remote.go:748
 msgid "<remote> <new-name>"
 msgstr ""
 
@@ -801,7 +801,7 @@ msgstr "ALIAS"
 msgid "ARCHITECTURE"
 msgstr "ARCHITETTURA"
 
-#: lxc/remote.go:727
+#: lxc/remote.go:730
 msgid "AUTH TYPE"
 msgstr ""
 
@@ -809,7 +809,7 @@ msgstr ""
 msgid "AUTHENTICATION METHOD"
 msgstr ""
 
-#: lxc/remote.go:99
+#: lxc/remote.go:100
 msgid "Accept certificate"
 msgstr "Accetta certificato"
 
@@ -857,11 +857,11 @@ msgstr ""
 msgid "Add a network zone record entry"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_load_balancer.go:783
+#: lxc/network_load_balancer.go:798
 msgid "Add backend to a load balancer"
 msgstr ""
 
-#: lxc/network_load_balancer.go:782
+#: lxc/network_load_balancer.go:797
 msgid "Add backends to a load balancer"
 msgstr ""
 
@@ -882,11 +882,11 @@ msgstr ""
 msgid "Add new aliases"
 msgstr "Aggiungi nuovi alias"
 
-#: lxc/remote.go:88
+#: lxc/remote.go:89
 msgid "Add new remote servers"
 msgstr "Aggiungi un nuovo server remoto"
 
-#: lxc/remote.go:89
+#: lxc/remote.go:90
 msgid ""
 "Add new remote servers\n"
 "\n"
@@ -923,11 +923,11 @@ msgstr ""
 msgid "Add permissions to groups"
 msgstr ""
 
-#: lxc/network_forward.go:779 lxc/network_forward.go:780
+#: lxc/network_forward.go:794 lxc/network_forward.go:795
 msgid "Add ports to a forward"
 msgstr ""
 
-#: lxc/network_load_balancer.go:947 lxc/network_load_balancer.go:948
+#: lxc/network_load_balancer.go:962 lxc/network_load_balancer.go:963
 msgid "Add ports to a load balancer"
 msgstr ""
 
@@ -954,7 +954,7 @@ msgstr ""
 msgid "Admin access key: %s"
 msgstr "Password amministratore per %s: "
 
-#: lxc/remote.go:556
+#: lxc/remote.go:562
 #, fuzzy, c-format
 msgid "Admin password (or token) for %s:"
 msgstr "Password amministratore per %s: "
@@ -991,7 +991,7 @@ msgstr "Alias:"
 msgid "All projects"
 msgstr ""
 
-#: lxc/remote.go:179
+#: lxc/remote.go:181
 msgid "All server addresses are unavailable"
 msgstr ""
 
@@ -1064,7 +1064,7 @@ msgid ""
 "as well as retrieve past log entries from it."
 msgstr ""
 
-#: lxc/remote.go:542
+#: lxc/remote.go:544
 #, c-format
 msgid "Authentication type '%s' not supported by server"
 msgstr ""
@@ -1083,11 +1083,11 @@ msgstr ""
 msgid "Auto update: %s"
 msgstr "Aggiornamento automatico: %s"
 
-#: lxc/network_forward.go:238 lxc/network_load_balancer.go:240
+#: lxc/network_forward.go:240 lxc/network_load_balancer.go:242
 msgid "Auto-allocate an IPv4 or IPv6 listen address. One of 'ipv4', 'ipv6'."
 msgstr ""
 
-#: lxc/remote.go:134
+#: lxc/remote.go:136
 msgid "Available projects:"
 msgstr ""
 
@@ -1118,8 +1118,8 @@ msgstr ""
 msgid "Bad device override syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 
-#: lxc/network.go:333 lxc/network_acl.go:382 lxc/network_forward.go:291
-#: lxc/network_load_balancer.go:294 lxc/network_peer.go:280
+#: lxc/network.go:333 lxc/network_acl.go:382 lxc/network_forward.go:293
+#: lxc/network_load_balancer.go:296 lxc/network_peer.go:280
 #: lxc/network_zone.go:324 lxc/network_zone.go:922 lxc/storage_bucket.go:136
 #, c-format
 msgid "Bad key/value pair: %s"
@@ -1243,7 +1243,7 @@ msgstr "Impossibile effettuare il pull di una directory senza --recursive"
 msgid "Can't read from stdin: %w"
 msgstr "Impossible leggere da stdin: %s"
 
-#: lxc/remote.go:854
+#: lxc/remote.go:857
 msgid "Can't remove the default remote"
 msgstr ""
 
@@ -1309,13 +1309,13 @@ msgstr ""
 msgid "Certificate add token for %s deleted"
 msgstr "Il nome del container è: %s"
 
-#: lxc/remote.go:216
+#: lxc/remote.go:218
 #, c-format
 msgid ""
 "Certificate fingerprint mismatch between certificate token and server %q"
 msgstr ""
 
-#: lxc/remote.go:445
+#: lxc/remote.go:447
 #, c-format
 msgid "Certificate fingerprint: %s"
 msgstr ""
@@ -1329,7 +1329,7 @@ msgstr ""
 msgid "Client %s certificate add token:"
 msgstr "Il nome del container è: %s"
 
-#: lxc/remote.go:596
+#: lxc/remote.go:599
 #, fuzzy
 msgid "Client certificate now trusted by server:"
 msgstr "Certificato del client salvato dal server: "
@@ -1388,14 +1388,14 @@ msgstr ""
 #: lxc/config.go:861 lxc/copy.go:61 lxc/info.go:44 lxc/init.go:64
 #: lxc/move.go:66 lxc/network.go:300 lxc/network.go:723 lxc/network.go:792
 #: lxc/network.go:1134 lxc/network.go:1219 lxc/network.go:1283
-#: lxc/network_forward.go:172 lxc/network_forward.go:237
-#: lxc/network_forward.go:441 lxc/network_forward.go:564
-#: lxc/network_forward.go:706 lxc/network_forward.go:783
-#: lxc/network_forward.go:849 lxc/network_load_balancer.go:174
-#: lxc/network_load_balancer.go:239 lxc/network_load_balancer.go:444
-#: lxc/network_load_balancer.go:567 lxc/network_load_balancer.go:710
-#: lxc/network_load_balancer.go:786 lxc/network_load_balancer.go:850
-#: lxc/network_load_balancer.go:951 lxc/network_load_balancer.go:1013
+#: lxc/network_forward.go:174 lxc/network_forward.go:239
+#: lxc/network_forward.go:456 lxc/network_forward.go:579
+#: lxc/network_forward.go:721 lxc/network_forward.go:798
+#: lxc/network_forward.go:864 lxc/network_load_balancer.go:176
+#: lxc/network_load_balancer.go:241 lxc/network_load_balancer.go:459
+#: lxc/network_load_balancer.go:582 lxc/network_load_balancer.go:725
+#: lxc/network_load_balancer.go:801 lxc/network_load_balancer.go:865
+#: lxc/network_load_balancer.go:966 lxc/network_load_balancer.go:1028
 #: lxc/storage.go:99 lxc/storage.go:347 lxc/storage.go:418 lxc/storage.go:671
 #: lxc/storage.go:765 lxc/storage.go:850 lxc/storage_bucket.go:85
 #: lxc/storage_bucket.go:185 lxc/storage_bucket.go:248
@@ -1466,8 +1466,8 @@ msgstr ""
 #: lxc/cluster.go:770 lxc/cluster_group.go:339 lxc/config.go:272
 #: lxc/config.go:347 lxc/config.go:1277 lxc/config_metadata.go:147
 #: lxc/config_trust.go:314 lxc/image.go:466 lxc/network.go:686
-#: lxc/network_acl.go:620 lxc/network_forward.go:670
-#: lxc/network_load_balancer.go:674 lxc/network_peer.go:610
+#: lxc/network_acl.go:620 lxc/network_forward.go:685
+#: lxc/network_load_balancer.go:689 lxc/network_peer.go:610
 #: lxc/network_zone.go:551 lxc/network_zone.go:1143 lxc/profile.go:518
 #: lxc/project.go:315 lxc/storage.go:310 lxc/storage_bucket.go:343
 #: lxc/storage_bucket.go:1092 lxc/storage_volume.go:1016
@@ -1582,12 +1582,12 @@ msgstr ""
 msgid "Cores:"
 msgstr ""
 
-#: lxc/remote.go:480
+#: lxc/remote.go:482
 #, fuzzy, c-format
 msgid "Could not close server cert file %q: %w"
 msgstr "Certificato del client salvato dal server: "
 
-#: lxc/remote.go:222 lxc/remote.go:464
+#: lxc/remote.go:224 lxc/remote.go:466
 msgid "Could not create server cert dir"
 msgstr ""
 
@@ -1626,7 +1626,7 @@ msgstr "Certificato del client salvato dal server: "
 msgid "Could not write new remote certificate for remote '%s' with error: %v"
 msgstr ""
 
-#: lxc/remote.go:475
+#: lxc/remote.go:477
 #, fuzzy, c-format
 msgid "Could not write server cert file %q: %w"
 msgstr "Certificato del client salvato dal server: "
@@ -1710,11 +1710,11 @@ msgstr "Creazione del container in corso"
 msgid "Create new network ACLs"
 msgstr ""
 
-#: lxc/network_forward.go:233 lxc/network_forward.go:234
+#: lxc/network_forward.go:235 lxc/network_forward.go:236
 msgid "Create new network forwards"
 msgstr ""
 
-#: lxc/network_load_balancer.go:235 lxc/network_load_balancer.go:236
+#: lxc/network_load_balancer.go:237 lxc/network_load_balancer.go:238
 #, fuzzy
 msgid "Create new network load balancers"
 msgstr "Creazione del container in corso"
@@ -1772,14 +1772,14 @@ msgstr "Creazione del container in corso"
 msgid "Current number of VFs: %d"
 msgstr ""
 
-#: lxc/network_forward.go:148
+#: lxc/network_forward.go:150
 msgid "DEFAULT TARGET ADDRESS"
 msgstr ""
 
 #: lxc/auth.go:376 lxc/cluster.go:188 lxc/cluster_group.go:438
 #: lxc/image.go:1074 lxc/image_alias.go:237 lxc/list.go:556 lxc/network.go:985
-#: lxc/network_acl.go:148 lxc/network_forward.go:147
-#: lxc/network_load_balancer.go:150 lxc/network_peer.go:140
+#: lxc/network_acl.go:148 lxc/network_forward.go:149
+#: lxc/network_load_balancer.go:152 lxc/network_peer.go:140
 #: lxc/network_zone.go:139 lxc/network_zone.go:742 lxc/operation.go:172
 #: lxc/profile.go:658 lxc/project.go:505 lxc/storage.go:646
 #: lxc/storage_bucket.go:507 lxc/storage_bucket.go:827
@@ -1857,11 +1857,11 @@ msgstr ""
 msgid "Delete network ACLs"
 msgstr ""
 
-#: lxc/network_forward.go:702 lxc/network_forward.go:703
+#: lxc/network_forward.go:717 lxc/network_forward.go:718
 msgid "Delete network forwards"
 msgstr ""
 
-#: lxc/network_load_balancer.go:706 lxc/network_load_balancer.go:707
+#: lxc/network_load_balancer.go:721 lxc/network_load_balancer.go:722
 #, fuzzy
 msgid "Delete network load balancers"
 msgstr "Il nome del container è: %s"
@@ -1959,20 +1959,20 @@ msgstr ""
 #: lxc/network_acl.go:327 lxc/network_acl.go:412 lxc/network_acl.go:492
 #: lxc/network_acl.go:522 lxc/network_acl.go:653 lxc/network_acl.go:702
 #: lxc/network_acl.go:751 lxc/network_acl.go:766 lxc/network_acl.go:887
-#: lxc/network_allocations.go:51 lxc/network_forward.go:31
-#: lxc/network_forward.go:88 lxc/network_forward.go:169
-#: lxc/network_forward.go:234 lxc/network_forward.go:364
-#: lxc/network_forward.go:433 lxc/network_forward.go:531
-#: lxc/network_forward.go:561 lxc/network_forward.go:703
-#: lxc/network_forward.go:765 lxc/network_forward.go:780
-#: lxc/network_forward.go:845 lxc/network_load_balancer.go:31
-#: lxc/network_load_balancer.go:92 lxc/network_load_balancer.go:171
-#: lxc/network_load_balancer.go:236 lxc/network_load_balancer.go:368
-#: lxc/network_load_balancer.go:436 lxc/network_load_balancer.go:534
-#: lxc/network_load_balancer.go:564 lxc/network_load_balancer.go:707
-#: lxc/network_load_balancer.go:768 lxc/network_load_balancer.go:783
-#: lxc/network_load_balancer.go:847 lxc/network_load_balancer.go:933
-#: lxc/network_load_balancer.go:948 lxc/network_load_balancer.go:1009
+#: lxc/network_allocations.go:51 lxc/network_forward.go:33
+#: lxc/network_forward.go:90 lxc/network_forward.go:171
+#: lxc/network_forward.go:236 lxc/network_forward.go:379
+#: lxc/network_forward.go:448 lxc/network_forward.go:546
+#: lxc/network_forward.go:576 lxc/network_forward.go:718
+#: lxc/network_forward.go:780 lxc/network_forward.go:795
+#: lxc/network_forward.go:860 lxc/network_load_balancer.go:33
+#: lxc/network_load_balancer.go:94 lxc/network_load_balancer.go:173
+#: lxc/network_load_balancer.go:238 lxc/network_load_balancer.go:383
+#: lxc/network_load_balancer.go:451 lxc/network_load_balancer.go:549
+#: lxc/network_load_balancer.go:579 lxc/network_load_balancer.go:722
+#: lxc/network_load_balancer.go:783 lxc/network_load_balancer.go:798
+#: lxc/network_load_balancer.go:862 lxc/network_load_balancer.go:948
+#: lxc/network_load_balancer.go:963 lxc/network_load_balancer.go:1024
 #: lxc/network_peer.go:28 lxc/network_peer.go:81 lxc/network_peer.go:158
 #: lxc/network_peer.go:215 lxc/network_peer.go:331 lxc/network_peer.go:399
 #: lxc/network_peer.go:488 lxc/network_peer.go:518 lxc/network_peer.go:643
@@ -1991,9 +1991,9 @@ msgstr ""
 #: lxc/project.go:93 lxc/project.go:158 lxc/project.go:221 lxc/project.go:349
 #: lxc/project.go:410 lxc/project.go:523 lxc/project.go:580 lxc/project.go:659
 #: lxc/project.go:690 lxc/project.go:743 lxc/project.go:802 lxc/publish.go:33
-#: lxc/query.go:34 lxc/rebuild.go:27 lxc/remote.go:34 lxc/remote.go:89
-#: lxc/remote.go:624 lxc/remote.go:662 lxc/remote.go:748 lxc/remote.go:821
-#: lxc/remote.go:877 lxc/remote.go:917 lxc/rename.go:21 lxc/restore.go:24
+#: lxc/query.go:34 lxc/rebuild.go:27 lxc/remote.go:34 lxc/remote.go:90
+#: lxc/remote.go:627 lxc/remote.go:665 lxc/remote.go:751 lxc/remote.go:824
+#: lxc/remote.go:880 lxc/remote.go:920 lxc/rename.go:21 lxc/restore.go:24
 #: lxc/snapshot.go:28 lxc/storage.go:33 lxc/storage.go:96 lxc/storage.go:170
 #: lxc/storage.go:220 lxc/storage.go:344 lxc/storage.go:414 lxc/storage.go:586
 #: lxc/storage.go:665 lxc/storage.go:761 lxc/storage.go:847
@@ -2234,11 +2234,11 @@ msgstr ""
 msgid "Edit network configurations as YAML"
 msgstr ""
 
-#: lxc/network_forward.go:560 lxc/network_forward.go:561
+#: lxc/network_forward.go:575 lxc/network_forward.go:576
 msgid "Edit network forward configurations as YAML"
 msgstr ""
 
-#: lxc/network_load_balancer.go:563 lxc/network_load_balancer.go:564
+#: lxc/network_load_balancer.go:578 lxc/network_load_balancer.go:579
 #, fuzzy
 msgid "Edit network load balancer configurations as YAML"
 msgstr "Il nome del container è: %s"
@@ -2339,8 +2339,8 @@ msgid "Error retrieving aliases: %w"
 msgstr ""
 
 #: lxc/cluster.go:414 lxc/config.go:624 lxc/config.go:656 lxc/network.go:1194
-#: lxc/network_acl.go:467 lxc/network_forward.go:504
-#: lxc/network_load_balancer.go:507 lxc/network_peer.go:463
+#: lxc/network_acl.go:467 lxc/network_forward.go:519
+#: lxc/network_load_balancer.go:522 lxc/network_peer.go:463
 #: lxc/network_zone.go:409 lxc/network_zone.go:1003 lxc/profile.go:856
 #: lxc/project.go:634 lxc/storage.go:727 lxc/storage_bucket.go:597
 #: lxc/storage_volume.go:1947 lxc/storage_volume.go:1985
@@ -2354,7 +2354,7 @@ msgid "Error unsetting properties: %v"
 msgstr ""
 
 #: lxc/cluster.go:408 lxc/network.go:1188 lxc/network_acl.go:461
-#: lxc/network_forward.go:498 lxc/network_load_balancer.go:501
+#: lxc/network_forward.go:513 lxc/network_load_balancer.go:516
 #: lxc/network_peer.go:457 lxc/network_zone.go:403 lxc/network_zone.go:997
 #: lxc/profile.go:850 lxc/project.go:628 lxc/storage.go:721
 #: lxc/storage_bucket.go:591 lxc/storage_volume.go:1941
@@ -2561,11 +2561,11 @@ msgstr "Accetta certificato"
 msgid "Failed to accept incoming connection: %w"
 msgstr "Accetta certificato"
 
-#: lxc/remote.go:188
+#: lxc/remote.go:190
 msgid "Failed to add remote"
 msgstr ""
 
-#: lxc/remote.go:239
+#: lxc/remote.go:241
 #, fuzzy, c-format
 msgid "Failed to close server cert file %q: %w"
 msgstr "Accetta certificato"
@@ -2575,7 +2575,7 @@ msgstr "Accetta certificato"
 msgid "Failed to connect to cluster member: %w"
 msgstr "Il nome del container è: %s"
 
-#: lxc/remote.go:229
+#: lxc/remote.go:231
 #, c-format
 msgid "Failed to create %q: %w"
 msgstr ""
@@ -2585,12 +2585,12 @@ msgstr ""
 msgid "Failed to create alias %s: %w"
 msgstr "Accetta certificato"
 
-#: lxc/remote.go:254
+#: lxc/remote.go:256
 #, fuzzy, c-format
 msgid "Failed to create certificate: %w"
 msgstr "Accetta certificato"
 
-#: lxc/remote.go:261
+#: lxc/remote.go:263
 #, c-format
 msgid "Failed to find project: %w"
 msgstr ""
@@ -2615,7 +2615,7 @@ msgstr "Accetta certificato"
 msgid "Failed to walk path for %s: %s"
 msgstr ""
 
-#: lxc/remote.go:234
+#: lxc/remote.go:236
 #, fuzzy, c-format
 msgid "Failed to write server cert file %q: %w"
 msgstr "Accetta certificato"
@@ -2697,10 +2697,10 @@ msgstr ""
 #: lxc/config_template.go:242 lxc/config_trust.go:352 lxc/config_trust.go:434
 #: lxc/image.go:1061 lxc/image_alias.go:157 lxc/list.go:132 lxc/network.go:916
 #: lxc/network.go:1007 lxc/network_acl.go:97 lxc/network_allocations.go:57
-#: lxc/network_forward.go:91 lxc/network_load_balancer.go:95
+#: lxc/network_forward.go:93 lxc/network_load_balancer.go:97
 #: lxc/network_peer.go:84 lxc/network_zone.go:88 lxc/network_zone.go:692
 #: lxc/operation.go:108 lxc/profile.go:617 lxc/project.go:412
-#: lxc/project.go:804 lxc/remote.go:666 lxc/storage.go:588
+#: lxc/project.go:804 lxc/remote.go:669 lxc/storage.go:588
 #: lxc/storage_bucket.go:454 lxc/storage_bucket.go:769
 #: lxc/storage_volume.go:1446 lxc/warning.go:93
 msgid "Format (csv|json|table|yaml|compact)"
@@ -2738,7 +2738,7 @@ msgstr ""
 msgid "Frequency: %vMhz (min: %vMhz, max: %vMhz)"
 msgstr ""
 
-#: lxc/remote.go:730
+#: lxc/remote.go:733
 msgid "GLOBAL"
 msgstr ""
 
@@ -2758,7 +2758,7 @@ msgstr ""
 msgid "Generate manpages for all commands"
 msgstr ""
 
-#: lxc/remote.go:157 lxc/remote.go:391
+#: lxc/remote.go:159 lxc/remote.go:393
 msgid "Generating a client certificate. This may take a minute..."
 msgstr ""
 
@@ -2787,11 +2787,11 @@ msgstr ""
 msgid "Get the key as a network ACL property"
 msgstr ""
 
-#: lxc/network_forward.go:366
+#: lxc/network_forward.go:381
 msgid "Get the key as a network forward property"
 msgstr ""
 
-#: lxc/network_load_balancer.go:371
+#: lxc/network_load_balancer.go:386
 #, fuzzy
 msgid "Get the key as a network load balancer property"
 msgstr "Creazione del container in corso"
@@ -2860,11 +2860,11 @@ msgstr ""
 msgid "Get values for network configuration keys"
 msgstr ""
 
-#: lxc/network_forward.go:363 lxc/network_forward.go:364
+#: lxc/network_forward.go:378 lxc/network_forward.go:379
 msgid "Get values for network forward configuration keys"
 msgstr ""
 
-#: lxc/network_load_balancer.go:367 lxc/network_load_balancer.go:368
+#: lxc/network_load_balancer.go:382 lxc/network_load_balancer.go:383
 #, fuzzy
 msgid "Get values for network load balancer configuration keys"
 msgstr "Il nome del container è: %s"
@@ -3195,7 +3195,7 @@ msgstr "Il nome del container è: %s"
 msgid "Instance type"
 msgstr ""
 
-#: lxc/remote.go:343
+#: lxc/remote.go:345
 #, c-format
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr ""
@@ -3278,7 +3278,7 @@ msgstr "numero errato di argomenti del sottocomando"
 msgid "Invalid path %s"
 msgstr ""
 
-#: lxc/remote.go:332
+#: lxc/remote.go:334
 #, fuzzy, c-format
 msgid "Invalid protocol: %s"
 msgstr "Proprietà errata: %s"
@@ -3321,12 +3321,12 @@ msgstr ""
 msgid "LIMIT"
 msgstr ""
 
-#: lxc/network_forward.go:146 lxc/network_load_balancer.go:149
+#: lxc/network_forward.go:148 lxc/network_load_balancer.go:151
 msgid "LISTEN ADDRESS"
 msgstr ""
 
-#: lxc/list.go:597 lxc/network.go:1059 lxc/network_forward.go:153
-#: lxc/network_load_balancer.go:155 lxc/operation.go:177
+#: lxc/list.go:597 lxc/network.go:1059 lxc/network_forward.go:155
+#: lxc/network_load_balancer.go:157 lxc/operation.go:177
 #: lxc/storage_bucket.go:511 lxc/storage_volume.go:1569 lxc/warning.go:220
 msgid "LOCATION"
 msgstr ""
@@ -3409,11 +3409,11 @@ msgstr ""
 msgid "List available network ACLS"
 msgstr ""
 
-#: lxc/network_forward.go:87 lxc/network_forward.go:88
+#: lxc/network_forward.go:89 lxc/network_forward.go:90
 msgid "List available network forwards"
 msgstr ""
 
-#: lxc/network_load_balancer.go:91 lxc/network_load_balancer.go:92
+#: lxc/network_load_balancer.go:93 lxc/network_load_balancer.go:94
 #, fuzzy
 msgid "List available network load balancers"
 msgstr "Creazione del container in corso"
@@ -3658,7 +3658,7 @@ msgid ""
 "    U - Current disk usage"
 msgstr ""
 
-#: lxc/remote.go:661 lxc/remote.go:662
+#: lxc/remote.go:664 lxc/remote.go:665
 msgid "List the available remotes"
 msgstr ""
 
@@ -3887,25 +3887,25 @@ msgstr ""
 msgid "Manage network ACLs"
 msgstr ""
 
-#: lxc/network_forward.go:764 lxc/network_forward.go:765
+#: lxc/network_forward.go:779 lxc/network_forward.go:780
 msgid "Manage network forward ports"
 msgstr ""
 
-#: lxc/network_forward.go:30 lxc/network_forward.go:31
+#: lxc/network_forward.go:32 lxc/network_forward.go:33
 msgid "Manage network forwards"
 msgstr ""
 
-#: lxc/network_load_balancer.go:767 lxc/network_load_balancer.go:768
+#: lxc/network_load_balancer.go:782 lxc/network_load_balancer.go:783
 #, fuzzy
 msgid "Manage network load balancer backends"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_load_balancer.go:932 lxc/network_load_balancer.go:933
+#: lxc/network_load_balancer.go:947 lxc/network_load_balancer.go:948
 #, fuzzy
 msgid "Manage network load balancer ports"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_load_balancer.go:30 lxc/network_load_balancer.go:31
+#: lxc/network_load_balancer.go:32 lxc/network_load_balancer.go:33
 #, fuzzy
 msgid "Manage network load balancers"
 msgstr "Creazione del container in corso"
@@ -4124,14 +4124,14 @@ msgstr "Il nome del container è: %s"
 msgid "Missing key name"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_forward.go:197 lxc/network_forward.go:393
-#: lxc/network_forward.go:466 lxc/network_forward.go:612
-#: lxc/network_forward.go:731 lxc/network_forward.go:808
-#: lxc/network_forward.go:874 lxc/network_load_balancer.go:199
-#: lxc/network_load_balancer.go:396 lxc/network_load_balancer.go:469
-#: lxc/network_load_balancer.go:615 lxc/network_load_balancer.go:735
-#: lxc/network_load_balancer.go:811 lxc/network_load_balancer.go:875
-#: lxc/network_load_balancer.go:976 lxc/network_load_balancer.go:1038
+#: lxc/network_forward.go:199 lxc/network_forward.go:408
+#: lxc/network_forward.go:481 lxc/network_forward.go:627
+#: lxc/network_forward.go:746 lxc/network_forward.go:823
+#: lxc/network_forward.go:889 lxc/network_load_balancer.go:201
+#: lxc/network_load_balancer.go:411 lxc/network_load_balancer.go:484
+#: lxc/network_load_balancer.go:630 lxc/network_load_balancer.go:750
+#: lxc/network_load_balancer.go:826 lxc/network_load_balancer.go:890
+#: lxc/network_load_balancer.go:991 lxc/network_load_balancer.go:1053
 #, fuzzy
 msgid "Missing listen address"
 msgstr "Il nome del container è: %s"
@@ -4153,16 +4153,16 @@ msgstr "Il nome del container è: %s"
 #: lxc/network.go:159 lxc/network.go:244 lxc/network.go:396 lxc/network.go:446
 #: lxc/network.go:531 lxc/network.go:636 lxc/network.go:747 lxc/network.go:815
 #: lxc/network.go:1030 lxc/network.go:1100 lxc/network.go:1158
-#: lxc/network.go:1242 lxc/network_forward.go:117 lxc/network_forward.go:193
-#: lxc/network_forward.go:257 lxc/network_forward.go:389
-#: lxc/network_forward.go:462 lxc/network_forward.go:608
-#: lxc/network_forward.go:727 lxc/network_forward.go:804
-#: lxc/network_forward.go:870 lxc/network_load_balancer.go:121
-#: lxc/network_load_balancer.go:195 lxc/network_load_balancer.go:259
-#: lxc/network_load_balancer.go:392 lxc/network_load_balancer.go:465
-#: lxc/network_load_balancer.go:611 lxc/network_load_balancer.go:731
-#: lxc/network_load_balancer.go:807 lxc/network_load_balancer.go:871
-#: lxc/network_load_balancer.go:972 lxc/network_load_balancer.go:1034
+#: lxc/network.go:1242 lxc/network_forward.go:119 lxc/network_forward.go:195
+#: lxc/network_forward.go:259 lxc/network_forward.go:404
+#: lxc/network_forward.go:477 lxc/network_forward.go:623
+#: lxc/network_forward.go:742 lxc/network_forward.go:819
+#: lxc/network_forward.go:885 lxc/network_load_balancer.go:123
+#: lxc/network_load_balancer.go:197 lxc/network_load_balancer.go:261
+#: lxc/network_load_balancer.go:407 lxc/network_load_balancer.go:480
+#: lxc/network_load_balancer.go:626 lxc/network_load_balancer.go:746
+#: lxc/network_load_balancer.go:822 lxc/network_load_balancer.go:886
+#: lxc/network_load_balancer.go:987 lxc/network_load_balancer.go:1049
 #: lxc/network_peer.go:110 lxc/network_peer.go:180 lxc/network_peer.go:237
 #: lxc/network_peer.go:355 lxc/network_peer.go:426 lxc/network_peer.go:556
 #: lxc/network_peer.go:665
@@ -4320,7 +4320,7 @@ msgstr ""
 msgid "Moving the storage volume: %s"
 msgstr ""
 
-#: lxc/network_forward.go:918 lxc/network_load_balancer.go:1082
+#: lxc/network_forward.go:933 lxc/network_load_balancer.go:1097
 msgid "Multiple ports match. Use --force to remove them all"
 msgstr ""
 
@@ -4341,7 +4341,7 @@ msgstr ""
 #: lxc/config_trust.go:514 lxc/list.go:564 lxc/network.go:980
 #: lxc/network_acl.go:147 lxc/network_peer.go:139 lxc/network_zone.go:138
 #: lxc/network_zone.go:741 lxc/profile.go:657 lxc/project.go:498
-#: lxc/remote.go:724 lxc/storage.go:638 lxc/storage_bucket.go:506
+#: lxc/remote.go:727 lxc/storage.go:638 lxc/storage_bucket.go:506
 #: lxc/storage_bucket.go:826 lxc/storage_volume.go:1561
 msgid "NAME"
 msgstr ""
@@ -4368,7 +4368,7 @@ msgstr ""
 
 #: lxc/network.go:957 lxc/operation.go:154 lxc/project.go:456
 #: lxc/project.go:461 lxc/project.go:466 lxc/project.go:471 lxc/project.go:476
-#: lxc/project.go:481 lxc/remote.go:684 lxc/remote.go:689 lxc/remote.go:694
+#: lxc/project.go:481 lxc/remote.go:687 lxc/remote.go:692 lxc/remote.go:697
 msgid "NO"
 msgstr ""
 
@@ -4395,7 +4395,7 @@ msgstr ""
 msgid "Name"
 msgstr ""
 
-#: lxc/remote.go:139
+#: lxc/remote.go:141
 msgid "Name of the project to use for this remote:"
 msgstr ""
 
@@ -4454,22 +4454,22 @@ msgstr ""
 msgid "Network Zone %s deleted"
 msgstr ""
 
-#: lxc/network_forward.go:346
+#: lxc/network_forward.go:361
 #, c-format
 msgid "Network forward %s created"
 msgstr ""
 
-#: lxc/network_forward.go:748
+#: lxc/network_forward.go:763
 #, c-format
 msgid "Network forward %s deleted"
 msgstr ""
 
-#: lxc/network_load_balancer.go:350
+#: lxc/network_load_balancer.go:365
 #, c-format
 msgid "Network load balancer %s created"
 msgstr ""
 
-#: lxc/network_load_balancer.go:752
+#: lxc/network_load_balancer.go:767
 #, c-format
 msgid "Network load balancer %s deleted"
 msgstr ""
@@ -4547,11 +4547,11 @@ msgstr ""
 msgid "No device found for this storage volume"
 msgstr ""
 
-#: lxc/network_load_balancer.go:906
+#: lxc/network_load_balancer.go:921
 msgid "No matching backend found"
 msgstr ""
 
-#: lxc/network_forward.go:929 lxc/network_load_balancer.go:1093
+#: lxc/network_forward.go:944 lxc/network_load_balancer.go:1108
 msgid "No matching port(s) found"
 msgstr ""
 
@@ -4598,7 +4598,7 @@ msgstr ""
 msgid "Only \"custom\" volumes can be snapshotted"
 msgstr ""
 
-#: lxc/remote.go:326
+#: lxc/remote.go:328
 msgid "Only https URLs are supported for simplestreams"
 msgstr ""
 
@@ -4653,7 +4653,7 @@ msgstr ""
 msgid "POOL"
 msgstr ""
 
-#: lxc/network_forward.go:149 lxc/network_load_balancer.go:151
+#: lxc/network_forward.go:151 lxc/network_load_balancer.go:153
 msgid "PORTS"
 msgstr ""
 
@@ -4669,11 +4669,11 @@ msgstr ""
 msgid "PROJECT"
 msgstr ""
 
-#: lxc/remote.go:726
+#: lxc/remote.go:729
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:1073 lxc/remote.go:728
+#: lxc/image.go:1073 lxc/remote.go:731
 msgid "PUBLIC"
 msgstr ""
 
@@ -4703,7 +4703,7 @@ msgstr "Creazione del container in corso"
 msgid "Perform an incremental copy"
 msgstr ""
 
-#: lxc/remote.go:180
+#: lxc/remote.go:182
 msgid "Please provide an alternate server address (empty to abort):"
 msgstr ""
 
@@ -4716,7 +4716,7 @@ msgstr ""
 msgid "Please provide cluster member name: "
 msgstr "Il nome del container è: %s"
 
-#: lxc/remote.go:456
+#: lxc/remote.go:458
 msgid "Please type 'y', 'n' or the fingerprint:"
 msgstr ""
 
@@ -4737,8 +4737,8 @@ msgstr ""
 #: lxc/cluster_group.go:340 lxc/config.go:273 lxc/config.go:348
 #: lxc/config.go:1278 lxc/config_metadata.go:148 lxc/config_template.go:206
 #: lxc/config_trust.go:315 lxc/image.go:467 lxc/network.go:687
-#: lxc/network_acl.go:621 lxc/network_forward.go:671
-#: lxc/network_load_balancer.go:675 lxc/network_peer.go:611
+#: lxc/network_acl.go:621 lxc/network_forward.go:686
+#: lxc/network_load_balancer.go:690 lxc/network_peer.go:611
 #: lxc/network_zone.go:552 lxc/network_zone.go:1144 lxc/profile.go:519
 #: lxc/project.go:316 lxc/storage.go:311 lxc/storage_bucket.go:344
 #: lxc/storage_bucket.go:1093 lxc/storage_volume.go:1017
@@ -4849,7 +4849,7 @@ msgstr ""
 msgid "Project %s renamed to %s"
 msgstr ""
 
-#: lxc/remote.go:104
+#: lxc/remote.go:106
 msgid "Project to use for the remote"
 msgstr ""
 
@@ -4947,7 +4947,7 @@ msgid ""
 "pool \"default\"."
 msgstr ""
 
-#: lxc/remote.go:103
+#: lxc/remote.go:105
 msgid "Public image server"
 msgstr ""
 
@@ -5041,38 +5041,42 @@ msgstr "Creazione del container in corso"
 msgid "Refreshing the image: %s"
 msgstr ""
 
-#: lxc/remote.go:778
+#: lxc/remote.go:781
 #, fuzzy, c-format
 msgid "Remote %s already exists"
 msgstr "il remote %s esiste già"
 
-#: lxc/project.go:769 lxc/remote.go:769 lxc/remote.go:842 lxc/remote.go:898
-#: lxc/remote.go:938
+#: lxc/project.go:769 lxc/remote.go:772 lxc/remote.go:845 lxc/remote.go:901
+#: lxc/remote.go:941
 #, fuzzy, c-format
 msgid "Remote %s doesn't exist"
 msgstr "il remote %s non esiste"
 
-#: lxc/remote.go:295
+#: lxc/remote.go:297
 #, fuzzy, c-format
 msgid "Remote %s exists as <%s>"
 msgstr "il remote %s esiste come %s"
 
-#: lxc/remote.go:850
+#: lxc/remote.go:853
 #, fuzzy, c-format
 msgid "Remote %s is global and cannot be removed"
 msgstr "il remote %s è statico e non può essere modificato"
 
-#: lxc/remote.go:773 lxc/remote.go:846 lxc/remote.go:942
+#: lxc/remote.go:776 lxc/remote.go:849 lxc/remote.go:945
 #, fuzzy, c-format
 msgid "Remote %s is static and cannot be modified"
 msgstr "il remote %s è statico e non può essere modificato"
 
-#: lxc/remote.go:100
+#: lxc/remote.go:101
 msgid "Remote admin password"
 msgstr ""
 
-#: lxc/remote.go:289
+#: lxc/remote.go:291
 msgid "Remote names may not contain colons"
+msgstr ""
+
+#: lxc/remote.go:102
+msgid "Remote trust token"
 msgstr ""
 
 #: lxc/info.go:283
@@ -5107,7 +5111,7 @@ msgstr "Il nome del container è: %s"
 msgid "Remove aliases"
 msgstr ""
 
-#: lxc/network_forward.go:846 lxc/network_load_balancer.go:1010
+#: lxc/network_forward.go:861 lxc/network_load_balancer.go:1025
 msgid "Remove all ports that match"
 msgstr ""
 
@@ -5115,12 +5119,12 @@ msgstr ""
 msgid "Remove all rules that match"
 msgstr ""
 
-#: lxc/network_load_balancer.go:847
+#: lxc/network_load_balancer.go:862
 #, fuzzy
 msgid "Remove backend from a load balancer"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_load_balancer.go:846
+#: lxc/network_load_balancer.go:861
 #, fuzzy
 msgid "Remove backends from a load balancer"
 msgstr "Il nome del container è: %s"
@@ -5146,11 +5150,11 @@ msgstr ""
 msgid "Remove permissions from groups"
 msgstr ""
 
-#: lxc/network_forward.go:844 lxc/network_forward.go:845
+#: lxc/network_forward.go:859 lxc/network_forward.go:860
 msgid "Remove ports from a forward"
 msgstr ""
 
-#: lxc/network_load_balancer.go:1008 lxc/network_load_balancer.go:1009
+#: lxc/network_load_balancer.go:1023 lxc/network_load_balancer.go:1024
 #, fuzzy
 msgid "Remove ports from a load balancer"
 msgstr "Il nome del container è: %s"
@@ -5159,7 +5163,7 @@ msgstr "Il nome del container è: %s"
 msgid "Remove profiles from instances"
 msgstr ""
 
-#: lxc/remote.go:820 lxc/remote.go:821
+#: lxc/remote.go:823 lxc/remote.go:824
 msgid "Remove remotes"
 msgstr ""
 
@@ -5218,7 +5222,7 @@ msgstr ""
 msgid "Rename projects"
 msgstr ""
 
-#: lxc/remote.go:747 lxc/remote.go:748
+#: lxc/remote.go:750 lxc/remote.go:751
 msgid "Rename remotes"
 msgstr ""
 
@@ -5369,7 +5373,7 @@ msgstr ""
 msgid "STATE"
 msgstr ""
 
-#: lxc/remote.go:729
+#: lxc/remote.go:732
 msgid "STATIC"
 msgstr ""
 
@@ -5406,19 +5410,19 @@ msgstr "Aggiornamento automatico: %s"
 msgid "Send a raw query to LXD"
 msgstr ""
 
-#: lxc/remote.go:102
+#: lxc/remote.go:104
 msgid "Server authentication type (tls or oidc)"
 msgstr ""
 
-#: lxc/remote.go:454
+#: lxc/remote.go:456
 msgid "Server certificate NACKed by user"
 msgstr ""
 
-#: lxc/remote.go:592
+#: lxc/remote.go:595
 msgid "Server doesn't trust us after authentication"
 msgstr ""
 
-#: lxc/remote.go:101
+#: lxc/remote.go:103
 msgid "Server protocol (lxd or simplestreams)"
 msgstr ""
 
@@ -5506,11 +5510,11 @@ msgid ""
 "    lxc network set [<remote>:]<network> <key> <value>"
 msgstr ""
 
-#: lxc/network_forward.go:432
+#: lxc/network_forward.go:447
 msgid "Set network forward keys"
 msgstr ""
 
-#: lxc/network_forward.go:433
+#: lxc/network_forward.go:448
 msgid ""
 "Set network forward keys\n"
 "\n"
@@ -5519,12 +5523,12 @@ msgid ""
 "    lxc network set [<remote>:]<network> <listen_address> <key> <value>"
 msgstr ""
 
-#: lxc/network_load_balancer.go:435
+#: lxc/network_load_balancer.go:450
 #, fuzzy
 msgid "Set network load balancer keys"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_load_balancer.go:436
+#: lxc/network_load_balancer.go:451
 msgid ""
 "Set network load balancer keys\n"
 "\n"
@@ -5631,7 +5635,7 @@ msgid ""
 "    lxc storage volume set [<remote>:]<pool> [<type>/]<volume> <key> <value>"
 msgstr ""
 
-#: lxc/remote.go:916 lxc/remote.go:917
+#: lxc/remote.go:919 lxc/remote.go:920
 msgid "Set the URL for the remote"
 msgstr ""
 
@@ -5655,11 +5659,11 @@ msgstr ""
 msgid "Set the key as a network ACL property"
 msgstr ""
 
-#: lxc/network_forward.go:440
+#: lxc/network_forward.go:455
 msgid "Set the key as a network forward property"
 msgstr ""
 
-#: lxc/network_load_balancer.go:443
+#: lxc/network_load_balancer.go:458
 #, fuzzy
 msgid "Set the key as a network load balancer property"
 msgstr "Il nome del container è: %s"
@@ -5808,11 +5812,11 @@ msgstr "Il nome del container è: %s"
 msgid "Show network configurations"
 msgstr ""
 
-#: lxc/network_forward.go:168 lxc/network_forward.go:169
+#: lxc/network_forward.go:170 lxc/network_forward.go:171
 msgid "Show network forward configurations"
 msgstr ""
 
-#: lxc/network_load_balancer.go:170 lxc/network_load_balancer.go:171
+#: lxc/network_load_balancer.go:172 lxc/network_load_balancer.go:173
 #, fuzzy
 msgid "Show network load balancer configurations"
 msgstr "Il nome del container è: %s"
@@ -5877,7 +5881,7 @@ msgid ""
 "that are granted via identity provider group mappings. \n"
 msgstr ""
 
-#: lxc/remote.go:623 lxc/remote.go:624
+#: lxc/remote.go:626 lxc/remote.go:627
 msgid "Show the default remote"
 msgstr ""
 
@@ -6093,7 +6097,7 @@ msgstr ""
 msgid "Switch the current project"
 msgstr ""
 
-#: lxc/remote.go:876 lxc/remote.go:877
+#: lxc/remote.go:879 lxc/remote.go:880
 msgid "Switch the default remote"
 msgstr ""
 
@@ -6210,7 +6214,7 @@ msgstr "Il nome del container è: %s"
 msgid "The property %q does not exist on the instance snapshot %s/%s: %v"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_load_balancer.go:409
+#: lxc/network_load_balancer.go:424
 #, fuzzy, c-format
 msgid "The property %q does not exist on the load balancer %q: %v"
 msgstr "Il nome del container è: %s"
@@ -6225,7 +6229,7 @@ msgstr "Il nome del container è: %s"
 msgid "The property %q does not exist on the network ACL %q: %v"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_forward.go:406
+#: lxc/network_forward.go:421
 #, fuzzy, c-format
 msgid "The property %q does not exist on the network forward %q: %v"
 msgstr "Il nome del container è: %s"
@@ -6446,7 +6450,7 @@ msgstr ""
 msgid "UPLOAD DATE"
 msgstr ""
 
-#: lxc/cluster.go:184 lxc/remote.go:725
+#: lxc/cluster.go:184 lxc/remote.go:728
 msgid "URL"
 msgstr ""
 
@@ -6474,7 +6478,7 @@ msgstr ""
 msgid "Unable to create a temporary file: %v"
 msgstr ""
 
-#: lxc/remote.go:211 lxc/remote.go:245
+#: lxc/remote.go:213 lxc/remote.go:247
 #, fuzzy
 msgid "Unavailable remote server"
 msgstr "Aggiungi un nuovo server remoto"
@@ -6550,20 +6554,20 @@ msgstr ""
 msgid "Unset network configuration keys"
 msgstr ""
 
-#: lxc/network_forward.go:530
+#: lxc/network_forward.go:545
 msgid "Unset network forward configuration keys"
 msgstr ""
 
-#: lxc/network_forward.go:531
+#: lxc/network_forward.go:546
 msgid "Unset network forward keys"
 msgstr ""
 
-#: lxc/network_load_balancer.go:533
+#: lxc/network_load_balancer.go:548
 #, fuzzy
 msgid "Unset network load balancer configuration keys"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_load_balancer.go:534
+#: lxc/network_load_balancer.go:549
 #, fuzzy
 msgid "Unset network load balancer keys"
 msgstr "Il nome del container è: %s"
@@ -6616,11 +6620,11 @@ msgstr ""
 msgid "Unset the key as a network ACL property"
 msgstr ""
 
-#: lxc/network_forward.go:534
+#: lxc/network_forward.go:549
 msgid "Unset the key as a network forward property"
 msgstr ""
 
-#: lxc/network_load_balancer.go:537
+#: lxc/network_load_balancer.go:552
 #, fuzzy
 msgid "Unset the key as a network load balancer property"
 msgstr "Il nome del container è: %s"
@@ -6813,7 +6817,7 @@ msgstr ""
 
 #: lxc/network.go:959 lxc/operation.go:156 lxc/project.go:458
 #: lxc/project.go:463 lxc/project.go:468 lxc/project.go:473 lxc/project.go:478
-#: lxc/project.go:483 lxc/remote.go:686 lxc/remote.go:691 lxc/remote.go:696
+#: lxc/project.go:483 lxc/remote.go:689 lxc/remote.go:694 lxc/remote.go:699
 msgid "YES"
 msgstr ""
 
@@ -7218,8 +7222,8 @@ msgid "[<remote>:]<member> <role[,role...]>"
 msgstr "Creazione del container in corso"
 
 #: lxc/network.go:369 lxc/network.go:590 lxc/network.go:787 lxc/network.go:1003
-#: lxc/network.go:1214 lxc/network_forward.go:85
-#: lxc/network_load_balancer.go:89 lxc/network_peer.go:78
+#: lxc/network.go:1214 lxc/network_forward.go:87
+#: lxc/network_load_balancer.go:91 lxc/network_peer.go:78
 #, fuzzy
 msgid "[<remote>:]<network>"
 msgstr "Creazione del container in corso"
@@ -7244,50 +7248,50 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:]<network> <key>=<value>..."
 msgstr "Creazione del container in corso"
 
-#: lxc/network_forward.go:167 lxc/network_forward.go:559
-#: lxc/network_forward.go:700 lxc/network_load_balancer.go:169
-#: lxc/network_load_balancer.go:562 lxc/network_load_balancer.go:704
+#: lxc/network_forward.go:169 lxc/network_forward.go:574
+#: lxc/network_forward.go:715 lxc/network_load_balancer.go:171
+#: lxc/network_load_balancer.go:577 lxc/network_load_balancer.go:719
 #, fuzzy
 msgid "[<remote>:]<network> <listen_address>"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_load_balancer.go:845
+#: lxc/network_load_balancer.go:860
 #, fuzzy
 msgid "[<remote>:]<network> <listen_address> <backend_name>"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_load_balancer.go:781
+#: lxc/network_load_balancer.go:796
 #, fuzzy
 msgid ""
 "[<remote>:]<network> <listen_address> <backend_name> <target_address> "
 "[<target_port(s)>]"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_forward.go:362 lxc/network_forward.go:529
-#: lxc/network_load_balancer.go:366 lxc/network_load_balancer.go:532
+#: lxc/network_forward.go:377 lxc/network_forward.go:544
+#: lxc/network_load_balancer.go:381 lxc/network_load_balancer.go:547
 #, fuzzy
 msgid "[<remote>:]<network> <listen_address> <key>"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_forward.go:431 lxc/network_load_balancer.go:434
+#: lxc/network_forward.go:446 lxc/network_load_balancer.go:449
 #, fuzzy
 msgid "[<remote>:]<network> <listen_address> <key>=<value>..."
 msgstr "Creazione del container in corso"
 
-#: lxc/network_load_balancer.go:946
+#: lxc/network_load_balancer.go:961
 #, fuzzy
 msgid ""
 "[<remote>:]<network> <listen_address> <protocol> <listen_port(s)> "
 "<backend_name>[,<backend_name>...]"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_forward.go:778
+#: lxc/network_forward.go:793
 msgid ""
 "[<remote>:]<network> <listen_address> <protocol> <listen_port(s)> "
 "<target_address> [<target_port(s)>]"
 msgstr ""
 
-#: lxc/network_forward.go:843 lxc/network_load_balancer.go:1007
+#: lxc/network_forward.go:858 lxc/network_load_balancer.go:1022
 #, fuzzy
 msgid "[<remote>:]<network> <listen_address> [<protocol>] [<listen_port(s)>]"
 msgstr "Creazione del container in corso"
@@ -7334,7 +7338,7 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:]<network> <profile> [<device name>] [<interface name>]"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_forward.go:232 lxc/network_load_balancer.go:234
+#: lxc/network_forward.go:234 lxc/network_load_balancer.go:236
 #, fuzzy
 msgid "[<remote>:]<network> [<listen_address>] [key=value...]"
 msgstr "Creazione del container in corso"
@@ -7607,7 +7611,7 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:][<pool>] [<filter>...]"
 msgstr "Creazione del container in corso"
 
-#: lxc/remote.go:87
+#: lxc/remote.go:88
 #, fuzzy
 msgid "[<remote>] <IP|FQDN|URL|token>"
 msgstr "Creazione del container in corso"
@@ -7617,7 +7621,7 @@ msgstr "Creazione del container in corso"
 msgid "[[<remote>:]<name>]"
 msgstr "Creazione del container in corso"
 
-#: lxc/project.go:488 lxc/remote.go:715
+#: lxc/project.go:488 lxc/remote.go:718
 msgid "current"
 msgstr ""
 
@@ -7980,7 +7984,7 @@ msgid ""
 "\t\tCreate a new custom volume using backup0.tar.gz as the source."
 msgstr ""
 
-#: lxc/remote.go:453
+#: lxc/remote.go:455
 #, fuzzy
 msgid "n"
 msgstr "no"
@@ -7993,7 +7997,7 @@ msgstr ""
 msgid "no"
 msgstr "no"
 
-#: lxc/remote.go:446
+#: lxc/remote.go:448
 msgid "ok (y/n/[fingerprint])?"
 msgstr ""
 
@@ -8030,7 +8034,7 @@ msgstr ""
 msgid "used by"
 msgstr ""
 
-#: lxc/remote.go:455
+#: lxc/remote.go:457
 msgid "y"
 msgstr ""
 

@@ -108,6 +108,9 @@ const qemuPCIDeviceIDStart = 4
 // qemuDeviceIDPrefix used as part of the name given QEMU devices generated from user added devices.
 const qemuDeviceIDPrefix = "dev-lxd_"
 
+// qemuDeviceNameMaxLength used to indicate the maximum length of a qemu device ID.
+const qemuDeviceIDMaxLength = 64
+
 // qemuDeviceNamePrefix used as part of the name given QEMU blockdevs, netdevs and device tags generated from user added devices.
 const qemuDeviceNamePrefix = "lxd_"
 
@@ -2143,12 +2146,14 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 				}
 			}
 
-			for _, mount := range runConf.Mounts {
+			for i, mount := range runConf.Mounts {
 				if mount.FSType == "9p" {
-					err = d.deviceAttachPath(dev.Name())
+					mountTag, err := d.deviceAttachPath(dev.Name())
 					if err != nil {
 						return nil, err
 					}
+
+					runConf.Mounts[i].Opts = append(runConf.Mounts[i].Opts, fmt.Sprintf("mountTag=%s", mountTag))
 				} else {
 					err = d.deviceAttachBlockDevice(mount)
 					if err != nil {
@@ -2177,15 +2182,15 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 	return runConf, nil
 }
 
-func (d *qemu) deviceAttachPath(deviceName string) error {
+func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) {
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	mountTag := d.generateQemuDeviceName(deviceName)
+	mountTag = d.generateQemuDeviceName(deviceName)
 
 	// Detect virtiofsd path.
 	virtiofsdSockPath := filepath.Join(d.DevicesPath(), fmt.Sprintf("virtio-fs.%s.sock", deviceName))
 	if !shared.PathExists(virtiofsdSockPath) {
-		return fmt.Errorf("Virtiofsd isn't running")
+		return "", fmt.Errorf("Virtiofsd isn't running")
 	}
 
 	reverter := revert.New()
@@ -2194,37 +2199,37 @@ func (d *qemu) deviceAttachPath(deviceName string) error {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
-		return fmt.Errorf("Failed to connect to QMP monitor: %w", err)
+		return "", fmt.Errorf("Failed to connect to QMP monitor: %w", err)
 	}
 
 	// Open a file descriptor to the socket file through O_PATH to avoid acessing the file descriptor to the sockfs inode.
 	socketFile, err := os.OpenFile(virtiofsdSockPath, unix.O_PATH|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return fmt.Errorf("Failed to open device socket file %q: %w", virtiofsdSockPath, err)
+		return "", fmt.Errorf("Failed to open device socket file %q: %w", virtiofsdSockPath, err)
 	}
 
 	shortPath := fmt.Sprintf("/dev/fd/%d", socketFile.Fd())
 
 	addr, err := net.ResolveUnixAddr("unix", shortPath)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	virtiofsSock, err := net.DialUnix("unix", nil, addr)
 	if err != nil {
-		return fmt.Errorf("Error connecting to virtiofs socket %q: %w", virtiofsdSockPath, err)
+		return "", fmt.Errorf("Error connecting to virtiofs socket %q: %w", virtiofsdSockPath, err)
 	}
 
 	defer func() { _ = virtiofsSock.Close() }() // Close file after device has been added.
 
 	virtiofsFile, err := virtiofsSock.File()
 	if err != nil {
-		return fmt.Errorf("Error opening virtiofs socket %q: %w", virtiofsdSockPath, err)
+		return "", fmt.Errorf("Error opening virtiofs socket %q: %w", virtiofsdSockPath, err)
 	}
 
 	err = monitor.SendFile(virtiofsdSockPath, virtiofsFile)
 	if err != nil {
-		return fmt.Errorf("Failed to send virtiofs file descriptor: %w", err)
+		return "", fmt.Errorf("Failed to send virtiofs file descriptor: %w", err)
 	}
 
 	reverter.Add(func() { _ = monitor.CloseFile(virtiofsdSockPath) })
@@ -2245,7 +2250,7 @@ func (d *qemu) deviceAttachPath(deviceName string) error {
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to add the character device: %w", err)
+		return "", fmt.Errorf("Failed to add the character device: %w", err)
 	}
 
 	reverter.Add(func() { _ = monitor.RemoveCharDevice(mountTag) })
@@ -2278,11 +2283,11 @@ func (d *qemu) deviceAttachPath(deviceName string) error {
 
 	err = monitor.AddDevice(qemuDev)
 	if err != nil {
-		return fmt.Errorf("Failed to add the virtiofs device: %w", err)
+		return "", fmt.Errorf("Failed to add the virtiofs device: %w", err)
 	}
 
 	reverter.Success()
-	return nil
+	return mountTag, nil
 }
 
 func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error {
@@ -5604,7 +5609,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	isRunning := d.IsRunning()
 
 	// Use the device interface to apply update changes.
-	err = d.devicesUpdate(d, removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning, userRequested)
+	devlxdEvents, err := d.devicesUpdate(d, removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning, userRequested)
 	if err != nil {
 		return err
 	}
@@ -5838,41 +5843,9 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			}
 		}
 
-		// Device changes
-		for k, m := range removeDevices {
-			msg := map[string]any{
-				"action": "removed",
-				"name":   k,
-				"config": m,
-			}
-
-			err = d.devlxdEventSend("device", msg)
-			if err != nil {
-				return err
-			}
-		}
-
-		for k, m := range updateDevices {
-			msg := map[string]any{
-				"action": "updated",
-				"name":   k,
-				"config": m,
-			}
-
-			err = d.devlxdEventSend("device", msg)
-			if err != nil {
-				return err
-			}
-		}
-
-		for k, m := range addDevices {
-			msg := map[string]any{
-				"action": "added",
-				"name":   k,
-				"config": m,
-			}
-
-			err = d.devlxdEventSend("device", msg)
+		// Device events.
+		for _, event := range devlxdEvents {
+			err = d.devlxdEventSend("device", event)
 			if err != nil {
 				return err
 			}
@@ -8922,19 +8895,31 @@ func (d *qemu) deviceDetachUSB(usbDev deviceConfig.USBDeviceItem) error {
 	return nil
 }
 
+// hashIfLonger returns a full or partial hash of a name as to fit it within a size limit.
+func hashIfLonger(name string, maxLength int) string {
+	if len(name) <= maxLength {
+		return name
+	}
+
+	// If the name is too long, hash it as SHA-256 (32 bytes).
+	// Then encode the SHA-256 binary hash as Base64 Raw URL format and trim down if needed.
+	hash := sha256.New()
+	hash.Write([]byte(name))
+	binaryHash := hash.Sum(nil)
+
+	// Raw URL avoids the use of "+" character and the padding "=" character which QEMU doesn't allow.
+	hashedName := base64.RawURLEncoding.EncodeToString(binaryHash)
+	if len(hashedName) > maxLength {
+		hashedName = hashedName[0:maxLength]
+	}
+
+	return hashedName
+}
+
 // Block node names and device tags may only be up to 31 characters long, so use a hash if longer.
 func (d *qemu) generateQemuDeviceName(name string) string {
 	maxNameLength := qemuDeviceNameMaxLength - len(qemuDeviceNamePrefix)
-	if len(name) > maxNameLength {
-		// If the name is too long, hash it as SHA-256 (32 bytes).
-		// Then encode the SHA-256 binary hash as Base64 Raw URL format and trim down to 27 chars.
-		// Raw URL avoids the use of "+" character and the padding "=" character which QEMU doesn't allow.
-		hash := sha256.New()
-		hash.Write([]byte(name))
-		binaryHash := hash.Sum(nil)
-		name = base64.RawURLEncoding.EncodeToString(binaryHash)
-		name = name[0:maxNameLength]
-	}
+	name = hashIfLonger(name, maxNameLength)
 
 	// Apply the lxd_ prefix.
 	return fmt.Sprintf("%s%s", qemuDeviceNamePrefix, name)

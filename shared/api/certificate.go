@@ -48,9 +48,15 @@ type CertificatesPost struct {
 	// API extension: certificate_self_renewal
 	Certificate string `json:"certificate" yaml:"certificate"`
 
-	// Server trust password (used to add an untrusted client)
+	// Server trust password (used to add an untrusted client, deprecated, use trust_token)
 	// Example: blah
-	Password string `json:"password" yaml:"password"`
+	Password string `json:"password" yaml:"password"` // Deprecated, use TrustToken.
+
+	// Trust token (used to add an untrusted client)
+	// Example: blah
+	//
+	// API extension: explicit_trust_token
+	TrustToken string `json:"trust_token" yaml:"trust_token"`
 
 	// Whether to create a certificate add token
 	// Example: true

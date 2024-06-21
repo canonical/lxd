@@ -534,15 +534,6 @@ func (d *powerflex) GetVolumeUsage(vol Volume) (int64, error) {
 // SetVolumeQuota applies a size limit on volume.
 // Does nothing if supplied with an empty/zero size.
 func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
-	inUse := vol.MountInUse()
-
-	// Only perform pre-resize checks if we are not in "unsafe" mode.
-	// In unsafe mode we expect the caller to know what they are doing and understand the risks.
-	if !allowUnsafeResize && inUse {
-		// We don't allow online resizing of block volumes.
-		return ErrInUse
-	}
-
 	// Convert to bytes.
 	sizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
@@ -554,27 +545,18 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 		return nil
 	}
 
-	// Ignore the cleanup as we have to unmap the volume later anyway.
-	devPath, _, err := d.getMappedDevPath(vol, true)
+	devPath, cleanup, err := d.getMappedDevPath(vol, true)
 	if err != nil {
 		return err
+	}
+
+	if cleanup != nil {
+		defer cleanup()
 	}
 
 	oldSizeBytes, err := BlockDiskSizeBytes(devPath)
 	if err != nil {
 		return fmt.Errorf("Error getting current size: %w", err)
-	}
-
-	volName, err := d.getVolumeName(vol)
-	if err != nil {
-		return err
-	}
-
-	// Ensure the volume is unmapped.
-	// Resizing the volume in PowerFlex whilst it is mapped to the system using NVMe/TCP will raise errors.
-	err = d.unmapVolume(volName)
-	if err != nil {
-		return err
 	}
 
 	// Do nothing if volume is already specified size (+/- 512 bytes).
@@ -594,6 +576,11 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 		return ErrNotSupported
 	}
 
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return err
+	}
+
 	client := d.client()
 	volumeID, err := client.getVolumeID(volName)
 	if err != nil {
@@ -611,16 +598,6 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 				return err
 			}
 
-			// Map the volume again to grow its filesystem.
-			devPath, cleanup, err := d.getMappedDevPath(vol, true)
-			if err != nil {
-				return err
-			}
-
-			if cleanup != nil {
-				defer cleanup()
-			}
-
 			// Grow the filesystem to fill block device.
 			err = growFileSystem(fsType, devPath, vol)
 			if err != nil {
@@ -628,20 +605,19 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 			}
 		}
 	} else {
+		inUse := vol.MountInUse()
+
+		// Only perform pre-resize checks if we are not in "unsafe" mode.
+		// In unsafe mode we expect the caller to know what they are doing and understand the risks.
+		if !allowUnsafeResize && inUse {
+			// We don't allow online resizing of block volumes.
+			return ErrInUse
+		}
+
 		// Resize block device.
 		err = client.setVolumeSize(volumeID, sizeBytes/factorGiB)
 		if err != nil {
 			return err
-		}
-
-		// Map the volume again to allow moving the GPT alt header.
-		devPath, cleanup, err := d.getMappedDevPath(vol, true)
-		if err != nil {
-			return err
-		}
-
-		if cleanup != nil {
-			defer cleanup()
 		}
 
 		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as it is
@@ -753,11 +729,6 @@ func (d *powerflex) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.
 	mountPath := vol.MountPath()
 	refCount := vol.MountRefCountDecrement()
 
-	volName, err := d.getVolumeName(vol)
-	if err != nil {
-		return false, err
-	}
-
 	// Attempt to unmount the volume.
 	if vol.contentType == ContentTypeFS && filesystem.IsMountPoint(mountPath) {
 		if refCount > 0 {
@@ -774,7 +745,7 @@ func (d *powerflex) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.
 
 		// Attempt to unmap.
 		if !keepBlockDev {
-			err = d.unmapVolume(volName)
+			err = d.unmapVolume(vol)
 			if err != nil {
 				return false, err
 			}
@@ -801,7 +772,7 @@ func (d *powerflex) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.
 				}
 
 				// Attempt to unmap.
-				err := d.unmapVolume(volName)
+				err := d.unmapVolume(vol)
 				if err != nil {
 					return false, err
 				}
