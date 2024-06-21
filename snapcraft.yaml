@@ -322,11 +322,7 @@ parts:
     source-type: git
     plugin: nil
     build-packages:
-      - on amd64:
-        - g++
-        - acpica-tools
-        - uuid-dev
-      - on arm64:
+      - on amd64,arm64:
         - g++
         - acpica-tools
         - uuid-dev
