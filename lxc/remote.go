@@ -558,7 +558,9 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		if c.flagAuthType == api.AuthenticationMethodTLS {
 			req := api.CertificatesPost{}
 
-			if d.(lxd.InstanceServer).HasExtension("explicit_trust_token") {
+			// If the password flag isn't provided and the server supports the explicit_trust_token extension,
+			// use the token instead and prompt for it if not present.
+			if d.(lxd.InstanceServer).HasExtension("explicit_trust_token") && c.flagPassword == "" {
 				// Prompt for trust token.
 				if c.flagToken == "" {
 					c.flagToken, err = c.global.asker.AskString(fmt.Sprintf(i18n.G("Trust token for %s: "), server), "", nil)
