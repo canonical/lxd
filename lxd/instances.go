@@ -34,9 +34,9 @@ var instancesCmd = APIEndpoint{
 		{Name: "vms", Path: "virtual-machines"},
 	},
 
-	Get:  APIEndpointAction{Handler: instancesGet, AccessHandler: allowAuthenticated},
+	Get:  APIEndpointAction{Handler: instancesGet, AccessHandler: allowProjectResourceList},
 	Post: APIEndpointAction{Handler: instancesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateInstances)},
-	Put:  APIEndpointAction{Handler: instancesPut, AccessHandler: allowAuthenticated},
+	Put:  APIEndpointAction{Handler: instancesPut, AccessHandler: allowProjectResourceList},
 }
 
 var instanceCmd = APIEndpoint{

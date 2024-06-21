@@ -47,26 +47,26 @@ import (
 var storageVolumesCmd = APIEndpoint{
 	Path: "storage-volumes",
 
-	Get: APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowAuthenticated},
+	Get: APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectResourceList},
 }
 
 var storageVolumesTypeCmd = APIEndpoint{
 	Path: "storage-volumes/{type}",
 
-	Get: APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowAuthenticated},
+	Get: APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectResourceList},
 }
 
 var storagePoolVolumesCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/volumes",
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowAuthenticated},
+	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectResourceList},
 	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes)},
 }
 
 var storagePoolVolumesTypeCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/volumes/{type}",
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowAuthenticated},
+	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectResourceList},
 	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes)},
 }
 
