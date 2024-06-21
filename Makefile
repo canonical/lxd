@@ -91,7 +91,6 @@ ifneq "$(LXD_OFFLINE)" ""
 endif
 	go get -t -v -d -u ./...
 	go mod tidy -go=$(GOMIN)
-	go get toolchain@none
 
 	@echo "Dependencies updated"
 
