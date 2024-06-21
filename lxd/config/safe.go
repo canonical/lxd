@@ -5,7 +5,7 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // SafeLoad is a wrapper around Load() that does not error when invalid keys

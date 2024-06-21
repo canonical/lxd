@@ -3,7 +3,7 @@ package openvswitch
 import (
 	"os/exec"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/shared"
 )
 
 // NewOVS initialises new OVS wrapper.

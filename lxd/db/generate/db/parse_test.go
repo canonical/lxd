@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lxc/lxd/lxd/db/generate/db"
+	"github.com/canonical/lxd/lxd/db/generate/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

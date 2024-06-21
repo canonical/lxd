@@ -121,5 +121,5 @@ navigation:
           external: true
 
         - title: Image server
-          location: https://images.linuxcontainers.org
+          location: https://images.lxd.canonical.com
           external: true

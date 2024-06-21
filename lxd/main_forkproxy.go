@@ -16,13 +16,13 @@ import (
 	"golang.org/x/sys/unix"
 
 	// Used by cgo
-	_ "github.com/lxc/lxd/lxd/include"
+	_ "github.com/canonical/lxd/lxd/include"
 
-	"github.com/lxc/lxd/lxd/daemon"
-	"github.com/lxc/lxd/lxd/device"
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/netutils"
+	"github.com/canonical/lxd/lxd/daemon"
+	"github.com/canonical/lxd/lxd/device"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/netutils"
 )
 
 /*

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // Internal copy of the volume interface.

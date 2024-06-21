@@ -3,7 +3,7 @@
 
 package db
 
-import "github.com/lxc/lxd/lxd/db/query"
+import "github.com/canonical/lxd/lxd/db/query"
 
 // Code generation directives.
 //

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/lxc/lxd/shared/i18n"
+	"github.com/canonical/lxd/shared/i18n"
 	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v2"
 )

@@ -6,8 +6,8 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxd/sys"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/lxd/sys"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // Type indicates the type of backup.

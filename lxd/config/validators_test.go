@@ -3,7 +3,7 @@ package config_test
 import (
 	"testing"
 
-	"github.com/lxc/lxd/lxd/config"
+	"github.com/canonical/lxd/lxd/config"
 	"github.com/stretchr/testify/assert"
 )
 

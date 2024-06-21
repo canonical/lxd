@@ -6,7 +6,7 @@ package db
 import (
 	"database/sql"
 
-	"github.com/lxc/lxd/lxd/db/schema"
+	"github.com/canonical/lxd/lxd/db/schema"
 )
 
 // LegacyPatch is a "database" update that performs non-database work. They
