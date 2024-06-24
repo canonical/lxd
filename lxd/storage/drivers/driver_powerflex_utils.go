@@ -1077,31 +1077,29 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 // connectNVMeSubsys connects this host to the NVMe subsystem configured in the storage pool.
 // The connection can only be established after the first volume is mapped to this host.
 func (d *powerflex) connectNVMeSubsys() error {
-	stdout, err := shared.RunCommand("nvme", "list-subsys", "-o", "json")
-	if err != nil {
-		return fmt.Errorf("Failed getting list of NVMe/TCP subsystems: %w", err)
-	}
-
-	var allSubSystems struct {
-		SubSystems []struct {
-			NQN   string `json:"NQN"`
-			Paths []any  `json:"Paths"`
-		} `json:"Subsystems"`
-	}
-
-	decoder := json.NewDecoder(strings.NewReader(stdout))
-	err = decoder.Decode(&allSubSystems)
-	if err != nil {
-		return fmt.Errorf("Failed to parse list of NVMe/TCP subsystems: %w", err)
-	}
-
 	pool, err := d.resolvePool()
 	if err != nil {
 		return err
 	}
 
-	for _, subSystem := range allSubSystems.SubSystems {
-		if strings.Contains(subSystem.NQN, pool.ProtectionDomainID) {
+	basePath := "/sys/devices/virtual/nvme-subsystem"
+
+	// Retrieve list of existing NVMe subsystems on this host.
+	directories, err := os.ReadDir(basePath)
+	if err != nil {
+		return fmt.Errorf("Failed getting a list of NVMe subsystems: %w", err)
+	}
+
+	for _, directory := range directories {
+		subsystemName := directory.Name()
+
+		// Get the subsystem's NQN.
+		nqnBytes, err := os.ReadFile(filepath.Join(basePath, subsystemName, "subsysnqn"))
+		if err != nil {
+			return fmt.Errorf("Failed getting the NQN of subystem %q: %w", subsystemName, err)
+		}
+
+		if strings.Contains(string(nqnBytes), pool.ProtectionDomainID) {
 			// Already connected to the NVMe subsystem for the storage pools protection ID.
 			return nil
 		}
