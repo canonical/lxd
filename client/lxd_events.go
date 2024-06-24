@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/gorilla/websocket"
 )
 
 // Event handling functions

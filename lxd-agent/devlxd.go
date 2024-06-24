@@ -10,12 +10,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gorilla/mux"
 	"github.com/canonical/lxd/lxd/daemon"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
+	"github.com/gorilla/mux"
 )
 
 // DevLxdServer creates an http.Server capable of handling requests against the

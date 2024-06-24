@@ -11,8 +11,6 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/operations"
@@ -26,6 +24,8 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
+	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 )
 
 var storagePoolVolumesCmd = APIEndpoint{
