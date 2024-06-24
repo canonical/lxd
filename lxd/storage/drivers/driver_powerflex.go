@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/dell/goscaleio"
+
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
@@ -32,6 +34,10 @@ type powerflex struct {
 	// Holds the low level HTTP client for the PowerFlex API.
 	// Use powerflex.client() to retrieve the client struct.
 	httpClient *powerFlexClient
+
+	// Holds the SDC GUID of this specific host.
+	// Use powerflex.getHostGUID() to retrieve the actual value.
+	sdcGUID string
 }
 
 // load is used to run one-time action per-driver rather than per-pool.
@@ -92,9 +98,14 @@ func (d *powerflex) FillConfig() error {
 		d.config["powerflex.user.name"] = powerFlexDefaultUser
 	}
 
+	// Try to discover the PowerFlex operation mode.
+	// First try if the NVMe/TCP kernel modules can be loaed.
+	// Second try if the SDC kernel module is setup.
 	if d.config["powerflex.mode"] == "" {
 		if d.loadNVMeModules() {
 			d.config["powerflex.mode"] = powerFlexModeNVMe
+		} else if goscaleio.DrvCfgIsSDCInstalled() {
+			d.config["powerflex.mode"] = powerFlexModeSDC
 		}
 	}
 
@@ -125,15 +136,11 @@ func (d *powerflex) Create() error {
 		return fmt.Errorf("The powerflex.gateway cannot be empty")
 	}
 
-	// Fail if no PowerFlex mode can be discovered.
-	if d.config["powerflex.mode"] == "" {
-		return fmt.Errorf("Failed to discover PowerFlex mode")
-	}
-
 	client := d.client()
 
-	// Discover one of the storage pools SDS services.
-	if d.config["powerflex.mode"] == powerFlexModeNVMe {
+	switch d.config["powerflex.mode"] {
+	case powerFlexModeNVMe:
+		// Discover one of the storage pools SDT services.
 		if d.config["powerflex.sdt"] == "" {
 			pool, err := d.resolvePool()
 			if err != nil {
@@ -155,6 +162,19 @@ func (d *powerflex) Create() error {
 
 			d.config["powerflex.sdt"] = relations[0].IPList[0].IP
 		}
+
+	case powerFlexModeSDC:
+		if d.config["powerflex.sdt"] != "" {
+			return fmt.Errorf("The powerflex.sdt config key is specific to the NVMe/TCP mode")
+		}
+
+		if !goscaleio.DrvCfgIsSDCInstalled() {
+			return fmt.Errorf("PowerFlex SDC is not available on the host")
+		}
+
+	default:
+		// Fail if no PowerFlex mode can be discovered.
+		return fmt.Errorf("Failed to discover PowerFlex mode")
 	}
 
 	return nil
@@ -214,12 +234,12 @@ func (d *powerflex) Validate(config map[string]string) error {
 		"powerflex.domain": validate.Optional(validate.IsAny),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.mode)
 		// The mode gets discovered automatically if the system provides the necessary kernel modules.
-		// Currently, only `nvme` is supported.
+		// This can be either `nvme` or `sdc`.
 		// ---
 		//  type: string
 		//  defaultdesc: the discovered mode
 		//  shortdesc: How volumes are mapped to the local server
-		"powerflex.mode": validate.Optional(validate.IsOneOf("nvme")),
+		"powerflex.mode": validate.Optional(validate.IsOneOf("nvme", "sdc")),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.sdt)
 		//
 		// ---
