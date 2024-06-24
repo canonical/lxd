@@ -1,5 +1,3 @@
-github.com/gorilla/websocket
-github.com/juju/persistent-cookiejar
 github.com/canonical/lxd/client
 github.com/canonical/lxd/shared
 github.com/canonical/lxd/shared/api
@@ -8,6 +6,8 @@ github.com/canonical/lxd/shared/ioprogress
 github.com/canonical/lxd/shared/logger
 github.com/canonical/lxd/shared/simplestreams
 github.com/canonical/lxd/shared/units
+github.com/gorilla/websocket
+github.com/juju/persistent-cookiejar
 github.com/pkg/errors
 gopkg.in/inconshreveable/log15.v2
 gopkg.in/juju/environschema.v1/form
