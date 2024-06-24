@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gorilla/mux"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/gorilla/mux"
 )
 
 // swagger:operation DELETE /1.0/instances/{name} instances instance_delete

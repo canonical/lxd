@@ -8,9 +8,9 @@ import (
 
 	"github.com/pborman/uuid"
 
-	"github.com/gorilla/websocket"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/gorilla/websocket"
 )
 
 // DevLXDServer represents an instance of an devlxd event server.

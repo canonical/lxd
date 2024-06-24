@@ -7,7 +7,6 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/gorilla/mux"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
@@ -15,6 +14,7 @@ import (
 	lxdRequest "github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/gorilla/mux"
 )
 
 // swagger:operation GET / server api_get
