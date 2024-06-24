@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dell/goscaleio"
 	"github.com/google/uuid"
 	"golang.org/x/sys/unix"
 
@@ -37,6 +38,7 @@ const powerFlexISOVolSuffix = ".i"
 const powerFlexCodeVolumeNotFound = 79
 const powerFlexCodeDomainNotFound = 142
 const powerFlexCodeNameTooLong = 226
+const powerFlexInvalidMapping = 4039
 
 type powerFlexVolumeType string
 type powerFlexSnapshotMode string
@@ -132,12 +134,15 @@ type powerFlexProtectionDomainSDTRelation struct {
 	} `json:"ipList"`
 }
 
-// powerFlexSDC represents a SDC in PowerFlex.
+// powerFlexSDC represents a SDC host in PowerFlex.
+// The same data structure is used to identify NVMe/TCP hosts.
 type powerFlexSDC struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	HostType string `json:"hostType"`
 	NQN      string `json:"nqn"`
+	SDCGuid  string `json:"sdcGuid"`
+	SystemID string `json:"systemId"`
 }
 
 // powerFlexVolume represents a volume in PowerFlex.
@@ -603,6 +608,23 @@ func (p *powerFlexClient) getNVMeHosts() ([]powerFlexSDC, error) {
 	return nvmeHosts, nil
 }
 
+// getSDCHosts returns all SDC hosts.
+func (p *powerFlexClient) getSDCHosts() ([]powerFlexSDC, error) {
+	allHosts, err := p.getHosts()
+	if err != nil {
+		return nil, err
+	}
+
+	var sdcHosts []powerFlexSDC
+	for _, host := range allHosts {
+		if host.HostType == "SdcHost" {
+			sdcHosts = append(sdcHosts, host)
+		}
+	}
+
+	return sdcHosts, nil
+}
+
 // getNVMeHostByNQN returns the NVMe host matching the nqn.
 func (p *powerFlexClient) getNVMeHostByNQN(nqn string) (*powerFlexSDC, error) {
 	allNVMeHosts, err := p.getNVMeHosts()
@@ -617,6 +639,22 @@ func (p *powerFlexClient) getNVMeHostByNQN(nqn string) (*powerFlexSDC, error) {
 	}
 
 	return nil, api.StatusErrorf(http.StatusNotFound, "Host not found using nqn: %q", nqn)
+}
+
+// getSDCHostByGUID returns the SDC host matching the GUID.
+func (p *powerFlexClient) getSDCHostByGUID(guid string) (*powerFlexSDC, error) {
+	allSDCHosts, err := p.getSDCHosts()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, host := range allSDCHosts {
+		if host.SDCGuid == guid {
+			return &host, nil
+		}
+	}
+
+	return nil, api.StatusErrorf(http.StatusNotFound, "Host not found using GUID: %q", guid)
 }
 
 // createHost creates a new host.
@@ -671,6 +709,7 @@ func (p *powerFlexClient) createHostVolumeMapping(hostID string, volumeID string
 }
 
 // deleteHostVolumeMapping deletes the mapping between a host and volume.
+// Set hostIdentification to either its hostID in PowerFlex or SDC guid.
 func (p *powerFlexClient) deleteHostVolumeMapping(hostID string, volumeID string) error {
 	body, err := p.createBodyReader(map[string]any{
 		"hostId": hostID,
@@ -681,6 +720,14 @@ func (p *powerFlexClient) deleteHostVolumeMapping(hostID string, volumeID string
 
 	err = p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/Volume::%s/action/removeMappedHost", volumeID), body, nil)
 	if err != nil {
+		powerFlexError, ok := err.(*powerFlexError)
+		if ok {
+			// API returns 500 if the mapping doesn't anymore exist.
+			// To not confuse it with other 500 that might occur check the error code too.
+			if powerFlexError.HTTPStatusCode() == http.StatusInternalServerError && powerFlexError.ErrorCode() == powerFlexInvalidMapping {
+				return api.StatusErrorf(http.StatusNotFound, "The mapping between %q and %q does not exist", hostID, volumeID)
+			}
+		}
 		return fmt.Errorf("Failed to delete host volume mapping between %q and %q: %w", hostID, volumeID, err)
 	}
 
@@ -725,6 +772,22 @@ func (d *powerflex) client() *powerFlexClient {
 // requires the nvme-cli package to be installed on the host.
 func (d *powerflex) getHostNQN() string {
 	return fmt.Sprintf("nqn.2014-08.org.nvmexpress:uuid:%s", d.state.ServerUUID)
+}
+
+// getHostGUID returns the SDC GUID.
+// The GUID is unique for a single host.
+// Cache the GUID as it never changes for a single host.
+func (d *powerflex) getHostGUID() (string, error) {
+	if d.sdcGUID == "" {
+		guid, err := goscaleio.DrvCfgQueryGUID()
+		if err != nil {
+			return "", fmt.Errorf("Failed to query SDC GUID: %w", err)
+		}
+
+		d.sdcGUID = guid
+	}
+
+	return d.sdcGUID, nil
 }
 
 // getServerName returns the hostname of this host.
@@ -850,6 +913,19 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 		}
 
 		reverter.Add(cleanup)
+	case powerFlexModeSDC:
+		hostGUID, err := d.getHostGUID()
+		if err != nil {
+			return nil, err
+		}
+
+		client := d.client()
+		host, err := client.getSDCHostByGUID(hostGUID)
+		if err != nil {
+			return nil, err
+		}
+
+		hostID = host.ID
 	}
 
 	volumeName, err := d.getVolumeName(vol)
@@ -926,7 +1002,7 @@ func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert
 
 		// If there are no other disks on the system by id, the directory might not even be there.
 		// Returns ENOENT in case the by-id/ directory does not exist.
-		diskPaths, err := resources.GetDisksByID(fmt.Sprintf("%s%s", diskPrefix, volumeID))
+		diskPaths, err := resources.GetDisksByID(diskPrefix)
 		if err != nil {
 			return err
 		}
@@ -977,6 +1053,8 @@ func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert
 		switch d.config["powerflex.mode"] {
 		case powerFlexModeNVMe:
 			prefix = "nvme-eui."
+		case powerFlexModeSDC:
+			prefix = "emc-vol-"
 		}
 
 		err := discoverFunc(powerFlexVolumeID, prefix)
@@ -1046,6 +1124,16 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 		}
 
 		defer unlock()
+	case powerFlexModeSDC:
+		hostGUID, err := d.getHostGUID()
+		if err != nil {
+			return err
+		}
+
+		host, err = client.getSDCHostByGUID(hostGUID)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = client.deleteHostVolumeMapping(host.ID, volume)
@@ -1064,6 +1152,9 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 		}
 	}
 
+	// In case of SDC the driver doesn't manage the underlying connection to PowerFlex.
+	// Therefore if this was the last volume being unmapped from this system
+	// LXD will not try to cleanup the connection.
 	if d.config["powerflex.mode"] == powerFlexModeNVMe {
 		mappings, err := client.getHostVolumeMappings(host.ID)
 		if err != nil {
