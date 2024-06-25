@@ -77,6 +77,8 @@ ifneq "$(LXD_OFFLINE)" ""
 endif
 	go get -t -v -d -u ./...
 	go get github.com/mdlayher/socket@v0.4.1
+	go get github.com/digitalocean/go-libvirt@v0.0.0-20221205150000-2939327a8519
+	go get github.com/jaypipes/pcidb@v1.0.0
 	go mod tidy --go=1.19
 	go get toolchain@none
 
