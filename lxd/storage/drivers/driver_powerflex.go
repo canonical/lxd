@@ -18,6 +18,11 @@ const powerFlexDefaultUser = "admin"
 // powerFlexDefaultSize represents the default PowerFlex volume size.
 const powerFlexDefaultSize = "8GiB"
 
+const (
+	powerFlexModeNVMe = "nvme"
+	powerFlexModeSDC  = "sdc"
+)
+
 var powerFlexLoaded bool
 var powerFlexVersion string
 
@@ -89,7 +94,7 @@ func (d *powerflex) FillConfig() error {
 
 	if d.config["powerflex.mode"] == "" {
 		if d.loadNVMeModules() {
-			d.config["powerflex.mode"] = "nvme"
+			d.config["powerflex.mode"] = powerFlexModeNVMe
 		}
 	}
 
@@ -128,7 +133,7 @@ func (d *powerflex) Create() error {
 	client := d.client()
 
 	// Discover one of the storage pools SDS services.
-	if d.config["powerflex.mode"] == "nvme" {
+	if d.config["powerflex.mode"] == powerFlexModeNVMe {
 		if d.config["powerflex.sdt"] == "" {
 			pool, err := d.resolvePool()
 			if err != nil {
@@ -251,7 +256,7 @@ func (d *powerflex) Validate(config map[string]string) error {
 	// on the other cluster members too. This can be done here since Validate
 	// gets executed on every cluster member when receiving the cluster
 	// notification to finally create the pool.
-	if d.config["powerflex.mode"] == "nvme" && !d.loadNVMeModules() {
+	if d.config["powerflex.mode"] == powerFlexModeNVMe && !d.loadNVMeModules() {
 		return fmt.Errorf("NVMe/TCP is not supported")
 	}
 
