@@ -1018,8 +1018,8 @@ func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert
 	return powerFlexVolumePath, cleanup, nil
 }
 
-// unmapNVMeVolume unmaps the given NVMe volume from this host.
-func (d *powerflex) unmapNVMeVolume(vol Volume) error {
+// unmapVolume unmaps the given volume from this host.
+func (d *powerflex) unmapVolume(vol Volume) error {
 	volumeName, err := d.getVolumeName(vol)
 	if err != nil {
 		return err
@@ -1031,18 +1031,22 @@ func (d *powerflex) unmapNVMeVolume(vol Volume) error {
 		return err
 	}
 
-	nqn := d.getHostNQN()
-	host, err := client.getNVMeHostByNQN(nqn)
-	if err != nil {
-		return err
-	}
+	var host *powerFlexSDC
+	switch d.config["powerflex.mode"] {
+	case "nvme":
+		nqn := d.getHostNQN()
+		host, err = client.getNVMeHostByNQN(nqn)
+		if err != nil {
+			return err
+		}
 
-	unlock, err := locking.Lock(d.state.ShutdownCtx, "nvme")
-	if err != nil {
-		return err
-	}
+		unlock, err := locking.Lock(d.state.ShutdownCtx, "nvme")
+		if err != nil {
+			return err
+		}
 
-	defer unlock()
+		defer unlock()
+	}
 
 	err = client.deleteHostVolumeMapping(host.ID, volume)
 	if err != nil {
@@ -1056,41 +1060,34 @@ func (d *powerflex) unmapNVMeVolume(vol Volume) error {
 		defer cancel()
 
 		if !waitGone(ctx, volumePath) {
-			return fmt.Errorf("Timeout whilst waiting for volume to disappear: %q", vol.name)
+			return fmt.Errorf("Timeout whilst waiting for PowerFlex volume to disappear: %q", vol.name)
 		}
 	}
 
-	mappings, err := client.getHostVolumeMappings(host.ID)
-	if err != nil {
-		return err
-	}
-
-	if len(mappings) == 0 {
-		// Disconnect from the NVMe subsystem.
-		// Do this first before removing the host from PowerFlex.
-		err := d.disconnectNVMeSubsys()
+	if d.config["powerflex.mode"] == "nvme" {
+		mappings, err := client.getHostVolumeMappings(host.ID)
 		if err != nil {
 			return err
 		}
 
-		// Delete the host from PowerFlex if the last volume mapping got removed.
-		// This requires the host to be already disconnected from the NVMe subsystem.
-		err = d.deleteNVMeHost()
-		if err != nil {
-			return err
+		if len(mappings) == 0 {
+			// Disconnect from the NVMe subsystem.
+			// Do this first before removing the host from PowerFlex.
+			err := d.disconnectNVMeSubsys()
+			if err != nil {
+				return err
+			}
+
+			// Delete the host from PowerFlex if the last volume mapping got removed.
+			// This requires the host to be already disconnected from the NVMe subsystem.
+			err = d.deleteNVMeHost()
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
-}
-
-// unmapVolume unmaps the given volume from this host.
-func (d *powerflex) unmapVolume(vol Volume) error {
-	if d.config["powerflex.mode"] == "nvme" {
-		return d.unmapNVMeVolume(vol)
-	}
-
-	return ErrNotSupported
 }
 
 // connectNVMeSubsys connects this host to the NVMe subsystem configured in the storage pool.
