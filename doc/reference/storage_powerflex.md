@@ -3,11 +3,15 @@
 
 [Dell PowerFlex](https://www.dell.com/en-us/shop/powerflex/sf/powerflex) is a software-defined storage solution from [Dell Technologies](https://www.dell.com/). Among other things it offers the consumption of redundant block storage across the network.
 
-LXD offers access to PowerFlex storage clusters by making use of the NVMe/TCP transport protocol.
+LXD offers access to PowerFlex storage clusters using either NVMe/TCP or Dell's Storage Data Client (SDC).
 In addition, PowerFlex offers copy-on-write snapshots, thin provisioning and other features.
 
-To use PowerFlex, make sure you have the required kernel modules installed on your host system.
+To use PowerFlex with NVMe/TCP, make sure you have the required kernel modules installed on your host system.
 On Ubuntu these are `nvme_fabrics` and `nvme_tcp`, which come bundled in the `linux-modules-extra-$(uname -r)` package.
+LXD takes care of connecting to the respective subsystem.
+
+When using the SDC, LXD requires it to already be connected to the Dell Metadata Manager (MDM) beforehand.
+As LXD doesn't set up the SDC, follow the official guides from Dell for configuration details.
 
 ## Terminology
 
@@ -17,9 +21,11 @@ A *protection domain* contains storage pools, which represent a set of physical 
 LXD creates its volumes in those storage pools.
 
 You can take a snapshot of any volume in PowerFlex, which will create an independent copy of the parent volume.
-PowerFlex volumes get added as a NVMe drive to the respective LXD host the volume got mapped to.
-For this, the LXD host connects to one or multiple NVMe {abbr}`SDT (storage data targets)` provided by PowerFlex.
+PowerFlex volumes get added as a drive to the respective LXD host the volume got mapped to.
+In case of NVMe/TCP, the LXD host connects to one or multiple NVMe {abbr}`SDT (storage data targets)` provided by PowerFlex.
 Those SDT run as components on the PowerFlex storage layer.
+In case of SDC, the LXD hosts don't set up any connection by themselves.
+Instead they depend on the SDC to make the volumes available on the system for consumption.
 
 ## `powerflex` driver in LXD
 
@@ -35,14 +41,14 @@ This driver behaves differently than some of the other drivers in that it provid
 As a result and depending on the internal network, storage access might be a bit slower than for local storage.
 On the other hand, using remote storage has big advantages in a cluster setup, because all cluster members have access to the same storage pools with the exact same contents, without the need to synchronize storage pools.
 
-When creating a new storage pool using the `powerflex` driver, LXD tries to discover one of the SDT from the given storage pool.
+When creating a new storage pool using the `powerflex` driver in `nvme` mode, LXD tries to discover one of the SDT from the given storage pool.
 Alternatively, you can specify which SDT to use with {config:option}`storage-powerflex-pool-conf:powerflex.sdt`.
 LXD instructs the NVMe initiator to connect to all the other SDT when first connecting to the subsystem.
 
 Due to the way copy-on-write works in PowerFlex, snapshots of any volume don't rely on its parent.
 As a result, volume snapshots are fully functional volumes themselves, and it's possible to take additional snapshots from such volume snapshots.
 This tree of dependencies is called the *PowerFlex vTree*.
-Both volumes and their snapshots get added as standalone NVMe disks to the LXD host.
+Both volumes and their snapshots get added as standalone disks to the LXD host.
 
 (storage-powerflex-volume-names)=
 ### Volume names
