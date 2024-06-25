@@ -17,11 +17,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -2184,7 +2182,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 
 func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) {
 	deviceID := qemuDeviceNameOrID(qemuDeviceIDPrefix, deviceName, "-virtio-fs", qemuDeviceIDMaxLength)
-	mountTag = d.generateQemuDeviceName(deviceName)
+	mountTag = qemuDeviceNameOrID(qemuDeviceNamePrefix, deviceName, "", qemuDeviceNameMaxLength)
 
 	// Detect virtiofsd path.
 	virtiofsdSockPath := filepath.Join(d.DevicesPath(), fmt.Sprintf("virtio-fs.%s.sock", filesystem.PathNameEncode(deviceName)))
@@ -2352,7 +2350,7 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 	}
 
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, filesystem.PathNameEncode(deviceName))
-	blockDevName := d.generateQemuDeviceName(deviceName)
+	blockDevName := qemuDeviceNameOrID(qemuDeviceNamePrefix, deviceName, "", qemuDeviceNameMaxLength)
 
 	err = monitor.RemoveFDFromFDSet(blockDevName)
 	if err != nil {
@@ -3730,7 +3728,7 @@ func (d *qemu) addRootDriveConfig(qemuDev map[string]string, mountInfo *storageP
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
 func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os.File, agentMounts *[]instancetype.VMAgentMount, driveConf deviceConfig.MountEntryItem) error {
-	mountTag := d.generateQemuDeviceName(driveConf.DevName)
+	mountTag := qemuDeviceNameOrID(qemuDeviceNamePrefix, driveConf.DevName, "", qemuDeviceNameMaxLength)
 
 	agentMount := instancetype.VMAgentMount{
 		Source: mountTag,
@@ -3961,7 +3959,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 		},
 		"discard":   "unmap", // Forward as an unmap request. This is the same as `discard=on` in the qemu config file.
 		"driver":    "file",
-		"node-name": d.generateQemuDeviceName(driveConf.DevName),
+		"node-name": qemuDeviceNameOrID(qemuDeviceNamePrefix, driveConf.DevName, "", qemuDeviceNameMaxLength),
 		"read-only": false,
 	}
 
@@ -8670,7 +8668,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 
 	// Check io_uring feature.
 	blockDev := map[string]any{
-		"node-name": d.generateQemuDeviceName("feature-check"),
+		"node-name": fmt.Sprintf("%s%s", qemuDeviceNamePrefix, "feature-check"),
 		"driver":    "file",
 		"filename":  blockDevPath.Name(),
 		"aio":       "io_uring",
@@ -8889,37 +8887,6 @@ func (d *qemu) deviceDetachUSB(usbDev deviceConfig.USBDeviceItem) error {
 	}
 
 	return nil
-}
-
-// hashIfLonger returns a full or partial hash of a name as to fit it within a size limit.
-func hashIfLonger(name string, maxLength int) string {
-	if len(name) <= maxLength {
-		return name
-	}
-
-	// If the name is too long, hash it as SHA-256 (32 bytes).
-	// Then encode the SHA-256 binary hash as Base64 Raw URL format and trim down if needed.
-	hash := sha256.New()
-	hash.Write([]byte(name))
-	binaryHash := hash.Sum(nil)
-
-	// Raw URL avoids the use of "+" character and the padding "=" character which QEMU doesn't allow.
-	hashedName := base64.RawURLEncoding.EncodeToString(binaryHash)
-	if len(hashedName) > maxLength {
-		hashedName = hashedName[0:maxLength]
-	}
-
-	return hashedName
-}
-
-// Block node names and device tags may only be up to 31 characters long, so use a hash if longer.
-// Also escapes / to -, and - to --.
-func (d *qemu) generateQemuDeviceName(name string) string {
-	maxNameLength := qemuDeviceNameMaxLength - len(qemuDeviceNamePrefix)
-	name = hashIfLonger(filesystem.PathNameEncode(name), maxNameLength)
-
-	// Apply the lxd_ prefix.
-	return fmt.Sprintf("%s%s", qemuDeviceNamePrefix, name)
 }
 
 func (d *qemu) setCPUs(count int) error {
