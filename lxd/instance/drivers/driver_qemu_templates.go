@@ -892,8 +892,9 @@ type qemuTPMOpts struct {
 }
 
 func qemuTPM(opts *qemuTPMOpts) []cfgSection {
-	chardev := fmt.Sprintf("qemu_tpm-chardev_%s", opts.devName)
-	tpmdev := fmt.Sprintf("qemu_tpm-tpmdev_%s", opts.devName)
+	chardev := qemuDeviceNameOrID("qemu_tpm-chardev_", opts.devName, "", qemuDeviceIDMaxLength)
+	tpmdev := qemuDeviceNameOrID("qemu_tpm-tpmdev_", opts.devName, "", qemuDeviceIDMaxLength)
+	device := qemuDeviceNameOrID(qemuDeviceIDPrefix, opts.devName, "", qemuDeviceIDMaxLength)
 
 	return []cfgSection{{
 		name: fmt.Sprintf(`chardev "%s"`, chardev),
@@ -908,7 +909,7 @@ func qemuTPM(opts *qemuTPMOpts) []cfgSection {
 			{key: "chardev", value: chardev},
 		},
 	}, {
-		name: fmt.Sprintf(`device "dev-lxd_%s"`, opts.devName),
+		name: fmt.Sprintf(`device "%s"`, device),
 		entries: []cfgEntry{
 			{key: "driver", value: "tpm-crb"},
 			{key: "tpmdev", value: tpmdev},
