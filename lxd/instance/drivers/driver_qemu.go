@@ -109,7 +109,7 @@ const qemuPCIDeviceIDStart = 4
 const qemuDeviceIDPrefix = "dev-lxd_"
 
 // qemuDeviceNameMaxLength used to indicate the maximum length of a qemu device ID.
-const qemuDeviceIDMaxLength = 64
+const qemuDeviceIDMaxLength = 63
 
 // qemuDeviceNamePrefix used as part of the name given QEMU blockdevs, netdevs and device tags generated from user added devices.
 const qemuDeviceNamePrefix = "lxd_"
