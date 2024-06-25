@@ -1,6 +1,8 @@
 package drivers
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -9,11 +11,27 @@ import (
 	"github.com/canonical/lxd/shared/osarch"
 )
 
-// qemuHostDriveDeviceID returns the device ID to use for a host drive share.
-func qemuHostDriveDeviceID(deviceName string, protocol string) string {
-	suffix := "-" + protocol
-	maxNameLength := qemuDeviceIDMaxLength - (len(qemuDeviceIDPrefix) + len(suffix))
-	return fmt.Sprintf("%s%s%s", qemuDeviceIDPrefix, hashIfLonger(filesystem.PathNameEncode(deviceName), maxNameLength), suffix)
+// qemuDeviceNameOrID generates a QEMU device name or ID.
+// Respects the property length limit by hashing the device name when necessary. Also escapes / to -, and - to --.
+func qemuDeviceNameOrID(prefix string, deviceName string, suffix string, maxLength int) string {
+	baseName := filesystem.PathNameEncode(deviceName)
+	maxNameLength := maxLength - (len(prefix) + len(suffix))
+
+	if len(baseName) > maxNameLength {
+		// If the name is too long, hash it as SHA-256 (32 bytes).
+		// Then encode the SHA-256 binary hash as Base64 Raw URL format and trim down if needed.
+		hash := sha256.New()
+		hash.Write([]byte(baseName))
+		binaryHash := hash.Sum(nil)
+
+		// Raw URL avoids the use of "+" character and the padding "=" character which QEMU doesn't allow.
+		baseName = base64.RawURLEncoding.EncodeToString(binaryHash)
+		if len(baseName) > maxNameLength {
+			baseName = baseName[0:maxNameLength]
+		}
+	}
+
+	return fmt.Sprintf("%s%s%s", prefix, baseName, suffix)
 }
 
 type cfgEntry struct {
@@ -747,7 +765,7 @@ type qemuDriveDirOpts struct {
 func qemuDriveDir(opts *qemuDriveDirOpts) []cfgSection {
 	return qemuHostDrive(&qemuHostDriveOpts{
 		dev: opts.dev,
-		id:  qemuHostDriveDeviceID(opts.devName, opts.protocol),
+		id:  qemuDeviceNameOrID(qemuDeviceIDPrefix, opts.devName, "-"+opts.protocol, qemuDeviceIDMaxLength),
 		// Devices use "lxd_" prefix indicating that this is a user named device.
 		name:     fmt.Sprintf("lxd_%s", opts.devName),
 		comment:  fmt.Sprintf("%s drive (%s)", opts.devName, opts.protocol),
