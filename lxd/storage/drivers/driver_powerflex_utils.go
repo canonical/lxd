@@ -835,7 +835,7 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 	var hostID string
 
 	switch d.config["powerflex.mode"] {
-	case "nvme":
+	case powerFlexModeNVMe:
 		unlock, err := locking.Lock(d.state.ShutdownCtx, "nvme")
 		if err != nil {
 			return nil, err
@@ -884,7 +884,7 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 		reverter.Add(func() { _ = client.deleteHostVolumeMapping(hostID, volumeID) })
 	}
 
-	if d.config["powerflex.mode"] == "nvme" {
+	if d.config["powerflex.mode"] == powerFlexModeNVMe {
 		// Connect to the NVMe/TCP subsystem.
 		// We have to connect after the first mapping was established.
 		// PowerFlex does not offer any discovery log entries until a volume gets mapped to the host.
@@ -975,7 +975,7 @@ func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert
 
 		var prefix string
 		switch d.config["powerflex.mode"] {
-		case "nvme":
+		case powerFlexModeNVMe:
 			prefix = "nvme-eui."
 		}
 
@@ -1033,7 +1033,7 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 
 	var host *powerFlexSDC
 	switch d.config["powerflex.mode"] {
-	case "nvme":
+	case powerFlexModeNVMe:
 		nqn := d.getHostNQN()
 		host, err = client.getNVMeHostByNQN(nqn)
 		if err != nil {
@@ -1064,7 +1064,7 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 		}
 	}
 
-	if d.config["powerflex.mode"] == "nvme" {
+	if d.config["powerflex.mode"] == powerFlexModeNVMe {
 		mappings, err := client.getHostVolumeMappings(host.ID)
 		if err != nil {
 			return err
