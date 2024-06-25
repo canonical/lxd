@@ -1,5 +1,17 @@
 package drivers
 
+/*
+
+#include <linux/types.h>
+#include <sys/ioctl.h>
+#include <stdint.h>
+
+#define VHOST_VIRTIO 0xAF
+#define VHOST_VSOCK_SET_GUEST_CID	_IOW(VHOST_VIRTIO, 0x60, __u64)
+
+*/
+import "C"
+
 import (
 	"bufio"
 	"bytes"
@@ -422,8 +434,8 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 		}
 
 		d, ok := inst.(*qemu)
-		if !ok {
-			d.logger.Error("Failed to cast instance to *qemu")
+		if !ok || d == nil {
+			logger.Error("Failed to cast instance to *qemu")
 			return
 		}
 
@@ -1054,7 +1066,7 @@ func (d *qemu) validateRootDiskStatefulStop() error {
 
 // validateStartup checks any constraints that would prevent start up from succeeding under normal circumstances.
 func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
-	err := d.common.validateStartup(stateful, statusCode)
+	err := d.common.validateStartup(statusCode)
 	if err != nil {
 		return err
 	}
@@ -1998,7 +2010,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 		if instanceRunning {
 			// Attach network interface if requested.
 			if len(runConf.NetworkInterface) > 0 {
-				err = d.deviceAttachNIC(dev.Name(), configCopy, runConf.NetworkInterface)
+				err = d.deviceAttachNIC(dev.Name(), runConf.NetworkInterface)
 				if err != nil {
 					return nil, err
 				}
@@ -2094,7 +2106,7 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string, rawConfig deviceConfig
 }
 
 // deviceAttachNIC live attaches a NIC device to the instance.
-func (d *qemu) deviceAttachNIC(deviceName string, configCopy map[string]string, netIF []deviceConfig.RunConfigItem) error {
+func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfigItem) error {
 	devName := ""
 	for _, dev := range netIF {
 		if dev.Key == "link" {
@@ -7402,8 +7414,7 @@ func (d *qemu) acquireVsockID(vsockID uint32) (*os.File, error) {
 	// The vsock Context ID cannot be supplied as type uint32.
 	vsockIDInt := uint64(vsockID)
 
-	// 0x4008AF60 = VHOST_VSOCK_SET_GUEST_CID = _IOW(VHOST_VIRTIO, 0x60, __u64)
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, vsockF.Fd(), 0x4008AF60, uintptr(unsafe.Pointer(&vsockIDInt)))
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, vsockF.Fd(), C.VHOST_VSOCK_SET_GUEST_CID, uintptr(unsafe.Pointer(&vsockIDInt)))
 	if errno != 0 {
 		if !errors.Is(errno, unix.EADDRINUSE) {
 			return nil, fmt.Errorf("Failed ioctl syscall to vhost socket: %q", errno.Error())

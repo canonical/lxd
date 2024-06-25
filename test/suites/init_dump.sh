@@ -54,9 +54,9 @@ networks:
     ipv4.address: none
     ipv6.address: none
   description: ""
-  managed: true
   name: lxdt$$
   type: bridge
+  project: default
 storage_pools:
 - config:
     source: ${LXD_DIR}/storage-pools/${storage_pool}

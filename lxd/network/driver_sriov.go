@@ -43,7 +43,7 @@ func (n *sriov) Validate(config map[string]string) error {
 func (n *sriov) Delete(clientType request.ClientType) error {
 	n.logger.Debug("Delete", logger.Ctx{"clientType": clientType})
 
-	return n.common.delete(clientType)
+	return n.common.delete()
 }
 
 // Rename renames a network.

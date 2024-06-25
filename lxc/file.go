@@ -24,6 +24,7 @@ import (
 	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/termios"
 	"github.com/canonical/lxd/shared/units"
 )
@@ -42,10 +43,14 @@ type cmdFile struct {
 	flagRecursive bool
 }
 
-func fileGetWrapper(server lxd.InstanceServer, inst string, path string) (buf io.ReadCloser, resp *lxd.InstanceFileResponse, err error) {
+func fileGetWrapper(server lxd.InstanceServer, inst string, path string) (io.ReadCloser, *lxd.InstanceFileResponse, error) {
 	// Signal handling
 	chSignal := make(chan os.Signal, 1)
 	signal.Notify(chSignal, os.Interrupt)
+
+	var buf io.ReadCloser
+	var resp *lxd.InstanceFileResponse
+	var err error
 
 	// Operation handling
 	chDone := make(chan bool)
@@ -71,6 +76,7 @@ func fileGetWrapper(server lxd.InstanceServer, inst string, path string) (buf io
 	}
 }
 
+// Command manage files in instances.
 func (c *cmdFile) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("file")
@@ -110,6 +116,7 @@ type cmdFileDelete struct {
 	file   *cmdFile
 }
 
+// Command delete files in instances.
 func (c *cmdFileDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("delete", i18n.G("[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"))
@@ -123,6 +130,7 @@ func (c *cmdFileDelete) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the file delete command.
 func (c *cmdFileDelete) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
@@ -160,6 +168,7 @@ type cmdFileEdit struct {
 	filePush *cmdFilePush
 }
 
+// Command edit files in instances.
 func (c *cmdFileEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<instance>/<path>"))
@@ -172,6 +181,7 @@ func (c *cmdFileEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the file edit command.
 func (c *cmdFileEdit) Run(cmd *cobra.Command, args []string) error {
 	c.filePush.noModeChange = true
 
@@ -230,6 +240,7 @@ type cmdFilePull struct {
 	edit bool
 }
 
+// Command pull files from the instances.
 func (c *cmdFilePull) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("pull", i18n.G("[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"))
@@ -247,6 +258,7 @@ func (c *cmdFilePull) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the file pull command.
 func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -299,6 +311,9 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	reverter := revert.New()
+	defer reverter.Fail()
+
 	for _, resource := range resources {
 		pathSpec := strings.SplitN(resource.name, "/", 2)
 		if len(pathSpec) != 2 {
@@ -349,41 +364,41 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 			}
 
 			// Follow the symlink
-			if targetPath == "-" || c.file.flagRecursive {
-				i := 0
-				for {
-					newPath := strings.TrimSuffix(string(linkTarget), "\n")
-					if !strings.HasPrefix(newPath, "/") {
-						newPath = filepath.Clean(filepath.Join(filepath.Dir(pathSpec[1]), newPath))
-					}
-
-					buf, resp, err = resource.server.GetInstanceFile(pathSpec[0], newPath)
-					if err != nil {
-						return err
-					}
-
-					if resp.Type != "symlink" {
-						break
-					}
-
-					i++
-					if i > 255 {
-						return fmt.Errorf("Too many links")
-					}
-
-					// Update link target for next iteration.
-					linkTarget, err = io.ReadAll(buf)
-					if err != nil {
-						return err
-					}
-				}
-			} else {
+			if !(targetPath == "-" || c.file.flagRecursive) {
 				err = os.Symlink(strings.TrimSpace(string(linkTarget)), targetPath)
 				if err != nil {
 					return err
 				}
 
 				continue
+			}
+
+			i := 0
+			for {
+				newPath := strings.TrimSuffix(string(linkTarget), "\n")
+				if !strings.HasPrefix(newPath, "/") {
+					newPath = filepath.Clean(filepath.Join(filepath.Dir(pathSpec[1]), newPath))
+				}
+
+				buf, resp, err = resource.server.GetInstanceFile(pathSpec[0], newPath)
+				if err != nil {
+					return err
+				}
+
+				if resp.Type != "symlink" {
+					break
+				}
+
+				i++
+				if i > 255 {
+					return fmt.Errorf("Too many links")
+				}
+
+				// Update link target for next iteration.
+				linkTarget, err = io.ReadAll(buf)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -396,7 +411,7 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 				return err
 			}
 
-			defer func() { _ = f.Close() }()
+			reverter.Add(func() { _ = f.Close() })
 
 			err = os.Chmod(targetPath, os.FileMode(resp.Mode))
 			if err != nil {
@@ -452,6 +467,7 @@ type cmdFilePush struct {
 	noModeChange bool
 }
 
+// Command push files into the instances.
 func (c *cmdFilePush) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("push", i18n.G("<source path>... [<remote>:]<instance>/<path>"))
@@ -472,6 +488,7 @@ func (c *cmdFilePush) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the file push command.
 func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
@@ -590,6 +607,9 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Missing target directory"))
 	}
 
+	reverter := revert.New()
+	defer reverter.Fail()
+
 	// Make sure all of the files are accessible by us before trying to push any of them
 	var files []*os.File
 	for _, f := range sourcefilenames {
@@ -603,7 +623,7 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		defer func() { _ = file.Close() }()
+		reverter.Add(func() { _ = file.Close() })
 		files = append(files, file)
 	}
 
@@ -657,9 +677,6 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 				}
 
 				fMode, fUID, fGID := shared.GetOwnerMode(finfo)
-				if err != nil {
-					return err
-				}
 
 				if c.file.flagMode == "" {
 					mode = fMode
@@ -968,6 +985,7 @@ type cmdFileMount struct {
 	flagAuthUser string
 }
 
+// Command mount files from instances.
 func (c *cmdFileMount) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("mount", i18n.G("[<remote>:]<instance>[/<path>] [<target path>]"))
@@ -986,6 +1004,7 @@ func (c *cmdFileMount) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the file mount command.
 func (c *cmdFileMount) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)

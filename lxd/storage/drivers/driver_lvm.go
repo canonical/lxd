@@ -215,7 +215,7 @@ func (d *lvm) Create() error {
 
 		// Wipe if requested.
 		if shared.IsTrue(d.config["source.wipe"]) {
-			err := wipeBlockHeaders(d.config["source"])
+			err := wipeBlockHeaders(srcPath)
 			if err != nil {
 				return fmt.Errorf("Failed to wipe headers from disk %q: %w", d.config["source"], err)
 			}
@@ -503,6 +503,8 @@ func (d *lvm) Delete(op *operations.Operation) error {
 	return nil
 }
 
+// Validate checks that all provide keys are supported and that no conflicting
+// or missing configuration is present.
 func (d *lvm) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
 		"size":                       validate.Optional(validate.IsSize),
@@ -752,21 +754,10 @@ func (d *lvm) GetResources() (*api.ResourcesStoragePool, error) {
 	return &res, nil
 }
 
-// roundVolumeBlockSizeBytes returns size rounded to the nearest multiple of the volume group extent size that is
-// equal to or larger than sizeBytes.
-func (d *lvm) roundVolumeBlockSizeBytes(sizeBytes int64) int64 {
+// roundVolumeBlockSizeBytes returns sizeBytes rounded up to the next multiple
+// of the volume group extent size.
+func (d *lvm) roundVolumeBlockSizeBytes(vol Volume, sizeBytes int64) int64 {
 	// Get the volume group's physical extent size, and use that as minimum size.
 	vgExtentSize, _ := d.volumeGroupExtentSize(d.config["lvm.vg_name"])
-	if sizeBytes < vgExtentSize {
-		sizeBytes = vgExtentSize
-	}
-
-	roundedSizeBytes := int64(sizeBytes/vgExtentSize) * vgExtentSize
-
-	// Ensure the rounded size is at least the size specified in sizeBytes.
-	if roundedSizeBytes < sizeBytes {
-		roundedSizeBytes += vgExtentSize
-	}
-
-	return roundedSizeBytes
+	return roundAbove(vgExtentSize, sizeBytes)
 }

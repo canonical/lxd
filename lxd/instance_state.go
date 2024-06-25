@@ -243,12 +243,19 @@ func doInstanceStatePut(inst instance.Instance, req api.InstanceStatePut) error 
 
 	switch instancetype.InstanceAction(req.Action) {
 	case instancetype.Start:
-		return inst.Start(req.Stateful)
+		if inst.IsFrozen() {
+			return inst.Unfreeze()
+		} else {
+			return inst.Start(req.Stateful)
+		}
+
 	case instancetype.Stop:
 		if req.Stateful {
 			return inst.Stop(req.Stateful)
 		} else if req.Timeout == 0 {
 			return inst.Stop(false)
+		} else if inst.IsFrozen() {
+			return fmt.Errorf("Cannot shutdown frozen instance (try force to stop)")
 		} else {
 			return inst.Shutdown(timeout)
 		}

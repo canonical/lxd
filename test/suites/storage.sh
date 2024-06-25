@@ -120,6 +120,10 @@ test_storage() {
       configure_loop_device loop_file_1 loop_device_1
       # shellcheck disable=SC2154
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool2" zfs source="${loop_device_1}"
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool2"
+
+      # Ensure that source.wipe allows the device to be reused
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool2" zfs source="${loop_device_1}" source.wipe=true
 
       # Test that no invalid zfs storage pool configuration keys can be set.
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-zfs-pool-config" zfs lvm.thinpool_name=bla || false
@@ -151,6 +155,10 @@ test_storage() {
       configure_loop_device loop_file_2 loop_device_2
       # shellcheck disable=SC2154
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool4" btrfs source="${loop_device_2}"
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool4"
+
+      # Ensure that source.wipe allows the device to be reused
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool4" btrfs source="${loop_device_2}" source.wipe=true
 
       # Check that we cannot create storage pools inside of ${LXD_DIR} other than ${LXD_DIR}/storage-pools/{pool_name}.
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool5_under_lxd_dir" btrfs source="${LXD_DIR}" || false
@@ -205,6 +213,10 @@ test_storage() {
       configure_loop_device loop_file_3 loop_device_3
       # shellcheck disable=SC2154
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool6" lvm source="${loop_device_3}" volume.size=25MiB
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool6"
+
+      # Ensure that source.wipe allows the device to be reused
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool6" lvm source="${loop_device_3}" source.wipe=true volume.size=25MiB
 
       configure_loop_device loop_file_5 loop_device_5
       # shellcheck disable=SC2154

@@ -12,6 +12,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// RunAuto initializes LXD in automatic (non-interactive) mode.
 func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServer, server *api.Server) (*api.InitPreseed, error) {
 	// Quick checks.
 	if c.flagStorageBackend != "" && !shared.StringInSlice(c.flagStorageBackend, storageDrivers.AllDriverNames()) {

@@ -7,7 +7,6 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 )
@@ -16,12 +15,11 @@ var forkdnsProfileTpl = template.Must(template.New("forkdnsProfile").Parse(`#inc
 profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
 
-  # Capabilities
-  capability net_bind_service,
-
   # Network access
   network inet dgram,
   network inet6 dgram,
+  network inet stream,
+  network inet6 stream,
 
   # Network-specific paths
   {{ .varPath }}/networks/{{ .networkName }}/dnsmasq.leases r,
@@ -58,7 +56,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 `))
 
 // forkdnsProfile generates the AppArmor profile template from the given network.
-func forkdnsProfile(sysOS *sys.OS, n network) (string, error) {
+func forkdnsProfile(n network) (string, error) {
 	rootPath := ""
 	if shared.InSnap() {
 		rootPath = "/var/lib/snapd/hostfs"
@@ -72,7 +70,7 @@ func forkdnsProfile(sysOS *sys.OS, n network) (string, error) {
 	}
 
 	// Render the profile.
-	var sb *strings.Builder = &strings.Builder{}
+	var sb = &strings.Builder{}
 	err = forkdnsProfileTpl.Execute(sb, map[string]any{
 		"name":        ForkdnsProfileName(n),
 		"networkName": n.Name(),

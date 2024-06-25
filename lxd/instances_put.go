@@ -114,7 +114,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 			}
 
 		case instancetype.Start:
-			if inst.IsRunning() {
+			if !inst.IsFrozen() && inst.IsRunning() {
 				continue
 			}
 

@@ -32,7 +32,7 @@ func (d *qemu) getQemuMetrics() (*metrics.MetricSet, error) {
 		out.CPU = cpuStats
 	}
 
-	memoryStats, err := d.getQemuMemoryMetrics(monitor)
+	memoryStats, err := d.getQemuMemoryMetrics()
 	if err != nil {
 		d.logger.Warn("Failed to get memory metrics", logger.Ctx{"err": err})
 	} else {
@@ -94,7 +94,7 @@ func (d *qemu) getQemuDiskMetrics(monitor *qmp.Monitor) (map[string]metrics.Disk
 	return out, nil
 }
 
-func (d *qemu) getQemuMemoryMetrics(monitor *qmp.Monitor) (metrics.MemoryMetrics, error) {
+func (d *qemu) getQemuMemoryMetrics() (metrics.MemoryMetrics, error) {
 	out := metrics.MemoryMetrics{}
 
 	// Get the QEMU PID.

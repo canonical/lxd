@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -288,7 +289,11 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 			return err
 		}
 
-		addr := listener.Addr().(*net.TCPAddr)
+		addr, ok := listener.Addr().(*net.TCPAddr)
+		if !ok {
+			return errors.New("Failed to get TCP listen address")
+		}
+
 		socket = fmt.Sprintf("spice://127.0.0.1:%d", addr.Port)
 	}
 

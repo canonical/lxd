@@ -2,15 +2,16 @@ test_network_zone() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  # Enable the DNS server
   lxc config unset core.https_address
-  lxc config set core.dns_address "${LXD_ADDR}"
 
   # Create a network
   netName=lxdt$$
   lxc network create "${netName}" \
         ipv4.address=192.0.2.1/24 \
         ipv6.address=fd42:4242:4242:1010::1/64
+
+  # Enable the DNS listener on the bridge itself
+  lxc config set core.dns_address 192.0.2.1:8853
 
   # Create the zones
   ! lxc network zone create /lxd.example.net || false
@@ -39,13 +40,13 @@ test_network_zone() {
   done
 
   # Setup DNS peers
-  lxc network zone set lxd.example.net peers.test.address=127.0.0.1
-  lxc network zone set 2.0.192.in-addr.arpa peers.test.address=127.0.0.1
-  lxc network zone set 0.1.0.1.2.4.2.4.2.4.2.4.2.4.d.f.ip6.arpa peers.test.address=127.0.0.1
+  lxc network zone set lxd.example.net peers.test.address=192.0.2.1
+  lxc network zone set 2.0.192.in-addr.arpa peers.test.address=192.0.2.1
+  lxc network zone set 0.1.0.1.2.4.2.4.2.4.2.4.2.4.d.f.ip6.arpa peers.test.address=192.0.2.1
 
   # Check the zones
-  DNS_ADDR="$(echo "${LXD_ADDR}" | cut -d: -f1)"
-  DNS_PORT="$(echo "${LXD_ADDR}" | cut -d: -f2)"
+  DNS_ADDR="$(lxc config get core.dns_address | cut -d: -f1)"
+  DNS_PORT="$(lxc config get core.dns_address | cut -d: -f2)"
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net | grep -v "SOA" | grep "A"
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net | grep "AAAA"
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr 2.0.192.in-addr.arpa | grep "PTR"
@@ -61,6 +62,12 @@ test_network_zone() {
   lxc network zone record entry add lxd.example.net demo MX "10 mx2.example.net." --ttl 900
   lxc network zone record list lxd.example.net
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net | grep demo
+
+  # Check that the listener survives a restart of LXD
+  shutdown_lxd "${LXD_DIR}"
+  respawn_lxd "${LXD_DIR}" true
+
+  dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net
 
   # Cleanup
   lxc delete -f c1

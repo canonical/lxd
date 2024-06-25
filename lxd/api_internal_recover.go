@@ -201,7 +201,7 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 		// This way if we are dealing with an existing pool or have successfully created the DB record then
 		// we won't unmount it. As we should leave successfully imported pools mounted.
 		if ourMount {
-			defer func() {
+			defer func() { //nolint:revive
 				cleanupPool := pools[pool.Name()]
 				if cleanupPool != nil && cleanupPool.ID() == storagePools.PoolIDTemporary {
 					_, _ = cleanupPool.Unmount()
@@ -236,13 +236,13 @@ func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, valid
 			var profileProjectname string
 			var networkProjectName string
 
-			if projectInfo != nil {
-				profileProjectname = project.ProfileProjectFromRecord(projectInfo)
-				networkProjectName = project.NetworkProjectFromRecord(projectInfo)
-			} else {
+			if projectInfo == nil {
 				addDependencyError(fmt.Errorf("Project %q", projectName))
 				continue // Skip further validation if project is missing.
 			}
+
+			profileProjectname = project.ProfileProjectFromRecord(projectInfo)
+			networkProjectName = project.NetworkProjectFromRecord(projectInfo)
 
 			for _, poolVol := range poolVols {
 				if poolVol.Container == nil {

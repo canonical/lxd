@@ -918,6 +918,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					}
 
 					revert.Add(revertFunc)
+					runConf.Revert = func() { _ = unixListener.Close() }
 
 					// Request the unix listener is closed after QEMU has connected on startup.
 					runConf.PostHooks = append(runConf.PostHooks, unixListener.Close)

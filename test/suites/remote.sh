@@ -135,6 +135,9 @@ test_remote_url_with_token() {
 
   # Unset token expiry
   lxc config unset core.remote_token_expiry
+
+  # Delete project
+  lxc project delete foo
 }
 
 test_remote_admin() {

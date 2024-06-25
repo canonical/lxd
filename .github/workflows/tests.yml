@@ -22,15 +22,18 @@ defaults:
 jobs:
   code-tests:
     env:
-      CGO_CFLAGS: "-I/home/runner/work/lxd/lxd-test/vendor/raft/include/ -I/home/runner/work/lxd/lxd-test/vendor/dqlite/include/"
-      CGO_LDFLAGS: "-L/home/runner/work/lxd/lxd-test/vendor/raft/.libs/ -L/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
-      LD_LIBRARY_PATH: "/home/runner/work/lxd/lxd-test/vendor/raft/.libs/:/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
+      CGO_CFLAGS: "-I/home/runner/work/lxd/lxd-test/vendor/dqlite/include/"
+      CGO_LDFLAGS: "-L/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
+      LD_LIBRARY_PATH: "/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
     name: Code
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # A non-shallow clone is needed for the Differential ShellCheck
+          fetch-depth: 0
 
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
@@ -43,6 +46,7 @@ jobs:
         uses: redhat-plumbers-in-action/differential-shellcheck@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          strict-check-on-push: true
         if: github.event_name == 'pull_request'
 
       - name: Upload artifact with ShellCheck defects in SARIF format

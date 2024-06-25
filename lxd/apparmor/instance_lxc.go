@@ -499,6 +499,8 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   mount options=(rw,unbindable) -> **,
   mount options=(rw,runbindable) -> **,
 
+  mount fstype=devpts,
+
   # Allow all bind-mounts
   mount options=(rw,bind) / -> /**,
   mount options=(rw,bind) /** -> /**,

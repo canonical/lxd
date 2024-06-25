@@ -12,14 +12,11 @@ CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
 
 ifneq "$(wildcard vendor)" ""
-	RAFT_PATH=$(CURDIR)/vendor/raft
 	DQLITE_PATH=$(CURDIR)/vendor/dqlite
 else
-	RAFT_PATH=$(GOPATH)/deps/raft
 	DQLITE_PATH=$(GOPATH)/deps/dqlite
 endif
 
-	# raft
 .PHONY: default
 default: build
 
@@ -52,18 +49,7 @@ lxd-migrate:
 
 .PHONY: deps
 deps:
-	@if [ ! -e "$(RAFT_PATH)" ]; then \
-		git clone --depth=1 "https://github.com/canonical/raft" "$(RAFT_PATH)"; \
-	elif [ -e "$(RAFT_PATH)/.git" ]; then \
-		cd "$(RAFT_PATH)"; git pull; \
-	fi
-
-	cd "$(RAFT_PATH)" && \
-		autoreconf -i && \
-		./configure && \
-		make
-
-	# dqlite
+	# dqlite (+raft)
 	@if [ ! -e "$(DQLITE_PATH)" ]; then \
 		git clone --depth=1 "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
 	elif [ -e "$(DQLITE_PATH)/.git" ]; then \
@@ -72,15 +58,15 @@ deps:
 
 	cd "$(DQLITE_PATH)" && \
 		autoreconf -i && \
-		PKG_CONFIG_PATH="$(RAFT_PATH)" ./configure && \
-		make CFLAGS="-I$(RAFT_PATH)/include/" LDFLAGS="-L$(RAFT_PATH)/.libs/"
+		./configure --enable-build-raft && \
+		make
 
 	# environment
 	@echo ""
 	@echo "Please set the following in your environment (possibly ~/.bashrc)"
-	@echo "export CGO_CFLAGS=\"-I$(RAFT_PATH)/include/ -I$(DQLITE_PATH)/include/\""
-	@echo "export CGO_LDFLAGS=\"-L$(RAFT_PATH)/.libs -L$(DQLITE_PATH)/.libs/\""
-	@echo "export LD_LIBRARY_PATH=\"$(RAFT_PATH)/.libs/:$(DQLITE_PATH)/.libs/\""
+	@echo "export CGO_CFLAGS=\"-I$(DQLITE_PATH)/include/\""
+	@echo "export CGO_LDFLAGS=\"-L$(DQLITE_PATH)/.libs/\""
+	@echo "export LD_LIBRARY_PATH=\"$(DQLITE_PATH)/.libs/\""
 	@echo "export CGO_LDFLAGS_ALLOW=\"(-Wl,-wrap,pthread_create)|(-Wl,-z,now)\""
 
 .PHONY: update-gomod
@@ -91,6 +77,8 @@ ifneq "$(LXD_OFFLINE)" ""
 endif
 	go get -t -v -d -u ./...
 	go get github.com/mdlayher/socket@v0.4.1
+	go get github.com/digitalocean/go-libvirt@v0.0.0-20221205150000-2939327a8519
+	go get github.com/jaypipes/pcidb@v1.0.0
 	go mod tidy --go=1.19
 	go get toolchain@none
 
@@ -141,7 +129,7 @@ doc-incremental:
 
 .PHONY: doc-serve
 doc-serve:
-	cd doc/html; python3 -m http.server 8001
+	cd doc/html; python3 -m http.server --bind 127.0.0.1 8001
 
 .PHONY: doc-spellcheck
 doc-spellcheck: doc
@@ -218,12 +206,9 @@ dist: doc
 	# Download dependencies
 	(cd $(TMP)/lxd-$(VERSION) ; go mod vendor)
 
-	# Download the dqlite libraries
+	# Download the dqlite library
 	git clone --depth=1 https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
 	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
-
-	git clone --depth=1 https://github.com/canonical/raft $(TMP)/lxd-$(VERSION)/vendor/raft
-	(cd $(TMP)/lxd-$(VERSION)/vendor/raft ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
 
 	# Copy doc output
 	cp -r doc/html $(TMP)/lxd-$(VERSION)/doc/html/

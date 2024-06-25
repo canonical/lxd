@@ -494,7 +494,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 	// Associated host side interface to OVN logical switch port (if not nested).
 	if integrationBridgeNICName != "" {
-		cleanup, err := d.setupHostNIC(integrationBridgeNICName, logicalPortName, uplink)
+		cleanup, err := d.setupHostNIC(integrationBridgeNICName, logicalPortName)
 		if err != nil {
 			return nil, err
 		}
@@ -959,7 +959,7 @@ func (d *nicOVN) Register() error {
 	return nil
 }
 
-func (d *nicOVN) setupHostNIC(hostName string, ovnPortName openvswitch.OVNSwitchPort, uplink *api.Network) (revert.Hook, error) {
+func (d *nicOVN) setupHostNIC(hostName string, ovnPortName openvswitch.OVNSwitchPort) (revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 

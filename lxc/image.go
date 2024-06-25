@@ -860,7 +860,11 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 	opAPI := op.Get()
 
 	// Get the fingerprint
-	fingerprint := opAPI.Metadata["fingerprint"].(string)
+	fingerprint, ok := opAPI.Metadata["fingerprint"].(string)
+	if !ok {
+		return fmt.Errorf(`Invalid type %T for "fingerprint" key in operation metadata`, fingerprint)
+	}
+
 	progress.Done(fmt.Sprintf(i18n.G("Image imported with fingerprint: %s"), fingerprint))
 
 	// Add the aliases
@@ -1200,14 +1204,14 @@ func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool 
 				list := cmdList{}
 				list.global = c.global
 				if list.dotPrefixMatch(key, configKey) {
-					//try to test filter value as a regexp
+					// Try to test filter value as a regexp.
 					regexpValue := value
 					if !(strings.Contains(value, "^") || strings.Contains(value, "$")) {
 						regexpValue = "^" + regexpValue + "$"
 					}
 
 					r, err := regexp.Compile(regexpValue)
-					//if not regexp compatible use original value
+					// If not regexp compatible use original value.
 					if err != nil {
 						if value == configValue {
 							found = true
@@ -1403,7 +1407,10 @@ func (c *cmdImageRefresh) Run(cmd *cobra.Command, args []string) error {
 		refreshed := false
 		flag, ok := opAPI.Metadata["refreshed"]
 		if ok {
-			refreshed = flag.(bool)
+			refreshed, ok = flag.(bool)
+			if !ok {
+				return fmt.Errorf(`Invalid type %T for "refreshed" key in operation metadata`, flag)
+			}
 		}
 
 		if refreshed {
