@@ -6154,7 +6154,7 @@
 					{
 						"powerflex.mode": {
 							"defaultdesc": "the discovered mode",
-							"longdesc": "The mode gets discovered automatically if the system provides the necessary kernel modules.\nCurrently, only `nvme` is supported.",
+							"longdesc": "The mode gets discovered automatically if the system provides the necessary kernel modules.\nThis can be either `nvme` or `sdc`.",
 							"shortdesc": "How volumes are mapped to the local server",
 							"type": "string"
 						}
