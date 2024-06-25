@@ -480,6 +480,8 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   ### Configuration: unprivileged containers
   pivot_root,
 
+  mount fstype=devpts,
+
   # Allow modifying mount propagation
   mount options=(rw,slave) -> **,
   mount options=(rw,rslave) -> **,
