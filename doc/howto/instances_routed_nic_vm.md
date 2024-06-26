@@ -26,7 +26,7 @@ To configure the gateways with `cloud-init`, firstly initialize an instance:
 ````{group-tab} UI
 ```{figure} /images/UI/routed_nic_create_instance.png
 :width: 80%
-:alt: Create an Ubuntu 24.04 VM
+:alt: Create an Ubuntu 24.04 LTS VM
 ```
 ````
 `````
