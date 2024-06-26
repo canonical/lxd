@@ -115,8 +115,9 @@ func (d *tpm) Start() (*deviceConfig.RunConfig, error) {
 }
 
 func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
-	tpmDevPath := filepath.Join(d.inst.Path(), fmt.Sprintf("tpm.%s", d.name))
-	logFileName := fmt.Sprintf("tpm.%s.log", d.name)
+	escapedDeviceName := filesystem.PathNameEncode(d.name)
+	tpmDevPath := filepath.Join(d.inst.Path(), fmt.Sprintf("tpm.%s", escapedDeviceName))
+	logFileName := fmt.Sprintf("tpm.%s.log", escapedDeviceName)
 	logPath := filepath.Join(d.inst.LogPath(), logFileName)
 
 	proc, err := subprocess.NewProcess("swtpm", []string{"chardev", "--tpm2", "--tpmstate", fmt.Sprintf("dir=%s", tpmDevPath), "--vtpm-proxy"}, logPath, "")
@@ -135,7 +136,7 @@ func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 	// Stop the TPM emulator if anything goes wrong.
 	revert.Add(func() { _ = proc.Stop() })
 
-	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
+	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", escapedDeviceName))
 
 	err = proc.Save(pidPath)
 	if err != nil {
