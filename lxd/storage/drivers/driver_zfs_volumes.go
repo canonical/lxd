@@ -216,15 +216,16 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		}
 
 		if vol.contentType == ContentTypeFS {
-			// Wait half a second to give udev a chance to kick in.
-			time.Sleep(500 * time.Millisecond)
+			// Wait up to 30 seconds for the device to appear.
+			ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 30*time.Second)
+			defer cancel()
 
-			zfsFilesystem := vol.ConfigBlockFilesystem()
-
-			devPath, err := d.GetVolumeDiskPath(vol)
+			devPath, err := d.tryGetVolumeDiskPathFromDataset(ctx, d.dataset(vol, false))
 			if err != nil {
 				return err
 			}
+
+			zfsFilesystem := vol.ConfigBlockFilesystem()
 
 			_, err = makeFSType(devPath, zfsFilesystem, nil)
 			if err != nil {
@@ -1907,6 +1908,23 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 	return nil
 }
 
+// tryGetVolumeDiskPathFromDataset attempts to find the path of the block device for the given dataset.
+// It keeps retrying every half a second until the context is canceled or expires.
+func (d *zfs) tryGetVolumeDiskPathFromDataset(ctx context.Context, dataset string) (string, error) {
+	for {
+		if ctx.Err() != nil {
+			return "", fmt.Errorf("Failed to locate zvol for %q: %w", dataset, ctx.Err())
+		}
+
+		diskPath, err := d.getVolumeDiskPathFromDataset(dataset)
+		if err == nil {
+			return diskPath, nil
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+}
+
 func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 	// Shortcut for udev.
 	if shared.PathExists(filepath.Join("/dev/zvol", dataset)) {
@@ -2087,6 +2105,9 @@ func (d *zfs) activateVolume(vol Volume) (bool, error) {
 		return false, nil // Nothing to do for non-block or non-block backed volumes.
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	dataset := d.dataset(vol, false)
 
 	// Check if already active.
@@ -2102,11 +2123,20 @@ func (d *zfs) activateVolume(vol Volume) (bool, error) {
 			return false, err
 		}
 
-		// Wait half a second to give udev a chance to kick in.
-		time.Sleep(500 * time.Millisecond)
+		revert.Add(func() { _ = d.setDatasetProperties(dataset, fmt.Sprintf("volmode=%s", current)) })
+
+		// Wait up to 30 seconds for the device to appear.
+		ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 30*time.Second)
+		defer cancel()
+
+		_, err := d.tryGetVolumeDiskPathFromDataset(ctx, dataset)
+		if err != nil {
+			return false, fmt.Errorf("Failed to activate volume: %v", err)
+		}
 
 		d.logger.Debug("Activated ZFS volume", logger.Ctx{"volName": vol.Name(), "dev": dataset})
 
+		revert.Success()
 		return true, nil
 	}
 
