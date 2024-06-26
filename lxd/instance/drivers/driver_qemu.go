@@ -7464,38 +7464,8 @@ func (d *qemu) CGroup() (*cgroup.CGroup, error) {
 	return nil, instance.ErrNotImplemented
 }
 
-// SetAffinity sets affinity for QEMU processes according with a set provided.
+// SetAffinity is not implemented for VMs.
 func (d *qemu) SetAffinity(set []string) error {
-	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
-	if err != nil {
-		// this is not an error path, really. Instance can be stopped, for example.
-		d.logger.Debug("Failed connecting to the QMP monitor. Instance is not running?", logger.Ctx{"name": d.Name(), "err": err})
-		return nil
-	}
-
-	// Get the list of PIDs from the VM.
-	pids, err := monitor.GetCPUs()
-	if err != nil {
-		return fmt.Errorf("Failed to get VM instance's QEMU process list: %w", err)
-	}
-
-	// Confirm nothing weird is going on.
-	if len(set) != len(pids) {
-		return fmt.Errorf("QEMU has different count of vCPUs (%v) than configured (%v)", pids, set)
-	}
-
-	for i, pid := range pids {
-		affinitySet := unix.CPUSet{}
-		cpuCoreIndex, _ := strconv.Atoi(set[i])
-		affinitySet.Set(cpuCoreIndex)
-
-		// Apply the pin.
-		err := unix.SchedSetaffinity(pid, &affinitySet)
-		if err != nil {
-			return fmt.Errorf("Failed to set QEMU process affinity: %w", err)
-		}
-	}
-
 	return nil
 }
 
