@@ -124,6 +124,9 @@ update-metadata: build
 .PHONY: doc
 doc: doc-clean doc-install doc-html doc-objects
 
+.PHONY: doc-incremental
+doc-incremental: doc-html
+
 doc-%:
 	cd doc && $(MAKE) -f Makefile $*
 
