@@ -87,7 +87,7 @@ See {ref}`containers-and-vms` for information about the difference between the t
 For managing instances, we use the LXD command line client `lxc`.
 See [About `lxd` and `lxc`](lxd-lxc) if you are confused about when to use the `lxc` command and when to use the `lxd` command.
 
-1. Launch a container called `first` using the Ubuntu 24.04 image:
+1. Launch a container called `first` using the Ubuntu 24.04 LTS image:
 
        lxc launch ubuntu:24.04 first
 
@@ -107,7 +107,7 @@ See [About `lxd` and `lxc`](lxd-lxc) if you are confused about when to use the `
 
        lxc copy first third
 
-1. Launch a VM called `ubuntu-vm` using the Ubuntu 24.04 image:
+1. Launch a VM called `ubuntu-vm` using the Ubuntu 24.04 LTS image:
 
        lxc launch ubuntu:24.04 ubuntu-vm --vm
 

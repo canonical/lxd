@@ -159,7 +159,6 @@ linkcheck_ignore = [
     'http://localhost:8000',
     r'/lxd/en/latest/api/.*',
     r'/api/.*',
-    r'https://maas\.io/docs/.*'
     ]
 
 # Pages on which to ignore anchors
