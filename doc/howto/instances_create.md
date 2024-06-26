@@ -21,7 +21,7 @@ Enter the following command to create a container:
 
     lxc launch|init <image_server>:<image_name> <instance_name> [flags]
 
-Unless the image is available locally, you must specify the name of the image server and the name of the image (for example, `ubuntu:24.04` for the official 24.04 Ubuntu image).
+Unless the image is available locally, you must specify the name of the image server and the name of the image (for example, `ubuntu:24.04` for the official Ubuntu 24.04 LTS image).
 
 See [`lxc launch --help`](lxc_launch.md) or [`lxc init --help`](lxc_init.md) for a full list of flags.
 The most common flags are:
@@ -102,7 +102,7 @@ In the UI, you can choose between {guilabel}`Create` and {guilabel}`Create and s
 
 ### Create a container
 
-To create a container with an Ubuntu 24.04 image from the `ubuntu` server using the instance name `ubuntu-container`:
+To create a container with an Ubuntu 24.04 LTS image from the `ubuntu` server using the instance name `ubuntu-container`:
 
 `````{tabs}
 ```{group-tab} CLI
@@ -122,14 +122,14 @@ To create a container with an Ubuntu 24.04 image from the `ubuntu` server using 
 ````{group-tab} UI
 ```{figure} /images/UI/create_instance_ex1.png
 :width: 80%
-:alt: Create an Ubuntu 24.04 container
+:alt: Create an Ubuntu 24.04 LTS container
 ```
 ````
 `````
 
 ### Create a virtual machine
 
-To create a virtual machine with an Ubuntu 24.04 image from the `ubuntu` server using the instance name `ubuntu-vm`:
+To create a virtual machine with an Ubuntu 24.04 LTS image from the `ubuntu` server using the instance name `ubuntu-vm`:
 
 `````{tabs}
 ```{group-tab} CLI
@@ -150,7 +150,7 @@ To create a virtual machine with an Ubuntu 24.04 image from the `ubuntu` server 
 ````{group-tab} UI
 ```{figure} /images/UI/create_instance_ex2.png
 :width: 80%
-:alt: Create an Ubuntu 24.04 VM
+:alt: Create an Ubuntu 24.04 LTS VM
 ```
 ````
 `````
