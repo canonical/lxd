@@ -66,7 +66,7 @@ func (g *AuthGroup) ToAPI(ctx context.Context, tx *sql.Tx, canViewIdentity auth.
 
 	apiPermissions := make([]api.Permission, 0, len(permissions))
 	for _, p := range permissions {
-		entityURLs, ok := entityURLs[entity.Type(p.EntityType)]
+		entityURLs, ok := entityURLs[p.EntityType.Name()]
 		if !ok {
 			return nil, fmt.Errorf("Entity URLs missing for permissions with entity type %q", p.EntityType)
 		}
@@ -77,7 +77,7 @@ func (g *AuthGroup) ToAPI(ctx context.Context, tx *sql.Tx, canViewIdentity auth.
 		}
 
 		apiPermissions = append(apiPermissions, api.Permission{
-			EntityType:      string(p.EntityType),
+			EntityType:      string(p.EntityType.Name()),
 			EntityReference: u.String(),
 			Entitlement:     string(p.Entitlement),
 		})
@@ -93,7 +93,7 @@ func (g *AuthGroup) ToAPI(ctx context.Context, tx *sql.Tx, canViewIdentity auth.
 	group.Identities = make(map[string][]string)
 	for _, identity := range identities {
 		authenticationMethod := string(identity.AuthMethod)
-		if canViewIdentity(entity.IdentityURL(authenticationMethod, identity.Identifier)) {
+		if canViewIdentity(entity.TypeIdentity.URL(authenticationMethod, identity.Identifier)) {
 			group.Identities[authenticationMethod] = append(group.Identities[authenticationMethod], identity.Identifier)
 		}
 	}
@@ -104,7 +104,7 @@ func (g *AuthGroup) ToAPI(ctx context.Context, tx *sql.Tx, canViewIdentity auth.
 	}
 
 	for _, idpGroup := range identityProviderGroups {
-		if canViewIDPGroup(entity.IdentityProviderGroupURL(idpGroup.Name)) {
+		if canViewIDPGroup(entity.TypeIdentityProviderGroup.URL(idpGroup.Name)) {
 			group.IdentityProviderGroups = append(group.IdentityProviderGroups, idpGroup.Name)
 		}
 	}

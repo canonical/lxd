@@ -481,8 +481,13 @@ func (n *common) rename(newName string) error {
 
 // warningsDelete deletes any persistent warnings for the network.
 func (n *common) warningsDelete() error {
-	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.DeleteWarnings(ctx, tx.Tx(), dbCluster.EntityType(entity.TypeNetwork), int(n.ID()))
+	clusterEntityType, err := dbCluster.EntityTypeFromName(entity.TypeNameNetwork)
+	if err != nil {
+		return fmt.Errorf("Failed to get database entity of type %q: %w", entity.TypeNameInstance, err)
+	}
+
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return dbCluster.DeleteWarnings(ctx, tx.Tx(), clusterEntityType, int(n.ID()))
 	})
 	if err != nil {
 		return fmt.Errorf("Failed deleting persistent warnings: %w", err)

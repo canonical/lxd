@@ -1484,7 +1484,7 @@ func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string)
 			continue
 		}
 
-		entityURL, err := entityType.URL(projectName, location, pathArguments...)
+		entityURL, err := entity.URL(entityType, projectName, location, pathArguments...)
 		if err != nil {
 			logger.Warn("Failed to create canonical entity URL for project used-by filtering", logger.Ctx{"url": entry, "error": err})
 			continue
@@ -1559,7 +1559,7 @@ func projectHasRestriction(project *api.Project, restrictionKey string, blockVal
 func CheckClusterTargetRestriction(authorizer auth.Authorizer, r *http.Request, project *api.Project, targetFlag string) error {
 	if projectHasRestriction(project, "restricted.cluster.target", "block") && targetFlag != "" {
 		// Allow server administrators to move instances around even when restricted (node evacuation, ...)
-		err := authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanOverrideClusterTargetRestriction)
+		err := authorizer.CheckPermission(r.Context(), r, entity.TypeServer.URL(), auth.EntitlementCanOverrideClusterTargetRestriction)
 		if err != nil && auth.IsDeniedError(err) {
 			return api.StatusErrorf(http.StatusForbidden, "This project doesn't allow cluster member targeting")
 		} else if err != nil {

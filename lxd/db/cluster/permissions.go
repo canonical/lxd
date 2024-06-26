@@ -30,7 +30,7 @@ type Permission struct {
 // api.URL. The returned map contains the URL of the entity of each returned valid permission. It is used for populating
 // api.Permission. A warning is logged if any invalid permissions are found. And error is returned if any query returns
 // unexpected error.
-func GetPermissionEntityURLs(ctx context.Context, tx *sql.Tx, permissions []Permission) ([]Permission, map[entity.Type]map[int]*api.URL, error) {
+func GetPermissionEntityURLs(ctx context.Context, tx *sql.Tx, permissions []Permission) ([]Permission, map[entity.TypeName]map[int]*api.URL, error) {
 	// To make as few calls as possible, categorize the permissions by entity type.
 	permissionsByEntityType := map[EntityType][]Permission{}
 	for _, permission := range permissions {
@@ -39,7 +39,7 @@ func GetPermissionEntityURLs(ctx context.Context, tx *sql.Tx, permissions []Perm
 
 	// For each entity type, if there is only on permission for the entity type, we'll get the URL by its entity type and ID.
 	// If there are multiple permissions for the entity type, append the entity type to a list for later use.
-	entityURLs := make(map[entity.Type]map[int]*api.URL)
+	entityURLs := make(map[entity.TypeName]map[int]*api.URL)
 	var entityTypes []entity.Type
 	for entityType, permissions := range permissionsByEntityType {
 		if len(permissions) > 1 {
@@ -49,7 +49,7 @@ func GetPermissionEntityURLs(ctx context.Context, tx *sql.Tx, permissions []Perm
 
 		// Skip any permissions we have already evaluated. We've already checked that there is only one permission
 		// for this entity type, so checking if the entity type is already a key in the map is enough.
-		_, ok := entityURLs[entity.Type(permissions[0].EntityType)]
+		_, ok := entityURLs[permissions[0].EntityType.Name()]
 		if ok {
 			continue
 		}
@@ -61,8 +61,8 @@ func GetPermissionEntityURLs(ctx context.Context, tx *sql.Tx, permissions []Perm
 			continue
 		}
 
-		entityURLs[entity.Type(entityType)] = make(map[int]*api.URL)
-		entityURLs[entity.Type(entityType)][permissions[0].EntityID] = u
+		entityURLs[entityType.Name()] = make(map[int]*api.URL)
+		entityURLs[entityType.Name()][permissions[0].EntityID] = u
 	}
 
 	// If there are any entity types with multiple permissions, get all URLs for those entities.
@@ -82,7 +82,7 @@ func GetPermissionEntityURLs(ctx context.Context, tx *sql.Tx, permissions []Perm
 	validPermissions := make([]Permission, 0, len(permissions))
 	danglingPermissions := make([]Permission, 0, len(permissions))
 	for _, permission := range permissions {
-		entityIDToURL, ok := entityURLs[entity.Type(permission.EntityType)]
+		entityIDToURL, ok := entityURLs[permission.EntityType.Name()]
 		if !ok {
 			danglingPermissions = append(danglingPermissions, permission)
 			continue

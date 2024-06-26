@@ -10,279 +10,279 @@ import (
 type Entitlement string
 
 const (
-	// EntitlementCanView is the "can_view" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypeProfile, entity.TypeProject, entity.TypeStorageBucket, entity.TypeStorageVolume.
+	// EntitlementCanView is the "can_view" entitlement. It applies to the following entities: entity.TypeNameCertificate, entity.TypeNameAuthGroup, entity.TypeNameIdentity, entity.TypeNameIdentityProviderGroup, entity.TypeNameImage, entity.TypeNameImageAlias, entity.TypeNameInstance, entity.TypeNameNetwork, entity.TypeNameNetworkACL, entity.TypeNameNetworkZone, entity.TypeNameProfile, entity.TypeNameProject, entity.TypeNameStorageBucket, entity.TypeNameStorageVolume.
 	EntitlementCanView Entitlement = "can_view"
 
-	// EntitlementCanEdit is the "can_edit" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypeProfile, entity.TypeProject, entity.TypeServer, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
+	// EntitlementCanEdit is the "can_edit" entitlement. It applies to the following entities: entity.TypeNameCertificate, entity.TypeNameAuthGroup, entity.TypeNameIdentity, entity.TypeNameIdentityProviderGroup, entity.TypeNameImage, entity.TypeNameImageAlias, entity.TypeNameInstance, entity.TypeNameNetwork, entity.TypeNameNetworkACL, entity.TypeNameNetworkZone, entity.TypeNameProfile, entity.TypeNameProject, entity.TypeNameServer, entity.TypeNameStorageBucket, entity.TypeNameStoragePool, entity.TypeNameStorageVolume.
 	EntitlementCanEdit Entitlement = "can_edit"
 
-	// EntitlementCanDelete is the "can_delete" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypeProfile, entity.TypeProject, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
+	// EntitlementCanDelete is the "can_delete" entitlement. It applies to the following entities: entity.TypeNameCertificate, entity.TypeNameAuthGroup, entity.TypeNameIdentity, entity.TypeNameIdentityProviderGroup, entity.TypeNameImage, entity.TypeNameImageAlias, entity.TypeNameInstance, entity.TypeNameNetwork, entity.TypeNameNetworkACL, entity.TypeNameNetworkZone, entity.TypeNameProfile, entity.TypeNameProject, entity.TypeNameStorageBucket, entity.TypeNameStoragePool, entity.TypeNameStorageVolume.
 	EntitlementCanDelete Entitlement = "can_delete"
 
-	// EntitlementAdmin is the "admin" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementAdmin is the "admin" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementAdmin Entitlement = "admin"
 
-	// EntitlementViewer is the "viewer" entitlement. It applies to the following entities: entity.TypeProject, entity.TypeServer.
+	// EntitlementViewer is the "viewer" entitlement. It applies to the following entities: entity.TypeNameProject, entity.TypeNameServer.
 	EntitlementViewer Entitlement = "viewer"
 
-	// EntitlementPermissionManager is the "permission_manager" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementPermissionManager is the "permission_manager" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementPermissionManager Entitlement = "permission_manager"
 
-	// EntitlementCanViewPermissions is the "can_view_permissions" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanViewPermissions is the "can_view_permissions" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanViewPermissions Entitlement = "can_view_permissions"
 
-	// EntitlementCanCreateIdentities is the "can_create_identities" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanCreateIdentities is the "can_create_identities" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanCreateIdentities Entitlement = "can_create_identities"
 
-	// EntitlementCanViewIdentities is the "can_view_identities" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanViewIdentities is the "can_view_identities" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanViewIdentities Entitlement = "can_view_identities"
 
-	// EntitlementCanEditIdentities is the "can_edit_identities" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanEditIdentities is the "can_edit_identities" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanEditIdentities Entitlement = "can_edit_identities"
 
-	// EntitlementCanDeleteIdentities is the "can_delete_identities" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanDeleteIdentities is the "can_delete_identities" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanDeleteIdentities Entitlement = "can_delete_identities"
 
-	// EntitlementCanCreateGroups is the "can_create_groups" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanCreateGroups is the "can_create_groups" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanCreateGroups Entitlement = "can_create_groups"
 
-	// EntitlementCanViewGroups is the "can_view_groups" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanViewGroups is the "can_view_groups" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanViewGroups Entitlement = "can_view_groups"
 
-	// EntitlementCanEditGroups is the "can_edit_groups" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanEditGroups is the "can_edit_groups" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanEditGroups Entitlement = "can_edit_groups"
 
-	// EntitlementCanDeleteGroups is the "can_delete_groups" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanDeleteGroups is the "can_delete_groups" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanDeleteGroups Entitlement = "can_delete_groups"
 
-	// EntitlementCanCreateIdentityProviderGroups is the "can_create_identity_provider_groups" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanCreateIdentityProviderGroups is the "can_create_identity_provider_groups" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanCreateIdentityProviderGroups Entitlement = "can_create_identity_provider_groups"
 
-	// EntitlementCanViewIdentityProviderGroups is the "can_view_identity_provider_groups" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanViewIdentityProviderGroups is the "can_view_identity_provider_groups" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanViewIdentityProviderGroups Entitlement = "can_view_identity_provider_groups"
 
-	// EntitlementCanEditIdentityProviderGroups is the "can_edit_identity_provider_groups" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanEditIdentityProviderGroups is the "can_edit_identity_provider_groups" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanEditIdentityProviderGroups Entitlement = "can_edit_identity_provider_groups"
 
-	// EntitlementCanDeleteIdentityProviderGroups is the "can_delete_identity_provider_groups" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanDeleteIdentityProviderGroups is the "can_delete_identity_provider_groups" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanDeleteIdentityProviderGroups Entitlement = "can_delete_identity_provider_groups"
 
-	// EntitlementStoragePoolManager is the "storage_pool_manager" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementStoragePoolManager is the "storage_pool_manager" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementStoragePoolManager Entitlement = "storage_pool_manager"
 
-	// EntitlementCanCreateStoragePools is the "can_create_storage_pools" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanCreateStoragePools is the "can_create_storage_pools" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanCreateStoragePools Entitlement = "can_create_storage_pools"
 
-	// EntitlementCanEditStoragePools is the "can_edit_storage_pools" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanEditStoragePools is the "can_edit_storage_pools" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanEditStoragePools Entitlement = "can_edit_storage_pools"
 
-	// EntitlementCanDeleteStoragePools is the "can_delete_storage_pools" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanDeleteStoragePools is the "can_delete_storage_pools" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanDeleteStoragePools Entitlement = "can_delete_storage_pools"
 
-	// EntitlementProjectManager is the "project_manager" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementProjectManager is the "project_manager" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementProjectManager Entitlement = "project_manager"
 
-	// EntitlementCanCreateProjects is the "can_create_projects" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanCreateProjects is the "can_create_projects" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanCreateProjects Entitlement = "can_create_projects"
 
-	// EntitlementCanViewProjects is the "can_view_projects" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanViewProjects is the "can_view_projects" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanViewProjects Entitlement = "can_view_projects"
 
-	// EntitlementCanEditProjects is the "can_edit_projects" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanEditProjects is the "can_edit_projects" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanEditProjects Entitlement = "can_edit_projects"
 
-	// EntitlementCanDeleteProjects is the "can_delete_projects" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanDeleteProjects is the "can_delete_projects" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanDeleteProjects Entitlement = "can_delete_projects"
 
-	// EntitlementCanOverrideClusterTargetRestriction is the "can_override_cluster_target_restriction" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanOverrideClusterTargetRestriction is the "can_override_cluster_target_restriction" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanOverrideClusterTargetRestriction Entitlement = "can_override_cluster_target_restriction"
 
-	// EntitlementCanViewPrivilegedEvents is the "can_view_privileged_events" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanViewPrivilegedEvents is the "can_view_privileged_events" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanViewPrivilegedEvents Entitlement = "can_view_privileged_events"
 
-	// EntitlementCanViewResources is the "can_view_resources" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanViewResources is the "can_view_resources" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanViewResources Entitlement = "can_view_resources"
 
-	// EntitlementCanViewMetrics is the "can_view_metrics" entitlement. It applies to the following entities: entity.TypeProject, entity.TypeServer.
+	// EntitlementCanViewMetrics is the "can_view_metrics" entitlement. It applies to the following entities: entity.TypeNameProject, entity.TypeNameServer.
 	EntitlementCanViewMetrics Entitlement = "can_view_metrics"
 
-	// EntitlementCanViewWarnings is the "can_view_warnings" entitlement. It applies to the following entities: entity.TypeServer.
+	// EntitlementCanViewWarnings is the "can_view_warnings" entitlement. It applies to the following entities: entity.TypeNameServer.
 	EntitlementCanViewWarnings Entitlement = "can_view_warnings"
 
-	// EntitlementOperator is the "operator" entitlement. It applies to the following entities: entity.TypeInstance, entity.TypeProject.
+	// EntitlementOperator is the "operator" entitlement. It applies to the following entities: entity.TypeNameInstance, entity.TypeNameProject.
 	EntitlementOperator Entitlement = "operator"
 
-	// EntitlementImageManager is the "image_manager" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementImageManager is the "image_manager" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementImageManager Entitlement = "image_manager"
 
-	// EntitlementCanCreateImages is the "can_create_images" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanCreateImages is the "can_create_images" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanCreateImages Entitlement = "can_create_images"
 
-	// EntitlementCanViewImages is the "can_view_images" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanViewImages is the "can_view_images" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanViewImages Entitlement = "can_view_images"
 
-	// EntitlementCanEditImages is the "can_edit_images" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanEditImages is the "can_edit_images" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanEditImages Entitlement = "can_edit_images"
 
-	// EntitlementCanDeleteImages is the "can_delete_images" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanDeleteImages is the "can_delete_images" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanDeleteImages Entitlement = "can_delete_images"
 
-	// EntitlementImageAliasManager is the "image_alias_manager" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementImageAliasManager is the "image_alias_manager" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementImageAliasManager Entitlement = "image_alias_manager"
 
-	// EntitlementCanCreateImageAliases is the "can_create_image_aliases" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanCreateImageAliases is the "can_create_image_aliases" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanCreateImageAliases Entitlement = "can_create_image_aliases"
 
-	// EntitlementCanViewImageAliases is the "can_view_image_aliases" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanViewImageAliases is the "can_view_image_aliases" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanViewImageAliases Entitlement = "can_view_image_aliases"
 
-	// EntitlementCanEditImageAliases is the "can_edit_image_aliases" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanEditImageAliases is the "can_edit_image_aliases" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanEditImageAliases Entitlement = "can_edit_image_aliases"
 
-	// EntitlementCanDeleteImageAliases is the "can_delete_image_aliases" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanDeleteImageAliases is the "can_delete_image_aliases" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanDeleteImageAliases Entitlement = "can_delete_image_aliases"
 
-	// EntitlementInstanceManager is the "instance_manager" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementInstanceManager is the "instance_manager" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementInstanceManager Entitlement = "instance_manager"
 
-	// EntitlementCanCreateInstances is the "can_create_instances" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanCreateInstances is the "can_create_instances" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanCreateInstances Entitlement = "can_create_instances"
 
-	// EntitlementCanViewInstances is the "can_view_instances" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanViewInstances is the "can_view_instances" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanViewInstances Entitlement = "can_view_instances"
 
-	// EntitlementCanEditInstances is the "can_edit_instances" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanEditInstances is the "can_edit_instances" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanEditInstances Entitlement = "can_edit_instances"
 
-	// EntitlementCanDeleteInstances is the "can_delete_instances" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanDeleteInstances is the "can_delete_instances" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanDeleteInstances Entitlement = "can_delete_instances"
 
-	// EntitlementCanOperateInstances is the "can_operate_instances" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanOperateInstances is the "can_operate_instances" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanOperateInstances Entitlement = "can_operate_instances"
 
-	// EntitlementNetworkManager is the "network_manager" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementNetworkManager is the "network_manager" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementNetworkManager Entitlement = "network_manager"
 
-	// EntitlementCanCreateNetworks is the "can_create_networks" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanCreateNetworks is the "can_create_networks" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanCreateNetworks Entitlement = "can_create_networks"
 
-	// EntitlementCanViewNetworks is the "can_view_networks" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanViewNetworks is the "can_view_networks" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanViewNetworks Entitlement = "can_view_networks"
 
-	// EntitlementCanEditNetworks is the "can_edit_networks" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanEditNetworks is the "can_edit_networks" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanEditNetworks Entitlement = "can_edit_networks"
 
-	// EntitlementCanDeleteNetworks is the "can_delete_networks" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanDeleteNetworks is the "can_delete_networks" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanDeleteNetworks Entitlement = "can_delete_networks"
 
-	// EntitlementNetworkACLManager is the "network_acl_manager" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementNetworkACLManager is the "network_acl_manager" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementNetworkACLManager Entitlement = "network_acl_manager"
 
-	// EntitlementCanCreateNetworkACLs is the "can_create_network_acls" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanCreateNetworkACLs is the "can_create_network_acls" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanCreateNetworkACLs Entitlement = "can_create_network_acls"
 
-	// EntitlementCanViewNetworkACLs is the "can_view_network_acls" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanViewNetworkACLs is the "can_view_network_acls" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanViewNetworkACLs Entitlement = "can_view_network_acls"
 
-	// EntitlementCanEditNetworkACLs is the "can_edit_network_acls" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanEditNetworkACLs is the "can_edit_network_acls" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanEditNetworkACLs Entitlement = "can_edit_network_acls"
 
-	// EntitlementCanDeleteNetworkACLs is the "can_delete_network_acls" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanDeleteNetworkACLs is the "can_delete_network_acls" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanDeleteNetworkACLs Entitlement = "can_delete_network_acls"
 
-	// EntitlementNetworkZoneManager is the "network_zone_manager" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementNetworkZoneManager is the "network_zone_manager" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementNetworkZoneManager Entitlement = "network_zone_manager"
 
-	// EntitlementCanCreateNetworkZones is the "can_create_network_zones" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanCreateNetworkZones is the "can_create_network_zones" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanCreateNetworkZones Entitlement = "can_create_network_zones"
 
-	// EntitlementCanViewNetworkZones is the "can_view_network_zones" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanViewNetworkZones is the "can_view_network_zones" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanViewNetworkZones Entitlement = "can_view_network_zones"
 
-	// EntitlementCanEditNetworkZones is the "can_edit_network_zones" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanEditNetworkZones is the "can_edit_network_zones" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanEditNetworkZones Entitlement = "can_edit_network_zones"
 
-	// EntitlementCanDeleteNetworkZones is the "can_delete_network_zones" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanDeleteNetworkZones is the "can_delete_network_zones" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanDeleteNetworkZones Entitlement = "can_delete_network_zones"
 
-	// EntitlementProfileManager is the "profile_manager" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementProfileManager is the "profile_manager" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementProfileManager Entitlement = "profile_manager"
 
-	// EntitlementCanCreateProfiles is the "can_create_profiles" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanCreateProfiles is the "can_create_profiles" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanCreateProfiles Entitlement = "can_create_profiles"
 
-	// EntitlementCanViewProfiles is the "can_view_profiles" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanViewProfiles is the "can_view_profiles" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanViewProfiles Entitlement = "can_view_profiles"
 
-	// EntitlementCanEditProfiles is the "can_edit_profiles" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanEditProfiles is the "can_edit_profiles" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanEditProfiles Entitlement = "can_edit_profiles"
 
-	// EntitlementCanDeleteProfiles is the "can_delete_profiles" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanDeleteProfiles is the "can_delete_profiles" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanDeleteProfiles Entitlement = "can_delete_profiles"
 
-	// EntitlementStorageVolumeManager is the "storage_volume_manager" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementStorageVolumeManager is the "storage_volume_manager" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementStorageVolumeManager Entitlement = "storage_volume_manager"
 
-	// EntitlementCanCreateStorageVolumes is the "can_create_storage_volumes" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanCreateStorageVolumes is the "can_create_storage_volumes" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanCreateStorageVolumes Entitlement = "can_create_storage_volumes"
 
-	// EntitlementCanViewStorageVolumes is the "can_view_storage_volumes" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanViewStorageVolumes is the "can_view_storage_volumes" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanViewStorageVolumes Entitlement = "can_view_storage_volumes"
 
-	// EntitlementCanEditStorageVolumes is the "can_edit_storage_volumes" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanEditStorageVolumes is the "can_edit_storage_volumes" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanEditStorageVolumes Entitlement = "can_edit_storage_volumes"
 
-	// EntitlementCanDeleteStorageVolumes is the "can_delete_storage_volumes" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanDeleteStorageVolumes is the "can_delete_storage_volumes" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanDeleteStorageVolumes Entitlement = "can_delete_storage_volumes"
 
-	// EntitlementStorageBucketManager is the "storage_bucket_manager" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementStorageBucketManager is the "storage_bucket_manager" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementStorageBucketManager Entitlement = "storage_bucket_manager"
 
-	// EntitlementCanCreateStorageBuckets is the "can_create_storage_buckets" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanCreateStorageBuckets is the "can_create_storage_buckets" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanCreateStorageBuckets Entitlement = "can_create_storage_buckets"
 
-	// EntitlementCanViewStorageBuckets is the "can_view_storage_buckets" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanViewStorageBuckets is the "can_view_storage_buckets" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanViewStorageBuckets Entitlement = "can_view_storage_buckets"
 
-	// EntitlementCanEditStorageBuckets is the "can_edit_storage_buckets" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanEditStorageBuckets is the "can_edit_storage_buckets" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanEditStorageBuckets Entitlement = "can_edit_storage_buckets"
 
-	// EntitlementCanDeleteStorageBuckets is the "can_delete_storage_buckets" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanDeleteStorageBuckets is the "can_delete_storage_buckets" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanDeleteStorageBuckets Entitlement = "can_delete_storage_buckets"
 
-	// EntitlementCanViewOperations is the "can_view_operations" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanViewOperations is the "can_view_operations" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanViewOperations Entitlement = "can_view_operations"
 
-	// EntitlementCanViewEvents is the "can_view_events" entitlement. It applies to the following entities: entity.TypeProject.
+	// EntitlementCanViewEvents is the "can_view_events" entitlement. It applies to the following entities: entity.TypeNameProject.
 	EntitlementCanViewEvents Entitlement = "can_view_events"
 
-	// EntitlementUser is the "user" entitlement. It applies to the following entities: entity.TypeInstance.
+	// EntitlementUser is the "user" entitlement. It applies to the following entities: entity.TypeNameInstance.
 	EntitlementUser Entitlement = "user"
 
-	// EntitlementCanUpdateState is the "can_update_state" entitlement. It applies to the following entities: entity.TypeInstance.
+	// EntitlementCanUpdateState is the "can_update_state" entitlement. It applies to the following entities: entity.TypeNameInstance.
 	EntitlementCanUpdateState Entitlement = "can_update_state"
 
-	// EntitlementCanManageSnapshots is the "can_manage_snapshots" entitlement. It applies to the following entities: entity.TypeInstance, entity.TypeStorageVolume.
+	// EntitlementCanManageSnapshots is the "can_manage_snapshots" entitlement. It applies to the following entities: entity.TypeNameInstance, entity.TypeNameStorageVolume.
 	EntitlementCanManageSnapshots Entitlement = "can_manage_snapshots"
 
-	// EntitlementCanManageBackups is the "can_manage_backups" entitlement. It applies to the following entities: entity.TypeInstance, entity.TypeStorageVolume.
+	// EntitlementCanManageBackups is the "can_manage_backups" entitlement. It applies to the following entities: entity.TypeNameInstance, entity.TypeNameStorageVolume.
 	EntitlementCanManageBackups Entitlement = "can_manage_backups"
 
-	// EntitlementCanConnectSFTP is the "can_connect_sftp" entitlement. It applies to the following entities: entity.TypeInstance.
+	// EntitlementCanConnectSFTP is the "can_connect_sftp" entitlement. It applies to the following entities: entity.TypeNameInstance.
 	EntitlementCanConnectSFTP Entitlement = "can_connect_sftp"
 
-	// EntitlementCanAccessFiles is the "can_access_files" entitlement. It applies to the following entities: entity.TypeInstance.
+	// EntitlementCanAccessFiles is the "can_access_files" entitlement. It applies to the following entities: entity.TypeNameInstance.
 	EntitlementCanAccessFiles Entitlement = "can_access_files"
 
-	// EntitlementCanAccessConsole is the "can_access_console" entitlement. It applies to the following entities: entity.TypeInstance.
+	// EntitlementCanAccessConsole is the "can_access_console" entitlement. It applies to the following entities: entity.TypeNameInstance.
 	EntitlementCanAccessConsole Entitlement = "can_access_console"
 
-	// EntitlementCanExec is the "can_exec" entitlement. It applies to the following entities: entity.TypeInstance.
+	// EntitlementCanExec is the "can_exec" entitlement. It applies to the following entities: entity.TypeNameInstance.
 	EntitlementCanExec Entitlement = "can_exec"
 )
 
-var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
-	entity.TypeCertificate: {
+var entityTypeToEntitlements = map[entity.TypeName][]Entitlement{
+	entity.TypeNameCertificate: {
 		// Grants permission to view the certificate.
 		EntitlementCanView,
 		// Grants permission to edit the certificate.
@@ -290,7 +290,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		// Grants permission to delete the certificate.
 		EntitlementCanDelete,
 	},
-	entity.TypeAuthGroup: {
+	entity.TypeNameAuthGroup: {
 		// Grants permission to view the group. Identities can always view groups that they are a member of.
 		EntitlementCanView,
 		// Grants permission to edit the group.
@@ -298,7 +298,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		// Grants permission to delete the group.
 		EntitlementCanDelete,
 	},
-	entity.TypeIdentity: {
+	entity.TypeNameIdentity: {
 		// Grants permission to view the identity.
 		EntitlementCanView,
 		// Grants permission to edit the identity.
@@ -306,7 +306,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		// Grants permission to delete the identity.
 		EntitlementCanDelete,
 	},
-	entity.TypeIdentityProviderGroup: {
+	entity.TypeNameIdentityProviderGroup: {
 		// Grants permission to view the identity provider group.
 		EntitlementCanView,
 		// Grants permission to edit the identity provider group.
@@ -314,7 +314,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		// Grants permission to delete the identity provider group.
 		EntitlementCanDelete,
 	},
-	entity.TypeImage: {
+	entity.TypeNameImage: {
 		// Grants permission to edit the image.
 		EntitlementCanEdit,
 		// Grants permission to delete the image.
@@ -322,7 +322,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		// Grants permission to view the image.
 		EntitlementCanView,
 	},
-	entity.TypeImageAlias: {
+	entity.TypeNameImageAlias: {
 		// Grants permission to edit the image alias.
 		EntitlementCanEdit,
 		// Grants permission to delete the image alias.
@@ -330,7 +330,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		// Grants permission to view the image alias.
 		EntitlementCanView,
 	},
-	entity.TypeInstance: {
+	entity.TypeNameInstance: {
 		// Grants permission to view the instance, to access files, and to start a terminal or console session.
 		EntitlementUser,
 		// Grants permission to view the instance, to access files, start a terminal or console session, and to manage snapshots and backups.
@@ -356,7 +356,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		// Grants permission to start a terminal session.
 		EntitlementCanExec,
 	},
-	entity.TypeNetwork: {
+	entity.TypeNameNetwork: {
 		// Grants permission to edit the network.
 		EntitlementCanEdit,
 		// Grants permission to delete the network.
@@ -364,7 +364,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		// Grants permission to view the network.
 		EntitlementCanView,
 	},
-	entity.TypeNetworkACL: {
+	entity.TypeNameNetworkACL: {
 		// Grants permission to edit the network ACL.
 		EntitlementCanEdit,
 		// Grants permission to delete the network ACL.
@@ -372,7 +372,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		// Grants permission to view the network ACL.
 		EntitlementCanView,
 	},
-	entity.TypeNetworkZone: {
+	entity.TypeNameNetworkZone: {
 		// Grants permission to edit the network zone.
 		EntitlementCanEdit,
 		// Grants permission to delete the network zone.
@@ -380,7 +380,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		// Grants permission to view the network zone.
 		EntitlementCanView,
 	},
-	entity.TypeProfile: {
+	entity.TypeNameProfile: {
 		// Grants permission to edit the profile.
 		EntitlementCanEdit,
 		// Grants permission to delete the profile.
@@ -388,7 +388,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		// Grants permission to view the profile.
 		EntitlementCanView,
 	},
-	entity.TypeProject: {
+	entity.TypeNameProject: {
 		// Grants permission to create, view, edit, and delete all resources belonging to the project, but does not grant permission to edit the project configuration itself.
 		EntitlementOperator,
 		// Grants permission to view all resources belonging to the project.
@@ -498,7 +498,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		// Grants permission to view project level metrics.
 		EntitlementCanViewMetrics,
 	},
-	entity.TypeServer: {
+	entity.TypeNameServer: {
 		// Grants full access to LXD as if via Unix socket.
 		EntitlementAdmin,
 		// Grants access to view all resources in the LXD server.
@@ -562,7 +562,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		// Grants permission to view warnings.
 		EntitlementCanViewWarnings,
 	},
-	entity.TypeStorageBucket: {
+	entity.TypeNameStorageBucket: {
 		// Grants permission to edit the storage bucket.
 		EntitlementCanEdit,
 		// Grants permission to delete the storage bucket.
@@ -570,13 +570,13 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		// Grants permission to view the storage bucket.
 		EntitlementCanView,
 	},
-	entity.TypeStoragePool: {
+	entity.TypeNameStoragePool: {
 		// Grants permission to edit the storage pool.
 		EntitlementCanEdit,
 		// Grants permission to delete the storage pool.
 		EntitlementCanDelete,
 	},
-	entity.TypeStorageVolume: {
+	entity.TypeNameStorageVolume: {
 		// Grants permission to edit the storage volume.
 		EntitlementCanEdit,
 		// Grants permission to delete the storage volume.

@@ -151,7 +151,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 
 			certResponses = make([]api.Certificate, 0, len(baseCerts))
 			for _, baseCert := range baseCerts {
-				if !userHasPermission(entity.CertificateURL(baseCert.Fingerprint)) {
+				if !userHasPermission(entity.TypeCertificate.URL(baseCert.Fingerprint)) {
 					continue
 				}
 
@@ -174,7 +174,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 
 	body := []string{}
 	for _, identity := range d.identityCache.GetByAuthenticationMethod(api.AuthenticationMethodTLS) {
-		if !userHasPermission(entity.CertificateURL(identity.Identifier)) {
+		if !userHasPermission(entity.TypeCertificate.URL(identity.Identifier)) {
 			continue
 		}
 
@@ -392,7 +392,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 	// Check if the caller has permission to create certificates.
 	var userCanCreateCertificates bool
-	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanCreateIdentities)
+	err = s.Authorizer.CheckPermission(r.Context(), r, entity.TypeServer.URL(), auth.EntitlementCanCreateIdentities)
 	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {
@@ -681,7 +681,7 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = s.Authorizer.CheckPermission(r.Context(), r, entity.CertificateURL(cert.Fingerprint), auth.EntitlementCanView)
+	err = s.Authorizer.CheckPermission(r.Context(), r, entity.TypeCertificate.URL(cert.Fingerprint), auth.EntitlementCanView)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -840,7 +840,7 @@ func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificateP
 	}
 
 	var userCanEditCertificate bool
-	err = s.Authorizer.CheckPermission(r.Context(), r, entity.CertificateURL(dbInfo.Fingerprint), auth.EntitlementCanEdit)
+	err = s.Authorizer.CheckPermission(r.Context(), r, entity.TypeCertificate.URL(dbInfo.Fingerprint), auth.EntitlementCanEdit)
 	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {
@@ -995,7 +995,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var userCanEditCertificate bool
-	err = s.Authorizer.CheckPermission(r.Context(), r, entity.CertificateURL(certInfo.Fingerprint), auth.EntitlementCanDelete)
+	err = s.Authorizer.CheckPermission(r.Context(), r, entity.TypeCertificate.URL(certInfo.Fingerprint), auth.EntitlementCanDelete)
 	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {

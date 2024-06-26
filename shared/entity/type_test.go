@@ -103,7 +103,7 @@ func TestURL(t *testing.T) {
 		{
 			name:               "cluster members",
 			rawURL:             "/1.0/cluster/members/node01",
-			expectedEntityType: TypeNode,
+			expectedEntityType: TypeClusterMember,
 			expectedProject:    "",
 			expectedPathArgs:   []string{"node01"},
 			expectedErr:        nil,
@@ -182,11 +182,11 @@ func TestURL(t *testing.T) {
 
 			assert.Equal(t, tt.expectedErr, actualErr)
 
-			requiresProject, err := actualEntityType.RequiresProject()
+			requiresProject := actualEntityType.RequiresProject()
 			assert.NoError(t, err)
 			if u.Query().Get("project") != "" || !requiresProject {
 				// Assert that we can convert back to the same value.
-				actualURL, err := actualEntityType.URL(actualProject, actualLocation, actualPathArgs...)
+				actualURL, err := URL(actualEntityType, actualProject, actualLocation, actualPathArgs...)
 				assert.NoError(t, err)
 				assert.Equal(t, tt.rawURL, actualURL.String())
 			} else {
@@ -195,7 +195,7 @@ func TestURL(t *testing.T) {
 				q := u.Query()
 				q.Set("project", api.ProjectDefaultName)
 				u.RawQuery = q.Encode()
-				actualURL, err := actualEntityType.URL(actualProject, actualLocation, actualPathArgs...)
+				actualURL, err := URL(actualEntityType, actualProject, actualLocation, actualPathArgs...)
 				assert.NoError(t, err)
 				assert.Equal(t, u.String(), actualURL.String())
 			}

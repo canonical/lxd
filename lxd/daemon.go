@@ -264,15 +264,15 @@ func allowPermission(entityType entity.Type, entitlement auth.Entitlement, muxVa
 		s := d.State()
 		var err error
 		var entityURL *api.URL
-		if entityType == entity.TypeServer {
+		if entity.Equal(entity.TypeServer, entityType) {
 			// For server permission checks, skip mux var logic.
-			entityURL = entity.ServerURL()
-		} else if entityType == entity.TypeProject && len(muxVars) == 0 {
+			entityURL = entity.TypeServer.URL()
+		} else if entity.Equal(entity.TypeProject, entityType) && len(muxVars) == 0 {
 			// If we're checking project permissions on a non-project endpoint (e.g. `can_create_instances` on POST /1.0/instances)
 			// we get the project name from the query parameter.
 			// If we're checking project permissions on a project endpoint, we expect to get the project name from its path variable
 			// in the next else block.
-			entityURL = entity.ProjectURL(request.ProjectParam(r))
+			entityURL = entity.TypeProject.URL(request.ProjectParam(r))
 		} else {
 			muxValues := make([]string, 0, len(muxVars))
 			vars := mux.Vars(r)
@@ -285,7 +285,7 @@ func allowPermission(entityType entity.Type, entitlement auth.Entitlement, muxVa
 				muxValues = append(muxValues, muxValue)
 			}
 
-			entityURL, err = entityType.URL(request.QueryParam(r, "project"), request.QueryParam(r, "target"), muxValues...)
+			entityURL, err = entity.URL(entityType, request.QueryParam(r, "project"), request.QueryParam(r, "target"), muxValues...)
 			if err != nil {
 				return response.InternalError(fmt.Errorf("Failed to perform permission check: %w", err))
 			}
@@ -1622,7 +1622,7 @@ func (d *Daemon) init() error {
 
 					if !warningAdded {
 						_ = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-							err := tx.UpsertWarningLocalNode(ctx, "", "", -1, warningtype.UnableToConnectToMAAS, err.Error())
+							err := tx.UpsertWarningLocalNode(ctx, "", nil, -1, warningtype.UnableToConnectToMAAS, err.Error())
 							if err != nil {
 								logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 							}
@@ -1657,7 +1657,7 @@ func (d *Daemon) init() error {
 	_ = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Create warnings that have been collected
 		for _, w := range dbWarnings {
-			err := tx.UpsertWarningLocalNode(ctx, "", "", -1, warningtype.Type(w.TypeCode), w.LastMessage)
+			err := tx.UpsertWarningLocalNode(ctx, "", nil, -1, w.TypeCode, w.LastMessage)
 			if err != nil {
 				logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 			}
@@ -2076,7 +2076,7 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 
 			if d.db.Cluster != nil {
 				err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-					return tx.UpsertWarningLocalNode(ctx, "", "", -1, warningtype.ClusterTimeSkew, fmt.Sprintf("leaderTime: %s, localTime: %s", hbData.Time, now))
+					return tx.UpsertWarningLocalNode(ctx, "", nil, -1, warningtype.ClusterTimeSkew, fmt.Sprintf("leaderTime: %s, localTime: %s", hbData.Time, now))
 				})
 				if err != nil {
 					logger.Warn("Failed to create cluster time skew warning", logger.Ctx{"err": err})

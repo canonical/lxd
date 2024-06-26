@@ -219,7 +219,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 	resultString := []string{}
 	resultMap := []api.Network{}
 	for _, networkName := range networkNames {
-		if !userHasPermission(entity.NetworkURL(projectName, networkName)) {
+		if !userHasPermission(entity.TypeNetwork.URL(projectName, networkName)) {
 			continue
 		}
 
@@ -863,7 +863,7 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, projectName st
 		apiNet.Description = n.Description()
 		apiNet.Type = n.Type()
 
-		err = s.Authorizer.CheckPermission(r.Context(), r, entity.NetworkURL(projectName, networkName), auth.EntitlementCanEdit)
+		err = s.Authorizer.CheckPermission(r.Context(), r, entity.TypeNetwork.URL(projectName, networkName), auth.EntitlementCanEdit)
 		if err != nil && !auth.IsDeniedError(err) {
 			return api.Network{}, err
 		} else if err == nil {

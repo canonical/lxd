@@ -132,14 +132,14 @@ func writeOutput(w io.Writer, entityToEntitlements map[entity.Type][]entitlement
 		for entityType, entitlements := range entityToEntitlements {
 			for _, e := range entitlements {
 				if entitlement.relation == e.relation {
-					entityTypes = append(entityTypes, string(entityType))
+					entityTypes = append(entityTypes, string(entityType.Name()))
 					break
 				}
 			}
 		}
 
 		for i := range entityTypes {
-			entityTypes[i] = fmt.Sprintf("entity.Type%s", snakeToPascal(entityTypes[i]))
+			entityTypes[i] = fmt.Sprintf("entity.TypeName%s", snakeToPascal(entityTypes[i]))
 		}
 
 		sort.Strings(entityTypes)
@@ -158,16 +158,21 @@ func writeOutput(w io.Writer, entityToEntitlements map[entity.Type][]entitlement
 	// To ensure the entity to entitlement map is always in the same order, get a list of entity types and sort it alphabetically.
 	var entityTypes []string
 	for entityType := range entityToEntitlements {
-		entityTypes = append(entityTypes, string(entityType))
+		entityTypes = append(entityTypes, string(entityType.Name()))
 	}
 
 	sort.Strings(entityTypes)
 
-	// Map of entity.Type to slice of entitlements.
-	builder.WriteString("var EntityTypeToEntitlements = map[entity.Type][]Entitlement{\n")
+	// Map of entity.TypeName to slice of entitlements.
+	builder.WriteString("var entityTypeToEntitlements = map[entity.TypeName][]Entitlement{\n")
 	for _, entityType := range entityTypes {
-		entitlements := entityToEntitlements[entity.Type(entityType)]
-		builder.WriteString(fmt.Sprintf("\tentity.Type%s: {\n", snakeToPascal(entityType)))
+		eType, err := entity.TypeFromString(entityType)
+		if err != nil {
+			return err
+		}
+
+		entitlements := entityToEntitlements[eType]
+		builder.WriteString(fmt.Sprintf("\tentity.TypeName%s: {\n", snakeToPascal(entityType)))
 		for _, entitlement := range entitlements {
 			// Here we can add the comment from the OpenFGA model.
 			builder.WriteString(fmt.Sprintf("\t\t// %s\n", entitlement.description))
@@ -180,10 +185,10 @@ func writeOutput(w io.Writer, entityToEntitlements map[entity.Type][]entitlement
 	builder.WriteString("}\n")
 
 	// In the context of the OpenFGA model, the term "group" clearly means a collection of identities. In LXD, the term
-	// "group" could have many meanings so we don't have an `entity.TypeGroup`, instead we have `entity.TypeAuthGroup`.
+	// "group" could have many meanings so we don't have an `entity.TypeNameGroup`, instead we have `entity.TypeNameAuthGroup`.
 	// The Pascal cased "group" type will have led to adding `entity.TypeGroup` to the generated file erroneously, so we
-	// need to replace it with `entity.TypeAuthGroup`.
-	s := strings.Replace(builder.String(), "entity.TypeGroup", "entity.TypeAuthGroup", -1)
+	// need to replace it with `entity.TypeNameAuthGroup`.
+	s := strings.Replace(builder.String(), "entity.TypeNameGroup", "entity.TypeNameAuthGroup", -1)
 
 	_, err := w.Write([]byte(s))
 	if err != nil {
@@ -219,8 +224,8 @@ scan:
 		// Check if this is a type definition and if so, set the current type to this value.
 		submatch := typeRegexp.FindStringSubmatch(line)
 		if len(submatch) == 2 {
-			curType = entity.Type(submatch[1])
-			err := curType.Validate()
+			var err error
+			curType, err = entity.TypeFromString(submatch[1])
 			if err != nil {
 				logger.Warn("Entity type not defined for OpenFGA model type", logger.Ctx{"model_type": submatch[1], "error": err})
 				continue scan
