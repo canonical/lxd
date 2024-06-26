@@ -13,6 +13,7 @@ import (
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/subprocess"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -97,7 +98,7 @@ func (d *tpm) Start() (*deviceConfig.RunConfig, error) {
 		return nil, fmt.Errorf("Failed to validate environment: %w", err)
 	}
 
-	tpmDevPath := filepath.Join(d.inst.Path(), fmt.Sprintf("tpm.%s", d.name))
+	tpmDevPath := filepath.Join(d.inst.Path(), fmt.Sprintf("tpm.%s", filesystem.PathNameEncode(d.name)))
 
 	if !shared.PathExists(tpmDevPath) {
 		err := os.Mkdir(tpmDevPath, 0700)
@@ -212,8 +213,9 @@ func (d *tpm) startVM() (*deviceConfig.RunConfig, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
-	tpmDevPath := filepath.Join(d.inst.Path(), fmt.Sprintf("tpm.%s", d.name))
-	socketPath := filepath.Join(tpmDevPath, fmt.Sprintf("swtpm-%s.sock", d.name))
+	escapedDeviceName := filesystem.PathNameEncode(d.name)
+	tpmDevPath := filepath.Join(d.inst.Path(), fmt.Sprintf("tpm.%s", escapedDeviceName))
+	socketPath := filepath.Join(tpmDevPath, fmt.Sprintf("swtpm-%s.sock", escapedDeviceName))
 	runConf := deviceConfig.RunConfig{
 		TPMDevice: []deviceConfig.RunConfigItem{
 			{Key: "devName", Value: d.name},
@@ -280,7 +282,7 @@ func (d *tpm) startVM() (*deviceConfig.RunConfig, error) {
 
 	revert.Add(func() { _ = proc.Stop() })
 
-	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
+	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", escapedDeviceName))
 
 	err = proc.Save(pidPath)
 	if err != nil {
