@@ -46,8 +46,8 @@ objects:
 lint:
 	.sphinx/.markdownlint/doc-lint.sh
 
-.PHONY: html incremental
-html incremental:
+.PHONY: html
+html:
 	$(MAKE) -f Makefile.sp sp-html LOCAL_SPHINX_BUILD=True ADDPREREQS='gitpython pyyaml'
 
 %:
