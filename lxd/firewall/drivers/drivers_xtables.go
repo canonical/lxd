@@ -1558,7 +1558,7 @@ func (d Xtables) NetworkApplyForwards(networkName string, rules []AddressForward
 	reverter.Add(func() {
 		err := clearNetworkForwards()
 		if err != nil {
-			logger.Error("Failed to clear firewall rules after failing to apply network forwards", logger.Ctx{"network_name": networkName, "error": err})
+			logger.Error("Failed to clear firewall rules after failing to apply network forwards", logger.Ctx{"network_name": networkName, "err": err})
 		}
 	})
 

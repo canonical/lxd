@@ -832,7 +832,7 @@ func updateIdentityCache(d *Daemon) {
 		if cacheEntry.AuthenticationMethod == api.AuthenticationMethodTLS {
 			cert, err := id.X509()
 			if err != nil {
-				logger.Warn("Failed to extract x509 certificate from TLS identity metadata", logger.Ctx{"error": err})
+				logger.Warn("Failed to extract x509 certificate from TLS identity metadata", logger.Ctx{"err": err})
 				continue
 			}
 
@@ -840,7 +840,7 @@ func updateIdentityCache(d *Daemon) {
 		} else if cacheEntry.AuthenticationMethod == api.AuthenticationMethodOIDC {
 			subject, err := id.Subject()
 			if err != nil {
-				logger.Warn("Failed to extract OIDC subject from OIDC identity metadata", logger.Ctx{"error": err})
+				logger.Warn("Failed to extract OIDC subject from OIDC identity metadata", logger.Ctx{"err": err})
 				continue
 			}
 
@@ -853,7 +853,7 @@ func updateIdentityCache(d *Daemon) {
 		if id.Type == api.IdentityTypeCertificateServer {
 			cert, err := id.ToCertificate()
 			if err != nil {
-				logger.Warn("Failed to convert TLS identity to server certificate", logger.Ctx{"error": err})
+				logger.Warn("Failed to convert TLS identity to server certificate", logger.Ctx{"err": err})
 			}
 
 			localServerCerts = append(localServerCerts, *cert)
@@ -872,7 +872,7 @@ func updateIdentityCache(d *Daemon) {
 
 	err = d.identityCache.ReplaceAll(identityCacheEntries, idpGroupMapping)
 	if err != nil {
-		logger.Warn("Failed to update identity cache", logger.Ctx{"error": err})
+		logger.Warn("Failed to update identity cache", logger.Ctx{"err": err})
 	}
 }
 
@@ -907,7 +907,7 @@ func updateIdentityCacheFromLocal(d *Daemon) error {
 
 		id, err := dbCert.ToIdentity()
 		if err != nil {
-			logger.Warn("Failed to convert node certificate into identity entry", logger.Ctx{"error": err})
+			logger.Warn("Failed to convert node certificate into identity entry", logger.Ctx{"err": err})
 			continue
 		}
 

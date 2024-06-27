@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -150,12 +151,19 @@ func eventsProcess(event api.Event) {
 		mntSource = e.Mount.Source
 	}
 
+	l := logger.AddContext(logger.Ctx{"type": "virtiofs", "source": mntSource, "path": e.Config["path"]})
+
 	_ = os.MkdirAll(e.Config["path"], 0755)
-	_, err = shared.RunCommand("mount", "-t", "virtiofs", mntSource, e.Config["path"])
-	if err != nil {
-		logger.Infof("Failed to mount hotplug %q (Type: %q) to %q", mntSource, "virtiofs", e.Config["path"])
-		return
+
+	for i := 0; i < 5; i++ {
+		_, err = shared.RunCommand("mount", "-t", "virtiofs", mntSource, e.Config["path"])
+		if err == nil {
+			l.Info("Mounted hotplug")
+			return
+		}
+
+		time.Sleep(500 * time.Millisecond)
 	}
 
-	logger.Infof("Mounted hotplug %q (Type: %q) to %q", mntSource, "virtiofs", e.Config["path"])
+	l.Info("Failed to mount hotplug", logger.Ctx{"err": err})
 }
