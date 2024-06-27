@@ -51,7 +51,8 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	// Setup logger.
 	err := logger.InitLogger("", "lxd-agent", c.global.flagLogVerbose, c.global.flagLogDebug, nil)
 	if err != nil {
-		os.Exit(1)
+		// Ensure we exit with a non-zero exit code.
+		os.Exit(1) //nolint:revive
 	}
 
 	logger.Info("Starting")
@@ -196,7 +197,8 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	cancelStatusNotifier() // Ensure STOPPED status is written to QEMU status ringbuffer.
 	cancelFunc()
 
-	os.Exit(exitStatus)
+	// Ensure we exit with a relevant exit code.
+	os.Exit(exitStatus) //nolint:revive
 
 	return nil
 }
