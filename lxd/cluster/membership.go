@@ -405,7 +405,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 			return nil
 		})
 		if err != nil {
-			logger.Error("Failed to unlock global database after cluster join error", logger.Ctx{"error": err})
+			logger.Error("Failed to unlock global database after cluster join error", logger.Ctx{"err": err})
 		}
 	})
 
@@ -437,32 +437,32 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 			return tx.ReplaceRaftNodes([]db.RaftNode{})
 		})
 		if err != nil {
-			logger.Error("Failed to clear local raft node records after cluster join error", logger.Ctx{"error": err})
+			logger.Error("Failed to clear local raft node records after cluster join error", logger.Ctx{"err": err})
 			return
 		}
 
 		err = gateway.Shutdown()
 		if err != nil {
-			logger.Error("Failed to shutdown gateway after cluster join error", logger.Ctx{"error": err})
+			logger.Error("Failed to shutdown gateway after cluster join error", logger.Ctx{"err": err})
 			return
 		}
 
 		err = os.RemoveAll(state.OS.GlobalDatabaseDir())
 		if err != nil {
-			logger.Error("Failed to remove raft data after cluster join error", logger.Ctx{"error": err})
+			logger.Error("Failed to remove raft data after cluster join error", logger.Ctx{"err": err})
 			return
 		}
 
 		gateway.networkCert = oldCert
 		err = gateway.init(false)
 		if err != nil {
-			logger.Error("Failed to re-initialize gateway after cluster join error", logger.Ctx{"error": err})
+			logger.Error("Failed to re-initialize gateway after cluster join error", logger.Ctx{"err": err})
 			return
 		}
 
 		_, err = cluster.EnsureSchema(state.DB.Cluster.DB(), localClusterAddress, state.OS.GlobalDatabaseDir())
 		if err != nil {
-			logger.Error("Failed to reload schema after cluster join error", logger.Ctx{"error": err})
+			logger.Error("Failed to reload schema after cluster join error", logger.Ctx{"err": err})
 			return
 		}
 	})
