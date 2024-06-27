@@ -2,8 +2,10 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -41,6 +43,27 @@ func IsRootUserFromCtx(ctx context.Context) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// GetIdentityFromCtx returns the identity.CacheEntry for the current authenticated caller.
+func GetIdentityFromCtx(ctx context.Context, identityCache *identity.Cache) (*identity.CacheEntry, error) {
+	authenticationMethod, err := GetAuthenticationMethodFromCtx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get caller authentication method: %w", err)
+	}
+
+	// If the caller authenticated via a CA-signed certificate and `core.trust_ca_certificates` is enabled. We still
+	// want to check for any potential trust store entries corresponding to their certificate fingerprint.
+	if authenticationMethod == AuthenticationMethodPKI {
+		authenticationMethod = api.AuthenticationMethodTLS
+	}
+
+	username, err := GetUsernameFromCtx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get caller username: %w", err)
+	}
+
+	return identityCache.Get(authenticationMethod, username)
 }
 
 // GetUsernameFromCtx inspects the context and returns the username of the initial caller.
