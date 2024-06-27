@@ -222,7 +222,7 @@ scan:
 			curType = entity.Type(submatch[1])
 			err := curType.Validate()
 			if err != nil {
-				logger.Warn("Entity type not defined for OpenFGA model type", logger.Ctx{"model_type": submatch[1], "error": err})
+				logger.Warn("Entity type not defined for OpenFGA model type", logger.Ctx{"model_type": submatch[1], "err": err})
 				continue scan
 			}
 
