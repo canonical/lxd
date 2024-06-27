@@ -827,14 +827,29 @@ func (d *powerflex) deleteNVMeHost() error {
 	return client.deleteHost(host.ID)
 }
 
-// mapNVMeVolume maps the given volume onto this host.
-func (d *powerflex) mapNVMeVolume(vol Volume) (revert.Hook, error) {
-	revert := revert.New()
-	defer revert.Fail()
+// mapVolume maps the given volume onto this host.
+func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
+	reverter := revert.New()
+	defer reverter.Fail()
 
-	hostID, err := d.createNVMeHost()
-	if err != nil {
-		return nil, err
+	var hostID string
+
+	switch d.config["powerflex.mode"] {
+	case "nvme":
+		unlock, err := locking.Lock(d.state.ShutdownCtx, "nvme")
+		if err != nil {
+			return nil, err
+		}
+
+		defer unlock()
+
+		var cleanup revert.Hook
+		hostID, cleanup, err = d.createNVMeHost()
+		if err != nil {
+			return nil, err
+		}
+
+		reverter.Add(cleanup)
 	}
 
 	volumeName, err := d.getVolumeName(vol)
@@ -866,13 +881,24 @@ func (d *powerflex) mapNVMeVolume(vol Volume) (revert.Hook, error) {
 			return nil, err
 		}
 
-		revert.Add(func() {
-			_ = d.unmapNVMeVolume(vol)
-		})
+		reverter.Add(func() { _ = client.deleteHostVolumeMapping(hostID, volumeID) })
 	}
 
-	cleanup := revert.Clone().Fail
-	revert.Success()
+	if d.config["powerflex.mode"] == "nvme" {
+		// Connect to the NVMe/TCP subsystem.
+		// We have to connect after the first mapping was established.
+		// PowerFlex does not offer any discovery log entries until a volume gets mapped to the host.
+		// This action is idempotent.
+		cleanup, err := d.connectNVMeSubsys()
+		if err != nil {
+			return nil, err
+		}
+
+		reverter.Add(cleanup)
+	}
+
+	cleanup := reverter.Clone().Fail
+	reverter.Success()
 	return cleanup, nil
 }
 
@@ -883,31 +909,12 @@ func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert
 	defer revert.Fail()
 
 	if mapVolume {
-		switch d.config["powerflex.mode"] {
-		case "nvme":
-			unlock, err := locking.Lock(d.state.ShutdownCtx, "nvme")
-			if err != nil {
-				return "", nil, err
-			}
-
-			defer unlock()
-
-			cleanup, err := d.mapNVMeVolume(vol)
-			if err != nil {
-				return "", nil, err
-			}
-
-			revert.Add(cleanup)
-
-			// Connect to the NVMe/TCP subsystem.
-			// We have to connect after the first mapping was established.
-			// PowerFlex does not offer any discovery log entries until a volume gets mapped to the host.
-			// This action is idempotent.
-			err = d.connectNVMeSubsys()
-			if err != nil {
-				return "", nil, err
-			}
+		cleanup, err := d.mapVolume(vol)
+		if err != nil {
+			return "", nil, err
 		}
+
+		revert.Add(cleanup)
 	}
 
 	powerFlexVolumes := make(map[string]string)
