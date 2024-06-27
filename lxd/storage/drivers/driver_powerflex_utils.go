@@ -869,34 +869,37 @@ func (d *powerflex) mapNVMeVolume(vol Volume) (revert.Hook, error) {
 	return cleanup, nil
 }
 
-// getNVMeMappedDevPath returns the local device path for the given NVMe volume name.
-// Set mapVolume to true if the volume isn't already mapped to this host.
-func (d *powerflex) getNVMeMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook, error) {
+// getMappedDevPath returns the local device path for the given volume.
+// Indicate with mapVolume if the volume should get mapped to the system if it isn't present.
+func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
 	if mapVolume {
-		unlock, err := locking.Lock(d.state.ShutdownCtx, "nvme")
-		if err != nil {
-			return "", nil, err
-		}
+		switch d.config["powerflex.mode"] {
+		case "nvme":
+			unlock, err := locking.Lock(d.state.ShutdownCtx, "nvme")
+			if err != nil {
+				return "", nil, err
+			}
 
-		defer unlock()
+			defer unlock()
 
-		cleanup, err := d.mapNVMeVolume(vol)
-		if err != nil {
-			return "", nil, err
-		}
+			cleanup, err := d.mapNVMeVolume(vol)
+			if err != nil {
+				return "", nil, err
+			}
 
-		revert.Add(cleanup)
+			revert.Add(cleanup)
 
-		// Connect to the NVMe/TCP subsystem.
-		// We have to connect after the first mapping was established.
-		// PowerFlex does not offer any discovery log entries until a volume gets mapped to the host.
-		// This action is idempotent.
-		err = d.connectNVMeSubsys()
-		if err != nil {
-			return "", nil, err
+			// Connect to the NVMe/TCP subsystem.
+			// We have to connect after the first mapping was established.
+			// PowerFlex does not offer any discovery log entries until a volume gets mapped to the host.
+			// This action is idempotent.
+			err = d.connectNVMeSubsys()
+			if err != nil {
+				return "", nil, err
+			}
 		}
 	}
 
@@ -904,12 +907,12 @@ func (d *powerflex) getNVMeMappedDevPath(vol Volume, mapVolume bool) (string, re
 
 	// discoverFunc has to be called in a loop with a set timeout to ensure
 	// all the necessary directories and devices can be discovered.
-	discoverFunc := func(volumeID string) error {
+	discoverFunc := func(volumeID string, diskPrefix string) error {
 		var diskPaths []string
 
 		// If there are no other disks on the system by id, the directory might not even be there.
 		// Returns ENOENT in case the by-id/ directory does not exist.
-		diskPaths, err := resources.GetDisksByID(fmt.Sprintf("nvme-eui.%s", volumeID))
+		diskPaths, err := resources.GetDisksByID(fmt.Sprintf("%s%s", diskPrefix, volumeID))
 		if err != nil {
 			return err
 		}
@@ -920,8 +923,13 @@ func (d *powerflex) getNVMeMappedDevPath(vol Volume, mapVolume bool) (string, re
 				continue
 			}
 
-			// The actual /dev/nvmeX might not already be created.
-			// Returns ENOENT in case the nvmeX device does not exist.
+			// Skip other volume's that don't match the PowerFlex volume's ID.
+			if !strings.Contains(diskPath, volumeID) {
+				continue
+			}
+
+			// The actual device might not already be created.
+			// Returns ENOENT in case the device does not exist.
 			devPath, err := filepath.EvalSymlinks(diskPath)
 			if err != nil {
 				return err
@@ -944,14 +952,20 @@ func (d *powerflex) getNVMeMappedDevPath(vol Volume, mapVolume bool) (string, re
 	}
 
 	timeout := time.Now().Add(5 * time.Second)
-	// It might take the NVMe/TCP subsystem a while to create the local disk.
+	// It might take a while to create the local disk.
 	// Retry until it can be found.
 	for {
 		if time.Now().After(timeout) {
-			return "", nil, fmt.Errorf("Timeout exceeded for NVMe volume discovery: %q", volumeName)
+			return "", nil, fmt.Errorf("Timeout exceeded for PowerFlex volume discovery: %q", volumeName)
 		}
 
-		err := discoverFunc(powerFlexVolumeID)
+		var prefix string
+		switch d.config["powerflex.mode"] {
+		case "nvme":
+			prefix = "nvme-eui."
+		}
+
+		err := discoverFunc(powerFlexVolumeID, prefix)
 		if err != nil {
 			// Try again if on of the directories cannot be found.
 			if errors.Is(err, unix.ENOENT) {
@@ -977,26 +991,17 @@ func (d *powerflex) getNVMeMappedDevPath(vol Volume, mapVolume bool) (string, re
 	}
 
 	if len(powerFlexVolumes) == 0 {
-		return "", nil, fmt.Errorf("Failed to discover any NVMe volume")
+		return "", nil, fmt.Errorf("Failed to discover any PowerFlex volume")
 	}
 
 	powerFlexVolumePath, ok := powerFlexVolumes[powerFlexVolumeID]
 	if !ok {
-		return "", nil, fmt.Errorf("Volume not found: %q", volumeName)
+		return "", nil, fmt.Errorf("PowerFlex volume not found: %q", volumeName)
 	}
 
 	cleanup := revert.Clone().Fail
 	revert.Success()
 	return powerFlexVolumePath, cleanup, nil
-}
-
-// getMappedDevPath returns the local device path for the given volume name.
-func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook, error) {
-	if d.config["powerflex.mode"] == "nvme" {
-		return d.getNVMeMappedDevPath(vol, mapVolume)
-	}
-
-	return "", nil, ErrNotSupported
 }
 
 // unmapNVMeVolume unmaps the given NVMe volume from this host.
