@@ -7482,8 +7482,8 @@ func (d *qemu) SetAffinity(set []string) error {
 
 	for i, pid := range pids {
 		affinitySet := unix.CPUSet{}
-		cpuCoreIndex, _ := strconv.Atoi(set[i])
-		affinitySet.Set(cpuCoreIndex)
+		cpuCoreIndex, _ := strconv.ParseUint(set[i], 10, 63)
+		affinitySet.Set(int(cpuCoreIndex))
 
 		// Apply the pin.
 		err := unix.SchedSetaffinity(pid, &affinitySet)
