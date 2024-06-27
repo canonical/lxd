@@ -281,10 +281,12 @@ func (c *cmdAgent) mountHostShares() {
 			mount.Target = fmt.Sprintf("/%s", mount.Target)
 		}
 
+		l := logger.AddContext(logger.Ctx{"source": mount.Source, "path": mount.Target})
+
 		if !shared.PathExists(mount.Target) {
 			err := os.MkdirAll(mount.Target, 0755)
 			if err != nil {
-				logger.Errorf("Failed to create mount target %q", mount.Target)
+				l.Error("Failed to create mount target", logger.Ctx{"err": err})
 				continue // Don't try to mount if mount point can't be created.
 			}
 		} else if filesystem.IsMountPoint(mount.Target) {
@@ -307,7 +309,7 @@ func (c *cmdAgent) mountHostShares() {
 
 			_, err = shared.RunCommand("mount", args...)
 			if err == nil {
-				logger.Infof("Mounted %q (Type: %q, Options: %v) to %q", mount.Source, "virtiofs", mount.Options, mount.Target)
+				l.Info("Mounted", logger.Ctx{"type": "virtiofs"})
 				continue
 			}
 		}
@@ -320,10 +322,10 @@ func (c *cmdAgent) mountHostShares() {
 
 		_, err = shared.RunCommand("mount", args...)
 		if err != nil {
-			logger.Errorf("Failed mount %q (Type: %q, Options: %v) to %q: %v", mount.Source, mount.FSType, mount.Options, mount.Target, err)
+			l.Error("Failed to mount", logger.Ctx{"err": err})
 			continue
 		}
 
-		logger.Infof("Mounted %q (Type: %q, Options: %v) to %q", mount.Source, mount.FSType, mount.Options, mount.Target)
+		l.Info("Mounted", logger.Ctx{"type": mount.FSType})
 	}
 }
