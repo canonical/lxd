@@ -49,7 +49,7 @@ func (c *cmdAgent) Command() *cobra.Command {
 // Run executes the agent command.
 func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	// Setup logger.
-	err := logger.InitLogger("", "", c.global.flagLogVerbose, c.global.flagLogDebug, nil)
+	err := logger.InitLogger("", "lxd-agent", c.global.flagLogVerbose, c.global.flagLogDebug, nil)
 	if err != nil {
 		os.Exit(1)
 	}
