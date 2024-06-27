@@ -615,7 +615,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 					var forwardedIdentityProviderGroups []string
 					err = json.Unmarshal([]byte(forwardedIdentityProviderGroupsJSON), &forwardedIdentityProviderGroups)
 					if err != nil {
-						logger.Error("Failed unmarshalling identity provider groups from forwarded request header", logger.Ctx{"error": err})
+						logger.Error("Failed unmarshalling identity provider groups from forwarded request header", logger.Ctx{"err": err})
 					} else {
 						ctx = context.WithValue(ctx, request.CtxForwardedIdentityProviderGroups, forwardedIdentityProviderGroups)
 					}
