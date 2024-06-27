@@ -201,7 +201,7 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 	return func(entityURL *api.URL) bool {
 		eType, project, _, pathArgs, err := entity.ParseURL(entityURL.URL)
 		if err != nil {
-			logger.Warn("Permission checker failed to parse entity URL", logger.Ctx{"entity_url": entityURL, "error": err})
+			logger.Warn("Permission checker failed to parse entity URL", logger.Ctx{"entity_url": entityURL, "err": err})
 			return false
 		}
 
