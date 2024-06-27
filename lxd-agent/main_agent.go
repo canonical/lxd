@@ -324,7 +324,7 @@ func (c *cmdAgent) mountHostShares() {
 
 		_, err = shared.RunCommand("mount", args...)
 		if err != nil {
-			l.Error("Failed to mount", logger.Ctx{"err": err})
+			l.Error("Failed to mount", logger.Ctx{"err": err, "args": args})
 			continue
 		}
 
