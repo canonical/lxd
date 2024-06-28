@@ -1474,19 +1474,19 @@ func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string)
 	for _, entry := range entries {
 		u, err := url.Parse(entry)
 		if err != nil {
-			logger.Warn("Failed to parse project used-by entity URL", logger.Ctx{"url": entry, "error": err})
+			logger.Warn("Failed to parse project used-by entity URL", logger.Ctx{"url": entry, "err": err})
 			continue
 		}
 
 		entityType, projectName, location, pathArguments, err := entity.ParseURL(*u)
 		if err != nil {
-			logger.Warn("Failed to parse project used-by entity URL", logger.Ctx{"url": entry, "error": err})
+			logger.Warn("Failed to parse project used-by entity URL", logger.Ctx{"url": entry, "err": err})
 			continue
 		}
 
 		entityURL, err := entityType.URL(projectName, location, pathArguments...)
 		if err != nil {
-			logger.Warn("Failed to create canonical entity URL for project used-by filtering", logger.Ctx{"url": entry, "error": err})
+			logger.Warn("Failed to create canonical entity URL for project used-by filtering", logger.Ctx{"url": entry, "err": err})
 			continue
 		}
 
@@ -1522,7 +1522,7 @@ func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string)
 		// Otherwise get a permission checker for the entity type.
 		canViewEntity, err := authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entityType)
 		if err != nil {
-			logger.Error("Failed to get permission checker for project used-by filtering", logger.Ctx{"entity_type": entityType, "error": err})
+			logger.Error("Failed to get permission checker for project used-by filtering", logger.Ctx{"entity_type": entityType, "err": err})
 			continue
 		}
 
