@@ -73,6 +73,8 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 			if err == nil {
 				return resp, nil
 			}
+
+			return nil, fmt.Errorf("GetImageFile (download): %v", err)
 		}
 	}
 

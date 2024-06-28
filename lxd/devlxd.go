@@ -92,21 +92,31 @@ var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, c in
 }}
 
 var devlxdImageExport = devLxdHandler{"/1.0/images/{fingerprint}/export", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	logger.Warn("[ devlxdImageExport ] Started", logger.Ctx{"URL": r.URL})
+	defer logger.Warn("[ devlxdImageExport ] Finished", logger.Ctx{"URL": r.URL})
+
 	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		logger.Error("[ devlxdImageExport ] Error", logger.Ctx{"URL": r.URL, "error": "security.devlxd is disabled!"})
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
 
 	if shared.IsFalseOrEmpty(c.ExpandedConfig()["security.devlxd.images"]) {
+		logger.Error("[ devlxdImageExport ] Error", logger.Ctx{"URL": r.URL, "error": "security.devlxd.images not enabled!"})
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
 
 	// Use by security checks to distinguish devlxd vs lxd APIs
 	r.RemoteAddr = "@devlxd"
 
+	request.SetCtxValue(r, request.CtxTrusted, true)
+	request.SetCtxValue(r, request.CtxUsername, c.Name())
+	request.SetCtxValue(r, request.CtxProtocol, "unix")
+
 	resp := imageExport(d, r)
 
 	err := resp.Render(w)
 	if err != nil {
+		logger.Error("[ devlxdImageExport ] Failed getting image from host", logger.Ctx{"URL": r.URL})
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
 	}
 
