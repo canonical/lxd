@@ -86,6 +86,8 @@ func (s *OS) initAppArmor() []cluster.Warning {
 		s.AppArmorConfined = true
 	}
 
+	s.AppArmorFeatures.Map = map[string]bool{}
+
 	return dbWarnings
 }
 
