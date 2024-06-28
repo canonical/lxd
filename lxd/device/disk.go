@@ -2284,7 +2284,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 				continue
 			}
 
-			if fields[1] != "ONLINE" {
+			if !(fields[1] == "ONLINE" || fields[1] == "DEGRADED") {
 				continue
 			}
 
