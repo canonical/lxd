@@ -16,6 +16,10 @@ import (
 var featureCheckProfileTpl = template.Must(template.New("featureCheckProfile").Parse(`
 profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
+{{- if eq .feature "mount_nosymfollow" }}
+  mount options=(nosymfollow) /,
+{{- end }}
+
 }
 `))
 
