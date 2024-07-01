@@ -536,6 +536,19 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		rules["security.unmapped"] = validate.Optional(validate.IsBool)
 	}
 
+	// security.shared is only relevant for custom block volumes.
+	if (vol == nil) || (vol != nil && vol.Type() == drivers.VolumeTypeCustom && vol.ContentType() == drivers.ContentTypeBlock) {
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=security.shared)
+		// Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
+		//
+		// ---
+		//  type: bool
+		//  condition: custom block volume
+		//  defaultdesc: same as `volume.security.shared` or `false`
+		//  shortdesc: Enable volume sharing
+		rules["security.shared"] = validate.Optional(validate.IsBool)
+	}
+
 	// Those keys are only valid for volumes.
 	if vol != nil {
 		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=volatile.uuid)
@@ -1068,12 +1081,12 @@ func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName s
 	err = VolumeUsedByInstanceDevices(s, poolName, projectName, vol, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
 		if dbInst.Node != s.ServerName {
 			remoteInstance = &dbInst
-			return db.ErrInstanceListStop // Stop the search, this volume is attached to a remote instance.
+			return db.ErrListStop // Stop the search, this volume is attached to a remote instance.
 		}
 
 		return nil
 	})
-	if err != nil && err != db.ErrInstanceListStop {
+	if err != nil && err != db.ErrListStop {
 		return nil, err
 	}
 
