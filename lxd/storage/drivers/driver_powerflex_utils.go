@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dell/goscaleio"
 	"github.com/google/uuid"
 	"golang.org/x/sys/unix"
 
@@ -37,6 +38,7 @@ const powerFlexISOVolSuffix = ".i"
 const powerFlexCodeVolumeNotFound = 79
 const powerFlexCodeDomainNotFound = 142
 const powerFlexCodeNameTooLong = 226
+const powerFlexInvalidMapping = 4039
 
 type powerFlexVolumeType string
 type powerFlexSnapshotMode string
@@ -132,12 +134,15 @@ type powerFlexProtectionDomainSDTRelation struct {
 	} `json:"ipList"`
 }
 
-// powerFlexSDC represents a SDC in PowerFlex.
+// powerFlexSDC represents a SDC host in PowerFlex.
+// The same data structure is used to identify NVMe/TCP hosts.
 type powerFlexSDC struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	HostType string `json:"hostType"`
 	NQN      string `json:"nqn"`
+	SDCGuid  string `json:"sdcGuid"`
+	SystemID string `json:"systemId"`
 }
 
 // powerFlexVolume represents a volume in PowerFlex.
@@ -603,6 +608,23 @@ func (p *powerFlexClient) getNVMeHosts() ([]powerFlexSDC, error) {
 	return nvmeHosts, nil
 }
 
+// getSDCHosts returns all SDC hosts.
+func (p *powerFlexClient) getSDCHosts() ([]powerFlexSDC, error) {
+	allHosts, err := p.getHosts()
+	if err != nil {
+		return nil, err
+	}
+
+	var sdcHosts []powerFlexSDC
+	for _, host := range allHosts {
+		if host.HostType == "SdcHost" {
+			sdcHosts = append(sdcHosts, host)
+		}
+	}
+
+	return sdcHosts, nil
+}
+
 // getNVMeHostByNQN returns the NVMe host matching the nqn.
 func (p *powerFlexClient) getNVMeHostByNQN(nqn string) (*powerFlexSDC, error) {
 	allNVMeHosts, err := p.getNVMeHosts()
@@ -617,6 +639,22 @@ func (p *powerFlexClient) getNVMeHostByNQN(nqn string) (*powerFlexSDC, error) {
 	}
 
 	return nil, api.StatusErrorf(http.StatusNotFound, "Host not found using nqn: %q", nqn)
+}
+
+// getSDCHostByGUID returns the SDC host matching the GUID.
+func (p *powerFlexClient) getSDCHostByGUID(guid string) (*powerFlexSDC, error) {
+	allSDCHosts, err := p.getSDCHosts()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, host := range allSDCHosts {
+		if host.SDCGuid == guid {
+			return &host, nil
+		}
+	}
+
+	return nil, api.StatusErrorf(http.StatusNotFound, "Host not found using GUID: %q", guid)
 }
 
 // createHost creates a new host.
@@ -671,6 +709,7 @@ func (p *powerFlexClient) createHostVolumeMapping(hostID string, volumeID string
 }
 
 // deleteHostVolumeMapping deletes the mapping between a host and volume.
+// Set hostIdentification to either its hostID in PowerFlex or SDC guid.
 func (p *powerFlexClient) deleteHostVolumeMapping(hostID string, volumeID string) error {
 	body, err := p.createBodyReader(map[string]any{
 		"hostId": hostID,
@@ -681,6 +720,14 @@ func (p *powerFlexClient) deleteHostVolumeMapping(hostID string, volumeID string
 
 	err = p.requestAuthenticated(http.MethodPost, fmt.Sprintf("/api/instances/Volume::%s/action/removeMappedHost", volumeID), body, nil)
 	if err != nil {
+		powerFlexError, ok := err.(*powerFlexError)
+		if ok {
+			// API returns 500 if the mapping doesn't anymore exist.
+			// To not confuse it with other 500 that might occur check the error code too.
+			if powerFlexError.HTTPStatusCode() == http.StatusInternalServerError && powerFlexError.ErrorCode() == powerFlexInvalidMapping {
+				return api.StatusErrorf(http.StatusNotFound, "The mapping between %q and %q does not exist", hostID, volumeID)
+			}
+		}
 		return fmt.Errorf("Failed to delete host volume mapping between %q and %q: %w", hostID, volumeID, err)
 	}
 
@@ -727,6 +774,22 @@ func (d *powerflex) getHostNQN() string {
 	return fmt.Sprintf("nqn.2014-08.org.nvmexpress:uuid:%s", d.state.ServerUUID)
 }
 
+// getHostGUID returns the SDC GUID.
+// The GUID is unique for a single host.
+// Cache the GUID as it never changes for a single host.
+func (d *powerflex) getHostGUID() (string, error) {
+	if d.sdcGUID == "" {
+		guid, err := goscaleio.DrvCfgQueryGUID()
+		if err != nil {
+			return "", fmt.Errorf("Failed to query SDC GUID: %w", err)
+		}
+
+		d.sdcGUID = guid
+	}
+
+	return d.sdcGUID, nil
+}
+
 // getServerName returns the hostname of this host.
 // It prefers the value from the daemons state in case LXD is clustered.
 func (d *powerflex) getServerName() (string, error) {
@@ -758,53 +821,44 @@ func (d *powerflex) getVolumeType(vol Volume) powerFlexVolumeType {
 }
 
 // createNVMeHost creates this NVMe host in PowerFlex.
-// The operation is idempotent and locked using lock name powerflex.host.
-func (d *powerflex) createNVMeHost() (string, error) {
-	unlock, err := locking.Lock(d.state.ShutdownCtx, "powerflex.host")
-	if err != nil {
-		return "", err
-	}
-
-	defer unlock()
-
+func (d *powerflex) createNVMeHost() (string, revert.Hook, error) {
 	var hostID string
 	nqn := d.getHostNQN()
+
+	revert := revert.New()
+	defer revert.Fail()
 
 	client := d.client()
 	host, err := client.getNVMeHostByNQN(nqn)
 	if err != nil {
 		if !api.StatusErrorCheck(err, http.StatusNotFound) {
-			return "", err
+			return "", nil, err
 		}
 
 		hostname, err := d.getServerName()
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
 
 		hostID, err = client.createHost(hostname, nqn)
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
+
+		revert.Add(func() { _ = client.deleteHost(hostID) })
 	}
 
 	if hostID == "" {
 		hostID = host.ID
 	}
 
-	return hostID, nil
+	cleanup := revert.Clone().Fail
+	revert.Success()
+	return hostID, cleanup, nil
 }
 
 // deleteNVMeHost deletes this NVMe host in PowerFlex.
-// The operation is idempotent and locked using lock name powerflex.host.
 func (d *powerflex) deleteNVMeHost() error {
-	unlock, err := locking.Lock(d.state.ShutdownCtx, "powerflex.host")
-	if err != nil {
-		return err
-	}
-
-	defer unlock()
-
 	client := d.client()
 	nqn := d.getHostNQN()
 	host, err := client.getNVMeHostByNQN(nqn)
@@ -820,14 +874,42 @@ func (d *powerflex) deleteNVMeHost() error {
 	return client.deleteHost(host.ID)
 }
 
-// mapNVMeVolume maps the given volume onto this host.
-func (d *powerflex) mapNVMeVolume(vol Volume) (revert.Hook, error) {
-	revert := revert.New()
-	defer revert.Fail()
+// mapVolume maps the given volume onto this host.
+func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
+	reverter := revert.New()
+	defer reverter.Fail()
 
-	hostID, err := d.createNVMeHost()
-	if err != nil {
-		return nil, err
+	var hostID string
+
+	switch d.config["powerflex.mode"] {
+	case powerFlexModeNVMe:
+		unlock, err := locking.Lock(d.state.ShutdownCtx, "nvme")
+		if err != nil {
+			return nil, err
+		}
+
+		defer unlock()
+
+		var cleanup revert.Hook
+		hostID, cleanup, err = d.createNVMeHost()
+		if err != nil {
+			return nil, err
+		}
+
+		reverter.Add(cleanup)
+	case powerFlexModeSDC:
+		hostGUID, err := d.getHostGUID()
+		if err != nil {
+			return nil, err
+		}
+
+		client := d.client()
+		host, err := client.getSDCHostByGUID(hostGUID)
+		if err != nil {
+			return nil, err
+		}
+
+		hostID = host.ID
 	}
 
 	volumeName, err := d.getVolumeName(vol)
@@ -859,57 +941,52 @@ func (d *powerflex) mapNVMeVolume(vol Volume) (revert.Hook, error) {
 			return nil, err
 		}
 
-		revert.Add(func() {
-			_ = d.unmapNVMeVolume(vol)
-		})
+		reverter.Add(func() { _ = client.deleteHostVolumeMapping(hostID, volumeID) })
 	}
 
-	cleanup := revert.Clone().Fail
-	revert.Success()
+	if d.config["powerflex.mode"] == powerFlexModeNVMe {
+		// Connect to the NVMe/TCP subsystem.
+		// We have to connect after the first mapping was established.
+		// PowerFlex does not offer any discovery log entries until a volume gets mapped to the host.
+		// This action is idempotent.
+		cleanup, err := d.connectNVMeSubsys()
+		if err != nil {
+			return nil, err
+		}
+
+		reverter.Add(cleanup)
+	}
+
+	cleanup := reverter.Clone().Fail
+	reverter.Success()
 	return cleanup, nil
 }
 
-// getNVMeMappedDevPath returns the local device path for the given NVMe volume name.
-// Set mapVolume to true if the volume isn't already mapped to this host.
-func (d *powerflex) getNVMeMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook, error) {
+// getMappedDevPath returns the local device path for the given volume.
+// Indicate with mapVolume if the volume should get mapped to the system if it isn't present.
+func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
 	if mapVolume {
-		unlock, err := locking.Lock(d.state.ShutdownCtx, "nvme")
-		if err != nil {
-			return "", nil, err
-		}
-
-		defer unlock()
-
-		cleanup, err := d.mapNVMeVolume(vol)
+		cleanup, err := d.mapVolume(vol)
 		if err != nil {
 			return "", nil, err
 		}
 
 		revert.Add(cleanup)
-
-		// Connect to the NVMe/TCP subsystem.
-		// We have to connect after the first mapping was established.
-		// PowerFlex does not offer any discovery log entries until a volume gets mapped to the host.
-		// This action is idempotent.
-		err = d.connectNVMeSubsys()
-		if err != nil {
-			return "", nil, err
-		}
 	}
 
 	powerFlexVolumes := make(map[string]string)
 
 	// discoverFunc has to be called in a loop with a set timeout to ensure
 	// all the necessary directories and devices can be discovered.
-	discoverFunc := func(volumeID string) error {
+	discoverFunc := func(volumeID string, diskPrefix string) error {
 		var diskPaths []string
 
 		// If there are no other disks on the system by id, the directory might not even be there.
 		// Returns ENOENT in case the by-id/ directory does not exist.
-		diskPaths, err := resources.GetDisksByID(fmt.Sprintf("nvme-eui.%s", volumeID))
+		diskPaths, err := resources.GetDisksByID(diskPrefix)
 		if err != nil {
 			return err
 		}
@@ -920,8 +997,13 @@ func (d *powerflex) getNVMeMappedDevPath(vol Volume, mapVolume bool) (string, re
 				continue
 			}
 
-			// The actual /dev/nvmeX might not already be created.
-			// Returns ENOENT in case the nvmeX device does not exist.
+			// Skip other volume's that don't match the PowerFlex volume's ID.
+			if !strings.Contains(diskPath, volumeID) {
+				continue
+			}
+
+			// The actual device might not already be created.
+			// Returns ENOENT in case the device does not exist.
 			devPath, err := filepath.EvalSymlinks(diskPath)
 			if err != nil {
 				return err
@@ -944,14 +1026,22 @@ func (d *powerflex) getNVMeMappedDevPath(vol Volume, mapVolume bool) (string, re
 	}
 
 	timeout := time.Now().Add(5 * time.Second)
-	// It might take the NVMe/TCP subsystem a while to create the local disk.
+	// It might take a while to create the local disk.
 	// Retry until it can be found.
 	for {
 		if time.Now().After(timeout) {
-			return "", nil, fmt.Errorf("Timeout exceeded for NVMe volume discovery: %q", volumeName)
+			return "", nil, fmt.Errorf("Timeout exceeded for PowerFlex volume discovery: %q", volumeName)
 		}
 
-		err := discoverFunc(powerFlexVolumeID)
+		var prefix string
+		switch d.config["powerflex.mode"] {
+		case powerFlexModeNVMe:
+			prefix = "nvme-eui."
+		case powerFlexModeSDC:
+			prefix = "emc-vol-"
+		}
+
+		err := discoverFunc(powerFlexVolumeID, prefix)
 		if err != nil {
 			// Try again if on of the directories cannot be found.
 			if errors.Is(err, unix.ENOENT) {
@@ -977,12 +1067,12 @@ func (d *powerflex) getNVMeMappedDevPath(vol Volume, mapVolume bool) (string, re
 	}
 
 	if len(powerFlexVolumes) == 0 {
-		return "", nil, fmt.Errorf("Failed to discover any NVMe volume")
+		return "", nil, fmt.Errorf("Failed to discover any PowerFlex volume")
 	}
 
 	powerFlexVolumePath, ok := powerFlexVolumes[powerFlexVolumeID]
 	if !ok {
-		return "", nil, fmt.Errorf("Volume not found: %q", volumeName)
+		return "", nil, fmt.Errorf("PowerFlex volume not found: %q", volumeName)
 	}
 
 	cleanup := revert.Clone().Fail
@@ -990,17 +1080,8 @@ func (d *powerflex) getNVMeMappedDevPath(vol Volume, mapVolume bool) (string, re
 	return powerFlexVolumePath, cleanup, nil
 }
 
-// getMappedDevPath returns the local device path for the given volume name.
-func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook, error) {
-	if d.config["powerflex.mode"] == "nvme" {
-		return d.getNVMeMappedDevPath(vol, mapVolume)
-	}
-
-	return "", nil, ErrNotSupported
-}
-
-// unmapNVMeVolume unmaps the given NVMe volume from this host.
-func (d *powerflex) unmapNVMeVolume(vol Volume) error {
+// unmapVolume unmaps the given volume from this host.
+func (d *powerflex) unmapVolume(vol Volume) error {
 	volumeName, err := d.getVolumeName(vol)
 	if err != nil {
 		return err
@@ -1012,18 +1093,32 @@ func (d *powerflex) unmapNVMeVolume(vol Volume) error {
 		return err
 	}
 
-	nqn := d.getHostNQN()
-	host, err := client.getNVMeHostByNQN(nqn)
-	if err != nil {
-		return err
-	}
+	var host *powerFlexSDC
+	switch d.config["powerflex.mode"] {
+	case powerFlexModeNVMe:
+		nqn := d.getHostNQN()
+		host, err = client.getNVMeHostByNQN(nqn)
+		if err != nil {
+			return err
+		}
 
-	unlock, err := locking.Lock(d.state.ShutdownCtx, "nvme")
-	if err != nil {
-		return err
-	}
+		unlock, err := locking.Lock(d.state.ShutdownCtx, "nvme")
+		if err != nil {
+			return err
+		}
 
-	defer unlock()
+		defer unlock()
+	case powerFlexModeSDC:
+		hostGUID, err := d.getHostGUID()
+		if err != nil {
+			return err
+		}
+
+		host, err = client.getSDCHostByGUID(hostGUID)
+		if err != nil {
+			return err
+		}
+	}
 
 	err = client.deleteHostVolumeMapping(host.ID, volume)
 	if err != nil {
@@ -1037,57 +1132,62 @@ func (d *powerflex) unmapNVMeVolume(vol Volume) error {
 		defer cancel()
 
 		if !waitGone(ctx, volumePath) {
-			return fmt.Errorf("Timeout whilst waiting for volume to disappear: %q", vol.name)
+			return fmt.Errorf("Timeout whilst waiting for PowerFlex volume to disappear: %q", vol.name)
 		}
 	}
 
-	mappings, err := client.getHostVolumeMappings(host.ID)
-	if err != nil {
-		return err
-	}
-
-	if len(mappings) == 0 {
-		// Disconnect from the NVMe subsystem.
-		// Do this first before removing the host from PowerFlex.
-		err := d.disconnectNVMeSubsys()
+	// In case of SDC the driver doesn't manage the underlying connection to PowerFlex.
+	// Therefore if this was the last volume being unmapped from this system
+	// LXD will not try to cleanup the connection.
+	if d.config["powerflex.mode"] == powerFlexModeNVMe {
+		mappings, err := client.getHostVolumeMappings(host.ID)
 		if err != nil {
 			return err
 		}
 
-		// Delete the host from PowerFlex if the last volume mapping got removed.
-		// This requires the host to be already disconnected from the NVMe subsystem.
-		err = d.deleteNVMeHost()
-		if err != nil {
-			return err
+		if len(mappings) == 0 {
+			// Disconnect from the NVMe subsystem.
+			// Do this first before removing the host from PowerFlex.
+			err := d.disconnectNVMeSubsys()
+			if err != nil {
+				return err
+			}
+
+			// Delete the host from PowerFlex if the last volume mapping got removed.
+			// This requires the host to be already disconnected from the NVMe subsystem.
+			err = d.deleteNVMeHost()
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
 }
 
-// unmapVolume unmaps the given volume from this host.
-func (d *powerflex) unmapVolume(vol Volume) error {
-	if d.config["powerflex.mode"] == "nvme" {
-		return d.unmapNVMeVolume(vol)
-	}
-
-	return ErrNotSupported
-}
-
 // connectNVMeSubsys connects this host to the NVMe subsystem configured in the storage pool.
 // The connection can only be established after the first volume is mapped to this host.
-func (d *powerflex) connectNVMeSubsys() error {
-	pool, err := d.resolvePool()
-	if err != nil {
-		return err
-	}
-
+// The operation is idempotent and returns nil if already connected to the subsystem.
+func (d *powerflex) connectNVMeSubsys() (revert.Hook, error) {
 	basePath := "/sys/devices/virtual/nvme-subsystem"
 
 	// Retrieve list of existing NVMe subsystems on this host.
 	directories, err := os.ReadDir(basePath)
 	if err != nil {
-		return fmt.Errorf("Failed getting a list of NVMe subsystems: %w", err)
+		return nil, fmt.Errorf("Failed getting a list of NVMe subsystems: %w", err)
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	pool, err := d.resolvePool()
+	if err != nil {
+		return nil, err
+	}
+
+	domain, err := d.client().getProtectionDomain(pool.ProtectionDomainID)
+	if err != nil {
+		return nil, err
 	}
 
 	for _, directory := range directories {
@@ -1096,12 +1196,15 @@ func (d *powerflex) connectNVMeSubsys() error {
 		// Get the subsystem's NQN.
 		nqnBytes, err := os.ReadFile(filepath.Join(basePath, subsystemName, "subsysnqn"))
 		if err != nil {
-			return fmt.Errorf("Failed getting the NQN of subystem %q: %w", subsystemName, err)
+			return nil, fmt.Errorf("Failed getting the NQN of subystem %q: %w", subsystemName, err)
 		}
 
-		if strings.Contains(string(nqnBytes), pool.ProtectionDomainID) {
-			// Already connected to the NVMe subsystem for the storage pools protection ID.
-			return nil
+		if strings.Contains(string(nqnBytes), domain.SystemID) {
+			cleanup := revert.Clone().Fail
+			revert.Success()
+
+			// Already connected to the NVMe subsystem for the respective PowerFlex system.
+			return cleanup, nil
 		}
 	}
 
@@ -1109,14 +1212,18 @@ func (d *powerflex) connectNVMeSubsys() error {
 	serverUUID := d.state.ServerUUID
 	_, stderr, err := shared.RunCommandSplit(d.state.ShutdownCtx, nil, nil, "nvme", "connect-all", "-t", "tcp", "-a", d.config["powerflex.sdt"], "-q", nqn, "-I", serverUUID)
 	if err != nil {
-		return fmt.Errorf("Failed nvme connect-all: %w", err)
+		return nil, fmt.Errorf("Failed nvme connect-all: %w", err)
 	}
 
 	if stderr != "" {
-		return fmt.Errorf("Failed connecting to PowerFlex NVMe/TCP subsystem: %s", stderr)
+		return nil, fmt.Errorf("Failed connecting to PowerFlex NVMe/TCP subsystem: %s", stderr)
 	}
 
-	return nil
+	revert.Add(func() { _ = d.disconnectNVMeSubsys() })
+
+	cleanup := revert.Clone().Fail
+	revert.Success()
+	return cleanup, nil
 }
 
 // disconnectNVMeSubsys disconnects this host from the NVMe subsystem.
