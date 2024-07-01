@@ -40,7 +40,7 @@ require (
 	github.com/openfga/api/proto v0.0.0-20240612172407-db6f98774490
 	github.com/openfga/language/pkg/go v0.2.0-beta.0
 	github.com/openfga/openfga v1.5.5
-	github.com/osrg/gobgp/v3 v3.27.0
+	github.com/osrg/gobgp/v3 v3.28.0
 	github.com/pkg/sftp v1.13.6
 	github.com/pkg/xattr v0.4.9
 	github.com/robfig/cron/v3 v3.0.1
