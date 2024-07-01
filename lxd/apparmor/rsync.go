@@ -29,6 +29,9 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
   unix (connect, send, receive) type=stream,
 
+  # PowerFlex storage driver specific for NVMe/TCP mode
+  network inet tcp,
+
   @{PROC}/@{pid}/cmdline r,
   @{PROC}/@{pid}/cpuset r,
   {{ .rootPath }}/{etc,lib,usr/lib}/os-release r,
@@ -175,7 +178,7 @@ func rsyncProfile(sysOS *sys.OS, name string, sourcePath string, dstPath string)
 		execPath = fullPath
 	}
 
-	var sb *strings.Builder = &strings.Builder{}
+	sb := &strings.Builder{}
 	err = rsyncProfileTpl.Execute(sb, map[string]any{
 		"name":        name,
 		"execPath":    execPath,
