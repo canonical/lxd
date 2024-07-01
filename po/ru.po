@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-06-13 10:35+0200\n"
+"POT-Creation-Date: 2024-07-01 11:55-0700\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -773,15 +773,15 @@ msgstr ""
 msgid "<old alias> <new alias>"
 msgstr ""
 
-#: lxc/remote.go:835 lxc/remote.go:892
+#: lxc/remote.go:837 lxc/remote.go:894
 msgid "<remote>"
 msgstr ""
 
-#: lxc/remote.go:932
+#: lxc/remote.go:934
 msgid "<remote> <URL>"
 msgstr ""
 
-#: lxc/remote.go:762
+#: lxc/remote.go:764
 msgid "<remote> <new-name>"
 msgstr ""
 
@@ -819,7 +819,7 @@ msgstr "ПСЕВДОНИМ"
 msgid "ARCHITECTURE"
 msgstr "АРХИТЕКТУРА"
 
-#: lxc/remote.go:744
+#: lxc/remote.go:746
 msgid "AUTH TYPE"
 msgstr ""
 
@@ -973,7 +973,7 @@ msgstr ""
 msgid "Admin access key: %s"
 msgstr "Пароль администратора для %s: "
 
-#: lxc/remote.go:574
+#: lxc/remote.go:576
 #, fuzzy, c-format
 msgid "Admin password (or token) for %s:"
 msgstr "Пароль администратора для %s: "
@@ -1039,7 +1039,7 @@ msgstr ""
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
-#: lxc/init.go:324 lxc/rebuild.go:130
+#: lxc/init.go:333 lxc/rebuild.go:130
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
@@ -1147,7 +1147,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:139 lxc/init.go:224 lxc/move.go:380 lxc/project.go:129
+#: lxc/copy.go:139 lxc/init.go:232 lxc/move.go:380 lxc/project.go:129
 #, fuzzy, c-format
 msgid "Bad key=value pair: %q"
 msgstr "Имя контейнера: %s"
@@ -1266,7 +1266,7 @@ msgstr ""
 msgid "Can't read from stdin: %w"
 msgstr "Невозможно прочитать из стандартного ввода: %s"
 
-#: lxc/remote.go:871
+#: lxc/remote.go:873
 msgid "Can't remove the default remote"
 msgstr ""
 
@@ -1352,7 +1352,7 @@ msgstr ""
 msgid "Client %s certificate add token:"
 msgstr "Копирование образа: %s"
 
-#: lxc/remote.go:613
+#: lxc/remote.go:615
 #, fuzzy
 msgid "Client certificate now trusted by server:"
 msgstr "Сертификат клиента хранится на сервере: "
@@ -1790,12 +1790,12 @@ msgstr "Невозможно добавить имя контейнера в с�
 msgid "Created: %s"
 msgstr ""
 
-#: lxc/init.go:170
+#: lxc/init.go:177
 #, c-format
 msgid "Creating %s"
 msgstr ""
 
-#: lxc/init.go:168
+#: lxc/init.go:175
 #, fuzzy
 msgid "Creating the instance"
 msgstr "Невозможно добавить имя контейнера в список"
@@ -2030,8 +2030,8 @@ msgstr ""
 #: lxc/project.go:410 lxc/project.go:523 lxc/project.go:580 lxc/project.go:659
 #: lxc/project.go:690 lxc/project.go:743 lxc/project.go:802 lxc/publish.go:33
 #: lxc/query.go:34 lxc/rebuild.go:27 lxc/remote.go:34 lxc/remote.go:90
-#: lxc/remote.go:641 lxc/remote.go:679 lxc/remote.go:765 lxc/remote.go:838
-#: lxc/remote.go:894 lxc/remote.go:934 lxc/rename.go:21 lxc/restore.go:24
+#: lxc/remote.go:643 lxc/remote.go:681 lxc/remote.go:767 lxc/remote.go:840
+#: lxc/remote.go:896 lxc/remote.go:936 lxc/rename.go:21 lxc/restore.go:24
 #: lxc/snapshot.go:28 lxc/storage.go:33 lxc/storage.go:96 lxc/storage.go:170
 #: lxc/storage.go:220 lxc/storage.go:344 lxc/storage.go:414 lxc/storage.go:586
 #: lxc/storage.go:665 lxc/storage.go:761 lxc/storage.go:847
@@ -2130,7 +2130,7 @@ msgstr ""
 msgid "Device: %s"
 msgstr ""
 
-#: lxc/init.go:384
+#: lxc/init.go:393
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr ""
 
@@ -2746,7 +2746,7 @@ msgstr ""
 #: lxc/network_forward.go:93 lxc/network_load_balancer.go:97
 #: lxc/network_peer.go:84 lxc/network_zone.go:88 lxc/network_zone.go:692
 #: lxc/operation.go:108 lxc/profile.go:617 lxc/project.go:412
-#: lxc/project.go:804 lxc/remote.go:683 lxc/storage.go:588
+#: lxc/project.go:804 lxc/remote.go:685 lxc/storage.go:588
 #: lxc/storage_bucket.go:454 lxc/storage_bucket.go:769
 #: lxc/storage_volume.go:1446 lxc/warning.go:93
 msgid "Format (csv|json|table|yaml|compact)"
@@ -2784,7 +2784,7 @@ msgstr ""
 msgid "Frequency: %vMhz (min: %vMhz, max: %vMhz)"
 msgstr ""
 
-#: lxc/remote.go:747
+#: lxc/remote.go:749
 msgid "GLOBAL"
 msgstr ""
 
@@ -3221,7 +3221,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr "Имя контейнера является обязательным"
 
-#: lxc/init.go:395
+#: lxc/init.go:404
 #, fuzzy, c-format
 msgid "Instance name is: %s"
 msgstr "Имя контейнера: %s"
@@ -3410,6 +3410,16 @@ msgstr ""
 #: lxc/image.go:982
 msgid "Last used: never"
 msgstr ""
+
+#: lxc/init.go:171
+#, c-format
+msgid "Launching %s"
+msgstr ""
+
+#: lxc/init.go:169
+#, fuzzy
+msgid "Launching the instance"
+msgstr "Невозможно добавить имя контейнера в список"
 
 #: lxc/info.go:220
 #, fuzzy, c-format
@@ -3714,7 +3724,7 @@ msgid ""
 "    U - Current disk usage"
 msgstr ""
 
-#: lxc/remote.go:678 lxc/remote.go:679
+#: lxc/remote.go:680 lxc/remote.go:681
 msgid "List the available remotes"
 msgstr ""
 
@@ -4408,7 +4418,7 @@ msgstr ""
 #: lxc/config_trust.go:514 lxc/list.go:564 lxc/network.go:980
 #: lxc/network_acl.go:147 lxc/network_peer.go:139 lxc/network_zone.go:138
 #: lxc/network_zone.go:741 lxc/profile.go:657 lxc/project.go:498
-#: lxc/remote.go:741 lxc/storage.go:638 lxc/storage_bucket.go:506
+#: lxc/remote.go:743 lxc/storage.go:638 lxc/storage_bucket.go:506
 #: lxc/storage_bucket.go:826 lxc/storage_volume.go:1561
 msgid "NAME"
 msgstr ""
@@ -4435,7 +4445,7 @@ msgstr ""
 
 #: lxc/network.go:957 lxc/operation.go:154 lxc/project.go:456
 #: lxc/project.go:461 lxc/project.go:466 lxc/project.go:471 lxc/project.go:476
-#: lxc/project.go:481 lxc/remote.go:701 lxc/remote.go:706 lxc/remote.go:711
+#: lxc/project.go:481 lxc/remote.go:703 lxc/remote.go:708 lxc/remote.go:713
 msgid "NO"
 msgstr ""
 
@@ -4739,11 +4749,11 @@ msgstr ""
 msgid "PROJECT"
 msgstr ""
 
-#: lxc/remote.go:743
+#: lxc/remote.go:745
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:1073 lxc/remote.go:745
+#: lxc/image.go:1073 lxc/remote.go:747
 msgid "PUBLIC"
 msgstr ""
 
@@ -5109,13 +5119,13 @@ msgstr "Невозможно добавить имя контейнера в с�
 msgid "Refreshing the image: %s"
 msgstr "Копирование образа: %s"
 
-#: lxc/remote.go:795
+#: lxc/remote.go:797
 #, c-format
 msgid "Remote %s already exists"
 msgstr ""
 
-#: lxc/project.go:769 lxc/remote.go:786 lxc/remote.go:859 lxc/remote.go:915
-#: lxc/remote.go:955
+#: lxc/project.go:769 lxc/remote.go:788 lxc/remote.go:861 lxc/remote.go:917
+#: lxc/remote.go:957
 #, c-format
 msgid "Remote %s doesn't exist"
 msgstr ""
@@ -5125,12 +5135,12 @@ msgstr ""
 msgid "Remote %s exists as <%s>"
 msgstr ""
 
-#: lxc/remote.go:867
+#: lxc/remote.go:869
 #, c-format
 msgid "Remote %s is global and cannot be removed"
 msgstr ""
 
-#: lxc/remote.go:790 lxc/remote.go:863 lxc/remote.go:959
+#: lxc/remote.go:792 lxc/remote.go:865 lxc/remote.go:961
 #, c-format
 msgid "Remote %s is static and cannot be modified"
 msgstr ""
@@ -5232,7 +5242,7 @@ msgstr "Копирование образа: %s"
 msgid "Remove profiles from instances"
 msgstr ""
 
-#: lxc/remote.go:837 lxc/remote.go:838
+#: lxc/remote.go:839 lxc/remote.go:840
 msgid "Remove remotes"
 msgstr ""
 
@@ -5293,7 +5303,7 @@ msgstr ""
 msgid "Rename projects"
 msgstr ""
 
-#: lxc/remote.go:764 lxc/remote.go:765
+#: lxc/remote.go:766 lxc/remote.go:767
 msgid "Rename remotes"
 msgstr ""
 
@@ -5380,7 +5390,7 @@ msgstr ""
 msgid "Retrieve the instance's console log"
 msgstr ""
 
-#: lxc/init.go:338
+#: lxc/init.go:347
 #, c-format
 msgid "Retrieving image: %s"
 msgstr ""
@@ -5447,7 +5457,7 @@ msgstr ""
 msgid "STATE"
 msgstr ""
 
-#: lxc/remote.go:746
+#: lxc/remote.go:748
 msgid "STATIC"
 msgstr ""
 
@@ -5492,7 +5502,7 @@ msgstr ""
 msgid "Server certificate NACKed by user"
 msgstr ""
 
-#: lxc/remote.go:609
+#: lxc/remote.go:611
 msgid "Server doesn't trust us after authentication"
 msgstr ""
 
@@ -5711,7 +5721,7 @@ msgid ""
 "    lxc storage volume set [<remote>:]<pool> [<type>/]<volume> <key> <value>"
 msgstr ""
 
-#: lxc/remote.go:933 lxc/remote.go:934
+#: lxc/remote.go:935 lxc/remote.go:936
 msgid "Set the URL for the remote"
 msgstr ""
 
@@ -5965,7 +5975,7 @@ msgid ""
 "that are granted via identity provider group mappings. \n"
 msgstr ""
 
-#: lxc/remote.go:640 lxc/remote.go:641
+#: lxc/remote.go:642 lxc/remote.go:643
 msgid "Show the default remote"
 msgstr ""
 
@@ -6052,7 +6062,7 @@ msgstr ""
 msgid "Start instances"
 msgstr ""
 
-#: lxc/launch.go:82
+#: lxc/launch.go:87
 #, c-format
 msgid "Starting %s"
 msgstr ""
@@ -6184,7 +6194,7 @@ msgstr ""
 msgid "Switch the current project"
 msgstr ""
 
-#: lxc/remote.go:893 lxc/remote.go:894
+#: lxc/remote.go:895 lxc/remote.go:896
 msgid "Switch the default remote"
 msgstr ""
 
@@ -6261,7 +6271,7 @@ msgid ""
 "restarted"
 msgstr ""
 
-#: lxc/init.go:416
+#: lxc/init.go:425
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
 
@@ -6423,11 +6433,11 @@ msgstr ""
 msgid "Timestamps:"
 msgstr ""
 
-#: lxc/init.go:418
+#: lxc/init.go:427
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr ""
 
-#: lxc/init.go:417
+#: lxc/init.go:426
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
@@ -6495,12 +6505,12 @@ msgstr "Невозможно добавить имя контейнера в с�
 msgid "Transmit policy"
 msgstr ""
 
-#: lxc/remote.go:564
+#: lxc/remote.go:566
 #, c-format
 msgid "Trust token for %s: "
 msgstr ""
 
-#: lxc/action.go:287 lxc/launch.go:114
+#: lxc/action.go:287 lxc/launch.go:119
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -6539,7 +6549,7 @@ msgstr ""
 msgid "UPLOAD DATE"
 msgstr ""
 
-#: lxc/cluster.go:184 lxc/remote.go:742
+#: lxc/cluster.go:184 lxc/remote.go:744
 msgid "URL"
 msgstr ""
 
@@ -6912,7 +6922,7 @@ msgstr ""
 
 #: lxc/network.go:959 lxc/operation.go:156 lxc/project.go:458
 #: lxc/project.go:463 lxc/project.go:468 lxc/project.go:473 lxc/project.go:478
-#: lxc/project.go:483 lxc/remote.go:703 lxc/remote.go:708 lxc/remote.go:713
+#: lxc/project.go:483 lxc/remote.go:705 lxc/remote.go:710 lxc/remote.go:715
 msgid "YES"
 msgstr ""
 
@@ -8149,7 +8159,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/project.go:488 lxc/remote.go:732
+#: lxc/project.go:488 lxc/remote.go:734
 msgid "current"
 msgstr ""
 
