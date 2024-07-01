@@ -759,10 +759,10 @@ func (d *powerflex) getVolumeType(vol Volume) powerFlexVolumeType {
 
 // createNVMeHost creates this NVMe host in PowerFlex.
 // The operation is idempotent and locked using lock name powerflex.host.
-func (d *powerflex) createNVMeHost() (string, error) {
+func (d *powerflex) createNVMeHost() (string, revert.Hook, error) {
 	unlock, err := locking.Lock(d.state.ShutdownCtx, "powerflex.host")
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	defer unlock()
@@ -770,29 +770,36 @@ func (d *powerflex) createNVMeHost() (string, error) {
 	var hostID string
 	nqn := d.getHostNQN()
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	client := d.client()
 	host, err := client.getNVMeHostByNQN(nqn)
 	if err != nil {
 		if !api.StatusErrorCheck(err, http.StatusNotFound) {
-			return "", err
+			return "", nil, err
 		}
 
 		hostname, err := d.getServerName()
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
 
 		hostID, err = client.createHost(hostname, nqn)
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
+
+		revert.Add(func() { _ = client.deleteHost(hostID) })
 	}
 
 	if hostID == "" {
 		hostID = host.ID
 	}
 
-	return hostID, nil
+	cleanup := revert.Clone().Fail
+	revert.Success()
+	return hostID, cleanup, nil
 }
 
 // deleteNVMeHost deletes this NVMe host in PowerFlex.
