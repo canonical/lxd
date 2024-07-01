@@ -6,8 +6,8 @@ However, note that it is not possible to modify the features that are enabled fo
 
 ## Create a project
 
-````{tabs}
-```{group-tab} CLI
+`````{tabs}
+````{group-tab} CLI
 To create a project, use the [`lxc project create`](lxc_project_create.md) command.
 
 You can specify configuration options by using the `--config` flag.
@@ -17,11 +17,11 @@ For example, to create a project called `my-project` that isolates instances, bu
 
     lxc project create my-project --config features.images=false --config features.profiles=false
 
-To create a project called `my-restricted-project` that blocks access to security-sensitive features (for example, container nesting) but allows backups, enter the following command:
+To create a project called `my-restricted-project` that blocks access to security-sensitive features (for example, container nesting) but allows snapshots, enter the following command:
 
-    lxc project create my-restricted-project --config restricted=true --config restricted.backups=allow
-```
-```{group-tab} API
+    lxc project create my-restricted-project --config restricted=true --config restricted.snapshots=allow
+````
+````{group-tab} API
 To create a project, send a POST request to the `/1.0/projects` endpoint.
 
 You can specify configuration options under the `"config"` field.
@@ -37,22 +37,58 @@ For example, to create a project called `my-project` that isolates instances, bu
       "name": "my-project"
     }'
 
-To create a project called `my-restricted-project` that blocks access to security-sensitive features (for example, container nesting) but allows backups, send the following request:
+To create a project called `my-restricted-project` that blocks access to security-sensitive features (for example, container nesting) but allows snapshots, send the following request:
 
     lxc query --request POST /1.0/projects --data '{
       "config": {
         "restricted": "true",
-        "restricted.backups": "allow"
+        "restricted.snapshots": "allow"
       },
       "name": "my-restricted-project"
     }'
 
 See [`POST /1.0/projects`](swagger:/projects/projects_post) for more information.
-```
 ````
+````{group-tab} UI
+To create a project, expand the {guilabel}`Project` drop-down and select {guilabel}`+ Create project` at the bottom.
+
+Enter a name and optionally a description for the new project.
+You can create the project using the default set of features or select {guilabel}`Customised` to add or remove specific features.
+See {ref}`project-features` for more information about the available features.
+
+For example, to create a project called `my-project` that isolates instances, but allows access to the default project's images and profiles:
+
+```{figure} /images/UI/create_project.png
+:width: 80%
+:alt: Create a project
+```
+
+To configure resource limits for the project, select {guilabel}`Resource limits`.
+
+To restrict a project from accessing security-sensitive features, check {guilabel}`Allow custom restrictions on a project level`.
+You can then configure the restrictions under {guilabel}`Restrictions`.
+See {ref}`project-restrictions` for more information.
+
+For example, to create a project called `my-restricted-project` that blocks access to security-sensitive features (for example, container nesting) but allows snapshots:
+
+1. Check {guilabel}`Allow custom restrictions on a project level`:
+
+   ```{figure} /images/UI/create_restr_project1.png
+   :width: 80%
+   :alt: Create a restricted project
+   ```
+1. Configure the restrictions:
+
+   ```{figure} /images/UI/create_restr_project2.png
+   :width: 80%
+   :alt: Allow snapshots in a restricted project
+   ```
+
+````
+`````
 
 ```{tip}
-When you create a project without specifying configuration options, {config:option}`project-features:features.profiles` is set to `true`, which means that profiles are isolated in the project.
+When you create a project with the default options, {config:option}`project-features:features.profiles` is set to `true`, which means that profiles are isolated in the project.
 
 Consequently, the new project does not have access to the `default` profile of the `default` project and therefore misses required configuration for creating instances (like the root disk).
 To fix this, add a root disk device to the project's `default` profile (see {ref}`profiles-set-options` for instructions).
@@ -101,6 +137,10 @@ Therefore, you must specify all configuration options as part of the PATCH reque
 
 See [`PATCH /1.0/projects/{name}`](swagger:/projects/project_patch) for more information.
 ````
+````{group-tab} UI
+To update the project configuration, select the respective project from the {guilabel}`Project` drop-down.
+Then go to {guilabel}`Configuration` and click {guilabel}`Edit configuration` to set or unset any configuration options.
+````
 `````
 
 ### Edit the project
@@ -122,5 +162,9 @@ For example:
     }'
 
 See [`PUT /1.0/projects/{name}`](swagger:/projects/project_put) for more information.
+```
+```{group-tab} UI
+To UI does not currently support editing the full YAML configuration for a project.
+However, you can update several or all configuration options at the same time through the UI.
 ```
 ````
