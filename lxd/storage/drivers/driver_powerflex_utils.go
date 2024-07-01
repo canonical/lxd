@@ -1169,11 +1169,6 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 // The connection can only be established after the first volume is mapped to this host.
 // The operation is idempotent and returns nil if already connected to the subsystem.
 func (d *powerflex) connectNVMeSubsys() (revert.Hook, error) {
-	pool, err := d.resolvePool()
-	if err != nil {
-		return nil, err
-	}
-
 	basePath := "/sys/devices/virtual/nvme-subsystem"
 
 	// Retrieve list of existing NVMe subsystems on this host.
@@ -1185,6 +1180,16 @@ func (d *powerflex) connectNVMeSubsys() (revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
+	pool, err := d.resolvePool()
+	if err != nil {
+		return nil, err
+	}
+
+	domain, err := d.client().getProtectionDomain(pool.ProtectionDomainID)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, directory := range directories {
 		subsystemName := directory.Name()
 
@@ -1194,11 +1199,11 @@ func (d *powerflex) connectNVMeSubsys() (revert.Hook, error) {
 			return nil, fmt.Errorf("Failed getting the NQN of subystem %q: %w", subsystemName, err)
 		}
 
-		if strings.Contains(string(nqnBytes), pool.ProtectionDomainID) {
+		if strings.Contains(string(nqnBytes), domain.SystemID) {
 			cleanup := revert.Clone().Fail
 			revert.Success()
 
-			// Already connected to the NVMe subsystem for the storage pools protection ID.
+			// Already connected to the NVMe subsystem for the respective PowerFlex system.
 			return cleanup, nil
 		}
 	}
