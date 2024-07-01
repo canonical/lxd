@@ -14,6 +14,11 @@ How to confine a project to a specific user depends on the authentication method
 You can confine access to specific projects by restricting the TLS client certificate that is used to connect to the LXD server.
 See {ref}`authentication-tls-certs` for detailed information.
 
+```{note}
+The UI does not currently support configuring project confinement.
+Use the CLI or API to set up confinement.
+```
+
 To confine the access from the time the client certificate is added, you must either use token authentication or add the client certificate to the server directly.
 
 Follow these instructions:

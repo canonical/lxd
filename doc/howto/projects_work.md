@@ -46,8 +46,12 @@ To display information about each project, use {ref}`rest-api-recursion`:
 
 See [`GET /1.0/projects`](swagger:/projects/projects_get) and  [`GET /1.0/projects?recursion=1`](swagger:/projects/projects_get_recursion1) for more information.
 ````
+````{group-tab} UI
+To list all projects (that you have permission to see), expand the {guilabel}`Project` drop-down.
+````
 `````
 
+(projects-switch)=
 ## Switch projects
 
 ````{tabs}
@@ -63,12 +67,15 @@ To switch to a different project, enter the following command:
 The API does not have the concept of switching projects.
 All requests target the default project unless a different project is specified (see {ref}`projects-target`).
 ```
+```{group-tab} UI
+To switch to another project, select a different project from the {guilabel}`Project` drop-down.
+```
 ````
 
 (projects-target)=
 ## Target a project
 
-Instead of switching to a different project, you can target a specific project when running a command.
+When using the CLI or the API, you can target a specific project when running a command.
 Many LXD commands support the `--project` flag or the `project` parameter to run an action in a different project.
 
 ```{note}
@@ -93,6 +100,10 @@ For example:
 Or with {ref}`rest-api-recursion`:
 
     lxc query --request GET /1.0/instances?recursion=2\&project=my-project
+```
+```{group-tab} UI
+The UI does not currently support targeting another project.
+Instead, {ref}`switch to the other project <projects-switch>`.
 ```
 ````
 
@@ -133,6 +144,9 @@ For example, you might need to change the root disk device if one of the project
 
 See [`POST /1.0/instances/{name}`](swagger:/instances/instance_post) for more information.
 ```
+```{group-tab} UI
+The UI does not currently support moving instances between projects.
+```
 ````
 
 ## Copy a profile to another project
@@ -156,5 +170,16 @@ Send the following request, replacing `<project>` with the new project that has 
 
     lxc query --request PUT /1.0/profiles/default?projects=<project> --data \
       "$(lxc query --request GET /1.0/profiles/default)"
+```
+```{group-tab} UI
+1. Select the `default` project from the {guilabel}`Project` drop-down.
+1. Go to {guilabel}`Profiles` and select the default profile.
+1. In the profile view, switch to the {guilabel}`Configuration` tab.
+1. Select {guilabel}`YAML configuration` and copy the YAML representation of the profile.
+1. Select the project with the empty default profile from the {guilabel}`Project` drop-down.
+1. Go to {guilabel}`Profiles` and select the empty default profile for the project.
+1. In the profile view, switch to the {guilabel}`Configuration` tab.
+1. Select {guilabel}`YAML configuration` and click {guilabel}`Edit profile`.
+1. Paste the YAML representation that you copied and save the changes.
 ```
 ````
