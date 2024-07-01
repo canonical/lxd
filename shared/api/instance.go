@@ -6,7 +6,7 @@ import (
 )
 
 // GetParentAndSnapshotName returns the parent name, snapshot name, and whether it actually was a snapshot name.
-func GetParentAndSnapshotName(name string) (string, string, bool) {
+func GetParentAndSnapshotName(name string) (parentName string, snapshotName string, isSnapshot bool) {
 	fields := strings.SplitN(name, "/", 2)
 	if len(fields) == 1 {
 		return name, "", false
@@ -49,6 +49,12 @@ type InstancesPost struct {
 	// Type (container or virtual-machine)
 	// Example: container
 	Type InstanceType `json:"type" yaml:"type"`
+
+	// Whether to start the instance after creation
+	// Example: true
+	//
+	// API extension: instance_create_start
+	Start bool `json:"start" yaml:"start"`
 }
 
 // InstancesPut represents the fields available for a mass update.

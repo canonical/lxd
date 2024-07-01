@@ -408,6 +408,7 @@ var APIExtensions = []string{
 	"device_usb_serial",
 	"network_allocate_external_ips",
 	"explicit_trust_token",
+	"instance_create_start",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
