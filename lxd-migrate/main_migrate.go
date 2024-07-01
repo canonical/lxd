@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 
@@ -30,7 +31,8 @@ import (
 type cmdMigrate struct {
 	global *cmdGlobal
 
-	flagRsyncArgs string
+	flagRsyncArgs      string
+	flagConversionOpts []string
 }
 
 func (c *cmdMigrate) command() *cobra.Command {
@@ -51,6 +53,7 @@ func (c *cmdMigrate) command() *cobra.Command {
 `
 	cmd.RunE = c.run
 	cmd.Flags().StringVar(&c.flagRsyncArgs, "rsync-args", "", "Extra arguments to pass to rsync"+"``")
+	cmd.Flags().StringSliceVar(&c.flagConversionOpts, "conversion", []string{"format"}, "List of conversion opts. Allowed values are: [format]")
 
 	return cmd
 }
@@ -261,9 +264,19 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 
 	config.InstanceArgs = api.InstancesPost{
 		Source: api.InstanceSource{
-			Type: "migration",
-			Mode: "push",
+			Type:              "conversion",
+			Mode:              "push",
+			ConversionOptions: c.flagConversionOpts,
 		},
+	}
+
+	// If server does not support conversion, fallback to migration.
+	// Migration will move the image to the server and import it as
+	// LXD instance. This means that images of different formats,
+	// such as VMDK and QCow2, will not work.
+	if !server.HasExtension("instance_import_conversion") {
+		fmt.Println(`Server does not support image conversion. Expecting input image in "raw" format.`)
+		config.InstanceArgs.Source.Type = "migration"
 	}
 
 	config.InstanceArgs.Config = map[string]string{}
@@ -444,7 +457,20 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("This tool must be run as root")
 	}
 
+	// Check conversion options.
+	supportedConversionOptions := []string{"format"}
+	for _, opt := range c.flagConversionOpts {
+		if !slices.Contains(supportedConversionOptions, opt) {
+			return fmt.Errorf("Unsupported conversion option %q, supported conversion options are %v", opt, supportedConversionOptions)
+		}
+	}
+
 	_, err := exec.LookPath("rsync")
+	if err != nil {
+		return err
+	}
+
+	_, err = exec.LookPath("file")
 	if err != nil {
 		return err
 	}
@@ -487,6 +513,11 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 		server = server.UseProject(config.Project)
 	}
 
+	if config.InstanceArgs.Type != api.InstanceTypeVM && len(config.InstanceArgs.Source.ConversionOptions) > 0 {
+		fmt.Printf("Instance type %q does not support conversion options. Ignored conversion options: %v\n", config.InstanceArgs.Type, config.InstanceArgs.Source.ConversionOptions)
+		config.InstanceArgs.Source.ConversionOptions = []string{}
+	}
+
 	config.Mounts = append(config.Mounts, config.SourcePath)
 
 	// Get and sort the mounts
@@ -521,6 +552,7 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 	}(path)
 
 	var fullPath string
+	var transferImageOnly bool
 
 	if config.InstanceArgs.Type == api.InstanceTypeContainer {
 		// Create the rootfs directory
@@ -537,6 +569,26 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("Failed to setup the source: %w", err)
 		}
 	} else {
+		if config.InstanceArgs.Source.Type == "conversion" && slices.Contains(config.InstanceArgs.Source.ConversionOptions, "format") {
+			// Check the image type using file.
+			cmd := exec.Command("file", "--brief", config.SourcePath)
+			out, err := cmd.Output()
+			if err != nil {
+				return fmt.Errorf("Failed to extract file type of the VM image: %v", err)
+			}
+
+			// If image type is raw, formatting is not required.
+			if strings.HasPrefix(string(out), "DOS/MBR boot sector") {
+				fmt.Println(`Formatting is not required for images of type raw. Ignoring conversion option "format".`)
+				config.InstanceArgs.Source.ConversionOptions = shared.RemoveElementsFromSlice(config.InstanceArgs.Source.ConversionOptions, "format")
+			}
+
+			// If image formatting is required, transfer only the image.
+			if slices.Contains(config.InstanceArgs.Source.ConversionOptions, "format") {
+				transferImageOnly = true
+			}
+		}
+
 		fullPath = path
 		target := filepath.Join(path, "root.img")
 
@@ -586,7 +638,7 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = transferRootfs(ctx, server, op, fullPath, c.flagRsyncArgs, config.InstanceArgs.Type)
+	err = transferRootfs(ctx, op, fullPath, c.flagRsyncArgs, config.InstanceArgs.Type, transferImageOnly)
 	if err != nil {
 		return err
 	}

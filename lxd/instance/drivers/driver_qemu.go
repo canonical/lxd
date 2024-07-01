@@ -7284,6 +7284,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			Name:                  d.Name(),
 			MigrationType:         respTypes[0],
 			Refresh:               args.Refresh,                // Indicate to receiver volume should exist.
+			ConversionOptions:     args.ConversionOptions,      // Non-nil options indicate image conversion.
 			TrackProgress:         true,                        // Use a progress tracker on receiver to get in-cluster progress information.
 			Live:                  false,                       // Indicates we won't get a final rootfs sync.
 			VolumeSize:            offerHeader.GetVolumeSize(), // Block size setting override.
@@ -7347,7 +7348,12 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			}
 		}
 
-		err = pool.CreateInstanceFromMigration(d, filesystemConn, volTargetArgs, d.op)
+		if args.ConversionOptions != nil {
+			err = pool.CreateInstanceFromConversion(d, filesystemConn, volTargetArgs, d.op)
+		} else {
+			err = pool.CreateInstanceFromMigration(d, filesystemConn, volTargetArgs, d.op)
+		}
+
 		if err != nil {
 			return fmt.Errorf("Failed creating instance on target: %w", err)
 		}

@@ -27,7 +27,7 @@ The tool can create both containers and virtual machines:
 
 * When creating a container, you must provide a disk or partition that contains the root file system for the container.
   For example, this could be the `/` root disk of the machine or container where you are running the tool.
-* When creating a virtual machine, you must provide a bootable disk, partition or image.
+* When creating a virtual machine, you must provide a bootable disk, partition, or an image in raw, VMDK, or QCOW2 format.
   This means that just providing a file system is not sufficient, and you cannot create a virtual machine from a container that you are running.
   It is also not possible to create a virtual machine from the physical machine that you are using to do the migration, because the migration tool would be using the disk that it is copying.
   Instead, you could provide a bootable image, or a bootable partition or disk that is currently not in use.
@@ -68,11 +68,6 @@ Complete the following steps to migrate an existing machine to a LXD instance:
        sudo ./bin.linux.lxd-migrate
 
    The tool then asks you to provide the information required for the migration.
-
-   ```{tip}
-   As an alternative to running the tool interactively, you can provide the configuration as parameters to the command.
-   See `./bin.linux.lxd-migrate --help` for more information.
-   ```
 
    1. Specify the LXD server URL, either as an IP address or as a DNS name.
 

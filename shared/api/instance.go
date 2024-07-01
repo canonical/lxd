@@ -6,7 +6,7 @@ import (
 )
 
 // GetParentAndSnapshotName returns the parent name, snapshot name, and whether it actually was a snapshot name.
-func GetParentAndSnapshotName(name string) (string, string, bool) {
+func GetParentAndSnapshotName(name string) (parentName string, snapshotName string, isSnapshot bool) {
 	fields := strings.SplitN(name, "/", 2)
 	if len(fields) == 1 {
 		return name, "", false
@@ -418,6 +418,12 @@ type InstanceSource struct {
 	//
 	// API extension: instance_allow_inconsistent_copy
 	AllowInconsistent bool `json:"allow_inconsistent" yaml:"allow_inconsistent"`
+
+	// Optional list of options that are used during image conversion.
+	// Example: ["format"]
+	//
+	// API extension: instance_import_conversion
+	ConversionOptions []string `json:"conversion_options" yaml:"conversion_options"`
 }
 
 // InstanceUEFIVars represents the UEFI variables of a LXD virtual machine.
