@@ -56,27 +56,3 @@ func forwardedResponseIfInstanceIsRemote(s *state.State, r *http.Request, projec
 
 	return response.ForwardedResponse(client, r), nil
 }
-
-// forwardedResponseIfVolumeIsRemote redirects a request to the node hosting
-// the volume with the given pool ID, name and type. If the container is local,
-// nothing gets done and nil is returned. If more than one node has a matching
-// volume, an error is returned.
-//
-// This is used when no targetNode is specified, and saves users some typing
-// when the volume name/type is unique to a node.
-func forwardedResponseIfVolumeIsRemote(s *state.State, r *http.Request, poolName string, projectName string, volumeName string, volumeType int) response.Response {
-	if request.QueryParam(r, "target") != "" {
-		return nil
-	}
-
-	client, err := cluster.ConnectIfVolumeIsRemote(s, poolName, projectName, volumeName, volumeType, s.Endpoints.NetworkCert(), s.ServerCert(), r)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if client == nil {
-		return nil
-	}
-
-	return response.ForwardedResponse(client, r)
-}

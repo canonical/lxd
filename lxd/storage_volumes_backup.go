@@ -13,6 +13,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
+	lxdCluster "github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
@@ -25,7 +26,6 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -33,22 +33,22 @@ import (
 var storagePoolVolumeTypeCustomBackupsCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/backups",
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupsGet, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanView, "poolName", "type", "volumeName")},
-	Post: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupsPost, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanManageBackups, "poolName", "type", "volumeName")},
+	Get:  APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupsGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
+	Post: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupsPost, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanManageBackups)},
 }
 
 var storagePoolVolumeTypeCustomBackupCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName}",
 
-	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupGet, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanView, "poolName", "type", "volumeName")},
-	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupPost, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanManageBackups, "poolName", "type", "volumeName")},
-	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupDelete, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanManageBackups, "poolName", "type", "volumeName")},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupPost, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanManageBackups)},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupDelete, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanManageBackups)},
 }
 
 var storagePoolVolumeTypeCustomBackupExportCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName}/export",
 
-	Get: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupExportGet, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanView, "poolName", "type", "volumeName")},
+	Get: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupExportGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
 }
 
 // swagger:operation GET /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/backups storage storage_pool_volumes_type_backups_get
@@ -156,8 +156,7 @@ var storagePoolVolumeTypeCustomBackupExportCmd = APIEndpoint{
 func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	requestProjectName := request.ProjectParam(r)
-	projectName, err := project.StorageVolumeProject(s.DB.Cluster, requestProjectName, cluster.StoragePoolVolumeTypeCustom)
+	projectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -191,23 +190,20 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	var poolID int64
-
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-
-		poolID, _, _, err = tx.GetStoragePool(ctx, poolName)
-
-		return err
-	})
+	pool, err := request.GetCtxValue[storagePools.Pool](r.Context(), ctxStoragePool)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Handle requests targeted to a volume on a different node
-	resp := forwardedResponseIfVolumeIsRemote(s, r, poolName, projectName, volumeName, cluster.StoragePoolVolumeTypeCustom)
-	if resp != nil {
-		return resp
+	remoteNodeInfo, err := request.GetCtxValue[db.NodeInfo](r.Context(), ctxStorageVolumeRemoteNodeInfo)
+	if err == nil {
+		client, err := lxdCluster.Connect(remoteNodeInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.ForwardedResponse(client, r)
 	}
 
 	recursion := util.IsRecursionRequest(r)
@@ -215,7 +211,7 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 	var volumeBackups []db.StoragePoolVolumeBackup
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		volumeBackups, err = tx.GetStoragePoolVolumeBackups(ctx, projectName, volumeName, poolID)
+		volumeBackups, err = tx.GetStoragePoolVolumeBackups(ctx, projectName, volumeName, pool.ID())
 		return err
 	})
 	if err != nil {
@@ -318,7 +314,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 	}
 
 	requestProjectName := request.ProjectParam(r)
-	projectName, err := project.StorageVolumeProject(s.DB.Cluster, requestProjectName, cluster.StoragePoolVolumeTypeCustom)
+	projectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -336,27 +332,24 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		return resp
 	}
 
-	var poolID int64
-
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-
-		poolID, _, _, err = tx.GetStoragePool(ctx, poolName)
-
-		return err
-	})
+	pool, err := request.GetCtxValue[storagePools.Pool](r.Context(), ctxStoragePool)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r, poolName, projectName, volumeName, cluster.StoragePoolVolumeTypeCustom)
-	if resp != nil {
-		return resp
+	remoteNodeInfo, err := request.GetCtxValue[db.NodeInfo](r.Context(), ctxStorageVolumeRemoteNodeInfo)
+	if err == nil {
+		client, err := lxdCluster.Connect(remoteNodeInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.ForwardedResponse(client, r)
 	}
 
 	var dbVolume *db.StorageVolume
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(ctx, poolID, projectName, volumeType, volumeName, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), projectName, volumeType, volumeName, true)
 		return err
 	})
 	if err != nil {
@@ -393,7 +386,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 
 		// come up with a name.
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			backups, err = tx.GetStoragePoolVolumeBackupsNames(ctx, projectName, volumeName, poolID)
+			backups, err = tx.GetStoragePoolVolumeBackupsNames(ctx, projectName, volumeName, pool.ID())
 			return err
 		})
 		if err != nil {
@@ -549,8 +542,7 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	requestProjectName := request.ProjectParam(r)
-	projectName, err := project.StorageVolumeProject(s.DB.Cluster, requestProjectName, cluster.StoragePoolVolumeTypeCustom)
+	projectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -560,9 +552,14 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r, poolName, projectName, volumeName, cluster.StoragePoolVolumeTypeCustom)
-	if resp != nil {
-		return resp
+	remoteNodeInfo, err := request.GetCtxValue[db.NodeInfo](r.Context(), ctxStorageVolumeRemoteNodeInfo)
+	if err == nil {
+		client, err := lxdCluster.Connect(remoteNodeInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.ForwardedResponse(client, r)
 	}
 
 	fullName := volumeName + shared.SnapshotDelimiter + backupName
@@ -651,7 +648,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 	}
 
 	requestProjectName := request.ProjectParam(r)
-	projectName, err := project.StorageVolumeProject(s.DB.Cluster, requestProjectName, cluster.StoragePoolVolumeTypeCustom)
+	projectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -661,9 +658,14 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r, poolName, projectName, volumeName, cluster.StoragePoolVolumeTypeCustom)
-	if resp != nil {
-		return resp
+	remoteNodeInfo, err := request.GetCtxValue[db.NodeInfo](r.Context(), ctxStorageVolumeRemoteNodeInfo)
+	if err == nil {
+		client, err := lxdCluster.Connect(remoteNodeInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.ForwardedResponse(client, r)
 	}
 
 	req := api.StoragePoolVolumeBackupPost{}
@@ -779,7 +781,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 	}
 
 	requestProjectName := request.ProjectParam(r)
-	projectName, err := project.StorageVolumeProject(s.DB.Cluster, requestProjectName, cluster.StoragePoolVolumeTypeCustom)
+	projectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -789,9 +791,14 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r, poolName, projectName, volumeName, cluster.StoragePoolVolumeTypeCustom)
-	if resp != nil {
-		return resp
+	remoteNodeInfo, err := request.GetCtxValue[db.NodeInfo](r.Context(), ctxStorageVolumeRemoteNodeInfo)
+	if err == nil {
+		client, err := lxdCluster.Connect(remoteNodeInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.ForwardedResponse(client, r)
 	}
 
 	fullName := volumeName + shared.SnapshotDelimiter + backupName
@@ -889,8 +896,7 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	requestProjectName := request.ProjectParam(r)
-	projectName, err := project.StorageVolumeProject(s.DB.Cluster, requestProjectName, cluster.StoragePoolVolumeTypeCustom)
+	projectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -900,9 +906,14 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r, poolName, projectName, volumeName, cluster.StoragePoolVolumeTypeCustom)
-	if resp != nil {
-		return resp
+	remoteNodeInfo, err := request.GetCtxValue[db.NodeInfo](r.Context(), ctxStorageVolumeRemoteNodeInfo)
+	if err == nil {
+		client, err := lxdCluster.Connect(remoteNodeInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.ForwardedResponse(client, r)
 	}
 
 	fullName := volumeName + shared.SnapshotDelimiter + backupName
