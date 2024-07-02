@@ -54,7 +54,7 @@ func (c *cmdMigrate) command() *cobra.Command {
 `
 	cmd.RunE = c.run
 	cmd.Flags().StringVar(&c.flagRsyncArgs, "rsync-args", "", "Extra arguments to pass to rsync"+"``")
-	cmd.Flags().StringSliceVar(&c.flagConversionOpts, "conversion", []string{"format"}, "List of conversion opts. Allowed values are: [format]")
+	cmd.Flags().StringSliceVar(&c.flagConversionOpts, "conversion", []string{"format"}, "Comma-separated list of conversion options to apply. Allowed values are: [format, virtio]")
 
 	return cmd
 }
@@ -469,7 +469,7 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check conversion options.
-	supportedConversionOptions := []string{"format"}
+	supportedConversionOptions := []string{"format", "virtio"}
 	for _, opt := range c.flagConversionOpts {
 		if !slices.Contains(supportedConversionOptions, opt) {
 			return fmt.Errorf("Unsupported conversion option %q, supported conversion options are %v", opt, supportedConversionOptions)
