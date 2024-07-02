@@ -38,7 +38,9 @@ func ListDatabaseNodes(database *db.Node) ([]string, error) {
 	return addresses, nil
 }
 
-// Recover attempts data recovery on the cluster database.
+// Recover rebuilds the dqlite raft configuration leaving only the current
+// member in the cluster. Use `Reconfigure` if more members should remain in
+// the raft configuration.
 func Recover(database *db.Node) error {
 	// Figure out if we actually act as dqlite node.
 	var info *db.RaftNode
@@ -63,20 +65,16 @@ func Recover(database *db.Node) error {
 	}
 
 	dir := filepath.Join(database.Dir(), "global")
-	server, err := dqlite.New(
-		uint64(info.ID),
-		info.Address,
-		dir,
-	)
-	if err != nil {
-		return fmt.Errorf("Failed to create dqlite server: %w", err)
-	}
 
 	cluster := []dqlite.NodeInfo{
-		{ID: uint64(info.ID), Address: info.Address},
+		{
+			ID:      uint64(info.ID),
+			Address: info.Address,
+			Role:    client.Voter,
+		},
 	}
 
-	err = server.Recover(cluster)
+	err = dqlite.ReconfigureMembershipExt(dir, cluster)
 	if err != nil {
 		return fmt.Errorf("Failed to recover database state: %w", err)
 	}
