@@ -22,6 +22,7 @@ ID    | Name          | Notes                           | Personalities
 10    | `mips64`      | 64bit MIPS                      | `mips`
 11    | `riscv32`     | 32bit RISC-V little-endian      |
 12    | `riscv64`     | 64bit RISC-V little-endian      |
+32    | `loongarch64` | 64bit LoongArch little-endian   |
 
 ```{note}
 LXD cares only about the kernel architecture, not the particular userspace flavor as determined by the toolchain.
