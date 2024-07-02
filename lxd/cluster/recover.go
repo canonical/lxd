@@ -1,6 +1,8 @@
 package cluster
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
 	"fmt"
 	"os"
@@ -9,10 +11,15 @@ import (
 
 	dqlite "github.com/canonical/go-dqlite"
 	"github.com/canonical/go-dqlite/client"
+	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/node"
+	"github.com/canonical/lxd/shared/revert"
 )
+
+// RecoveryTarballName is the filename used for recovery tarballs.
+const RecoveryTarballName = "lxd_recovery_db.tar.gz"
 
 // ListDatabaseNodes returns a list of database node names.
 func ListDatabaseNodes(database *db.Node) ([]string, error) {
@@ -171,10 +178,11 @@ func writeGlobalNodesPatch(database *db.Node, nodes []db.RaftNode) error {
 
 // Reconfigure replaces the entire cluster configuration.
 // Addresses and node roles may be updated. Node IDs are read-only.
-func Reconfigure(database *db.Node, raftNodes []db.RaftNode) error {
+// Returns the path to the new database state (recovery tarball).
+func Reconfigure(database *db.Node, raftNodes []db.RaftNode) (string, error) {
 	info, err := localRaftNode(database)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	localAddress := info.Address
@@ -193,7 +201,7 @@ func Reconfigure(database *db.Node, raftNodes []db.RaftNode) error {
 	if localAddress != info.Address {
 		err := updateLocalAddress(database, localAddress)
 		if err != nil {
-			return err
+			return "", err
 		}
 	}
 
@@ -201,7 +209,7 @@ func Reconfigure(database *db.Node, raftNodes []db.RaftNode) error {
 	// Replace cluster configuration in dqlite.
 	err = dqlite.ReconfigureMembershipExt(dir, nodes)
 	if err != nil {
-		return fmt.Errorf("Failed to recover database state: %w", err)
+		return "", fmt.Errorf("Failed to recover database state: %w", err)
 	}
 
 	// Replace cluster configuration in local raft_nodes database.
@@ -209,15 +217,94 @@ func Reconfigure(database *db.Node, raftNodes []db.RaftNode) error {
 		return tx.ReplaceRaftNodes(raftNodes)
 	})
 	if err != nil {
-		return err
+		return "", err
+	}
+
+	tarballPath, err := writeRecoveryTarball(database.Dir(), raftNodes)
+	if err != nil {
+		return "", fmt.Errorf("Failed to create recovery tarball: copy db manually; %w", err)
 	}
 
 	err = writeGlobalNodesPatch(database, raftNodes)
 	if err != nil {
-		return fmt.Errorf("Failed to create global db patch for cluster recover: %w", err)
+		return "", fmt.Errorf("Failed to create global db patch for cluster recover: %w", err)
 	}
 
-	return nil
+	return tarballPath, nil
+}
+
+// Create a tarball of the global database dir to be copied to all other
+// remaining cluster members.
+func writeRecoveryTarball(databaseDir string, raftNodes []db.RaftNode) (string, error) {
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	tarballPath := filepath.Join(databaseDir, RecoveryTarballName)
+
+	tarball, err := os.Create(tarballPath)
+	if err != nil {
+		return "", err
+	}
+
+	reverter.Add(func() { _ = os.Remove(tarballPath) })
+
+	gzWriter := gzip.NewWriter(tarball)
+	tarWriter := tar.NewWriter(gzWriter)
+
+	globalDBDirFS := os.DirFS(filepath.Join(databaseDir, "global"))
+
+	err = tarWriter.AddFS(globalDBDirFS)
+	if err != nil {
+		return "", err
+	}
+
+	raftNodesYaml, err := yaml.Marshal(raftNodes)
+	if err != nil {
+		return "", err
+	}
+
+	raftNodesHeader := tar.Header{
+		Typeflag: tar.TypeReg,
+		Name:     "raft_nodes.yaml",
+		Size:     int64(len(raftNodesYaml)),
+		Mode:     0o644,
+		Uid:      0,
+		Gid:      0,
+		Format:   tar.FormatPAX,
+	}
+
+	err = tarWriter.WriteHeader(&raftNodesHeader)
+	if err != nil {
+		return "", err
+	}
+
+	written, err := tarWriter.Write(raftNodesYaml)
+	if err != nil {
+		return "", err
+	}
+
+	if written != len(raftNodesYaml) {
+		return "", fmt.Errorf("Wrote %d bytes but expected to write %d", written, len(raftNodesYaml))
+	}
+
+	err = tarWriter.Close()
+	if err != nil {
+		return "", err
+	}
+
+	err = gzWriter.Close()
+	if err != nil {
+		return "", err
+	}
+
+	err = tarball.Close()
+	if err != nil {
+		return "", err
+	}
+
+	reverter.Success()
+
+	return tarballPath, nil
 }
 
 // RemoveRaftNode removes a raft node from the raft configuration.
