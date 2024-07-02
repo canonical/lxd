@@ -1921,7 +1921,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Load the go-lxc struct
 	cc, err := d.initLXC(true)
 	if err != nil {
-		return "", nil, fmt.Errorf("Load go-lxc struct: %w", err)
+		return "", nil, fmt.Errorf("Failed loading go-lxc: %w", err)
 	}
 
 	// Ensure cgroup v1 configuration is set appropriately with the image using systemd
@@ -7067,7 +7067,7 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 	if !shared.PathExists(configPath) {
 		cc, err := d.initLXC(true)
 		if err != nil {
-			return nil, fmt.Errorf("Load go-lxc struct: %w", err)
+			return nil, fmt.Errorf("Failed loading go-lxc: %w", err)
 		}
 
 		err = cc.SaveConfigFile(configPath)
