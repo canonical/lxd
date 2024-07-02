@@ -112,6 +112,7 @@ kibi
 Kibit
 KVM
 lookups
+LoongArch
 LogCLI
 LRU
 LV
