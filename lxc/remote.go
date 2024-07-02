@@ -286,6 +286,10 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 		addr = args[1]
 	}
 
+	if len(addr) == 0 {
+		return fmt.Errorf(i18n.G("Remote address must not be empty"))
+	}
+
 	// Validate the server name.
 	if strings.Contains(server, ":") {
 		return fmt.Errorf(i18n.G("Remote names may not contain colons"))
