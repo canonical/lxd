@@ -7,6 +7,8 @@ discourse: 11567
 
 ```{note}
 The BGP server feature is available for the {ref}`network-bridge` and the {ref}`network-physical`.
+These network types are often used as the uplink network for an {ref}`network-ovn`, and you must configure the BGP peers on the uplink network.
+See {ref}`network-bgp-ovn` for instructions.
 ```
 
 ```{youtube} https://www.youtube.com/watch?v=C9zU-FEqtTw
@@ -64,6 +66,7 @@ By default, the next-hop is set to the address used for the BGP session.
 
 To configure a different address, set `bgp.ipv4.nexthop` or `bgp.ipv6.nexthop`.
 
+(network-bgp-ovn)=
 ### Configure BGP peers for OVN networks
 
 If you run an OVN network with an uplink network (`physical` or `bridge`), the uplink network is the one that holds the list of allowed subnets and the BGP configuration.
