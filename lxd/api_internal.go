@@ -298,9 +298,9 @@ func internalContainerHookLoadFromReference(s *state.State, r *http.Request) (in
 			logger.Warn("Failed loading instance from database, trying backup file", logger.Ctx{"project": projectName, "instance": instanceRef, "err": err})
 
 			instancePath := filepath.Join(shared.VarPath("containers"), project.Instance(projectName, instanceRef))
-			inst, err = instance.LoadFromBackup(s, projectName, instancePath, false)
+			inst, err = instance.LoadFromBackup(s, projectName, instancePath)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("Failed loading instance from backup file: %w", err)
 			}
 		}
 	}
