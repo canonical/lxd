@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -43,11 +44,11 @@ type requestDetails struct {
 }
 
 func (r *requestDetails) isInternalOrUnix() bool {
-	if r.protocol == "unix" {
+	if r.protocol == auth.AuthenticationMethodUnix {
 		return true
 	}
 
-	if r.protocol == "cluster" && (r.forwardedProtocol == "unix" || r.forwardedProtocol == "cluster" || r.forwardedProtocol == "") {
+	if r.protocol == auth.AuthenticationMethodCluster && (r.forwardedProtocol == auth.AuthenticationMethodUnix || r.forwardedProtocol == auth.AuthenticationMethodCluster || r.forwardedProtocol == "") {
 		return true
 	}
 
@@ -55,7 +56,7 @@ func (r *requestDetails) isInternalOrUnix() bool {
 }
 
 func (r *requestDetails) username() string {
-	if r.protocol == "cluster" && r.forwardedUsername != "" {
+	if r.protocol == auth.AuthenticationMethodCluster && r.forwardedUsername != "" {
 		return r.forwardedUsername
 	}
 
@@ -63,7 +64,7 @@ func (r *requestDetails) username() string {
 }
 
 func (r *requestDetails) authenticationProtocol() string {
-	if r.protocol == "cluster" {
+	if r.protocol == auth.AuthenticationMethodCluster {
 		return r.forwardedProtocol
 	}
 
@@ -71,7 +72,7 @@ func (r *requestDetails) authenticationProtocol() string {
 }
 
 func (r *requestDetails) identityProviderGroups() []string {
-	if r.protocol == "cluster" {
+	if r.protocol == auth.AuthenticationMethodCluster {
 		return r.forwardedIDPGroups
 	}
 

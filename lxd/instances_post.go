@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/canonical/lxd/lxd/archive"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
@@ -193,8 +194,19 @@ func createFromNone(s *state.State, r *http.Request, projectName string, profile
 }
 
 func createFromMigration(s *state.State, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
-	if s.DB.Cluster.LocalNodeIsEvacuated() && r.Context().Value(request.CtxProtocol) != "cluster" {
-		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
+	// The request can be nil (see `clusterCopyContainerInternal`).
+	if r != nil {
+		// If it isn't nil, get the protocol.
+		protocol, err := request.GetCtxValue[string](r.Context(), request.CtxProtocol)
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed to check request origin: %w", err))
+		}
+
+		// If the protocol is not auth.AuthenticationMethodCluster (e.g. not an internal request) and the node has been
+		// evacuated, reject the request.
+		if s.DB.Cluster.LocalNodeIsEvacuated() && protocol != auth.AuthenticationMethodCluster {
+			return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
+		}
 	}
 
 	// Validate migration mode.
