@@ -57,25 +57,20 @@ func forwardedResponseIfInstanceIsRemote(s *state.State, r *http.Request, projec
 	return response.ForwardedResponse(client, r), nil
 }
 
-// forwardedResponseIfVolumeIsRemote redirects a request to the node hosting
-// the volume with the given pool ID, name and type. If the container is local,
-// nothing gets done and nil is returned. If more than one node has a matching
-// volume, an error is returned.
-//
-// This is used when no targetNode is specified, and saves users some typing
-// when the volume name/type is unique to a node.
-func forwardedResponseIfVolumeIsRemote(s *state.State, r *http.Request, poolName string, projectName string, volumeName string, volumeType int) response.Response {
-	if request.QueryParam(r, "target") != "" {
+// forwardedResponseIfVolumeIsRemote checks for the presence of the ctxStorageVolumeRemoteNodeInfo key in the request context.
+// If it is present, the db.NodeInfo value for this key is used to set up a client for the indicated member and forward the request.
+// Otherwise, a nil response is returned to indicate that the request was not forwarded, and should continue within this member.
+func forwardedResponseIfVolumeIsRemote(s *state.State, r *http.Request) response.Response {
+	storageVolumeDetails, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	if err != nil {
+		return nil
+	} else if storageVolumeDetails.forwardingNodeInfo == nil {
 		return nil
 	}
 
-	client, err := cluster.ConnectIfVolumeIsRemote(s, poolName, projectName, volumeName, volumeType, s.Endpoints.NetworkCert(), s.ServerCert(), r)
+	client, err := cluster.Connect(storageVolumeDetails.forwardingNodeInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	if client == nil {
-		return nil
 	}
 
 	return response.ForwardedResponse(client, r)
