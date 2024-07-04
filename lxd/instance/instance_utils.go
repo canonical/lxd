@@ -388,50 +388,32 @@ func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, er
 	return instances, nil
 }
 
-// LoadFromBackup loads from a mounted instance's backup file.
-// If applyProfiles is false, then the profiles property will be cleared to prevent profile enrichment from DB.
-// Then the expanded config and expanded devices from the backup file will be applied to the local config and
-// local devices respectively. This is done to allow an expanded instance to be returned without needing the DB.
-func LoadFromBackup(s *state.State, projectName string, instancePath string, applyProfiles bool) (Instance, error) {
-	var inst Instance
-
+// LoadFromBackup loads from a mounted instance's backup file without needing the database.
+// Project config is not populated (as not in the backup file), however expanded config from backup file is applied
+// to avoid needing to expand config by loading profiles from database.
+func LoadFromBackup(s *state.State, projectName string, instancePath string) (Instance, error) {
 	backupYamlPath := filepath.Join(instancePath, "backup.yaml")
 	backupConf, err := backup.ParseConfigYamlFile(backupYamlPath)
 	if err != nil {
 		return nil, fmt.Errorf("Failed parsing instance backup file from %q: %w", backupYamlPath, err)
 	}
 
-	instDBArgs, err := backup.ConfigToInstanceDBArgs(s, backupConf, projectName, applyProfiles)
+	// Specify applyProfiles arg as false to avoid DB query.
+	instDBArgs, err := backup.ConfigToInstanceDBArgs(s, backupConf, projectName, false)
 	if err != nil {
 		return nil, err
 	}
 
-	if !applyProfiles {
-		// Stop instance.Load() from expanding profile config from DB, and apply expanded config from
-		// backup file to local config. This way we can still see the devices even if DB not available.
-		instDBArgs.Config = backupConf.Container.ExpandedConfig
-		instDBArgs.Devices = deviceConfig.NewDevices(backupConf.Container.ExpandedDevices)
+	// Stop instance.Load() from expanding profile config from DB, and apply expanded config from
+	// backup file to local config. This way we can still see the devices even if DB not available.
+	instDBArgs.Config = backupConf.Container.ExpandedConfig
+	instDBArgs.Devices = deviceConfig.NewDevices(backupConf.Container.ExpandedDevices)
+
+	p := api.Project{
+		Name: backupConf.Container.Project,
 	}
 
-	var p *api.Project
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		proj, err := cluster.GetProject(ctx, tx.Tx(), projectName)
-		if err != nil {
-			return err
-		}
-
-		p, err = proj.ToAPI(ctx, tx.Tx())
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	inst, err = Load(s, *instDBArgs, *p)
+	inst, err := Load(s, *instDBArgs, p)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance from backup file %q: %w", backupYamlPath, err)
 	}
