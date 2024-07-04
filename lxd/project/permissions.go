@@ -1510,7 +1510,7 @@ func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string)
 	for entityType, urls := range urlsByEntityType {
 		// If only one entry of this type, check directly.
 		if len(urls) == 1 {
-			err := authorizer.CheckPermission(r.Context(), r, urls[0], auth.EntitlementCanView)
+			err := authorizer.CheckPermission(r.Context(), urls[0], auth.EntitlementCanView)
 			if err != nil {
 				continue
 			}
@@ -1520,7 +1520,7 @@ func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string)
 		}
 
 		// Otherwise get a permission checker for the entity type.
-		canViewEntity, err := authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entityType)
+		canViewEntity, err := authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entityType)
 		if err != nil {
 			logger.Error("Failed to get permission checker for project used-by filtering", logger.Ctx{"entity_type": entityType, "err": err})
 			continue
@@ -1559,7 +1559,7 @@ func projectHasRestriction(project *api.Project, restrictionKey string, blockVal
 func CheckClusterTargetRestriction(authorizer auth.Authorizer, r *http.Request, project *api.Project, targetFlag string) error {
 	if projectHasRestriction(project, "restricted.cluster.target", "block") && targetFlag != "" {
 		// Allow server administrators to move instances around even when restricted (node evacuation, ...)
-		err := authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanOverrideClusterTargetRestriction)
+		err := authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanOverrideClusterTargetRestriction)
 		if err != nil && auth.IsDeniedError(err) {
 			return api.StatusErrorf(http.StatusForbidden, "This project doesn't allow cluster member targeting")
 		} else if err != nil {

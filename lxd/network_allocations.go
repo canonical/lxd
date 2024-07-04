@@ -24,7 +24,7 @@ import (
 var networkAllocationsCmd = APIEndpoint{
 	Path: "network-allocations",
 
-	Get: APIEndpointAction{Handler: networkAllocationsGet, AccessHandler: allowAuthenticated},
+	Get: APIEndpointAction{Handler: networkAllocationsGet, AccessHandler: allowProjectResourceList},
 }
 
 // swagger:operation GET /1.0/network-allocations network-allocations network_allocations_get
@@ -119,7 +119,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 	result := make([]api.NetworkAllocations, 0)
 
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeNetwork)
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeNetwork)
 	if err != nil {
 		return response.SmartError(err)
 	}
