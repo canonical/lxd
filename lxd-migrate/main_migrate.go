@@ -333,6 +333,17 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 			return errors.New("Path does not exist")
 		}
 
+		if config.InstanceArgs.Type == api.InstanceTypeVM && config.InstanceArgs.Source.Type == "migration" {
+			isImageTypeRaw, err := isImageTypeRaw(config.SourcePath)
+			if err != nil {
+				return err
+			}
+
+			if !isImageTypeRaw {
+				return fmt.Errorf(`Source disk format cannot be converted by server. Source disk should be in raw format`)
+			}
+		}
+
 		_, err := os.Stat(s)
 		if err != nil {
 			return err
