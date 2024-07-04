@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -330,4 +331,17 @@ func parseURL(URL string) (string, error) {
 	}
 
 	return u.String(), nil
+}
+
+// isImageTypeRaw checks whether the file on a given path represents a disk,
+// partition, or image in raw format.
+func isImageTypeRaw(path string) (bool, error) {
+	cmd := exec.Command("file", "--brief", path)
+	out, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("Failed to extract image file type: %v", err)
+	}
+
+	isRaw := strings.HasPrefix(string(out), "DOS/MBR boot sector") || strings.HasPrefix(string(out), "block special")
+	return isRaw, nil
 }
