@@ -26,7 +26,7 @@ import (
 var networkZonesCmd = APIEndpoint{
 	Path: "network-zones",
 
-	Get:  APIEndpointAction{Handler: networkZonesGet, AccessHandler: allowAuthenticated},
+	Get:  APIEndpointAction{Handler: networkZonesGet, AccessHandler: allowProjectResourceList},
 	Post: APIEndpointAction{Handler: networkZonesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateNetworkZones)},
 }
 
@@ -156,7 +156,7 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	request.SetCtxValue(r, request.CtxEffectiveProjectName, projectName)
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeNetworkZone)
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeNetworkZone)
 	if err != nil {
 		return response.InternalError(err)
 	}

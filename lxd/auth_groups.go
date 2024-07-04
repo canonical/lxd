@@ -164,17 +164,17 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 	recursion := request.QueryParam(r, "recursion")
 	s := d.State()
 
-	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
 
-	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentity)
+	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentity)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
 
-	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
+	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
@@ -409,12 +409,12 @@ func getAuthGroup(d *Daemon, r *http.Request) response.Response {
 
 	var apiGroup *api.AuthGroup
 	s := d.State()
-	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentity)
+	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentity)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
 
-	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
+	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
@@ -486,12 +486,12 @@ func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
 	defer cancel()
 
 	s := d.State()
-	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentity)
+	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentity)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
 
-	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
+	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
@@ -585,12 +585,12 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 	defer cancel()
 
 	s := d.State()
-	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentity)
+	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentity)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
 
-	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
+	canViewIDPGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentityProviderGroup)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
