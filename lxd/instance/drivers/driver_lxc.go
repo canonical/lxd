@@ -2725,7 +2725,14 @@ func (d *lxc) Stop(stateful bool) error {
 	}
 
 	err = cc.Stop()
-	if err != nil {
+
+	// If the container refuses to stop, then check if the error is ErrNotRunning, and if so ignore it, because
+	// sometimes if an earlier shutdown request was sent, but timed out, the actual guest shutdown can still be
+	// proceeding and the container may have reached a stop state by now and is in the process of running the
+	// onStop hook to cleanup host side devices. If we returned here with ErrNotRunning then this would be
+	// incorrect as the onStop hook could still be running and we aren't fully cleaned up yet, which can cause
+	// issues with state reporting after Stop has returned.
+	if err != nil && !strings.Contains(err.Error(), string(liblxc.ErrNotRunning)) {
 		op.Done(err)
 		return err
 	}
