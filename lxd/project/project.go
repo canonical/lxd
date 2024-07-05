@@ -6,8 +6,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/shared"
 )
 
 // Default is the string used for a default project.

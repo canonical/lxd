@@ -9,16 +9,16 @@ import (
 	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/state"
-	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/idmap"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/state"
+	storagePools "github.com/canonical/lxd/lxd/storage"
+	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/idmap"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // Simply cache used to storage the activated drivers on this LXD instance. This

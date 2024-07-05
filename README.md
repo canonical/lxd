@@ -18,10 +18,10 @@ Then if you want to run it locally, take a look at our [getting started guide](h
 ## Status
 Type                | Service               | Status
 ---                 | ---                   | ---
-CI (client)         | GitHub                | [![Build Status](https://github.com/lxc/lxd/workflows/Client%20build%20and%20unit%20tests/badge.svg?branch=stable-4.0)](https://github.com/lxc/lxd/actions)
+CI (client)         | GitHub                | [![Build Status](https://github.com/canonical/lxd/workflows/Client%20build%20and%20unit%20tests/badge.svg?branch=stable-4.0)](https://github.com/canonical/lxd/actions)
 CI (server)         | Jenkins               | [![Build Status](https://jenkins.linuxcontainers.org/job/lxd-github-commit/badge/icon)](https://jenkins.linuxcontainers.org/job/lxd-github-commit/)
-Go documentation    | Godoc                 | [![GoDoc](https://godoc.org/github.com/lxc/lxd/client?status.svg)](https://godoc.org/github.com/lxc/lxd/client)
-Static analysis     | GoReport              | [![Go Report Card](https://goreportcard.com/badge/github.com/lxc/lxd)](https://goreportcard.com/report/github.com/lxc/lxd)
+Go documentation    | Godoc                 | [![GoDoc](https://godoc.org/github.com/canonical/lxd/client?status.svg)](https://godoc.org/github.com/canonical/lxd/client)
+Static analysis     | GoReport              | [![Go Report Card](https://goreportcard.com/badge/github.com/canonical/lxd)](https://goreportcard.com/report/github.com/canonical/lxd)
 Translations        | Weblate               | [![Translation status](https://hosted.weblate.org/widgets/linux-containers/-/svg-badge.svg)](https://hosted.weblate.org/projects/linux-containers/lxd/)
 Project status      | CII Best Practices    | [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1086/badge)](https://bestpractices.coreinfrastructure.org/projects/1086)
 
@@ -70,7 +70,7 @@ Therefore, you should only give such access to users who you'd trust with root a
 The following channels are available for you to interact with the LXD community.
 
 ### Bug reports
-You can file bug reports and feature requests at: https://github.com/lxc/lxd/issues/new
+You can file bug reports and feature requests at: https://github.com/canonical/lxd/issues/new
 
 ### Forum
 A discussion forum is available at: https://discuss.linuxcontainers.org

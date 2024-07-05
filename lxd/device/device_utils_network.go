@@ -13,17 +13,17 @@ import (
 	"github.com/mdlayher/ndp"
 	"github.com/pkg/errors"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	pcidev "github.com/lxc/lxd/lxd/device/pci"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/ip"
-	"github.com/lxc/lxd/lxd/network"
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/units"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	pcidev "github.com/canonical/lxd/lxd/device/pci"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/ip"
+	"github.com/canonical/lxd/lxd/network"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/units"
 )
 
 // Instances can be started in parallel, so lock the creation of VLANs.

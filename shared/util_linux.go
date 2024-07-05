@@ -19,8 +19,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/units"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/units"
 )
 
 // --- pure Go functions ---

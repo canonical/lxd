@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lxc/lxd/lxd/filter"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/lxd/filter"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/stretchr/testify/assert"
 )
 

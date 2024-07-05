@@ -8,7 +8,7 @@ import (
 	"os"
 
 	// Used by cgo
-	_ "github.com/lxc/lxd/lxd/include"
+	_ "github.com/canonical/lxd/lxd/include"
 
 	"golang.org/x/sys/unix"
 )

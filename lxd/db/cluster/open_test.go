@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/lxc/lxd/lxd/db/cluster"
-	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/shared/osarch"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared/osarch"
+	"github.com/canonical/lxd/shared/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

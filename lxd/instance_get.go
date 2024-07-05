@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/response"
 )
 
 // swagger:operation GET /1.0/instances/{name} instances instance_get

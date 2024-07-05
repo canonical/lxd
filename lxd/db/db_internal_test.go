@@ -10,9 +10,9 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/logging"
 )
 
 const fixtures string = `

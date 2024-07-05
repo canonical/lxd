@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/lxc/lxd/lxd/db/generate/lex"
+	"github.com/canonical/lxd/lxd/db/generate/lex"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -3,9 +3,9 @@ package main
 import (
 	"net/http"
 
-	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/cluster"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/response"
 )
 
 func forwardedResponseToNode(d *Daemon, r *http.Request, node string) response.Response {

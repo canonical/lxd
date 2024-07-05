@@ -20,11 +20,11 @@ import (
 	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/lxd/db/cluster"
-	"github.com/lxc/lxd/lxd/db/node"
-	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/node"
+	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // Node mediates access to LXD's data stored in the node-local SQLite database.

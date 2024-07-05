@@ -16,14 +16,14 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxd/backup"
-	"github.com/lxc/lxd/lxd/migration"
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/instancewriter"
-	"github.com/lxc/lxd/shared/ioprogress"
-	"github.com/lxc/lxd/shared/units"
+	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/instancewriter"
+	"github.com/canonical/lxd/shared/ioprogress"
+	"github.com/canonical/lxd/shared/units"
 )
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied filler function.

@@ -8,11 +8,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/version"
 )
 
 type cmdInitData struct {

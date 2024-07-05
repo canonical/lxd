@@ -5,12 +5,12 @@ import (
 
 	"github.com/pkg/errors"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/ip"
-	"github.com/lxc/lxd/lxd/resources"
-	"github.com/lxc/lxd/shared"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/ip"
+	"github.com/canonical/lxd/lxd/resources"
+	"github.com/canonical/lxd/shared"
 )
 
 type infinibandPhysical struct {

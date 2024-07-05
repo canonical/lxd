@@ -8,8 +8,8 @@ import (
 
 	pkgErrors "github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/shared/api"
 )
 
 var httpResponseErrors = map[int][]error{

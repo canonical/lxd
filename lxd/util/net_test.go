@@ -6,8 +6,8 @@ import (
 	"net"
 	"testing"
 
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -8,8 +8,8 @@ import (
 	"github.com/gorilla/websocket"
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // EventHandler called when the connection receives an event from the client.

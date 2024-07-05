@@ -21,18 +21,18 @@ import (
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	// Used by cgo
-	_ "github.com/lxc/lxd/lxd/include"
+	_ "github.com/canonical/lxd/lxd/include"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/ucred"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/idmap"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/netutils"
-	"github.com/lxc/lxd/shared/osarch"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/ucred"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/idmap"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/netutils"
+	"github.com/canonical/lxd/shared/osarch"
 )
 
 /*

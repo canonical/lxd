@@ -3,8 +3,8 @@ package cluster_test
 import (
 	"testing"
 
-	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/cluster"
+	"github.com/canonical/lxd/lxd/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

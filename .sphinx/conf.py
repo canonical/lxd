@@ -98,7 +98,7 @@ html_theme_options = {
 }
 
 html_context = {
-    "github_url": "https://github.com/lxc/lxd",
+    "github_url": "https://github.com/canonical/lxd",
     "github_version": "master",
     "github_folder": "/doc/",
     "github_filetype": "md"

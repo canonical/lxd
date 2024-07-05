@@ -42,7 +42,7 @@ integration into Linux distributions are not covered here and may be covered in 
 future.
 
 ```bash
-git clone https://github.com/lxc/lxd
+git clone https://github.com/canonical/lxd
 cd lxd
 ```
 

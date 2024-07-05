@@ -8,11 +8,11 @@ import (
 	"strings"
 	"text/template"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
 )
 
 // Internal copy of the device interface.
