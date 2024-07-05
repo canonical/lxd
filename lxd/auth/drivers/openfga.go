@@ -207,15 +207,6 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 		})
 	}
 
-	// For each project, append a contextual tuple to set make the identity an operator of that project (TLS authorization compatibility).
-	for _, projectName := range identityCacheEntry.Projects {
-		req.ContextualTuples.TupleKeys = append(req.ContextualTuples.TupleKeys, &openfgav1.TupleKey{
-			User:     userObject,
-			Relation: string(auth.EntitlementOperator),
-			Object:   fmt.Sprintf("%s:%s", entity.TypeProject, entity.ProjectURL(projectName).String()),
-		})
-	}
-
 	// Perform the check.
 	l.Debug("Checking OpenFGA relation")
 	resp, err := e.server.Check(ctx, req)
@@ -374,15 +365,6 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 			User:     userObject,
 			Relation: "member",
 			Object:   fmt.Sprintf("%s:%s", entity.TypeAuthGroup, entity.AuthGroupURL(groupName).String()),
-		})
-	}
-
-	// For each project, append a contextual tuple to set make the identity an operator of that project (TLS authorization compatibility).
-	for _, projectName := range identityCacheEntry.Projects {
-		req.ContextualTuples.TupleKeys = append(req.ContextualTuples.TupleKeys, &openfgav1.TupleKey{
-			User:     userObject,
-			Relation: string(auth.EntitlementOperator),
-			Object:   fmt.Sprintf("%s:%s", entity.TypeProject, entity.ProjectURL(projectName).String()),
 		})
 	}
 
