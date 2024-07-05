@@ -42,6 +42,11 @@ func (c *Cache) Get(authenticationMethod string, identifier string) (*CacheEntry
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
+	err := ValidateAuthenticationMethod(authenticationMethod)
+	if err != nil {
+		return nil, err
+	}
+
 	if c.entries == nil {
 		return nil, api.StatusErrorf(http.StatusNotFound, "Identity %q (%s) not found", identifier, authenticationMethod)
 	}
@@ -115,6 +120,11 @@ func (c *Cache) ReplaceAll(entries []CacheEntry, idpGroups map[string][]string) 
 
 	c.entries = make(map[string]map[string]*CacheEntry)
 	for _, entry := range entries {
+		err := ValidateAuthenticationMethod(entry.AuthenticationMethod)
+		if err != nil {
+			return err
+		}
+
 		if entry.AuthenticationMethod == api.AuthenticationMethodTLS && entry.Certificate == nil {
 			return fmt.Errorf("Identity cache entries of type %q must have a certificate", api.AuthenticationMethodTLS)
 		}
