@@ -75,7 +75,7 @@ func identityAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http
 	return func(d *Daemon, r *http.Request) response.Response {
 		muxVars := mux.Vars(r)
 		authenticationMethod := muxVars["authenticationMethod"]
-		err := auth.ValidateAuthenticationMethod(authenticationMethod)
+		err := identity.ValidateAuthenticationMethod(authenticationMethod)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -279,7 +279,7 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 	if authenticationMethod == "current" {
 		return getCurrentIdentityInfo(d, r)
 	} else if authenticationMethod != "" {
-		err = auth.ValidateAuthenticationMethod(authenticationMethod)
+		err = identity.ValidateAuthenticationMethod(authenticationMethod)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -492,7 +492,7 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Must be a remote API request.
-	err = auth.ValidateAuthenticationMethod(protocol)
+	err = identity.ValidateAuthenticationMethod(protocol)
 	if err != nil {
 		return response.BadRequest(fmt.Errorf("Current identity information must be requested via the HTTPS API"))
 	}
