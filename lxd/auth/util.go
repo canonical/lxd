@@ -7,19 +7,8 @@ import (
 
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/request"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
-
-// ValidateAuthenticationMethod returns an api.StatusError with http.StatusBadRequest if the given authentication
-// method is not recognised.
-func ValidateAuthenticationMethod(authenticationMethod string) error {
-	if !shared.ValueInSlice(authenticationMethod, []string{api.AuthenticationMethodTLS, api.AuthenticationMethodOIDC}) {
-		return api.StatusErrorf(http.StatusBadRequest, "Unrecognized authentication method %q", authenticationMethod)
-	}
-
-	return nil
-}
 
 // IsTrusted returns true if the value for `request.CtxTrusted` is set and is true.
 func IsTrusted(ctx context.Context) bool {
