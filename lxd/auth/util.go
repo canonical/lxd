@@ -2,22 +2,13 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/request"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
-
-// ValidateAuthenticationMethod returns an api.StatusError with http.StatusBadRequest if the given authentication
-// method is not recognised.
-func ValidateAuthenticationMethod(authenticationMethod string) error {
-	if !shared.ValueInSlice(authenticationMethod, []string{api.AuthenticationMethodTLS, api.AuthenticationMethodOIDC}) {
-		return api.StatusErrorf(http.StatusBadRequest, "Unrecognized authentication method %q", authenticationMethod)
-	}
-
-	return nil
-}
 
 // IsTrusted returns true if the value for `request.CtxTrusted` is set and is true.
 func IsTrusted(ctx context.Context) bool {
@@ -27,9 +18,9 @@ func IsTrusted(ctx context.Context) bool {
 	return trusted
 }
 
-// IsRootUserFromCtx inspects the context and returns true if the request was made from
-// the unix socket or initiated by another cluster member.
-func IsRootUserFromCtx(ctx context.Context) (bool, error) {
+// IsServerAdmin inspects the context and returns true if the request was made over the unix socket, initiated by
+// another cluster member, or sent by a client with an unrestricted certificate.
+func IsServerAdmin(ctx context.Context, identityCache *identity.Cache) (bool, error) {
 	method, err := GetAuthenticationMethodFromCtx(ctx)
 	if err != nil {
 		return false, err
@@ -40,7 +31,44 @@ func IsRootUserFromCtx(ctx context.Context) (bool, error) {
 		return true, nil
 	}
 
-	return false, nil
+	id, err := GetIdentityFromCtx(ctx, identityCache)
+	if err != nil {
+		// AuthenticationMethodPKI is only set as the value of request.CtxProtocol when `core.trust_ca_certificates` is
+		// true. This setting grants full access to LXD for all clients with CA-signed certificates.
+		if method == AuthenticationMethodPKI && api.StatusErrorCheck(err, http.StatusNotFound) {
+			return true, nil
+		}
+
+		return false, fmt.Errorf("Failed to get caller identity: %w", err)
+	}
+
+	isRestricted, err := identity.IsRestrictedIdentityType(id.IdentityType)
+	if err != nil {
+		return false, fmt.Errorf("Failed to check restricted status of identity: %w", err)
+	}
+
+	return !isRestricted, nil
+}
+
+// GetIdentityFromCtx returns the identity.CacheEntry for the current authenticated caller.
+func GetIdentityFromCtx(ctx context.Context, identityCache *identity.Cache) (*identity.CacheEntry, error) {
+	authenticationMethod, err := GetAuthenticationMethodFromCtx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get caller authentication method: %w", err)
+	}
+
+	// If the caller authenticated via a CA-signed certificate and `core.trust_ca_certificates` is enabled. We still
+	// want to check for any potential trust store entries corresponding to their certificate fingerprint.
+	if authenticationMethod == AuthenticationMethodPKI {
+		authenticationMethod = api.AuthenticationMethodTLS
+	}
+
+	username, err := GetUsernameFromCtx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get caller username: %w", err)
+	}
+
+	return identityCache.Get(authenticationMethod, username)
 }
 
 // GetUsernameFromCtx inspects the context and returns the username of the initial caller.

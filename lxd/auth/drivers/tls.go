@@ -47,7 +47,7 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 		return api.StatusErrorf(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 
-	isRoot, err := auth.IsRootUserFromCtx(ctx)
+	isRoot, err := auth.IsServerAdmin(ctx, t.identities)
 	if err != nil {
 		return fmt.Errorf("Failed to check caller privilege: %w", err)
 	}
@@ -56,37 +56,12 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 		return nil
 	}
 
-	authenticationMethod, err := auth.GetAuthenticationMethodFromCtx(ctx)
+	id, err := auth.GetIdentityFromCtx(ctx, t.identities)
 	if err != nil {
-		return fmt.Errorf("Failed to get caller authentication method: %w", err)
+		return fmt.Errorf("Failed to get caller identity: %w", err)
 	}
 
-	if authenticationMethod != api.AuthenticationMethodTLS && authenticationMethod != auth.AuthenticationMethodPKI {
-		return api.StatusErrorf(http.StatusInternalServerError, "Authentication protocol %q is not compatible with authorization driver", authenticationMethod)
-	}
-
-	username, err := auth.GetUsernameFromCtx(ctx)
-	if err != nil {
-		return fmt.Errorf("Failed to get caller username: %w", err)
-	}
-
-	id, err := t.identities.Get(api.AuthenticationMethodTLS, username)
-	if err != nil {
-		if authenticationMethod == auth.AuthenticationMethodPKI && api.StatusErrorCheck(err, http.StatusNotFound) {
-			return nil
-		}
-
-		return fmt.Errorf("Failed loading certificate for %q: %w", username, err)
-	}
-
-	isRestricted, err := identity.IsRestrictedIdentityType(id.IdentityType)
-	if err != nil {
-		return fmt.Errorf("Failed to check restricted status of identity: %w", err)
-	}
-
-	if !isRestricted {
-		return nil
-	} else if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
+	if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
 		return nil
 	}
 
@@ -140,7 +115,7 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 		return allowFunc(false), nil
 	}
 
-	isRoot, err := auth.IsRootUserFromCtx(ctx)
+	isRoot, err := auth.IsServerAdmin(ctx, t.identities)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to check caller privilege: %w", err)
 	}
@@ -149,37 +124,12 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 		return allowFunc(true), nil
 	}
 
-	authenticationMethod, err := auth.GetAuthenticationMethodFromCtx(ctx)
+	id, err := auth.GetIdentityFromCtx(ctx, t.identities)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get caller authentication method: %w", err)
+		return nil, fmt.Errorf("Failed to get caller identity: %w", err)
 	}
 
-	if authenticationMethod != api.AuthenticationMethodTLS && authenticationMethod != auth.AuthenticationMethodPKI {
-		return nil, api.StatusErrorf(http.StatusInternalServerError, "Authentication protocol %q is not compatible with authorization driver", authenticationMethod)
-	}
-
-	username, err := auth.GetUsernameFromCtx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get caller username: %w", err)
-	}
-
-	id, err := t.identities.Get(api.AuthenticationMethodTLS, username)
-	if err != nil {
-		if authenticationMethod == auth.AuthenticationMethodPKI && api.StatusErrorCheck(err, http.StatusNotFound) {
-			return allowFunc(true), nil
-		}
-
-		return nil, fmt.Errorf("Failed loading certificate for %q: %w", username, err)
-	}
-
-	isRestricted, err := identity.IsRestrictedIdentityType(id.IdentityType)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to check restricted status of identity: %w", err)
-	}
-
-	if !isRestricted {
-		return allowFunc(true), nil
-	} else if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
+	if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
 		return allowFunc(true), nil
 	}
 

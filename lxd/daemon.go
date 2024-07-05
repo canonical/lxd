@@ -310,52 +310,32 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(nil)
 	}
 
-	isRoot, err := auth.IsRootUserFromCtx(r.Context())
+	isServerAdmin, err := auth.IsServerAdmin(r.Context(), d.identityCache)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to determine caller privilege: %w", err))
 	}
 
 	// A root user can list resources in any project.
-	if isRoot {
+	if isServerAdmin {
 		return response.EmptySyncResponse
 	}
 
-	authenticationMethod, err := auth.GetAuthenticationMethodFromCtx(r.Context())
+	id, err := auth.GetIdentityFromCtx(r.Context(), d.identityCache)
 	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to determine caller authentication method: %w", err))
+		return response.InternalError(fmt.Errorf("Failed to determine caller identity: %w", err))
 	}
 
-	// OIDC authenticated clients are governed by fine-grained auth. They can call the endpoint but may see an empty list.
-	if authenticationMethod == api.AuthenticationMethodOIDC {
+	switch id.IdentityType {
+	case api.IdentityTypeOIDCClient:
+		// OIDC authenticated clients are governed by fine-grained auth. They can call the endpoint but may see an empty list.
 		return response.EmptySyncResponse
+	case api.IdentityTypeCertificateClientRestricted:
+		// A restricted client may be able to call the endpoint, continue.
+	default:
+		// No other identity types may list resources (e.g. metrics certificates).
+		return response.Forbidden(nil)
 	}
 
-	username, err := auth.GetUsernameFromCtx(r.Context())
-	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to determine caller username: %w", err))
-	}
-
-	id, err := d.identityCache.Get(authenticationMethod, username)
-	if err != nil {
-		if authenticationMethod == auth.AuthenticationMethodPKI && api.StatusErrorCheck(err, http.StatusNotFound) {
-			// PKI user is implicitly trusted if they are not in the identity cache, since `core.trust_ca_certificates` is true.
-			return response.EmptySyncResponse
-		}
-
-		return response.InternalError(fmt.Errorf("Failed loading certificate for %q: %w", username, err))
-	}
-
-	isRestricted, err := identity.IsRestrictedIdentityType(id.IdentityType)
-	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to check restricted status of identity: %w", err))
-	}
-
-	// Unrestricted TLS clients can list resources in any project.
-	if !isRestricted {
-		return response.EmptySyncResponse
-	}
-
-	// We now have a restricted TLS certificate.
 	// all-projects requests are not allowed
 	if shared.IsTrue(request.QueryParam(r, "all-projects")) {
 		return response.Forbidden(fmt.Errorf("Certificate is restricted"))
