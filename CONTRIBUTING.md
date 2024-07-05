@@ -98,7 +98,7 @@ even when part of a larger set. You may find `git commit -s` useful.
 
 ## Code of Conduct
 
-When contributing, you must adhere to the Code of Conduct, which is available at: https://github.com/canonical/lxd/blob/master/CODE_OF_CONDUCT.md
+When contributing, you must adhere to the Code of Conduct, which is available at: https://github.com/canonical/lxd/blob/main/CODE_OF_CONDUCT.md
 
 <!-- Include end contributing -->
 
