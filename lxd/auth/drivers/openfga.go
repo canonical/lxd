@@ -123,7 +123,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 		return api.StatusErrorf(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 
-	isRoot, err := auth.IsRootUserFromCtx(ctx)
+	isRoot, err := auth.IsServerAdmin(ctx, e.identityCache)
 	if err != nil {
 		return fmt.Errorf("Failed to check caller privilege: %w", err)
 	}
@@ -133,43 +133,22 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 		return nil
 	}
 
-	username, err := auth.GetUsernameFromCtx(ctx)
+	id, err := auth.GetIdentityFromCtx(ctx, e.identityCache)
 	if err != nil {
-		return fmt.Errorf("Failed to get caller username: %w", err)
+		return fmt.Errorf("Failed to get caller identity: %w", err)
 	}
 
-	authenticationMethod, err := auth.GetAuthenticationMethodFromCtx(ctx)
-	if err != nil {
-		return fmt.Errorf("Failed to get caller authentication method: %w", err)
-	}
-
-	logCtx["username"] = username
-	logCtx["protocol"] = authenticationMethod
+	logCtx["username"] = id.Identifier
+	logCtx["protocol"] = id.AuthenticationMethod
 	l := e.logger.AddContext(logCtx)
 
 	// If the authentication method was TLS, use the TLS driver instead.
-	if authenticationMethod == api.AuthenticationMethodTLS || authenticationMethod == auth.AuthenticationMethodPKI {
+	if id.AuthenticationMethod == api.AuthenticationMethodTLS {
 		return e.tlsAuthorizer.CheckPermission(ctx, entityURL, entitlement)
 	}
 
-	// Get the identity.
-	identityCacheEntry, err := e.identityCache.Get(authenticationMethod, username)
-	if err != nil {
-		return fmt.Errorf("Failed loading identity for %q: %w", username, err)
-	}
-
-	// If the identity type is not restricted, allow all (TLS authorization compatibility).
-	isRestricted, err := identity.IsRestrictedIdentityType(identityCacheEntry.IdentityType)
-	if err != nil {
-		return fmt.Errorf("Failed to check restricted status for %q: %w", username, err)
-	}
-
-	if !isRestricted {
-		return nil
-	}
-
 	// Combine the users LXD groups with any mappings that have come from the IDP.
-	groups := identityCacheEntry.Groups
+	groups := id.Groups
 	idpGroups, err := auth.GetIdentityProviderGroupsFromCtx(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed to get caller identity provider groups: %w", err)
@@ -196,7 +175,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 		return fmt.Errorf("Authorization driver failed to parse entity URL %q: %w", entityURL.String(), err)
 	}
 
-	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(authenticationMethod, username).String())
+	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(id.AuthenticationMethod, id.Identifier).String())
 	entityObject := fmt.Sprintf("%s:%s", entityType, entityURL.String())
 
 	// Construct an OpenFGA check request.
@@ -324,7 +303,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 		return allowFunc(false), nil
 	}
 
-	isRoot, err := auth.IsRootUserFromCtx(ctx)
+	isRoot, err := auth.IsServerAdmin(ctx, e.identityCache)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to check caller privilege: %w", err)
 	}
@@ -334,43 +313,22 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 		return allowFunc(true), nil
 	}
 
-	username, err := auth.GetUsernameFromCtx(ctx)
+	id, err := auth.GetIdentityFromCtx(ctx, e.identityCache)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get caller username: %w", err)
+		return nil, fmt.Errorf("Failed to get caller identity: %w", err)
 	}
 
-	authenticationMethod, err := auth.GetAuthenticationMethodFromCtx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get caller authentication method: %w", err)
-	}
-
-	logCtx["username"] = username
-	logCtx["protocol"] = authenticationMethod
+	logCtx["username"] = id.Identifier
+	logCtx["protocol"] = id.AuthenticationMethod
 	l := e.logger.AddContext(logCtx)
 
 	// If the authentication method was TLS, use the TLS driver instead.
-	if authenticationMethod == api.AuthenticationMethodTLS || authenticationMethod == auth.AuthenticationMethodPKI {
+	if id.AuthenticationMethod == api.AuthenticationMethodTLS {
 		return e.tlsAuthorizer.GetPermissionChecker(ctx, entitlement, entityType)
 	}
 
-	// Get the identity.
-	identityCacheEntry, err := e.identityCache.Get(authenticationMethod, username)
-	if err != nil {
-		return nil, fmt.Errorf("Failed loading identity for %q: %w", username, err)
-	}
-
-	// If the identity type is not restricted, allow all (TLS authorization compatibility).
-	isRestricted, err := identity.IsRestrictedIdentityType(identityCacheEntry.IdentityType)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to check restricted status for %q: %w", username, err)
-	}
-
-	if !isRestricted {
-		return allowFunc(true), nil
-	}
-
 	// Combine the users LXD groups with any mappings that have come from the IDP.
-	groups := identityCacheEntry.Groups
+	groups := id.Groups
 	idpGroups, err := auth.GetIdentityProviderGroupsFromCtx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get caller identity provider groups: %w", err)
@@ -392,7 +350,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 	}
 
 	// Construct an OpenFGA list objects request.
-	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(authenticationMethod, username).String())
+	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(id.AuthenticationMethod, id.Identifier).String())
 	req := &openfgav1.ListObjectsRequest{
 		StoreId:  dummyDatastoreULID,
 		Type:     entityType.String(),
@@ -439,7 +397,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 			err = openFGAInternalError.Internal()
 		}
 
-		return nil, fmt.Errorf("Failed to list OpenFGA objects of type %q with entitlement %q for user %q: %w", entityType.String(), entitlement, username, err)
+		return nil, fmt.Errorf("Failed to list OpenFGA objects of type %q with entitlement %q for user %q: %w", entityType.String(), entitlement, id.Identifier, err)
 	}
 
 	objects := resp.GetObjects()
