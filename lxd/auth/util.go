@@ -29,9 +29,9 @@ func IsTrusted(ctx context.Context) bool {
 	return trusted
 }
 
-// IsRootUserFromCtx inspects the context and returns true if the request was made from
-// the unix socket or initiated by another cluster member.
-func IsRootUserFromCtx(ctx context.Context) (bool, error) {
+// IsServerAdmin inspects the context and returns true if the request was made over the unix socket, initiated by
+// another cluster member, or sent by a client with an unrestricted certificate.
+func IsServerAdmin(ctx context.Context, identityCache *identity.Cache) (bool, error) {
 	method, err := GetAuthenticationMethodFromCtx(ctx)
 	if err != nil {
 		return false, err
@@ -42,7 +42,23 @@ func IsRootUserFromCtx(ctx context.Context) (bool, error) {
 		return true, nil
 	}
 
-	return false, nil
+	id, err := GetIdentityFromCtx(ctx, identityCache)
+	if err != nil {
+		// AuthenticationMethodPKI is only set as the value of request.CtxProtocol when `core.trust_ca_certificates` is
+		// true. This setting grants full access to LXD for all clients with CA-signed certificates.
+		if method == AuthenticationMethodPKI && api.StatusErrorCheck(err, http.StatusNotFound) {
+			return true, nil
+		}
+
+		return false, fmt.Errorf("Failed to get caller identity: %w", err)
+	}
+
+	isRestricted, err := identity.IsRestrictedIdentityType(id.IdentityType)
+	if err != nil {
+		return false, fmt.Errorf("Failed to check restricted status of identity: %w", err)
+	}
+
+	return !isRestricted, nil
 }
 
 // GetIdentityFromCtx returns the identity.CacheEntry for the current authenticated caller.
