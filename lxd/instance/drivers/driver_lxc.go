@@ -1924,7 +1924,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Load the go-lxc struct
 	cc, err := d.initLXC(true)
 	if err != nil {
-		return "", nil, fmt.Errorf("Load go-lxc struct: %w", err)
+		return "", nil, fmt.Errorf("Failed loading go-lxc: %w", err)
 	}
 
 	// Ensure cgroup v1 configuration is set appropriately with the image using systemd
@@ -2725,7 +2725,14 @@ func (d *lxc) Stop(stateful bool) error {
 	}
 
 	err = cc.Stop()
-	if err != nil {
+
+	// If the container refuses to stop, then check if the error is ErrNotRunning, and if so ignore it, because
+	// sometimes if an earlier shutdown request was sent, but timed out, the actual guest shutdown can still be
+	// proceeding and the container may have reached a stop state by now and is in the process of running the
+	// onStop hook to cleanup host side devices. If we returned here with ErrNotRunning then this would be
+	// incorrect as the onStop hook could still be running and we aren't fully cleaned up yet, which can cause
+	// issues with state reporting after Stop has returned.
+	if err != nil && !strings.Contains(err.Error(), string(liblxc.ErrNotRunning)) {
 		op.Done(err)
 		return err
 	}
@@ -7071,6 +7078,21 @@ func (d *lxc) ConsoleLog(opts liblxc.ConsoleLogOptions) (string, error) {
 
 // Exec executes a command inside the instance.
 func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, error) {
+	// Generate the LXC config if missing.
+	configPath := filepath.Join(d.LogPath(), "lxc.conf")
+	if !shared.PathExists(configPath) {
+		cc, err := d.initLXC(true)
+		if err != nil {
+			return nil, fmt.Errorf("Failed loading go-lxc: %w", err)
+		}
+
+		err = cc.SaveConfigFile(configPath)
+		if err != nil {
+			_ = os.Remove(configPath)
+			return nil, err
+		}
+	}
+
 	// Prepare the environment
 	envSlice := []string{}
 

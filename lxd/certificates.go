@@ -136,7 +136,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 	s := d.State()
 
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeCertificate)
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeCertificate)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -411,7 +411,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 	// Check if the caller has permission to create certificates.
 	var userCanCreateCertificates bool
-	err = s.Authorizer.CheckPermission(r.Context(), r, entity.ServerURL(), auth.EntitlementCanCreateIdentities)
+	err = s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanCreateIdentities)
 	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {
@@ -575,6 +575,14 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
+		networkCert := s.Endpoints.NetworkCert()
+		if networkCert.CA() != nil {
+			// If we are in CA mode, we only allow adding certificates that are signed by the CA.
+			trusted, _, _ := util.CheckCASignature(*cert, networkCert)
+			if !trusted {
+				return response.Forbidden(fmt.Errorf("The certificate is not trusted by the CA or has been revoked"))
+			}
+		}
 	} else {
 		return response.BadRequest(fmt.Errorf("Can't use TLS data on non-TLS link"))
 	}
@@ -711,7 +719,7 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = s.Authorizer.CheckPermission(r.Context(), r, entity.CertificateURL(cert.Fingerprint), auth.EntitlementCanView)
+	err = s.Authorizer.CheckPermission(r.Context(), entity.CertificateURL(cert.Fingerprint), auth.EntitlementCanView)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -870,7 +878,7 @@ func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificateP
 	}
 
 	var userCanEditCertificate bool
-	err = s.Authorizer.CheckPermission(r.Context(), r, entity.CertificateURL(dbInfo.Fingerprint), auth.EntitlementCanEdit)
+	err = s.Authorizer.CheckPermission(r.Context(), entity.CertificateURL(dbInfo.Fingerprint), auth.EntitlementCanEdit)
 	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {
@@ -923,7 +931,7 @@ func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificateP
 
 			trusted := false
 			for _, i := range r.TLS.PeerCertificates {
-				trusted, _ = util.CheckTrustState(*i, trustedCerts, s.Endpoints.NetworkCert(), false)
+				trusted, _ = util.CheckMutualTLS(*i, trustedCerts)
 
 				if trusted {
 					break
@@ -1025,7 +1033,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var userCanEditCertificate bool
-	err = s.Authorizer.CheckPermission(r.Context(), r, entity.CertificateURL(certInfo.Fingerprint), auth.EntitlementCanDelete)
+	err = s.Authorizer.CheckPermission(r.Context(), entity.CertificateURL(certInfo.Fingerprint), auth.EntitlementCanDelete)
 	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {
@@ -1052,7 +1060,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 
 		trusted := false
 		for _, i := range r.TLS.PeerCertificates {
-			trusted, _ = util.CheckTrustState(*i, trustedCerts, s.Endpoints.NetworkCert(), false)
+			trusted, _ = util.CheckMutualTLS(*i, trustedCerts)
 
 			if trusted {
 				break

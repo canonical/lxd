@@ -59,7 +59,12 @@ func (e *embeddedOpenFGA) load(ctx context.Context, identityCache *identity.Cach
 	e.identityCache = identityCache
 
 	// Use the TLS driver for TLS authenticated users for now.
-	tlsDriver := &tls{}
+	tlsDriver := &tls{
+		commonAuthorizer: commonAuthorizer{
+			logger: e.logger,
+		},
+	}
+
 	err := tlsDriver.load(ctx, identityCache, opts)
 	if err != nil {
 		return err
@@ -108,57 +113,47 @@ func (e *embeddedOpenFGA) load(ctx context.Context, identityCache *identity.Cach
 
 // CheckPermission checks whether the user who sent the request has the given entitlement on the given entity using the
 // embedded OpenFGA server.
-func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, entityURL *api.URL, entitlement auth.Entitlement) error {
-	logCtx := logger.Ctx{"entity_url": entityURL.String(), "entitlement": entitlement, "request_url": r.URL.String(), "method": r.Method}
+func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.URL, entitlement auth.Entitlement) error {
+	logCtx := logger.Ctx{"entity_url": entityURL.String(), "entitlement": entitlement}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	// Inspect request.
-	details, err := e.requestDetails(r)
-	if err != nil {
-		return fmt.Errorf("Failed to extract request details: %w", err)
-	}
-
 	// Untrusted requests are denied.
-	if !details.trusted {
+	if !auth.IsTrusted(ctx) {
 		return api.StatusErrorf(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 
+	isRoot, err := auth.IsServerAdmin(ctx, e.identityCache)
+	if err != nil {
+		return fmt.Errorf("Failed to check caller privilege: %w", err)
+	}
+
 	// Cluster or unix socket requests have admin permission.
-	if details.isInternalOrUnix() {
+	if isRoot {
 		return nil
 	}
 
-	username := details.username()
-	protocol := details.authenticationProtocol()
-	logCtx["username"] = username
-	logCtx["protocol"] = protocol
+	id, err := auth.GetIdentityFromCtx(ctx, e.identityCache)
+	if err != nil {
+		return fmt.Errorf("Failed to get caller identity: %w", err)
+	}
+
+	logCtx["username"] = id.Identifier
+	logCtx["protocol"] = id.AuthenticationMethod
 	l := e.logger.AddContext(logCtx)
 
 	// If the authentication method was TLS, use the TLS driver instead.
-	if protocol == api.AuthenticationMethodTLS {
-		return e.tlsAuthorizer.CheckPermission(ctx, r, entityURL, entitlement)
-	}
-
-	// Get the identity.
-	identityCacheEntry, err := e.identityCache.Get(protocol, username)
-	if err != nil {
-		return fmt.Errorf("Failed loading identity for %q: %w", username, err)
-	}
-
-	// If the identity type is not restricted, allow all (TLS authorization compatibility).
-	isRestricted, err := identity.IsRestrictedIdentityType(identityCacheEntry.IdentityType)
-	if err != nil {
-		return fmt.Errorf("Failed to check restricted status for %q: %w", username, err)
-	}
-
-	if !isRestricted {
-		return nil
+	if id.AuthenticationMethod == api.AuthenticationMethodTLS {
+		return e.tlsAuthorizer.CheckPermission(ctx, entityURL, entitlement)
 	}
 
 	// Combine the users LXD groups with any mappings that have come from the IDP.
-	groups := identityCacheEntry.Groups
-	idpGroups := details.identityProviderGroups()
+	groups := id.Groups
+	idpGroups, err := auth.GetIdentityProviderGroupsFromCtx(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to get caller identity provider groups: %w", err)
+	}
+
 	for _, idpGroup := range idpGroups {
 		lxdGroups, err := e.identityCache.GetIdentityProviderGroupMapping(idpGroup)
 		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
@@ -180,7 +175,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 		return fmt.Errorf("Authorization driver failed to parse entity URL %q: %w", entityURL.String(), err)
 	}
 
-	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(protocol, username).String())
+	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(id.AuthenticationMethod, id.Identifier).String())
 	entityObject := fmt.Sprintf("%s:%s", entityType, entityURL.String())
 
 	// Construct an OpenFGA check request.
@@ -212,15 +207,6 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 		})
 	}
 
-	// For each project, append a contextual tuple to set make the identity an operator of that project (TLS authorization compatibility).
-	for _, projectName := range identityCacheEntry.Projects {
-		req.ContextualTuples.TupleKeys = append(req.ContextualTuples.TupleKeys, &openfgav1.TupleKey{
-			User:     userObject,
-			Relation: string(auth.EntitlementOperator),
-			Object:   fmt.Sprintf("%s:%s", entity.TypeProject, entity.ProjectURL(projectName).String()),
-		})
-	}
-
 	// Perform the check.
 	l.Debug("Checking OpenFGA relation")
 	resp, err := e.server.Check(ctx, req)
@@ -238,7 +224,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 	// If not allowed, decide if the user can view the resource.
 	if !resp.GetAllowed() {
 		responseCode := http.StatusForbidden
-		if r.Method == http.MethodGet {
+		if entitlement == auth.EntitlementCanView {
 			responseCode = http.StatusNotFound
 		} else {
 			// Otherwise, check if we can view the resource.
@@ -264,8 +250,8 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 		}
 
 		// For some entities, a GET request will check if the caller has permission edit permission and conditionally
-		// populate configuration that may be sensitive. To reduce log verbosity, only log these cases at debug level.
-		if entitlement == auth.EntitlementCanEdit && r.Method == http.MethodGet {
+		// populate configuration that may be sensitive. To reduce log verbosity, only log `can_edit` on `server` at debug level.
+		if entitlement == auth.EntitlementCanEdit && entityType == entity.TypeServer {
 			l.Debug("Access denied", logger.Ctx{"http_code": responseCode})
 		} else {
 			l.Info("Access denied", logger.Ctx{"http_code": responseCode})
@@ -278,8 +264,8 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, r *http.Request, 
 }
 
 // GetPermissionChecker returns a PermissionChecker using the embedded OpenFGA server.
-func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Request, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
-	logCtx := logger.Ctx{"entity_type": entityType, "entitlement": entitlement, "url": r.URL.String(), "method": r.Method}
+func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
+	logCtx := logger.Ctx{"entity_type": entityType, "entitlement": entitlement}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -293,7 +279,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 	// There is only one server entity, so no need to do a ListObjects request if the entity type is a server. Instead perform a permission check against
 	// the server URL and return an appropriate PermissionChecker.
 	if entityType == entity.TypeServer {
-		err := e.CheckPermission(r.Context(), r, entity.ServerURL(), entitlement)
+		err := e.CheckPermission(ctx, entity.ServerURL(), entitlement)
 		if err == nil {
 			return allowFunc(true), nil
 		} else if auth.IsDeniedError(err) {
@@ -303,52 +289,42 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 		return nil, fmt.Errorf("Failed to get a permission checker: %w", err)
 	}
 
-	// Inspect request.
-	details, err := e.requestDetails(r)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to extract request details: %w", err)
-	}
-
 	// Untrusted requests are denied.
-	if !details.trusted {
+	if !auth.IsTrusted(ctx) {
 		return allowFunc(false), nil
 	}
 
+	isRoot, err := auth.IsServerAdmin(ctx, e.identityCache)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to check caller privilege: %w", err)
+	}
+
 	// Cluster or unix socket requests have admin permission.
-	if details.isInternalOrUnix() {
+	if isRoot {
 		return allowFunc(true), nil
 	}
 
-	username := details.username()
-	protocol := details.authenticationProtocol()
-	logCtx["username"] = username
-	logCtx["protocol"] = protocol
+	id, err := auth.GetIdentityFromCtx(ctx, e.identityCache)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get caller identity: %w", err)
+	}
+
+	logCtx["username"] = id.Identifier
+	logCtx["protocol"] = id.AuthenticationMethod
 	l := e.logger.AddContext(logCtx)
 
 	// If the authentication method was TLS, use the TLS driver instead.
-	if protocol == api.AuthenticationMethodTLS {
-		return e.tlsAuthorizer.GetPermissionChecker(ctx, r, entitlement, entityType)
-	}
-
-	// Get the identity.
-	identityCacheEntry, err := e.identityCache.Get(protocol, username)
-	if err != nil {
-		return nil, fmt.Errorf("Failed loading identity for %q: %w", username, err)
-	}
-
-	// If the identity type is not restricted, allow all (TLS authorization compatibility).
-	isRestricted, err := identity.IsRestrictedIdentityType(identityCacheEntry.IdentityType)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to check restricted status for %q: %w", username, err)
-	}
-
-	if !isRestricted {
-		return allowFunc(true), nil
+	if id.AuthenticationMethod == api.AuthenticationMethodTLS {
+		return e.tlsAuthorizer.GetPermissionChecker(ctx, entitlement, entityType)
 	}
 
 	// Combine the users LXD groups with any mappings that have come from the IDP.
-	groups := identityCacheEntry.Groups
-	idpGroups := details.identityProviderGroups()
+	groups := id.Groups
+	idpGroups, err := auth.GetIdentityProviderGroupsFromCtx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get caller identity provider groups: %w", err)
+	}
+
 	for _, idpGroup := range idpGroups {
 		lxdGroups, err := e.identityCache.GetIdentityProviderGroupMapping(idpGroup)
 		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
@@ -365,7 +341,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 	}
 
 	// Construct an OpenFGA list objects request.
-	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(protocol, username).String())
+	userObject := fmt.Sprintf("%s:%s", entity.TypeIdentity, entity.IdentityURL(id.AuthenticationMethod, id.Identifier).String())
 	req := &openfgav1.ListObjectsRequest{
 		StoreId:  dummyDatastoreULID,
 		Type:     entityType.String(),
@@ -392,15 +368,6 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 		})
 	}
 
-	// For each project, append a contextual tuple to set make the identity an operator of that project (TLS authorization compatibility).
-	for _, projectName := range identityCacheEntry.Projects {
-		req.ContextualTuples.TupleKeys = append(req.ContextualTuples.TupleKeys, &openfgav1.TupleKey{
-			User:     userObject,
-			Relation: string(auth.EntitlementOperator),
-			Object:   fmt.Sprintf("%s:%s", entity.TypeProject, entity.ProjectURL(projectName).String()),
-		})
-	}
-
 	// Perform the request.
 	l.Debug("Listing related objects for user")
 	resp, err := e.server.ListObjects(ctx, req)
@@ -412,7 +379,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, r *http.Requ
 			err = openFGAInternalError.Internal()
 		}
 
-		return nil, fmt.Errorf("Failed to list OpenFGA objects of type %q with entitlement %q for user %q: %w", entityType.String(), entitlement, username, err)
+		return nil, fmt.Errorf("Failed to list OpenFGA objects of type %q with entitlement %q for user %q: %w", entityType.String(), entitlement, id.Identifier, err)
 	}
 
 	objects := resp.GetObjects()

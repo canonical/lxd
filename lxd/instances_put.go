@@ -97,7 +97,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 
 	action := instancetype.InstanceAction(req.State.Action)
 
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanUpdateState, entity.TypeInstance)
+	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanUpdateState, entity.TypeInstance)
 	if err != nil {
 		return response.SmartError(err)
 	}

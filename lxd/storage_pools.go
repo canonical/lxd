@@ -160,7 +160,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	hasEditPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanEdit, entity.TypeStoragePool)
+	hasEditPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanEdit, entity.TypeStoragePool)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -631,7 +631,7 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	poolAPI := pool.ToAPI()
 	poolAPI.UsedBy = project.FilterUsedBy(s.Authorizer, r, poolUsedBy)
 
-	err = s.Authorizer.CheckPermission(r.Context(), r, entity.StoragePoolURL(poolName), auth.EntitlementCanEdit)
+	err = s.Authorizer.CheckPermission(r.Context(), entity.StoragePoolURL(poolName), auth.EntitlementCanEdit)
 	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err != nil {

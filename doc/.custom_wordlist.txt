@@ -112,6 +112,7 @@ kibi
 Kibit
 KVM
 lookups
+LoongArch
 LogCLI
 LRU
 LV
@@ -126,6 +127,7 @@ macOS
 macvlan
 manpages
 Mbit
+MDM
 MiB
 Mibit
 MicroCeph
@@ -199,6 +201,7 @@ runtime
 SATA
 scalable
 scriptlet
+SDC
 SDN
 SDS
 SDT

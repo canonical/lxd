@@ -117,9 +117,8 @@ test_remote_url_with_token() {
   # Check if we can see instances in the foo project
   [ "$(curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" "https://${LXD_ADDR}/1.0/instances?project=foo" | jq '.status_code')" -eq 200 ]
 
-  # Check if we can see instances in the default project (this should succeed but the instance list should be empty)
-  [ "$(curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" "https://${LXD_ADDR}/1.0/instances" | jq '.status_code')" -eq 200 ]
-  [ "$(curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" "https://${LXD_ADDR}/1.0/instances" | jq '.metadata')" = '[]' ]
+  # Check if we can see instances in the default project (this should fail)
+  [ "$(curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" "https://${LXD_ADDR}/1.0/instances" | jq '.error_code')" -eq 403 ]
 
   lxc config trust rm "$(lxc config trust list -f json | jq -r '.[].fingerprint')"
 

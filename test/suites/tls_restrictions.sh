@@ -51,6 +51,19 @@ test_tls_restrictions() {
   # Validate restricted caller cannot create projects.
   ! lxc_remote project create localhost:blah1 || false
 
+  # Validate restricted caller cannot list resources in projects they do not have access to
+  ! lxc_remote list localhost: --project default || false
+  ! lxc_remote profile list localhost: --project default || false
+  ! lxc_remote network list localhost: --project default || false
+  ! lxc_remote operation list localhost: --project default || false
+  ! lxc_remote network zone list localhost: --project default || false
+  ! lxc_remote storage volume list "localhost:${pool_name}" --project default || false
+  ! lxc_remote storage bucket list "localhost:${pool_name}" --project default || false
+
+  # Can still list images as some may be public. There are no public images in the default project now,
+  # so the list should be empty
+  [ "$(lxc_remote image list localhost --project default --format csv)" = "" ]
+
   # Set up the test image in the blah project (ensure_import_testimage imports the image into the current project).
   lxc project switch blah && ensure_import_testimage && lxc project switch default
 

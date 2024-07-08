@@ -75,7 +75,7 @@ func identityAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http
 	return func(d *Daemon, r *http.Request) response.Response {
 		muxVars := mux.Vars(r)
 		authenticationMethod := muxVars["authenticationMethod"]
-		err := auth.ValidateAuthenticationMethod(authenticationMethod)
+		err := identity.ValidateAuthenticationMethod(authenticationMethod)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -99,7 +99,7 @@ func identityAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http
 			return response.SmartError(err)
 		}
 
-		err = s.Authorizer.CheckPermission(r.Context(), r, entity.IdentityURL(authenticationMethod, id.Identifier), entitlement)
+		err = s.Authorizer.CheckPermission(r.Context(), entity.IdentityURL(authenticationMethod, id.Identifier), entitlement)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -279,7 +279,7 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 	if authenticationMethod == "current" {
 		return getCurrentIdentityInfo(d, r)
 	} else if authenticationMethod != "" {
-		err = auth.ValidateAuthenticationMethod(authenticationMethod)
+		err = identity.ValidateAuthenticationMethod(authenticationMethod)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -287,12 +287,12 @@ func getIdentities(d *Daemon, r *http.Request) response.Response {
 
 	recursion := r.URL.Query().Get("recursion")
 	s := d.State()
-	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeIdentity)
+	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentity)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -424,7 +424,7 @@ func getIdentity(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
-	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -492,7 +492,7 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Must be a remote API request.
-	err = auth.ValidateAuthenticationMethod(protocol)
+	err = identity.ValidateAuthenticationMethod(protocol)
 	if err != nil {
 		return response.BadRequest(fmt.Errorf("Current identity information must be requested via the HTTPS API"))
 	}
@@ -604,7 +604,7 @@ func updateIdentity(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
-	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -698,7 +698,7 @@ func patchIdentity(d *Daemon, r *http.Request) response.Response {
 	}
 
 	s := d.State()
-	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), r, auth.EntitlementCanView, entity.TypeAuthGroup)
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
 	if err != nil {
 		return response.SmartError(err)
 	}

@@ -34,9 +34,9 @@ var instancesCmd = APIEndpoint{
 		{Name: "vms", Path: "virtual-machines"},
 	},
 
-	Get:  APIEndpointAction{Handler: instancesGet, AccessHandler: allowAuthenticated},
+	Get:  APIEndpointAction{Handler: instancesGet, AccessHandler: allowProjectResourceList},
 	Post: APIEndpointAction{Handler: instancesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateInstances)},
-	Put:  APIEndpointAction{Handler: instancesPut, AccessHandler: allowAuthenticated},
+	Put:  APIEndpointAction{Handler: instancesPut, AccessHandler: allowProjectResourceList},
 }
 
 var instanceCmd = APIEndpoint{
@@ -401,7 +401,7 @@ func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
 			// Also generally it ensures that all devices are stopped cleanly too.
 			backupYamlPath := filepath.Join(instancePaths[instanceType], file.Name(), "backup.yaml")
 			if shared.PathExists(backupYamlPath) {
-				inst, err = instance.LoadFromBackup(s, projectName, filepath.Join(instancePaths[instanceType], file.Name()), false)
+				inst, err = instance.LoadFromBackup(s, projectName, filepath.Join(instancePaths[instanceType], file.Name()))
 				if err != nil {
 					logger.Warn("Failed loading instance", logger.Ctx{"project": projectName, "instance": instanceName, "backup_file": backupYamlPath, "err": err})
 				}

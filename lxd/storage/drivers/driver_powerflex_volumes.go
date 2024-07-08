@@ -550,9 +550,7 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 		return err
 	}
 
-	if cleanup != nil {
-		defer cleanup()
-	}
+	defer cleanup()
 
 	oldSizeBytes, err := BlockDiskSizeBytes(devPath)
 	if err != nil {

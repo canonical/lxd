@@ -41,49 +41,28 @@ func (t *tls) load(ctx context.Context, identityCache *identity.Cache, opts Opts
 }
 
 // CheckPermission returns an error if the user does not have the given Entitlement on the given Object.
-func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *api.URL, entitlement auth.Entitlement) error {
-	details, err := t.requestDetails(r)
-	if err != nil {
-		return fmt.Errorf("Failed to extract request details: %w", err)
-	}
-
+func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitlement auth.Entitlement) error {
 	// Untrusted requests are denied.
-	if !details.trusted {
+	if !auth.IsTrusted(ctx) {
 		return api.StatusErrorf(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 
-	if details.isInternalOrUnix() || details.isPKI {
-		return nil
-	}
-
-	authenticationProtocol := details.authenticationProtocol()
-	if authenticationProtocol != api.AuthenticationMethodTLS {
-		t.logger.Warn("Authentication protocol is not compatible with authorization driver", logger.Ctx{"protocol": authenticationProtocol})
-		// Return nil. If the server has been configured with an authentication method but no associated authorization driver,
-		// the default is to give these authenticated users admin privileges.
-		return nil
-	}
-
-	username := details.username()
-	id, err := t.identities.Get(api.AuthenticationMethodTLS, details.username())
+	isRoot, err := auth.IsServerAdmin(ctx, t.identities)
 	if err != nil {
-		return fmt.Errorf("Failed loading certificate for %q: %w", username, err)
+		return fmt.Errorf("Failed to check caller privilege: %w", err)
 	}
 
-	isRestricted, err := identity.IsRestrictedIdentityType(id.IdentityType)
+	if isRoot {
+		return nil
+	}
+
+	id, err := auth.GetIdentityFromCtx(ctx, t.identities)
 	if err != nil {
-		return fmt.Errorf("Failed to check restricted status of identity: %w", err)
+		return fmt.Errorf("Failed to get caller identity: %w", err)
 	}
 
-	if !isRestricted {
+	if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
 		return nil
-	} else if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
-		return nil
-	}
-
-	if details.isAllProjectsRequest {
-		// Only admins (users with non-restricted certs) can use the all-projects parameter.
-		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
 	}
 
 	entityType, projectName, _, pathArgs, err := entity.ParseURL(entityURL.URL)
@@ -125,55 +104,33 @@ func (t *tls) CheckPermission(ctx context.Context, r *http.Request, entityURL *a
 }
 
 // GetPermissionChecker returns a function that can be used to check whether a user has the required entitlement on an authorization object.
-func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
+func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
 	allowFunc := func(b bool) func(*api.URL) bool {
 		return func(*api.URL) bool {
 			return b
 		}
 	}
 
-	details, err := t.requestDetails(r)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to extract request details: %w", err)
-	}
-
-	// Untrusted requests are denied.
-	if !details.trusted {
+	if !auth.IsTrusted(ctx) {
 		return allowFunc(false), nil
 	}
 
-	if details.isInternalOrUnix() || details.isPKI {
-		return allowFunc(true), nil
-	}
-
-	authenticationProtocol := details.authenticationProtocol()
-	if authenticationProtocol != api.AuthenticationMethodTLS {
-		t.logger.Warn("Authentication protocol is not compatible with authorization driver", logger.Ctx{"protocol": authenticationProtocol})
-		// Allow all. If the server has been configured with an authentication method but no associated authorization driver,
-		// the default is to give these authenticated users admin privileges.
-		return allowFunc(true), nil
-	}
-
-	username := details.username()
-	id, err := t.identities.Get(api.AuthenticationMethodTLS, details.username())
+	isRoot, err := auth.IsServerAdmin(ctx, t.identities)
 	if err != nil {
-		return nil, fmt.Errorf("Failed loading certificate for %q: %w", username, err)
+		return nil, fmt.Errorf("Failed to check caller privilege: %w", err)
 	}
 
-	isRestricted, err := identity.IsRestrictedIdentityType(id.IdentityType)
+	if isRoot {
+		return allowFunc(true), nil
+	}
+
+	id, err := auth.GetIdentityFromCtx(ctx, t.identities)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to check restricted status of identity: %w", err)
+		return nil, fmt.Errorf("Failed to get caller identity: %w", err)
 	}
 
-	if !isRestricted {
+	if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
 		return allowFunc(true), nil
-	} else if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
-		return allowFunc(true), nil
-	}
-
-	if details.isAllProjectsRequest {
-		// Only admins (users with non-restricted certs) can use the all-projects parameter.
-		return nil, api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
 	}
 
 	// Check server level object types
@@ -195,7 +152,7 @@ func (t *tls) GetPermissionChecker(ctx context.Context, r *http.Request, entitle
 		return allowFunc(false), nil
 	}
 
-	effectiveProject, _ := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
+	effectiveProject, _ := request.GetCtxValue[string](ctx, request.CtxEffectiveProjectName)
 
 	// Filter objects by project.
 	return func(entityURL *api.URL) bool {

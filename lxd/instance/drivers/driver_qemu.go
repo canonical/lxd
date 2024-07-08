@@ -436,7 +436,7 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 				l.Warn("Failed loading instance from database to handle monitor event, trying backup file", logger.Ctx{"err": err})
 
 				instancePath := filepath.Join(shared.VarPath("virtual-machines"), project.Instance(instProject.Name, instanceName))
-				inst, err = instance.LoadFromBackup(state, instProject.Name, instancePath, false)
+				inst, err = instance.LoadFromBackup(state, instProject.Name, instancePath)
 				if err != nil {
 					l.Error("Failed loading instance to handle monitor event", logger.Ctx{"err": err})
 					return
