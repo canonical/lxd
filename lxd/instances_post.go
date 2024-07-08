@@ -214,12 +214,6 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 		return response.NotImplemented(fmt.Errorf("Mode %q not implemented", req.Source.Mode))
 	}
 
-	// Parse the architecture name
-	architecture, err := osarch.ArchitectureId(req.Architecture)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
 	dbType, err := instancetype.New(string(req.Type))
 	if err != nil {
 		return response.BadRequest(err)
@@ -229,55 +223,9 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 		return response.BadRequest(fmt.Errorf("Instance type not supported %q", req.Type))
 	}
 
-	// Prepare the instance creation request.
-	args := db.InstanceArgs{
-		Project:      projectName,
-		Architecture: architecture,
-		BaseImage:    req.Source.BaseImage,
-		Config:       req.Config,
-		Type:         dbType,
-		Devices:      deviceConfig.NewDevices(req.Devices),
-		Description:  req.Description,
-		Ephemeral:    req.Ephemeral,
-		Name:         req.Name,
-		Profiles:     profiles,
-		Stateful:     req.Stateful,
-	}
-
-	storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, resp := instanceFindStoragePool(s, projectName, req)
+	storagePool, args, resp := setupInstanceArgs(s, dbType, projectName, profiles, req)
 	if resp != nil {
 		return resp
-	}
-
-	if storagePool == "" {
-		return response.BadRequest(fmt.Errorf("Can't find a storage pool for the instance to use"))
-	}
-
-	if localRootDiskDeviceKey == "" && storagePoolProfile == "" {
-		// Give the container it's own local root disk device with a pool property.
-		rootDev := map[string]string{}
-		rootDev["type"] = "disk"
-		rootDev["path"] = "/"
-		rootDev["pool"] = storagePool
-		if args.Devices == nil {
-			args.Devices = deviceConfig.Devices{}
-		}
-
-		// Make sure that we do not overwrite a device the user is currently using under the
-		// name "root".
-		rootDevName := "root"
-		for i := 0; i < 100; i++ {
-			if args.Devices[rootDevName] == nil {
-				break
-			}
-
-			rootDevName = fmt.Sprintf("root%d", i)
-			continue
-		}
-
-		args.Devices[rootDevName] = rootDev
-	} else if localRootDiskDeviceKey != "" && localRootDiskDevice["pool"] == "" {
-		args.Devices[localRootDiskDeviceKey]["pool"] = storagePool
 	}
 
 	var inst instance.Instance
@@ -326,7 +274,7 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 		// Note: At this stage we do not yet know if snapshots are going to be received and so we cannot
 		// create their DB records. This will be done if needed in the migrationSink.Do() function called
 		// as part of the operation below.
-		inst, instOp, cleanup, err = instance.CreateInternal(s, args, true)
+		inst, instOp, cleanup, err = instance.CreateInternal(s, *args, true)
 		if err != nil {
 			return response.InternalError(fmt.Errorf("Failed creating instance record: %w", err))
 		}
@@ -796,6 +744,68 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 
 	revert.Success()
 	return operations.OperationResponse(op)
+}
+
+// setupInstanceArgs sets the database instance arguments and determines the storage pool to use.
+func setupInstanceArgs(s *state.State, instType instancetype.Type, projectName string, profiles []api.Profile, req *api.InstancesPost) (storagePool string, instArgs *db.InstanceArgs, resp response.Response) {
+	// Parse the architecture name
+	architecture, err := osarch.ArchitectureId(req.Architecture)
+	if err != nil {
+		return "", nil, response.BadRequest(err)
+	}
+
+	// Prepare the instance creation request.
+	args := db.InstanceArgs{
+		Project:      projectName,
+		Architecture: architecture,
+		BaseImage:    req.Source.BaseImage,
+		Config:       req.Config,
+		Type:         instType,
+		Devices:      deviceConfig.NewDevices(req.Devices),
+		Description:  req.Description,
+		Ephemeral:    req.Ephemeral,
+		Name:         req.Name,
+		Profiles:     profiles,
+		Stateful:     req.Stateful,
+	}
+
+	storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, resp := instanceFindStoragePool(s, projectName, req)
+	if resp != nil {
+		return "", nil, resp
+	}
+
+	if storagePool == "" {
+		return "", nil, response.BadRequest(fmt.Errorf("Can't find a storage pool for the instance to use"))
+	}
+
+	if localRootDiskDeviceKey == "" && storagePoolProfile == "" {
+		// Give the instance it's own local root disk device with a pool property.
+		rootDev := map[string]string{}
+		rootDev["type"] = "disk"
+		rootDev["path"] = "/"
+		rootDev["pool"] = storagePool
+		if args.Devices == nil {
+			args.Devices = deviceConfig.Devices{}
+		}
+
+		// Make sure that we do not overwrite a device the user is currently using
+		// under the name "root".
+		rootDevName := "root"
+		for i := 0; i < 100; i++ {
+			if args.Devices[rootDevName] == nil {
+				break
+			}
+
+			rootDevName = fmt.Sprintf("root%d", i)
+			continue
+		}
+
+		args.Devices[rootDevName] = rootDev
+	} else if localRootDiskDeviceKey != "" && localRootDiskDevice["pool"] == "" {
+		args.Devices[localRootDiskDeviceKey]["pool"] = storagePool
+	}
+
+	return storagePool, &args, nil
 }
 
 // swagger:operation POST /1.0/instances instances instances_post
