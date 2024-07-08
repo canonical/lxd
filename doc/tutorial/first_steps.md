@@ -100,7 +100,7 @@ See [About `lxd` and `lxc`](lxd-lxc) if you are confused about when to use the `
        lxc launch ubuntu:24.04 second
 
    ```{note}
-   Launching this container is quicker than launching the first, because the image is already available.
+   Launching this container is quicker than launching the first, because the image is already available locally.
    ```
 
 1. Copy the first container into a container called `third`:
