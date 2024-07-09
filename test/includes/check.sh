@@ -1,7 +1,7 @@
 # Miscellaneous test checks.
 
 check_dependencies() {
-    # shellcheck disable=SC2039
+    # shellcheck disable=SC2039,3043
     local dep missing
     missing=""
 

@@ -1,12 +1,13 @@
 # lxc CLI related test helpers.
 
 lxc() {
+    set +x
     LXC_LOCAL=1 lxc_remote "$@"
 }
 
 lxc_remote() {
     set +x
-    # shellcheck disable=SC2039
+    # shellcheck disable=SC2039,3043
     local injected cmd arg
 
     injected=0
@@ -31,9 +32,10 @@ lxc_remote() {
         cmd="${cmd} ${DEBUG-}"
     fi
     if [ -n "${DEBUG:-}" ]; then
-        set -x
+        eval "set -x;timeout --foreground 120 ${cmd}"
+    else
+        eval "timeout --foreground 120 ${cmd}"
     fi
-    eval "${cmd}"
 }
 
 gen_cert() {
