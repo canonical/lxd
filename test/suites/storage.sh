@@ -755,24 +755,13 @@ test_storage() {
   )
 
   # Test applying quota (expected size ranges are in KB and have an allowable range to account for allocation variations).
-  QUOTA1="10GB"
-  rootMinKB1="9456000"
-  rootMaxKB1="9999999"
+  QUOTA1="20MiB"
+  rootMinKB1="13800"
+  rootMaxKB1="23000"
 
-  QUOTA2="11GB"
-  rootMinKB2="10402000"
-  rootMaxKB2="10744999"
-
-  if [ "$lxd_backend" = "lvm" ]; then
-    QUOTA1="20MB"
-    rootMinKB1="14000"
-    rootMaxKB1="20000"
-
-    # Increase quota enough to require a new 4MB LVM extent.
-    QUOTA2="25MB"
-    rootMinKB2="19000"
-    rootMaxKB2="23000"
-  fi
+  QUOTA2="25MiB"
+  rootMinKB2="18900"
+  rootMaxKB2="28000"
 
   if [ "$lxd_backend" != "dir" ]; then
     lxc launch testimage quota1
