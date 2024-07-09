@@ -597,6 +597,10 @@ definitions:
                     type: number
                 type: array
                 x-go-name: LoadAverages
+            num_cpu:
+                format: int64
+                type: integer
+                x-go-name: NumCPU
             processes:
                 format: uint16
                 type: integer

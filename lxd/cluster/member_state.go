@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -106,6 +107,8 @@ func MemberState(ctx context.Context, s *state.State, memberName string) (*api.C
 			ResourcesStoragePool: *res,
 		}
 	}
+
+	memberState.SysInfo.NumCPU = runtime.NumCPU()
 
 	return &memberState, nil
 }
