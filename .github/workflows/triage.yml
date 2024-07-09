@@ -1,0 +1,41 @@
+name: Triaging
+on:
+  pull_request_target:
+  issues:
+    types:
+      - labeled
+      - unlabeled
+
+permissions:
+  contents: read
+
+jobs:
+  label:
+    if: github.event.pull_request
+    permissions:
+      contents: read  # for actions/labeler to determine modified files
+      pull-requests: write  # for actions/labeler to add labels to PRs
+    name: PR labels
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/labeler@v5
+      with:
+        repo-token: "${{ secrets.GITHUB_TOKEN }}"
+        sync-labels: true
+  notify:
+    name: Notify
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Notify
+        uses: iamfj/action-label-notification@v1.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          mapping: >
+            - label: Documentation
+              recipients:
+                - '@ru-fu'
