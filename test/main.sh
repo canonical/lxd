@@ -7,10 +7,6 @@ export LC_ALL="C"
 # Force UTC for consistency
 export TZ="UTC"
 
-if [ -n "${LXD_VERBOSE:-}" ] || [ -n "${LXD_DEBUG:-}" ]; then
-  set -x
-fi
-
 export DEBUG=""
 if [ -n "${LXD_VERBOSE:-}" ]; then
   DEBUG="--verbose"
@@ -18,6 +14,10 @@ fi
 
 if [ -n "${LXD_DEBUG:-}" ]; then
   DEBUG="--debug"
+fi
+
+if [ -n "${DEBUG:-}" ]; then
+  set -x
 fi
 
 if [ -z "${LXD_BACKEND:-}" ]; then
@@ -29,7 +29,7 @@ LXD_NETNS=""
 
 import_subdir_files() {
     test "$1"
-    # shellcheck disable=SC2039
+    # shellcheck disable=SC2039,3043
     local file
     for file in "$1"/*.sh; do
         # shellcheck disable=SC1090
@@ -80,16 +80,29 @@ cleanup() {
     # shellcheck disable=SC2086
     printf "To poke around, use:\\n LXD_DIR=%s LXD_CONF=%s sudo -E %s/bin/lxc COMMAND\\n" "${LXD_DIR}" "${LXD_CONF}" ${GOPATH:-}
     echo "Tests Completed (${TEST_RESULT}): hit enter to continue"
-
-    # shellcheck disable=SC2034
-    read -r nothing
+    read -r _
   fi
 
-  echo "==> Cleaning up"
+  echo ""
+  echo "df -h output:"
+  df -h
 
-  umount -l "${TEST_DIR}/dev"
-  kill_external_auth_daemon "$TEST_DIR"
-  cleanup_lxds "$TEST_DIR"
+  if [ "${TEST_RESULT}" != "success" ]; then
+    # dmesg may contain oops, IO errors, crashes, etc
+    echo "::group::dmesg logs"
+    journalctl --quiet --no-hostname --no-pager --boot=0 --lines=100 --dmesg
+    echo "::endgroup::"
+  fi
+
+  if [ -n "${GITHUB_ACTIONS:-}" ]; then
+    echo "==> Skipping cleanup (GitHub Action runner detected)"
+  else
+    echo "==> Cleaning up"
+
+    umount -l "${TEST_DIR}/dev"
+    kill_external_auth_daemon "$TEST_DIR"
+    cleanup_lxds "$TEST_DIR"
+  fi
 
   echo ""
   echo ""
@@ -101,6 +114,7 @@ cleanup() {
 
 # Must be set before cleanup()
 TEST_CURRENT=setup
+TEST_CURRENT_DESCRIPTION=setup
 # shellcheck disable=SC2034
 TEST_RESULT=failure
 
@@ -114,7 +128,7 @@ TEST_DIR=$(mktemp -d -p "$(pwd)" tmp.XXX)
 chmod +x "${TEST_DIR}"
 
 if [ -n "${LXD_TMPFS:-}" ]; then
-  mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751
+  mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=6G
 fi
 
 mkdir -p "${TEST_DIR}/dev"
@@ -133,13 +147,55 @@ export LXD_ADDR
 
 start_external_auth_daemon "${LXD_DIR}"
 
+LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
+export LXD_SKIP_TESTS
+
+LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
+export LXD_REQUIRED_TESTS
+
 run_test() {
   TEST_CURRENT=${1}
   TEST_CURRENT_DESCRIPTION=${2:-${1}}
+  TEST_UNMET_REQUIREMENT=""
 
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
   START_TIME=$(date +%s)
-  ${TEST_CURRENT}
+
+  # shellcheck disable=SC2039,3043
+  local skip=false
+
+  # Skip test if requested.
+  if [ -n "${LXD_SKIP_TESTS:-}" ]; then
+    for testName in ${LXD_SKIP_TESTS}; do
+      if [ "test_${testName}" = "${TEST_CURRENT}" ]; then
+          echo "==> SKIP: ${TEST_CURRENT} as specified in LXD_SKIP_TESTS"
+          skip=true
+          break
+      fi
+    done
+  fi
+
+  if [ "${skip}" = false ]; then
+    # Run test.
+    ${TEST_CURRENT}
+
+    # Check whether test was skipped due to unmet requirements, and if so check if the test is required and fail.
+    if [ -n "${TEST_UNMET_REQUIREMENT}" ]; then
+      if [ -n "${LXD_REQUIRED_TESTS:-}" ]; then
+        for testName in ${LXD_REQUIRED_TESTS}; do
+          if [ "test_${testName}" = "${TEST_CURRENT}" ]; then
+              echo "==> REQUIRED: ${TEST_CURRENT} ${TEST_UNMET_REQUIREMENT}"
+              false
+              return
+          fi
+        done
+      else
+        # Skip test if its requirements are not met and is not specified in required tests.
+        echo "==> SKIP: ${TEST_CURRENT} ${TEST_UNMET_REQUIREMENT}"
+      fi
+    fi
+  fi
+
   END_TIME=$(date +%s)
 
   echo "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} ($((END_TIME-START_TIME))s)"
