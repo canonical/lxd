@@ -106,7 +106,7 @@ update-schema:
 .PHONY: update-api
 update-api:
 ifeq "$(LXD_OFFLINE)" ""
-	(cd / ; GO111MODULE=on go get -v -x github.com/go-swagger/go-swagger/cmd/swagger)
+	(cd / ; GO111MODULE=on go install -v -x github.com/go-swagger/go-swagger/cmd/swagger)
 endif
 	swagger generate spec -o doc/rest-api.yaml -w ./lxd -m
 
@@ -165,9 +165,9 @@ endif
 .PHONY: check
 check: default
 ifeq "$(LXD_OFFLINE)" ""
-	(cd / ; go get -v -x github.com/rogpeppe/godeps)
-	(cd / ; go get -v -x github.com/tsenart/deadcode)
-	(cd / ; go get -v -x golang.org/x/lint/golint)
+	(cd / ; go install -v -x github.com/rogpeppe/godeps)
+	(cd / ; go install -v -x github.com/tsenart/deadcode)
+	(cd / ; go install -v -x golang.org/x/lint/golint)
 endif
 	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	cd test && ./main.sh
@@ -220,7 +220,7 @@ update-po:
 .PHONY: update-pot
 update-pot:
 ifeq "$(LXD_OFFLINE)" ""
-	(cd / ; go get -v -x github.com/snapcore/snapd/i18n/xgettext-go@2.57.1)
+	(cd / ; go install -v -x github.com/snapcore/snapd/i18n/xgettext-go@2.57.1)
 endif
 	xgettext-go -o po/$(DOMAIN).pot --add-comments-tag=TRANSLATORS: --sort-output --package-name=$(DOMAIN) --msgid-bugs-address=lxd@lists.canonical.com --keyword=i18n.G --keyword-plural=i18n.NG lxc/*.go lxc/*/*.go
 
