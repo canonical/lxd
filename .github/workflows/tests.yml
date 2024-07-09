@@ -246,6 +246,16 @@ jobs:
           set -eux
           go mod download
 
+      - name: Install xgettext-go
+        run: |
+          set -eux
+          # XXX: during the LXD build step, `make i18n` cannot install
+          #      xgettext-go due to being in LXD_OFFLINE mode. Furthermore, the
+          #      Makefile uses `go get` which is no longer supported outside of
+          #      a module with Go 1.18
+          cd /
+          go install -v -x github.com/snapcore/snapd/i18n/xgettext-go@2.57.1
+
       - name: Run LXD build
         run: |
           set -eux
