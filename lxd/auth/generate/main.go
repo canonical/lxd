@@ -7,6 +7,8 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -24,8 +26,8 @@ var relationRegexp = regexp.MustCompile(`^\s+define\s+(\w+):\s+.+$`)
 var commentRegexp = regexp.MustCompile(`^\s*#\s*(.*)$`)
 
 type entitlement struct {
-	relation    string
-	description string
+	Relation    string `json:"name"`
+	Description string `json:"description"`
 }
 
 // snakeToPascal converts a snake case (hello_world) string to a Pascal case string (HelloWorld).
@@ -63,7 +65,46 @@ func snakeToPascal(str string) string {
 	return s
 }
 
+var flagDryRun bool
+
+func init() {
+	flag.BoolVar(&flagDryRun, "dry-run", false, "Output json file to stdout")
+	flag.Parse()
+}
+
 func main() {
+	if flagDryRun {
+		err := func() error {
+			f, err := os.Open("drivers/openfga_model.openfga")
+			if err != nil {
+				return fmt.Errorf("Failed to open OpenFGA model file: %w", err)
+			}
+
+			defer f.Close()
+
+			entityToEntitlements, _, err := scanOpenFGAModel(f)
+			if err != nil {
+				return err
+			}
+
+			err = f.Close()
+			if err != nil {
+				return fmt.Errorf("Failed to close OpenFGA model file: %w", err)
+			}
+
+			err = json.NewEncoder(os.Stdout).Encode(entityToEntitlements)
+			if err != nil {
+				return fmt.Errorf("Failed to write entitlement json to stdout: %w", err)
+			}
+
+			return nil
+		}()
+		if err != nil {
+			fmt.Printf("Failed to generate entitlements from OpenFGA model (dry run): %v\n", err)
+			os.Exit(1)
+		}
+	}
+
 	err := func() error {
 		f, err := os.Open("drivers/openfga_model.openfga")
 		if err != nil {
@@ -131,7 +172,7 @@ func writeOutput(w io.Writer, entityToEntitlements map[entity.Type][]entitlement
 		var entityTypes []string
 		for entityType, entitlements := range entityToEntitlements {
 			for _, e := range entitlements {
-				if entitlement.relation == e.relation {
+				if entitlement.Relation == e.Relation {
 					entityTypes = append(entityTypes, string(entityType))
 					break
 				}
@@ -144,12 +185,12 @@ func writeOutput(w io.Writer, entityToEntitlements map[entity.Type][]entitlement
 
 		sort.Strings(entityTypes)
 
-		builder.WriteString(fmt.Sprintf("\t// Entitlement%s is the \"%s\" entitlement. It applies to the following entities: %s.\n", snakeToPascal(entitlement.relation), entitlement.relation, strings.Join(entityTypes, ", ")))
+		builder.WriteString(fmt.Sprintf("\t// Entitlement%s is the \"%s\" entitlement. It applies to the following entities: %s.\n", snakeToPascal(entitlement.Relation), entitlement.Relation, strings.Join(entityTypes, ", ")))
 
 		if i == len(allEntitlements)-1 {
-			builder.WriteString(fmt.Sprintf("\tEntitlement%s Entitlement = \"%s\"\n", snakeToPascal(entitlement.relation), entitlement.relation))
+			builder.WriteString(fmt.Sprintf("\tEntitlement%s Entitlement = \"%s\"\n", snakeToPascal(entitlement.Relation), entitlement.Relation))
 		} else {
-			builder.WriteString(fmt.Sprintf("\tEntitlement%s Entitlement = \"%s\"\n\n", snakeToPascal(entitlement.relation), entitlement.relation))
+			builder.WriteString(fmt.Sprintf("\tEntitlement%s Entitlement = \"%s\"\n\n", snakeToPascal(entitlement.Relation), entitlement.Relation))
 		}
 	}
 
@@ -170,8 +211,8 @@ func writeOutput(w io.Writer, entityToEntitlements map[entity.Type][]entitlement
 		builder.WriteString(fmt.Sprintf("\tentity.Type%s: {\n", snakeToPascal(entityType)))
 		for _, entitlement := range entitlements {
 			// Here we can add the comment from the OpenFGA model.
-			builder.WriteString(fmt.Sprintf("\t\t// %s\n", entitlement.description))
-			builder.WriteString(fmt.Sprintf("\t\tEntitlement%s,\n", snakeToPascal(entitlement.relation)))
+			builder.WriteString(fmt.Sprintf("\t\t// %s\n", entitlement.Description))
+			builder.WriteString(fmt.Sprintf("\t\tEntitlement%s,\n", snakeToPascal(entitlement.Relation)))
 		}
 
 		builder.WriteString("\t},\n")
@@ -238,15 +279,15 @@ scan:
 			}
 
 			entitlement := entitlement{
-				relation:    submatch[1],
-				description: strings.Join(curComment, " "),
+				Relation:    submatch[1],
+				Description: strings.Join(curComment, " "),
 			}
 
 			entityToEntitlements[curType] = append(entityToEntitlements[curType], entitlement)
 
 			var found bool
 			for _, e := range allEntitlements {
-				if submatch[1] == e.relation {
+				if submatch[1] == e.Relation {
 					found = true
 					break
 				}
