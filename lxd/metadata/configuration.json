@@ -5325,7 +5325,7 @@
 						"oidc.groups.claim": {
 							"longdesc": "Specify a custom claim to be requested when performing OIDC flows.\nConfigure a corresponding custom claim in your identity provider and\nadd organization level groups to it. These can be mapped to LXD groups\nfor automatic access control.",
 							"scope": "global",
-							"shortdesc": "Expected audience value for the application",
+							"shortdesc": "A claim used for mapping identity provider groups to LXD groups.",
 							"type": "string"
 						}
 					},

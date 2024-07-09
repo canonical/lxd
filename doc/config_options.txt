@@ -4693,7 +4693,7 @@ This value is required by some providers.
 
 ```{config:option} oidc.groups.claim server-oidc
 :scope: "global"
-:shortdesc: "Expected audience value for the application"
+:shortdesc: "A claim used for mapping identity provider groups to LXD groups."
 :type: "string"
 Specify a custom claim to be requested when performing OIDC flows.
 Configure a corresponding custom claim in your identity provider and
