@@ -378,6 +378,99 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 	return agent, nil
 }
 
+// getClusterCPUFlags identifies CPU flags that are consistently present across all
+// CPU cores in the cluster.
+//
+// 1. Retrieving all nodes in the cluster and their CPU information.
+// 2. Counting which flags are present on every core across all nodes.
+// 3. Building a set of flags common to all cores.
+//
+// This is useful in a migration scenario where we need to find a minimum common denominator
+// of CPU flags to properly start a VM on a different node in a cluster.
+func (d *qemu) getClusterCPUFlags() ([]string, error) {
+	// Get the list of cluster members.
+	var nodes []db.RaftNode
+	err := d.state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		var err error
+		nodes, err = tx.GetRaftNodes(ctx)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Get architecture name.
+	arch, err := osarch.ArchitectureName(d.architecture)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get all the CPU flags for the architecture.
+	flagMembers := map[string]int{}
+	coreCount := 0
+
+	for _, node := range nodes {
+		// Attempt to load the cached resources.
+		resourcesPath := internalUtil.CachePath("resources", fmt.Sprintf("%s.yaml", node.Name))
+
+		data, err := os.ReadFile(resourcesPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+
+			return nil, err
+		}
+
+		res := api.Resources{}
+		err = json.Unmarshal(data, &res)
+		if err != nil {
+			return nil, err
+		}
+
+		// Skip if not the correct architecture.
+		if res.CPU.Architecture != arch {
+			continue
+		}
+
+		// Add the CPU flags to the map.
+		for _, socket := range res.CPU.Sockets {
+			for _, core := range socket.Cores {
+				coreCount += 1
+				for _, flag := range core.Flags {
+					flagMembers[flag] += 1
+				}
+			}
+		}
+	}
+
+	// Get the host flags.
+	info := DriverStatuses()[instancetype.VM].Info
+	hostFlags, ok := info.Features["flags"].(map[string]bool)
+	if !ok {
+		// No CPU flags found.
+		return nil, nil
+	}
+
+	// Build a set of flags common to all cores.
+	flags := []string{}
+
+	for k, v := range flagMembers {
+		if v != coreCount {
+			continue
+		}
+
+		hostVal, ok := hostFlags[k]
+		if !ok || hostVal {
+			continue
+		}
+
+		flags = append(flags, k)
+	}
+
+	return flags, nil
+}
+
 func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) {
 	// Create local variables from instance properties we need so as not to keep references to instance around
 	// after we have returned the callback function.
@@ -1481,6 +1574,19 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	cpuType := "host"
+
+	// Get CPU flags if clustered and migration is enabled.
+	if d.state.ServerClustered && util.IsTrue(d.expandedConfig["migration.stateful"]) {
+		cpuFlags, err := d.getClusterCPUFlags()
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+
+		cpuType = "kvm64"
+		cpuExtensions = append(cpuExtensions, cpuFlags...)
+	}
+
 	if len(cpuExtensions) > 0 {
 		cpuType += "," + strings.Join(cpuExtensions, ",")
 	}
@@ -8948,6 +9054,24 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 	if shared.PathExists("/dev/vhost-net") {
 		features["vhost_net"] = struct{}{}
 	}
+
+	// Get the host CPU model.
+	model, err := monitor.QueryCPUModel("kvm64")
+	if err != nil {
+		return nil, err
+	}
+
+	cpuFlags := map[string]bool{}
+	for k, v := range model.Flags {
+		value, ok := v.(bool)
+		if !ok {
+			continue
+		}
+
+		cpuFlags[k] = value
+	}
+
+	features["flags"] = cpuFlags
 
 	return features, nil
 }
