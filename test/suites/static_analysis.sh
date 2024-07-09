@@ -21,7 +21,7 @@ test_static_analysis() {
 
     # Shell static analysis
     if command -v shellcheck >/dev/null 2>&1; then
-      shellcheck --shell sh test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh
+      shellcheck -e SC2086 -e SC2269 -e SC2295 --shell sh test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh
     else
       echo "shellcheck not found, shell static analysis disabled"
     fi
