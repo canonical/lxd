@@ -1206,6 +1206,18 @@ func (d *Daemon) init() error {
 		d.serverCertInt = serverCert
 	}
 
+	// If we're clustered, check for an incoming recovery tarball
+	if d.serverClustered {
+		tarballPath := filepath.Join(d.db.Node.Dir(), cluster.RecoveryTarballName)
+
+		if shared.PathExists(tarballPath) {
+			err = cluster.DatabaseReplaceFromTarball(tarballPath, d.db.Node)
+			if err != nil {
+				return fmt.Errorf("Failed to load recovery tarball: %w", err)
+			}
+		}
+	}
+
 	/* Setup dqlite */
 	clusterLogLevel := "ERROR"
 	if shared.ValueInSlice("dqlite", trace) {
