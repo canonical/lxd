@@ -57,6 +57,13 @@ migration() {
   lxd2_dir="$1"
   lxd_backend=$(storage_backend "$LXD_DIR")
   lxd2_backend=$(storage_backend "$lxd2_dir")
+
+  # XXX: optimized migration fails with: `ERROR: cannot find parent subvolume`
+  # due to missing https://github.com/canonical/lxd/commit/94180308e133e9637ec6e24a8b760207622dd412
+  if [ "${lxd_backend}" = "btrfs" ] && [ "${lxd2_backend}" = "btrfs" ]; then
+    return
+  fi
+
   ensure_import_testimage
 
   lxc_remote init testimage nonlive
