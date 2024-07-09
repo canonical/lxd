@@ -5,8 +5,12 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
+	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	dqlite "github.com/canonical/go-dqlite"
@@ -15,11 +19,14 @@ import (
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/node"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 )
 
 // RecoveryTarballName is the filename used for recovery tarballs.
 const RecoveryTarballName = "lxd_recovery_db.tar.gz"
+
+const raftNodesFilename = "raft_nodes.yaml"
 
 const errPatchExists = "Custom patches should not be applied during recovery"
 
@@ -279,7 +286,7 @@ func writeRecoveryTarball(databaseDir string, raftNodes []db.RaftNode) (string, 
 
 	raftNodesHeader := tar.Header{
 		Typeflag: tar.TypeReg,
-		Name:     "raft_nodes.yaml",
+		Name:     raftNodesFilename,
 		Size:     int64(len(raftNodesYaml)),
 		Mode:     0o644,
 		Uid:      0,
@@ -321,6 +328,114 @@ func writeRecoveryTarball(databaseDir string, raftNodes []db.RaftNode) (string, 
 	return tarballPath, nil
 }
 
+// DatabaseReplaceFromTarball unpacks the tarball found at `tarballPath`, replaces
+// the global database, updates the local database with any changed addresses,
+// and writes a global patch file to update the global database with any changed
+// addresses.
+func DatabaseReplaceFromTarball(tarballPath string, database *db.Node) error {
+	globalDBDir := path.Join(database.Dir(), "global")
+	unpackDir := filepath.Join(database.Dir(), "global.recover")
+
+	logger.Warn("Recovery tarball located; attempting DB recovery", logger.Ctx{"tarball": tarballPath})
+
+	err := unpackTarball(tarballPath, unpackDir)
+	if err != nil {
+		return err
+	}
+
+	raftNodesYamlPath := path.Join(unpackDir, raftNodesFilename)
+	raftNodesYaml, err := os.ReadFile(raftNodesYamlPath)
+	if err != nil {
+		return err
+	}
+
+	var incomingRaftNodes []db.RaftNode
+	err = yaml.Unmarshal(raftNodesYaml, &incomingRaftNodes)
+	if err != nil {
+		return fmt.Errorf("Invalid %q", raftNodesYamlPath)
+	}
+
+	var localRaftNodes []db.RaftNode
+	err = database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) (err error) {
+		localRaftNodes, err = tx.GetRaftNodes(ctx)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, localNode := range localRaftNodes {
+		foundLocal := false
+		for _, incomingNode := range incomingRaftNodes {
+			foundLocal = localNode.ID == incomingNode.ID &&
+				localNode.Name == incomingNode.Name
+
+			if foundLocal {
+				break
+			}
+		}
+
+		// The incoming tarball should contain a node with the same dqlite ID as
+		// the local LXD server; we shouldn't unpack a recovery tarball from a
+		// different cluster.
+		if !foundLocal {
+			return fmt.Errorf("Missing cluster member %q in incoming recovery tarball", localNode.Name)
+		}
+	}
+
+	// Update our core.https_address if it has changed
+	localRaftNode, err := localRaftNode(database)
+	if err != nil {
+		return err
+	}
+
+	for _, incomingNode := range incomingRaftNodes {
+		if incomingNode.ID == localRaftNode.ID {
+			if incomingNode.Address != localRaftNode.Address {
+				err = updateLocalAddress(database, incomingNode.Address)
+				if err != nil {
+					return err
+				}
+			}
+
+			break
+		}
+	}
+
+	// Replace cluster configuration in local raft_nodes database.
+	err = database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		return tx.ReplaceRaftNodes(incomingRaftNodes)
+	})
+	if err != nil {
+		return err
+	}
+
+	err = writeGlobalNodesPatch(database, incomingRaftNodes)
+	if err != nil {
+		return fmt.Errorf("Failed to create global db patch for cluster recover: %w", err)
+	}
+
+	// Now that we're as sure as we can be that the recovery DB is valid, we can
+	// replace the existing DB
+	err = os.RemoveAll(globalDBDir)
+	if err != nil {
+		return err
+	}
+
+	err = os.Rename(unpackDir, globalDBDir)
+	if err != nil {
+		return err
+	}
+
+	// Prevent the database being restored again after subsequent restarts
+	err = os.Remove(tarballPath)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // RemoveRaftNode removes a raft node from the raft configuration.
 func RemoveRaftNode(gateway *Gateway, address string) error {
 	nodes, err := gateway.currentRaftNodes()
@@ -355,6 +470,71 @@ func RemoveRaftNode(gateway *Gateway, address string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to remove node: %w", err)
 	}
+
+	return nil
+}
+
+func unpackTarball(tarballPath string, destRoot string) error {
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	tarball, err := os.Open(tarballPath)
+	if err != nil {
+		return err
+	}
+
+	gzReader, err := gzip.NewReader(tarball)
+	if err != nil {
+		return err
+	}
+
+	tarReader := tar.NewReader(gzReader)
+
+	err = os.MkdirAll(destRoot, 0o755)
+	if err != nil {
+		return err
+	}
+
+	reverter.Add(func() { _ = os.RemoveAll(destRoot) })
+
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+
+		// CWE-22
+		if strings.Contains(header.Name, "..") {
+			return fmt.Errorf("Invalid sequence `..` in recovery tarball entry %q", header.Name)
+		}
+
+		filepath := path.Join(destRoot, header.Name)
+
+		switch header.Typeflag {
+		case tar.TypeReg:
+			file, err := os.Create(filepath)
+			if err != nil {
+				return err
+			}
+
+			countWritten, err := io.Copy(file, tarReader)
+			if countWritten != header.Size {
+				return fmt.Errorf("Mismatched written (%d) and size (%d) for entry %q in %q", countWritten, header.Size, header.Name, tarballPath)
+			} else if err != nil {
+				return err
+			}
+
+		case tar.TypeDir:
+			err = os.MkdirAll(filepath, fs.FileMode(header.Mode&int64(fs.ModePerm)))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	reverter.Success()
 
 	return nil
 }
