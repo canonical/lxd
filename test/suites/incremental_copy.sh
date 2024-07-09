@@ -1,5 +1,5 @@
 test_incremental_copy() {
-  # shellcheck disable=2039
+  # shellcheck disable=SC2039,SC3043
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
@@ -16,7 +16,7 @@ test_incremental_copy() {
         return
     fi
 
-    # shellcheck disable=2039
+    # shellcheck disable=SC2039,SC3043
     local source_pool
     source_pool="lxdtest-$(basename "${LXD_DIR}")-dir-pool"
     lxc storage create "${source_pool}" dir
@@ -26,9 +26,9 @@ test_incremental_copy() {
 }
 
 do_copy() {
-  # shellcheck disable=2039
+  # shellcheck disable=SC2039,SC3043
   local source_pool=$1
-  # shellcheck disable=2039
+  # shellcheck disable=SC2039,SC3043
   local target_pool=$2
 
   # Make sure the containers don't exist

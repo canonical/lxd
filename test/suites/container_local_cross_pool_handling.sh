@@ -1,7 +1,7 @@
 test_container_local_cross_pool_handling() {
   ensure_import_testimage
 
-  # shellcheck disable=2039
+  # shellcheck disable=SC2039,SC3043
   local LXD_STORAGE_DIR lxd_backend
   # shellcheck disable=SC2034
   lxd_backend=$(storage_backend "$LXD_DIR")
