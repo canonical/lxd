@@ -3,7 +3,7 @@
 hash_before="lxd/metadata-before.txt"
 hash_after="lxd/metadata-after.txt"
 json_metadata="lxd/metadata/configuration.json"
-doc_config_options="doc/config_options.txt"
+doc_config_options="doc/metadata.txt"
 
 metadata_hash() {
   files_to_check="${json_metadata} ${doc_config_options}"
