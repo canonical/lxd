@@ -483,6 +483,31 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 		}
 	}
 
+	entities := make(map[string][]map[string]string)
+	err = json.Unmarshal(jsonDoc.Entities, &entities)
+	if err != nil {
+		return err
+	}
+
+	sortedEntityNames := make([]string, 0, len(entities))
+	for entityName := range entities {
+		sortedEntityNames = append(sortedEntityNames, entityName)
+	}
+
+	sort.Strings(sortedEntityNames)
+
+	for _, entityName := range sortedEntityNames {
+		entitlements := entities[entityName]
+		buffer.WriteString(fmt.Sprintf("<!-- entity group %s start -->\n", entityName))
+		for _, entitlement := range entitlements {
+			buffer.WriteString(fmt.Sprintf("`%s`\n", entitlement["name"]))
+			buffer.WriteString(fmt.Sprintf(": %s\n\n", entitlement["description"]))
+		}
+
+		buffer.WriteString("\n")
+		buffer.WriteString(fmt.Sprintf("<!-- entity group %s end -->\n", entityName))
+	}
+
 	err = os.WriteFile(outputTxtPath, buffer.Bytes(), 0644)
 	if err != nil {
 		return fmt.Errorf("Error while writing the Markdown project documentation: %v", err)
