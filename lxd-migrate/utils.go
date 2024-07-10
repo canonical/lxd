@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -101,27 +100,7 @@ func transferRootDiskForMigration(ctx context.Context, op lxd.Operation, rootfs 
 
 	// Send block volume
 	if instanceType == api.InstanceTypeVM {
-		f, err := os.Open(filepath.Join(rootfs, "root.img"))
-		if err != nil {
-			return abort(err)
-		}
-
-		defer func() { _ = f.Close() }()
-
-		conn := ws.NewWrapper(wsFs)
-
-		go func() {
-			<-ctx.Done()
-			_ = conn.Close()
-			_ = f.Close()
-		}()
-
-		_, err = io.Copy(conn, f)
-		if err != nil {
-			return abort(fmt.Errorf("Failed sending block volume: %w", err))
-		}
-
-		err = conn.Close()
+		err := sendBlockVol(ctx, ws.NewWrapper(wsFs), filepath.Join(rootfs, "root.img"))
 		if err != nil {
 			return abort(err)
 		}
