@@ -42,8 +42,8 @@ Valid network ACL names must adhere to the following rules:
 
 ACLs have the following properties:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group network-acl-acl-properties start -->
     :end-before: <!-- config group network-acl-acl-properties end -->
 ```
@@ -92,8 +92,8 @@ If one of the rules in the ACLs matches, the action for that rule is taken and n
 
 ACL rules have the following properties:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group network-acl-rule-properties start -->
     :end-before: <!-- config group network-acl-rule-properties end -->
 ```

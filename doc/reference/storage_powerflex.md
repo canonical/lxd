@@ -109,8 +109,8 @@ The following configuration options are available for storage pools that use the
 (storage-powerflex-pool-config)=
 ### Storage pool configuration
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group storage-powerflex-pool-conf start -->
     :end-before: <!-- config group storage-powerflex-pool-conf end -->
 ```
@@ -120,8 +120,8 @@ The following configuration options are available for storage pools that use the
 (storage-powerflex-vol-config)=
 ### Storage volume configuration
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group storage-powerflex-volume-conf start -->
     :end-before: <!-- config group storage-powerflex-volume-conf end -->
 ```
