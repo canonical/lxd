@@ -191,14 +191,19 @@ parts:
       - libatomic
     plugin: nil
     stage-packages:
+      # XXX: explicitly depend on libsnappy1v5 due to https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2072656
       - on amd64:
         - ceph-common
+        - libsnappy1v5
       - on arm64:
         - ceph-common
+        - libsnappy1v5
       - on ppc64el:
         - ceph-common
+        - libsnappy1v5
       - on s390x:
         - ceph-common
+        - libsnappy1v5
     organize:
       usr/bin/: bin/
       usr/lib/: lib/
