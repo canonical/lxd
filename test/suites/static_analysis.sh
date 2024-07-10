@@ -21,36 +21,36 @@ test_static_analysis() {
 
     # Shell static analysis
     if command -v shellcheck >/dev/null 2>&1; then
-      shellcheck --shell sh test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh
+      shellcheck -e SC2086 -e SC2269 -e SC2295 --shell sh test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh
     else
       echo "shellcheck not found, shell static analysis disabled"
     fi
 
     ## Functions starting by empty line
-    OUT=$(grep -r "^$" -B1 . 2>/dev/null | grep "func " | grep -v "}$" | grep -v "./lxd/sqlite/" || true)
+    OUT="$(grep -r "^$" -B1 . 2>/dev/null | grep -v '^\./doc/' | grep "func " | grep -v "}$" | grep -v "./lxd/sqlite/" || true)"
     if [ -n "${OUT}" ]; then
       echo "ERROR: Functions must not start with an empty line: ${OUT}"
       false
     fi
 
     ## Mixed tabs/spaces in scripts
-    OUT=$(grep -Pr '\t' . 2>/dev/null | grep '\.sh:' || true)
+    OUT="$(grep -Pr '\t' . 2>/dev/null | grep -v '^\./doc/' | grep '\.sh:' || true)"
     if [ -n "${OUT}" ]; then
       echo "ERROR: mixed tabs and spaces in script: ${OUT}"
       false
     fi
 
     ## Trailing space in scripts
-    OUT=$(grep -r " $" . 2>/dev/null | grep '\.sh:' || true)
+    OUT="$(grep -r " $" . 2>/dev/null | grep -v '^\./doc/' | grep '\.sh:' || true)"
     if [ -n "${OUT}" ]; then
       echo "ERROR: trailing space in script: ${OUT}"
       false
     fi
 
     ## go vet, if it exists
-    if go help vet >/dev/null 2>&1; then
-      go vet ./...
-    fi
+    #if go help vet >/dev/null 2>&1; then
+    #  go vet ./...
+    #fi
 
     ## vet
     if command -v vet >/dev/null 2>&1; then

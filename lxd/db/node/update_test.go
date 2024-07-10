@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"testing"
 
-	"github.com/lxc/lxd/lxd/db/node"
-	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/db/node"
+	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

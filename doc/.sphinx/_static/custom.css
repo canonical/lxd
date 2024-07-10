@@ -108,3 +108,67 @@ table.min-width-4-8 td.text-left:nth-child(4) {
 abbr[title] {
     text-decoration: underline solid #cdcdcd;
 }
+
+/** Use the same style for right-details as for left-details **/
+.bottom-of-page .right-details {
+    font-size: var(--font-size--small);
+    display: block;
+}
+
+/** Version switcher */
+button.version_select {
+  color: var(--color-foreground-primary);
+  background-color: var(--color-toc-background);
+  padding: 5px 10px;
+  border: none;
+}
+
+.version_select:hover, .version_select:focus {
+    background-color: var(--color-sidebar-item-background--hover);
+}
+
+.version_dropdown {
+  position: relative;
+  display: inline-block;
+  text-align: right;
+  font-size: var(--sidebar-item-font-size);
+}
+
+.available_versions {
+  display: none;
+  position: absolute;
+  right: 0px;
+  background-color: var(--color-toc-background);
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 11;
+}
+
+.available_versions a {
+  color: var(--color-foreground-primary);
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+}
+
+.available_versions a:hover {background-color: var(--color-sidebar-item-background--current)}
+
+.show {display:block;}
+
+/** Fix the styling of the version box for readthedocs **/
+
+#furo-readthedocs-versions .rst-versions, #furo-readthedocs-versions .rst-current-version, #furo-readthedocs-versions:focus-within .rst-current-version, #furo-readthedocs-versions:hover .rst-current-version  {
+    background: var(--color-sidebar-item-background--hover);
+}
+
+.rst-versions .rst-other-versions dd a {
+    color: var(--color-link);
+}
+
+#furo-readthedocs-versions:focus-within .rst-current-version .fa-book, #furo-readthedocs-versions:hover .rst-current-version .fa-book, .rst-versions .rst-other-versions {
+    color: var(--color-sidebar-link-text);
+}
+
+.rst-versions .rst-current-version {
+    color: var(--color-version-popup);
+    font-weight: bolder;
+}

@@ -25,7 +25,7 @@ func TestURLEncode(t *testing.T) {
 }
 
 func TestUrlsJoin(t *testing.T) {
-	baseUrl := "http://images.linuxcontainers.org/streams/v1/"
+	baseUrl := "http://images.lxd.canonical.com/streams/v1/"
 	path := "../../image/root.tar.xz"
 
 	res, err := JoinUrls(baseUrl, path)
@@ -34,7 +34,7 @@ func TestUrlsJoin(t *testing.T) {
 		return
 	}
 
-	expected := "http://images.linuxcontainers.org/image/root.tar.xz"
+	expected := "http://images.lxd.canonical.com/image/root.tar.xz"
 	if res != expected {
 		t.Error(fmt.Errorf("'%s' != '%s'", res, expected))
 	}

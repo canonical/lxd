@@ -3,13 +3,13 @@ POFILES=$(wildcard po/*.po)
 MOFILES=$(patsubst %.po,%.mo,$(POFILES))
 LINGUAS=$(basename $(POFILES))
 POTFILE=po/$(DOMAIN).pot
-VERSION=$(shell grep "var Version" shared/version/flex.go | cut -d'"' -f2)
+VERSION=$(or ${CUSTOM_VERSION},$(shell grep "var Version" shared/version/flex.go | cut -d'"' -f2))
 ARCHIVE=lxd-$(VERSION).tar
 HASH := \#
 TAG_SQLITE3=$(shell printf "$(HASH)include <dqlite.h>\nvoid main(){dqlite_node_id n = 1;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "libsqlite3")
 GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
-SPHINXENV=.sphinx/venv/bin/activate
+SPHINXENV=doc/.sphinx/venv/bin/activate
 
 ifneq "$(wildcard vendor)" ""
 	RAFT_PATH=$(CURDIR)/vendor/raft
@@ -53,9 +53,8 @@ lxd-p2c:
 .PHONY: deps
 deps:
 	@if [ ! -e "$(RAFT_PATH)" ]; then \
-		git clone --depth=1 "https://github.com/canonical/raft" "$(RAFT_PATH)"; \
-	elif [ -e "$(RAFT_PATH)/.git" ]; then \
-		cd "$(RAFT_PATH)"; git pull; \
+		git clone "https://github.com/canonical/raft" "$(RAFT_PATH)"; \
+		cd "$(RAFT_PATH)"; git reset --hard abf9c42a9bb63c24920ab9f0bfbc4b7a47e7e5f4; \
 	fi
 
 	cd "$(RAFT_PATH)" && \
@@ -65,9 +64,8 @@ deps:
 
 	# dqlite
 	@if [ ! -e "$(DQLITE_PATH)" ]; then \
-		git clone --depth=1 "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
-	elif [ -e "$(DQLITE_PATH)/.git" ]; then \
-		cd "$(DQLITE_PATH)"; git pull; \
+		git clone "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
+		cd "$(DQLITE_PATH)"; git reset --hard 50ee9af350b2fb4e79f9eb58db22c8a0927138de; \
 	fi
 
 	cd "$(DQLITE_PATH)" && \
@@ -108,26 +106,22 @@ update-schema:
 .PHONY: update-api
 update-api:
 ifeq "$(LXD_OFFLINE)" ""
-	(cd / ; GO111MODULE=on go get -v -x github.com/go-swagger/go-swagger/cmd/swagger)
+	(cd / ; GO111MODULE=on go install -v -x github.com/go-swagger/go-swagger/cmd/swagger)
 endif
 	swagger generate spec -o doc/rest-api.yaml -w ./lxd -m
 
 .PHONY: doc
 doc:
 	@echo "Setting up documentation build environment"
-	python3 -m venv .sphinx/venv
-	. $(SPHINXENV) ; pip install --upgrade -r .sphinx/requirements.txt
-	mkdir -p .sphinx/deps/ .sphinx/themes/
-	git -C .sphinx/deps/swagger-ui pull || git clone --depth 1 https://github.com/swagger-api/swagger-ui.git .sphinx/deps/swagger-ui
-	mkdir -p .sphinx/_static/swagger-ui
-	ln -sf ../../deps/swagger-ui/dist/swagger-ui-bundle.js ../../deps/swagger-ui/dist/swagger-ui-standalone-preset.js ../../deps/swagger-ui/dist/swagger-ui.css .sphinx/_static/swagger-ui/
+	python3 -m venv doc/.sphinx/venv
+	. $(SPHINXENV) ; pip install --upgrade -r doc/.sphinx/requirements.txt
 	rm -Rf doc/html
 	make doc-incremental
 
 .PHONY: doc-incremental
 doc-incremental:
 	@echo "Build the documentation"
-	. $(SPHINXENV) ; sphinx-build -c .sphinx/ -b dirhtml doc/ doc/html/ -w .sphinx/warnings.txt
+	. $(SPHINXENV) ; sphinx-build -c doc/ -b dirhtml doc/ doc/html/ -w doc/.sphinx/warnings.txt
 
 .PHONY: doc-serve
 doc-serve:
@@ -171,15 +165,15 @@ endif
 .PHONY: check
 check: default
 ifeq "$(LXD_OFFLINE)" ""
-	(cd / ; go get -v -x github.com/rogpeppe/godeps)
-	(cd / ; go get -v -x github.com/tsenart/deadcode)
-	(cd / ; go get -v -x golang.org/x/lint/golint)
+	(cd / ; go install -v -x github.com/rogpeppe/godeps)
+	(cd / ; go install -v -x github.com/tsenart/deadcode)
+	(cd / ; go install -v -x golang.org/x/lint/golint)
 endif
 	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	cd test && ./main.sh
 
 .PHONY: dist
-dist:
+dist: doc
 	# Cleanup
 	rm -Rf $(ARCHIVE).gz
 
@@ -197,6 +191,9 @@ dist:
 
 	git clone --depth=1 https://github.com/canonical/raft $(TMP)/lxd-$(VERSION)/vendor/raft
 	(cd $(TMP)/lxd-$(VERSION)/vendor/raft ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
+
+	# Copy doc output
+	cp -r doc/html $(TMP)/lxd-$(VERSION)/doc/html/
 
 	# Assemble tarball
 	tar --exclude-vcs -C $(TMP) -zcf $(ARCHIVE).gz lxd-$(VERSION)/
@@ -223,9 +220,9 @@ update-po:
 .PHONY: update-pot
 update-pot:
 ifeq "$(LXD_OFFLINE)" ""
-	(cd / ; go get -v -x github.com/snapcore/snapd/i18n/xgettext-go)
+	(cd / ; go install -v -x github.com/snapcore/snapd/i18n/xgettext-go@2.57.1)
 endif
-	xgettext-go -o po/$(DOMAIN).pot --add-comments-tag=TRANSLATORS: --sort-output --package-name=$(DOMAIN) --msgid-bugs-address=lxc-devel@lists.linuxcontainers.org --keyword=i18n.G --keyword-plural=i18n.NG lxc/*.go lxc/*/*.go
+	xgettext-go -o po/$(DOMAIN).pot --add-comments-tag=TRANSLATORS: --sort-output --package-name=$(DOMAIN) --msgid-bugs-address=lxd@lists.canonical.com --keyword=i18n.G --keyword-plural=i18n.NG lxc/*.go lxc/*/*.go
 
 .PHONY: build-mo
 build-mo: $(MOFILES)

@@ -17,8 +17,8 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
 

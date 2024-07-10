@@ -1,6 +1,21 @@
 import datetime
 import os
 import yaml
+from git import Repo
+import wget
+
+# Download and link swagger-ui files
+if not os.path.isdir('.sphinx/deps/swagger-ui'):
+    Repo.clone_from('https://github.com/swagger-api/swagger-ui', '.sphinx/deps/swagger-ui', depth=1)
+
+os.makedirs('.sphinx/_static/swagger-ui/', exist_ok=True)
+
+if not os.path.islink('.sphinx/_static/swagger-ui/swagger-ui-bundle.js'):
+    os.symlink('../../deps/swagger-ui/dist/swagger-ui-bundle.js', '.sphinx/_static/swagger-ui/swagger-ui-bundle.js')
+if not os.path.islink('.sphinx/_static/swagger-ui/swagger-ui-standalone-preset.js'):
+    os.symlink('../../deps/swagger-ui/dist/swagger-ui-standalone-preset.js', '.sphinx/_static/swagger-ui/swagger-ui-standalone-preset.js')
+if not os.path.islink('.sphinx/_static/swagger-ui/swagger-ui.css'):
+    os.symlink('../../deps/swagger-ui/dist/swagger-ui.css', '.sphinx/_static/swagger-ui/swagger-ui.css')
 
 # Project config.
 project = "LXD"
@@ -14,7 +29,9 @@ with open("../shared/version/flex.go") as fd:
 extensions = [
     "myst_parser",
     "sphinx_tabs.tabs",
-    "sphinx_reredirects"
+    "sphinx_reredirects",
+    "sphinxext.opengraph",
+    "notfound.extension"
 ]
 
 myst_enable_extensions = [
@@ -26,21 +43,23 @@ myst_enable_extensions = [
 myst_linkify_fuzzy_links=False
 myst_heading_anchors = 7
 
-if os.path.exists("../doc/substitutions.yaml"):
-    with open("../doc/substitutions.yaml", "r") as fd:
+if os.path.exists("./substitutions.yaml"):
+    with open("./substitutions.yaml", "r") as fd:
         myst_substitutions = yaml.safe_load(fd.read())
 
+
+notfound_urls_prefix = "/lxd/en/latest/"
 # Setup theme.
-templates_path = ["_templates"]
+templates_path = [".sphinx/_templates"]
 
 html_theme = "furo"
 html_show_sphinx = False
 html_last_updated_fmt = ""
-html_favicon = "https://linuxcontainers.org/static/img/favicon.ico"
-html_static_path = ['_static']
+html_favicon = ".sphinx/_static/favicon.ico"
+html_static_path = ['.sphinx/_static']
 html_css_files = ['custom.css']
 html_js_files = ['header-nav.js']
-html_extra_path = ['_extra']
+html_extra_path = ['.sphinx/_extra']
 
 html_theme_options = {
     "sidebar_hide_name": True,
@@ -71,6 +90,7 @@ html_theme_options = {
         "color-highlighted-background": "#EbEbEb",
         "color-link-underline": "var(--color-background-primary)",
         "color-link-underline--hover": "var(--color-background-primary)",
+        "color-version-popup": "#772953"
     },
     "dark_css_variables": {
         "color-foreground-secondary": "var(--color-foreground-primary)",
@@ -94,12 +114,13 @@ html_theme_options = {
         "color-highlighted-background": "#666",
         "color-link-underline": "var(--color-background-primary)",
         "color-link-underline--hover": "var(--color-background-primary)",
+        "color-version-popup": "#F29879"
     },
 }
 
 html_context = {
-    "github_url": "https://github.com/lxc/lxd",
-    "github_version": "master",
+    "github_url": "https://github.com/canonical/lxd",
+    "github_version": "stable-4.0",
     "github_folder": "/doc/",
     "github_filetype": "md"
 }
@@ -109,9 +130,14 @@ source_suffix = ".md"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['html', 'README.md']
+exclude_patterns = ['html', 'README.md', '.sphinx']
+
+# Open Graph configuration
+
+ogp_site_url = "https://documentation.ubuntu.com/lxd/en/stable-4.0/"
+ogp_site_name = "LXD documentation"
+ogp_image = "https://documentation.ubuntu.com/lxd/en/stable-4.0/_static/tag.png"
 
 # Setup redirects (https://documatt.gitlab.io/sphinx-reredirects/usage.html)
 redirects = {
-    "index/index": "../index.html",
 }

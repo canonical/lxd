@@ -12,10 +12,10 @@ import (
 	"testing"
 
 	"github.com/canonical/go-dqlite/driver"
-	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logging"
+	"github.com/canonical/lxd/lxd/cluster"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

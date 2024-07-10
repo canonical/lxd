@@ -1,5 +1,5 @@
 test_storage_driver_ceph() {
-  # shellcheck disable=2039
+  # shellcheck disable=SC2039,SC3043
   local LXD_STORAGE_DIR lxd_backend
 
   lxd_backend=$(storage_backend "$LXD_DIR")

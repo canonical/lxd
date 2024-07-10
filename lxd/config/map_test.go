@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lxc/lxd/lxd/config"
+	"github.com/canonical/lxd/lxd/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

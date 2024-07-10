@@ -10,9 +10,9 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/shared"
 )
 
 func instanceFileHandler(d *Daemon, r *http.Request) response.Response {

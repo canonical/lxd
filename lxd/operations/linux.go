@@ -6,7 +6,7 @@ package operations
 import (
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db"
 )
 
 func registerDBOperation(op *Operation, opType db.OperationType) error {

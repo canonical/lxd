@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // ProfileAction represents a lifecycle event action for profiles.

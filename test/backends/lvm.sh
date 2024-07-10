@@ -1,5 +1,5 @@
 lvm_setup() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_DIR=$1
@@ -8,19 +8,19 @@ lvm_setup() {
 }
 
 lvm_configure() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_DIR=$1
 
   echo "==> Configuring lvm backend in ${LXD_DIR}"
 
-  lxc storage create "lxdtest-$(basename "${LXD_DIR}")" lvm volume.size=25MB
+  lxc storage create "lxdtest-$(basename "${LXD_DIR}")" lvm volume.size=25MiB size=3GiB
   lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
 }
 
 lvm_teardown() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_DIR=$1

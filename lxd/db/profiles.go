@@ -6,8 +6,8 @@ package db
 import (
 	"fmt"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/shared/api"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/pkg/errors"
 )
 

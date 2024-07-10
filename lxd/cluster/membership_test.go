@@ -11,12 +11,12 @@ import (
 	"time"
 
 	"github.com/canonical/go-dqlite/driver"
-	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/osarch"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/canonical/lxd/lxd/cluster"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/osarch"
+	"github.com/canonical/lxd/shared/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

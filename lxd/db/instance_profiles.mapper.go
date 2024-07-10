@@ -8,9 +8,9 @@ package db
 import (
 	"fmt"
 
-	"github.com/lxc/lxd/lxd/db/cluster"
-	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared/api"
 )
 
 var _ = api.ServerEnvironment{}

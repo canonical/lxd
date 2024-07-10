@@ -12,9 +12,9 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/syndtr/gocapability/capability"
 )
 

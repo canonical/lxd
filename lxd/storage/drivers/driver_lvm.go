@@ -12,12 +12,12 @@ import (
 	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/units"
-	"github.com/lxc/lxd/shared/validate"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/units"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 const lvmVgPoolMarker = "lxd_pool" // Indicator tag used to mark volume groups as in use by LXD.
@@ -551,7 +551,7 @@ func (d *lvm) Mount() (bool, error) {
 }
 
 // Unmount unmounts the storage pool (this does nothing).
-// LVM doesn't currently support unmounting, please see https://github.com/lxc/lxd/issues/9278
+// LVM doesn't currently support unmounting, please see https://github.com/canonical/lxd/issues/9278
 func (d *lvm) Unmount() (bool, error) {
 	return false, nil
 }

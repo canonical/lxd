@@ -5,10 +5,10 @@ import (
 
 	"github.com/pkg/errors"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/device/nictype"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/state"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/device/nictype"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/state"
 )
 
 // newByType returns a new unitialised device based of the type indicated by the project and device config.

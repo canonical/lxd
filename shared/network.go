@@ -16,7 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // connectErrorPrefix used as prefix to error returned from RFC3493Dialer.

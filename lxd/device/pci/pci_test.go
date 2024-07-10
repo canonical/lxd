@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lxc/lxd/lxd/device/pci"
+	"github.com/canonical/lxd/lxd/device/pci"
 )
 
 func TestNormaliseAddress(t *testing.T) {

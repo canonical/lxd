@@ -14,17 +14,17 @@ import (
 	"github.com/gorilla/mux"
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/lxd/daemon"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/request"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/ucred"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/canonical/lxd/lxd/daemon"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/ucred"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // DevLxdServer creates an http.Server capable of handling requests against the
@@ -185,7 +185,7 @@ func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Requ
 			util.WriteJSON(w, resp.content, debugLogger)
 		} else if resp.ctype != "websocket" {
 			w.Header().Set("Content-Type", "application/octet-stream")
-			fmt.Fprintf(w, resp.content.(string))
+			fmt.Fprint(w, resp.content.(string))
 		}
 	}
 }

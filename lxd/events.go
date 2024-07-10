@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/rbac"
-	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/rbac"
+	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/shared"
 )
 
 var eventTypes = []string{"logging", "operation", "lifecycle"}

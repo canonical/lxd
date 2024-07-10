@@ -204,7 +204,7 @@ type ImageSource struct {
 	Protocol string `json:"protocol" yaml:"protocol"`
 
 	// URL of the source server
-	// Example: https://images.linuxcontainers.org
+	// Example: https://images.lxd.canonical.com
 	Server string `json:"server" yaml:"server"`
 
 	// Type of image (container or virtual-machine)

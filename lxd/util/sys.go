@@ -13,9 +13,9 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
-	"github.com/lxc/lxd/shared/idmap"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/osarch"
+	"github.com/canonical/lxd/shared/idmap"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/osarch"
 )
 
 // GetArchitectures returns the list of supported architectures.

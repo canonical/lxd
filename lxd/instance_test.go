@@ -6,16 +6,16 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/lxc/lxd/lxd/db"
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
-	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/revert"
-	driver "github.com/lxc/lxd/lxd/storage"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/idmap"
+	"github.com/canonical/lxd/lxd/db"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/instance"
+	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/revert"
+	driver "github.com/canonical/lxd/lxd/storage"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/idmap"
 )
 
 type containerTestSuite struct {

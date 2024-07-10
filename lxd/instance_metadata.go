@@ -14,14 +14,14 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/lifecycle"
-	"github.com/lxc/lxd/lxd/request"
-	"github.com/lxc/lxd/lxd/response"
-	storagePools "github.com/lxc/lxd/lxd/storage"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/lifecycle"
+	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/response"
+	storagePools "github.com/canonical/lxd/lxd/storage"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // swagger:operation GET /1.0/instances/{name}/metadata instances instance_metadata_get

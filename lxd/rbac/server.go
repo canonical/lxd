@@ -19,8 +19,8 @@ import (
 	"gopkg.in/macaroon-bakery.v2/httpbakery"
 	"gopkg.in/macaroon-bakery.v2/httpbakery/agent"
 
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 type rbacResource struct {

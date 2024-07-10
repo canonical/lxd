@@ -9,13 +9,13 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/lxd/migration"
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/units"
-	"github.com/lxc/lxd/shared/validate"
+	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/units"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 var cephAllowedFilesystems = []string{"btrfs", "ext4", "xfs"}

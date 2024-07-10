@@ -7,14 +7,14 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
+	"github.com/canonical/lxd/lxd/cluster"
+	"github.com/canonical/lxd/lxd/cluster/request"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/project"
+	lxdRequest "github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/gorilla/mux"
-	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/cluster/request"
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/project"
-	lxdRequest "github.com/lxc/lxd/lxd/request"
-	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/shared/logger"
 )
 
 // swagger:operation GET / server api_get

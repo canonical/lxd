@@ -27,35 +27,35 @@ import (
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxd/apparmor"
-	"github.com/lxc/lxd/lxd/cgroup"
-	"github.com/lxc/lxd/lxd/daemon"
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/device"
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/device/nictype"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/instance/operationlock"
-	"github.com/lxc/lxd/lxd/lifecycle"
-	"github.com/lxc/lxd/lxd/network"
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/lxd/seccomp"
-	"github.com/lxc/lxd/lxd/state"
-	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
-	"github.com/lxc/lxd/lxd/template"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/idmap"
-	"github.com/lxc/lxd/shared/instancewriter"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
-	"github.com/lxc/lxd/shared/netutils"
-	"github.com/lxc/lxd/shared/osarch"
-	"github.com/lxc/lxd/shared/units"
+	"github.com/canonical/lxd/lxd/apparmor"
+	"github.com/canonical/lxd/lxd/cgroup"
+	"github.com/canonical/lxd/lxd/daemon"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/device"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/device/nictype"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/instance/operationlock"
+	"github.com/canonical/lxd/lxd/lifecycle"
+	"github.com/canonical/lxd/lxd/network"
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/lxd/seccomp"
+	"github.com/canonical/lxd/lxd/state"
+	storagePools "github.com/canonical/lxd/lxd/storage"
+	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
+	"github.com/canonical/lxd/lxd/template"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/idmap"
+	"github.com/canonical/lxd/shared/instancewriter"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/logging"
+	"github.com/canonical/lxd/shared/netutils"
+	"github.com/canonical/lxd/shared/osarch"
+	"github.com/canonical/lxd/shared/units"
 )
 
 // Helper functions
@@ -1308,7 +1308,7 @@ func (d *lxc) IdmappedStorage(path string) idmap.IdmapStorageType {
 		mode = idmap.IdmapStorageShiftfs
 	}
 
-	if !d.state.OS.LXCFeatures["idmapped_mounts_v2"] {
+	if !d.state.OS.LXCFeatures["idmapped_mounts_v2"] || shared.IsTrue(os.Getenv("LXD_IDMAPPED_MOUNTS_DISABLE")) {
 		return mode
 	}
 

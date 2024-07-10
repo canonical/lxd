@@ -1,7 +1,7 @@
 test_storage() {
   ensure_import_testimage
 
-  # shellcheck disable=2039
+  # shellcheck disable=SC2039,SC3043
   local LXD_STORAGE_DIR lxd_backend
 
   lxd_backend=$(storage_backend "$LXD_DIR")
@@ -10,7 +10,7 @@ test_storage() {
   spawn_lxd "${LXD_STORAGE_DIR}" false
 
   # edit storage and pool description
-  # shellcheck disable=2039
+  # shellcheck disable=SC2039,SC3043
   local storage_pool storage_volume
   storage_pool="lxdtest-$(basename "${LXD_DIR}")-pool"
   storage_volume="${storage_pool}-vol"
@@ -36,7 +36,7 @@ test_storage() {
 
   # Test btrfs resize
   if [ "$lxd_backend" = "lvm" ] || [ "$lxd_backend" = "ceph" ]; then
-      # shellcheck disable=2039
+      # shellcheck disable=SC2039,SC3043
       local btrfs_storage_pool btrfs_storage_volume
       btrfs_storage_pool="lxdtest-$(basename "${LXD_DIR}")-pool-btrfs"
       btrfs_storage_volume="${storage_pool}-vol"
@@ -147,8 +147,8 @@ test_storage() {
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config" btrfs rsync.bwlimit=1024
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config"
 
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config" btrfs btrfs.mount_options="rw,strictatime,nospace_cache,user_subvol_rm_allowed"
-      lxc storage set "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config" btrfs.mount_options "rw,relatime,space_cache,user_subvol_rm_allowed"
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config" btrfs btrfs.mount_options="rw,strictatime,user_subvol_rm_allowed"
+      lxc storage set "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config" btrfs.mount_options "rw,relatime,user_subvol_rm_allowed"
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config"
     fi
 
@@ -755,24 +755,13 @@ test_storage() {
   )
 
   # Test applying quota (expected size ranges are in KB and have an allowable range to account for allocation variations).
-  QUOTA1="10GB"
-  rootMinKB1="9456000"
-  rootMaxKB1="9999999"
+  QUOTA1="20MiB"
+  rootMinKB1="13800"
+  rootMaxKB1="23000"
 
-  QUOTA2="11GB"
-  rootMinKB2="10402000"
-  rootMaxKB2="10744999"
-
-  if [ "$lxd_backend" = "lvm" ]; then
-    QUOTA1="20MB"
-    rootMinKB1="14000"
-    rootMaxKB1="20000"
-
-    # Increase quota enough to require a new 4MB LVM extent.
-    QUOTA2="25MB"
-    rootMinKB2="19000"
-    rootMaxKB2="23000"
-  fi
+  QUOTA2="25MiB"
+  rootMinKB2="18900"
+  rootMaxKB2="28000"
 
   if [ "$lxd_backend" != "dir" ]; then
     lxc launch testimage quota1

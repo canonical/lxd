@@ -3,8 +3,8 @@ package db
 import (
 	"fmt"
 
-	"github.com/lxc/lxd/lxd/db/cluster"
-	"github.com/lxc/lxd/lxd/db/node"
+	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/node"
 )
 
 // UpdateSchema updates the schema.go file of the cluster and node databases.

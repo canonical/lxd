@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // Internal copy of the operation interface.

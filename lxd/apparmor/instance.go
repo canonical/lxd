@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/cgroup"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/cgroup"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
 )
 
 // Internal copy of the instance interface.

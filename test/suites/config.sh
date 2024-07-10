@@ -274,7 +274,7 @@ test_config_edit() {
 }
 
 test_config_edit_container_snapshot_pool_config() {
-    # shellcheck disable=2034,2039,2155
+    # shellcheck disable=SC2039,SC3043,SC2155
     local storage_pool="lxdtest-$(basename "${LXD_DIR}")"
 
     ensure_import_testimage

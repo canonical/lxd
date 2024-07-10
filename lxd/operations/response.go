@@ -6,12 +6,12 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/logging"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // Operation response

@@ -8,8 +8,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/shared/ioprogress"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/ioprogress"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 func Unpack(file string, path string, blockBackend bool, runningInUserns bool, tracker *ioprogress.ProgressTracker) error {

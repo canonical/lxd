@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
 

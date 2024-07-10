@@ -8,15 +8,15 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/endpoints"
-	"github.com/lxc/lxd/lxd/events"
-	"github.com/lxc/lxd/lxd/firewall"
-	"github.com/lxc/lxd/lxd/fsmonitor"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/maas"
-	"github.com/lxc/lxd/lxd/sys"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/endpoints"
+	"github.com/canonical/lxd/lxd/events"
+	"github.com/canonical/lxd/lxd/firewall"
+	"github.com/canonical/lxd/lxd/fsmonitor"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/maas"
+	"github.com/canonical/lxd/lxd/sys"
+	"github.com/canonical/lxd/shared"
 )
 
 // State is a gateway to the two main stateful components of LXD, the database

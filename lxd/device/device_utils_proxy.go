@@ -5,10 +5,10 @@ import (
 	"net"
 	"strings"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/network"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/validate"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/network"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 // ProxyParseAddr validates a proxy address and parses it into its constituent parts.

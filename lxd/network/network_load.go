@@ -1,7 +1,7 @@
 package network
 
 import (
-	"github.com/lxc/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/state"
 )
 
 var drivers = map[string]func() Network{

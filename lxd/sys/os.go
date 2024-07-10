@@ -11,12 +11,12 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/lxd/cgroup"
-	"github.com/lxc/lxd/lxd/storage/filesystem"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/idmap"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/cgroup"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/idmap"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // InotifyTargetInfo records the inotify information associated with a given

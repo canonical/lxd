@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/canonical/go-dqlite/driver"
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

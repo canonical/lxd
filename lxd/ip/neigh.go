@@ -5,8 +5,8 @@ import (
 	"net"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
 )
 
 // NeighbourIPState can be { PERMANENT | NOARP | REACHABLE | STALE | NONE | INCOMPLETE | DELAY | PROBE | FAILED }.

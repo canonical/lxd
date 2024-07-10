@@ -13,10 +13,10 @@ import (
 	"github.com/mdlayher/netx/eui64"
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/lxd/dnsmasq"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
+	"github.com/canonical/lxd/lxd/dnsmasq"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/logging"
 )
 
 // ErrDHCPNotSupported indicates network doesn't support DHCP for this IP protocol.

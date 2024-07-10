@@ -1,7 +1,7 @@
 test_storage_volume_snapshots() {
   ensure_import_testimage
 
-  # shellcheck disable=2039
+  # shellcheck disable=SC2039,SC3043
   local LXD_STORAGE_DIR lxd_backend
 
   lxd_backend=$(storage_backend "$LXD_DIR")
@@ -9,7 +9,7 @@ test_storage_volume_snapshots() {
   chmod +x "${LXD_STORAGE_DIR}"
   spawn_lxd "${LXD_STORAGE_DIR}" false
 
-  # shellcheck disable=2039
+  # shellcheck disable=SC2039,SC3043
   local storage_pool storage_volume
   storage_pool="lxdtest-$(basename "${LXD_STORAGE_DIR}")-pool"
   storage_volume="${storage_pool}-vol"

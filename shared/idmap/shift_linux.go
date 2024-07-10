@@ -13,10 +13,10 @@ import (
 	"golang.org/x/sys/unix"
 
 	// Used by cgo
-	_ "github.com/lxc/lxd/lxd/include"
+	_ "github.com/canonical/lxd/lxd/include"
 
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // #cgo LDFLAGS: -lacl

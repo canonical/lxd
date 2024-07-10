@@ -7,10 +7,10 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxd/sys"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logging"
+	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/sys"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

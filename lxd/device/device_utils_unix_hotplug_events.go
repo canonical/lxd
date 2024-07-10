@@ -8,10 +8,10 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared/logger"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // UnixHotplugEvent represents the properties of a Unix hotplug device uevent.

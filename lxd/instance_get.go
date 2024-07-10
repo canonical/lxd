@@ -3,9 +3,9 @@ package main
 import (
 	"net/http"
 
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/response"
 	"github.com/gorilla/mux"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/response"
 )
 
 // swagger:operation GET /1.0/instances/{name} instances instance_get

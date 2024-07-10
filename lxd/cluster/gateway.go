@@ -22,11 +22,11 @@ import (
 	client "github.com/canonical/go-dqlite/client"
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/logging"
 	"github.com/pkg/errors"
 )
 

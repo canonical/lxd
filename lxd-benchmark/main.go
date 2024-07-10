@@ -6,10 +6,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxd-benchmark/benchmark"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd-benchmark/benchmark"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/version"
 )
 
 type cmdGlobal struct {
@@ -88,8 +88,8 @@ func main() {
 	app.Example = `  # Spawn 20 Ubuntu containers in batches of 4
   lxd-benchmark launch --count 20 --parallel 4
 
-  # Create 50 Alpine containers in batches of 10
-  lxd-benchmark init --count 50 --parallel 10 images:alpine/edge
+  # Create 50 Ubuntu Minimal 22.04 containers in batches of 10
+  lxd-benchmark init --count 50 --parallel 10 ubuntu-minimal:22.04
 
   # Delete all test containers using dynamic batch size
   lxd-benchmark delete`

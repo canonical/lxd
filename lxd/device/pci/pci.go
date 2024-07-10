@@ -12,8 +12,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/shared"
 )
 
 // Device represents info about a PCI uevent device.

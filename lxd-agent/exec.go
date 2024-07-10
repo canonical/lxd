@@ -18,14 +18,14 @@ import (
 	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
-	"github.com/lxc/lxd/shared/netutils"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/logging"
+	"github.com/canonical/lxd/shared/netutils"
 )
 
 const execWSControl = -1

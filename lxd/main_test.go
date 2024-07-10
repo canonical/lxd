@@ -6,14 +6,14 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/sys"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/sys"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/idmap"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/idmap"
 )
 
 func mockStartDaemon() (*Daemon, error) {

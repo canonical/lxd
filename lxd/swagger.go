@@ -11,13 +11,13 @@
 //
 //     Version: 1.0
 //     License: Apache-2.0 https://www.apache.org/licenses/LICENSE-2.0
-//     Contact: LXD upstream <lxc-devel@lists.linuxcontainers.org> https://github.com/lxc/lxd
+//     Contact: LXD upstream <lxc-devel@lists.linuxcontainers.org> https://github.com/canonical/lxd
 //
 // swagger:meta
 package main
 
 import (
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // Common error definitions.

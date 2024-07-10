@@ -1,5 +1,5 @@
 ceph_setup() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_DIR=$1
@@ -8,19 +8,19 @@ ceph_setup() {
 }
 
 ceph_configure() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_DIR=$1
 
   echo "==> Configuring CEPH backend in ${LXD_DIR}"
 
-  lxc storage create "lxdtest-$(basename "${LXD_DIR}")" ceph volume.size=25MB ceph.osd.pg_num=16
+  lxc storage create "lxdtest-$(basename "${LXD_DIR}")" ceph volume.size=25MiB ceph.osd.pg_num=8
   lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
 }
 
 ceph_teardown() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_DIR=$1

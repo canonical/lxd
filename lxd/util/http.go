@@ -20,8 +20,8 @@ import (
 	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // DebugJSON helper to log JSON.

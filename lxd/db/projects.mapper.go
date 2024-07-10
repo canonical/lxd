@@ -9,10 +9,10 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/lxc/lxd/lxd/db/cluster"
-	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/version"
 )
 
 var _ = api.ServerEnvironment{}

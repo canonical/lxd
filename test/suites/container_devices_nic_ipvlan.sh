@@ -36,6 +36,8 @@ test_container_devices_nic_ipvlan() {
   fi
 
   lxc stop "${ctName}" --force
+  ip -4 route flush dev lo
+  ip -6 route flush dev lo
 
   # Check that MTU is inherited from parent device when not specified on device.
   ip link set "${ctName}" mtu 1405
@@ -66,6 +68,9 @@ test_container_devices_nic_ipvlan() {
 
   # Check IPVLAN ontop of VLAN parent.
   lxc stop -f "${ctName}"
+  ip -4 route flush dev lo
+  ip -6 route flush dev lo
+
   lxc config device set "${ctName}" eth0 vlan 1234
   lxc start "${ctName}"
 
@@ -99,4 +104,6 @@ test_container_devices_nic_ipvlan() {
   lxc delete "${ctName}" -f
   lxc delete "${ctName}2" -f
   ip link delete "${ctName}" type dummy
+  ip -4 route flush dev lo
+  ip -6 route flush dev lo
 }

@@ -12,13 +12,13 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/lxd/node"
-	"github.com/lxc/lxd/lxd/task"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/node"
+	"github.com/canonical/lxd/lxd/task"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
 

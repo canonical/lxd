@@ -12,7 +12,7 @@ test_remote_url() {
   # shellcheck disable=2153
   urls="${LXD_DIR}/unix.socket unix:${LXD_DIR}/unix.socket unix://${LXD_DIR}/unix.socket"
   if [ -z "${LXD_OFFLINE:-}" ]; then
-    urls="images.linuxcontainers.org https://images.linuxcontainers.org ${urls}"
+    urls="images.lxd.canonical.com https://images.lxd.canonical.com ${urls}"
   fi
 
   # an invalid protocol returns an error
@@ -65,15 +65,15 @@ test_remote_admin() {
 
   # Check that we can add domains with valid certs without confirmation:
   if [ -z "${LXD_OFFLINE:-}" ]; then
-    lxc_remote remote add images1 images.linuxcontainers.org
-    lxc_remote remote add images2 images.linuxcontainers.org:443
+    lxc_remote remote add images1 images.lxd.canonical.com
+    lxc_remote remote add images2 images.lxd.canonical.com:443
     lxc_remote remote remove images1
     lxc_remote remote remove images2
   fi
 }
 
 test_remote_usage() {
-  # shellcheck disable=2039
+  # shellcheck disable=SC2039,SC3043
   local LXD2_DIR LXD2_ADDR
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD2_DIR}"

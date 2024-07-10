@@ -1,12 +1,13 @@
 # lxc CLI related test helpers.
 
 lxc() {
+    set +x
     LXC_LOCAL=1 lxc_remote "$@"
 }
 
 lxc_remote() {
     set +x
-    # shellcheck disable=SC2039
+    # shellcheck disable=SC2039,3043
     local injected cmd arg
 
     injected=0
@@ -31,9 +32,10 @@ lxc_remote() {
         cmd="${cmd} ${DEBUG-}"
     fi
     if [ -n "${DEBUG:-}" ]; then
-        set -x
+        eval "set -x;timeout --foreground 120 ${cmd}"
+    else
+        eval "timeout --foreground 120 ${cmd}"
     fi
-    eval "${cmd}"
 }
 
 gen_cert() {
@@ -45,7 +47,7 @@ gen_cert() {
     [ -f "${LXD_CONF}/${1}.crt" ] && return
     mv "${LXD_CONF}/client.crt" "${LXD_CONF}/client.crt.bak"
     mv "${LXD_CONF}/client.key" "${LXD_CONF}/client.key.bak"
-    echo y | lxc_remote remote add "$(uuidgen)" https://0.0.0.0 || true
+    echo y | lxc_remote remote add "remote-placeholder-$$" https://0.0.0.0 || true
     mv "${LXD_CONF}/client.crt" "${LXD_CONF}/${1}.crt"
     mv "${LXD_CONF}/client.key" "${LXD_CONF}/${1}.key"
     mv "${LXD_CONF}/client.crt.bak" "${LXD_CONF}/client.crt"

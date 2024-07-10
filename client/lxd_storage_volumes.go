@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/cancel"
-	"github.com/lxc/lxd/shared/ioprogress"
-	"github.com/lxc/lxd/shared/units"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/cancel"
+	"github.com/canonical/lxd/shared/ioprogress"
+	"github.com/canonical/lxd/shared/units"
 )
 
 // Storage volumes handling function

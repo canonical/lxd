@@ -10,7 +10,7 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // InstanceBackup is a value object holding all db-related details about an instance backup.

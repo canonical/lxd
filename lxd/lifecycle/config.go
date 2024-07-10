@@ -3,7 +3,7 @@ package lifecycle
 import (
 	"fmt"
 
-	"github.com/lxc/lxd/shared/api"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // ConfigAction represents a lifecycle event action for the server configuration

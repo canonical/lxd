@@ -3,12 +3,12 @@ package drivers
 import (
 	"io"
 
-	"github.com/lxc/lxd/lxd/backup"
-	"github.com/lxc/lxd/lxd/migration"
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/instancewriter"
+	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/instancewriter"
 )
 
 type mock struct {

@@ -6,8 +6,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
-"Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-01-26 16:18-0500\n"
+"Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
+"POT-Creation-Date: 2024-07-05 16:53-0400\n"
 "PO-Revision-Date: 2019-12-12 14:53+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -562,7 +562,7 @@ msgstr "Architektur: %s\n"
 msgid "Architecture: %v"
 msgstr "Architektur: %s\n"
 
-#: lxc/console.go:351
+#: lxc/console.go:357
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
@@ -1961,7 +1961,7 @@ msgstr ""
 msgid "LXD - Command line client"
 msgstr ""
 
-#: lxc/console.go:350
+#: lxc/console.go:356
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
@@ -2354,8 +2354,8 @@ msgstr "Kein Zertifikat für diese Verbindung"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect \"custom"
-"\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect "
+"\"custom\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:32 lxc/remote.go:33
@@ -4979,8 +4979,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called \"data"
-"\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called "
+"\"data\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/storage.go:452

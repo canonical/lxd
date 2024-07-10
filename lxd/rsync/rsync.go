@@ -12,10 +12,10 @@ import (
 
 	"github.com/pborman/uuid"
 
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/ioprogress"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/ioprogress"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // Debug controls additional debugging in rsync output.

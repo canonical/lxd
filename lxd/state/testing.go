@@ -7,9 +7,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/firewall"
-	"github.com/lxc/lxd/lxd/sys"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/firewall"
+	"github.com/canonical/lxd/lxd/sys"
 )
 
 // NewTestState returns a State object initialized with testable instances of

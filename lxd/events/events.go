@@ -8,10 +8,10 @@ import (
 
 	"github.com/pborman/uuid"
 
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/gorilla/websocket"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
 )
 
 // Server represents an instance of an event server.

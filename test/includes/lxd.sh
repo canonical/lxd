@@ -5,7 +5,7 @@ spawn_lxd() {
     # LXD_DIR is local here because since $(lxc) is actually a function, it
     # overwrites the environment and we would lose LXD_DIR's value otherwise.
 
-    # shellcheck disable=2039
+    # shellcheck disable=2039,3043
     local LXD_DIR lxddir lxd_backend
 
     lxddir=${1}
@@ -51,8 +51,7 @@ spawn_lxd() {
 
     if [ "${LXD_NETNS}" = "" ]; then
         echo "==> Binding to network"
-        # shellcheck disable=SC2034
-        for i in $(seq 10); do
+        for _ in $(seq 10); do
             addr="127.0.0.1:$(local_tcp_port)"
             LXD_DIR="${lxddir}" lxc config set core.https_address "${addr}" || continue
             echo "${addr}" > "${lxddir}/lxd.addr"
@@ -83,7 +82,7 @@ respawn_lxd() {
     # LXD_DIR is local here because since $(lxc) is actually a function, it
     # overwrites the environment and we would lose LXD_DIR's value otherwise.
 
-    # shellcheck disable=2039
+    # shellcheck disable=2039,3043
     local LXD_DIR
 
     lxddir=${1}
@@ -108,13 +107,17 @@ respawn_lxd() {
         echo "==> Confirming lxd is responsive (PID is ${LXD_PID})"
         LXD_DIR="${lxddir}" lxd waitready --timeout=300 || (echo "Killing PID ${LXD_PID}" ; kill -9 "${LXD_PID}" ; false)
     fi
+
+    if [ -n "${DEBUG:-}" ]; then
+        set -x
+    fi
 }
 
 kill_lxd() {
     # LXD_DIR is local here because since $(lxc) is actually a function, it
     # overwrites the environment and we would lose LXD_DIR's value otherwise.
 
-    # shellcheck disable=2039
+    # shellcheck disable=2039,3043
     local LXD_DIR daemon_dir daemon_pid check_leftovers lxd_backend
 
     daemon_dir=${1}
@@ -150,8 +153,8 @@ kill_lxd() {
         done
 
         # Delete all networks
-        echo "==> Deleting all networks"
-        for network in $(timeout -k 2 2 lxc network list --force-local --format csv | grep -F ',YES,' | cut -d, -f1); do
+        echo "==> Deleting all managed networks"
+        for network in $(timeout -k 2 2 lxc network list --force-local --format csv | awk -F, '{if ($3 == "YES") {print $1}}'); do
             timeout -k 10 10 lxc network delete "${network}" --force-local || true
         done
 
@@ -249,16 +252,16 @@ shutdown_lxd() {
     # LXD_DIR is local here because since $(lxc) is actually a function, it
     # overwrites the environment and we would lose LXD_DIR's value otherwise.
 
-    # shellcheck disable=2039
+    # shellcheck disable=2039,3043
     local LXD_DIR
 
     daemon_dir=${1}
     # shellcheck disable=2034
     LXD_DIR=${daemon_dir}
     daemon_pid=$(cat "${daemon_dir}/lxd.pid")
-    echo "==> Killing LXD at ${daemon_dir} (${daemon_pid})"
+    echo "==> Shutting down LXD at ${daemon_dir} (${daemon_pid})"
 
-    # Kill the daemon
+    # Shutting down the daemon
     lxd shutdown || kill -9 "${daemon_pid}" 2>/dev/null || true
 
     # Wait for any cleanup activity that might be happening right
@@ -267,7 +270,7 @@ shutdown_lxd() {
 }
 
 wait_for() {
-    # shellcheck disable=SC2039
+    # shellcheck disable=SC2039,3043
     local addr op
 
     addr=${1}
@@ -284,7 +287,7 @@ wipe() {
         fi
     fi
 
-    # shellcheck disable=SC2039
+    # shellcheck disable=SC2039,3043
     local pid
     # shellcheck disable=SC2009
     ps aux | grep lxc-monitord | grep "${1}" | awk '{print $2}' | while read -r pid; do
@@ -300,7 +303,7 @@ wipe() {
 
 # Kill and cleanup LXD instances and related resources
 cleanup_lxds() {
-    # shellcheck disable=SC2039
+    # shellcheck disable=SC2039,3043
     local test_dir daemon_dir
     test_dir="$1"
 

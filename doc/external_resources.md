@@ -3,6 +3,6 @@
 ```{toctree}
 :maxdepth: 1
 
-Project repository <https://github.com/lxc/lxd>
-Image server <https://images.linuxcontainers.org>
+Project repository <https://github.com/canonical/lxd>
+Image server <https://images.lxd.canonical.com>
 ```

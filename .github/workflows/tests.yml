@@ -1,0 +1,476 @@
+name: Tests
+on:
+  push:
+    branches:
+      - main
+      - stable-*
+  pull_request:
+
+env:
+  CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
+  LXD_REQUIRED_TESTS: "storage_buckets"
+  LXD_SKIP_TESTS: "clustering_upgrade clustering_upgrade_large"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # Make sure bash is always invoked with `-eo pipefail`
+    # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
+    shell: bash
+
+jobs:
+  code-tests:
+    env:
+      CGO_CFLAGS: "-I/home/runner/work/lxd/lxd-test/vendor/raft/include/ -I/home/runner/work/lxd/lxd-test/vendor/dqlite/include/"
+      CGO_LDFLAGS: "-L/home/runner/work/lxd/lxd-test/vendor/raft/.libs/ -L/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
+      LD_LIBRARY_PATH: "/home/runner/work/lxd/lxd-test/vendor/raft/.libs/:/home/runner/work/lxd/lxd-test/vendor/dqlite/.libs/"
+    name: Code
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Go (1.18)
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.18.x
+
+      - name: Install dependencies
+        run: |
+          set -eux
+          sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
+          sudo apt-get update
+
+          sudo apt-get install --no-install-recommends -y \
+            build-essential \
+            curl \
+            gettext \
+            git \
+            libacl1-dev \
+            libcap-dev \
+            libdbus-1-dev \
+            liblxc-dev \
+            lxc-templates \
+            libseccomp-dev \
+            libselinux-dev \
+            libsqlite3-dev \
+            libtool \
+            libudev-dev \
+            libuv1-dev \
+            make \
+            pkg-config \
+            shellcheck
+
+          python3 -m pip install flake8
+
+      - name: Download go dependencies
+        run: |
+          set -eux
+          go mod download
+
+      - name: Make LXD tarball and unpack it
+        env:
+          CUSTOM_VERSION: "test"
+        run: |
+          set -eux
+          make dist
+          tar -xzf lxd-test.tar.gz -C ~/work/lxd/
+          rm lxd-test.tar.gz
+
+      - name: Build LXD dependencies
+        run: |
+          set -eux
+          cd ~/work/lxd/lxd-test
+          make deps
+
+      - name: Run LXD build
+        run: |
+          set -eux
+          make
+
+      - name: Run static analysis
+        env:
+          GITHUB_BEFORE: ${{ github.event.before }}
+        run: |
+          set -eux
+          sudo chmod o+w ./po/*
+          make static-analysis
+
+      - name: Unit tests (all)
+        run: |
+          set -eux
+          sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" go test ./...
+
+  system-tests:
+    env:
+      LXD_CEPH_CLUSTER: "ceph"
+      LXD_CEPH_CEPHFS: "cephfs"
+      LXD_CEPH_CEPHOBJECT_RADOSGW: "http://127.0.0.1"
+      LXD_CONCURRENT: "1"
+      LXD_VERBOSE: "1"
+      LXD_OFFLINE: "1"
+      LXD_TMPFS: "1"
+    name: System
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.18.x"]
+        suite: ["cluster", "standalone"]
+        backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
+        include:
+          - go: "1.16.x"
+            suite: cluster
+            backend: dir
+          - go: "1.16.x"
+            suite: standalone
+            backend: dir
+
+    steps:
+      - name: Performance tuning
+        run: |
+          set -eux
+          # optimize ext4 FSes for performance, not reliability
+          for fs in $(findmnt --noheading --type ext4 --list --uniq | awk '{print $1}'); do
+            # nombcache and data=writeback cannot be changed on remount
+            sudo mount -o remount,noatime,barrier=0,commit=6000 "${fs}" || true
+          done
+
+          # disable dpkg from calling sync()
+          echo "force-unsafe-io" | sudo tee /etc/dpkg/dpkg.cfg.d/force-unsafe-io
+
+      - name: Reclaim some space
+        run: |
+          set -eux
+
+          sudo snap remove lxd --purge
+          # Purge older snap revisions that are disabled/superseded by newer revisions of the same snap
+          snap list --all | while read -r name _ rev _ _ notes _; do
+            [[ "${notes}" =~ disabled$ ]] && snap remove "${name}" --revision "${rev}" --purge
+          done || true
+
+          # This was inspired from https://github.com/easimon/maximize-build-space
+          df -h /
+          # dotnet
+          sudo rm -rf /usr/share/dotnet
+          # android
+          sudo rm -rf /usr/local/lib/android
+          # haskell
+          sudo rm -rf /opt/ghc
+          df -h /
+
+      - name: Remove docker
+        run: |
+          set -eux
+          sudo apt-get autopurge -y containerd.io moby-containerd docker docker-ce podman uidmap
+          sudo ip link delete docker0
+          sudo nft flush ruleset
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Go (${{ matrix.go }})
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Install dependencies
+        run: |
+          set -eux
+          sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
+          sudo add-apt-repository ppa:dqlite/dev -y --no-update
+          sudo apt-get update
+
+          sudo systemctl mask lxc.service lxc-net.service
+
+          sudo apt-get install --no-install-recommends -y \
+            curl \
+            git \
+            libacl1-dev \
+            libcap-dev \
+            libdbus-1-dev \
+            libdqlite-dev \
+            liblxc-dev \
+            libseccomp-dev \
+            libselinux-dev \
+            libsqlite3-dev \
+            libtool \
+            libudev-dev \
+            make \
+            pkg-config\
+            acl \
+            attr \
+            bind9-dnsutils \
+            btrfs-progs \
+            busybox-static \
+            dnsmasq-base \
+            easy-rsa \
+            gettext \
+            jq \
+            lxc-utils \
+            lvm2 \
+            nftables \
+            quota \
+            rsync \
+            s3cmd \
+            socat \
+            sqlite3 \
+            squashfs-tools \
+            tar \
+            tcl \
+            thin-provisioning-tools \
+            uuid-runtime \
+            xfsprogs \
+            xz-utils \
+            zfsutils-linux
+
+          # reclaim some space
+          sudo apt-get clean
+
+          mkdir -p "$(go env GOPATH)/bin"
+          curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/minio --output "$(go env GOPATH)/bin/minio"
+          chmod +x "$(go env GOPATH)/bin/minio"
+
+          # Also grab the latest minio client to maintain compatibility with the server.
+          curl -sSfL https://dl.min.io/client/mc/release/linux-amd64/mc --output "$(go env GOPATH)/bin/mc"
+          chmod +x "$(go env GOPATH)/bin/mc"
+
+      - name: Download go dependencies
+        run: |
+          set -eux
+          go mod download
+
+      - name: Install xgettext-go
+        run: |
+          set -eux
+          # XXX: during the LXD build step, `make i18n` cannot install
+          #      xgettext-go due to being in LXD_OFFLINE mode. Furthermore, the
+          #      Makefile uses `go get` which is no longer supported outside of
+          #      a module with Go 1.18
+          cd /
+          go install -v -x github.com/snapcore/snapd/i18n/xgettext-go@2.57.1
+
+      - name: Run LXD build
+        run: |
+          set -eux
+          make
+
+      - name: Setup MicroCeph
+        if: ${{ matrix.backend == 'ceph' }}
+        run: |
+          set -eux
+
+          cleanup() {
+            set +e
+            # dmesg may contain oops, IO errors, crashes, etc
+            echo "::group::dmesg logs"
+            journalctl --quiet --no-hostname --no-pager --boot=0 --lines=100 --dmesg
+            echo "::endgroup::"
+            exit 1
+          }
+          trap cleanup ERR HUP INT TERM
+
+          # If the rootfs and the ephemeral part are on the same physical disk, giving the whole
+          # disk to microceph would wipe our rootfs. Since it is pretty rare for GitHub Action
+          # runners to have a single disk, we immediately bail rather than trying to gracefully
+          # handle it. Once snapd releases with https://github.com/snapcore/snapd/pull/13150,
+          # we will be able to stop worrying about that special case.
+          if [ "$(stat -c '%d' /)" = "$(stat -c '%d' /mnt)" ]; then
+            echo "FAIL: rootfs and ephemeral part on the same disk, aborting"
+            exit 1
+          fi
+
+          # Free-up the ephemeral disk to use it as ceph OSD.
+          # https://github.com/canonical/microceph/issues/288 and https://github.com/canonical/microceph/issues/289
+          sudo swapoff /mnt/swapfile
+          ephemeral_disk="$(findmnt --noheadings --output SOURCE --target /mnt | sed 's/[0-9]\+$//')"
+          sudo umount /mnt
+
+          sudo snap install microceph --edge
+          sudo snap connect microceph:mount-observe
+          sudo apt-get install --no-install-recommends -y ceph-common
+          sudo microceph cluster bootstrap
+          sudo microceph.ceph config set global osd_pool_default_size 1
+          sudo microceph.ceph config set global mon_allow_pool_delete true
+          sudo microceph.ceph config set global osd_memory_target 939524096
+          sudo microceph.ceph osd crush rule rm replicated_rule
+          sudo microceph.ceph osd crush rule create-replicated replicated default osd
+          for flag in nosnaptrim noscrub nobackfill norebalance norecover noscrub nodeep-scrub; do
+              sudo microceph.ceph osd set $flag
+          done
+          sudo microceph disk add --wipe "${ephemeral_disk}"
+          sudo rm -rf /etc/ceph
+          sudo ln -s /var/snap/microceph/current/conf/ /etc/ceph
+          sudo microceph enable rgw || true # workaround to ignore already enabled rgw
+          sudo microceph.ceph osd pool create cephfs_meta 32
+          sudo microceph.ceph osd pool create cephfs_data 32
+          sudo microceph.ceph fs new cephfs cephfs_meta cephfs_data
+          sudo microceph.ceph fs ls
+          sleep 30
+          sudo microceph.ceph status
+          # Wait until there are no more "unkowns" pgs
+          for _ in $(seq 60); do
+            if sudo microceph.ceph pg stat | grep -wF unknown; then
+              sleep 1
+            else
+              break
+            fi
+          done
+          sudo microceph.ceph status
+          sudo rm -f /snap/bin/rbd
+
+      - name: "Run system tests (${{ matrix.go }}, ${{ matrix.suite }}, ${{ matrix.backend }})"
+        run: |
+          set -eux
+          chmod +x ~
+          echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
+          cd test
+          sudo --preserve-env=PATH,GOPATH,GITHUB_ACTIONS,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS, LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+
+  client:
+    name: Client
+    strategy:
+      fail-fast: false
+      matrix:
+        go:
+          - 1.18.x
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Go (${{ matrix.go }})
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Create build directory
+        run: |
+          mkdir bin
+
+      - name: Build static lxc
+        env:
+          CGO_ENABLED: 0
+        run: |
+          go build -o bin ./lxc
+
+      - name: Build static lxd-p2c
+        if: runner.os == 'Linux'
+        env:
+          CGO_ENABLED: 0
+        run: |
+          go build -o bin ./lxd-p2c
+
+      - name: Unit tests (client)
+        env:
+          CGO_ENABLED: 0
+        run: go test -v ./client/...
+
+      - name: Unit tests (lxc)
+        env:
+          CGO_ENABLED: 0
+        run: go test -v ./lxc/...
+
+      - name: Unit tests (shared)
+        env:
+          CGO_ENABLED: 0
+        run: go test -v ./shared/...
+
+      - name: Upload lxc client artifacts
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: ${{ runner.os }}
+          path: bin/
+
+  documentation:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Go (1.18)
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.18.x
+
+      - name: Build docs (Sphinx)
+        shell: 'script -q -e -c "export TERM=xterm-256color; bash {0}"'
+        run: |
+          set -eux
+          make doc
+          if [ -s doc/.sphinx/warnings.txt ]; then cat doc/.sphinx/warnings.txt; exit 1; fi
+
+      - name: Upload documentation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation
+          path: doc/html
+
+  snap:
+    name: Trigger snap edge build
+    runs-on: ubuntu-22.04
+    needs: [code-tests, system-tests, client, documentation]
+    if: ${{ github.repository == 'canonical/lxd' && github.event_name == 'push' && github.actor != 'dependabot[bot]' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Launchpad SSH access
+        env:
+          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+          LAUNCHPAD_LXD_BOT_KEY: ${{ secrets.LAUNCHPAD_LXD_BOT_KEY }}
+        run: |
+          set -eux
+          mkdir -m 0700 -p ~/.ssh/
+          ssh-agent -a "${SSH_AUTH_SOCK}" > /dev/null
+          ssh-add - <<< "${{ secrets.LAUNCHPAD_LXD_BOT_KEY }}"
+          ssh-add -L > ~/.ssh/id_ed25519.pub
+          # In ephemeral environments like GitHub Action runners, relying on TOFU isn't providing any security
+          # so require the key obtained by `ssh-keyscan` to match the expected hash from https://help.launchpad.net/SSHFingerprints
+          ssh-keyscan git.launchpad.net >> ~/.ssh/known_hosts
+          ssh-keygen -qlF git.launchpad.net | grep -xF 'git.launchpad.net RSA SHA256:UNOzlP66WpDuEo34Wgs8mewypV0UzqHLsIFoqwe8dYo'
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22.x
+
+      - name: Trigger Launchpad snap build
+        env:
+          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+          TARGET: >-
+            ${{ fromJson('{
+              "main": "latest-edge",
+              "stable-4.0": "4.0-edge",
+            }')[github.ref_name] }}
+        run: |
+          set -eux
+          git config --global transfer.fsckobjects true
+          git config --global user.name "Canonical LXD Bot"
+          git config --global user.email "lxd@lists.canonical.com"
+          git config --global commit.gpgsign true
+          git config --global gpg.format "ssh"
+          git config --global user.signingkey ~/.ssh/id_ed25519.pub
+          localRev="$(git rev-parse HEAD)"
+          go install github.com/canonical/lxd-ci/lxd-snapcraft@latest
+          git clone -b "${TARGET}" git+ssh://lxdbot@git.launchpad.net/~canonical-lxd/lxd ~/lxd-pkg-snap-lp
+          cd ~/lxd-pkg-snap-lp
+          lxd-snapcraft -package lxd -set-version "git-${localRev:0:7}" -set-source-commit "${localRev}"
+          git add --all
+          git commit --all --quiet -s --allow-empty -m "Automatic upstream build (${TARGET})" -m "Upstream commit: ${localRev}"
+          git show
+          git push --quiet

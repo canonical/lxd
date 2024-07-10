@@ -8,7 +8,6 @@ setup_clustering_bridge() {
   ip link add "${name}" up type bridge
   ip addr add 10.1.1.1/16 dev "${name}"
 
-  # shellcheck disable=SC2039
   iptables -w -t nat -A POSTROUTING -s 10.1.0.0/16 -d 0.0.0.0/0 -j MASQUERADE
   echo 1 > /proc/sys/net/ipv4/ip_forward
 }
@@ -33,8 +32,7 @@ setup_clustering_netns() {
 
   echo "==> Setup clustering netns ${ns}"
 
-  (
-    cat << EOF
+  cat << EOF | unshare -m -n /bin/sh
 set -e
 mkdir -p "${TEST_DIR}/ns/${ns}"
 touch "${TEST_DIR}/ns/${ns}/net"
@@ -54,12 +52,10 @@ touch /run/netns/hostns
 mount --bind /proc/1/ns/net /run/netns/hostns
 
 mount -t tmpfs tmpfs /usr/local/bin
-(
-cat << EOE
+cat << EOE > /usr/local/bin/in-hostnetns
 #!/bin/sh
 exec ip netns exec hostns /usr/bin/\\\$(basename \\\$0) "\\\$@"
 EOE
-) > /usr/local/bin/in-hostnetns
 chmod +x /usr/local/bin/in-hostnetns
 # Setup ceph
 ln -s in-hostnetns /usr/local/bin/ceph
@@ -68,7 +64,6 @@ ln -s in-hostnetns /usr/local/bin/rbd
 sleep 300&
 echo \$! > "${TEST_DIR}/ns/${ns}/PID"
 EOF
-  ) | unshare -m -n /bin/sh
 
   veth1="v${ns}1"
   veth2="v${ns}2"
@@ -79,8 +74,7 @@ EOF
 
   nsbridge="br$$"
   ip link set dev "${veth1}" master "${nsbridge}" up
-  (
-    cat <<EOF
+  cat << EOF | nsenter -n -m -t "${nspid}" /bin/sh
 set -e
 
 ip link set dev lo up
@@ -89,7 +83,6 @@ ip link set eth0 up
 ip addr add "10.1.1.10${id}/16" dev eth0
 ip route add default via 10.1.1.1
 EOF
-  ) | nsenter -n -m -t "${nspid}" /bin/sh
 }
 
 teardown_clustering_netns() {
@@ -116,7 +109,7 @@ teardown_clustering_netns() {
 }
 
 spawn_lxd_and_bootstrap_cluster() {
-  # shellcheck disable=2039
+  # shellcheck disable=SC2039,SC3043
   local LXD_NETNS
 
   set -e
@@ -157,27 +150,27 @@ EOF
     if [ "${driver}" = "btrfs" ]; then
       cat >> "${LXD_DIR}/preseed.yaml" <<EOF
   config:
-    size: 100GB
+    size: 1GiB
 EOF
     fi
     if [ "${driver}" = "zfs" ]; then
       cat >> "${LXD_DIR}/preseed.yaml" <<EOF
   config:
-    size: 100GB
+    size: 1GiB
     zfs.pool_name: lxdtest-$(basename "${TEST_DIR}")-${ns}
 EOF
     fi
     if [ "${driver}" = "lvm" ]; then
       cat >> "${LXD_DIR}/preseed.yaml" <<EOF
   config:
-    volume.size: 25MB
+    volume.size: 25MiB
 EOF
     fi
     if [ "${driver}" = "ceph" ]; then
       cat >> "${LXD_DIR}/preseed.yaml" <<EOF
   config:
     source: lxdtest-$(basename "${TEST_DIR}")
-    volume.size: 25GB
+    volume.size: 25MiB
     ceph.osd.pg_num: 16
 EOF
     fi
@@ -204,7 +197,7 @@ EOF
 }
 
 spawn_lxd_and_join_cluster() {
-  # shellcheck disable=2039,2034
+  # shellcheck disable=SC2039,SC3043
   local LXD_NETNS
 
   set -e
@@ -265,12 +258,13 @@ EOF
 EOF
       fi
     fi
+
     lxd init --preseed < "${LXD_DIR}/preseed.yaml"
   )
 }
 
 respawn_lxd_cluster_member() {
-  # shellcheck disable=2039,2034
+  # shellcheck disable=SC2039,SC2034,SC3043
   local LXD_NETNS
 
   set -e

@@ -6,13 +6,13 @@ import (
 
 	"github.com/pkg/errors"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/locking"
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/refcount"
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/units"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/locking"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/refcount"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/units"
 )
 
 // tmpVolSuffix Suffix to use for any temporary volumes created by LXD.

@@ -18,17 +18,17 @@ import (
 	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/lxd/backup"
-	"github.com/lxc/lxd/lxd/instance/operationlock"
-	"github.com/lxc/lxd/lxd/migration"
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/lxd/storage/filesystem"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/instancewriter"
-	"github.com/lxc/lxd/shared/ioprogress"
-	"github.com/lxc/lxd/shared/units"
-	"github.com/lxc/lxd/shared/validate"
+	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/instance/operationlock"
+	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/revert"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/instancewriter"
+	"github.com/canonical/lxd/shared/ioprogress"
+	"github.com/canonical/lxd/shared/units"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied

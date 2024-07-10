@@ -1,6 +1,6 @@
 # Requirements
 ## Go
-LXD requires Go 1.13 or higher and is only tested with the golang compiler.
+LXD requires Go 1.16 or higher and is only tested with the golang compiler.
 
 We recommend having at least 2GB of RAM to allow the build to complete.
 

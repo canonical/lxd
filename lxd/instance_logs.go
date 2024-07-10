@@ -9,13 +9,13 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/lifecycle"
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/request"
-	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/lifecycle"
+	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/version"
 )
 
 var instanceLogCmd = APIEndpoint{

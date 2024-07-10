@@ -11,13 +11,13 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/task"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/task"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
 type instanceType struct {
@@ -111,7 +111,7 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 func instanceRefreshTypes(ctx context.Context, d *Daemon) error {
 	// Attempt to download the new definitions
 	downloadParse := func(filename string, target interface{}) error {
-		url := fmt.Sprintf("https://images.linuxcontainers.org/meta/instance-types/%s", filename)
+		url := fmt.Sprintf("https://images.lxd.canonical.com/meta/instance-types/%s", filename)
 
 		httpClient, err := util.HTTPClient("", d.proxy)
 		if err != nil {

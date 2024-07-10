@@ -11,8 +11,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared"
 )
 
 // CreateStorageVolumeSnapshot creates a new storage volume snapshot attached to a given

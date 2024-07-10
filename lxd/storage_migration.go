@@ -3,11 +3,11 @@ package main
 import (
 	"time"
 
-	"github.com/lxc/lxd/lxd/db"
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/migration"
-	"github.com/lxc/lxd/shared"
+	"github.com/canonical/lxd/lxd/db"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/shared"
 )
 
 func snapshotProtobufToInstanceArgs(inst instance.Instance, snap *migration.Snapshot) db.InstanceArgs {

@@ -1,5 +1,5 @@
 test_storage_profiles() {
-  # shellcheck disable=2039
+  # shellcheck disable=SC2039,SC3043
 
   LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
   chmod +x "${LXD_STORAGE_DIR}"

@@ -10,8 +10,8 @@ import (
 	dqlite "github.com/canonical/go-dqlite"
 	client "github.com/canonical/go-dqlite/client"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/node"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/node"
 	"github.com/pkg/errors"
 )
 

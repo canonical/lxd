@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/canonical/go-dqlite/client"
-	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/pkg/errors"
 )
 

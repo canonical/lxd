@@ -1,6 +1,6 @@
 // Package migration provides the primitives for migration in LXD.
 //
-// See https://github.com/lxc/lxd/blob/master/specs/migration.md for a complete
+// See https://github.com/canonical/lxd/blob/main/doc/migration.md for a complete
 // description.
 
 package main
@@ -19,14 +19,14 @@ import (
 	"google.golang.org/protobuf/proto"
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/migration"
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/idmap"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/idmap"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 type migrationFields struct {

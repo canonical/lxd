@@ -15,8 +15,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
 
-	"github.com/lxc/lxd/shared/osarch"
-	"github.com/lxc/lxd/shared/units"
+	"github.com/canonical/lxd/shared/osarch"
+	"github.com/canonical/lxd/shared/units"
 )
 
 // stringInSlice checks whether the supplied string is present in the supplied slice.

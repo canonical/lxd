@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lxc/lxd/lxd/task"
+	"github.com/canonical/lxd/lxd/task"
 	"github.com/stretchr/testify/assert"
 )
 

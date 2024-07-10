@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/canonical/lxd/lxd/cluster/raft"
+	"github.com/canonical/lxd/shared"
 	"github.com/hashicorp/go-msgpack/codec"
-	"github.com/lxc/lxd/lxd/cluster/raft"
-	"github.com/lxc/lxd/shared"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 )

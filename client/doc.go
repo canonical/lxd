@@ -114,7 +114,7 @@
 //  }
 //
 //  // Connect to the remote SimpleStreams server
-//  d, err = lxd.ConnectSimpleStreams("https://images.linuxcontainers.org", nil)
+//  d, err = lxd.ConnectSimpleStreams("https://images.lxd.canonical.com", nil)
 //  if err != nil {
 //    return err
 //  }

@@ -6,7 +6,7 @@ start_external_auth_daemon() {
         cd macaroon-identity || return
         go build ./...
     )
-    # shellcheck disable=SC2039
+    # shellcheck disable=SC2039,SC3043
     local credentials_file tcp_port
     credentials_file="$1/macaroon-identity-credentials.csv"
     tcp_port="$(local_tcp_port)"
@@ -22,7 +22,7 @@ EOF
 }
 
 kill_external_auth_daemon() {
-    # shellcheck disable=SC2039
+    # shellcheck disable=SC2039,SC3043
     local pidfile="$1/macaroon-identity.pid"
     kill "$(cat "$pidfile")" || true
     rm -f macaroon-identity/macaroon-identity
