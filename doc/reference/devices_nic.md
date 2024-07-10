@@ -74,8 +74,8 @@ A `bridged` NIC uses an existing bridge on the host and creates a virtual device
 
 NIC devices of type `bridged` have the following device options:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group device-nic-bridged-device-conf start -->
     :end-before: <!-- config group device-nic-bridged-device-conf end -->
 ```
@@ -111,8 +111,8 @@ Both the host and the instances can talk to the gateway, but they cannot communi
 
 NIC devices of type `macvlan` have the following device options:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group device-nic-macvlan-device-conf start -->
     :end-before: <!-- config group device-nic-macvlan-device-conf end -->
 ```
@@ -162,8 +162,8 @@ VF allocation
 
 NIC devices of type `sriov` have the following device options:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group device-nic-sriov-device-conf start -->
     :end-before: <!-- config group device-nic-sriov-device-conf end -->
 ```
@@ -196,8 +196,8 @@ The targeted device will vanish from the host and appear in the instance (which 
 
 NIC devices of type `physical` have the following device options:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group device-nic-physical-device-conf start -->
     :end-before: <!-- config group device-nic-physical-device-conf end -->
 ```
@@ -263,8 +263,8 @@ VDPA hardware acceleration
 
 NIC devices of type `ovn` have the following device options:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group device-nic-ovn-device-conf start -->
     :end-before: <!-- config group device-nic-ovn-device-conf end -->
 ```
@@ -317,8 +317,8 @@ DNS
 
 NIC devices of type `ipvlan` have the following device options:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group device-nic-ipvlan-device-conf start -->
     :end-before: <!-- config group device-nic-ipvlan-device-conf end -->
 ```
@@ -347,8 +347,8 @@ A `p2p` NIC creates a virtual device pair, putting one side in the instance and 
 
 NIC devices of type `p2p` have the following device options:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group device-nic-p2p-device-conf start -->
     :end-before: <!-- config group device-nic-p2p-device-conf end -->
 ```
@@ -428,8 +428,8 @@ Parent interface
 
 NIC devices of type `routed` have the following device options:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group device-nic-routed-device-conf start -->
     :end-before: <!-- config group device-nic-routed-device-conf end -->
 ```

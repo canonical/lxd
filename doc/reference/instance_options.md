@@ -26,8 +26,8 @@ Note that while a type is defined for each option, all values are stored as stri
 
 In addition to the configuration options listed in the following sections, these instance options are supported:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group instance-miscellaneous start -->
     :end-before: <!-- config group instance-miscellaneous end -->
 ```
@@ -46,8 +46,8 @@ These are then set for [`lxc exec`](lxc_exec.md).
 
 The following instance options control the boot-related behavior of the instance:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group instance-boot start -->
     :end-before: <!-- config group instance-boot end -->
 ```
@@ -57,8 +57,8 @@ The following instance options control the boot-related behavior of the instance
 
 The following instance options control the [`cloud-init`](cloud-init) configuration of the instance:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group instance-cloud-init start -->
     :end-before: <!-- config group instance-cloud-init end -->
 ```
@@ -73,8 +73,8 @@ Therefore, make sure that the `cloud-init` configuration you specify in those op
 
 The following instance options specify resource limits for the instance:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group instance-resource-limits start -->
     :end-before: <!-- config group instance-resource-limits end -->
 ```
@@ -217,8 +217,8 @@ Note that this inheritance is not enforced by LXD but by the kernel.
 
 The following instance options control the behavior if the instance is {ref}`moved from one LXD server to another <move-instances>`:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group instance-migration start -->
     :end-before: <!-- config group instance-migration end -->
 ```
@@ -228,8 +228,8 @@ The following instance options control the behavior if the instance is {ref}`mov
 
 The following instance options specify the NVIDIA and CUDA configuration of the instance:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group instance-nvidia start -->
     :end-before: <!-- config group instance-nvidia end -->
 ```
@@ -239,8 +239,8 @@ The following instance options specify the NVIDIA and CUDA configuration of the 
 
 The following instance options allow direct interaction with the backend features that LXD itself uses:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group instance-raw start -->
     :end-before: <!-- config group instance-raw end -->
 ```
@@ -342,8 +342,8 @@ value = "0"
 
 The following instance options control the {ref}`security` policies of the instance:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group instance-security start -->
     :end-before: <!-- config group instance-security end -->
 ```
@@ -353,8 +353,8 @@ The following instance options control the {ref}`security` policies of the insta
 
 The following instance options control the creation and expiry of {ref}`instance snapshots <instances-snapshots>`:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group instance-snapshots start -->
     :end-before: <!-- config group instance-snapshots end -->
 ```
@@ -369,8 +369,8 @@ The following instance options control the creation and expiry of {ref}`instance
 
 The following volatile keys are currently used internally by LXD to store internal data specific to an instance:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group instance-volatile start -->
     :end-before: <!-- config group instance-volatile end -->
 ```

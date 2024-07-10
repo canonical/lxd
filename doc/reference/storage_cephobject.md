@@ -65,16 +65,16 @@ The following configuration options are available for storage pools that use the
 (storage-cephobject-pool-config)=
 ### Storage pool configuration
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group storage-cephobject-pool-conf start -->
     :end-before: <!-- config group storage-cephobject-pool-conf end -->
 ```
 
 ### Storage bucket configuration
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group storage-cephobject-bucket-conf start -->
     :end-before: <!-- config group storage-cephobject-bucket-conf end -->
 ```
