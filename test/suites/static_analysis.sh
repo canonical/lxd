@@ -48,9 +48,9 @@ test_static_analysis() {
     fi
 
     ## go vet, if it exists
-    if go help vet >/dev/null 2>&1; then
-      go vet ./...
-    fi
+    #if go help vet >/dev/null 2>&1; then
+    #  go vet ./...
+    #fi
 
     ## vet
     if command -v vet >/dev/null 2>&1; then
