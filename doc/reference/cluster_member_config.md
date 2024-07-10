@@ -8,8 +8,8 @@ Each cluster member has its own key/value configuration with the following suppo
 
 The following keys are currently supported:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group cluster-cluster start -->
     :end-before: <!-- config group cluster-cluster end -->
 ```
