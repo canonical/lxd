@@ -400,6 +400,10 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	if req.Password != "" {
+		return response.NotImplemented(fmt.Errorf("Password authentication is no longer supported, please update your client"))
+	}
+
 	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
 
 	// Quick check.
