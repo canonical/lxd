@@ -254,13 +254,9 @@ parts:
       - lib/*/librtmp.so*
       - lib/*/libsasl2.so*
       - lib/*/libsnappy.so*
-      - lib/*/libncurses.so*
-      - lib/*/liblber.so*
-      - lib/*/libldap.so*
       - lib/*/libssh.so*
-      - lib/*/liblmdb.so*
-      - lib/*/libunwind.so*
       - lib/*/libtcmalloc.so*
+      - lib/*/libunwind.so*
 
   criu:
     source: https://github.com/checkpoint-restore/criu
