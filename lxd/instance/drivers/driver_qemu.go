@@ -7441,6 +7441,47 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	}
 }
 
+// ConversionReceive establishes the filesystem connection, transfers the filesystem / block volume,
+// and creates an instance from it.
+func (d *qemu) ConversionReceive(args instance.ConversionReceiveArgs) error {
+	d.logger.Info("Conversion receive starting")
+	defer d.logger.Info("Conversion receive stopped")
+
+	// Wait for filesystem connection.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	filesystemConn, err := args.FilesystemConn(ctx)
+	if err != nil {
+		return err
+	}
+
+	pool, err := storagePools.LoadByInstance(d.state, d)
+	if err != nil {
+		return err
+	}
+
+	// Ensure that configured root disk device is valid.
+	_, err = d.getParentStoragePool()
+	if err != nil {
+		return err
+	}
+
+	volTargetArgs := migration.VolumeTargetArgs{
+		Name:              d.Name(),
+		TrackProgress:     true,                   // Use a progress tracker on receiver to get progress information.
+		VolumeSize:        args.SourceDiskSize,    // Block volume size override.
+		ConversionOptions: args.ConversionOptions, // Non-nil options indicate image conversion.
+	}
+
+	err = pool.CreateInstanceFromConversion(d, filesystemConn, volTargetArgs, d.op)
+	if err != nil {
+		return fmt.Errorf("Failed creating instance on target: %w", err)
+	}
+
+	return nil
+}
+
 // CGroup is not implemented for VMs.
 func (d *qemu) CGroup() (*cgroup.CGroup, error) {
 	return nil, instance.ErrNotImplemented
