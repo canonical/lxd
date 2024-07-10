@@ -118,7 +118,7 @@ endif
 .PHONY: update-metadata
 update-metadata: build
 	@echo "Generating golang documentation metadata"
-	$(GOPATH)/bin/lxd-metadata . --json ./lxd/metadata/configuration.json --txt ./doc/config_options.txt --substitution-db ./doc/substitutions.yaml
+	$(GOPATH)/bin/lxd-metadata . --json ./lxd/metadata/configuration.json --txt ./doc/metadata.txt --substitution-db ./doc/substitutions.yaml
 
 .PHONY: doc
 doc: doc-clean doc-install doc-html doc-objects
