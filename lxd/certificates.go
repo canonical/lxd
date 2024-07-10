@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rsa"
 	"crypto/x509"
@@ -253,8 +254,9 @@ func clusterMemberJoinTokenValid(s *state.State, r *http.Request, projectName st
 }
 
 // certificateTokenValid searches for certificate token that matches the add token provided.
-// Returns matching operation if found and cancels the operation, otherwise returns nil.
-func certificateTokenValid(s *state.State, r *http.Request, addToken *api.CertificateAddToken) (*api.Operation, error) {
+// If an operation is found it is cancelled and the request metadata is returned. If no operation is found then a nil value
+// is returned. An error is only returned if an internal error occurs, or if a token is found but is not valid.
+func certificateTokenValid(s *state.State, r *http.Request, addToken *api.CertificateAddToken) (*api.CertificatesPost, error) {
 	ops, err := operationsGetByType(s, r, api.ProjectDefaultName, operationtype.CertificateAddToken)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting certificate token operations: %w", err)
@@ -294,7 +296,32 @@ func certificateTokenValid(s *state.State, r *http.Request, addToken *api.Certif
 			}
 		}
 
-		return foundOp, nil
+		// Certificate add tokens must have a request field in the metadata.
+		tokenReqAny, ok := foundOp.Metadata["request"]
+		if !ok {
+			return nil, fmt.Errorf(`Missing "request" key in certificate add operation data`)
+		}
+
+		tokenReq, ok := tokenReqAny.(api.CertificatesPost)
+		if !ok {
+			// If the operation is running on another member, the returned metadata will have been unmarshalled
+			// into a map[string]any. Rather than wrangling type assertions, just marshal and unmarshal the data into
+			// the correct type.
+			buf := bytes.NewBuffer(nil)
+			err := json.NewEncoder(buf).Encode(tokenReqAny)
+			if err != nil {
+				return nil, fmt.Errorf("Bad certificate add operation data: %w", err)
+			}
+
+			err = json.NewDecoder(buf).Decode(&tokenReq)
+			if err != nil {
+				return nil, fmt.Errorf("Bad certificate add operation data: %w", err)
+			}
+
+			foundOp.Metadata["request"] = tokenReq
+		}
+
+		return &tokenReq, nil
 	}
 
 	// No operation found.
@@ -463,18 +490,13 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			joinToken, err := shared.CertificateTokenDecode(joinTokenEncoded)
 			if err == nil {
 				// If so then check there is a matching join operation.
-				joinOp, err := certificateTokenValid(s, r, joinToken)
+				tokenReq, err := certificateTokenValid(s, r, joinToken)
 				if err != nil {
 					return response.InternalError(fmt.Errorf("Failed during search for certificate add token operation: %w", err))
 				}
 
-				if joinOp == nil {
+				if tokenReq == nil {
 					return response.Forbidden(fmt.Errorf("No matching certificate add operation found"))
-				}
-
-				tokenReq, ok := joinOp.Metadata["request"].(api.CertificatesPost)
-				if !ok {
-					return response.InternalError(fmt.Errorf("Bad certificate add operation data"))
 				}
 
 				// Create a new request from the token data as the user isn't allowed to override anything.
