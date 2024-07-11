@@ -83,7 +83,7 @@ test_pki() {
     lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password foo
 
     # Should have trust store entry because `core.trust_ca_certificates` is disabled.
-    lxc_remote config trust ls pki-lxd: | grep lxd-client
+    lxc_remote config trust ls pki-lxd: | grep -wF lxd-client
 
     # Should be able to view server config
     lxc_remote info pki-lxd: | grep -F 'core.https_address'
@@ -123,7 +123,7 @@ test_pki() {
     lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate
 
     # Client cert should not be present in trust store.
-    ! lxc_remote config trust ls pki-lxd: | grep ca-trusted || false
+    ! lxc_remote config trust ls pki-lxd: | grep -wF ca-trusted || false
 
     # Remove remote
     lxc_remote remote remove pki-lxd
@@ -133,7 +133,7 @@ test_pki() {
     lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password=bar
 
     # Client cert should not be present in trust store.
-    ! lxc_remote config trust ls pki-lxd: | grep ca-trusted || false
+    ! lxc_remote config trust ls pki-lxd: | grep -wF ca-trusted || false
 
     # The certificate is trusted as root because `core.trust_ca_certificates` is enabled.
     lxc_remote info pki-lxd: | grep -F 'core.https_address'
@@ -176,7 +176,7 @@ test_pki() {
     # Try adding a remote using a revoked client certificate, and the correct password.
     # This should fail, and the revoked certificate should not be added to the trust store.
     ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password foo || false
-    ! lxc config trust ls | grep prior-revoked || false
+    ! lxc config trust ls | grep -wF prior-revoked || false
 
     # Try adding a remote using a revoked client certificate, and an incorrect password.
     # This should fail, as if the certificate is revoked and password is wrong then no access should be allowed.
@@ -188,7 +188,7 @@ test_pki() {
     # Try adding a remote using a revoked client certificate, and the correct password.
     # This should fail, and the revoked certificate should not be added to the trust store.
     ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password foo || false
-    ! lxc config trust ls | grep prior-revoked || false
+    ! lxc config trust ls | grep -wF prior-revoked || false
 
     # Try adding a remote using a revoked client certificate, and an incorrect password.
     # This should fail, as if the certificate is revoked and password is wrong then no access should be allowed.
