@@ -516,6 +516,9 @@ _backup_import_with_project() {
 
   lxc storage delete pool_2
 
+  # Cleanup exported tarballs
+  rm -f "${LXD_DIR}"/c*.tar.gz
+
   if [ "$#" -ne 0 ]; then
     lxc image rm testimage
     lxc image rm testimage --project "$project-b"
@@ -604,6 +607,9 @@ _backup_export_with_project() {
   lxc export c1-foo "${LXD_DIR}/c1-foo.tar.gz"
 
   lxc delete --force c1-foo
+
+  # Cleanup exported tarballs
+  rm -f "${LXD_DIR}"/c*.tar.gz
 
   if [ "$#" -ne 0 ]; then
     lxc image rm testimage
@@ -950,6 +956,9 @@ test_backup_different_instance_uuid() {
   fi
 
   lxc delete -f c1
+
+  # Cleanup exported tarballs
+  rm -f "${LXD_DIR}"/c*.tar.gz
 }
 
 test_backup_volume_expiry() {
