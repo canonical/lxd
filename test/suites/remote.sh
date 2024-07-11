@@ -81,7 +81,7 @@ test_remote_url_with_token() {
   token="$(lxc config trust list-tokens -f json | jq '.[].Token')"
 
   # create new certificate
-  gen_cert_and_key "${LXD_CONF}/token-client.key" "${LXD_CONF}/token-client.crt" "lxd.local"
+  gen_cert_and_key "token-client"
 
   # Try accessing instances (this should fail)
   [ "$(CERTNAME="token-client" my_curl "https://${LXD_ADDR}/1.0/instances" | jq '.error_code')" -eq 403 ]
