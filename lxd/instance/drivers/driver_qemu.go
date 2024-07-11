@@ -2033,29 +2033,34 @@ func (d *qemu) setupNvram() error {
 }
 
 func (d *qemu) qemuArchConfig(arch int) (path string, bus string, err error) {
+	basePath := ""
+	if shared.InSnap() && os.Getenv("SNAP_QEMU_PREFIX") != "" {
+		basePath = filepath.Join(os.Getenv("SNAP"), os.Getenv("SNAP_QEMU_PREFIX")) + "/bin/"
+	}
+
 	if arch == osarch.ARCH_64BIT_INTEL_X86 {
-		path, err := exec.LookPath("qemu-system-x86_64")
+		path, err := exec.LookPath(basePath + "qemu-system-x86_64")
 		if err != nil {
 			return "", "", err
 		}
 
 		return path, "pcie", nil
 	} else if arch == osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN {
-		path, err := exec.LookPath("qemu-system-aarch64")
+		path, err := exec.LookPath(basePath + "qemu-system-aarch64")
 		if err != nil {
 			return "", "", err
 		}
 
 		return path, "pcie", nil
 	} else if arch == osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN {
-		path, err := exec.LookPath("qemu-system-ppc64")
+		path, err := exec.LookPath(basePath + "qemu-system-ppc64")
 		if err != nil {
 			return "", "", err
 		}
 
 		return path, "pci", nil
 	} else if arch == osarch.ARCH_64BIT_S390_BIG_ENDIAN {
-		path, err := exec.LookPath("qemu-system-s390x")
+		path, err := exec.LookPath(basePath + "qemu-system-s390x")
 		if err != nil {
 			return "", "", err
 		}
@@ -8528,6 +8533,10 @@ func (d *qemu) Info() instance.Info {
 		data.Version = qemuVersion
 	} else {
 		data.Version = "unknown" // Not necessarily an error that should prevent us using driver.
+	}
+
+	if shared.InSnap() && os.Getenv("SNAP_QEMU_PREFIX") != "" {
+		data.Version = data.Version + " (external)"
 	}
 
 	data.Features, err = d.checkFeatures(hostArch, qemuPath)
