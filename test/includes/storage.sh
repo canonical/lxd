@@ -24,7 +24,7 @@ random_storage_backend() {
 
 # Return the storage backend being used by a LXD instance
 storage_backend() {
-    cat "$1/lxd.backend"
+    read -r backend < "$1/lxd.backend" && echo "${backend}"
 }
 
 # Return a list of available storage backends
