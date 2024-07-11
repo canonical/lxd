@@ -83,6 +83,13 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
   # Snap-specific libraries
   /snap/lxd/*/lib/**.so*            mr,
+
+{{- if .snapExtQemuPrefix }}
+  /snap/lxd/*/{{ .snapExtQemuPrefix }}/lib/**.so*        mr,
+  /snap/lxd/*/{{ .snapExtQemuPrefix }}/bin/qemu-system-* mrix,
+  /snap/lxd/*/{{ .snapExtQemuPrefix }}/share/**          r,
+{{- end }}
+
 {{- end }}
 
 {{if .libraryPath -}}
