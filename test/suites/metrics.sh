@@ -37,7 +37,7 @@ test_metrics() {
   lxc query "/1.0/metrics?project=foo" | grep "name=\"c3\""
 
   # create new certificate
-  gen_cert_and_key "${LXD_CONF}/metrics.key" "${LXD_CONF}/metrics.crt" "metrics.local"
+  gen_cert_and_key "metrics"
 
   # this should fail as the certificate is not trusted yet
   CERTNAME=metrics my_curl -X GET "https://${LXD_ADDR}/1.0/metrics" | grep "\"error_code\":403"
@@ -89,7 +89,7 @@ test_metrics() {
   CERTNAME=metrics my_curl -X GET "https://${metrics_addr}/1.0/instances" | grep "\"error_code\":404"
 
   # create new certificate
-  gen_cert_and_key "${LXD_CONF}/metrics-restricted.key" "${LXD_CONF}/metrics-restricted.crt" "metrics-restricted.local"
+  gen_cert_and_key "metrics-restricted"
 
   # trust newly created certificate for metrics only and mark it as restricted for the foo project
   lxc config trust add "${LXD_CONF}/metrics-restricted.crt" --type=metrics --restricted --projects foo
