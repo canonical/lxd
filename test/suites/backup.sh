@@ -101,7 +101,7 @@ EOF
     lxc start c1
     lxc exec c1 --project test -- mount | grep /mnt
     echo "hello world" | lxc exec c1 --project test -- tee /mnt/test.txt
-    lxc exec c1 --project test -- grep -xF "hello world" /mnt/test.txt
+    [ "$(lxc exec c1 --project test -- cat /mnt/test.txt)" = "hello world" ]
     lxc stop -f c1
     lxc snapshot c1
     lxc info c1
@@ -187,7 +187,7 @@ EOF
 
     # Check custom volume accessible.
     lxc exec c1 --project test -- mount | grep /mnt
-    lxc exec c1 --project test -- grep -xF "hello world" /mnt/test.txt
+    [ "$(lxc exec c1 --project test -- cat /mnt/test.txt)" = "hello world" ]
 
     # Check snashot can be restored.
     lxc restore c1 snap0
@@ -475,9 +475,9 @@ _backup_import_with_project() {
 
   lxc import "${LXD_DIR}/c1-foo.tar.gz"
   lxc storage volume ls "${default_pool}"
-  lxc storage volume get "${default_pool}" container/c1-foo user.foo | grep -Fx "post-c1-foo-snap1"
-  lxc storage volume get "${default_pool}" container/c1-foo/c1-foo-snap0 user.foo | grep -Fx "c1-foo-snap0"
-  lxc storage volume get "${default_pool}" container/c1-foo/c1-foo-snap1 user.foo | grep -Fx "c1-foo-snap1"
+  [ "$(lxc storage volume get "${default_pool}" container/c1-foo user.foo)" = "post-c1-foo-snap1" ]
+  [ "$(lxc storage volume get "${default_pool}" container/c1-foo/c1-foo-snap0 user.foo)" = "c1-foo-snap0" ]
+  [ "$(lxc storage volume get "${default_pool}" container/c1-foo/c1-foo-snap1 user.foo)" = "c1-foo-snap1" ]
   lxc delete --force c1-foo
 
   # Create new storage pools
@@ -792,10 +792,10 @@ _backup_volume_export_with_project() {
   lxc storage volume delete "${custom_vol_pool}" testvol
   lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol.tar.gz"
   lxc storage volume ls "${custom_vol_pool}"
-  lxc storage volume get "${custom_vol_pool}" testvol user.foo | grep -Fx "post-test-snap1"
+  [ "$(lxc storage volume get "${custom_vol_pool}" testvol user.foo)" = "post-test-snap1" ]
   lxc storage volume show "${custom_vol_pool}" testvol/test-snap0
-  lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 user.foo | grep -Fx "test-snap0"
-  lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 user.foo | grep -Fx "test-snap1"
+  [ "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 user.foo)" = "test-snap0" ]
+  [ "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 user.foo)" = "test-snap1" ]
 
   # Check if the imported volume and its snapshots have a new UUID.
   [ -n "$(lxc storage volume get "${custom_vol_pool}" testvol volatile.uuid)" ]
@@ -829,9 +829,9 @@ _backup_volume_export_with_project() {
     lxc storage volume delete "${custom_vol_pool}" testvol2
     lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol-optimized.tar.gz"
     lxc storage volume ls "${custom_vol_pool}"
-    lxc storage volume get "${custom_vol_pool}" testvol user.foo | grep -Fx "post-test-snap1"
-    lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 user.foo | grep -Fx "test-snap0"
-    lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 user.foo | grep -Fx "test-snap1"
+    [ "$(lxc storage volume get "${custom_vol_pool}" testvol user.foo)" = "post-test-snap1" ]
+    [ "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 user.foo)" = "test-snap0" ]
+    [ "$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 user.foo)" = "test-snap1" ]
 
     lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol-optimized.tar.gz" testvol2
     lxc storage volume attach "${custom_vol_pool}" testvol c1 /mnt
