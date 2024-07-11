@@ -154,7 +154,7 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 	}
 
 	// Render the profile.
-	var sb *strings.Builder = &strings.Builder{}
+	sb := &strings.Builder{}
 	if inst.Type() == instancetype.Container {
 		err = lxcProfileTpl.Execute(sb, map[string]any{
 			"feature_cgns":     sysOS.CGInfo.Namespacing,
