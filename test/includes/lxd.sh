@@ -37,7 +37,7 @@ spawn_lxd() {
         LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     else
         # shellcheck disable=SC2153
-        pid="$(cat "${TEST_DIR}/ns/${LXD_NETNS}/PID")"
+        read -r pid < "${TEST_DIR}/ns/${LXD_NETNS}/PID"
         LXD_DIR="${lxddir}" nsenter -n -m -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     fi
     LXD_PID=$!
@@ -94,7 +94,7 @@ respawn_lxd() {
     if [ "${LXD_NETNS}" = "" ]; then
         LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     else
-        pid="$(cat "${TEST_DIR}/ns/${LXD_NETNS}/PID")"
+        read -r pid < "${TEST_DIR}/ns/${LXD_NETNS}/PID"
         LXD_DIR="${lxddir}" nsenter -n -m -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     fi
     LXD_PID=$!
