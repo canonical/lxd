@@ -135,13 +135,13 @@ test_storage_buckets() {
   # Test setting bucket policy to allow anonymous access (also tests bucket URL generation).
   bucketURL=$(lxc storage bucket show "${poolName}" "${bucketPrefix}.foo" | awk '{if ($1 == "s3_url:") {print $2}}')
 
-  curl -sI --insecure -o /dev/null -w "%{http_code}" "${bucketURL}/${lxdTestFile}" | grep -Fx "403"
+  [ "$(curl -sI --insecure -o /dev/null -w "%{http_code}" "${bucketURL}/${lxdTestFile}")" = "403" ]
   ! s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" setpolicy deps/s3_global_read_policy.json "s3://${bucketPrefix}.foo" || false
   s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" setpolicy deps/s3_global_read_policy.json "s3://${bucketPrefix}.foo"
-  curl -sI --insecure -o /dev/null -w "%{http_code}" "${bucketURL}/${lxdTestFile}" | grep -Fx "200"
+  [ "$(curl -sI --insecure -o /dev/null -w "%{http_code}" "${bucketURL}/${lxdTestFile}")" = "200" ]
   ! s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" delpolicy "s3://${bucketPrefix}.foo" || false
   s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" delpolicy "s3://${bucketPrefix}.foo"
-  curl -sI --insecure o /dev/null -w "%{http_code}" "${bucketURL}/${lxdTestFile}" | grep -Fx "403"
+  [ "$(curl -sI --insecure -o /dev/null -w "%{http_code}" "${bucketURL}/${lxdTestFile}")" = "403" ]
 
   # Test deleting a file from a bucket.
   ! s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" del "s3://${bucketPrefix}.foo/${lxdTestFile}" || false
