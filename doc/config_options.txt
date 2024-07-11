@@ -4747,6 +4747,15 @@ prior to creating the storage pool.
 
 <!-- config group storage-btrfs-pool-conf end -->
 <!-- config group storage-btrfs-volume-conf start -->
+```{config:option} security.shared storage-btrfs-volume-conf
+:condition: "custom block volume"
+:defaultdesc: "same as `volume.security.shared` or `false`"
+:shortdesc: "Enable volume sharing"
+:type: "bool"
+Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
+
+```
+
 ```{config:option} security.shifted storage-btrfs-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.shifted` or `false`"
@@ -4902,6 +4911,15 @@ If not set, `ext4` is assumed.
 
 ```
 
+```{config:option} security.shared storage-ceph-volume-conf
+:condition: "custom block volume"
+:defaultdesc: "same as `volume.security.shared` or `false`"
+:shortdesc: "Enable volume sharing"
+:type: "bool"
+Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
+
+```
+
 ```{config:option} security.shifted storage-ceph-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.shifted` or `false`"
@@ -5042,6 +5060,15 @@ when creating a missing OSD pool.
 
 <!-- config group storage-cephfs-pool-conf end -->
 <!-- config group storage-cephfs-volume-conf start -->
+```{config:option} security.shared storage-cephfs-volume-conf
+:condition: "custom block volume"
+:defaultdesc: "same as `volume.security.shared` or `false`"
+:shortdesc: "Enable volume sharing"
+:type: "bool"
+Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
+
+```
+
 ```{config:option} security.shifted storage-cephfs-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.shifted` or `false`"
@@ -5181,6 +5208,15 @@ to be placed on the socket I/O.
 
 <!-- config group storage-dir-pool-conf end -->
 <!-- config group storage-dir-volume-conf start -->
+```{config:option} security.shared storage-dir-volume-conf
+:condition: "custom block volume"
+:defaultdesc: "same as `volume.security.shared` or `false`"
+:shortdesc: "Enable volume sharing"
+:type: "bool"
+Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
+
+```
+
 ```{config:option} security.shifted storage-dir-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.shifted` or `false`"
@@ -5367,6 +5403,15 @@ If not set, `ext4` is assumed.
 The size must be at least 4096 bytes, and a multiple of 512 bytes.
 ```
 
+```{config:option} security.shared storage-lvm-volume-conf
+:condition: "custom block volume"
+:defaultdesc: "same as `volume.security.shared` or `false`"
+:shortdesc: "Enable volume sharing"
+:type: "bool"
+Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
+
+```
+
 ```{config:option} security.shifted storage-lvm-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.shifted` or `false`"
@@ -5545,6 +5590,15 @@ If not set, `ext4` is assumed.
 
 ```
 
+```{config:option} security.shared storage-powerflex-volume-conf
+:condition: "custom block volume"
+:defaultdesc: "same as `volume.security.shared` or `false`"
+:shortdesc: "Enable volume sharing"
+:type: "bool"
+Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
+
+```
+
 ```{config:option} security.shifted storage-powerflex-volume-conf
 :condition: "custom volume"
 :defaultdesc: "same as `volume.security.shifted` or `false`"
@@ -5687,6 +5741,15 @@ If not set, `ext4` is assumed.
 :defaultdesc: "same as `volume.block.mount_options`"
 :shortdesc: "Mount options for block-backed file system volumes"
 :type: "string"
+
+```
+
+```{config:option} security.shared storage-zfs-volume-conf
+:condition: "custom block volume"
+:defaultdesc: "same as `volume.security.shared` or `false`"
+:shortdesc: "Enable volume sharing"
+:type: "bool"
+Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
 
 ```
 

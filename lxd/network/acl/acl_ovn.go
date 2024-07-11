@@ -936,7 +936,7 @@ func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvsw
 
 		return nil
 	}, aclNames...)
-	if err != nil && err != db.ErrInstanceListStop {
+	if err != nil && err != db.ErrListStop {
 		return fmt.Errorf("Failed getting ACL usage: %w", err)
 	}
 
