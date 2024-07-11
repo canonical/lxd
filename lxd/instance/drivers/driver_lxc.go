@@ -1921,7 +1921,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Load the go-lxc struct
 	cc, err := d.initLXC(true)
 	if err != nil {
-		return "", nil, fmt.Errorf("Load go-lxc struct: %w", err)
+		return "", nil, fmt.Errorf("Failed loading go-lxc: %w", err)
 	}
 
 	// Ensure cgroup v1 configuration is set appropriately with the image using systemd
@@ -7062,6 +7062,21 @@ func (d *lxc) ConsoleLog(opts liblxc.ConsoleLogOptions) (string, error) {
 
 // Exec executes a command inside the instance.
 func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, error) {
+	// Generate the LXC config if missing.
+	configPath := filepath.Join(d.LogPath(), "lxc.conf")
+	if !shared.PathExists(configPath) {
+		cc, err := d.initLXC(true)
+		if err != nil {
+			return nil, fmt.Errorf("Failed loading go-lxc: %w", err)
+		}
+
+		err = cc.SaveConfigFile(configPath)
+		if err != nil {
+			_ = os.Remove(configPath)
+			return nil, err
+		}
+	}
+
 	// Prepare the environment
 	envSlice := []string{}
 
