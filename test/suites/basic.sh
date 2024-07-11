@@ -137,7 +137,7 @@ test_basic_usage() {
   gen_cert client3
 
   # don't allow requests without a cert to get trusted data
-  curl -k -s -X GET "https://${LXD_ADDR}/1.0/containers/foo" | grep 403
+  [ "$(curl -k -s -o /dev/null -w "%{http_code}" -X GET "https://${LXD_ADDR}/1.0/containers/foo")" = "403" ]
 
   # Test unprivileged container publish
   lxc publish bar --alias=foo-image prop1=val1
