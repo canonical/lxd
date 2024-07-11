@@ -487,6 +487,7 @@ test_backup_export_with_project() {
     lxc export c1 "${LXD_DIR}/c1-optimized.tar.gz" --optimized-storage --instance-only
     tar -xzf "${LXD_DIR}/c1-optimized.tar.gz" -C "${LXD_DIR}/optimized"
 
+    ls -l "${LXD_DIR}/optimized/backup/"
     [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
     [ -f "${LXD_DIR}/optimized/backup/container.bin" ]
     [ ! -d "${LXD_DIR}/optimized/backup/snapshots" ]
@@ -496,6 +497,7 @@ test_backup_export_with_project() {
   tar -xzf "${LXD_DIR}/c1.tar.gz" -C "${LXD_DIR}/non-optimized"
 
   # check tarball content
+  ls -l "${LXD_DIR}/non-optimized/backup/"
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/container" ]
   [ ! -d "${LXD_DIR}/non-optimized/backup/snapshots" ]
@@ -508,6 +510,7 @@ test_backup_export_with_project() {
     lxc export c1 "${LXD_DIR}/c1-optimized.tar.gz" --optimized-storage
     tar -xzf "${LXD_DIR}/c1-optimized.tar.gz" -C "${LXD_DIR}/optimized"
 
+    ls -l "${LXD_DIR}/optimized/backup/"
     [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
     [ -f "${LXD_DIR}/optimized/backup/container.bin" ]
     [ -f "${LXD_DIR}/optimized/backup/snapshots/snap0.bin" ]
@@ -517,6 +520,7 @@ test_backup_export_with_project() {
   tar -xzf "${LXD_DIR}/c1.tar.gz" -C "${LXD_DIR}/non-optimized"
 
   # check tarball content
+  ls -l "${LXD_DIR}/non-optimized/backup/"
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/container" ]
   [ -d "${LXD_DIR}/non-optimized/backup/snapshots/snap0" ]
@@ -651,6 +655,7 @@ test_backup_volume_export_with_project() {
     # Extract backup tarball.
     tar -xzf "${LXD_DIR}/testvol-optimized.tar.gz" -C "${LXD_DIR}/optimized"
 
+    ls -l "${LXD_DIR}/optimized/backup/"
     [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
     [ -f "${LXD_DIR}/optimized/backup/volume.bin" ]
     [ ! -d "${LXD_DIR}/optimized/backup/volume-snapshots" ]
@@ -665,6 +670,7 @@ test_backup_volume_export_with_project() {
   tar -xzf "${LXD_DIR}/testvol.tar.gz" -C "${LXD_DIR}/non-optimized"
 
   # Check tarball content.
+  ls -l "${LXD_DIR}/non-optimized/backup/"
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume" ]
   [ "$(cat "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
@@ -684,6 +690,7 @@ test_backup_volume_export_with_project() {
     # Extract backup tarball.
     tar -xzf "${LXD_DIR}/testvol-optimized.tar.gz" -C "${LXD_DIR}/optimized"
 
+    ls -l "${LXD_DIR}/optimized/backup/"
     [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
     [ -f "${LXD_DIR}/optimized/backup/volume.bin" ]
     [ -f "${LXD_DIR}/optimized/backup/volume-snapshots/test-snap0.bin" ]
@@ -698,6 +705,7 @@ test_backup_volume_export_with_project() {
   tar -xzf "${LXD_DIR}/testvol.tar.gz" -C "${LXD_DIR}/non-optimized"
 
   # Check tarball content.
+  ls -l "${LXD_DIR}/non-optimized/backup/"
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume" ]
   [ "$(cat "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
