@@ -432,11 +432,11 @@ test_basic_usage() {
   echo abc > "${LXD_DIR}/in"
 
   lxc file push "${LXD_DIR}/in" foo/root/
-  lxc exec foo -- /bin/cat /root/in | grep -xF abc
+  [ "$(lxc exec foo -- /bin/cat /root/in)" = "abc" ]
   lxc exec foo -- /bin/rm -f root/in
 
   lxc file push "${LXD_DIR}/in" foo/root/in1
-  lxc exec foo -- /bin/cat /root/in1 | grep -xF abc
+  [ "$(lxc exec foo -- /bin/cat /root/in1)" = "abc" ]
   lxc exec foo -- /bin/rm -f root/in1
 
   # test lxc file edit doesn't change target file's owner and permissions
