@@ -645,7 +645,7 @@ test_container_devices_nic_bridged() {
   # Test container snapshot with conflicting addresses can be restored.
   lxc restore foo snap0 # Test restore, IPs conflict on config device update (due to only IPs changing).
   ! stat "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" || false # Check lease file removed (due to non-user requested update failing).
-  lxc config device get foo eth0 ipv4.address | grep -Fx '192.0.2.232'
+  [ "$(lxc config device get foo eth0 ipv4.address)" = '192.0.2.232' ]
   ! lxc start foo || false
   lxc config device set foo eth0 \
     hwaddr="0a:92:a7:0d:b7:c9" \
@@ -656,7 +656,7 @@ test_container_devices_nic_bridged() {
 
   lxc restore foo snap0 # Test restore, IPs conflict on config device remove/add (due to MAC change).
   ! stat "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" || false # Check lease file removed (due to MAC change).
-  lxc config device get foo eth0 ipv4.address | grep -Fx '192.0.2.232'
+  [ "$(lxc config device get foo eth0 ipv4.address)" = '192.0.2.232' ]
   ! lxc start foo || false
   lxc config device set foo eth0 \
     hwaddr="0a:92:a7:0d:b7:c9" \
@@ -670,14 +670,14 @@ test_container_devices_nic_bridged() {
   lxc import foo.tar.gz
   ! stat "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" || false
   ! lxc start foo || false
-  lxc config device get foo eth0 ipv4.address | grep -Fx '192.0.2.232'
+  [ "$(lxc config device get foo eth0 ipv4.address)" = '192.0.2.232' ]
   lxc config show foo/snap0 | grep -F 'ipv4.address: 192.0.2.232'
   lxc config device set foo eth0 \
     hwaddr="0a:92:a7:0d:b7:c9" \
     ipv4.address=192.0.2.233 \
     ipv6.address=2001:db8::3
   grep -F "192.0.2.233" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0"
-  lxc config device get foo eth0 ipv4.address | grep -Fx '192.0.2.233'
+  [ "$(lxc config device get foo eth0 ipv4.address)" = '192.0.2.233' ]
   lxc start foo
 
   # Check MAC conflict detection:
@@ -686,26 +686,26 @@ test_container_devices_nic_bridged() {
 
   # Test container can be imported with device override to fix conflict.
   lxc import foo.tar.gz --device eth0,ipv4.address=192.0.2.233 --device eth0,ipv6.address=2001:db8::3
-  lxc config device get foo eth0 ipv4.address | grep -Fx '192.0.2.233'
-  lxc config device get foo eth0 ipv6.address | grep -Fx '2001:db8::3'
+  [ "$(lxc config device get foo eth0 ipv4.address)" = '192.0.2.233' ]
+  [ "$(lxc config device get foo eth0 ipv6.address)" = '2001:db8::3' ]
   lxc start foo
 
   # Test container can be copied with device override to fix conflict.
   lxc copy foo foo-copy --device eth0,ipv4.address=192.0.2.234 --device eth0,ipv6.address=2001:db8::4 --device eth0,host_name=veth0 --device eth0,ipv4.routes=192.0.2.20/32 --device eth0,ipv6.routes=2001:db8::20/128
-  lxc config device get foo-copy eth0 ipv4.address | grep -Fx '192.0.2.234'
-  lxc config device get foo-copy eth0 ipv6.address | grep -Fx '2001:db8::4'
-  lxc config device get foo-copy eth0 ipv4.routes | grep -Fx '192.0.2.20/32'
-  lxc config device get foo-copy eth0 ipv6.routes | grep -Fx '2001:db8::20/128'
+  [ "$(lxc config device get foo-copy eth0 ipv4.address)" = '192.0.2.234' ]
+  [ "$(lxc config device get foo-copy eth0 ipv6.address)" = '2001:db8::4' ]
+  [ "$(lxc config device get foo-copy eth0 ipv4.routes)" = '192.0.2.20/32' ]
+  [ "$(lxc config device get foo-copy eth0 ipv6.routes)" = '2001:db8::20/128' ]
   lxc start foo-copy
   lxc delete -f foo-copy
 
   # Test snapshot can be copied with device override to fix conflict.
   lxc snapshot foo tester
   lxc copy foo/tester snap-copy --device eth0,ipv4.address=192.0.2.235 --device eth0,ipv6.address=2001:db8::5 --device eth0,host_name=veth1 --device eth0,ipv4.routes=192.0.2.21/32 --device eth0,ipv6.routes=2001:db8::21/128
-  lxc config device get snap-copy eth0 ipv4.address | grep -Fx '192.0.2.235'
-  lxc config device get snap-copy eth0 ipv6.address | grep -Fx '2001:db8::5'
-  lxc config device get snap-copy eth0 ipv4.routes | grep -Fx '192.0.2.21/32'
-  lxc config device get snap-copy eth0 ipv6.routes | grep -Fx '2001:db8::21/128'
+  [ "$(lxc config device get snap-copy eth0 ipv4.address)" = '192.0.2.235' ]
+  [ "$(lxc config device get snap-copy eth0 ipv6.address)" = '2001:db8::5' ]
+  [ "$(lxc config device get snap-copy eth0 ipv4.routes)" = '192.0.2.21/32' ]
+  [ "$(lxc config device get snap-copy eth0 ipv6.routes)" = '2001:db8::21/128' ]
   lxc start snap-copy
   lxc delete -f snap-copy
   lxc delete -f foo
@@ -728,7 +728,7 @@ test_container_devices_nic_bridged() {
   lxc profile assign foo2 "${ctName}"
 
   # Test container start will fail due to volatile MAC conflict.
-  lxc config get foo volatile.eth0.hwaddr | grep -Fx "$(lxc config get foo2 volatile.eth0.hwaddr)"
+  [ "$(lxc config get foo volatile.eth0.hwaddr)" = "$(lxc config get foo2 volatile.eth0.hwaddr)" ]
   ! lxc start foo2 || false
   lxc delete -f foo foo2
 
