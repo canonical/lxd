@@ -15,13 +15,15 @@ test_devlxd() {
   lxc file push --mode 0755 "devlxd-client/devlxd-client" devlxd/bin/
 
   lxc config set devlxd user.foo bar
-  lxc exec devlxd -- devlxd-client user.foo | grep bar
+  [ "$(lxc exec devlxd -- devlxd-client user.foo)" = "bar" ]
 
   lxc config set devlxd user.foo "bar %s bar"
-  lxc exec devlxd -- devlxd-client user.foo | grep "bar %s bar"
+  [ "$(lxc exec devlxd -- devlxd-client user.foo)" = "bar %s bar" ]
 
+  # Make sure instance configuration keys are not accessible
+  [ "$(lxc exec devlxd -- devlxd-client security.nesting)" = "not authorized" ]
   lxc config set devlxd security.nesting true
-  ! lxc exec devlxd -- devlxd-client security.nesting | grep true || false
+  [ "$(lxc exec devlxd -- devlxd-client security.nesting)" = "not authorized" ]
 
   cmd=$(unset -f lxc; command -v lxc)
   ${cmd} exec devlxd -- devlxd-client monitor-websocket > "${TEST_DIR}/devlxd-websocket.log" &
@@ -96,13 +98,13 @@ EOF
   lxc exec devlxd -- devlxd-client ready-state true
   [ "$(lxc config get devlxd volatile.last_state.ready)" = "true" ]
 
-  grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log" | grep -Fx 1
+  [ "$(grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log")" = "1" ]
 
   lxc info devlxd | grep -q 'Status: READY'
   lxc exec devlxd -- devlxd-client ready-state false
   [ "$(lxc config get devlxd volatile.last_state.ready)" = "false" ]
 
-  grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log" | grep -Fx 1
+  [ "$(grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log")" = "1" ]
 
   lxc info devlxd | grep -q 'Status: RUNNING'
 
@@ -120,7 +122,7 @@ EOF
   lxc exec devlxd -- devlxd-client ready-state true
   [ "$(lxc config get devlxd volatile.last_state.ready)" = "true" ]
 
-  grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log" | grep -Fx 1
+  [ "$(grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log")" = "1" ]
 
   lxc stop -f devlxd
   [ "$(lxc config get devlxd volatile.last_state.ready)" = "false" ]
@@ -129,11 +131,11 @@ EOF
   lxc exec devlxd -- devlxd-client ready-state true
   [ "$(lxc config get devlxd volatile.last_state.ready)" = "true" ]
 
-  grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log" | grep -Fx 2
+  [ "$(grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log")" = "2" ]
 
   # Check device configs are available and that NIC hwaddr is available even if volatile.
   hwaddr=$(lxc config get devlxd volatile.eth0.hwaddr)
-  lxc exec devlxd -- devlxd-client devices | jq -r .eth0.hwaddr | grep -Fx "${hwaddr}"
+  [ "$(lxc exec devlxd -- devlxd-client devices | jq -r .eth0.hwaddr)" = "${hwaddr}" ]
 
   lxc delete devlxd --force
   kill -9 ${monitorDevlxdPID} || true

@@ -217,7 +217,7 @@ snap_restore() {
     fi
 
     # Check storage volume has been restored (user.foo=snap0)
-    lxc storage volume get "${pool}" container/bar user.foo | grep -Fx "snap0"
+    [ "$(lxc storage volume get "${pool}" container/bar user.foo)" = "snap0" ]
   fi
 
   ##########################################################
@@ -291,7 +291,7 @@ snap_restore() {
   fi
 
   # Check storage volume has been restored (user.foo=snap0)
-  lxc storage volume get "${pool}" container/bar user.foo | grep -Fx "snap1"
+  [ "$(lxc storage volume get "${pool}" container/bar user.foo)" = "snap1" ]
 
   ##########################################################
 

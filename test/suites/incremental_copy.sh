@@ -42,7 +42,7 @@ do_copy() {
   # Initial copy
   # shellcheck disable=2086
   lxc copy c1 c2 ${targetPoolFlag}
-  lxc storage volume get "${target_pool}" container/c2 user.foo | grep -Fx "main"
+  [ "$(lxc storage volume get "${target_pool}" container/c2 user.foo)" = "main" ]
 
   lxc start c1 c2
 
@@ -83,9 +83,9 @@ do_copy() {
   lxc copy c1 c2 --refresh ${targetPoolFlag}
   lxc config show c2/snap0
   lxc config show c2/snap1
-  lxc storage volume get "${target_pool}" container/c2 user.foo | grep -Fx "main"
-  lxc storage volume get "${target_pool}" container/c2/snap0 user.foo | grep -Fx "snap0"
-  lxc storage volume get "${target_pool}" container/c2/snap1 user.foo | grep -Fx "snap1"
+  [ "$(lxc storage volume get "${target_pool}" container/c2 user.foo)" = "main" ]
+  [ "$(lxc storage volume get "${target_pool}" container/c2/snap0 user.foo)" = "snap0" ]
+  [ "$(lxc storage volume get "${target_pool}" container/c2/snap1 user.foo)" = "snap1" ]
 
   # This will create snapshot c2/snap2
   lxc snapshot c2
