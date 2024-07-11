@@ -83,9 +83,9 @@ test_storage_local_volume_handling() {
     lxc storage volume show "${pool}" vol1copy/snap1
 
     # Check snapshot volume config was copied
-    lxc storage volume get "${pool}" vol1copy user.foo | grep -Fx "postsnap1"
-    lxc storage volume get "${pool}" vol1copy/snap0 user.foo | grep -Fx "snap0"
-    lxc storage volume get "${pool}" vol1copy/snap1 user.foo | grep -Fx "snap1"
+    [ "$(lxc storage volume get "${pool}" vol1copy user.foo)" = "postsnap1" ]
+    [ "$(lxc storage volume get "${pool}" vol1copy/snap0 user.foo)" = "snap0" ]
+    [ "$(lxc storage volume get "${pool}" vol1copy/snap1 user.foo)" = "snap1" ]
 
     # Check the volume and snapshot UUIDs are different
     [ "$(lxc storage volume get "${pool}" vol1 volatile.uuid)" != "$(lxc storage volume get "${pool}" vol1copy volatile.uuid)" ]
@@ -101,9 +101,9 @@ test_storage_local_volume_handling() {
     lxc storage volume show "${pool}1" vol1/snap1
 
     # Check snapshot volume config was copied
-    lxc storage volume get "${pool}1" vol1 user.foo | grep -Fx "postsnap1"
-    lxc storage volume get "${pool}1" vol1/snap0 user.foo | grep -Fx "snap0"
-    lxc storage volume get "${pool}1" vol1/snap1 user.foo | grep -Fx "snap1"
+    [ "$(lxc storage volume get "${pool}1" vol1 user.foo)" = "postsnap1" ]
+    [ "$(lxc storage volume get "${pool}1" vol1/snap0 user.foo)" = "snap0" ]
+    [ "$(lxc storage volume get "${pool}1" vol1/snap1 user.foo)" = "snap1" ]
 
     # Copy volume only
     lxc storage volume copy --volume-only "${pool}/vol1" "${pool}1/vol2"
@@ -113,14 +113,14 @@ test_storage_local_volume_handling() {
     ! lxc storage volume show "${pool}1" vol2/snap1 || false
 
     # Check snapshot volume config was copied
-    lxc storage volume get "${pool}1" vol2 user.foo | grep -Fx "postsnap1"
+    [ "$(lxc storage volume get "${pool}1" vol2 user.foo)" = "postsnap1" ]
 
     # Copy snapshot to volume
     lxc storage volume copy "${pool}/vol1/snap0" "${pool}1/vol3"
 
     # Check snapshot volume config was copied from snapshot
     lxc storage volume show "${pool}1" vol3
-    lxc storage volume get "${pool}1" vol3 user.foo | grep -Fx "snap0"
+    [ "$(lxc storage volume get "${pool}1" vol3 user.foo)" = "snap0" ]
 
     # Rename custom volume using `lxc storage volume move`
     lxc storage volume move "${pool}1/vol1" "${pool}1/vol4"
@@ -264,10 +264,10 @@ test_storage_local_volume_handling() {
           lxc storage volume copy --refresh "${source_pool}/vol5" "${target_pool}/vol5"
 
           # check snapshot volumes (including config) were copied
-          lxc storage volume get "${target_pool}" vol5 user.foo | grep -Fx "postsnap1vol5"
-          lxc storage volume get "${target_pool}" vol5/snap0 user.foo | grep -Fx "snap0vol5"
-          lxc storage volume get "${target_pool}" vol5/snap1 user.foo | grep -Fx "snap1vol5"
-          lxc storage volume get "${target_pool}" vol5/snapremove user.foo | grep -Fx "snapremovevol5"
+          [ "$(lxc storage volume get "${target_pool}" vol5 user.foo)" = "postsnap1vol5" ]
+          [ "$(lxc storage volume get "${target_pool}" vol5/snap0 user.foo)" = "snap0vol5" ]
+          [ "$(lxc storage volume get "${target_pool}" vol5/snap1 user.foo)" = "snap1vol5" ]
+          [ "$(lxc storage volume get "${target_pool}" vol5/snapremove user.foo)" = "snapremovevol5" ]
 
           # incremental copy to existing volume destination with refresh flag
           lxc storage volume copy --refresh "${source_pool}/vol6" "${target_pool}/vol5"
@@ -276,10 +276,10 @@ test_storage_local_volume_handling() {
           # present and that the missing snapshot has been removed.
           # Note: Due to a known issue we are currently only diffing the snapshots by name and creation date, so infact existing
           # snapshots of the same name and date won't be overwritten even if their config or contents is different.
-          lxc storage volume get "${target_pool}" vol5 user.foo | grep -Fx "postsnap1vol5"
-          lxc storage volume get "${target_pool}" vol5/snap0 user.foo | grep -Fx "snap0vol6"
-          lxc storage volume get "${target_pool}" vol5/snap1 user.foo | grep -Fx "snap1vol6"
-          lxc storage volume get "${target_pool}" vol5/snap2 user.foo | grep -Fx "snap2vol6"
+          [ "$(lxc storage volume get "${target_pool}" vol5 user.foo)" = "postsnap1vol5" ]
+          [ "$(lxc storage volume get "${target_pool}" vol5/snap0 user.foo)" = "snap0vol6" ]
+          [ "$(lxc storage volume get "${target_pool}" vol5/snap1 user.foo)" = "snap1vol6" ]
+          [ "$(lxc storage volume get "${target_pool}" vol5/snap2 user.foo)" = "snap2vol6" ]
           ! lxc storage volume get "${target_pool}" vol5/snapremove user.foo || false
 
           # check that another refresh doesn't change the volume's and snapshot's UUID
