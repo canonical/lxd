@@ -20,8 +20,10 @@ test_devlxd() {
   lxc config set devlxd user.foo "bar %s bar"
   [ "$(lxc exec devlxd -- devlxd-client user.foo)" = "bar %s bar" ]
 
+  # Make sure instance configuration keys are not accessible
+  [ "$(lxc exec devlxd -- devlxd-client security.nesting)" = "not authorized" ]
   lxc config set devlxd security.nesting true
-  ! lxc exec devlxd -- devlxd-client security.nesting | grep true || false
+  [ "$(lxc exec devlxd -- devlxd-client security.nesting)" = "not authorized" ]
 
   cmd=$(unset -f lxc; command -v lxc)
   ${cmd} exec devlxd -- devlxd-client monitor-websocket > "${TEST_DIR}/devlxd-websocket.log" &
