@@ -6,8 +6,8 @@ cert_fingerprint() {
 # using the NIST curve P-384 and SHA384 hash for signature
 # to match what LXD generates by default.
 gen_cert_and_key() {
-    key_file="${1}"
-    crt_file="${2}"
-    cn="${3}"
+    key_file="${LXD_CONF}/${1}.key"
+    crt_file="${LXD_CONF}/${1}.crt"
+    cn="${1}.local"
     openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:secp384r1 -sha384 -keyout "${key_file}" -nodes -out "${crt_file}" -days 1 -subj "/CN=${cn}"
 }
