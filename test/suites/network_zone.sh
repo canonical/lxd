@@ -102,13 +102,13 @@ test_network_zone() {
   ! dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxdfoo.example.net | grep "c1.lxd.example.net" || false
 
   # Check reverse zones include records from both projects associated to the relevant forward zone name.
-  dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr 2.0.192.in-addr.arpa | grep -Fc "PTR" | grep -Fx 3
+  [ "$(dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr 2.0.192.in-addr.arpa | grep -Fcw "PTR")" = "3" ]
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr 2.0.192.in-addr.arpa | grep "300\s\+IN\s\+PTR\s\+${netName}.gw.lxd.example.net."
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr 2.0.192.in-addr.arpa | grep "300\s\+IN\s\+PTR\s\+c1.lxd.example.net."
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr 2.0.192.in-addr.arpa | grep "300\s\+IN\s\+PTR\s\+c2.lxdfoo.example.net."
 
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr 0.1.0.1.2.4.2.4.2.4.2.4.2.4.d.f.ip6.arpa
-  dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr 0.1.0.1.2.4.2.4.2.4.2.4.2.4.d.f.ip6.arpa | grep -Fc "PTR" | grep -Fx 3
+  [ "$(dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr 0.1.0.1.2.4.2.4.2.4.2.4.2.4.d.f.ip6.arpa | grep -Fcw "PTR")" = "3" ]
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr 0.1.0.1.2.4.2.4.2.4.2.4.2.4.d.f.ip6.arpa | grep "300\s\+IN\s\+PTR\s\+${netName}.gw.lxd.example.net."
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr 0.1.0.1.2.4.2.4.2.4.2.4.2.4.d.f.ip6.arpa | grep "300\s\+IN\s\+PTR\s\+c1.lxd.example.net."
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr 0.1.0.1.2.4.2.4.2.4.2.4.2.4.d.f.ip6.arpa | grep "300\s\+IN\s\+PTR\s\+c2.lxdfoo.example.net."
@@ -123,7 +123,7 @@ test_network_zone() {
   lxc network zone record entry add lxd.example.net demo MX "1 mx1.example.net." --ttl 900
   lxc network zone record entry add lxd.example.net demo MX "10 mx2.example.net." --ttl 900
   lxc network zone record list lxd.example.net
-  dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net | grep -Fc demo.lxd.example.net | grep -Fx 6
+  [ "$(dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net | grep -Fc demo.lxd.example.net)" = "6" ]
   lxc network zone record entry remove lxd.example.net demo A 1.1.1.1
 
   lxd sql global 'select * from networks_zones_records'
@@ -136,7 +136,7 @@ test_network_zone() {
   lxc network zone record entry add lxdfoo.example.net demo MX "1 mx1.example.net." --ttl 900 --project foo
   lxc network zone record entry add lxdfoo.example.net demo MX "10 mx2.example.net." --ttl 900 --project foo
   lxc network zone record list lxdfoo.example.net --project foo
-  dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxdfoo.example.net | grep -Fc demo.lxdfoo.example.net | grep -Fx 6
+  [ "$(dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxdfoo.example.net | grep -Fc demo.lxdfoo.example.net)" = "6" ]
   lxc network zone record entry remove lxdfoo.example.net demo A 1.1.1.1 --project foo
 
   # Check that the listener survives a restart of LXD
