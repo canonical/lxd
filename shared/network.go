@@ -147,6 +147,12 @@ func GetTLSConfigMem(tlsClientCert string, tlsClientKey string, tlsClientCA stri
 		}
 
 		tlsConfig.Certificates = []tls.Certificate{cert}
+		tlsConfig.GetClientCertificate = func(info *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			// GetClientCertificate is called if not nil instead of performing the default selection of an appropriate
+			// certificate from the `Certificates` list. We only have one-key pair to send, and we always want to send it
+			// because this is what uniquely identifies the caller to the server.
+			return &cert, nil
+		}
 	}
 
 	var tlsRemoteCert *x509.Certificate

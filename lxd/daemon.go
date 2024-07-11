@@ -296,7 +296,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 	// Allow internal cluster traffic by checking against the trusted certfificates.
 	if r.TLS != nil {
 		for _, i := range r.TLS.PeerCertificates {
-			trusted, _ := util.CheckTrustState(*i, trustedCerts[db.CertificateTypeServer], d.endpoints.NetworkCert(), false)
+			trusted, _ := util.CheckMutualTLS(*i, trustedCerts[db.CertificateTypeServer])
 			if trusted {
 				return true, "", "cluster", nil
 			}
@@ -368,8 +368,19 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 		return false, "", "", err
 	}
 
+	networkCert := d.endpoints.NetworkCert()
+	checkCertificateSignature := networkCert.CA() != nil
 	for _, i := range r.TLS.PeerCertificates {
-		trusted, username := util.CheckTrustState(*i, trustedCerts[db.CertificateTypeClient], d.endpoints.NetworkCert(), trustCACertificates)
+		if checkCertificateSignature {
+			trusted, _, username := util.CheckCASignature(*i, networkCert)
+			if !trusted {
+				return false, "", "", nil
+			} else if trustCACertificates {
+				return true, username, "tls", nil
+			}
+		}
+
+		trusted, username := util.CheckMutualTLS(*i, trustedCerts[db.CertificateTypeClient])
 		if trusted {
 			return true, username, "tls", nil
 		}

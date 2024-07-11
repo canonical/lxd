@@ -488,7 +488,16 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			// added when in CA mode.
 			return response.BadRequest(fmt.Errorf("No client certificate provided"))
 		}
+
 		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
+		networkCert := d.endpoints.NetworkCert()
+		if networkCert.CA() != nil {
+			// If we are in CA mode, we only allow adding certificates that are signed by the CA.
+			trusted, _, _ := util.CheckCASignature(*cert, networkCert)
+			if !trusted {
+				return response.Forbidden(fmt.Errorf("The certificate is not trusted by the CA or has been revoked"))
+			}
+		}
 
 		remoteHost, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
