@@ -704,7 +704,7 @@ var ConfigSchema = config.Schema{
 	// ---
 	//  type: string
 	//  scope: global
-	//  shortdesc: Expected audience value for the application
+	//  shortdesc: A claim used for mapping identity provider groups to LXD groups.
 	"oidc.groups.claim": {},
 	// OVN networking global keys.
 
