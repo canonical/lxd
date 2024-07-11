@@ -3881,3 +3881,63 @@ test_clustering_uuid() {
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
 }
+
+test_clustering_trust_add() {
+  # shellcheck disable=2039,3043
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  # create two cluster nodes
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
+
+  # Get a certificate add token from LXD_ONE. The operation will run on LXD_ONE locally.
+  lxd_one_token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
+
+  # Expect one running token operation.
+  operation_uuid="$(LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "TOKEN,Executing operation,RUNNING" | cut -d, -f1 )"
+  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -qF "${operation_uuid},TOKEN,Executing operation,RUNNING"
+  is_uuid_v4 "${operation_uuid}"
+
+  # Get the address of LXD_TWO.
+  lxd_two_address="https://$(LXD_DIR="${LXD_TWO_DIR}" lxc config get core.https_address)"
+
+  # Test adding the remote using the address of LXD_TWO with the token operation running on LXD_ONE.
+  # LXD_TWO does not have the operation running locally, so it should find the UUID of the operation in the database
+  # and query LXD_ONE for it. LXD_TWO should cancel the operation by sending a DELETE /1.0/operations/{uuid} to LXD_ONE
+  # and needs to parse the metadata of the operation into the correct type to complete the trust process.
+  lxc remote add lxd_two "${lxd_two_address}" --accept-certificate --token "${lxd_one_token}"
+
+  # Expect the operation to be cancelled.
+  LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -qF "${operation_uuid},TOKEN,Executing operation,CANCELLED"
+  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -qF "${operation_uuid},TOKEN,Executing operation,CANCELLED"
+
+  # Clean up
+  lxc remote rm lxd_two
+
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
