@@ -60,17 +60,34 @@ test_tls_restrictions() {
   ! lxc_remote storage volume list "localhost:${pool_name}" --project default || false
   ! lxc_remote storage bucket list "localhost:${pool_name}" --project default || false
 
-  # Can still list images as some may be public. There are no public images in the default project now,
-  # so the list should be empty
-  [ "$(lxc_remote image list localhost --project default --format csv)" = "" ]
+  ### Validate images.
+  test_image_fingerprint="$(lxc image info testimage --project default | awk '/^Fingerprint/ {print $2}')"
 
-  # Set up the test image in the blah project (ensure_import_testimage imports the image into the current project).
-  lxc project switch blah && ensure_import_testimage && lxc project switch default
+  # We can always list images, but there are no public images in the default project now, so the list should be empty.
+  [ "$(lxc_remote image list localhost: --project default --format csv)" = "" ]
+  ! lxc_remote image show localhost:testimage --project default || false
+
+  # Set the image to public and ensure we can view it.
+  lxc image show testimage --project default | sed -e "s/public: false/public: true/" | lxc image edit testimage --project default
+  [ "$(lxc_remote image list localhost: --project default --format csv | wc -l)" = 1 ]
+  lxc_remote image show localhost:testimage --project default
+
+  # Check we can export the public image:
+  lxc image export localhost:testimage "${LXD_DIR}/" --project default
+  [ "${test_image_fingerprint}" = "$(sha256sum "${LXD_DIR}/${test_image_fingerprint}.tar.xz" | cut -d' ' -f1)" ]
+  rm "${LXD_DIR}/${test_image_fingerprint}.tar.xz"
+
+  # While the image is public, copy it to the blah project and create an alias for it.
+  lxc_remote image copy localhost:testimage localhost: --project default --target-project blah
+  lxc_remote image alias create localhost:testimage "${test_image_fingerprint}" --project blah
+
+  # Restore privacy on the test image in the default project.
+  lxc image show testimage --project default | sed -e "s/public: true/public: false/" | lxc image edit testimage --project default
 
   # Set up a profile in the blah project. Additionally ensures restricted TLS clients can edit profiles in projects they have access to.
   lxc profile show default | lxc_remote profile edit localhost:default --project blah
 
-  # Create an instance.
+  # Create an instance (using the test image copied from the default project while it was public).
   lxc_remote init testimage localhost:blah-instance --project blah
 
   # Create a custom volume.
