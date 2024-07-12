@@ -32,18 +32,28 @@ The tool can create both containers and virtual machines:
   It is also not possible to create a virtual machine from the physical machine that you are using to do the migration, because the migration tool would be using the disk that it is copying.
   Instead, you could provide a bootable image, or a bootable partition or disk that is currently not in use.
 
+The tool can also inject the required VIRTIO drivers into the image:
+
+* To convert the image into raw format and inject the VIRTIO drivers during the conversion, use the following command:
+
+      lxd-migrate --conversion=format,virtio
+
+  ```{note}
+  The conversion option `virtio` requires `virt-v2v-in-place` to be installed on the host where the LXD server runs.
+  ```
+
+* For converting Windows images from a foreign hypervisor (not from QEMU/KVM with Q35/`virtio-scsi`), you must install additional drivers on the host:
+   * Install the `virtio-win` package or download the [`virtio-win.iso`](https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso) file and place it in the `/usr/share/virtio-win` directory.
+   * Download [`rhsrvany.exe` and `pnp_wait.exe`](https://github.com/rwmjones/rhsrvany), and place them in the `/usr/share/virt-tools/` directory.
+
    ````{tip}
-   If you want to convert a Windows VM from a foreign hypervisor (not from QEMU/KVM with Q35/`virtio-scsi`),
-   you must install the `virtio-win` drivers to your Windows. Otherwise, your VM won't boot.
+   If you want to convert a Windows VM from a foreign hypervisor manually,
+   you must install both the required Windows drivers (as described above) and `virt-v2v` (>= 2.3.4).
+
    <details>
-   <summary>Expand to see how to integrate the required drivers to your Windows VM</summary>
-   Install the required tools on the host:
+   <summary>Expand to see how to convert your Windows VM using <code>virt-v2v<code></summary>
 
-   1. Install `virt-v2v` version >= 2.3.4 (this is the minimal version that supports the `--block-driver` option).
-   1. Install the `virtio-win` package, or download the [`virtio-win.iso`](https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso) image and put it into the `/usr/share/virtio-win` folder.
-   1. You might also need to install [`rhsrvany`](https://github.com/rwmjones/rhsrvany).
-
-   Now you can use `virt-v2v` to convert images from a foreign hypervisor to `raw` images for LXD and include the required drivers:
+   Use `virt-v2v` to convert Windows image into `raw` format and include the required drivers.
 
    ```
    # Example 1. Convert a vmdk disk image to a raw image suitable for lxd-migrate
@@ -53,6 +63,7 @@ The tool can create both containers and virtual machines:
    ```
 
    You can find the resulting image in the `os` directory and use it with `lxd-migrate` on the next steps.
+   In addition, when migrating already converted images, `lxd-migrate` conversion options are not necessary.
    </details>
    ````
 
