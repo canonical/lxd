@@ -118,6 +118,13 @@ func (c ClusterMember) ToRaftNode() (*db.RaftNode, error) {
 	return node, nil
 }
 
+const clusterEditPrompt = `You should run this command only if:
+ - A quorum of cluster members is permanently lost or their addresses have changed
+ - You are *absolutely* sure all LXD daemons are stopped
+ - This instance has the most up to date database
+
+See https://documentation.ubuntu.com/lxd/en/latest/howto/cluster_recover/#reconfigure-the-cluster for more info.`
+
 type cmdClusterEdit struct {
 	global *cmdGlobal
 }
@@ -188,6 +195,11 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	} else {
+		err = promptConfirmation(clusterEditPrompt, "Cluster edit")
+		if err != nil {
+			return err
+		}
+
 		if len(config.Members) > 0 {
 			data = []byte(fmt.Sprintf(SegmentComment, segmentID) + "\n\n" + string(data))
 		}
