@@ -3905,6 +3905,39 @@ test_clustering_trust_add() {
   ns2="${prefix}2"
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
 
+  # Check using token that is expired
+
+  # Set token expiry to 1 seconds
+  lxc config set core.remote_token_expiry 1S
+
+  # Get a certificate add token from LXD_ONE. The operation will run on LXD_ONE locally.
+  lxd_one_token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
+  sleep 2
+
+  # Expect one running token operation.
+  operation_uuid="$(LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "TOKEN,Executing operation,RUNNING" | cut -d, -f1 )"
+  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -qF "${operation_uuid},TOKEN,Executing operation,RUNNING"
+  is_uuid_v4 "${operation_uuid}"
+
+  # Get the address of LXD_TWO.
+  lxd_two_address="https://$(LXD_DIR="${LXD_TWO_DIR}" lxc config get core.https_address)"
+
+  # Test adding the remote using the address of LXD_TWO with the token operation running on LXD_ONE.
+  # LXD_TWO does not have the operation running locally, so it should find the UUID of the operation in the database
+  # and query LXD_ONE for it. LXD_TWO should cancel the operation by sending a DELETE /1.0/operations/{uuid} to LXD_ONE
+  # and needs to parse the metadata of the operation into the correct type to complete the trust process.
+  # The expiry time should be parsed and found to be expired so the add action should fail.
+  ! lxc remote add lxd_two "${lxd_two_address}" --accept-certificate --token "${lxd_one_token}" || false
+
+  # Expect the operation to be cancelled.
+  LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -qF "${operation_uuid},TOKEN,Executing operation,CANCELLED"
+  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -qF "${operation_uuid},TOKEN,Executing operation,CANCELLED"
+
+  # Set token expiry to 1 hour
+  lxc config set core.remote_token_expiry 1H
+
+  # Check using token that isn't expired
+
   # Get a certificate add token from LXD_ONE. The operation will run on LXD_ONE locally.
   lxd_one_token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
 
@@ -3928,6 +3961,9 @@ test_clustering_trust_add() {
 
   # Clean up
   lxc remote rm lxd_two
+
+  # Unset token expiry
+  lxc config unset core.remote_token_expiry
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
