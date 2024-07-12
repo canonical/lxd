@@ -136,6 +136,39 @@ func updateLocalAddress(database *db.Node, address string) error {
 	return nil
 }
 
+// Create a patch file for the nodes table in the global database; this updates
+// the addresses of all cluster members from the list of RaftNode in case they
+// were changed during cluster recovery.
+func writeGlobalNodesPatch(database *db.Node, nodes []db.RaftNode) error {
+	// No patch needed if there are no nodes
+	if len(nodes) < 1 {
+		return nil
+	}
+
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	filePath := filepath.Join(database.Dir(), "patch.global.sql")
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = file.Close() }()
+	reverter.Add(func() { _ = os.Remove(filePath) })
+
+	for _, node := range nodes {
+		_, err = fmt.Fprintf(file, "UPDATE nodes SET address = %q WHERE id = %d;\n", node.Address, node.ID)
+		if err != nil {
+			return err
+		}
+	}
+
+	reverter.Success()
+
+	return nil
+}
+
 // Reconfigure replaces the entire cluster configuration.
 // Addresses and node roles may be updated. Node IDs are read-only.
 func Reconfigure(database *db.Node, raftNodes []db.RaftNode) error {
@@ -179,30 +212,9 @@ func Reconfigure(database *db.Node, raftNodes []db.RaftNode) error {
 		return err
 	}
 
-	// Create patch file for global nodes database.
-	content := ""
-	for _, node := range nodes {
-		content += fmt.Sprintf("UPDATE nodes SET address = %q WHERE id = %d;\n", node.Address, node.ID)
-	}
-
-	if len(content) > 0 {
-		filePath := filepath.Join(database.Dir(), "patch.global.sql")
-		file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			return err
-		}
-
-		defer func() { _ = file.Close() }()
-
-		_, err = file.Write([]byte(content))
-		if err != nil {
-			return err
-		}
-
-		err = file.Close()
-		if err != nil {
-			return err
-		}
+	err = writeGlobalNodesPatch(database, raftNodes)
+	if err != nil {
+		return fmt.Errorf("Failed to create global db patch for cluster recover: %w", err)
 	}
 
 	return nil
