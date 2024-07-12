@@ -582,7 +582,7 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = transferRootfs(ctx, op, fullPath, c.flagRsyncArgs, config.InstanceArgs.Type)
+	err = transferRootDiskForMigration(ctx, op, fullPath, c.flagRsyncArgs, config.InstanceArgs.Type)
 	if err != nil {
 		return err
 	}
