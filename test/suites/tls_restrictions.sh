@@ -2,14 +2,14 @@ test_tls_restrictions() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  gen_cert_and_key "${LXD_CONF}/metrics.key" "${LXD_CONF}/metrics.crt" "metrics.local"
+  gen_cert_and_key "metrics"
 
   # Ensure type=metrics certificates cannot access anything besides /1.0/metrics.
-  curl -k -s --cert "${LXD_CONF}/metrics.crt" --key "${LXD_CONF}/metrics.key" "https://${LXD_ADDR}/1.0/metrics" | grep -F '"error_code":403'
+  CERTNAME=metrics my_curl "https://${LXD_ADDR}/1.0/metrics" | grep -F '"error_code":403'
   lxc config trust add "${LXD_CONF}/metrics.crt" --type=metrics
-  curl -k -s --cert "${LXD_CONF}/metrics.crt" --key "${LXD_CONF}/metrics.key" "https://${LXD_ADDR}/1.0/metrics" | grep -Fx '# EOF'
+  CERTNAME=metrics my_curl "https://${LXD_ADDR}/1.0/metrics" | grep -Fx '# EOF'
 
-  curl -k -s --cert "${LXD_CONF}/metrics.crt" --key "${LXD_CONF}/metrics.key" "https://${LXD_ADDR}/1.0/certificates" | grep -F '"error_code":403'
+  CERTNAME=metrics my_curl "https://${LXD_ADDR}/1.0/certificates" | grep -F '"error_code":403'
 
   # Cleanup type=metrics certificate.
   METRICS_FINGERPRINT="$(lxc config trust list --format csv | grep -F metrics.local | cut -d, -f4)"
@@ -125,13 +125,13 @@ test_certificate_edit() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Generate a certificate
-  gen_cert_and_key "${LXD_CONF}/client.key.new" "${LXD_CONF}/client.crt.new" "test.local"
+  gen_cert_and_key "client-new"
 
   FINGERPRINT="$(lxc config trust list --format csv | cut -d, -f4)"
 
   # Try replacing the old certificate with a new one.
   # This should succeed as the user is listed as an admin.
-  curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" -X PATCH -d "{\"certificate\":\"$(sed ':a;N;$!ba;s/\n/\\n/g' "${LXD_CONF}/client.crt.new")\"}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}"
+  my_curl -X PATCH -d "{\"certificate\":\"$(sed ':a;N;$!ba;s/\n/\\n/g' "${LXD_CONF}/client-new.crt")\"}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}"
 
   # Record new fingerprint
   FINGERPRINT="$(lxc config trust list --format csv | cut -d, -f4)"
@@ -139,8 +139,8 @@ test_certificate_edit() {
   # Move new certificate and key to LXD_CONF and back up old files.
   mv "${LXD_CONF}/client.crt" "${LXD_CONF}/client.crt.bak"
   mv "${LXD_CONF}/client.key" "${LXD_CONF}/client.key.bak"
-  mv "${LXD_CONF}/client.crt.new" "${LXD_CONF}/client.crt"
-  mv "${LXD_CONF}/client.key.new" "${LXD_CONF}/client.key"
+  mv "${LXD_CONF}/client-new.crt" "${LXD_CONF}/client.crt"
+  mv "${LXD_CONF}/client-new.key" "${LXD_CONF}/client.key"
 
   lxc_remote project create localhost:blah
 
@@ -153,7 +153,7 @@ test_certificate_edit() {
 
   # Try replacing the new certificate with the old one.
   # This should succeed as well as the certificate may be changed.
-  curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" -X PATCH -d "{\"certificate\":\"$(sed ':a;N;$!ba;s/\n/\\n/g' "${LXD_CONF}/client.crt.bak")\"}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}"
+  my_curl -X PATCH -d "{\"certificate\":\"$(sed ':a;N;$!ba;s/\n/\\n/g' "${LXD_CONF}/client.crt.bak")\"}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}"
 
   # Move new certificate and key to LXD_CONF.
   mv "${LXD_CONF}/client.crt.bak" "${LXD_CONF}/client.crt"
@@ -165,15 +165,15 @@ test_certificate_edit() {
   # Trying to change other fields should fail as a non-admin.
   ! lxc_remote config trust show "${FINGERPRINT}" | sed -e "s/restricted: true/restricted: false/" | lxc_remote config trust edit localhost:"${FINGERPRINT}" || false
 
-  curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" -X PATCH -d "{\"restricted\": false}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | grep -F '"error_code":403'
+  my_curl -X PATCH -d "{\"restricted\": false}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | grep -F '"error_code":403'
 
   ! lxc_remote config trust show "${FINGERPRINT}" | sed -e "s/name:.*/name: bar/" | lxc_remote config trust edit localhost:"${FINGERPRINT}" || false
 
-  curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" -X PATCH -d "{\"name\": \"bar\"}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | grep -F '"error_code":403'
+  my_curl -X PATCH -d "{\"name\": \"bar\"}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | grep -F '"error_code":403'
 
   ! lxc_remote config trust show "${FINGERPRINT}" | sed -e ':a;N;$!ba;s/projects:\n- blah/projects: \[\]/' | lxc_remote config trust edit localhost:"${FINGERPRINT}" || false
 
-  curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" -X PATCH -d "{\"projects\": []}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | grep -F '"error_code":403'
+  my_curl -X PATCH -d "{\"projects\": []}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | grep -F '"error_code":403'
 
   # Cleanup
   lxc config trust show "${FINGERPRINT}" | sed -e "s/restricted: true/restricted: false/" | lxc config trust edit "${FINGERPRINT}"
