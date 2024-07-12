@@ -233,9 +233,20 @@ func clusterMemberJoinTokenValid(s *state.State, r *http.Request, projectName st
 
 			// Depending on whether it's a local operation or not, expiry will either be a time.Time or a string.
 			if s.ServerName == foundOp.Location {
-				expiry, _ = expiresAt.(time.Time)
+				expiry, ok = expiresAt.(time.Time)
+				if !ok {
+					return nil, fmt.Errorf("Unexpected expiry type in cluster join token operation: %T (%v)", expiresAt, expiresAt)
+				}
 			} else {
-				expiry, _ = time.Parse(time.RFC3339Nano, expiresAt.(string))
+				expiryStr, ok := expiresAt.(string)
+				if !ok {
+					return nil, fmt.Errorf("Unexpected expiry type in cluster join token operation: %T (%v)", expiresAt, expiresAt)
+				}
+
+				expiry, err = time.Parse(time.RFC3339Nano, expiryStr)
+				if err != nil {
+					return nil, fmt.Errorf("Invalid expiry format in cluster join token operation: %w (%q)", err, expiryStr)
+				}
 			}
 
 			// Check if token has expired.
