@@ -111,8 +111,8 @@ test_remote_url_with_token() {
 
   lxc config trust rm "$(lxc config trust list -f json | jq -r '.[].fingerprint')"
 
-  # Set token expiry to 5 seconds
-  lxc config set core.remote_token_expiry 5S
+  # Set token expiry to 1 seconds
+  lxc config set core.remote_token_expiry 1S
 
   # Generate new token
   token="$(lxc config trust add --name foo | tail -n1)"
@@ -130,7 +130,7 @@ test_remote_url_with_token() {
   token="$(lxc config trust add --name foo | tail -n1)"
 
   # This will cause the token to expire
-  sleep 5
+  sleep 2
 
   # Try adding remote. This should fail.
   ! lxc_remote remote add test "${token}" || false
