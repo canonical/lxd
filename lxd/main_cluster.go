@@ -25,6 +25,20 @@ import (
 	"github.com/canonical/lxd/shared/termios"
 )
 
+func promptConfirmation(prompt string, opname string) error {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print(prompt + "Do you want to proceed? (yes/no): ")
+
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSuffix(input, "\n")
+
+	if !shared.ValueInSlice(strings.ToLower(input), []string{"yes"}) {
+		return fmt.Errorf("%s operation aborted", opname)
+	}
+
+	return nil
+}
+
 type cmdCluster struct {
 	global *cmdGlobal
 }
@@ -368,6 +382,22 @@ func (c *cmdClusterListDatabase) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+const recoverFromQuorumLossPrompt = `You should run this command only if you are *absolutely* certain that this is
+the only database node left in your cluster AND that other database nodes will
+never come back (i.e. their LXD daemon won't ever be started again).
+
+This will make this LXD instance the only member of the cluster, and it won't
+be possible to perform operations on former cluster members anymore.
+
+However all information about former cluster members will be preserved in the
+database, so you can possibly inspect it for further recovery.
+
+You'll be able to permanently delete from the database all information about
+former cluster members by running "lxc cluster remove <member-name> --force".
+
+See https://documentation.ubuntu.com/lxd/en/latest/howto/cluster_recover/#recover-from-quorum-loss for more
+info.`
+
 type cmdClusterRecoverFromQuorumLoss struct {
 	global             *cmdGlobal
 	flagNonInteractive bool
@@ -394,7 +424,7 @@ func (c *cmdClusterRecoverFromQuorumLoss) Run(cmd *cobra.Command, args []string)
 
 	// Prompt for confirmation unless --quiet was passed.
 	if !c.flagNonInteractive {
-		err := c.promptConfirmation()
+		err := promptConfirmation(recoverFromQuorumLossPrompt, "Recover")
 		if err != nil {
 			return err
 		}
@@ -410,34 +440,9 @@ func (c *cmdClusterRecoverFromQuorumLoss) Run(cmd *cobra.Command, args []string)
 	return cluster.Recover(db)
 }
 
-func (c *cmdClusterRecoverFromQuorumLoss) promptConfirmation() error {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print(`You should run this command only if you are *absolutely* certain that this is
-the only database node left in your cluster AND that other database nodes will
-never come back (i.e. their LXD daemon won't ever be started again).
-
-This will make this LXD instance the only member of the cluster, and it won't
-be possible to perform operations on former cluster members anymore.
-
-However all information about former cluster members will be preserved in the
-database, so you can possibly inspect it for further recovery.
-
-You'll be able to permanently delete from the database all information about
-former cluster members by running "lxc cluster remove <member-name> --force".
-
-See https://documentation.ubuntu.com/lxd/en/latest/howto/cluster_recover/#recover-from-quorum-loss for more
-info.
-
-Do you want to proceed? (yes/no): `)
-	input, _ := reader.ReadString('\n')
-	input = strings.TrimSuffix(input, "\n")
-
-	if !shared.ValueInSlice(strings.ToLower(input), []string{"yes"}) {
-		return fmt.Errorf("Recover operation aborted")
-	}
-
-	return nil
-}
+const removeRaftNodePrompt = `You should run this command only if you ended up in an
+inconsistent state where a node has been uncleanly removed (i.e. it doesn't show
+up in "lxc cluster list" but it's still in the raft configuration).`
 
 type cmdClusterRemoveRaftNode struct {
 	global             *cmdGlobal
@@ -466,7 +471,7 @@ func (c *cmdClusterRemoveRaftNode) Run(cmd *cobra.Command, args []string) error 
 
 	// Prompt for confirmation unless --quiet was passed.
 	if !c.flagNonInteractive {
-		err := c.promptConfirmation()
+		err := promptConfirmation(removeRaftNodePrompt, "Remove raft node")
 		if err != nil {
 			return err
 		}
@@ -481,23 +486,6 @@ func (c *cmdClusterRemoveRaftNode) Run(cmd *cobra.Command, args []string) error 
 	_, _, err = client.RawQuery("DELETE", endpoint, nil, "")
 	if err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func (c *cmdClusterRemoveRaftNode) promptConfirmation() error {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print(`You should run this command only if you ended up in an
-inconsistent state where a node has been uncleanly removed (i.e. it doesn't show
-up in "lxc cluster list" but it's still in the raft configuration).
-
-Do you want to proceed? (yes/no): `)
-	input, _ := reader.ReadString('\n')
-	input = strings.TrimSuffix(input, "\n")
-
-	if !shared.ValueInSlice(strings.ToLower(input), []string{"yes"}) {
-		return fmt.Errorf("Remove raft node operation aborted")
 	}
 
 	return nil
