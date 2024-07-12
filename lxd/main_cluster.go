@@ -125,6 +125,19 @@ const clusterEditPrompt = `You should run this command only if:
 
 See https://documentation.ubuntu.com/lxd/en/latest/howto/cluster_recover/#reconfigure-the-cluster for more info.`
 
+const clusterEditComment = `# Member roles can be modified. Unrecoverable nodes should be given the role "spare".
+#
+# "voter" - Voting member of the database. A majority of voters is a quorum.
+# "stand-by" - Non-voting member of the database; can be promoted to voter.
+# "spare" - Not a member of the database.
+#
+# The edit is aborted if:
+# - the number of members changes
+# - the name of any member changes
+# - the ID of any member changes
+# - no changes are made
+`
+
 type cmdClusterEdit struct {
 	global *cmdGlobal
 }
@@ -201,7 +214,10 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		if len(config.Members) > 0 {
-			data = []byte(fmt.Sprintf(SegmentComment, segmentID) + "\n\n" + string(data))
+			data = []byte(
+				clusterEditComment + "\n\n" +
+					fmt.Sprintf(SegmentComment, segmentID) + "\n\n" +
+					string(data))
 		}
 
 		content, err = shared.TextEditor("", data)
