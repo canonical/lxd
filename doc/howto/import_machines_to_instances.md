@@ -69,11 +69,6 @@ Complete the following steps to migrate an existing machine to a LXD instance:
 
    The tool then asks you to provide the information required for the migration.
 
-   ```{tip}
-   As an alternative to running the tool interactively, you can provide the configuration as parameters to the command.
-   See `./bin.linux.lxd-migrate --help` for more information.
-   ```
-
    1. Specify the LXD server URL, either as an IP address or as a DNS name.
 
       ```{note}
