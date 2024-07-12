@@ -245,8 +245,8 @@ test_clustering_membership() {
   # checking which are database nodes and which are database-standby nodes.
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -q "\- database-leader$"
-  LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep -Fc "database-standby" | grep -Fx 2
-  LXD_DIR="${LXD_FIVE_DIR}" lxc cluster list | grep -Fc "database " | grep -Fx 3
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep -Fc "database-standby")" = "2" ]
+  [ "$(LXD_DIR="${LXD_FIVE_DIR}" lxc cluster list | grep -Fc "database ")" = "3" ]
 
   # Show a single node
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node5 | grep -q "node5"
@@ -2331,7 +2331,7 @@ test_clustering_handover() {
   echo "Launched member 4"
 
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -Fc "database-standby" | grep -Fx 1
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -Fc "database-standby")" = "1" ]
 
   # Shutdown the first node.
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
@@ -2445,7 +2445,7 @@ test_clustering_rebalance() {
 
   # Check there is one database-standby member.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -Fc "database-standby" | grep -Fx 1
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -Fc "database-standby")" = "1" ]
 
   # Kill the second node.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
@@ -2813,9 +2813,9 @@ test_clustering_image_refresh() {
     # Check image storage volume records exist.
     lxd sql global 'select name from storage_volumes'
     if [ "${poolDriver}" = "ceph" ]; then
-      lxd sql global 'select name from storage_volumes' | grep -Fc "${old_fingerprint}" | grep -Fx 1
+      [ "$(lxd sql global 'select name from storage_volumes' | grep -Fc "${old_fingerprint}")" = "1" ]
     else
-      lxd sql global 'select name from storage_volumes' | grep -Fc "${old_fingerprint}" | grep -Fx 3
+      [ "$(lxd sql global 'select name from storage_volumes' | grep -Fc "${old_fingerprint}")" = "3" ]
     fi
   fi
 
@@ -2835,11 +2835,11 @@ test_clustering_image_refresh() {
     lxd sql global 'select name from storage_volumes'
     # Check image storage volume records actually removed from relevant members and replaced with new fingerprint.
     if [ "${poolDriver}" = "ceph" ]; then
-      lxd sql global 'select name from storage_volumes' | grep -Fc "${old_fingerprint}" | grep -Fx 0
-      lxd sql global 'select name from storage_volumes' | grep -Fc "${new_fingerprint}" | grep -Fx 1
+      [ "$(lxd sql global 'select name from storage_volumes' | grep -Fc "${old_fingerprint}")" = "0" ]
+      [ "$(lxd sql global 'select name from storage_volumes' | grep -Fc "${new_fingerprint}")" = "1" ]
     else
-      lxd sql global 'select name from storage_volumes' | grep -Fc "${old_fingerprint}" | grep -Fx 1
-      lxd sql global 'select name from storage_volumes' | grep -Fc "${new_fingerprint}" | grep -Fx 2
+      [ "$(lxd sql global 'select name from storage_volumes' | grep -Fc "${old_fingerprint}")" = "1" ]
+      [ "$(lxd sql global 'select name from storage_volumes' | grep -Fc "${new_fingerprint}")" = "2" ]
     fi
   fi
 
@@ -2847,12 +2847,12 @@ test_clustering_image_refresh() {
   # while project foo should still have the old image.
   # Also, it should only show 1 entry for the old image and 2 entries
   # for the new one.
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="foo"' | grep "${old_fingerprint}"
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -c "${old_fingerprint}")" -eq 1 ] || false
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="foo"' | grep -F "${old_fingerprint}"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -cF "${old_fingerprint}")" -eq 1 ]
 
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="default"' | grep "${new_fingerprint}"
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="bar"' | grep "${new_fingerprint}"
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -c "${new_fingerprint}")" -eq 2 ] || false
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="default"' | grep -F "${new_fingerprint}"
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="bar"' | grep -F "${new_fingerprint}"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -cF "${new_fingerprint}")" -eq 2 ]
 
   pids=""
 
@@ -2869,12 +2869,12 @@ test_clustering_image_refresh() {
     wait "${pid}" || true
   done
 
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="foo"' | grep "${old_fingerprint}"
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -c "${old_fingerprint}")" -eq 1 ] || false
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="foo"' | grep -F "${old_fingerprint}"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -cF "${old_fingerprint}")" -eq 1 ]
 
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="default"' | grep "${new_fingerprint}"
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="bar"' | grep "${new_fingerprint}"
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -c "${new_fingerprint}")" -eq 2 ] || false
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="default"' | grep -F "${new_fingerprint}"
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="bar"' | grep -F "${new_fingerprint}"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -cF "${new_fingerprint}")" -eq 2 ]
 
   # Modify public testimage
   dd if=/dev/urandom count=32 | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/foo
@@ -2897,12 +2897,12 @@ test_clustering_image_refresh() {
 
   pids=""
 
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="foo"' | grep "${old_fingerprint}"
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -c "${old_fingerprint}")" -eq 1 ] || false
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="foo"' | grep -F "${old_fingerprint}"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -cF "${old_fingerprint}")" -eq 1 ]
 
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="default"' | grep "${new_fingerprint}"
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="bar"' | grep "${new_fingerprint}"
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -c "${new_fingerprint}")" -eq 2 ] || false
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="default"' | grep -F "${new_fingerprint}"
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="bar"' | grep -F "${new_fingerprint}"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -cF "${new_fingerprint}")" -eq 2 ]
 
   # Clean up everything
   for project in default foo bar; do
@@ -3697,18 +3697,18 @@ test_clustering_events() {
   # Check events were distributed.
   for i in 1 2 3; do
     cat "${TEST_DIR}/node${i}.log"
-    grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log" | grep -Fx 2
+    [ "$(grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "2" ]
   done
 
   # Switch into event-hub mode.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hub
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster role add node2 event-hub
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -Fc event-hub | grep -Fx 2
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -Fc event-hub)" = "2" ]
 
   # Check events were distributed.
   for i in 1 2 3; do
-    grep -Fc "cluster-member-updated" "${TEST_DIR}/node${i}.log" | grep -Fx 2
+    [ "$(grep -Fc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "2" ]
   done
 
   sleep 2 # Wait for notification heartbeat to distribute new roles.
@@ -3726,19 +3726,19 @@ test_clustering_events() {
   # Check events were distributed.
   for i in 1 2 3; do
     cat "${TEST_DIR}/node${i}.log"
-    grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log" | grep -Fx 4
+    [ "$(grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "4" ]
   done
 
   # Launch container on node3 to check image distribution events work during event-hub mode.
   LXD_DIR="${LXD_THREE_DIR}" lxc launch testimage c3 --target=node3
 
   for i in 1 2 3; do
-    grep -Fc "instance-created" "${TEST_DIR}/node${i}.log" | grep -Fx 1
+    [ "$(grep -Fc "instance-created" "${TEST_DIR}/node${i}.log")" = "1" ]
   done
 
   # Switch into full-mesh mode by removing one event-hub role so there is <2 in the cluster.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 event-hub
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -Fc event-hub | grep -Fx 1
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -Fc event-hub)" = "1" ]
 
   sleep 1 # Wait for notification heartbeat to distribute new roles.
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: full-mesh"
@@ -3749,7 +3749,7 @@ test_clustering_events() {
 
   # Check events were distributed.
   for i in 1 2 3; do
-    grep -Fc "cluster-member-updated" "${TEST_DIR}/node${i}.log" | grep -Fx 3
+    [ "$(grep -Fc "cluster-member-updated" "${TEST_DIR}/node${i}.log")" = "3" ]
   done
 
   # Restart instance generating restart lifecycle event.
@@ -3760,7 +3760,7 @@ test_clustering_events() {
   # Check events were distributed.
   for i in 1 2 3; do
     cat "${TEST_DIR}/node${i}.log"
-    grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log" | grep -Fx 6
+    [ "$(grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "6" ]
   done
 
   # Switch back into event-hub mode by giving the role to node4 and node5.
@@ -3790,10 +3790,10 @@ test_clustering_events() {
   LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
   sleep 2
 
-  grep -Fc "instance-restarted" "${TEST_DIR}/node1.log" | grep -Fx 7
+  [ "$(grep -Fc "instance-restarted" "${TEST_DIR}/node1.log")" = "7" ]
   for i in 2 3; do
     cat "${TEST_DIR}/node${i}.log"
-    grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log" | grep -Fx 6
+    [ "$(grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log")" = "6" ]
   done
 
   # Kill monitors.
@@ -3905,6 +3905,39 @@ test_clustering_trust_add() {
   ns2="${prefix}2"
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
 
+  # Check using token that is expired
+
+  # Set token expiry to 1 seconds
+  lxc config set core.remote_token_expiry 1S
+
+  # Get a certificate add token from LXD_ONE. The operation will run on LXD_ONE locally.
+  lxd_one_token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
+  sleep 2
+
+  # Expect one running token operation.
+  operation_uuid="$(LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -F "TOKEN,Executing operation,RUNNING" | cut -d, -f1 )"
+  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -qF "${operation_uuid},TOKEN,Executing operation,RUNNING"
+  is_uuid_v4 "${operation_uuid}"
+
+  # Get the address of LXD_TWO.
+  lxd_two_address="https://$(LXD_DIR="${LXD_TWO_DIR}" lxc config get core.https_address)"
+
+  # Test adding the remote using the address of LXD_TWO with the token operation running on LXD_ONE.
+  # LXD_TWO does not have the operation running locally, so it should find the UUID of the operation in the database
+  # and query LXD_ONE for it. LXD_TWO should cancel the operation by sending a DELETE /1.0/operations/{uuid} to LXD_ONE
+  # and needs to parse the metadata of the operation into the correct type to complete the trust process.
+  # The expiry time should be parsed and found to be expired so the add action should fail.
+  ! lxc remote add lxd_two "${lxd_two_address}" --accept-certificate --token "${lxd_one_token}" || false
+
+  # Expect the operation to be cancelled.
+  LXD_DIR="${LXD_ONE_DIR}" lxc operation list --format csv | grep -qF "${operation_uuid},TOKEN,Executing operation,CANCELLED"
+  LXD_DIR="${LXD_TWO_DIR}" lxc operation list --format csv | grep -qF "${operation_uuid},TOKEN,Executing operation,CANCELLED"
+
+  # Set token expiry to 1 hour
+  lxc config set core.remote_token_expiry 1H
+
+  # Check using token that isn't expired
+
   # Get a certificate add token from LXD_ONE. The operation will run on LXD_ONE locally.
   lxd_one_token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
 
@@ -3928,6 +3961,9 @@ test_clustering_trust_add() {
 
   # Clean up
   lxc remote rm lxd_two
+
+  # Unset token expiry
+  lxc config unset core.remote_token_expiry
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown

@@ -216,8 +216,8 @@ func (c *ClusterTx) GetInstancesByMemberAddress(ctx context.Context, offlineThre
 	return memberAddressInstances, nil
 }
 
-// ErrInstanceListStop used as return value from InstanceList's instanceFunc when prematurely stopping the search.
-var ErrInstanceListStop = fmt.Errorf("search stopped")
+// ErrListStop used as return value from InstanceList's instanceFunc when prematurely stopping the search.
+var ErrListStop = fmt.Errorf("search stopped")
 
 // InstanceList loads all instances across all projects and for each instance runs the instanceFunc passing in the
 // instance and it's project and profiles. Accepts optional filter arguments to specify a subset of instances.

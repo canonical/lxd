@@ -359,7 +359,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	if d.config["source"] == "" && d.config["path"] != "/" {
-		return fmt.Errorf(`Disk entry is missing the required "source" or "path" property`)
+		return fmt.Errorf(`Non root disk devices require the "source" property`)
 	}
 
 	if d.config["path"] == "/" && d.config["source"] != "" {

@@ -137,12 +137,12 @@ test_basic_usage() {
   gen_cert client3
 
   # don't allow requests without a cert to get trusted data
-  curl -k -s -X GET "https://${LXD_ADDR}/1.0/containers/foo" | grep 403
+  [ "$(curl -k -s -o /dev/null -w "%{http_code}" -X GET "https://${LXD_ADDR}/1.0/containers/foo")" = "403" ]
 
   # Test unprivileged container publish
   lxc publish bar --alias=foo-image prop1=val1
   lxc image show foo-image | grep val1
-  curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" && false
+  CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" && false
   lxc image delete foo-image
 
   # Test container publish with existing alias
@@ -190,7 +190,7 @@ test_basic_usage() {
   # Test image compression on publish
   lxc publish bar --alias=foo-image-compressed --compression=bzip2 prop=val1
   lxc image show foo-image-compressed | grep val1
-  curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" && false
+  CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" && false
   lxc image delete foo-image-compressed
 
   # Test compression options
@@ -203,7 +203,7 @@ test_basic_usage() {
   lxc init testimage barpriv -p default -p priv
   lxc publish barpriv --alias=foo-image prop1=val1
   lxc image show foo-image | grep val1
-  curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" && false
+  CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" && false
   lxc image delete foo-image
   lxc delete barpriv
   lxc profile delete priv
@@ -223,7 +223,7 @@ test_basic_usage() {
 
   # Test public images
   lxc publish --public bar --alias=foo-image2
-  curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/"
+  CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/"
   lxc image delete foo-image2
 
   # Test invalid instance names
@@ -432,11 +432,11 @@ test_basic_usage() {
   echo abc > "${LXD_DIR}/in"
 
   lxc file push "${LXD_DIR}/in" foo/root/
-  lxc exec foo -- /bin/cat /root/in | grep -xF abc
+  [ "$(lxc exec foo -- /bin/cat /root/in)" = "abc" ]
   lxc exec foo -- /bin/rm -f root/in
 
   lxc file push "${LXD_DIR}/in" foo/root/in1
-  lxc exec foo -- /bin/cat /root/in1 | grep -xF abc
+  [ "$(lxc exec foo -- /bin/cat /root/in1)" = "abc" ]
   lxc exec foo -- /bin/rm -f root/in1
 
   # test lxc file edit doesn't change target file's owner and permissions
