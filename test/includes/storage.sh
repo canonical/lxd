@@ -16,6 +16,13 @@ storage_backend_available() {
     false
 }
 
+# Returns 0 if --optimized-storage works for backups (export/import)
+storage_backend_optimized_backup() {
+    [ "${1}" = "btrfs" ] && return 0
+    [ "${1}" = "zfs" ]   && return 0
+    return 1
+}
+
 # Choose a random available backend, excluding LXD_BACKEND
 random_storage_backend() {
     # shellcheck disable=2046
