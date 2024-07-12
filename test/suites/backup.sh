@@ -371,7 +371,7 @@ _backup_import_with_project() {
   # container only
 
   # create backup
-  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+  if storage_backend_optimized_backup "$lxd_backend"; then
     lxc export c1 "${LXD_DIR}/c1-optimized.tar.gz" --optimized-storage --instance-only
   fi
 
@@ -384,7 +384,7 @@ _backup_import_with_project() {
   lxc start c1
   lxc delete --force c1
 
-  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+  if storage_backend_optimized_backup "$lxd_backend"; then
     lxc import "${LXD_DIR}/c1-optimized.tar.gz"
     lxc info c1
     lxc start c1
@@ -393,7 +393,7 @@ _backup_import_with_project() {
 
   # with snapshots
 
-  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+  if storage_backend_optimized_backup "$lxd_backend"; then
     lxc export c2 "${LXD_DIR}/c2-optimized.tar.gz" --optimized-storage
   fi
 
@@ -442,7 +442,7 @@ _backup_import_with_project() {
   lxc delete --force c3
 
 
-  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+  if storage_backend_optimized_backup "$lxd_backend"; then
     lxc import "${LXD_DIR}/c2-optimized.tar.gz"
     lxc import "${LXD_DIR}/c2-optimized.tar.gz" c3
     lxc info c2 | grep snap0
@@ -557,7 +557,7 @@ _backup_export_with_project() {
 
   # container only
 
-  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+  if storage_backend_optimized_backup "$lxd_backend"; then
     lxc export c1 "${LXD_DIR}/c1-optimized.tar.gz" --optimized-storage --instance-only
     tar -xzf "${LXD_DIR}/c1-optimized.tar.gz" -C "${LXD_DIR}/optimized"
 
@@ -577,8 +577,7 @@ _backup_export_with_project() {
   rm -rf "${LXD_DIR}/non-optimized/"* "${LXD_DIR}/optimized/"*
 
   # with snapshots
-
-  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+  if storage_backend_optimized_backup "$lxd_backend"; then
     lxc export c1 "${LXD_DIR}/c1-optimized.tar.gz" --optimized-storage
     tar -xzf "${LXD_DIR}/c1-optimized.tar.gz" -C "${LXD_DIR}/optimized"
 
@@ -716,7 +715,7 @@ _backup_volume_export_with_project() {
   lxc storage volume snapshot "${custom_vol_pool}" testvol test-snap1
   lxc storage volume set "${custom_vol_pool}" testvol user.foo=post-test-snap1
 
-  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+  if storage_backend_optimized_backup "$lxd_backend"; then
     # Create optimized backup without snapshots.
     lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol-optimized.tar.gz" --volume-only --optimized-storage
 
@@ -749,7 +748,7 @@ _backup_volume_export_with_project() {
   rm -rf "${LXD_DIR}/non-optimized/"*
   rm "${LXD_DIR}/testvol.tar.gz"
 
-  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+  if storage_backend_optimized_backup "$lxd_backend"; then
     # Create optimized backup with snapshots.
     lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol-optimized.tar.gz" --optimized-storage
 
@@ -822,7 +821,7 @@ _backup_volume_export_with_project() {
   fi
 
   # Test optimized import.
-  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+  if storage_backend_optimized_backup "$lxd_backend"; then
     lxc storage volume detach "${custom_vol_pool}" testvol c1
     lxc storage volume detach "${custom_vol_pool}" testvol2 c1
     lxc storage volume delete "${custom_vol_pool}" testvol
