@@ -38,24 +38,36 @@ func ListDatabaseNodes(database *db.Node) ([]string, error) {
 	return addresses, nil
 }
 
-// Recover rebuilds the dqlite raft configuration leaving only the current
-// member in the cluster. Use `Reconfigure` if more members should remain in
-// the raft configuration.
-func Recover(database *db.Node) error {
-	// Figure out if we actually act as dqlite node.
+// Return the entry in the raft_nodes table that corresponds to the local
+// `core.https_address`.
+// Returns err if no raft_node exists for the local node.
+func localRaftNode(database *db.Node) (*db.RaftNode, error) {
 	var info *db.RaftNode
 	err := database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
 		info, err = node.DetermineRaftNode(ctx, tx)
+
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to determine node role: %w", err)
+		return nil, fmt.Errorf("Failed to determine cluster member raft role: %w", err)
 	}
 
 	// If we're not a database node, return an error.
 	if info == nil {
-		return fmt.Errorf("This LXD instance has no database role")
+		return nil, fmt.Errorf("This cluster member has no raft role")
+	}
+
+	return info, nil
+}
+
+// Recover rebuilds the dqlite raft configuration leaving only the current
+// member in the cluster. Use `Reconfigure` if more members should remain in
+// the raft configuration.
+func Recover(database *db.Node) error {
+	info, err := localRaftNode(database)
+	if err != nil {
+		return err
 	}
 
 	// If this is a standalone node not exposed to the network, return an
@@ -127,19 +139,9 @@ func updateLocalAddress(database *db.Node, address string) error {
 // Reconfigure replaces the entire cluster configuration.
 // Addresses and node roles may be updated. Node IDs are read-only.
 func Reconfigure(database *db.Node, raftNodes []db.RaftNode) error {
-	var info *db.RaftNode
-	err := database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		var err error
-		info, err = node.DetermineRaftNode(ctx, tx)
-
-		return err
-	})
+	info, err := localRaftNode(database)
 	if err != nil {
-		return fmt.Errorf("Failed to determine cluster member raft role: %w", err)
-	}
-
-	if info == nil {
-		return fmt.Errorf("This cluster member has no raft role")
+		return err
 	}
 
 	localAddress := info.Address
