@@ -71,7 +71,7 @@ func (c *cmdMigrateData) render() string {
 		Mounts      []string          `yaml:"Mounts,omitempty"`
 		Profiles    []string          `yaml:"Profiles,omitempty"`
 		StoragePool string            `yaml:"Storage pool,omitempty"`
-		StorageSize string            `yaml:"Storage pool size,omitempty"`
+		StorageSize string            `yaml:"Storage volume size,omitempty"`
 		Network     string            `yaml:"Network name,omitempty"`
 		Config      map[string]string `yaml:"Config,omitempty"`
 	}{
@@ -677,13 +677,13 @@ func (c *cmdMigrate) askStorage(server lxd.InstanceServer, config *cmdMigrateDat
 		"path": "/",
 	}
 
-	changeStorageSize, err := c.global.asker.AskBool("Do you want to change the storage size? [default=no]: ", "no")
+	changeStorageSize, err := c.global.asker.AskBool("Do you want to change the storage volume size? [default=no]: ", "no")
 	if err != nil {
 		return err
 	}
 
 	if changeStorageSize {
-		size, err := c.global.asker.AskString("Please specify the storage size: ", "", func(s string) error {
+		size, err := c.global.asker.AskString("Please specify the storage volume size: ", "", func(s string) error {
 			_, err := units.ParseByteSizeString(s)
 			return err
 		})
