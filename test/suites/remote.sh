@@ -81,16 +81,16 @@ test_remote_url_with_token() {
   token="$(lxc config trust list-tokens -f json | jq '.[].Token')"
 
   # create new certificate
-  gen_cert_and_key "${TEST_DIR}/token-client.key" "${TEST_DIR}/token-client.crt" "lxd.local"
+  gen_cert_and_key "token-client"
 
   # Try accessing instances (this should fail)
-  [ "$(curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" "https://${LXD_ADDR}/1.0/instances" | jq '.error_code')" -eq 403 ]
+  [ "$(CERTNAME="token-client" my_curl "https://${LXD_ADDR}/1.0/instances" | jq '.error_code')" -eq 403 ]
 
   # Add valid token
-  curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" -X POST -d "{\"trust_token\": ${token}}" "https://${LXD_ADDR}/1.0/certificates"
+  CERTNAME="token-client" my_curl -X POST -d "{\"trust_token\": ${token}}" "https://${LXD_ADDR}/1.0/certificates"
 
   # Check if we can see instances
-  [ "$(curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" "https://${LXD_ADDR}/1.0/instances" | jq '.status_code')" -eq 200 ]
+  [ "$(CERTNAME="token-client" my_curl "https://${LXD_ADDR}/1.0/instances" | jq '.status_code')" -eq 200 ]
 
   lxc config trust rm "$(lxc config trust list -f json | jq -r '.[].fingerprint')"
 
@@ -101,13 +101,13 @@ test_remote_url_with_token() {
   token="$(lxc config trust list-tokens -f json | jq '.[].Token')"
 
   # Add valid token but override projects
-  curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" -X POST -d "{\"trust_token\":${token},\"projects\":[\"default\",\"foo\"],\"restricted\":false}" "https://${LXD_ADDR}/1.0/certificates"
+  CERTNAME="token-client" my_curl -X POST -d "{\"trust_token\":${token},\"projects\":[\"default\",\"foo\"],\"restricted\":false}" "https://${LXD_ADDR}/1.0/certificates"
 
   # Check if we can see instances in the foo project
-  [ "$(curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" "https://${LXD_ADDR}/1.0/instances?project=foo" | jq '.status_code')" -eq 200 ]
+  [ "$(CERTNAME="token-client" my_curl "https://${LXD_ADDR}/1.0/instances?project=foo" | jq '.status_code')" -eq 200 ]
 
   # Check if we can see instances in the default project (this should fail)
-  [ "$(curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" "https://${LXD_ADDR}/1.0/instances" | jq '.error_code')" -eq 403 ]
+  [ "$(CERTNAME="token-client" my_curl "https://${LXD_ADDR}/1.0/instances" | jq '.error_code')" -eq 403 ]
 
   lxc config trust rm "$(lxc config trust list -f json | jq -r '.[].fingerprint')"
 

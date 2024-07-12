@@ -29,7 +29,8 @@ EOF
 
 # Certificate-aware curl wrapper
 my_curl() {
-    curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" "$@"
+    CERTNAME="${CERTNAME:-"client"}"
+    curl -k -s --cert "${LXD_CONF}/${CERTNAME}.crt" --key "${LXD_CONF}/${CERTNAME}.key" "$@"
 }
 
 # Wait for duplicate address detection to complete.
