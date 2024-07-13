@@ -43,6 +43,7 @@ type cmdCluster struct {
 	global *cmdGlobal
 }
 
+// Command returns a subcommand for administrating a cluster.
 func (c *cmdCluster) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "cluster"
@@ -55,8 +56,8 @@ func (c *cmdCluster) Command() *cobra.Command {
 	cmd.AddCommand(listDatabase.Command())
 
 	// Recover
-	recover := cmdClusterRecoverFromQuorumLoss{global: c.global}
-	cmd.AddCommand(recover.Command())
+	clusterRecover := cmdClusterRecoverFromQuorumLoss{global: c.global}
+	cmd.AddCommand(clusterRecover.Command())
 
 	// Remove a raft node.
 	removeRaftNode := cmdClusterRemoveRaftNode{global: c.global}
@@ -76,7 +77,7 @@ func (c *cmdCluster) Command() *cobra.Command {
 	return cmd
 }
 
-const SegmentComment = "# Latest dqlite segment ID: %s"
+const segmentComment = "# Latest dqlite segment ID: %s"
 
 // ClusterMember is a more human-readable representation of the db.RaftNode struct.
 type ClusterMember struct {
@@ -142,6 +143,7 @@ type cmdClusterEdit struct {
 	global *cmdGlobal
 }
 
+// Command returns a command for reconfiguring a cluster.
 func (c *cmdClusterEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "edit"
@@ -153,6 +155,7 @@ func (c *cmdClusterEdit) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command for reconfiguring a cluster.
 func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 	// Make sure that the daemon is not running.
 	_, err := lxd.ConnectLXDUnix("", nil)
@@ -216,7 +219,7 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 		if len(config.Members) > 0 {
 			data = []byte(
 				clusterEditComment + "\n\n" +
-					fmt.Sprintf(SegmentComment, segmentID) + "\n\n" +
+					fmt.Sprintf(segmentComment, segmentID) + "\n\n" +
 					string(data))
 		}
 
@@ -323,6 +326,7 @@ type cmdClusterShow struct {
 	global *cmdGlobal
 }
 
+// Command returns a command for showing the current cluster configuration.
 func (c *cmdClusterShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "show"
@@ -334,6 +338,7 @@ func (c *cmdClusterShow) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command for showing the current cluster configuration.
 func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
 	database, err := db.OpenNode(filepath.Join(sys.DefaultOS().VarDir, "database"), nil)
 	if err != nil {
@@ -368,7 +373,7 @@ func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(config.Members) > 0 {
-		fmt.Printf(SegmentComment+"\n\n%s", segmentID, data)
+		fmt.Printf(segmentComment+"\n\n%s", segmentID, data)
 	} else {
 		fmt.Print(data)
 	}
@@ -380,6 +385,7 @@ type cmdClusterListDatabase struct {
 	global *cmdGlobal
 }
 
+// Command returns a command for showing the database roles of cluster members.
 func (c *cmdClusterListDatabase) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "list-database"
@@ -391,6 +397,7 @@ func (c *cmdClusterListDatabase) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command for showing the database roles of cluster members.
 func (c *cmdClusterListDatabase) Run(cmd *cobra.Command, args []string) error {
 	os := sys.DefaultOS()
 
@@ -436,6 +443,7 @@ type cmdClusterRecoverFromQuorumLoss struct {
 	flagNonInteractive bool
 }
 
+// Command returns a command for rebuilding a cluster based on the current member.
 func (c *cmdClusterRecoverFromQuorumLoss) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "recover-from-quorum-loss"
@@ -448,6 +456,7 @@ func (c *cmdClusterRecoverFromQuorumLoss) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command for rebuilding a cluster based on the current member.
 func (c *cmdClusterRecoverFromQuorumLoss) Run(cmd *cobra.Command, args []string) error {
 	// Make sure that the daemon is not running.
 	_, err := lxd.ConnectLXDUnix("", nil)
@@ -482,6 +491,7 @@ type cmdClusterRemoveRaftNode struct {
 	flagNonInteractive bool
 }
 
+// Command returns a command for removing a raft node from the currently running database.
 func (c *cmdClusterRemoveRaftNode) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "remove-raft-node <address>"
@@ -494,6 +504,7 @@ func (c *cmdClusterRemoveRaftNode) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the command for removing a raft node from the currently running database.
 func (c *cmdClusterRemoveRaftNode) Run(cmd *cobra.Command, args []string) error {
 	if len(args) != 1 {
 		_ = cmd.Help()
