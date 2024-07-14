@@ -37,7 +37,7 @@ spawn_lxd() {
         LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     else
         # shellcheck disable=SC2153
-        pid="$(cat "${TEST_DIR}/ns/${LXD_NETNS}/PID")"
+        read -r pid < "${TEST_DIR}/ns/${LXD_NETNS}/PID"
         LXD_DIR="${lxddir}" nsenter -n -m -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     fi
     LXD_PID=$!
@@ -94,7 +94,7 @@ respawn_lxd() {
     if [ "${LXD_NETNS}" = "" ]; then
         LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     else
-        pid="$(cat "${TEST_DIR}/ns/${LXD_NETNS}/PID")"
+        read -r pid < "${TEST_DIR}/ns/${LXD_NETNS}/PID"
         LXD_DIR="${lxddir}" nsenter -n -m -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     fi
     LXD_PID=$!
@@ -208,11 +208,7 @@ kill_lxd() {
         rm -f "${daemon_dir}/containers/lxc-monitord.log"
 
         # Support AppArmor policy cache directory
-        if apparmor_parser --help | grep -q -- '--print-cache.dir'; then
-          apparmor_cache_dir="$(apparmor_parser -L "${daemon_dir}"/security/apparmor/cache --print-cache-dir)"
-        else
-          apparmor_cache_dir="${daemon_dir}/security/apparmor/cache"
-        fi
+        apparmor_cache_dir="$(apparmor_parser -L "${daemon_dir}"/security/apparmor/cache --print-cache-dir)"
         rm -f "${apparmor_cache_dir}/.features"
         check_empty "${daemon_dir}/containers/"
         check_empty "${daemon_dir}/devices/"
