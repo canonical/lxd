@@ -27,22 +27,23 @@ See the corresponding pages for driver-specific information and configuration op
 
 Where possible, LXD uses the advanced features of each storage system to optimize operations.
 
-Feature                                     | Directory | Btrfs | LVM     | ZFS     | Ceph RBD | CephFS | Ceph Object | Dell PowerFlex
-:---                                        | :---      | :---  | :---    | :---    | :---     | :---   | :---        | :---
-{ref}`storage-optimized-image-storage`      | no        | yes   | yes     | yes     | yes      | n/a    | n/a         | no
-Optimized instance creation                 | no        | yes   | yes     | yes     | yes      | n/a    | n/a         | no
-Optimized snapshot creation                 | no        | yes   | yes     | yes     | yes      | yes    | n/a         | yes
-Optimized image transfer                    | no        | yes   | no      | yes     | yes      | n/a    | n/a         | no
-{ref}`storage-optimized-volume-transfer`    | no        | yes   | no      | yes     | yes[^1]  | n/a    | n/a         | no
-{ref}`storage-optimized-volume-refresh`     | no        | yes   | yes[^2] | yes     | yes[^3]  | n/a    | n/a         | no
-Copy on write                               | no        | yes   | yes     | yes     | yes      | yes    | n/a         | yes
-Block based                                 | no        | no    | yes     | no      | yes      | no     | n/a         | yes
-Instant cloning                             | no        | yes   | yes     | yes     | yes      | yes    | n/a         | no
-Storage driver usable inside a container    | yes       | yes   | no      | yes[^4] | no       | n/a    | n/a         | no
-Restore from older snapshots (not latest)   | yes       | yes   | yes     | no      | yes      | yes    | n/a         | yes
-Storage quotas                              | yes[^5]   | yes   | yes     | yes     | yes      | yes    | yes         | yes
-Available on `lxd init`                     | yes       | yes   | yes     | yes     | yes      | no     | no          | no
-Object storage                              | yes       | yes   | yes     | yes     | no       | no     | yes         | no
+Feature                                     | Directory | Btrfs | LVM   | ZFS    | Ceph RBD | CephFS | Ceph Object | Dell PowerFlex
+:---                                        | :---      | :---  | :---  | :---   | :---     | :---   | :---        | :---
+{ref}`storage-optimized-image-storage`      | ❌        | ✅   | ✅     | ✅     | ✅       | ➖     | ➖          | ❌
+Optimized instance creation                 | ❌        | ✅   | ✅     | ✅     | ✅       | ➖     | ➖          | ❌
+Optimized snapshot creation                 | ❌        | ✅   | ✅     | ✅     | ✅       | ✅     | ➖          | ✅
+Optimized image transfer                    | ❌        | ✅   | ❌     | ✅     | ✅       | ➖     | ➖          | ❌
+Optimized backup (import/export)            | ❌        | ✅   | ❌     | ✅     | ❌       | ➖     | ➖          | ❌
+{ref}`storage-optimized-volume-transfer`    | ❌        | ✅   | ❌     | ✅     | ✅[^1]   | ➖     | ➖          | ❌
+{ref}`storage-optimized-volume-refresh`     | ❌        | ✅   | ✅[^2] | ✅     | ✅[^3]   | ➖     | ➖          | ❌
+Copy on write                               | ❌        | ✅   | ✅     | ✅     | ✅       | ✅     | ➖          | ✅
+Block based                                 | ❌        | ❌   | ✅     | ❌      | ✅      | ❌     | ➖          | ✅
+Instant cloning                             | ❌        | ✅   | ✅     | ✅     | ✅       | ✅     | ➖          | ❌
+Storage driver usable inside a container    | ✅        | ✅   | ❌     | ✅[^4] | ❌       | ➖     | ➖          | ❌
+Restore from older snapshots (not latest)   | ✅        | ✅   | ✅     | ❌      | ✅      | ✅     | ➖          | ✅
+Storage quotas                              | ✅[^5]    | ✅   | ✅     | ✅     | ✅       | ✅     | ✅          | ✅
+Available on `lxd init`                     | ✅        | ✅   | ✅     | ✅     | ✅       | ❌     | ❌          | ❌
+Object storage                              | ✅        | ✅   | ✅     | ✅     | ❌       | ❌     | ✅          | ❌
 
 [^1]: Volumes of type `block` will fall back to non-optimized transfer when migrating to an older LXD server that doesn't yet support the `RBD_AND_RSYNC` migration type.
 [^2]: Requires {config:option}`storage-lvm-pool-conf:lvm.use_thinpool` to be enabled. Only when refreshing local volumes.
