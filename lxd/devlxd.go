@@ -310,7 +310,7 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 	case http.StateNew:
 		cred, err := ucred.GetCred(unixConn)
 		if err != nil {
-			logger.Debugf("Error getting ucred for conn %s", err)
+			logger.Debug("Error getting ucred for devlxd connection", logger.Ctx{"error": err})
 		} else {
 			m.mLock.Lock()
 			m.m[unixConn] = cred
@@ -338,7 +338,7 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 		delete(m.m, unixConn)
 		m.mLock.Unlock()
 	default:
-		logger.Debugf("Unknown state for connection %s", state)
+		logger.Debug("Unknown state for devlxd connection", logger.Ctx{"state": state.String()})
 	}
 }
 
