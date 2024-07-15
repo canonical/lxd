@@ -226,6 +226,7 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	var tarballPath string
 	for {
 		newConfig := ClusterConfig{}
 		err = yaml.Unmarshal(content, &newConfig)
@@ -246,7 +247,7 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 			if err == nil {
 				err = validateNewConfig(nodes, newNodes)
 				if err == nil {
-					err = cluster.Reconfigure(database, newNodes)
+					tarballPath, err = cluster.Reconfigure(database, newNodes)
 				}
 			}
 		}
@@ -269,6 +270,10 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 
 		break
 	}
+
+	fmt.Printf("Cluster changes applied; new database state saved to %s\n\n", tarballPath)
+	fmt.Printf("*Before* starting any cluster member, copy %s to %s on all remaining cluster members.\n\n", tarballPath, tarballPath)
+	fmt.Printf("LXD will load this file during startup.\n")
 
 	return nil
 }
