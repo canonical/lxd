@@ -24,6 +24,7 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/rsync"
 	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/shared"
@@ -775,7 +776,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, sys
 		}
 
 		if shared.PathExists(dstPath) {
-			volSizeBytes, err := drivers.BlockDiskSizeBytes(dstPath)
+			volSizeBytes, err := block.DiskSizeBytes(dstPath)
 			if err != nil {
 				return -1, fmt.Errorf("Error getting current size of %q: %w", dstPath, err)
 			}
@@ -1201,7 +1202,7 @@ func InstanceDiskBlockSize(pool Pool, inst instance.Instance, op *operations.Ope
 		return -1, fmt.Errorf("No disk path available from mount")
 	}
 
-	blockDiskSize, err := drivers.BlockDiskSizeBytes(mountInfo.DiskPath)
+	blockDiskSize, err := block.DiskSizeBytes(mountInfo.DiskPath)
 	if err != nil {
 		return -1, fmt.Errorf("Error getting block disk size %q: %w", mountInfo.DiskPath, err)
 	}

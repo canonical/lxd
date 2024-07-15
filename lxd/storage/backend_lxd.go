@@ -37,6 +37,7 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/storage/memorypipe"
@@ -1453,7 +1454,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 					return err
 				}
 
-				volSize, err = drivers.BlockDiskSizeBytes(volDiskPath)
+				volSize, err = block.DiskSizeBytes(volDiskPath)
 				if err != nil {
 					return err
 				}
@@ -4981,7 +4982,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 				return err
 			}
 
-			volSize, err = drivers.BlockDiskSizeBytes(volDiskPath)
+			volSize, err = block.DiskSizeBytes(volDiskPath)
 			if err != nil {
 				return err
 			}
