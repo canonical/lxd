@@ -392,7 +392,12 @@ type ConnPidMapper struct {
 }
 
 func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
-	unixConn := conn.(*net.UnixConn)
+	unixConn, _ := conn.(*net.UnixConn)
+	if unixConn == nil {
+		logger.Error("Invalid type for devlxd connection", logger.Ctx{"conn_type": fmt.Sprintf("%T", conn)})
+		return
+	}
+
 	switch state {
 	case http.StateNew:
 		cred, err := ucred.GetCred(unixConn)
@@ -478,7 +483,9 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 				return nil, fmt.Errorf("Instance is not container type")
 			}
 
-			return inst.(instance.Container), nil
+			// Explicitly ignore type assertion check. We've just checked that it's a container.
+			c, _ := inst.(instance.Container)
+			return c, nil
 		}
 
 		status, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
@@ -531,7 +538,9 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 		}
 
 		if origPidNs == pidNs {
-			return inst.(instance.Container), nil
+			// Explicitly ignore type assertion check. The instance must be a container if we've found it via the process ID.
+			c, _ := inst.(instance.Container)
+			return c, nil
 		}
 	}
 
