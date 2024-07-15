@@ -154,7 +154,7 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 	}
 
 	// Render the profile.
-	var sb *strings.Builder = &strings.Builder{}
+	sb := &strings.Builder{}
 	if inst.Type() == instancetype.Container {
 		err = lxcProfileTpl.Execute(sb, map[string]any{
 			"feature_cgns":     sysOS.CGInfo.Namespacing,
@@ -194,17 +194,18 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 		}
 
 		err = qemuProfileTpl.Execute(sb, map[string]any{
-			"devicesPath": inst.DevicesPath(),
-			"exePath":     execPath,
-			"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
-			"logPath":     inst.LogPath(),
-			"name":        InstanceProfileName(inst),
-			"path":        path,
-			"raw":         rawContent,
-			"rootPath":    rootPath,
-			"snap":        shared.InSnap(),
-			"userns":      sysOS.RunningInUserNS,
-			"qemuFwPaths": qemuFwPathsArr,
+			"devicesPath":       inst.DevicesPath(),
+			"exePath":           execPath,
+			"libraryPath":       strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
+			"logPath":           inst.LogPath(),
+			"name":              InstanceProfileName(inst),
+			"path":              path,
+			"raw":               rawContent,
+			"rootPath":          rootPath,
+			"snap":              shared.InSnap(),
+			"userns":            sysOS.RunningInUserNS,
+			"qemuFwPaths":       qemuFwPathsArr,
+			"snapExtQemuPrefix": os.Getenv("SNAP_QEMU_PREFIX"),
 		})
 		if err != nil {
 			return "", err
