@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -317,7 +318,7 @@ func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Requ
 		conn := ucred.GetConnFromContext(r.Context())
 		cred, ok := pidMapper.m[conn.(*net.UnixConn)]
 		if !ok {
-			http.Error(w, pidNotInContainerErr.Error(), http.StatusInternalServerError)
+			http.Error(w, errPIDNotInContainer.Error(), http.StatusInternalServerError)
 			return
 		}
 
@@ -434,7 +435,7 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 	}
 }
 
-var pidNotInContainerErr = fmt.Errorf("pid not in container?")
+var errPIDNotInContainer = errors.New("Process ID not found in container")
 
 func findContainerForPid(pid int32, s *state.State) (instance.Container, error) {
 	/*
@@ -544,5 +545,5 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 		}
 	}
 
-	return nil, pidNotInContainerErr
+	return nil, errPIDNotInContainer
 }
