@@ -387,11 +387,15 @@ func devLxdAPI(d *Daemon, f hoistFunc) http.Handler {
  */
 var pidMapper = ConnPidMapper{m: map[*net.UnixConn]*unix.Ucred{}}
 
+// ConnPidMapper is threadsafe cache of unix connections to process IDs. We use this in hoistReq to determine
+// the instance that the connection has been made from.
 type ConnPidMapper struct {
 	m     map[*net.UnixConn]*unix.Ucred
 	mLock sync.Mutex
 }
 
+// ConnStateHandler is used in the `ConnState` field of the devlxd http.Server so that we can cache the process ID of the
+// caller when a new connection is made and delete it when the connection is closed.
 func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 	unixConn, _ := conn.(*net.UnixConn)
 	if unixConn == nil {
