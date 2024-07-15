@@ -388,7 +388,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 	}
 
 	// Devlxd unix socket credentials on main API.
-	if r.RemoteAddr == "@devlxd" {
+	if r.RemoteAddr == devlxdRemoteAddress {
 		return false, "", "", nil, fmt.Errorf("Main API query can't come from /dev/lxd socket")
 	}
 

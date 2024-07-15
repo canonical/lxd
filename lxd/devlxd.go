@@ -30,6 +30,8 @@ import (
 	"github.com/canonical/lxd/shared/ws"
 )
 
+const devlxdRemoteAddress = "@devlxd"
+
 type hoistFunc func(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request)
 
 // DevLxdServer creates an http.Server capable of handling requests against the
@@ -101,7 +103,7 @@ var devlxdImageExport = devLxdHandler{"/1.0/images/{fingerprint}/export", func(d
 	}
 
 	// Use by security checks to distinguish devlxd vs lxd APIs
-	r.RemoteAddr = "@devlxd"
+	r.RemoteAddr = devlxdRemoteAddress
 
 	resp := imageExport(d, r)
 
