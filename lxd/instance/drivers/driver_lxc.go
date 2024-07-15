@@ -6078,15 +6078,9 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// At this point we have already figured out the parent container's root
 		// disk device so we can simply retrieve it from the expanded devices.
-		parentStoragePool := ""
-		parentExpandedDevices := d.ExpandedDevices()
-		parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := instancetype.GetRootDiskDevice(parentExpandedDevices.CloneNative())
-		if parentLocalRootDiskDeviceKey != "" {
-			parentStoragePool = parentLocalRootDiskDevice["pool"]
-		}
-
-		if parentStoragePool == "" {
-			return fmt.Errorf("Instance's root device is missing the pool property")
+		parentStoragePool, err := d.getParentStoragePool()
+		if err != nil {
+			return err
 		}
 
 		// A zero length Snapshots slice indicates volume only migration in

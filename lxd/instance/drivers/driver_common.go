@@ -1297,6 +1297,21 @@ func (d *common) getStoragePool() (storagePools.Pool, error) {
 	return d.storagePool, nil
 }
 
+// getParentStoragePool retrieves the root disk device from the expanded devices.
+func (d *common) getParentStoragePool() (string, error) {
+	parentStoragePool := ""
+	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := instancetype.GetRootDiskDevice(d.ExpandedDevices().CloneNative())
+	if parentLocalRootDiskDeviceKey != "" {
+		parentStoragePool = parentLocalRootDiskDevice["pool"]
+	}
+
+	if parentStoragePool == "" {
+		return "", fmt.Errorf("Instance's root device is missing the pool property")
+	}
+
+	return parentStoragePool, nil
+}
+
 // deviceLoad instantiates and validates a new device and returns it along with enriched config.
 func (d *common) deviceLoad(inst instance.Instance, deviceName string, rawConfig deviceConfig.Device) (device.Device, error) {
 	var configCopy deviceConfig.Device
