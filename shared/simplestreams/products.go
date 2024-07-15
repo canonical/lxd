@@ -70,7 +70,8 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 	downloads := map[string][][]string{}
 
 	images := []api.Image{}
-	nameLayout := "20060102"
+	nameLayoutLong := "20060102_0304" // Date and time.
+	nameLayoutShort := "20060102"     // Date only.
 	eolLayout := "2006-01-02"
 
 	for _, product := range s.Products {
@@ -91,9 +92,15 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 				continue
 			}
 
-			creationDate, err := time.Parse(nameLayout, name[0:8])
+			// Parse the creation date from the version name. First, check if the version contains
+			// both date and upload time. If it doesn't, try parsing just the date part. If the date
+			// cannot be fetched, skip that version instead of erroring out.
+			creationDate, err := time.Parse(nameLayoutLong, name)
 			if err != nil {
-				continue
+				creationDate, err = time.Parse(nameLayoutShort, name[0:8])
+				if err != nil {
+					continue
+				}
 			}
 
 			// Image processing function
