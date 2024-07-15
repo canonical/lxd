@@ -4033,7 +4033,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 
 	secret := r.FormValue("secret")
 
-	if r.RemoteAddr == "@devlxd" {
+	if r.RemoteAddr == devlxdRemoteAddress {
 		if !imgInfo.Public && !imgInfo.Cached {
 			return response.NotFound(fmt.Errorf("Image %q not found", fingerprint))
 		}
