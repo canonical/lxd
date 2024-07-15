@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/rsync"
 	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/shared"
@@ -569,7 +570,7 @@ func genericVFSBackupVolume(d Driver, vol VolumeCopy, tarWriter *instancewriter.
 			}
 
 			// Get size of disk block device for tarball header.
-			blockDiskSize, err := BlockDiskSizeBytes(blockPath)
+			blockDiskSize, err := block.DiskSizeBytes(blockPath)
 			if err != nil {
 				return fmt.Errorf("Error getting block device size %q: %w", blockPath, err)
 			}
