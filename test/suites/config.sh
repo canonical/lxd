@@ -325,7 +325,6 @@ test_property() {
 
 
   # Create a storage volume, create a volume snapshot and set its expiration timestamp
-  # shellcheck disable=2039,3043
   local storage_pool
   storage_pool="lxdtest-$(basename "${LXD_DIR}")"
   storage_volume="${storage_pool}-vol"
@@ -347,8 +346,8 @@ test_property() {
 }
 
 test_config_edit_container_snapshot_pool_config() {
-    # shellcheck disable=2034,2039,2155,3043
-    local storage_pool="lxdtest-$(basename "${LXD_DIR}")"
+    local storage_pool
+    storage_pool="lxdtest-$(basename "${LXD_DIR}")"
 
     ensure_import_testimage
 

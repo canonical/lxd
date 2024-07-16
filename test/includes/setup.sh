@@ -1,7 +1,6 @@
 # Test setup helper functions.
 
 ensure_has_localhost_remote() {
-    # shellcheck disable=SC2039,3043
     local addr="${1}"
     if ! lxc remote list | grep -q "localhost"; then
         token="$(lxc config trust add --name foo -q)"

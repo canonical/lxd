@@ -8,7 +8,6 @@ test_storage_driver_zfs() {
 }
 
 do_zfs_delegate() {
-  # shellcheck disable=2039,3043
   local lxd_backend
 
   lxd_backend=$(storage_backend "$LXD_DIR")
@@ -46,7 +45,6 @@ do_zfs_delegate() {
 }
 
 do_zfs_cross_pool_copy() {
-  # shellcheck disable=2039,3043
   local LXD_STORAGE_DIR lxd_backend
 
   lxd_backend=$(storage_backend "$LXD_DIR")
@@ -118,7 +116,6 @@ do_storage_driver_zfs() {
     return
   fi
 
-  # shellcheck disable=2039,3043
   local LXD_STORAGE_DIR lxd_backend
 
   lxd_backend=$(storage_backend "$LXD_DIR")

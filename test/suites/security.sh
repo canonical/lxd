@@ -87,7 +87,6 @@ test_security() {
 
   lxc delete test-unpriv --force
 
-  # shellcheck disable=2039,3043
   local LXD_STORAGE_DIR
 
   LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)

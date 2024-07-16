@@ -6,7 +6,6 @@ test_image_prefer_cached() {
       lxc image delete testimage
   fi
 
-  # shellcheck disable=2039,3043
   local LXD2_DIR LXD2_ADDR
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD2_DIR}"

@@ -5,7 +5,6 @@ test_storage_driver_dir() {
 }
 
 do_dir_on_empty_fs() {
-  # shellcheck disable=2039,3043
   local lxd_backend
 
   lxd_backend=$(storage_backend "${LXD_DIR}")
