@@ -38,6 +38,12 @@ type InotifyInfo struct {
 	Targets map[string]*InotifyTargetInfo
 }
 
+// AppArmorFeaturesInfo records the AppArmor features availability.
+type AppArmorFeaturesInfo struct {
+	sync.Mutex
+	Map map[string]bool
+}
+
 // OS is a high-level facade for accessing all operating-system
 // level functionality that LXD uses.
 type OS struct {
@@ -69,6 +75,7 @@ type OS struct {
 	AppArmorConfined  bool
 	AppArmorStacked   bool
 	AppArmorStacking  bool
+	AppArmorFeatures  AppArmorFeaturesInfo
 
 	// Cgroup features
 	CGInfo cgroup.Info
