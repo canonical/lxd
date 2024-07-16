@@ -55,7 +55,7 @@ type devLxdHandler struct {
 	 * server side right now either, I went the simple route to avoid
 	 * needless noise.
 	 */
-	f func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response
+	handlerFunc devlxdHandlerFunc
 }
 
 var devlxdConfigGet = devLxdHandler{"/1.0/config", devlxdConfigGetHandler}
@@ -329,7 +329,7 @@ func devLxdAPI(d *Daemon, f hoistFunc) http.Handler {
 	m.UseEncodedPath() // Allow encoded values in path segments.
 
 	for _, handler := range handlers {
-		m.HandleFunc(handler.path, f(handler.f, d))
+		m.HandleFunc(handler.path, f(handler.handlerFunc, d))
 	}
 
 	return m
