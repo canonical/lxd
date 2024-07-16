@@ -1,4 +1,5 @@
-#!/bin/sh -eu
+#!/bin/bash
+set -eu
 
 echo "Checking for mixed tabs and spaces in shell scripts..."
 
