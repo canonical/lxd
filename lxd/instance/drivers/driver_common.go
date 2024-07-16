@@ -1523,7 +1523,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 				"config": entry.Config,
 			}
 
-			if len(runConf.Mounts) > 0 {
+			if runConf != nil && len(runConf.Mounts) > 0 {
 				for _, opt := range runConf.Mounts[0].Opts {
 					if strings.HasPrefix(opt, "mountTag=") {
 						parts := strings.SplitN(opt, "=", 2)
