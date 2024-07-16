@@ -67,6 +67,8 @@ Some useful permissions at a glance:
 - The `user` entitlement on entity type `instance` grants access to view an instance, pull/push files, get a console, and begin a terminal session.
   Members of a group with this entitlement cannot edit the instance configuration.
 
+For a full list, see {ref}`permissions-reference`.
+
 ```{note}
 Due to a limitation in the LXD client, if `can_exec` is granted to a group for a particular instance, members of the group will not be able to start a terminal session unless `can_view_events` is additionally granted for the parent project of the instance.
 We are working to resolve this.
