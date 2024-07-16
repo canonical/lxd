@@ -1,5 +1,4 @@
 zfs_setup() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_DIR=$1
@@ -8,7 +7,6 @@ zfs_setup() {
 }
 
 zfs_configure() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_DIR=$1
@@ -20,7 +18,6 @@ zfs_configure() {
 }
 
 zfs_teardown() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_DIR=$1

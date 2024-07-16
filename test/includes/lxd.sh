@@ -5,7 +5,6 @@ spawn_lxd() {
     # LXD_DIR is local here because since $(lxc) is actually a function, it
     # overwrites the environment and we would lose LXD_DIR's value otherwise.
 
-    # shellcheck disable=2039,3043
     local LXD_DIR lxddir lxd_backend
 
     lxddir=${1}
@@ -82,7 +81,6 @@ respawn_lxd() {
     # LXD_DIR is local here because since $(lxc) is actually a function, it
     # overwrites the environment and we would lose LXD_DIR's value otherwise.
 
-    # shellcheck disable=2039,3043
     local LXD_DIR
 
     lxddir=${1}
@@ -117,7 +115,6 @@ kill_lxd() {
     # LXD_DIR is local here because since $(lxc) is actually a function, it
     # overwrites the environment and we would lose LXD_DIR's value otherwise.
 
-    # shellcheck disable=2039,3043
     local LXD_DIR daemon_dir daemon_pid check_leftovers lxd_backend
 
     daemon_dir=${1}
@@ -261,7 +258,6 @@ shutdown_lxd() {
     # LXD_DIR is local here because since $(lxc) is actually a function, it
     # overwrites the environment and we would lose LXD_DIR's value otherwise.
 
-    # shellcheck disable=2039,3043
     local LXD_DIR
 
     daemon_dir=${1}
@@ -279,7 +275,6 @@ shutdown_lxd() {
 }
 
 wait_for() {
-    # shellcheck disable=SC2039,3043
     local addr op
 
     addr=${1}
@@ -296,7 +291,6 @@ wipe() {
         fi
     fi
 
-    # shellcheck disable=SC2039,3043
     local pid
     # shellcheck disable=SC2009
     ps aux | grep lxc-monitord | grep "${1}" | awk '{print $2}' | while read -r pid; do
@@ -312,7 +306,6 @@ wipe() {
 
 # Kill and cleanup LXD instances and related resources
 cleanup_lxds() {
-    # shellcheck disable=SC2039,3043
     local test_dir daemon_dir
     test_dir="$1"
 
