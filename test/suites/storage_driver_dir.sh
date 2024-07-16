@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 test_storage_driver_dir() {
   do_dir_on_empty_fs
