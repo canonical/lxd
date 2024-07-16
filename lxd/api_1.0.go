@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"slices"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -17,6 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/request"
@@ -329,7 +331,18 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	}
 
 	drivers := instanceDrivers.DriverStatuses()
-	for _, driver := range drivers {
+
+	// Sort drivers map keys in order to produce consistent results.
+	driverKeys := make([]instancetype.Type, 0, len(drivers))
+	for k := range drivers {
+		driverKeys = append(driverKeys, k)
+	}
+
+	slices.Sort(driverKeys)
+
+	for _, key := range driverKeys {
+		driver := drivers[key]
+
 		// Only report the supported drivers.
 		if !driver.Supported {
 			continue
