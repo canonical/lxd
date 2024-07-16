@@ -108,25 +108,58 @@ Alternatively, the clients can provide the token directly when adding the remote
 
 In a {abbr}`PKI (Public key infrastructure)` setup, a system administrator manages a central PKI that issues client certificates for all the LXD clients and server certificates for all the LXD daemons.
 
-In PKI mode, TLS authentication requires that client certificates are signed be the CA.
+In PKI mode, TLS authentication requires that client certificates are signed be the {abbr}`CA (Certificate authority)`.
 This requirement does not apply to clients that authenticate via [OIDC](authentication-openid).
 
-To enable PKI mode, complete the following steps:
+The steps for enabling PKI mode differ slightly depending on whether you use an ACME provider in addition (see {ref}`authentication-server-certificate`).
 
-1. Add the {abbr}`CA (Certificate authority)` certificate to all machines:
+`````{tabs}
+````{group-tab} Only PKI
+If you use a PKI system, both the server certificates and the client certificates are issued by a secondary CA.
+
+1. Add the CA certificate to all machines:
    - Place the `client.ca` file in the clients' configuration directories (`~/.config/lxc` or `~/snap/lxd/common/config` for snap users).
    - Place the `server.ca` file in the server's configuration directory (`/var/lib/lxd` or `/var/snap/lxd/common/lxd` for snap users).
+
+     ```{note}
+     In a cluster setup, the CA certificate  must be named `cluster.ca`, and the same file must be added to all cluster members.
+     ```
+
 1. Place the certificates issued by the CA in the clients' configuration directories, replacing the automatically generated `client.crt` and `client.key` files.
 1. If you want clients to automatically trust the server, place the certificates issued by the CA in the server's configuration directory, replacing the automatically generated `server.crt` and `server.key` files.
 
-   When a client adds a PKI-enabled server as a remote, it checks the server certificate and prompts the user to trust the server certificate only if the certificate has not been signed by the CA.
+   ```{note}
+   In a cluster setup, the certificate files must be named `cluster.crt` and `cluster.key`.
+   They must be identical on all cluster members.
+   ```
+
+   When a client adds a PKI-enabled server or cluster as a remote, it checks the server certificate and prompts the user to trust the server certificate only if the certificate has not been signed by the CA.
+1. Restart the LXD daemon.
+````
+````{group-tab} PKI and ACME
+If you use a PKI system alongside an ACME provider, the server certificates are issued by the ACME provider, and the client certificates are issued by a secondary CA.
+
+1. Place the CA certificate for the server (`server.ca`) in the server's configuration directory (`/var/lib/lxd` or `/var/snap/lxd/common/lxd` for snap users), so that the server can authenticate the clients.
+
+   ```{note}
+   In a cluster setup, the CA certificate  must be named `cluster.ca`, and the same file must be added to all cluster members.
+   ```
+
+1. Place the certificates issued by the CA in the clients' configuration directories, replacing the automatically generated `client.crt` and `client.key` files.
 1. Restart the LXD daemon.
 
-Note that CA-signed client certificates are not automatically trusted.
+````
+`````
+
+#### Trusting certificates
+
+CA-signed client certificates are not automatically trusted.
 You must still add them to the server in one of the ways described in {ref}`authentication-trusted-clients`.
 
 To automatically trust CA-signed client certificates, set the {config:option}`server-core:core.trust_ca_certificates` server configuration to true.
 When `core.trust_ca_certificates` is enabled, any new clients with a CA-signed certificate will have full access to LXD.
+
+#### Revoking certificates
 
 To revoke certificates via the PKI, place a certificate revocation list in the server's configuration directory as `ca.crl` and restart the LXD daemon.
 A client with a CA-signed certificate that has been revoked, and is present in `ca.crl`, will not be able to authenticate with LXD, nor add LXD as a remote via [mutual TLS](authentication-trusted-clients).
@@ -165,14 +198,6 @@ This can be achieved by using a reverse proxy such as [HAProxy](http://www.hapro
 
 Here's a minimal HAProxy configuration that uses `lxd.example.net` as the domain.
 After the certificate has been issued, LXD will be reachable from `https://lxd.example.net/`.
-
-```{note}
-A [PKI system](authentication-pki) can be used alongside an ACME provider to verify client certificates.
-In this case, a secondary CA issues certificates to clients.
-A `server.ca` and `ca.crl` file should still be added to the server's configuration directory, but server certificates must not be issued by the secondary CA, as they are managed by the ACME provider.
-Client certificates issued by the secondary CA should be added to the clients' configuration directories, but the `client.ca` file *must not* be added to the clients' configuration directories.
-This is because the server certificates were issued by the ACME provider and not the secondary CA.
-```
 
 ```
 # Global configuration
