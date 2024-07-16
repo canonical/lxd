@@ -58,7 +58,10 @@ type devLxdHandler struct {
 	handlerFunc devlxdHandlerFunc
 }
 
-var devlxdConfigGet = devLxdHandler{"/1.0/config", devlxdConfigGetHandler}
+var devlxdConfigGet = devLxdHandler{
+	path:        "/1.0/config",
+	handlerFunc: devlxdConfigGetHandler,
+}
 
 func devlxdConfigGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
@@ -75,7 +78,10 @@ func devlxdConfigGetHandler(d *Daemon, c instance.Instance, w http.ResponseWrite
 	return response.DevLxdResponse(http.StatusOK, filtered, "json", c.Type() == instancetype.VM)
 }
 
-var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", devlxdConfigKeyGetHandler}
+var devlxdConfigKeyGet = devLxdHandler{
+	path:        "/1.0/config/{key}",
+	handlerFunc: devlxdConfigKeyGetHandler,
+}
 
 func devlxdConfigKeyGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
@@ -99,7 +105,10 @@ func devlxdConfigKeyGetHandler(d *Daemon, c instance.Instance, w http.ResponseWr
 	return response.DevLxdResponse(http.StatusOK, value, "raw", c.Type() == instancetype.VM)
 }
 
-var devlxdImageExport = devLxdHandler{"/1.0/images/{fingerprint}/export", devlxdImageExportHandler}
+var devlxdImageExport = devLxdHandler{
+	path:        "/1.0/images/{fingerprint}/export",
+	handlerFunc: devlxdImageExportHandler,
+}
 
 func devlxdImageExportHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
@@ -123,7 +132,10 @@ func devlxdImageExportHandler(d *Daemon, c instance.Instance, w http.ResponseWri
 	return response.DevLxdResponse(http.StatusOK, "", "raw", c.Type() == instancetype.VM)
 }
 
-var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", devlxdMetadataGetHandler}
+var devlxdMetadataGet = devLxdHandler{
+	path:        "/1.0/meta-data",
+	handlerFunc: devlxdMetadataGetHandler,
+}
 
 func devlxdMetadataGetHandler(d *Daemon, inst instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	if shared.IsFalse(inst.ExpandedConfig()["security.devlxd"]) {
@@ -135,7 +147,10 @@ func devlxdMetadataGetHandler(d *Daemon, inst instance.Instance, w http.Response
 	return response.DevLxdResponse(http.StatusOK, fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", inst.CloudInitID(), inst.Name(), value), "raw", inst.Type() == instancetype.VM)
 }
 
-var devlxdEventsGet = devLxdHandler{"/1.0/events", devlxdEventsGetHandler}
+var devlxdEventsGet = devLxdHandler{
+	path:        "/1.0/events",
+	handlerFunc: devlxdEventsGetHandler,
+}
 
 func devlxdEventsGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
@@ -194,7 +209,10 @@ func devlxdEventsGetHandler(d *Daemon, c instance.Instance, w http.ResponseWrite
 	return resp
 }
 
-var devlxdAPIHandler = devLxdHandler{"/1.0", devlxdAPIHandlerFunc}
+var devlxdAPIHandler = devLxdHandler{
+	path:        "/1.0",
+	handlerFunc: devlxdAPIHandlerFunc,
+}
 
 func devlxdAPIHandlerFunc(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	s := d.State()
@@ -254,7 +272,10 @@ func devlxdAPIHandlerFunc(d *Daemon, c instance.Instance, w http.ResponseWriter,
 	return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusMethodNotAllowed, fmt.Sprintf("method %q not allowed", r.Method)), c.Type() == instancetype.VM)
 }
 
-var devlxdDevicesGet = devLxdHandler{"/1.0/devices", devlxdDevicesGetHandler}
+var devlxdDevicesGet = devLxdHandler{
+	path:        "/1.0/devices",
+	handlerFunc: devlxdDevicesGetHandler,
+}
 
 func devlxdDevicesGetHandler(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
@@ -276,9 +297,12 @@ func devlxdDevicesGetHandler(d *Daemon, c instance.Instance, w http.ResponseWrit
 }
 
 var handlers = []devLxdHandler{
-	{"/", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
-		return response.DevLxdResponse(http.StatusOK, []string{"/1.0"}, "json", c.Type() == instancetype.VM)
-	}},
+	{
+		path: "/",
+		handlerFunc: func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+			return response.DevLxdResponse(http.StatusOK, []string{"/1.0"}, "json", c.Type() == instancetype.VM)
+		},
+	},
 	devlxdAPIHandler,
 	devlxdConfigGet,
 	devlxdConfigKeyGet,
