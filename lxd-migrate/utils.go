@@ -6,9 +6,9 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -24,7 +24,7 @@ import (
 	"github.com/canonical/lxd/shared/ws"
 )
 
-func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operation, rootfs string, rsyncArgs string, instanceType api.InstanceType) error {
+func transferRootDiskForMigration(ctx context.Context, op lxd.Operation, rootfs string, rsyncArgs string, instanceType api.InstanceType) error {
 	opAPI := op.Get()
 
 	// Connect to the websockets
@@ -101,27 +101,7 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 
 	// Send block volume
 	if instanceType == api.InstanceTypeVM {
-		f, err := os.Open(filepath.Join(rootfs, "root.img"))
-		if err != nil {
-			return abort(err)
-		}
-
-		defer func() { _ = f.Close() }()
-
-		conn := ws.NewWrapper(wsFs)
-
-		go func() {
-			<-ctx.Done()
-			_ = conn.Close()
-			_ = f.Close()
-		}()
-
-		_, err = io.Copy(conn, f)
-		if err != nil {
-			return abort(fmt.Errorf("Failed sending block volume: %w", err))
-		}
-
-		err = conn.Close()
+		err := sendBlockVol(ctx, ws.NewWrapper(wsFs), filepath.Join(rootfs, "root.img"))
 		if err != nil {
 			return abort(err)
 		}
@@ -140,6 +120,32 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 	}
 
 	return nil
+}
+
+func transferRootDiskForConversion(ctx context.Context, op lxd.Operation, rootfs string, rsyncArgs string, instanceType api.InstanceType) error {
+	opAPI := op.Get()
+
+	// Establish websocket connection.
+	wsFs, err := op.GetWebsocket(opAPI.Metadata[api.SecretNameFilesystem].(string))
+	if err != nil {
+		return err
+	}
+
+	if instanceType == api.InstanceTypeContainer {
+		// Send container filesystem.
+		err = rsyncSend(ctx, wsFs, rootfs, rsyncArgs, instanceType)
+		if err != nil {
+			return fmt.Errorf("Failed sending filesystem volume: %w", err)
+		}
+	} else {
+		// Send VM block volume (image / partition).
+		err := sendBlockVol(ctx, ws.NewWrapper(wsFs), filepath.Join(rootfs, "root.img"))
+		if err != nil {
+			return fmt.Errorf("Failed sending block volume: %w", err)
+		}
+	}
+
+	return op.Wait()
 }
 
 func (c *cmdMigrate) connectLocal() (lxd.InstanceServer, error) {
@@ -363,4 +369,17 @@ func parseURL(URL string) (string, error) {
 	}
 
 	return u.String(), nil
+}
+
+// isImageTypeRaw checks whether the file on a given path represents a disk,
+// partition, or image in raw format.
+func isImageTypeRaw(path string) (bool, error) {
+	cmd := exec.Command("file", "--brief", path)
+	out, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("Failed to extract image file type: %v", err)
+	}
+
+	isRaw := strings.HasPrefix(string(out), "DOS/MBR boot sector") || strings.HasPrefix(string(out), "block special")
+	return isRaw, nil
 }

@@ -2430,3 +2430,7 @@ and joining an existing cluster.
 This adds a configuration key `security.shared` to custom block volumes.
 If unset or `false`, the custom block volume cannot be attached to multiple instances.
 This feature was added to prevent data loss which can happen when custom block volumes are attached to multiple instances at once.
+
+## `instance_import_conversion`
+
+Adds the ability to convert images from different formats (e.g. VMDK or QCow2) into RAW image format and import them as LXD instances.

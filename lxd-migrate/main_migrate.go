@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 
@@ -18,6 +19,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -30,7 +32,8 @@ import (
 type cmdMigrate struct {
 	global *cmdGlobal
 
-	flagRsyncArgs string
+	flagRsyncArgs      string
+	flagConversionOpts []string
 }
 
 func (c *cmdMigrate) command() *cobra.Command {
@@ -51,6 +54,7 @@ func (c *cmdMigrate) command() *cobra.Command {
 `
 	cmd.RunE = c.run
 	cmd.Flags().StringVar(&c.flagRsyncArgs, "rsync-args", "", "Extra arguments to pass to rsync"+"``")
+	cmd.Flags().StringSliceVar(&c.flagConversionOpts, "conversion", []string{"format"}, "List of conversion opts. Allowed values are: [format]")
 
 	return cmd
 }
@@ -71,7 +75,7 @@ func (c *cmdMigrateData) render() string {
 		Mounts      []string          `yaml:"Mounts,omitempty"`
 		Profiles    []string          `yaml:"Profiles,omitempty"`
 		StoragePool string            `yaml:"Storage pool,omitempty"`
-		StorageSize string            `yaml:"Storage pool size,omitempty"`
+		StorageSize string            `yaml:"Storage volume size,omitempty"`
 		Network     string            `yaml:"Network name,omitempty"`
 		Config      map[string]string `yaml:"Config,omitempty"`
 	}{
@@ -261,9 +265,18 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 
 	config.InstanceArgs = api.InstancesPost{
 		Source: api.InstanceSource{
-			Type: "migration",
-			Mode: "push",
+			Type:              "conversion",
+			Mode:              "push",
+			ConversionOptions: c.flagConversionOpts,
 		},
+	}
+
+	// If server does not support conversion, fallback to migration.
+	// Migration will move the image to the server and import it as
+	// LXD instance. This means that images of different formats,
+	// such as VMDK and QCow2, will not work.
+	if !server.HasExtension("instance_import_conversion") {
+		config.InstanceArgs.Source.Type = "migration"
 	}
 
 	config.InstanceArgs.Config = map[string]string{}
@@ -331,6 +344,17 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 	config.SourcePath, err = c.global.asker.AskString(question, "", func(s string) error {
 		if !shared.PathExists(s) {
 			return errors.New("Path does not exist")
+		}
+
+		if config.InstanceArgs.Type == api.InstanceTypeVM && config.InstanceArgs.Source.Type == "migration" {
+			isImageTypeRaw, err := isImageTypeRaw(config.SourcePath)
+			if err != nil {
+				return err
+			}
+
+			if !isImageTypeRaw {
+				return fmt.Errorf(`Source disk format cannot be converted by server. Source disk should be in raw format`)
+			}
 		}
 
 		_, err := os.Stat(s)
@@ -444,7 +468,20 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("This tool must be run as root")
 	}
 
+	// Check conversion options.
+	supportedConversionOptions := []string{"format"}
+	for _, opt := range c.flagConversionOpts {
+		if !slices.Contains(supportedConversionOptions, opt) {
+			return fmt.Errorf("Unsupported conversion option %q, supported conversion options are %v", opt, supportedConversionOptions)
+		}
+	}
+
 	_, err := exec.LookPath("rsync")
+	if err != nil {
+		return err
+	}
+
+	_, err = exec.LookPath("file")
 	if err != nil {
 		return err
 	}
@@ -485,6 +522,11 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 
 	if config.Project != "" {
 		server = server.UseProject(config.Project)
+	}
+
+	if config.InstanceArgs.Type != api.InstanceTypeVM && len(config.InstanceArgs.Source.ConversionOptions) > 0 {
+		fmt.Printf("Instance type %q does not support conversion options. Ignored conversion options: %v\n", config.InstanceArgs.Type, config.InstanceArgs.Source.ConversionOptions)
+		config.InstanceArgs.Source.ConversionOptions = []string{}
 	}
 
 	config.Mounts = append(config.Mounts, config.SourcePath)
@@ -537,10 +579,21 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("Failed to setup the source: %w", err)
 		}
 	} else {
+		isImageTypeRaw, err := isImageTypeRaw(config.SourcePath)
+		if err != nil {
+			return err
+		}
+
+		// If image type is raw, formatting is not required.
+		if isImageTypeRaw && slices.Contains(config.InstanceArgs.Source.ConversionOptions, "format") {
+			fmt.Println(`Formatting is not required for images of type raw. Ignoring conversion option "format".`)
+			config.InstanceArgs.Source.ConversionOptions = shared.RemoveElementsFromSlice(config.InstanceArgs.Source.ConversionOptions, "format")
+		}
+
 		fullPath = path
 		target := filepath.Join(path, "root.img")
 
-		err := os.WriteFile(target, nil, 0644)
+		err = os.WriteFile(target, nil, 0644)
 		if err != nil {
 			return fmt.Errorf("Failed to create %q: %w", target, err)
 		}
@@ -555,6 +608,16 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 		err = unix.Mount("", target, "none", unix.MS_BIND|unix.MS_RDONLY|unix.MS_REMOUNT, "")
 		if err != nil {
 			return fmt.Errorf("Failed to make %s read-only: %w", config.SourcePath, err)
+		}
+
+		// In conversion mode, server expects the volume size hint in the request.
+		if config.InstanceArgs.Source.Type == "conversion" {
+			size, err := block.DiskSizeBytes(target)
+			if err != nil {
+				return err
+			}
+
+			config.InstanceArgs.Source.SourceDiskSize = size
 		}
 	}
 
@@ -586,7 +649,12 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = transferRootfs(ctx, server, op, fullPath, c.flagRsyncArgs, config.InstanceArgs.Type)
+	if config.InstanceArgs.Source.Type == "conversion" {
+		err = transferRootDiskForConversion(ctx, op, fullPath, c.flagRsyncArgs, config.InstanceArgs.Type)
+	} else {
+		err = transferRootDiskForMigration(ctx, op, fullPath, c.flagRsyncArgs, config.InstanceArgs.Type)
+	}
+
 	if err != nil {
 		return err
 	}
@@ -677,13 +745,13 @@ func (c *cmdMigrate) askStorage(server lxd.InstanceServer, config *cmdMigrateDat
 		"path": "/",
 	}
 
-	changeStorageSize, err := c.global.asker.AskBool("Do you want to change the storage size? [default=no]: ", "no")
+	changeStorageSize, err := c.global.asker.AskBool("Do you want to change the storage volume size? [default=no]: ", "no")
 	if err != nil {
 		return err
 	}
 
 	if changeStorageSize {
-		size, err := c.global.asker.AskString("Please specify the storage size: ", "", func(s string) error {
+		size, err := c.global.asker.AskString("Please specify the storage volume size: ", "", func(s string) error {
 			_, err := units.ParseByteSizeString(s)
 			return err
 		})

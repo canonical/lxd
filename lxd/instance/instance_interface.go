@@ -161,6 +161,9 @@ type Instance interface {
 	MigrateSend(args MigrateSendArgs) error
 	MigrateReceive(args MigrateReceiveArgs) error
 
+	// Conversion.
+	ConversionReceive(args ConversionReceiveArgs) error
+
 	// Progress reporting.
 	SetOperation(op *operations.Operation)
 	Operation() *operations.Operation
@@ -241,4 +244,17 @@ type MigrateReceiveArgs struct {
 
 	InstanceOperation *operationlock.InstanceOperation
 	Refresh           bool
+}
+
+// ConversionArgs represent arguments for instance conversion send and receive.
+type ConversionArgs struct {
+	FilesystemConn func(ctx context.Context) (io.ReadWriteCloser, error)
+	Disconnect     func()
+}
+
+// ConversionReceiveArgs represent arguments for instance conversion receive.
+type ConversionReceiveArgs struct {
+	ConversionArgs
+	SourceDiskSize    int64 // Size of the disk in bytes.
+	ConversionOptions []string
 }

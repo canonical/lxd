@@ -7296,15 +7296,9 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// At this point we have already figured out the parent instances's root
 		// disk device so we can simply retrieve it from the expanded devices.
-		parentStoragePool := ""
-		parentExpandedDevices := d.ExpandedDevices()
-		parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := instancetype.GetRootDiskDevice(parentExpandedDevices.CloneNative())
-		if parentLocalRootDiskDeviceKey != "" {
-			parentStoragePool = parentLocalRootDiskDevice["pool"]
-		}
-
-		if parentStoragePool == "" {
-			return fmt.Errorf("Instance's root device is missing the pool property")
+		parentStoragePool, err := d.getParentStoragePool()
+		if err != nil {
+			return err
 		}
 
 		// A zero length Snapshots slice indicates volume only migration in
@@ -7456,6 +7450,47 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		revert.Success()
 		return nil
 	}
+}
+
+// ConversionReceive establishes the filesystem connection, transfers the filesystem / block volume,
+// and creates an instance from it.
+func (d *qemu) ConversionReceive(args instance.ConversionReceiveArgs) error {
+	d.logger.Info("Conversion receive starting")
+	defer d.logger.Info("Conversion receive stopped")
+
+	// Wait for filesystem connection.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	filesystemConn, err := args.FilesystemConn(ctx)
+	if err != nil {
+		return err
+	}
+
+	pool, err := storagePools.LoadByInstance(d.state, d)
+	if err != nil {
+		return err
+	}
+
+	// Ensure that configured root disk device is valid.
+	_, err = d.getParentStoragePool()
+	if err != nil {
+		return err
+	}
+
+	volTargetArgs := migration.VolumeTargetArgs{
+		Name:              d.Name(),
+		TrackProgress:     true,                   // Use a progress tracker on receiver to get progress information.
+		VolumeSize:        args.SourceDiskSize,    // Block volume size override.
+		ConversionOptions: args.ConversionOptions, // Non-nil options indicate image conversion.
+	}
+
+	err = pool.CreateInstanceFromConversion(d, filesystemConn, volTargetArgs, d.op)
+	if err != nil {
+		return fmt.Errorf("Failed creating instance on target: %w", err)
+	}
+
+	return nil
 }
 
 // CGroup is not implemented for VMs.

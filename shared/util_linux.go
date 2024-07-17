@@ -25,11 +25,13 @@ import (
 
 // --- pure Go functions ---
 
+// GetFileStat retrieves the UID, GID, major and minor device numbers, inode, and number of hard links for
+// the given file path.
 func GetFileStat(p string) (uid int, gid int, major uint32, minor uint32, inode uint64, nlink int, err error) {
 	var stat unix.Stat_t
 	err = unix.Lstat(p, &stat)
 	if err != nil {
-		return
+		return 0, 0, 0, 0, 0, 0, err
 	}
 
 	uid = int(stat.Uid)
@@ -41,7 +43,7 @@ func GetFileStat(p string) (uid int, gid int, major uint32, minor uint32, inode 
 		minor = unix.Minor(uint64(stat.Rdev))
 	}
 
-	return
+	return uid, gid, major, minor, inode, nlink, nil
 }
 
 // GetPathMode returns a os.FileMode for the provided path.
@@ -55,6 +57,7 @@ func GetPathMode(path string) (os.FileMode, error) {
 	return mode, nil
 }
 
+// SetSize sets the terminal size to the specified width and height for the given file descriptor.
 func SetSize(fd int, width int, height int) (err error) {
 	var dimensions [4]uint16
 	dimensions[0] = uint16(height)
@@ -94,8 +97,10 @@ func GetAllXattr(path string) (map[string]string, error) {
 	return xattrs, nil
 }
 
-var ObjectFound = fmt.Errorf("Found requested object")
+// ErrObjectFound indicates that the requested object was found.
+var ErrObjectFound = fmt.Errorf("Found requested object")
 
+// LookupUUIDByBlockDevPath finds and returns the UUID of a block device by its path.
 func LookupUUIDByBlockDevPath(diskDevice string) (string, error) {
 	uuid := ""
 	readUUID := func(path string, info os.FileInfo, err error) error {
@@ -117,14 +122,14 @@ func LookupUUIDByBlockDevPath(diskDevice string) (string, error) {
 				uuid = path
 				// Will allows us to avoid needlessly travers
 				// the whole directory.
-				return ObjectFound
+				return ErrObjectFound
 			}
 		}
 		return nil
 	}
 
 	err := filepath.Walk("/dev/disk/by-uuid", readUUID)
-	if err != nil && err != ObjectFound {
+	if err != nil && err != ErrObjectFound {
 		return "", fmt.Errorf("Failed to detect UUID: %s", err)
 	}
 
@@ -136,7 +141,9 @@ func LookupUUIDByBlockDevPath(diskDevice string) (string, error) {
 	return uuid[lastSlash+1:], nil
 }
 
-// Detect whether err is an errno.
+// GetErrno detects whether the error is an errno.
+//
+//revive:disable:error-return Error is returned first because this is similar to assertion.
 func GetErrno(err error) (errno error, iserrno bool) {
 	sysErr, ok := err.(*os.SyscallError)
 	if ok {
@@ -220,10 +227,12 @@ func intArrayToString(arr any) string {
 	return s
 }
 
+// DeviceTotalMemory returns the total memory of the device by reading /proc/meminfo.
 func DeviceTotalMemory() (int64, error) {
 	return GetMeminfo("MemTotal")
 }
 
+// GetMeminfo retrieves the memory information for the specified field from /proc/meminfo.
 func GetMeminfo(field string) (int64, error) {
 	// Open /proc/meminfo
 	f, err := os.Open("/proc/meminfo")
@@ -260,7 +269,7 @@ func GetMeminfo(field string) (int64, error) {
 }
 
 // OpenPtyInDevpts creates a new PTS pair, configures them and returns them.
-func OpenPtyInDevpts(devpts_fd int, uid, gid int64) (*os.File, *os.File, error) {
+func OpenPtyInDevpts(devptsFD int, uid, gid int64) (*os.File, *os.File, error) {
 	revert := revert.New()
 	defer revert.Fail()
 	var fd int
@@ -268,8 +277,8 @@ func OpenPtyInDevpts(devpts_fd int, uid, gid int64) (*os.File, *os.File, error) 
 	var err error
 
 	// Create a PTS pair.
-	if devpts_fd >= 0 {
-		fd, err = unix.Openat(devpts_fd, "ptmx", unix.O_RDWR|unix.O_CLOEXEC|unix.O_NOCTTY, 0)
+	if devptsFD >= 0 {
+		fd, err = unix.Openat(devptsFD, "ptmx", unix.O_RDWR|unix.O_CLOEXEC|unix.O_NOCTTY, 0)
 	} else {
 		fd, err = unix.Openat(-1, "/dev/ptmx", unix.O_RDWR|unix.O_CLOEXEC|unix.O_NOCTTY, 0)
 	}
@@ -301,7 +310,7 @@ func OpenPtyInDevpts(devpts_fd int, uid, gid int64) (*os.File, *os.File, error) 
 
 		pty = os.NewFile(ptyFd, fmt.Sprintf("/dev/pts/%d", id))
 	} else {
-		if devpts_fd >= 0 {
+		if devptsFD >= 0 {
 			return nil, nil, fmt.Errorf("TIOCGPTPEER required but not available")
 		}
 
@@ -401,7 +410,7 @@ func ExitStatus(err error) (int, error) {
 }
 
 // GetPollRevents poll for events on provided fd.
-func GetPollRevents(fd int, timeout int, flags int) (int, int, error) {
+func GetPollRevents(fd int, timeout int, flags int) (n int, revents int, err error) {
 	pollFd := unix.PollFd{
 		Fd:      int32(fd),
 		Events:  int16(flags),
@@ -411,7 +420,7 @@ func GetPollRevents(fd int, timeout int, flags int) (int, int, error) {
 	pollFds := []unix.PollFd{pollFd}
 
 again:
-	n, err := unix.Poll(pollFds, timeout)
+	n, err = unix.Poll(pollFds, timeout)
 	if err != nil {
 		if err == unix.EAGAIN || err == unix.EINTR {
 			goto again
@@ -498,10 +507,12 @@ func (w *execWrapper) Read(p []byte) (int, error) {
 	return n, opErr
 }
 
+// Write writes data to the underlying os.File.
 func (w *execWrapper) Write(p []byte) (int, error) {
 	return w.f.Write(p)
 }
 
+// Close closes the underlying os.File.
 func (w *execWrapper) Close() error {
 	return w.f.Close()
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -1010,7 +1011,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 		// Custom handling for filesystem volume associated with a VM.
 		if vol.volType == VolumeTypeVM && shared.PathExists(filepath.Join(volPath, genericVolumeDiskFile)) {
 			// Get the size of the VM image.
-			blockSize, err := BlockDiskSizeBytes(filepath.Join(volPath, genericVolumeDiskFile))
+			blockSize, err := block.DiskSizeBytes(filepath.Join(volPath, genericVolumeDiskFile))
 			if err != nil {
 				return err
 			}
@@ -1272,6 +1273,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 		sentVols := 0
 
 		// Send volume (and any subvolumes if supported) to target.
+		//revive:disable:defer Allow defer inside a loop.
 		for _, subVolume := range subvolumes {
 			if subVolume.Snapshot != snapName {
 				continue // Only sending subvolumes related to snapshot name (empty for main vol).

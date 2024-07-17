@@ -409,6 +409,7 @@ var APIExtensions = []string{
 	"network_allocate_external_ips",
 	"explicit_trust_token",
 	"shared_custom_block_volumes",
+	"instance_import_conversion",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
