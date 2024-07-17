@@ -1,5 +1,4 @@
 test_image_expiry() {
-  # shellcheck disable=2039,3043
   local LXD2_DIR LXD2_ADDR
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD2_DIR}"
@@ -81,8 +80,8 @@ test_image_expiry() {
 
 test_image_list_all_aliases() {
     ensure_import_testimage
-    # shellcheck disable=2039,2034,2155,3043
-    local sum="$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
+    local sum
+    sum="$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
     lxc image alias create zzz "$sum"
     lxc image list | grep -vq zzz
     # both aliases are listed if the "aliases" column is included in output
@@ -94,17 +93,17 @@ test_image_list_all_aliases() {
 test_image_import_dir() {
     ensure_import_testimage
     lxc image export testimage
-    # shellcheck disable=2039,2034,2155,3043
-    local image="$(ls -1 -- *.tar.xz)"
+    local image
+    image="$(ls -1 -- *.tar.xz)"
     mkdir -p unpacked
     tar -C unpacked -xf "$image"
-    # shellcheck disable=2039,2034,2155,3043
-    local fingerprint="$(lxc image import unpacked | awk '{print $NF;}')"
+    local fingerprint
+    fingerprint="$(lxc image import unpacked | awk '{print $NF;}')"
     rm -rf "$image" unpacked
 
     lxc image export "$fingerprint"
-    # shellcheck disable=2039,2034,2155,3043
-    local exported="${fingerprint}.tar.xz"
+    local exported
+    exported="${fingerprint}.tar.xz"
 
     tar tvf "$exported" | grep -Fq metadata.yaml
     rm "$exported"
@@ -125,7 +124,6 @@ test_image_import_existing_alias() {
 }
 
 test_image_refresh() {
-  # shellcheck disable=2039,3043
   local LXD2_DIR LXD2_ADDR
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD2_DIR}"

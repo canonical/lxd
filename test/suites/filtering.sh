@@ -1,6 +1,5 @@
 # Test API filtering.
 test_filtering() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_FILTERING_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
