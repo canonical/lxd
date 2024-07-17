@@ -466,6 +466,11 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   ### Configuration: nesting
   pivot_root,
 
+  # Allow user namespaces to be created
+{{- if .feature_userns_rule }}
+  userns,
+{{- end }}
+
   # Allow sending signals and tracing children namespaces
   ptrace,
   signal,
