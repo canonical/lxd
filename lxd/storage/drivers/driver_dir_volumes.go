@@ -12,6 +12,7 @@ import (
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/rsync"
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/storage/quota"
 	"github.com/canonical/lxd/shared"
@@ -347,7 +348,7 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		volPath := vol.MountPath()
 		if sizeBytes > 0 && vol.volType == VolumeTypeVM && shared.PathExists(filepath.Join(volPath, genericVolumeDiskFile)) {
 			// Get the size of the VM image.
-			blockSize, err := BlockDiskSizeBytes(filepath.Join(volPath, genericVolumeDiskFile))
+			blockSize, err := block.DiskSizeBytes(filepath.Join(volPath, genericVolumeDiskFile))
 			if err != nil {
 				return err
 			}

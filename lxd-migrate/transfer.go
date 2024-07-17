@@ -131,6 +131,28 @@ func rsyncSendSetup(ctx context.Context, path string, rsyncArgs string, instance
 	return cmd, conn, stderr, nil
 }
 
+func sendBlockVol(ctx context.Context, conn io.WriteCloser, path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = f.Close() }()
+
+	go func() {
+		<-ctx.Done()
+		_ = conn.Close()
+		_ = f.Close()
+	}()
+
+	_, err = io.Copy(conn, f)
+	if err != nil {
+		return err
+	}
+
+	return conn.Close()
+}
+
 func protoSendError(ws *websocket.Conn, err error) {
 	migration.ProtoSendControl(ws, err)
 

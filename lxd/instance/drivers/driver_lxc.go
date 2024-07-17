@@ -6078,15 +6078,9 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// At this point we have already figured out the parent container's root
 		// disk device so we can simply retrieve it from the expanded devices.
-		parentStoragePool := ""
-		parentExpandedDevices := d.ExpandedDevices()
-		parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := instancetype.GetRootDiskDevice(parentExpandedDevices.CloneNative())
-		if parentLocalRootDiskDeviceKey != "" {
-			parentStoragePool = parentLocalRootDiskDevice["pool"]
-		}
-
-		if parentStoragePool == "" {
-			return fmt.Errorf("Instance's root device is missing the pool property")
+		parentStoragePool, err := d.getParentStoragePool()
+		if err != nil {
+			return err
 		}
 
 		// A zero length Snapshots slice indicates volume only migration in
@@ -6319,6 +6313,52 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		revert.Success()
 		return nil
 	}
+}
+
+// ConversionReceive establishes the filesystem connection, transfers the filesystem / block volume,
+// and creates an instance from it.
+func (d *lxc) ConversionReceive(args instance.ConversionReceiveArgs) error {
+	d.logger.Info("Conversion receive starting")
+	defer d.logger.Info("Conversion receive stopped")
+
+	// Wait for essential migration connections before negotiation.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	filesystemConn, err := args.FilesystemConn(ctx)
+	if err != nil {
+		return err
+	}
+
+	pool, err := storagePools.LoadByInstance(d.state, d)
+	if err != nil {
+		return err
+	}
+
+	// Ensure that configured root disk device is valid.
+	_, err = d.getParentStoragePool()
+	if err != nil {
+		return err
+	}
+
+	volTargetArgs := migration.VolumeTargetArgs{
+		IndexHeaderVersion: 0,
+		Name:               d.Name(),
+		MigrationType: migration.Type{
+			FSType:   migration.MigrationFSType_RSYNC,
+			Features: []string{"xattrs", "delete", "compress"},
+		},
+		TrackProgress:     true,                // Use a progress tracker on receiver to get progress information.
+		VolumeSize:        args.SourceDiskSize, // Block volume size override.
+		ConversionOptions: nil,                 // Containers do not support conversion options.
+	}
+
+	err = pool.CreateInstanceFromConversion(d, filesystemConn, volTargetArgs, d.op)
+	if err != nil {
+		return fmt.Errorf("Failed creating instance on target: %w", err)
+	}
+
+	return nil
 }
 
 // Migrate migrates the instance to another node.

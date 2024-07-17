@@ -19,6 +19,7 @@ import (
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -1318,7 +1319,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 		defer func() { _ = d.rbdUnmapVolume(vol, true) }()
 	}
 
-	oldSizeBytes, err := BlockDiskSizeBytes(devPath)
+	oldSizeBytes, err := block.DiskSizeBytes(devPath)
 	if err != nil {
 		return fmt.Errorf("Error getting current size: %w", err)
 	}

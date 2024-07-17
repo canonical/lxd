@@ -2296,6 +2296,14 @@ definitions:
                 example: false
                 type: boolean
                 x-go-name: ContainerOnly
+            conversion_options:
+                description: Optional list of options that are used during image conversion (for conversion).
+                example:
+                    - format
+                items:
+                    type: string
+                type: array
+                x-go-name: ConversionOptions
             fingerprint:
                 description: Image fingerprint (for image source)
                 example: ed56997f7c5b48e8d78986d2467a26109be6fb9f2d92e8c7b08eb8b6cec7629a
@@ -2370,6 +2378,14 @@ definitions:
                 example: foo/snap0
                 type: string
                 x-go-name: Source
+            sourceDiskSize:
+                description: |-
+                    Source disk size in bytes used to set the instance's volume size to accommodate the transferred root
+                    disk. This value is ignored if the root disk device has a size explicitly configured (for conversion).
+                example: 12345
+                format: int64
+                type: integer
+                x-go-name: SourceDiskSize
             type:
                 description: Source type
                 example: image
