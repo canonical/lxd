@@ -1,4 +1,5 @@
-#!/bin/sh -eu
+#!/bin/bash
+set -eu
 
 echo "Checking that there are no trailing spaces in shell scripts..."
 

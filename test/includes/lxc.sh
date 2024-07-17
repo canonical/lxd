@@ -7,7 +7,6 @@ lxc() {
 
 lxc_remote() {
     set +x
-    # shellcheck disable=SC2039,3043
     local injected cmd arg
 
     injected=0

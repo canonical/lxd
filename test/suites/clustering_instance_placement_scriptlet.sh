@@ -1,5 +1,5 @@
 test_clustering_instance_placement_scriptlet() {
-  # shellcheck disable=2039,3043,SC2034
+  # shellcheck disable=SC2034
   local LXD_DIR
 
   setup_clustering_bridge

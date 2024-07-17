@@ -741,7 +741,6 @@ test_projects_limits() {
   # too small for resize2fs.
   if [ "${LXD_BACKEND}" = "dir" ] || [ "${LXD_BACKEND}" = "zfs" ]; then
     # Add a remote LXD to be used as image server.
-    # shellcheck disable=2039,3043
     local LXD_REMOTE_DIR
     LXD_REMOTE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
     chmod +x "${LXD_REMOTE_DIR}"

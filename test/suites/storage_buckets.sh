@@ -1,5 +1,4 @@
 s3cmdrun () {
-  # shellcheck disable=2039,3043
   local backend accessKey secreyKey
   backend="${1}"
   accessKey="${2}"
@@ -27,7 +26,6 @@ s3cmdrun () {
 }
 
 test_storage_buckets() {
-  # shellcheck disable=2039,3043
   local lxd_backend
 
   lxd_backend=$(storage_backend "$LXD_DIR")

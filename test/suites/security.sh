@@ -24,14 +24,14 @@ test_security() {
   lxc launch testimage test-priv -c security.privileged=true
 
   PERM=$(stat -L -c %a "${LXD_DIR}/containers/test-priv")
-  UID=$(stat -L -c %u "${LXD_DIR}/containers/test-priv")
+  FUID=$(stat -L -c %u "${LXD_DIR}/containers/test-priv")
   if [ "${PERM}" != "100" ]; then
     echo "Bad container permissions: ${PERM}"
     false
   fi
 
-  if [ "${UID}" != "0" ]; then
-    echo "Bad container owner: ${UID}"
+  if [ "${FUID}" != "0" ]; then
+    echo "Bad container owner: ${FUID}"
     false
   fi
 
@@ -41,14 +41,14 @@ test_security() {
   lxc restart test-priv --force
 
   PERM=$(stat -L -c %a "${LXD_DIR}/containers/test-priv")
-  UID=$(stat -L -c %u "${LXD_DIR}/containers/test-priv")
+  FUID=$(stat -L -c %u "${LXD_DIR}/containers/test-priv")
   if [ "${PERM}" != "100" ]; then
     echo "Bad container permissions: ${PERM}"
     false
   fi
 
-  if [ "${UID}" != "0" ]; then
-    echo "Bad container owner: ${UID}"
+  if [ "${FUID}" != "0" ]; then
+    echo "Bad container owner: ${FUID}"
     false
   fi
 
@@ -59,14 +59,14 @@ test_security() {
   lxc restart test-unpriv --force
 
   PERM=$(stat -L -c %a "${LXD_DIR}/containers/test-unpriv")
-  UID=$(stat -L -c %u "${LXD_DIR}/containers/test-unpriv")
+  FUID=$(stat -L -c %u "${LXD_DIR}/containers/test-unpriv")
   if [ "${PERM}" != "100" ]; then
     echo "Bad container permissions: ${PERM}"
     false
   fi
 
-  if [ "${UID}" != "0" ]; then
-    echo "Bad container owner: ${UID}"
+  if [ "${FUID}" != "0" ]; then
+    echo "Bad container owner: ${FUID}"
     false
   fi
 
@@ -74,20 +74,19 @@ test_security() {
   lxc restart test-unpriv --force
 
   PERM=$(stat -L -c %a "${LXD_DIR}/containers/test-unpriv")
-  UID=$(stat -L -c %u "${LXD_DIR}/containers/test-unpriv")
+  FUID=$(stat -L -c %u "${LXD_DIR}/containers/test-unpriv")
   if [ "${PERM}" != "100" ]; then
     echo "Bad container permissions: ${PERM}"
     false
   fi
 
-  if [ "${UID}" = "0" ]; then
-    echo "Bad container owner: ${UID}"
+  if [ "${FUID}" = "0" ]; then
+    echo "Bad container owner: ${FUID}"
     false
   fi
 
   lxc delete test-unpriv --force
 
-  # shellcheck disable=2039,3043
   local LXD_STORAGE_DIR
 
   LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
