@@ -185,7 +185,7 @@ func parserSupports(sysOS *sys.OS, feature string) (bool, error) {
 		return ver.Compare(minVer) >= 0, nil
 	}
 
-	if feature == "mount_nosymfollow" {
+	if feature == "mount_nosymfollow" || feature == "userns_rule" {
 		sysOS.AppArmorFeatures.Lock()
 		defer sysOS.AppArmorFeatures.Unlock()
 		supported, ok := sysOS.AppArmorFeatures.Map[feature]
