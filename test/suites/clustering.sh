@@ -2099,11 +2099,12 @@ test_clustering_image_replication() {
 }
 
 test_clustering_dns() {
-  local LXD_DIR
+  local lxdDir
 
   # Because we do not want tests to only run on Ubuntu (due to cluster's fan network dependency)
   # instead we will just spawn forkdns directly and check DNS resolution.
 
+  # XXX: make a copy of the global LXD_DIR
   # shellcheck disable=SC2031
   lxdDir="${LXD_DIR}"
   prefix="lxd$$"
