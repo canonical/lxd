@@ -15,7 +15,6 @@ import (
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
@@ -191,29 +190,27 @@ type migrationSink struct {
 	refresh               bool
 }
 
-// MigrationSinkArgs arguments to configure migration sink.
+// migrationSinkArgs arguments to configure migration sink.
 type migrationSinkArgs struct {
 	// General migration fields
-	Dialer  *websocket.Dialer
-	Push    bool
-	Secrets map[string]string
-	URL     string
+	dialer  *websocket.Dialer
+	push    bool
+	secrets map[string]string
+	url     string
 
-	// Instance specific fields
-	Instance              instance.Instance
-	InstanceOnly          bool
-	Idmap                 *idmap.IdmapSet
-	Live                  bool
-	Refresh               bool
-	ClusterMoveSourceName string
-	Snapshots             []*migration.Snapshot
+	// instance specific fields
+	instance              instance.Instance
+	instanceOnly          bool
+	live                  bool
+	refresh               bool
+	clusterMoveSourceName string
+	snapshots             []*migration.Snapshot
 
 	// Storage specific fields
-	VolumeOnly bool
-	VolumeSize int64
+	volumeOnly bool
 
 	// Transport specific fields
-	RsyncFeatures []string
+	rsyncFeatures []string
 }
 
 // Metadata returns metadata for the migration sink.
