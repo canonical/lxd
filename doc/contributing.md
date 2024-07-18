@@ -93,6 +93,52 @@ You can (and should!) run these tests locally as well with the following command
 - Check the Markdown formatting: `make doc-lint`
 - Check for inclusive language: `make doc-woke`
 
+### Document instructions (how-to guides)
+
+LXD can be used with different clients, most importantly the command-line interface (CLI), the API, and the UI.
+The documentation contains instructions for all of these.
+Therefore, when adding or updating how-to guides, remember to update the documentation for all clients.
+
+Information that is different for each client should be put on tabs:
+
+`````
+````{tabs}
+```{group-tab} CLI
+[...]
+```
+```{group-tab} API
+[...]
+```
+```{group-tab} UI
+[...]
+```
+````
+`````
+
+```{tip}
+You might need to increase the number of backticks (`) if there are code blocks or other directives in the tab content.
+```
+
+Adhere to the following guidelines when adding instructions:
+
+CLI instructions
+: - Add a link to the command reference of the `lxc` command (syntax example: ``[`lxc init`](lxc_init.md)``).
+  - You don't need to document all available flags of a command, but you should mention any that are especially relevant.
+  - Examples are very helpful, so add a few if it makes sense.
+
+API instructions
+: - If possible, use [`lxc query`](lxc_query.md) to demonstrate the API calls.
+    For more complicated calls, use curl or other widely available tools.
+  - In the request data, include all fields that are required for the request to succeed.
+    Keep it as simple as possible though - no need to include all available fields.
+  - Add a link to the API call reference (syntax example: ``[`POST /1.0/instances`](swagger:/instances/instances_post)``).
+
+UI instructions
+: - You can include screenshots to illustrate the instructions, but use them sparingly.
+    Screenshots are difficult to maintain and keep up-to-date.
+  - When referring to labels in the UI, use the `{guilabel}` role.
+    For example: ``To create an instance, go to the {guilabel}`Instances` section and click {guilabel}`Create instance`.``
+
 ### Document configuration options
 
 The documentation of configuration options is extracted from comments in the Go code.
