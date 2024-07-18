@@ -1828,7 +1828,7 @@ func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string) fun
 		cmd := []string{
 			// Run with low priority to reduce CPU impact on other processes.
 			"nice", "-n19",
-			"qemu-img", "convert", "-f", imgFormat, "-O", "raw", imgPath, diskPath,
+			"qemu-img", "convert", "-f", imgFormat, "-O", "raw", imgPath, diskPath, "-t", "writeback",
 		}
 
 		b.logger.Debug("Image conversion started")
