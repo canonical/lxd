@@ -1836,7 +1836,7 @@ func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string) fun
 		b.logger.Debug("Image conversion started", logger.Ctx{"from": imgFormat, "to": "raw"})
 		defer b.logger.Debug("Image conversion finished", logger.Ctx{"from": imgFormat, "to": "raw"})
 
-		out, err := apparmor.QemuImg(b.state.OS, cmd, imgPath, diskPath)
+		out, err := apparmor.QemuImg(b.state.OS, cmd, imgPath, diskPath, nil)
 		if err != nil {
 			b.logger.Debug("Image conversion failed", logger.Ctx{"error": out})
 			return -1, fmt.Errorf("qemu-img convert: failed to convert image from %q to %q format: %v", imgFormat, "raw", err)
@@ -2474,7 +2474,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		}
 
 		// Extract image format and size.
-		imgFormat, imgBytes, err := qemuImageInfo(b.state.OS, imgPath)
+		imgFormat, imgBytes, err := qemuImageInfo(b.state.OS, imgPath, nil)
 		if err != nil {
 			return err
 		}
