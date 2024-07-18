@@ -365,7 +365,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 	}
 
 	// Check for type-bound public access exception.
-	if entityType == entity.TypeServer && filter.Relation == "can_view" {
+	if entityType == entity.TypeServer && filter.Relation == string(auth.EntitlementCanView) {
 		return storage.NewStaticTupleIterator([]*openfgav1.Tuple{
 			// Only returning one tuple here for the identity. When adding service accounts, we'll need
 			// to add another tuple to account for them.
