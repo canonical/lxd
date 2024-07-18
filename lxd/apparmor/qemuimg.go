@@ -13,6 +13,7 @@ import (
 	"github.com/canonical/lxd/lxd/subprocess"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/ioprogress"
 )
 
 var qemuImgProfileTpl = template.Must(template.New("qemuImgProfile").Parse(`#include <tunables/global>
@@ -62,7 +63,7 @@ func (nwc *nullWriteCloser) Close() error {
 // The first element of the cmd slice is expected to be a priority limiting command (such as nice or prlimit) and
 // will be added as an allowed command to the AppArmor profile. The remaining elements of the cmd slice are
 // expected to be the qemu-img command and its arguments.
-func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (string, error) {
+func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string, tracker *ioprogress.ProgressTracker) (string, error) {
 	// It is assumed that command starts with a program which sets resource limits, like prlimit or nice
 	allowedCmds := []string{"qemu-img", cmd[0]}
 
