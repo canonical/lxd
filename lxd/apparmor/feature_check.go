@@ -20,6 +20,10 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   mount options=(nosymfollow) /,
 {{- end }}
 
+{{- if eq .feature "userns_rule" }}
+  userns,
+{{- end }}
+
 }
 `))
 
