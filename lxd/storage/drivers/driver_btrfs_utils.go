@@ -1,37 +1,5 @@
 package drivers
 
-/*
-
-#include <linux/types.h>
-#include <sys/ioctl.h>
-#include <stdint.h>
-
-// definitions are borrowed from include/uapi/linux/btrfs.h
-
-#define BTRFS_IOCTL_MAGIC 0x94
-#define BTRFS_UUID_SIZE 16
-
-struct btrfs_ioctl_timespec {
-	__u64 sec;
-	__u32 nsec;
-};
-
-struct btrfs_ioctl_received_subvol_args {
-	char	uuid[BTRFS_UUID_SIZE];
-	__u64	stransid;
-	__u64	rtransid;
-	struct btrfs_ioctl_timespec stime;
-	struct btrfs_ioctl_timespec rtime;
-	__u64	flags;
-	__u64	reserved[16];
-};
-
-#define BTRFS_IOC_SET_RECEIVED_SUBVOL _IOWR(BTRFS_IOCTL_MAGIC, 37, \
-				struct btrfs_ioctl_received_subvol_args)
-
-*/
-import "C"
-
 import (
 	"bufio"
 	"bytes"
@@ -51,6 +19,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
@@ -93,7 +62,7 @@ func setReceivedUUID(path string, UUID string) error {
 
 	copy(args.uuid[:], binUUID)
 
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, f.Fd(), C.BTRFS_IOC_SET_RECEIVED_SUBVOL, uintptr(unsafe.Pointer(&args)))
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, f.Fd(), linux.IoctlBtrfsSetReceivedSubvol, uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
 		return fmt.Errorf("Failed setting received UUID: %w", unix.Errno(errno))
 	}
