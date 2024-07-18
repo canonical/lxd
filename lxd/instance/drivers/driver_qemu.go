@@ -1,17 +1,5 @@
 package drivers
 
-/*
-
-#include <linux/types.h>
-#include <sys/ioctl.h>
-#include <stdint.h>
-
-#define VHOST_VIRTIO 0xAF
-#define VHOST_VSOCK_SET_GUEST_CID	_IOW(VHOST_VIRTIO, 0x60, __u64)
-
-*/
-import "C"
-
 import (
 	"bufio"
 	"bytes"
@@ -8127,7 +8115,8 @@ func (d *qemu) acquireVsockID(vsockID uint32) (*os.File, error) {
 	// The vsock Context ID cannot be supplied as type uint32.
 	vsockIDInt := uint64(vsockID)
 
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, vsockF.Fd(), C.VHOST_VSOCK_SET_GUEST_CID, uintptr(unsafe.Pointer(&vsockIDInt)))
+	// 0x4008AF60 = VHOST_VSOCK_SET_GUEST_CID = _IOW(VHOST_VIRTIO, 0x60, __u64)
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, vsockF.Fd(), 0x4008AF60, uintptr(unsafe.Pointer(&vsockIDInt)))
 	if errno != 0 {
 		if !errors.Is(errno, unix.EADDRINUSE) {
 			return nil, fmt.Errorf("Failed ioctl syscall to vhost socket: %q", errno.Error())
