@@ -1,37 +1,5 @@
 package main
 
-/*
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE 1
-#endif
-#include <stdio.h>
-#include <linux/hidraw.h>
-
-#include "include/memory_utils.h"
-
-#ifndef HIDIOCGRAWINFO
-#define HIDIOCGRAWINFO _IOR('H', 0x03, struct hidraw_devinfo)
-struct hidraw_devinfo {
-	__u32 bustype;
-	__s16 vendor;
-	__s16 product;
-};
-#endif
-
-static int get_hidraw_devinfo(int fd, struct hidraw_devinfo *info)
-{
-	int ret;
-
-	ret = ioctl(fd, HIDIOCGRAWINFO, info);
-	if (ret)
-		return -1;
-
-	return 0;
-}
-
-*/
-import "C"
-
 import (
 	"fmt"
 	"os"
@@ -40,14 +8,15 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unsafe"
 
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/cgroup"
 	"github.com/canonical/lxd/lxd/device"
-	_ "github.com/canonical/lxd/lxd/include" // Used by cgo
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
@@ -704,10 +673,16 @@ func devicesRegister(instances []instance.Instance) {
 }
 
 func getHidrawDevInfo(fd int) (vendor string, product string, err error) {
-	info := C.struct_hidraw_devinfo{}
-	ret, err := C.get_hidraw_devinfo(C.int(fd), &info)
-	if ret != 0 {
-		return "", "", err
+	type hidInfo struct {
+		busType uint32
+		vendor  int16
+		product int16
+	}
+
+	var info hidInfo
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), linux.IoctlHIDIOCGrawInfo, uintptr(unsafe.Pointer(&info)))
+	if errno != 0 {
+		return "", "", fmt.Errorf("Failed setting received UUID: %w", unix.Errno(errno))
 	}
 
 	return fmt.Sprintf("%04x", info.vendor), fmt.Sprintf("%04x", info.product), nil
