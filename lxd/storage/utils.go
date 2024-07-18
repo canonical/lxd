@@ -518,7 +518,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 	}
 
 	// security.shifted and security.unmapped are only relevant for custom filesystem volumes.
-	if (vol == nil) || (vol != nil && vol.Type() == drivers.VolumeTypeCustom && vol.ContentType() == drivers.ContentTypeFS) {
+	if vol == nil || (vol.Type() == drivers.VolumeTypeCustom && vol.ContentType() == drivers.ContentTypeFS) {
 		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=security.shifted)
 		// Enabling this option allows attaching the volume to multiple isolated instances.
 		// ---
@@ -538,7 +538,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 	}
 
 	// security.shared is only relevant for custom block volumes.
-	if (vol == nil) || (vol != nil && vol.Type() == drivers.VolumeTypeCustom && vol.ContentType() == drivers.ContentTypeBlock) {
+	if vol == nil || (vol.Type() == drivers.VolumeTypeCustom && vol.ContentType() == drivers.ContentTypeBlock) {
 		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=security.shared)
 		// Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
 		//
@@ -734,7 +734,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, sys
 
 	// convertBlockImage converts the qcow2 block image file into a raw block device. If needed it will attempt
 	// to enlarge the destination volume to accommodate the unpacked qcow2 image file.
-	convertBlockImage := func(v drivers.Volume, imgPath string, dstPath string) (int64, error) {
+	convertBlockImage := func(imgPath string, dstPath string) (int64, error) {
 		// Get info about qcow2 file. Force input format to qcow2 so we don't rely on qemu-img's detection
 		// logic as that has been known to have vulnerabilities and we only support qcow2 images anyway.
 		// Use prlimit because qemu-img can consume considerable RAM & CPU time if fed a maliciously
@@ -839,7 +839,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, sys
 		}
 
 		// Convert the qcow2 format to a raw block device.
-		imgSize, err = convertBlockImage(vol, imageRootfsFile, destBlockFile)
+		imgSize, err = convertBlockImage(imageRootfsFile, destBlockFile)
 		if err != nil {
 			return -1, err
 		}
@@ -861,7 +861,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, sys
 		imgPath := filepath.Join(tempDir, "rootfs.img")
 
 		// Convert the qcow2 format to a raw block device.
-		imgSize, err = convertBlockImage(vol, imgPath, destBlockFile)
+		imgSize, err = convertBlockImage(imgPath, destBlockFile)
 		if err != nil {
 			return -1, err
 		}
