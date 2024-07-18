@@ -15,7 +15,6 @@ import (
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
@@ -202,7 +201,6 @@ type migrationSinkArgs struct {
 	// Instance specific fields
 	Instance              instance.Instance
 	InstanceOnly          bool
-	Idmap                 *idmap.IdmapSet
 	Live                  bool
 	Refresh               bool
 	ClusterMoveSourceName string
@@ -210,7 +208,6 @@ type migrationSinkArgs struct {
 
 	// Storage specific fields
 	VolumeOnly bool
-	VolumeSize int64
 
 	// Transport specific fields
 	RsyncFeatures []string
