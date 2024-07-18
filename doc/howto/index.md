@@ -39,7 +39,7 @@ You'll also need to set up and configure other entities.
 ## Get ready for production
 
 Once you are ready for production, consider setting up a LXD cluster to support the required load.
-You should also monitor you server or servers and configure them for the expected load.
+You should also monitor your server or servers and configure them for the expected load.
 
 ```{toctree}
 :titlesonly:
