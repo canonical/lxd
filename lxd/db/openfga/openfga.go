@@ -305,9 +305,13 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 // Observations:
 //
 // - This method appears to be called in four scenarios:
+//
 //  1. Listing objects related to the server object via `server`.
+//
 //  2. Listing objects related to project objects via `project`.
+//
 //  3. Listing objects that a group is related to via an entitlement.
+//
 //  4. Listing objects that an identity is related to via an entitlement.
 //
 //     - The UserFilter field of storage.ReadStartingWithUserFilter usually has length 1. Sometimes there is another user
