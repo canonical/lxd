@@ -567,9 +567,10 @@ func migrateLocal(ctx context.Context, s *state.State, inst instance.Instance, r
 
 	targetProject := inst.Project().Name
 	if req.Project != "" {
-		target = target.UseProject(req.Project)
 		targetProject = req.Project
 	}
+
+	target = target.UseProject(targetProject)
 
 	// Check if we have a root disk in local config.
 	_, _, err = instancetype.GetRootDiskDevice(targetInstInfo.Devices)
