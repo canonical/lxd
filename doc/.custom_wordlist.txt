@@ -13,6 +13,7 @@ ASN
 AXFR
 backend
 backends
+backticks
 balancers
 benchmarking
 BGP
