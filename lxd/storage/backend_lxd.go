@@ -1826,8 +1826,8 @@ func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string) fun
 
 		// Convert uploaded image from backups directory into RAW format on the instance volume.
 		cmd := []string{
-			// Use prlimit to limit QEMU to 1 GiB address space and 120 seconds of CPU time.
-			"prlimit", "--cpu=120", "--as=1073741824",
+			// Run with low priority to reduce CPU impact on other processes.
+			"nice", "-n19",
 			"qemu-img", "convert", "-f", imgFormat, "-O", "raw", imgPath, diskPath,
 		}
 
