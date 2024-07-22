@@ -2042,10 +2042,10 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	// This way if the volume being received is larger than the pool default size, the block volume created
 	// will still be able to accommodate it.
 	if args.VolumeSize > 0 && contentType == drivers.ContentTypeBlock {
-		b.logger.Debug("Setting volume size from offer header", logger.Ctx{"size": args.VolumeSize})
+		l.Debug("Setting volume size from offer header", logger.Ctx{"size": args.VolumeSize})
 		args.Config["size"] = fmt.Sprintf("%d", args.VolumeSize)
 	} else if args.Config["size"] != "" {
-		b.logger.Debug("Using volume size from root disk config", logger.Ctx{"size": args.Config["size"]})
+		l.Debug("Using volume size from root disk config", logger.Ctx{"size": args.Config["size"]})
 	}
 
 	var preFiller drivers.VolumeFiller

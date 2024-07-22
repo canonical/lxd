@@ -1,4 +1,5 @@
-#!/bin/sh -eu
+#!/bin/bash
+set -eu
 [ -n "${GOPATH:-}" ] && export "PATH=${GOPATH}/bin:${PATH}"
 
 # Don't translate lxc output for parsing in it in tests.
@@ -278,6 +279,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_container_devices_nic_ipvlan "container devices - nic - ipvlan"
     run_test test_container_devices_nic_sriov "container devices - nic - sriov"
     run_test test_container_devices_nic_routed "container devices - nic - routed"
+    run_test test_container_devices_none "container devices - none"
     run_test test_container_devices_infiniband_physical "container devices - infiniband - physical"
     run_test test_container_devices_infiniband_sriov "container devices - infiniband - sriov"
     run_test test_container_devices_proxy "container devices - proxy"

@@ -200,7 +200,7 @@ func CheckCASignature(cert x509.Certificate, networkCert *shared.CertInfo) (trus
 
 	err = crl.CheckSignatureFrom(ca)
 	if err != nil {
-		logger.Error("Certificate revokation list has not been signed by server CA", logger.Ctx{"error": err})
+		logger.Error("Certificate revokation list has not been signed by server CA", logger.Ctx{"err": err})
 		return false, false, ""
 	}
 

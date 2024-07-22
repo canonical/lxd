@@ -1,4 +1,5 @@
-#!/bin/sh -eu
+#!/bin/bash
+set -eu
 
 echo "Checking that functional blocks are followed by newlines..."
 

@@ -294,18 +294,27 @@ func devLxdAPI(d *Daemon, f hoistFunc) http.Handler {
  */
 var pidMapper = ConnPidMapper{m: map[*net.UnixConn]*unix.Ucred{}}
 
+// ConnPidMapper is threadsafe cache of unix connections to process IDs. We use this in hoistReq to determine
+// the instance that the connection has been made from.
 type ConnPidMapper struct {
 	m     map[*net.UnixConn]*unix.Ucred
 	mLock sync.Mutex
 }
 
+// ConnStateHandler is used in the `ConnState` field of the devlxd http.Server so that we can cache the process ID of the
+// caller when a new connection is made and delete it when the connection is closed.
 func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
-	unixConn := conn.(*net.UnixConn)
+	unixConn, _ := conn.(*net.UnixConn)
+	if unixConn == nil {
+		logger.Error("Invalid type for devlxd connection", logger.Ctx{"conn_type": fmt.Sprintf("%T", conn)})
+		return
+	}
+
 	switch state {
 	case http.StateNew:
 		cred, err := ucred.GetCred(unixConn)
 		if err != nil {
-			logger.Debugf("Error getting ucred for conn %s", err)
+			logger.Debug("Error getting ucred for devlxd connection", logger.Ctx{"err": err})
 		} else {
 			m.mLock.Lock()
 			m.m[unixConn] = cred
@@ -333,7 +342,7 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 		delete(m.m, unixConn)
 		m.mLock.Unlock()
 	default:
-		logger.Debugf("Unknown state for connection %s", state)
+		logger.Debug("Unknown state for devlxd connection", logger.Ctx{"state": state.String()})
 	}
 }
 
@@ -386,7 +395,9 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 				return nil, fmt.Errorf("Instance is not container type")
 			}
 
-			return inst.(instance.Container), nil
+			// Explicitly ignore type assertion check. We've just checked that it's a container.
+			c, _ := inst.(instance.Container)
+			return c, nil
 		}
 
 		status, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
@@ -439,7 +450,9 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 		}
 
 		if origPidNs == pidNs {
-			return inst.(instance.Container), nil
+			// Explicitly ignore type assertion check. The instance must be a container if we've found it via the process ID.
+			c, _ := inst.(instance.Container)
+			return c, nil
 		}
 	}
 

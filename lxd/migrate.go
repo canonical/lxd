@@ -144,6 +144,8 @@ type migrationSourceWs struct {
 	pushSecrets      map[string]string
 }
 
+// Metadata returns a map where each key is a connection name and each value is
+// the secret of the corresponding websocket connection.
 func (s *migrationSourceWs) Metadata() any {
 	secrets := make(shared.Jmap, len(s.conns))
 	for connName, conn := range s.conns {
@@ -153,6 +155,9 @@ func (s *migrationSourceWs) Metadata() any {
 	return secrets
 }
 
+// Connect handles an incoming HTTP request to establish a websocket connection for migration.
+// It verifies the provided secret and matches it to the appropriate connection. If the secret
+// is valid, it accepts the incoming connection. Otherwise, it returns an error.
 func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	incomingSecret := r.FormValue("secret")
 	if incomingSecret == "" {
@@ -186,7 +191,7 @@ type migrationSink struct {
 	refresh               bool
 }
 
-// MigrationSinkArgs arguments to configure migration sink.
+// migrationSinkArgs arguments to configure migration sink.
 type migrationSinkArgs struct {
 	// General migration fields
 	Dialer  *websocket.Dialer

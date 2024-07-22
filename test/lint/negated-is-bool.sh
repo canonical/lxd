@@ -1,4 +1,5 @@
-#!/bin/sh -eu
+#!/bin/bash
+set -eu
 
 echo "Checking usage of negated shared.Is(True|False)*() functions..."
 

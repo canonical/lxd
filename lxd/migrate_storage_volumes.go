@@ -65,6 +65,9 @@ func newStorageMigrationSource(volumeOnly bool, pushTarget *api.StorageVolumePos
 	return &ret, nil
 }
 
+// DoStorage handles the migration of a storage volume from the source to the target.
+// It waits for migration connections, negotiates migration types, and initiates
+// the volume transfer.
 func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, poolName string, volName string, migrateOp *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"project": projectName, "pool": poolName, "volume": volName, "push": s.pushOperationURL != ""})
 
@@ -238,6 +241,8 @@ func newStorageMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	return &sink, nil
 }
 
+// DoStorage handles the storage volume migration on the target side. It waits for
+// migration connections, negotiates migration types, and initiates the volume reception.
 func (c *migrationSink) DoStorage(state *state.State, projectName string, poolName string, req *api.StorageVolumesPost, op *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"project": projectName, "pool": poolName, "volume": req.Name, "push": c.push})
 
