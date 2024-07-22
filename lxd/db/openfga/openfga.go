@@ -305,12 +305,18 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 // Observations:
 //
 // - This method appears to be called in four scenarios:
+//
 //  1. Listing objects related to the server object via `server`.
+//
 //  2. Listing objects related to project objects via `project`.
+//
 //  3. Listing objects that a group is related to via an entitlement.
+//
 //  4. Listing objects that an identity is related to via an entitlement.
 //
-// - The UserFilter field of storage.ReadStartingWithUserFilter always has length 1.
+//     - The UserFilter field of storage.ReadStartingWithUserFilter usually has length 1. Sometimes there is another user
+//     when a type-bound public access is used (e.g. `identity:*`). We return early if this is the case, as we don't need
+//     to call the database.
 //
 // Implementation:
 //   - For the first two cases we can perform a simple lookup for entities of the requested type (with project name if project relation).
@@ -356,16 +362,30 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 		return nil, api.StatusErrorf(http.StatusBadRequest, "ReadStartingWithUser: Must provide relation")
 	}
 
-	// Expect that there will be exactly one user filter.
-	if len(filter.UserFilter) != 1 {
-		return nil, fmt.Errorf("ReadStartingWithUser: Unexpected user filter list length")
-	}
-
-	// Validate the entity type.
 	entityType := entity.Type(filter.ObjectType)
 	err := entityType.Validate()
 	if err != nil {
-		return nil, fmt.Errorf("ReadStartingWithUser: Invalid entity type %q: %w", entityType, err)
+		return nil, fmt.Errorf("ReadUsersetTuples: Invalid object filter %q: %w", entityType, err)
+	}
+
+	// Check for type-bound public access exception.
+	if entityType == entity.TypeServer && filter.Relation == string(auth.EntitlementCanView) {
+		return storage.NewStaticTupleIterator([]*openfgav1.Tuple{
+			// Only returning one tuple here for the identity. When adding service accounts, we'll need
+			// to add another tuple to account for them.
+			{
+				Key: &openfgav1.TupleKey{
+					Object:   fmt.Sprintf("%s:%s", entity.TypeServer, entity.ServerURL().String()),
+					Relation: string(auth.EntitlementCanView),
+					User:     fmt.Sprintf("%s:*", entity.TypeIdentity),
+				},
+			},
+		}), nil
+	}
+
+	// Expect that there will be exactly one user filter when not dealing with a type-bound public access.
+	if len(filter.UserFilter) != 1 {
+		return nil, fmt.Errorf("ReadStartingWithUser: Unexpected user filter list length")
 	}
 
 	// Expect that the user filter object has an entity type and a URL.
