@@ -425,7 +425,7 @@ func DiskVMVirtfsProxyStop(pidPath string) error {
 // Returns UnsupportedError error if the host system or instance does not support virtiosfd, returns normal error
 // type if process cannot be started for other reasons.
 // Returns revert function and listener file handle on success.
-func DiskVMVirtiofsdStart(kernelVersion version.DottedVersion, execPath string, inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string, idmaps []idmap.IdmapEntry) (func(), net.Listener, error) {
+func DiskVMVirtiofsdStart(kernelVersion version.DottedVersion, inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string, idmaps []idmap.IdmapEntry) (func(), net.Listener, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
