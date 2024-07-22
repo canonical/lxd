@@ -6,8 +6,8 @@ They cannot be part of a {ref}`profile <profiles>`.
 
 The following instance properties are available:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group instance-property-instance-conf start -->
     :end-before: <!-- config group instance-property-instance-conf end -->
 ```

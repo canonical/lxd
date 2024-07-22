@@ -35,8 +35,8 @@ If a listen address is not given, the `--allocate` flag must be provided.
 
 Network load balancers have the following properties:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group network-load-balancer-load-balancer-properties start -->
     :end-before: <!-- config group network-load-balancer-load-balancer-properties end -->
 ```
@@ -74,8 +74,8 @@ If you want to forward the traffic to different ports, you have two options:
 
 Network load balancer backends have the following properties:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group network-load-balancer-load-balancer-backend-properties start -->
     :end-before: <!-- config group network-load-balancer-load-balancer-backend-properties end -->
 ```
@@ -98,8 +98,8 @@ The backend(s) specified must have target port(s) settings compatible with the p
 
 Network load balancer ports have the following properties:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group network-load-balancer-load-balancer-port-properties start -->
     :end-before: <!-- config group network-load-balancer-load-balancer-port-properties end -->
 ```

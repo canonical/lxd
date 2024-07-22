@@ -65,8 +65,8 @@ The following configuration options are available for storage pools that use the
 (storage-cephfs-pool-config)=
 ### Storage pool configuration
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group storage-cephfs-pool-conf start -->
     :end-before: <!-- config group storage-cephfs-pool-conf end -->
 ```
@@ -75,8 +75,8 @@ The following configuration options are available for storage pools that use the
 
 ### Storage volume configuration
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group storage-cephfs-volume-conf start -->
     :end-before: <!-- config group storage-cephfs-volume-conf end -->
 ```

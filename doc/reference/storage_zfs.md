@@ -98,8 +98,8 @@ The following configuration options are available for storage pools that use the
 (storage-zfs-pool-config)=
 ### Storage pool configuration
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group storage-zfs-pool-conf start -->
     :end-before: <!-- config group storage-zfs-pool-conf end -->
 ```
@@ -109,8 +109,8 @@ The following configuration options are available for storage pools that use the
 (storage-zfs-vol-config)=
 ### Storage volume configuration
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group storage-zfs-volume-conf start -->
     :end-before: <!-- config group storage-zfs-volume-conf end -->
 ```
@@ -119,8 +119,8 @@ The following configuration options are available for storage pools that use the
 
 To enable storage buckets for local storage pool drivers and allow applications to access the buckets via the S3 protocol, you must configure the {config:option}`server-core:core.storage_buckets_address` server setting.
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group storage-zfs-bucket-conf start -->
     :end-before: <!-- config group storage-zfs-bucket-conf end -->
 ```

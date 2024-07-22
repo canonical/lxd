@@ -26,8 +26,8 @@ However, if you unset one of the `feature.*` options, it does not go back to the
 The default value for all `feature.*` options is `false`.
 ```
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group project-features start -->
     :end-before: <!-- config group project-features end -->
 ```
@@ -52,8 +52,8 @@ When using project limits, the following conditions must be fulfilled:
   This means that to use {config:option}`project-limits:limits.cpu` on a project, the {config:option}`instance-resource-limits:limits.cpu` configuration of each instance in the project must be set to a number of CPUs, not a set or a range of CPUs.
 - The {config:option}`project-limits:limits.memory` configuration must be set to an absolute value, not a percentage.
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group project-limits start -->
     :end-before: <!-- config group project-limits end -->
 ```
@@ -81,8 +81,8 @@ If `restricted` is set to `false`, changing a `restricted.*` option has no effec
 Setting all `restricted.*` keys to `allow` is equivalent to setting `restricted` itself to `false`.
 ```
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group project-restricted start -->
     :end-before: <!-- config group project-restricted end -->
 ```
@@ -93,8 +93,8 @@ Setting all `restricted.*` keys to `allow` is equivalent to setting `restricted`
 There are some {ref}`server` options that you can override for a project.
 In addition, you can add user metadata for a project.
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group project-specific start -->
     :end-before: <!-- config group project-specific end -->
 ```

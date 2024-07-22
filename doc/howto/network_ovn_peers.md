@@ -46,8 +46,8 @@ This behavior prevents users in a different project from discovering whether a p
 
 Peer routing relationships have the following properties:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group network-peering-peering-properties start -->
     :end-before: <!-- config group network-peering-peering-properties end -->
 ```

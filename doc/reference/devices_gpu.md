@@ -35,8 +35,8 @@ A `physical` GPU device passes an entire GPU through into the instance.
 
 GPU devices of type `physical` have the following device options:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group device-gpu-physical-device-conf start -->
     :end-before: <!-- config group device-gpu-physical-device-conf end -->
 ```
@@ -68,8 +68,8 @@ You can check the list of available `mdev` profiles by running [`lxc info --reso
 
 GPU devices of type `mdev` have the following device options:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group device-gpu-mdev-device-conf start -->
     :end-before: <!-- config group device-gpu-mdev-device-conf end -->
 ```
@@ -97,8 +97,8 @@ Currently, this requires NVIDIA MIG instances to be pre-created.
 
 GPU devices of type `mig` have the following device options:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group device-gpu-mig-device-conf start -->
     :end-before: <!-- config group device-gpu-mig-device-conf end -->
 ```
@@ -127,8 +127,8 @@ An `sriov` GPU device passes a virtual function of an SR-IOV-enabled GPU into th
 
 GPU devices of type `sriov` have the following device options:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group device-gpu-sriov-device-conf start -->
     :end-before: <!-- config group device-gpu-sriov-device-conf end -->
 ```

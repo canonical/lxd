@@ -160,7 +160,7 @@ jobs:
         run: |
           set -eux
           sudo chmod o+w ./lxd/metadata/configuration.json
-          sudo chmod o+w ./doc/config_options.txt
+          sudo chmod o+w ./doc/metadata.txt
           sudo chmod o+w ./po/*
           make static-analysis
 

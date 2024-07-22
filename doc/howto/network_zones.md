@@ -155,8 +155,8 @@ lxc network zone edit <network_zone>
 
 The following configuration options are available for network zones:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group network-zone-config-options start -->
     :end-before: <!-- config group network-zone-config-options end -->
 ```
@@ -205,8 +205,8 @@ This command creates an empty record without entries and adds it to a network zo
 
 Records have the following properties:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group network-zone-record-properties start -->
     :end-before: <!-- config group network-zone-record-properties end -->
 ```

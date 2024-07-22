@@ -6569,5 +6569,587 @@
 				]
 			}
 		}
+	},
+	"entities": {
+		"certificate": [
+			{
+				"name": "can_view",
+				"description": "Grants permission to view the certificate."
+			},
+			{
+				"name": "can_edit",
+				"description": "Grants permission to edit the certificate."
+			},
+			{
+				"name": "can_delete",
+				"description": "Grants permission to delete the certificate."
+			}
+		],
+		"group": [
+			{
+				"name": "can_view",
+				"description": "Grants permission to view the group. Identities can always view groups that they are a member of."
+			},
+			{
+				"name": "can_edit",
+				"description": "Grants permission to edit the group."
+			},
+			{
+				"name": "can_delete",
+				"description": "Grants permission to delete the group."
+			}
+		],
+		"identity": [
+			{
+				"name": "can_view",
+				"description": "Grants permission to view the identity."
+			},
+			{
+				"name": "can_edit",
+				"description": "Grants permission to edit the identity."
+			},
+			{
+				"name": "can_delete",
+				"description": "Grants permission to delete the identity."
+			}
+		],
+		"identity_provider_group": [
+			{
+				"name": "can_view",
+				"description": "Grants permission to view the identity provider group."
+			},
+			{
+				"name": "can_edit",
+				"description": "Grants permission to edit the identity provider group."
+			},
+			{
+				"name": "can_delete",
+				"description": "Grants permission to delete the identity provider group."
+			}
+		],
+		"image": [
+			{
+				"name": "can_edit",
+				"description": "Grants permission to edit the image."
+			},
+			{
+				"name": "can_delete",
+				"description": "Grants permission to delete the image."
+			},
+			{
+				"name": "can_view",
+				"description": "Grants permission to view the image."
+			}
+		],
+		"image_alias": [
+			{
+				"name": "can_edit",
+				"description": "Grants permission to edit the image alias."
+			},
+			{
+				"name": "can_delete",
+				"description": "Grants permission to delete the image alias."
+			},
+			{
+				"name": "can_view",
+				"description": "Grants permission to view the image alias."
+			}
+		],
+		"instance": [
+			{
+				"name": "user",
+				"description": "Grants permission to view the instance, to access files, and to start a terminal or console session."
+			},
+			{
+				"name": "operator",
+				"description": "Grants permission to view the instance, to access files, start a terminal or console session, and to manage snapshots and backups."
+			},
+			{
+				"name": "can_edit",
+				"description": "Grants permission to edit the instance."
+			},
+			{
+				"name": "can_delete",
+				"description": "Grants permission to delete the instance."
+			},
+			{
+				"name": "can_view",
+				"description": "Grants permission to view the instance."
+			},
+			{
+				"name": "can_update_state",
+				"description": "Grants permission to change the instance state."
+			},
+			{
+				"name": "can_manage_snapshots",
+				"description": "Grants permission to create and delete snapshots of the instance."
+			},
+			{
+				"name": "can_manage_backups",
+				"description": "Grants permission to create and delete backups of the instance."
+			},
+			{
+				"name": "can_connect_sftp",
+				"description": "Grants permission to get an SFTP client for the instance."
+			},
+			{
+				"name": "can_access_files",
+				"description": "Grants permission to push or pull files into or out of the instance."
+			},
+			{
+				"name": "can_access_console",
+				"description": "Grants permission to start a console session."
+			},
+			{
+				"name": "can_exec",
+				"description": "Grants permission to start a terminal session."
+			}
+		],
+		"network": [
+			{
+				"name": "can_edit",
+				"description": "Grants permission to edit the network."
+			},
+			{
+				"name": "can_delete",
+				"description": "Grants permission to delete the network."
+			},
+			{
+				"name": "can_view",
+				"description": "Grants permission to view the network."
+			}
+		],
+		"network_acl": [
+			{
+				"name": "can_edit",
+				"description": "Grants permission to edit the network ACL."
+			},
+			{
+				"name": "can_delete",
+				"description": "Grants permission to delete the network ACL."
+			},
+			{
+				"name": "can_view",
+				"description": "Grants permission to view the network ACL."
+			}
+		],
+		"network_zone": [
+			{
+				"name": "can_edit",
+				"description": "Grants permission to edit the network zone."
+			},
+			{
+				"name": "can_delete",
+				"description": "Grants permission to delete the network zone."
+			},
+			{
+				"name": "can_view",
+				"description": "Grants permission to view the network zone."
+			}
+		],
+		"profile": [
+			{
+				"name": "can_edit",
+				"description": "Grants permission to edit the profile."
+			},
+			{
+				"name": "can_delete",
+				"description": "Grants permission to delete the profile."
+			},
+			{
+				"name": "can_view",
+				"description": "Grants permission to view the profile."
+			}
+		],
+		"project": [
+			{
+				"name": "operator",
+				"description": "Grants permission to create, view, edit, and delete all resources belonging to the project, but does not grant permission to edit the project configuration itself."
+			},
+			{
+				"name": "viewer",
+				"description": "Grants permission to view all resources belonging to the project."
+			},
+			{
+				"name": "can_view",
+				"description": "Grants permission to view the project."
+			},
+			{
+				"name": "can_edit",
+				"description": "Grants permission to edit the project."
+			},
+			{
+				"name": "can_delete",
+				"description": "Grants permission to delete the project."
+			},
+			{
+				"name": "image_manager",
+				"description": "Grants permission to create, view, edit, and delete all images belonging to the project."
+			},
+			{
+				"name": "can_create_images",
+				"description": "Grants permission to create images."
+			},
+			{
+				"name": "can_view_images",
+				"description": "Grants permission to view images."
+			},
+			{
+				"name": "can_edit_images",
+				"description": "Grants permission to edit images."
+			},
+			{
+				"name": "can_delete_images",
+				"description": "Grants permission to delete images."
+			},
+			{
+				"name": "image_alias_manager",
+				"description": "Grants permission to create, view, edit, and delete all image aliases belonging to the project."
+			},
+			{
+				"name": "can_create_image_aliases",
+				"description": "Grants permission to create image aliases."
+			},
+			{
+				"name": "can_view_image_aliases",
+				"description": "Grants permission to view image aliases."
+			},
+			{
+				"name": "can_edit_image_aliases",
+				"description": "Grants permission to edit image aliases."
+			},
+			{
+				"name": "can_delete_image_aliases",
+				"description": "Grants permission to delete image aliases."
+			},
+			{
+				"name": "instance_manager",
+				"description": "Grants permission to create, view, edit, and delete all instances belonging to the project."
+			},
+			{
+				"name": "can_create_instances",
+				"description": "Grants permission to create instances."
+			},
+			{
+				"name": "can_view_instances",
+				"description": "Grants permission to view instances."
+			},
+			{
+				"name": "can_edit_instances",
+				"description": "Grants permission to edit instances."
+			},
+			{
+				"name": "can_delete_instances",
+				"description": "Grants permission to delete instances."
+			},
+			{
+				"name": "can_operate_instances",
+				"description": "Grants permission to view instances, manage their state, manage their snapshots and backups, start terminal or console sessions, and access their files."
+			},
+			{
+				"name": "network_manager",
+				"description": "Grants permission to create, view, edit, and delete all networks belonging to the project."
+			},
+			{
+				"name": "can_create_networks",
+				"description": "Grants permission to create networks."
+			},
+			{
+				"name": "can_view_networks",
+				"description": "Grants permission to view networks."
+			},
+			{
+				"name": "can_edit_networks",
+				"description": "Grants permission to edit networks."
+			},
+			{
+				"name": "can_delete_networks",
+				"description": "Grants permission to delete networks."
+			},
+			{
+				"name": "network_acl_manager",
+				"description": "Grants permission to create, view, edit, and delete all network ACLs belonging to the project."
+			},
+			{
+				"name": "can_create_network_acls",
+				"description": "Grants permission to create network ACLs."
+			},
+			{
+				"name": "can_view_network_acls",
+				"description": "Grants permission to view network ACLs."
+			},
+			{
+				"name": "can_edit_network_acls",
+				"description": "Grants permission to edit network ACLs."
+			},
+			{
+				"name": "can_delete_network_acls",
+				"description": "Grants permission to delete network ACLs."
+			},
+			{
+				"name": "network_zone_manager",
+				"description": "Grants permission to create, view, edit, and delete all network zones belonging to the project."
+			},
+			{
+				"name": "can_create_network_zones",
+				"description": "Grants permission to create network zones."
+			},
+			{
+				"name": "can_view_network_zones",
+				"description": "Grants permission to view network zones."
+			},
+			{
+				"name": "can_edit_network_zones",
+				"description": "Grants permission to edit network zones."
+			},
+			{
+				"name": "can_delete_network_zones",
+				"description": "Grants permission to delete network zones."
+			},
+			{
+				"name": "profile_manager",
+				"description": "Grants permission to create, view, edit, and delete all profiles belonging to the project."
+			},
+			{
+				"name": "can_create_profiles",
+				"description": "Grants permission to create profiles."
+			},
+			{
+				"name": "can_view_profiles",
+				"description": "Grants permission to view profiles."
+			},
+			{
+				"name": "can_edit_profiles",
+				"description": "Grants permission to edit profiles."
+			},
+			{
+				"name": "can_delete_profiles",
+				"description": "Grants permission to delete profiles."
+			},
+			{
+				"name": "storage_volume_manager",
+				"description": "Grants permission to create, view, edit, and delete all storage volumes belonging to the project."
+			},
+			{
+				"name": "can_create_storage_volumes",
+				"description": "Grants permission to create storage volumes."
+			},
+			{
+				"name": "can_view_storage_volumes",
+				"description": "Grants permission to view storage volumes."
+			},
+			{
+				"name": "can_edit_storage_volumes",
+				"description": "Grants permission to edit storage volumes."
+			},
+			{
+				"name": "can_delete_storage_volumes",
+				"description": "Grants permission to delete storage volumes."
+			},
+			{
+				"name": "storage_bucket_manager",
+				"description": "Grants permission to create, view, edit, and delete all storage buckets belonging to the project."
+			},
+			{
+				"name": "can_create_storage_buckets",
+				"description": "Grants permission to create storage buckets."
+			},
+			{
+				"name": "can_view_storage_buckets",
+				"description": "Grants permission to view storage buckets."
+			},
+			{
+				"name": "can_edit_storage_buckets",
+				"description": "Grants permission to edit storage buckets."
+			},
+			{
+				"name": "can_delete_storage_buckets",
+				"description": "Grants permission to delete storage buckets."
+			},
+			{
+				"name": "can_view_operations",
+				"description": "Grants permission to view operations relating to the project."
+			},
+			{
+				"name": "can_view_events",
+				"description": "Grants permission to view events relating to the project."
+			},
+			{
+				"name": "can_view_metrics",
+				"description": "Grants permission to view project level metrics."
+			}
+		],
+		"server": [
+			{
+				"name": "admin",
+				"description": "Grants full access to LXD as if via Unix socket."
+			},
+			{
+				"name": "viewer",
+				"description": "Grants access to view all resources in the LXD server."
+			},
+			{
+				"name": "can_edit",
+				"description": "Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a cluster member, to create, edit, and delete cluster groups, to update cluster member certificates, and to edit or delete warnings."
+			},
+			{
+				"name": "permission_manager",
+				"description": "Grants permission to view permissions, to create, edit, and delete identities, to view, create, edit, and delete authorization groups, and to view, create, edit, and delete identity provider groups. Note that clients with this permission are able to elevate their own privileges."
+			},
+			{
+				"name": "can_view_permissions",
+				"description": "Grants permission to view permissions."
+			},
+			{
+				"name": "can_create_identities",
+				"description": "Grants permission to create identities."
+			},
+			{
+				"name": "can_view_identities",
+				"description": "Grants permission to view identities."
+			},
+			{
+				"name": "can_edit_identities",
+				"description": "Grants permission to edit identities."
+			},
+			{
+				"name": "can_delete_identities",
+				"description": "Grants permission to delete identities."
+			},
+			{
+				"name": "can_create_groups",
+				"description": "Grants permission to create authorization groups."
+			},
+			{
+				"name": "can_view_groups",
+				"description": "Grants permission to view authorization groups."
+			},
+			{
+				"name": "can_edit_groups",
+				"description": "Grants permission to edit authorization groups."
+			},
+			{
+				"name": "can_delete_groups",
+				"description": "Grants permission to delete authorization groups."
+			},
+			{
+				"name": "can_create_identity_provider_groups",
+				"description": "Grants permission to create identity provider groups."
+			},
+			{
+				"name": "can_view_identity_provider_groups",
+				"description": "Grants permission to view identity provider groups."
+			},
+			{
+				"name": "can_edit_identity_provider_groups",
+				"description": "Grants permission to edit identity provider groups."
+			},
+			{
+				"name": "can_delete_identity_provider_groups",
+				"description": "Grants permission to delete identity provider groups."
+			},
+			{
+				"name": "storage_pool_manager",
+				"description": "Grants permission to create, edit, and delete storage pools."
+			},
+			{
+				"name": "can_create_storage_pools",
+				"description": "Grants permission to create storage pools."
+			},
+			{
+				"name": "can_edit_storage_pools",
+				"description": "Grants permission to edit storage pools."
+			},
+			{
+				"name": "can_delete_storage_pools",
+				"description": "Grants permission to delete storage pools."
+			},
+			{
+				"name": "project_manager",
+				"description": "Grants permission to view, create, edit, and delete projects, and to create, edit, and delete any resources that are owned by those projects."
+			},
+			{
+				"name": "can_create_projects",
+				"description": "Grants permission to create projects."
+			},
+			{
+				"name": "can_view_projects",
+				"description": "Grants permission to view projects, and all resources within those projects."
+			},
+			{
+				"name": "can_edit_projects",
+				"description": "Grants permission to edit projects, and all resources within those projects."
+			},
+			{
+				"name": "can_delete_projects",
+				"description": "Grants permission to delete projects."
+			},
+			{
+				"name": "can_override_cluster_target_restriction",
+				"description": "If a project is configured with `restricted.cluster.target`, clients with this permission can override the restriction."
+			},
+			{
+				"name": "can_view_privileged_events",
+				"description": "Grants permission to view privileged event types, such as logging events."
+			},
+			{
+				"name": "can_view_resources",
+				"description": "Grants permission to view server and storage pool resource usage information."
+			},
+			{
+				"name": "can_view_metrics",
+				"description": "Grants permission to view all server and project level metrics."
+			},
+			{
+				"name": "can_view_warnings",
+				"description": "Grants permission to view warnings."
+			}
+		],
+		"storage_bucket": [
+			{
+				"name": "can_edit",
+				"description": "Grants permission to edit the storage bucket."
+			},
+			{
+				"name": "can_delete",
+				"description": "Grants permission to delete the storage bucket."
+			},
+			{
+				"name": "can_view",
+				"description": "Grants permission to view the storage bucket."
+			}
+		],
+		"storage_pool": [
+			{
+				"name": "can_edit",
+				"description": "Grants permission to edit the storage pool."
+			},
+			{
+				"name": "can_delete",
+				"description": "Grants permission to delete the storage pool."
+			}
+		],
+		"storage_volume": [
+			{
+				"name": "can_edit",
+				"description": "Grants permission to edit the storage volume."
+			},
+			{
+				"name": "can_delete",
+				"description": "Grants permission to delete the storage volume."
+			},
+			{
+				"name": "can_view",
+				"description": "Grants permission to view the storage volume."
+			},
+			{
+				"name": "can_manage_snapshots",
+				"description": "Grants permission to create and delete snapshots of the storage volume."
+			},
+			{
+				"name": "can_manage_backups",
+				"description": "Grants permission to create and delete backups of the storage volume."
+			}
+		]
 	}
 }
