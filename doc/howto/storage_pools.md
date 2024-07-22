@@ -154,6 +154,29 @@ Use the existing Ceph Object Gateway `https://www.example.com/radosgw` to create
 
     lxc storage create pool1 cephobject cephobject.radosgw.endpoint=https://www.example.com/radosgw
 ````
+````{group-tab} Dell PowerFlex
+
+Create a storage pool named `pool1` using the PowerFlex pool `sp1` in the protection domain `pd1`:
+
+    lxc storage create pool1 powerflex powerflex.pool=sp1 powerflex.domain=pd1 powerflex.gateway=https://powerflex powerflex.user.name=lxd powerflex.user.password=foo
+
+Create a storage pool named `pool2` using the id of PowerFlex pool `sp1`:
+
+    lxc storage create pool2 powerflex powerflex.pool=<id of sp1> powerflex.gateway=https://powerflex powerflex.user.name=lxd powerflex.user.password=foo
+
+Create a storage pool named `pool3` that uses PowerFlex volume snapshots (see {ref}`storage-powerflex-limitations`) when creating volume copies:
+
+    lxc storage create pool3 powerflex powerflex.clone_copy=false powerflex.pool=<id of sp1> powerflex.gateway=https://powerflex powerflex.user.name=lxd powerflex.user.password=foo
+
+Create a storage pool named `pool4` that uses a PowerFlex gateway with a certificate that is not trusted:
+
+    lxc storage create pool4 powerflex powerflex.gateway.verify=false powerflex.pool=<id of sp1> powerflex.gateway=https://powerflex powerflex.user.name=lxd powerflex.user.password=foo
+
+Create a storage pool named `pool5` that explicitly uses the PowerFlex SDC:
+
+    lxc storage create pool5 powerflex powerflex.mode=sdc powerflex.pool=<id of sp1> powerflex.gateway=https://powerflex powerflex.user.name=lxd powerflex.user.password=foo
+
+````
 `````
 
 (storage-pools-cluster)=
