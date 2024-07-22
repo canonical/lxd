@@ -255,6 +255,26 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   mount options=(ro,remount,bind,nosuid,noexec,strictatime) /sy[^s]*{,/**},
   mount options=(ro,remount,bind,nosuid,noexec,strictatime) /sys?*{,/**},
 
+{{- if .feature_mount_nosymfollow }}
+  # see https://github.com/canonical/lxd/pull/12698
+  mount options=(ro,remount,bind,nosuid,noexec,nodev,nosymfollow) /[^spd]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev,nosymfollow) /d[^e]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev,nosymfollow) /de[^v]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev,nosymfollow) /dev/.[^l]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev,nosymfollow) /dev/.l[^x]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev,nosymfollow) /dev/.lx[^c]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev,nosymfollow) /dev/.lxc?*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev,nosymfollow) /dev/[^.]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev,nosymfollow) /dev?*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev,nosymfollow) /p[^r]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev,nosymfollow) /pr[^o]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev,nosymfollow) /pro[^c]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev,nosymfollow) /proc?*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev,nosymfollow) /s[^y]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev,nosymfollow) /sy[^s]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev,nosymfollow) /sys?*{,/**},
+{{- end }}
+
   # Allow bind-mounts of anything except /proc, /sys and /dev/.lxc
   mount options=(rw,bind) /[^spd]*{,/**},
   mount options=(rw,bind) /d[^e]*{,/**},
@@ -445,6 +465,11 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
   ### Configuration: nesting
   pivot_root,
+
+  # Allow user namespaces to be created
+{{- if .feature_userns_rule }}
+  userns,
+{{- end }}
 
   # Allow sending signals and tracing children namespaces
   ptrace,

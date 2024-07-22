@@ -1,4 +1,5 @@
-#!/bin/sh -eu
+#!/bin/bash
+set -eu
 #
 # Performance tests runner
 #
@@ -12,7 +13,6 @@ LXD_NETNS=""
 
 import_subdir_files() {
     test  "$1"
-    # shellcheck disable=SC2039,3043
     local file
     for file in "$1"/*.sh; do
         # shellcheck disable=SC1090
@@ -27,7 +27,6 @@ log_message() {
 }
 
 run_benchmark() {
-    # shellcheck disable=SC2039,3043
     local label description
     label="$1"
     description="$2"

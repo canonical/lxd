@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -552,7 +553,7 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 
 	defer cleanup()
 
-	oldSizeBytes, err := BlockDiskSizeBytes(devPath)
+	oldSizeBytes, err := block.DiskSizeBytes(devPath)
 	if err != nil {
 		return fmt.Errorf("Error getting current size: %w", err)
 	}

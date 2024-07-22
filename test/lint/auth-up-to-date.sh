@@ -1,4 +1,5 @@
-#!/bin/sh -eu
+#!/bin/bash
+set -eu
 
 f="lxd/auth/entitlements_generated.go"
 

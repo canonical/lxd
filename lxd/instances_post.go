@@ -354,15 +354,15 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 	}
 
 	migrationArgs := migrationSinkArgs{
-		URL:                   req.Source.Operation,
-		Dialer:                dialer,
-		Instance:              inst,
-		Secrets:               req.Source.Websockets,
-		Push:                  push,
-		Live:                  req.Source.Live,
-		InstanceOnly:          instanceOnly,
-		ClusterMoveSourceName: clusterMoveSourceName,
-		Refresh:               req.Source.Refresh,
+		url:                   req.Source.Operation,
+		dialer:                dialer,
+		instance:              inst,
+		secrets:               req.Source.Websockets,
+		push:                  push,
+		live:                  req.Source.Live,
+		instanceOnly:          instanceOnly,
+		clusterMoveSourceName: clusterMoveSourceName,
+		refresh:               req.Source.Refresh,
 	}
 
 	sink, err := newMigrationSink(&migrationArgs)

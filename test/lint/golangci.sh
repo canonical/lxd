@@ -1,4 +1,5 @@
-#!/bin/sh -eu
+#!/bin/bash
+set -eu
 
 # Default target branch.
 target_branch="main"

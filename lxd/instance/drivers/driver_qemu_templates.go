@@ -1,12 +1,38 @@
 package drivers
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/resources"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared/osarch"
 )
+
+// qemuDeviceNameOrID generates a QEMU device name or ID.
+// Respects the property length limit by hashing the device name when necessary. Also escapes / to -, and - to --.
+func qemuDeviceNameOrID(prefix string, deviceName string, suffix string, maxLength int) string {
+	baseName := filesystem.PathNameEncode(deviceName)
+	maxNameLength := maxLength - (len(prefix) + len(suffix))
+
+	if len(baseName) > maxNameLength {
+		// If the name is too long, hash it as SHA-256 (32 bytes).
+		// Then encode the SHA-256 binary hash as Base64 Raw URL format and trim down if needed.
+		hash := sha256.New()
+		hash.Write([]byte(baseName))
+		binaryHash := hash.Sum(nil)
+
+		// Raw URL avoids the use of "+" character and the padding "=" character which QEMU doesn't allow.
+		baseName = base64.RawURLEncoding.EncodeToString(binaryHash)
+		if len(baseName) > maxNameLength {
+			baseName = baseName[0:maxNameLength]
+		}
+	}
+
+	return fmt.Sprintf("%s%s%s", prefix, baseName, suffix)
+}
 
 type cfgEntry struct {
 	key   string
@@ -630,8 +656,8 @@ func qemuDriveFirmware(opts *qemuDriveFirmwareOpts) []cfgSection {
 
 type qemuHostDriveOpts struct {
 	dev           qemuDevOpts
+	id            string
 	name          string
-	nameSuffix    string
 	comment       string
 	fsdriver      string
 	mountTag      string
@@ -656,7 +682,7 @@ func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 		}
 
 		driveSection = cfgSection{
-			name:    fmt.Sprintf(`fsdev "%s"`, opts.name),
+			name:    fmt.Sprintf(`fsdev "%s"`, opts.id),
 			comment: opts.comment,
 			entries: []cfgEntry{
 				{key: "fsdriver", value: opts.fsdriver},
@@ -672,11 +698,11 @@ func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 
 		extraDeviceEntries = []cfgEntry{
 			{key: "mount_tag", value: opts.mountTag},
-			{key: "fsdev", value: opts.name},
+			{key: "fsdev", value: opts.id},
 		}
 	} else if opts.protocol == "virtio-fs" {
 		driveSection = cfgSection{
-			name:    fmt.Sprintf(`chardev "%s"`, opts.name),
+			name:    fmt.Sprintf(`chardev "%s"`, opts.id),
 			comment: opts.comment,
 			entries: []cfgEntry{
 				{key: "backend", value: "socket"},
@@ -689,7 +715,7 @@ func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 
 		extraDeviceEntries = []cfgEntry{
 			{key: "tag", value: opts.mountTag},
-			{key: "chardev", value: opts.name},
+			{key: "chardev", value: opts.id},
 		}
 	} else {
 		return []cfgSection{}
@@ -698,7 +724,7 @@ func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 	return []cfgSection{
 		driveSection,
 		{
-			name:    fmt.Sprintf(`device "dev-%s%s-%s"`, opts.name, opts.nameSuffix, opts.protocol),
+			name:    fmt.Sprintf(`device "%s"`, opts.id),
 			entries: append(qemuDeviceEntries(&deviceOpts), extraDeviceEntries...),
 		},
 	}
@@ -713,9 +739,9 @@ type qemuDriveConfigOpts struct {
 func qemuDriveConfig(opts *qemuDriveConfigOpts) []cfgSection {
 	return qemuHostDrive(&qemuHostDriveOpts{
 		dev: opts.dev,
+		id:  fmt.Sprintf("dev-qemu_config-drive-%s", opts.protocol),
 		// Devices use "qemu_" prefix indicating that this is a internally named device.
 		name:          "qemu_config",
-		nameSuffix:    "-drive",
 		comment:       fmt.Sprintf("Config drive (%s)", opts.protocol),
 		mountTag:      "config",
 		protocol:      opts.protocol,
@@ -739,6 +765,7 @@ type qemuDriveDirOpts struct {
 func qemuDriveDir(opts *qemuDriveDirOpts) []cfgSection {
 	return qemuHostDrive(&qemuHostDriveOpts{
 		dev: opts.dev,
+		id:  qemuDeviceNameOrID(qemuDeviceIDPrefix, opts.devName, "-"+opts.protocol, qemuDeviceIDMaxLength),
 		// Devices use "lxd_" prefix indicating that this is a user named device.
 		name:     fmt.Sprintf("lxd_%s", opts.devName),
 		comment:  fmt.Sprintf("%s drive (%s)", opts.devName, opts.protocol),
@@ -865,8 +892,9 @@ type qemuTPMOpts struct {
 }
 
 func qemuTPM(opts *qemuTPMOpts) []cfgSection {
-	chardev := fmt.Sprintf("qemu_tpm-chardev_%s", opts.devName)
-	tpmdev := fmt.Sprintf("qemu_tpm-tpmdev_%s", opts.devName)
+	chardev := qemuDeviceNameOrID("qemu_tpm-chardev_", opts.devName, "", qemuDeviceIDMaxLength)
+	tpmdev := qemuDeviceNameOrID("qemu_tpm-tpmdev_", opts.devName, "", qemuDeviceIDMaxLength)
+	device := qemuDeviceNameOrID(qemuDeviceIDPrefix, opts.devName, "", qemuDeviceIDMaxLength)
 
 	return []cfgSection{{
 		name: fmt.Sprintf(`chardev "%s"`, chardev),
@@ -881,7 +909,7 @@ func qemuTPM(opts *qemuTPMOpts) []cfgSection {
 			{key: "chardev", value: chardev},
 		},
 	}, {
-		name: fmt.Sprintf(`device "dev-lxd_%s"`, opts.devName),
+		name: fmt.Sprintf(`device "%s"`, device),
 		entries: []cfgEntry{
 			{key: "driver", value: "tpm-crb"},
 			{key: "tpmdev", value: tpmdev},

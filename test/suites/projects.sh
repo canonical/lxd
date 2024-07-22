@@ -20,6 +20,10 @@ test_projects_crud() {
   lxc project show foo | grep -q 'features.images: "true"'
   lxc project get foo "features.profiles" | grep -q 'true'
 
+  # Set a limit
+  lxc project set foo limits.containers 10
+  lxc project show foo | grep -q 'limits.containers: "10"'
+
   # Trying to create a project with the same name fails
   ! lxc project create foo || false
 
@@ -36,6 +40,13 @@ test_projects_crud() {
   # Edit the project
   lxc project show bar| sed 's/^description:.*/description: "Bar project"/' | lxc project edit bar
   lxc project show bar | grep -q "description: Bar project"
+
+  # Edit the project config via PATCH. Existing key/value pairs should remain or be updated.
+  lxc query -X PATCH -d '{\"config\" : {\"limits.memory\":\"5GiB\",\"features.images\":\"false\"}}' /1.0/projects/bar
+  lxc project show bar | grep -q 'limits.memory: 5GiB'
+  lxc project show bar | grep -q 'features.images: "false"'
+  lxc project show bar | grep -q 'features.profiles: "true"'
+  lxc project show bar | grep -q 'limits.containers: "10"'
 
   # Create a second project
   lxc project create foo
@@ -741,7 +752,6 @@ test_projects_limits() {
   # too small for resize2fs.
   if [ "${LXD_BACKEND}" = "dir" ] || [ "${LXD_BACKEND}" = "zfs" ]; then
     # Add a remote LXD to be used as image server.
-    # shellcheck disable=2039,3043
     local LXD_REMOTE_DIR
     LXD_REMOTE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
     chmod +x "${LXD_REMOTE_DIR}"

@@ -69,11 +69,6 @@ Complete the following steps to migrate an existing machine to a LXD instance:
 
    The tool then asks you to provide the information required for the migration.
 
-   ```{tip}
-   As an alternative to running the tool interactively, you can provide the configuration as parameters to the command.
-   See `./bin.linux.lxd-migrate --help` for more information.
-   ```
-
    1. Specify the LXD server URL, either as an IP address or as a DNS name.
 
       ```{note}
@@ -157,8 +152,8 @@ Complete the following steps to migrate an existing machine to a LXD instance:
 
    Please pick one of the options above [default=1]: 4
    Please provide the storage pool to use: default
-   Do you want to change the storage size? [default=no]: yes
-   Please specify the storage size: 20GiB
+   Do you want to change the storage volume size? [default=no]: yes
+   Please specify the storage volume size: 20GiB
 
    Instance to be created:
      Name: foo
@@ -166,7 +161,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
      Type: container
      Source: /
      Storage pool: default
-     Storage pool size: 20GiB
+     Storage volume size: 20GiB
      Config:
        limits.cpu: "2"
 
@@ -186,7 +181,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
      Type: container
      Source: /
      Storage pool: default
-     Storage pool size: 20GiB
+     Storage volume size: 20GiB
      Network name: lxdbr0
      Config:
        limits.cpu: "2"
@@ -264,8 +259,8 @@ Complete the following steps to migrate an existing machine to a LXD instance:
 
    Please pick one of the options above [default=1]: 4
    Please provide the storage pool to use: default
-   Do you want to change the storage size? [default=no]: yes
-   Please specify the storage size: 20GiB
+   Do you want to change the storage volume size? [default=no]: yes
+   Please specify the storage volume size: 20GiB
 
    Instance to be created:
      Name: foo
@@ -273,7 +268,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
      Type: virtual-machine
      Source: ./virtual-machine.img
      Storage pool: default
-     Storage pool size: 20GiB
+     Storage volume size: 20GiB
      Config:
        limits.cpu: "2"
        security.secureboot: "false"
@@ -294,7 +289,7 @@ Complete the following steps to migrate an existing machine to a LXD instance:
      Type: virtual-machine
      Source: ./virtual-machine.img
      Storage pool: default
-     Storage pool size: 20GiB
+     Storage volume size: 20GiB
      Network name: lxdbr0
      Config:
        limits.cpu: "2"

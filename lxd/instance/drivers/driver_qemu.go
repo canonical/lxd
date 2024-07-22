@@ -1,27 +1,13 @@
 package drivers
 
-/*
-
-#include <linux/types.h>
-#include <sys/ioctl.h>
-#include <stdint.h>
-
-#define VHOST_VIRTIO 0xAF
-#define VHOST_VSOCK_SET_GUEST_CID	_IOW(VHOST_VIRTIO, 0x60, __u64)
-
-*/
-import "C"
-
 import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
 	"context"
-	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -67,6 +53,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/operationlock"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/lifecycle"
+	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/network"
@@ -109,7 +96,7 @@ const qemuPCIDeviceIDStart = 4
 const qemuDeviceIDPrefix = "dev-lxd_"
 
 // qemuDeviceNameMaxLength used to indicate the maximum length of a qemu device ID.
-const qemuDeviceIDMaxLength = 64
+const qemuDeviceIDMaxLength = 63
 
 // qemuDeviceNamePrefix used as part of the name given QEMU blockdevs, netdevs and device tags generated from user added devices.
 const qemuDeviceNamePrefix = "lxd_"
@@ -1401,7 +1388,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// This is used by the lxd-agent in preference to 9p (due to its improved performance) and in scenarios
 	// where 9p isn't available in the VM guest OS.
 	configSockPath, configPIDPath := d.configVirtiofsdPaths()
-	revertFunc, unixListener, err := device.DiskVMVirtiofsdStart(d.state.OS.ExecPath, d, configSockPath, configPIDPath, "", configMntPath, nil)
+	revertFunc, unixListener, err := device.DiskVMVirtiofsdStart(d.state.OS.KernelVersion, d, configSockPath, configPIDPath, "", configMntPath, nil)
 	if err != nil {
 		var errUnsupported device.UnsupportedError
 		if !errors.As(err, &errUnsupported) {
@@ -2183,12 +2170,11 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 }
 
 func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) {
-	escapedDeviceName := filesystem.PathNameEncode(deviceName)
-	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	mountTag = d.generateQemuDeviceName(deviceName)
+	deviceID := qemuDeviceNameOrID(qemuDeviceIDPrefix, deviceName, "-virtio-fs", qemuDeviceIDMaxLength)
+	mountTag = qemuDeviceNameOrID(qemuDeviceNamePrefix, deviceName, "", qemuDeviceNameMaxLength)
 
 	// Detect virtiofsd path.
-	virtiofsdSockPath := filepath.Join(d.DevicesPath(), fmt.Sprintf("virtio-fs.%s.sock", deviceName))
+	virtiofsdSockPath := filepath.Join(d.DevicesPath(), fmt.Sprintf("virtio-fs.%s.sock", filesystem.PathNameEncode(deviceName)))
 	if !shared.PathExists(virtiofsdSockPath) {
 		return "", fmt.Errorf("Virtiofsd isn't running")
 	}
@@ -2235,7 +2221,7 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 	reverter.Add(func() { _ = monitor.CloseFile(virtiofsdSockPath) })
 
 	err = monitor.AddCharDevice(map[string]any{
-		"id": mountTag,
+		"id": deviceID,
 		"backend": map[string]any{
 			"type": "socket",
 			"data": map[string]any{
@@ -2253,7 +2239,7 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 		return "", fmt.Errorf("Failed to add the character device: %w", err)
 	}
 
-	reverter.Add(func() { _ = monitor.RemoveCharDevice(mountTag) })
+	reverter.Add(func() { _ = monitor.RemoveCharDevice(deviceID) })
 
 	// Figure out a hotplug slot.
 	pciDevID := qemuPCIDeviceIDStart
@@ -2277,7 +2263,7 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 		"bus":     pciDeviceName,
 		"addr":    "00.0",
 		"tag":     mountTag,
-		"chardev": mountTag,
+		"chardev": deviceID,
 		"id":      deviceID,
 	}
 
@@ -2311,9 +2297,7 @@ func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error 
 }
 
 func (d *qemu) deviceDetachPath(deviceName string) error {
-	escapedDeviceName := filesystem.PathNameEncode(deviceName)
-	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	mountTag := d.generateQemuDeviceName(deviceName)
+	deviceID := qemuDeviceNameOrID(qemuDeviceIDPrefix, deviceName, "-virtio-fs", qemuDeviceIDMaxLength)
 
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -2329,7 +2313,7 @@ func (d *qemu) deviceDetachPath(deviceName string) error {
 	waitDuration := time.Duration(time.Second * time.Duration(10))
 	waitUntil := time.Now().Add(waitDuration)
 	for {
-		err = monitor.RemoveCharDevice(mountTag)
+		err = monitor.RemoveCharDevice(deviceID)
 		if err == nil {
 			break
 		}
@@ -2354,9 +2338,8 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 		return err
 	}
 
-	escapedDeviceName := filesystem.PathNameEncode(deviceName)
-	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	blockDevName := d.generateQemuDeviceName(escapedDeviceName)
+	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, filesystem.PathNameEncode(deviceName))
+	blockDevName := qemuDeviceNameOrID(qemuDeviceNamePrefix, deviceName, "", qemuDeviceNameMaxLength)
 
 	err = monitor.RemoveFDFromFDSet(blockDevName)
 	if err != nil {
@@ -3734,7 +3717,7 @@ func (d *qemu) addRootDriveConfig(qemuDev map[string]string, mountInfo *storageP
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
 func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os.File, agentMounts *[]instancetype.VMAgentMount, driveConf deviceConfig.MountEntryItem) error {
-	mountTag := d.generateQemuDeviceName(driveConf.DevName)
+	mountTag := qemuDeviceNameOrID(qemuDeviceNamePrefix, driveConf.DevName, "", qemuDeviceNameMaxLength)
 
 	agentMount := instancetype.VMAgentMount{
 		Source: mountTag,
@@ -3957,8 +3940,6 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 		directCache = false
 	}
 
-	escapedDeviceName := filesystem.PathNameEncode(driveConf.DevName)
-
 	blockDev := map[string]any{
 		"aio": aioMode,
 		"cache": map[string]any{
@@ -3967,7 +3948,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 		},
 		"discard":   "unmap", // Forward as an unmap request. This is the same as `discard=on` in the qemu config file.
 		"driver":    "file",
-		"node-name": d.generateQemuDeviceName(escapedDeviceName),
+		"node-name": qemuDeviceNameOrID(qemuDeviceNamePrefix, driveConf.DevName, "", qemuDeviceNameMaxLength),
 		"read-only": false,
 	}
 
@@ -4074,6 +4055,8 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 	if qemuDev == nil {
 		qemuDev = map[string]string{}
 	}
+
+	escapedDeviceName := filesystem.PathNameEncode(driveConf.DevName)
 
 	qemuDev["id"] = fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
 	qemuDevDrive, ok := blockDev["node-name"].(string)
@@ -8093,7 +8076,8 @@ func (d *qemu) acquireVsockID(vsockID uint32) (*os.File, error) {
 	// The vsock Context ID cannot be supplied as type uint32.
 	vsockIDInt := uint64(vsockID)
 
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, vsockF.Fd(), C.VHOST_VSOCK_SET_GUEST_CID, uintptr(unsafe.Pointer(&vsockIDInt)))
+	// Call the ioctl to set the context ID.
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, vsockF.Fd(), linux.IoctlVhostVsockSetGuestCid, uintptr(unsafe.Pointer(&vsockIDInt)))
 	if errno != 0 {
 		if !errors.Is(errno, unix.EADDRINUSE) {
 			return nil, fmt.Errorf("Failed ioctl syscall to vhost socket: %q", errno.Error())
@@ -8674,7 +8658,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 
 	// Check io_uring feature.
 	blockDev := map[string]any{
-		"node-name": d.generateQemuDeviceName("feature-check"),
+		"node-name": fmt.Sprintf("%s%s", qemuDeviceNamePrefix, "feature-check"),
 		"driver":    "file",
 		"filename":  blockDevPath.Name(),
 		"aio":       "io_uring",
@@ -8893,36 +8877,6 @@ func (d *qemu) deviceDetachUSB(usbDev deviceConfig.USBDeviceItem) error {
 	}
 
 	return nil
-}
-
-// hashIfLonger returns a full or partial hash of a name as to fit it within a size limit.
-func hashIfLonger(name string, maxLength int) string {
-	if len(name) <= maxLength {
-		return name
-	}
-
-	// If the name is too long, hash it as SHA-256 (32 bytes).
-	// Then encode the SHA-256 binary hash as Base64 Raw URL format and trim down if needed.
-	hash := sha256.New()
-	hash.Write([]byte(name))
-	binaryHash := hash.Sum(nil)
-
-	// Raw URL avoids the use of "+" character and the padding "=" character which QEMU doesn't allow.
-	hashedName := base64.RawURLEncoding.EncodeToString(binaryHash)
-	if len(hashedName) > maxLength {
-		hashedName = hashedName[0:maxLength]
-	}
-
-	return hashedName
-}
-
-// Block node names and device tags may only be up to 31 characters long, so use a hash if longer.
-func (d *qemu) generateQemuDeviceName(name string) string {
-	maxNameLength := qemuDeviceNameMaxLength - len(qemuDeviceNamePrefix)
-	name = hashIfLonger(name, maxNameLength)
-
-	// Apply the lxd_ prefix.
-	return fmt.Sprintf("%s%s", qemuDeviceNamePrefix, name)
 }
 
 func (d *qemu) setCPUs(count int) error {

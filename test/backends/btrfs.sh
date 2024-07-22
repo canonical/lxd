@@ -1,5 +1,4 @@
 btrfs_setup() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_DIR=$1
@@ -8,7 +7,6 @@ btrfs_setup() {
 }
 
 btrfs_configure() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_DIR=$1
@@ -20,7 +18,6 @@ btrfs_configure() {
 }
 
 btrfs_teardown() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_DIR=$1

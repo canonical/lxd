@@ -851,15 +851,15 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 
 // vmVirtfsProxyHelperPaths returns the path for PID file to use with virtfs-proxy-helper process.
 func (d *disk) vmVirtfsProxyHelperPaths() string {
-	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
+	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", filesystem.PathNameEncode(d.name)))
 
 	return pidPath
 }
 
 // vmVirtiofsdPaths returns the path for the socket and PID file to use with virtiofsd process.
 func (d *disk) vmVirtiofsdPaths() (sockPath string, pidPath string) {
-	sockPath = filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.sock", d.name))
-	pidPath = filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.pid", d.name))
+	sockPath = filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.sock", filesystem.PathNameEncode(d.name)))
+	pidPath = filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.pid", filesystem.PathNameEncode(d.name)))
 
 	return sockPath, pidPath
 }
@@ -1115,10 +1115,10 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				// virtfs-proxy-helper 9p share. The 9p share will only be used as a fallback.
 				err = func() error {
 					sockPath, pidPath := d.vmVirtiofsdPaths()
-					logPath := filepath.Join(d.inst.LogPath(), fmt.Sprintf("disk.%s.log", d.name))
+					logPath := filepath.Join(d.inst.LogPath(), fmt.Sprintf("disk.%s.log", filesystem.PathNameEncode(d.name)))
 					_ = os.Remove(logPath) // Remove old log if needed.
 
-					revertFunc, unixListener, err := DiskVMVirtiofsdStart(d.state.OS.ExecPath, d.inst, sockPath, pidPath, logPath, mount.DevPath, rawIDMaps)
+					revertFunc, unixListener, err := DiskVMVirtiofsdStart(d.state.OS.KernelVersion, d.inst, sockPath, pidPath, logPath, mount.DevPath, rawIDMaps)
 					if err != nil {
 						var errUnsupported UnsupportedError
 						if errors.As(err, &errUnsupported) {

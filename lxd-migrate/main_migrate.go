@@ -71,7 +71,7 @@ func (c *cmdMigrateData) render() string {
 		Mounts      []string          `yaml:"Mounts,omitempty"`
 		Profiles    []string          `yaml:"Profiles,omitempty"`
 		StoragePool string            `yaml:"Storage pool,omitempty"`
-		StorageSize string            `yaml:"Storage pool size,omitempty"`
+		StorageSize string            `yaml:"Storage volume size,omitempty"`
 		Network     string            `yaml:"Network name,omitempty"`
 		Config      map[string]string `yaml:"Config,omitempty"`
 	}{
@@ -333,6 +333,17 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 			return errors.New("Path does not exist")
 		}
 
+		if config.InstanceArgs.Type == api.InstanceTypeVM && config.InstanceArgs.Source.Type == "migration" {
+			isImageTypeRaw, err := isImageTypeRaw(config.SourcePath)
+			if err != nil {
+				return err
+			}
+
+			if !isImageTypeRaw {
+				return fmt.Errorf(`Source disk format cannot be converted by server. Source disk should be in raw format`)
+			}
+		}
+
 		_, err := os.Stat(s)
 		if err != nil {
 			return err
@@ -586,7 +597,7 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = transferRootfs(ctx, server, op, fullPath, c.flagRsyncArgs, config.InstanceArgs.Type)
+	err = transferRootDiskForMigration(ctx, op, fullPath, c.flagRsyncArgs, config.InstanceArgs.Type)
 	if err != nil {
 		return err
 	}
@@ -677,13 +688,13 @@ func (c *cmdMigrate) askStorage(server lxd.InstanceServer, config *cmdMigrateDat
 		"path": "/",
 	}
 
-	changeStorageSize, err := c.global.asker.AskBool("Do you want to change the storage size? [default=no]: ", "no")
+	changeStorageSize, err := c.global.asker.AskBool("Do you want to change the storage volume size? [default=no]: ", "no")
 	if err != nil {
 		return err
 	}
 
 	if changeStorageSize {
-		size, err := c.global.asker.AskString("Please specify the storage size: ", "", func(s string) error {
+		size, err := c.global.asker.AskString("Please specify the storage volume size: ", "", func(s string) error {
 			_, err := units.ParseByteSizeString(s)
 			return err
 		})

@@ -81,6 +81,9 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 	return &ret, nil
 }
 
+// Do performs the migration operation on the source side for the given state and
+// operation. It sets up the necessary websocket connections for control, state,
+// and filesystem, and then initiates the migration process.
 func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name(), "live": s.live, "clusterMoveSourceName": s.clusterMoveSourceName, "push": s.pushOperationURL != ""})
 
@@ -158,14 +161,14 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
 		migrationFields: migrationFields{
-			instance:     args.Instance,
-			instanceOnly: args.InstanceOnly,
-			live:         args.Live,
+			instance:     args.instance,
+			instanceOnly: args.instanceOnly,
+			live:         args.live,
 		},
-		url:                   args.URL,
-		clusterMoveSourceName: args.ClusterMoveSourceName,
-		push:                  args.Push,
-		refresh:               args.Refresh,
+		url:                   args.url,
+		clusterMoveSourceName: args.clusterMoveSourceName,
+		push:                  args.push,
+		refresh:               args.refresh,
 	}
 
 	secretNames := []string{api.SecretNameControl, api.SecretNameFilesystem}
@@ -183,16 +186,16 @@ func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	sink.conns = make(map[string]*migrationConn, len(secretNames))
 	for _, connName := range secretNames {
 		if !sink.push {
-			if args.Secrets[connName] == "" {
+			if args.secrets[connName] == "" {
 				return nil, fmt.Errorf("Expected %q connection secret missing from migration sink target request", connName)
 			}
 
-			u, err := url.Parse(fmt.Sprintf("wss://%s/websocket", strings.TrimPrefix(args.URL, "https://")))
+			u, err := url.Parse(fmt.Sprintf("wss://%s/websocket", strings.TrimPrefix(args.url, "https://")))
 			if err != nil {
 				return nil, fmt.Errorf("Failed parsing websocket URL for migration sink %q connection: %w", connName, err)
 			}
 
-			sink.conns[connName] = newMigrationConn(args.Secrets[connName], args.Dialer, u)
+			sink.conns[connName] = newMigrationConn(args.secrets[connName], args.dialer, u)
 		} else {
 			secret, err := shared.RandomCryptoString()
 			if err != nil {
@@ -206,6 +209,9 @@ func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	return &sink, nil
 }
 
+// Do performs the migration operation on the target side (sink) for the given
+// state and instance operation. It sets up the necessary websocket connections
+// for control, state, and filesystem, and then receives the migration data.
 func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOperation) error {
 	l := logger.AddContext(logger.Ctx{"project": c.instance.Project().Name, "instance": c.instance.Name(), "live": c.live, "clusterMoveSourceName": c.clusterMoveSourceName, "push": c.push})
 

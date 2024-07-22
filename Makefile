@@ -11,7 +11,7 @@ GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
 SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
-GOMIN=1.22.4
+GOMIN=1.22.5
 
 ifneq "$(wildcard vendor)" ""
 	DQLITE_PATH=$(CURDIR)/vendor/dqlite
@@ -247,8 +247,7 @@ ifeq ($(shell command -v flake8),)
 	exit 1
 endif
 	flake8 test/deps/import-busybox
-	shellcheck --shell bash test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh
-	shellcheck test/extras/*.sh
+	shellcheck test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh test/extras/*.sh
 	NOT_EXEC="$(shell find test/lint -type f -not -executable)"; \
 	if [ -n "$$NOT_EXEC" ]; then \
         echo "lint scripts not executable: $$NOT_EXEC"; \

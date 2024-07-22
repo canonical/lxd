@@ -1,4 +1,5 @@
-#!/bin/sh -eu
+#!/bin/bash
+set -eu
 
 hash_before="lxd/metadata-before.txt"
 hash_after="lxd/metadata-after.txt"

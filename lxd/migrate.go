@@ -15,7 +15,6 @@ import (
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
@@ -144,6 +143,8 @@ type migrationSourceWs struct {
 	pushSecrets      map[string]string
 }
 
+// Metadata returns a map where each key is a connection name and each value is
+// the secret of the corresponding websocket connection.
 func (s *migrationSourceWs) Metadata() any {
 	secrets := make(shared.Jmap, len(s.conns))
 	for connName, conn := range s.conns {
@@ -153,6 +154,9 @@ func (s *migrationSourceWs) Metadata() any {
 	return secrets
 }
 
+// Connect handles an incoming HTTP request to establish a websocket connection for migration.
+// It verifies the provided secret and matches it to the appropriate connection. If the secret
+// is valid, it accepts the incoming connection. Otherwise, it returns an error.
 func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	incomingSecret := r.FormValue("secret")
 	if incomingSecret == "" {
@@ -186,29 +190,27 @@ type migrationSink struct {
 	refresh               bool
 }
 
-// MigrationSinkArgs arguments to configure migration sink.
+// migrationSinkArgs arguments to configure migration sink.
 type migrationSinkArgs struct {
 	// General migration fields
-	Dialer  *websocket.Dialer
-	Push    bool
-	Secrets map[string]string
-	URL     string
+	dialer  *websocket.Dialer
+	push    bool
+	secrets map[string]string
+	url     string
 
-	// Instance specific fields
-	Instance              instance.Instance
-	InstanceOnly          bool
-	Idmap                 *idmap.IdmapSet
-	Live                  bool
-	Refresh               bool
-	ClusterMoveSourceName string
-	Snapshots             []*migration.Snapshot
+	// instance specific fields
+	instance              instance.Instance
+	instanceOnly          bool
+	live                  bool
+	refresh               bool
+	clusterMoveSourceName string
+	snapshots             []*migration.Snapshot
 
 	// Storage specific fields
-	VolumeOnly bool
-	VolumeSize int64
+	volumeOnly bool
 
 	// Transport specific fields
-	RsyncFeatures []string
+	rsyncFeatures []string
 }
 
 // Metadata returns metadata for the migration sink.

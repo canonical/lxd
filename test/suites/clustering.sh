@@ -1,5 +1,4 @@
 test_clustering_enable() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
@@ -179,7 +178,6 @@ test_clustering_enable() {
 }
 
 test_clustering_membership() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -384,7 +382,6 @@ test_clustering_membership() {
 }
 
 test_clustering_containers() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -570,7 +567,6 @@ test_clustering_containers() {
 }
 
 test_clustering_storage() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -977,7 +973,6 @@ test_clustering_storage() {
 # two-stage process required multi-node clusters, or directly with the normal
 # procedure for non-clustered daemons.
 test_clustering_storage_single_node() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -1049,7 +1044,6 @@ test_clustering_storage_single_node() {
 }
 
 test_clustering_network() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -1249,7 +1243,6 @@ test_clustering_network() {
 # Perform an upgrade of a 2-member cluster, then a join a third member and
 # perform one more upgrade
 test_clustering_upgrade() {
-  # shellcheck disable=2039,3043
   local LXD_DIR LXD_NETNS
 
   setup_clustering_bridge
@@ -1345,7 +1338,6 @@ test_clustering_upgrade() {
 
 # Perform an upgrade of an 8-member cluster.
 test_clustering_upgrade_large() {
-  # shellcheck disable=2039,3043
   local LXD_DIR LXD_NETNS N
 
   setup_clustering_bridge
@@ -1401,7 +1393,6 @@ test_clustering_upgrade_large() {
 }
 
 test_clustering_publish() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -1453,7 +1444,6 @@ test_clustering_publish() {
 }
 
 test_clustering_profiles() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -1527,7 +1517,6 @@ EOF
 }
 
 test_clustering_update_cert() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -1606,7 +1595,6 @@ test_clustering_update_cert() {
 }
 
 test_clustering_update_cert_reversion() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -1700,7 +1688,7 @@ test_clustering_update_cert_reversion() {
 }
 
 test_clustering_join_api() {
-  # shellcheck disable=2039,2034,3043
+  # shellcheck disable=SC2034
   local LXD_DIR LXD_NETNS
 
   setup_clustering_bridge
@@ -1740,7 +1728,6 @@ test_clustering_join_api() {
 }
 
 test_clustering_shutdown_nodes() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -1812,7 +1799,6 @@ test_clustering_shutdown_nodes() {
 }
 
 test_clustering_projects() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -1877,7 +1863,6 @@ test_clustering_projects() {
 }
 
 test_clustering_address() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -1955,7 +1940,6 @@ test_clustering_address() {
 }
 
 test_clustering_image_replication() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -2118,12 +2102,12 @@ test_clustering_image_replication() {
 }
 
 test_clustering_dns() {
-  # shellcheck disable=2039,3043
-  local LXD_DIR
+  local lxdDir
 
   # Because we do not want tests to only run on Ubuntu (due to cluster's fan network dependency)
   # instead we will just spawn forkdns directly and check DNS resolution.
 
+  # XXX: make a copy of the global LXD_DIR
   # shellcheck disable=SC2031
   lxdDir="${LXD_DIR}"
   prefix="lxd$$"
@@ -2203,7 +2187,7 @@ test_clustering_dns() {
 }
 
 test_clustering_recover() {
-  # shellcheck disable=2039,2034,3043
+  # shellcheck disable=SC2034
   local LXD_DIR
 
   setup_clustering_bridge
@@ -2285,7 +2269,7 @@ test_clustering_recover() {
 # When a voter cluster member is shutdown, its role gets transferred to a spare
 # node.
 test_clustering_handover() {
-  # shellcheck disable=2039,2034,3043
+  # shellcheck disable=SC2034
   local LXD_DIR
 
   setup_clustering_bridge
@@ -2403,7 +2387,7 @@ test_clustering_handover() {
 # If a voter node crashes and is detected as offline, its role is migrated to a
 # stand-by.
 test_clustering_rebalance() {
-  # shellcheck disable=2039,2034,3043
+  # shellcheck disable=SC2034
   local LXD_DIR
 
   setup_clustering_bridge
@@ -2492,7 +2476,6 @@ test_clustering_rebalance() {
 # Recover a cluster where a raft node was removed from the nodes table but not
 # from the raft configuration.
 test_clustering_remove_raft_node() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -2613,7 +2596,6 @@ test_clustering_remove_raft_node() {
 }
 
 test_clustering_failure_domains() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -2717,7 +2699,6 @@ test_clustering_failure_domains() {
 }
 
 test_clustering_image_refresh() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -2947,7 +2928,6 @@ test_clustering_image_refresh() {
 }
 
 test_clustering_evacuation() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -3096,7 +3076,6 @@ test_clustering_evacuation() {
 }
 
 test_clustering_edit_configuration() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -3245,7 +3224,6 @@ test_clustering_edit_configuration() {
 }
 
 test_clustering_remove_members() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -3383,7 +3361,6 @@ test_clustering_remove_members() {
 }
 
 test_clustering_autotarget() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -3435,7 +3412,6 @@ test_clustering_autotarget() {
 }
 
 test_clustering_groups() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -3624,7 +3600,6 @@ test_clustering_groups() {
 }
 
 test_clustering_events() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -3826,7 +3801,6 @@ test_clustering_events() {
 }
 
 test_clustering_uuid() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge
@@ -3883,7 +3857,6 @@ test_clustering_uuid() {
 }
 
 test_clustering_trust_add() {
-  # shellcheck disable=2039,3043
   local LXD_DIR
 
   setup_clustering_bridge

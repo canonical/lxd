@@ -973,6 +973,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 	projectName := request.ProjectParam(r)
 
+	// If the client is not authenticated, CheckPermission will return a http.StatusForbidden api.StatusError.
 	var userCanCreateImages bool
 	err := s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(projectName), auth.EntitlementCanCreateImages)
 	if err != nil && !auth.IsDeniedError(err) {
@@ -1631,14 +1632,12 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 
-	// Check if the caller is authenticated via the request context.
-	trusted, err := request.GetCtxValue[bool](r.Context(), request.CtxTrusted)
-	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed getting authentication status: %w", err))
-	}
+	// If the caller is not trusted, we only want to list public images.
+	publicOnly := !auth.IsTrusted(r.Context())
 
 	// Get a permission checker. If the caller is not authenticated, the permission checker will deny all.
-	// However, the permission checker will not be called for public images.
+	// However, the permission checker is only called when an image is private. Both trusted and untrusted clients will
+	// still see public images.
 	canViewImage, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeImage)
 	if err != nil {
 		return response.SmartError(err)
@@ -1651,7 +1650,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 	var result any
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		result, err = doImagesGet(ctx, tx, util.IsRecursionRequest(r), projectName, !trusted, clauses, canViewImage)
+		result, err = doImagesGet(ctx, tx, util.IsRecursionRequest(r), projectName, publicOnly, clauses, canViewImage)
 		if err != nil {
 			return err
 		}
@@ -2993,37 +2992,65 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Get the image (expand partial fingerprints).
+	trusted := auth.IsTrusted(r.Context())
+	secret := r.FormValue("secret")
+
+	// Unauthenticated clients that do not provide a secret may only view public images.
+	publicOnly := !trusted && secret == ""
+
+	// Get the image. We need to do this before the permission check because the URL in the permission check will not
+	// work with partial fingerprints.
 	var info *api.Image
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		info, err = doImageGet(ctx, tx, projectName, fingerprint, false)
+		info, err = doImageGet(ctx, tx, projectName, fingerprint, publicOnly)
 		if err != nil {
 			return err
 		}
 
 		return nil
 	})
-	if err != nil {
+	if err != nil && api.StatusErrorCheck(err, http.StatusNotFound) {
+		// Return a generic not found. This is so that the caller cannot determine the existence of an image by the
+		// contents of the error message.
+		return response.NotFound(nil)
+	} else if err != nil {
 		return response.SmartError(err)
 	}
 
+	// Access check.
 	var userCanViewImage bool
-	err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(projectName, info.Fingerprint), auth.EntitlementCanView)
-	if err != nil && !auth.IsDeniedError(err) {
-		return response.SmartError(err)
-	} else if err == nil {
-		userCanViewImage = true
+	if secret != "" {
+		// If a secret was provided, validate it regardless of whether the image is public or the caller has sufficient
+		// privilege. This is to ensure the image token operation is cancelled.
+		op, err := imageValidSecret(s, r, projectName, info.Fingerprint, secret)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// If an operation was found the caller has access, otherwise continue to other access checks.
+		if op != nil {
+			userCanViewImage = true
+		}
 	}
 
-	secret := r.FormValue("secret")
-
-	op, err := imageValidSecret(s, r, projectName, info.Fingerprint, secret)
-	if err != nil {
-		return response.SmartError(err)
+	// No operation found for the secret. Perform other access checks.
+	if !userCanViewImage {
+		if info.Public {
+			// If the image is public any client can view it.
+			userCanViewImage = true
+		} else {
+			// Otherwise perform an access check with the full image fingerprint.
+			err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(projectName, info.Fingerprint), auth.EntitlementCanView)
+			if err != nil && !auth.IsDeniedError(err) {
+				return response.SmartError(err)
+			} else if err == nil {
+				userCanViewImage = true
+			}
+		}
 	}
 
-	// If the caller does not have permission to view the image and the secret was invalid, return generic not found.
-	if !info.Public && !userCanViewImage && op == nil {
+	// If the client still cannot view the image, return a generic not found error.
+	if !userCanViewImage {
 		return response.NotFound(nil)
 	}
 
@@ -3597,6 +3624,8 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 
+	// Set `userCanViewImageAlias` to true only when the caller is authenticated and can view the alias.
+	// We don't abort the request if this is false because the image alias may be for a public image.
 	var userCanViewImageAlias bool
 	err = s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(projectName, name), auth.EntitlementCanView)
 	if err != nil && !auth.IsDeniedError(err) {
@@ -3607,12 +3636,16 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 
 	var alias api.ImageAliasesEntry
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// If `userCanViewImageAlias` is false, the query will be restricted to public images only.
 		_, alias, err = tx.GetImageAlias(ctx, projectName, name, userCanViewImageAlias)
 
 		return err
 	})
-	if err != nil {
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return response.SmartError(err)
+	} else if err != nil {
+		// Return a generic not found error.
+		return response.NotFound(nil)
 	}
 
 	return response.SyncResponseETag(true, alias, alias)
@@ -4010,43 +4043,82 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Get the image (expand the fingerprint).
-	var imgInfo *api.Image
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// Get the image (expand the fingerprint).
-		_, imgInfo, err = tx.GetImage(ctx, fingerprint, dbCluster.ImageFilter{Project: &projectName})
+	isDevLXDQuery := r.RemoteAddr == devlxdRemoteAddress
+	secret := r.FormValue("secret")
+	trusted := auth.IsTrusted(r.Context())
 
+	// Unauthenticated remote clients that do not provide a secret may only view public images.
+	// For devlxd, we allow querying for private images. We'll subsequently perform additional access checks.
+	publicOnly := !trusted && secret == "" && !isDevLXDQuery
+
+	// Get the image. We need to do this before the permission check because the URL in the permission check will not
+	// work with partial fingerprints.
+	var imgInfo *api.Image
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		filter := dbCluster.ImageFilter{Project: &projectName}
+		if publicOnly {
+			filter.Public = &publicOnly
+		}
+
+		_, imgInfo, err = tx.GetImage(ctx, fingerprint, filter)
 		return err
 	})
-	if err != nil {
+	if err != nil && api.StatusErrorCheck(err, http.StatusNotFound) {
+		// Return a generic not found. This is so that the caller cannot determine the existence of an image by the
+		// contents of the error message.
+		return response.NotFound(nil)
+	} else if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Access control.
 	var userCanViewImage bool
-	err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(projectName, imgInfo.Fingerprint), auth.EntitlementCanView)
-	if err != nil && !auth.IsDeniedError(err) {
-		return response.SmartError(err)
-	} else if err == nil {
-		userCanViewImage = true
-	}
-
-	secret := r.FormValue("secret")
-
-	if r.RemoteAddr == "@devlxd" {
-		if !imgInfo.Public && !imgInfo.Cached {
-			return response.NotFound(fmt.Errorf("Image %q not found", fingerprint))
-		}
-	} else {
+	if secret != "" {
+		// If a secret was provided, validate it regardless of whether the image is public or the caller has sufficient
+		// privilege. This is to ensure the image token operation is cancelled.
 		op, err := imageValidSecret(s, r, projectName, imgInfo.Fingerprint, secret)
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		// If the image is not public and the caller cannot view it, return a generic not found error.
-		if !imgInfo.Public && !userCanViewImage && op == nil {
+		// If an operation was found the caller has access, otherwise continue to other access checks.
+		if op != nil {
+			userCanViewImage = true
+		}
+	}
+
+	if isDevLXDQuery {
+		// A devlxd query must contain the full fingerprint of the image (no partials).
+		if fingerprint != imgInfo.Fingerprint {
 			return response.NotFound(nil)
 		}
+
+		// A devlxd query must be for a public or cached image.
+		if !(imgInfo.Public || imgInfo.Cached) {
+			return response.NotFound(nil)
+		}
+
+		userCanViewImage = true
+	}
+
+	if !userCanViewImage {
+		if imgInfo.Public {
+			// If the image is public any client can view it.
+			userCanViewImage = true
+		} else {
+			// Otherwise perform an access check with the full image fingerprint.
+			err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(projectName, imgInfo.Fingerprint), auth.EntitlementCanView)
+			if err != nil && !auth.IsDeniedError(err) {
+				return response.SmartError(err)
+			} else if err == nil {
+				userCanViewImage = true
+			}
+		}
+	}
+
+	// If the client still cannot view the image, return a generic not found error.
+	if !userCanViewImage {
+		return response.NotFound(nil)
 	}
 
 	var address string
@@ -4105,6 +4177,9 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 
 		files[1].Path = rootfsPath
 		files[1].Filename = filename
+
+		requestor := request.CreateRequestor(r)
+		s.Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(imgInfo.Fingerprint, projectName, requestor, nil))
 
 		return response.FileResponse(r, files, nil)
 	}
