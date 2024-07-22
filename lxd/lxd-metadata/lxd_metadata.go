@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -38,7 +39,8 @@ type IterableAny interface {
 
 // doc is the structure of the JSON file that contains the generated configuration metadata.
 type doc struct {
-	Configs map[string]map[string]map[string][]any `json:"configs"`
+	Configs  map[string]map[string]map[string][]any `json:"configs"`
+	Entities json.RawMessage                        `json:"entities"`
 }
 
 // detectType detects the type of a string and returns the corresponding value.
@@ -324,6 +326,15 @@ func parse(path string, outputJSONPath string, excludedPaths []string, substitut
 	// sort the config keys alphabetically
 	sortConfigKeys(allEntries)
 	jsonDoc.Configs = allEntries
+
+	cmd := exec.Command("go", "run", "./generate/main.go", "--dry-run")
+	cmd.Dir = "./lxd/auth"
+	entities, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("Error while getting entitlement data: %w", err)
+	}
+
+	jsonDoc.Entities = entities
 	data, err := json.MarshalIndent(jsonDoc, "", "\t")
 	if err != nil {
 		return nil, fmt.Errorf("Error while marshaling project documentation: %v", err)
@@ -347,19 +358,19 @@ func parse(path string, outputJSONPath string, excludedPaths []string, substitut
 
 func writeDocFile(inputJSONPath, outputTxtPath string) error {
 	countMaxBackTicks := func(s string) int {
-		count, curr_count := 0, 0
+		count, currCount := 0, 0
 		n := len(s)
 		for i := 0; i < n; i++ {
 			if s[i] == '`' {
-				curr_count++
+				currCount++
 				continue
 			}
 
-			if curr_count > count {
-				count = curr_count
+			if currCount > count {
+				count = currCount
 			}
 
-			curr_count = 0
+			currCount = 0
 		}
 
 		return count
@@ -389,18 +400,29 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 		for _, groupKey := range sortedGroupKeys {
 			groupEntries := entityEntries[groupKey]
 			buffer.WriteString(fmt.Sprintf("<!-- config group %s-%s start -->\n", entityKey, groupKey))
-			for _, configEntry := range groupEntries["keys"] {
-				for configKey, configContent := range configEntry.(map[string]any) {
+			for _, configEntryAny := range groupEntries["keys"] {
+				configEntry, ok := configEntryAny.(map[string]any)
+				if !ok {
+					return fmt.Errorf("Unexpected config entry type (%T) in group %q", configEntryAny, groupKey)
+				}
+
+				for configKey, configContentAny := range configEntry {
 					// There is only one key-value pair in each map
 					kvBuffer := bytes.NewBufferString("")
 					var backticksCount int
 					var longDescContent string
-					sortedConfigContentKeys := getSortedKeysFromMap(configContent.(map[string]any))
+					configContent, ok := configContentAny.(map[string]any)
+					if !ok {
+						return fmt.Errorf("Unexpected config content type (%T) for key %q in group %q", configContentAny, configKey, groupKey)
+					}
+
+					sortedConfigContentKeys := getSortedKeysFromMap(configContent)
 					for _, configEntryContentKey := range sortedConfigContentKeys {
-						configContentValue := configContent.(map[string]any)[configEntryContentKey]
+						configContentValue := configContent[configEntryContentKey]
 						if configEntryContentKey == "longdesc" {
-							backticksCount = countMaxBackTicks(configContentValue.(string))
-							longDescContent = configContentValue.(string)
+							configContentString, _ := configContentValue.(string)
+							backticksCount = countMaxBackTicks(configContentString)
+							longDescContent = configContentString
 							continue
 						}
 
@@ -470,6 +492,31 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 
 			buffer.WriteString(fmt.Sprintf("<!-- config group %s-%s end -->\n", entityKey, groupKey))
 		}
+	}
+
+	entities := make(map[string][]map[string]string)
+	err = json.Unmarshal(jsonDoc.Entities, &entities)
+	if err != nil {
+		return err
+	}
+
+	sortedEntityNames := make([]string, 0, len(entities))
+	for entityName := range entities {
+		sortedEntityNames = append(sortedEntityNames, entityName)
+	}
+
+	sort.Strings(sortedEntityNames)
+
+	for _, entityName := range sortedEntityNames {
+		entitlements := entities[entityName]
+		buffer.WriteString(fmt.Sprintf("<!-- entity group %s start -->\n", entityName))
+		for _, entitlement := range entitlements {
+			buffer.WriteString(fmt.Sprintf("`%s`\n", entitlement["name"]))
+			buffer.WriteString(fmt.Sprintf(": %s\n\n", entitlement["description"]))
+		}
+
+		buffer.WriteString("\n")
+		buffer.WriteString(fmt.Sprintf("<!-- entity group %s end -->\n", entityName))
 	}
 
 	err = os.WriteFile(outputTxtPath, buffer.Bytes(), 0644)

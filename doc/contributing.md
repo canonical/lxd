@@ -147,15 +147,15 @@ Look for comments that start with `lxdmeta:generate` in the code.
 When you add or change a configuration option, make sure to include the required documentation comment for it.
 See the [`lxd-metadata` README file](https://github.com/canonical/lxd/blob/main/lxd/lxd-metadata/README.md) for information about the format.
 
-Then run `make generate-config` to re-generate the `doc/config_options.txt` file.
+Then run `make generate-config` to re-generate the `doc/metadata.txt` file.
 The updated file should be checked in.
 
-The documentation includes sections from the `doc/config_options.txt` to display a group of configuration options.
+The documentation includes sections from the `doc/metadata.txt` to display a group of configuration options.
 For example, to include the core server options:
 
 ````
-% Include content from [config_options.txt](config_options.txt)
-```{include} config_options.txt
+% Include content from [metadata.txt](metadata.txt)
+```{include} metadata.txt
     :start-after: <!-- config group server-core start -->
     :end-before: <!-- config group server-core end -->
 ```

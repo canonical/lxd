@@ -5870,3 +5870,462 @@ container or containers that use it. This allows using the `zfs` command in the 
 ```
 
 <!-- config group storage-zfs-volume-conf end -->
+<!-- entity group certificate start -->
+`can_view`
+: Grants permission to view the certificate.
+
+`can_edit`
+: Grants permission to edit the certificate.
+
+`can_delete`
+: Grants permission to delete the certificate.
+
+
+<!-- entity group certificate end -->
+<!-- entity group group start -->
+`can_view`
+: Grants permission to view the group. Identities can always view groups that they are a member of.
+
+`can_edit`
+: Grants permission to edit the group.
+
+`can_delete`
+: Grants permission to delete the group.
+
+
+<!-- entity group group end -->
+<!-- entity group identity start -->
+`can_view`
+: Grants permission to view the identity.
+
+`can_edit`
+: Grants permission to edit the identity.
+
+`can_delete`
+: Grants permission to delete the identity.
+
+
+<!-- entity group identity end -->
+<!-- entity group identity_provider_group start -->
+`can_view`
+: Grants permission to view the identity provider group.
+
+`can_edit`
+: Grants permission to edit the identity provider group.
+
+`can_delete`
+: Grants permission to delete the identity provider group.
+
+
+<!-- entity group identity_provider_group end -->
+<!-- entity group image start -->
+`can_edit`
+: Grants permission to edit the image.
+
+`can_delete`
+: Grants permission to delete the image.
+
+`can_view`
+: Grants permission to view the image.
+
+
+<!-- entity group image end -->
+<!-- entity group image_alias start -->
+`can_edit`
+: Grants permission to edit the image alias.
+
+`can_delete`
+: Grants permission to delete the image alias.
+
+`can_view`
+: Grants permission to view the image alias.
+
+
+<!-- entity group image_alias end -->
+<!-- entity group instance start -->
+`user`
+: Grants permission to view the instance, to access files, and to start a terminal or console session.
+
+`operator`
+: Grants permission to view the instance, to access files, start a terminal or console session, and to manage snapshots and backups.
+
+`can_edit`
+: Grants permission to edit the instance.
+
+`can_delete`
+: Grants permission to delete the instance.
+
+`can_view`
+: Grants permission to view the instance.
+
+`can_update_state`
+: Grants permission to change the instance state.
+
+`can_manage_snapshots`
+: Grants permission to create and delete snapshots of the instance.
+
+`can_manage_backups`
+: Grants permission to create and delete backups of the instance.
+
+`can_connect_sftp`
+: Grants permission to get an SFTP client for the instance.
+
+`can_access_files`
+: Grants permission to push or pull files into or out of the instance.
+
+`can_access_console`
+: Grants permission to start a console session.
+
+`can_exec`
+: Grants permission to start a terminal session.
+
+
+<!-- entity group instance end -->
+<!-- entity group network start -->
+`can_edit`
+: Grants permission to edit the network.
+
+`can_delete`
+: Grants permission to delete the network.
+
+`can_view`
+: Grants permission to view the network.
+
+
+<!-- entity group network end -->
+<!-- entity group network_acl start -->
+`can_edit`
+: Grants permission to edit the network ACL.
+
+`can_delete`
+: Grants permission to delete the network ACL.
+
+`can_view`
+: Grants permission to view the network ACL.
+
+
+<!-- entity group network_acl end -->
+<!-- entity group network_zone start -->
+`can_edit`
+: Grants permission to edit the network zone.
+
+`can_delete`
+: Grants permission to delete the network zone.
+
+`can_view`
+: Grants permission to view the network zone.
+
+
+<!-- entity group network_zone end -->
+<!-- entity group profile start -->
+`can_edit`
+: Grants permission to edit the profile.
+
+`can_delete`
+: Grants permission to delete the profile.
+
+`can_view`
+: Grants permission to view the profile.
+
+
+<!-- entity group profile end -->
+<!-- entity group project start -->
+`operator`
+: Grants permission to create, view, edit, and delete all resources belonging to the project, but does not grant permission to edit the project configuration itself.
+
+`viewer`
+: Grants permission to view all resources belonging to the project.
+
+`can_view`
+: Grants permission to view the project.
+
+`can_edit`
+: Grants permission to edit the project.
+
+`can_delete`
+: Grants permission to delete the project.
+
+`image_manager`
+: Grants permission to create, view, edit, and delete all images belonging to the project.
+
+`can_create_images`
+: Grants permission to create images.
+
+`can_view_images`
+: Grants permission to view images.
+
+`can_edit_images`
+: Grants permission to edit images.
+
+`can_delete_images`
+: Grants permission to delete images.
+
+`image_alias_manager`
+: Grants permission to create, view, edit, and delete all image aliases belonging to the project.
+
+`can_create_image_aliases`
+: Grants permission to create image aliases.
+
+`can_view_image_aliases`
+: Grants permission to view image aliases.
+
+`can_edit_image_aliases`
+: Grants permission to edit image aliases.
+
+`can_delete_image_aliases`
+: Grants permission to delete image aliases.
+
+`instance_manager`
+: Grants permission to create, view, edit, and delete all instances belonging to the project.
+
+`can_create_instances`
+: Grants permission to create instances.
+
+`can_view_instances`
+: Grants permission to view instances.
+
+`can_edit_instances`
+: Grants permission to edit instances.
+
+`can_delete_instances`
+: Grants permission to delete instances.
+
+`can_operate_instances`
+: Grants permission to view instances, manage their state, manage their snapshots and backups, start terminal or console sessions, and access their files.
+
+`network_manager`
+: Grants permission to create, view, edit, and delete all networks belonging to the project.
+
+`can_create_networks`
+: Grants permission to create networks.
+
+`can_view_networks`
+: Grants permission to view networks.
+
+`can_edit_networks`
+: Grants permission to edit networks.
+
+`can_delete_networks`
+: Grants permission to delete networks.
+
+`network_acl_manager`
+: Grants permission to create, view, edit, and delete all network ACLs belonging to the project.
+
+`can_create_network_acls`
+: Grants permission to create network ACLs.
+
+`can_view_network_acls`
+: Grants permission to view network ACLs.
+
+`can_edit_network_acls`
+: Grants permission to edit network ACLs.
+
+`can_delete_network_acls`
+: Grants permission to delete network ACLs.
+
+`network_zone_manager`
+: Grants permission to create, view, edit, and delete all network zones belonging to the project.
+
+`can_create_network_zones`
+: Grants permission to create network zones.
+
+`can_view_network_zones`
+: Grants permission to view network zones.
+
+`can_edit_network_zones`
+: Grants permission to edit network zones.
+
+`can_delete_network_zones`
+: Grants permission to delete network zones.
+
+`profile_manager`
+: Grants permission to create, view, edit, and delete all profiles belonging to the project.
+
+`can_create_profiles`
+: Grants permission to create profiles.
+
+`can_view_profiles`
+: Grants permission to view profiles.
+
+`can_edit_profiles`
+: Grants permission to edit profiles.
+
+`can_delete_profiles`
+: Grants permission to delete profiles.
+
+`storage_volume_manager`
+: Grants permission to create, view, edit, and delete all storage volumes belonging to the project.
+
+`can_create_storage_volumes`
+: Grants permission to create storage volumes.
+
+`can_view_storage_volumes`
+: Grants permission to view storage volumes.
+
+`can_edit_storage_volumes`
+: Grants permission to edit storage volumes.
+
+`can_delete_storage_volumes`
+: Grants permission to delete storage volumes.
+
+`storage_bucket_manager`
+: Grants permission to create, view, edit, and delete all storage buckets belonging to the project.
+
+`can_create_storage_buckets`
+: Grants permission to create storage buckets.
+
+`can_view_storage_buckets`
+: Grants permission to view storage buckets.
+
+`can_edit_storage_buckets`
+: Grants permission to edit storage buckets.
+
+`can_delete_storage_buckets`
+: Grants permission to delete storage buckets.
+
+`can_view_operations`
+: Grants permission to view operations relating to the project.
+
+`can_view_events`
+: Grants permission to view events relating to the project.
+
+`can_view_metrics`
+: Grants permission to view project level metrics.
+
+
+<!-- entity group project end -->
+<!-- entity group server start -->
+`admin`
+: Grants full access to LXD as if via Unix socket.
+
+`viewer`
+: Grants access to view all resources in the LXD server.
+
+`can_edit`
+: Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a cluster member, to create, edit, and delete cluster groups, to update cluster member certificates, and to edit or delete warnings.
+
+`permission_manager`
+: Grants permission to view permissions, to create, edit, and delete identities, to view, create, edit, and delete authorization groups, and to view, create, edit, and delete identity provider groups. Note that clients with this permission are able to elevate their own privileges.
+
+`can_view_permissions`
+: Grants permission to view permissions.
+
+`can_create_identities`
+: Grants permission to create identities.
+
+`can_view_identities`
+: Grants permission to view identities.
+
+`can_edit_identities`
+: Grants permission to edit identities.
+
+`can_delete_identities`
+: Grants permission to delete identities.
+
+`can_create_groups`
+: Grants permission to create authorization groups.
+
+`can_view_groups`
+: Grants permission to view authorization groups.
+
+`can_edit_groups`
+: Grants permission to edit authorization groups.
+
+`can_delete_groups`
+: Grants permission to delete authorization groups.
+
+`can_create_identity_provider_groups`
+: Grants permission to create identity provider groups.
+
+`can_view_identity_provider_groups`
+: Grants permission to view identity provider groups.
+
+`can_edit_identity_provider_groups`
+: Grants permission to edit identity provider groups.
+
+`can_delete_identity_provider_groups`
+: Grants permission to delete identity provider groups.
+
+`storage_pool_manager`
+: Grants permission to create, edit, and delete storage pools.
+
+`can_create_storage_pools`
+: Grants permission to create storage pools.
+
+`can_edit_storage_pools`
+: Grants permission to edit storage pools.
+
+`can_delete_storage_pools`
+: Grants permission to delete storage pools.
+
+`project_manager`
+: Grants permission to view, create, edit, and delete projects, and to create, edit, and delete any resources that are owned by those projects.
+
+`can_create_projects`
+: Grants permission to create projects.
+
+`can_view_projects`
+: Grants permission to view projects, and all resources within those projects.
+
+`can_edit_projects`
+: Grants permission to edit projects, and all resources within those projects.
+
+`can_delete_projects`
+: Grants permission to delete projects.
+
+`can_override_cluster_target_restriction`
+: If a project is configured with `restricted.cluster.target`, clients with this permission can override the restriction.
+
+`can_view_privileged_events`
+: Grants permission to view privileged event types, such as logging events.
+
+`can_view_resources`
+: Grants permission to view server and storage pool resource usage information.
+
+`can_view_metrics`
+: Grants permission to view all server and project level metrics.
+
+`can_view_warnings`
+: Grants permission to view warnings.
+
+
+<!-- entity group server end -->
+<!-- entity group storage_bucket start -->
+`can_edit`
+: Grants permission to edit the storage bucket.
+
+`can_delete`
+: Grants permission to delete the storage bucket.
+
+`can_view`
+: Grants permission to view the storage bucket.
+
+
+<!-- entity group storage_bucket end -->
+<!-- entity group storage_pool start -->
+`can_edit`
+: Grants permission to edit the storage pool.
+
+`can_delete`
+: Grants permission to delete the storage pool.
+
+
+<!-- entity group storage_pool end -->
+<!-- entity group storage_volume start -->
+`can_edit`
+: Grants permission to edit the storage volume.
+
+`can_delete`
+: Grants permission to delete the storage volume.
+
+`can_view`
+: Grants permission to view the storage volume.
+
+`can_manage_snapshots`
+: Grants permission to create and delete snapshots of the storage volume.
+
+`can_manage_backups`
+: Grants permission to create and delete backups of the storage volume.
+
+
+<!-- entity group storage_volume end -->

@@ -28,8 +28,8 @@ The following configuration key namespaces are currently supported for the `macv
 
 The following configuration options are available for the `macvlan` network type:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group network-macvlan-network-conf start -->
     :end-before: <!-- config group network-macvlan-network-conf end -->
 ```
