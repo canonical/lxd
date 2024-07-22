@@ -125,15 +125,9 @@ For example, to limit the number of containers that can be created in `my-projec
 
     lxc query --request PATCH /1.0/projects/my-project --data '{
       "config": {
-        "limits.containers": "5",
-        ...
+        "limits.containers": "5"
       }
     }'
-
-```{note}
-The PATCH request updates the full content of the `config` field.
-Therefore, you must specify all configuration options as part of the PATCH request, and not only the option that you want to change.
-```
 
 See [`PATCH /1.0/projects/{name}`](swagger:/projects/project_patch) for more information.
 ````
