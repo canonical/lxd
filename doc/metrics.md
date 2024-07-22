@@ -124,7 +124,7 @@ cp /var/snap/lxd/common/lxd/server.crt /var/snap/prometheus/common/tls/
 
 # Create a symbolic link pointing to tls directory that you created
 # https://bugs.launchpad.net/prometheus-snap/+bug/2066910
-ln -s /var/snap/prometheus/common/tls/ /var/snap/prometheus/current/tls/
+ln -s /var/snap/prometheus/common/tls/ /var/snap/prometheus/current/tls
 ```
 
 If you are not using the snap, you must also make sure that Prometheus can read these files (usually, Prometheus is run as user `prometheus`):
