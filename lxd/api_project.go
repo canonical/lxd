@@ -599,14 +599,14 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 		req.Description = project.Description
 	}
 
-	config, err := reqRaw.GetMap("config")
-	if err != nil {
-		req.Config = project.Config
-	} else {
-		for k, v := range project.Config {
-			_, ok := config[k]
-			if !ok {
-				config[k] = v
+	// Perform config patch
+	req.Config = util.CopyConfig(project.Config)
+	patches, err := reqRaw.GetMap("config")
+	if err == nil {
+		for k, v := range patches {
+			strVal, ok := v.(string)
+			if ok {
+				req.Config[k] = strVal
 			}
 		}
 	}
