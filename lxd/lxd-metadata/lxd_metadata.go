@@ -347,19 +347,19 @@ func parse(path string, outputJSONPath string, excludedPaths []string, substitut
 
 func writeDocFile(inputJSONPath, outputTxtPath string) error {
 	countMaxBackTicks := func(s string) int {
-		count, curr_count := 0, 0
+		count, currCount := 0, 0
 		n := len(s)
 		for i := 0; i < n; i++ {
 			if s[i] == '`' {
-				curr_count++
+				currCount++
 				continue
 			}
 
-			if curr_count > count {
-				count = curr_count
+			if currCount > count {
+				count = currCount
 			}
 
-			curr_count = 0
+			currCount = 0
 		}
 
 		return count
@@ -389,18 +389,29 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 		for _, groupKey := range sortedGroupKeys {
 			groupEntries := entityEntries[groupKey]
 			buffer.WriteString(fmt.Sprintf("<!-- config group %s-%s start -->\n", entityKey, groupKey))
-			for _, configEntry := range groupEntries["keys"] {
-				for configKey, configContent := range configEntry.(map[string]any) {
+			for _, configEntryAny := range groupEntries["keys"] {
+				configEntry, ok := configEntryAny.(map[string]any)
+				if !ok {
+					return fmt.Errorf("Unexpected config entry type (%T) in group %q", configEntryAny, groupKey)
+				}
+
+				for configKey, configContentAny := range configEntry {
 					// There is only one key-value pair in each map
 					kvBuffer := bytes.NewBufferString("")
 					var backticksCount int
 					var longDescContent string
-					sortedConfigContentKeys := getSortedKeysFromMap(configContent.(map[string]any))
+					configContent, ok := configContentAny.(map[string]any)
+					if !ok {
+						return fmt.Errorf("Unexpected config content type (%T) for key %q in group %q", configContentAny, configKey, groupKey)
+					}
+
+					sortedConfigContentKeys := getSortedKeysFromMap(configContent)
 					for _, configEntryContentKey := range sortedConfigContentKeys {
-						configContentValue := configContent.(map[string]any)[configEntryContentKey]
+						configContentValue := configContent[configEntryContentKey]
 						if configEntryContentKey == "longdesc" {
-							backticksCount = countMaxBackTicks(configContentValue.(string))
-							longDescContent = configContentValue.(string)
+							configContentString, _ := configContentValue.(string)
+							backticksCount = countMaxBackTicks(configContentString)
+							longDescContent = configContentString
 							continue
 						}
 
