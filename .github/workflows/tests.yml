@@ -131,6 +131,9 @@ jobs:
           - go: "1.16.x"
             suite: standalone
             backend: dir
+        exclude:
+          - suite: standalone
+            backend: lvm
 
     steps:
       - name: Performance tuning
