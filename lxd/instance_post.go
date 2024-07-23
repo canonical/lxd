@@ -780,14 +780,14 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 			return err
 		}
 
-		err = destOp.Wait()
-		if err != nil {
-			return fmt.Errorf("Instance move to destination failed: %w", err)
-		}
-
 		err = srcOp.Wait(context.Background())
 		if err != nil {
 			return fmt.Errorf("Instance move to destination failed on source: %w", err)
+		}
+
+		err = destOp.Wait()
+		if err != nil {
+			return fmt.Errorf("Instance move to destination failed: %w", err)
 		}
 
 		err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
