@@ -20,7 +20,7 @@ func TestKeyPairAndCA(t *testing.T) {
 
 	defer func() { _ = os.RemoveAll(dir) }()
 
-	info, err := shared.KeyPairAndCA(dir, "test", shared.CertServer, true)
+	info, err := shared.KeyPairAndCA(dir, "test", shared.CertServer, shared.CertOptions{AddHosts: true})
 	if err != nil {
 		t.Errorf("initial call to KeyPairAndCA failed: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestGenerateMemCert(t *testing.T) {
 		t.Skip("skipping cert generation in short mode")
 	}
 
-	cert, key, err := shared.GenerateMemCert(false, true)
+	cert, key, err := shared.GenerateMemCert(false, shared.CertOptions{AddHosts: true})
 	if err != nil {
 		t.Error(err)
 		return

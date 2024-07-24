@@ -28,7 +28,7 @@ func (c *Config) GenerateClientCertificate() error {
 	certf := c.ConfigPath("client.crt")
 	keyf := c.ConfigPath("client.key")
 
-	return shared.FindOrGenCert(certf, keyf, true, false)
+	return shared.FindOrGenCert(certf, keyf, true, shared.CertOptions{})
 }
 
 // CopyGlobalCert will copy global (system-wide) certificate to the user config path.

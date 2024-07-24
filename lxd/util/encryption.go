@@ -18,7 +18,7 @@ func LoadCert(dir string) (*shared.CertInfo, error) {
 		prefix = "cluster"
 	}
 
-	cert, err := shared.KeyPairAndCA(dir, prefix, shared.CertServer, true)
+	cert, err := shared.KeyPairAndCA(dir, prefix, shared.CertServer, shared.CertOptions{AddHosts: true})
 	if err != nil {
 		return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
 	}
@@ -32,7 +32,7 @@ func LoadCert(dir string) (*shared.CertInfo, error) {
 func LoadClusterCert(dir string) (*shared.CertInfo, error) {
 	prefix := "cluster"
 
-	cert, err := shared.KeyPairAndCA(dir, prefix, shared.CertServer, true)
+	cert, err := shared.KeyPairAndCA(dir, prefix, shared.CertServer, shared.CertOptions{AddHosts: true})
 	if err != nil {
 		return nil, fmt.Errorf("failed to load cluster TLS certificate: %w", err)
 	}
@@ -43,7 +43,7 @@ func LoadClusterCert(dir string) (*shared.CertInfo, error) {
 // LoadServerCert reads the LXD server certificate from the given var dir.
 func LoadServerCert(dir string) (*shared.CertInfo, error) {
 	prefix := "server"
-	cert, err := shared.KeyPairAndCA(dir, prefix, shared.CertServer, true)
+	cert, err := shared.KeyPairAndCA(dir, prefix, shared.CertServer, shared.CertOptions{AddHosts: true})
 	if err != nil {
 		return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
 	}
