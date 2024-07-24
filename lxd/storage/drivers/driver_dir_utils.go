@@ -129,7 +129,7 @@ func (d *dir) setQuota(path string, volID int64, sizeBytes int64) error {
 	// Initialise the project.
 	err = quota.SetProject(path, projectID)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed setting project: %w", err)
 	}
 
 	// Set the project quota size.
