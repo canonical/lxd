@@ -170,7 +170,7 @@ func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 		if certPath == "" || keyPath == "" {
 			var err error
 
-			clientCrt, clientKey, err = shared.GenerateMemCert(true, false)
+			clientCrt, clientKey, err = shared.GenerateMemCert(true, shared.CertOptions{})
 			if err != nil {
 				return nil, "", err
 			}

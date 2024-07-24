@@ -514,13 +514,13 @@ func (d *qemu) generateAgentCert() (agentCert string, agentKey string, clientCer
 	clientKeyFile := filepath.Join(d.Path(), "agent-client.key")
 
 	// Create server certificate.
-	err = shared.FindOrGenCert(agentCertFile, agentKeyFile, false, false)
+	err = shared.FindOrGenCert(agentCertFile, agentKeyFile, false, shared.CertOptions{})
 	if err != nil {
 		return "", "", "", "", err
 	}
 
 	// Create client certificate.
-	err = shared.FindOrGenCert(clientCertFile, clientKeyFile, true, false)
+	err = shared.FindOrGenCert(clientCertFile, clientKeyFile, true, shared.CertOptions{})
 	if err != nil {
 		return "", "", "", "", err
 	}

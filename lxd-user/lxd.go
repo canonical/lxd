@@ -166,7 +166,7 @@ func lxdSetupUser(uid uint32) error {
 	revert.Add(func() { _ = os.RemoveAll(userPath) })
 
 	// Generate certificate.
-	err = shared.FindOrGenCert(filepath.Join(userPath, "client.crt"), filepath.Join(userPath, "client.key"), true, false)
+	err = shared.FindOrGenCert(filepath.Join(userPath, "client.crt"), filepath.Join(userPath, "client.key"), true, shared.CertOptions{})
 	if err != nil {
 		return fmt.Errorf("Failed to generate user certificate: %w", err)
 	}

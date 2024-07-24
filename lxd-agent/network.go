@@ -49,7 +49,7 @@ func (l *networkListener) Accept() (net.Conn, error) {
 }
 
 func serverTLSConfig() (*tls.Config, error) {
-	certInfo, err := shared.KeyPairAndCA(".", "agent", shared.CertServer, false)
+	certInfo, err := shared.KeyPairAndCA(".", "agent", shared.CertServer, shared.CertOptions{})
 	if err != nil {
 		return nil, err
 	}
