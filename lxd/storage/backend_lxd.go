@@ -1840,6 +1840,12 @@ func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string) fun
 			return -1, fmt.Errorf("qemu-img convert: failed to convert image from %q to %q format: %v", imgFormat, "raw", err)
 		}
 
+		// Remove the image after the conversion to free up the space as soon as possible.
+		err = os.Remove(imgPath)
+		if err != nil {
+			return -1, err
+		}
+
 		// Convert volume size to bytes.
 		volSizeBytes, err := units.ParseByteSizeString(vol.ConfigSize())
 		if err != nil {
