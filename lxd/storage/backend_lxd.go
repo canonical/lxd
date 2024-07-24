@@ -1831,8 +1831,8 @@ func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string) fun
 			"qemu-img", "convert", "-f", imgFormat, "-O", "raw", imgPath, diskPath, "-t", "writeback",
 		}
 
-		b.logger.Debug("Image conversion started")
-		defer b.logger.Debug("Image conversion finished")
+		b.logger.Debug("Image conversion started", logger.Ctx{"from": imgFormat, "to": "raw"})
+		defer b.logger.Debug("Image conversion finished", logger.Ctx{"from": imgFormat, "to": "raw"})
 
 		out, err := apparmor.QemuImg(b.state.OS, cmd, imgPath, diskPath)
 		if err != nil {
