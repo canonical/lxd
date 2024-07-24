@@ -33,6 +33,9 @@ import (
 type CertOptions struct {
 	// AddHosts determines whether to populate the Subject Alternative Name DNS Names and IP Addresses fields.
 	AddHosts bool
+
+	// SubjectName will be used in place of the system hostname for the SAN DNS Name and Issuer Common Name.
+	SubjectName string
 }
 
 // KeyPairAndCA returns a CertInfo object with a reference to the key pair and
@@ -245,14 +248,19 @@ func TestingAltKeyPair() *CertInfo {
 /*
  * Generate a list of names for which the certificate will be valid.
  * This will include the hostname and ip address.
+ * If the `name` argument is non-empty,  it will be used in place of the system hostname.
  */
-func mynames() ([]string, error) {
-	h, err := os.Hostname()
-	if err != nil {
-		return nil, err
+func mynames(name string) ([]string, error) {
+	if name == "" {
+		h, err := os.Hostname()
+		if err != nil {
+			return nil, err
+		}
+
+		name = h
 	}
 
-	ret := []string{h, "127.0.0.1/8", "::1/128"}
+	ret := []string{name, "127.0.0.1/8", "::1/128"}
 	return ret, nil
 }
 
@@ -354,9 +362,12 @@ func GenerateMemCert(client bool, options CertOptions) ([]byte, []byte, error) {
 		username = "UNKNOWN"
 	}
 
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = "UNKNOWN"
+	hostname := options.SubjectName
+	if hostname == "" {
+		hostname, err = os.Hostname()
+		if err != nil {
+			hostname = "UNKNOWN"
+		}
 	}
 
 	template := x509.Certificate{
@@ -379,7 +390,7 @@ func GenerateMemCert(client bool, options CertOptions) ([]byte, []byte, error) {
 	}
 
 	if options.AddHosts {
-		hosts, err := mynames()
+		hosts, err := mynames(hostname)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Failed to get my hostname: %w", err)
 		}
