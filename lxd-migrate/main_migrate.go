@@ -347,7 +347,7 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 		}
 
 		if config.InstanceArgs.Type == api.InstanceTypeVM && config.InstanceArgs.Source.Type == "migration" {
-			isImageTypeRaw, err := isImageTypeRaw(config.SourcePath)
+			isImageTypeRaw, err := isImageTypeRaw(s)
 			if err != nil {
 				return err
 			}
