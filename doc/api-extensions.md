@@ -2457,3 +2457,10 @@ This can be used by a virtual machine running LXD to access raw images from the 
 
 Adds a new `virtio-blk` value for `io.bus` on `disk` devices which allows
 for the attached disk to be connected to the `virtio-blk` bus.
+
+## `metrics_api_requests`
+
+Adds the following internal metrics:
+
+* Total completed requests
+* Number of ongoing requests
