@@ -81,11 +81,11 @@ func (c *cmdInit) run(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	_, _, err = c.create(c.global.conf, args)
+	_, _, err = c.create(c.global.conf, args, false)
 	return err
 }
 
-func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer, string, error) {
+func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.InstanceServer, string, error) {
 	var name string
 	var image string
 	var remote string
@@ -164,10 +164,18 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 	}
 
 	if !c.global.flagQuiet {
-		if name == "" {
-			fmt.Printf(i18n.G("Creating the instance") + "\n")
+		if d.HasExtension("instance_create_start") && launch {
+			if name == "" {
+				fmt.Printf(i18n.G("Launching the instance") + "\n")
+			} else {
+				fmt.Printf(i18n.G("Launching %s")+"\n", name)
+			}
 		} else {
-			fmt.Printf(i18n.G("Creating %s")+"\n", name)
+			if name == "" {
+				fmt.Printf(i18n.G("Creating the instance") + "\n")
+			} else {
+				fmt.Printf(i18n.G("Creating %s")+"\n", name)
+			}
 		}
 	}
 
@@ -252,6 +260,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 		Name:         name,
 		InstanceType: c.flagType,
 		Type:         instanceDBType,
+		Start:        launch,
 	}
 
 	req.Config = configMap

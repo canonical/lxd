@@ -74,6 +74,19 @@ To start an instance, send a PUT request to change the instance state:
 
 See {ref}`instances-manage-start` for more information.
 
+If you would like to start the instance upon creation, set the `start` property to true. The following example will create the container, then start it:
+
+    lxc query --request POST /1.0/instances --data '{
+      "name": "<instance_name>",
+      "source": {
+        "alias": "<image_alias>",
+        "protocol": "simplestreams",
+        "server": "<server_URL>",
+        "type": "image"
+      },
+      "start": true
+    }'
+
 ````
 
 ````{group-tab} UI
