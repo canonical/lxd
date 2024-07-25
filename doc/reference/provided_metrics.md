@@ -100,6 +100,10 @@ The following internal metrics are provided:
 
 * - Metric
   - Description
+* - `lxd_api_requests_completed_total`
+  - Total number of completed requests, indepentently of the status
+* - `lxd_api_requests_ongoing`
+  - Number of requests currently being handled
 * - `lxd_go_alloc_bytes_total`
   - Total number of bytes allocated (even if freed)
 * - `lxd_go_alloc_bytes`
