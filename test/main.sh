@@ -317,6 +317,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_snap_expiry "snapshot expiry"
     run_test test_snap_schedule "snapshot scheduling"
     run_test test_snap_volume_db_recovery "snapshot volume database record recovery"
+    run_test test_snap_fail "snapshot creation failure"
     run_test test_config_profiles "profiles and configuration"
     run_test test_config_edit "container configuration edit"
     run_test test_property "container property"
