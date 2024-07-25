@@ -55,6 +55,40 @@ var storagePoolBucketKeyCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: storagePoolBucketKeyPut, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanEdit, "poolName", "bucketName")},
 }
 
+// storageBucketAccessHandler returns an access handler that checks for the given entitlement against a storage bucket.
+// The storage pool containing the bucket and the effective project of the bucket are added to the request context for
+// later use.
+func storageBucketAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
+	return func(d *Daemon, r *http.Request) response.Response {
+		s := d.State()
+
+		err := addStorageBucketDetailsToContext(d, r)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		details, err := request.GetCtxValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
+		if err != nil {
+			return nil
+		}
+
+		// If the storage pool is a remote driver, the auth subsystem does not require a target parameter to create a
+		// unique URL for the storage bucket. So even if the caller supplied a target parameter, we don't use it in the
+		// access check if the pool is remote.
+		target := ""
+		if !details.pool.Driver().Info().Remote {
+			target = request.QueryParam(r, "target")
+		}
+
+		err = s.Authorizer.CheckPermission(r.Context(), entity.StorageBucketURL(request.ProjectParam(r), target, details.pool.Name(), details.bucketName), entitlement)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
+	}
+}
+
 // API endpoints
 
 // swagger:operation GET /1.0/storage-pools/{poolName}/buckets storage storage_pool_buckets_get
