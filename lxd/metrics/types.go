@@ -16,8 +16,12 @@ type MetricSet struct {
 type MetricType int
 
 const (
+	// APICompletedRequests represents the total number completed requests.
+	APICompletedRequests MetricType = iota
+	// APIOngoingRequests represents the number of requests currently being handled.
+	APIOngoingRequests
 	// CPUs represents the total number of effective CPUs.
-	CPUs MetricType = iota
+	CPUs
 	// CPUSecondsTotal represents the total CPU seconds used.
 	CPUSecondsTotal
 	// DiskReadBytesTotal represents the read bytes for a disk.
@@ -150,6 +154,8 @@ const (
 
 // MetricNames associates a metric type to its name.
 var MetricNames = map[MetricType]string{
+	APICompletedRequests:        "lxd_api_requests_completed_total",
+	APIOngoingRequests:          "lxd_api_requests_ongoing",
 	CPUSecondsTotal:             "lxd_cpu_seconds_total",
 	CPUs:                        "lxd_cpu_effective_total",
 	DiskReadBytesTotal:          "lxd_disk_read_bytes_total",
@@ -219,6 +225,8 @@ var MetricNames = map[MetricType]string{
 
 // MetricHeaders represents the metric headers which contain help messages as specified by OpenMetrics.
 var MetricHeaders = map[MetricType]string{
+	APICompletedRequests:        "# HELP lxd_api_requests_completed_total The total number of completed API requests.",
+	APIOngoingRequests:          "# HELP lxd_api_requests_ongoing The number of API requests currently being handled.",
 	CPUSecondsTotal:             "# HELP lxd_cpu_seconds_total The total number of CPU time used in seconds.",
 	CPUs:                        "# HELP lxd_cpu_effective_total The total number of effective CPUs.",
 	DiskReadBytesTotal:          "# HELP lxd_disk_read_bytes_total The total number of bytes read.",
