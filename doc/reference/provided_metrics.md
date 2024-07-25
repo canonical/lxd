@@ -100,6 +100,10 @@ The following internal metrics are provided:
 
 * - Metric
   - Description
+* - `lxd_api_requests_completed_total`
+  - Total number of completed requests. See [API rates metrics](api-rates-metrics).
+* - `lxd_api_requests_ongoing`
+  - Number of requests currently being handled. See [API rates metrics](api-rates-metrics).
 * - `lxd_go_alloc_bytes_total`
   - Total number of bytes allocated (even if freed)
 * - `lxd_go_alloc_bytes`
@@ -153,6 +157,19 @@ The following internal metrics are provided:
 * - `lxd_warnings_total`
   - Number of active warnings
 ```
+
+(api-rates-metrics)=
+## API rates metrics
+
+The API rates metrics include `lxd_api_requests_completed_total` and `lxd_api_requests_ongoing`. These metrics can be consumed by an observability tool deployed externally (for example, the [Canonical Observability Stack](https://charmhub.io/topics/canonical-observability-stack) or another third-party tool) to help identify failures or overload on a LXD server. You can set thresholds on the observability tools for these metrics' values to trigger alarms and take programmatic actions.
+
+These metrics consider all endpoints in the [LXD REST API](../api), with the exception of the `/` endpoint. Requests using an invalid URL are also counted. Requests against the metrics server are also counted. Both introduced metrics include a label `entity_type` based on the main entity type that the endpoint is operating on.
+
+`lxd_api_requests_ongoing` contains the number of requests that are not yet completed by the time the metrics are queried. A request is considered completed when the response is returned to the client and any asynchronous operations spawned by that request are done. `lxd_api_requests_completed_total` contains the number of completed requests. This metric includes an additional label named `result` based on the outcome of the request. The label can have one of the following values:
+
+- `error_server`, for errors on the server side, this includes responses with HTTP status codes from 500 to 599. Any failed asynchronous operations also fall into this category.
+- `error_client`, for responses with HTTP status codes from 400 to 499, indicating an error on the client side.
+- `succeeded`, for endpoints that executed successfully.
 
 ## Related topics
 
