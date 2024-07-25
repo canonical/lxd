@@ -1147,3 +1147,57 @@ func storagePoolBucketKeyPut(d *Daemon, r *http.Request) response.Response {
 
 	return response.EmptySyncResponse
 }
+
+// ctxStorageBucketDetails is the request.CtxKey corresponding to storageBucketDetails, which is added to the request
+// context in addStorageBucketDetailsToContext.
+const ctxStorageBucketDetails request.CtxKey = "storage-bucket-details"
+
+// storageBucketDetails contains details common to all storage volume requests. A value of this type is added to the
+// request context when addStorageBucketDetailsToContext is called. We do this to avoid repeated logic when
+// parsing the request details and/or making database calls to get the storage pool or effective project. These fields
+// are required for the storage bucket access check, and are subsequently available in the storage bucket handlers.
+type storageBucketDetails struct {
+	bucketName string
+	pool       storagePools.Pool
+}
+
+// addStorageBucketDetailsToContext extracts storageBucketDetails from the http.Request and adds it to the
+// request context with the ctxStorageBucketDetails request.CtxKey. Additionally, the effective project of the storage
+// bucket is added to the request context under request.CtxEffectiveProjectName.
+func addStorageBucketDetailsToContext(d *Daemon, r *http.Request) error {
+	var details storageBucketDetails
+	defer func() {
+		request.SetCtxValue(r, ctxStorageBucketDetails, details)
+	}()
+
+	s := d.State()
+
+	projectName := request.ProjectParam(r)
+
+	effectiveProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, projectName)
+	if err != nil {
+		return err
+	}
+
+	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
+
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+	if err != nil {
+		return err
+	}
+
+	pool, err := storagePools.LoadByName(s, poolName)
+	if err != nil {
+		return fmt.Errorf("Failed loading storage pool: %w", err)
+	}
+
+	details.pool = pool
+
+	bucketName, err := url.PathUnescape(mux.Vars(r)["bucketName"])
+	if err != nil {
+		return err
+	}
+
+	details.bucketName = bucketName
+	return nil
+}
