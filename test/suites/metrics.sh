@@ -125,6 +125,11 @@ test_metrics() {
   curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep "lxd_filesystem_avail_bytes" | grep "type=\"container\""
   curl -k -s -X GET "https://${metrics_addr}/1.0/metrics?project=default" | grep "lxd_filesystem_avail_bytes" | grep "type=\"container\""
 
+  # API requests metrics should be included
+  curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep "lxd_api_requests_completed_total" | grep "entity_type=\"server\""
+  curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep "lxd_api_requests_completed_total" | grep "result=\"succeeded\""
+  curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep "lxd_api_requests_ongoing" | grep "entity_type=\"server\""
+
   lxc delete -f c1 c2
   lxc delete -f c3 --project foo
   lxc delete -f c4 --project foo2
