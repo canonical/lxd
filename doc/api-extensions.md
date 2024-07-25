@@ -2477,3 +2477,10 @@ Adds support for using a bridge network with a specified VLAN ID as an OVN uplin
 This adds a configuration key `security.shared` to custom block volumes.
 If unset or `false`, the custom block volume cannot be attached to multiple instances.
 This feature was added to prevent data loss which can happen when custom block volumes are attached to multiple instances at once.
+
+## `metrics_api_requests`
+
+Adds the following internal metrics:
+
+* Total completed requests
+* Number of ongoing requests
