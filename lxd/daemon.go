@@ -2064,7 +2064,7 @@ func (d *Daemon) startClusterTasks() {
 	d.clusterTasks.Add(autoRemoveOrphanedOperationsTask(d.State))
 
 	// Perform automatic evacuation for offline cluster members
-	d.clusterTasks.Add(autoHealClusterTask(d.State))
+	d.clusterTasks.Add(autoHealClusterTask(d.State, d.gateway))
 
 	// Start all background tasks
 	d.clusterTasks.Start(d.shutdownCtx)
