@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-07-02 10:12-0700\n"
+"POT-Creation-Date: 2024-07-24 14:26-0700\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Krombel <krombel@krombel.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -1046,7 +1046,7 @@ msgstr ""
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
-#: lxc/init.go:324 lxc/rebuild.go:130
+#: lxc/init.go:333 lxc/rebuild.go:130
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
@@ -1159,7 +1159,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:139 lxc/init.go:224 lxc/move.go:380 lxc/project.go:129
+#: lxc/copy.go:139 lxc/init.go:232 lxc/move.go:380 lxc/project.go:129
 #, fuzzy, c-format
 msgid "Bad key=value pair: %q"
 msgstr "Alternatives config Verzeichnis."
@@ -1824,12 +1824,12 @@ msgstr "Anhalten des Containers fehlgeschlagen!"
 msgid "Created: %s"
 msgstr "Erstellt: %s"
 
-#: lxc/init.go:170
+#: lxc/init.go:177
 #, c-format
 msgid "Creating %s"
 msgstr "Erstelle %s"
 
-#: lxc/init.go:168
+#: lxc/init.go:175
 #, fuzzy
 msgid "Creating the instance"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -2171,7 +2171,7 @@ msgstr ""
 "Optionen:\n"
 "\n"
 
-#: lxc/init.go:384
+#: lxc/init.go:393
 #, fuzzy
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr ""
@@ -3286,7 +3286,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr ""
 
-#: lxc/init.go:395
+#: lxc/init.go:404
 #, c-format
 msgid "Instance name is: %s"
 msgstr ""
@@ -3480,6 +3480,16 @@ msgstr ""
 #: lxc/image.go:982
 msgid "Last used: never"
 msgstr ""
+
+#: lxc/init.go:171
+#, fuzzy, c-format
+msgid "Launching %s"
+msgstr "Erstelle %s"
+
+#: lxc/init.go:169
+#, fuzzy
+msgid "Launching the instance"
+msgstr "kann nicht zum selben Container Namen kopieren"
 
 #: lxc/info.go:220
 #, fuzzy, c-format
@@ -5509,7 +5519,7 @@ msgstr ""
 msgid "Retrieve the instance's console log"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/init.go:338
+#: lxc/init.go:347
 #, c-format
 msgid "Retrieving image: %s"
 msgstr ""
@@ -6196,7 +6206,7 @@ msgstr ""
 msgid "Start instances"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/launch.go:82
+#: lxc/launch.go:87
 #, c-format
 msgid "Starting %s"
 msgstr ""
@@ -6413,7 +6423,7 @@ msgid ""
 "restarted"
 msgstr ""
 
-#: lxc/init.go:416
+#: lxc/init.go:425
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
 
@@ -6580,11 +6590,11 @@ msgstr "Wartezeit bevor der Container gestoppt wird."
 msgid "Timestamps:"
 msgstr "Zeitstempel:\n"
 
-#: lxc/init.go:418
+#: lxc/init.go:427
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr ""
 
-#: lxc/init.go:417
+#: lxc/init.go:426
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
@@ -6657,7 +6667,7 @@ msgstr ""
 msgid "Trust token for %s: "
 msgstr ""
 
-#: lxc/action.go:287 lxc/launch.go:114
+#: lxc/action.go:287 lxc/launch.go:119
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
