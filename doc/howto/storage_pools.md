@@ -174,7 +174,7 @@ Create a storage pool named `pool5` that explicitly uses the PowerFlex SDC:
     lxc storage create pool5 powerflex powerflex.mode=sdc powerflex.pool=<id of sp1> powerflex.gateway=https://powerflex powerflex.user.name=lxd powerflex.user.password=foo
 
 (storage-pools-cluster)=
-### Create a storage pool in a cluster
+## Create a storage pool in a cluster
 
 If you are running a LXD cluster and want to add a storage pool, you must create the storage pool for each cluster member separately.
 The reason for this is that the configuration, for example, the storage location or the size of the pool, might be different between cluster members.
@@ -183,7 +183,22 @@ Therefore, you must first create a pending storage pool on each member with the 
 Make sure to use the same storage pool name for all members.
 Then create the storage pool without specifying the `--target` flag to actually set it up.
 
-For example, the following series of commands sets up a storage pool with the name `my-pool` at different locations and with different sizes on three cluster members:
+Also see {ref}`cluster-config-storage`.
+
+```{note}
+For most storage drivers, the storage pools exist locally on each cluster member.
+That means that if you create a storage volume in a storage pool on one member, it will not be available on other cluster members.
+
+This behavior is different for Ceph-based storage pools (`ceph`, `cephfs` and `cephobject`) where each storage pool exists in one central location and therefore, all cluster members access the same storage pool with the same storage volumes.
+```
+
+### Examples
+
+See the following examples for different storage drivers for instructions on how to create local or remote storage pools in a cluster.
+
+#### Create a local storage pool
+
+The following series of commands sets up a ZFS storage pool with the name `my-pool` at different locations and with different sizes on three cluster members:
 
 ```{terminal}
 :input: lxc storage create my-pool zfs source=/dev/sdX size=10GiB --target=vm01
@@ -196,13 +211,33 @@ Storage pool my-pool pending on member vm03
 Storage pool my-pool created
 ```
 
-Also see {ref}`cluster-config-storage`.
+#### Create a remote storage pool
 
-```{note}
-For most storage drivers, the storage pools exist locally on each cluster member.
-That means that if you create a storage volume in a storage pool on one member, it will not be available on other cluster members.
+The following series of commands sets up a Ceph RBD storage pool with the name `my-remote-pool` and the on-disk name `my-osd` on three cluster members.
+Because the {config:option}`storage-ceph-pool-conf:ceph.osd.pool_name` configuration setting isn't member-specific, it must be set when creating the actual storage pool:
 
-This behavior is different for Ceph-based storage pools (`ceph`, `cephfs` and `cephobject`) where each storage pool exists in one central location and therefore, all cluster members access the same storage pool with the same storage volumes.
+```{terminal}
+:input: lxc storage create my-remote-pool ceph --target=vm01
+Storage pool my-remote-pool pending on member vm01
+:input: lxc storage create my-remote-pool ceph --target=vm02
+Storage pool my-remote-pool pending on member vm02
+:input: lxc storage create my-remote-pool ceph --target=vm03
+Storage pool my-remote-pool pending on member vm03
+:input: lxc storage create my-remote-pool ceph ceph.osd.pool_name=my-osd
+Storage pool my-remote-pool created
+```
+
+The following commands create a second storage pool `my-remote-pool2` using the Dell PowerFlex driver in SDC mode using the pool `sp1` in protection domain `pd1`:
+
+```{terminal}
+:input: lxc storage create my-remote-pool2 powerflex --target=vm01
+Storage pool my-remote-pool2 pending on member vm01
+:input: lxc storage create my-remote-pool2 powerflex --target=vm02
+Storage pool my-remote-pool2 pending on member vm02
+:input: lxc storage create my-remote-pool2 powerflex --target=vm03
+Storage pool my-remote-pool2 pending on member vm03
+:input: lxc storage create my-remote-pool2 powerflex powerflex.mode=sdc powerflex.pool=sp1 powerflex.domain=pd1 powerflex.gateway=https://powerflex powerflex.user.name=lxd powerflex.user.password=foo
+Storage pool my-remote-pool2 created
 ```
 
 ## Configure storage pool settings
