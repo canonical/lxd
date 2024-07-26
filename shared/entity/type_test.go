@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"fmt"
 	"net/url"
 	"testing"
 
@@ -12,158 +13,191 @@ import (
 
 func TestURL(t *testing.T) {
 	tests := []struct {
-		name               string
-		rawURL             string
-		expectedEntityType Type
-		expectedProject    string
-		expectedLocation   string
-		expectedPathArgs   []string
-		expectedErr        error
+		name                  string
+		rawURL                string
+		expectedNormalisedURL string
+		expectedEntityType    Type
+		expectedProject       string
+		expectedLocation      string
+		expectedPathArgs      []string
+		expectedErr           error
 	}{
 		{
-			name:               "containers",
-			rawURL:             "/1.0/containers/my-container?project=my-project",
-			expectedEntityType: TypeContainer,
-			expectedProject:    "my-project",
-			expectedPathArgs:   []string{"my-container"},
-			expectedErr:        nil,
+			name:        "not a LXD URL",
+			rawURL:      "/1.0/not/a/url",
+			expectedErr: fmt.Errorf("Failed to match entity URL %q", "/1.0/not/a/url"),
 		},
 		{
-			name:               "images",
-			rawURL:             "/1.0/images/fwirnoaiwnerfoiawnef",
-			expectedEntityType: TypeImage,
-			expectedProject:    "default",
-			expectedPathArgs:   []string{"fwirnoaiwnerfoiawnef"},
-			expectedErr:        nil,
+			name:                  "containers",
+			rawURL:                "/1.0/containers/my-container?project=my-project",
+			expectedNormalisedURL: "/1.0/containers/my-container?project=my-project",
+			expectedEntityType:    TypeContainer,
+			expectedProject:       "my-project",
+			expectedPathArgs:      []string{"my-container"},
+			expectedErr:           nil,
 		},
 		{
-			name:               "profiles",
-			rawURL:             "/1.0/profiles/my-profile?project=my-project",
-			expectedEntityType: TypeProfile,
-			expectedProject:    "my-project",
-			expectedPathArgs:   []string{"my-profile"},
-			expectedErr:        nil,
+			name:                  "images",
+			rawURL:                "/1.0/images/fwirnoaiwnerfoiawnef",
+			expectedNormalisedURL: "/1.0/images/fwirnoaiwnerfoiawnef?project=default",
+			expectedEntityType:    TypeImage,
+			expectedProject:       api.ProjectDefaultName,
+			expectedPathArgs:      []string{"fwirnoaiwnerfoiawnef"},
+			expectedErr:           nil,
 		},
 		{
-			name:               "projects",
-			rawURL:             "/1.0/projects/my-project",
-			expectedEntityType: TypeProject,
-			expectedProject:    "",
-			expectedPathArgs:   []string{"my-project"},
-			expectedErr:        nil,
+			name:                  "profiles",
+			rawURL:                "/1.0/profiles/my-profile?project=my-project",
+			expectedNormalisedURL: "/1.0/profiles/my-profile?project=my-project",
+			expectedEntityType:    TypeProfile,
+			expectedProject:       "my-project",
+			expectedPathArgs:      []string{"my-profile"},
+			expectedErr:           nil,
 		},
 		{
-			name:               "certificates",
-			rawURL:             "/1.0/certificates/foawienfoawnefkanwelfknsfl",
-			expectedEntityType: TypeCertificate,
-			expectedProject:    "",
-			expectedPathArgs:   []string{"foawienfoawnefkanwelfknsfl"},
-			expectedErr:        nil,
+			name:                  "projects",
+			rawURL:                "/1.0/projects/my-project",
+			expectedNormalisedURL: "/1.0/projects/my-project",
+			expectedEntityType:    TypeProject,
+			expectedProject:       "my-project",
+			expectedPathArgs:      []string{"my-project"},
+			expectedErr:           nil,
 		},
 		{
-			name:               "instances",
-			rawURL:             "/1.0/instances/my-instance",
-			expectedEntityType: TypeInstance,
-			expectedProject:    "default",
-			expectedPathArgs:   []string{"my-instance"},
-			expectedErr:        nil,
+			name:                  "certificates",
+			rawURL:                "/1.0/certificates/foawienfoawnefkanwelfknsfl",
+			expectedNormalisedURL: "/1.0/certificates/foawienfoawnefkanwelfknsfl",
+			expectedEntityType:    TypeCertificate,
+			expectedProject:       "",
+			expectedPathArgs:      []string{"foawienfoawnefkanwelfknsfl"},
+			expectedErr:           nil,
 		},
 		{
-			name:               "instance backup",
-			rawURL:             "/1.0/instances/my-instance/backups/my-backup?project=my-project",
-			expectedEntityType: TypeInstanceBackup,
-			expectedProject:    "my-project",
-			expectedPathArgs:   []string{"my-instance", "my-backup"},
-			expectedErr:        nil,
+			name:                  "instances",
+			rawURL:                "/1.0/instances/my-instance",
+			expectedNormalisedURL: "/1.0/instances/my-instance?project=default",
+			expectedEntityType:    TypeInstance,
+			expectedProject:       api.ProjectDefaultName,
+			expectedPathArgs:      []string{"my-instance"},
+			expectedErr:           nil,
 		},
 		{
-			name:               "instance snapshot",
-			rawURL:             "/1.0/instances/my-instance/snapshots/my-snapshot",
-			expectedEntityType: TypeInstanceSnapshot,
-			expectedProject:    "default",
-			expectedPathArgs:   []string{"my-instance", "my-snapshot"},
-			expectedErr:        nil,
+			name:                  "instance backup",
+			rawURL:                "/1.0/instances/my-instance/backups/my-backup?project=my-project",
+			expectedNormalisedURL: "/1.0/instances/my-instance/backups/my-backup?project=my-project",
+			expectedEntityType:    TypeInstanceBackup,
+			expectedProject:       "my-project",
+			expectedPathArgs:      []string{"my-instance", "my-backup"},
+			expectedErr:           nil,
 		},
 		{
-			name:               "networks",
-			rawURL:             "/1.0/networks/my-network?project=my-project",
-			expectedEntityType: TypeNetwork,
-			expectedProject:    "my-project",
-			expectedPathArgs:   []string{"my-network"},
-			expectedErr:        nil,
+			name:                  "instance snapshot",
+			rawURL:                "/1.0/instances/my-instance/snapshots/my-snapshot",
+			expectedNormalisedURL: "/1.0/instances/my-instance/snapshots/my-snapshot?project=default",
+			expectedEntityType:    TypeInstanceSnapshot,
+			expectedProject:       api.ProjectDefaultName,
+			expectedPathArgs:      []string{"my-instance", "my-snapshot"},
+			expectedErr:           nil,
 		},
 		{
-			name:               "network acls",
-			rawURL:             "/1.0/network-acls/my-network-acl",
-			expectedEntityType: TypeNetworkACL,
-			expectedProject:    "default",
-			expectedPathArgs:   []string{"my-network-acl"},
-			expectedErr:        nil,
+			name:                  "networks",
+			rawURL:                "/1.0/networks/my-network?project=my-project",
+			expectedNormalisedURL: "/1.0/networks/my-network?project=my-project",
+			expectedEntityType:    TypeNetwork,
+			expectedProject:       "my-project",
+			expectedPathArgs:      []string{"my-network"},
+			expectedErr:           nil,
 		},
 		{
-			name:               "cluster members",
-			rawURL:             "/1.0/cluster/members/node01",
-			expectedEntityType: TypeNode,
-			expectedProject:    "",
-			expectedPathArgs:   []string{"node01"},
-			expectedErr:        nil,
+			name:                  "network acls",
+			rawURL:                "/1.0/network-acls/my-network-acl",
+			expectedNormalisedURL: "/1.0/network-acls/my-network-acl?project=default",
+			expectedEntityType:    TypeNetworkACL,
+			expectedProject:       api.ProjectDefaultName,
+			expectedPathArgs:      []string{"my-network-acl"},
+			expectedErr:           nil,
 		},
 		{
-			name:               "operation",
-			rawURL:             "/1.0/operations/3e75d1bf-30ed-45ce-9e02-267fa7338eb4",
-			expectedEntityType: TypeOperation,
-			expectedProject:    "",
-			expectedPathArgs:   []string{"3e75d1bf-30ed-45ce-9e02-267fa7338eb4"},
-			expectedErr:        nil,
+			name:                  "cluster members",
+			rawURL:                "/1.0/cluster/members/node01",
+			expectedNormalisedURL: "/1.0/cluster/members/node01",
+			expectedEntityType:    TypeNode,
+			expectedProject:       "",
+			expectedPathArgs:      []string{"node01"},
+			expectedErr:           nil,
 		},
 		{
-			name:               "storage pools",
-			rawURL:             "/1.0/storage-pools/my-storage-pool",
-			expectedEntityType: TypeStoragePool,
-			expectedProject:    "",
-			expectedPathArgs:   []string{"my-storage-pool"},
-			expectedErr:        nil,
+			name:                  "operation",
+			rawURL:                "/1.0/operations/3e75d1bf-30ed-45ce-9e02-267fa7338eb4",
+			expectedNormalisedURL: "/1.0/operations/3e75d1bf-30ed-45ce-9e02-267fa7338eb4",
+			expectedEntityType:    TypeOperation,
+			expectedProject:       "",
+			expectedPathArgs:      []string{"3e75d1bf-30ed-45ce-9e02-267fa7338eb4"},
+			expectedErr:           nil,
 		},
 		{
-			name:               "storage volumes",
-			rawURL:             "/1.0/storage-pools/my-storage-pool/volumes/custom/my%2Fstorage-volume?project=my-project&target=node01",
-			expectedEntityType: TypeStorageVolume,
-			expectedProject:    "my-project",
-			expectedLocation:   "node01",
-			expectedPathArgs:   []string{"my-storage-pool", "custom", "my/storage-volume"},
-			expectedErr:        nil,
+			name:                  "storage pools",
+			rawURL:                "/1.0/storage-pools/my-storage-pool",
+			expectedNormalisedURL: "/1.0/storage-pools/my-storage-pool",
+			expectedEntityType:    TypeStoragePool,
+			expectedProject:       "",
+			expectedPathArgs:      []string{"my-storage-pool"},
+			expectedErr:           nil,
 		},
 		{
-			name:               "storage volume backups",
-			rawURL:             "/1.0/storage-pools/my-storage-pool/volumes/custom/my-storage-volume/backups/my-backup?project=my-project",
-			expectedEntityType: TypeStorageVolumeBackup,
-			expectedProject:    "my-project",
-			expectedPathArgs:   []string{"my-storage-pool", "custom", "my-storage-volume", "my-backup"},
-			expectedErr:        nil,
+			name:                  "storage volumes",
+			rawURL:                "/1.0/storage-pools/my-storage-pool/volumes/custom/my%2Fstorage-volume?project=my-project&target=node01",
+			expectedNormalisedURL: "/1.0/storage-pools/my-storage-pool/volumes/custom/my%2Fstorage-volume?project=my-project&target=node01",
+			expectedEntityType:    TypeStorageVolume,
+			expectedProject:       "my-project",
+			expectedLocation:      "node01",
+			expectedPathArgs:      []string{"my-storage-pool", "custom", "my/storage-volume"},
+			expectedErr:           nil,
 		},
 		{
-			name:               "storage volume snapshots",
-			rawURL:             "/1.0/storage-pools/my-storage-pool/volumes/custom/my-storage-volume/snapshots/my-snapshot?project=my-project",
-			expectedEntityType: TypeStorageVolumeSnapshot,
-			expectedProject:    "my-project",
-			expectedPathArgs:   []string{"my-storage-pool", "custom", "my-storage-volume", "my-snapshot"},
-			expectedErr:        nil,
+			name:                  "storage volume backups",
+			rawURL:                "/1.0/storage-pools/my-storage-pool/volumes/custom/my-storage-volume/backups/my-backup?project=my-project",
+			expectedNormalisedURL: "/1.0/storage-pools/my-storage-pool/volumes/custom/my-storage-volume/backups/my-backup?project=my-project",
+			expectedEntityType:    TypeStorageVolumeBackup,
+			expectedProject:       "my-project",
+			expectedPathArgs:      []string{"my-storage-pool", "custom", "my-storage-volume", "my-backup"},
+			expectedErr:           nil,
 		},
 		{
-			name:               "warnings",
-			rawURL:             "/1.0/warnings/3e75d1bf-30ed-45ce-9e02-267fa7338eb4",
-			expectedEntityType: TypeWarning,
-			expectedProject:    "",
-			expectedPathArgs:   []string{"3e75d1bf-30ed-45ce-9e02-267fa7338eb4"},
-			expectedErr:        nil,
+			name:                  "storage volume snapshots",
+			rawURL:                "/1.0/storage-pools/my-storage-pool/volumes/custom/my-storage-volume/snapshots/my-snapshot?project=my-project",
+			expectedNormalisedURL: "/1.0/storage-pools/my-storage-pool/volumes/custom/my-storage-volume/snapshots/my-snapshot?project=my-project",
+			expectedEntityType:    TypeStorageVolumeSnapshot,
+			expectedProject:       "my-project",
+			expectedPathArgs:      []string{"my-storage-pool", "custom", "my-storage-volume", "my-snapshot"},
+			expectedErr:           nil,
 		},
 		{
-			name:               "cluster groups",
-			rawURL:             "/1.0/cluster/groups/my-cluster-group",
-			expectedEntityType: TypeClusterGroup,
-			expectedProject:    "",
-			expectedPathArgs:   []string{"my-cluster-group"},
-			expectedErr:        nil,
+			name:                  "storage buckets",
+			rawURL:                "/1.0/storage-pools/my-storage-pool/buckets/my-bucket",
+			expectedNormalisedURL: "/1.0/storage-pools/my-storage-pool/buckets/my-bucket?project=default",
+			expectedEntityType:    TypeStorageBucket,
+			expectedProject:       api.ProjectDefaultName,
+			expectedPathArgs:      []string{"my-storage-pool", "my-bucket"},
+			expectedErr:           nil,
+		},
+		{
+			name:                  "warnings",
+			rawURL:                "/1.0/warnings/3e75d1bf-30ed-45ce-9e02-267fa7338eb4",
+			expectedNormalisedURL: "/1.0/warnings/3e75d1bf-30ed-45ce-9e02-267fa7338eb4",
+			expectedEntityType:    TypeWarning,
+			expectedProject:       "",
+			expectedPathArgs:      []string{"3e75d1bf-30ed-45ce-9e02-267fa7338eb4"},
+			expectedErr:           nil,
+		},
+		{
+			name:                  "cluster groups",
+			rawURL:                "/1.0/cluster/groups/my-cluster-group",
+			expectedNormalisedURL: "/1.0/cluster/groups/my-cluster-group",
+			expectedEntityType:    TypeClusterGroup,
+			expectedProject:       "",
+			expectedPathArgs:      []string{"my-cluster-group"},
+			expectedErr:           nil,
 		},
 	}
 
@@ -181,24 +215,13 @@ func TestURL(t *testing.T) {
 			}
 
 			assert.Equal(t, tt.expectedErr, actualErr)
-
-			requiresProject, err := actualEntityType.RequiresProject()
-			assert.NoError(t, err)
-			if u.Query().Get("project") != "" || !requiresProject {
-				// Assert that we can convert back to the same value.
-				actualURL, err := actualEntityType.URL(actualProject, actualLocation, actualPathArgs...)
-				assert.NoError(t, err)
-				assert.Equal(t, tt.rawURL, actualURL.String())
-			} else {
-				// If the entity type requires a project but one wasn't set, assert that (entity.Type).URL sets the
-				// default project.
-				q := u.Query()
-				q.Set("project", api.ProjectDefaultName)
-				u.RawQuery = q.Encode()
-				actualURL, err := actualEntityType.URL(actualProject, actualLocation, actualPathArgs...)
-				assert.NoError(t, err)
-				assert.Equal(t, u.String(), actualURL.String())
+			if tt.expectedErr != nil {
+				return
 			}
+
+			normalisedURL, err := actualEntityType.URL(actualProject, actualLocation, actualPathArgs...)
+			assert.Equal(t, normalisedURL.String(), tt.expectedNormalisedURL)
+			assert.NoError(t, err)
 		})
 	}
 }
