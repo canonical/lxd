@@ -198,7 +198,7 @@ See the following examples for different storage drivers for instructions on how
 
 #### Create a local storage pool
 
-The following series of commands sets up a ZFS storage pool with the name `my-pool` at different locations and with different sizes on three cluster members:
+Create a storage pool named `my-pool` using the ZFS driver at different locations and with different sizes on three cluster members:
 
 ```{terminal}
 :input: lxc storage create my-pool zfs source=/dev/sdX size=10GiB --target=vm01
@@ -213,7 +213,7 @@ Storage pool my-pool created
 
 #### Create a remote storage pool
 
-The following series of commands sets up a Ceph RBD storage pool with the name `my-remote-pool` and the on-disk name `my-osd` on three cluster members.
+Create a storage pool named `my-remote-pool` using the Ceph RBD driver and the on-disk name `my-osd` on three cluster members.
 Because the {config:option}`storage-ceph-pool-conf:ceph.osd.pool_name` configuration setting isn't member-specific, it must be set when creating the actual storage pool:
 
 ```{terminal}
@@ -227,7 +227,7 @@ Storage pool my-remote-pool pending on member vm03
 Storage pool my-remote-pool created
 ```
 
-The following commands create a second storage pool `my-remote-pool2` using the Dell PowerFlex driver in SDC mode using the pool `sp1` in protection domain `pd1`:
+Create a second storage pool named `my-remote-pool2` using the Dell PowerFlex driver in SDC mode and the pool `sp1` in protection domain `pd1`:
 
 ```{terminal}
 :input: lxc storage create my-remote-pool2 powerflex --target=vm01
