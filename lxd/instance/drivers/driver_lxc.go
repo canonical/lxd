@@ -2582,6 +2582,11 @@ func (d *lxc) validateStartup(statusCode api.StatusCode) error {
 		return fmt.Errorf("The image used by this instance requires nesting. Please set security.nesting=true on the instance")
 	}
 
+	// Check if instance is start protected.
+	if shared.IsTrue(d.expandedConfig["security.protection.start"]) {
+		return fmt.Errorf("Instance is protected from being started")
+	}
+
 	return nil
 }
 

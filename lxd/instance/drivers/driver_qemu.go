@@ -1095,6 +1095,11 @@ func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
 		return fmt.Errorf("Stateful start requires migration.stateful to be set to true")
 	}
 
+	// Check if instance is start protected.
+	if shared.IsTrue(d.expandedConfig["security.protection.start"]) {
+		return fmt.Errorf("Instance is protected from being started")
+	}
+
 	return nil
 }
 
