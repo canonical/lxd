@@ -411,6 +411,7 @@ var APIExtensions = []string{
 	"instance_import_conversion",
 	"instance_create_start",
 	"devlxd_images_vm",
+	"instance_protection_start",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
