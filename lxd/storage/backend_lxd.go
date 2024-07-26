@@ -2470,40 +2470,21 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		}
 
 		// Extract image format and size.
-		cmd := []string{
-			// Use prlimit because qemu-img can consume considerable RAM & CPU time if fed
-			// a maliciously crafted disk image. Since cloud tenants are not to be trusted,
-			// ensure QEMU is limited to 1 GiB address space and 2 seconds of CPU time.
-			// This should be more than enough for real world images.
-			"prlimit", "--cpu=2", "--as=1073741824",
-			"qemu-img", "info", imgPath, "--output", "json",
-		}
-
-		out, err := apparmor.QemuImg(b.state.OS, cmd, imgPath, "")
+		imgFormat, imgBytes, err := qemuImageInfo(b.state.OS, imgPath)
 		if err != nil {
-			return fmt.Errorf("qemu-img info: %v", err)
+			return err
 		}
 
-		imgInfo := struct {
-			Format string `json:"format"`
-			Bytes  int64  `json:"virtual-size"`
-		}{}
-
-		err = json.Unmarshal([]byte(out), &imgInfo)
-		if err != nil {
-			return fmt.Errorf("Failed to parse image information: %v", err)
-		}
-
-		srcDiskSize = imgInfo.Bytes
+		srcDiskSize = imgBytes
 
 		if canResizeRootDiskSize {
 			// Set size of the volume to the uncompressed image size.
-			l.Debug("Setting volume size to uncompressed image size", logger.Ctx{"size": fmt.Sprintf("%d", imgInfo.Bytes)})
-			args.Config["size"] = fmt.Sprintf("%d", imgInfo.Bytes)
+			l.Debug("Setting volume size to uncompressed image size", logger.Ctx{"size": fmt.Sprintf("%d", imgBytes)})
+			args.Config["size"] = fmt.Sprintf("%d", imgBytes)
 		}
 
 		// Convert received image into intance volume.
-		volFiller.Fill = b.imageConversionFiller(imgPath, imgInfo.Format)
+		volFiller.Fill = b.imageConversionFiller(imgPath, imgFormat)
 	} else {
 		// If volume size is provided, then use that as block volume size instead of pool default.
 		// This way if the volume being received is larger than the pool default size, the created
