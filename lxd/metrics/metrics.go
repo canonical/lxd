@@ -92,6 +92,7 @@ func (m *MetricSet) String() string {
 	gaugeMetrics := []MetricType{
 		ProcsTotal,
 		CPUs,
+		APIOngoingRequests,
 		GoGoroutines,
 		GoHeapObjects,
 		Instances,
