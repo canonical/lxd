@@ -1,13 +1,17 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/mux"
 
@@ -15,6 +19,8 @@ import (
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/metrics"
+	"github.com/canonical/lxd/lxd/operations"
 	lxdRequest "github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	storagePools "github.com/canonical/lxd/lxd/storage"
@@ -208,9 +214,95 @@ func restServer(d *Daemon) *http.Server {
 		_ = response.NotFound(nil).Render(w)
 	})
 
+	// Initialize API metrics and use middleware functions to update API request metrics.
+	metrics.InitAPIMetrics()
+	mux.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Set the callback function to track the request as completed.
+			// Assure it can be called at most once.
+			var once sync.Once
+			callbackFunc := func(result metrics.RequestResult) {
+				once.Do(func() {
+					metrics.TrackCompletedRequest(*r.URL, result)
+				})
+			}
+
+			contextWithCallback := context.WithValue(r.Context(), operations.CallbackFuncKey, callbackFunc)
+			r = r.WithContext(contextWithCallback)
+			metrics.TrackStartedRequest(*r.URL)
+			next.ServeHTTP(w, r)
+		})
+	})
+
+	mux.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			wrapper := &responseWriterWrapper{writer: w}
+
+			next.ServeHTTP(wrapper, r)
+
+			if !wrapper.OperationCreated {
+				callback, ok := r.Context().Value(operations.CallbackFuncKey).(func(metrics.RequestResult))
+				if ok {
+					callback(metrics.ResolveResponseStatus(wrapper.StatusCode))
+				} else {
+					logger.Error("Request will not be tracked for the internal metrics", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr})
+				}
+			}
+		})
+	}) // This has to be the last middleware function to be defined/called.
+
 	return &http.Server{
 		Handler:     &lxdHTTPServer{r: mux, d: d},
 		ConnContext: lxdRequest.SaveConnectionInContext,
+	}
+}
+
+type responseWriterWrapper struct {
+	writer           http.ResponseWriter
+	StatusCode       int
+	OperationCreated bool
+}
+
+// WriteHeader calls the underlying WriteHeader and catches the response status code for future use.
+func (rw *responseWriterWrapper) WriteHeader(statusCode int) {
+	rw.StatusCode = statusCode
+	rw.writer.WriteHeader(statusCode)
+}
+
+// Header asserts the wrapper implements http.ResponseWriter.
+func (rw *responseWriterWrapper) Header() http.Header {
+	return rw.writer.Header()
+}
+
+// Write calls the underlying Write and checks from the response body if the status is api.OperationResponse.
+func (rw *responseWriterWrapper) Write(body []byte) (int, error) {
+	// Catch and decode the response to extract the status code from the body.
+	response := api.Response{}
+	err := json.Unmarshal(body, &response)
+
+	// Check the status code for operation creation.
+	if err == nil && response.StatusCode == int(api.OperationCreated) && response.Type == api.AsyncResponse {
+		rw.OperationCreated = true
+	}
+
+	return rw.writer.Write(body)
+}
+
+// Hijack asserts the wrapper implements http.Hijack interface for websocket upgrade.
+func (rw *responseWriterWrapper) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	h, ok := rw.writer.(http.Hijacker)
+	if ok {
+		return h.Hijack()
+	}
+
+	return nil, nil, fmt.Errorf("Inner wrapper does not implement http.Hijacker")
+}
+
+// Flush asserts the wrapper implements http.Flusher interface.
+func (rw *responseWriterWrapper) Flush() {
+	f, ok := rw.writer.(http.Flusher)
+	if ok {
+		f.Flush()
 	}
 }
 
