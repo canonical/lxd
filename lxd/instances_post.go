@@ -400,7 +400,7 @@ func createFromConversion(s *state.State, r *http.Request, projectName string, p
 
 	// Validate conversion options.
 	for _, opt := range req.Source.ConversionOptions {
-		if !slices.Contains([]string{"format"}, opt) {
+		if !slices.Contains([]string{"format", "virtio"}, opt) {
 			return response.BadRequest(fmt.Errorf("Invalid conversion option %q", opt))
 		}
 	}
