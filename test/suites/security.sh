@@ -161,6 +161,18 @@ test_security_protection() {
 
   lxc profile unset default security.protection.delete
 
+  # Test start protection
+  lxc profile set default security.protection.start true
+
+  lxc init testimage c1
+  ! lxc start c1 || false
+
+  lxc config set c1 security.protection.start false
+  lxc start c1
+  lxc delete c1 --force
+
+  lxc profile unset default security.protection.start
+
   # Test shifting protection
 
   # Respawn LXD with kernel ID shifting support disabled to force manual shifting.
