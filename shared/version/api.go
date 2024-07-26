@@ -411,6 +411,7 @@ var APIExtensions = []string{
 	"shared_custom_block_volumes",
 	"instance_import_conversion",
 	"instance_create_start",
+	"instance_protection_start",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
