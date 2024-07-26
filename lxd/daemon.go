@@ -617,6 +617,11 @@ func (d *Daemon) UnixSocket() string {
 	return filepath.Join(d.os.VarDir, "unix.socket")
 }
 
+// createCmd creates API handlers for the provided endpoint including some useful behavior,
+// such as appropriate authentication, authorization and checking server availability.
+//
+// The created handler also keeps track of handled requests for the API metrics
+// for the main API endpoints.
 func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 	var uri string
 	if c.Path == "" {
@@ -628,6 +633,12 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 	}
 
 	route := restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
+		// Only endpoints from the main API (version 1.0) should be counted for the metrics.
+		// This prevents internal endpoints from being included as well.
+		if version == "1.0" {
+			request.CountStartedRequest(r)
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 
 		if !(r.RemoteAddr == "@" && version == "internal") {
