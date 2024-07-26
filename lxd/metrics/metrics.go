@@ -95,6 +95,7 @@ func (m *MetricSet) String() string {
 		GoGoroutines,
 		GoHeapObjects,
 		Instances,
+		APIOngoingRequests,
 	}
 
 	for _, metricType := range metricTypes {
