@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -54,6 +55,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
+	"github.com/canonical/lxd/shared/version"
 )
 
 var unavailablePools = make(map[string]struct{})
@@ -1783,7 +1785,7 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) f
 			metadata := make(map[string]any)
 			tracker = &ioprogress.ProgressTracker{
 				Handler: func(percent, speed int64) {
-					shared.SetProgressMetadata(metadata, "create_instance_from_image_unpack", "Unpack", percent, 0, speed)
+					shared.SetProgressMetadata(metadata, "create_instance_from_image_unpack", "Unpacking image", percent, 0, speed)
 					_ = op.UpdateMetadata(metadata)
 				}}
 		}
@@ -1828,16 +1830,22 @@ func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string) fun
 		cmd := []string{
 			// Run with low priority to reduce CPU impact on other processes.
 			"nice", "-n19",
-			"qemu-img", "convert", "-f", imgFormat, "-O", "raw", imgPath, diskPath,
+			"qemu-img", "convert", "-f", imgFormat, "-O", "raw", imgPath, diskPath, "-t", "writeback",
 		}
 
-		b.logger.Debug("Image conversion started")
-		defer b.logger.Debug("Image conversion finished")
+		b.logger.Debug("Image conversion started", logger.Ctx{"from": imgFormat, "to": "raw"})
+		defer b.logger.Debug("Image conversion finished", logger.Ctx{"from": imgFormat, "to": "raw"})
 
 		out, err := apparmor.QemuImg(b.state.OS, cmd, imgPath, diskPath)
 		if err != nil {
 			b.logger.Debug("Image conversion failed", logger.Ctx{"error": out})
 			return -1, fmt.Errorf("qemu-img convert: failed to convert image from %q to %q format: %v", imgFormat, "raw", err)
+		}
+
+		// Remove the image after the conversion to free up the space as soon as possible.
+		err = os.Remove(imgPath)
+		if err != nil {
+			return -1, err
 		}
 
 		// Convert volume size to bytes.
@@ -2341,9 +2349,9 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	return nil
 }
 
-// CreateInstanceFromConversion receives an image and creates and instance from it.
-// Depending on provided conversionOptions, the image is also converted into the
-// raw format.
+// CreateInstanceFromConversion receives a disk or filesystem and creates and instance from it.
+// Based on the provided conversion options, the received disk is converted into the raw format
+// and/or the virtio drivers are injected into it.
 func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "args": fmt.Sprintf("%+v", args)})
 	l.Debug("CreateInstanceFromConversion started")
@@ -2470,40 +2478,21 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		}
 
 		// Extract image format and size.
-		cmd := []string{
-			// Use prlimit because qemu-img can consume considerable RAM & CPU time if fed
-			// a maliciously crafted disk image. Since cloud tenants are not to be trusted,
-			// ensure QEMU is limited to 1 GiB address space and 2 seconds of CPU time.
-			// This should be more than enough for real world images.
-			"prlimit", "--cpu=2", "--as=1073741824",
-			"qemu-img", "info", imgPath, "--output", "json",
-		}
-
-		out, err := apparmor.QemuImg(b.state.OS, cmd, imgPath, "")
+		imgFormat, imgBytes, err := qemuImageInfo(b.state.OS, imgPath)
 		if err != nil {
-			return fmt.Errorf("qemu-img info: %v", err)
+			return err
 		}
 
-		imgInfo := struct {
-			Format string `json:"format"`
-			Bytes  int64  `json:"virtual-size"`
-		}{}
-
-		err = json.Unmarshal([]byte(out), &imgInfo)
-		if err != nil {
-			return fmt.Errorf("Failed to parse image information: %v", err)
-		}
-
-		srcDiskSize = imgInfo.Bytes
+		srcDiskSize = imgBytes
 
 		if canResizeRootDiskSize {
 			// Set size of the volume to the uncompressed image size.
-			l.Debug("Setting volume size to uncompressed image size", logger.Ctx{"size": fmt.Sprintf("%d", imgInfo.Bytes)})
-			args.Config["size"] = fmt.Sprintf("%d", imgInfo.Bytes)
+			l.Debug("Setting volume size to uncompressed image size", logger.Ctx{"size": fmt.Sprintf("%d", imgBytes)})
+			args.Config["size"] = fmt.Sprintf("%d", imgBytes)
 		}
 
 		// Convert received image into intance volume.
-		volFiller.Fill = b.imageConversionFiller(imgPath, imgInfo.Format)
+		volFiller.Fill = b.imageConversionFiller(imgPath, imgFormat)
 	} else {
 		// If volume size is provided, then use that as block volume size instead of pool default.
 		// This way if the volume being received is larger than the pool default size, the created
@@ -2548,6 +2537,65 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 	}
 
 	revert.Add(func() { _ = b.driver.DeleteVolume(volCopy.Volume, op) })
+
+	// At this point, the instance's volume is populated. If "virtio" option is enabled,
+	// inject the virtio drivers.
+	if slices.Contains(args.ConversionOptions, "virtio") {
+		b.logger.Debug("Inject virtio drivers started")
+		defer b.logger.Debug("Inject virtio drivers finished")
+
+		err = b.driver.MountVolume(vol, op)
+		if err != nil {
+			return err
+		}
+
+		defer func() { _, _ = b.driver.UnmountVolume(vol, true, op) }()
+
+		diskPath, err := b.driver.GetVolumeDiskPath(vol)
+		if err != nil {
+			return err
+		}
+
+		out, err := exec.Command("virt-v2v-in-place", "--version").CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("Failed to get virt-v2v-in-place version: %w (%s)", err, string(out))
+		}
+
+		// Extract virt-v2v-in-place version (format is "virt-v2v-in-place 1.2.3").
+		v2vVersionParts := strings.Split(strings.TrimSpace(string(out)), " ")
+		v2vVersion, err := version.NewDottedVersion(v2vVersionParts[len(v2vVersionParts)-1])
+		if err != nil {
+			return err
+		}
+
+		minVersion, err := version.NewDottedVersion("2.3.4")
+		if err != nil {
+			return err
+		}
+
+		// Ensure virt-v2v-in-place version is higher then or equal to the minimum required version.
+		if v2vVersion.Compare(minVersion) < 0 {
+			return fmt.Errorf("The virt-v2v-in-place version %q does not match the minimum required version %q", v2vVersion, minVersion)
+		}
+
+		// Run virt-v2v-in-place to inject virtio drivers.
+		cmd := exec.Command(
+			// Run with low priority to reduce the CPU impact on other processes.
+			"nice", "-n19",
+			"virt-v2v-in-place", "-i", "disk", "-if", "raw", "--block-driver", "virtio-scsi", diskPath,
+		)
+
+		// Instruct virt-v2v-in-place where to search for windows drivers.
+		cmd.Env = append(os.Environ(),
+			"VIRTIO_WIN=/usr/share/virtio-win/virtio-win.iso",
+			"VIRT_TOOLS_DATA_DIR=/usr/share/virt-tools",
+		)
+
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("Failed to inject virtio drivers: %w (%s)", err, string(out))
+		}
+	}
 
 	err = b.ensureInstanceSymlink(inst.Type(), inst.Project().Name, inst.Name(), vol.MountPath())
 	if err != nil {
