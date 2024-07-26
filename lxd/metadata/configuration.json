@@ -2452,7 +2452,7 @@
 							"defaultdesc": "`false`",
 							"liveupdate": "yes",
 							"longdesc": "",
-							"shortdesc": "Prevents the instance from being deleted",
+							"shortdesc": "Whether to prevent the instance from being deleted",
 							"type": "bool"
 						}
 					},
@@ -2463,6 +2463,15 @@
 							"liveupdate": "yes",
 							"longdesc": "Set this option to `true` to prevent the instance's file system from being UID/GID shifted on startup.",
 							"shortdesc": "Whether to protect the file system from being UID/GID shifted",
+							"type": "bool"
+						}
+					},
+					{
+						"security.protection.start": {
+							"defaultdesc": "`false`",
+							"liveupdate": "yes",
+							"longdesc": "",
+							"shortdesc": "Whether to prevent the instance from being started",
 							"type": "bool"
 						}
 					},
