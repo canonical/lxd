@@ -505,6 +505,7 @@ func DiskVMVirtiofsdStart(kernelVersion version.DottedVersion, inst instance.Ins
 	// Start the virtiofsd process in non-daemon mode.
 	args := []string{
 		"--fd=3",
+		"--xattr",
 		"-o", fmt.Sprintf("source=%s", sharePath),
 	}
 
