@@ -115,6 +115,7 @@ type Operation struct {
 	onRun     func(*Operation) error
 	onCancel  func(*Operation) error
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
+	onDone    func(*Operation)
 
 	// Indicates if operation has finished.
 	finished *cancel.Canceller
@@ -218,12 +219,22 @@ func (op *Operation) SetRequestor(r *http.Request) {
 	op.requestor = request.CreateRequestor(r)
 }
 
+// SetOnDone sets the operation onDone function that is called after the operation completes.
+func (op *Operation) SetOnDone(f func(*Operation)) {
+	op.onDone = f
+}
+
 // Requestor returns the initial requestor for this operation.
 func (op *Operation) Requestor() *api.EventLifecycleRequestor {
 	return op.requestor
 }
 
 func (op *Operation) done() {
+	if op.onDone != nil {
+		// This can mark the request that spawned this operation as completed for the API metrics.
+		op.onDone(op)
+	}
+
 	if op.readonly {
 		return
 	}
