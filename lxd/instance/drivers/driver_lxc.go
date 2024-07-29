@@ -3731,7 +3731,7 @@ func (d *lxc) delete(force bool) error {
 	}
 
 	if !force && shared.IsTrue(d.expandedConfig["security.protection.delete"]) && !d.IsSnapshot() {
-		err := fmt.Errorf("Instance is protected")
+		err := fmt.Errorf("Instance is protected from being deleted")
 		d.logger.Warn("Failed to delete instance", logger.Ctx{"err": err})
 		return err
 	}

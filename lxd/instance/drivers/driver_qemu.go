@@ -6119,7 +6119,7 @@ func (d *qemu) delete(force bool) error {
 
 	// Check if instance is delete protected.
 	if !force && shared.IsTrue(d.expandedConfig["security.protection.delete"]) && !d.IsSnapshot() {
-		return fmt.Errorf("Instance is protected")
+		return fmt.Errorf("Instance is protected from being deleted")
 	}
 
 	// Delete any persistent warnings for instance.
