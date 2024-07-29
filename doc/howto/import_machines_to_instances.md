@@ -44,14 +44,14 @@ The tool can also inject the required VIRTIO drivers into the image:
 
 * For converting Windows images from a foreign hypervisor (not from QEMU/KVM with Q35/`virtio-scsi`), you must install additional drivers on the host:
    * Install the `virtio-win` package or download the [`virtio-win.iso`](https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso) file and place it in the `/usr/share/virtio-win` directory.
-   * Download [`rhsrvany.exe` and `pnp_wait.exe`](https://github.com/rwmjones/rhsrvany), and place them in the `/usr/share/virt-tools/` directory.
+   * Download [`rhsrvany.exe` and `pnp_wait.exe`](https://github.com/rwmjones/rhsrvany?tab=readme-ov-file#binary-releases), and place them in the `/usr/share/virt-tools/` directory.
 
    ````{tip}
    If you want to convert a Windows VM from a foreign hypervisor manually,
    you must install both the required Windows drivers (as described above) and `virt-v2v` (>= 2.3.4).
 
    <details>
-   <summary>Expand to see how to convert your Windows VM using <code>virt-v2v<code></summary>
+   <summary>Expand to see how to convert your Windows VM using <code>virt-v2v</code></summary>
 
    Use `virt-v2v` to convert Windows image into `raw` format and include the required drivers.
 
