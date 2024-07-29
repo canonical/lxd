@@ -5,7 +5,7 @@ go 1.22.5
 require (
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.1.0
-	github.com/canonical/go-dqlite v1.21.0
+	github.com/canonical/go-dqlite v1.22.0
 	github.com/checkpoint-restore/go-criu/v6 v6.3.0
 	github.com/dell/goscaleio v1.15.0
 	github.com/digitalocean/go-qemu v0.0.0-20230711162256-2e3d0186973e
