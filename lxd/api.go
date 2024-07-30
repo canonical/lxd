@@ -111,7 +111,8 @@ func restServer(d *Daemon) *http.Server {
 		uiHandlerErrorUINotEnabled := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html")
 			w.WriteHeader(http.StatusServiceUnavailable)
-			fmt.Fprint(w, errorMessage)
+			_, err := fmt.Fprint(w, errorMessage)
+			logger.Error(fmt.Sprintf("Could not write error message to writer object: %v", err), logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr})
 		})
 		mux.PathPrefix("/ui").Handler(uiHandlerErrorUINotEnabled)
 	}
@@ -176,10 +177,9 @@ func restServer(d *Daemon) *http.Server {
 		if strings.Contains(ua, "Gecko") {
 			http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
 			return
-		} else {
-			// Normal client handling.
-			_ = response.SyncResponse(true, []string{"/1.0"}).Render(w)
 		}
+		// Normal client handling.
+		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w)
 	})
 
 	for endpoint, f := range d.gateway.HandlerFuncs(d.heartbeatHandler, d.identityCache) {
