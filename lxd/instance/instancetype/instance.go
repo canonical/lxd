@@ -317,7 +317,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	//  type: bool
 	//  defaultdesc: `false`
 	//  liveupdate: yes
-	//  shortdesc: Prevents the instance from being deleted
+	//  shortdesc: Whether to prevent the instance from being deleted
 	"security.protection.delete": validate.Optional(validate.IsBool),
 
 	// lxdmeta:generate(entities=instance; group=security; key=security.protection.start)
