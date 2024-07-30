@@ -233,6 +233,9 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	newMetrics := make(map[string]*metrics.MetricSet, len(projectsToFetch))
 	newMetricsLock := sync.Mutex{}
 
+	// Initialize metric set for default project to assure internal metrics are included.
+	newMetrics[api.ProjectDefaultName] = metrics.NewMetricSet(nil)
+
 	// Limit metrics build concurrency to number of instances or number of CPU cores (which ever is less).
 	var wg sync.WaitGroup
 	instMetricsCh := make(chan instance.Instance)
