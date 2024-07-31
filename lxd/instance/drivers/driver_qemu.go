@@ -6488,11 +6488,6 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	d.logger.Info("Migration send starting")
 	defer d.logger.Info("Migration send stopped")
 
-	// Check for stateful support.
-	if args.Live && shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
-		return fmt.Errorf("Stateful migration requires migration.stateful to be set to true")
-	}
-
 	// Wait for essential migration connections before negotiation.
 	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
@@ -6500,6 +6495,22 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	filesystemConn, err := args.FilesystemConn(connectionsCtx)
 	if err != nil {
 		return err
+	}
+
+	// Check for stateful support.
+	if args.Live && shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
+		errMsg := "Stateful migration requires migration.stateful to be set to true"
+		resp := migration.MigrationControl{
+			Success: proto.Bool(false),
+			Message: &errMsg,
+		}
+
+		sendErr := args.ControlSend(&resp)
+		if sendErr != nil {
+			d.logger.Warn("Failed sending migration failure to target", logger.Ctx{"err": sendErr})
+		}
+
+		return fmt.Errorf(errMsg)
 	}
 
 	pool, err := storagePools.LoadByInstance(d.state, d)
