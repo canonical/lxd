@@ -29,26 +29,26 @@ To view the raw data that LXD collects, use the [`lxc query`](lxc_query.md) comm
 ```{terminal}
 :input: lxc query /1.0/metrics
 
-# HELP lxd_cpu_seconds_total The total number of CPU time used in seconds.
-# TYPE lxd_cpu_seconds_total counter
-lxd_cpu_seconds_total{cpu="0",mode="system",name="u1",project="default",type="container"} 60.304517
-lxd_cpu_seconds_total{cpu="0",mode="user",name="u1",project="default",type="container"} 145.647502
-lxd_cpu_seconds_total{cpu="0",mode="iowait",name="vm",project="default",type="virtual-machine"} 4614.78
-lxd_cpu_seconds_total{cpu="0",mode="irq",name="vm",project="default",type="virtual-machine"} 0
-lxd_cpu_seconds_total{cpu="0",mode="idle",name="vm",project="default",type="virtual-machine"} 412762
-lxd_cpu_seconds_total{cpu="0",mode="nice",name="vm",project="default",type="virtual-machine"} 35.06
-lxd_cpu_seconds_total{cpu="0",mode="softirq",name="vm",project="default",type="virtual-machine"} 2.41
-lxd_cpu_seconds_total{cpu="0",mode="steal",name="vm",project="default",type="virtual-machine"} 9.84
-lxd_cpu_seconds_total{cpu="0",mode="system",name="vm",project="default",type="virtual-machine"} 340.84
-lxd_cpu_seconds_total{cpu="0",mode="user",name="vm",project="default",type="virtual-machine"} 261.25
-# HELP lxd_cpu_effective_total The total number of effective CPUs.
-# TYPE lxd_cpu_effective_total gauge
-lxd_cpu_effective_total{name="u1",project="default",type="container"} 4
-lxd_cpu_effective_total{name="vm",project="default",type="virtual-machine"} 0
-# HELP lxd_disk_read_bytes_total The total number of bytes read.
-# TYPE lxd_disk_read_bytes_total counter
-lxd_disk_read_bytes_total{device="loop5",name="u1",project="default",type="container"} 2048
-lxd_disk_read_bytes_total{device="loop3",name="vm",project="default",type="virtual-machine"} 353280
+# HELP lxd_api_requests_completed_total The total number of completed API requests.
+# TYPE lxd_api_requests_completed_total counter
+lxd_api_requests_completed_total{entity_type="instance",result="error_server"} 0
+lxd_api_requests_completed_total{entity_type="instance",result="error_client"} 0
+lxd_api_requests_completed_total{entity_type="instance",result="succeeded"} 0
+lxd_api_requests_completed_total{entity_type="network",result="error_server"} 0
+lxd_api_requests_completed_total{entity_type="network",result="error_client"} 0
+lxd_api_requests_completed_total{entity_type="network",result="succeeded"} 0
+lxd_api_requests_completed_total{entity_type="storage_pool",result="error_server"} 0
+lxd_api_requests_completed_total{entity_type="storage_pool",result="error_client"} 0
+lxd_api_requests_completed_total{entity_type="storage_pool",result="succeeded"} 0
+lxd_api_requests_completed_total{entity_type="identity",result="error_server"} 0
+lxd_api_requests_completed_total{entity_type="identity",result="error_client"} 0
+lxd_api_requests_completed_total{entity_type="identity",result="succeeded"} 0
+lxd_api_requests_completed_total{entity_type="image",result="error_server"} 0
+lxd_api_requests_completed_total{entity_type="image",result="error_client"} 0
+lxd_api_requests_completed_total{entity_type="image",result="succeeded"} 0
+lxd_api_requests_completed_total{entity_type="node",result="error_server"} 0
+lxd_api_requests_completed_total{entity_type="node",result="error_client"} 0
+lxd_api_requests_completed_total{entity_type="node",result="succeeded"} 0
 ...
 ```
 
