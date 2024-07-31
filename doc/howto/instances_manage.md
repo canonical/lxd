@@ -131,6 +131,11 @@ Once it is running, you can select the {guilabel}`Terminal` tab to access the in
 ```
 ````
 
+### Prevent accidental start of instances
+
+To protect a specific instance from being started, set {config:option}`instance-security:security.protection.start` to `true` for the instance.
+See {ref}`instances-configure` for instructions.
+
 (instances-manage-stop)=
 ## Stop an instance
 

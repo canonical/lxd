@@ -252,13 +252,16 @@ func (slice instanceAutostartList) Swap(i, j int) {
 var instancesStartMu sync.Mutex
 
 // instanceShouldAutoStart returns whether the instance should be auto-started.
-// Returns true if boot.autostart is enabled or boot.autostart is not set and instance was previously running.
+// Returns true if the conditions below are all met:
+// 1. security.protection.start is not enabled or not set.
+// 2. boot.autostart is enabled or boot.autostart is not set and instance was previously running.
 func instanceShouldAutoStart(inst instance.Instance) bool {
 	config := inst.ExpandedConfig()
 	autoStart := config["boot.autostart"]
 	lastState := config["volatile.last_state.power"]
+	protectStart := config["security.protection.start"]
 
-	return shared.IsTrue(autoStart) || (autoStart == "" && lastState == instance.PowerStateRunning)
+	return shared.IsFalseOrEmpty(protectStart) && (shared.IsTrue(autoStart) || (autoStart == "" && lastState == instance.PowerStateRunning))
 }
 
 func instancesStart(s *state.State, instances []instance.Instance) {

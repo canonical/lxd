@@ -148,7 +148,7 @@ _have lxc && {
       security.devlxd security.devlxd.images \
       security.idmap.base security.idmap.isolated security.idmap.size \
       security.nesting security.privileged \
-      security.protection.delete security.protection.shift \
+      security.protection.delete security.protection.shift security.protection.start\
       security.secureboot \
       security.sev security.sev.es security.sev.policy.es security.sev.session.dh security.sev.session.data \
       security.syscalls.allow \
