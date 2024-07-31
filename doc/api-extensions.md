@@ -2441,3 +2441,8 @@ Adds a `start` field to the `POST /1.0/instances` API which when set
 to `true` will have the instance automatically start upon creation.
 
 In this scenario, the creation and startup is part of a single background operation.
+
+## `instance_protection_start`
+
+Enables setting the {config:option}`instance-security:security.protection.start` field which prevents instances
+from being started if set to `true`.
