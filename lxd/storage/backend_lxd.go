@@ -1870,7 +1870,7 @@ func (b *lxdBackend) recvVolumeFiller(conn io.ReadWriteCloser, contentType drive
 			}
 		} else {
 			// Receive block volume.
-			to, err := os.OpenFile(rootBlockPath, os.O_WRONLY|os.O_TRUNC, 0)
+			to, err := os.OpenFile(rootBlockPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 			if err != nil {
 				return -1, fmt.Errorf("Error opening file for writing %q: %w", rootBlockPath, err)
 			}
