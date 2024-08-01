@@ -1870,7 +1870,7 @@ func (b *lxdBackend) recvVolumeFiller(conn io.ReadWriteCloser, contentType drive
 			}
 		} else {
 			// Receive block volume.
-			to, err := os.OpenFile(rootBlockPath, os.O_WRONLY|os.O_TRUNC, 0)
+			to, err := os.OpenFile(rootBlockPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 			if err != nil {
 				return -1, fmt.Errorf("Error opening file for writing %q: %w", rootBlockPath, err)
 			}
@@ -2434,10 +2434,6 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		return err
 	}
 
-	// Override args.Name and args.Config to ensure volume is created based on instance.
-	args.Config = vol.Config()
-	args.Name = inst.Name()
-
 	// Get instance's root disk device from local devices. Do not use expanded devices, as we want
 	// to determine whether the root disk volume size was explicitly set by the client.
 	canResizeRootDiskSize := true
@@ -2488,7 +2484,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		if canResizeRootDiskSize {
 			// Set size of the volume to the uncompressed image size.
 			l.Debug("Setting volume size to uncompressed image size", logger.Ctx{"size": fmt.Sprintf("%d", imgBytes)})
-			args.Config["size"] = fmt.Sprintf("%d", imgBytes)
+			vol.SetConfigSize(fmt.Sprintf("%d", imgBytes))
 		}
 
 		// Convert received image into intance volume.
@@ -2499,7 +2495,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		// block volume will still be able to accommodate it.
 		if canResizeRootDiskSize && contentType == drivers.ContentTypeBlock && args.VolumeSize > 0 {
 			l.Debug("Setting volume size to source disk size", logger.Ctx{"size": args.VolumeSize})
-			args.Config["size"] = fmt.Sprintf("%d", args.VolumeSize)
+			vol.SetConfigSize(fmt.Sprintf("%d", args.VolumeSize))
 		}
 
 		srcDiskSize = args.VolumeSize
@@ -2529,14 +2525,12 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		return fmt.Errorf("Volume size (%s) is lower then source disk size (%s)", volSize, imgSize)
 	}
 
-	volCopy := drivers.NewVolumeCopy(vol)
-
-	err = b.driver.CreateVolume(volCopy.Volume, &volFiller, op)
+	err = b.driver.CreateVolume(vol, &volFiller, op)
 	if err != nil {
 		return err
 	}
 
-	revert.Add(func() { _ = b.driver.DeleteVolume(volCopy.Volume, op) })
+	revert.Add(func() { _ = b.driver.DeleteVolume(vol, op) })
 
 	// At this point, the instance's volume is populated. If "virtio" option is enabled,
 	// inject the virtio drivers.
