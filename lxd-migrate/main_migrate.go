@@ -642,7 +642,13 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 		_, _ = server.DeleteInstance(config.InstanceArgs.Name)
 	})
 
-	progress := cli.ProgressRenderer{Format: "Transferring instance: %s"}
+	progressPrefix := "Transferring instance: %s"
+	if config.InstanceArgs.Source.Type == "conversion" {
+		// In conversion mode, progress prefix is determined on the server side.
+		progressPrefix = "%s"
+	}
+
+	progress := cli.ProgressRenderer{Format: progressPrefix}
 	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
 		progress.Done("")
