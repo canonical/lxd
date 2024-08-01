@@ -2954,16 +2954,25 @@ func (d *lxc) onStop(args map[string]string) error {
 		d.cleanupDevices(false, "")
 
 		// Remove directory ownership (to avoid issue if uidmap is re-used)
+		// Fails on zfs when the dataset is full due to CoW
 		err := os.Chown(d.Path(), 0, 0)
 		if err != nil {
-			op.Done(fmt.Errorf("Failed clearing ownership: %w", err))
-			return
+			if !strings.Contains(err.Error(), "disk quota exceeded") {
+				op.Done(fmt.Errorf("Failed clearing ownership: %w", err))
+				return
+			}
+
+			d.logger.Error("Failed clearing ownership; skipping", logger.Ctx{"err": err})
 		}
 
 		err = os.Chmod(d.Path(), 0100)
 		if err != nil {
-			op.Done(fmt.Errorf("Failed clearing permissions: %w", err))
-			return
+			if !strings.Contains(err.Error(), "disk quota exceeded") {
+				op.Done(fmt.Errorf("Failed clearing permissions: %w", err))
+				return
+			}
+
+			d.logger.Error("Failed clearing permissions; skipping", logger.Ctx{"err": err})
 		}
 
 		// Stop the storage for this container
