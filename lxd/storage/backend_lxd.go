@@ -2434,10 +2434,6 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		return err
 	}
 
-	// Override args.Name and args.Config to ensure volume is created based on instance.
-	args.Config = vol.Config()
-	args.Name = inst.Name()
-
 	// Get instance's root disk device from local devices. Do not use expanded devices, as we want
 	// to determine whether the root disk volume size was explicitly set by the client.
 	canResizeRootDiskSize := true
@@ -2488,7 +2484,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		if canResizeRootDiskSize {
 			// Set size of the volume to the uncompressed image size.
 			l.Debug("Setting volume size to uncompressed image size", logger.Ctx{"size": fmt.Sprintf("%d", imgBytes)})
-			args.Config["size"] = fmt.Sprintf("%d", imgBytes)
+			vol.SetConfigSize(fmt.Sprintf("%d", imgBytes))
 		}
 
 		// Convert received image into intance volume.
@@ -2499,7 +2495,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		// block volume will still be able to accommodate it.
 		if canResizeRootDiskSize && contentType == drivers.ContentTypeBlock && args.VolumeSize > 0 {
 			l.Debug("Setting volume size to source disk size", logger.Ctx{"size": args.VolumeSize})
-			args.Config["size"] = fmt.Sprintf("%d", args.VolumeSize)
+			vol.SetConfigSize(fmt.Sprintf("%d", args.VolumeSize))
 		}
 
 		srcDiskSize = args.VolumeSize
