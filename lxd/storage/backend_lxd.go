@@ -2525,14 +2525,12 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		return fmt.Errorf("Volume size (%s) is lower then source disk size (%s)", volSize, imgSize)
 	}
 
-	volCopy := drivers.NewVolumeCopy(vol)
-
-	err = b.driver.CreateVolume(volCopy.Volume, &volFiller, op)
+	err = b.driver.CreateVolume(vol, &volFiller, op)
 	if err != nil {
 		return err
 	}
 
-	revert.Add(func() { _ = b.driver.DeleteVolume(volCopy.Volume, op) })
+	revert.Add(func() { _ = b.driver.DeleteVolume(vol, op) })
 
 	// At this point, the instance's volume is populated. If "virtio" option is enabled,
 	// inject the virtio drivers.
