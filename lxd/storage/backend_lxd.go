@@ -1912,7 +1912,7 @@ func (b *lxdBackend) recvBlockVol(toFile *os.File, volName string, conn io.ReadW
 
 	var wrapper *ioprogress.ProgressTracker
 	if args.TrackProgress {
-		wrapper = migration.ProgressTracker(op, "block_progress", volName)
+		wrapper = migration.ProgressTracker(op, "block_progress", "Transferring instance")
 	}
 
 	// Setup progress tracker.
@@ -1938,7 +1938,7 @@ func (b *lxdBackend) recvFS(path string, volName string, conn io.ReadWriteCloser
 
 	var wrapper *ioprogress.ProgressTracker
 	if args.TrackProgress {
-		wrapper = migration.ProgressTracker(op, "fs_progress", volName)
+		wrapper = migration.ProgressTracker(op, "fs_progress", "Transferring instance")
 	}
 
 	return rsync.Recv(shared.AddSlash(path), conn, wrapper, args.MigrationType.Features)
