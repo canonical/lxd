@@ -213,7 +213,7 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Proje
 
 	entityURLs, err := cluster.GetEntityURLs(ctx, tx.Tx(), project.Name, reportedEntityTypes...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get project used-by URLs")
+		return nil, fmt.Errorf("Failed to get project used-by URLs: %w", err)
 	}
 
 	var usedBy []string
