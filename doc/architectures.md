@@ -33,9 +33,9 @@ That means that LXD considers ARMv7 hard-float to be the same as ARMv7 soft-floa
 If useful to the user, the exact userspace ABI may be set as an image and container property, allowing easy query.
 ```
 
-## Virtual-machine support
+## Virtual machine support
 
-LXD only supports running virtual-machines on the following host architectures:
+LXD only supports running virtual machines on the following host architectures:
 
 - `x86_64`
 - `aarch64`
