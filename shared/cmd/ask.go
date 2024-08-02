@@ -14,11 +14,15 @@ import (
 
 // Asker holds a reader for reading input into CLI questions.
 type Asker struct {
-	reader *bufio.Reader
+	reader  *bufio.Reader
+	verbose bool
 }
 
-func NewAsker(reader *bufio.Reader) Asker {
-	return Asker{reader: reader}
+// NewAsker creates a new Asker instance that reads from the given reader.
+// It can also be configured to be verbose (i.e. systematically prints each question and answer on error with
+// sometimes more information to help the debug process).
+func NewAsker(reader *bufio.Reader, verbose bool) Asker {
+	return Asker{reader: reader, verbose: verbose}
 }
 
 // AskBool asks a question and expect a yes/no answer.
@@ -26,6 +30,10 @@ func (a *Asker) AskBool(question string, defaultAnswer string) (bool, error) {
 	for {
 		answer, err := a.askQuestion(question, defaultAnswer)
 		if err != nil {
+			if a.verbose {
+				err = fmt.Errorf("Failed to read answer %q for question %q: %w", answer, question, err)
+			}
+
 			return false, err
 		}
 
@@ -35,7 +43,7 @@ func (a *Asker) AskBool(question string, defaultAnswer string) (bool, error) {
 			return false, nil
 		}
 
-		invalidInput()
+		a.invalidInput(question, answer)
 	}
 }
 
@@ -44,14 +52,20 @@ func (a *Asker) AskChoice(question string, choices []string, defaultAnswer strin
 	for {
 		answer, err := a.askQuestion(question, defaultAnswer)
 		if err != nil {
+			if a.verbose {
+				err = fmt.Errorf("Failed to read answer %q for question %q: %w", answer, question, err)
+			}
+
 			return "", err
 		}
 
 		if shared.ValueInSlice(answer, choices) {
 			return answer, nil
+		} else if a.verbose {
+			answer = fmt.Sprintf("%s (not in choices %v)", answer, choices)
 		}
 
-		invalidInput()
+		a.invalidInput(question, answer)
 	}
 }
 
@@ -60,24 +74,43 @@ func (a *Asker) AskInt(question string, min int64, max int64, defaultAnswer stri
 	for {
 		answer, err := a.askQuestion(question, defaultAnswer)
 		if err != nil {
+			if a.verbose {
+				err = fmt.Errorf("Failed to read answer %q for question %q: %w", answer, question, err)
+			}
+
 			return -1, err
 		}
 
 		result, err := strconv.ParseInt(answer, 10, 64)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Invalid input: %v\n\n", err)
+			if a.verbose {
+				fmt.Fprintf(os.Stderr, "Invalid input %q for question %q: %v\n\n", answer, question, err)
+			} else {
+				fmt.Fprintf(os.Stderr, "Invalid input: %v\n\n", err)
+			}
+
 			continue
 		}
 
 		if !((min == -1 || result >= min) && (max == -1 || result <= max)) {
-			fmt.Fprintf(os.Stderr, "Invalid input: out of range\n\n")
+			if a.verbose {
+				fmt.Fprintf(os.Stderr, "Invalid input %q for question %q: out of range\n\n", answer, question)
+			} else {
+				fmt.Fprintf(os.Stderr, "Invalid input: out of range\n\n")
+			}
+
 			continue
 		}
 
 		if validate != nil {
 			err = validate(result)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Invalid input: %v\n\n", err)
+				if a.verbose {
+					fmt.Fprintf(os.Stderr, "Invalid input %q for question %q: %v\n\n", answer, question, err)
+				} else {
+					fmt.Fprintf(os.Stderr, "Invalid input: %v\n\n", err)
+				}
+
 				continue
 			}
 		}
@@ -92,13 +125,22 @@ func (a *Asker) AskString(question string, defaultAnswer string, validate func(s
 	for {
 		answer, err := a.askQuestion(question, defaultAnswer)
 		if err != nil {
+			if a.verbose {
+				err = fmt.Errorf("Failed to read answer %q for question %q: %w", answer, question, err)
+			}
+
 			return "", err
 		}
 
 		if validate != nil {
-			error := validate(answer)
-			if error != nil {
-				fmt.Fprintf(os.Stderr, "Invalid input: %s\n\n", error)
+			err = validate(answer)
+			if err != nil {
+				if a.verbose {
+					fmt.Fprintf(os.Stderr, "Invalid input %q for question %q: %v\n\n", answer, question, err)
+				} else {
+					fmt.Fprintf(os.Stderr, "Invalid input: %v\n\n", err)
+				}
+
 				continue
 			}
 
@@ -109,12 +151,12 @@ func (a *Asker) AskString(question string, defaultAnswer string, validate func(s
 			return answer, err
 		}
 
-		invalidInput()
+		a.invalidInput(question, answer)
 	}
 }
 
 // AskPassword asks the user to enter a password.
-func AskPassword(question string) string {
+func (a *Asker) AskPassword(question string) string {
 	for {
 		fmt.Print(question)
 
@@ -134,14 +176,14 @@ func AskPassword(question string) string {
 			return inFirst
 		}
 
-		invalidInput()
+		a.invalidInput(question, "*****")
 	}
 }
 
 // AskPasswordOnce asks the user to enter a password.
 //
 // It's the same as AskPassword, but it won't ask to enter it again.
-func AskPasswordOnce(question string) string {
+func (a *Asker) AskPasswordOnce(question string) string {
 	for {
 		fmt.Print(question)
 		pwd, _ := term.ReadPassword(0)
@@ -153,7 +195,7 @@ func AskPasswordOnce(question string) string {
 			return spwd
 		}
 
-		invalidInput()
+		a.invalidInput(question, "*****")
 	}
 }
 
@@ -176,6 +218,10 @@ func (a *Asker) readAnswer(defaultAnswer string) (string, error) {
 }
 
 // Print an invalid input message on the error stream.
-func invalidInput() {
-	fmt.Fprintf(os.Stderr, "Invalid input, try again.\n\n")
+func (a *Asker) invalidInput(question string, answer string) {
+	if a.verbose {
+		fmt.Fprintf(os.Stderr, "Invalid input %q for question %q. Try again.\n\n", answer, question)
+	} else {
+		fmt.Fprintf(os.Stderr, "Invalid input, try again.\n\n")
+	}
 }
