@@ -28,7 +28,7 @@ func main() {
 	app.Args = cobra.ArbitraryArgs
 
 	// Global flags
-	globalCmd := cmdGlobal{asker: cli.NewAsker(bufio.NewReader(os.Stdin))}
+	globalCmd := cmdGlobal{asker: cli.NewAsker(bufio.NewReader(os.Stdin), nil)}
 	migrateCmd.global = &globalCmd
 	app.PersistentFlags().BoolVar(&globalCmd.flagVersion, "version", false, "Print version number")
 	app.PersistentFlags().BoolVarP(&globalCmd.flagHelp, "help", "h", false, "Print help")
