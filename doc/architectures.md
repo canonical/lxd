@@ -35,7 +35,7 @@ If useful to the user, the exact userspace ABI may be set as an image and contai
 
 ## Virtual-machine support
 
-Incus only supports running virtual-machines on the following host architectures:
+LXD only supports running virtual-machines on the following host architectures:
 
 - `x86_64`
 - `aarch64`
