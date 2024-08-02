@@ -90,6 +90,8 @@ ifneq "$(LXD_OFFLINE)" ""
 	exit 1
 endif
 	go get -t -v -d -u ./...
+	go get github.com/gorilla/websocket@v1.5.1 # Due to riscv64 crashes in LP
+	go get github.com/openfga/openfga@v1.5.6 # Due to build failures
 	go mod tidy -go=$(GOMIN)
 
 	@echo "Dependencies updated"
