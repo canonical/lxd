@@ -33,6 +33,7 @@ type cmdGlobal struct {
 	flagLogVerbose bool
 }
 
+// Run is the main entry point for the LXD daemon command.
 func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 	// Configure dqlite to *not* disable internal SQLite locking, since we
 	// use SQLite both through dqlite and through go-dqlite, potentially
@@ -91,7 +92,7 @@ func main() {
 	app.Args = cobra.ArbitraryArgs
 
 	// Global flags
-	globalCmd := cmdGlobal{cmd: app, asker: cli.NewAsker(bufio.NewReader(os.Stdin))}
+	globalCmd := cmdGlobal{cmd: app, asker: cli.NewAsker(bufio.NewReader(os.Stdin), nil)}
 	daemonCmd.global = &globalCmd
 	app.PersistentPreRunE = globalCmd.Run
 	app.PersistentFlags().BoolVar(&globalCmd.flagVersion, "version", false, "Print version number")
