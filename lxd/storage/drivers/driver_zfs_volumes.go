@@ -216,11 +216,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		}
 
 		if vol.contentType == ContentTypeFS {
-			// Wait up to 30 seconds for the device to appear.
-			ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 30*time.Second)
-			defer cancel()
-
-			devPath, err := d.tryGetVolumeDiskPathFromDataset(ctx, d.dataset(vol, false))
+			devPath, err := d.GetVolumeDiskPath(vol)
 			if err != nil {
 				return err
 			}
@@ -2070,11 +2066,7 @@ func (d *zfs) activateVolume(vol Volume) (bool, error) {
 
 		revert.Add(func() { _ = d.setDatasetProperties(dataset, fmt.Sprintf("volmode=%s", current)) })
 
-		// Wait up to 30 seconds for the device to appear.
-		ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 30*time.Second)
-		defer cancel()
-
-		_, err := d.tryGetVolumeDiskPathFromDataset(ctx, dataset)
+		_, err := d.GetVolumeDiskPath(vol)
 		if err != nil {
 			return false, fmt.Errorf("Failed to activate volume: %v", err)
 		}
