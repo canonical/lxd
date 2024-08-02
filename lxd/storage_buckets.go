@@ -34,25 +34,59 @@ var storagePoolBucketsCmd = APIEndpoint{
 var storagePoolBucketCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/buckets/{bucketName}",
 
-	Delete: APIEndpointAction{Handler: storagePoolBucketDelete, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanDelete, "poolName", "bucketName")},
-	Get:    APIEndpointAction{Handler: storagePoolBucketGet, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanView, "poolName", "bucketName")},
-	Patch:  APIEndpointAction{Handler: storagePoolBucketPut, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanEdit, "poolName", "bucketName")},
-	Put:    APIEndpointAction{Handler: storagePoolBucketPut, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanEdit, "poolName", "bucketName")},
+	Delete: APIEndpointAction{Handler: storagePoolBucketDelete, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanDelete)},
+	Get:    APIEndpointAction{Handler: storagePoolBucketGet, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanView)},
+	Patch:  APIEndpointAction{Handler: storagePoolBucketPut, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanEdit)},
+	Put:    APIEndpointAction{Handler: storagePoolBucketPut, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var storagePoolBucketKeysCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/buckets/{bucketName}/keys",
 
-	Get:  APIEndpointAction{Handler: storagePoolBucketKeysGet, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanView, "poolName", "bucketName")},
-	Post: APIEndpointAction{Handler: storagePoolBucketKeysPost, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanEdit, "poolName", "bucketName")},
+	Get:  APIEndpointAction{Handler: storagePoolBucketKeysGet, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanView)},
+	Post: APIEndpointAction{Handler: storagePoolBucketKeysPost, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var storagePoolBucketKeyCmd = APIEndpoint{
 	Path: "storage-pools/{poolName}/buckets/{bucketName}/keys/{keyName}",
 
-	Delete: APIEndpointAction{Handler: storagePoolBucketKeyDelete, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanEdit, "poolName", "bucketName")},
-	Get:    APIEndpointAction{Handler: storagePoolBucketKeyGet, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanView, "poolName", "bucketName")},
-	Put:    APIEndpointAction{Handler: storagePoolBucketKeyPut, AccessHandler: allowPermission(entity.TypeStorageBucket, auth.EntitlementCanEdit, "poolName", "bucketName")},
+	Delete: APIEndpointAction{Handler: storagePoolBucketKeyDelete, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanEdit)},
+	Get:    APIEndpointAction{Handler: storagePoolBucketKeyGet, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanView)},
+	Put:    APIEndpointAction{Handler: storagePoolBucketKeyPut, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanEdit)},
+}
+
+// storageBucketAccessHandler returns an access handler that checks for the given entitlement against a storage bucket.
+// The storage pool containing the bucket and the effective project of the bucket are added to the request context for
+// later use.
+func storageBucketAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
+	return func(d *Daemon, r *http.Request) response.Response {
+		s := d.State()
+
+		err := addStorageBucketDetailsToContext(d, r)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		details, err := request.GetCtxValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
+		if err != nil {
+			return nil
+		}
+
+		// If the storage pool is a remote driver, the auth subsystem does not require a target parameter to create a
+		// unique URL for the storage bucket. So even if the caller supplied a target parameter, we don't use it in the
+		// access check if the pool is remote.
+		target := ""
+		if !details.pool.Driver().Info().Remote {
+			target = request.QueryParam(r, "target")
+		}
+
+		err = s.Authorizer.CheckPermission(r.Context(), entity.StorageBucketURL(request.ProjectParam(r), target, details.pool.Name(), details.bucketName), entitlement)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
+	}
 }
 
 // API endpoints
@@ -204,7 +238,7 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 	var filteredDBBuckets []*db.StorageBucket
 
 	for _, bucket := range dbBuckets {
-		if !userHasPermission(entity.StorageBucketURL(requestProjectName, "", poolName, bucket.Name)) {
+		if !userHasPermission(entity.StorageBucketURL(requestProjectName, bucket.Location, poolName, bucket.Name)) {
 			continue
 		}
 
@@ -289,28 +323,18 @@ func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+	details, err := request.GetCtxValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	pool, err := storagePools.LoadByName(s, poolName)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
-	}
-
-	if !pool.Driver().Info().Buckets {
+	if !details.pool.Driver().Info().Buckets {
 		return response.BadRequest(fmt.Errorf("Storage pool does not support buckets"))
-	}
-
-	bucketName, err := url.PathUnescape(mux.Vars(r)["bucketName"])
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	targetMember := request.QueryParam(r, "target")
@@ -318,14 +342,14 @@ func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 
 	var bucket *db.StorageBucket
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		bucket, err = tx.GetStoragePoolBucket(ctx, pool.ID(), bucketProjectName, memberSpecific, bucketName)
+		bucket, err = tx.GetStoragePoolBucket(ctx, details.pool.ID(), effectiveProjectName, memberSpecific, details.bucketName)
 		return err
 	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	u := pool.GetBucketURL(bucket.Name)
+	u := details.pool.GetBucketURL(bucket.Name)
 	if u != nil {
 		bucket.S3URL = u.String()
 	}
@@ -514,22 +538,12 @@ func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	pool, err := storagePools.LoadByName(s, poolName)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
-	}
-
-	bucketName, err := url.PathUnescape(mux.Vars(r)["bucketName"])
+	details, err := request.GetCtxValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -547,7 +561,7 @@ func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 
 		var bucket *db.StorageBucket
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			bucket, err = tx.GetStoragePoolBucket(ctx, pool.ID(), bucketProjectName, memberSpecific, bucketName)
+			bucket, err = tx.GetStoragePoolBucket(ctx, details.pool.ID(), effectiveProjectName, memberSpecific, details.bucketName)
 			return err
 		})
 		if err != nil {
@@ -564,12 +578,12 @@ func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	err = pool.UpdateBucket(bucketProjectName, bucketName, req, nil)
+	err = details.pool.UpdateBucket(effectiveProjectName, details.bucketName, req, nil)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed updating storage bucket: %w", err))
 	}
 
-	s.Events.SendLifecycle(bucketProjectName, lifecycle.StorageBucketUpdated.Event(pool, bucketProjectName, bucketName, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageBucketUpdated.Event(details.pool, effectiveProjectName, details.bucketName, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
@@ -611,32 +625,22 @@ func storagePoolBucketDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+	details, err := request.GetCtxValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	pool, err := storagePools.LoadByName(s, poolName)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
-	}
-
-	bucketName, err := url.PathUnescape(mux.Vars(r)["bucketName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = pool.DeleteBucket(bucketProjectName, bucketName, nil)
+	err = details.pool.DeleteBucket(effectiveProjectName, details.bucketName, nil)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed deleting storage bucket: %w", err))
 	}
 
-	s.Events.SendLifecycle(bucketProjectName, lifecycle.StorageBucketDeleted.Event(pool, bucketProjectName, bucketName, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageBucketDeleted.Event(details.pool, effectiveProjectName, details.bucketName, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
@@ -743,29 +747,19 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+	details, err := request.GetCtxValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	pool, err := storagePools.LoadByName(s, poolName)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
-	}
-
-	driverInfo := pool.Driver().Info()
+	driverInfo := details.pool.Driver().Info()
 	if !driverInfo.Buckets {
 		return response.BadRequest(fmt.Errorf("Storage pool driver %q does not support buckets", driverInfo.Name))
-	}
-
-	bucketName, err := url.PathUnescape(mux.Vars(r)["bucketName"])
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	// If target is set, get buckets only for this cluster members.
@@ -775,7 +769,7 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 	var dbBucket *db.StorageBucket
 	var dbBucketKeys []*db.StorageBucketKey
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbBucket, err = tx.GetStoragePoolBucket(ctx, pool.ID(), bucketProjectName, memberSpecific, bucketName)
+		dbBucket, err = tx.GetStoragePoolBucket(ctx, details.pool.ID(), effectiveProjectName, memberSpecific, details.bucketName)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage bucket: %w", err)
 		}
@@ -802,7 +796,7 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 
 	bucketKeyURLs := make([]string, 0, len(dbBucketKeys))
 	for _, dbBucketKey := range dbBucketKeys {
-		bucketKeyURLs = append(bucketKeyURLs, dbBucketKey.URL(version.APIVersion, poolName, bucketProjectName, bucketName).String())
+		bucketKeyURLs = append(bucketKeyURLs, dbBucketKey.URL(version.APIVersion, details.pool.Name(), effectiveProjectName, details.bucketName).String())
 	}
 
 	return response.SyncResponse(true, bucketKeyURLs)
@@ -848,17 +842,12 @@ func storagePoolBucketKeysPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	bucketName, err := url.PathUnescape(mux.Vars(r)["bucketName"])
+	details, err := request.GetCtxValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -870,18 +859,13 @@ func storagePoolBucketKeysPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	pool, err := storagePools.LoadByName(s, poolName)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
-	}
-
-	key, err := pool.CreateBucketKey(bucketProjectName, bucketName, req, nil)
+	key, err := details.pool.CreateBucketKey(effectiveProjectName, details.bucketName, req, nil)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed creating storage bucket key: %w", err))
 	}
 
-	lc := lifecycle.StorageBucketKeyCreated.Event(pool, bucketProjectName, pool.Name(), req.Name, request.CreateRequestor(r), nil)
-	s.Events.SendLifecycle(bucketProjectName, lc)
+	lc := lifecycle.StorageBucketKeyCreated.Event(details.pool, effectiveProjectName, details.pool.Name(), req.Name, request.CreateRequestor(r), nil)
+	s.Events.SendLifecycle(effectiveProjectName, lc)
 
 	return response.SyncResponseLocation(true, key, lc.Source)
 }
@@ -923,22 +907,12 @@ func storagePoolBucketKeyDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	pool, err := storagePools.LoadByName(s, poolName)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
-	}
-
-	bucketName, err := url.PathUnescape(mux.Vars(r)["bucketName"])
+	details, err := request.GetCtxValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -948,12 +922,12 @@ func storagePoolBucketKeyDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = pool.DeleteBucketKey(bucketProjectName, bucketName, keyName, nil)
+	err = details.pool.DeleteBucketKey(effectiveProjectName, details.bucketName, keyName, nil)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed deleting storage bucket key: %w", err))
 	}
 
-	s.Events.SendLifecycle(bucketProjectName, lifecycle.StorageBucketKeyDeleted.Event(pool, bucketProjectName, pool.Name(), bucketName, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageBucketKeyDeleted.Event(details.pool, effectiveProjectName, details.pool.Name(), details.bucketName, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
@@ -1006,28 +980,18 @@ func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+	details, err := request.GetCtxValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	pool, err := storagePools.LoadByName(s, poolName)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
-	}
-
-	if !pool.Driver().Info().Buckets {
+	if !details.pool.Driver().Info().Buckets {
 		return response.BadRequest(fmt.Errorf("Storage pool does not support buckets"))
-	}
-
-	bucketName, err := url.PathUnescape(mux.Vars(r)["bucketName"])
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	keyName, err := url.PathUnescape(mux.Vars(r)["keyName"])
@@ -1040,7 +1004,7 @@ func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 
 	var bucketKey *db.StorageBucketKey
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		bucket, err := tx.GetStoragePoolBucket(ctx, pool.ID(), bucketProjectName, memberSpecific, bucketName)
+		bucket, err := tx.GetStoragePoolBucket(ctx, details.pool.ID(), effectiveProjectName, memberSpecific, details.bucketName)
 		if err != nil {
 			return err
 		}
@@ -1106,22 +1070,12 @@ func storagePoolBucketKeyPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	pool, err := storagePools.LoadByName(s, poolName)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
-	}
-
-	bucketName, err := url.PathUnescape(mux.Vars(r)["bucketName"])
+	details, err := request.GetCtxValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1138,12 +1092,66 @@ func storagePoolBucketKeyPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	err = pool.UpdateBucketKey(bucketProjectName, bucketName, keyName, req, nil)
+	err = details.pool.UpdateBucketKey(effectiveProjectName, details.bucketName, keyName, req, nil)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed updating storage bucket key: %w", err))
 	}
 
-	s.Events.SendLifecycle(bucketProjectName, lifecycle.StorageBucketKeyUpdated.Event(pool, bucketProjectName, pool.Name(), bucketName, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageBucketKeyUpdated.Event(details.pool, effectiveProjectName, details.pool.Name(), details.bucketName, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
+}
+
+// ctxStorageBucketDetails is the request.CtxKey corresponding to storageBucketDetails, which is added to the request
+// context in addStorageBucketDetailsToContext.
+const ctxStorageBucketDetails request.CtxKey = "storage-bucket-details"
+
+// storageBucketDetails contains details common to all storage volume requests. A value of this type is added to the
+// request context when addStorageBucketDetailsToContext is called. We do this to avoid repeated logic when
+// parsing the request details and/or making database calls to get the storage pool or effective project. These fields
+// are required for the storage bucket access check, and are subsequently available in the storage bucket handlers.
+type storageBucketDetails struct {
+	bucketName string
+	pool       storagePools.Pool
+}
+
+// addStorageBucketDetailsToContext extracts storageBucketDetails from the http.Request and adds it to the
+// request context with the ctxStorageBucketDetails request.CtxKey. Additionally, the effective project of the storage
+// bucket is added to the request context under request.CtxEffectiveProjectName.
+func addStorageBucketDetailsToContext(d *Daemon, r *http.Request) error {
+	var details storageBucketDetails
+	defer func() {
+		request.SetCtxValue(r, ctxStorageBucketDetails, details)
+	}()
+
+	s := d.State()
+
+	projectName := request.ProjectParam(r)
+
+	effectiveProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, projectName)
+	if err != nil {
+		return err
+	}
+
+	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
+
+	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
+	if err != nil {
+		return err
+	}
+
+	pool, err := storagePools.LoadByName(s, poolName)
+	if err != nil {
+		return fmt.Errorf("Failed loading storage pool: %w", err)
+	}
+
+	details.pool = pool
+
+	bucketName, err := url.PathUnescape(mux.Vars(r)["bucketName"])
+	if err != nil {
+		return err
+	}
+
+	details.bucketName = bucketName
+	return nil
 }

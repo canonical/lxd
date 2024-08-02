@@ -50,8 +50,8 @@ Note that this target address must be within the same subnet as the network that
 
 Network forwards have the following properties:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group network-forward-forward-properties start -->
     :end-before: <!-- config group network-forward-forward-properties end -->
 ```
@@ -94,8 +94,8 @@ If you want to forward the traffic to different ports, you have two options:
 
 Network forward ports have the following properties:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group network-forward-port-properties start -->
     :end-before: <!-- config group network-forward-port-properties end -->
 ```

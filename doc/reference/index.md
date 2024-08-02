@@ -55,6 +55,17 @@ Production server settings </reference/server_settings>
 /reference/provided_metrics
 ```
 
+## Fine-grained permissions
+
+If you are managing user access via {ref}`fine-grained-authorization`, check which {ref}`permissions <permissions>` can be assigned to groups.
+
+```{toctree}
+:titlesonly:
+:maxdepth: 1
+
+/reference/permissions
+```
+
 (reference-api)=
 ## REST API
 

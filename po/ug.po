@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-07-08 08:58+0100\n"
+"POT-Creation-Date: 2024-08-02 10:36+0100\n"
 "PO-Revision-Date: 2022-03-10 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Uyghur <https://hosted.weblate.org/projects/linux-containers/"
@@ -769,7 +769,7 @@ msgstr ""
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
-#: lxc/init.go:324 lxc/rebuild.go:130
+#: lxc/init.go:333 lxc/rebuild.go:130
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
@@ -874,7 +874,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:139 lxc/init.go:224 lxc/move.go:380 lxc/project.go:129
+#: lxc/copy.go:139 lxc/init.go:232 lxc/move.go:380 lxc/project.go:129
 #, c-format
 msgid "Bad key=value pair: %q"
 msgstr ""
@@ -1495,12 +1495,12 @@ msgstr ""
 msgid "Created: %s"
 msgstr ""
 
-#: lxc/init.go:170
+#: lxc/init.go:177
 #, c-format
 msgid "Creating %s"
 msgstr ""
 
-#: lxc/init.go:168
+#: lxc/init.go:175
 msgid "Creating the instance"
 msgstr ""
 
@@ -1822,7 +1822,7 @@ msgstr ""
 msgid "Device: %s"
 msgstr ""
 
-#: lxc/init.go:384
+#: lxc/init.go:393
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr ""
 
@@ -2867,7 +2867,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr ""
 
-#: lxc/init.go:395
+#: lxc/init.go:404
 #, c-format
 msgid "Instance name is: %s"
 msgstr ""
@@ -3052,6 +3052,15 @@ msgstr ""
 
 #: lxc/image.go:982
 msgid "Last used: never"
+msgstr ""
+
+#: lxc/init.go:171
+#, c-format
+msgid "Launching %s"
+msgstr ""
+
+#: lxc/init.go:169
+msgid "Launching the instance"
 msgstr ""
 
 #: lxc/info.go:220
@@ -4933,7 +4942,7 @@ msgstr ""
 msgid "Retrieve the instance's console log"
 msgstr ""
 
-#: lxc/init.go:338
+#: lxc/init.go:347
 #, c-format
 msgid "Retrieving image: %s"
 msgstr ""
@@ -5568,7 +5577,7 @@ msgstr ""
 msgid "Start instances"
 msgstr ""
 
-#: lxc/launch.go:82
+#: lxc/launch.go:87
 #, c-format
 msgid "Starting %s"
 msgstr ""
@@ -5773,7 +5782,7 @@ msgid ""
 "restarted"
 msgstr ""
 
-#: lxc/init.go:416
+#: lxc/init.go:425
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
 
@@ -5934,11 +5943,11 @@ msgstr ""
 msgid "Timestamps:"
 msgstr ""
 
-#: lxc/init.go:418
+#: lxc/init.go:427
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr ""
 
-#: lxc/init.go:417
+#: lxc/init.go:426
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
@@ -6006,7 +6015,7 @@ msgstr ""
 msgid "Transmit policy"
 msgstr ""
 
-#: lxc/action.go:287 lxc/launch.go:114
+#: lxc/action.go:287 lxc/launch.go:119
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""

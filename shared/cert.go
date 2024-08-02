@@ -29,6 +29,15 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+// CertOptions holds configuration for creating a new CertInfo.
+type CertOptions struct {
+	// AddHosts determines whether to populate the Subject Alternative Name DNS Names and IP Addresses fields.
+	AddHosts bool
+
+	// SubjectName will be used in place of the system hostname for the SAN DNS Name and Issuer Common Name.
+	SubjectName string
+}
+
 // KeyPairAndCA returns a CertInfo object with a reference to the key pair and
 // (optionally) CA certificate located in the given directory and having the
 // given name prefix
@@ -45,13 +54,13 @@ import (
 //
 // If a CA certificate is found, it will be returned as well as second return
 // value (otherwise it will be nil).
-func KeyPairAndCA(dir, prefix string, kind CertKind, addHosts bool) (*CertInfo, error) {
+func KeyPairAndCA(dir, prefix string, kind CertKind, options CertOptions) (*CertInfo, error) {
 	certFilename := filepath.Join(dir, prefix+".crt")
 	keyFilename := filepath.Join(dir, prefix+".key")
 
 	// Ensure that the certificate exists, or create a new one if it does
 	// not.
-	err := FindOrGenCert(certFilename, keyFilename, kind == CertClient, addHosts)
+	err := FindOrGenCert(certFilename, keyFilename, kind == CertClient, options)
 	if err != nil {
 		return nil, err
 	}
@@ -239,27 +248,32 @@ func TestingAltKeyPair() *CertInfo {
 /*
  * Generate a list of names for which the certificate will be valid.
  * This will include the hostname and ip address.
+ * If the `name` argument is non-empty,  it will be used in place of the system hostname.
  */
-func mynames() ([]string, error) {
-	h, err := os.Hostname()
-	if err != nil {
-		return nil, err
+func mynames(name string) ([]string, error) {
+	if name == "" {
+		h, err := os.Hostname()
+		if err != nil {
+			return nil, err
+		}
+
+		name = h
 	}
 
-	ret := []string{h, "127.0.0.1/8", "::1/128"}
+	ret := []string{name, "127.0.0.1/8", "::1/128"}
 	return ret, nil
 }
 
 // FindOrGenCert generates a keypair if needed.
 // The type argument is false for server, true for client.
-func FindOrGenCert(certf string, keyf string, certtype bool, addHosts bool) error {
+func FindOrGenCert(certf string, keyf string, certtype bool, options CertOptions) error {
 	if PathExists(certf) && PathExists(keyf) {
 		return nil
 	}
 
 	/* If neither stat succeeded, then this is our first run and we
 	 * need to generate cert and privkey */
-	err := GenCert(certf, keyf, certtype, addHosts)
+	err := GenCert(certf, keyf, certtype, options)
 	if err != nil {
 		return err
 	}
@@ -268,7 +282,7 @@ func FindOrGenCert(certf string, keyf string, certtype bool, addHosts bool) erro
 }
 
 // GenCert will create and populate a certificate file and a key file.
-func GenCert(certf string, keyf string, certtype bool, addHosts bool) error {
+func GenCert(certf string, keyf string, certtype bool, options CertOptions) error {
 	/* Create the basenames if needed */
 	dir := filepath.Dir(certf)
 	err := os.MkdirAll(dir, 0750)
@@ -282,7 +296,7 @@ func GenCert(certf string, keyf string, certtype bool, addHosts bool) error {
 		return err
 	}
 
-	certBytes, keyBytes, err := GenerateMemCert(certtype, addHosts)
+	certBytes, keyBytes, err := GenerateMemCert(certtype, options)
 	if err != nil {
 		return err
 	}
@@ -322,7 +336,7 @@ func GenCert(certf string, keyf string, certtype bool, addHosts bool) error {
 
 // GenerateMemCert creates client or server certificate and key pair,
 // returning them as byte arrays in memory.
-func GenerateMemCert(client bool, addHosts bool) ([]byte, []byte, error) {
+func GenerateMemCert(client bool, options CertOptions) ([]byte, []byte, error) {
 	privk, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to generate key: %w", err)
@@ -348,9 +362,12 @@ func GenerateMemCert(client bool, addHosts bool) ([]byte, []byte, error) {
 		username = "UNKNOWN"
 	}
 
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = "UNKNOWN"
+	hostname := options.SubjectName
+	if hostname == "" {
+		hostname, err = os.Hostname()
+		if err != nil {
+			hostname = "UNKNOWN"
+		}
 	}
 
 	template := x509.Certificate{
@@ -372,8 +389,8 @@ func GenerateMemCert(client bool, addHosts bool) ([]byte, []byte, error) {
 		template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 	}
 
-	if addHosts {
-		hosts, err := mynames()
+	if options.AddHosts {
+		hosts, err := mynames(hostname)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Failed to get my hostname: %w", err)
 		}

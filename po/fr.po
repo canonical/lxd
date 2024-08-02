@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-07-08 08:58+0100\n"
+"POT-Creation-Date: 2024-08-02 10:36+0100\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -1050,7 +1050,7 @@ msgstr ""
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
-#: lxc/init.go:324 lxc/rebuild.go:130
+#: lxc/init.go:333 lxc/rebuild.go:130
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
@@ -1162,7 +1162,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:139 lxc/init.go:224 lxc/move.go:380 lxc/project.go:129
+#: lxc/copy.go:139 lxc/init.go:232 lxc/move.go:380 lxc/project.go:129
 #, fuzzy, c-format
 msgid "Bad key=value pair: %q"
 msgstr "Clé de configuration invalide"
@@ -1843,12 +1843,12 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Created: %s"
 msgstr "Créé : %s"
 
-#: lxc/init.go:170
+#: lxc/init.go:177
 #, c-format
 msgid "Creating %s"
 msgstr "Création de %s"
 
-#: lxc/init.go:168
+#: lxc/init.go:175
 #, fuzzy
 msgid "Creating the instance"
 msgstr "Création du conteneur"
@@ -2190,7 +2190,7 @@ msgstr ""
 msgid "Device: %s"
 msgstr "Serveur distant : %s"
 
-#: lxc/init.go:384
+#: lxc/init.go:393
 #, fuzzy
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr "pas d'image, conteneur ou instantané affecté sur ce serveur"
@@ -3330,7 +3330,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr "Le nom du conteneur est obligatoire"
 
-#: lxc/init.go:395
+#: lxc/init.go:404
 #, fuzzy, c-format
 msgid "Instance name is: %s"
 msgstr "Le nom du conteneur est : %s"
@@ -3521,6 +3521,16 @@ msgstr "Dernière utilisation : %s"
 #: lxc/image.go:982
 msgid "Last used: never"
 msgstr "Dernière utilisation : jamais"
+
+#: lxc/init.go:171
+#, fuzzy, c-format
+msgid "Launching %s"
+msgstr "Création de %s"
+
+#: lxc/init.go:169
+#, fuzzy
+msgid "Launching the instance"
+msgstr "Création du conteneur"
 
 #: lxc/info.go:220
 #, fuzzy, c-format
@@ -5630,7 +5640,7 @@ msgstr ""
 msgid "Retrieve the instance's console log"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
-#: lxc/init.go:338
+#: lxc/init.go:347
 #, c-format
 msgid "Retrieving image: %s"
 msgstr "Récupération de l'image : %s"
@@ -6328,7 +6338,7 @@ msgstr "Source :"
 msgid "Start instances"
 msgstr "Création du conteneur"
 
-#: lxc/launch.go:82
+#: lxc/launch.go:87
 #, c-format
 msgid "Starting %s"
 msgstr "Démarrage de %s"
@@ -6550,7 +6560,7 @@ msgstr ""
 "Le conteneur est en cours d'exécution. Utiliser --force pour qu'il soit "
 "arrêté et redémarré."
 
-#: lxc/init.go:416
+#: lxc/init.go:425
 #, fuzzy
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
@@ -6717,12 +6727,12 @@ msgstr "Temps d'attente du conteneur avant de le tuer"
 msgid "Timestamps:"
 msgstr "Horodatage :"
 
-#: lxc/init.go:418
+#: lxc/init.go:427
 #, fuzzy
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr "Pour attacher un réseau à un conteneur, utiliser : lxc network attach"
 
-#: lxc/init.go:417
+#: lxc/init.go:426
 msgid "To create a new network, use: lxc network create"
 msgstr "Pour créer un réseau, utiliser : lxc network create"
 
@@ -6792,7 +6802,7 @@ msgstr "Transfert de l'image : %s"
 msgid "Transmit policy"
 msgstr ""
 
-#: lxc/action.go:287 lxc/launch.go:114
+#: lxc/action.go:287 lxc/launch.go:119
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "Essayer `lxc info --show-log %s` pour plus d'informations"

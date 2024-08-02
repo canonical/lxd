@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-07-08 08:58+0100\n"
+"POT-Creation-Date: 2024-08-02 10:36+0100\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -1027,7 +1027,7 @@ msgstr ""
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr "どちらもみつかりませんでした。raw SPICE ソケットはこちらにあります:"
 
-#: lxc/init.go:324 lxc/rebuild.go:130
+#: lxc/init.go:333 lxc/rebuild.go:130
 msgid "Asked for a VM but image is of type container"
 msgstr "VMを要求しましたが、イメージタイプがコンテナです"
 
@@ -1138,7 +1138,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr "不適切なキー/値のペア: %s"
 
-#: lxc/copy.go:139 lxc/init.go:224 lxc/move.go:380 lxc/project.go:129
+#: lxc/copy.go:139 lxc/init.go:232 lxc/move.go:380 lxc/project.go:129
 #, fuzzy, c-format
 msgid "Bad key=value pair: %q"
 msgstr "不適切な キー=値 のペア: %s"
@@ -1789,12 +1789,12 @@ msgstr "プロファイルを適用しないインスタンスを作成します
 msgid "Created: %s"
 msgstr "作成日時: %s"
 
-#: lxc/init.go:170
+#: lxc/init.go:177
 #, c-format
 msgid "Creating %s"
 msgstr "%s を作成中"
 
-#: lxc/init.go:168
+#: lxc/init.go:175
 msgid "Creating the instance"
 msgstr "インスタンスを作成中"
 
@@ -2122,7 +2122,7 @@ msgstr "プロファイルのデバイスは個々のインスタンスでは取
 msgid "Device: %s"
 msgstr "デバイス: %s"
 
-#: lxc/init.go:384
+#: lxc/init.go:393
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr ""
 "サーバから変更されたイメージ、インスタンス、スナップショットを取得できません"
@@ -3240,7 +3240,7 @@ msgstr "クライアント %q に対するインスタンスが切断されま�
 msgid "Instance name is mandatory"
 msgstr "インスタンス名を指定する必要があります"
 
-#: lxc/init.go:395
+#: lxc/init.go:404
 #, c-format
 msgid "Instance name is: %s"
 msgstr "インスタンス名: %s"
@@ -3437,6 +3437,16 @@ msgstr "最終使用: %s"
 #: lxc/image.go:982
 msgid "Last used: never"
 msgstr "最終使用: 未使用"
+
+#: lxc/init.go:171
+#, fuzzy, c-format
+msgid "Launching %s"
+msgstr "%s を作成中"
+
+#: lxc/init.go:169
+#, fuzzy
+msgid "Launching the instance"
+msgstr "インスタンスを作成中"
 
 #: lxc/info.go:220
 #, c-format
@@ -5528,7 +5538,7 @@ msgstr "証明書の使用を1つ以上のプロジェクトに制限します"
 msgid "Retrieve the instance's console log"
 msgstr "インスタンスのコンソールログを取得します"
 
-#: lxc/init.go:338
+#: lxc/init.go:347
 #, c-format
 msgid "Retrieving image: %s"
 msgstr "イメージの取得中: %s"
@@ -6235,7 +6245,7 @@ msgstr "取得元:"
 msgid "Start instances"
 msgstr "インスタンスを起動します"
 
-#: lxc/launch.go:82
+#: lxc/launch.go:87
 #, c-format
 msgid "Starting %s"
 msgstr "%s を起動中"
@@ -6443,7 +6453,7 @@ msgstr ""
 "インスタンスは現在実行中です。停止して、再起動するために --force を使用してく"
 "ださい"
 
-#: lxc/init.go:416
+#: lxc/init.go:425
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr "起動しようとしたインスタンスに接続されているネットワークがありません。"
 
@@ -6619,13 +6629,13 @@ msgstr "インスタンスがクリーンにシャットダウンするまで待
 msgid "Timestamps:"
 msgstr "タイムスタンプ:"
 
-#: lxc/init.go:418
+#: lxc/init.go:427
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr ""
 "インスタンスにネットワークを接続するには、lxc network attach を使用してくださ"
 "い"
 
-#: lxc/init.go:417
+#: lxc/init.go:426
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 "新しいネットワークを作成するには、lxc network create を使用してください"
@@ -6700,7 +6710,7 @@ msgstr "インスタンスを転送中: %s"
 msgid "Transmit policy"
 msgstr "通信ポリシー"
 
-#: lxc/action.go:287 lxc/launch.go:114
+#: lxc/action.go:287 lxc/launch.go:119
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "更に情報を得るために `lxc info --show-log %s` を実行してみてください"

@@ -49,6 +49,12 @@ type InstancesPost struct {
 	// Type (container or virtual-machine)
 	// Example: container
 	Type InstanceType `json:"type" yaml:"type"`
+
+	// Whether to start the instance after creation
+	// Example: true
+	//
+	// API extension: instance_create_start
+	Start bool `json:"start" yaml:"start"`
 }
 
 // InstancesPut represents the fields available for a mass update.
@@ -418,6 +424,19 @@ type InstanceSource struct {
 	//
 	// API extension: instance_allow_inconsistent_copy
 	AllowInconsistent bool `json:"allow_inconsistent" yaml:"allow_inconsistent"`
+
+	// Source disk size in bytes used to set the instance's volume size to accommodate the transferred root
+	// disk. This value is ignored if the root disk device has a size explicitly configured (for conversion).
+	// Example: 12345
+	//
+	// API extension: instance_import_conversion
+	SourceDiskSize int64 `json:"sourceDiskSize" yaml:"sourceDiskSize"`
+
+	// Optional list of options that are used during image conversion (for conversion).
+	// Example: ["format"]
+	//
+	// API extension: instance_import_conversion
+	ConversionOptions []string `json:"conversion_options" yaml:"conversion_options"`
 }
 
 // InstanceUEFIVars represents the UEFI variables of a LXD virtual machine.

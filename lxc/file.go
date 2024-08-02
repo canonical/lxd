@@ -1188,7 +1188,7 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 	}
 
 	// Generate random host key.
-	_, privKey, err := shared.GenerateMemCert(false, false)
+	_, privKey, err := shared.GenerateMemCert(false, shared.CertOptions{})
 	if err != nil {
 		return fmt.Errorf(i18n.G("Failed generating SSH host key: %w"), err)
 	}

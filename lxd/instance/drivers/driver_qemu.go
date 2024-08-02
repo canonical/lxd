@@ -514,13 +514,13 @@ func (d *qemu) generateAgentCert() (agentCert string, agentKey string, clientCer
 	clientKeyFile := filepath.Join(d.Path(), "agent-client.key")
 
 	// Create server certificate.
-	err = shared.FindOrGenCert(agentCertFile, agentKeyFile, false, false)
+	err = shared.FindOrGenCert(agentCertFile, agentKeyFile, false, shared.CertOptions{})
 	if err != nil {
 		return "", "", "", "", err
 	}
 
 	// Create client certificate.
-	err = shared.FindOrGenCert(clientCertFile, clientKeyFile, true, false)
+	err = shared.FindOrGenCert(clientCertFile, clientKeyFile, true, shared.CertOptions{})
 	if err != nil {
 		return "", "", "", "", err
 	}
@@ -2033,29 +2033,34 @@ func (d *qemu) setupNvram() error {
 }
 
 func (d *qemu) qemuArchConfig(arch int) (path string, bus string, err error) {
+	basePath := ""
+	if shared.InSnap() && os.Getenv("SNAP_QEMU_PREFIX") != "" {
+		basePath = filepath.Join(os.Getenv("SNAP"), os.Getenv("SNAP_QEMU_PREFIX")) + "/bin/"
+	}
+
 	if arch == osarch.ARCH_64BIT_INTEL_X86 {
-		path, err := exec.LookPath("qemu-system-x86_64")
+		path, err := exec.LookPath(basePath + "qemu-system-x86_64")
 		if err != nil {
 			return "", "", err
 		}
 
 		return path, "pcie", nil
 	} else if arch == osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN {
-		path, err := exec.LookPath("qemu-system-aarch64")
+		path, err := exec.LookPath(basePath + "qemu-system-aarch64")
 		if err != nil {
 			return "", "", err
 		}
 
 		return path, "pcie", nil
 	} else if arch == osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN {
-		path, err := exec.LookPath("qemu-system-ppc64")
+		path, err := exec.LookPath(basePath + "qemu-system-ppc64")
 		if err != nil {
 			return "", "", err
 		}
 
 		return path, "pci", nil
 	} else if arch == osarch.ARCH_64BIT_S390_BIG_ENDIAN {
-		path, err := exec.LookPath("qemu-system-s390x")
+		path, err := exec.LookPath(basePath + "qemu-system-s390x")
 		if err != nil {
 			return "", "", err
 		}
@@ -6852,6 +6857,51 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 		return err
 	}
 
+	// Derive the effective storage project name from the instance config's project.
+	storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.project.Name, dbCluster.StoragePoolVolumeTypeCustom)
+	if err != nil {
+		return err
+	}
+
+	// Notify the shared disks that they're going to be accessed from another system.
+	diskPools := make(map[string]storagePools.Pool, len(d.expandedDevices))
+	for _, dev := range d.expandedDevices.Sorted() {
+		if dev.Config["type"] != "disk" || dev.Config["path"] == "/" {
+			continue
+		}
+
+		poolName := dev.Config["pool"]
+		if poolName == "" {
+			continue
+		}
+
+		diskPool, ok := diskPools[poolName]
+		if !ok {
+			// Load the pool for the disk.
+			diskPool, err = storagePools.LoadByName(d.state, poolName)
+			if err != nil {
+				return fmt.Errorf("Failed loading storage pool: %w", err)
+			}
+
+			// Save it to the pools map to avoid loading it from the DB multiple times.
+			diskPools[poolName] = diskPool
+		}
+
+		// Setup the volume entry.
+		extraSourceArgs := &migration.VolumeSourceArgs{
+			ClusterMove: true,
+		}
+
+		vol := diskPool.GetVolume(storageDrivers.VolumeTypeCustom, storageDrivers.ContentTypeBlock, project.StorageVolume(storageProjectName, dev.Config["source"]), nil)
+		volCopy := storageDrivers.NewVolumeCopy(vol)
+
+		// Call MigrateVolume on the source.
+		err = diskPool.Driver().MigrateVolume(volCopy, nil, extraSourceArgs, nil)
+		if err != nil {
+			return fmt.Errorf("Failed to prepare device %q for migration: %w", dev.Name, err)
+		}
+	}
+
 	// Non-shared storage snapshot transfer.
 	if !sharedStorage {
 		listener, err := net.Listen("unix", "")
@@ -7280,15 +7330,9 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// At this point we have already figured out the parent instances's root
 		// disk device so we can simply retrieve it from the expanded devices.
-		parentStoragePool := ""
-		parentExpandedDevices := d.ExpandedDevices()
-		parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := instancetype.GetRootDiskDevice(parentExpandedDevices.CloneNative())
-		if parentLocalRootDiskDeviceKey != "" {
-			parentStoragePool = parentLocalRootDiskDevice["pool"]
-		}
-
-		if parentStoragePool == "" {
-			return fmt.Errorf("Instance's root device is missing the pool property")
+		parentStoragePool, err := d.getParentStoragePool()
+		if err != nil {
+			return err
 		}
 
 		// A zero length Snapshots slice indicates volume only migration in
@@ -7337,6 +7381,51 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		err = pool.CreateInstanceFromMigration(d, filesystemConn, volTargetArgs, d.op)
 		if err != nil {
 			return fmt.Errorf("Failed creating instance on target: %w", err)
+		}
+
+		// Derive the effective storage project name from the instance config's project.
+		storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.project.Name, dbCluster.StoragePoolVolumeTypeCustom)
+		if err != nil {
+			return err
+		}
+
+		// Notify the shared disks that they're going to be accessed from another system.
+		diskPools := make(map[string]storagePools.Pool, len(d.expandedDevices))
+		for _, dev := range d.expandedDevices.Sorted() {
+			if dev.Config["type"] != "disk" || dev.Config["path"] == "/" {
+				continue
+			}
+
+			poolName := dev.Config["pool"]
+			if poolName == "" {
+				continue
+			}
+
+			diskPool, ok := diskPools[poolName]
+			if !ok {
+				// Load the pool for the disk.
+				diskPool, err = storagePools.LoadByName(d.state, poolName)
+				if err != nil {
+					return fmt.Errorf("Failed loading storage pool: %w", err)
+				}
+
+				// Save it to the pools map to avoid loading it from the DB multiple times.
+				diskPools[poolName] = diskPool
+			}
+
+			// Setup the volume entry.
+			extraTargetArgs := migration.VolumeTargetArgs{
+				ClusterMoveSourceName: args.ClusterMoveSourceName,
+			}
+
+			vol := diskPool.GetVolume(storageDrivers.VolumeTypeCustom, storageDrivers.ContentTypeBlock, project.StorageVolume(storageProjectName, dev.Config["source"]), nil)
+			volCopy := storageDrivers.NewVolumeCopy(vol)
+
+			// Create a volume from the migration.
+			err = diskPool.Driver().CreateVolumeFromMigration(volCopy, nil, extraTargetArgs, nil, nil)
+			if err != nil {
+				return fmt.Errorf("Failed to prepare device %q for migration: %w", dev.Name, err)
+			}
 		}
 
 		// Only delete all instance volumes on error if the pool volume creation has succeeded to
@@ -7440,6 +7529,47 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		revert.Success()
 		return nil
 	}
+}
+
+// ConversionReceive establishes the filesystem connection, transfers the filesystem / block volume,
+// and creates an instance from it.
+func (d *qemu) ConversionReceive(args instance.ConversionReceiveArgs) error {
+	d.logger.Info("Conversion receive starting")
+	defer d.logger.Info("Conversion receive stopped")
+
+	// Wait for filesystem connection.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	filesystemConn, err := args.FilesystemConn(ctx)
+	if err != nil {
+		return err
+	}
+
+	pool, err := storagePools.LoadByInstance(d.state, d)
+	if err != nil {
+		return err
+	}
+
+	// Ensure that configured root disk device is valid.
+	_, err = d.getParentStoragePool()
+	if err != nil {
+		return err
+	}
+
+	volTargetArgs := migration.VolumeTargetArgs{
+		Name:              d.Name(),
+		TrackProgress:     true,                   // Use a progress tracker on receiver to get progress information.
+		VolumeSize:        args.SourceDiskSize,    // Block volume size override.
+		ConversionOptions: args.ConversionOptions, // Non-nil options indicate image conversion.
+	}
+
+	err = pool.CreateInstanceFromConversion(d, filesystemConn, volTargetArgs, d.op)
+	if err != nil {
+		return fmt.Errorf("Failed creating instance on target: %w", err)
+	}
+
+	return nil
 }
 
 // CGroup is not implemented for VMs.
@@ -8458,6 +8588,11 @@ func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]any) er
 
 	client, err := d.getAgentClient()
 	if err != nil {
+		// Don't fail if the VM simply doesn't have an agent.
+		if err == errQemuAgentOffline {
+			return nil
+		}
+
 		return err
 	}
 
@@ -8528,6 +8663,10 @@ func (d *qemu) Info() instance.Info {
 		data.Version = qemuVersion
 	} else {
 		data.Version = "unknown" // Not necessarily an error that should prevent us using driver.
+	}
+
+	if shared.InSnap() && os.Getenv("SNAP_QEMU_PREFIX") != "" {
+		data.Version = data.Version + " (external)"
 	}
 
 	data.Features, err = d.checkFeatures(hostArch, qemuPath)

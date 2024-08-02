@@ -727,7 +727,16 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 		return fmt.Errorf("Create instance snapshot: %w", err)
 	}
 
-	revert.Add(func() { _ = snap.Delete(true) })
+	revert.Add(func() {
+		switch s := snap.(type) {
+		case *lxc:
+			_ = s.delete(true)
+		case *qemu:
+			_ = s.delete(true)
+		default:
+			logger.Error("Failed to delete snapshot during revert", logger.Ctx{"instance": inst.Name(), "snapshot": snap.Name()})
+		}
+	})
 
 	// Mount volume for backup.yaml writing.
 	_, err = pool.MountInstance(inst, d.op)
@@ -1295,6 +1304,21 @@ func (d *common) getStoragePool() (storagePools.Pool, error) {
 	d.storagePool = pool
 
 	return d.storagePool, nil
+}
+
+// getParentStoragePool retrieves the root disk device from the expanded devices.
+func (d *common) getParentStoragePool() (string, error) {
+	parentStoragePool := ""
+	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := instancetype.GetRootDiskDevice(d.ExpandedDevices().CloneNative())
+	if parentLocalRootDiskDeviceKey != "" {
+		parentStoragePool = parentLocalRootDiskDevice["pool"]
+	}
+
+	if parentStoragePool == "" {
+		return "", fmt.Errorf("Instance's root device is missing the pool property")
+	}
+
+	return parentStoragePool, nil
 }
 
 // deviceLoad instantiates and validates a new device and returns it along with enriched config.

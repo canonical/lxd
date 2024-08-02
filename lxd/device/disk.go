@@ -115,18 +115,7 @@ func (d *disk) sourceIsCeph() bool {
 
 // CanHotPlug returns whether the device can be managed whilst the instance is running.
 func (d *disk) CanHotPlug() bool {
-	// Containers support hot-plugging all disk types.
-	if d.inst.Type() == instancetype.Container {
-		return true
-	}
-
-	// Only VirtioFS works with path hotplug.
-	// As migration.stateful turns off VirtioFS, this also turns off hotplugging of paths.
-	if shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) {
-		return false
-	}
-
-	// Block disks can be hot-plugged into VMs.
+	// All disks can be hot-plugged.
 	return true
 }
 
@@ -467,8 +456,8 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 					return fmt.Errorf("Failed checking if custom volume is exclusively attached to another instance: %w", err)
 				}
 
-				if remoteInstance != nil {
-					return fmt.Errorf("Custom volume is already attached to an instance on a different node")
+				if remoteInstance != nil && remoteInstance.ID != instConf.ID() {
+					return fmt.Errorf("Custom volume is already attached to an instance on a different cluster member")
 				}
 
 				// Check that block volumes are *only* attached to VM instances.
@@ -533,6 +522,25 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 					return fmt.Errorf("Invalid initial device configuration: %v", err)
 				}
 			}
+		}
+	}
+
+	// Restrict disks allowed when live-migratable.
+	if instConf.Type() == instancetype.VM && shared.IsTrue(instConf.ExpandedConfig()["migration.stateful"]) {
+		if d.config["path"] != "" && d.config["path"] != "/" {
+			return fmt.Errorf("Shared filesystem are incompatible with migration.stateful=true")
+		}
+
+		if d.config["pool"] == "" {
+			return fmt.Errorf("Only LXD-managed disks are allowed with migration.stateful=true")
+		}
+
+		if d.config["io.bus"] == "nvme" {
+			return fmt.Errorf("NVME disks aren't supported with migration.stateful=true")
+		}
+
+		if d.config["path"] != "/" && d.pool != nil && !d.pool.Driver().Info().Remote {
+			return fmt.Errorf("Only additional disks coming from a shared storage pool are supported with migration.stateful=true")
 		}
 	}
 

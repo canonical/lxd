@@ -5,7 +5,7 @@ go 1.22.5
 require (
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.1.0
-	github.com/canonical/go-dqlite v1.21.0
+	github.com/canonical/go-dqlite v1.22.0
 	github.com/checkpoint-restore/go-criu/v6 v6.3.0
 	github.com/dell/goscaleio v1.15.0
 	github.com/digitalocean/go-qemu v0.0.0-20230711162256-2e3d0186973e
@@ -24,7 +24,7 @@ require (
 	github.com/gosexy/gettext v0.0.0-20160830220431-74466a0a0c4a
 	github.com/j-keck/arping v1.0.3
 	github.com/jaypipes/pcidb v1.0.1
-	github.com/jochenvg/go-udev v0.0.0-20171110120927-d6b62d56d37b
+	github.com/jochenvg/go-udev v0.0.0-20240801134859-b65ed646224b
 	github.com/juju/gomaasapi v0.0.0-20200602032615-aa561369c767
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/lxc/go-lxc v0.0.0-20240606200241-27b3d116511f
@@ -38,10 +38,10 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/oklog/ulid/v2 v2.1.0
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/openfga/api/proto v0.0.0-20240722084519-a9261bb50796
+	github.com/openfga/api/proto v0.0.0-20240723155248-7e5be7b65c27
 	github.com/openfga/language/pkg/go v0.2.0-beta.0
 	github.com/openfga/openfga v1.5.6
-	github.com/osrg/gobgp/v3 v3.28.0
+	github.com/osrg/gobgp/v3 v3.29.0
 	github.com/pkg/sftp v1.13.6
 	github.com/pkg/xattr v0.4.10
 	github.com/robfig/cron/v3 v3.0.1
@@ -51,7 +51,7 @@ require (
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	github.com/zitadel/oidc/v3 v3.26.0
-	go.starlark.net v0.0.0-20240705175910-70002002b310
+	go.starlark.net v0.0.0-20240725214946-42030a7cedce
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.25.0
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
@@ -90,7 +90,7 @@ require (
 	github.com/google/renameio v1.0.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.1.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.21.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
@@ -109,7 +109,7 @@ require (
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-runewidth v0.0.15 // indirect
+	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/mdlayher/socket v0.5.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
@@ -151,8 +151,8 @@ require (
 	golang.org/x/mod v0.19.0 // indirect
 	golang.org/x/net v0.27.0 // indirect
 	golang.org/x/tools v0.23.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240711142825-46eb208f015d // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240711142825-46eb208f015d // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240730163845-b1a4ccb954bf // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240730163845-b1a4ccb954bf // indirect
 	google.golang.org/grpc v1.65.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect

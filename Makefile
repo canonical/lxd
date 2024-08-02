@@ -90,6 +90,8 @@ ifneq "$(LXD_OFFLINE)" ""
 	exit 1
 endif
 	go get -t -v -d -u ./...
+	go get github.com/gorilla/websocket@v1.5.1 # Due to riscv64 crashes in LP
+	go get github.com/openfga/openfga@v1.5.6 # Due to build failures
 	go mod tidy -go=$(GOMIN)
 
 	@echo "Dependencies updated"
@@ -118,7 +120,7 @@ endif
 .PHONY: update-metadata
 update-metadata: build
 	@echo "Generating golang documentation metadata"
-	$(GOPATH)/bin/lxd-metadata . --json ./lxd/metadata/configuration.json --txt ./doc/config_options.txt --substitution-db ./doc/substitutions.yaml
+	$(GOPATH)/bin/lxd-metadata . --json ./lxd/metadata/configuration.json --txt ./doc/metadata.txt --substitution-db ./doc/substitutions.yaml
 
 .PHONY: doc
 doc: doc-clean doc-install doc-html doc-objects

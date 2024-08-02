@@ -22,8 +22,8 @@ The following configuration key namespaces are currently supported for the `srio
 
 The following configuration options are available for the `sriov` network type:
 
-% Include content from [../config_options.txt](../config_options.txt)
-```{include} ../config_options.txt
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
     :start-after: <!-- config group network-sriov-network-conf start -->
     :end-before: <!-- config group network-sriov-network-conf end -->
 ```
