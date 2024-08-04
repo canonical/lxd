@@ -644,7 +644,7 @@ func (d *qemu) onStop(target string) error {
 	// Log and emit lifecycle if not user triggered.
 	if op.GetInstanceInitiated() {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(d, nil))
-	} else {
+	} else if op.Action() != operationlock.ActionMigrate {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(d, nil))
 	}
 
@@ -5148,7 +5148,7 @@ func (d *qemu) Stop(stateful bool) error {
 	// Don't allow reuse when creating a new stop operation. This prevents other operations from intefering.
 	// Allow reuse of a reusable ongoing stop operation as Shutdown() may be called first, which allows reuse
 	// of its operations. This allow for Stop() to inherit from Shutdown() where instance is stuck.
-	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, true)
+	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore, operationlock.ActionMigrate}, false, true)
 	if err != nil {
 		if errors.Is(err, operationlock.ErrNonReusableSucceeded) {
 			// An existing matching operation has now succeeded, return.
@@ -6701,18 +6701,27 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 		return errors.New("Stateful migration requires migration.stateful to be set to true")
 	}
 
+	// Setup a new operation.
+	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionMigrate, nil, false, true)
+	if err != nil {
+		return err
+	}
+
 	// Wait for essential migration connections before negotiation.
 	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	filesystemConn, err := args.FilesystemConn(connectionsCtx)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	pool, err := storagePools.LoadByInstance(d.state, d)
 	if err != nil {
-		return fmt.Errorf("Failed loading instance: %w", err)
+		err := fmt.Errorf("Failed loading instance: %w", err)
+		op.Done(err)
+		return err
 	}
 
 	// The refresh argument passed to MigrationTypes() is always set
@@ -6721,7 +6730,9 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	// this, and adjust the migration types accordingly.
 	poolMigrationTypes := pool.MigrationTypes(storagePools.InstanceContentType(d), false, args.Snapshots)
 	if len(poolMigrationTypes) == 0 {
-		return errors.New("No source migration types available")
+		err := errors.New("No source migration types available")
+		op.Done(err)
+		return err
 	}
 
 	// Convert the pool's migration type options to an offer header to target.
@@ -6735,7 +6746,9 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	// For VMs, send block device size hint in offer header so that target can create the volume the same size.
 	blockSize, err := storagePools.InstanceDiskBlockSize(pool, d, d.op)
 	if err != nil {
-		return fmt.Errorf("Failed getting source disk size: %w", err)
+		err := fmt.Errorf("Failed getting source disk size: %w", err)
+		op.Done(err)
+		return err
 	}
 
 	d.logger.Debug("Set migration offer volume size", logger.Ctx{"blockSize": blockSize})
@@ -6743,7 +6756,9 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 
 	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, d.op)
 	if err != nil {
-		return fmt.Errorf("Failed generating instance migration config: %w", err)
+		err := fmt.Errorf("Failed generating instance migration config: %w", err)
+		op.Done(err)
+		return err
 	}
 
 	// If we are copying snapshots, retrieve a list of snapshots from source volume.
@@ -6769,7 +6784,9 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	d.logger.Debug("Sending migration offer to target")
 	err = args.ControlSend(offerHeader)
 	if err != nil {
-		return fmt.Errorf("Failed sending migration offer header: %w", err)
+		err := fmt.Errorf("Failed sending migration offer header: %w", err)
+		op.Done(err)
+		return err
 	}
 
 	// Receive response from target.
@@ -6777,7 +6794,9 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	respHeader := &migration.MigrationHeader{}
 	err = args.ControlReceive(respHeader)
 	if err != nil {
-		return fmt.Errorf("Failed receiving migration offer response: %w", err)
+		err := fmt.Errorf("Failed receiving migration offer response: %w", err)
+		op.Done(err)
+		return err
 	}
 
 	d.logger.Debug("Got migration offer response from target")
@@ -6785,7 +6804,9 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	// Negotiated migration types.
 	migrationTypes, err := migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
 	if err != nil {
-		return fmt.Errorf("Failed to negotiate migration type: %w", err)
+		err := fmt.Errorf("Failed to negotiate migration type: %w", err)
+		op.Done(err)
+		return err
 	}
 
 	volSourceArgs := &migration.VolumeSourceArgs{
@@ -6826,6 +6847,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	if args.Live && respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_VM_QEMU {
 		stateConn, err = args.StateConn(connectionsCtx)
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 	}
@@ -6920,6 +6942,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	{
 		err := g.Wait()
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 
@@ -6928,6 +6951,8 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 			d.logger.Error("Post-migration steps failed on source", logger.Ctx{"err": err})
 		}
 
+		op.Done(nil)
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceMigrated.Event(d, nil))
 		return nil
 	}
 }
