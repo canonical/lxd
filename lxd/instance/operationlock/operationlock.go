@@ -35,6 +35,9 @@ const ActionUpdate Action = "update"
 // ActionDelete for deleting an instance.
 const ActionDelete Action = "delete"
 
+// ActionMigrate for migrating an instance.
+const ActionMigrate Action = "migrate"
+
 // ErrNonReusableSucceeded is returned when no operation is created due to having to wait for a matching
 // non-reusable operation that has now completed successfully.
 var ErrNonReusableSucceeded = errors.New("A matching non-reusable operation has now succeeded")
