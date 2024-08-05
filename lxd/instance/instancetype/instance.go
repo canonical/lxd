@@ -302,6 +302,15 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	//  shortdesc: Whether `/dev/lxd` is present in the instance
 	"security.devlxd": validate.Optional(validate.IsBool),
 
+	// lxdmeta:generate(entities=instance; group=security; key=security.devlxd.images)
+	//
+	// ---
+	//  type: bool
+	//  defaultdesc: `false`
+	//  liveupdate: no
+	//  shortdesc: Controls the availability of the `/1.0/images` API over `devlxd`
+	"security.devlxd.images": validate.Optional(validate.IsBool),
+
 	// lxdmeta:generate(entities=instance; group=security; key=security.protection.delete)
 	//
 	// ---
@@ -675,16 +684,6 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	//  condition: container
 	//  shortdesc: Raw Seccomp configuration
 	"raw.seccomp": validate.IsAny,
-
-	// lxdmeta:generate(entities=instance; group=security; key=security.devlxd.images)
-	//
-	// ---
-	//  type: bool
-	//  defaultdesc: `false`
-	//  liveupdate: no
-	//  condition: container
-	//  shortdesc: Controls the availability of the `/1.0/images` API over `devlxd`
-	"security.devlxd.images": validate.Optional(validate.IsBool),
 
 	// lxdmeta:generate(entities=instance; group=security; key=security.idmap.base)
 	// Setting this option overrides auto-detection.
