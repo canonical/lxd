@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/tar"
 	"bufio"
 	"context"
 	"errors"
@@ -357,9 +358,17 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 			}
 		}
 
-		_, err := os.Stat(s)
+		file, err := os.Open(s)
 		if err != nil {
 			return err
+		}
+
+		defer file.Close()
+
+		// Ensure the source file is not a tarball.
+		_, err = tar.NewReader(file).Next()
+		if err == nil {
+			return fmt.Errorf("Source cannot be a tar archive or OVA file")
 		}
 
 		return nil
