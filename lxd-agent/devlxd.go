@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -18,6 +19,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
 type devLXDHandlerFunc func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse
@@ -248,6 +250,53 @@ func devlxdDevicesGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) 
 	return okResponse(devices, "json")
 }
 
+var devlxdImageExport = devLxdHandler{
+	path:        "/1.0/images/{fingerprint}/export",
+	handlerFunc: devlxdImageExportHandler,
+}
+
+func devlxdImageExportHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+	// Extract the fingerprint.
+	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	// Get a http.Client.
+	client, err := getClient(d.serverCID, int(d.serverPort), d.serverCertificate)
+	if err != nil {
+		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
+	}
+
+	// Remove the request URI, this cannot be set on requests.
+	r.RequestURI = ""
+
+	// Set up the request URL with the correct host.
+	r.URL = &api.NewURL().Scheme("https").Host("custom.socket").Path(version.APIVersion, "images", fingerprint, "export").URL
+
+	// Proxy the request.
+	resp, err := client.Do(r)
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, err.Error())
+	}
+
+	// Set headers from the host LXD.
+	for k, vv := range resp.Header {
+		for _, v := range vv {
+			w.Header().Set(k, v)
+		}
+	}
+
+	// Copy headers and response body.
+	w.WriteHeader(resp.StatusCode)
+	_, err = io.Copy(w, resp.Body)
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	return nil
+}
+
 var handlers = []devLxdHandler{
 	{
 		path: "/",
@@ -261,11 +310,17 @@ var handlers = []devLxdHandler{
 	devlxdMetadataGet,
 	devLxdEventsGet,
 	devlxdDevicesGet,
+	devlxdImageExport,
 }
 
 func hoistReq(f func(*Daemon, http.ResponseWriter, *http.Request) *devLxdResponse, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		resp := f(d, w, r)
+		if resp == nil {
+			// The handler has already written the response.
+			return
+		}
+
 		if resp.code != http.StatusOK {
 			http.Error(w, fmt.Sprintf("%s", resp.content), resp.code)
 		} else if resp.ctype == "json" {
