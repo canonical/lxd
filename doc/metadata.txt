@@ -2112,7 +2112,6 @@ See {ref}`dev-lxd` for more information.
 ```
 
 ```{config:option} security.devlxd.images instance-security
-:condition: "container"
 :defaultdesc: "`false`"
 :liveupdate: "no"
 :shortdesc: "Controls the availability of the `/1.0/images` API over `devlxd`"
