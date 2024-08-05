@@ -3271,6 +3271,11 @@ func evacuateClusterMember(ctx context.Context, s *state.State, gateway *cluster
 	networkStop(s, true)
 
 	revert.Success()
+
+	if mode != "heal" {
+		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterMemberEvacuated.Event(name, op.EventLifecycleRequestor(), nil))
+	}
+
 	return nil
 }
 
@@ -3610,6 +3615,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 		}
 
 		revert.Success()
+		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterMemberRestored.Event(originName, op.EventLifecycleRequestor(), nil))
 		return nil
 	}
 
@@ -4618,5 +4624,12 @@ func healClusterMember(s *state.State, gateway *cluster.Gateway, op *operations.
 		return nil
 	}
 
-	return evacuateClusterMember(context.Background(), s, gateway, op, name, "heal", nil, migrateFunc)
+	err := evacuateClusterMember(context.Background(), s, gateway, op, name, "heal", nil, migrateFunc)
+	if err != nil {
+		logger.Error("Failed healing cluster member", logger.Ctx{"member": name, "err": err})
+		return err
+	}
+
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterMemberHealed.Event(name, op.EventLifecycleRequestor(), nil))
+	return nil
 }
