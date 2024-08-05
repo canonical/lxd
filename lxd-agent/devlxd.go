@@ -57,7 +57,12 @@ func getVsockClient(d *Daemon) (lxd.InstanceServer, error) {
 	return server, nil
 }
 
-var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdConfigGet = devLxdHandler{
+	path:        "/1.0/config",
+	handlerFunc: devlxdConfigGetHandler,
+}
+
+func devlxdConfigGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	client, err := getVsockClient(d)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
@@ -84,9 +89,14 @@ var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, w http.Respon
 		}
 	}
 	return okResponse(filtered, "json")
-}}
+}
 
-var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdConfigKeyGet = devLxdHandler{
+	path:        "/1.0/config/{key}",
+	handlerFunc: devlxdConfigKeyGetHandler,
+}
+
+func devlxdConfigKeyGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	key, err := url.PathUnescape(mux.Vars(r)["key"])
 	if err != nil {
 		return &devLxdResponse{"bad request", http.StatusBadRequest, "raw"}
@@ -116,9 +126,14 @@ var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, w ht
 	}
 
 	return okResponse(value, "raw")
-}}
+}
 
-var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdMetadataGet = devLxdHandler{
+	path:        "/1.0/meta-data",
+	handlerFunc: devlxdMetadataGetHandler,
+}
+
+func devlxdMetadataGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	var client lxd.InstanceServer
 	var err error
 
@@ -150,18 +165,28 @@ var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, w http.R
 	}
 
 	return okResponse(metaData, "raw")
-}}
+}
 
-var devLxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devLxdEventsGet = devLxdHandler{
+	path:        "/1.0/events",
+	handlerFunc: devlxdEventsGetHandler,
+}
+
+func devlxdEventsGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	err := eventsGet(d, r).Render(w)
 	if err != nil {
 		return smartResponse(err)
 	}
 
 	return okResponse("", "raw")
-}}
+}
 
-var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdAPIGet = devLxdHandler{
+	path:        "/1.0",
+	handlerFunc: devlxdAPIGetHandler,
+}
+
+func devlxdAPIGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	client, err := getVsockClient(d)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
@@ -193,9 +218,14 @@ var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, w http.ResponseWriter, 
 	}
 
 	return &devLxdResponse{fmt.Sprintf("method %q not allowed", r.Method), http.StatusBadRequest, "raw"}
-}}
+}
 
-var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdDevicesGet = devLxdHandler{
+	path:        "/1.0/devices",
+	handlerFunc: devlxdDevicesGetHandler,
+}
+
+func devlxdDevicesGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	client, err := getVsockClient(d)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
@@ -216,12 +246,15 @@ var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, w http.Resp
 	}
 
 	return okResponse(devices, "json")
-}}
+}
 
 var handlers = []devLxdHandler{
-	{"/", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
-		return okResponse([]string{"/1.0"}, "json")
-	}},
+	{
+		path: "/",
+		handlerFunc: func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+			return okResponse([]string{"/1.0"}, "json")
+		},
+	},
 	devlxdAPIGet,
 	devlxdConfigGet,
 	devlxdConfigKeyGet,
