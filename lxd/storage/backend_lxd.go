@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"archive/tar"
 	"archive/zip"
 	"context"
 	"encoding/json"
@@ -1883,7 +1884,7 @@ func (b *lxdBackend) recvVolumeFiller(conn io.ReadWriteCloser, contentType drive
 			}
 		} else {
 			// Receive block volume.
-			to, err := os.OpenFile(rootBlockPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+			to, err := os.OpenFile(rootBlockPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
 			if err != nil {
 				return -1, fmt.Errorf("Error opening file for writing %q: %w", rootBlockPath, err)
 			}
@@ -1927,6 +1928,18 @@ func (b *lxdBackend) recvBlockVol(toFile *os.File, volName string, conn io.ReadW
 	_, err := io.Copy(toFile, fromPipe)
 	if err != nil {
 		return fmt.Errorf("Error copying from migration connection to %q: %w", toFile.Name(), err)
+	}
+
+	// Reset the file's read pointer to the beginning, otherwise we cannot read the tar's header.
+	_, err = toFile.Seek(0, io.SeekStart)
+	if err != nil {
+		return err
+	}
+
+	// Ensure that the received file is not a tarball, which is also the case for OVA format.
+	_, err = tar.NewReader(toFile).Next()
+	if err == nil {
+		return fmt.Errorf("Instance cannot be imported from a tar archive or OVA file")
 	}
 
 	return toFile.Close()
@@ -2469,7 +2482,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		imgPath := filepath.Join(shared.VarPath("backups"), conversionID)
 
 		// Create new file in backups directory.
-		to, err := os.OpenFile(imgPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+		to, err := os.OpenFile(imgPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
 		if err != nil {
 			return fmt.Errorf("Error opening file for writing %q: %w", imgPath, err)
 		}
