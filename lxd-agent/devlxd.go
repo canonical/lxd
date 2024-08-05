@@ -20,6 +20,8 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+type devLXDHandlerFunc func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse
+
 // DevLxdServer creates an http.Server capable of handling requests against the
 // /dev/lxd Unix socket endpoint created inside VMs.
 func devLxdServer(d *Daemon) *http.Server {
@@ -37,7 +39,7 @@ type devLxdHandler struct {
 	 * server side right now either, I went the simple route to avoid
 	 * needless noise.
 	 */
-	f func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse
+	handlerFunc devLXDHandlerFunc
 }
 
 func getVsockClient(d *Daemon) (lxd.InstanceServer, error) {
@@ -249,7 +251,7 @@ func devLxdAPI(d *Daemon) http.Handler {
 	m.UseEncodedPath() // Allow encoded values in path segments.
 
 	for _, handler := range handlers {
-		m.HandleFunc(handler.path, hoistReq(handler.f, d))
+		m.HandleFunc(handler.path, hoistReq(handler.handlerFunc, d))
 	}
 
 	return m
