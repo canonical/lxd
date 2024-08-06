@@ -24,7 +24,7 @@ ID    | Kernel name   | Description                     | Personalities
 12    | `riscv64`     | 64bit RISC-V little-endian      |
 13    | `armv6l`      | 32bit ARMv6 little-endian       |
 14    | `armv8l`      | 32bit ARMv8 little-endian       |
-15    | `loongarch64` | 64bit Loongarch                 |
+15    | `loongarch64` | 64bit LoongArch                 |
 
 ```{note}
 LXD cares only about the kernel architecture, not the particular userspace flavor as determined by the toolchain.
