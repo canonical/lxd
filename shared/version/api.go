@@ -410,6 +410,7 @@ var APIExtensions = []string{
 	"explicit_trust_token",
 	"instance_import_conversion",
 	"instance_create_start",
+	"devlxd_images_vm",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
