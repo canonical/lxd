@@ -23,6 +23,7 @@ import (
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
@@ -289,7 +290,14 @@ func (s *execWs) Do(op *operations.Operation) error {
 			_ = pty.Close()
 		}
 
+		// Make VM disconnections (shutdown/reboot) match containers.
+		if cmdErr == drivers.ErrExecDisconnected {
+			cmdResult = 129
+			cmdErr = nil
+		}
+
 		metadata := shared.Jmap{"return": cmdResult}
+
 		err = op.ExtendMetadata(metadata)
 		if err != nil {
 			return err
