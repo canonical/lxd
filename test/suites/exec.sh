@@ -93,5 +93,9 @@ test_exec_exit_code() {
   lxc exec x1 -- invalid-command || exitCode=$?
   [ "${exitCode:-0}" -eq 127 ]
 
+  (sleep 1 && lxc stop x1) &
+  lxc exec x1 -- sleep 10 || exitCode=$?
+  [ "${exitCode:-0}" -eq 129 ]
+
   lxc delete --force x1
 }
