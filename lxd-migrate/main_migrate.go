@@ -308,6 +308,7 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 		}
 
 		config.Project = project
+		server = server.UseProject(config.Project)
 	} else {
 		config.Project = "default"
 	}
