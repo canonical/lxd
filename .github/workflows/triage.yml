@@ -38,4 +38,4 @@ jobs:
           mapping: >
             - label: Documentation
               recipients:
-                - '@ru-fu'
+                - '@mionaalex'
