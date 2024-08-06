@@ -319,6 +319,10 @@ func (c *cmdProfileCreate) command() *cobra.Command {
 	cmd.Short = i18n.G("Create profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Create profiles`))
+	cmd.Example = cli.FormatSection("", i18n.G(`lxc profile create p1
+
+lxc profile create p1 < config.yaml
+    Create profile with configuration from config.yaml`))
 
 	cmd.RunE = c.run
 
@@ -326,10 +330,25 @@ func (c *cmdProfileCreate) command() *cobra.Command {
 }
 
 func (c *cmdProfileCreate) run(cmd *cobra.Command, args []string) error {
+	var stdinData api.ProfilePut
+
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
+	}
+
+	// If stdin isn't a terminal, read text from it
+	if !termios.IsTerminal(getStdinFd()) {
+		contents, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		err = yaml.Unmarshal(contents, &stdinData)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Parse remote
@@ -347,6 +366,7 @@ func (c *cmdProfileCreate) run(cmd *cobra.Command, args []string) error {
 	// Create the profile
 	profile := api.ProfilesPost{}
 	profile.Name = resource.name
+	profile.ProfilePut = stdinData
 
 	err = resource.server.CreateProfile(profile)
 	if err != nil {

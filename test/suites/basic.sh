@@ -672,6 +672,26 @@ test_basic_usage() {
   lxc profile delete foo
   lxc delete -f c1
 
+  # Test assigning a profile through a YAML file to an instance.
+  poolName=$(lxc profile device get default root pool)
+  lxc profile create foo < <(cat <<EOF
+config:
+  limits.cpu: 2
+  limits.memory: 1024MiB
+description: Test profile
+devices:
+  root:
+    path: /
+    pool: ${poolName}
+    type: disk
+EOF
+)
+  lxc init testimage c1 --profile foo
+  [ "$(lxc config get c1 limits.cpu --expanded)" = "2" ]
+  [ "$(lxc config get c1 limits.memory --expanded)" = "1024MiB" ]
+  lxc delete -f c1
+  lxc profile delete foo
+
   # Multiple ephemeral instances delete
   lxc launch testimage c1
   lxc launch testimage c2

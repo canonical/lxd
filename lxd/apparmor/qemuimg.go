@@ -4,15 +4,18 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/template"
 
 	"github.com/canonical/lxd/lxd/subprocess"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/ioprogress"
 )
 
 var qemuImgProfileTpl = template.Must(template.New("qemuImgProfile").Parse(`#include <tunables/global>
@@ -50,7 +53,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 `))
 
 type nullWriteCloser struct {
-	*bytes.Buffer
+	io.Writer
 }
 
 // Close closes the null IO writer.
@@ -58,11 +61,37 @@ func (nwc *nullWriteCloser) Close() error {
 	return nil
 }
 
+type writerFunc func([]byte) (int, error)
+
+func (w writerFunc) Write(b []byte) (n int, err error) {
+	return w(b)
+}
+
+func handleWriter(out io.Writer, hand func(int64, int64)) io.Writer {
+	var current int64
+	return writerFunc(func(b []byte) (int, error) {
+		n, _ := out.Write(b)
+		ss := strings.Split(strings.Trim(string(b), "(%) \t\n\v\f\r"), "/")
+		f, err := strconv.ParseFloat(ss[0], 64)
+		if err != nil {
+			return n, nil
+		}
+
+		percent := int64(f)
+		if percent != current {
+			current = percent
+			hand(percent, 0)
+		}
+
+		return n, nil
+	})
+}
+
 // QemuImg runs qemu-img with an AppArmor profile based on the imgPath and dstPath supplied.
 // The first element of the cmd slice is expected to be a priority limiting command (such as nice or prlimit) and
 // will be added as an allowed command to the AppArmor profile. The remaining elements of the cmd slice are
 // expected to be the qemu-img command and its arguments.
-func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (string, error) {
+func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string, tracker *ioprogress.ProgressTracker) (string, error) {
 	// It is assumed that command starts with a program which sets resource limits, like prlimit or nice
 	allowedCmds := []string{"qemu-img", cmd[0]}
 
@@ -100,11 +129,12 @@ func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (strin
 
 	var buffer bytes.Buffer
 	var output bytes.Buffer
-	p := subprocess.NewProcessWithFds(cmd[0], cmd[1:], nil, &nullWriteCloser{&output}, &nullWriteCloser{&buffer})
-	if p == nil {
-		return "", fmt.Errorf("Failed creating qemu-img subprocess: %w", err)
+	var writer io.Writer = &output
+	if tracker != nil && tracker.Handler != nil {
+		writer = handleWriter(&output, tracker.Handler)
 	}
 
+	p := subprocess.NewProcessWithFds(cmd[0], cmd[1:], nil, &nullWriteCloser{writer}, &nullWriteCloser{&buffer})
 	p.SetApparmor(profileName)
 
 	err = p.Start(context.Background())

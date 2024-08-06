@@ -6445,7 +6445,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 
 	cmd = append(cmd, mountInfo.DiskPath, fPath)
 
-	_, err = apparmor.QemuImg(d.state.OS, cmd, mountInfo.DiskPath, fPath)
+	_, err = apparmor.QemuImg(d.state.OS, cmd, mountInfo.DiskPath, fPath, nil)
 	if err != nil {
 		return meta, fmt.Errorf("Failed converting instance to qcow2: %w", err)
 	}
@@ -8593,6 +8593,11 @@ func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]any) er
 
 	client, err := d.getAgentClient()
 	if err != nil {
+		// Don't fail if the VM simply doesn't have an agent.
+		if err == errQemuAgentOffline {
+			return nil
+		}
+
 		return err
 	}
 
