@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -18,7 +19,10 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
+
+type devLXDHandlerFunc func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse
 
 // DevLxdServer creates an http.Server capable of handling requests against the
 // /dev/lxd Unix socket endpoint created inside VMs.
@@ -37,7 +41,7 @@ type devLxdHandler struct {
 	 * server side right now either, I went the simple route to avoid
 	 * needless noise.
 	 */
-	f func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse
+	handlerFunc devLXDHandlerFunc
 }
 
 func getVsockClient(d *Daemon) (lxd.InstanceServer, error) {
@@ -55,7 +59,12 @@ func getVsockClient(d *Daemon) (lxd.InstanceServer, error) {
 	return server, nil
 }
 
-var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdConfigGet = devLxdHandler{
+	path:        "/1.0/config",
+	handlerFunc: devlxdConfigGetHandler,
+}
+
+func devlxdConfigGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	client, err := getVsockClient(d)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
@@ -82,9 +91,14 @@ var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, w http.Respon
 		}
 	}
 	return okResponse(filtered, "json")
-}}
+}
 
-var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdConfigKeyGet = devLxdHandler{
+	path:        "/1.0/config/{key}",
+	handlerFunc: devlxdConfigKeyGetHandler,
+}
+
+func devlxdConfigKeyGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	key, err := url.PathUnescape(mux.Vars(r)["key"])
 	if err != nil {
 		return &devLxdResponse{"bad request", http.StatusBadRequest, "raw"}
@@ -114,9 +128,14 @@ var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, w ht
 	}
 
 	return okResponse(value, "raw")
-}}
+}
 
-var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdMetadataGet = devLxdHandler{
+	path:        "/1.0/meta-data",
+	handlerFunc: devlxdMetadataGetHandler,
+}
+
+func devlxdMetadataGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	var client lxd.InstanceServer
 	var err error
 
@@ -148,18 +167,28 @@ var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, w http.R
 	}
 
 	return okResponse(metaData, "raw")
-}}
+}
 
-var devLxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devLxdEventsGet = devLxdHandler{
+	path:        "/1.0/events",
+	handlerFunc: devlxdEventsGetHandler,
+}
+
+func devlxdEventsGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	err := eventsGet(d, r).Render(w)
 	if err != nil {
 		return smartResponse(err)
 	}
 
 	return okResponse("", "raw")
-}}
+}
 
-var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdAPIGet = devLxdHandler{
+	path:        "/1.0",
+	handlerFunc: devlxdAPIGetHandler,
+}
+
+func devlxdAPIGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	client, err := getVsockClient(d)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
@@ -191,9 +220,14 @@ var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, w http.ResponseWriter, 
 	}
 
 	return &devLxdResponse{fmt.Sprintf("method %q not allowed", r.Method), http.StatusBadRequest, "raw"}
-}}
+}
 
-var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdDevicesGet = devLxdHandler{
+	path:        "/1.0/devices",
+	handlerFunc: devlxdDevicesGetHandler,
+}
+
+func devlxdDevicesGetHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	client, err := getVsockClient(d)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
@@ -214,23 +248,79 @@ var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, w http.Resp
 	}
 
 	return okResponse(devices, "json")
-}}
+}
+
+var devlxdImageExport = devLxdHandler{
+	path:        "/1.0/images/{fingerprint}/export",
+	handlerFunc: devlxdImageExportHandler,
+}
+
+func devlxdImageExportHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+	// Extract the fingerprint.
+	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	// Get a http.Client.
+	client, err := getClient(d.serverCID, int(d.serverPort), d.serverCertificate)
+	if err != nil {
+		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
+	}
+
+	// Remove the request URI, this cannot be set on requests.
+	r.RequestURI = ""
+
+	// Set up the request URL with the correct host.
+	r.URL = &api.NewURL().Scheme("https").Host("custom.socket").Path(version.APIVersion, "images", fingerprint, "export").URL
+
+	// Proxy the request.
+	resp, err := client.Do(r)
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, err.Error())
+	}
+
+	// Set headers from the host LXD.
+	for k, vv := range resp.Header {
+		for _, v := range vv {
+			w.Header().Set(k, v)
+		}
+	}
+
+	// Copy headers and response body.
+	w.WriteHeader(resp.StatusCode)
+	_, err = io.Copy(w, resp.Body)
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	return nil
+}
 
 var handlers = []devLxdHandler{
-	{"/", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
-		return okResponse([]string{"/1.0"}, "json")
-	}},
+	{
+		path: "/",
+		handlerFunc: func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+			return okResponse([]string{"/1.0"}, "json")
+		},
+	},
 	devlxdAPIGet,
 	devlxdConfigGet,
 	devlxdConfigKeyGet,
 	devlxdMetadataGet,
 	devLxdEventsGet,
 	devlxdDevicesGet,
+	devlxdImageExport,
 }
 
 func hoistReq(f func(*Daemon, http.ResponseWriter, *http.Request) *devLxdResponse, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		resp := f(d, w, r)
+		if resp == nil {
+			// The handler has already written the response.
+			return
+		}
+
 		if resp.code != http.StatusOK {
 			http.Error(w, fmt.Sprintf("%s", resp.content), resp.code)
 		} else if resp.ctype == "json" {
@@ -249,7 +339,7 @@ func devLxdAPI(d *Daemon) http.Handler {
 	m.UseEncodedPath() // Allow encoded values in path segments.
 
 	for _, handler := range handlers {
-		m.HandleFunc(handler.path, hoistReq(handler.f, d))
+		m.HandleFunc(handler.path, hoistReq(handler.handlerFunc, d))
 	}
 
 	return m
