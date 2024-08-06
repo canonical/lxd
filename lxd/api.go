@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -223,6 +224,7 @@ func restServer(d *Daemon) *http.Server {
 	return &http.Server{
 		Handler:     &lxdHTTPServer{r: mux, d: d},
 		ConnContext: lxdRequest.SaveConnectionInContext,
+		IdleTimeout: 30 * time.Second,
 	}
 }
 
