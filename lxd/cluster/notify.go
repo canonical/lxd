@@ -109,7 +109,9 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 		// TODO: aggregate all errors?
 		for i, err := range errs {
 			if err != nil {
-				if shared.IsConnectionError(err) && policy == NotifyAlive {
+				isDown := shared.IsConnectionError(err) || shared.IsShuttingDownError(err)
+
+				if isDown && policy == NotifyAlive {
 					logger.Warnf("Could not notify node %s", peers[i])
 					continue
 				}
