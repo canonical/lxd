@@ -216,6 +216,7 @@ golang.org/x/oauth2
 golang.org/x/oauth2/clientcredentials
 golang.org/x/oauth2/internal
 golang.org/x/sync/errgroup
+golang.org/x/sync/semaphore
 golang.org/x/sys/unix
 golang.org/x/text/cases
 golang.org/x/text/encoding

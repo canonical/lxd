@@ -2392,7 +2392,6 @@
 					},
 					{
 						"security.devlxd.images": {
-							"condition": "container",
 							"defaultdesc": "`false`",
 							"liveupdate": "no",
 							"longdesc": "",

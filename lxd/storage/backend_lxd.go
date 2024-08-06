@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"archive/tar"
 	"archive/zip"
 	"context"
 	"encoding/json"
@@ -1813,7 +1814,7 @@ func (b *lxdBackend) isoFiller(data io.Reader) func(vol drivers.Volume, rootBloc
 
 // imageConversionFiller returns a function that converts an image from the given path to the instance's volume.
 // Function returns the unpacked image size on success. Otherwise, it returns -1 for size and an error.
-func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string) func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (sizeInBytes int64, err error) {
+func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string, op *operations.Operation) func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (sizeInBytes int64, err error) {
 	return func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
 		diskPath, err := b.driver.GetVolumeDiskPath(vol)
 		if err != nil {
@@ -1826,17 +1827,30 @@ func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string) fun
 			return -1, fmt.Errorf("Unsupported image format %q, allowed formats are [%s]", imgFormat, strings.Join(supportedImageFormats, ", "))
 		}
 
+		// Setup the progress tracker.
+		var tracker *ioprogress.ProgressTracker
+		if op != nil {
+			metadata := make(map[string]any)
+			tracker = &ioprogress.ProgressTracker{
+				Handler: func(percent, speed int64) {
+					displayPrefix := fmt.Sprintf("Converting image format from %s to raw", imgFormat)
+					shared.SetProgressMetadata(metadata, "format_progress", displayPrefix, percent, 0, speed)
+					_ = op.UpdateMetadata(metadata)
+				},
+			}
+		}
+
 		// Convert uploaded image from backups directory into RAW format on the instance volume.
 		cmd := []string{
 			// Run with low priority to reduce CPU impact on other processes.
 			"nice", "-n19",
-			"qemu-img", "convert", "-f", imgFormat, "-O", "raw", imgPath, diskPath, "-t", "writeback",
+			"qemu-img", "convert", "-p", "-f", imgFormat, "-O", "raw", imgPath, diskPath, "-t", "writeback",
 		}
 
 		b.logger.Debug("Image conversion started", logger.Ctx{"from": imgFormat, "to": "raw"})
 		defer b.logger.Debug("Image conversion finished", logger.Ctx{"from": imgFormat, "to": "raw"})
 
-		out, err := apparmor.QemuImg(b.state.OS, cmd, imgPath, diskPath)
+		out, err := apparmor.QemuImg(b.state.OS, cmd, imgPath, diskPath, tracker)
 		if err != nil {
 			b.logger.Debug("Image conversion failed", logger.Ctx{"error": out})
 			return -1, fmt.Errorf("qemu-img convert: failed to convert image from %q to %q format: %v", imgFormat, "raw", err)
@@ -1870,7 +1884,7 @@ func (b *lxdBackend) recvVolumeFiller(conn io.ReadWriteCloser, contentType drive
 			}
 		} else {
 			// Receive block volume.
-			to, err := os.OpenFile(rootBlockPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+			to, err := os.OpenFile(rootBlockPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
 			if err != nil {
 				return -1, fmt.Errorf("Error opening file for writing %q: %w", rootBlockPath, err)
 			}
@@ -1899,7 +1913,7 @@ func (b *lxdBackend) recvBlockVol(toFile *os.File, volName string, conn io.ReadW
 
 	var wrapper *ioprogress.ProgressTracker
 	if args.TrackProgress {
-		wrapper = migration.ProgressTracker(op, "block_progress", volName)
+		wrapper = migration.ProgressTracker(op, "block_progress", "Transferring instance")
 	}
 
 	// Setup progress tracker.
@@ -1916,6 +1930,18 @@ func (b *lxdBackend) recvBlockVol(toFile *os.File, volName string, conn io.ReadW
 		return fmt.Errorf("Error copying from migration connection to %q: %w", toFile.Name(), err)
 	}
 
+	// Reset the file's read pointer to the beginning, otherwise we cannot read the tar's header.
+	_, err = toFile.Seek(0, io.SeekStart)
+	if err != nil {
+		return err
+	}
+
+	// Ensure that the received file is not a tarball, which is also the case for OVA format.
+	_, err = tar.NewReader(toFile).Next()
+	if err == nil {
+		return fmt.Errorf("Instance cannot be imported from a tar archive or OVA file")
+	}
+
 	return toFile.Close()
 }
 
@@ -1925,7 +1951,7 @@ func (b *lxdBackend) recvFS(path string, volName string, conn io.ReadWriteCloser
 
 	var wrapper *ioprogress.ProgressTracker
 	if args.TrackProgress {
-		wrapper = migration.ProgressTracker(op, "fs_progress", volName)
+		wrapper = migration.ProgressTracker(op, "fs_progress", "Transferring instance")
 	}
 
 	return rsync.Recv(shared.AddSlash(path), conn, wrapper, args.MigrationType.Features)
@@ -2456,7 +2482,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		imgPath := filepath.Join(shared.VarPath("backups"), conversionID)
 
 		// Create new file in backups directory.
-		to, err := os.OpenFile(imgPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+		to, err := os.OpenFile(imgPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
 		if err != nil {
 			return fmt.Errorf("Error opening file for writing %q: %w", imgPath, err)
 		}
@@ -2474,7 +2500,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		}
 
 		// Extract image format and size.
-		imgFormat, imgBytes, err := qemuImageInfo(b.state.OS, imgPath)
+		imgFormat, imgBytes, err := qemuImageInfo(b.state.OS, imgPath, nil)
 		if err != nil {
 			return err
 		}
@@ -2488,7 +2514,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		}
 
 		// Convert received image into intance volume.
-		volFiller.Fill = b.imageConversionFiller(imgPath, imgFormat)
+		volFiller.Fill = b.imageConversionFiller(imgPath, imgFormat, op)
 	} else {
 		// If volume size is provided, then use that as block volume size instead of pool default.
 		// This way if the volume being received is larger than the pool default size, the created
