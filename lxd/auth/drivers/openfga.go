@@ -19,6 +19,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/identity"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -173,6 +174,14 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 	entityType, projectName, location, pathArguments, err := entity.ParseURL(entityURL.URL)
 	if err != nil {
 		return fmt.Errorf("Authorization driver failed to parse entity URL %q: %w", entityURL.String(), err)
+	}
+
+	// The project in the given URL may be for a project that does not have a feature enabled, in this case the auth check
+	// will fail because the resource doesn't actually exist in that project. To correct this, we use the effective project from
+	// the request context if present.
+	effectiveProject, _ := request.GetCtxValue[string](ctx, request.CtxEffectiveProjectName)
+	if effectiveProject != "" {
+		projectName = effectiveProject
 	}
 
 	// Construct the URL in a standardised form (adding the project parameter if it was not present).
@@ -402,6 +411,14 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 		if parsedEntityType != entityType {
 			l.Error("Unexpected permission checker input URL", logger.Ctx{"expected_entity_type": entityType, "actual_entity_type": parsedEntityType, "url": entityURL.String()})
 			return false
+		}
+
+		// The project in the given URL may be for a project that does not have a feature enabled, in this case the auth check
+		// will fail because the resource doesn't actually exist in that project. To correct this, we use the effective project from
+		// the request context if present.
+		effectiveProject, _ := request.GetCtxValue[string](ctx, request.CtxEffectiveProjectName)
+		if effectiveProject != "" {
+			projectName = effectiveProject
 		}
 
 		standardisedEntityURL, err := entityType.URL(projectName, location, pathArguments...)
