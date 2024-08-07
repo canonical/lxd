@@ -146,7 +146,8 @@ var networkACLLogCmd = APIEndpoint{
 func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, _, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	requestProjectName := request.ProjectParam(r)
+	effectiveProjectName, _, err := project.NetworkProject(s.DB.Cluster, requestProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -159,7 +160,7 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 		var err error
 
 		// Get list of Network ACLs.
-		aclNames, err = tx.GetNetworkACLs(ctx, projectName)
+		aclNames, err = tx.GetNetworkACLs(ctx, effectiveProjectName)
 
 		return err
 	})
@@ -167,7 +168,7 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	request.SetCtxValue(r, request.CtxEffectiveProjectName, projectName)
+	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeNetworkACL)
 	if err != nil {
 		return response.SmartError(err)
@@ -176,14 +177,14 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 	resultString := []string{}
 	resultMap := []api.NetworkACL{}
 	for _, aclName := range aclNames {
-		if !userHasPermission(entity.NetworkACLURL(projectName, aclName)) {
+		if !userHasPermission(entity.NetworkACLURL(requestProjectName, aclName)) {
 			continue
 		}
 
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, aclName))
 		} else {
-			netACL, err := acl.LoadByName(s, projectName, aclName)
+			netACL, err := acl.LoadByName(s, effectiveProjectName, aclName)
 			if err != nil {
 				continue
 			}
