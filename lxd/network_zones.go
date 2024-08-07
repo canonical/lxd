@@ -194,7 +194,8 @@ func networkZoneAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *h
 func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, _, err := project.NetworkZoneProject(s.DB.Cluster, request.ProjectParam(r))
+	requestProjectName := request.ProjectParam(r)
+	effectiveProjectName, _, err := project.NetworkZoneProject(s.DB.Cluster, requestProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -205,7 +206,7 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get list of Network zones.
-		zoneNames, err = tx.GetNetworkZonesByProject(ctx, projectName)
+		zoneNames, err = tx.GetNetworkZonesByProject(ctx, effectiveProjectName)
 
 		return err
 	})
@@ -213,7 +214,7 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	request.SetCtxValue(r, request.CtxEffectiveProjectName, projectName)
+	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeNetworkZone)
 	if err != nil {
 		return response.InternalError(err)
@@ -222,14 +223,14 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 	resultString := []string{}
 	resultMap := []api.NetworkZone{}
 	for _, zoneName := range zoneNames {
-		if !userHasPermission(entity.NetworkZoneURL(projectName, zoneName)) {
+		if !userHasPermission(entity.NetworkZoneURL(requestProjectName, zoneName)) {
 			continue
 		}
 
 		if !recursion {
 			resultString = append(resultString, api.NewURL().Path(version.APIVersion, "network-zones", zoneName).String())
 		} else {
-			netzone, err := zone.LoadByNameAndProject(s, projectName, zoneName)
+			netzone, err := zone.LoadByNameAndProject(s, effectiveProjectName, zoneName)
 			if err != nil {
 				continue
 			}
