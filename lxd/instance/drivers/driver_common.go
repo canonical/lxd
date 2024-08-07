@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -1665,6 +1666,37 @@ func (d *common) deleteSnapshots(deleteFunc func(snapInst instance.Instance) err
 		err = deleteFunc(snapInsts[k])
 		if err != nil {
 			return fmt.Errorf("Failed deleting snapshot %q: %w", snapInsts[k].Name(), err)
+		}
+	}
+
+	return nil
+}
+
+// removeUnixDevices reads the devices path and remove all unix devices.
+func (d *common) removeUnixDevices() error {
+	// Check that we indeed have devices to remove
+	if !shared.PathExists(d.DevicesPath()) {
+		return nil
+	}
+
+	// Load the directory listing
+	dents, err := os.ReadDir(d.DevicesPath())
+	if err != nil {
+		return err
+	}
+
+	// Go through all the unix devices
+	for _, f := range dents {
+		// Skip non-Unix devices
+		if !strings.HasPrefix(f.Name(), "forkmknod.unix.") && !strings.HasPrefix(f.Name(), "unix.") && !strings.HasPrefix(f.Name(), device.IBDevPrefix) {
+			continue
+		}
+
+		// Remove the entry
+		devicePath := filepath.Join(d.DevicesPath(), f.Name())
+		err := os.Remove(devicePath)
+		if err != nil {
+			d.logger.Error("Failed removing unix device", logger.Ctx{"err": err, "path": devicePath})
 		}
 	}
 
