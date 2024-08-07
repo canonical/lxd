@@ -7859,36 +7859,6 @@ func (d *lxc) InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid 
 	return d.insertMountLXD(devPath, tgtPath, "none", unix.MS_BIND, pid, idmap.IdmapStorageNone)
 }
 
-func (d *lxc) removeUnixDevices() error {
-	// Check that we indeed have devices to remove
-	if !shared.PathExists(d.DevicesPath()) {
-		return nil
-	}
-
-	// Load the directory listing
-	dents, err := os.ReadDir(d.DevicesPath())
-	if err != nil {
-		return err
-	}
-
-	// Go through all the unix devices
-	for _, f := range dents {
-		// Skip non-Unix devices
-		if !strings.HasPrefix(f.Name(), "forkmknod.unix.") && !strings.HasPrefix(f.Name(), "unix.") && !strings.HasPrefix(f.Name(), "infiniband.unix.") {
-			continue
-		}
-
-		// Remove the entry
-		devicePath := filepath.Join(d.DevicesPath(), f.Name())
-		err := os.Remove(devicePath)
-		if err != nil {
-			d.logger.Error("Failed removing unix device", logger.Ctx{"err": err, "path": devicePath})
-		}
-	}
-
-	return nil
-}
-
 // FillNetworkDevice takes a nic or infiniband device type and enriches it with automatically
 // generated name and hwaddr properties if these are missing from the device.
 func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfig.Device, error) {
