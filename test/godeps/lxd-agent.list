@@ -206,6 +206,7 @@ golang.org/x/net/trace
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
 golang.org/x/sync/errgroup
+golang.org/x/sync/semaphore
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
 golang.org/x/text/cases
