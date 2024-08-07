@@ -203,7 +203,8 @@ func profileAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.
 func profilesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	p, err := project.ProfileProject(s.DB.Cluster, request.ProjectParam(r))
+	requestProjectName := request.ProjectParam(r)
+	p, err := project.ProfileProject(s.DB.Cluster, requestProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -231,7 +232,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		if recursion {
 			apiProfiles = make([]*api.Profile, 0, len(profiles))
 			for _, profile := range profiles {
-				if !userHasPermission(entity.ProfileURL(p.Name, profile.Name)) {
+				if !userHasPermission(entity.ProfileURL(requestProjectName, profile.Name)) {
 					continue
 				}
 
@@ -250,7 +251,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		} else {
 			profileURLs = make([]string, 0, len(profiles))
 			for _, profile := range profiles {
-				profileURL := entity.ProfileURL(p.Name, profile.Name)
+				profileURL := entity.ProfileURL(requestProjectName, profile.Name)
 				if userHasPermission(profileURL) {
 					profileURLs = append(profileURLs, profileURL.String())
 				}

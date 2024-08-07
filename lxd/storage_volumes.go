@@ -798,13 +798,23 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// The auth.PermissionChecker expects the url to contain the request project (not the effective project).
+	// So when getting networks in a single project, ensure we use the request project name.
+	authCheckProject := func(dbProject string) string {
+		if !allProjects {
+			return requestProjectName
+		}
+
+		return dbProject
+	}
+
 	if util.IsRecursionRequest(r) {
 		volumes := make([]*api.StorageVolume, 0, len(dbVolumes))
 		for _, dbVol := range dbVolumes {
 			vol := &dbVol.StorageVolume
 
 			volumeName, _, _ := api.GetParentAndSnapshotName(vol.Name)
-			if !userHasPermission(entity.StorageVolumeURL(vol.Project, vol.Location, dbVol.Pool, dbVol.Type, volumeName)) {
+			if !userHasPermission(entity.StorageVolumeURL(authCheckProject(vol.Project), vol.Location, dbVol.Pool, dbVol.Type, volumeName)) {
 				continue
 			}
 
@@ -828,7 +838,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	for _, dbVol := range dbVolumes {
 		volumeName, _, _ := api.GetParentAndSnapshotName(dbVol.Name)
 
-		if !userHasPermission(entity.StorageVolumeURL(dbVol.Project, dbVol.Location, dbVol.Pool, dbVol.Type, volumeName)) {
+		if !userHasPermission(entity.StorageVolumeURL(authCheckProject(dbVol.Project), dbVol.Location, dbVol.Pool, dbVol.Type, volumeName)) {
 			continue
 		}
 

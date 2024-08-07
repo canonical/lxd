@@ -227,12 +227,13 @@ func networkAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.
 func networksGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	requestProjectName := request.ProjectParam(r)
+	effectiveProjectName, reqProject, err := project.NetworkProject(s.DB.Cluster, requestProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	request.SetCtxValue(r, request.CtxEffectiveProjectName, projectName)
+	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 
 	recursion := util.IsRecursionRequest(r)
 
@@ -240,7 +241,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get list of managed networks (that may or may not have network interfaces on the host).
-		networkNames, err = tx.GetNetworks(ctx, projectName)
+		networkNames, err = tx.GetNetworks(ctx, effectiveProjectName)
 
 		return err
 	})
@@ -249,7 +250,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get list of actual network interfaces on the host as well if the effective project is Default.
-	if projectName == api.ProjectDefaultName {
+	if effectiveProjectName == api.ProjectDefaultName {
 		ifaces, err := net.Interfaces()
 		if err != nil {
 			return response.InternalError(err)
@@ -276,14 +277,14 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 	resultString := []string{}
 	resultMap := []api.Network{}
 	for _, networkName := range networkNames {
-		if !userHasPermission(entity.NetworkURL(projectName, networkName)) {
+		if !userHasPermission(entity.NetworkURL(requestProjectName, networkName)) {
 			continue
 		}
 
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, networkName))
 		} else {
-			net, err := doNetworkGet(s, r, s.ServerClustered, projectName, reqProject.Config, networkName)
+			net, err := doNetworkGet(s, r, s.ServerClustered, requestProjectName, reqProject.Config, networkName)
 			if err != nil {
 				continue
 			}
@@ -853,11 +854,6 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
@@ -868,7 +864,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		allNodes = true
 	}
 
-	n, err := doNetworkGet(s, r, allNodes, effectiveProjectName, details.requestProject.Config, details.networkName)
+	n, err := doNetworkGet(s, r, allNodes, details.requestProject.Name, details.requestProject.Config, details.networkName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -881,20 +877,25 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 // doNetworkGet returns information about the specified network.
 // If the network being requested is a managed network and allNodes is true then node specific config is removed.
 // Otherwise if allNodes is false then the network's local status is returned.
-func doNetworkGet(s *state.State, r *http.Request, allNodes bool, projectName string, reqProjectConfig map[string]string, networkName string) (api.Network, error) {
+func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProjectName string, reqProjectConfig map[string]string, networkName string) (api.Network, error) {
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return api.Network{}, err
+	}
+
 	// Ignore veth pairs (for performance reasons).
 	if strings.HasPrefix(networkName, "veth") {
 		return api.Network{}, api.StatusErrorf(http.StatusNotFound, "Network not found")
 	}
 
 	// Get some information.
-	n, err := network.LoadByName(s, projectName, networkName)
+	n, err := network.LoadByName(s, effectiveProjectName, networkName)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return api.Network{}, fmt.Errorf("Failed loading network: %w", err)
 	}
 
 	// Don't allow retrieving info about the local server interfaces when not using default project.
-	if projectName != api.ProjectDefaultName && n == nil {
+	if effectiveProjectName != api.ProjectDefaultName && n == nil {
 		return api.Network{}, api.StatusErrorf(http.StatusNotFound, "Network not found")
 	}
 
@@ -922,7 +923,7 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, projectName st
 		apiNet.Description = n.Description()
 		apiNet.Type = n.Type()
 
-		err = s.Authorizer.CheckPermission(r.Context(), entity.NetworkURL(projectName, networkName), auth.EntitlementCanEdit)
+		err = s.Authorizer.CheckPermission(r.Context(), entity.NetworkURL(requestProjectName, networkName), auth.EntitlementCanEdit)
 		if err != nil && !auth.IsDeniedError(err) {
 			return api.Network{}, err
 		} else if err == nil {
@@ -963,7 +964,7 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, projectName st
 			networkID = n.ID()
 		}
 
-		usedBy, err := network.UsedBy(s, projectName, networkID, apiNet.Name, apiNet.Type, false)
+		usedBy, err := network.UsedBy(s, effectiveProjectName, networkID, apiNet.Name, apiNet.Type, false)
 		if err != nil {
 			return api.Network{}, err
 		}
