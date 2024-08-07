@@ -737,7 +737,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 			return nil
 		}
 
-		srcOp, err := operations.OperationCreate(s, projectName, operations.OperationClassWebsocket, operationtype.InstanceMigrate, resources, srcMigration.Metadata(), run, cancel, srcMigration.Connect, r)
+		srcOp, err := operations.OperationCreate(s, projectName, operations.OperationClassWebsocket, operationtype.InstanceMigrate, resources, srcMigration.Metadata(), run, cancel, srcMigration.Connect, nil)
 		if err != nil {
 			return err
 		}
