@@ -22,9 +22,11 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 
 ````{grid} 1 1 2 2
 
-```{grid-item-card} [Tutorial](tutorial/first_steps)
+```{grid-item-card} [Tutorials](tutorial/index)
 
-**Start here**: a hands-on introduction to LXD for new users, guiding you through your {ref}`first-steps`
+**Start here**: a hands-on introduction to LXD for new users, guiding you through your first steps using the CLI or the UI
+- {ref}`first-steps`
+- {ref}`tutorial-ui`
 ```
 
 ```{grid-item-card} [How-to guides](howto/index)
@@ -108,7 +110,7 @@ The LXD project is sponsored by [Canonical Ltd](https://canonical.com/).
 :titlesonly:
 
 :diataxis:self
-:diataxis:Tutorial <tutorial/first_steps>
+:diataxis:tutorial/index
 :diataxis:howto/index
 :diataxis:explanation/index
 :diataxis:reference/index
