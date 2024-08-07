@@ -34,9 +34,20 @@ type PermissionChecker func(entityURL *api.URL) bool
 
 // Authorizer is the primary external API for this package.
 type Authorizer interface {
+	// Driver returns the driver name.
 	Driver() string
 
+	// CheckPermission checks if the caller has the given entitlement on the entity found at the given URL.
+	//
+	// Note: When a project does not have a feature enabled, the given URL should contain the request project, and the
+	// effective project for the entity should be set in the given context as request.CtxEffectiveProjectName.
 	CheckPermission(ctx context.Context, entityURL *api.URL, entitlement Entitlement) error
+
+	// GetPermissionChecker returns a PermissionChecker for a particular entity.Type.
+	//
+	// Note: As with CheckPermission, arguments to the returned PermissionChecker should contain the request project for
+	// the entity. The effective project for the entity must be set in the request context as request.CtxEffectiveProjectName
+	// *before* the call to GetPermissionChecker.
 	GetPermissionChecker(ctx context.Context, entitlement Entitlement, entityType entity.Type) (PermissionChecker, error)
 }
 
