@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -310,4 +311,18 @@ func NetworkZoneProjectFromRecord(p *api.Project) string {
 	}
 
 	return api.ProjectDefaultName
+}
+
+// ImageProject returns the effective project for images based on the value of `features.images` in the given project.
+func ImageProject(ctx context.Context, tx *sql.Tx, requestProjectName string) (string, error) {
+	projectHasImages, err := cluster.ProjectHasImages(ctx, tx, requestProjectName)
+	if err != nil {
+		return "", err
+	}
+
+	if !projectHasImages {
+		return api.ProjectDefaultName, nil
+	}
+
+	return requestProjectName, nil
 }
