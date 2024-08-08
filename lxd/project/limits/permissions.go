@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -22,6 +23,9 @@ import (
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
 )
+
+// projectLimitDiskPool is the prefix used for pool-specific disk limits.
+var projectLimitDiskPool = "limits.disk.pool."
 
 // AllowInstanceCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new instance.
@@ -234,7 +238,7 @@ func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instanc
 
 // AllowVolumeCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new custom volume in a project.
-func AllowVolumeCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, req api.StorageVolumesPost) error {
+func AllowVolumeCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, poolName string, req api.StorageVolumesPost) error {
 	var globalConfigDump map[string]any
 	if globalConfig != nil {
 		globalConfigDump = globalConfig.Dump()
@@ -256,8 +260,9 @@ func AllowVolumeCreation(globalConfig *clusterConfig.Config, tx *db.ClusterTx, p
 
 	// Add the volume being created.
 	info.Volumes = append(info.Volumes, db.StorageVolumeArgs{
-		Name:   req.Name,
-		Config: req.Config,
+		Name:     req.Name,
+		Config:   req.Config,
+		PoolName: poolName,
 	})
 
 	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
@@ -329,8 +334,9 @@ func checkRestrictionsAndAggregateLimits(globalConfig *clusterConfig.Config, tx 
 	// across all project instances.
 	aggregateKeys := []string{}
 	isRestricted := false
+
 	for key, value := range info.Project.Config {
-		if shared.ValueInSlice(key, allAggregateLimits) {
+		if slices.Contains(allAggregateLimits, key) || strings.HasPrefix(key, projectLimitDiskPool) {
 			aggregateKeys = append(aggregateKeys, key)
 			continue
 		}
@@ -388,7 +394,14 @@ func getAggregateLimits(info *projectInfo, aggregateKeys []string) (map[string]a
 		max := int64(-1)
 		limit := info.Project.Config[key]
 		if limit != "" {
-			parser := aggregateLimitConfigValueParsers[key]
+			keyName := key
+
+			// Handle pool-specific limits.
+			if strings.HasPrefix(key, projectLimitDiskPool) {
+				keyName = "limits.disk"
+			}
+
+			parser := aggregateLimitConfigValueParsers[keyName]
 			max, err = parser(info.Project.Config[key])
 			if err != nil {
 				return nil, err
@@ -417,7 +430,14 @@ func checkAggregateLimits(info *projectInfo, aggregateKeys []string) error {
 	}
 
 	for _, key := range aggregateKeys {
-		parser := aggregateLimitConfigValueParsers[key]
+		keyName := key
+
+		// Handle pool-specific limits.
+		if strings.HasPrefix(key, projectLimitDiskPool) {
+			keyName = "limits.disk"
+		}
+
+		parser := aggregateLimitConfigValueParsers[keyName]
 		max, err := parser(info.Project.Config[key])
 		if err != nil {
 			return err
@@ -427,6 +447,7 @@ func checkAggregateLimits(info *projectInfo, aggregateKeys []string) error {
 			return fmt.Errorf("Reached maximum aggregate value %q for %q in project %q", info.Project.Config[key], key, info.Project.Name)
 		}
 	}
+
 	return nil
 }
 
@@ -1125,7 +1146,14 @@ func validateAggregateLimit(totals map[string]int64, key, value string) error {
 		return nil
 	}
 
-	parser := aggregateLimitConfigValueParsers[key]
+	keyName := key
+
+	// Handle pool-specific limits.
+	if strings.HasPrefix(key, projectLimitDiskPool) {
+		keyName = "limits.disk"
+	}
+
+	parser := aggregateLimitConfigValueParsers[keyName]
 	limit, err := parser(value)
 	if err != nil {
 		return fmt.Errorf("Invalid value %q for limit %q: %w", value, key, err)
@@ -1133,7 +1161,14 @@ func validateAggregateLimit(totals map[string]int64, key, value string) error {
 
 	total := totals[key]
 	if limit < total {
-		printer := aggregateLimitConfigValuePrinters[key]
+		keyName := key
+
+		// Handle pool-specific limits.
+		if strings.HasPrefix(key, projectLimitDiskPool) {
+			keyName = "limits.disk"
+		}
+
+		printer := aggregateLimitConfigValuePrinters[keyName]
 		return fmt.Errorf("%q is too low: current total is %q", key, printer(total))
 	}
 
@@ -1287,8 +1322,18 @@ func getTotalsAcrossProjectEntities(info *projectInfo, keys []string, skipUnset 
 
 	for _, key := range keys {
 		totals[key] = 0
-		if key == "limits.disk" {
+		if key == "limits.disk" || strings.HasPrefix(key, projectLimitDiskPool) {
+			poolName := ""
+			fields := strings.SplitN(key, projectLimitDiskPool, 2)
+			if len(fields) == 2 {
+				poolName = fields[1]
+			}
+
 			for _, volume := range info.Volumes {
+				if poolName != "" && volume.PoolName != poolName {
+					continue
+				}
+
 				value, ok := volume.Config["size"]
 				if !ok {
 					if skipUnset {
@@ -1329,12 +1374,29 @@ func getInstanceLimits(instance api.Instance, keys []string, skipUnset bool, sto
 
 	for _, key := range keys {
 		var limit int64
-		parser := aggregateLimitConfigValueParsers[key]
+		keyName := key
 
-		if key == "limits.disk" {
+		// Handle pool-specific limits.
+		if strings.HasPrefix(key, projectLimitDiskPool) {
+			keyName = "limits.disk"
+		}
+
+		parser := aggregateLimitConfigValueParsers[keyName]
+
+		if key == "limits.disk" || strings.HasPrefix(key, projectLimitDiskPool) {
+			poolName := ""
+			fields := strings.SplitN(key, projectLimitDiskPool, 2)
+			if len(fields) == 2 {
+				poolName = fields[1]
+			}
+
 			_, device, err := instancetype.GetRootDiskDevice(instance.Devices)
 			if err != nil {
 				return nil, fmt.Errorf("Failed getting root disk device for instance %q in project %q: %w", instance.Name, instance.Project, err)
+			}
+
+			if poolName != "" && device["pool"] != poolName {
+				continue
 			}
 
 			value, ok := device["size"]

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -29,6 +30,16 @@ func GetCurrentAllocations(globalConfig map[string]any, ctx context.Context, tx 
 		return nil, err
 	}
 
+	// Get per-pool limits.
+	poolLimits := []string{}
+	for k := range info.Project.Config {
+		if strings.HasPrefix(k, projectLimitDiskPool) {
+			poolLimits = append(poolLimits, k)
+		}
+	}
+
+	allAggregateLimits := append(allAggregateLimits, poolLimits...)
+
 	// Get the instance aggregated values.
 	raw, err := getAggregateLimits(info, allAggregateLimits)
 	if err != nil {
@@ -40,6 +51,13 @@ func GetCurrentAllocations(globalConfig map[string]any, ctx context.Context, tx 
 	result["memory"] = raw["limits.memory"]
 	result["networks"] = raw["limits.networks"]
 	result["processes"] = raw["limits.processes"]
+
+	// Add the pool-specific disk limits.
+	for k, v := range raw {
+		if strings.HasPrefix(k, projectLimitDiskPool) && v.Limit > 0 {
+			result[fmt.Sprintf("disk.%s", strings.SplitN(k, ".", 4)[3])] = v
+		}
+	}
 
 	// Get the instance count values.
 	count, limit, err := getTotalInstanceCountLimit(info)
