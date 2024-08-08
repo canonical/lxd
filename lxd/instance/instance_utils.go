@@ -652,12 +652,14 @@ func SuitableArchitectures(ctx context.Context, s *state.State, tx *db.ClusterTx
 // so it takes an argument indicating whether the name is to be used for a snapshot or not.
 func ValidName(instanceName string, isSnapshot bool) error {
 	if isSnapshot {
-		parentName, snapshotName, _ := api.GetParentAndSnapshotName(instanceName)
-		err := validate.IsHostname(parentName)
-		if err != nil {
-			return fmt.Errorf("Invalid instance name %q: %w", parentName, err)
+		parentName, snapshotName, isSnap := api.GetParentAndSnapshotName(instanceName)
+		if isSnap {
+			err := validate.IsHostname(parentName)
+			if err != nil {
+				return fmt.Errorf("Invalid instance name %q: %w", parentName, err)
+			}
 		}
-
+		
 		// Snapshot part is more flexible, but doesn't allow space or / character.
 		if strings.ContainsAny(snapshotName, " /") {
 			return fmt.Errorf("Invalid instance snapshot name %q: Cannot contain spaces or slashes", snapshotName)
