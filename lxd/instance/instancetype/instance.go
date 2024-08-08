@@ -1179,15 +1179,6 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 			return validate.IsAny, nil
 		}
 
-		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.last_state.ip_addresses)
-		// Comma-separated list of the last used IP addresses of the network device.
-		// ---
-		//  type: string
-		//  shortdesc: Last used IP addresses
-		if strings.HasSuffix(key, ".last_state.ip_addresses") {
-			return validate.IsListOf(validate.IsNetworkAddress), nil
-		}
-
 		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.apply_quota)
 		// The disk quota is applied the next time the instance starts.
 		// ---
