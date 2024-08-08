@@ -4252,17 +4252,15 @@ func (n *ovn) InstanceDevicePortIPs(instanceUUID string, deviceName string) ([]n
 
 // InstanceDevicePortStop deletes an instance device port from the internal logical switch.
 func (n *ovn) InstanceDevicePortStop(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *OVNInstanceNICStopOpts) error {
-	// Decide whether to use OVS provided OVN port name or internally derived OVN port name.
-	instancePortName := ovsExternalOVNPort
-	source := "OVS"
-	if ovsExternalOVNPort == "" {
-		if opts.InstanceUUID == "" {
-			return fmt.Errorf("Instance UUID is required")
-		}
 
-		instancePortName = n.getInstanceDevicePortName(opts.InstanceUUID, opts.DeviceName)
-		source = "internal"
-	}
+	return nil
+}
+
+// InstanceDevicePortRemove unregisters the NIC device in the OVN database by removing the DNS entry that should
+// have been created during InstanceDevicePortAdd(). If the DNS record exists at remove time then this indicates
+// the NIC device was successfully added and this function also clears any DHCP reservations for the NIC's IPs.
+func (n *ovn) InstanceDevicePortRemove(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error {
+	instancePortName := n.getInstanceDevicePortName(instanceUUID, deviceName)
 
 	client, err := openvswitch.NewOVN(n.state)
 	if err != nil {
@@ -4279,9 +4277,9 @@ func (n *ovn) InstanceDevicePortStop(ovsExternalOVNPort openvswitch.OVNSwitchPor
 		return nil
 	}
 
-	n.logger.Debug("Deleting instance port", logger.Ctx{"port": instancePortName, "source": source})
+	n.logger.Debug("Deleting instance port", logger.Ctx{"port": instancePortName})
 
-	internalRoutes, externalRoutes, err := n.instanceDevicePortRoutesParse(opts.DeviceConfig)
+	internalRoutes, externalRoutes, err := n.instanceDevicePortRoutesParse(deviceConfig)
 	if err != nil {
 		return fmt.Errorf("Failed parsing NIC device routes: %w", err)
 	}
@@ -4383,28 +4381,8 @@ func (n *ovn) InstanceDevicePortStop(ovsExternalOVNPort openvswitch.OVNSwitchPor
 		}
 	}
 
-	return nil
-}
-
-// InstanceDevicePortRemove unregisters the NIC device in the OVN database by removing the DNS entry that should
-// have been created during InstanceDevicePortAdd(). If the DNS record exists at remove time then this indicates
-// the NIC device was successfully added and this function also clears any DHCP reservations for the NIC's IPs.
-func (n *ovn) InstanceDevicePortRemove(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error {
-	instancePortName := n.getInstanceDevicePortName(instanceUUID, deviceName)
-
 	revert := revert.New()
 	defer revert.Fail()
-
-	client, err := openvswitch.NewOVN(n.state)
-	if err != nil {
-		return fmt.Errorf("Failed to get OVN client: %w", err)
-	}
-
-	// Get DNS records.
-	dnsUUID, _, _, err := client.LogicalSwitchPortGetDNS(instancePortName)
-	if err != nil {
-		return err
-	}
 
 	// Remove DNS record if exists.
 	if dnsUUID != "" {
