@@ -1064,7 +1064,7 @@ test_backup_export_import_named_snapshot() {
 
     # Export the instance and remove it.
     lxc export c1 "${LXD_DIR}/c1.tar.gz"
-    lxc delete -f c1 
+    lxc delete -f c1
 
     # Import the instance from tarball.
     lxc import "${LXD_DIR}/c1.tar.gz"
