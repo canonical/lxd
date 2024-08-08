@@ -1048,7 +1048,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		err = limits.AllowVolumeCreation(s.GlobalConfig, tx, projectName, req)
+		err = limits.AllowVolumeCreation(s.GlobalConfig, tx, projectName, poolName, req)
 		if err != nil {
 			return err
 		}
