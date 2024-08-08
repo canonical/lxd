@@ -343,7 +343,41 @@ func (d *nicOVN) checkAddressConflict() error {
 
 // Add is run when a device is added to a non-snapshot instance whether or not the instance is running.
 func (d *nicOVN) Add() error {
-	return d.network.InstanceDevicePortAdd(d.inst.LocalConfig()["volatile.uuid"], d.name, d.config)
+	networkVethFillFromVolatile(d.config, d.volatileGet())
+
+	// Load uplink network config.
+	uplinkNetworkName := d.network.Config()["network"]
+
+	var err error
+	var uplink *api.Network
+
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkNetworkName)
+
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to load uplink network %q: %w", uplinkNetworkName, err)
+	}
+
+	err = d.network.InstanceDevicePortAdd(d.inst.LocalConfig()["volatile.uuid"], d.name, d.config)
+	if err != nil {
+		return err
+	}
+
+	// Add new OVN logical switch port for instance.
+	_, err = d.network.InstanceDevicePortStart(&network.OVNInstanceNICSetupOpts{
+		InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
+		DNSName:      d.inst.Name(),
+		DeviceName:   d.name,
+		DeviceConfig: d.config,
+		UplinkConfig: uplink.Config,
+	}, nil)
+	if err != nil {
+		return fmt.Errorf("Failed setting up OVN port: %w", err)
+	}
+
+	return nil
 }
 
 // PreStartCheck checks the managed parent network is available (if relevant).
