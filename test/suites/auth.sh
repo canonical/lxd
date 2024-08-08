@@ -133,6 +133,9 @@ EOF
   # Perform access checks
   fine_grained_authorization
 
+  # Perform access check compatibility with project feature flags
+  auth_project_features
+
   # Cleanup
   lxc auth group delete test-group
   lxc auth identity-provider-group delete test-idp-group
@@ -191,7 +194,7 @@ fine_grained_authorization() {
   # Change permission to "user" for instance "user-foo"
   lxc auth group permission add test-group instance user-foo user project=default
 
-  # To exec into an instance, the test-group will also need `can_view_events` for the project.
+  # To exec into an instance, Members of test-group will also need `can_view_events` for the project.
   # This is because the client uses the events API to figure out when the operation is finished.
   # Ideally we would use operations for this instead or allow more fine-grained filtering on events.
   lxc auth group permission add test-group project default can_view_events
@@ -443,4 +446,366 @@ user_is_instance_user() {
 
   # We can't edit the instance though
   ! lxc_remote config set "oidc:${instance_name}" user.fizz=buzz || false
+}
+
+auth_project_features() {
+  # test-group must have no permissions to start the test.
+  [ "$(lxc query /1.0/auth/groups/test-group | jq '.permissions | length')" -eq 0 ]
+
+  # Create project blah
+  lxc project create blah
+
+  # Validate view with no permissions
+  [ "$(lxc_remote project list oidc: --format csv | wc -l)" -eq 0 ]
+
+  # Allow operator permissions on project blah
+  lxc auth group permission add test-group project blah operator
+
+  # Confirm we can still view storage pools
+  [ "$(lxc_remote storage list oidc: --format csv | wc -l)" = 1 ]
+
+  # Confirm we cannot view storage pool configuration
+  pool_name="$(lxc_remote storage list oidc: --format csv | cut -d, -f1)"
+  [ "$(lxc_remote storage get "oidc:${pool_name}" source)" = "" ]
+
+  # Validate restricted view
+  ! lxc_remote project list oidc: --format csv | grep -w ^default || false
+  lxc_remote project list oidc: --format csv | grep -w ^blah
+
+  # Validate that the restricted caller cannot edit or delete the project.
+  ! lxc_remote project set oidc:blah user.foo=bar || false
+  ! lxc_remote project delete oidc:blah || false
+
+  # Validate restricted caller cannot create projects.
+  ! lxc_remote project create oidc:blah1 || false
+
+  # Validate restricted caller cannot see resources in projects they do not have access to (the call will not fail, but
+  # the lists should be empty
+  [ "$(lxc_remote list oidc: --project default --format csv)" = "" ]
+  [ "$(lxc_remote profile list oidc: --project default --format csv)" = "" ]
+  [ "$(lxc_remote network list oidc: --project default --format csv)" = "" ]
+  [ "$(lxc_remote operation list oidc: --project default --format csv)" = "" ]
+  [ "$(lxc_remote network zone list oidc: --project default --format csv)" = "" ]
+  [ "$(lxc_remote storage volume list "oidc:${pool_name}" --project default --format csv)" = "" ]
+  [ "$(lxc_remote storage bucket list "oidc:${pool_name}" --project default --format csv)" = "" ]
+
+  ### Validate images.
+  test_image_fingerprint="$(lxc image info testimage --project default | awk '/^Fingerprint/ {print $2}')"
+
+  # We can always list images, but there are no public images in the default project now, so the list should be empty.
+  [ "$(lxc_remote image list oidc: --project default --format csv)" = "" ]
+  ! lxc_remote image show oidc:testimage --project default || false
+
+  # Set the image to public and ensure we can view it.
+  lxc image show testimage --project default | sed -e "s/public: false/public: true/" | lxc image edit testimage --project default
+  [ "$(lxc_remote image list oidc: --project default --format csv | wc -l)" = 1 ]
+  lxc_remote image show oidc:testimage --project default
+
+  # Check we can export the public image:
+  lxc image export oidc:testimage "${TEST_DIR}/" --project default
+  [ "${test_image_fingerprint}" = "$(sha256sum "${TEST_DIR}/${test_image_fingerprint}.tar.xz" | cut -d' ' -f1)" ]
+
+  # While the image is public, copy it to the blah project and create an alias for it.
+  lxc_remote image copy oidc:testimage oidc: --project default --target-project blah
+  lxc_remote image alias create oidc:testimage "${test_image_fingerprint}" --project blah
+
+  # Restore privacy on the test image in the default project.
+  lxc image show testimage --project default | sed -e "s/public: true/public: false/" | lxc image edit testimage --project default
+
+  # Set up a profile in the blah project. Additionally ensures project operator can edit profiles.
+  lxc profile show default | lxc_remote profile edit oidc:default --project blah
+
+  # Create an instance (using the test image copied from the default project while it was public).
+  lxc_remote init testimage oidc:blah-instance --project blah
+
+  # Create a custom volume.
+  lxc_remote storage volume create "oidc:${pool_name}" blah-volume --project blah
+
+  # There should now be two volume URLs, one instance, one image, and one profile URL in the used-by list.
+  [ "$(lxc_remote project list oidc: --format csv | cut -d, -f9)" = "5" ]
+
+  # Delete resources in project blah so that we can modify project features.
+  lxc_remote delete oidc:blah-instance --project blah
+  lxc_remote storage volume delete "oidc:${pool_name}" blah-volume --project blah
+  lxc_remote image delete "oidc:${test_image_fingerprint}" --project blah
+
+  # Ensure we can create and view resources that are not enabled for the project (e.g. their effective project is
+  # the default project).
+
+  ### IMAGES (initial value is true for new projects)
+
+  # Unset the images feature (the default is false).
+  lxc project unset blah features.images
+
+  # The test image in the default project *not* should be visible by default via project blah.
+  ! lxc_remote image info "oidc:${test_image_fingerprint}" --project blah || false
+  ! lxc_remote image show "oidc:${test_image_fingerprint}" --project blah || false
+  test_image_fingerprint_short="$(echo "${test_image_fingerprint}" | cut -c1-12)"
+  ! lxc_remote image list oidc: --project blah | grep -F "${test_image_fingerprint_short}" || false
+
+  # Make the images in the default project viewable to members of test-group
+  lxc auth group permission add test-group project default can_view_images
+
+  # The test image in the default project should now be visible via project blah.
+  lxc_remote image info "oidc:${test_image_fingerprint}" --project blah
+  lxc_remote image show "oidc:${test_image_fingerprint}" --project blah
+  lxc_remote image list oidc: --project blah | grep -F "${test_image_fingerprint_short}"
+
+  # Members of test-group can view it via project default. (This is true even though they do not have can_view on project default).
+  lxc_remote image info "oidc:${test_image_fingerprint}" --project default
+  lxc_remote image show "oidc:${test_image_fingerprint}" --project default
+  lxc_remote image list oidc: --project default | grep -F "${test_image_fingerprint_short}"
+
+  # Members of test-group cannot edit the image.
+  ! lxc_remote image set-property "oidc:${test_image_fingerprint}" requirements.secureboot true --project blah || false
+  ! lxc_remote image unset-property "oidc:${test_image_fingerprint}" requirements.secureboot --project blah || false
+
+  # Members of test-group cannot delete the image.
+  ! lxc_remote image delete "oidc:${test_image_fingerprint}" --project blah || false
+
+  # Delete it anyway to test that we can import a new one.
+  lxc image delete "${test_image_fingerprint}" --project default
+
+  # Members of test-group can create images.
+  lxc_remote image import "${TEST_DIR}/${test_image_fingerprint}.tar.xz" oidc: --project blah
+  lxc_remote image alias create oidc:testimage "${test_image_fingerprint}" --project blah
+
+  # We can view the image we've created via project blah (whose effective project is default) because we've granted the
+  # group permission to view all images in the default project.
+  lxc_remote image show "oidc:${test_image_fingerprint}" --project blah
+  lxc_remote image show "oidc:${test_image_fingerprint}" --project default
+
+  # Image clean up
+  lxc image delete "${test_image_fingerprint}" --project default
+  lxc auth group permission remove test-group project default can_view_images
+  rm "${TEST_DIR}/${test_image_fingerprint}.tar.xz"
+
+  ### NETWORKS (initial value is false in new projects).
+
+  # Create a network in the default project.
+  networkName="net$$"
+  lxc network create "${networkName}" --project default
+
+  # The network we created in the default project is not visible in project blah.
+  ! lxc_remote network show "oidc:${networkName}" --project blah || false
+  ! lxc_remote network list oidc: --project blah | grep -F "${networkName}" || false
+
+  # Make networks in the default project viewable to members of test-group
+  lxc auth group permission add test-group project default can_view_networks
+
+  # The network we created in the default project is now visible in project blah.
+  lxc_remote network show "oidc:${networkName}" --project blah
+  lxc_remote network list oidc: --project blah | grep -F "${networkName}"
+
+  # Members of test-group can view it via project default.
+  lxc_remote network show "oidc:${networkName}" --project default
+  lxc_remote network list oidc: --project default | grep -F "${networkName}"
+
+  # Members of test-group cannot edit the network.
+  ! lxc_remote network set "oidc:${networkName}" user.foo=bar --project blah || false
+
+  # Members of test-group cannot delete the network.
+  ! lxc_remote network delete "oidc:${networkName}" --project blah || false
+
+  # Create a network in the blah project.
+  lxc_remote network create oidc:blah-network --project blah
+
+  # The network is visible only because we have granted view access on networks in the default project.
+  lxc_remote network show oidc:blah-network --project blah
+  lxc_remote network list oidc: --project blah | grep blah-network
+
+  # Members of test-group can view it via the default project.
+  lxc_remote network show oidc:blah-network --project default
+
+  # Members of test-group cannot edit the network.
+  ! lxc_remote network set oidc:blah-network user.foo=bar --project blah || false
+
+  # Members of test-group cannot delete the network.
+  ! lxc_remote network delete oidc:blah-network --project blah || false
+
+  # Network clean up
+  lxc network delete "${networkName}" --project blah
+  lxc network delete blah-network --project blah
+  lxc auth group permission remove test-group project default can_view_networks
+
+  ### NETWORK ZONES (initial value is false in new projects).
+
+  # Create a network zone in the default project.
+  zoneName="zone$$"
+  lxc network zone create "${zoneName}" --project default
+
+  # The network zone we created in the default project is *not* visible in project blah.
+  ! lxc_remote network zone show "oidc:${zoneName}" --project blah || false
+  ! lxc_remote network zone list oidc: --project blah | grep -F "${zoneName}" || false
+
+  # Allow view access to network zones in the default project.
+  lxc auth group permission add test-group project default can_view_network_zones
+
+  # Members of test-group can now view the network zone via the default project and via the blah project.
+  lxc_remote network zone show "oidc:${zoneName}" --project default
+  lxc_remote network zone list oidc: --project default | grep -F "${zoneName}"
+  lxc_remote network zone show "oidc:${zoneName}" --project blah
+  lxc_remote network zone list oidc: --project blah | grep -F "${zoneName}"
+
+  # Members of test-group cannot edit the network zone.
+  ! lxc_remote network zone set "oidc:${zoneName}" user.foo=bar --project blah || false
+
+  # Members of test-group can delete the network zone.
+  ! lxc_remote network zone delete "oidc:${zoneName}" --project blah || false
+
+  # Create a network zone in the blah project.
+  lxc_remote network zone create oidc:blah-zone --project blah
+
+  # Network zone is visible to members of test-group in project blah (because they can view network zones in the default project).
+  lxc_remote network zone show oidc:blah-zone --project blah
+  lxc_remote network zone list oidc: --project blah | grep blah-zone
+  lxc_remote network zone show oidc:blah-zone --project default
+  lxc_remote network zone list oidc: --project default | grep blah-zone
+
+  # Members of test-group cannot delete the network zone.
+  ! lxc_remote network zone delete oidc:blah-zone --project blah || false
+
+  # Network zone clean up
+  lxc network zone delete "${zoneName}" --project blah
+  lxc network zone delete blah-zone --project blah
+  lxc auth group permission remove test-group project default can_view_network_zones
+
+  ### PROFILES (initial value is true for new projects)
+
+  # Unset the profiles feature (the default is false).
+  lxc project unset blah features.profiles
+
+  # Create a profile in the default project.
+  profileName="prof$$"
+  lxc profile create "${profileName}" --project default
+
+  # The profile we created in the default project is not visible in project blah.
+  ! lxc_remote profile show "oidc:${profileName}" --project blah || false
+  ! lxc_remote profile list oidc: --project blah | grep -F "${profileName}" || false
+
+  # Grant members of test-group permission to view profiles in the default project
+  lxc auth group permission add test-group project default can_view_profiles
+
+  # The profile we just created is now visible via the default project and via the blah project
+  lxc_remote profile show "oidc:${profileName}" --project default
+  lxc_remote profile list oidc: --project default | grep -F "${profileName}"
+  lxc_remote profile show "oidc:${profileName}" --project blah
+  lxc_remote profile list oidc: --project blah | grep -F "${profileName}"
+
+  # Members of test-group cannot edit the profile.
+  ! lxc_remote profile set "oidc:${profileName}" user.foo=bar --project blah || false
+
+  # Members of test-group cannot delete the profile.
+  ! lxc_remote profile delete "oidc:${profileName}" --project blah || false
+
+  # Create a profile in the blah project.
+  lxc_remote profile create oidc:blah-profile --project blah
+
+  # Profile is visible to members of test-group in project blah and project default.
+  lxc_remote profile show oidc:blah-profile --project blah
+  lxc_remote profile list oidc: --project blah | grep blah-profile
+  lxc_remote profile show oidc:blah-profile --project default
+  lxc_remote profile list oidc: --project default | grep blah-profile
+
+  # Members of test-group cannot delete the profile.
+  ! lxc_remote profile delete oidc:blah-profile --project blah || false
+
+  # Profile clean up
+  lxc profile delete "${profileName}" --project blah
+  lxc profile delete blah-profile --project blah
+  lxc auth group permission remove test-group project default can_view_profiles
+
+  ### STORAGE VOLUMES (initial value is true for new projects)
+
+  # Unset the storage volumes feature (the default is false).
+  lxc project unset blah features.storage.volumes
+
+  # Create a storage volume in the default project.
+  volName="vol$$"
+  lxc storage volume create "${pool_name}" "${volName}" --project default
+
+  # The storage volume we created in the default project is not visible in project blah.
+  ! lxc_remote storage volume show "oidc:${pool_name}" "${volName}" --project blah || false
+  ! lxc_remote storage volume list "oidc:${pool_name}" --project blah | grep -F "${volName}" || false
+
+  # Grant members of test-group permission to view storage volumes in project default
+  lxc auth group permission add test-group project default can_view_storage_volumes
+
+  # Members of test-group can't view it via project default and project blah.
+  lxc_remote storage volume show "oidc:${pool_name}" "${volName}" --project default
+  lxc_remote storage volume list "oidc:${pool_name}" --project default | grep -F "${volName}"
+  lxc_remote storage volume show "oidc:${pool_name}" "${volName}" --project blah
+  lxc_remote storage volume list "oidc:${pool_name}" --project blah | grep -F "${volName}"
+
+  # Members of test-group cannot edit the storage volume.
+  ! lxc_remote storage volume set "oidc:${pool_name}" "${volName}" user.foo=bar --project blah || false
+
+  # Members of test-group cannot delete the storage volume.
+  ! lxc_remote storage volume delete "oidc:${pool_name}" "${volName}" --project blah || false
+
+  # Create a storage volume in the blah project.
+  lxc_remote storage volume create "oidc:${pool_name}" blah-volume --project blah
+
+  # Storage volume is visible to members of test-group in project blah (because they can view volumes in the default project).
+  lxc_remote storage volume show "oidc:${pool_name}" blah-volume --project blah
+  lxc_remote storage volume list "oidc:${pool_name}" --project blah | grep blah-volume
+  lxc_remote storage volume show "oidc:${pool_name}" blah-volume --project default
+  lxc_remote storage volume list "oidc:${pool_name}" --project default | grep blah-volume
+
+  # Members of test-group cannot delete the storage volume.
+  ! lxc_remote storage volume delete "oidc:${pool_name}" blah-volume --project blah || false
+
+  # Storage volume clean up
+  lxc storage volume delete "${pool_name}" "${volName}"
+  lxc storage volume delete "${pool_name}" blah-volume
+  lxc auth group permission remove test-group project default can_view_storage_volumes
+
+  ### STORAGE BUCKETS (initial value is true for new projects)
+
+  # Create a storage pool to use with object storage.
+  create_object_storage_pool s3
+
+  # Unset the storage buckets feature (the default is false).
+  lxc project unset blah features.storage.buckets
+
+  # Create a storage bucket in the default project.
+  bucketName="bucket$$"
+  lxc storage bucket create s3 "${bucketName}" --project default
+
+  # The storage bucket we created in the default project is not visible in project blah.
+  ! lxc_remote storage bucket show oidc:s3 "${bucketName}" --project blah || false
+  ! lxc_remote storage bucket list oidc:s3 --project blah | grep -F "${bucketName}" || false
+
+  # Grant view permission on storage buckets in project default to members of test-group
+  lxc auth group permission add test-group project default can_view_storage_buckets
+
+  # Members of test-group can now view the bucket via project default and project blah.
+  lxc_remote storage bucket show oidc:s3 "${bucketName}" --project default
+  lxc_remote storage bucket list oidc:s3 --project default | grep -F "${bucketName}"
+  lxc_remote storage bucket show oidc:s3 "${bucketName}" --project blah
+  lxc_remote storage bucket list oidc:s3 --project blah | grep -F "${bucketName}"
+
+  # Members of test-group cannot edit the storage bucket.
+  ! lxc_remote storage bucket set oidc:s3 "${bucketName}" user.foo=bar --project blah || false
+
+  # Members of test-group cannot delete the storage bucket.
+  ! lxc_remote storage bucket delete oidc:s3 "${bucketName}" --project blah || false
+
+  # Create a storage bucket in the blah project.
+  lxc_remote storage bucket create oidc:s3 blah-bucket --project blah
+
+  # Storage bucket is visible to members of test-group in project blah (because they can view buckets in the default project).
+  lxc_remote storage bucket show oidc:s3 blah-bucket --project blah
+  lxc_remote storage bucket list oidc:s3 --project blah | grep blah-bucket
+
+  # Members of test-group cannot delete the storage bucket.
+  ! lxc_remote storage bucket delete oidc:s3 blah-bucket --project blah || false
+
+  # Cleanup storage buckets
+  lxc storage bucket delete s3 blah-bucket --project blah
+  lxc storage bucket delete s3 "${bucketName}" --project blah
+  delete_object_storage_pool s3
+
+  # General clean up
+  lxc project delete blah
 }
