@@ -38,7 +38,6 @@ type ovnNet interface {
 	InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, externalRoutes []*net.IPNet) error
 	InstanceDevicePortAdd(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error
 	InstanceDevicePortStart(opts *network.OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, []net.IP, error)
-	InstanceDevicePortStop(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *network.OVNInstanceNICStopOpts) error
 	InstanceDevicePortRemove(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error
 	InstanceDevicePortIPs(instanceUUID string, deviceName string) ([]net.IP, error)
 }
@@ -593,14 +592,6 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	saveData["last_state.ip_addresses"] = dnsIPsStr.String()
-
-	revert.Add(func() {
-		_ = d.network.InstanceDevicePortStop("", &network.OVNInstanceNICStopOpts{
-			InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
-			DeviceName:   d.name,
-			DeviceConfig: d.config,
-		})
-	})
 
 	// Associated host side interface to OVN logical switch port (if not nested).
 	if integrationBridgeNICName != "" {
