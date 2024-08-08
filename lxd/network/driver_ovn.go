@@ -74,7 +74,6 @@ type OVNInstanceNICSetupOpts struct {
 	DeviceConfig deviceConfig.Device
 	UplinkConfig map[string]string
 	DNSName      string
-	LastStateIPs []net.IP
 }
 
 // OVNInstanceNICStopOpts options for stopping an OVN Instance NIC.
@@ -3732,43 +3731,6 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 			if dhcpV4ID == "" {
 				return "", nil, fmt.Errorf("Could not find DHCPv4 options for instance port for subnet %q", dhcpv4Subnet.String())
-			}
-
-			// If using dynamic IPv4, look for previously used sticky IPs from the NIC's last state.
-			var dhcpV4StickyIP net.IP
-			if opts.DeviceConfig["ipv4.address"] == "" {
-				for _, ip := range opts.LastStateIPs {
-					if ip.To4() != nil && SubnetContainsIP(dhcpv4Subnet, ip) {
-						dhcpV4StickyIP = ip
-						break
-					}
-				}
-			}
-
-			// If a previously used IP has been found and its not one of the static IPs, then check if
-			// the IP is available for use and if not then we can request this port use it statically.
-			if dhcpV4StickyIP != nil && !IPInSlice(dhcpV4StickyIP, staticIPs) {
-				// If the sticky IP isn't statically reserved, lets check its not used dynamically
-				// on any active port.
-				if !n.hasDHCPv4Reservation(dhcpReservations, dhcpV4StickyIP) {
-					existingPortIPs, err := client.LogicalSwitchIPs(n.getIntSwitchName())
-					if err != nil {
-						return "", nil, fmt.Errorf("Failed getting existing switch port IPs: %w", err)
-					}
-
-					found := false
-					for _, ips := range existingPortIPs {
-						if IPInSlice(dhcpV4StickyIP, ips) {
-							found = true
-							break // IP is in use with another port, so cannot use it.
-						}
-					}
-
-					// If IP is not in use then request OVN use previously used IP for port.
-					if !found {
-						staticIPs = append(staticIPs, dhcpV4StickyIP)
-					}
-				}
 			}
 		}
 
