@@ -1051,3 +1051,24 @@ test_backup_export_import_instance_only() {
   rm "${LXD_DIR}/c1.tar.gz"
   lxc delete -f c1
 }
+
+test_backup_export_import_named_snapshot() {
+    poolName=$(lxc profile device get default root pool)
+
+    ensure_import_testimage
+    ensure_has_localhost_remote "${LXD_ADDR}"
+
+    # Create an instance with named snapshot (includes non-alphanumeric characters).
+    lxc init testimage c1
+    lxc snapshot c1 snap_test.01
+
+    # Export the instance and remove it.
+    lxc export c1 "${LXD_DIR}/c1.tar.gz"
+    lxc delete -f c1 
+
+    # Import the instance from tarball.
+    lxc import "${LXD_DIR}/c1.tar.gz
+
+    rm "${LXD_DIR}"/c1.tar.gz"
+    lxc delete -f c1
+}
