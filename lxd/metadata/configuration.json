@@ -2747,13 +2747,6 @@
 						}
 					},
 					{
-						"volatile.\u003cname\u003e.last_state.ip_addresses": {
-							"longdesc": "Comma-separated list of the last used IP addresses of the network device.",
-							"shortdesc": "Last used IP addresses",
-							"type": "string"
-						}
-					},
-					{
 						"volatile.\u003cname\u003e.last_state.mtu": {
 							"longdesc": "The original MTU that was used when moving a physical device into an instance.",
 							"shortdesc": "Network device original MTU",
