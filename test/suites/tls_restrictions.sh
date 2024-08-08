@@ -73,9 +73,8 @@ test_tls_restrictions() {
   lxc_remote image show localhost:testimage --project default
 
   # Check we can export the public image:
-  lxc image export localhost:testimage "${LXD_DIR}/" --project default
-  [ "${test_image_fingerprint}" = "$(sha256sum "${LXD_DIR}/${test_image_fingerprint}.tar.xz" | cut -d' ' -f1)" ]
-  rm "${LXD_DIR}/${test_image_fingerprint}.tar.xz"
+  lxc image export localhost:testimage "${TEST_DIR}/" --project default
+  [ "${test_image_fingerprint}" = "$(sha256sum "${TEST_DIR}/${test_image_fingerprint}.tar.xz" | cut -d' ' -f1)" ]
 
   # While the image is public, copy it to the blah project and create an alias for it.
   lxc_remote image copy localhost:testimage localhost: --project default --target-project blah
@@ -96,43 +95,240 @@ test_tls_restrictions() {
   # There should now be two volume URLs, one instance, one image, and one profile URL in the used-by list.
   [ "$(lxc_remote project list localhost: --format csv | cut -d, -f9)" = "5" ]
 
-  # Delete resources in project blah so that we can modify project limits.
+  # Delete resources in project blah so that we can modify project features.
   lxc_remote delete localhost:blah-instance --project blah
   lxc_remote storage volume delete "localhost:${pool_name}" blah-volume --project blah
-  test_image_fingerprint="$(lxc_remote image list localhost: --format csv --columns f --project blah)"
   lxc_remote image delete "localhost:${test_image_fingerprint}" --project blah
 
   # Ensure we can create and view resources that are not enabled for the project (e.g. their effective project is
   # the default project).
 
-  # Networks are disabled when projects are created.
+  ### IMAGES (initial value is true for new projects)
+
+  # Unset the images feature (the default is false).
+  lxc project unset blah features.images
+
+  # The test image in the default project should be visible via project blah.
+  lxc_remote image info "localhost:${test_image_fingerprint}" --project blah
+  lxc_remote image show "localhost:${test_image_fingerprint}" --project blah
+  test_image_fingerprint_short="$(echo "${test_image_fingerprint}" | cut -c1-12)"
+  lxc_remote image list localhost: --project blah | grep -F "${test_image_fingerprint_short}"
+
+  # The restricted client can't view it via project default.
+  ! lxc_remote image info "localhost:${test_image_fingerprint}" --project default || false
+  ! lxc_remote image show "localhost:${test_image_fingerprint}" --project default || false
+  ! lxc_remote image list localhost: --project default | grep -F "${test_image_fingerprint_short}" || false
+
+  # The restricted client can edit the image.
+  lxc_remote image set-property "localhost:${test_image_fingerprint}" requirements.secureboot true --project blah
+  lxc_remote image unset-property "localhost:${test_image_fingerprint}" requirements.secureboot --project blah
+
+  # The restricted client can delete the image.
+  lxc_remote image delete "localhost:${test_image_fingerprint}" --project blah
+
+  # The restricted client can create images.
+  lxc_remote image import "${TEST_DIR}/${test_image_fingerprint}.tar.xz" localhost: --project blah
+
+  # Clean up
+  lxc_remote image delete "localhost:${test_image_fingerprint}" --project blah
+
+
+  ### NETWORKS (initial value is false in new projects).
+
+  # Create a network in the default project.
+  networkName="net$$"
+  lxc network create "${networkName}" --project default
+
+  # The network we created in the default project is visible in project blah.
+  lxc_remote network show "localhost:${networkName}" --project blah
+  lxc_remote network list localhost: --project blah | grep -F "${networkName}"
+
+  # The restricted client can't view it via project default.
+  ! lxc_remote network show "localhost:${networkName}" --project default || false
+  ! lxc_remote network list localhost: --project default | grep -F "${networkName}" || false
+
+  # The restricted client can edit the network.
+  lxc_remote network set "localhost:${networkName}" user.foo=bar --project blah
+
+  # The restricted client can delete the network.
+  lxc_remote network delete "localhost:${networkName}" --project blah
+
+  # Create a network in the blah project.
   lxc_remote network create localhost:blah-network --project blah
+
+  # Network is visible to restricted client in project blah.
   lxc_remote network show localhost:blah-network --project blah
   lxc_remote network list localhost: --project blah | grep blah-network
-  lxc_remote network rm localhost:blah-network --project blah
 
-  # Network zones are disabled when projects are created.
+  # The network is actually in the default project.
+  lxc network show blah-network --project default
+
+  # The restricted client can't view it via the default project.
+  ! lxc_remote network show localhost:blah-network --project default || false
+
+  # The restricted client can delete the network.
+  lxc_remote network delete localhost:blah-network --project blah
+
+
+  ### NETWORK ZONES (initial value is false in new projects).
+
+  # Create a network zone in the default project.
+  zoneName="zone$$"
+  lxc network zone create "${zoneName}" --project default
+
+  # The network zone we created in the default project is visible in project blah.
+  lxc_remote network zone show "localhost:${zoneName}" --project blah
+  lxc_remote network zone list localhost: --project blah | grep -F "${zoneName}"
+
+  # The restricted client can't view it via project default.
+  ! lxc_remote network zone show "localhost:${zoneName}" --project default || false
+  ! lxc_remote network zone list localhost: --project default | grep -F "${zoneName}" || false
+
+  # The restricted client can edit the network zone.
+  lxc_remote network zone set "localhost:${zoneName}" user.foo=bar --project blah
+
+  # The restricted client can delete the network zone.
+  lxc_remote network zone delete "localhost:${zoneName}" --project blah
+
+  # Create a network zone in the blah project.
   lxc_remote network zone create localhost:blah-zone --project blah
+
+  # Network zone is visible to restricted client in project blah.
   lxc_remote network zone show localhost:blah-zone --project blah
   lxc_remote network zone list localhost: --project blah | grep blah-zone
+
+  # The network zone is actually in the default project.
+  lxc network zone show blah-zone --project default
+
+  # The restricted client can't view it via the default project.
+  ! lxc_remote network zone show localhost:blah-zone --project default || false
+
+  # The restricted client can delete the network zone.
   lxc_remote network zone delete localhost:blah-zone --project blah
+
+
+  ### PROFILES (initial value is true for new projects)
 
   # Unset the profiles feature (the default is false).
   lxc project unset blah features.profiles
+
+  # Create a profile in the default project.
+  profileName="prof$$"
+  lxc profile create "${profileName}" --project default
+
+  # The profile we created in the default project is visible in project blah.
+  lxc_remote profile show "localhost:${profileName}" --project blah
+  lxc_remote profile list localhost: --project blah | grep -F "${profileName}"
+
+  # The restricted client can't view it via project default.
+  ! lxc_remote profile show "localhost:${profileName}" --project default || false
+  ! lxc_remote profile list localhost: --project default | grep -F "${profileName}" || false
+
+  # The restricted client can edit the profile.
+  lxc_remote profile set "localhost:${profileName}" user.foo=bar --project blah
+
+  # The restricted client can delete the profile.
+  lxc_remote profile delete "localhost:${profileName}" --project blah
+
+  # Create a profile in the blah project.
   lxc_remote profile create localhost:blah-profile --project blah
+
+  # Profile is visible to restricted client in project blah.
   lxc_remote profile show localhost:blah-profile --project blah
   lxc_remote profile list localhost: --project blah | grep blah-profile
+
+  # The profile is actually in the default project.
+  lxc profile show blah-profile --project default
+
+  # The restricted client can't view it via the default project.
+  ! lxc_remote profile show localhost:blah-profile --project default || false
+
+  # The restricted client can delete the profile.
   lxc_remote profile delete localhost:blah-profile --project blah
+
+
+  ### STORAGE VOLUMES (initial value is true for new projects)
 
   # Unset the storage volumes feature (the default is false).
   lxc project unset blah features.storage.volumes
+
+  # Create a storage volume in the default project.
+  volName="vol$$"
+  lxc storage volume create "${pool_name}" "${volName}" --project default
+
+  # The storage volume we created in the default project is visible in project blah.
+  lxc_remote storage volume show "localhost:${pool_name}" "${volName}" --project blah
+  lxc_remote storage volume list "localhost:${pool_name}" --project blah | grep -F "${volName}"
+
+  # The restricted client can't view it via project default.
+  ! lxc_remote storage volume show "localhost:${pool_name}" "${volName}" --project default || false
+  ! lxc_remote storage volume list "localhost:${pool_name}" --project default | grep -F "${volName}" || false
+
+  # The restricted client can edit the storage volume.
+  lxc_remote storage volume set "localhost:${pool_name}" "${volName}" user.foo=bar --project blah
+
+  # The restricted client can delete the storage volume.
+  lxc_remote storage volume delete "localhost:${pool_name}" "${volName}" --project blah
+
+  # Create a storage volume in the blah project.
   lxc_remote storage volume create "localhost:${pool_name}" blah-volume --project blah
+
+  # Storage volume is visible to restricted client in project blah.
   lxc_remote storage volume show "localhost:${pool_name}" blah-volume --project blah
-  lxc_remote storage volume list "localhost:${pool_name}" --project blah
   lxc_remote storage volume list "localhost:${pool_name}" --project blah | grep blah-volume
+
+  # The storage volume is actually in the default project.
+  lxc storage volume show "${pool_name}" blah-volume --project default
+
+  # The restricted client can't view it via the default project.
+  ! lxc_remote storage volume show "localhost:${pool_name}" blah-volume --project default || false
+
+  # The restricted client can delete the storage volume.
   lxc_remote storage volume delete "localhost:${pool_name}" blah-volume --project blah
 
+  ### STORAGE BUCKETS (initial value is true for new projects)
+  create_object_storage_pool s3
+
+  # Unset the storage buckets feature (the default is false).
+  lxc project unset blah features.storage.buckets
+
+  # Create a storage bucket in the default project.
+  bucketName="bucket$$"
+  lxc storage bucket create s3 "${bucketName}" --project default
+
+  # The storage bucket we created in the default project is visible in project blah.
+  lxc_remote storage bucket show localhost:s3 "${bucketName}" --project blah
+  lxc_remote storage bucket list localhost:s3 --project blah | grep -F "${bucketName}"
+
+  # The restricted client can't view it via project default.
+  ! lxc_remote storage bucket show localhost:s3 "${bucketName}" --project default || false
+  ! lxc_remote storage bucket list localhost:s3 --project default | grep -F "${bucketName}" || false
+
+  # The restricted client can edit the storage bucket.
+  lxc_remote storage bucket set localhost:s3 "${bucketName}" user.foo=bar --project blah
+
+  # The restricted client can delete the storage bucket.
+  lxc_remote storage bucket delete localhost:s3 "${bucketName}" --project blah
+
+  # Create a storage bucket in the blah project.
+  lxc_remote storage bucket create localhost:s3 blah-bucket --project blah
+
+  # Storage bucket is visible to restricted client in project blah.
+  lxc_remote storage bucket show localhost:s3 blah-bucket --project blah
+  lxc_remote storage bucket list localhost:s3 --project blah | grep blah-bucket
+
+  # The storage bucket is actually in the default project.
+  lxc storage bucket show s3 blah-bucket --project default
+
+  # The restricted client can't view it via the default project.
+  ! lxc_remote storage bucket show localhost:s3 blah-bucket --project default || false
+
+  # The restricted client can delete the storage bucket.
+  lxc_remote storage bucket delete localhost:s3 blah-bucket --project blah
+
   # Cleanup
+  delete_object_storage_pool s3
+  rm "${TEST_DIR}/${test_image_fingerprint}.tar.xz"
   lxc config trust show "${FINGERPRINT}" | sed -e "s/restricted: true/restricted: false/" | lxc config trust edit "${FINGERPRINT}"
   lxc project delete blah
 }
