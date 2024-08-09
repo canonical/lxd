@@ -364,7 +364,14 @@ _backup_import_with_project() {
 
   lxc launch testimage c1
   lxc launch testimage c2
-  lxc snapshot c2
+
+  # Check invalid snapshot names
+  ! lxc snapshot c2 ".." || false
+  ! lxc snapshot c2 "with/slash" || false
+  ! lxc snapshot c2 "with space" || false
+
+  # Check valid snapshot name with underscore can be exported + imported
+  lxc snapshot c2 snap0-with_underscore
 
   lxd_backend=$(storage_backend "$LXD_DIR")
 
@@ -398,20 +405,20 @@ _backup_import_with_project() {
   fi
 
   old_uuid="$(lxc storage volume get "${pool}" container/c2 volatile.uuid)"
-  old_snap0_uuid="$(lxc storage volume get "${pool}" container/c2/snap0 volatile.uuid)"
+  old_snap0_uuid="$(lxc storage volume get "${pool}" container/c2/snap0-with_underscore volatile.uuid)"
   lxc export c2 "${LXD_DIR}/c2.tar.gz"
   lxc delete --force c2
 
   lxc import "${LXD_DIR}/c2.tar.gz"
   lxc import "${LXD_DIR}/c2.tar.gz" c3
-  lxc info c2 | grep snap0
-  lxc info c3 | grep snap0
+  lxc info c2 | grep snap0-with_underscore
+  lxc info c3 | grep snap0-with_underscore
 
   # Check if the imported instance and its snapshot have a new UUID.
   [ -n "$(lxc storage volume get "${pool}" container/c2 volatile.uuid)" ]
-  [ -n "$(lxc storage volume get "${pool}" container/c2/snap0 volatile.uuid)" ]
+  [ -n "$(lxc storage volume get "${pool}" container/c2/snap0-with_underscore volatile.uuid)" ]
   [ "$(lxc storage volume get "${pool}" container/c2 volatile.uuid)" != "${old_uuid}" ]
-  [ "$(lxc storage volume get "${pool}" container/c2/snap0 volatile.uuid)" != "${old_snap0_uuid}" ]
+  [ "$(lxc storage volume get "${pool}" container/c2/snap0-with_underscore volatile.uuid)" != "${old_snap0_uuid}" ]
 
   lxc start c2
   lxc start c3
@@ -422,20 +429,20 @@ _backup_import_with_project() {
     # Import into different project (before deleting earlier import).
     lxc import "${LXD_DIR}/c2.tar.gz" --project "$project-b"
     lxc import "${LXD_DIR}/c2.tar.gz" --project "$project-b" c3
-    lxc info c2 --project "$project-b" | grep snap0
-    lxc info c3 --project "$project-b" | grep snap0
+    lxc info c2 --project "$project-b" | grep snap0-with_underscore
+    lxc info c3 --project "$project-b" | grep snap0-with_underscore
     lxc start c2 --project "$project-b"
     lxc start c3 --project "$project-b"
     lxc stop c2 --project "$project-b" --force
     lxc stop c3 --project "$project-b" --force
-    lxc restore c2 snap0 --project "$project-b"
-    lxc restore c3 snap0 --project "$project-b"
+    lxc restore c2 snap0-with_underscore --project "$project-b"
+    lxc restore c3 snap0-with_underscore --project "$project-b"
     lxc delete --force c2 --project "$project-b"
     lxc delete --force c3 --project "$project-b"
   fi
 
-  lxc restore c2 snap0
-  lxc restore c3 snap0
+  lxc restore c2 snap0-with_underscore
+  lxc restore c3 snap0-with_underscore
   lxc start c2
   lxc start c3
   lxc delete --force c2
@@ -445,14 +452,14 @@ _backup_import_with_project() {
   if storage_backend_optimized_backup "$lxd_backend"; then
     lxc import "${LXD_DIR}/c2-optimized.tar.gz"
     lxc import "${LXD_DIR}/c2-optimized.tar.gz" c3
-    lxc info c2 | grep snap0
-    lxc info c3 | grep snap0
+    lxc info c2 | grep snap0-with_underscore
+    lxc info c3 | grep snap0-with_underscore
     lxc start c2
     lxc start c3
     lxc stop c2 --force
     lxc stop c3 --force
-    lxc restore c2 snap0
-    lxc restore c3 snap0
+    lxc restore c2 snap0-with_underscore
+    lxc restore c3 snap0-with_underscore
     lxc start c2
     lxc start c3
     lxc delete --force c2
