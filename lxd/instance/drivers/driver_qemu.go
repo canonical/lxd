@@ -3439,7 +3439,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 				}
 
 				qemuDev := make(map[string]string)
-				if util.ValueInSlice(busName, []string{"nvme", "virtio-blk"}) {
+				if shared.ValueInSlice(busName, []string{"nvme", "virtio-blk"}) {
 					// Allocate a PCI(e) port and write it to the config file so QMP can "hotplug" the
 					// drive into it later.
 					devBus, devAddr, multi := bus.allocate(busFunctionGroupNone)
@@ -4087,7 +4087,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 		} else if media == "cdrom" {
 			qemuDev["driver"] = "scsi-cd"
 		}
-	} else if util.ValueInSlice(bus, []string{"nvme", "virtio-blk"}) {
+	} else if shared.ValueInSlice(bus, []string{"nvme", "virtio-blk"}) {
 		if qemuDev["bus"] == "" {
 			// Figure out a hotplug slot.
 			pciDevID := qemuPCIDeviceIDStart
