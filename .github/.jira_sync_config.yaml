@@ -1,0 +1,39 @@
+settings:
+    # Jira project key to create the issue in
+  jira_project_key: "LXD"
+  
+  # Dictionary mapping GitHub issue status to Jira issue status
+  status_mapping:
+    opened: Untriaged
+    closed: done 
+    
+  # (Optional) Jira project components that should be attached to the created issue
+  # Component names are case-sensitive
+  # components:
+  #  - LXD
+  #  - Microcloud
+      
+  # (Optional) GitHub labels. Only issues with one of those labels will be synchronized.
+  # If not specified, all issues will be synchronized
+  labels:
+     - Jira
+      
+  # (Optional) (Default: false) Add a new comment in GitHub with a link to Jira created issue
+  add_gh_comment: false
+  
+  # (Optional) (Default: true) Synchronize issue description from GitHub to Jira
+  sync_description: true
+  
+  # (Optional) (Default: true) Synchronize comments from GitHub to Jira
+  sync_comments: false
+  
+  # (Optional) (Default: None) Parent Epic key to link the issue to
+  epic_key: "LXD-1251"
+      
+  # (Optional) Dictionary mapping GitHub issue labels to Jira issue types. 
+  # If label on the issue is not in specified list, this issue will be created as a Bug
+  label_mapping:
+    improvement: Story
+    feature: Story
+    investigation: Spike
+    bug: Bug
