@@ -658,7 +658,11 @@ func ValidName(instanceName string, isSnapshot bool) error {
 			return fmt.Errorf("Invalid instance name %q: %w", parentName, err)
 		}
 
-		// Snapshot part is more flexible, but doesn't allow space or / character.
+		// Snapshot part is more flexible, but doesn't allow "..", space or / characters.
+		if snapshotName == ".." {
+			return fmt.Errorf("Invalid instance snapshot name %q", snapshotName)
+		}
+
 		if strings.ContainsAny(snapshotName, " /") {
 			return fmt.Errorf("Invalid instance snapshot name %q: Cannot contain spaces or slashes", snapshotName)
 		}
