@@ -12,9 +12,11 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/events"
+	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
@@ -90,6 +92,9 @@ func OperationGetInternal(id string) (*Operation, error) {
 	return op, nil
 }
 
+// CallbackFuncKey keys a callback function to be called after a request is completed.
+const CallbackFuncKey util.ContextKey = "callback"
+
 // Operation represents an operation.
 type Operation struct {
 	projectName string
@@ -115,6 +120,7 @@ type Operation struct {
 	onRun     func(*Operation) error
 	onCancel  func(*Operation) error
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
+	onDone    func(result metrics.RequestResult)
 
 	// Indicates if operation has finished.
 	finished *cancel.Canceller
@@ -128,6 +134,9 @@ type Operation struct {
 
 // OperationCreate creates a new operation and returns it. If it cannot be
 // created, it returns an error.
+//
+// Operations created inside handlers should be returned as an operationResponse
+// and should have r set to the request that is being handled.
 func OperationCreate(s *state.State, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error, r *http.Request) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
@@ -184,9 +193,14 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 		return nil, fmt.Errorf("Token operations can't have a Cancel hook")
 	}
 
-	// Set requestor if request was provided.
+	// Set requestor and callback function if request was provided.
 	if r != nil {
 		op.SetRequestor(r)
+		// The callback function should be used after the operation is done to mark the request r as completed.
+		callback, ok := r.Context().Value(CallbackFuncKey).(func(result metrics.RequestResult))
+		if ok {
+			op.onDone = callback
+		}
 	}
 
 	operationsLock.Lock()
@@ -268,6 +282,10 @@ func (op *Operation) done() {
 			// run in cases where the project that the operation(s) are associated to is deleted first.
 			// So don't log warning if operation not found.
 			op.logger.Warn("Failed to delete operation", logger.Ctx{"status": op.status, "err": err})
+		}
+
+		if op.onDone != nil {
+			op.onDone(metrics.ResolveOperationStatus(op.Status()))
 		}
 	}()
 }

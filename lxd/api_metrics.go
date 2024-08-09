@@ -233,6 +233,9 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	newMetrics := make(map[string]*metrics.MetricSet, len(projectsToFetch))
 	newMetricsLock := sync.Mutex{}
 
+	// Initialize metric set for default project to assure internal metrics are included.
+	newMetrics[api.ProjectDefaultName] = metrics.NewMetricSet(nil)
+
 	// Limit metrics build concurrency to number of instances or number of CPU cores (which ever is less).
 	var wg sync.WaitGroup
 	instMetricsCh := make(chan instance.Instance)
@@ -394,6 +397,27 @@ func internalMetrics(ctx context.Context, daemonStartTime time.Time, tx *db.Clus
 	} else {
 		// Total number of operations
 		out.AddSamples(metrics.OperationsTotal, metrics.Sample{Value: float64(len(operations))})
+	}
+
+	// API request metrics
+	for _, entityType := range entity.APIMetricsEntityTypes() {
+		out.AddSamples(
+			metrics.APIOngoingRequests,
+			metrics.Sample{
+				Labels: map[string]string{"entity_type": entityType.String()},
+				Value:  float64(metrics.GetOngoingRequests(entityType)),
+			},
+		)
+
+		for _, status := range metrics.GetRequestResultsTypes() {
+			out.AddSamples(
+				metrics.APICompletedRequests,
+				metrics.Sample{
+					Labels: map[string]string{"entity_type": entityType.String(), "result": string(status)},
+					Value:  float64(metrics.GetCompletedRequests(entityType, status)),
+				},
+			)
+		}
 	}
 
 	// Daemon uptime

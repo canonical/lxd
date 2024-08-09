@@ -24,6 +24,10 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+// ContextKey is used to pass additional values to HTTP request contexts.
+// This is used instead of a raw string to avoid collisions between packages using package context.
+type ContextKey string
+
 // DebugJSON helper to log JSON.
 // Accepts a title to prefix the JSON log with, a *bytes.Buffer containing the JSON and a logger to use for
 // logging the JSON (allowing for custom context to be added to the log).
