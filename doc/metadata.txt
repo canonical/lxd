@@ -56,7 +56,7 @@ See {ref}`devices-disk-initial-config` for more information.
 :required: "no"
 :shortdesc: "Bus for the device"
 :type: "string"
-Possible values are `virtio-scsi` or `nvme`.
+Possible values are `virtio-scsi`, `virtio-blk` or `nvme`.
 ```
 
 ```{config:option} io.cache device-disk-device-conf
