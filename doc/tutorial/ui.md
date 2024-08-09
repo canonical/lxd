@@ -56,13 +56,14 @@ See {ref}`containers-and-vms` for information about the difference between the t
    See {ref}`instances-create-iso` for more information.
    ```
 
-1. Click {guilabel}`Create and start` to launch the container.
+1. To launch the container, click {guilabel}`Create and start`.
 
    ```{note}
    Launching this container takes a few seconds, because the image must be downloaded and unpacked first.
    ```
 
-1. Create another container called `second`, using the same image, but click {guilabel}`Create` instead of {guilabel}`Create and start`.
+1. Create another container called `second`, using the same image.
+   After entering the name and selecting the image, click {guilabel}`Create` instead of {guilabel}`Create and start`.
 
    This container will be created but not started.
 
@@ -70,7 +71,7 @@ See {ref}`containers-and-vms` for information about the difference between the t
    Creating this container is quicker than launching the first, because the image is already available locally.
    ```
 
-1. Launch a VM called `ubuntu-vm` using the Ubuntu 24.04 LTS image by selecting {guilabel}`VM` as the instance type:
+1. Create and start a VM called `ubuntu-vm` using the Ubuntu 24.04 LTS image by selecting {guilabel}`VM` as the instance type:
 
    ```{figure} /images/tutorial/create_vm.png
    :width: 100%
@@ -81,7 +82,7 @@ See {ref}`containers-and-vms` for information about the difference between the t
    Even though you are using the same image name to launch the instance, LXD downloads a slightly different image that is compatible with VMs.
    ```
 
-1. Launch a VM called `ubuntu-desktop` using the Ubuntu 24.04 LTS desktop image (filter by variant "desktop" to find it).
+1. Create and start a VM called `ubuntu-desktop` using the Ubuntu 24.04 LTS desktop image (filter by variant "desktop" to find it).
    When you select the image, the instance type is automatically set to {guilabel}`VM`:
 
    ```{figure} /images/tutorial/create_desktop_vm.png
@@ -195,7 +196,8 @@ See {ref}`instance-options` for an overview.
 
 Let's create another container with some resource limits:
 
-1. Click {guilabel}`Create instance`, enter `limited` as the instance name and select the Ubuntu 24.04 LTS image.
+1. On the instances list, click {guilabel}`Create instance`.
+   Enter `limited` as the instance name and select the Ubuntu 24.04 LTS image.
 
 1. Expand {guilabel}`Advanced` and go to {guilabel}`Resource limits`.
 
@@ -408,8 +410,45 @@ Let's check its content:
 
 1. Go to {guilabel}`Storage` > {guilabel}`Volumes`.
 
-   Because you deselected `Storage volumes` when creating the project, storage volumes are not isolated to the project, and you can see the custom storage volume that you created in the default project.
-   However, you cannot see any of the instance or image volumes from the other project, because those are isolated.
+   Remember that in the default project, you saw three different kinds of storage volumes in the volume list:
+
+   - Instance (container or VM) volumes
+   - Image volumes
+   - Custom volumes
+
+   You should see the same three types in the `tutorial` project.
+   However, note the following:
+
+   - You can see only one instance volume and one image volume.
+     These are for the one instance you created in the `tutorial` project.
+
+     You cannot see the instance and image volumes for the instances you created in the default project, because both instances and images are isolated in the `tutorial` project, so you cannot see the corresponding storage volumes from other projects.
+
+   - You can see the custom storage volume that you created in the default project.
+
+     Because you deselected `Storage volumes` when creating the project, storage volumes are not isolated, and you can therefore see storage volumes from other projects.
+
+## Clean up entities
+
+Now that we've run through the basic functionality of LXD, let's clean up the entities we created throughout the tutorial.
+
+1. With the `tutorial` project still selected, go to the instances list and stop and delete the instance you created in this project.
+
+1. Go to {guilabel}`Images` and click the {guilabel}`Delete` button ({{delete_button}}) next to it.
+
+1. Go to {guilabel}`Configuration` and click the {guilabel}`Delete project` button in the top-right corner.
+
+   After deleting the project, you are automatically switched back to the default project.
+
+1. Stop and delete all instances in the default project.
+   To do this all at once, go to the instance list and select all instances.
+   Then click {guilabel}`Stop` at the top.
+   Finally, click {guilabel}`Delete` at the top.
+
+1. Go to {guilabel}`Storage` > {guilabel}`Volumes` and click the {guilabel}`Delete` button ({{delete_button}}) next to the `tutorial_volume` storage volume.
+
+1. Optionally, you can also delete the images that you used.
+   If you keep them, they will eventually expire (by default, when they haven't been used for ten days).
 
 % Include content from [first_steps.md](first_steps.md)
 ```{include} first_steps.md
