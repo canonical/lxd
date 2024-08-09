@@ -350,7 +350,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		//  shortdesc: Caching mode for the device
 		"io.cache": validate.Optional(validate.IsOneOf("none", "writeback", "unsafe")),
 		// lxdmeta:generate(entities=device-disk; group=device-conf; key=io.bus)
-		// Possible values are `virtio-scsi` or `nvme`.
+		// Possible values are `virtio-scsi`, `virtio-blk` or `nvme`.
 		// ---
 		//  type: string
 		//  defaultdesc: `virtio-scsi`
