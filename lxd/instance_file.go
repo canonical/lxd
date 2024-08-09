@@ -176,7 +176,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 		fileType = "symlink"
 	}
 
-	fs := stat.Sys().(*sftp.FileStat)
+	fs, _ := stat.Sys().(*sftp.FileStat)
 
 	// Prepare the response.
 	headers := map[string]string{
@@ -339,7 +339,7 @@ func instanceFileHead(inst instance.Instance, path string) response.Response {
 		fileType = "symlink"
 	}
 
-	fs := stat.Sys().(*sftp.FileStat)
+	fs, _ := stat.Sys().(*sftp.FileStat)
 
 	// Prepare the response.
 	headers := map[string]string{
