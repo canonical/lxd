@@ -154,6 +154,7 @@ redirects = {
 
 # Links to ignore when checking links
 linkcheck_ignore = [
+    'https://127.0.0.1:8443',
     'https://127.0.0.1:8443/1.0',
     'https://web.libera.chat/#lxd',
     'http://localhost:8000',

@@ -27,7 +27,7 @@ Complete the following steps to access the LXD web UI:
 
 <!-- Include start access UI -->
 
-2. Access the UI in your browser by entering the server address (for example, `https://127.0.0.1:8443` for a local server, or `https://192.0.2.10:8443`).
+2. Access the UI in your browser by entering the server address (for example, [`https://127.0.0.1:8443`](https://127.0.0.1:8443) for a local server, or an address like `https://192.0.2.10:8443` for a server running on `192.0.2.10`).
 
    If you have not set up a secure {ref}`authentication-server-certificate`, LXD uses a self-signed certificate, which will cause a security warning in your browser.
    Use your browser's mechanism to continue despite the security warning.
