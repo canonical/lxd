@@ -11,29 +11,27 @@ import (
 	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network/zone"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/version"
 )
 
 var networkZoneRecordsCmd = APIEndpoint{
 	Path: "network-zones/{zone}/records",
 
-	Get:  APIEndpointAction{Handler: networkZoneRecordsGet, AccessHandler: allowPermission(entity.TypeNetworkZone, auth.EntitlementCanView, "zone")},
-	Post: APIEndpointAction{Handler: networkZoneRecordsPost, AccessHandler: allowPermission(entity.TypeNetworkZone, auth.EntitlementCanEdit, "zone")},
+	Get:  APIEndpointAction{Handler: networkZoneRecordsGet, AccessHandler: networkZoneAccessHandler(auth.EntitlementCanView)},
+	Post: APIEndpointAction{Handler: networkZoneRecordsPost, AccessHandler: networkZoneAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var networkZoneRecordCmd = APIEndpoint{
 	Path: "network-zones/{zone}/records/{name}",
 
-	Delete: APIEndpointAction{Handler: networkZoneRecordDelete, AccessHandler: allowPermission(entity.TypeNetworkZone, auth.EntitlementCanEdit, "zone")},
-	Get:    APIEndpointAction{Handler: networkZoneRecordGet, AccessHandler: allowPermission(entity.TypeNetworkZone, auth.EntitlementCanView, "zone")},
-	Put:    APIEndpointAction{Handler: networkZoneRecordPut, AccessHandler: allowPermission(entity.TypeNetworkZone, auth.EntitlementCanEdit, "zone")},
-	Patch:  APIEndpointAction{Handler: networkZoneRecordPut, AccessHandler: allowPermission(entity.TypeNetworkZone, auth.EntitlementCanEdit, "zone")},
+	Delete: APIEndpointAction{Handler: networkZoneRecordDelete, AccessHandler: networkZoneAccessHandler(auth.EntitlementCanEdit)},
+	Get:    APIEndpointAction{Handler: networkZoneRecordGet, AccessHandler: networkZoneAccessHandler(auth.EntitlementCanView)},
+	Put:    APIEndpointAction{Handler: networkZoneRecordPut, AccessHandler: networkZoneAccessHandler(auth.EntitlementCanEdit)},
+	Patch:  APIEndpointAction{Handler: networkZoneRecordPut, AccessHandler: networkZoneAccessHandler(auth.EntitlementCanEdit)},
 }
 
 // API endpoints.
@@ -133,20 +131,20 @@ var networkZoneRecordCmd = APIEndpoint{
 func networkZoneRecordsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, _, err := project.NetworkZoneProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	details, err := request.GetCtxValue[networkZoneDetails](r.Context(), ctxNetworkZoneDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	recursion := util.IsRecursionRequest(r)
 
-	zoneName, err := url.PathUnescape(mux.Vars(r)["zone"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Get the network zone.
-	netzone, err := zone.LoadByNameAndProject(s, projectName, zoneName)
+	netzone, err := zone.LoadByNameAndProject(s, effectiveProjectName, details.zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -161,7 +159,7 @@ func networkZoneRecordsGet(d *Daemon, r *http.Request) response.Response {
 	resultMap := []api.NetworkZoneRecord{}
 	for _, record := range records {
 		if !recursion {
-			resultString = append(resultString, api.NewURL().Path(version.APIVersion, "network-zones", zoneName, "records", record.Name).String())
+			resultString = append(resultString, api.NewURL().Path(version.APIVersion, "network-zones", details.zoneName, "records", record.Name).String())
 		} else {
 			resultMap = append(resultMap, record)
 		}
@@ -209,18 +207,18 @@ func networkZoneRecordsGet(d *Daemon, r *http.Request) response.Response {
 func networkZoneRecordsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, _, err := project.NetworkZoneProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	zoneName, err := url.PathUnescape(mux.Vars(r)["zone"])
+	details, err := request.GetCtxValue[networkZoneDetails](r.Context(), ctxNetworkZoneDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Get the network zone.
-	netzone, err := zone.LoadByNameAndProject(s, projectName, zoneName)
+	netzone, err := zone.LoadByNameAndProject(s, effectiveProjectName, details.zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -239,7 +237,7 @@ func networkZoneRecordsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	lc := lifecycle.NetworkZoneRecordCreated.Event(netzone, req.Name, request.CreateRequestor(r), nil)
-	s.Events.SendLifecycle(projectName, lc)
+	s.Events.SendLifecycle(effectiveProjectName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
@@ -271,12 +269,12 @@ func networkZoneRecordsPost(d *Daemon, r *http.Request) response.Response {
 func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, _, err := project.NetworkZoneProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	zoneName, err := url.PathUnescape(mux.Vars(r)["zone"])
+	details, err := request.GetCtxValue[networkZoneDetails](r.Context(), ctxNetworkZoneDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -287,7 +285,7 @@ func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the network zone.
-	netzone, err := zone.LoadByNameAndProject(s, projectName, zoneName)
+	netzone, err := zone.LoadByNameAndProject(s, effectiveProjectName, details.zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -298,7 +296,7 @@ func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.NetworkZoneRecordDeleted.Event(netzone, recordName, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkZoneRecordDeleted.Event(netzone, recordName, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
@@ -346,12 +344,12 @@ func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
 func networkZoneRecordGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, _, err := project.NetworkZoneProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	zoneName, err := url.PathUnescape(mux.Vars(r)["zone"])
+	details, err := request.GetCtxValue[networkZoneDetails](r.Context(), ctxNetworkZoneDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -362,7 +360,7 @@ func networkZoneRecordGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the network zone.
-	netzone, err := zone.LoadByNameAndProject(s, projectName, zoneName)
+	netzone, err := zone.LoadByNameAndProject(s, effectiveProjectName, details.zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -448,12 +446,12 @@ func networkZoneRecordGet(d *Daemon, r *http.Request) response.Response {
 func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, _, err := project.NetworkZoneProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	zoneName, err := url.PathUnescape(mux.Vars(r)["zone"])
+	details, err := request.GetCtxValue[networkZoneDetails](r.Context(), ctxNetworkZoneDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -464,7 +462,7 @@ func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the network zone.
-	netzone, err := zone.LoadByNameAndProject(s, projectName, zoneName)
+	netzone, err := zone.LoadByNameAndProject(s, effectiveProjectName, details.zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -505,7 +503,7 @@ func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.NetworkZoneRecordUpdated.Event(netzone, recordName, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkZoneRecordUpdated.Event(netzone, recordName, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
