@@ -273,7 +273,8 @@ myst_url_schemes = {
 remove_from_toctrees = ['reference/manpages/lxc/*.md']
 
 intersphinx_mapping = {
-    'cloud-init': ('https://cloudinit.readthedocs.io/en/latest/', None)
+    'cloud-init': ('https://cloudinit.readthedocs.io/en/latest/', None),
+    'imagebuilder': ('https://canonical-lxd-imagebuilder.readthedocs-hosted.com/en/latest/', None)
 }
 
 html_extra_path = ['.sphinx/_extra']

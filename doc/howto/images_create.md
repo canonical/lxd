@@ -95,3 +95,11 @@ Usually, this includes the following data:
 For building your own images, you can use [LXD image builder](https://github.com/canonical/lxd-imagebuilder).
 
 See the [LXD image builder documentation](https://canonical-lxd-imagebuilder.readthedocs-hosted.com/en/latest/) for instructions for installing and using the tool.
+
+(images-repack-windows)=
+### Repack a Windows image
+
+You can run Windows VMs in LXD.
+To do so, you must repack the Windows ISO with LXD image builder.
+
+See the {doc}`LXD image builder tutorial <imagebuilder:tutorials/use>` for instructions, or [How to install a Windows 11 VM using LXD](https://ubuntu.com/tutorials/how-to-install-a-windows-11-vm-using-lxd) for a full walk-through.
