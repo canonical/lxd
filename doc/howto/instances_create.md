@@ -479,3 +479,10 @@ In the {guilabel}`Create instance` dialog, click {guilabel}`Use custom ISO` inst
 You can then upload your ISO file and install a VM from it.
 ````
 `````
+
+### Create a Windows VM
+
+To create a Windows VM, you must first prepare a Windows image.
+See {ref}`images-repack-windows`.
+
+The [How to install a Windows 11 VM using LXD](https://ubuntu.com/tutorials/how-to-install-a-windows-11-vm-using-lxd) tutorial shows how to prepare the image and create a Windows VM from it.
