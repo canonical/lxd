@@ -765,7 +765,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		if d.shutdownCtx.Err() == context.Canceled && !allowedDuringShutdown() {
-			_ = response.Unavailable(fmt.Errorf("LXD is shutting down")).Render(w)
+			_ = response.Unavailable(fmt.Errorf(shared.ShuttingDownError)).Render(w)
 			return
 		}
 
