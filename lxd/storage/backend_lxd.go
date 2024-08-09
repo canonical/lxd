@@ -692,14 +692,16 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	}
 
 	for _, snapName := range srcBackup.Snapshots {
-		err = instance.ValidName(snapName, true)
+		snapInstName := fmt.Sprintf("%s%s%s", srcBackup.Name, shared.SnapshotDelimiter, snapName)
+		err = instance.ValidName(snapInstName, true)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
 
 	for _, snap := range srcBackup.Config.Snapshots {
-		err = instance.ValidName(snap.Name, true)
+		snapInstName := fmt.Sprintf("%s%s%s", srcBackup.Name, shared.SnapshotDelimiter, snap.Name)
+		err = instance.ValidName(snapInstName, true)
 		if err != nil {
 			return nil, nil, err
 		}
