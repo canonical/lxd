@@ -50,15 +50,16 @@ If you prefer a different installation method, or use a Linux distribution that 
 
        sudo snap refresh lxd
 
-1. Enter the following command to add the current user to the `lxd` group (the group was automatically created during the previous step):
+1. Check if the current user is part of the `lxd` group (the group was automatically created during the previous step):
 
-       getent group lxd | grep -qwF "$USER" || sudo usermod -aG lxd "$USER"
+       getent group lxd | grep "$USER"
 
-   This is needed to be granted permission to interact with LXD.
+   If this command returns a result, you're set up correctly and can continue with the next step.
 
-    ```{note}
-    {{must_start_new_session}}
-    ```
+   If there is no result, enter the following commands to add the current user to the `lxd` group (which is needed to grant the user permission to interact with LXD):
+
+       sudo usermod -aG lxd "$USER"
+       newgrp lxd
 
 1. Enter the following command to initialize LXD:
 
