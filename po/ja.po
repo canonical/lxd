@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-08-02 16:47+0200\n"
+"POT-Creation-Date: 2024-08-12 13:29+0200\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -19,7 +19,7 @@ msgstr ""
 "Plural-Forms: nplurals=1; plural=0;\n"
 "X-Generator: Weblate 4.16.2-dev\n"
 
-#: lxc/storage_bucket.go:255 lxc/storage_bucket.go:1000
+#: lxc/storage_bucket.go:255 lxc/storage_bucket.go:1028
 msgid ""
 "### This is a YAML representation of a storage bucket.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -804,11 +804,11 @@ msgstr ""
 msgid "Accept certificate"
 msgstr "証明書を受け入れます"
 
-#: lxc/storage_bucket.go:852
+#: lxc/storage_bucket.go:858
 msgid "Access key (auto-generated if empty)"
 msgstr "アクセスキー（空白の場合自動生成）"
 
-#: lxc/storage_bucket.go:908
+#: lxc/storage_bucket.go:936
 #, c-format
 msgid "Access key: %s"
 msgstr "アクセスキー: %s"
@@ -1417,9 +1417,9 @@ msgstr "クラスターメンバー %s がグループ %s から削除されま�
 #: lxc/storage_bucket.go:185 lxc/storage_bucket.go:248
 #: lxc/storage_bucket.go:379 lxc/storage_bucket.go:536
 #: lxc/storage_bucket.go:629 lxc/storage_bucket.go:695
-#: lxc/storage_bucket.go:770 lxc/storage_bucket.go:850
-#: lxc/storage_bucket.go:928 lxc/storage_bucket.go:993
-#: lxc/storage_bucket.go:1129 lxc/storage_volume.go:358
+#: lxc/storage_bucket.go:770 lxc/storage_bucket.go:856
+#: lxc/storage_bucket.go:956 lxc/storage_bucket.go:1021
+#: lxc/storage_bucket.go:1157 lxc/storage_volume.go:358
 #: lxc/storage_volume.go:560 lxc/storage_volume.go:639
 #: lxc/storage_volume.go:883 lxc/storage_volume.go:1097
 #: lxc/storage_volume.go:1210 lxc/storage_volume.go:1678
@@ -1490,7 +1490,7 @@ msgstr "移動先のインスタンスに適用するキー/値の設定"
 #: lxc/network_load_balancer.go:689 lxc/network_peer.go:610
 #: lxc/network_zone.go:551 lxc/network_zone.go:1143 lxc/profile.go:538
 #: lxc/project.go:315 lxc/storage.go:310 lxc/storage_bucket.go:343
-#: lxc/storage_bucket.go:1092 lxc/storage_volume.go:1016
+#: lxc/storage_bucket.go:1120 lxc/storage_volume.go:1016
 #: lxc/storage_volume.go:1048
 #, c-format
 msgid "Config parsing error: %s"
@@ -1880,7 +1880,7 @@ msgstr "インスタンスのファイルテンプレートを削除します"
 msgid "Delete instances and snapshots"
 msgstr "インスタンスとスナップショットを削除します"
 
-#: lxc/storage_bucket.go:924 lxc/storage_bucket.go:925
+#: lxc/storage_bucket.go:952 lxc/storage_bucket.go:953
 msgid "Delete key from a storage bucket"
 msgstr "ストレージバケットからキーを削除します"
 
@@ -2030,8 +2030,8 @@ msgstr "警告を削除します"
 #: lxc/storage_bucket.go:453 lxc/storage_bucket.go:530
 #: lxc/storage_bucket.go:624 lxc/storage_bucket.go:693
 #: lxc/storage_bucket.go:727 lxc/storage_bucket.go:768
-#: lxc/storage_bucket.go:847 lxc/storage_bucket.go:925
-#: lxc/storage_bucket.go:989 lxc/storage_bucket.go:1124
+#: lxc/storage_bucket.go:847 lxc/storage_bucket.go:953
+#: lxc/storage_bucket.go:1017 lxc/storage_bucket.go:1152
 #: lxc/storage_volume.go:43 lxc/storage_volume.go:165 lxc/storage_volume.go:263
 #: lxc/storage_volume.go:354 lxc/storage_volume.go:557
 #: lxc/storage_volume.go:636 lxc/storage_volume.go:711
@@ -2298,7 +2298,7 @@ msgstr "プロジェクト設定をYAMLで編集します"
 msgid "Edit storage bucket configurations as YAML"
 msgstr "ストレージバケットの設定をYAMLで編集します"
 
-#: lxc/storage_bucket.go:988 lxc/storage_bucket.go:989
+#: lxc/storage_bucket.go:1016 lxc/storage_bucket.go:1017
 msgid "Edit storage bucket key as YAML"
 msgstr "ストレージバケットの設定をYAMLで編集します"
 
@@ -4284,9 +4284,9 @@ msgstr "ログメッセージの最小レベル（pretty フォーマット使�
 #: lxc/storage_bucket.go:111 lxc/storage_bucket.go:211
 #: lxc/storage_bucket.go:287 lxc/storage_bucket.go:406
 #: lxc/storage_bucket.go:563 lxc/storage_bucket.go:655
-#: lxc/storage_bucket.go:797 lxc/storage_bucket.go:878
-#: lxc/storage_bucket.go:953 lxc/storage_bucket.go:1032
-#: lxc/storage_bucket.go:1155
+#: lxc/storage_bucket.go:797 lxc/storage_bucket.go:884
+#: lxc/storage_bucket.go:981 lxc/storage_bucket.go:1060
+#: lxc/storage_bucket.go:1183
 msgid "Missing bucket name"
 msgstr "バケット名を指定する必要があります"
 
@@ -4334,8 +4334,8 @@ msgstr "クラスターグループ名がありません"
 msgid "Missing instance name"
 msgstr "インスタンス名を指定する必要があります"
 
-#: lxc/storage_bucket.go:882 lxc/storage_bucket.go:957
-#: lxc/storage_bucket.go:1036 lxc/storage_bucket.go:1159
+#: lxc/storage_bucket.go:888 lxc/storage_bucket.go:985
+#: lxc/storage_bucket.go:1064 lxc/storage_bucket.go:1187
 msgid "Missing key name"
 msgstr "鍵の名前を指定する必要があります"
 
@@ -4404,9 +4404,9 @@ msgstr "ピア名を指定する必要があります"
 #: lxc/storage_bucket.go:207 lxc/storage_bucket.go:283
 #: lxc/storage_bucket.go:402 lxc/storage_bucket.go:477
 #: lxc/storage_bucket.go:559 lxc/storage_bucket.go:651
-#: lxc/storage_bucket.go:793 lxc/storage_bucket.go:874
-#: lxc/storage_bucket.go:949 lxc/storage_bucket.go:1028
-#: lxc/storage_bucket.go:1151 lxc/storage_volume.go:189
+#: lxc/storage_bucket.go:793 lxc/storage_bucket.go:880
+#: lxc/storage_bucket.go:977 lxc/storage_bucket.go:1056
+#: lxc/storage_bucket.go:1179 lxc/storage_volume.go:189
 #: lxc/storage_volume.go:287 lxc/storage_volume.go:583
 #: lxc/storage_volume.go:660 lxc/storage_volume.go:735
 #: lxc/storage_volume.go:817 lxc/storage_volume.go:919
@@ -4965,7 +4965,7 @@ msgstr "終了するには ctrl+c を押してください"
 #: lxc/network_load_balancer.go:690 lxc/network_peer.go:611
 #: lxc/network_zone.go:552 lxc/network_zone.go:1144 lxc/profile.go:539
 #: lxc/project.go:316 lxc/storage.go:311 lxc/storage_bucket.go:344
-#: lxc/storage_bucket.go:1093 lxc/storage_volume.go:1017
+#: lxc/storage_bucket.go:1121 lxc/storage_volume.go:1017
 #: lxc/storage_volume.go:1049
 msgid "Press enter to open the editor again or ctrl+c to abort change"
 msgstr ""
@@ -5551,7 +5551,7 @@ msgstr "証明書追加トークンを失効（Revoke）させます"
 msgid "Revoke cluster member join token"
 msgstr "クラスターメンバーに join するためのトークンを失効（Revoke）させます"
 
-#: lxc/storage_bucket.go:851
+#: lxc/storage_bucket.go:857
 msgid "Role (admin or read-only)"
 msgstr "ロール（admin または read-only）"
 
@@ -5627,11 +5627,11 @@ msgstr "STORAGE VOLUMES"
 msgid "STP"
 msgstr "STP"
 
-#: lxc/storage_bucket.go:853
+#: lxc/storage_bucket.go:859
 msgid "Secret key (auto-generated if empty)"
 msgstr "秘密鍵（空白の場合自動生成）"
 
-#: lxc/storage_bucket.go:909
+#: lxc/storage_bucket.go:937
 #, c-format
 msgid "Secret key: %s"
 msgstr "秘密鍵: %s"
@@ -6135,7 +6135,7 @@ msgstr "プロジェクトの設定を表示します"
 msgid "Show storage bucket configurations"
 msgstr "ストレージバケットの設定を表示する"
 
-#: lxc/storage_bucket.go:1123 lxc/storage_bucket.go:1124
+#: lxc/storage_bucket.go:1151 lxc/storage_bucket.go:1152
 msgid "Show storage bucket key configurations"
 msgstr "ストレージバケットの鍵の設定を表示する"
 
@@ -6295,12 +6295,12 @@ msgstr "ストレージバケット %s を作成しました"
 msgid "Storage bucket %s deleted"
 msgstr "ストレージバケット %s を削除しました"
 
-#: lxc/storage_bucket.go:907
+#: lxc/storage_bucket.go:935
 #, c-format
 msgid "Storage bucket key %s added"
 msgstr "ストレージバケットの鍵 %s を作成しました"
 
-#: lxc/storage_bucket.go:973
+#: lxc/storage_bucket.go:1001
 #, c-format
 msgid "Storage bucket key %s removed"
 msgstr "ストレージバケットの鍵 %s を削除しました"
@@ -7604,8 +7604,8 @@ msgid "[<remote>:]<pool> <bucket>"
 msgstr "[<remote>:]<pool> <bucket>"
 
 #: lxc/storage_bucket.go:375 lxc/storage_bucket.go:691
-#: lxc/storage_bucket.go:845 lxc/storage_bucket.go:923
-#: lxc/storage_bucket.go:987 lxc/storage_bucket.go:1122
+#: lxc/storage_bucket.go:845 lxc/storage_bucket.go:951
+#: lxc/storage_bucket.go:1015 lxc/storage_bucket.go:1150
 msgid "[<remote>:]<pool> <bucket> <key>"
 msgstr "[<remote>:]<pool> <bucket> <key>"
 
@@ -8302,7 +8302,7 @@ msgstr ""
 "lxc storage bucket edit [<remote>:]<pool> <bucket> < bucket.yaml\n"
 "    bucket.yaml の内容でストレージバケットを更新します。"
 
-#: lxc/storage_bucket.go:990
+#: lxc/storage_bucket.go:1018
 msgid ""
 "lxc storage bucket edit [<remote>:]<pool> <bucket> <key> < key.yaml\n"
 "    Update a storage bucket key using the content of key.yaml."
@@ -8310,7 +8310,17 @@ msgstr ""
 "lxc storage bucket edit [<remote>:]<pool> <bucket> <key> < key.yaml\n"
 "    key.yaml の内容でストレージバケットの鍵を更新します。"
 
-#: lxc/storage_bucket.go:1125
+#: lxc/storage_bucket.go:848
+msgid ""
+"lxc storage bucket key create p1 b01 k1\n"
+"\tCreate a key called k1 for the bucket b01 in the pool p1.\n"
+"\n"
+"lxc storage bucket key create p1 b01 k1 < config.yaml\n"
+"\tCreate a key called k1 for the bucket b01 in the pool p1 using the content "
+"of config.yaml."
+msgstr ""
+
+#: lxc/storage_bucket.go:1153
 msgid ""
 "lxc storage bucket key show default data foo\n"
 "    Will show the properties of a bucket key called \"foo\" for a bucket "
