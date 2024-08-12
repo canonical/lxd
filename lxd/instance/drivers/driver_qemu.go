@@ -2157,7 +2157,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 	if runConf != nil {
 		// If instance is running and then live attach device.
 		if instanceRunning {
-			// Attach network interface if requested.
+			// Attach NIC to running instance.
 			if len(runConf.NetworkInterface) > 0 {
 				err = d.deviceAttachNIC(dev.Name(), runConf.NetworkInterface)
 				if err != nil {
@@ -2165,6 +2165,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 				}
 			}
 
+			// Attach disk to running instance.
 			for i, mount := range runConf.Mounts {
 				if mount.FSType == "9p" {
 					mountTag, err := d.deviceAttachPath(dev.Name())
@@ -2181,6 +2182,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 				}
 			}
 
+			// Attach USB to running instance.
 			for _, usbDev := range runConf.USBDevice {
 				err = d.deviceAttachUSB(usbDev)
 				if err != nil {
