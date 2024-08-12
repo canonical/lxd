@@ -50,5 +50,9 @@ lint:
 html:
 	$(MAKE) -f Makefile.sp sp-html LOCAL_SPHINX_BUILD=True ADDPREREQS='gitpython pyyaml'
 
+.PHONY: html-rtd
+html-rtd:
+	$(MAKE) -f Makefile.sp sp-html LOCAL_SPHINX_BUILD=False ADDPREREQS='gitpython pyyaml'
+
 %:
 	$(MAKE) -f Makefile.sp sp-$@ LOCAL_SPHINX_BUILD=True ALLFILES='*.md **/*.md' ADDPREREQS='gitpython pyyaml'
