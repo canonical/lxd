@@ -21,6 +21,8 @@ help:
         "* check spelling (without building again):   make spellcheck \n" \
         "* check inclusive language:                  make woke \n" \
         "* check accessibility:                       make pa11y \n" \
+        "* check style guide compliance:              make vale \n" \
+        "* check style guide compliance on target:    make vale TARGET=* \n" \
         "* other possible targets:                    make <TAB twice> \n" \
         "------------------------------------------------------------- \n"
 

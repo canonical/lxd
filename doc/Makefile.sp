@@ -34,7 +34,8 @@ $(SPHINXDIR)/requirements.txt:
         (echo "You must install python3-venv before you can build the documentation."; exit 1)
 	python3 -m venv $(VENVDIR)
 	@if [ ! -z "$(ADDPREREQS)" ]; then \
-          . $(VENV); pip install --require-virtualenv $(ADDPREREQS); \
+          . $(VENV); pip install \
+                         $(PIPOPTS) --require-virtualenv $(ADDPREREQS); \
         fi
 	. $(VENV); python3 $(SPHINXDIR)/build_requirements.py
 
@@ -42,7 +43,7 @@ $(SPHINXDIR)/requirements.txt:
 $(VENVDIR): $(SPHINXDIR)/requirements.txt
 	@echo "... setting up virtualenv"
 	python3 -m venv $(VENVDIR)
-	. $(VENV); pip install --require-virtualenv \
+	. $(VENV); pip install $(PIPOPTS) --require-virtualenv \
 	    --upgrade -r $(SPHINXDIR)/requirements.txt \
             --log $(VENVDIR)/pip_install.log
 	@test ! -f $(VENVDIR)/pip_list.txt || \
