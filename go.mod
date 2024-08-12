@@ -38,9 +38,9 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/oklog/ulid/v2 v2.1.0
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/openfga/api/proto v0.0.0-20240723155248-7e5be7b65c27
+	github.com/openfga/api/proto v0.0.0-20240807201305-c96ec773cae9
 	github.com/openfga/language/pkg/go v0.2.0-beta.0
-	github.com/openfga/openfga v1.5.6
+	github.com/openfga/openfga v1.5.8
 	github.com/osrg/gobgp/v3 v3.29.0
 	github.com/pkg/sftp v1.13.6
 	github.com/pkg/xattr v0.4.10
@@ -150,6 +150,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/mod v0.19.0 // indirect
 	golang.org/x/net v0.27.0 // indirect
+	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.23.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240730163845-b1a4ccb954bf // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240730163845-b1a4ccb954bf // indirect
