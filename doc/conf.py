@@ -4,6 +4,7 @@ import requests
 from urllib.parse import urlparse
 from git import Repo, InvalidGitRepositoryError
 import time
+import ast
 
 sys.path.append('./')
 from custom_conf import *
@@ -25,7 +26,7 @@ from build_requirements import *
 extensions = [
     'sphinx_design',
     'sphinx_copybutton',
-    'sphinxcontrib.jquery',
+    'sphinxcontrib.jquery'
 ]
 
 # Only add redirects extension if any redirects are specified.
@@ -210,4 +211,28 @@ def get_contributors_for_file(github_url, github_folder, pagename, page_source_s
     return sorted_contributors_list
 
 html_context['get_contribs'] = get_contributors_for_file
-#############################################################
+
+############################################################
+### PDF configuration
+############################################################
+
+latex_additional_files = [
+    "./.sphinx/fonts/Ubuntu-B.ttf",
+    "./.sphinx/fonts/Ubuntu-R.ttf",
+    "./.sphinx/fonts/Ubuntu-RI.ttf",
+    "./.sphinx/fonts/UbuntuMono-R.ttf",
+    "./.sphinx/fonts/UbuntuMono-RI.ttf",
+    "./.sphinx/fonts/UbuntuMono-B.ttf",
+    "./.sphinx/images/Canonical-logo-4x.png",
+    "./.sphinx/images/front-page-light.pdf",
+    "./.sphinx/images/normal-page-footer.pdf",
+]
+
+latex_engine = 'xelatex'
+latex_show_pagerefs = True
+latex_show_urls = 'footnote'
+
+with open(".sphinx/latex_elements_template.txt", "rt") as file:
+    latex_config = file.read()
+
+latex_elements = ast.literal_eval(latex_config.replace("$PROJECT", project))

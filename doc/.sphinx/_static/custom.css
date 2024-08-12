@@ -377,6 +377,20 @@ p code.literal {
     color: #BB5400;
 }
 
+.rubric > .hclass2, .rubric.hclass2 {
+    display: block;
+    font-size: 2em;
+    border-radius: .5rem;
+    font-weight: 300;
+    line-height: 1.25;
+    margin-top: 1.75rem;
+    margin-right: -0.5rem;
+    margin-bottom: 0.5rem;
+    margin-left: -0.5rem;
+    padding-left: .5rem;
+    padding-right: .5rem;
+}
+
 /* Exception for LXD: smaller font size for option table fields */
 .configoption .fields p code.literal {
     font-size: var(--font-size--small--2);
