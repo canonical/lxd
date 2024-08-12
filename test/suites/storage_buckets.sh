@@ -84,6 +84,14 @@ test_storage_buckets() {
   roAccessKey=$(echo "${creds}" | awk '{ if ($1 == "Access" && $2 == "key:") {print $3}}')
   roSecretKey=$(echo "${creds}" | awk '{ if ($1 == "Secret" && $2 == "key:") {print $3}}')
 
+  # Test creating a bucket key with YAML bucket key config.
+  creds=$(lxc storage bucket key create "${poolName}" "${bucketPrefix}.foo" yaml-key << EOF
+role: read-only
+EOF
+)
+  roYamlAccessKey=$(echo "${creds}" | awk '{ if ($1 == "Access" && $2 == "key:") {print $3}}')
+  roYamlSecretKey=$(echo "${creds}" | awk '{ if ($1 == "Secret" && $2 == "key:") {print $3}}')
+
   lxc storage bucket key list "${poolName}" "${bucketPrefix}.foo" | grep -F "admin-key"
   lxc storage bucket key list "${poolName}" "${bucketPrefix}.foo" | grep -F "ro-key"
   lxc storage bucket key show "${poolName}" "${bucketPrefix}.foo" admin-key
@@ -92,6 +100,7 @@ test_storage_buckets() {
   # Test listing buckets via S3.
   s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" ls | grep -F "${bucketPrefix}.foo"
   s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" ls | grep -F "${bucketPrefix}.foo"
+  s3cmdrun "${lxd_backend}" "${roYamlAccessKey}" "${roYamlSecretKey}" ls | grep -F "${bucketPrefix}.foo"
 
   # Test making buckets via S3 is blocked.
   ! s3cmdrun "${lxd_backend}" "${adAccessKey}" "${adSecretKey}" mb "s3://${bucketPrefix}.foo2" || false
