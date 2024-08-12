@@ -25,7 +25,7 @@ import filecmp
 ############################################################
 
 # Product name
-project = 'Canonical LXD'
+project = 'LXD'
 author = 'LXD contributors'
 
 # The title you want to display for the documentation in the sidebar.
