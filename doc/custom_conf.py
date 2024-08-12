@@ -196,7 +196,8 @@ custom_extensions = [
     'sphinx.ext.intersphinx',
     'canonical.config-options',
     'sphinx_remove_toctrees',
-    'canonical.filtered-toc'
+    'canonical.filtered-toc',
+    'sphinxcontrib.inkscapeconverter'
 ]
 
 # Add custom required Python modules that must be added to the
@@ -209,7 +210,8 @@ custom_extensions = [
 custom_required_modules = [
     'gitpython',
     'pyyaml',
-    'sphinx-remove-toctrees'
+    'sphinx-remove-toctrees',
+    "sphinxcontrib-svg2pdfconverter"
 ]
 
 # Add files or directories that should be excluded from processing.
