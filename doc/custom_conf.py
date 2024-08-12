@@ -25,7 +25,7 @@ import filecmp
 ############################################################
 
 # Product name
-project = 'Canonical LXD'
+project = 'LXD'
 author = 'LXD contributors'
 
 # The title you want to display for the documentation in the sidebar.
@@ -166,7 +166,8 @@ linkcheck_ignore = [
 # (This list will be appended to linkcheck_anchors_ignore_for_url)
 
 custom_linkcheck_anchors_ignore_for_url = [
-    r'https://snapcraft\.io/docs/.*'
+    r'https://snapcraft\.io/docs/.*',
+    'https://docs.docker.com/network/packet-filtering-firewalls/'
     ]
 
 linkcheck_exclude_documents = [r'.*/manpages/.*']
@@ -196,7 +197,8 @@ custom_extensions = [
     'sphinx.ext.intersphinx',
     'canonical.config-options',
     'sphinx_remove_toctrees',
-    'canonical.filtered-toc'
+    'canonical.filtered-toc',
+    'sphinxcontrib.inkscapeconverter'
 ]
 
 # Add custom required Python modules that must be added to the
@@ -209,7 +211,8 @@ custom_extensions = [
 custom_required_modules = [
     'gitpython',
     'pyyaml',
-    'sphinx-remove-toctrees'
+    'sphinx-remove-toctrees',
+    "sphinxcontrib-svg2pdfconverter"
 ]
 
 # Add files or directories that should be excluded from processing.

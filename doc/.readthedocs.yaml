@@ -18,8 +18,6 @@ build:
       - git fetch --unshallow || true
     pre_build:
       - go build -ldflags "-s -w" -o trimpath -o lxc.bin ./lxc
-    post_build:
-      - cd _readthedocs/html; python -m sphinx.ext.intersphinx 'objects.inv' > objects.inv.txt
 
 # Build documentation in the docs/ directory with Sphinx
 sphinx:

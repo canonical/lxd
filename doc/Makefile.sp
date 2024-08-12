@@ -17,10 +17,11 @@ VENV          = $(VENVDIR)/bin/activate
 TARGET        = *
 ALLFILES      =  *.rst **/*.rst
 ADDPREREQS    ?=
+REQPDFPACKS   = latexmk fonts-freefont-otf texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended texlive-font-utils texlive-lang-cjk texlive-xetex plantuml xindy tex-gyre dvipng
 
 .PHONY: sp-full-help sp-woke-install sp-pa11y-install sp-install sp-run sp-html \
         sp-epub sp-serve sp-clean sp-clean-doc sp-spelling sp-spellcheck sp-linkcheck sp-woke \
-        sp-pa11y Makefile.sp sp-vale
+        sp-pa11y sp-pdf-prep-force sp-pdf-prep sp-pdf Makefile.sp sp-vale
 
 sp-full-help: $(VENVDIR)
 	@. $(VENV); $(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
@@ -34,7 +35,8 @@ $(SPHINXDIR)/requirements.txt:
         (echo "You must install python3-venv before you can build the documentation."; exit 1)
 	python3 -m venv $(VENVDIR)
 	@if [ ! -z "$(ADDPREREQS)" ]; then \
-          . $(VENV); pip install --require-virtualenv $(ADDPREREQS); \
+          . $(VENV); pip install \
+                         $(PIPOPTS) --require-virtualenv $(ADDPREREQS); \
         fi
 	. $(VENV); python3 $(SPHINXDIR)/build_requirements.py
 
@@ -42,7 +44,7 @@ $(SPHINXDIR)/requirements.txt:
 $(VENVDIR): $(SPHINXDIR)/requirements.txt
 	@echo "... setting up virtualenv"
 	python3 -m venv $(VENVDIR)
-	. $(VENV); pip install --require-virtualenv \
+	. $(VENV); pip install $(PIPOPTS) --require-virtualenv \
 	    --upgrade -r $(SPHINXDIR)/requirements.txt \
             --log $(VENVDIR)/pip_install.log
 	@test ! -f $(VENVDIR)/pip_list.txt || \
@@ -113,7 +115,25 @@ sp-vale: sp-install
 	@echo ""
 	@. $(VENV); vale --config "$(SPHINXDIR)/vale.ini" --glob='*.{md,txt,rst}' $(TARGET)
 
+sp-pdf-prep: sp-install
+	@for packageName in $(REQPDFPACKS); do (dpkg-query -W -f='$${Status}' $$packageName 2>/dev/null | \
+        grep -c "ok installed" >/dev/null && echo "Package $$packageName is installed") && continue || \
+        (echo "\nPDF generation requires the installation of the following packages: $(REQPDFPACKS)" && \
+        echo "" && echo "Run sudo make pdf-prep-force to install these packages" && echo "" && echo \
+        "Please be aware these packages will be installed to your system") && exit 1 ; done
 
+sp-pdf-prep-force:
+	apt-get update
+	apt-get upgrade -y
+	apt-get install --no-install-recommends -y $(REQPDFPACKS) \
+
+sp-pdf: sp-pdf-prep
+	@. $(VENV); sphinx-build -M latexpdf "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
+	@rm ./$(BUILDDIR)/latex/front-page-light.pdf || true
+	@rm ./$(BUILDDIR)/latex/normal-page-footer.pdf || true
+	@find ./$(BUILDDIR)/latex -name "*.pdf" -exec mv -t ./$(BUILDDIR) {} +
+	@rm -r $(BUILDDIR)/latex
+	@echo "\nOutput can be found in ./$(BUILDDIR)\n"
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
