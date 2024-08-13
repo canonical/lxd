@@ -198,7 +198,7 @@ custom_extensions = [
     'canonical.config-options',
     'sphinx_remove_toctrees',
     'canonical.filtered-toc',
-    'sphinxcontrib.inkscapeconverter'
+    'sphinxcontrib.cairosvgconverter'
 ]
 
 # Add custom required Python modules that must be added to the
@@ -212,7 +212,7 @@ custom_required_modules = [
     'gitpython',
     'pyyaml',
     'sphinx-remove-toctrees',
-    "sphinxcontrib-svg2pdfconverter"
+    'sphinxcontrib-svg2pdfconverter[CairoSVG]'
 ]
 
 # Add files or directories that should be excluded from processing.
