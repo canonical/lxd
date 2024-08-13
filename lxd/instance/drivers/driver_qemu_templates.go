@@ -797,7 +797,7 @@ func qemuPCIPhysical(opts *qemuPCIPhysicalOpts) []cfgSection {
 
 	return []cfgSection{{
 		// Devices use "lxd_" prefix indicating that this is a user named device.
-		name:    fmt.Sprintf(`device "dev-lxd_%s"`, opts.devName),
+		name:    fmt.Sprintf(`device "%s"`, qemuDeviceNameOrID(qemuDeviceIDPrefix, opts.devName, "", qemuDeviceIDMaxLength)),
 		comment: fmt.Sprintf(`PCI card ("%s" device)`, opts.devName),
 		entries: entries,
 	}}
@@ -833,7 +833,7 @@ func qemuGPUDevPhysical(opts *qemuGPUDevPhysicalOpts) []cfgSection {
 
 	return []cfgSection{{
 		// Devices use "lxd_" prefix indicating that this is a user named device.
-		name:    fmt.Sprintf(`device "dev-lxd_%s"`, opts.devName),
+		name:    fmt.Sprintf(`device "%s"`, qemuDeviceNameOrID(qemuDeviceIDPrefix, opts.devName, "", qemuDeviceIDMaxLength)),
 		comment: fmt.Sprintf(`GPU card ("%s" device)`, opts.devName),
 		entries: entries,
 	}}
