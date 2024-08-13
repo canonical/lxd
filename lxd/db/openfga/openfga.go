@@ -58,7 +58,7 @@ type openfgaStore struct {
 //   - This method doesn't actually perform any queries (win!).
 //   - If we change our design to use entity IDs directly, this method will need to change so that we can return the correct project ID.
 //     (Currently we don't need to as the project name is already in the URL).
-func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleKey) (storage.TupleIterator, error) {
+func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleKey, options storage.ReadOptions) (storage.TupleIterator, error) {
 	obj := key.GetObject()
 	relation := key.GetRelation()
 	user := key.GetUser()
@@ -171,7 +171,7 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleK
 // Implementation:
 //   - The tuples that this method is meant to return have been passed in contextually. So validate the input matches
 //     what is expected and return nil.
-func (o *openfgaStore) ReadUserTuple(ctx context.Context, store string, tk *openfgav1.TupleKey) (*openfgav1.Tuple, error) {
+func (o *openfgaStore) ReadUserTuple(ctx context.Context, store string, tk *openfgav1.TupleKey, options storage.ReadUserTupleOptions) (*openfgav1.Tuple, error) {
 	// Expect the User field to be present.
 	user := tk.GetUser()
 	if user == "" {
@@ -214,7 +214,7 @@ func (o *openfgaStore) ReadUserTuple(ctx context.Context, store string, tk *open
 //   - The exception for the type-bound public access may be better placed as a contextual tuple. However, adding it here
 //     means we can avoid an unnecessary transaction that will happen a lot.
 //   - We will need to modify this exception when we implement service accounts.
-func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filter storage.ReadUsersetTuplesFilter) (storage.TupleIterator, error) {
+func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filter storage.ReadUsersetTuplesFilter, options storage.ReadUsersetTuplesOptions) (storage.TupleIterator, error) {
 	// Expect both an object and a relation.
 	if filter.Object == "" || filter.Relation == "" {
 		return nil, fmt.Errorf("ReadUsersetTuples: Filter must include both an object and a relation")
@@ -322,7 +322,7 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 //   - For the first two cases we can perform a simple lookup for entities of the requested type (with project name if project relation).
 //   - In the third case, we need to get all permissions with the given entity type and entitlement that are associated with the given group.
 //   - For the fourth case we return nil, since we expect direct entitlements for identities to be passed in contextually.
-func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, filter storage.ReadStartingWithUserFilter) (storage.TupleIterator, error) {
+func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, filter storage.ReadStartingWithUserFilter, options storage.ReadStartingWithUserOptions) (storage.TupleIterator, error) {
 	// Example expected input, case 1:
 	// filter.ObjectType = "certificate"
 	// filter.Relation = "server"
@@ -529,7 +529,7 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 }
 
 // ReadPage is not implemented. It is not required for the functionality we need.
-func (*openfgaStore) ReadPage(ctx context.Context, store string, tk *openfgav1.TupleKey, opts storage.PaginationOptions) ([]*openfgav1.Tuple, []byte, error) {
+func (*openfgaStore) ReadPage(ctx context.Context, store string, tk *openfgav1.TupleKey, opts storage.ReadPageOptions) ([]*openfgav1.Tuple, []byte, error) {
 	return nil, nil, api.StatusErrorf(http.StatusNotImplemented, "not implemented")
 }
 
@@ -563,7 +563,7 @@ func (o *openfgaStore) FindLatestAuthorizationModel(ctx context.Context, store s
 }
 
 // ReadAuthorizationModels returns a slice containing our own model or an error if it hasn't been set yet.
-func (o *openfgaStore) ReadAuthorizationModels(ctx context.Context, store string, options storage.PaginationOptions) ([]*openfgav1.AuthorizationModel, []byte, error) {
+func (o *openfgaStore) ReadAuthorizationModels(ctx context.Context, store string, options storage.ReadAuthorizationModelsOptions) ([]*openfgav1.AuthorizationModel, []byte, error) {
 	if o.model != nil {
 		return []*openfgav1.AuthorizationModel{o.model}, nil, nil
 	}
@@ -598,7 +598,7 @@ func (*openfgaStore) GetStore(ctx context.Context, id string) (*openfgav1.Store,
 }
 
 // ListStores returns a not implemented error, because there is only one store.
-func (*openfgaStore) ListStores(ctx context.Context, paginationOptions storage.PaginationOptions) ([]*openfgav1.Store, []byte, error) {
+func (*openfgaStore) ListStores(ctx context.Context, paginationOptions storage.ListStoresOptions) ([]*openfgav1.Store, []byte, error) {
 	return nil, nil, api.StatusErrorf(http.StatusNotImplemented, "not implemented")
 }
 
@@ -613,7 +613,7 @@ func (*openfgaStore) ReadAssertions(ctx context.Context, store, modelID string) 
 }
 
 // ReadChanges returns a not implemented error, because we do not need to use the read changes API.
-func (*openfgaStore) ReadChanges(ctx context.Context, store, objectType string, paginationOptions storage.PaginationOptions, horizonOffset time.Duration) ([]*openfgav1.TupleChange, []byte, error) {
+func (*openfgaStore) ReadChanges(ctx context.Context, store, objectType string, paginationOptions storage.ReadChangesOptions, horizonOffset time.Duration) ([]*openfgav1.TupleChange, []byte, error) {
 	return nil, nil, api.StatusErrorf(http.StatusNotImplemented, "not implemented")
 }
 
