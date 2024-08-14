@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 var lxdEarlyPatches = map[string]func(b *lxdBackend) error{
@@ -190,6 +191,26 @@ func patchBucketNames(b *lxdBackend) error {
 		return err
 	}
 
+	if len(buckets) == 0 {
+		return nil
+	}
+
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	// ListVolumes assumes that the pool is mounted for dir & btrfs drivers
+	_, err = b.Mount()
+	if err != nil {
+		return err
+	}
+
+	reverter.Add(func() {
+		_, err := b.Unmount()
+		if err != nil {
+			logger.Error("Failed to unmount pool", logger.Ctx{"pool": b.name, "err": err})
+		}
+	})
+
 	// Get list of volumes.
 	volumes, err := b.driver.ListVolumes()
 	if err != nil {
@@ -217,5 +238,6 @@ func patchBucketNames(b *lxdBackend) error {
 		}
 	}
 
+	reverter.Success()
 	return nil
 }
