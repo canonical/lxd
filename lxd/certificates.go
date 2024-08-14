@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -435,6 +436,11 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	// Validate name.
+	if strings.HasPrefix(req.Name, "-") || strings.Contains(req.Name, "/") {
+		return response.BadRequest(fmt.Errorf("Invalid certificate name %q, name must not start with a hyphen or contain forward slashes", req.Name))
 	}
 
 	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
