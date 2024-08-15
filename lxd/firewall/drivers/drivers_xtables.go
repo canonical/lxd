@@ -1107,7 +1107,7 @@ func (d Xtables) generateFilterEbtablesRules(hostName string, hwAddr string, IPv
 func (d Xtables) generateFilterIptablesRules(parentName string, hostName string, hwAddr string, IPv6Nets []*net.IPNet, parentManaged bool) (rules [][]string, err error) {
 	mac, err := net.ParseMAC(hwAddr)
 	if err != nil {
-		return [][]string{}, err
+		return rules, err
 	}
 
 	macHex := hex.EncodeToString(mac)
@@ -1162,7 +1162,7 @@ func (d Xtables) generateFilterIptablesRules(parentName string, hostName string,
 		}
 	}
 
-	return [][]string{}, err
+	return rules, err
 }
 
 // matchEbtablesRule compares an active rule to a supplied match rule to see if they match.
