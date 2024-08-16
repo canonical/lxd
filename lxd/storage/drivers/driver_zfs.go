@@ -717,6 +717,21 @@ func (d *zfs) patchDropBlockVolumeFilesystemExtension() error {
 		poolName = d.name
 	}
 
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	_, err := d.Mount()
+	if err != nil {
+		return fmt.Errorf("Failed to mount pool %s: %w", poolName, err)
+	}
+
+	reverter.Add(func() {
+		_, err := d.Unmount()
+		if err != nil {
+			logger.Error("Failed to unmount pool", logger.Ctx{"pool": poolName, "err": err})
+		}
+	})
+
 	out, err := shared.RunCommand("zfs", "list", "-H", "-r", "-o", "name", "-t", "volume", fmt.Sprintf("%s/images", poolName))
 	if err != nil {
 		return fmt.Errorf("Failed listing images: %w", err)
@@ -743,6 +758,7 @@ func (d *zfs) patchDropBlockVolumeFilesystemExtension() error {
 		}
 	}
 
+	reverter.Success()
 	return nil
 }
 
