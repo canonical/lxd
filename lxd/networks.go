@@ -474,10 +474,12 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Populate default config.
-	err = netType.FillConfig(req.Config)
-	if err != nil {
-		return response.SmartError(err)
+	// Populate default config unless joining a cluster.
+	if clientType != clusterRequest.ClientTypeJoiner {
+		err = netType.FillConfig(req.Config)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
