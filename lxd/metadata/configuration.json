@@ -63,7 +63,7 @@
 						"io.bus": {
 							"condition": "virtual machine",
 							"defaultdesc": "`virtio-scsi`",
-							"longdesc": "Possible values are `virtio-scsi` or `nvme`.",
+							"longdesc": "Possible values are `virtio-scsi`, `virtio-blk` or `nvme`.",
 							"required": "no",
 							"shortdesc": "Bus for the device",
 							"type": "string"
