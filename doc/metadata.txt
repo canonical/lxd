@@ -4873,6 +4873,18 @@ for automatic access control.
 
 ```
 
+```{config:option} oidc.scopes server-oidc
+:scope: "global"
+:shortdesc: "Space-separated list of OpenID Connect scopes"
+:type: "space-delimited string"
+A list of OpenID Connect scopes to request from the identity provider.
+This must include the `openid` and `email` scopes.
+The remaining optional scopes are `offline_access` and `profile`.
+If you remove the `offline_access` scope, users might be required to log in more frequently.
+If you remove the `profile` scope, user information may not be displayed in LXD UI (or in `lxc auth identity` commands).
+You may add additional scopes if this is required by your identity provider, or if necessary for configuration of {ref}`identity provider groups <identity-provider-groups>`.
+```
+
 <!-- config group server-oidc end -->
 <!-- config group storage-btrfs-bucket-conf start -->
 ```{config:option} size storage-btrfs-bucket-conf
