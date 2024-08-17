@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"golang.org/x/crypto/scrypt"
 
 	"github.com/canonical/lxd/lxd/config"
@@ -232,8 +233,8 @@ func (c *Config) RemoteTokenExpiry() string {
 }
 
 // OIDCServer returns all the OpenID Connect settings needed to connect to a server.
-func (c *Config) OIDCServer() (issuer string, clientID string, audience string, groupsClaim string) {
-	return c.m.GetString("oidc.issuer"), c.m.GetString("oidc.client.id"), c.m.GetString("oidc.audience"), c.m.GetString("oidc.groups.claim")
+func (c *Config) OIDCServer() (issuer string, clientID string, scopes []string, audience string, groupsClaim string) {
+	return c.m.GetString("oidc.issuer"), c.m.GetString("oidc.client.id"), strings.Fields(c.m.GetString("oidc.scopes")), c.m.GetString("oidc.audience"), c.m.GetString("oidc.groups.claim")
 }
 
 // ClusterHealingThreshold returns the configured healing threshold, i.e. the
@@ -695,6 +696,29 @@ var ConfigSchema = config.Schema{
 	//  scope: global
 	//  shortdesc: Expected audience value for the application
 	"oidc.audience": {},
+
+	// lxdmeta:generate(entities=server; group=oidc; key=oidc.scopes)
+	// A list of OpenID Connect scopes to request from the identity provider.
+	// This must include the `openid` and `email` scopes.
+	// The remaining optional scopes are `offline_access` and `profile`.
+	// If you remove the `offline_access` scope, users might be required to log in more frequently.
+	// If you remove the `profile` scope, user information may not be displayed in LXD UI (or in `lxc auth identity` commands).
+	// You may add additional scopes if this is required by your identity provider, or if necessary for configuration of {ref}`identity provider groups <identity-provider-groups>`.
+	// ---
+	//  type: space-delimited string
+	//  scope: global
+	//  shortdesc: Space-separated list of OpenID Connect scopes
+	"oidc.scopes": {
+		Default: strings.Join([]string{oidc.ScopeOpenID, oidc.ScopeEmail, oidc.ScopeOfflineAccess, oidc.ScopeProfile}, " "),
+		Validator: validate.Optional(func(value string) error {
+			scopes := strings.Fields(value)
+			if !shared.ValueInSlice(oidc.ScopeOpenID, scopes) || !shared.ValueInSlice(oidc.ScopeEmail, scopes) {
+				return fmt.Errorf("oidc.scopes requires the %q and %q OpenID Connect scopes", oidc.ScopeOpenID, oidc.ScopeEmail)
+			}
+
+			return nil
+		}),
+	},
 
 	// lxdmeta:generate(entities=server; group=oidc; key=oidc.groups.claim)
 	// Specify a custom claim to be requested when performing OIDC flows.
