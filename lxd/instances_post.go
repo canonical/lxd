@@ -1171,6 +1171,11 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
+			dbProfileDevices, err := dbCluster.GetDevices(ctx, tx.Tx(), "profile")
+			if err != nil {
+				return err
+			}
+
 			profilesByName := make(map[string]dbCluster.Profile, len(dbProfiles))
 			for _, dbProfile := range dbProfiles {
 				profilesByName[dbProfile.Name] = dbProfile
@@ -1182,7 +1187,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 					return fmt.Errorf("Requested profile %q doesn't exist", profileName)
 				}
 
-				apiProfile, err := profile.ToAPI(ctx, tx.Tx())
+				apiProfile, err := profile.ToAPI(ctx, tx.Tx(), dbProfileDevices)
 				if err != nil {
 					return err
 				}
