@@ -2,6 +2,7 @@ package cluster_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/node"
+	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -140,6 +142,46 @@ func TestNewNotify_NotifyAlive(t *testing.T) {
 	assert.Equal(t, 1, i)
 }
 
+// Creating a new notifier does not fail if the policy is set to NotifyAlive
+// and one of the nodes is shutting down.
+func TestNewNotify_NotifyAliveShuttingDown(t *testing.T) {
+	testState, cleanup := state.NewTestState(t)
+	defer cleanup()
+
+	cert := shared.TestingKeyPair()
+
+	f := notifyFixtures{t: t, state: testState}
+	cleanupF := f.Nodes(cert, 3)
+	defer cleanupF()
+
+	f.Unavailable(1, fmt.Errorf("LXD is shutting down"))
+
+	// Populate state.LocalConfig after nodes created above.
+	var err error
+	var nodeConfig *node.Config
+	err = testState.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		nodeConfig, err = node.ConfigLoad(ctx, tx)
+		return err
+	})
+	require.NoError(t, err)
+
+	testState.LocalConfig = nodeConfig
+
+	notifier, err := cluster.NewNotifier(testState, cert, cert, cluster.NotifyAlive)
+	assert.NoError(t, err)
+
+	connections := 0
+	hook := func(client lxd.InstanceServer) error {
+		connections++
+		// Notifiers do not GetServer() when they set up the connection;
+		_, _, err := client.GetServer()
+		return err
+	}
+
+	assert.NoError(t, notifier(hook))
+	assert.Equal(t, 2, connections)
+}
+
 // Helper for setting fixtures for Notify tests.
 type notifyFixtures struct {
 	t       *testing.T
@@ -224,6 +266,18 @@ func (h *notifyFixtures) Down(i int) {
 	})
 	require.NoError(h.t, err)
 	h.servers[i].Close()
+}
+
+func (h *notifyFixtures) Unavailable(i int, err error) {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/1.0/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		err := response.Unavailable(err)
+		_ = err.Render(w)
+	})
+
+	h.servers[i].Config.Handler = mux
 }
 
 // Returns a minimal stub for the LXD RESTful API server, just realistic
