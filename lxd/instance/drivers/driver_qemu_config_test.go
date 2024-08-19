@@ -936,7 +936,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 				pciSlotName: "host-slot",
 			},
 			`# PCI card ("physical-pci-name" device)
-			[device "dev-lxd_physical-pci-name"]
+			[device "dev-lxd_physical--pci--name"]
 			driver = "vfio-pci"
 			bus = "qemu_pcie1"
 			addr = "00.0"
@@ -948,7 +948,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 				pciSlotName: "host-slot-ccw",
 			},
 			`# PCI card ("physical-ccw-name" device)
-			[device "dev-lxd_physical-ccw-name"]
+			[device "dev-lxd_physical--ccw--name"]
 			driver = "vfio-ccw"
 			multifunction = "on"
 			host = "host-slot-ccw"`,
@@ -969,7 +969,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 				pciSlotName: "gpu-slot",
 			},
 			`# GPU card ("gpu-name" device)
-			[device "dev-lxd_gpu-name"]
+			[device "dev-lxd_gpu--name"]
 			driver = "vfio-pci"
 			bus = "qemu_pcie1"
 			addr = "00.0"
@@ -982,7 +982,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 				vga:         true,
 			},
 			`# GPU card ("gpu-name" device)
-			[device "dev-lxd_gpu-name"]
+			[device "dev-lxd_gpu--name"]
 			driver = "vfio-ccw"
 			multifunction = "on"
 			host = "gpu-slot"
@@ -994,7 +994,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 				vgpu:    "vgpu-dev",
 			},
 			`# GPU card ("vgpu-name" device)
-			[device "dev-lxd_vgpu-name"]
+			[device "dev-lxd_vgpu--name"]
 			driver = "vfio-pci"
 			bus = "qemu_pcie1"
 			addr = "00.0"
