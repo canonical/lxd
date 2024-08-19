@@ -1268,9 +1268,14 @@ func fetchProject(globalConfig map[string]any, tx *db.ClusterTx, projectName str
 		return nil, fmt.Errorf("Fetch profiles from database: %w", err)
 	}
 
+	dbProfileDevices, err := cluster.GetDevices(ctx, tx.Tx(), "profile")
+	if err != nil {
+		return nil, fmt.Errorf("Fetch profile devices from database: %w", err)
+	}
+
 	profiles := make([]api.Profile, 0, len(dbProfiles))
 	for _, profile := range dbProfiles {
-		apiProfile, err := profile.ToAPI(ctx, tx.Tx())
+		apiProfile, err := profile.ToAPI(ctx, tx.Tx(), dbProfileDevices)
 		if err != nil {
 			return nil, err
 		}
