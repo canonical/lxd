@@ -640,8 +640,8 @@ github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 github.com/zitadel/logging v0.6.0 h1:t5Nnt//r+m2ZhhoTmoPX+c96pbMarqJvW1Vq6xFTank=
 github.com/zitadel/logging v0.6.0/go.mod h1:Y4CyAXHpl3Mig6JOszcV5Rqqsojj+3n7y2F591Mp/ow=
-github.com/zitadel/oidc/v3 v3.26.0 h1:BG3OUK+JpuKz7YHJIyUxL5Sl2JV6ePkG42UP4Xv3J2w=
-github.com/zitadel/oidc/v3 v3.26.0/go.mod h1:Cx6AYPTJO5q2mjqF3jaknbKOUjpq1Xui0SYvVhkKuXU=
+github.com/zitadel/oidc/v3 v3.27.0 h1:zeYpyRH0UcgdCjVHUYzSsqf1jbSwVMPVxYKOnRXstgU=
+github.com/zitadel/oidc/v3 v3.27.0/go.mod h1:ZwBEqSviCpJVZiYashzo53bEGRGXi7amE5Q8PpQg9IM=
 github.com/zitadel/schema v1.3.0 h1:kQ9W9tvIwZICCKWcMvCEweXET1OcOyGEuFbHs4o5kg0=
 github.com/zitadel/schema v1.3.0/go.mod h1:NptN6mkBDFvERUCvZHlvWmmME+gmZ44xzwRXwhzsbtc=
 go.etcd.io/etcd/api/v3 v3.5.0/go.mod h1:cbVKeC6lCfl7j/8jBhAK6aIYO9XOjdptoxU/nLQcPvs=
