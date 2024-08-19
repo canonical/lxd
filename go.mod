@@ -50,7 +50,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	github.com/vishvananda/netlink v1.2.1-beta.2
-	github.com/zitadel/oidc/v3 v3.26.0
+	github.com/zitadel/oidc/v3 v3.27.0
 	go.starlark.net v0.0.0-20240725214946-42030a7cedce
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.26.0
