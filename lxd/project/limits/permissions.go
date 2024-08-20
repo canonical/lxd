@@ -1300,7 +1300,7 @@ func fetchProject(globalConfig map[string]any, tx *db.ClusterTx, projectName str
 
 	instances := make([]api.Instance, 0, len(dbInstances))
 	for _, instance := range dbInstances {
-		apiInstance, err := instance.ToAPI(ctx, tx.Tx(), globalConfig, dbInstanceDevices)
+		apiInstance, err := instance.ToAPI(ctx, tx.Tx(), globalConfig, dbInstanceDevices, dbProfileDevices)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get API data for instance %q in project %q: %w", instance.Name, instance.Project, err)
 		}
