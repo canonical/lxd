@@ -25,7 +25,7 @@ import filecmp
 ############################################################
 
 # Product name
-project = 'Canonical LXD'
+project = 'LXD'
 author = 'LXD contributors'
 
 # The title you want to display for the documentation in the sidebar.
@@ -154,6 +154,7 @@ redirects = {
 
 # Links to ignore when checking links
 linkcheck_ignore = [
+    'https://127.0.0.1:8443',
     'https://127.0.0.1:8443/1.0',
     'https://web.libera.chat/#lxd',
     'http://localhost:8000',
@@ -165,7 +166,8 @@ linkcheck_ignore = [
 # (This list will be appended to linkcheck_anchors_ignore_for_url)
 
 custom_linkcheck_anchors_ignore_for_url = [
-    r'https://snapcraft\.io/docs/.*'
+    r'https://snapcraft\.io/docs/.*',
+    'https://docs.docker.com/network/packet-filtering-firewalls/'
     ]
 
 linkcheck_exclude_documents = [r'.*/manpages/.*']
@@ -195,7 +197,8 @@ custom_extensions = [
     'sphinx.ext.intersphinx',
     'canonical.config-options',
     'sphinx_remove_toctrees',
-    'canonical.filtered-toc'
+    'canonical.filtered-toc',
+    'sphinxcontrib.cairosvgconverter'
 ]
 
 # Add custom required Python modules that must be added to the
@@ -208,7 +211,8 @@ custom_extensions = [
 custom_required_modules = [
     'gitpython',
     'pyyaml',
-    'sphinx-remove-toctrees'
+    'sphinx-remove-toctrees',
+    'sphinxcontrib-svg2pdfconverter[CairoSVG]'
 ]
 
 # Add files or directories that should be excluded from processing.
@@ -273,14 +277,15 @@ myst_url_schemes = {
 remove_from_toctrees = ['reference/manpages/lxc/*.md']
 
 intersphinx_mapping = {
-    'cloud-init': ('https://cloudinit.readthedocs.io/en/latest/', None)
+    'cloud-init': ('https://cloudinit.readthedocs.io/en/latest/', None),
+    'imagebuilder': ('https://canonical-lxd-imagebuilder.readthedocs-hosted.com/en/latest/', None)
 }
 
 html_extra_path = ['.sphinx/_extra']
 
 # Download and link swagger-ui files
 if not os.path.isdir('.sphinx/deps/swagger-ui'):
-    Repo.clone_from('https://github.com/swagger-api/swagger-ui', '.sphinx/deps/swagger-ui', depth=1, single_branch=True, b='v5.11.7')
+    Repo.clone_from('https://github.com/swagger-api/swagger-ui', '.sphinx/deps/swagger-ui', depth=1)
 
 os.makedirs('.sphinx/_static/swagger-ui/', exist_ok=True)
 
@@ -387,7 +392,6 @@ else:
     custom_excludes.extend(['security.md','external_resources.md','reference/network_external.md','migration.md'])
     redirects['security/index'] = '../explanation/security/'
     redirects['migration/index'] = '../howto/import_machines_to_instances/'
-    redirects['tutorial/index'] = 'first_steps/'
     custom_tags.append('diataxis')
     toc_filter_exclude = ['topical']
 

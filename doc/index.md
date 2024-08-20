@@ -16,15 +16,21 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 
 ---
 
-## In this documentation
+```{rst-class} hclass2
+```
+
+```{rubric} In this documentation
+```
 
 `````{only} diataxis
 
 ````{grid} 1 1 2 2
 
-```{grid-item-card} [Tutorial](tutorial/first_steps)
+```{grid-item-card} [Tutorials](tutorial/index)
 
-**Start here**: a hands-on introduction to LXD for new users, guiding you through your {ref}`first-steps`
+**Start here**: a hands-on introduction to LXD for new users, guiding you through your first steps using the CLI or the UI
+- {ref}`first-steps`
+- {ref}`tutorial-ui`
 ```
 
 ```{grid-item-card} [How-to guides](howto/index)
@@ -87,7 +93,11 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 
 ---
 
-## Project and community
+```{rst-class} hclass2
+```
+
+```{rubric} Project and community
+```
 
 LXD is free software and released under [AGPL-3.0-only](https://www.gnu.org/licenses/agpl-3.0.en.html) (it may contain some contributions that are licensed under the Apache-2.0 license, see [License and copyright](contributing)).
 It’s an open source project that warmly welcomes community projects, contributions, suggestions, fixes and constructive feedback.
@@ -108,7 +118,7 @@ The LXD project is sponsored by [Canonical Ltd](https://canonical.com/).
 :titlesonly:
 
 :diataxis:self
-:diataxis:Tutorial <tutorial/first_steps>
+:diataxis:tutorial/index
 :diataxis:howto/index
 :diataxis:explanation/index
 :diataxis:reference/index

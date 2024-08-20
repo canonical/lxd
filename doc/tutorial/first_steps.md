@@ -10,6 +10,8 @@ After going through these steps, you will have a general idea of how to use LXD,
 Ensure that you have 20 GiB free disk space before starting this tutorial.
 ```
 
+<!-- Include start tutorial installation -->
+
 ## Install and initialize LXD
 
 The easiest way to install LXD is to install the snap package.
@@ -22,11 +24,11 @@ If you prefer a different installation method, or use a Linux distribution that 
       ```{terminal}
       :input: snap version
 
-      snap    2.59.4
-      snapd   2.59.4
+      snap    2.63+24.04ubuntu0.1
+      snapd   2.63+24.04ubuntu0.1
       series  16
-      ubuntu  22.04
-      kernel  5.15.0-73-generic
+      ubuntu  24.04
+      kernel  5.15.0-117-generic
       ```
 
       If you see a table of version numbers, snap is installed and you can continue with the next step of installing LXD.
@@ -48,15 +50,16 @@ If you prefer a different installation method, or use a Linux distribution that 
 
        sudo snap refresh lxd
 
-1. Enter the following command to add the current user to the `lxd` group (the group was automatically created during the previous step):
+1. Check if the current user is part of the `lxd` group (the group was automatically created during the previous step):
 
-       getent group lxd | grep -qwF "$USER" || sudo usermod -aG lxd "$USER"
+       getent group lxd | grep "$USER"
 
-   This is needed to be granted permission to interact with LXD.
+   If this command returns a result, you're set up correctly and can continue with the next step.
 
-    ```{note}
-    {{must_start_new_session}}
-    ```
+   If there is no result, enter the following commands to add the current user to the `lxd` group (which is needed to grant the user permission to interact with LXD):
+
+       sudo usermod -aG lxd "$USER"
+       newgrp lxd
 
 1. Enter the following command to initialize LXD:
 
@@ -64,6 +67,8 @@ If you prefer a different installation method, or use a Linux distribution that 
 
    This will create a minimal setup with default options.
    If you want to tune the initialization options, see {ref}`initialize` for more information.
+
+<!-- Include end tutorial installation -->
 
 ## Launch and inspect instances
 
@@ -345,6 +350,10 @@ You can create a snapshot of your instance, which makes it easy to restore the i
 
 See {ref}`instances-snapshots` for more information.
 
+<!-- Include start tutorial next steps -->
+
 ## Next steps
 
-Now that you've done your first experiments with LXD, check out the information in the {ref}`getting-started` section!
+Now that you've done your first experiments with LXD, you should read up on important concepts in the {ref}`explanation` section and check out the {ref}`howtos` to start working with LXD!
+
+<!-- Include end tutorial next steps -->

@@ -568,7 +568,7 @@ func (d Xtables) NetworkApplyACLRules(networkName string, rules []ACLRule) error
 
 		// Add rules to chain in table.
 		for _, iptRule := range iptRules {
-			_, err := shared.RunCommand(cmd, append([]string{"-t", "filter", "-A", chain}, iptRule...)...)
+			_, err := shared.RunCommand(cmd, append([]string{"-w", "-t", "filter", "-A", chain}, iptRule...)...)
 			if err != nil {
 				return fmt.Errorf("Failed adding rule to %q chain %q in table %q: %w", cmd, chain, "filter", err)
 			}
@@ -1107,7 +1107,7 @@ func (d Xtables) generateFilterEbtablesRules(hostName string, hwAddr string, IPv
 func (d Xtables) generateFilterIptablesRules(parentName string, hostName string, hwAddr string, IPv6Nets []*net.IPNet, parentManaged bool) (rules [][]string, err error) {
 	mac, err := net.ParseMAC(hwAddr)
 	if err != nil {
-		return [][]string{}, err
+		return rules, err
 	}
 
 	macHex := hex.EncodeToString(mac)
@@ -1162,7 +1162,7 @@ func (d Xtables) generateFilterIptablesRules(parentName string, hostName string,
 		}
 	}
 
-	return [][]string{}, err
+	return rules, err
 }
 
 // matchEbtablesRule compares an active rule to a supplied match rule to see if they match.
@@ -1283,17 +1283,19 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 
 	// Check which tables exist.
 	var tables []string // Uninitialised slice indicates we haven't opened the table file yet.
-	file, err := os.Open(tablesFile)
-	if err != nil {
-		logger.Warnf("Failed getting list of tables from %q, assuming all requested tables exist", tablesFile)
-	} else {
-		tables = []string{} // Initialise the tables slice indcating we were able to open the tables file.
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			tables = append(tables, scanner.Text())
-		}
+	if !d.xtablesIsNftables(cmd) {
+		file, err := os.Open(tablesFile)
+		if err != nil {
+			logger.Warnf("Failed getting list of tables from %q, assuming all requested tables exist", tablesFile)
+		} else {
+			tables = []string{} // Initialise the tables slice indcating we were able to open the tables file.
+			scanner := bufio.NewScanner(file)
+			for scanner.Scan() {
+				tables = append(tables, scanner.Text())
+			}
 
-		_ = file.Close()
+			_ = file.Close()
+		}
 	}
 
 	for _, fromTable := range fromTables {
@@ -1410,7 +1412,7 @@ func (d Xtables) InstanceSetupNetPrio(projectName string, instanceName string, d
 // InstanceClearNetPrio removes setting of skb->priority for the specified instance device on the host interface.
 func (d Xtables) InstanceClearNetPrio(projectName string, instanceName string, deviceName string) error {
 	if deviceName == "" {
-		return fmt.Errorf("Failed clearing netprio rules for instance %q in project %q: device name is empty", projectName, instanceName)
+		return fmt.Errorf("Failed clearing netprio rules for instance %q in project %q: device name is empty", instanceName, projectName)
 	}
 
 	comment := fmt.Sprintf("%s netprio", d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName))
@@ -1447,7 +1449,7 @@ func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string)
 	}
 
 	// Attempt to dump the rules of the chain, if this fails then chain doesn't exist.
-	rules, err := shared.RunCommand(cmd, "-t", table, "-S", chain)
+	rules, err := shared.RunCommand(cmd, "-w", "-t", table, "-S", chain)
 	if err != nil {
 		return false, false, nil
 	}
@@ -1473,7 +1475,7 @@ func (d Xtables) iptablesChainCreate(ipVersion uint, table string, chain string)
 	}
 
 	// Attempt to create chain in table.
-	_, err := shared.RunCommand(cmd, "-t", table, "-N", chain)
+	_, err := shared.RunCommand(cmd, "-w", "-t", table, "-N", chain)
 	if err != nil {
 		return fmt.Errorf("Failed creating %q chain %q in table %q: %w", cmd, chain, table, err)
 	}
@@ -1494,14 +1496,14 @@ func (d Xtables) iptablesChainDelete(ipVersion uint, table string, chain string,
 
 	// Attempt to flush rules from chain in table.
 	if flushFirst {
-		_, err := shared.RunCommand(cmd, "-t", table, "-F", chain)
+		_, err := shared.RunCommand(cmd, "-w", "-t", table, "-F", chain)
 		if err != nil {
 			return fmt.Errorf("Failed flushing %q chain %q in table %q: %w", cmd, chain, table, err)
 		}
 	}
 
 	// Attempt to delete chain in table.
-	_, err := shared.RunCommand(cmd, "-t", table, "-X", chain)
+	_, err := shared.RunCommand(cmd, "-w", "-t", table, "-X", chain)
 	if err != nil {
 		return fmt.Errorf("Failed deleting %q chain %q in table %q: %w", cmd, chain, table, err)
 	}

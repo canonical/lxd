@@ -56,8 +56,8 @@ There are several ways of obtaining such image files:
 
 ### Import from the local file system
 
-````{tabs}
-```{group-tab} CLI
+`````{tabs}
+````{group-tab} CLI
 To import an image from the local file system, use the [`lxc image import`](lxc_image_import.md) command.
 This command supports both {ref}`unified images <image-format-unified>` (compressed file or directory) and {ref}`split images <image-format-split>` (two files).
 
@@ -71,8 +71,8 @@ To import a split image, enter the following command:
 
 In both cases, you can assign an alias with the `--alias` flag.
 See [`lxc image import --help`](lxc_image_import.md) for all available flags.
-```
-```{group-tab} API
+````
+````{group-tab} API
 To import an image from the local file system, send a POST request to the `/1.0/images` endpoint.
 
 For example, to import a unified image from one file:
@@ -85,9 +85,13 @@ To import a split image from a metadata file and a rootfs file:
     curl -X POST --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/images \
     --form metadata=@<metadata_tarball_path> --form rootfs.img=<rootfs_tarball_path>
 
-See [`POST /1.0/images`](swagger:/images/images_post) for more information.
+```{note}
+For a split image, you must send the metadata tarball first and the rootfs image after.
 ```
+
+See [`POST /1.0/images`](swagger:/images/images_post) for more information.
 ````
+`````
 
 ### Import from a file on a remote web server
 

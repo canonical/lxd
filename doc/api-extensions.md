@@ -2435,3 +2435,9 @@ Adds a `start` field to the `POST /1.0/instances` API which when set
 to `true` will have the instance automatically start upon creation.
 
 In this scenario, the creation and startup is part of a single background operation.
+
+## `devlxd_images_vm`
+
+Enables the {config:option}`instance-security:security.devlxd.images` configuration option for virtual machines.
+This controls the availability of a `/1.0/images/FINGERPRINT/export` API over `devlxd`.
+This can be used by a virtual machine running LXD to access raw images from the host.

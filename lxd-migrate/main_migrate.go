@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/tar"
 	"bufio"
 	"context"
 	"errors"
@@ -307,6 +308,7 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 		}
 
 		config.Project = project
+		server = server.UseProject(config.Project)
 	} else {
 		config.Project = "default"
 	}
@@ -357,9 +359,17 @@ func (c *cmdMigrate) runInteractive(server lxd.InstanceServer) (cmdMigrateData, 
 			}
 		}
 
-		_, err := os.Stat(s)
+		file, err := os.Open(s)
 		if err != nil {
 			return err
+		}
+
+		defer file.Close()
+
+		// Ensure the source file is not a tarball.
+		_, err = tar.NewReader(file).Next()
+		if err == nil {
+			return fmt.Errorf("Source cannot be a tar archive or OVA file")
 		}
 
 		return nil
@@ -642,7 +652,13 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 		_, _ = server.DeleteInstance(config.InstanceArgs.Name)
 	})
 
-	progress := cli.ProgressRenderer{Format: "Transferring instance: %s"}
+	progressPrefix := "Transferring instance: %s"
+	if config.InstanceArgs.Source.Type == "conversion" {
+		// In conversion mode, progress prefix is determined on the server side.
+		progressPrefix = "%s"
+	}
+
+	progress := cli.ProgressRenderer{Format: progressPrefix}
 	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
 		progress.Done("")
