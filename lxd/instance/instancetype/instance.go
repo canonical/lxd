@@ -317,8 +317,17 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	//  type: bool
 	//  defaultdesc: `false`
 	//  liveupdate: yes
-	//  shortdesc: Prevents the instance from being deleted
+	//  shortdesc: Whether to prevent the instance from being deleted
 	"security.protection.delete": validate.Optional(validate.IsBool),
+
+	// lxdmeta:generate(entities=instance; group=security; key=security.protection.start)
+	//
+	// ---
+	//  type: bool
+	//  defaultdesc: `false`
+	//  liveupdate: yes
+	//  shortdesc: Whether to prevent the instance from being started
+	"security.protection.start": validate.Optional(validate.IsBool),
 
 	// lxdmeta:generate(entities=instance; group=snapshots; key=snapshots.schedule)
 	// Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots.

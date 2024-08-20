@@ -2441,3 +2441,13 @@ In this scenario, the creation and startup is part of a single background operat
 Enables the {config:option}`instance-security:security.devlxd.images` configuration option for virtual machines.
 This controls the availability of a `/1.0/images/FINGERPRINT/export` API over `devlxd`.
 This can be used by a virtual machine running LXD to access raw images from the host.
+
+## `instance_protection_start`
+
+Enables setting the {config:option}`instance-security:security.protection.start` field which prevents instances
+from being started if set to `true`.
+
+## `disk_io_bus_virtio_blk`
+
+Adds a new `virtio-blk` value for `io.bus` on `disk` devices which allows
+for the attached disk to be connected to the `virtio-blk` bus.

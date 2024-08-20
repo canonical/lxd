@@ -56,7 +56,7 @@ See {ref}`devices-disk-initial-config` for more information.
 :required: "no"
 :shortdesc: "Bus for the device"
 :type: "string"
-Possible values are `virtio-scsi` or `nvme`.
+Possible values are `virtio-scsi`, `virtio-blk` or `nvme`.
 ```
 
 ```{config:option} io.cache device-disk-device-conf
@@ -2165,7 +2165,7 @@ See {ref}`container-security` for more information.
 ```{config:option} security.protection.delete instance-security
 :defaultdesc: "`false`"
 :liveupdate: "yes"
-:shortdesc: "Prevents the instance from being deleted"
+:shortdesc: "Whether to prevent the instance from being deleted"
 :type: "bool"
 
 ```
@@ -2177,6 +2177,14 @@ See {ref}`container-security` for more information.
 :shortdesc: "Whether to protect the file system from being UID/GID shifted"
 :type: "bool"
 Set this option to `true` to prevent the instance's file system from being UID/GID shifted on startup.
+```
+
+```{config:option} security.protection.start instance-security
+:defaultdesc: "`false`"
+:liveupdate: "yes"
+:shortdesc: "Whether to prevent the instance from being started"
+:type: "bool"
+
 ```
 
 ```{config:option} security.secureboot instance-security

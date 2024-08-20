@@ -2582,6 +2582,11 @@ func (d *lxc) validateStartup(statusCode api.StatusCode) error {
 		return fmt.Errorf("The image used by this instance requires nesting. Please set security.nesting=true on the instance")
 	}
 
+	// Check if instance is start protected.
+	if shared.IsTrue(d.expandedConfig["security.protection.start"]) {
+		return fmt.Errorf("Instance is protected from being started")
+	}
+
 	return nil
 }
 
@@ -3735,7 +3740,7 @@ func (d *lxc) delete(force bool) error {
 	}
 
 	if !force && shared.IsTrue(d.expandedConfig["security.protection.delete"]) && !d.IsSnapshot() {
-		err := fmt.Errorf("Instance is protected")
+		err := fmt.Errorf("Instance is protected from being deleted")
 		d.logger.Warn("Failed to delete instance", logger.Ctx{"err": err})
 		return err
 	}

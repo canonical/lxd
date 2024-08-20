@@ -1095,6 +1095,11 @@ func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
 		return fmt.Errorf("Stateful start requires migration.stateful to be set to true")
 	}
 
+	// Check if instance is start protected.
+	if shared.IsTrue(d.expandedConfig["security.protection.start"]) {
+		return fmt.Errorf("Instance is protected from being started")
+	}
+
 	return nil
 }
 
@@ -3434,9 +3439,9 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 				}
 
 				qemuDev := make(map[string]string)
-				if busName == "nvme" {
+				if shared.ValueInSlice(busName, []string{"nvme", "virtio-blk"}) {
 					// Allocate a PCI(e) port and write it to the config file so QMP can "hotplug" the
-					// NVME drive into it later.
+					// drive into it later.
 					devBus, devAddr, multi := bus.allocate(busFunctionGroupNone)
 
 					// Populate the qemu device with port info.
@@ -4082,7 +4087,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 		} else if media == "cdrom" {
 			qemuDev["driver"] = "scsi-cd"
 		}
-	} else if bus == "nvme" {
+	} else if shared.ValueInSlice(bus, []string{"nvme", "virtio-blk"}) {
 		if qemuDev["bus"] == "" {
 			// Figure out a hotplug slot.
 			pciDevID := qemuPCIDeviceIDStart
@@ -4099,12 +4104,12 @@ func (d *qemu) addDriveConfig(qemuDev map[string]string, bootIndexes map[string]
 			}
 
 			pciDeviceName := fmt.Sprintf("%s%d", busDevicePortPrefix, pciDevID)
-			d.logger.Debug("Using PCI bus device to hotplug NVME into", logger.Ctx{"device": driveConf.DevName, "port": pciDeviceName})
+			d.logger.Debug("Using PCI bus device to hotplug drive into", logger.Ctx{"device": driveConf.DevName, "port": pciDeviceName})
 			qemuDev["bus"] = pciDeviceName
 			qemuDev["addr"] = "00.0"
 		}
 
-		qemuDev["driver"] = "nvme"
+		qemuDev["driver"] = bus
 	}
 
 	if bootIndexes != nil {
@@ -6114,7 +6119,7 @@ func (d *qemu) delete(force bool) error {
 
 	// Check if instance is delete protected.
 	if !force && shared.IsTrue(d.expandedConfig["security.protection.delete"]) && !d.IsSnapshot() {
-		return fmt.Errorf("Instance is protected")
+		return fmt.Errorf("Instance is protected from being deleted")
 	}
 
 	// Delete any persistent warnings for instance.
