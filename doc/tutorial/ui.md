@@ -71,7 +71,8 @@ See {ref}`containers-and-vms` for information about the difference between the t
    Creating this container is quicker than launching the first, because the image is already available locally.
    ```
 
-1. Create and start a VM called `ubuntu-vm` using the Ubuntu 24.04 LTS image by selecting {guilabel}`VM` as the instance type:
+1. Create and start a VM called `ubuntu-vm` using the Ubuntu 24.04 LTS image.
+   To create a VM instead of a container, select {guilabel}`VM` as the instance type:
 
    ```{figure} /images/tutorial/create_vm.png
    :width: 100%
@@ -82,8 +83,9 @@ See {ref}`containers-and-vms` for information about the difference between the t
    Even though you are using the same image name to launch the instance, LXD downloads a slightly different image that is compatible with VMs.
    ```
 
-1. Create and start a VM called `ubuntu-desktop` using the Ubuntu 24.04 LTS desktop image (filter by variant "desktop" to find it).
-   When you select the image, the instance type is automatically set to {guilabel}`VM`:
+1. Start creating (do not click {guilabel}`Create and start` yet) a VM called `ubuntu-desktop`.
+   When selecting the image, filter by variant "desktop" to find the Ubuntu 24.04 LTS desktop image.
+   Note that after you select the image, the instance type is automatically set to {guilabel}`VM`:
 
    ```{figure} /images/tutorial/create_desktop_vm.png
    :width: 100%
@@ -91,7 +93,8 @@ See {ref}`containers-and-vms` for information about the difference between the t
    ```
 
    To run smoothly, the desktop VM needs more RAM.
-   Therefore, navigate to {guilabel}`Advanced` > {guilabel}`Resource limits` and set the {guilabel}`Memory limit` to 4 GiB before you start the instance.
+   Therefore, navigate to {guilabel}`Advanced` > {guilabel}`Resource limits` and set the {guilabel}`Memory limit` to 4 GiB.
+   Then click {guilabel}`Create and start` to start the instance.
 
 1. Check the list of instances that you created:
 
@@ -447,8 +450,11 @@ Now that we've run through the basic functionality of LXD, let's clean up the en
 
 1. Go to {guilabel}`Storage` > {guilabel}`Volumes` and click the {guilabel}`Delete` button ({{delete_button}}) next to the `tutorial_volume` storage volume.
 
-1. Optionally, you can also delete the images that you used.
-   If you keep them, they will eventually expire (by default, when they haven't been used for ten days).
+```{note}
+Optionally, you can also delete the images that you used.
+However, this isn't really needed.
+If you keep them, they will eventually expire (by default, when they haven't been used for ten days).
+```
 
 % Include content from [first_steps.md](first_steps.md)
 ```{include} first_steps.md
