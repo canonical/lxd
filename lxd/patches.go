@@ -92,6 +92,7 @@ var patches = []patch{
 	{name: "storage_move_custom_iso_block_volumes_v2", stage: patchPostDaemonStorage, run: patchStorageRenameCustomISOBlockVolumesV2},
 	{name: "storage_unset_invalid_block_settings_v2", stage: patchPostDaemonStorage, run: patchStorageUnsetInvalidBlockSettingsV2},
 	{name: "config_remove_core_trust_password", stage: patchPreLoadClusterConfig, run: patchRemoveCoreTrustPassword},
+	{name: "instance_remove_volatile_last_state_ip_addresses", stage: patchPostDaemonStorage, run: patchInstanceRemoveVolatileLastStateIPAddresses},
 }
 
 type patch struct {
@@ -1340,6 +1341,80 @@ func patchRemoveCoreTrustPassword(_ string, d *Daemon) error {
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to remove core.trust_password config key: %w", err)
+	}
+
+	return nil
+}
+
+// patchInstanceRemoveVolatileLastStateIPAddresses removes the volatile.*.last_state.ip_addresses config key from instances.
+func patchInstanceRemoveVolatileLastStateIPAddresses(_ string, d *Daemon) error {
+	s := d.State()
+
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		foundCandidateKey := func(k string) bool {
+			if strings.HasPrefix(k, "volatile.") && strings.HasSuffix(k, ".last_state.ip_addresses") {
+				return true
+			}
+
+			return false
+		}
+
+		// Get instances on this member.
+		return tx.InstanceList(ctx, func(dbInst db.InstanceArgs, p api.Project) error {
+			l := logger.AddContext(logger.Ctx{"project": dbInst.Project, "inst": dbInst.Name})
+
+			for k := range dbInst.Config {
+				if !foundCandidateKey(k) {
+					continue
+				}
+
+				// Remove found config key.
+				changes := map[string]string{
+					k: "",
+				}
+
+				l.Debug("Removing config key from instance", logger.Ctx{"key": k})
+				err := tx.UpdateInstanceConfig(dbInst.ID, changes)
+				if err != nil {
+					return fmt.Errorf("Failed removing config key %q for instance %q (Project %q): %w", k, dbInst.Name, dbInst.Project, err)
+				}
+			}
+
+			// Get snapshots for instance so we can check those too.
+			dbSnaps, err := tx.GetInstanceSnapshotsWithName(ctx, dbInst.Project, dbInst.Name)
+			if err != nil {
+				return fmt.Errorf("Failed getting snapshots for %q (Project %q): %w", dbInst.Name, dbInst.Project, err)
+			}
+
+			for _, dbSnap := range dbSnaps {
+				snapConfig, err := dbCluster.GetInstanceSnapshotConfig(ctx, tx.Tx(), dbSnap.ID)
+				if err != nil {
+					return err
+				}
+
+				for k := range snapConfig {
+					if !foundCandidateKey(k) {
+						continue
+					}
+
+					// Remove found config key.
+					changes := map[string]string{
+						k: "",
+					}
+
+					l.Debug("Removing config key from instance snapshot", logger.Ctx{"snapshot": dbSnap.Name, "key": k})
+					err := tx.UpdateInstanceSnapshotConfig(dbSnap.ID, changes)
+					if err != nil {
+						return fmt.Errorf("Failed removing config key %q for instance %q (Project %q): %w", k, dbSnap.Name, dbSnap.Project, err)
+					}
+				}
+			}
+
+			return nil
+		}, dbCluster.InstanceFilter{Node: &s.ServerName})
+	})
+	if err != nil {
+		return fmt.Errorf("Failed removing volatile.*.last_state.ip_addresses config keys: %w", err)
 	}
 
 	return nil
