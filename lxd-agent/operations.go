@@ -163,7 +163,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return operations.OperationWebSocket(r, op)
+	return operations.OperationWebSocket(op)
 }
 
 func operationWaitGet(d *Daemon, r *http.Request) response.Response {
