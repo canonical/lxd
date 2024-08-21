@@ -534,7 +534,7 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 
 	s.Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateRetrieved.Event(c, request.CreateRequestor(r), logger.Ctx{"path": templateName}))
 
-	return response.FileResponse(r, files, nil)
+	return response.FileResponse(files, nil)
 }
 
 // swagger:operation POST /1.0/instances/{name}/metadata/templates instances instance_metadata_templates_post

@@ -30,13 +30,12 @@ var eventsCmd = APIEndpoint{
 }
 
 type eventsServe struct {
-	req *http.Request
-	s   *state.State
+	s *state.State
 }
 
 // Render starts event socket.
 func (r *eventsServe) Render(w http.ResponseWriter, req *http.Request) error {
-	return eventsSocket(r.s, r.req, w)
+	return eventsSocket(r.s, req, w)
 }
 
 func (r *eventsServe) String() string {
@@ -209,5 +208,5 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func eventsGet(d *Daemon, r *http.Request) response.Response {
-	return &eventsServe{req: r, s: d.State()}
+	return &eventsServe{s: d.State()}
 }
