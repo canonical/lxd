@@ -212,7 +212,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 		}
 
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFileRetrieved.Event(inst, logger.Ctx{"path": path}))
-		return response.FileResponse(r, files, headers)
+		return response.FileResponse(files, headers)
 	} else if fileType == "symlink" {
 		// Find symlink target.
 		target, err := client.ReadLink(path)
@@ -243,7 +243,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 		files[0].FileSize = int64(len(target))
 
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFileRetrieved.Event(inst, logger.Ctx{"path": path}))
-		return response.FileResponse(r, files, headers)
+		return response.FileResponse(files, headers)
 	} else if fileType == "directory" {
 		dirEnts := []string{}
 
