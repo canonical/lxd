@@ -17,12 +17,11 @@ var sftpCmd = APIEndpoint{
 }
 
 func sftpHandler(d *Daemon, r *http.Request) response.Response {
-	return &sftpServe{d, r}
+	return &sftpServe{d}
 }
 
 type sftpServe struct {
 	d *Daemon
-	r *http.Request
 }
 
 func (r *sftpServe) String() string {
