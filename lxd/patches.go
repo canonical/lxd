@@ -1265,14 +1265,16 @@ func patchStorageRenameCustomISOBlockVolumesV2(name string, d *Daemon) error {
 			return fmt.Errorf("Failed loading pool %q: %w", poolName, err)
 		}
 
+		isRemotePool := p.Driver().Info().Remote
+
 		// Ensure the renaming is done only on the selected patch cluster member for remote storage pools.
-		if p.Driver().Info().Remote && !isSelectedPatchMember {
+		if isRemotePool && !isSelectedPatchMember {
 			continue
 		}
 
 		for _, vol := range volumes {
-			// In a non-clusted environment ServerName will be empty.
-			if s.ServerName != "" && vol.Location != s.ServerName {
+			// Skip volumes on local pools that are on other servers.
+			if !isRemotePool && s.ServerClustered && vol.Location != s.ServerName {
 				continue
 			}
 
