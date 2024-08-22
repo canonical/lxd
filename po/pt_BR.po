@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-08-02 16:47+0200\n"
+"POT-Creation-Date: 2024-08-12 13:29+0200\n"
 "PO-Revision-Date: 2022-03-10 15:08+0000\n"
 "Last-Translator: Renato dos Santos <renato.santos@wplex.com.br>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -19,7 +19,7 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
 "X-Generator: Weblate 4.12-dev\n"
 
-#: lxc/storage_bucket.go:255 lxc/storage_bucket.go:1000
+#: lxc/storage_bucket.go:255 lxc/storage_bucket.go:1028
 #, fuzzy
 msgid ""
 "### This is a YAML representation of a storage bucket.\n"
@@ -827,11 +827,11 @@ msgstr ""
 msgid "Accept certificate"
 msgstr "Aceitar certificado"
 
-#: lxc/storage_bucket.go:852
+#: lxc/storage_bucket.go:858
 msgid "Access key (auto-generated if empty)"
 msgstr ""
 
-#: lxc/storage_bucket.go:908
+#: lxc/storage_bucket.go:936
 #, c-format
 msgid "Access key: %s"
 msgstr ""
@@ -1427,9 +1427,9 @@ msgstr "Dispositivo %s removido de %s"
 #: lxc/storage_bucket.go:185 lxc/storage_bucket.go:248
 #: lxc/storage_bucket.go:379 lxc/storage_bucket.go:536
 #: lxc/storage_bucket.go:629 lxc/storage_bucket.go:695
-#: lxc/storage_bucket.go:770 lxc/storage_bucket.go:850
-#: lxc/storage_bucket.go:928 lxc/storage_bucket.go:993
-#: lxc/storage_bucket.go:1129 lxc/storage_volume.go:358
+#: lxc/storage_bucket.go:770 lxc/storage_bucket.go:856
+#: lxc/storage_bucket.go:956 lxc/storage_bucket.go:1021
+#: lxc/storage_bucket.go:1157 lxc/storage_volume.go:358
 #: lxc/storage_volume.go:560 lxc/storage_volume.go:639
 #: lxc/storage_volume.go:883 lxc/storage_volume.go:1097
 #: lxc/storage_volume.go:1210 lxc/storage_volume.go:1678
@@ -1505,7 +1505,7 @@ msgstr "Configuração chave/valor para aplicar ao novo contêiner"
 #: lxc/network_load_balancer.go:689 lxc/network_peer.go:610
 #: lxc/network_zone.go:551 lxc/network_zone.go:1143 lxc/profile.go:538
 #: lxc/project.go:315 lxc/storage.go:310 lxc/storage_bucket.go:343
-#: lxc/storage_bucket.go:1092 lxc/storage_volume.go:1016
+#: lxc/storage_bucket.go:1120 lxc/storage_volume.go:1016
 #: lxc/storage_volume.go:1048
 #, c-format
 msgid "Config parsing error: %s"
@@ -1897,7 +1897,7 @@ msgstr "Editar templates de arquivo do container"
 msgid "Delete instances and snapshots"
 msgstr "Apagar nomes alternativos da imagem"
 
-#: lxc/storage_bucket.go:924 lxc/storage_bucket.go:925
+#: lxc/storage_bucket.go:952 lxc/storage_bucket.go:953
 msgid "Delete key from a storage bucket"
 msgstr ""
 
@@ -2054,8 +2054,8 @@ msgstr ""
 #: lxc/storage_bucket.go:453 lxc/storage_bucket.go:530
 #: lxc/storage_bucket.go:624 lxc/storage_bucket.go:693
 #: lxc/storage_bucket.go:727 lxc/storage_bucket.go:768
-#: lxc/storage_bucket.go:847 lxc/storage_bucket.go:925
-#: lxc/storage_bucket.go:989 lxc/storage_bucket.go:1124
+#: lxc/storage_bucket.go:847 lxc/storage_bucket.go:953
+#: lxc/storage_bucket.go:1017 lxc/storage_bucket.go:1152
 #: lxc/storage_volume.go:43 lxc/storage_volume.go:165 lxc/storage_volume.go:263
 #: lxc/storage_volume.go:354 lxc/storage_volume.go:557
 #: lxc/storage_volume.go:636 lxc/storage_volume.go:711
@@ -2334,7 +2334,7 @@ msgstr "Editar configurações de perfil como YAML"
 msgid "Edit storage bucket configurations as YAML"
 msgstr "Editar configurações de perfil como YAML"
 
-#: lxc/storage_bucket.go:988 lxc/storage_bucket.go:989
+#: lxc/storage_bucket.go:1016 lxc/storage_bucket.go:1017
 msgid "Edit storage bucket key as YAML"
 msgstr ""
 
@@ -4141,9 +4141,9 @@ msgstr ""
 #: lxc/storage_bucket.go:111 lxc/storage_bucket.go:211
 #: lxc/storage_bucket.go:287 lxc/storage_bucket.go:406
 #: lxc/storage_bucket.go:563 lxc/storage_bucket.go:655
-#: lxc/storage_bucket.go:797 lxc/storage_bucket.go:878
-#: lxc/storage_bucket.go:953 lxc/storage_bucket.go:1032
-#: lxc/storage_bucket.go:1155
+#: lxc/storage_bucket.go:797 lxc/storage_bucket.go:884
+#: lxc/storage_bucket.go:981 lxc/storage_bucket.go:1060
+#: lxc/storage_bucket.go:1183
 #, fuzzy
 msgid "Missing bucket name"
 msgstr "Nome de membro do cluster"
@@ -4195,8 +4195,8 @@ msgstr "Nome de membro do cluster"
 msgid "Missing instance name"
 msgstr ""
 
-#: lxc/storage_bucket.go:882 lxc/storage_bucket.go:957
-#: lxc/storage_bucket.go:1036 lxc/storage_bucket.go:1159
+#: lxc/storage_bucket.go:888 lxc/storage_bucket.go:985
+#: lxc/storage_bucket.go:1064 lxc/storage_bucket.go:1187
 #, fuzzy
 msgid "Missing key name"
 msgstr "Nome de membro do cluster"
@@ -4271,9 +4271,9 @@ msgstr "Nome de membro do cluster"
 #: lxc/storage_bucket.go:207 lxc/storage_bucket.go:283
 #: lxc/storage_bucket.go:402 lxc/storage_bucket.go:477
 #: lxc/storage_bucket.go:559 lxc/storage_bucket.go:651
-#: lxc/storage_bucket.go:793 lxc/storage_bucket.go:874
-#: lxc/storage_bucket.go:949 lxc/storage_bucket.go:1028
-#: lxc/storage_bucket.go:1151 lxc/storage_volume.go:189
+#: lxc/storage_bucket.go:793 lxc/storage_bucket.go:880
+#: lxc/storage_bucket.go:977 lxc/storage_bucket.go:1056
+#: lxc/storage_bucket.go:1179 lxc/storage_volume.go:189
 #: lxc/storage_volume.go:287 lxc/storage_volume.go:583
 #: lxc/storage_volume.go:660 lxc/storage_volume.go:735
 #: lxc/storage_volume.go:817 lxc/storage_volume.go:919
@@ -4815,7 +4815,7 @@ msgstr ""
 #: lxc/network_load_balancer.go:690 lxc/network_peer.go:611
 #: lxc/network_zone.go:552 lxc/network_zone.go:1144 lxc/profile.go:539
 #: lxc/project.go:316 lxc/storage.go:311 lxc/storage_bucket.go:344
-#: lxc/storage_bucket.go:1093 lxc/storage_volume.go:1017
+#: lxc/storage_bucket.go:1121 lxc/storage_volume.go:1017
 #: lxc/storage_volume.go:1049
 msgid "Press enter to open the editor again or ctrl+c to abort change"
 msgstr ""
@@ -5415,7 +5415,7 @@ msgstr "Nome de membro do cluster"
 msgid "Revoke cluster member join token"
 msgstr "Nome de membro do cluster"
 
-#: lxc/storage_bucket.go:851
+#: lxc/storage_bucket.go:857
 msgid "Role (admin or read-only)"
 msgstr ""
 
@@ -5491,11 +5491,11 @@ msgstr ""
 msgid "STP"
 msgstr ""
 
-#: lxc/storage_bucket.go:853
+#: lxc/storage_bucket.go:859
 msgid "Secret key (auto-generated if empty)"
 msgstr ""
 
-#: lxc/storage_bucket.go:909
+#: lxc/storage_bucket.go:937
 #, fuzzy, c-format
 msgid "Secret key: %s"
 msgstr "Criado: %s"
@@ -5965,7 +5965,7 @@ msgstr ""
 msgid "Show storage bucket configurations"
 msgstr "Editar configurações do container ou do servidor como YAML"
 
-#: lxc/storage_bucket.go:1123 lxc/storage_bucket.go:1124
+#: lxc/storage_bucket.go:1151 lxc/storage_bucket.go:1152
 #, fuzzy
 msgid "Show storage bucket key configurations"
 msgstr "Editar configurações do container ou do servidor como YAML"
@@ -6129,12 +6129,12 @@ msgstr "Clustering ativado"
 msgid "Storage bucket %s deleted"
 msgstr "Clustering ativado"
 
-#: lxc/storage_bucket.go:907
+#: lxc/storage_bucket.go:935
 #, c-format
 msgid "Storage bucket key %s added"
 msgstr ""
 
-#: lxc/storage_bucket.go:973
+#: lxc/storage_bucket.go:1001
 #, c-format
 msgid "Storage bucket key %s removed"
 msgstr ""
@@ -7450,8 +7450,8 @@ msgid "[<remote>:]<pool> <bucket>"
 msgstr "Criar perfis"
 
 #: lxc/storage_bucket.go:375 lxc/storage_bucket.go:691
-#: lxc/storage_bucket.go:845 lxc/storage_bucket.go:923
-#: lxc/storage_bucket.go:987 lxc/storage_bucket.go:1122
+#: lxc/storage_bucket.go:845 lxc/storage_bucket.go:951
+#: lxc/storage_bucket.go:1015 lxc/storage_bucket.go:1150
 #, fuzzy
 msgid "[<remote>:]<pool> <bucket> <key>"
 msgstr "Editar templates de arquivo do container"
@@ -8012,13 +8012,23 @@ msgid ""
 "    Update a storage bucket using the content of bucket.yaml."
 msgstr ""
 
-#: lxc/storage_bucket.go:990
+#: lxc/storage_bucket.go:1018
 msgid ""
 "lxc storage bucket edit [<remote>:]<pool> <bucket> <key> < key.yaml\n"
 "    Update a storage bucket key using the content of key.yaml."
 msgstr ""
 
-#: lxc/storage_bucket.go:1125
+#: lxc/storage_bucket.go:848
+msgid ""
+"lxc storage bucket key create p1 b01 k1\n"
+"\tCreate a key called k1 for the bucket b01 in the pool p1.\n"
+"\n"
+"lxc storage bucket key create p1 b01 k1 < config.yaml\n"
+"\tCreate a key called k1 for the bucket b01 in the pool p1 using the content "
+"of config.yaml."
+msgstr ""
+
+#: lxc/storage_bucket.go:1153
 msgid ""
 "lxc storage bucket key show default data foo\n"
 "    Will show the properties of a bucket key called \"foo\" for a bucket "
