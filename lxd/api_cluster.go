@@ -1329,6 +1329,10 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("This server is not clustered"))
 	}
 
+	if req.ServerName == "none" {
+		return response.BadRequest(fmt.Errorf("Join token name cannot be %q", req.ServerName))
+	}
+
 	expiry, err := shared.GetExpiry(time.Now(), s.GlobalConfig.ClusterJoinTokenExpiry())
 	if err != nil {
 		return response.BadRequest(err)
