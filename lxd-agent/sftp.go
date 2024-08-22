@@ -29,9 +29,9 @@ func (r *sftpServe) String() string {
 	return "sftp handler"
 }
 
-func (r *sftpServe) Render(w http.ResponseWriter) error {
+func (r *sftpServe) Render(w http.ResponseWriter, request *http.Request) error {
 	// Upgrade to sftp.
-	if r.r.Header.Get("Upgrade") != "sftp" {
+	if request.Header.Get("Upgrade") != "sftp" {
 		http.Error(w, "Missing or invalid upgrade header", http.StatusBadRequest)
 		return nil
 	}
