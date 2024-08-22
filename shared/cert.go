@@ -34,8 +34,11 @@ type CertOptions struct {
 	// AddHosts determines whether to populate the Subject Alternative Name DNS Names and IP Addresses fields.
 	AddHosts bool
 
-	// SubjectName will be used in place of the system hostname for the SAN DNS Name and Issuer Common Name.
-	SubjectName string
+	// CommonName will be used in place of the system hostname for the SAN DNS Name and Issuer Common Name.
+	CommonName string
+
+	// SubjectAlternativeNames contains other names to include in the SAN DNS name field in addition to CommonName.
+	SubjectAlternativeNames []string
 }
 
 // KeyPairAndCA returns a CertInfo object with a reference to the key pair and
@@ -245,23 +248,25 @@ func TestingAltKeyPair() *CertInfo {
 	return cert
 }
 
-/*
- * Generate a list of names for which the certificate will be valid.
- * This will include the hostname and ip address.
- * If the `name` argument is non-empty,  it will be used in place of the system hostname.
- */
-func mynames(name string) ([]string, error) {
-	if name == "" {
+// generateSANNames creates a list of names for which the certificate will be valid.
+// - `commonName` will be the first entry if defined, otherwise the hostname will be used.
+// - `additionalNames` will be supplied next, if defined
+// - Finally, the localhost IPs will be added.
+func generateSANNames(commonName string, additionalNames ...string) ([]string, error) {
+	if commonName == "" {
 		h, err := os.Hostname()
 		if err != nil {
 			return nil, err
 		}
 
-		name = h
+		commonName = h
 	}
 
-	ret := []string{name, "127.0.0.1/8", "::1/128"}
-	return ret, nil
+	names := []string{commonName}
+	names = append(names, additionalNames...)
+	names = append(names, "127.0.0.1/8", "::1/128")
+
+	return names, nil
 }
 
 // FindOrGenCert generates a keypair if needed.
@@ -362,7 +367,7 @@ func GenerateMemCert(client bool, options CertOptions) ([]byte, []byte, error) {
 		username = "UNKNOWN"
 	}
 
-	hostname := options.SubjectName
+	hostname := options.CommonName
 	if hostname == "" {
 		hostname, err = os.Hostname()
 		if err != nil {
@@ -390,7 +395,7 @@ func GenerateMemCert(client bool, options CertOptions) ([]byte, []byte, error) {
 	}
 
 	if options.AddHosts {
-		hosts, err := mynames(hostname)
+		hosts, err := generateSANNames(hostname, options.SubjectAlternativeNames...)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Failed to get my hostname: %w", err)
 		}
