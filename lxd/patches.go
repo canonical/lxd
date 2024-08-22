@@ -23,6 +23,7 @@ import (
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/util"
@@ -161,15 +162,15 @@ func patchesApply(d *Daemon, stage patchStage) error {
 // Use this function to deterministically coordinate the execution of patches on a single cluster member.
 // The member selection isn't based on the raft leader election which allows getting the same
 // results even if the raft cluster is currently running any kind of election.
-func selectedPatchClusterMember(d *Daemon) (bool, error) {
+func selectedPatchClusterMember(s *state.State) (bool, error) {
 	// If not clustered indicate to apply the patch.
-	if d.serverName == "none" {
+	if !s.ServerClustered {
 		return true, nil
 	}
 
 	// Get a list of all cluster members.
 	var clusterMembers []string
-	err := d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		nodeInfos, err := tx.GetNodes(ctx)
 		if err != nil {
 			return err
@@ -193,7 +194,7 @@ func selectedPatchClusterMember(d *Daemon) (bool, error) {
 	sort.Strings(clusterMembers)
 
 	// If the first cluster member in the sorted list matches the current node indicate to apply the patch.
-	return clusterMembers[0] == d.serverName, nil
+	return clusterMembers[0] == s.ServerName, nil
 }
 
 // Patches begin here
@@ -1361,7 +1362,7 @@ func patchStorageRenameCustomISOBlockVolumesV2(name string, d *Daemon) error {
 		return err
 	}
 
-	isSelectedPatchMember, err := selectedPatchClusterMember(d)
+	isSelectedPatchMember, err := selectedPatchClusterMember(s)
 	if err != nil {
 		return err
 	}
