@@ -30,8 +30,8 @@ type eventsServe struct {
 }
 
 // Render starts event socket.
-func (r *eventsServe) Render(w http.ResponseWriter) error {
-	return eventsSocket(r.d, r.req, w)
+func (r *eventsServe) Render(w http.ResponseWriter, request *http.Request) error {
+	return eventsSocket(r.d, request, w)
 }
 
 func (r *eventsServe) String() string {
