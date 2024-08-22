@@ -347,6 +347,10 @@ func clusterPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("ServerName may not start with %q", targetGroupPrefix))
 	}
 
+	if req.ServerName == "none" {
+		return response.BadRequest(fmt.Errorf("ServerName cannot be %q", req.ServerName))
+	}
+
 	// Disable clustering.
 	if !req.Enabled {
 		return clusterPutDisable(d, r, req)
