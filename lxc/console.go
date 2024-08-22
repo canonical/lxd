@@ -41,7 +41,7 @@ This command allows you to interact with the boot console of an instance
 as well as retrieve past log entries from it.`))
 
 	cmd.RunE = c.run
-	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, i18n.G("Retrieve the instance's console log"))
+	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, i18n.G("Retrieve the container's console log"))
 	cmd.Flags().StringVarP(&c.flagType, "type", "t", "console", i18n.G("Type of connection to establish: 'console' for serial console, 'vga' for SPICE graphical output")+"``")
 
 	return cmd
@@ -137,7 +137,12 @@ func (c *cmdConsole) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		fmt.Printf("\n"+i18n.G("Console log:")+"\n\n%s\n", string(stuff))
+		if len(stuff) > 0 {
+			fmt.Printf("%s\n", string(stuff))
+		} else {
+			fmt.Println("No new messages")
+		}
+
 		return nil
 	}
 
