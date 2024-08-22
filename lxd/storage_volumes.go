@@ -2701,7 +2701,7 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
-		return api.StatusErrorf(http.StatusBadRequest, err.Error())
+		return api.StatusErrorf(http.StatusBadRequest, "Failed to get storage volume type: %w", err)
 	}
 
 	details.volumeType = volumeType
