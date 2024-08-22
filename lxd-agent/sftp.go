@@ -29,6 +29,7 @@ func (r *sftpServe) String() string {
 	return "sftp handler"
 }
 
+// Render hijacks the connection and starts a sftp server.
 func (r *sftpServe) Render(w http.ResponseWriter, request *http.Request) error {
 	// Upgrade to sftp.
 	if request.Header.Get("Upgrade") != "sftp" {
