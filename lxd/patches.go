@@ -916,8 +916,8 @@ func patchZfsSetContentTypeUserProperty(name string, d *Daemon) error {
 		}
 
 		for _, vol := range volumes {
-			// In a non-clusted environment ServerName will be empty.
-			if s.ServerName != "" && vol.Location != s.ServerName {
+			// Only consider volumes local to this server.
+			if s.ServerClustered && vol.Location != s.ServerName {
 				continue
 			}
 
@@ -1017,8 +1017,8 @@ func patchStorageZfsUnsetInvalidBlockSettingsV2(_ string, d *Daemon) error {
 
 	for pool, volumes := range poolVolumes {
 		for _, vol := range volumes {
-			// In a non-clusted environment ServerName will be empty.
-			if s.ServerName != "" && vol.Location != s.ServerName {
+			// Only consider volumes local to this server.
+			if s.ServerClustered && vol.Location != s.ServerName {
 				continue
 			}
 
