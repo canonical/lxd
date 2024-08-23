@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-08-23 13:08+0200\n"
+"POT-Creation-Date: 2024-08-23 10:25-0500\n"
 "PO-Revision-Date: 2022-03-10 15:11+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Esperanto <https://hosted.weblate.org/projects/linux-"
@@ -765,7 +765,7 @@ msgstr ""
 msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr ""
 
-#: lxc/console.go:383
+#: lxc/console.go:387
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
@@ -1221,10 +1221,6 @@ msgstr ""
 #: lxc/storage_volume.go:1048
 #, c-format
 msgid "Config parsing error: %s"
-msgstr ""
-
-#: lxc/console.go:140
-msgid "Console log:"
 msgstr ""
 
 #: lxc/storage_volume.go:561
@@ -2263,7 +2259,7 @@ msgstr ""
 msgid "Failed parsing SSH host key: %w"
 msgstr ""
 
-#: lxc/console.go:361
+#: lxc/console.go:365
 #, c-format
 msgid "Failed starting command: %w"
 msgstr ""
@@ -3031,7 +3027,7 @@ msgstr ""
 msgid "LXD - Command line client"
 msgstr ""
 
-#: lxc/console.go:382
+#: lxc/console.go:386
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
@@ -4939,7 +4935,7 @@ msgid "Restrict the certificate to one or more projects"
 msgstr ""
 
 #: lxc/console.go:44
-msgid "Retrieve the instance's console log"
+msgid "Retrieve the container's console log"
 msgstr ""
 
 #: lxc/init.go:347
@@ -5951,7 +5947,7 @@ msgstr ""
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
-#: lxc/console.go:210
+#: lxc/console.go:214
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
@@ -6106,7 +6102,7 @@ msgstr ""
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/console.go:159
+#: lxc/console.go:163
 #, c-format
 msgid "Unknown console type %q"
 msgstr ""

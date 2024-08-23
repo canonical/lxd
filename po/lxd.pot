@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-        "POT-Creation-Date: 2024-08-23 13:08+0200\n"
+        "POT-Creation-Date: 2024-08-23 10:25-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -724,7 +724,7 @@ msgstr  ""
 msgid   "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr  ""
 
-#: lxc/console.go:383
+#: lxc/console.go:387
 msgid   "As neither could be found, the raw SPICE socket can be found at:"
 msgstr  ""
 
@@ -1139,10 +1139,6 @@ msgstr  ""
 #: lxc/cluster.go:770 lxc/cluster_group.go:339 lxc/config.go:272 lxc/config.go:347 lxc/config.go:1274 lxc/config_metadata.go:147 lxc/config_trust.go:314 lxc/image.go:466 lxc/network.go:686 lxc/network_acl.go:620 lxc/network_forward.go:685 lxc/network_load_balancer.go:689 lxc/network_peer.go:610 lxc/network_zone.go:551 lxc/network_zone.go:1143 lxc/profile.go:538 lxc/project.go:338 lxc/storage.go:310 lxc/storage_bucket.go:343 lxc/storage_bucket.go:1120 lxc/storage_volume.go:1016 lxc/storage_volume.go:1048
 #, c-format
 msgid   "Config parsing error: %s"
-msgstr  ""
-
-#: lxc/console.go:140
-msgid   "Console log:"
 msgstr  ""
 
 #: lxc/storage_volume.go:561
@@ -2032,7 +2028,7 @@ msgstr  ""
 msgid   "Failed parsing SSH host key: %w"
 msgstr  ""
 
-#: lxc/console.go:361
+#: lxc/console.go:365
 #, c-format
 msgid   "Failed starting command: %w"
 msgstr  ""
@@ -2776,7 +2772,7 @@ msgstr  ""
 msgid   "LXD - Command line client"
 msgstr  ""
 
-#: lxc/console.go:382
+#: lxc/console.go:386
 msgid   "LXD automatically uses either spicy or remote-viewer when present."
 msgstr  ""
 
@@ -4560,7 +4556,7 @@ msgid   "Restrict the certificate to one or more projects"
 msgstr  ""
 
 #: lxc/console.go:44
-msgid   "Retrieve the instance's console log"
+msgid   "Retrieve the container's console log"
 msgstr  ""
 
 #: lxc/init.go:347
@@ -5526,7 +5522,7 @@ msgstr  ""
 msgid   "To create a new network, use: lxc network create"
 msgstr  ""
 
-#: lxc/console.go:210
+#: lxc/console.go:214
 msgid   "To detach from the console, press: <ctrl>+a q"
 msgstr  ""
 
@@ -5673,7 +5669,7 @@ msgstr  ""
 msgid   "Unknown column shorthand char '%c' in '%s'"
 msgstr  ""
 
-#: lxc/console.go:159
+#: lxc/console.go:163
 #, c-format
 msgid   "Unknown console type %q"
 msgstr  ""
