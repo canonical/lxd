@@ -64,6 +64,22 @@ test_network() {
   lxc network create lxdt$$ ipv4.address=none ipv6.address=none
   lxc network delete lxdt$$
 
+  # Check that we can return state for physical networks
+  ip link add dummy0 type dummy
+  lxc network create lxdt$$ --type=physical parent=dummy0
+
+  expected_state=$(lxc network info dummy0 | grep -F "State:")
+  expected_type=$(lxc network info dummy0 | grep -F "Type:")
+  lxc network info lxdt$$ | grep -qF "${expected_state}"
+  lxc network info lxdt$$ | grep -qF "${expected_type}"
+
+  # Delete physical network and check for expected response
+  ip link delete dummy0
+  lxc network info lxdt$$ | grep -qF "State: unavailable"
+  lxc network info lxdt$$ | grep -qF "Type: unknown"
+
+  lxc network delete lxdt$$
+
   # Configured bridge with static assignment
   lxc network create lxdt$$ dns.domain=test dns.mode=managed ipv6.dhcp.stateful=true
   lxc network attach lxdt$$ nettest eth0

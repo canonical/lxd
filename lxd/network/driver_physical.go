@@ -9,6 +9,7 @@ import (
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/ip"
+	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
@@ -503,4 +504,27 @@ func (n *physical) DHCPv6Subnet() *net.IPNet {
 	}
 
 	return subnet
+}
+
+// State returns the api.NetworkState for the network.
+func (n *physical) State() (*api.NetworkState, error) {
+	if !n.IsManaged() {
+		return resources.GetNetworkState(n.name)
+	}
+
+	state, err := resources.GetNetworkState(GetHostDevice(n.config["parent"], n.config["vlan"]))
+	if err != nil {
+		// If the parent is not found, return a response indicating the network is unavailable.
+		if api.StatusErrorCheck(err, 404) {
+			return &api.NetworkState{
+				State: "unavailable",
+				Type:  "unknown",
+			}, nil
+		}
+
+		// In all other cases, return the original error.
+		return nil, err
+	}
+
+	return state, nil
 }
