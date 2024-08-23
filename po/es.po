@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-08-23 13:08+0200\n"
+"POT-Creation-Date: 2024-08-23 10:25-0500\n"
 "PO-Revision-Date: 2023-06-16 20:55+0000\n"
 "Last-Translator: Francisco Serrador <fserrador@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -1013,7 +1013,7 @@ msgstr "Arquitectura: %s"
 msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr ""
 
-#: lxc/console.go:383
+#: lxc/console.go:387
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
@@ -1479,10 +1479,6 @@ msgstr "Perfil para aplicar al nuevo contenedor"
 #, c-format
 msgid "Config parsing error: %s"
 msgstr ""
-
-#: lxc/console.go:140
-msgid "Console log:"
-msgstr "Log de la consola:"
 
 #: lxc/storage_volume.go:561
 msgid "Content type, block or filesystem"
@@ -2550,7 +2546,7 @@ msgstr "Nombre del Miembro del Cluster"
 msgid "Failed parsing SSH host key: %w"
 msgstr "Acepta certificado"
 
-#: lxc/console.go:361
+#: lxc/console.go:365
 #, fuzzy, c-format
 msgid "Failed starting command: %w"
 msgstr "Acepta certificado"
@@ -3342,7 +3338,7 @@ msgstr ""
 msgid "LXD - Command line client"
 msgstr ""
 
-#: lxc/console.go:382
+#: lxc/console.go:386
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
@@ -5318,7 +5314,7 @@ msgid "Restrict the certificate to one or more projects"
 msgstr ""
 
 #: lxc/console.go:44
-msgid "Retrieve the instance's console log"
+msgid "Retrieve the container's console log"
 msgstr ""
 
 #: lxc/init.go:347
@@ -6364,7 +6360,7 @@ msgstr ""
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
-#: lxc/console.go:210
+#: lxc/console.go:214
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
@@ -6521,7 +6517,7 @@ msgstr ""
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/console.go:159
+#: lxc/console.go:163
 #, c-format
 msgid "Unknown console type %q"
 msgstr ""
@@ -8087,6 +8083,9 @@ msgstr ""
 #: lxc/image.go:1131
 msgid "yes"
 msgstr ""
+
+#~ msgid "Console log:"
+#~ msgstr "Log de la consola:"
 
 #, fuzzy, c-format
 #~ msgid "Fingerprint %q not found"

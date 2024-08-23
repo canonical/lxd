@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-08-23 13:08+0200\n"
+"POT-Creation-Date: 2024-08-23 10:25-0500\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -1023,7 +1023,7 @@ msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr ""
 "本当に %s しますか? （対象: クラスターメンバー %q） (yes/no) [default=no]: "
 
-#: lxc/console.go:383
+#: lxc/console.go:387
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr "どちらもみつかりませんでした。raw SPICE ソケットはこちらにあります:"
 
@@ -1495,10 +1495,6 @@ msgstr "移動先のインスタンスに適用するキー/値の設定"
 #, c-format
 msgid "Config parsing error: %s"
 msgstr "設定の構文エラー: %s"
-
-#: lxc/console.go:140
-msgid "Console log:"
-msgstr "コンソールログ:"
 
 #: lxc/storage_volume.go:561
 msgid "Content type, block or filesystem"
@@ -2597,7 +2593,7 @@ msgstr "デバイス上書きのためのプロファイル %q のロードに�
 msgid "Failed parsing SSH host key: %w"
 msgstr "SSH ホスト鍵の読み取りに失敗しました: %w"
 
-#: lxc/console.go:361
+#: lxc/console.go:365
 #, c-format
 msgid "Failed starting command: %w"
 msgstr "コマンドの実行に失敗しました: %w"
@@ -3413,7 +3409,7 @@ msgstr "LOCATION"
 msgid "LXD - Command line client"
 msgstr "LXD - コマンドラインクライアント"
 
-#: lxc/console.go:382
+#: lxc/console.go:386
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 "LXD は spicy か remote-viewer がインストールされている場合は自動的にどちらか"
@@ -5535,7 +5531,8 @@ msgid "Restrict the certificate to one or more projects"
 msgstr "証明書の使用を1つ以上のプロジェクトに制限します"
 
 #: lxc/console.go:44
-msgid "Retrieve the instance's console log"
+#, fuzzy
+msgid "Retrieve the container's console log"
 msgstr "インスタンスのコンソールログを取得します"
 
 #: lxc/init.go:347
@@ -6640,7 +6637,7 @@ msgid "To create a new network, use: lxc network create"
 msgstr ""
 "新しいネットワークを作成するには、lxc network create を使用してください"
 
-#: lxc/console.go:210
+#: lxc/console.go:214
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
@@ -6803,7 +6800,7 @@ msgstr "クライアント %q の未知のチャンネルタイプ: %s"
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr "未知のカラム名の短縮形です '%c' ('%s' 中)"
 
-#: lxc/console.go:159
+#: lxc/console.go:163
 #, c-format
 msgid "Unknown console type %q"
 msgstr "未知のコンソールタイプ %q"
@@ -8427,6 +8424,9 @@ msgstr "y"
 #: lxc/image.go:1131
 msgid "yes"
 msgstr "yes"
+
+#~ msgid "Console log:"
+#~ msgstr "コンソールログ:"
 
 #, c-format
 #~ msgid ""
