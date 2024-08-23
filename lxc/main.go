@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"os/user"
@@ -290,11 +291,12 @@ For help with any of those, simply call them with --help.`))
 	if err != nil {
 		// Handle non-Linux systems
 		if err == config.ErrNotLinux {
-			fmt.Fprintf(os.Stderr, i18n.G(`This client hasn't been configured to use a remote LXD server yet.
+			msg := i18n.G(`This client hasn't been configured to use a remote LXD server yet.
 As your platform can't run native Linux instances, you must connect to a remote LXD server.
 
 If you already added a remote server, make it the default with "lxc remote switch NAME".
-To easily setup a local LXD server in a virtual machine, consider using: https://multipass.run`)+"\n")
+To easily setup a local LXD server in a virtual machine, consider using: https://multipass.run`)
+			fmt.Fprintln(os.Stderr, msg)
 			os.Exit(1)
 		}
 
@@ -395,13 +397,15 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 
 		flush := false
 		if runInit {
-			fmt.Fprintf(os.Stderr, i18n.G("If this is your first time running LXD on this machine, you should also run: lxd init")+"\n")
+			msg := i18n.G("If this is your first time running LXD on this machine, you should also run: lxd init")
+			fmt.Fprintln(os.Stderr, msg)
 			flush = true
 		}
 
 		if !shared.ValueInSlice(cmd.Name(), []string{"init", "launch"}) {
-			fmt.Fprintf(os.Stderr, i18n.G(`To start your first container, try: lxc launch ubuntu:24.04
-Or for a virtual machine: lxc launch ubuntu:24.04 --vm`)+"\n")
+			msg := i18n.G(`To start your first container, try: lxc launch ubuntu:24.04
+Or for a virtual machine: lxc launch ubuntu:24.04 --vm`)
+			fmt.Fprintln(os.Stderr, msg)
 			flush = true
 		}
 
@@ -495,7 +499,8 @@ func (c *cmdGlobal) CheckArgs(cmd *cobra.Command, args []string, minArgs int, ma
 			return true, nil
 		}
 
-		return true, fmt.Errorf(i18n.G("Invalid number of arguments"))
+		msg := i18n.G("Invalid number of arguments")
+		return true, errors.New(msg)
 	}
 
 	return false, nil
