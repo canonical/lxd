@@ -68,9 +68,6 @@ linters-settings:
       # https://github.com/mgechev/revive/blob/2a1701aadbedfcc175cb92836a51407bec382652/RULES_DESCRIPTIONS.md#deep-exit
       - name: deep-exit
 
-      # https://github.com/mgechev/revive/blob/2a1701aadbedfcc175cb92836a51407bec382652/RULES_DESCRIPTIONS.md#defer
-      - name: defer
-
       # https://github.com/mgechev/revive/blob/2a1701aadbedfcc175cb92836a51407bec382652/RULES_DESCRIPTIONS.md#bool-literal-in-expr
       - name: bool-literal-in-expr
 
