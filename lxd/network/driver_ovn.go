@@ -3791,9 +3791,8 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	}
 
 	// Add port with mayExist set to true, so that if instance port exists, we don't fail and continue below
-	// to configure the port as needed. This is required in case the OVN northbound database was unavailable
-	// when the instance NIC was stopped and was unable to remove the port on last stop, which would otherwise
-	// prevent future NIC starts.
+	// to configure the port as needed. This is required because the port is created when the NIC is added, but
+	// we need to ensure it is present at start up as well in case it was deleted since the NIC was added.
 	err = client.LogicalSwitchPortAdd(n.getIntSwitchName(), instancePortName, &openvswitch.OVNSwitchPortOpts{
 		DHCPv4OptsID: dhcpV4ID,
 		DHCPv6OptsID: dhcpv6ID,
