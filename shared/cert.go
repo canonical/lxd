@@ -430,6 +430,16 @@ func GenerateMemCert(client bool, options CertOptions) ([]byte, []byte, error) {
 	return cert, key, nil
 }
 
+// ParseCert parse a X.509 certificate from the given byte slice and return its parsed content.
+func ParseCert(cert []byte) (*x509.Certificate, error) {
+	certBlock, _ := pem.Decode(cert)
+	if certBlock == nil {
+		return nil, fmt.Errorf("Invalid certificate file")
+	}
+
+	return x509.ParseCertificate(certBlock.Bytes)
+}
+
 // ReadCert reads a X.509 certificate from the filesystem, do PEM decoding and return its parsed content.
 func ReadCert(fpath string) (*x509.Certificate, error) {
 	cf, err := os.ReadFile(fpath)
@@ -437,12 +447,7 @@ func ReadCert(fpath string) (*x509.Certificate, error) {
 		return nil, err
 	}
 
-	certBlock, _ := pem.Decode(cf)
-	if certBlock == nil {
-		return nil, fmt.Errorf("Invalid certificate file")
-	}
-
-	return x509.ParseCertificate(certBlock.Bytes)
+	return ParseCert(cf)
 }
 
 // CertFingerprint returns the SHA256 fingerprint of a X.509 certificate.
