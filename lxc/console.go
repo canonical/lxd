@@ -210,7 +210,7 @@ func (c *cmdConsole) console(d lxd.InstanceServer, name string) error {
 		close(consoleDisconnect)
 	}()
 
-	fmt.Printf(i18n.G("To detach from the console, press: <ctrl>+a q") + "\n\r")
+	fmt.Printf("%s\n\r", i18n.G("To detach from the console, press: <ctrl>+a q"))
 
 	// Attach to the instance console
 	op, err := d.ConsoleInstance(name, req, &consoleArgs)
