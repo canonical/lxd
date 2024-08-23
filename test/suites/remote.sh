@@ -11,6 +11,10 @@ test_remote_url() {
     lxc_remote remote remove test
   done
 
+  # invalid certificate names returns an error
+  ! lxc_remote config trust add --name -foo || false
+  ! lxc_remote config trust add --name fo/o || false
+
   # shellcheck disable=2153
   urls="${LXD_DIR}/unix.socket unix:${LXD_DIR}/unix.socket unix://${LXD_DIR}/unix.socket"
 
