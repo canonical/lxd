@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os/exec"
 	"strings"
 	"sync"
 
@@ -17,12 +16,6 @@ import (
 
 // ovnBridgeMappingMutex locks access to read/write external-ids:ovn-bridge-mappings.
 var ovnBridgeMappingMutex sync.Mutex
-
-// Installed returns true if the OVS tools are installed.
-func (o *VSwitch) Installed() bool {
-	_, err := exec.LookPath("ovs-vsctl")
-	return err == nil
-}
 
 // BridgeExists returns true if the bridge exists.
 func (o *VSwitch) BridgeExists(bridgeName string) (bool, error) {

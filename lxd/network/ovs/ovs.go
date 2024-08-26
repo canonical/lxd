@@ -18,8 +18,8 @@ type VSwitch struct {
 	rootUUID string
 }
 
-// NewVSwitch initialises a new vSwitch client..
-func NewVSwitch() (*VSwitch, error) {
+// NewVSwitch initializes a new vSwitch client..
+func NewVSwitch(dbAddr string) (*VSwitch, error) {
 	// Prepare the OVSDB client.
 	dbSchema, err := ovsSwitch.FullDatabaseModel()
 	if err != nil {
@@ -30,7 +30,7 @@ func NewVSwitch() (*VSwitch, error) {
 
 	options := []ovsdbClient.Option{
 		ovsdbClient.WithLogger(&discard),
-		ovsdbClient.WithEndpoint("unix:///run/openvswitch/db.sock"),
+		ovsdbClient.WithEndpoint(dbAddr),
 	}
 
 	// Connect to OVSDB.
