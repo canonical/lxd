@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -112,7 +113,7 @@ func (c *cmdNetworkZoneList) run(cmd *cobra.Command, args []string) error {
 
 	// List the networks.
 	if resource.name != "" {
-		return fmt.Errorf(i18n.G("Filtering isn't supported yet"))
+		return errors.New(i18n.G("Filtering isn't supported yet"))
 	}
 
 	zones, err := resource.server.GetNetworkZones()
@@ -175,7 +176,7 @@ func (c *cmdNetworkZoneShow) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network zone name"))
+		return errors.New(i18n.G("Missing network zone name"))
 	}
 
 	// Show the network zone config.
@@ -231,7 +232,7 @@ func (c *cmdNetworkZoneGet) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network zone name"))
+		return errors.New(i18n.G("Missing network zone name"))
 	}
 
 	resp, _, err := resource.server.GetNetworkZone(resource.name)
@@ -295,7 +296,7 @@ func (c *cmdNetworkZoneCreate) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network zone name"))
+		return errors.New(i18n.G("Missing network zone name"))
 	}
 
 	// If stdin isn't a terminal, read yaml from it.
@@ -383,7 +384,7 @@ func (c *cmdNetworkZoneSet) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network zone name"))
+		return errors.New(i18n.G("Missing network zone name"))
 	}
 
 	// Get the network zone.
@@ -504,7 +505,7 @@ func (c *cmdNetworkZoneEdit) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network zone name"))
+		return errors.New(i18n.G("Missing network zone name"))
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -607,7 +608,7 @@ func (c *cmdNetworkZoneDelete) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network zone name"))
+		return errors.New(i18n.G("Missing network zone name"))
 	}
 
 	// Delete the network zone.
@@ -713,7 +714,7 @@ func (c *cmdNetworkZoneRecordList) run(cmd *cobra.Command, args []string) error 
 
 	resource := resources[0]
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network zone name"))
+		return errors.New(i18n.G("Missing network zone name"))
 	}
 
 	// List the records.
@@ -781,7 +782,7 @@ func (c *cmdNetworkZoneRecordShow) run(cmd *cobra.Command, args []string) error 
 
 	resource := resources[0]
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network zone name"))
+		return errors.New(i18n.G("Missing network zone name"))
 	}
 
 	// Show the network zone config.
@@ -834,7 +835,7 @@ func (c *cmdNetworkZoneRecordGet) run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network zone record name"))
+		return errors.New(i18n.G("Missing network zone record name"))
 	}
 
 	resp, _, err := resource.server.GetNetworkZoneRecord(resource.name, args[1])
@@ -893,7 +894,7 @@ func (c *cmdNetworkZoneRecordCreate) run(cmd *cobra.Command, args []string) erro
 
 	resource := resources[0]
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network zone name"))
+		return errors.New(i18n.G("Missing network zone name"))
 	}
 
 	// If stdin isn't a terminal, read yaml from it.
@@ -977,7 +978,7 @@ func (c *cmdNetworkZoneRecordSet) run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network zone name"))
+		return errors.New(i18n.G("Missing network zone name"))
 	}
 
 	// Get the network zone.
@@ -1096,7 +1097,7 @@ func (c *cmdNetworkZoneRecordEdit) run(cmd *cobra.Command, args []string) error 
 
 	resource := resources[0]
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network zone record name"))
+		return errors.New(i18n.G("Missing network zone record name"))
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -1198,7 +1199,7 @@ func (c *cmdNetworkZoneRecordDelete) run(cmd *cobra.Command, args []string) erro
 
 	resource := resources[0]
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network zone name"))
+		return errors.New(i18n.G("Missing network zone name"))
 	}
 
 	// Delete the network zone.
@@ -1263,7 +1264,7 @@ func (c *cmdNetworkZoneRecordEntry) runAdd(cmd *cobra.Command, args []string) er
 
 	resource := resources[0]
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network zone name"))
+		return errors.New(i18n.G("Missing network zone name"))
 	}
 
 	// Get the network record.
@@ -1308,7 +1309,7 @@ func (c *cmdNetworkZoneRecordEntry) runRemove(cmd *cobra.Command, args []string)
 
 	resource := resources[0]
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network zone name"))
+		return errors.New(i18n.G("Missing network zone name"))
 	}
 
 	// Get the network zone record.
@@ -1328,7 +1329,7 @@ func (c *cmdNetworkZoneRecordEntry) runRemove(cmd *cobra.Command, args []string)
 	}
 
 	if !found {
-		return fmt.Errorf(i18n.G("Couldn't find a matching entry"))
+		return errors.New(i18n.G("Couldn't find a matching entry"))
 	}
 
 	return resource.server.UpdateNetworkZoneRecord(resource.name, args[1], netRecord.Writable(), etag)
