@@ -92,8 +92,8 @@ github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/dell/goscaleio v1.15.0 h1:DzI1ZlQhdIR+V4AKGOMwz1Viu2bAtj3N6kTyixB0Qg8=
-github.com/dell/goscaleio v1.15.0/go.mod h1:h7SCmReARG/szFWBMQGETGkZObknhS45lQipQbtdmJ8=
+github.com/dell/goscaleio v1.16.0 h1:dhk5M/ozQTh4ponSKLbL6gTmqQg/lp004s8ZnSeSjo0=
+github.com/dell/goscaleio v1.16.0/go.mod h1:h7SCmReARG/szFWBMQGETGkZObknhS45lQipQbtdmJ8=
 github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 h1:fAjc9m62+UWV/WAFKLNi6ZS0675eEUC9y3AlwSbQu1Y=
 github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13/go.mod h1:SqUrOPUnsFjfmXRMNPybcSiG0BgUW2AuFH8PAnS2iTw=
 github.com/digitalocean/go-libvirt v0.0.0-20240812180835-9c6c0a310c6c h1:1y+eZhZOMDP86ErYQ7P7ebAvyhpr+HZhR5K6BlOkWoo=
