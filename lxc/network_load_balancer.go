@@ -120,7 +120,7 @@ func (c *cmdNetworkLoadBalancerList) run(cmd *cobra.Command, args []string) erro
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	loadBalancers, err := resource.server.GetNetworkLoadBalancers(resource.name)
@@ -194,11 +194,11 @@ func (c *cmdNetworkLoadBalancerShow) run(cmd *cobra.Command, args []string) erro
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf(i18n.G("Missing listen address"))
+		return errors.New(i18n.G("Missing listen address"))
 	}
 
 	client := resource.server
@@ -263,7 +263,7 @@ func (c *cmdNetworkLoadBalancerCreate) run(cmd *cobra.Command, args []string) er
 	}
 
 	if networkName == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	transporter, wrapper := newLocationHeaderTransportWrapper()
@@ -409,11 +409,11 @@ func (c *cmdNetworkLoadBalancerGet) run(cmd *cobra.Command, args []string) error
 	client := resource.server
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf(i18n.G("Missing listen address"))
+		return errors.New(i18n.G("Missing listen address"))
 	}
 
 	// Get the current config.
@@ -482,11 +482,11 @@ func (c *cmdNetworkLoadBalancerSet) run(cmd *cobra.Command, args []string) error
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf(i18n.G("Missing listen address"))
+		return errors.New(i18n.G("Missing listen address"))
 	}
 
 	client := resource.server
@@ -628,11 +628,11 @@ func (c *cmdNetworkLoadBalancerEdit) run(cmd *cobra.Command, args []string) erro
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf(i18n.G("Missing listen address"))
+		return errors.New(i18n.G("Missing listen address"))
 	}
 
 	client := resource.server
@@ -748,11 +748,11 @@ func (c *cmdNetworkLoadBalancerDelete) run(cmd *cobra.Command, args []string) er
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf(i18n.G("Missing listen address"))
+		return errors.New(i18n.G("Missing listen address"))
 	}
 
 	client := resource.server
@@ -824,11 +824,11 @@ func (c *cmdNetworkLoadBalancerBackend) runAdd(cmd *cobra.Command, args []string
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf(i18n.G("Missing listen address"))
+		return errors.New(i18n.G("Missing listen address"))
 	}
 
 	client := resource.server
@@ -888,11 +888,11 @@ func (c *cmdNetworkLoadBalancerBackend) runRemove(cmd *cobra.Command, args []str
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf(i18n.G("Missing listen address"))
+		return errors.New(i18n.G("Missing listen address"))
 	}
 
 	client := resource.server
@@ -923,7 +923,7 @@ func (c *cmdNetworkLoadBalancerBackend) runRemove(cmd *cobra.Command, args []str
 		}
 
 		if !removed {
-			return nil, fmt.Errorf(i18n.G("No matching backend found"))
+			return nil, errors.New(i18n.G("No matching backend found"))
 		}
 
 		return newBackends, nil
@@ -989,11 +989,11 @@ func (c *cmdNetworkLoadBalancerPort) runAdd(cmd *cobra.Command, args []string) e
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf(i18n.G("Missing listen address"))
+		return errors.New(i18n.G("Missing listen address"))
 	}
 
 	client := resource.server
@@ -1051,11 +1051,11 @@ func (c *cmdNetworkLoadBalancerPort) runRemove(cmd *cobra.Command, args []string
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network name"))
+		return errors.New(i18n.G("Missing network name"))
 	}
 
 	if args[1] == "" {
-		return fmt.Errorf(i18n.G("Missing listen address"))
+		return errors.New(i18n.G("Missing listen address"))
 	}
 
 	client := resource.server
@@ -1099,7 +1099,7 @@ func (c *cmdNetworkLoadBalancerPort) runRemove(cmd *cobra.Command, args []string
 		for _, port := range ports {
 			if isFilterMatch(&port, filterArgs) {
 				if removed && !c.flagRemoveForce {
-					return nil, fmt.Errorf(i18n.G("Multiple ports match. Use --force to remove them all"))
+					return nil, errors.New(i18n.G("Multiple ports match. Use --force to remove them all"))
 				}
 
 				removed = true
@@ -1110,7 +1110,7 @@ func (c *cmdNetworkLoadBalancerPort) runRemove(cmd *cobra.Command, args []string
 		}
 
 		if !removed {
-			return nil, fmt.Errorf(i18n.G("No matching port(s) found"))
+			return nil, errors.New(i18n.G("No matching port(s) found"))
 		}
 
 		return newPorts, nil
