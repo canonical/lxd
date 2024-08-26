@@ -4782,6 +4782,14 @@ See {ref}`clustering-instance-placement-scriptlet` for more information.
 
 ```
 
+```{config:option} network.ovs.connection server-miscellaneous
+:defaultdesc: "`unix:/run/openvswitch/db.sock`"
+:scope: "local"
+:shortdesc: "OVS socket path"
+:type: "string"
+
+```
+
 ```{config:option} storage.backups_volume server-miscellaneous
 :scope: "local"
 :shortdesc: "Volume to use to store backup tarballs"
