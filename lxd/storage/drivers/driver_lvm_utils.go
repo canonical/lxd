@@ -443,6 +443,24 @@ func (d *lvm) createLogicalVolumeSnapshot(vgName string, srcVol Volume, snapVol 
 	return targetVolDevPath, nil
 }
 
+// acquireExclusive switches a volume lock to exclusive mode.
+func (d *lvm) acquireExclusive(vol Volume) (func(), error) {
+	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
+
+	if !shared.PathExists(volDevPath) {
+		return func() {}, nil
+	}
+
+	_, err := shared.TryRunCommand("lvchange", "--activate", "ey", "--ignoreactivationskip", volDevPath)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to acquire exclusive lock on LVM logical volume %q: %w", volDevPath, err)
+	}
+
+	return func() {
+		_, _ = shared.TryRunCommand("lvchange", "--activate", "sy", "--ignoreactivationskip", volDevPath)
+	}, nil
+}
+
 // removeLogicalVolume removes a logical volume.
 func (d *lvm) removeLogicalVolume(volDevPath string) error {
 	_, err := shared.TryRunCommand("lvremove", "-f", volDevPath)
