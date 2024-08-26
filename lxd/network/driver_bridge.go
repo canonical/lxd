@@ -1396,10 +1396,6 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return fmt.Errorf("Failed to connect to OVS: %w", err)
 			}
 
-			if !vswitch.Installed() {
-				return errors.New("Open vSwitch isn't installed on this system")
-			}
-
 			// Add and configure the interface in one operation to reduce the number of executions and
 			// to avoid systemd-udevd from applying the default MACAddressPolicy=persistent policy.
 			err = vswitch.BridgeAdd(n.name, false, bridge.Address, bridge.MTU)
