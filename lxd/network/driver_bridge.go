@@ -1135,7 +1135,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	// Create the bridge interface if doesn't exist.
 	if !n.isRunning() {
 		if n.config["bridge.driver"] == "openvswitch" {
-			vswitch, err := ovs.NewVSwitch()
+			vswitch, err := ovs.NewVSwitch(n.state.LocalConfig.NetworkOVSConnection())
 			if err != nil {
 				return fmt.Errorf("Couldn't connect to OpenVSwitch: %v", err)
 			}
@@ -1240,7 +1240,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			revert.Add(func() { _ = dummy.Delete() })
 			err = dummy.SetUp()
 			if err == nil {
-				_ = AttachInterface(n.name, fmt.Sprintf("%s-mtu", n.name))
+				_ = AttachInterface(n.state, n.name, fmt.Sprintf("%s-mtu", n.name))
 			}
 		}
 	}
@@ -1286,7 +1286,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return fmt.Errorf("Only unconfigured network interfaces can be bridged")
 			}
 
-			err = AttachInterface(n.name, entry)
+			err = AttachInterface(n.state, n.name, entry)
 			if err != nil {
 				return err
 			}
@@ -1848,7 +1848,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return err
 			}
 
-			err = AttachInterface(n.name, tunName)
+			err = AttachInterface(n.state, n.name, tunName)
 			if err != nil {
 				return err
 			}
@@ -1984,7 +1984,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Bridge it and bring up.
-		err = AttachInterface(n.name, tunName)
+		err = AttachInterface(n.state, n.name, tunName)
 		if err != nil {
 			return err
 		}
@@ -2234,7 +2234,7 @@ func (n *bridge) Stop() error {
 
 	// Destroy the bridge interface
 	if n.config["bridge.driver"] == "openvswitch" {
-		vswitch, err := ovs.NewVSwitch()
+		vswitch, err := ovs.NewVSwitch(n.state.LocalConfig.NetworkOVSConnection())
 		if err != nil {
 			return err
 		}
@@ -2370,7 +2370,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 				}
 
 				if !shared.ValueInSlice(dev, devices) && InterfaceExists(dev) {
-					err = DetachInterface(n.name, dev)
+					err = DetachInterface(n.state, n.name, dev)
 					if err != nil {
 						return err
 					}

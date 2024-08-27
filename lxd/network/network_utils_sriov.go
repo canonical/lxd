@@ -383,7 +383,7 @@ func SRIOVFindFreeVFAndRepresentor(state *state.State, ovsBridgeName string) (po
 		return "", "", "", -1, fmt.Errorf("Failed to read directory %q: %w", sysClassNet, err)
 	}
 
-	vswitch, err := ovs.NewVSwitch()
+	vswitch, err := ovs.NewVSwitch(state.LocalConfig.NetworkOVSConnection())
 	if err != nil {
 		return "", "", "", -1, fmt.Errorf("Failed to connect to OVS: %w", err)
 	}

@@ -986,7 +986,7 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProject
 	} else if shared.PathExists("/sys/class/net/" + apiNet.Name + "/bonding") {
 		apiNet.Type = "bond"
 	} else {
-		vswitch, err := ovs.NewVSwitch()
+		vswitch, err := ovs.NewVSwitch(s.LocalConfig.NetworkOVSConnection())
 		if err != nil {
 			return api.Network{}, fmt.Errorf("Failed to connect to OVS: %w", err)
 		}
