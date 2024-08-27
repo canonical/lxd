@@ -133,7 +133,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 
 	// Untrusted requests are denied.
 	if !auth.IsTrusted(ctx) {
-		return api.StatusErrorf(http.StatusForbidden, "%s", http.StatusText(http.StatusForbidden))
+		return api.NewGenericStatusError(http.StatusForbidden)
 	}
 
 	isRoot, err := auth.IsServerAdmin(ctx, e.identityCache)
@@ -284,7 +284,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 			l.Info("Access denied", logger.Ctx{"http_code": responseCode})
 		}
 
-		return api.StatusErrorf(responseCode, "%s", http.StatusText(responseCode))
+		return api.NewGenericStatusError(responseCode)
 	}
 
 	return nil
