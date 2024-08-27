@@ -60,8 +60,6 @@ golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 golang.org/x/crypto/ssh/terminal
 golang.org/x/net/html
 golang.org/x/net/html/atom
-golang.org/x/net/internal/socks
-golang.org/x/net/proxy
 golang.org/x/net/publicsuffix
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
@@ -103,14 +101,14 @@ google.golang.org/protobuf/runtime/protoimpl
 google.golang.org/protobuf/types/descriptorpb
 google.golang.org/protobuf/types/gofeaturespb
 gopkg.in/errgo.v1
+gopkg.in/go-jose/go-jose.v2
+gopkg.in/go-jose/go-jose.v2/cipher
+gopkg.in/go-jose/go-jose.v2/json
 gopkg.in/httprequest.v1
 gopkg.in/juju/environschema.v1
 gopkg.in/juju/environschema.v1/form
 gopkg.in/macaroon.v2
 gopkg.in/retry.v1
-gopkg.in/square/go-jose.v2
-gopkg.in/square/go-jose.v2/cipher
-gopkg.in/square/go-jose.v2/json
 gopkg.in/yaml.v2
 vendor/golang.org/x/crypto/chacha20
 vendor/golang.org/x/crypto/chacha20poly1305
