@@ -43,7 +43,7 @@ func (t *tls) load(ctx context.Context, identityCache *identity.Cache, opts Opts
 func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitlement auth.Entitlement) error {
 	// Untrusted requests are denied.
 	if !auth.IsTrusted(ctx) {
-		return api.StatusErrorf(http.StatusForbidden, "%s", http.StatusText(http.StatusForbidden))
+		return api.NewGenericStatusError(http.StatusForbidden)
 	}
 
 	isRoot, err := auth.IsServerAdmin(ctx, t.identities)
