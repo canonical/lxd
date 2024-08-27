@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -37,7 +38,7 @@ func DNS(projectName string, instanceName string) string {
 // name is returned unmodified in the 2nd return value. This is suitable for passing back into Instance().
 // Note: This should only be used with Instance names (because they cannot contain the project separator) and this
 // function relies on this rule as project names can contain the project separator.
-func InstanceParts(projectInstanceName string) (string, string) {
+func InstanceParts(projectInstanceName string) (projectName string, instanceName string) {
 	i := strings.LastIndex(projectInstanceName, separator)
 	if i < 0 {
 		// This string is not project prefixed or is part of default project.
@@ -56,7 +57,7 @@ func StorageVolume(projectName string, storageVolumeName string) string {
 
 // StorageVolumeParts takes a project prefixed storage volume name and returns the project and storage volume
 // name as separate variables.
-func StorageVolumeParts(projectStorageVolumeName string) (string, string) {
+func StorageVolumeParts(projectStorageVolumeName string) (projectName string, storageVolumeName string) {
 	parts := strings.SplitN(projectStorageVolumeName, "_", 2)
 
 	// If the given name doesn't contain any project, only return the volume name.
@@ -310,4 +311,18 @@ func NetworkZoneProjectFromRecord(p *api.Project) string {
 	}
 
 	return api.ProjectDefaultName
+}
+
+// ImageProject returns the effective project for images based on the value of `features.images` in the given project.
+func ImageProject(ctx context.Context, tx *sql.Tx, requestProjectName string) (string, error) {
+	projectHasImages, err := cluster.ProjectHasImages(ctx, tx, requestProjectName)
+	if err != nil {
+		return "", err
+	}
+
+	if !projectHasImages {
+		return api.ProjectDefaultName, nil
+	}
+
+	return requestProjectName, nil
 }

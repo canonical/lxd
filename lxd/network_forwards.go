@@ -19,24 +19,23 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/version"
 )
 
 var networkForwardsCmd = APIEndpoint{
 	Path: "networks/{networkName}/forwards",
 
-	Get:  APIEndpointAction{Handler: networkForwardsGet, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanView, "networkName")},
-	Post: APIEndpointAction{Handler: networkForwardsPost, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
+	Get:  APIEndpointAction{Handler: networkForwardsGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
+	Post: APIEndpointAction{Handler: networkForwardsPost, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var networkForwardCmd = APIEndpoint{
 	Path: "networks/{networkName}/forwards/{listenAddress}",
 
-	Delete: APIEndpointAction{Handler: networkForwardDelete, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanDelete, "networkName")},
-	Get:    APIEndpointAction{Handler: networkForwardGet, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanView, "networkName")},
-	Put:    APIEndpointAction{Handler: networkForwardPut, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
-	Patch:  APIEndpointAction{Handler: networkForwardPut, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
+	Delete: APIEndpointAction{Handler: networkForwardDelete, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
+	Get:    APIEndpointAction{Handler: networkForwardGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
+	Put:    APIEndpointAction{Handler: networkForwardPut, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
+	Patch:  APIEndpointAction{Handler: networkForwardPut, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
 }
 
 // API endpoints
@@ -136,23 +135,23 @@ var networkForwardCmd = APIEndpoint{
 func networkForwardsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
+	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(s, projectName, networkName)
+	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
 
 	// Check if project allows access to network.
-	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+	if !project.NetworkAllowed(details.requestProject.Config, details.networkName, n.IsManaged()) {
 		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
@@ -241,7 +240,12 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -255,18 +259,13 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 
 	req.Normalise() // So we handle the request in normalised/canonical form.
 
-	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	n, err := network.LoadByName(s, projectName, networkName)
+	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
 
 	// Check if project allows access to network.
-	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+	if !project.NetworkAllowed(details.requestProject.Config, details.networkName, n.IsManaged()) {
 		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
@@ -282,7 +281,7 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	lc := lifecycle.NetworkForwardCreated.Event(n, listenAddress.String(), request.CreateRequestor(r), nil)
-	s.Events.SendLifecycle(projectName, lc)
+	s.Events.SendLifecycle(effectiveProjectName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
@@ -319,23 +318,23 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
+	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(s, projectName, networkName)
+	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
 
 	// Check if project allows access to network.
-	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+	if !project.NetworkAllowed(details.requestProject.Config, details.networkName, n.IsManaged()) {
 		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
@@ -355,7 +354,7 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed deleting forward: %w", err))
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.NetworkForwardDeleted.Event(n, listenAddress, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkForwardDeleted.Event(n, listenAddress, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
@@ -408,23 +407,23 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
+	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(s, projectName, networkName)
+	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
 
 	// Check if project allows access to network.
-	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+	if !project.NetworkAllowed(details.requestProject.Config, details.networkName, n.IsManaged()) {
 		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
@@ -531,23 +530,23 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
+	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(s, projectName, networkName)
+	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
 
 	// Check if project allows access to network.
-	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+	if !project.NetworkAllowed(details.requestProject.Config, details.networkName, n.IsManaged()) {
 		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
@@ -607,7 +606,7 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed updating forward: %w", err))
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.NetworkForwardUpdated.Event(n, listenAddress, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkForwardUpdated.Event(n, listenAddress, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }

@@ -76,18 +76,20 @@ var networkAllocationsCmd = APIEndpoint{
 func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, request.ProjectParam(r))
+	requestProjectName := request.ProjectParam(r)
+	effectiveProjectName, _, err := project.NetworkProject(d.State().DB.Cluster, requestProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
+	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
 
 	var projectNames []string
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Figure out the projects to retrieve.
 		if !allProjects {
-			projectNames = []string{projectName}
+			projectNames = []string{effectiveProjectName}
 		} else {
 			// Get all project names if no specific project requested.
 			projectNames, err = dbCluster.GetProjectNames(ctx, tx.Tx())
@@ -126,6 +128,13 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 	// Then, get all the networks, their network forwards and their network load balancers.
 	for _, projectName := range projectNames {
+		// The auth.PermissionChecker expects the url to contain the request project (not the effective project).
+		// So when getting networks in a single project, ensure we use the request project name.
+		authCheckProjectName := projectName
+		if !allProjects {
+			authCheckProjectName = requestProjectName
+		}
+
 		var networkNames []string
 
 		err := d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -141,7 +150,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 		// Get all the networks, their attached instances, their network forwards and their network load balancers.
 		for _, networkName := range networkNames {
-			if !userHasPermission(entity.NetworkURL(projectName, networkName)) {
+			if !userHasPermission(entity.NetworkURL(authCheckProjectName, networkName)) {
 				continue
 			}
 
@@ -167,7 +176,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			leases, err := n.Leases(projectName, clusterRequest.ClientTypeNormal)
-			if err != nil && !errors.Is(network.ErrNotImplemented, err) {
+			if err != nil && !errors.Is(err, network.ErrNotImplemented) {
 				return response.SmartError(fmt.Errorf("Failed getting leases for network %q in project %q: %w", networkName, projectName, err))
 			}
 
