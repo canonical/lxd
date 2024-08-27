@@ -46,7 +46,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
-	github.com/zitadel/oidc/v2 v2.12.0
+	github.com/zitadel/oidc/v2 v2.12.1
 	golang.org/x/crypto v0.24.0
 	golang.org/x/oauth2 v0.22.0
 	golang.org/x/sync v0.8.0
