@@ -182,10 +182,10 @@ jobs:
         suite: ["cluster", "standalone"]
         backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
         include:
-          - go: "1.19.x"
+          - go: "1.21.x"
             suite: cluster
             backend: dir
-          - go: "1.19.x"
+          - go: "1.21.x"
             suite: standalone
             backend: dir
           - go: stable
@@ -244,7 +244,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Check compatibility with min Go version (${{ matrix.go }})
-        if: matrix.go == '1.19.x'
+        if: matrix.go == '1.21.x'
         run: |
           set -eux
           GOMIN="$(sed -n 's/^GOMIN=\([0-9.]\+\)$/\1/p' Makefile)"
