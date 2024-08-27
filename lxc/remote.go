@@ -210,7 +210,7 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 	if err != nil {
 		certificate, err = shared.GetRemoteCertificate(addr, c.global.conf.UserAgent)
 		if err != nil {
-			return api.StatusErrorf(http.StatusServiceUnavailable, i18n.G("Unavailable remote server")+": %w", err)
+			return api.StatusErrorf(http.StatusServiceUnavailable, "%s: %w", i18n.G("Unavailable remote server"), err)
 		}
 
 		certDigest := shared.CertFingerprint(certificate)
@@ -244,7 +244,7 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 
 	d, err := conf.GetInstanceServer(server)
 	if err != nil {
-		return api.StatusErrorf(http.StatusServiceUnavailable, i18n.G("Unavailable remote server")+": %w", err)
+		return api.StatusErrorf(http.StatusServiceUnavailable, "%s: %w", i18n.G("Unavailable remote server"), err)
 	}
 
 	req := api.CertificatesPost{
