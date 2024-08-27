@@ -4,7 +4,6 @@ import (
 	"io"
 
 	"github.com/canonical/lxd/lxd/backup"
-	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
@@ -26,7 +25,7 @@ func (d *mock) Info() Info {
 	return Info{
 		Name:                         "mock",
 		Version:                      "1",
-		DefaultVMBlockFilesystemSize: deviceConfig.DefaultVMBlockFilesystemSize,
+		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              false,
 		PreservesInodes:              false,
 		Remote:                       d.isRemote(),
