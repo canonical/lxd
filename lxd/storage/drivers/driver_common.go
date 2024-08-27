@@ -45,6 +45,12 @@ func (d *common) isRemote() bool {
 	return false
 }
 
+// defaultVMBlockFilesystemSize returns the default size for VM block filesystem
+// devices.
+func (d *common) defaultVMBlockFilesystemSize() string {
+	return defaultVMBlockFilesystemSize
+}
+
 // validatePool validates a pool config against common rules and optional driver specific rules.
 func (d *common) validatePool(config map[string]string, driverRules map[string]func(value string) error, volumeRules map[string]func(value string) error) error {
 	checkedFields := map[string]struct{}{}

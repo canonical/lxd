@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"strings"
 
-	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/shared"
@@ -81,7 +80,7 @@ func (d *ceph) Info() Info {
 	return Info{
 		Name:                         "ceph",
 		Version:                      cephVersion,
-		DefaultVMBlockFilesystemSize: deviceConfig.DefaultVMBlockFilesystemSize,
+		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              true,
 		PreservesInodes:              false,
 		Remote:                       d.isRemote(),

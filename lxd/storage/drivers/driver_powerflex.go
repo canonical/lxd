@@ -6,7 +6,6 @@ import (
 
 	"github.com/dell/goscaleio"
 
-	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/shared"
@@ -79,7 +78,7 @@ func (d *powerflex) Info() Info {
 	return Info{
 		Name:                         "powerflex",
 		Version:                      powerFlexVersion,
-		DefaultVMBlockFilesystemSize: deviceConfig.DefaultVMPowerFlexBlockFilesystemSize,
+		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              false,
 		PreservesInodes:              false,
 		Remote:                       d.isRemote(),
