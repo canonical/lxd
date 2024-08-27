@@ -89,10 +89,10 @@ hotplugging
 HTTPS
 HWE
 ICMP
-IdP
 idmap
 idmapped
 idmaps
+IdP
 incrementing
 InfiniBand
 init
@@ -112,9 +112,9 @@ KiB
 kibi
 Kibit
 KVM
+LogCLI
 lookups
 LoongArch
-LogCLI
 LRU
 LV
 LVM
@@ -133,8 +133,8 @@ MiB
 Mibit
 MicroCeph
 MicroCloud
-MinIO
 MII
+MinIO
 MITM
 MTU
 Mullvad
