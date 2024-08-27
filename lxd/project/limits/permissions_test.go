@@ -1,4 +1,4 @@
-package project_test
+package limits_test
 
 import (
 	"context"
