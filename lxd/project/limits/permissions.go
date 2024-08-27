@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -1162,6 +1163,9 @@ type projectInfo struct {
 	Profiles  []api.Profile
 	Instances []api.Instance
 	Volumes   []db.StorageVolumeArgs
+
+	// poolName: driverName
+	StoragePoolDrivers map[string]string
 }
 
 // Fetch the given project from the database along with its profiles, instances
@@ -1213,6 +1217,11 @@ func fetchProject(globalConfig map[string]any, tx *db.ClusterTx, projectName str
 		profiles = append(profiles, *apiProfile)
 	}
 
+	drivers, err := tx.GetStoragePoolDrivers(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Fetch storage pools from database: %w", err)
+	}
+
 	dbInstances, err := cluster.GetInstances(ctx, tx.Tx(), cluster.InstanceFilter{Project: &projectName})
 	if err != nil {
 		return nil, fmt.Errorf("Fetch project instances from database: %w", err)
@@ -1238,6 +1247,8 @@ func fetchProject(globalConfig map[string]any, tx *db.ClusterTx, projectName str
 		Profiles:  profiles,
 		Instances: instances,
 		Volumes:   volumes,
+
+		StoragePoolDrivers: drivers,
 	}
 
 	return info, nil
@@ -1299,7 +1310,7 @@ func getTotalsAcrossProjectEntities(info *projectInfo, keys []string, skipUnset 
 	}
 
 	for _, instance := range info.Instances {
-		limits, err := getInstanceLimits(instance, keys, skipUnset)
+		limits, err := getInstanceLimits(instance, keys, skipUnset, info.StoragePoolDrivers)
 		if err != nil {
 			return nil, err
 		}
@@ -1313,7 +1324,7 @@ func getTotalsAcrossProjectEntities(info *projectInfo, keys []string, skipUnset 
 }
 
 // Return the effective instance-level values for the limits with the given keys.
-func getInstanceLimits(instance api.Instance, keys []string, skipUnset bool) (map[string]int64, error) {
+func getInstanceLimits(instance api.Instance, keys []string, skipUnset bool, storagePoolDrivers map[string]string) (map[string]int64, error) {
 	var err error
 	limits := map[string]int64{}
 
@@ -1349,12 +1360,20 @@ func getInstanceLimits(instance api.Instance, keys []string, skipUnset bool) (ma
 			if instance.Type == instancetype.VM.String() {
 				sizeStateValue, ok := device["size.state"]
 				if !ok {
-					// TODO: In case the VMs storage drivers config drive size isn't the default,
-					// the limits accounting will be incorrect.
-					// This applies for the PowerFlex storage driver whose config drive size
-					// is 8 GB as set in the DefaultVMPowerFlexBlockFilesystemSize variable.
-					// See https://github.com/canonical/lxd/issues/12567
-					sizeStateValue = deviceconfig.DefaultVMBlockFilesystemSize
+					poolName, ok := device["pool"]
+					if !ok {
+						return nil, fmt.Errorf("Root disk device for %q missing pool", instance.Name)
+					}
+
+					driverName, ok := storagePoolDrivers[poolName]
+					if !ok {
+						return nil, fmt.Errorf("No driver found for pool %q", poolName)
+					}
+
+					sizeStateValue, err = drivers.DefaultVMBlockFilesystemSize(driverName)
+					if err != nil {
+						return nil, err
+					}
 				}
 
 				sizeStateLimit, err := parser(sizeStateValue)
