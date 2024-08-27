@@ -159,7 +159,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 
 	if !c.global.flagQuiet {
 		if name == "" {
-			fmt.Printf(i18n.G("Creating the instance") + "\n")
+			fmt.Print(i18n.G("Creating the instance") + "\n")
 		} else {
 			fmt.Printf(i18n.G("Creating %s")+"\n", name)
 		}
