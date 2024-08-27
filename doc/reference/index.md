@@ -17,6 +17,7 @@ You should also be aware of the supported architectures, the available image ser
 /architectures
 /reference/remote_image_servers
 /reference/image_format
+/guest-os-compatibility
 Container environment </container-environment>
 ```
 
