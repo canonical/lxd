@@ -26,7 +26,12 @@ func (e StatusError) Error() string {
 		return e.err.Error()
 	}
 
-	return http.StatusText(e.status)
+	statusText := http.StatusText(e.status)
+	if statusText == "" {
+		return "Undefined error"
+	}
+
+	return statusText
 }
 
 // Unwrap implements the xerrors.Wrapper interface for StatusError.
