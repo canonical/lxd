@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -45,7 +46,7 @@ func (c *cmdDelete) promptDelete(name string) error {
 	input = strings.TrimSuffix(input, "\n")
 
 	if !shared.ValueInSlice(strings.ToLower(input), []string{i18n.G("yes")}) {
-		return fmt.Errorf(i18n.G("User aborted delete operation"))
+		return errors.New(i18n.G("User aborted delete operation"))
 	}
 
 	return nil
@@ -120,7 +121,7 @@ func (c *cmdDelete) run(cmd *cobra.Command, args []string) error {
 
 		if ct.StatusCode != 0 && ct.StatusCode != api.Stopped {
 			if !c.flagForce {
-				return fmt.Errorf(i18n.G("The instance is currently running, stop it first or pass --force"))
+				return errors.New(i18n.G("The instance is currently running, stop it first or pass --force"))
 			}
 
 			req := api.InstanceStatePut{

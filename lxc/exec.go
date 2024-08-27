@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"fmt"
+	"errors"
 	"io"
 	"os"
 	"strconv"
@@ -90,11 +90,11 @@ func (c *cmdExec) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if c.flagForceInteractive && c.flagForceNonInteractive {
-		return fmt.Errorf(i18n.G("You can't pass -t and -T at the same time"))
+		return errors.New(i18n.G("You can't pass -t and -T at the same time"))
 	}
 
 	if c.flagMode != "auto" && (c.flagForceInteractive || c.flagForceNonInteractive) {
-		return fmt.Errorf(i18n.G("You can't pass -t or -T at the same time as --mode"))
+		return errors.New(i18n.G("You can't pass -t or -T at the same time as --mode"))
 	}
 
 	// Connect to the daemon

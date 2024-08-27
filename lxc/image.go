@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -184,7 +185,7 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if c.flagMode != "pull" && c.flagAutoUpdate {
-		return fmt.Errorf(i18n.G("Auto update is only available in pull mode"))
+		return errors.New(i18n.G("Auto update is only available in pull mode"))
 	}
 
 	// Parse source remote
@@ -217,7 +218,7 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 	destinationServer := resources[0].server
 
 	if resources[0].name != "" {
-		return fmt.Errorf(i18n.G("Can't provide a name for the target image"))
+		return errors.New(i18n.G("Can't provide a name for the target image"))
 	}
 
 	// Resolve image type
@@ -344,7 +345,7 @@ func (c *cmdImageDelete) run(cmd *cobra.Command, args []string) error {
 
 	for _, resource := range resources {
 		if resource.name == "" {
-			return fmt.Errorf(i18n.G("Image identifier missing"))
+			return errors.New(i18n.G("Image identifier missing"))
 		}
 
 		image, _, err := c.image.dereferenceAlias(resource.server, "", resource.name)
@@ -676,9 +677,9 @@ Directory import is only available on Linux and must be performed as root.`))
 func (c *cmdImageImport) packImageDir(path string) (string, error) {
 	// Quick checks.
 	if os.Geteuid() == -1 {
-		return "", fmt.Errorf(i18n.G("Directory import is not available on this platform"))
+		return "", errors.New(i18n.G("Directory import is not available on this platform"))
 	} else if os.Geteuid() != 0 {
-		return "", fmt.Errorf(i18n.G("Must run as root to import from directory"))
+		return "", errors.New(i18n.G("Must run as root to import from directory"))
 	}
 
 	outFile, err := os.CreateTemp("", "lxd_image_")
@@ -755,7 +756,7 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if strings.HasPrefix(imageFile, "http://") {
-		return fmt.Errorf(i18n.G("Only https:// is supported for remote image import"))
+		return errors.New(i18n.G("Only https:// is supported for remote image import"))
 	}
 
 	var createArgs *lxd.ImageCreateArgs
@@ -961,7 +962,7 @@ func (c *cmdImageInfo) run(cmd *cobra.Command, args []string) error {
 	fmt.Printf(i18n.G("Architecture: %s")+"\n", info.Architecture)
 	fmt.Printf(i18n.G("Type: %s")+"\n", imgType)
 	fmt.Printf(i18n.G("Public: %s")+"\n", public)
-	fmt.Printf(i18n.G("Timestamps:") + "\n")
+	fmt.Print(i18n.G("Timestamps:") + "\n")
 
 	const layout = "2006/01/02 15:04 UTC"
 	if shared.TimeIsSet(info.CreatedAt) {
@@ -973,13 +974,13 @@ func (c *cmdImageInfo) run(cmd *cobra.Command, args []string) error {
 	if shared.TimeIsSet(info.ExpiresAt) {
 		fmt.Printf("    "+i18n.G("Expires: %s")+"\n", info.ExpiresAt.UTC().Format(layout))
 	} else {
-		fmt.Printf("    " + i18n.G("Expires: never") + "\n")
+		fmt.Print("    " + i18n.G("Expires: never") + "\n")
 	}
 
 	if shared.TimeIsSet(info.LastUsedAt) {
 		fmt.Printf("    "+i18n.G("Last used: %s")+"\n", info.LastUsedAt.UTC().Format(layout))
 	} else {
-		fmt.Printf("    " + i18n.G("Last used: never") + "\n")
+		fmt.Print("    " + i18n.G("Last used: never") + "\n")
 	}
 
 	fmt.Println(i18n.G("Properties:"))
@@ -1007,7 +1008,7 @@ func (c *cmdImageInfo) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(info.Profiles) == 0 {
-		fmt.Printf(i18n.G("Profiles: ") + "[]\n")
+		fmt.Print(i18n.G("Profiles: ") + "[]\n")
 	} else {
 		fmt.Println(i18n.G("Profiles:"))
 		for _, name := range info.Profiles {
@@ -1374,7 +1375,7 @@ func (c *cmdImageRefresh) run(cmd *cobra.Command, args []string) error {
 
 	for _, resource := range resources {
 		if resource.name == "" {
-			return fmt.Errorf(i18n.G("Image identifier missing"))
+			return errors.New(i18n.G("Image identifier missing"))
 		}
 
 		image, _, err := c.image.dereferenceAlias(resource.server, "", resource.name)
@@ -1530,7 +1531,7 @@ func (c *cmdImageGetProp) run(cmd *cobra.Command, args []string) error {
 
 	prop, propFound := image.Properties[args[1]]
 	if !propFound {
-		return fmt.Errorf(i18n.G("Property not found"))
+		return errors.New(i18n.G("Property not found"))
 	}
 
 	fmt.Println(prop)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -158,7 +159,7 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 	if resource.name != "" {
 		// Quick checks.
 		if c.config.flagTarget != "" {
-			return fmt.Errorf(i18n.G("--target cannot be used with instances"))
+			return errors.New(i18n.G("--target cannot be used with instances"))
 		}
 
 		// If stdin isn't a terminal, read text from it
@@ -294,7 +295,7 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 	// Targeting
 	if c.config.flagTarget != "" {
 		if !resource.server.IsClustered() {
-			return fmt.Errorf(i18n.G("To use --target, the destination remote must be a cluster"))
+			return errors.New(i18n.G("To use --target, the destination remote must be a cluster"))
 		}
 
 		resource.server = resource.server.UseTarget(c.config.flagTarget)
@@ -419,7 +420,7 @@ func (c *cmdConfigGet) run(cmd *cobra.Command, args []string) error {
 	if resource.name != "" {
 		// Quick checks.
 		if c.config.flagTarget != "" {
-			return fmt.Errorf(i18n.G("--target cannot be used with instances"))
+			return errors.New(i18n.G("--target cannot be used with instances"))
 		}
 
 		if isSnapshot {
@@ -469,13 +470,13 @@ func (c *cmdConfigGet) run(cmd *cobra.Command, args []string) error {
 	} else {
 		// Quick check.
 		if c.flagExpanded {
-			return fmt.Errorf(i18n.G("--expanded cannot be used with a server"))
+			return errors.New(i18n.G("--expanded cannot be used with a server"))
 		}
 
 		// Targeting
 		if c.config.flagTarget != "" {
 			if !resource.server.IsClustered() {
-				return fmt.Errorf(i18n.G("To use --target, the destination remote must be a cluster"))
+				return errors.New(i18n.G("To use --target, the destination remote must be a cluster"))
 			}
 
 			resource.server = resource.server.UseTarget(c.config.flagTarget)
@@ -595,7 +596,7 @@ func (c *cmdConfigSet) run(cmd *cobra.Command, args []string) error {
 	if resource.name != "" {
 		// Quick checks.
 		if c.config.flagTarget != "" {
-			return fmt.Errorf(i18n.G("--target cannot be used with instances"))
+			return errors.New(i18n.G("--target cannot be used with instances"))
 		}
 
 		keys, err := getConfig(args[1:]...)
@@ -633,7 +634,7 @@ func (c *cmdConfigSet) run(cmd *cobra.Command, args []string) error {
 				return op.Wait()
 			}
 
-			return fmt.Errorf(i18n.G("There is no config key to set on an instance snapshot."))
+			return errors.New(i18n.G("There is no config key to set on an instance snapshot."))
 		}
 
 		inst, etag, err := resource.server.GetInstance(resource.name)
@@ -682,7 +683,7 @@ func (c *cmdConfigSet) run(cmd *cobra.Command, args []string) error {
 	// Targeting
 	if c.config.flagTarget != "" {
 		if !resource.server.IsClustered() {
-			return fmt.Errorf(i18n.G("To use --target, the destination remote must be a cluster"))
+			return errors.New(i18n.G("To use --target, the destination remote must be a cluster"))
 		}
 
 		resource.server = resource.server.UseTarget(c.config.flagTarget)
@@ -768,13 +769,13 @@ func (c *cmdConfigShow) run(cmd *cobra.Command, args []string) error {
 	if resource.name == "" {
 		// Quick check.
 		if c.flagExpanded {
-			return fmt.Errorf(i18n.G("--expanded cannot be used with a server"))
+			return errors.New(i18n.G("--expanded cannot be used with a server"))
 		}
 
 		// Targeting
 		if c.config.flagTarget != "" {
 			if !resource.server.IsClustered() {
-				return fmt.Errorf(i18n.G("To use --target, the destination remote must be a cluster"))
+				return errors.New(i18n.G("To use --target, the destination remote must be a cluster"))
 			}
 
 			resource.server = resource.server.UseTarget(c.config.flagTarget)
@@ -794,7 +795,7 @@ func (c *cmdConfigShow) run(cmd *cobra.Command, args []string) error {
 	} else {
 		// Quick checks.
 		if c.config.flagTarget != "" {
-			return fmt.Errorf(i18n.G("--target cannot be used with instances"))
+			return errors.New(i18n.G("--target cannot be used with instances"))
 		}
 
 		// Instance or snapshot config
@@ -955,7 +956,7 @@ func (c *cmdConfigUefiGet) run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Instance name must be specified"))
+		return errors.New(i18n.G("Instance name must be specified"))
 	}
 
 	// Get the UEFI variable
@@ -966,7 +967,7 @@ func (c *cmdConfigUefiGet) run(cmd *cobra.Command, args []string) error {
 
 	efiVariable, ok := resp.Variables[args[len(args)-1]]
 	if !ok {
-		return fmt.Errorf(i18n.G("Requested UEFI variable does not exist"))
+		return errors.New(i18n.G("Requested UEFI variable does not exist"))
 	}
 
 	fmt.Println(efiVariable.Data)
@@ -1013,7 +1014,7 @@ func (c *cmdConfigUefiSet) run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Instance name must be specified"))
+		return errors.New(i18n.G("Instance name must be specified"))
 	}
 
 	// Set the config keys
@@ -1132,7 +1133,7 @@ func (c *cmdConfigUefiShow) run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Instance name must be specified"))
+		return errors.New(i18n.G("Instance name must be specified"))
 	}
 
 	instEFI, _, err := resource.server.GetInstanceUEFIVars(resource.name)
@@ -1224,7 +1225,7 @@ func (c *cmdConfigUefiEdit) run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Instance name must be specified"))
+		return errors.New(i18n.G("Instance name must be specified"))
 	}
 
 	// If stdin isn't a terminal, read text from it

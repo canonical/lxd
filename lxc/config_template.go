@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -88,7 +89,7 @@ func (c *cmdConfigTemplateCreate) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing instance name"))
+		return errors.New(i18n.G("Missing instance name"))
 	}
 
 	// Create instance file template
@@ -131,7 +132,7 @@ func (c *cmdConfigTemplateDelete) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing instance name"))
+		return errors.New(i18n.G("Missing instance name"))
 	}
 
 	// Delete instance file template
@@ -173,7 +174,7 @@ func (c *cmdConfigTemplateEdit) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing instance name"))
+		return errors.New(i18n.G("Missing instance name"))
 	}
 
 	// Edit instance file template
@@ -262,7 +263,7 @@ func (c *cmdConfigTemplateList) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing instance name"))
+		return errors.New(i18n.G("Missing instance name"))
 	}
 
 	// List the templates
@@ -321,7 +322,7 @@ func (c *cmdConfigTemplateShow) run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing instance name"))
+		return errors.New(i18n.G("Missing instance name"))
 	}
 
 	// Show the template
