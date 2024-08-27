@@ -18,6 +18,7 @@ balancers
 benchmarking
 BGP
 BitLocker
+BLK
 bool
 bootable
 BPF
@@ -41,6 +42,7 @@ CPUs
 CRIU
 CRL
 cron
+CSM
 CSV
 CUDA
 dataset
@@ -62,6 +64,7 @@ ECDSA
 EiB
 Eibit
 endian
+EOL
 ES
 ESA
 ETag
@@ -190,6 +193,7 @@ qgroups
 RADOS
 RBAC
 RBD
+RDP
 README
 reconfiguring
 requestor
@@ -208,6 +212,7 @@ SDS
 SDT
 SeaBIOS
 Seccomp
+SELinux
 SEV
 SFTP
 SHA
