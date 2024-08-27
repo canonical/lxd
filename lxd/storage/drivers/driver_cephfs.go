@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
@@ -79,7 +78,7 @@ func (d *cephfs) Info() Info {
 	return Info{
 		Name:                         "cephfs",
 		Version:                      cephfsVersion,
-		DefaultVMBlockFilesystemSize: deviceConfig.DefaultVMBlockFilesystemSize,
+		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              false,
 		PreservesInodes:              false,
 		Remote:                       d.isRemote(),

@@ -21,6 +21,7 @@ type driver interface {
 	init(state *state.State, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonRules *Validators)
 	load() error
 	isRemote() bool
+	defaultVMBlockFilesystemSize() string
 }
 
 // Driver represents a low-level storage driver.

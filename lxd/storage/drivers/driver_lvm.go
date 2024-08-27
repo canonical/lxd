@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -87,7 +86,7 @@ func (d *lvm) Info() Info {
 	return Info{
 		Name:                         "lvm",
 		Version:                      lvmVersion,
-		DefaultVMBlockFilesystemSize: deviceConfig.DefaultVMBlockFilesystemSize,
+		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              d.usesThinpool(), // Only thinpool pools support optimized images.
 		PreservesInodes:              false,
 		Remote:                       d.isRemote(),
