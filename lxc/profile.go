@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -341,7 +342,7 @@ func (c *cmdProfileCreate) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing profile name"))
+		return errors.New(i18n.G("Missing profile name"))
 	}
 
 	// Create the profile

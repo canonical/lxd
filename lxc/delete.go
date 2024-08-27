@@ -46,7 +46,7 @@ func (c *cmdDelete) promptDelete(name string) error {
 	input = strings.TrimSuffix(input, "\n")
 
 	if !shared.StringInSlice(strings.ToLower(input), []string{i18n.G("yes")}) {
-		return fmt.Errorf(i18n.G("User aborted delete operation"))
+		return errors.New(i18n.G("User aborted delete operation"))
 	}
 
 	return nil
