@@ -20,6 +20,7 @@ import (
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/task"
@@ -619,7 +620,7 @@ func pruneExpiredAndAutoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.
 
 		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.InstanceList(ctx, func(dbInst db.InstanceArgs, p api.Project) error {
-				err = project.AllowSnapshotCreation(&p)
+				err = limits.AllowSnapshotCreation(&p)
 				if err != nil {
 					return nil
 				}

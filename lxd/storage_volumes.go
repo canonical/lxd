@@ -31,6 +31,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -1047,7 +1048,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		err = project.AllowVolumeCreation(s.GlobalConfig, tx, projectName, req)
+		err = limits.AllowVolumeCreation(s.GlobalConfig, tx, projectName, req)
 		if err != nil {
 			return err
 		}
@@ -1539,7 +1540,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Failed getting cluster members: %w", err)
 			}
 
-			targetMemberInfo, _, err = project.CheckTarget(ctx, s.Authorizer, r, tx, targetProject, target, allMembers)
+			targetMemberInfo, _, err = limits.CheckTarget(ctx, s.Authorizer, r, tx, targetProject, target, allMembers)
 			if err != nil {
 				return err
 			}
@@ -2152,7 +2153,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		if req.Config != nil || req.Restore == "" {
 			// Possibly check if project limits are honored.
 			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return project.AllowVolumeUpdate(s.GlobalConfig, tx, effectiveProjectName, details.volumeName, req, dbVolume.Config)
+				return limits.AllowVolumeUpdate(s.GlobalConfig, tx, effectiveProjectName, details.volumeName, req, dbVolume.Config)
 			})
 			if err != nil {
 				return response.SmartError(err)

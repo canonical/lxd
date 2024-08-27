@@ -20,7 +20,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/operations"
-	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/scriptlet"
@@ -211,13 +211,13 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 			var targetGroupName string
 
-			targetMemberInfo, targetGroupName, err = project.CheckTarget(ctx, s.Authorizer, r, tx, targetProject, target, allMembers)
+			targetMemberInfo, targetGroupName, err = limits.CheckTarget(ctx, s.Authorizer, r, tx, targetProject, target, allMembers)
 			if err != nil {
 				return err
 			}
 
 			if targetMemberInfo == nil {
-				clusterGroupsAllowed := project.GetRestrictedClusterGroups(targetProject)
+				clusterGroupsAllowed := limits.GetRestrictedClusterGroups(targetProject)
 
 				candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, []int{inst.Architecture()}, targetGroupName, clusterGroupsAllowed, s.GlobalConfig.OfflineThreshold())
 				if err != nil {
