@@ -28,6 +28,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/operationlock"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/scriptlet"
@@ -53,7 +54,7 @@ func ensureDownloadedImageFitWithinBudget(s *state.State, r *http.Request, op *o
 
 	var budget int64
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		budget, err = project.GetImageSpaceBudget(s.GlobalConfig, tx, p.Name)
+		budget, err = limits.GetImageSpaceBudget(s.GlobalConfig, tx, p.Name)
 		return err
 	})
 	if err != nil {
@@ -722,7 +723,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 			Type:        api.InstanceType(bInfo.Config.Container.Type),
 		}
 
-		return project.AllowInstanceCreation(s.GlobalConfig, tx, projectName, req)
+		return limits.AllowInstanceCreation(s.GlobalConfig, tx, projectName, req)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -1084,7 +1085,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Check if the given target is allowed and try to resolve the right member or group
-			targetMemberInfo, targetGroupName, err = project.CheckTarget(ctx, s.Authorizer, r, tx, targetProject, target, allMembers)
+			targetMemberInfo, targetGroupName, err = limits.CheckTarget(ctx, s.Authorizer, r, tx, targetProject, target, allMembers)
 			if err != nil {
 				return err
 			}
@@ -1232,7 +1233,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 
-			clusterGroupsAllowed := project.GetRestrictedClusterGroups(targetProject)
+			clusterGroupsAllowed := limits.GetRestrictedClusterGroups(targetProject)
 
 			candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, architectures, targetGroupName, clusterGroupsAllowed, s.GlobalConfig.OfflineThreshold())
 			if err != nil {
@@ -1243,7 +1244,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		if !clusterNotification {
 			// Check that the project's limits are not violated. Note this check is performed after
 			// automatically generated config values (such as ones from an InstanceType) have been set.
-			err = project.AllowInstanceCreation(s.GlobalConfig, tx, targetProjectName, req)
+			err = limits.AllowInstanceCreation(s.GlobalConfig, tx, targetProjectName, req)
 			if err != nil {
 				return err
 			}
