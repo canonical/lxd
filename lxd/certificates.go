@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -437,6 +438,11 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 	if req.Password != "" {
 		return response.NotImplemented(fmt.Errorf("Password authentication is no longer supported, please update your client"))
+	}
+
+	// Validate name.
+	if strings.HasPrefix(req.Name, "-") || strings.Contains(req.Name, "/") {
+		return response.BadRequest(fmt.Errorf("Invalid certificate name %q, name must not start with a hyphen or contain forward slashes", req.Name))
 	}
 
 	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
