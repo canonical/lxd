@@ -2432,12 +2432,6 @@ Possible values are `true` or `false`.
 The original MAC that was used when moving a physical device into an instance.
 ```
 
-```{config:option} volatile.<name>.last_state.ip_addresses instance-volatile
-:shortdesc: "Last used IP addresses"
-:type: "string"
-Comma-separated list of the last used IP addresses of the network device.
-```
-
 ```{config:option} volatile.<name>.last_state.mtu instance-volatile
 :shortdesc: "Network device original MTU"
 :type: "string"
