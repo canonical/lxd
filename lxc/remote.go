@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -156,7 +157,7 @@ func (c *cmdRemoteAdd) runToken(server string, token string, rawToken *api.Certi
 	conf := c.global.conf
 
 	if !conf.HasClientCertificate() {
-		fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
+		fmt.Fprint(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
 		err := conf.GenerateClientCertificate()
 		if err != nil {
 			return err
@@ -179,7 +180,7 @@ func (c *cmdRemoteAdd) runToken(server string, token string, rawToken *api.Certi
 	}
 
 	fmt.Println(i18n.G("All server addresses are unavailable"))
-	fmt.Printf(i18n.G("Please provide an alternate server address (empty to abort):") + " ")
+	fmt.Print(i18n.G("Please provide an alternate server address (empty to abort):") + " ")
 
 	line, err := shared.ReadStdin()
 	if err != nil {
@@ -187,7 +188,7 @@ func (c *cmdRemoteAdd) runToken(server string, token string, rawToken *api.Certi
 	}
 
 	if len(line) == 0 {
-		return fmt.Errorf(i18n.G("Failed to add remote"))
+		return errors.New(i18n.G("Failed to add remote"))
 	}
 
 	err = c.addRemoteFromToken(string(line), server, token, rawToken.Fingerprint)
@@ -221,7 +222,7 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 		dnam := conf.ConfigPath("servercerts")
 		err := os.MkdirAll(dnam, 0750)
 		if err != nil {
-			return fmt.Errorf(i18n.G("Could not create server cert dir"))
+			return errors.New(i18n.G("Could not create server cert dir"))
 		}
 
 		certf := conf.ServerCertPath(server)
@@ -287,12 +288,12 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(addr) == 0 {
-		return fmt.Errorf(i18n.G("Remote address must not be empty"))
+		return errors.New(i18n.G("Remote address must not be empty"))
 	}
 
 	// Validate the server name.
 	if strings.Contains(server, ":") {
-		return fmt.Errorf(i18n.G("Remote names may not contain colons"))
+		return errors.New(i18n.G("Remote names may not contain colons"))
 	}
 
 	// Check for existing remote
@@ -329,7 +330,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 	// Fast track simplestreams
 	if c.flagProtocol == "simplestreams" {
 		if remoteURL.Scheme != "https" {
-			return fmt.Errorf(i18n.G("Only https URLs are supported for simplestreams"))
+			return errors.New(i18n.G("Only https URLs are supported for simplestreams"))
 		}
 
 		conf.Remotes[server] = config.Remote{Addr: addr, Public: true, Protocol: c.flagProtocol}
@@ -394,7 +395,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 	// adding the remote server.
 	if rScheme != "unix" && !c.flagPublic && (c.flagAuthType == api.AuthenticationMethodTLS || c.flagAuthType == "") {
 		if !conf.HasClientCertificate() {
-			fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
+			fmt.Fprint(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
 			err = conf.GenerateClientCertificate()
 			if err != nil {
 				return err
@@ -448,8 +449,8 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		if !c.flagAcceptCert {
 			digest := shared.CertFingerprint(certificate)
 
-			fmt.Printf(i18n.G("Certificate fingerprint: %s")+"\n", digest)
-			fmt.Printf(i18n.G("ok (y/n/[fingerprint])?") + " ")
+			fmt.Printf("%s: %s\n", i18n.G("Certificate fingerprint"), digest)
+			fmt.Print(i18n.G("ok (y/n/[fingerprint])?") + " ")
 			line, err := shared.ReadStdin()
 			if err != nil {
 				return err
@@ -457,9 +458,9 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 
 			if string(line) != digest {
 				if len(line) < 1 || strings.ToLower(string(line[0])) == i18n.G("n") {
-					return fmt.Errorf(i18n.G("Server certificate NACKed by user"))
+					return errors.New(i18n.G("Server certificate NACKed by user"))
 				} else if strings.ToLower(string(line[0])) != i18n.G("y") {
-					return fmt.Errorf(i18n.G("Please type 'y', 'n' or the fingerprint:"))
+					return errors.New(i18n.G("Please type 'y', 'n' or the fingerprint:"))
 				}
 			}
 		}
@@ -467,7 +468,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		dnam := conf.ConfigPath("servercerts")
 		err := os.MkdirAll(dnam, 0750)
 		if err != nil {
-			return fmt.Errorf(i18n.G("Could not create server cert dir"))
+			return errors.New(i18n.G("Could not create server cert dir"))
 		}
 
 		certf := conf.ServerCertPath(server)
@@ -596,7 +597,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		}
 
 		if srv.Auth != "trusted" {
-			return fmt.Errorf(i18n.G("Server doesn't trust us after authentication"))
+			return errors.New(i18n.G("Server doesn't trust us after authentication"))
 		}
 
 		if c.flagAuthType == api.AuthenticationMethodTLS {
@@ -858,7 +859,7 @@ func (c *cmdRemoteRemove) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if conf.DefaultRemote == args[0] {
-		return fmt.Errorf(i18n.G("Can't remove the default remote"))
+		return errors.New(i18n.G("Can't remove the default remote"))
 	}
 
 	delete(conf.Remotes, args[0])
