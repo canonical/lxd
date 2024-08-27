@@ -46,6 +46,15 @@ To edit them, you must remove all instances first.
 New features that are added in an upgrade are disabled for existing projects.
 ```
 
+```{important}
+In a multi-tenant environment, unless using {ref}`fine-grained-authorization`, all projects should have all features enabled.
+Otherwise, clients with {ref}`restricted-tls-certs` are able to create, edit, and delete resources in the default project. This might affect other tenants.
+
+For example, if project "foo" is created and `features.networks` is not set to true, then a restricted client certificate with access to "foo" can view, edit, and delete networks in the default project.
+
+Conversely, if a client's permissions are managed via {ref}`fine-grained-authorization`, resources may be inherited from the default project but access to those resources is not automatically granted.
+```
+
 (projects-confined)=
 ## Confined projects in a multi-user environment
 

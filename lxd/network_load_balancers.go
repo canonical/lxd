@@ -19,24 +19,23 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/version"
 )
 
 var networkLoadBalancersCmd = APIEndpoint{
 	Path: "networks/{networkName}/load-balancers",
 
-	Get:  APIEndpointAction{Handler: networkLoadBalancersGet, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanView, "networkName")},
-	Post: APIEndpointAction{Handler: networkLoadBalancersPost, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
+	Get:  APIEndpointAction{Handler: networkLoadBalancersGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
+	Post: APIEndpointAction{Handler: networkLoadBalancersPost, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var networkLoadBalancerCmd = APIEndpoint{
 	Path: "networks/{networkName}/load-balancers/{listenAddress}",
 
-	Delete: APIEndpointAction{Handler: networkLoadBalancerDelete, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
-	Get:    APIEndpointAction{Handler: networkLoadBalancerGet, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanView, "networkName")},
-	Put:    APIEndpointAction{Handler: networkLoadBalancerPut, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
-	Patch:  APIEndpointAction{Handler: networkLoadBalancerPut, AccessHandler: allowPermission(entity.TypeNetwork, auth.EntitlementCanEdit, "networkName")},
+	Delete: APIEndpointAction{Handler: networkLoadBalancerDelete, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
+	Get:    APIEndpointAction{Handler: networkLoadBalancerGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
+	Put:    APIEndpointAction{Handler: networkLoadBalancerPut, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
+	Patch:  APIEndpointAction{Handler: networkLoadBalancerPut, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
 }
 
 // API endpoints
@@ -136,23 +135,23 @@ var networkLoadBalancerCmd = APIEndpoint{
 func networkLoadBalancersGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
+	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(s, projectName, networkName)
+	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
 
 	// Check if project allows access to network.
-	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+	if !project.NetworkAllowed(details.requestProject.Config, details.networkName, n.IsManaged()) {
 		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
@@ -242,7 +241,12 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -256,18 +260,13 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 
 	req.Normalise() // So we handle the request in normalised/canonical form.
 
-	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	n, err := network.LoadByName(s, projectName, networkName)
+	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
 
 	// Check if project allows access to network.
-	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+	if !project.NetworkAllowed(details.requestProject.Config, details.networkName, n.IsManaged()) {
 		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
@@ -283,7 +282,7 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	lc := lifecycle.NetworkLoadBalancerCreated.Event(n, listenAddress.String(), request.CreateRequestor(r), nil)
-	s.Events.SendLifecycle(projectName, lc)
+	s.Events.SendLifecycle(effectiveProjectName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
@@ -320,23 +319,23 @@ func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
+	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(s, projectName, networkName)
+	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
 
 	// Check if project allows access to network.
-	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+	if !project.NetworkAllowed(details.requestProject.Config, details.networkName, n.IsManaged()) {
 		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
@@ -356,7 +355,7 @@ func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed deleting load balancer: %w", err))
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.NetworkLoadBalancerDeleted.Event(n, listenAddress, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkLoadBalancerDeleted.Event(n, listenAddress, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
@@ -409,23 +408,23 @@ func networkLoadBalancerGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
+	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(s, projectName, networkName)
+	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
 
 	// Check if project allows access to network.
-	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+	if !project.NetworkAllowed(details.requestProject.Config, details.networkName, n.IsManaged()) {
 		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
@@ -532,23 +531,23 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
+	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(s, projectName, networkName)
+	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
 
 	// Check if project allows access to network.
-	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+	if !project.NetworkAllowed(details.requestProject.Config, details.networkName, n.IsManaged()) {
 		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
@@ -614,7 +613,7 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed updating load balancer: %w", err))
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.NetworkLoadBalancerUpdated.Event(n, listenAddress, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkLoadBalancerUpdated.Event(n, listenAddress, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
