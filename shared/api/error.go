@@ -6,6 +6,26 @@ import (
 	"net/http"
 )
 
+// NewGenericStatusError returns a new StatusError with the given status code.
+// The generic http.StatusText will be used for the error message.
+func NewGenericStatusError(status int) StatusError {
+	return StatusError{
+		status: status,
+	}
+}
+
+// NewStatusError returns a new StatusError with the given message and status code.
+func NewStatusError(status int, msg string) StatusError {
+	if msg == "" {
+		return NewGenericStatusError(status)
+	}
+
+	return StatusError{
+		status: status,
+		err:    errors.New(msg),
+	}
+}
+
 // StatusErrorf returns a new StatusError containing the specified status and message.
 func StatusErrorf(status int, format string, a ...any) StatusError {
 	return StatusError{
