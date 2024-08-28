@@ -2860,7 +2860,8 @@ if [ ! -e "systemd" ] || [ ! -e "lxd-agent" ]; then
     exit 1
 fi
 
-if [ ! -e "/lib/systemd/system" ]; then
+# systemd systems always have /run/systemd/system/ created on boot.
+if [ ! -d "/run/systemd/system/" ]; then
     echo "This script only works on systemd systems"
     exit 1
 fi
