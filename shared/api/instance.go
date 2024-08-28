@@ -430,7 +430,7 @@ type InstanceSource struct {
 	// Example: 12345
 	//
 	// API extension: instance_import_conversion
-	SourceDiskSize int64 `json:"sourceDiskSize" yaml:"sourceDiskSize"`
+	SourceDiskSize int64 `json:"source_disk_size" yaml:"source_disk_size"`
 
 	// Optional list of options that are used during image conversion (for conversion).
 	// Example: ["format"]
