@@ -103,8 +103,10 @@ EOF
     echo "hello world" | lxc exec c1 --project test -- tee /mnt/test.txt
     [ "$(lxc exec c1 --project test -- cat /mnt/test.txt)" = "hello world" ]
     lxc stop -f c1
+    lxc config set c1 snapshots.expiry 1d
     lxc snapshot c1
     lxc info c1
+    snapshotExpiryDateBefore=$(lxc info c1 | grep -wF "snap0")
 
     lxc storage volume snapshot "${poolName}" vol1_test snap0
     lxc storage volume show "${poolName}" vol1_test
@@ -184,6 +186,10 @@ EOF
     lxc storage volume show "${poolName}" container/c1/snap0
     lxc start c1
     lxc exec c1 --project test -- hostname
+
+    # Check snapshot expiry date has been restored.
+    snapshotExpiryDateAfter=$(lxc info c1 | grep -wF "snap0")
+    [ "$snapshotExpiryDateBefore" = "$snapshotExpiryDateAfter" ]
 
     # Check custom volume accessible.
     lxc exec c1 --project test -- mount | grep /mnt
