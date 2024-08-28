@@ -19,6 +19,9 @@ var pythonUEFIVarsProfileTpl = template.Must(template.New("pythonUEFIVarsProfile
 profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
 
+  # Allow processes to send us signals by default
+  signal (receive),
+
   # Python locations
   /usr/bin/python* mixr,
   /bin**/*.py r,
