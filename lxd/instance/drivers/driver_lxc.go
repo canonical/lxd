@@ -41,6 +41,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/device"
+	"github.com/canonical/lxd/lxd/device/cdi"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/device/nictype"
 	"github.com/canonical/lxd/lxd/idmap"
@@ -2053,6 +2054,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Create the devices
 	nicID := -1
 	nvidiaDevices := []string{}
+	cdiConfigFiles := []string{}
 
 	sortedDevices := d.expandedDevices.Sorted()
 	startDevices := make([]device.Device, 0, len(sortedDevices))
@@ -2223,6 +2225,10 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 				if entry.Key == device.GPUNvidiaDeviceKey {
 					nvidiaDevices = append(nvidiaDevices, entry.Value)
 				}
+
+				if entry.Key == cdi.CDIHookDefinitionKey {
+					cdiConfigFiles = append(cdiConfigFiles, entry.Value)
+				}
 			}
 		}
 	}
@@ -2232,6 +2238,13 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_VISIBLE_DEVICES=%s", strings.Join(nvidiaDevices, ",")))
 		if err != nil {
 			return "", nil, fmt.Errorf("Unable to set NVIDIA_VISIBLE_DEVICES in LXC environment: %w", err)
+		}
+	}
+
+	if len(cdiConfigFiles) > 0 {
+		err = lxcSetConfigItem(cc, "lxc.hook.mount", fmt.Sprintf("%s callhook %s %s %s startmountns --devicesRootFolder %s %s", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name()), d.DevicesPath(), strings.Join(cdiConfigFiles, " ")))
+		if err != nil {
+			return "", nil, fmt.Errorf("Unable to set the startmountns callhook to process CDI hooks files (%q) for instance %q in project %q: %w", strings.Join(cdiConfigFiles, ","), d.Name(), d.Project().Name, err)
 		}
 	}
 
@@ -7857,36 +7870,6 @@ func (d *lxc) InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid 
 	// Bind-mount it into the container
 	defer func() { _ = os.Remove(devPath) }()
 	return d.insertMountLXD(devPath, tgtPath, "none", unix.MS_BIND, pid, idmap.IdmapStorageNone)
-}
-
-func (d *lxc) removeUnixDevices() error {
-	// Check that we indeed have devices to remove
-	if !shared.PathExists(d.DevicesPath()) {
-		return nil
-	}
-
-	// Load the directory listing
-	dents, err := os.ReadDir(d.DevicesPath())
-	if err != nil {
-		return err
-	}
-
-	// Go through all the unix devices
-	for _, f := range dents {
-		// Skip non-Unix devices
-		if !strings.HasPrefix(f.Name(), "forkmknod.unix.") && !strings.HasPrefix(f.Name(), "unix.") && !strings.HasPrefix(f.Name(), "infiniband.unix.") {
-			continue
-		}
-
-		// Remove the entry
-		devicePath := filepath.Join(d.DevicesPath(), f.Name())
-		err := os.Remove(devicePath)
-		if err != nil {
-			d.logger.Error("Failed removing unix device", logger.Ctx{"err": err, "path": devicePath})
-		}
-	}
-
-	return nil
 }
 
 // FillNetworkDevice takes a nic or infiniband device type and enriches it with automatically

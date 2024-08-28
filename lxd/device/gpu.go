@@ -35,7 +35,19 @@ func gpuValidationRules(requiredFields []string, optionalFields []string) map[st
 		//  type: string
 		//  shortdesc: Product ID of the parent GPU device
 		"productid": validate.Optional(validate.IsDeviceID),
-		// lxdmeta:generate(entities=device-gpu-{physical+mdev+mig}; group=device-conf; key=id)
+		// lxdmeta:generate(entities=device-gpu-physical; group=device-conf; key=id)
+		// The ID can either be the DRM card ID of the GPU device (container or VM) or a fully-qualified Container Device Interface (CDI) name (container only).
+		// Here are some examples of fully-qualified CDI names:
+		//
+		// - `nvidia.com/gpu=0`: Instructs LXD to operate a discrete GPU (dGPU) pass-through of brand NVIDIA with the first discovered GPU on your system. You can use the `nvidia-smi` tool on your host to find out which identifier to use.
+		// - `nvidia.com/gpu=1833c8b5-9aa0-5382-b784-68b7e77eb185`: Instructs LXD to operate a discrete GPU (dGPU) pass-through of brand NVIDIA with a given GPU unique identifier. This identifier should also appear with `nvidia-smi -L`.
+		// - `nvidia.com/igpu=all`: Instructs LXD to pass all the host integrated GPUs (iGPU) of brand NVIDIA. The concept of an index does not currently map to iGPUs. It is possible to list them with the `nvidia-smi -L` command. A special `nvgpu` mention should appear in the generated list to indicate a device to be an iGPU.
+		// - `nvidia.com/gpu=all`: Instructs LXD to pass all the host GPUs of brand NVIDIA through to the container.
+		// ---
+		//  type: string
+		//  shortdesc: ID of the GPU device
+
+		// lxdmeta:generate(entities=device-gpu-{mdev+mig}; group=device-conf; key=id)
 		//
 		// ---
 		//  type: string

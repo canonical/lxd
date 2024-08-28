@@ -57,6 +57,16 @@ How to import instances:
 :diataxis:Migrate from LXC </howto/migrate_from_lxc>
 ```
 
+```{only} diataxis
+How to pass an NVIDIA GPU to a container with a Docker workload:
+```
+
+```{filtered-toctree}
+:titlesonly:
+
+:diataxis:Pass NVIDIA GPUs </howto/container_gpu_passthrough_with_docker>
+```
+
 ## Related topics
 
 ```{only} diataxis

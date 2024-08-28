@@ -25,6 +25,7 @@ BPF
 Btrfs
 bugfix
 bugfixes
+CDI
 CentOS
 Ceph
 CephFS
@@ -46,6 +47,7 @@ CSM
 CSV
 CUDA
 dataset
+dGPU
 DCO
 dereferenced
 DHCP
@@ -96,6 +98,8 @@ idmap
 idmapped
 idmaps
 IdP
+iGPU
+iGPUs
 incrementing
 InfiniBand
 init
@@ -139,6 +143,7 @@ MicroCloud
 MII
 MinIO
 MITM
+MNIST
 MTU
 Mullvad
 multicast
@@ -152,7 +157,10 @@ NIC
 NICs
 NUMA
 NVMe
+NVML
 NVRAM
+NVIDIA
+OCI
 OData
 OIDC
 OpenFGA
@@ -207,6 +215,7 @@ SATA
 scalable
 scriptlet
 SDC
+SDK
 SDN
 SDS
 SDT
@@ -223,6 +232,7 @@ SKBPRIO
 SLAAC
 SMTP
 Snapcraft
+SoC
 Solaris
 SPAs
 SPL
@@ -256,6 +266,8 @@ sysfs
 syslog
 Tbit
 TCP
+TensorRT
+Tegra
 TiB
 Tibit
 TinyPNG
