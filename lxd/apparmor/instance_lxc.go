@@ -481,6 +481,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   pivot_root,
 
   mount fstype=devpts,
+  mount fstype=proc,
 
   # Allow modifying mount propagation
   mount options=(rw,slave) -> **,
