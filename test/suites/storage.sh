@@ -22,6 +22,41 @@ test_storage() {
   lxc storage volume show "$storage_pool" "$storage_volume" | sed 's/^description:.*/description: bar/' | lxc storage volume edit "$storage_pool" "$storage_volume"
   lxc storage volume show "$storage_pool" "$storage_volume" | grep -q 'description: bar'
 
+  # Test creating a storage pool from yaml
+  storage_pool_yaml="lxdtest-$(basename "${LXD_DIR}")-pool-yaml"
+  if [ "${lxd_backend}" = "btrfs" ] || [ "${lxd_backend}" = "zfs" ] || [ "${lxd_backend}" = "lvm" ]; then
+    lxc storage create "$storage_pool_yaml" "$lxd_backend" <<EOF
+description: foo
+config:
+  size: 2GiB
+EOF
+
+    [ "$(lxc storage get "$storage_pool_yaml" size)" = "2GiB" ]
+    [ "$(lxc storage show "$storage_pool_yaml" | grep -i "description:" | awk '{print $2}')" = "foo" ]
+  elif [ "${lxd_backend}" = "dir" ]; then
+    tempdir=$(mktemp -d)
+    lxc storage create "$storage_pool_yaml" "$lxd_backend" <<EOF
+description: foo
+config:
+  source: ${tempdir}
+EOF
+
+    [ "$(lxc storage get "$storage_pool_yaml" source)" = "${tempdir}" ]
+    [ "$(lxc storage show "$storage_pool_yaml" | grep -i "description:" | awk '{print $2}')" = "foo" ]
+  elif [ "${lxd_backend}" = "ceph" ]; then
+    lxc storage create "$storage_pool_yaml" "$lxd_backend" <<EOF
+description: foo
+config:
+  ceph.cluster_name: bar
+EOF
+
+    [ "$(lxc storage get "$storage_pool_yaml" ceph.cluster_name)" = "bar" ]
+    [ "$(lxc storage show "$storage_pool_yaml" | grep -i "description:" | awk '{print $2}')" = "foo" ]
+  fi
+
+  # Delete storage pool
+  lxc storage delete "$storage_pool_yaml"
+
   # Validate get/set
   lxc storage set "$storage_pool" user.abc def
   [ "$(lxc storage get "$storage_pool" user.abc)" = "def" ]
