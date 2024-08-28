@@ -1,3 +1,5 @@
+//go:build !armhf && !arm && !arm32
+
 package cdi
 
 import (
