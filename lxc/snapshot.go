@@ -2,15 +2,19 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/i18n"
+	"github.com/canonical/lxd/shared/termios"
 )
 
 type cmdSnapshot struct {
@@ -30,9 +34,11 @@ func (c *cmdSnapshot) command() *cobra.Command {
 
 When --stateful is used, LXD attempts to checkpoint the instance's
 running state, including process memory state, TCP connections, ...`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc snapshot u1 snap0
-    Create a snapshot of "u1" called "snap0".`))
+	cmd.Example = cli.FormatSection("", i18n.G(`lxc snapshot create u1 snap0
+	Create a snapshot of "u1" called "snap0".
+
+	lxc snapshot create u1 snap0 < config.yaml
+		Create a snapshot of "u1" called "snap0" with the configuration from "config.yaml".`))
 
 	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagStateful, "stateful", false, i18n.G("Whether or not to snapshot the instance's running state"))
@@ -43,12 +49,26 @@ running state, including process memory state, TCP connections, ...`))
 }
 
 func (c *cmdSnapshot) run(cmd *cobra.Command, args []string) error {
+	var stdinData api.InstanceSnapshotPut
 	conf := c.global.conf
 
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err
+	}
+
+	// If stdin isn't a terminal, read text from it
+	if !termios.IsTerminal(getStdinFd()) {
+		contents, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		err = yaml.Unmarshal(contents, &stdinData)
+		if err != nil {
+			return err
+		}
 	}
 
 	var snapname string
@@ -96,6 +116,10 @@ func (c *cmdSnapshot) run(cmd *cobra.Command, args []string) error {
 	req := api.InstanceSnapshotsPost{
 		Name:     snapname,
 		Stateful: c.flagStateful,
+	}
+
+	if !stdinData.ExpiresAt.IsZero() {
+		req.ExpiresAt = &stdinData.ExpiresAt
 	}
 
 	if c.flagNoExpiry {
