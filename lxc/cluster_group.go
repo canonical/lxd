@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -113,7 +114,7 @@ func (c *cmdClusterGroupAssign) Run(cmd *cobra.Command, args []string) error {
 
 	// Assign the cluster group
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing cluster member name"))
+		return errors.New(i18n.G("Missing cluster member name"))
 	}
 
 	member, etag, err := resource.server.GetClusterMember(resource.name)
@@ -179,7 +180,7 @@ func (c *cmdClusterGroupCreate) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing cluster group name"))
+		return errors.New(i18n.G("Missing cluster group name"))
 	}
 
 	// Create the cluster group
@@ -236,7 +237,7 @@ func (c *cmdClusterGroupDelete) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing cluster group name"))
+		return errors.New(i18n.G("Missing cluster group name"))
 	}
 
 	// Delete the cluster group
@@ -288,7 +289,7 @@ func (c *cmdClusterGroupEdit) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing cluster group name"))
+		return errors.New(i18n.G("Missing cluster group name"))
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -416,7 +417,7 @@ func (c *cmdClusterGroupList) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !cluster.Enabled {
-		return fmt.Errorf(i18n.G("LXD server isn't part of a cluster"))
+		return errors.New(i18n.G("LXD server isn't part of a cluster"))
 	}
 
 	groups, err := resource.server.GetClusterGroups()
@@ -478,7 +479,7 @@ func (c *cmdClusterGroupRemove) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing cluster member name"))
+		return errors.New(i18n.G("Missing cluster member name"))
 	}
 
 	// Remove the cluster group
@@ -599,7 +600,7 @@ func (c *cmdClusterGroupShow) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing cluster group name"))
+		return errors.New(i18n.G("Missing cluster group name"))
 	}
 
 	// Show the cluster group
@@ -652,7 +653,7 @@ func (c *cmdClusterGroupAdd) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing cluster member name"))
+		return errors.New(i18n.G("Missing cluster member name"))
 	}
 
 	// Retrieve cluster member information.
