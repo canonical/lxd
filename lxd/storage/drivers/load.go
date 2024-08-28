@@ -49,6 +49,17 @@ func Load(state *state.State, driverName string, name string, config map[string]
 	return d, nil
 }
 
+// DefaultVMBlockFilesystemSize returns the default size of VM Block Filesystems
+// created using the named driver.
+func DefaultVMBlockFilesystemSize(driverName string) (string, error) {
+	driverFunc, ok := drivers[driverName]
+	if !ok {
+		return "", ErrUnknownDriver
+	}
+
+	return driverFunc().defaultVMBlockFilesystemSize(), nil
+}
+
 // SupportedDrivers returns a list of supported storage drivers by loading each storage driver and running its
 // compatibility inspection process. This can take a long time if a driver is not supported.
 func SupportedDrivers(s *state.State) []Info {
