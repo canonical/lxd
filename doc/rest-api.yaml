@@ -2378,7 +2378,7 @@ definitions:
                 example: foo/snap0
                 type: string
                 x-go-name: Source
-            sourceDiskSize:
+            source_disk_size:
                 description: |-
                     Source disk size in bytes used to set the instance's volume size to accommodate the transferred root
                     disk. This value is ignored if the root disk device has a size explicitly configured (for conversion).
