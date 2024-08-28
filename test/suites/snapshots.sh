@@ -53,6 +53,16 @@ snapshots() {
     [ -d "${LXD_DIR}/snapshots/foo/tester" ]
   fi
 
+  # Create a snapshot with an expiry date specified in a YAML
+  expiry_date_in_one_minute=$(date -u -d '+10 minute' '+%Y-%m-%dT%H:%M:%SZ')
+  lxc snapshot foo tester_yaml <<EOF
+expires_at: ${expiry_date_in_one_minute}
+EOF
+  # Check that the expiry date is set correctly
+  lxc config show foo/tester_yaml | grep "expires_at: ${expiry_date_in_one_minute}"
+  # Delete the snapshot
+  lxc delete foo/tester_yaml
+
   lxc copy foo/tester foosnap1
   # FIXME: make this backend agnostic
   if [ "$lxd_backend" != "lvm" ] && [ "${lxd_backend}" != "zfs" ] && [ "$lxd_backend" != "ceph" ]; then
