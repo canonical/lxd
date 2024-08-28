@@ -55,6 +55,10 @@ See {ref}`instances-configure-devices` for more information.
 
 #### CDI mode
 
+```{note}
+The CDI mode is currently not supported on `armhf` architectures.
+```
+
 Add a specific GPU from the host system as a `physical` GPU device to an instance using the [Container Device Interface](https://github.com/cncf-tags/container-device-interface) (CDI) notation through a fully-qualified CDI name:
 
     lxc config device add <instance_name> <device_name> gpu gputype=physical id=<fully_qualified_CDI_name>
