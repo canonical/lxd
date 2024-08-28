@@ -440,7 +440,7 @@ func (d *ceph) GetResources() (*api.ResourcesStoragePool, error) {
 	return &res, nil
 }
 
-// MigrationType returns the type of transfer methods to be used when doing migrations between pools in preference order.
+// MigrationTypes returns the type of transfer methods to be used when doing migrations between pools in preference order.
 func (d *ceph) MigrationTypes(contentType ContentType, refresh bool, copySnapshots bool) []migration.Type {
 	var rsyncFeatures []string
 
