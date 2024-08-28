@@ -75,24 +75,6 @@ func BlockFsDetect(dev string) (string, error) {
 	return strings.TrimSpace(out), nil
 }
 
-// IsBlockdev returns boolean indicating whether device is block type.
-func IsBlockdev(path string) bool {
-	// Get a stat struct from the provided path
-	stat := unix.Stat_t{}
-	err := unix.Stat(path, &stat)
-	if err != nil {
-		return false
-	}
-
-	// Check if it's a block device
-	if stat.Mode&unix.S_IFMT == unix.S_IFBLK {
-		return true
-	}
-
-	// Not a device
-	return false
-}
-
 // DiskMount mounts a disk device.
 func DiskMount(srcPath string, dstPath string, recursive bool, propagation string, mountOptions []string, fsName string) error {
 	var err error
