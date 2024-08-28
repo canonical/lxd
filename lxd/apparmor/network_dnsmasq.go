@@ -14,6 +14,9 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/dbus>
   #include <abstractions/nameservice>
 
+  # Allow processes to send us signals by default
+  signal (receive),
+
   # Capabilities
   capability chown,
   capability net_bind_service,

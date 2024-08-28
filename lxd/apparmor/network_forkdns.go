@@ -15,6 +15,9 @@ var forkdnsProfileTpl = template.Must(template.New("forkdnsProfile").Parse(`#inc
 profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
 
+  # Allow processes to send us signals by default
+  signal (receive),
+
   # Network access
   network inet dgram,
   network inet6 dgram,
