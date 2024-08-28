@@ -24,6 +24,9 @@ var forkproxyProfileTpl = template.Must(template.New("forkproxyProfile").Parse(`
 profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
 
+  # Allow processes to send us signals by default
+  signal (receive),
+
   # Capabilities
   capability chown,
   capability dac_read_search,

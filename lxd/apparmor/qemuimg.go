@@ -22,6 +22,9 @@ var qemuImgProfileTpl = template.Must(template.New("qemuImgProfile").Parse(`#inc
 profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
 
+  # Allow processes to send us signals by default
+  signal (receive),
+
   capability dac_override,
   capability dac_read_search,
   capability ipc_lock,
