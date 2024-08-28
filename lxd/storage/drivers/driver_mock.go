@@ -37,17 +37,17 @@ func (d *mock) Info() Info {
 	}
 }
 
-// FillConfig populates the driver's config with default values
+// FillConfig populates the driver's config with default values.
 func (d *mock) FillConfig() error {
 	return nil
 }
 
-// Create is called during pool creation
+// Create is called during pool creation.
 func (d *mock) Create() error {
 	return nil
 }
 
-// Delete removes a storage pool
+// Delete removes a storage pool.
 func (d *mock) Delete(op *operations.Operation) error {
 	return nil
 }
