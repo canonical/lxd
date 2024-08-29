@@ -2,11 +2,9 @@ package drivers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/canonical/lxd/lxd/fsmonitor"
-	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -35,10 +33,6 @@ func Load(ctx context.Context, path string) (fsmonitor.FSMonitor, error) {
 		}
 
 		return d, nil
-	}
-
-	if !filesystem.IsMountPoint(path) {
-		return nil, errors.New("Path needs to be a mountpoint")
 	}
 
 	driver, err := startMonitor("fanotify")
