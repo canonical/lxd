@@ -19,6 +19,7 @@ const (
 	EventRename
 )
 
+// String implements fmt.Stringer for Event.
 func (e Event) String() string {
 	return map[Event]string{
 		EventAdd:    "add",
