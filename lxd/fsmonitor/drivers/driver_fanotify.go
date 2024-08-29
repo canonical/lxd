@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/canonical/lxd/lxd/fsmonitor"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -192,12 +193,12 @@ func (d *fanotify) getEvents(ctx context.Context, mountFd int) {
 				continue
 			}
 
-			var action Event
+			var action fsmonitor.Event
 
 			if event.Mask&unix.FAN_CREATE != 0 {
-				action = Add
+				action = fsmonitor.Add
 			} else if event.Mask&unix.FAN_DELETE != 0 || event.Mask&unix.FAN_DELETE_SELF != 0 {
-				action = Remove
+				action = fsmonitor.Remove
 			}
 
 			for identifier, f := range d.watches[path] {
