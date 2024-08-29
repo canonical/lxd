@@ -35,7 +35,7 @@ func (c *cmdPublish) command() *cobra.Command {
 		`Publish instances as images`))
 
 	cmd.RunE = c.run
-	cmd.Flags().BoolVar(&c.flagMakePublic, "public", false, i18n.G("Make the image public"))
+	cmd.Flags().BoolVar(&c.flagMakePublic, "public", false, i18n.G("Make the image public (accessible to unauthenticated clients as well)"))
 	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, i18n.G("New alias to define at target")+"``")
 	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Stop the instance if currently running"))
 	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", i18n.G("Compression algorithm to use (`none` for uncompressed)"))
