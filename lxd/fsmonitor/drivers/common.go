@@ -31,6 +31,8 @@ func (d *common) PrefixPath() string {
 // function will simply be replaced without returning an error.
 // Note: If f() returns false, the watch is removed.
 func (d *common) Watch(path string, identifier string, f func(path string, event string) bool) error {
+	d.logger.Info("Watching path", logger.Ctx{"path": path})
+
 	if f == nil {
 		return ErrInvalidFunction
 	}
@@ -61,6 +63,8 @@ func (d *common) Watch(path string, identifier string, f func(path string, event
 
 // Unwatch removes a watch.
 func (d *common) Unwatch(path string, identifier string) error {
+	d.logger.Info("Unwatching path", logger.Ctx{"path": path})
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
