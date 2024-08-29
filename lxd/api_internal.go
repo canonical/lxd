@@ -247,7 +247,7 @@ func internalShutdown(d *Daemon, r *http.Request) response.Response {
 
 		// Run shutdown sequence synchronously.
 		stopErr := d.Stop(forceCtx, unix.SIGPWR)
-		err := response.SmartError(stopErr).Render(w)
+		err := response.SmartError(stopErr).Render(w, r)
 		if err != nil {
 			return err
 		}

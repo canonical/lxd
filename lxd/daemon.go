@@ -647,7 +647,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			case <-d.setupChan:
 			default:
 				response := response.Unavailable(fmt.Errorf("LXD daemon setup in progress"))
-				_ = response.Render(w)
+				_ = response.Render(w, r)
 				return
 			}
 		}
@@ -664,11 +664,11 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 
 				// Return 401 Unauthorized error. This indicates to the client that it needs to use the
 				// headers we've set above to get an access token and try again.
-				_ = response.Unauthorized(err).Render(w)
+				_ = response.Unauthorized(err).Render(w, r)
 				return
 			}
 
-			_ = response.Forbidden(err).Render(w)
+			_ = response.Forbidden(err).Render(w, r)
 			return
 		}
 
@@ -680,7 +680,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			// Except for the initial cluster accept request (done over trusted TLS)
 			if !trusted || c.Path != "cluster/accept" || protocol != api.AuthenticationMethodTLS {
 				logger.Warn("Rejecting remote internal API request", logger.Ctx{"ip": r.RemoteAddr})
-				_ = response.Forbidden(nil).Render(w)
+				_ = response.Forbidden(nil).Render(w, r)
 				return
 			}
 		}
@@ -730,7 +730,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			}
 
 			logger.Warn("Rejecting request from untrusted client", logger.Ctx{"ip": r.RemoteAddr})
-			_ = response.Forbidden(nil).Render(w)
+			_ = response.Forbidden(nil).Render(w, r)
 			return
 		}
 
@@ -741,7 +741,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			multiW := io.MultiWriter(newBody, captured)
 			_, err := io.Copy(multiW, r.Body)
 			if err != nil {
-				_ = response.InternalError(err).Render(w)
+				_ = response.InternalError(err).Render(w, r)
 				return
 			}
 
@@ -776,7 +776,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		if d.shutdownCtx.Err() == context.Canceled && !allowedDuringShutdown() {
-			_ = response.Unavailable(fmt.Errorf("LXD is shutting down")).Render(w)
+			_ = response.Unavailable(fmt.Errorf("LXD is shutting down")).Render(w, r)
 			return
 		}
 
@@ -824,9 +824,9 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		// Handle errors
-		err = resp.Render(w)
+		err = resp.Render(w, r)
 		if err != nil {
-			writeErr := response.SmartError(err).Render(w)
+			writeErr := response.SmartError(err).Render(w, r)
 			if writeErr != nil {
 				logger.Error("Failed writing error for HTTP response", logger.Ctx{"url": uri, "err": err, "writeErr": writeErr})
 			}

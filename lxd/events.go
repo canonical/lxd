@@ -35,7 +35,7 @@ type eventsServe struct {
 }
 
 // Render starts event socket.
-func (r *eventsServe) Render(w http.ResponseWriter) error {
+func (r *eventsServe) Render(w http.ResponseWriter, req *http.Request) error {
 	return eventsSocket(r.s, r.req, w)
 }
 
