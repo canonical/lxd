@@ -15,7 +15,7 @@ var drivers = map[string]func() driver{
 
 // Load returns a new fsmonitor.FSMonitor with an applicable Driver.
 func Load(ctx context.Context, path string) (fsmonitor.FSMonitor, error) {
-	startMonitor := func(driverName string) (Driver, error) {
+	startMonitor := func(driverName string) (fsmonitor.FSMonitor, error) {
 		logger := logger.AddContext(logger.Ctx{"driver": driverName})
 
 		df, ok := drivers[driverName]
@@ -44,7 +44,7 @@ func Load(ctx context.Context, path string) (fsmonitor.FSMonitor, error) {
 		}
 	}
 
-	logger.Info("Initialized filesystem monitor", logger.Ctx{"path": path, "driver": driver.Name()})
+	logger.Info("Initialized filesystem monitor", logger.Ctx{"path": path, "driver": driver.DriverName()})
 
 	return driver, nil
 }
