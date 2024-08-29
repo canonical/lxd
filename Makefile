@@ -10,6 +10,7 @@ TAG_SQLITE3=$(shell printf "$(HASH)include <dqlite.h>\nvoid main(){dqlite_node_i
 GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
+GOMIN=1.21.0
 
 ifneq "$(wildcard vendor)" ""
 	DQLITE_PATH=$(CURDIR)/vendor/dqlite
@@ -79,7 +80,7 @@ endif
 	go get github.com/mdlayher/socket@v0.4.1
 	go get github.com/digitalocean/go-libvirt@v0.0.0-20221205150000-2939327a8519
 	go get github.com/jaypipes/pcidb@v1.0.0
-	go mod tidy --go=1.19
+	go mod tidy -go=$(GOMIN)
 	go get toolchain@none
 
 	@echo "Dependencies updated"
