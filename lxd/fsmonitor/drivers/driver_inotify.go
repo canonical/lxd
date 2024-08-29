@@ -15,8 +15,6 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
-var inotifyLoaded bool
-
 type inotify struct {
 	common
 
@@ -75,10 +73,6 @@ func (d *inotify) DriverName() string {
 }
 
 func (d *inotify) load(ctx context.Context) error {
-	if inotifyLoaded {
-		return nil
-	}
-
 	var err error
 
 	d.watcher, err = in.NewWatcher()
@@ -89,13 +83,10 @@ func (d *inotify) load(ctx context.Context) error {
 	err = d.watchFSTree(d.prefixPath)
 	if err != nil {
 		_ = d.watcher.Close()
-		inotifyLoaded = false
 		return fmt.Errorf("Failed to watch directory %q: %w", d.prefixPath, err)
 	}
 
 	go d.getEvents(ctx)
-
-	inotifyLoaded = true
 
 	return nil
 }
@@ -106,7 +97,6 @@ func (d *inotify) getEvents(ctx context.Context) {
 		// Clean up if context is done.
 		case <-ctx.Done():
 			_ = d.watcher.Close()
-			inotifyLoaded = false
 			return
 		case event := <-d.watcher.Event:
 			event.Name = filepath.Clean(event.Name)
