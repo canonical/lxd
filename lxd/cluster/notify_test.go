@@ -274,7 +274,7 @@ func (h *notifyFixtures) Unavailable(i int, err error) {
 	mux.HandleFunc("/1.0/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		err := response.Unavailable(err)
-		_ = err.Render(w)
+		_ = err.Render(w, r)
 	})
 
 	h.servers[i].Config.Handler = mux
