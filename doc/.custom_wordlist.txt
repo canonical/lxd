@@ -230,6 +230,7 @@ SIGTERM
 simplestreams
 SKBPRIO
 SLAAC
+SLES
 SMTP
 Snapcraft
 SoC
