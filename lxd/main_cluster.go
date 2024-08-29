@@ -383,10 +383,10 @@ func (c *cmdClusterListDatabase) Run(cmd *cobra.Command, args []string) error {
 }
 
 const recoverFromQuorumLossPrompt = `You should run this command only if you are *absolutely* certain that this is
-the only database node left in your cluster AND that other database nodes will
+the only database member left in your cluster AND that other database members will
 never come back (i.e. their LXD daemon won't ever be started again).
 
-This will make this LXD instance the only member of the cluster, and it won't
+This will make this LXD server the only member of the cluster, and it won't
 be possible to perform operations on former cluster members anymore.
 
 However all information about former cluster members will be preserved in the
@@ -441,8 +441,8 @@ func (c *cmdClusterRecoverFromQuorumLoss) Run(cmd *cobra.Command, args []string)
 }
 
 const removeRaftNodePrompt = `You should run this command only if you ended up in an
-inconsistent state where a node has been uncleanly removed (i.e. it doesn't show
-up in "lxc cluster list" but it's still in the raft configuration).`
+inconsistent state where a cluster member has been uncleanly removed (i.e. it
+doesn't show up in "lxc cluster list" but it's still in the raft configuration).`
 
 type cmdClusterRemoveRaftNode struct {
 	global             *cmdGlobal
