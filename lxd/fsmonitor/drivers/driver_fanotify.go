@@ -17,8 +17,6 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
-var fanotifyLoaded bool
-
 type fanotify struct {
 	common
 
@@ -82,10 +80,6 @@ func (d *fanotify) DriverName() string {
 }
 
 func (d *fanotify) load(ctx context.Context) error {
-	if fanotifyLoaded {
-		return nil
-	}
-
 	if !filesystem.IsMountPoint(d.prefixPath) {
 		return errors.New("Path needs to be a mountpoint")
 	}
@@ -117,12 +111,9 @@ func (d *fanotify) load(ctx context.Context) error {
 	go func() {
 		<-ctx.Done()
 		_ = unix.Close(d.fd)
-		fanotifyLoaded = false
 	}()
 
 	go d.getEvents(ctx, fd)
-
-	fanotifyLoaded = true
 
 	return nil
 }
