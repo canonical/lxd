@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-08-28 17:34+0200\n"
+"POT-Creation-Date: 2024-08-29 11:48+0200\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -489,7 +489,7 @@ msgstr ""
 "###   source: /home/chb/mnt/lxd_test/default.img\n"
 "###   zfs.pool_name: default"
 
-#: lxc/network_zone.go:1066
+#: lxc/network_zone.go:1071
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the network zone record.\n"
@@ -518,7 +518,7 @@ msgstr ""
 "###   source: /home/chb/mnt/lxd_test/default.img\n"
 "###   zfs.pool_name: default"
 
-#: lxc/network_zone.go:473
+#: lxc/network_zone.go:478
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the network zone.\n"
@@ -852,7 +852,7 @@ msgstr ""
 msgid "Add a group to an identity provider group"
 msgstr ""
 
-#: lxc/network_zone.go:1239
+#: lxc/network_zone.go:1244
 #, fuzzy
 msgid "Add a network zone record entry"
 msgstr "Il nome del container è: %s"
@@ -865,7 +865,7 @@ msgstr ""
 msgid "Add backends to a load balancer"
 msgstr ""
 
-#: lxc/network_zone.go:1240
+#: lxc/network_zone.go:1245
 msgid "Add entries to a network zone record"
 msgstr ""
 
@@ -1120,7 +1120,7 @@ msgstr ""
 
 #: lxc/network.go:333 lxc/network_acl.go:382 lxc/network_forward.go:293
 #: lxc/network_load_balancer.go:301 lxc/network_peer.go:280
-#: lxc/network_zone.go:324 lxc/network_zone.go:922 lxc/storage_bucket.go:141
+#: lxc/network_zone.go:329 lxc/network_zone.go:927 lxc/storage_bucket.go:141
 #, c-format
 msgid "Bad key/value pair: %s"
 msgstr ""
@@ -1468,7 +1468,7 @@ msgstr ""
 #: lxc/config_trust.go:314 lxc/image.go:466 lxc/network.go:686
 #: lxc/network_acl.go:620 lxc/network_forward.go:685
 #: lxc/network_load_balancer.go:694 lxc/network_peer.go:610
-#: lxc/network_zone.go:551 lxc/network_zone.go:1143 lxc/profile.go:538
+#: lxc/network_zone.go:556 lxc/network_zone.go:1148 lxc/profile.go:538
 #: lxc/project.go:338 lxc/storage.go:310 lxc/storage_bucket.go:348
 #: lxc/storage_bucket.go:1125 lxc/storage_volume.go:1016
 #: lxc/storage_volume.go:1048
@@ -1627,7 +1627,7 @@ msgstr ""
 msgid "Could not write server cert file %q: %w"
 msgstr "Certificato del client salvato dal server: "
 
-#: lxc/network_zone.go:1327
+#: lxc/network_zone.go:1332
 msgid "Couldn't find a matching entry"
 msgstr ""
 
@@ -1719,12 +1719,12 @@ msgstr "Creazione del container in corso"
 msgid "Create new network peering"
 msgstr ""
 
-#: lxc/network_zone.go:869 lxc/network_zone.go:870
+#: lxc/network_zone.go:874 lxc/network_zone.go:875
 #, fuzzy
 msgid "Create new network zone record"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_zone.go:270 lxc/network_zone.go:271
+#: lxc/network_zone.go:271 lxc/network_zone.go:272
 msgid "Create new network zones"
 msgstr ""
 
@@ -1776,7 +1776,7 @@ msgstr ""
 #: lxc/image.go:1074 lxc/image_alias.go:237 lxc/list.go:556 lxc/network.go:985
 #: lxc/network_acl.go:148 lxc/network_forward.go:149
 #: lxc/network_load_balancer.go:152 lxc/network_peer.go:140
-#: lxc/network_zone.go:139 lxc/network_zone.go:742 lxc/operation.go:172
+#: lxc/network_zone.go:140 lxc/network_zone.go:747 lxc/operation.go:172
 #: lxc/profile.go:678 lxc/project.go:528 lxc/storage.go:646
 #: lxc/storage_bucket.go:512 lxc/storage_bucket.go:832
 #: lxc/storage_volume.go:1562
@@ -1866,12 +1866,12 @@ msgstr "Il nome del container è: %s"
 msgid "Delete network peerings"
 msgstr ""
 
-#: lxc/network_zone.go:1175 lxc/network_zone.go:1176
+#: lxc/network_zone.go:1180 lxc/network_zone.go:1181
 #, fuzzy
 msgid "Delete network zone record"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_zone.go:583 lxc/network_zone.go:584
+#: lxc/network_zone.go:588 lxc/network_zone.go:589
 msgid "Delete network zones"
 msgstr ""
 
@@ -1972,13 +1972,13 @@ msgstr ""
 #: lxc/network_peer.go:28 lxc/network_peer.go:81 lxc/network_peer.go:158
 #: lxc/network_peer.go:215 lxc/network_peer.go:331 lxc/network_peer.go:399
 #: lxc/network_peer.go:488 lxc/network_peer.go:518 lxc/network_peer.go:643
-#: lxc/network_zone.go:28 lxc/network_zone.go:85 lxc/network_zone.go:156
-#: lxc/network_zone.go:211 lxc/network_zone.go:271 lxc/network_zone.go:354
-#: lxc/network_zone.go:434 lxc/network_zone.go:465 lxc/network_zone.go:584
-#: lxc/network_zone.go:632 lxc/network_zone.go:689 lxc/network_zone.go:759
-#: lxc/network_zone.go:811 lxc/network_zone.go:870 lxc/network_zone.go:952
-#: lxc/network_zone.go:1028 lxc/network_zone.go:1058 lxc/network_zone.go:1176
-#: lxc/network_zone.go:1225 lxc/network_zone.go:1240 lxc/network_zone.go:1286
+#: lxc/network_zone.go:29 lxc/network_zone.go:86 lxc/network_zone.go:157
+#: lxc/network_zone.go:212 lxc/network_zone.go:272 lxc/network_zone.go:359
+#: lxc/network_zone.go:439 lxc/network_zone.go:470 lxc/network_zone.go:589
+#: lxc/network_zone.go:637 lxc/network_zone.go:694 lxc/network_zone.go:764
+#: lxc/network_zone.go:816 lxc/network_zone.go:875 lxc/network_zone.go:957
+#: lxc/network_zone.go:1033 lxc/network_zone.go:1063 lxc/network_zone.go:1181
+#: lxc/network_zone.go:1230 lxc/network_zone.go:1245 lxc/network_zone.go:1291
 #: lxc/operation.go:24 lxc/operation.go:56 lxc/operation.go:106
 #: lxc/operation.go:193 lxc/profile.go:29 lxc/profile.go:104 lxc/profile.go:167
 #: lxc/profile.go:250 lxc/profile.go:320 lxc/profile.go:394 lxc/profile.go:444
@@ -2153,7 +2153,7 @@ msgstr ""
 msgid "Driver: %v (%v)"
 msgstr ""
 
-#: lxc/network_zone.go:743
+#: lxc/network_zone.go:748
 msgid "ENTRIES"
 msgstr ""
 
@@ -2243,12 +2243,12 @@ msgstr "Il nome del container è: %s"
 msgid "Edit network peer configurations as YAML"
 msgstr ""
 
-#: lxc/network_zone.go:464 lxc/network_zone.go:465
+#: lxc/network_zone.go:469 lxc/network_zone.go:470
 #, fuzzy
 msgid "Edit network zone configurations as YAML"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_zone.go:1057 lxc/network_zone.go:1058
+#: lxc/network_zone.go:1062 lxc/network_zone.go:1063
 #, fuzzy
 msgid "Edit network zone record configurations as YAML"
 msgstr "Il nome del container è: %s"
@@ -2307,7 +2307,7 @@ msgid ""
 "  for the address if not yet set."
 msgstr ""
 
-#: lxc/network_zone.go:1242
+#: lxc/network_zone.go:1247
 msgid "Entry TTL"
 msgstr ""
 
@@ -2337,7 +2337,7 @@ msgstr ""
 #: lxc/cluster.go:414 lxc/config.go:621 lxc/config.go:653 lxc/network.go:1194
 #: lxc/network_acl.go:467 lxc/network_forward.go:519
 #: lxc/network_load_balancer.go:527 lxc/network_peer.go:463
-#: lxc/network_zone.go:409 lxc/network_zone.go:1003 lxc/profile.go:876
+#: lxc/network_zone.go:414 lxc/network_zone.go:1008 lxc/profile.go:876
 #: lxc/project.go:657 lxc/storage.go:727 lxc/storage_bucket.go:602
 #: lxc/storage_volume.go:1947 lxc/storage_volume.go:1985
 #, c-format
@@ -2351,7 +2351,7 @@ msgstr ""
 
 #: lxc/cluster.go:408 lxc/network.go:1188 lxc/network_acl.go:461
 #: lxc/network_forward.go:513 lxc/network_load_balancer.go:521
-#: lxc/network_peer.go:457 lxc/network_zone.go:403 lxc/network_zone.go:997
+#: lxc/network_peer.go:457 lxc/network_zone.go:408 lxc/network_zone.go:1002
 #: lxc/profile.go:870 lxc/project.go:651 lxc/storage.go:721
 #: lxc/storage_bucket.go:596 lxc/storage_volume.go:1941
 #: lxc/storage_volume.go:1979
@@ -2620,7 +2620,7 @@ msgstr "Accetta certificato"
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr ""
 
-#: lxc/network.go:943 lxc/network_acl.go:124 lxc/network_zone.go:115
+#: lxc/network.go:943 lxc/network_acl.go:124 lxc/network_zone.go:116
 #: lxc/operation.go:136
 #, fuzzy
 msgid "Filtering isn't supported yet"
@@ -2694,7 +2694,7 @@ msgstr ""
 #: lxc/image.go:1061 lxc/image_alias.go:157 lxc/list.go:132 lxc/network.go:916
 #: lxc/network.go:1007 lxc/network_acl.go:97 lxc/network_allocations.go:57
 #: lxc/network_forward.go:93 lxc/network_load_balancer.go:97
-#: lxc/network_peer.go:84 lxc/network_zone.go:88 lxc/network_zone.go:692
+#: lxc/network_peer.go:84 lxc/network_zone.go:89 lxc/network_zone.go:697
 #: lxc/operation.go:108 lxc/profile.go:637 lxc/project.go:435
 #: lxc/project.go:827 lxc/remote.go:690 lxc/storage.go:588
 #: lxc/storage_bucket.go:459 lxc/storage_bucket.go:774
@@ -2800,12 +2800,12 @@ msgstr ""
 msgid "Get the key as a network property"
 msgstr ""
 
-#: lxc/network_zone.go:214
+#: lxc/network_zone.go:215
 #, fuzzy
 msgid "Get the key as a network zone property"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_zone.go:814
+#: lxc/network_zone.go:819
 #, fuzzy
 msgid "Get the key as a network zone record property"
 msgstr "Il nome del container è: %s"
@@ -2870,12 +2870,12 @@ msgstr "Il nome del container è: %s"
 msgid "Get values for network peer configuration keys"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_zone.go:210 lxc/network_zone.go:211
+#: lxc/network_zone.go:211 lxc/network_zone.go:212
 #, fuzzy
 msgid "Get values for network zone configuration keys"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_zone.go:810 lxc/network_zone.go:811
+#: lxc/network_zone.go:815 lxc/network_zone.go:816
 #, fuzzy
 msgid "Get values for network zone record configuration keys"
 msgstr "Il nome del container è: %s"
@@ -3428,16 +3428,16 @@ msgstr "Creazione del container in corso"
 msgid "List available network peers"
 msgstr ""
 
-#: lxc/network_zone.go:85
+#: lxc/network_zone.go:86
 msgid "List available network zone"
 msgstr ""
 
-#: lxc/network_zone.go:688 lxc/network_zone.go:689
+#: lxc/network_zone.go:693 lxc/network_zone.go:694
 #, fuzzy
 msgid "List available network zone records"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_zone.go:84
+#: lxc/network_zone.go:85
 msgid "List available network zoneS"
 msgstr ""
 
@@ -3921,17 +3921,17 @@ msgstr "Creazione del container in corso"
 msgid "Manage network peerings"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_zone.go:1224 lxc/network_zone.go:1225
+#: lxc/network_zone.go:1229 lxc/network_zone.go:1230
 #, fuzzy
 msgid "Manage network zone record entries"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_zone.go:631 lxc/network_zone.go:632
+#: lxc/network_zone.go:636 lxc/network_zone.go:637
 #, fuzzy
 msgid "Manage network zone records"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_zone.go:27 lxc/network_zone.go:28
+#: lxc/network_zone.go:28 lxc/network_zone.go:29
 #, fuzzy
 msgid "Manage network zones"
 msgstr "Creazione del container in corso"
@@ -4175,16 +4175,16 @@ msgstr "Il nome del container è: %s"
 msgid "Missing network name"
 msgstr ""
 
-#: lxc/network_zone.go:178 lxc/network_zone.go:234 lxc/network_zone.go:294
-#: lxc/network_zone.go:382 lxc/network_zone.go:503 lxc/network_zone.go:606
-#: lxc/network_zone.go:712 lxc/network_zone.go:780 lxc/network_zone.go:892
-#: lxc/network_zone.go:976 lxc/network_zone.go:1197 lxc/network_zone.go:1262
-#: lxc/network_zone.go:1307
+#: lxc/network_zone.go:179 lxc/network_zone.go:235 lxc/network_zone.go:299
+#: lxc/network_zone.go:387 lxc/network_zone.go:508 lxc/network_zone.go:611
+#: lxc/network_zone.go:717 lxc/network_zone.go:785 lxc/network_zone.go:897
+#: lxc/network_zone.go:981 lxc/network_zone.go:1202 lxc/network_zone.go:1267
+#: lxc/network_zone.go:1312
 #, fuzzy
 msgid "Missing network zone name"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_zone.go:833 lxc/network_zone.go:1095
+#: lxc/network_zone.go:838 lxc/network_zone.go:1100
 #, fuzzy
 msgid "Missing network zone record name"
 msgstr "Il nome del container è: %s"
@@ -4345,8 +4345,8 @@ msgstr ""
 #: lxc/auth.go:375 lxc/auth.go:815 lxc/auth.go:1735 lxc/cluster.go:183
 #: lxc/cluster.go:964 lxc/cluster_group.go:437 lxc/config_trust.go:409
 #: lxc/config_trust.go:514 lxc/list.go:564 lxc/network.go:980
-#: lxc/network_acl.go:147 lxc/network_peer.go:139 lxc/network_zone.go:138
-#: lxc/network_zone.go:741 lxc/profile.go:677 lxc/project.go:521
+#: lxc/network_acl.go:147 lxc/network_peer.go:139 lxc/network_zone.go:139
+#: lxc/network_zone.go:746 lxc/profile.go:677 lxc/project.go:521
 #: lxc/remote.go:748 lxc/storage.go:638 lxc/storage_bucket.go:511
 #: lxc/storage_bucket.go:831 lxc/storage_volume.go:1561
 msgid "NAME"
@@ -4450,12 +4450,12 @@ msgstr ""
 msgid "Network ACL %s renamed to %s"
 msgstr ""
 
-#: lxc/network_zone.go:336
+#: lxc/network_zone.go:341
 #, c-format
 msgid "Network Zone %s created"
 msgstr ""
 
-#: lxc/network_zone.go:616
+#: lxc/network_zone.go:621
 #, c-format
 msgid "Network Zone %s deleted"
 msgstr ""
@@ -4513,12 +4513,12 @@ msgstr ""
 msgid "Network usage:"
 msgstr ""
 
-#: lxc/network_zone.go:934
+#: lxc/network_zone.go:939
 #, c-format
 msgid "Network zone record %s created"
 msgstr ""
 
-#: lxc/network_zone.go:1207
+#: lxc/network_zone.go:1212
 #, c-format
 msgid "Network zone record %s deleted"
 msgstr ""
@@ -4745,7 +4745,7 @@ msgstr ""
 #: lxc/config_trust.go:315 lxc/image.go:467 lxc/network.go:687
 #: lxc/network_acl.go:621 lxc/network_forward.go:686
 #: lxc/network_load_balancer.go:695 lxc/network_peer.go:611
-#: lxc/network_zone.go:552 lxc/network_zone.go:1144 lxc/profile.go:539
+#: lxc/network_zone.go:557 lxc/network_zone.go:1149 lxc/profile.go:539
 #: lxc/project.go:339 lxc/storage.go:311 lxc/storage_bucket.go:349
 #: lxc/storage_bucket.go:1126 lxc/storage_volume.go:1017
 #: lxc/storage_volume.go:1049
@@ -5113,7 +5113,7 @@ msgstr ""
 msgid "Remove a member from the cluster"
 msgstr ""
 
-#: lxc/network_zone.go:1285
+#: lxc/network_zone.go:1290
 #, fuzzy
 msgid "Remove a network zone record entry"
 msgstr "Il nome del container è: %s"
@@ -5140,7 +5140,7 @@ msgstr "Il nome del container è: %s"
 msgid "Remove backends from a load balancer"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_zone.go:1286
+#: lxc/network_zone.go:1291
 msgid "Remove entries from a network zone record"
 msgstr ""
 
@@ -5561,12 +5561,12 @@ msgid ""
 "    lxc network set [<remote>:]<network> <peer_name> <key> <value>"
 msgstr ""
 
-#: lxc/network_zone.go:353
+#: lxc/network_zone.go:358
 #, fuzzy
 msgid "Set network zone configuration keys"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_zone.go:354
+#: lxc/network_zone.go:359
 msgid ""
 "Set network zone configuration keys\n"
 "\n"
@@ -5575,7 +5575,7 @@ msgid ""
 "    lxc network set [<remote>:]<Zone> <key> <value>"
 msgstr ""
 
-#: lxc/network_zone.go:951 lxc/network_zone.go:952
+#: lxc/network_zone.go:956 lxc/network_zone.go:957
 #, fuzzy
 msgid "Set network zone record configuration keys"
 msgstr "Il nome del container è: %s"
@@ -5687,12 +5687,12 @@ msgstr ""
 msgid "Set the key as a network property"
 msgstr ""
 
-#: lxc/network_zone.go:361
+#: lxc/network_zone.go:366
 #, fuzzy
 msgid "Set the key as a network zone property"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_zone.go:957
+#: lxc/network_zone.go:962
 #, fuzzy
 msgid "Set the key as a network zone record property"
 msgstr "Il nome del container è: %s"
@@ -5837,17 +5837,17 @@ msgstr "Il nome del container è: %s"
 msgid "Show network peer configurations"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_zone.go:155 lxc/network_zone.go:156
+#: lxc/network_zone.go:156 lxc/network_zone.go:157
 #, fuzzy
 msgid "Show network zone configurations"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_zone.go:758
+#: lxc/network_zone.go:763
 #, fuzzy
 msgid "Show network zone record configuration"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_zone.go:759
+#: lxc/network_zone.go:764
 #, fuzzy
 msgid "Show network zone record configurations"
 msgstr "Il nome del container è: %s"
@@ -6250,12 +6250,12 @@ msgstr "Il nome del container è: %s"
 msgid "The property %q does not exist on the network peer %q: %v"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_zone.go:246
+#: lxc/network_zone.go:247
 #, fuzzy, c-format
 msgid "The property %q does not exist on the network zone %q: %v"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_zone.go:845
+#: lxc/network_zone.go:850
 #, fuzzy, c-format
 msgid "The property %q does not exist on the network zone record %q: %v"
 msgstr "Il nome del container è: %s"
@@ -6475,7 +6475,7 @@ msgid "USAGE"
 msgstr ""
 
 #: lxc/network.go:986 lxc/network_acl.go:149 lxc/network_allocations.go:24
-#: lxc/network_zone.go:140 lxc/profile.go:679 lxc/project.go:529
+#: lxc/network_zone.go:141 lxc/profile.go:679 lxc/project.go:529
 #: lxc/storage.go:647 lxc/storage_volume.go:1564
 msgid "USED BY"
 msgstr ""
@@ -6597,12 +6597,12 @@ msgstr "Il nome del container è: %s"
 msgid "Unset network peer keys"
 msgstr ""
 
-#: lxc/network_zone.go:433 lxc/network_zone.go:434
+#: lxc/network_zone.go:438 lxc/network_zone.go:439
 #, fuzzy
 msgid "Unset network zone configuration keys"
 msgstr "Il nome del container è: %s"
 
-#: lxc/network_zone.go:1027 lxc/network_zone.go:1028
+#: lxc/network_zone.go:1032 lxc/network_zone.go:1033
 #, fuzzy
 msgid "Unset network zone record configuration keys"
 msgstr "Il nome del container è: %s"
@@ -6653,12 +6653,12 @@ msgstr ""
 msgid "Unset the key as a network property"
 msgstr ""
 
-#: lxc/network_zone.go:437
+#: lxc/network_zone.go:442
 #, fuzzy
 msgid "Unset the key as a network zone property"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_zone.go:1031
+#: lxc/network_zone.go:1036
 #, fuzzy
 msgid "Unset the key as a network zone record property"
 msgstr "Il nome del container è: %s"
@@ -6873,7 +6873,7 @@ msgstr "Creazione del container in corso"
 #: lxc/auth.go:329 lxc/auth.go:762 lxc/auth.go:893 lxc/auth.go:1689
 #: lxc/cluster.go:119 lxc/cluster.go:878 lxc/cluster_group.go:379
 #: lxc/config_trust.go:347 lxc/config_trust.go:430 lxc/monitor.go:31
-#: lxc/network.go:909 lxc/network_acl.go:91 lxc/network_zone.go:82
+#: lxc/network.go:909 lxc/network_acl.go:91 lxc/network_zone.go:83
 #: lxc/operation.go:103 lxc/profile.go:630 lxc/project.go:430
 #: lxc/storage.go:583 lxc/version.go:20 lxc/warning.go:68
 #, fuzzy
@@ -6950,22 +6950,22 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:]<API path>"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_zone.go:154 lxc/network_zone.go:463 lxc/network_zone.go:581
+#: lxc/network_zone.go:155 lxc/network_zone.go:468 lxc/network_zone.go:586
 #, fuzzy
 msgid "[<remote>:]<Zone>"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_zone.go:209 lxc/network_zone.go:432
+#: lxc/network_zone.go:210 lxc/network_zone.go:437
 #, fuzzy
 msgid "[<remote>:]<Zone> <key>"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_zone.go:352
+#: lxc/network_zone.go:357
 #, fuzzy
 msgid "[<remote>:]<Zone> <key>=<value>..."
 msgstr "Creazione del container in corso"
 
-#: lxc/network_zone.go:269
+#: lxc/network_zone.go:270
 #, fuzzy
 msgid "[<remote>:]<Zone> [key=value...]"
 msgstr "Creazione del container in corso"
@@ -7572,32 +7572,32 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:]<warning-uuid>"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_zone.go:686
+#: lxc/network_zone.go:691
 #, fuzzy
 msgid "[<remote>:]<zone>"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_zone.go:757 lxc/network_zone.go:1056 lxc/network_zone.go:1173
+#: lxc/network_zone.go:762 lxc/network_zone.go:1061 lxc/network_zone.go:1178
 #, fuzzy
 msgid "[<remote>:]<zone> <record>"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_zone.go:809 lxc/network_zone.go:1026
+#: lxc/network_zone.go:814 lxc/network_zone.go:1031
 #, fuzzy
 msgid "[<remote>:]<zone> <record> <key>"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_zone.go:950
+#: lxc/network_zone.go:955
 #, fuzzy
 msgid "[<remote>:]<zone> <record> <key>=<value>..."
 msgstr "Creazione del container in corso"
 
-#: lxc/network_zone.go:1238 lxc/network_zone.go:1284
+#: lxc/network_zone.go:1243 lxc/network_zone.go:1289
 #, fuzzy
 msgid "[<remote>:]<zone> <record> <type> <value>"
 msgstr "Creazione del container in corso"
 
-#: lxc/network_zone.go:868
+#: lxc/network_zone.go:873
 #, fuzzy
 msgid "[<remote>:]<zone> <record> [key=value...]"
 msgstr "Creazione del container in corso"
@@ -7904,6 +7904,14 @@ msgid ""
 "lxc network load-balancer create n1 127.0.0.1 < config.yaml\n"
 "    Create network load-balancer for network n1 with configuration from "
 "config.yaml"
+msgstr ""
+
+#: lxc/network_zone.go:273
+msgid ""
+"lxc network zone create z1\n"
+"\n"
+"lxc network zone create z1 < config.yaml\n"
+"    Create network zone z1 with configuration from config.yaml"
 msgstr ""
 
 #: lxc/operation.go:195
