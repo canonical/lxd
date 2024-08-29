@@ -723,6 +723,9 @@ func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op
 	operation := req.Source.Operation
 
 	// Forward targetOp to remote op
+	chConnect := make(chan error, 1)
+	chWait := make(chan error, 1)
+
 	go func() {
 		success := false
 		var errors []remoteOperationResult
@@ -762,13 +765,35 @@ func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op
 			break
 		}
 
-		if !success {
-			rop.err = remoteOperationError("Failed instance creation", errors)
+		if success {
+			chConnect <- nil
+			close(chConnect)
+		} else {
+			chConnect <- remoteOperationError("Failed instance creation", errors)
+			close(chConnect)
+
 			if op != nil {
 				_ = op.Cancel()
 			}
 		}
+	}()
 
+	if op != nil {
+		go func() {
+			chWait <- op.Wait()
+			close(chWait)
+		}()
+	}
+
+	go func() {
+		var err error
+
+		select {
+		case err = <-chConnect:
+		case err = <-chWait:
+		}
+
+		rop.err = err
 		close(rop.chDone)
 	}()
 
@@ -953,7 +978,12 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 
 		targetSecrets := map[string]string{}
 		for k, v := range opAPI.Metadata {
-			targetSecrets[k] = v.(string)
+			vStr, ok := v.(string)
+			if !ok {
+				continue
+			}
+
+			targetSecrets[k] = vStr
 		}
 
 		// Prepare the source request
@@ -981,7 +1011,12 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 
 	sourceSecrets := map[string]string{}
 	for k, v := range opAPI.Metadata {
-		sourceSecrets[k] = v.(string)
+		vStr, ok := v.(string)
+		if !ok {
+			continue
+		}
+
+		sourceSecrets[k] = vStr
 	}
 
 	// Relay mode migration
@@ -1001,7 +1036,12 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 		// Extract the websockets
 		targetSecrets := map[string]string{}
 		for k, v := range targetOpAPI.Metadata {
-			targetSecrets[k] = v.(string)
+			vStr, ok := v.(string)
+			if !ok {
+				continue
+			}
+
+			targetSecrets[k] = vStr
 		}
 
 		// Launch the relay
@@ -1243,9 +1283,16 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 
 	value, ok := opAPI.Metadata["fds"]
 	if ok {
-		values := value.(map[string]any)
-		for k, v := range values {
-			fds[k] = v.(string)
+		values, ok := value.(map[string]any)
+		if ok {
+			for k, v := range values {
+				vStr, ok := v.(string)
+				if !ok {
+					continue
+				}
+
+				fds[k] = vStr
+			}
 		}
 	}
 
@@ -1260,7 +1307,12 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 		outputs, ok := opAPI.Metadata["output"].(map[string]any)
 		if ok {
 			for k, v := range outputs {
-				outputFiles[k] = v.(string)
+				vStr, ok := v.(string)
+				if !ok {
+					continue
+				}
+
+				outputFiles[k] = vStr
 			}
 		}
 
@@ -1992,7 +2044,12 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 
 		targetSecrets := map[string]string{}
 		for k, v := range opAPI.Metadata {
-			targetSecrets[k] = v.(string)
+			vStr, ok := v.(string)
+			if !ok {
+				continue
+			}
+
+			targetSecrets[k] = vStr
 		}
 
 		// Prepare the source request
@@ -2020,7 +2077,12 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 
 	sourceSecrets := map[string]string{}
 	for k, v := range opAPI.Metadata {
-		sourceSecrets[k] = v.(string)
+		vStr, ok := v.(string)
+		if !ok {
+			continue
+		}
+
+		sourceSecrets[k] = vStr
 	}
 
 	// Relay mode migration
@@ -2040,7 +2102,12 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 		// Extract the websockets
 		targetSecrets := map[string]string{}
 		for k, v := range targetOpAPI.Metadata {
-			targetSecrets[k] = v.(string)
+			vStr, ok := v.(string)
+			if !ok {
+				continue
+			}
+
+			targetSecrets[k] = vStr
 		}
 
 		// Launch the relay
@@ -2596,9 +2663,16 @@ func (r *ProtocolLXD) ConsoleInstance(instanceName string, console api.InstanceC
 
 	value, ok := opAPI.Metadata["fds"]
 	if ok {
-		values := value.(map[string]any)
-		for k, v := range values {
-			fds[k] = v.(string)
+		values, ok := value.(map[string]any)
+		if ok {
+			for k, v := range values {
+				vStr, ok := v.(string)
+				if !ok {
+					continue
+				}
+
+				fds[k] = vStr
+			}
 		}
 	}
 
@@ -2688,9 +2762,16 @@ func (r *ProtocolLXD) ConsoleInstanceDynamic(instanceName string, console api.In
 
 	value, ok := opAPI.Metadata["fds"]
 	if ok {
-		values := value.(map[string]any)
-		for k, v := range values {
-			fds[k] = v.(string)
+		values, ok := value.(map[string]any)
+		if ok {
+			for k, v := range values {
+				vStr, ok := v.(string)
+				if !ok {
+					continue
+				}
+
+				fds[k] = vStr
+			}
 		}
 	}
 
