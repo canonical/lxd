@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/fsmonitor"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -42,6 +43,10 @@ func (d *fanotify) Name() string {
 func (d *fanotify) load(ctx context.Context) error {
 	if fanotifyLoaded {
 		return nil
+	}
+
+	if !filesystem.IsMountPoint(d.prefixPath) {
+		return errors.New("Path needs to be a mountpoint")
 	}
 
 	var err error
