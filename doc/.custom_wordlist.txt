@@ -69,6 +69,7 @@ endian
 EOL
 ES
 ESA
+ESM
 ETag
 failover
 firmware
