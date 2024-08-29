@@ -10,6 +10,7 @@ import (
 
 	in "k8s.io/utils/inotify"
 
+	"github.com/canonical/lxd/lxd/fsmonitor"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -79,12 +80,12 @@ func (d *inotify) getEvents(ctx context.Context) {
 
 				// Check whether there's a watch on the directory.
 				d.mu.Lock()
-				var action Event
+				var action fsmonitor.Event
 
 				if isCreate {
-					action = Add
+					action = fsmonitor.Add
 				} else {
-					action = Remove
+					action = fsmonitor.Remove
 				}
 
 				for path := range d.watches {
@@ -113,11 +114,11 @@ func (d *inotify) getEvents(ctx context.Context) {
 
 			// Check whether there's a watch on a specific file or directory.
 			d.mu.Lock()
-			var action Event
+			var action fsmonitor.Event
 			if isCreate {
-				action = Add
+				action = fsmonitor.Add
 			} else {
-				action = Remove
+				action = fsmonitor.Remove
 			}
 
 			for path := range d.watches {

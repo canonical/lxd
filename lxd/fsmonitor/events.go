@@ -1,4 +1,4 @@
-package drivers
+package fsmonitor
 
 // Event is a numeric code identifying the event.
 type Event int
