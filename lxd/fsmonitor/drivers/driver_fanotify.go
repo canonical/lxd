@@ -36,7 +36,8 @@ type fanotifyEventInfoFid struct {
 	FSID uint64
 }
 
-func (d *fanotify) Name() string {
+// DriverName returns the name of the driver.
+func (d *fanotify) DriverName() string {
 	return "fanotify"
 }
 
