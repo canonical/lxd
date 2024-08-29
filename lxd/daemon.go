@@ -45,6 +45,7 @@ import (
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/firewall"
 	"github.com/canonical/lxd/lxd/fsmonitor"
+	fsmonitorDrivers "github.com/canonical/lxd/lxd/fsmonitor/drivers"
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance"
@@ -1666,7 +1667,7 @@ func (d *Daemon) init() error {
 
 		logger.Info("Starting device monitor")
 
-		d.devmonitor, err = fsmonitor.New(d.State().ShutdownCtx, prefixPath)
+		d.devmonitor, err = fsmonitorDrivers.Load(d.State().ShutdownCtx, prefixPath, fsmonitor.EventAdd, fsmonitor.EventRemove)
 		if err != nil {
 			return err
 		}
