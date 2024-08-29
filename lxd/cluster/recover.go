@@ -21,6 +21,8 @@ import (
 // RecoveryTarballName is the filename used for recovery tarballs.
 const RecoveryTarballName = "lxd_recovery_db.tar.gz"
 
+const errPatchExists = "Custom patches should not be applied during recovery"
+
 // ListDatabaseNodes returns a list of database node names.
 func ListDatabaseNodes(database *db.Node) ([]string, error) {
 	nodes := []db.RaftNode{}
@@ -156,7 +158,13 @@ func writeGlobalNodesPatch(database *db.Node, nodes []db.RaftNode) error {
 	defer reverter.Fail()
 
 	filePath := filepath.Join(database.Dir(), "patch.global.sql")
-	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+
+	_, err := os.Stat(filePath)
+	if err == nil {
+		return fmt.Errorf("Found %s: %s", filePath, errPatchExists)
+	}
+
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
@@ -195,6 +203,12 @@ func Reconfigure(database *db.Node, raftNodes []db.RaftNode) (string, error) {
 		if raftNode.ID == info.ID {
 			localAddress = raftNode.Address
 		}
+	}
+
+	patchPath := path.Join(database.Dir(), "patch.global.sql")
+	_, err = os.Stat(patchPath)
+	if err == nil {
+		return "", fmt.Errorf("Found %s: %s", patchPath, errPatchExists)
 	}
 
 	// Update cluster.https_address if changed.
