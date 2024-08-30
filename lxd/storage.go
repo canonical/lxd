@@ -180,7 +180,7 @@ func storagePoolDriversCacheUpdate(s *state.State) {
 	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
-		drivers, err = tx.GetStoragePoolDrivers(ctx)
+		drivers, err = tx.GetStorageDrivers(ctx)
 
 		return err
 	})
