@@ -587,9 +587,9 @@ func (c *ClusterTx) storagePools(ctx context.Context, where string, args ...any)
 	return pools, nil
 }
 
-// GetStoragePoolDrivers returns the names of all storage drivers currently
+// GetStorageDrivers returns the names of all storage drivers currently
 // being used by at least one storage pool.
-func (c *ClusterTx) GetStoragePoolDrivers(ctx context.Context) ([]string, error) {
+func (c *ClusterTx) GetStorageDrivers(ctx context.Context) ([]string, error) {
 	var poolDriver string
 	query := "SELECT DISTINCT driver FROM storage_pools"
 	inargs := []any{}
