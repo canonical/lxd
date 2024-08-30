@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -151,7 +152,7 @@ func (c *cmdClusterList) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !cluster.Enabled {
-		return fmt.Errorf(i18n.G("LXD server isn't part of a cluster"))
+		return errors.New(i18n.G("LXD server isn't part of a cluster"))
 	}
 
 	// Get the cluster members
@@ -496,7 +497,7 @@ Are you really sure you want to force removing %s? (yes/no): `), name)
 	input = strings.TrimSuffix(input, "\n")
 
 	if !shared.StringInSlice(strings.ToLower(input), []string{i18n.G("yes")}) {
-		return fmt.Errorf(i18n.G("User aborted delete operation"))
+		return errors.New(i18n.G("User aborted delete operation"))
 	}
 
 	return nil
@@ -592,7 +593,7 @@ func (c *cmdClusterEnable) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if server.Config["core.https_address"] == "" {
-		return fmt.Errorf(i18n.G("This LXD server is not available on the network"))
+		return errors.New(i18n.G("This LXD server is not available on the network"))
 	}
 
 	// Check if already enabled
@@ -602,7 +603,7 @@ func (c *cmdClusterEnable) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if currentCluster.Enabled {
-		return fmt.Errorf(i18n.G("This LXD server is already clustered"))
+		return errors.New(i18n.G("This LXD server is already clustered"))
 	}
 
 	// Enable clustering.
@@ -666,7 +667,7 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing cluster member name"))
+		return errors.New(i18n.G("Missing cluster member name"))
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -773,7 +774,7 @@ func (c *cmdClusterAdd) Run(cmd *cobra.Command, args []string) error {
 
 	// Determine the machine name.
 	if resource.name != "" && c.flagName != "" && resource.name != c.flagName {
-		return fmt.Errorf(i18n.G("Cluster member name was provided as both a flag and as an argument"))
+		return errors.New(i18n.G("Cluster member name was provided as both a flag and as an argument"))
 	}
 
 	if resource.name == "" {
@@ -859,7 +860,7 @@ func (c *cmdClusterListTokens) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !cluster.Enabled {
-		return fmt.Errorf(i18n.G("LXD server isn't part of a cluster"))
+		return errors.New(i18n.G("LXD server isn't part of a cluster"))
 	}
 
 	// Get the cluster member join tokens. Use default project as join tokens are created in default project.
@@ -953,7 +954,7 @@ func (c *cmdClusterRevokeToken) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !cluster.Enabled {
-		return fmt.Errorf(i18n.G("LXD server isn't part of a cluster"))
+		return errors.New(i18n.G("LXD server isn't part of a cluster"))
 	}
 
 	// Get the cluster member join tokens. Use default project as join tokens are created in default project.
@@ -1044,7 +1045,7 @@ func (c *cmdClusterUpdateCertificate) Run(cmd *cobra.Command, args []string) err
 	}
 
 	if !cluster.Enabled {
-		return fmt.Errorf(i18n.G("LXD server isn't part of a cluster"))
+		return errors.New(i18n.G("LXD server isn't part of a cluster"))
 	}
 
 	if !shared.PathExists(certFile) {
@@ -1162,7 +1163,7 @@ func (c *cmdClusterEvacuateAction) Run(cmd *cobra.Command, args []string) error 
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing cluster member name"))
+		return errors.New(i18n.G("Missing cluster member name"))
 	}
 
 	if !c.flagForce {
