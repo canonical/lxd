@@ -1271,12 +1271,12 @@ func (c *cmdStorageBucketExport) Run(cmd *cobra.Command, args []string) error {
 
 	pool := resources[0]
 	if pool.name == "" {
-		return fmt.Errorf(i18n.G("Missing pool name"))
+		return errors.New(i18n.G("Missing pool name"))
 	}
 
 	bucketName := args[1]
 	if bucketName == "" {
-		return fmt.Errorf(i18n.G("Missing bucket name"))
+		return errors.New(i18n.G("Missing bucket name"))
 	}
 
 	client := pool.server
