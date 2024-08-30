@@ -3,6 +3,7 @@ package device
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -404,7 +405,7 @@ func (d *proxy) checkProcStarted(logPath string) (bool, error) {
 		}
 
 		if strings.HasPrefix(line, "Error:") {
-			return false, fmt.Errorf("%s", line)
+			return false, errors.New(line)
 		}
 	}
 
