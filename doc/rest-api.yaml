@@ -6419,6 +6419,11 @@ definitions:
     StorageVolumeSnapshotsPost:
         description: StorageVolumeSnapshotsPost represents the fields available for a new LXD storage volume snapshot
         properties:
+            description:
+                description: Description of the storage volume snapshot
+                example: My custom snapshot
+                type: string
+                x-go-name: Description
             expires_at:
                 description: When the snapshot expires (gets auto-deleted)
                 example: "2021-03-23T17:38:37.753398689-04:00"
